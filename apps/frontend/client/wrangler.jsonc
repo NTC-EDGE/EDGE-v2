@@ -1,8 +1,0 @@
-{
-  "name": "appv1",
-  "pages_build_output_dir": "dist",
-  "vars": {
-    "NODE_ENV": "production",
-    "EXPO_PUBLIC_APP_ENV": "production"
-  }
-}

@@ -1,46 +1,75 @@
-import 'react-native-gesture-handler';
-import React from 'react';
+import { createStaticNavigation } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
-import { Provider } from 'react-redux';
-import { PersistGate } from 'redux-persist/integration/react';
-import { store, persistor } from 'src/services/store';
-import Navigation from 'src/navigations';
-import { useFonts} from '@expo-google-fonts/poppins';
-import { MenuProvider } from 'react-native-popup-menu';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { HelmetProvider } from 'react-helmet-async';
+import { StyleSheet, Text, View, Button } from 'react-native';
 
-import AppPromoBanner from '@components/AppPromotionModal';
-import Constants from "expo-constants";
-
- export default function App() {
-  const [fontsLoaded] = useFonts({
-    PoppinsRegular: require('./assets/fonts/Poppins-Regular.ttf'),
-    PoppinsMedium: require('./assets/fonts/Poppins-Medium.ttf'),
-    PoppinsSemiBold: require('./assets/fonts/Poppins-SemiBold.ttf'),
-    Poppins_400Regular: require('./assets/fonts/Poppins-Regular.ttf'),
-    Poppins_500Medium: require('./assets/fonts/Poppins-Medium.ttf'),
-    Poppins_600SemiBold: require('./assets/fonts/Poppins-SemiBold.ttf'),
-
-  });
-
- if (!fontsLoaded) return null;
-
+function HomeScreen({ navigation }: any) {
   return (
-    <HelmetProvider>
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <Provider store={store}>
-          <PersistGate loading={null} persistor={persistor}>
-            <HelmetProvider>
-              <MenuProvider>
-                <Navigation />
-              </MenuProvider>
-              <AppPromoBanner />
-              <StatusBar />
-            </HelmetProvider>
-          </PersistGate>
-        </Provider>
-      </GestureHandlerRootView>
-    </HelmetProvider>
+    <View style={styles.container}>
+      <Text style={styles.title}>NTC-EDGE External Client</Text>
+      <Text style={styles.subtitle}>Powered by Expo SDK 57 & React Navigation 8</Text>
+      <Button
+        title="View Application Details"
+        onPress={() => navigation.navigate('Details')}
+      />
+      <StatusBar style="auto" />
+    </View>
   );
 }
+
+function DetailsScreen({ navigation }: any) {
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>Application Details</Text>
+      <Text style={styles.subtitle}>Tracking Status: Draft</Text>
+      <Button
+        title="Go Back Home"
+        onPress={() => navigation.goBack()}
+      />
+      <StatusBar style="auto" />
+    </View>
+  );
+}
+
+// React Navigation 8 Static configuration
+const RootStack = createNativeStackNavigator({
+  initialRouteName: 'Home',
+  screens: {
+    Home: {
+      screen: HomeScreen,
+      options: { title: 'Welcome Portal' },
+    },
+    Details: {
+      screen: DetailsScreen,
+      options: { title: 'App Details' },
+    },
+  },
+});
+
+const Navigation = createStaticNavigation(RootStack);
+
+export default function App() {
+  return <Navigation />;
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#031A6E', // Blue theme matching app config
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#ffffff',
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: '#8b9bb4',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+});

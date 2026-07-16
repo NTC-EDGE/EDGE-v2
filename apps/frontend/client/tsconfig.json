@@ -1,25 +1,6 @@
 {
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
-    "strict": true,
-    "baseUrl": ".",
-    "paths": {
-      "@assets/*": ["./assets/*"],
-      "@styles/*": ["./src/styles/*"],
-      "@utils/*": ["./src/utils/*"],
-      "@components/*": ["./src/components/*"],
-      "@atoms/*": ["./src/components/atoms/*"],
-      "@molecules/*": ["./src/components/molecules/*"],
-      "@organisms/*": ["./src/components/organisms/*"],
-      "@templates/*": ["./src/components/templates/*"],
-      "@pages/*": ["./src/components/pages/*"],
-      "@screens/*": ["./src/screens/*"],
-      "@reducers/*": ["./src/redux/reducers/*"],
-      "@sagas/*": ["./src/redux/sagas/*"],
-      "@hooks/*": ["./src/hooks/*"],
-      "@config/*": ["./config/*"],
-      "@services/*": ["./src/services/*"]
-    }
-  },
-  "exclude": ["__tests__/**/*-test.ts"]
+    "strict": true
+  }
 }

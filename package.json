@@ -12,6 +12,11 @@
     "client:android": "bun --filter ntc-edge-app android",
     "client:ios": "bun --filter ntc-edge-app ios",
     "client:web": "bun --filter ntc-edge-app web",
-    "client:build:web": "bun --filter ntc-edge-app build:web"
+    "client:build:web": "bun --filter ntc-edge-app build:web",
+    "internal:start": "bun --filter ntc-edge-internal start",
+    "internal:android": "bun --filter ntc-edge-internal android",
+    "internal:ios": "bun --filter ntc-edge-internal ios",
+    "internal:web": "bun --filter ntc-edge-internal web",
+    "internal:build:web": "bun --filter ntc-edge-internal build:web"
   }
 }
