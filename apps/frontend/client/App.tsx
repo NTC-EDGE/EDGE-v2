@@ -5,24 +5,85 @@ import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View, Button, TextInput, TouchableOpacity } from 'react-native';
 import { ClerkProvider, SignedIn, SignedOut, useAuth, useSignIn, useSignUp } from '@clerk/clerk-expo';
 import { tokenCache } from './tokenCache';
+import { apiClient } from '@edge/api';
 
-const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
+const getClerkKey = (): string => {
+  const key = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
+  if (typeof key === 'string' && key.length > 0) {
+    return key;
+  }
+  return '';
+};
 
-if (!publishableKey) {
+const publishableKey = getClerkKey();
+
+if (publishableKey.length === 0) {
   console.warn('Missing EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY environment variable. Clerk will not initialize properly.');
 }
 
+interface ApplicationResponse {
+  id: string;
+  title: string;
+  applicantName: string;
+  status: string;
+  createdAt: string;
+}
+
 function HomeScreen({ navigation }: any) {
-  const { signOut } = useAuth();
+  const { signOut, getToken } = useAuth();
+  const [submitting, setSubmitting] = useState(false);
+  const [statusMessage, setStatusMessage] = useState('');
+
+  const submitApplication = async () => {
+    setSubmitting(true);
+    setStatusMessage('');
+    try {
+      const token = await getToken();
+      const headers = token !== null ? { Authorization: `Bearer ${token}` } : {};
+      const response = await apiClient.post<ApplicationResponse>(
+        '/api/applications',
+        {
+          title: 'External Client Request',
+          applicantName: 'External Client Portal'
+        },
+        { headers }
+      );
+      setStatusMessage(`Successfully submitted: ${response.data.title}`);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setStatusMessage(`Error: ${err.message}`);
+      } else {
+        setStatusMessage('Error: Unknown server error occurred.');
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>NTC-EDGE External Client</Text>
       <Text style={styles.subtitle}>Powered by Expo SDK 57 & React Navigation 8</Text>
+      
       <Button
         title="View Application Details"
         onPress={() => navigation.navigate('Details')}
       />
-      <View style={{ marginTop: 20, width: '100%' }}>
+
+      <View style={{ marginTop: 15, width: '100%' }}>
+        <Button
+          title={submitting ? "Submitting Application..." : "Submit Test Application to BE"}
+          onPress={submitApplication}
+          disabled={submitting}
+          color="#2e7d32"
+        />
+      </View>
+
+      {statusMessage.length > 0 ? (
+        <Text style={styles.statusText}>{statusMessage}</Text>
+      ) : null}
+
+      <View style={{ marginTop: 25, width: '100%' }}>
         <Button
           title="Sign Out"
           onPress={() => signOut()}
@@ -66,7 +127,9 @@ function AuthScreen() {
         identifier: email,
         password,
       });
-      await setActive?.({ session: completeSignIn.createdSessionId });
+      if (setActive !== undefined) {
+        await setActive({ session: completeSignIn.createdSessionId });
+      }
     } catch (err: any) {
       setError(err.errors?.[0]?.message || 'Sign in failed');
     } finally {
@@ -84,7 +147,9 @@ function AuthScreen() {
         password,
       });
       if (completeSignUp.status === 'complete') {
-        await setActive?.({ session: completeSignUp.createdSessionId });
+        if (setActive !== undefined) {
+          await setActive({ session: completeSignUp.createdSessionId });
+        }
       } else {
         setError('Verification is required. Please check your Clerk setup.');
       }
@@ -117,7 +182,7 @@ function AuthScreen() {
         style={styles.input}
       />
 
-      {error ? <Text style={styles.errorText}>{error}</Text> : null}
+      {error.length > 0 ? <Text style={styles.errorText}>{error}</Text> : null}
 
       <TouchableOpacity 
         style={styles.authButton} 
@@ -219,5 +284,12 @@ const styles = StyleSheet.create({
     color: '#8b9bb4',
     fontSize: 14,
     textDecorationLine: 'underline',
+  },
+  statusText: {
+    color: '#a5d6a7',
+    marginTop: 12,
+    fontSize: 14,
+    textAlign: 'center',
+    fontWeight: 'bold',
   },
 });
