@@ -1,0 +1,17 @@
+{
+  "name": "ntc-edge-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/frontend/*",
+    "apps/backend/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "client:start": "bun --filter ntc-edge-app start",
+    "client:android": "bun --filter ntc-edge-app android",
+    "client:ios": "bun --filter ntc-edge-app ios",
+    "client:web": "bun --filter ntc-edge-app web",
+    "client:build:web": "bun --filter ntc-edge-app build:web"
+  }
+}

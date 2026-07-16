@@ -1,0 +1,52 @@
+[
+  {
+    "id": "9d7f6fab-28d8-4aae-a5c8-75ddcabf8afe",
+    "venue": "Regular Radio Operators' Examination (Cebu City)",
+    "isSet": false,
+    "region": {
+      "_id": null,
+      "address": "Regional Office VII Cor. M. Logarta & Lopez Jaena Sts., Subangdaku, Mandaue City, Cebu",
+      "label": "Region VII - Central Visayas",
+      "value": "VII",
+      "code": "VII",
+      "configuration": null
+    },
+    "slots": 0,
+    "dateStart": "2025-09-20T00:00:00Z",
+    "dateEnd": "2025-09-20T01:30:00Z",
+    "applicationStartDate": null,
+    "applicationEndDate": null,
+    "createdAt": "2025-07-11T08:00:09.9419562+00:00",
+    "updatedAt": "2025-07-18T01:03:54.822114+00:00",
+    "_etag": "\"0700257f-0000-1800-0000-68c142f20000\"",
+    "_rid": "TXdzAIDeScsDAAAAAAAAAA==",
+    "_self": "dbs/TXdzAA==/colls/TXdzAIDeScs=/docs/TXdzAIDeScsDAAAAAAAAAA==/",
+    "_attachments": "attachments/",
+    "_ts": 1757496050
+  },
+  {
+    "id": "84e9a541-f475-41b6-96a6-bbb269d0eef9",
+    "venue": "Special RROC - Aircraft Examination (Cebu)",
+    "isSet": false,
+    "region": {
+      "_id": null,
+      "address": null,
+      "label": "Region VII - Central Visayas",
+      "value": "VII",
+      "code": "VII",
+      "configuration": null
+    },
+    "slots": 0,
+    "dateStart": "2025-09-13T01:30:00Z",
+    "dateEnd": "2025-09-13T01:30:00Z",
+    "applicationStartDate": "2025-09-13T04:00:00Z",
+    "applicationEndDate": "2025-09-13T04:00:00Z",
+    "createdAt": "2025-08-09T11:06:39.0818008+00:00",
+    "updatedAt": "2025-08-09T11:06:39.0819524+00:00",
+    "_etag": "\"0c0042bd-0000-1800-0000-68c288390000\"",
+    "_rid": "TXdzAIDeScsIAAAAAAAAAA==",
+    "_self": "dbs/TXdzAA==/colls/TXdzAIDeScs=/docs/TXdzAIDeScsIAAAAAAAAAA==/",
+    "_attachments": "attachments/",
+    "_ts": 1757579321
+  }
+]

@@ -1,0 +1,2626 @@
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useDispatch, useSelector, RootStateOrAny } from 'react-redux';
+import { useNavigation } from '@react-navigation/core';
+import {Alert, BackHandler, LogBox, Platform, Text, TouchableOpacity, View} from 'react-native';
+import moment from 'moment';
+import TermsAndConditions from '@organisms/terms-and-conditions';
+import ApplicationSteps from '@templates/application-steps';
+import Submitted from '@pages/application-steps/submitted';
+
+import GeneratingApplication from '@templates/application-steps/generating-application'; // step 0
+import About from '@templates/application-steps/about'; // step 1
+import Region from '@templates/application-steps/region'; // step 2
+import Types from '@templates/application-steps/types'; // step 3
+import ServicesForm from '@organisms/forms/services'; // step 4
+import Requirements from '@templates/application-steps/requirements'; // step 5
+import Preview from '@templates/application-steps/preview'; // step 6
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { debounce, cloneDeep } from 'lodash';
+import NTCServicesConfig from 'src/ntc-services-config';
+import {transformToFeePayload, NTCServices as NTCServicesList, regionList, GUEST_USER, region_list} from '@utils/ntc';
+import {
+    validateDate,
+    validateEmail,
+    validateIMEI,
+    validateNumber, validatePassword,
+    validatePhone,
+    validateText, validateYear,
+    validateZipCode
+} from '@utils/form-validations';
+
+import {
+    setApplicationCart,
+    saveApplication,
+    setSaveApplicationSuccess,
+    setSaveApplicationError,
+    uploadRequirement,
+    fetchRegions,
+    fetchSchedules,
+    fetchCities,
+    fetchProvinces,
+    fetchSOA,
+    setFetchSOASuccess,
+    setFetchSOAError, setButtonText, setApplicationProcess
+} from '@reducers/application/actions';
+import { logoutUser, setCreatedAt} from '@reducers/user/actions';
+import {setApplicationItem, setSelectedService, setSelectedServiceKey} from '@reducers/service/actions';
+import { compareApplication, extractDate, generateForm, isMobile, JSONfn } from '@utils/formatting';
+import useOneSignal from '@hooks/useOneSignal';
+import { resetCredentials } from '@hooks/useBiometrics';
+import useGuest from '@hooks/useGuest';
+import {changeCreatedAt} from "@config/api";
+import {createIssue} from "@sagas/requests/application";
+import {addBulkApplication, setBulkApplication, setSplit} from "@reducers/theme/actions";
+
+const currentYear = moment()?.get('year')?.toString();
+
+const ApplicationNav =  ({route}: any) => {
+    LogBox.ignoreAllLogs();
+    const navigation = useNavigation();
+    const dispatch = useDispatch();
+    const DRAFT_KEY = 'APPLICATION_DRAFT';
+
+    /**
+     * logout
+     */
+    const biometricsLogin = useSelector(state => state?.user?.biometrics);
+
+    const [enableBiometrics, setEnableBiometrics] = useState(false);
+    useEffect(() => {
+        if (biometricsLogin) setEnableBiometrics(true);
+        else setEnableBiometrics(false);
+    }, [biometricsLogin]);
+    const { destroy } = useOneSignal();
+    const onLogout = () => {
+        if (!enableBiometrics) resetCredentials();
+        setTimeout(() => {
+            navigation.dispatch((state: RootStateOrAny) => {
+                navigation.reset({
+                    index: 0,
+                    routes: [{ name: 'Login', params: {loggedOut: true} }],
+                });
+            });
+        }, 500);
+        setTimeout(() => {
+            dispatch(logoutUser());
+            destroy();
+        }, 1000);
+    };
+
+    const user = useSelector((state: RootStateOrAny) => state?.user?.session);
+    const split = useSelector((state: RootStateOrAny) => state?.theme?.split);
+    const bulkApplications = useSelector((state: RootStateOrAny) => state?.theme?.bulkApplications);
+    const bulkApplication = useSelector((state: RootStateOrAny) => state?.theme?.bulkApplication);
+    const [bulkApplicationReview, setBulkApplicationReview] = useState(false);
+
+    const app = async() => {
+        if(bulkApplication.form){
+            const {
+                form: f,
+                applicationCart: ac,
+                currentStep: cs,
+                region: r,
+                schedule: s,
+                applicationType: at,
+                examineeType: et,
+                entityType: ent,
+                alternateRequirements: ar,
+                useDifferentAddress: uda,
+            } = bulkApplication;
+
+            setForm(f);
+            dispatch(setApplicationCart(ac));
+            setRegion(r);
+            setSchedule(s);
+            setApplicationType(at);
+            setExamineeType(et);
+            setEntityType(ent);
+            setAlternateRequirements(ar);
+            setUseDifferentAddress(uda);
+            if(bulkApplication.action == "review"){
+                setCurrentStep(5)
+                setBulkApplicationReview(true)
+            }else{
+                setCurrentStep(2)
+                setBulkApplicationReview(false)
+            }
+
+
+        }
+
+    }
+    useEffect(() => {
+        app()
+    }, [bulkApplication])
+    const isGuest = useGuest();
+    const stateApplication = useSelector((state: RootStateOrAny) => state?.application) || {};
+
+    const applicationProcess =  stateApplication?.applicationProcess;
+
+    const savedApplication = route?.params?.application ;
+    const editApplication = route?.params?.edit;
+    const renewApplication = route?.params?.renew;
+    const FOR_EDITING = editApplication || renewApplication;
+    const AT = renewApplication && !!savedApplication?.renew?.applicationType ? savedApplication?.renew?.applicationType : (savedApplication?.service?.applicationType || {});
+    const [formGenerated, setFormGenerated] = useState( savedApplication ?  true: false);
+    const [formApplicationProcess, setFormApplicationProcess] = useState( {});
+
+    const {
+        list,
+        applicationCart,
+        saveApplicationSuccess,
+        saveApplicationError,
+        savingApplication,
+        uploadingRequirement,
+        uploadRequirementError,
+
+        regions,
+        fetchingRegions,
+        schedules,
+        fetchingSchedules,
+        provinces,
+        fetchingProvinces,
+        cities,
+        fetchingCities,
+        fetchSOASuccess,
+        fetchSOAError,
+        fetchingSOA,
+        soa,
+    } = stateApplication;
+
+
+
+
+
+
+
+    const onSaveApplicationSuccess = () => {
+        try{
+            async function f() {
+                const existing = await AsyncStorage.getItem("DRAFT_NAME");
+                if(existing){
+                    AsyncStorage.removeItem(existing);
+                }
+            }
+            f()
+
+        }catch (e) {
+
+        }
+
+        let applicant = list?.[0]?.applicant || {};
+        let applicantFn = (_a: any) => {
+            Object?.keys(_a).forEach((k) => (!_a[k] || k === '_id' || k === 'userId' || k === 'contactNumber' || k === 'email') && delete _a[k]);
+            return _a;
+        };
+        applicant = applicantFn(applicant);
+        let newUser = {
+            ...user,
+            ...applicant,
+            applicant: {
+                ...user?.applicant,
+                ...applicant,
+            },
+        };
+        setCompleted(true);
+        // dispatch(setUser(newUser));
+
+    }
+
+
+    useEffect(() => {
+        if (saveApplicationSuccess) {
+            onSaveApplicationSuccess()
+        }
+    }, [saveApplicationSuccess]);
+
+    useEffect(() => {
+        if (saveApplicationError) {
+            setAgree(false);
+            setReviewed(false);
+            setCompleted(false);
+        }
+    }, [saveApplicationError]);
+
+    const getNTCServices = ({
+                                kind = '', // 'service' or 'type'
+                                key = '', // module
+                                name = '', // service
+                            }) => {
+        let _module = NTCServicesList?.find(mod => { return mod?.key === key; });
+        if (kind === 'service') {
+            let _serviceItems = [];
+            _module?.data?.forEach((service: any) => {
+                if (service?.serviceCode !== 'service-21') { // ctc
+                    _serviceItems?.push({
+                        label: service?.name,
+                        value: service?.name,
+                    });
+                }
+            });
+            return _serviceItems;
+        }
+        else if (kind === 'type') {
+            let _service = _module?.data?.find(ser => ser?.name === name);
+            let _typeItems = [];
+            _service?.applicationTypes?.forEach(type => {
+                _typeItems?.push({
+                    label: type?.label,
+                    value: type?.label,
+                });
+            });
+            return _typeItems;
+        }
+    };
+
+
+    /**step1: none */
+
+    /**step2 */
+    const [open, setOpen] = useState(true);
+    const [region, setRegion] = useState({});
+
+    const [applicationProcessTypes, setApplicationProcessTypes] = useState(
+        [
+            {
+                label: "Single Application",
+                value: "single-application",
+            },
+            {
+                label: "Bulk Application",
+                value: "bulk-application",
+            }
+
+        ]
+    )
+
+    const [schedule, setSchedule] = useState({});
+    useEffect(() => {
+        if (!!region?.value) {
+            let r = {regionCode: region?.value};
+            if (service?.serviceCode === 'service-1') dispatch(fetchSchedules(r));
+            dispatch(fetchProvinces(r));
+
+            if (FOR_EDITING && !formFilledIn) {
+                if (!AT.element) AT.element = savedApplication?.service?.applicationType?.element;
+                handleChangeApplicationType(AT);
+            }
+        }
+    }, [region]);
+    useEffect(() => {
+        if (
+            FOR_EDITING &&
+            schedules?.length > 0 &&
+            Object?.keys(!!savedApplication?.schedule ? savedApplication?.schedule : {}).length > 0
+        ) {
+            setSchedule({
+                ...savedApplication?.schedule,
+                region,
+            });
+        }
+    }, [schedules]);
+
+    /**step3 */
+    const selectedService = useSelector((state: RootStateOrAny) => state?.service?.selectedService);
+    const [service, setService] = useState(FOR_EDITING ? savedApplication?.service : selectedService);
+    const [applicationType, setApplicationType] = useState(cloneDeep(applicationCart?.service?.applicationType || {})));
+
+    const [examineeType, setExamineeType] = useState(cloneDeep(applicationCart?.service?.examineeType || {})));
+    const [entityType, setEntityType] = useState(cloneDeep(applicationCart?.service?.entityTypes || service?.entityType?.entityType || {})));
+    const [renew, setRenew] = useState({});
+    const handleChangeApplicationType = (value: any) => {
+
+        //setFormApplicationProcess(applicationProcessType)
+        dispatch(setApplicationProcess(formApplicationProcess));
+        let { serviceCode, formCode, label, modificationDueTos } = value;
+        let newForm = cloneDeep(NTCServicesConfig({formCode, user, applicant: savedApplication?.applicant})) || [];
+        let isModify = label?.toLowerCase()?.match('modification') || label?.toLowerCase()?.match('modify');
+        let isRenewal = label?.toLowerCase()?.match('renewal') || label?.toLowerCase()?.match('renew');
+        let isNew = label?.toLowerCase()?.match('new') && !isRenewal;
+
+        let insert = (
+            id: string = '',
+            title: string = '',
+            alternativeTitle: string = '',
+            data: any = [],
+            type = '',
+        ) => {
+            let applicationTypeIndex = newForm?.findIndex((f: any) => f?.id === id);
+            if (applicationTypeIndex > -1) newForm[applicationTypeIndex].data?.splice(0, 0, data[0]);
+            else {
+                let toInsert = {
+                    id,
+                    title,
+                    alternativeTitle,
+                    data,
+                };
+                if (type === 'list') {
+                    toInsert = {
+                        ...toInsert,
+                        type,
+                        template: data?.[0] || {},
+                    };
+                }
+                newForm.splice(0, 0, toInsert);
+            }
+        };
+        let cert = formCode === 'ntc1-ctc-certificate' || formCode === 'ntc1-21-certificate';
+        let lice = formCode === 'ntc1-ctc-license' || formCode === 'ntc1-21-license';
+        let perm = formCode === 'ntc1-ctc-permit' || formCode === 'ntc1-21-permit';
+        if (cert || lice || perm) {
+            let items = getNTCServices({
+                kind: 'service',
+                key: cert ? 'certificates' : lice ? 'licenses' : perm ? 'permits' : '',
+            });
+            insert(
+                'details',
+                'Details',
+                'Details',
+                [{
+                    type: 'dropdown',
+                    items: [],
+                    id: 'type',
+                    label: 'Type',
+                    placeholder: 'Type',
+                    value: '',
+                    hasValidation: true,
+                    required: true,
+                    isValid: false,
+                    error: '',
+                    errorResponse: 'Please select a type',
+                }]
+            );
+            insert(
+                'details',
+                'Details',
+                'Details',
+                [{
+                    type: 'dropdown',
+                    items,
+                    id: 'service',
+                    label: 'Service',
+                    placeholder: 'Service',
+                    value: '',
+                    hasValidation: true,
+                    required: true,
+                    isValid: false,
+                    error: '',
+                    errorResponse: 'Please select a service',
+                    hasDependent: true,
+                }]
+            );
+        }
+
+        if (isRenewal || isModify) {
+            let _sname = service?.name?.toLowerCase();
+            let _kind = _sname?.match('certificate')
+                ? 'Certificate'
+                : _sname?.match('license')
+                    ? 'License'
+                    : _sname?.match('permit')
+                        ? 'Permit'
+                        : _sname?.match('accreditation')
+                            ? 'Accreditation'
+                            : 'Document';
+            let _key = _kind?.toLowerCase();
+            insert(
+                _key,
+                _kind,
+                _kind,
+                [{
+                    type: 'date',
+                    id: 'dateOfExpiry',
+                    label: 'Date of Expiry',
+                    value: [
+                        {
+                            id: 'year',
+                            value: currentYear,
+                            isValid: true,
+                        },
+                        {
+                            id: 'month',
+                            value: '',
+                            isValid: false,
+                        },
+                        {
+                            id: 'day',
+                            value: '',
+                            isValid: false,
+                        },
+                    ],
+                    required: true,
+                }]
+            );
+            insert(
+                _key,
+                _kind,
+                _kind,
+                [{
+                    id: `${_key}Number`,
+                    label: `${_kind} No.`,
+                    placeholder: `${_kind} No.`,
+                    value: '',
+                    hasValidation: true,
+                    required: true,
+                    isValid: false,
+                    error: '',
+                    errorResponse: `Please enter ${_key} no.`,
+                }]
+            );
+        }
+
+        if (formCode === 'ntc1-19') {
+            // insert(
+            //   'applicationDetails',
+            //   value?.label,
+            //   'Details',
+            //   [
+            //     [
+            //       {
+            //         type: 'dropdown',
+            //         items: [
+            //           {label: 'Wireless Data Network (WDN) Devices - Indoor', value: 'Wireless Data Network (WDN) Devices - Indoor'},
+            //           {label: 'Short Range Devices (SRD)', value: 'Short Range Devices (SRD)'},
+            //           {
+            //             label: 'Radio Frequency Identification (RFID) Devices',
+            //             value: 'Radio Frequency Identification (RFID) Devices',
+            //             hasSpecification: true,
+            //             specification: {
+            //               type: 'dropdown',
+            //               items: [
+            //                 {label: 'Low Power', value: 'Low Power'},
+            //                 {label: 'High Power', value: 'High Power'}
+            //               ],
+            //               id: 'for-typeOfEquipmentDevice',
+            //               label: 'Power',
+            //               placeholder: 'Power',
+            //               value: '',
+            //               hasValidation: true,
+            //               required: true,
+            //               isValid: false,
+            //               error: '',
+            //               errorResponse: 'Please select power',
+            //               specification: true,
+            //             }
+            //           },
+            //           {label: 'Short Range Radio Service (SRRS) Devices', value: 'Short Range Radio Service (SRRS) Devices'},
+            //           {label: 'Public Trunked Radio Equipment (Mobile/Portable)', value: 'Public Trunked Radio Equipment (Mobile/Portable)'},
+            //         ],
+            //         id: 'typeOfEquipmentDevice',
+            //         label: 'Type of Equipment/Device',
+            //         placeholder: 'Type of Equipment/Device',
+            //         value: '',
+            //         hasValidation: true,
+            //         required: false,
+            //         isValid: true,
+            //         error: '',
+            //         errorResponse: 'Please select type of equipment/device',
+            //       },
+            //     ]
+            //   ],
+            //   'list',
+            // );
+            // if (
+            //   label?.toLowerCase()?.match('dealer') &&
+            //   !label?.toLowerCase()?.match('non-dealer')
+            // ) {
+            //   insert(
+            //     'credentials',
+            //     'Credentials',
+            //     'Credentials',
+            //     [{
+            //       id: 'cpcnPaRslNumber',
+            //       label: 'CPCN/PA/RSL No.',
+            //       placeholder: 'CPCN/PA/RSL No.',
+            //       value: '',
+            //       hasValidation: true,
+            //       required: true,
+            //       isValid: false,
+            //       error: '',
+            //       errorResponse: 'Please enter CPCN/PA/RSL no.',
+            //     }]
+            //   );
+            // }
+            /*else*/ if (label?.toLowerCase()?.match('non-dealer')) {
+                insert(
+                    'credentials',
+                    'Credentials',
+                    'Credentials',
+                    [{
+                        id: 'invoiceNumber',
+                        label: 'Invoice No.',
+                        placeholder: 'Invoice No.',
+                        value: '',
+                        hasValidation: true,
+                        required: true,
+                        isValid: false,
+                        error: '',
+                        errorResponse: 'Please enter invoice no.',
+                    }]
+                );
+            }
+        }
+
+        if (
+            formCode === 'ntc1-18' &&
+            serviceCode === 'CPE'
+        ) {
+            insert(
+                'applicationDetails',
+                value?.label,
+                'Details',
+                [{
+                    type: 'dropdown',
+                    items: [
+                        {
+                            value: 'Mobile',
+                            label: 'Mobile',
+                        },
+                        {
+                            value: 'Non-Mobile',
+                            label: 'Non-Mobile',
+                        },
+                    ],
+                    id: 'variation',
+                    label: 'Variation',
+                    placeholder: 'Variation',
+                    value: '',
+                    hasValidation: true,
+                    required: true,
+                    isValid: false,
+                    error: '',
+                    errorResponse: 'Please select variation',
+                }]
+            );
+        }
+
+        if (
+            formCode === 'ntc1-18' &&
+            applicationCart?.serviceCode === 'service-14' &&
+            label?.toLowerCase()?.match('dealer')
+        ) {
+            insert(
+                'applicationDetails',
+                value?.label,
+                'Details',
+                [{
+                    type: 'dropdown',
+                    items: [
+                        {
+                            value: 'Radio Transmitter/Transceiver',
+                            label: 'Radio Transmitter/Transceiver',
+                        },
+                        {
+                            value: 'WDN Indoor/SRD/RFID',
+                            label: 'WDN Indoor/SRD/RFID',
+                        },
+                    ],
+                    id: 'type',
+                    label: 'Type',
+                    placeholder: 'Type',
+                    value: '',
+                    hasValidation: true,
+                    required: true,
+                    isValid: false,
+                    error: '',
+                    errorResponse: 'Please select type',
+                }]
+            );
+        }
+
+        if (
+            formCode === 'ntc1-18' &&
+            service?.serviceCode === 'service-15' &&
+            label?.toLowerCase()?.match('dealer')
+        ) {
+            insert(
+                'applicationDetails',
+                value?.label,
+                'Details',
+                [{
+                    type: 'dropdown',
+                    items: [
+                        {
+                            value: 'Main',
+                            label: 'Main',
+                        },
+                        {
+                            value: 'Branch',
+                            label: 'Branch',
+                        },
+                    ],
+                    id: 'variation',
+                    label: 'Variation',
+                    placeholder: 'Variation',
+                    value: '',
+                    hasValidation: true,
+                    required: true,
+                    isValid: false,
+                    error: '',
+                    errorResponse: 'Please select variation',
+                }]
+            );
+        }
+
+        if (formCode === 'ntc1-16') {
+            insert(
+                'applicationDetails',
+                value?.label,
+                'Details',
+                [{
+                    id: 'placeOfOrigin',
+                    label: 'Place of Origin',
+                    placeholder: 'Place of Origin',
+                    value: '',
+                    hasValidation: true,
+                    required: true,
+                    isValid: false,
+                    error: '',
+                    errorResponse: 'Please select place of origin',
+                }]
+            );
+            insert(
+                'applicationDetails',
+                value?.label,
+                'Details',
+                [{
+                    id: 'destination',
+                    label: 'Destination',
+                    placeholder: 'Destination',
+                    value: '',
+                    hasValidation: true,
+                    required: true,
+                    isValid: false,
+                    error: '',
+                    errorResponse: 'Please enter destination',
+                }]
+            );
+            insert(
+                'applicationDetails',
+                value?.label,
+                'Details',
+                [{
+                    id: 'purpose',
+                    label: 'Purpose',
+                    placeholder: 'Purpose',
+                    value: '',
+                    hasValidation: true,
+                    required: true,
+                    isValid: false,
+                    error: '',
+                    errorResponse: 'Please enter purpose',
+                }]
+            );
+        }
+
+        if (
+            label?.toLowerCase()?.match('call sign') &&
+            formCode?.match('ntc1-03')
+        ) {
+            insert(
+                'applicationDetails',
+                value?.label,
+                'Details',
+                [{
+                    id: 'preferredCallSign',
+                    label: 'Preferred Call Sign/s',
+                    placeholder: 'Preferred Call Sign/s',
+                    value: '',
+                    hasValidation: true,
+                    isValid: false,
+                    error: '',
+                    errorResponse: 'Please enter preferred call sign',
+                }]
+            );
+        }
+
+        if (
+            label?.toLowerCase()?.match('club')
+        ) {
+            insert(
+                'applicationDetails',
+                value?.label,
+                'Details',
+                [{
+                    id: 'clubTrusteeName',
+                    label: 'Name of Club Trustee',
+                    placeholder: 'Name of Club Trustee',
+                    value: user?.applicantName || '',
+                    hasValidation: true,
+                    required: true,
+                    isValid: !!user?.applicantName,
+                    error: '',
+                    errorResponse: 'Please enter name of club',
+                }]
+            );
+            insert(
+                'applicationDetails',
+                value?.label,
+                'Details',
+                [{
+                    id: 'clubName',
+                    label: 'Name of Club',
+                    placeholder: 'Name of Club',
+                    value: user?.applicant?.companyName || '',
+                    hasValidation: true,
+                    required: true,
+                    isValid: !!user?.applicant?.companyName,
+                    error: '',
+                    errorResponse: 'Please enter name of club',
+                }]
+            );
+        }
+
+        if (isModify) {
+            insert(
+                'applicationDetails',
+                value?.label,
+                'Details',
+                [{
+                    type: 'dropdown',
+                    items: modificationDueTos || [],
+                    id: 'modificationDueTo',
+                    label: 'Modification due to',
+                    placeholder: 'Modification due to',
+                    value: '',
+                    hasValidation: true,
+                    required: true,
+                    isValid: false,
+                    error: '',
+                    errorResponse: 'Please select modification reason',
+                }]
+            );
+        }
+
+        if (
+            (
+                formCode?.match('ntc1-02') ||
+                formCode?.match('ntc1-03') ||
+                formCode?.match('ntc1-04') ||
+                formCode?.match('ntc1-11') ||
+                formCode?.match('ntc1-18') ||
+                formCode?.match('ntc1-20') ||
+                formCode?.match('ntc1-22')
+            ) &&
+            !isModify
+        ) {
+            let _items = [{label: '1', value: '1'}];
+            if (serviceCode?.toLowerCase()?.match('rlm')) {
+                _items = [
+                    {label: '1', value: '1'},
+                    {label: '2', value: '2'},
+                    {label: '3', value: '3'},
+                    {label: '4', value: '4'},
+                    {label: '5', value: '5'}
+                ];
+            }
+            else if (serviceCode?.toLowerCase()?.match('purchase')) {
+                _items = [{label: '60 days', value: '60 days'}];
+            }
+            else if (isRenewal || isNew) {
+                _items?.push({label: '2', value: '2'});
+                _items?.push({label: '3', value: '3'});
+            }
+            insert(
+                'applicationDetails',
+                value?.label,
+                'Details',
+                [
+                    {
+                        type: 'dropdown',
+                        items: _items,
+                        id: 'noOfYears',
+                        label: 'No. of years',
+                        placeholder: 'No. of years',
+                        value: '',
+                        hasValidation: true,
+                        required: true,
+                        isValid: false,
+                        error: '',
+                        errorResponse: 'Please select no. of years',
+                        validate: validateNumber,
+                    },
+                ]
+            );
+        }
+
+        if (isNew) {
+            /**not dynamic, for callSign only */
+
+            let newCallSign = {
+                value: 'To be assigned by NTC',
+                editable: false,
+                required: false,
+            };
+
+            let callSignIndex = newForm?.findIndex(s => s?.id === 'callSign');
+            if (callSignIndex > -1) {
+                let _callSignIndex = newForm[callSignIndex]?.data?.findIndex(s => s?.id === 'callSign');
+                if (_callSignIndex > -1) {
+                    newForm[callSignIndex].data[_callSignIndex] = {
+                        ...newForm?.[callSignIndex]?.data?.[_callSignIndex],
+                        ...newCallSign,
+                    };
+                }
+            };
+
+            let particularsIndex = newForm?.findIndex(s => s?.id === 'particulars');
+            if (particularsIndex > -1) {
+                let equipmentsIndex = newForm?.[particularsIndex]?.template?.findIndex(s => s?.id === 'equipments' || s?.id === 'proposedEquipments');
+                if (equipmentsIndex > -1) {
+                    let _callSignIndex = newForm?.[particularsIndex]?.template?.[equipmentsIndex]?.template?.findIndex(s => s?.id === 'callSign');
+                    if (_callSignIndex > -1) {
+                        let oldCallSign = cloneDeep(newForm?.[particularsIndex]?.template?.[equipmentsIndex]?.template?.[_callSignIndex] || {}));
+                        let newCSObj = {...oldCallSign, ...newCallSign};
+                        if (newForm?.[particularsIndex]?.template?.[equipmentsIndex]?.template?.[_callSignIndex]) newForm[particularsIndex].template[equipmentsIndex].template[_callSignIndex] = newCSObj;
+                        if (newForm?.[particularsIndex]?.template?.[equipmentsIndex]?.data?.[0]?.[_callSignIndex]) newForm[particularsIndex].template[equipmentsIndex].data[0][_callSignIndex] = newCSObj;
+                        if (newForm?.[particularsIndex]?.data?.[0]?.[equipmentsIndex]?.template?.[_callSignIndex]) newForm[particularsIndex].data[0][equipmentsIndex].template[_callSignIndex] = newCSObj;
+                        if (newForm?.[particularsIndex]?.data?.[0]?.[equipmentsIndex]?.data?.[0]?.[_callSignIndex]) newForm[particularsIndex].data[0][equipmentsIndex].data[0][_callSignIndex] = newCSObj;
+                    }
+                }
+            }
+
+        }
+
+        let __add = newForm?.findIndex(f => f?.id === 'address');
+        if (__add > -1) setOrigAdd(newForm[__add]);
+
+        /**for service renewal */
+        if (isNew || isModify) {
+            let renewLabel = label?.replace(`(${isNew ? 'NEW' : 'MODIFICATION'})`, '(RENEWAL)');
+            let renewAT = service?.applicationTypes?.find((i: any) => renewLabel.indexOf(i?.label) > -1);
+            if (renewAT) setRenew({...renew, applicationType: renewAT});
+        }
+        if (renewApplication) setRenew({...renew, renewedFrom: savedApplication?._id});
+
+        if (isGuest) {
+            let basicIndex = newForm?.findIndex((i: any) => i?.id === 'basic');
+            let insertId = () => {
+                insert(
+                    'basic',
+                    'Basic Info',
+                    'Basic Info',
+                    [{
+                        id: 'userId',
+                        value: user?._id,
+                        required: true,
+                        isValid: true,
+                        error: '',
+                        hidden: true,
+                    }]
+                );
+            };
+            let insertCompanyName = () => {
+                insert(
+                    'basic',
+                    'Basic Info',
+                    'Basic Info',
+                    [{
+                        id: 'companyName',
+                        label: 'Applicant',
+                        placeholder: 'Applicant',
+                        value: '',
+                        hasValidation: true,
+                        required: true,
+                        isValid: false,
+                        error: '',
+                        errorResponse: 'Please enter applicant',
+                    }]
+                );
+            };
+            if (basicIndex > -1) {
+                let companyNameIndex = newForm[basicIndex]?.data?.findIndex((i: any) => i?.id === 'companyName');
+                let lastNameIndex = newForm[basicIndex]?.data?.findIndex((i: any) => i?.id === 'lastName');
+                let idIndex = newForm[basicIndex]?.data?.findIndex((i: any) => i?.id === 'userId');
+                if (companyNameIndex < 0 && lastNameIndex < 0) insertCompanyName();
+                if (idIndex < 0) insertId();
+            }
+            else insertCompanyName();
+        }
+        if(value){
+            setApplicationType(value);
+        }
+
+        setForm(newForm);
+
+    };
+    const handleChangeElement = (value: any) => {
+        if(value){
+            setApplicationType({
+                ...applicationType,
+                element: value,
+            });
+        }
+
+    };
+
+    const handleChangeExamineeType = (value: any) => {
+        setExamineeType(value);
+
+
+    };
+    const handleChangeEntityType = (value: any) => {
+        setEntityType(value);
+
+
+    };
+
+
+    /**step4 */
+    const [form, setForm] = useState([]);
+
+    const [formFilledIn, setFormFilledIn] = useState(false);
+    const [useDifferentAddress, setUseDifferentAddress] = useState(false);
+    const [udaAlert, setUDAAlert] = useState({
+        title: 'Use Different Address',
+        message: 'Using a different address will not affect the original.',
+        active: false,
+        alerted: false,
+        onConfirm: () => {
+            setUDAAlert({
+                ...udaAlert,
+                active: false,
+                alerted: true,
+            });
+        }
+    });
+    const [logoutAlert, setLogoutAlert] = useState({
+        title: 'Session Expired',
+        message: 'It seems like you have been out for quite some time now. You will be redirected to the login page.',
+        active: false,
+        alerted: false,
+        onConfirm: () => {
+            setLogoutAlert({
+                ...logoutAlert,
+                active: false,
+                alerted: true,
+            });
+            setTimeout(() => {
+                onLogout();
+            }, 300)
+        }
+    });
+    const [origAdd, setOrigAdd] = useState({});
+    const [key, setKey] = useState(0);
+
+    const saveDraft = useMemo(() =>
+            debounce(async (draft) => {
+                if(applicationProcess?.value == "single-application"){
+                    try {
+                        var service = `${DRAFT_KEY}_${draft?.examineeType?.key}_${draft?.applicationType?.element}_${draft?.applicationType?.formCode}_${draft?.applicationType?.label}_${draft?.applicationType?.sequenceCode}_${draft?.applicationType?.serviceCode}_${draft?.region?.code}`;
+                        const existing = await AsyncStorage.getItem(service);
+
+                        if( bulkApplications?.length == 0 && draft?.currentStep >= 3 && !FOR_EDITING){
+                            if(key == 0 && existing && JSON.parse(existing)?.form?.length > 0){
+                                setKey(1)
+                                const {
+                                    form: f,
+                                    applicationCart: ac,
+                                    currentStep: cs,
+                                    region: r,
+                                    schedule: s,
+                                    applicationType: at,
+                                    examineeType: et,
+                                    entityType: ent,
+                                    alternateRequirements: ar,
+                                    useDifferentAddress: uda,
+                                } = JSON.parse(existing);
+                                setForm(f);
+                                dispatch(setApplicationCart(ac));
+                                setRegion(r);
+                                setSchedule(s);
+                                setApplicationType(at);
+                                setExamineeType(et);
+                                setEntityType(ent);
+                                setAlternateRequirements(ar);
+                                setUseDifferentAddress(uda);
+                                await AsyncStorage.setItem(service,  existing);
+                            }
+                            else{
+                                await AsyncStorage.setItem(service, JSON.stringify(draft));
+                                await AsyncStorage.setItem("DRAFT_NAME", service);
+                                await AsyncStorage.setItem("IS_SAVE", "1");
+                            }
+                        }
+
+
+
+
+                    } catch (err) {
+                        console.warn('Failed to save draft', err);
+                    }
+                }
+
+            }, 500)
+        , [form]);
+
+    const onUseDifferentAddress = () => setUseDifferentAddress(!useDifferentAddress);
+    const _onAdd = ({
+                        parentId, // main parent id from the form
+                        template,
+                        setParentId,
+                        setParentIndex,
+                    }: any) => {
+        let _form = cloneDeep(form || []));
+        let parentIndex = _form?.findIndex((f: any) => f?.id === parentId);
+        if (parentIndex > -1) {
+            if (setParentId) { // has a set
+                let setIndex = _form[parentIndex]?.data?.[setParentIndex]?.findIndex((f: any) => f?.id === setParentId);
+                if (setIndex > -1) _form[parentIndex]?.data?.[setParentIndex]?.[setIndex]?.data?.push(template);
+            }
+            else _form[parentIndex]?.data?.push(template);
+            setForm(_form);
+        }
+    };
+    const _onRemove = ({
+                           parentId,
+                           index,
+                           setParentId,
+                           setParentIndex,
+                       }: any) => {
+        let _form = [...form];
+        let parentIndex = _form?.findIndex((f: any) => f?.id === parentId);
+        if (parentIndex > -1) {
+            if (setParentId) { // has a set
+                let setIndex = _form[parentIndex]?.data?.[setParentIndex]?.findIndex((f: any) => f?.id === setParentId);
+                if (setIndex > -1) _form[parentIndex]?.data?.[setParentIndex]?.[setIndex]?.data?.splice(index, 1);
+            }
+            else _form[parentIndex]?.data?.splice(index, 1);
+            setForm(_form);
+        }
+    };
+
+
+    const validateField = (validate, value) => {
+        const validateName = validate?.name;
+
+        if (validateName === "validateNumber") {
+            return validateNumber(value);
+        } else if (validateName === "validateEmail") {
+            return validateEmail(value);
+        } else if (validateName === "validatePhone") {
+            return validatePhone(value);
+        } else if (validateName === "validateZipCode") {
+            return validateZipCode(value);
+        }else if (validateName === "validateIMEI") {
+            return validateIMEI(value);
+        }else if (validateName === "validateDate") {
+            return validateDate(value);
+        }else if (validateName === "validateYear") {
+            return validateYear(value);
+        } else if (validateName === "validatePassword") {
+            return validatePassword(value);
+        }else if (validateName === "validateText") {
+            return validateText(value);
+        } else {
+            return validate(value);
+        }
+    }
+
+
+
+    const onFormUpdate = ({
+                              parentId, // main parent ex.basic-info
+                              id, // child id ex.firstName, lastName
+                              subId, // grandchild id ex.year,month,date (for fields like date with sub-data)
+                              value, // could be string (textinput), object (type:dropdown, value.value), array (type:date, value.$.id:year,month,date)
+                              type, // field type ex.dropdown,date
+                              validate,
+                              errorResponse,
+                              index, // for type list only
+                              hasDependent,
+                              option, // if field is a specification of an item in options
+                              subParentId, // for options field; parent
+                              subIndex, // for options field; parent
+                              setParentId, // set that has a set
+                              setIndex, // index of the set (inside the set)
+                              required,
+                              keyboardType,
+                          }: any) => {
+        if (value?.requirements) setAlternateRequirements(value?.requirements);
+
+        if (keyboardType === 'decimal-pad') {
+            if(typeof value === 'string' || typeof value === 'number'){
+                if (value?.match(/\./g)) {
+                    let [, decimal] = value.split('.');
+                    if (decimal?.length > 4) return; // restrict value to only 2 decimal places
+                }
+            }
+
+        }
+        if (value?.keyboardType === 'decimal-pad') {
+            if(value?.value){
+                if (value?.value?.match(/\./g)) {
+                    let [, decimal] = value?.value?.split('.');
+                    if (decimal?.length > 4) return; // restrict value to only 2 decimal places
+                }
+            }
+
+        }
+
+        let hasSpecification = value?.hasSpecification && type !== 'option';
+        let specificationValidate = value?.validate;
+        let specificationKT = value?.keyboardType;
+        let { specification, specificationLabel, addSection, section } = value || {};
+
+        let parentIndex = form?.findIndex((p: any) => p?.id === parentId);
+
+        if (parentIndex > -1) {
+            let isParentList = form?.[parentIndex]?.type === 'list'; // for sections with multiple (array) values
+
+            let childIndex = isParentList
+                ? form?.[parentIndex]?.data?.[index]?.findIndex((c: any) => c?.id === (subParentId || (setParentId || id)))
+                : form?.[parentIndex]?.data?.findIndex((c: any) => c?.id === (subParentId || id));
+
+            if (childIndex > -1) {
+
+                let newForm = cloneDeep(form || []));
+                let preservedValue = value?.value;
+
+                if (
+                    typeof(value) === 'object' &&
+                    type !== 'time' &&
+                    !!value
+                ) {
+                    value =
+                        id === 'region' ||
+                        id === 'province' ||
+                        id === 'city' ||
+                        id === 'barangay'
+                            ? value?.label
+                            : value?.value;
+                    if (typeof(value) === 'object') value = value?.value;
+                }
+
+                let isValid = type === 'time'
+                    ? true
+                    : (!required && !value)
+                        ? true
+                        : typeof validate === 'function' && !!value
+                            ? validateField(validate, value)
+                            : validateText(value);
+                let _typeItems = [];
+                let isFieldService = id === 'service' && hasDependent;
+                if (isFieldService) {
+                    let _lVal = value?.toLowerCase();
+                    let _key = _lVal?.match('certificate')
+                        ? 'certificates'
+                        : _lVal?.match('license')
+                            ? 'licenses'
+                            : _lVal?.match('permit')
+                                ? 'permits'
+                                : '';
+                    _typeItems = getNTCServices({
+                        kind: 'type',
+                        key: _key,
+                        name: value,
+                    });
+                }
+
+                if (!!subId) { // add set conditions here
+
+                    let grandchildIndex = isParentList
+                        ? newForm?.[parentIndex]?.data?.[index]?.[childIndex]?.value?.findIndex((gc: any) => gc?.id === subId)
+                        : newForm?.[parentIndex]?.data?.[childIndex]?.value?.findIndex((gc: any) => gc?.id === subId);
+
+                    if (grandchildIndex > -1) {
+
+                        if (type === 'date') {
+                            let getFigure = (d: any) => (`0${d}`).slice(subId === 'year' ? -4 : -2);
+                            value = getFigure(value);
+                        }
+
+                        // any updates here should also reflect below (else)
+                        if (isParentList) {
+                            let __obj = newForm[parentIndex].data[index][childIndex].value[grandchildIndex];
+                            if (type === 'option') {
+                                let _ndx = __obj?.items?.findIndex((i: any) => i?.value === value);
+                                if (_ndx > -1) __obj.items[_ndx].selected = !__obj?.items[_ndx].selected;
+                            }
+                            if (option && subIndex) {
+                                __obj.items[subIndex][`${id}`] = {
+                                    ...__obj.items[subIndex][`${id}`],
+                                    value,
+                                    isValid,
+                                    error: isValid ? '' : errorResponse,
+                                };
+                            }
+                            newForm[parentIndex].data[index][childIndex].value[grandchildIndex] = {
+                                ...__obj,
+                                value,
+                                isValid,
+                                error: isValid ? '' : errorResponse,
+                            };
+                            if (isFieldService) {
+                                newForm[parentIndex].data[index][childIndex].value[grandchildIndex + 1] = {
+                                    ...newForm[parentIndex].data[index][childIndex].value[grandchildIndex + 1],
+                                    items: _typeItems,
+                                    value: '',
+                                };
+                            }
+                        }
+                        else {
+                            let __obj = newForm[parentIndex].data[childIndex].value[grandchildIndex];
+                            if (type === 'option') {
+                                let _ndx = __obj?.items?.findIndex((i: any) => i?.value === value);
+                                if (_ndx > -1) __obj.items[_ndx].selected = !__obj?.items[_ndx].selected;
+                            }
+                            if (option && subIndex) {
+                                __obj.items[subIndex][`${id}`] = {
+                                    ...__obj.items[subIndex][`${id}`],
+                                    value,
+                                    isValid,
+                                    error: isValid ? '' : errorResponse,
+                                };
+                            }
+                            newForm[parentIndex].data[childIndex].value[grandchildIndex] = {
+                                ...__obj,
+                                value,
+                                isValid,
+                                error: isValid ? '' : errorResponse,
+                            }
+                            if (isFieldService) {
+                                newForm[parentIndex].data[childIndex].value[grandchildIndex + 1] = {
+                                    ...newForm[parentIndex].data[childIndex].value[grandchildIndex + 1],
+                                    items: _typeItems,
+                                    value: '',
+                                };
+                            }
+                        }
+
+                    }
+
+                }
+                else {
+
+                    // else here; any updates here should also reflect above
+                    if (isParentList) {
+                        let _mother = [...newForm[parentIndex].data[index]];
+                        let _child = {..._mother[childIndex]};
+                        if (!!setParentId) { // if set has a set
+                            let _setParentIndex = _mother?.findIndex(d => d?.id === setParentId);
+                            if (_setParentIndex > -1) {
+                                let _set = setIndex > -1 // if set is multiple
+                                    ? _mother?.[_setParentIndex]?.data?.[setIndex]
+                                    : _mother?.[_setParentIndex]?.data;
+                                let _childSetIndex = _set?.findIndex(c => c?.id === id);
+                                if (_childSetIndex > -1) { // whatever changes here, should also reflect below (on else (if not !!setParentId))
+                                    let _child = _set[_childSetIndex];
+                                    if (type === 'option') {
+                                        let _ndx = _child?.items?.findIndex((i: any) => i?.value === value);
+                                        if (_ndx > -1) _child.items[_ndx].selected = !_child?.items[_ndx].selected;
+                                    }
+                                    if (option && subIndex) {
+                                        _child.items[subIndex][`${id}`] = {
+                                            ..._child.items[subIndex][`${id}`],
+                                            value,
+                                            isValid,
+                                            error: isValid ? '' : errorResponse,
+                                        };
+                                    }
+                                    _child = {
+                                        ..._child,
+                                        value,
+                                        isValid,
+                                        error: isValid ? '' : errorResponse,
+                                        hasSpecification,
+                                    };
+                                    _set[_childSetIndex] = _child;
+                                    if (isFieldService) {
+                                        _set[_childSetIndex + 1] = {
+                                            ..._set[_childSetIndex + 1],
+                                            items: _typeItems,
+                                            value: '',
+                                        };
+                                    }
+                                    if (setIndex > -1) _mother[_setParentIndex].data[setIndex] = _set;
+                                    else _mother[_setParentIndex].data = _set;
+                                }
+                            }
+                        }
+                        else { // reflect changes here (if not !!setParentId)
+                            if (type === 'option') {
+                                let _ndx = _child?.items?.findIndex((i: any) => i?.value === value);
+                                if (_ndx > -1) _child.items[_ndx].selected = !_child?.items[_ndx].selected;
+                            }
+                            if (option && subIndex) {
+                                _child.items[subIndex][`${id}`] = {
+                                    ..._child.items[subIndex][`${id}`],
+                                    value,
+                                    isValid,
+                                    error: isValid ? '' : errorResponse,
+                                };
+                            }
+                            _child = {
+                                ..._child,
+                                value,
+                                isValid,
+                                error: isValid ? '' : errorResponse,
+                                hasSpecification,
+                            };
+                            _mother[childIndex] = _child;
+                            if (isFieldService) {
+                                _mother[childIndex + 1] = {
+                                    ..._mother[childIndex + 1],
+                                    items: _typeItems,
+                                    value: '',
+                                };
+                            }
+                        }
+                        newForm[parentIndex].data[index] = _mother;
+                    }
+                    else {
+                        let __obj = newForm[parentIndex].data[childIndex];
+                        if (type === 'option') {
+                            let _ndx = __obj?.items?.findIndex((i: any) => i?.value === value);
+                            if (_ndx > -1) __obj.items[_ndx].selected = !__obj?.items[_ndx].selected;
+                        }
+                        if (option && subIndex) {
+                            __obj.items[subIndex][`${id}`] = {
+                                ...__obj.items[subIndex][`${id}`],
+                                value,
+                                isValid,
+                                error: isValid ? '' : errorResponse,
+                            };
+                        }
+                        newForm[parentIndex].data[childIndex] = {
+                            ...__obj,
+                            value,
+                            isValid,
+                            error: isValid ? '' : errorResponse,
+                            hasSpecification,
+                        };
+                        if (isFieldService) {
+                            newForm[parentIndex].data[childIndex + 1] = {
+                                ...newForm[parentIndex].data[childIndex + 1],
+                                items: _typeItems,
+                                value: '',
+                            };
+                        }
+                    }
+
+                }
+
+                /** if has specification */
+                /** example is selecting 'Others' from dropdown and you need to specify something thru a textinput */
+                let forID = `for-${id}`;
+                let forTextInput = (isParentList ? newForm[parentIndex].data[index] : newForm[parentIndex].data).findIndex((f: any) => f?.id === forID) > -1;
+                let forVPN = (isParentList ? newForm[parentIndex].data[index] : newForm[parentIndex].data).findIndex((f: any) => f?.id === 'vehiclePlateNo') > -1;
+                if (hasSpecification) { /** ANY CHANGES HERE SHOULD ALSO REFLECT TO src/utils/formatting; hasSpecification block */
+                let _specify = specification || {
+                        id: forID,
+                        label: specificationLabel || 'Please specify',
+                        placeholder: specificationLabel || 'Please specify',
+                        value: '',
+                        hasValidation: true,
+                        required: true,
+                        isValid: false,
+                        error: '',
+                        errorResponse: `Please enter a valid ${(specificationLabel || 'specification')?.toLowerCase()}`,
+                        validate: specificationValidate || validateText,
+                        keyboardType: specificationKT || 'default',
+                        specification: true,
+                    };
+                    if (isParentList) {
+                        if (!forTextInput) { /**no specification field yet */
+                        newForm[parentIndex].data[index].splice(childIndex + 1, 0, _specify); /**regular adding of specification field */
+                        }
+                        else if (forTextInput) {
+                            let __newForm = cloneDeep(newForm || []));
+                            __newForm[parentIndex].data[index].splice(childIndex + 1, 1, _specify); /**regular replacing of specification field */
+                            newForm = cloneDeep(__newForm || []));
+                        }
+                    }
+                    else {
+                        if (!forTextInput) { /**no specification field yet */
+                        newForm[parentIndex].data.splice(childIndex + 1, 0, _specify); /**regular adding of VPN field */
+                        }
+                        else if (forTextInput) {
+                            let __newForm = cloneDeep(newForm || []));
+                            __newForm[parentIndex].data.splice(childIndex + 1, 1, _specify); /**regular replacing of VPN field */
+                            newForm = cloneDeep(__newForm || []));
+                        }
+                    }
+                }
+                else if (
+                    !hasSpecification &&
+                    forTextInput
+                ) {
+                    if (isParentList) newForm[parentIndex].data[index].splice(childIndex + 1, 1);
+                    else newForm[parentIndex].data.splice(childIndex + 1, 1);
+                }
+
+                /** specifically for ML stationclass only */
+                let _specifyML = {
+                    id: 'vehiclePlateNo',
+                    label: 'Plate No.',
+                    placeholder: 'Plate No.',
+                    value: '',
+                    hasValidation: true,
+                    required: true,
+                    isValid: false,
+                    error: '',
+                    errorResponse: 'Please enter plate no.',
+                };
+                let __i = hasSpecification ? 2 : 1;
+                if (id === 'stationClass') {
+                    if (isParentList) {
+                        if (value === 'ML' && !forVPN) { /**ML is selected and there is no Vehicle Plate No. (VPN) field yet */
+                        newForm[parentIndex].data[index].splice(childIndex + __i, 0, _specifyML); /**adding of VPN field  */
+                        }
+                        else if (value !== 'ML' && forVPN) { /**ML is not selected and there is a VPN field */
+                        newForm[parentIndex].data[index].splice(childIndex + __i, 1); /**removing of VPN field */
+                        }
+                    }
+                    else {
+                        if (value === 'ML' && !forVPN) { /**ML is selected and there is no Vehicle Plate No. (VPN) field yet */
+                        newForm[parentIndex].data.splice(childIndex + __i, 0, _specifyML); /**adding of VPN field  */
+                        }
+                        else if (value !== 'ML' && forVPN) { /**ML is not selected and there is a VPN field */
+                        newForm[parentIndex].data.splice(childIndex + __i, 1); /**removing of VPN field */
+                        }
+                    }
+                }
+
+                let sectionId = `section-${id}`;
+                let sectionTextInput = (isParentList ? newForm[parentIndex].data[index] : newForm[parentIndex].data).findIndex((f: any) => f?.id === sectionId) > -1;
+                if (addSection && section) {
+                    let _ndx = newForm?.findIndex(f => f?.id === section?.id);
+                    let _del = _ndx > -1 ? 1 : 0;
+                    section.sectionId = sectionId;
+                    newForm?.splice(parentIndex + 1, _del, section);
+                }
+                else if (!addSection && sectionTextInput) {
+                    if (isParentList) newForm[parentIndex].data[index].splice(childIndex + 1, 1);
+                    else newForm[parentIndex].data.splice(childIndex + 1, 1);
+                }
+
+                if (id === 'region') {
+                    dispatch(fetchProvinces({regionCode: preservedValue}));
+                    onFormUpdate({
+                        parentId, // main parent ex.basic-info
+                        id: 'province', // child id ex.firstName, lastName
+                        subId: '', // grandchild id ex.year,month,date (for fields like date with sub-data)
+                        value: '', // could be string (textinput), object (type:dropdown, value.value), array (type:date, value.$.id:year,month,date)
+                        type: 'dropdown', // field type ex.dropdown,date
+                        validate,
+                        errorResponse: 'Please select a province',
+                        index: -1,
+                    });
+                    onFormUpdate({
+                        parentId, // main parent ex.basic-info
+                        id: 'city', // child id ex.firstName, lastName
+                        subId: '', // grandchild id ex.year,month,date (for fields like date with sub-data)
+                        value: '', // could be string (textinput), object (type:dropdown, value.value), array (type:date, value.$.id:year,month,date)
+                        type: 'dropdown', // field type ex.dropdown,date
+                        validate,
+                        errorResponse: 'Please select a city',
+                        index: -1,
+                    });
+                }
+                else if (id === 'province') {
+                    dispatch(fetchCities({provinceCode: preservedValue}));
+                    onFormUpdate({
+                        parentId, // main parent ex.basic-info
+                        id: 'city', // child id ex.firstName, lastName
+                        subId: '', // grandchild id ex.year,month,date (for fields like date with sub-data)
+                        value: '', // could be string (textinput), object (type:dropdown, value.value), array (type:date, value.$.id:year,month,date)
+                        type: 'dropdown', // field type ex.dropdown,date
+                        validate,
+                        errorResponse: 'Please select a city',
+                        index: -1,
+                    });
+                }
+                // else if (id === 'city') {
+                //   dispatch(fetchBarangays({cityCode: preservedValue}));
+                //   onFormUpdate({
+                //     parentId, // main parent ex.basic-info
+                //     id: 'barangay', // child id ex.firstName, lastName
+                //     subId: '', // grandchild id ex.year,month,date (for fields like date with sub-data)
+                //     value: '', // could be string (textinput), object (type:dropdown, value.value), array (type:date, value.$.id:year,month,date)
+                //     type: 'dropdown', // field type ex.dropdown,date
+                //     validate,
+                //     errorResponse: 'Please select a barangay',
+                //     index: -1,
+                //   });
+                // }
+                setForm(newForm);
+            }
+
+        }
+
+    };
+    const getStructuredData = (form: any) => {
+        var structuredParent = {};
+        form?.forEach((parent: any) => {
+            var isParentList = parent?.type === 'list';
+            var structuredChild = isParentList ? [] : {};
+            if (parent?.type !== 'info') {
+                parent?.data?.forEach((child: any, index: number) => {
+                    if (isParentList) { // any changes here should also reflect on ELSE below
+                        var structuredSubChild = {};
+                        child.forEach((subChild: any) => {
+                            if (subChild?.isSet) {
+                                var structuredSetChild = subChild?.type === 'list' ? [] : {};
+                                subChild?.data?.forEach((setChild: any) => {
+                                    if (subChild?.type === 'list') { // multiple set
+                                        var structuredSubSetChild = {};
+                                        setChild?.forEach((subSetChild: any) => {
+                                            var value = subSetChild?.value;
+                                            var isDateIncomplete = () => { return value?.some((v: any) => !v?.isValid) };
+                                            if (subSetChild?.type === 'option') {
+                                                let _selected = subSetChild?.items?.filter((i: any) => i?.selected);
+                                                let _items = [];
+                                                _selected?.forEach((item: any) => {
+                                                    let __obj = { value: item?.value };
+                                                    if (item?.hasSpecification) {
+                                                        __obj = {
+                                                            ...__obj,
+                                                            [`${item?.specification?.id}`]: item?.specification?.value,
+                                                        };
+                                                    }
+                                                    _items?.push(__obj);
+                                                });
+                                                structuredSubSetChild = {
+                                                    ...structuredSubSetChild,
+                                                    [subSetChild?.id]: _items,
+                                                };
+                                            }
+                                            else {
+                                                if (typeof(value) === 'object' && !!value) {
+                                                    var structuredGrandchild = {};
+                                                    value.forEach((grandchild: any) => {
+                                                        structuredGrandchild = {
+                                                            ...structuredGrandchild,
+                                                            [grandchild?.id]: grandchild?.value,
+                                                        };
+                                                    });
+                                                    value = subSetChild?.type === 'date'
+                                                        ? isDateIncomplete()
+                                                            ? null
+                                                            : structuredGrandchild
+                                                        : structuredGrandchild;
+                                                }
+                                                if (subSetChild?.hasSpecification) value = `${value} • ${form?.find((f: any) => f?.id === parent?.id)?.data?.[index]?.find((f: any) => f?.id === `for-${subChild?.id}`)?.value}`;
+                                                if (!subSetChild?.specification) {
+                                                    structuredSubSetChild = {
+                                                        ...structuredSubSetChild,
+                                                        [subSetChild?.id]: value,
+                                                    };
+                                                }
+                                            }
+                                        });
+                                        structuredSetChild?.push(structuredSubSetChild);
+                                    }
+                                    else {
+                                        var value = setChild?.value;
+                                        var isDateIncomplete = () => { return value?.some((v: any) => !v?.isValid) };
+                                        if (setChild?.type === 'option') {
+                                            let _selected = setChild?.items?.filter((i: any) => i?.selected);
+                                            let _items = [];
+                                            _selected?.forEach((item: any) => {
+                                                let __obj = { value: item?.value };
+                                                if (item?.hasSpecification) {
+                                                    __obj = {
+                                                        ...__obj,
+                                                        [`${item?.specification?.id}`]: item?.specification?.value,
+                                                    };
+                                                }
+                                                _items?.push(__obj);
+                                            });
+                                            structuredSetChild = {
+                                                ...structuredSetChild,
+                                                [setChild?.id]: _items,
+                                            };
+                                        }
+                                        else {
+                                            if (typeof(value) === 'object' && !!value) {
+                                                var structuredGrandchild = {};
+                                                value.forEach((grandchild: any) => {
+                                                    structuredGrandchild = {
+                                                        ...structuredGrandchild,
+                                                        [grandchild?.id]: grandchild?.value,
+                                                    };
+                                                });
+                                                value = setChild?.type === 'date'
+                                                    ? isDateIncomplete()
+                                                        ? null
+                                                        : structuredGrandchild
+                                                    : structuredGrandchild;
+                                            }
+                                            if (setChild?.hasSpecification) value = `${value} • ${form?.find((f: any) => f?.id === parent?.id)?.data?.[index]?.find((f: any) => f?.id === `for-${subChild?.id}`)?.value}`;
+                                            if (!setChild?.specification) {
+                                                structuredSetChild = {
+                                                    ...structuredSetChild,
+                                                    [setChild?.id]: value,
+                                                };
+                                            }
+                                        }
+                                    }
+                                });
+                                structuredSubChild = {
+                                    ...structuredSubChild,
+                                    [subChild?.id]: structuredSetChild,
+                                };
+                            }
+                            else {
+                                var value = subChild?.value;
+                                var isDateIncomplete = () => { return value?.some((v: any) => !v?.isValid) };
+                                if (subChild?.type === 'option') {
+                                    let _selected = subChild?.items?.filter((i: any) => i?.selected);
+                                    let _items = [];
+                                    _selected?.forEach((item: any) => {
+                                        let __obj = { value: item?.value };
+                                        if (item?.hasSpecification) {
+                                            __obj = {
+                                                ...__obj,
+                                                [`${item?.specification?.id}`]: item?.specification?.value,
+                                            };
+                                        }
+                                        _items?.push(__obj);
+                                    });
+                                    structuredChild = {
+                                        ...structuredChild,
+                                        [subChild?.id]: _items,
+                                    };
+                                }
+                                else {
+                                    if (typeof(value) === 'object' && !!value) {
+                                        var structuredGrandchild = {};
+                                        value.forEach((grandchild: any) => {
+                                            structuredGrandchild = {
+                                                ...structuredGrandchild,
+                                                [grandchild?.id]: grandchild?.value,
+                                            };
+                                        });
+                                        value = subChild?.type === 'date'
+                                            ? isDateIncomplete()
+                                                ? null
+                                                : structuredGrandchild
+                                            : structuredGrandchild;
+                                    }
+                                    if (subChild?.hasSpecification) value = `${value} • ${form?.find((f: any) => f?.id === parent?.id)?.data?.[index]?.find((f: any) => f?.id === `for-${subChild?.id}`)?.value}`;
+                                    if (!subChild?.specification) {
+                                        structuredSubChild = {
+                                            ...structuredSubChild,
+                                            [subChild?.id]: value,
+                                        };
+                                    }
+                                }
+                            }
+                        });
+                        structuredChild?.push(structuredSubChild);
+                    }
+                    else { // any changes here should also reflect on IF above
+                        var value = child?.value;
+                        var isDateIncomplete = () => { return value?.some((v: any) => !v?.isValid) };
+                        if (child?.type === 'option') {
+                            let _selected = child?.items?.filter((i: any) => i?.selected);
+                            let _items = [];
+                            _selected?.forEach((item: any) => {
+                                let __obj = { value: item?.value };
+                                if (item?.hasSpecification) {
+                                    __obj = {
+                                        ...__obj,
+                                        [`${item?.specification?.id}`]: item?.specification?.value,
+                                    };
+                                }
+                                _items?.push(__obj);
+                            });
+                            structuredChild = {
+                                ...structuredChild,
+                                [child?.id]: _items,
+                            };
+                        }
+                        else {
+                            if (typeof(value) === 'object' && !!value) {
+                                var structuredGrandchild = {};
+                                value.forEach((grandchild: any) => {
+                                    structuredGrandchild = {
+                                        ...structuredGrandchild,
+                                        [grandchild?.id]: grandchild?.value,
+                                    };
+                                });
+                                value = child?.type === 'date'
+                                    ? isDateIncomplete()
+                                        ? null
+                                        : structuredGrandchild
+                                    : structuredGrandchild;
+                            }
+                            if (child?.hasSpecification) value = `${value} • ${form?.find((f: any) => f?.id === parent?.id)?.data?.find((f: any) => f?.id === `for-${child?.id}`)?.value}`;
+                            if (!child?.specification) {
+                                structuredChild = {
+                                    ...structuredChild,
+                                    [child?.id]: value,
+                                };
+                            }
+                        }
+                    }
+                });
+                structuredParent = {
+                    ...structuredParent,
+                    [parent?.id]: structuredChild,
+                };
+            }
+        });
+        return structuredParent;
+    };
+    const formValid = () => {
+        var valid = true;
+        form.forEach((parent: any) => {
+            let isParentList = parent?.type === 'list';
+            if (parent?.data?.length > 0) {
+                parent?.data?.forEach((child: any) => {
+                    if (isParentList) { // whatever changes here should also be reflected on the ELSE below
+                        child?.forEach((subChild: any) => {
+                            if (subChild?.required) {
+
+                                if (child.type === 'time') {}
+                                else if (child?.type === 'option') {
+                                    let selectedItems = child?.items?.filter((i: any) => i?.selected);
+                                    selectedItems?.forEach((item: any) => {
+                                        if (item?.hasSpecification) {
+                                            if (
+                                                item?.specification?.required &&
+                                                !(
+                                                    !item?.specification?.error &&
+                                                    item?.specification?.value
+                                                )
+                                            ) {
+                                                valid = false;
+                                                return;
+                                            }
+                                        }
+                                    });
+                                    if (valid && selectedItems?.length < child?.minimum) {
+                                        valid = false;
+                                        return;
+                                    }
+                                }
+                                else if (typeof(subChild?.value) === 'object' && !!subChild?.value) { // should be array but ts returns 'object' idky
+                                    subChild?.value?.forEach((grandchild: any) => {
+                                        if (!(!grandchild?.error && grandchild?.value)) {
+                                            valid = false;
+                                            return;
+                                        }
+                                    });
+                                }
+                                else if (!(!subChild?.error && subChild?.value)) {
+                                    valid = false;
+                                    return;
+                                }
+                            }
+                            else if (subChild?.data?.length > 0) {
+                                subChild?.data?.forEach((ssubChild: any) => {
+                                    if (ssubChild?.length > 0) {
+                                        ssubChild?.forEach((sssubChild: any) => {
+                                            if (!(!sssubChild?.error && sssubChild?.value) && sssubChild?.required) {
+                                                valid = false;
+                                                return;
+                                            }
+                                        });
+                                    }
+                                    else {
+                                        if (!(!ssubChild?.error && ssubChild?.value) && ssubChild?.required) {
+                                            valid = false;
+                                            return;
+                                        }
+                                    }
+                                });
+                            }
+                        });
+                    }
+                    else { // whatever changes here should also be reflected on the IF above
+                        if (child?.required) {
+                            if (child.type === 'time') {}
+                            else if (child?.type === 'option') {
+                                let selectedItems = child?.items?.filter((i: any) => i?.selected);
+                                selectedItems?.forEach((item: any) => {
+                                    if (item?.hasSpecification) {
+                                        if (
+                                            item?.specification?.required &&
+                                            !(
+                                                !item?.specification?.error &&
+                                                item?.specification?.value
+                                            )
+                                        ) {
+                                            valid = false;
+                                            return;
+                                        }
+                                    }
+                                });
+                                if (valid && selectedItems?.length < child?.minimum) {
+                                    valid = false;
+                                    return;
+                                }
+                            }
+                            else if (typeof(child?.value) === 'object' && !!child?.value) { // should be array but ts returns 'object' idky
+                                child?.value?.forEach((grandchild: any) => {
+                                    if (!(!grandchild?.error && grandchild?.value)) {
+                                        valid = false;
+                                        return;
+                                    }
+                                });
+                            }
+                            else if (!(!child?.error && child?.value)) {
+                                valid = false;
+                                return;
+                            }
+                        }
+                    }
+                });
+            }
+        });
+        return valid;
+    };
+    useEffect(() => {
+        let _form = cloneDeep(form || []));
+        let _index = _form?.findIndex((p: any) => p?.id === 'address');
+        if (_index > -1) {
+            if (useDifferentAddress) {
+                let _address = _form?.[_index]?.data || [];
+                _address?.forEach((a: any) => {
+                    a.value = '';
+                    a.isValid = false;
+                });
+                _form[_index].data = _address;
+            }
+            else _form[_index] = origAdd;
+            setForm(_form);
+        }
+
+        if (useDifferentAddress && !udaAlert?.alerted) {
+            setUDAAlert({
+                ...udaAlert,
+                active: true,
+            });
+        }
+
+    }, [useDifferentAddress]);
+    useEffect(() => {
+        if (FOR_EDITING && form?.length > 0 && !formFilledIn) {
+            let generatedForm = cloneDeep(generateForm(savedApplication, form) || []));
+            setForm(generatedForm);
+            if (renewApplication) {
+                let docuId = AT?.requirements?.findIndex((i: any) => i.key === 'document');
+                let { document, service } = savedApplication;
+                if (docuId > -1 && !!document) {
+                    let links = {
+                        original: document,
+                        thumb: document,
+                        small: document,
+                        medium: document,
+                        large: document,
+                        xlarge: document,
+                    };
+                    AT.requirements[docuId] = {
+                        ...AT.requirements[docuId],
+                        files: [
+                            {
+                                name: `${service?.name} ${service?.applicationType?.label}.pdf`,
+                                mimeType: 'application/pdf',
+                                uri: '',
+                                index: docuId,
+                                uploading: false,
+                                uploaded: true,
+                                links,
+                            }
+                        ],
+                        links: [links],
+                    };
+                }
+            }
+            setAlternateRequirements(AT?.requirements);
+            setFormFilledIn(true);
+        }
+        else{
+        }
+    }, [form]);
+
+    /**step5 */
+    const [alternateRequirements, setAlternateRequirements] = useState([]);
+    const requirements = alternateRequirements?.length > 0  ? alternateRequirements : (service?.serviceCode === 'service-1' && examineeType?.requirements?.length > 0 && examineeType?.label != "First Taker"  ? examineeType?.requirements :
+        ((entityType && typeof entityType === 'object' && Object?.keys(entityType).length === 0 && applicationType?.formCode == "ntc1-09-GOVTPVT-pur-pos") || Object?.keys(entityType)?.length > 0)  ? entityType.requirements || applicationType?.requirements :  applicationType?.requirements || []);
+    const onUploadFile = async(requirement:any)=>{
+
+        let createFormData=async(payload:any)=>{
+            const {key,files}=payload;
+
+            const file=files?.[files?.length-1];
+
+            const data=new FormData();
+            let f:any={
+                name:file?.name ?? file.assets?.[0]?.name,
+                type:file?.mimeType ?? file.assets?.[0]?.mimeType,
+                uri:file?.uri?? file.assets?.[0]?.uri,
+            }
+
+            if(isMobile){
+                data.append('file',f);
+                data.append('key',key);
+                return data;
+            }
+
+            Platform.select({
+                web:await fetch(f?.uri).then(res=>{
+                    return res?.blob()
+                }).then(blob=>{
+
+                    var mime=f?.uri?.match(/data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+).*,.*/)
+                    var attachmentMime=mime?.[1]?.split('/')?.[1]
+                    if(mime&&mime.length){
+                        f=new File([blob],f?.name+(
+                            attachmentMime.length<5 ? '.'+attachmentMime : ''));
+                    }
+                }).catch((err: any) => {
+                    console.log(err,"err")
+                    err = cloneDeep(err));
+                    return {
+                        status: err?.status,
+                        msg: err?.message,
+                    };
+                })
+            })
+            data.append('file',f);
+            data.append('key',key);
+            data.append('name',file?.name ?? file.assets?.[0]?.name);
+            return data;
+        };
+        let formData=await createFormData(requirement);
+        dispatch(uploadRequirement({
+            formData,
+            requirements,
+        }));
+    };
+    const onUpload = (file: any) => {
+
+        let index = file?.index;
+        if (index > -1) {
+            let _requirements = [...requirements];
+            let _files = _requirements?.[index]?.files || [];
+            _files.push(file);
+            _requirements[index].files = _files;
+            onUploadFile(_requirements[index]);
+        }
+    };
+    const onRemove = (index: number, _index: number) => {
+        if (index >= 0 && _index >= 0) {
+            let _requirements = [...requirements];
+            let _files = _requirements?.[index]?.files || [];
+            _files.splice(_index, 1);
+            _requirements[index].files = _files;
+            setApplicationType({
+                ...applicationType,
+                requirements: _requirements,
+            });
+        }
+    };
+    const incompleteRequirements = () => {
+        let incomplete = false;
+        requirements?.map((r: any) => {
+            if (r?.required||
+                (r?.additional &&
+                    r?.additional?.[region?.value]?.required === true)) {
+                if (!(r?.files?.filter(c => c.links?.small)?.length > 0)) {
+                    incomplete = true;
+                    return;
+                }
+                r?.files?.filter(c => c.links?.small)?.forEach((f: any) => {
+                    if (!(Object?.keys(f?.links || {})?.length > 0)) {
+                        incomplete = true;
+                        return;
+                    }
+                });
+                // if(r?.files){
+                //     r.files = r?.files?.filter(c => c.links?.small)
+                // }
+            }
+        });
+        return incomplete;
+    };
+    const isUploading = () => {
+        if (uploadingRequirement) return uploadingRequirement;
+        let uploading = false;
+        requirements?.map((r: any) => {
+            r?.files?.forEach((f: any) => {
+                if (f?.uploading ) {
+                    uploading = true;
+                    return;
+                }
+            });
+        });
+        return uploading;
+    };
+    useEffect(() => {
+        if (FOR_EDITING && alternateRequirements?.length > 0) setFormGenerated(true);
+    }, [alternateRequirements]);
+    useEffect(() => {
+        if (uploadRequirementError) {
+            setLogoutAlert({
+                ...logoutAlert,
+                active: true,
+            });
+        }
+    }, [uploadRequirementError]);
+
+    /**step6 */
+    const [reviewed, setReviewed] = useState(false);
+    const [agree, setAgree] = useState(false);
+
+    /**main */
+    const [applicationPayload, setApplicationPayload] = useState({});
+    const [currentStep, setCurrentStep] = useState(0);
+    const [completed, setCompleted] = useState(false);
+
+
+    const getDraftApplication = async (saveApp) => {
+
+        const draft = {
+            form,
+            applicationCart,
+            currentStep,
+            region,
+            schedule,
+            applicationType,
+            examineeType,
+            entityType,
+            alternateRequirements,
+            useDifferentAddress,
+        };
+
+                dispatch(addBulkApplication({
+                    ...applicationPayload,
+                    ...saveApp,
+                    application: draft,
+                }));
+
+                if(applicationProcess?.value == "bulk-application"){
+                    dispatch(setApplicationCart({}));
+                    setApplicationPayload({})
+                    setForm([]);
+                    var app = {
+                        ...applicationType,
+                        requirements: applicationType.requirements.map(req => ({
+                            ...req,
+                            files: [],
+                        })),
+                    }
+                   delete app.element
+                    setApplicationType(app)
+                    handleChangeApplicationType(app);
+
+                }
+                dispatch(setSplit(true));
+                setCurrentStep(2)
+
+
+    }
+
+
+    useEffect(() => {
+
+        if (((soa && Object?.keys(soa)?.length > 0)  && fetchSOASuccess) || fetchSOAError) {
+            setKey(0)
+            var _saveApplication = {
+                ...applicationPayload,
+                soa: soa?.statement_Of_Account || [],
+                totalFee: soa?.totalFee || 0,
+                useDifferentAddress,
+                renew,
+                renewApplication,
+                editApplication,
+            };
+            if(applicationProcess?.value == "bulk-application"){
+                getDraftApplication(_saveApplication)
+            }else if(_saveApplication.region || _saveApplication.service || _saveApplication.applicant){
+                dispatch(saveApplication(_saveApplication));
+            }
+        }
+    }, [soa, fetchSOASuccess, fetchSOAError]);
+    const onFetchFees = (__app: any) => {
+        dispatch(fetchSOA(__app));
+    };
+    const onExitApplication = () => {
+
+
+
+
+
+        if (completed) navigation.navigate('Home');
+        else navigation?.pop();
+
+        if (Platform.OS == 'web'){
+
+            dispatch(setApplicationItem(null));
+            dispatch(setButtonText(''));
+        }
+
+        setTimeout(() => {
+            dispatch(setFetchSOASuccess(false));
+            dispatch(setFetchSOAError(false));
+            dispatch(setSaveApplicationError(false));
+            dispatch(setSaveApplicationSuccess(false));
+            dispatch(setApplicationCart({}));
+            dispatch(setSelectedService({}));
+            dispatch(setApplicationProcess({}));
+        }, 1000);
+    };
+    const onSaveApplication = (app) => {
+        /**cleaning of payload */
+
+        const _application = app ?? cloneDeep(applicationCart || {}));
+        try {
+            createIssue("saveApplication initial", JSON.stringify(savedApplication) , "external")
+            createIssue("_application initial", JSON.stringify(_application) , "external")
+            createIssue("editApplication initial", JSON.stringify(editApplication) , "external")
+            createIssue("at initial", JSON.stringify(AT) , "external")
+        }catch (e) {
+
+        }
+
+        delete _application?.service?.about;
+        delete _application?.service?.createdAt;
+        //delete _application?.service?.requirements;
+        //delete _application?.service?.applicationTypes;
+        delete _application?.service?.examineeTypes;
+        delete _application?.service?.entityTypes;
+        // delete _application?.service?.applicationType?.elements;
+        // delete _application?.service?.applicationType?.modificationDueTos;
+        var _requirements = [];
+        if (_application?.service?.applicationType?.requirements?.length > 0) {
+            _requirements = _application?.service?.applicationType?.requirements?.map((r: any) => {
+                let links = r?.files?.map((f: any) => f?.links);
+                return {...r, links};
+            });
+            _application.service.applicationType.requirements = _requirements;
+        }
+
+        let structuredData = form?.length > 0 ? getStructuredData(cloneDeep(form || [])) : {};
+
+        /**excess */
+        _application.applicant = form?.length > 0 ? {userId: user?.applicant?.userId} : {};
+
+        _application.applicant = {
+            ...(user?.applicant && user?.applicant),
+            userType: user?.userType,
+            ...savedApplication?.applicant,
+            ..._application?.applicant,
+            ...( user?._id && {userId: user._id})
+
+        };
+        if (typeof(_application?.applicant?.dateOfBirth) === 'string') {
+            const day = extractDate(_application.applicant.dateOfBirth, 'date');
+            const month = extractDate(_application.applicant.dateOfBirth, 'month');
+            const year = extractDate(_application.applicant.dateOfBirth, 'year');
+            _application.applicant.dateOfBirth = {day, month, year};
+        }
+        if (_application?.schedule) {
+            _application.schedule = {
+                ..._application?.schedule,
+                region: _application?.schedule?.region?.value,
+            };
+        }
+        /**removing uri to prevent payload too large (base64) */
+        _application?.service?.applicationType?.requirements?.forEach(r => {
+            if(r?.files){
+                r.files = r?.files?.filter(c => c.links?.small)
+            }
+            r?.files?.forEach(f => {
+                delete f?.uri;
+            });
+        });
+        if (FOR_EDITING && _application?.schedule?.region?.value) _application.schedule.region = _application?.schedule?.region?.value;
+        Object?.keys(structuredData).forEach((id: string) => {
+            if (id === 'basic') {
+                _application.applicant = {
+                    ..._application.applicant,
+                    ...structuredData.basic,
+                };
+                _application.service = {
+                    ..._application.service,
+                    [id]: structuredData[id],
+                };
+            }
+            else if (
+                id === 'address' ||
+                id === 'contact' ||
+                id === 'education'
+            ) {
+                _application.applicant = {
+                    ..._application.applicant,
+                    [id]: structuredData[id],
+                };
+            }
+            else {
+                _application.service = {
+                    ..._application.service,
+                    [id]: structuredData[id],
+                };
+            }
+        });
+        if (savedApplication?._id) _application._id = savedApplication?._id;
+        _application.isModified = renewApplication ? compareApplication(savedApplication, cloneDeep(form) : false;
+        if(applicationProcess?.value == "bulk-application"){
+
+            _application.id =  crypto.randomUUID();
+
+        }
+        setTimeout(() => onFetchFees(transformToFeePayload(_application)), 500);
+        setApplicationPayload(_application);
+
+
+        try {
+            createIssue("saveApplication initial", JSON.stringify(_application) , "external")
+            createIssue("requirement initial", JSON.stringify(requirements) , "external")
+        }catch (e) {
+
+        }
+    };
+    const onPrevious = () => {
+        if (currentStep === 1 && (bulkApplications?.length ?? 0) > 0) {
+            const count = bulkApplications.length;
+            const message = `You have ${count} bulk application${count > 1 ? 's' : ''} saved. Please review or remove ${count > 1 ? 'them' : 'it'} to continue.`;
+
+            if (Platform.OS === 'web') window.alert(message);
+            else Alert.alert('Bulk applications found', message);
+            return
+        }
+        setCurrentStep(currentStep - 1);
+    }
+    const onNext = () => {
+
+        setCurrentStep(currentStep + 1);
+    };
+    const regionArray = new Set([ "II",  "IV-B", "V", "VI",  "VIII", "NCR", ]);
+    const steps = [
+        {
+            title: 'Generating Application',
+            content: <GeneratingApplication />,
+            onPrevious: onExitApplication,
+            onNext,
+            buttonLabel: 'Generating...',
+            buttonDisabled: !formGenerated,
+        },
+        {
+            title: service?.serviceCode === 'service-1' ? 'Exam Schedule' : 'Region',
+            content: <Region
+                userType={user.userType}
+                serviceCode={service?.serviceCode}
+                regions={regions}
+                region={region}
+                onPreSelect={() => dispatch(fetchRegions()}
+                applicationTypes={applicationProcessTypes}
+                applicationType={formApplicationProcess}
+                onChangeApplication={(applicationProcessType: any) => {
+                    setFormApplicationProcess(applicationProcessType)
+                    //dispatch(setApplicationProcess(applicationProcessType));
+                }}
+                onChangeRegion={(region: any) => {
+                    const nonYetRegions = regionArray.has(region?.value);
+                    const message = `EDGE is not yet available in ${region?.label}.`;
+                    if (Platform.OS === 'web' && nonYetRegions) {
+                        window.alert(message );
+                        return
+                    } else if (nonYetRegions) {
+                        Alert.alert('Notice', message);
+                        return
+                    }
+
+                    // dispatch(setApplicationProcess({
+                    //     label: "Single Application",
+                    //     value: "single-application",
+                    // }));
+                    setRegion(region);
+                    dispatch(setCreatedAt(changeCreatedAt(region.value)));
+                    if (service?.serviceCode === 'service-1') setSchedule({});
+                }}
+                schedule={schedule}
+                schedules={schedules}
+                fetchingSchedules={fetchingSchedules}
+                fetchingRegions={fetchingRegions}
+                onChangeSchedule={setSchedule}
+            />,
+            onPrevious: FOR_EDITING ? onExitApplication : onPrevious,
+            onNext,
+            buttonLabel: 'Next',
+            buttonDisabled: service?.serviceCode === 'service-1' ? !(region?.value && schedule?.id) : (user.userType == "company" ?  !(region?.value && formApplicationProcess?.value) : !(region?.value) ) ,
+        },
+        {
+            title: 'Application Type',
+            content: (
+                <Types
+                    region={region?.value}
+                    types={cloneDeep(service?.applicationTypes || [])}
+                    examineesType={cloneDeep(service?.examineeType || [])}
+                    entityTypes={cloneDeep(service?.entityTypes || [])}
+                    entityType={entityType}
+                    applicationType={applicationType}
+                    examineeType={examineeType}
+                    onChangeValue={handleChangeApplicationType}
+                    onChangeExamineeTypeValue={handleChangeExamineeType}
+                    onChangeEntityTypeValue={handleChangeEntityType}
+                    onSelect={handleChangeElement}
+                />
+            ),
+            onPrevious,
+            onNext: () => {
+                // if(applicationProcess?.value == "bulk-application" && bulkApplications.length == 0) {
+                //     dispatch(setSplit(false));
+                // }
+                onNext();
+            },
+            buttonLabel: 'Next',
+            buttonDisabled: (applicationType?.formCode == "ntc1-09-GOVTPVT-pur-pos" && entityType && typeof entityType === 'object' && Object?.keys(entityType).length === 0) ? entityType && typeof entityType === 'object' && Object?.keys(entityType).length === 0 : applicationType?.elements?.length > 0 && service?.serviceCode === 'service-1' ? !(applicationType?.elements?.length > 0 && applicationType?.element && (FOR_EDITING ||Object?.keys(examineeType)?.length >0) ) : applicationType?.elements?.length > 0 ? !(applicationType?.elements?.length > 0 && applicationType?.element) : !applicationType?.label,
+        },
+        {
+            title: 'Requirements',
+            content: <Requirements region={region?.value} requirements={requirements} onUpload={onUpload} onRemove={onRemove} disabled={isUploading()}/>,
+            onPrevious,
+            onNext: () => {
+                var _applicationType = applicationType ?? applicationCart?.service?.applicationType ?? savedApplication?.service?.applicationType;
+
+                try {
+                    createIssue("Requirements FOR_EDITING", JSON.stringify( applicationType) , "external")
+                    createIssue("Requirements FOR_EDITING", JSON.stringify( applicationCart?.service?.applicationType) , "external")
+                    createIssue("Requirements FOR_EDITING", JSON.stringify( savedApplication?.service?.applicationType) , "external")
+                }catch (e) {
+
+                }
+
+
+
+                var _application = {
+                    id: crypto.randomUUID(),
+                    ...applicationCart,
+                    ...(region?.value !== undefined ? { region: region.value } : {}),
+                    ...(schedule != null ? { schedule } : {}),
+
+                    service: {
+                        ...service,
+                        ...(applicationCart?.service ?? {}),
+                        ...(examineeType?.label && {
+                            examineeType: {
+                                examineeType: examineeType.label,
+                            },
+                        }),
+                        ...(entityType?.label && {
+                            entityType: {
+                                entityType: entityType.label,
+                            },
+                        }),
+                        ...((_applicationType) && {
+                            applicationType: {
+                                ...(service?.applicationType ?? {}),
+                                ..._applicationType,
+                                requirements,
+                            },
+                        })
+
+                    },
+                };
+
+
+
+
+                dispatch(setApplicationCart(_application));
+
+                if(applicationProcess?.value == "bulk-application"){
+
+                    onSaveApplicationSuccess();
+                    if (!reviewed) setReviewed(true);
+                    onSaveApplication(_application)
+
+
+                }else{
+                    onNext();
+                }
+
+            },
+            buttonLabel: applicationProcess?.value == "single-application" ?  'Review' : "Save",
+            buttonDisabled: incompleteRequirements(),
+        },
+        {
+            title: bulkApplicationReview ? "Review" :completed ? 'Complete' : 'Review',
+            content:  completed && !bulkApplicationReview
+                ? <Submitted serviceCode={service?.serviceCode} id={applicationCart} />
+                : <Preview drawer={false} pageOnly forApplication application={applicationCart} form={cloneDeep(form || [])} />,
+            onPrevious: () => {
+                if(bulkApplicationReview){
+                    setBulkApplicationReview(false)
+                    dispatch(setApplicationCart({}));
+                    setForm([]);
+                    setApplicationType({})
+                    dispatch(setSplit(true));
+                    setCurrentStep(2)
+                }else{
+                    if (agree) setAgree(false);
+                    if (reviewed) setReviewed(false);
+                    onPrevious();
+                }
+
+            },
+            onNext: () => {
+                if(bulkApplicationReview){
+                    setBulkApplicationReview(false)
+                    dispatch(setApplicationCart({}));
+                    setForm([]);
+                    setApplicationType({})
+                    dispatch(setSplit(true));
+                    setCurrentStep(2)
+                }else{
+                    if (!reviewed) setReviewed(true);
+                    else if (completed) {
+                        if (isGuest) return onLogout();
+                        onExitApplication();
+                    }
+                    else if (agree) onSaveApplication();
+                }
+
+
+            },
+            buttonLabel: bulkApplicationReview ? "Close" : !reviewed ? 'Submit' : completed ? 'Close' : 'Confirm',
+            buttonDisabled: (savingApplication || (!reviewed ? false : completed ? false : !agree)),
+        },
+    ];
+    if (!FOR_EDITING) {
+        steps?.splice(1, 0, {
+            title: 'Information',
+            content: <About content={service?.about} />,
+            onPrevious: onExitApplication,
+            onNext,
+            buttonLabel: 'Next',
+            buttonDisabled: false,
+        });
+    }
+    if (formGenerated || !FOR_EDITING) steps?.splice(0, 1);
+    if (form?.length > 0 && steps?.findIndex(i => i.title === 'Application Form') < 0) {
+        steps?.splice(
+            FOR_EDITING ? 2 : 3,
+            0,
+            {
+                title: 'Application Form',
+                content: <ServicesForm form={form} onChangeValue={onFormUpdate} onAdd={_onAdd} onRemove={_onRemove} onUseDifferentAddress={onUseDifferentAddress} useDifferentAddress={useDifferentAddress} />,
+                onPrevious,
+                onNext,
+                buttonLabel: 'Next',
+                buttonDisabled: !formValid(),
+            },
+        );
+    }
+
+    const [backPressed, setBackPressed] = useState(false);
+    useEffect(() => {
+        if (backPressed) {
+            if (completed || currentStep <= 0) onExitApplication();
+            if (agree) setAgree(false);
+            if (reviewed) setReviewed(false);
+            onPrevious();
+        }
+    }, [backPressed]);
+    const onBack = () => {
+        setBackPressed(true);
+        setBackPressed(false);
+        return true;
+    };
+
+    const setItemsOnForm = (
+        parentId: string,
+        id: string,
+        loading: boolean,
+        items: any,
+    ) => {
+        let _form = cloneDeep(form || []));
+        let parentIndex = _form?.findIndex((f: any) => f?.id === parentId);
+        if (parentIndex > -1) {
+            let childIndex = _form?.[parentIndex]?.data?.findIndex((f: any) => f?.id === id);
+            if (childIndex > -1) {
+                _form[parentIndex].data[childIndex].loading = loading;
+                _form[parentIndex].data[childIndex].items = items;
+                setForm(_form);
+            }
+        }
+    };
+    useEffect(() => {
+        if (!FOR_EDITING || formFilledIn) setItemsOnForm('address', 'province', fetchingProvinces, provinces);
+    }, [provinces, /*applicationType,*/ fetchingProvinces]);
+    useEffect(() => {
+        if (!FOR_EDITING || formFilledIn) setItemsOnForm('address', 'city', fetchingCities, cities);
+    }, [cities, fetchingCities]);
+
+
+    useEffect(() => {
+        const handleBeforeUnload = (event) => {
+            event.preventDefault();
+            event.returnValue = '';
+        };
+
+        dispatch(fetchRegions());
+        if (FOR_EDITING && !formFilledIn) setRegion({code: savedApplication?.region, ...(regionList?.filter(i => i?.value === savedApplication?.region)?.[0] || {})});
+        if(Platform.OS == "web") {
+            window.addEventListener('beforeunload', handleBeforeUnload);
+        }
+        BackHandler.addEventListener('hardwareBackPress', onBack);
+        return () => {
+            if(Platform.OS == "web") {
+                window.removeEventListener('beforeunload', handleBeforeUnload, {capture: true});
+            }
+
+            const f = async () => {
+                const existing = await AsyncStorage.getItem("IS_SAVE");
+                if(existing){
+                    AsyncStorage.setItem("IS_SAVE", "0");
+                }
+            }
+            f()
+            BackHandler.removeEventListener('hardwareBackPress', onBack);
+            onExitApplication()
+
+        };
+    }, []);
+    const memoizedSteps = useMemo(() => steps, [steps]);
+
+    useEffect(() => {
+
+        const draft = {
+            form,
+            applicationCart,
+            currentStep,
+            region,
+            schedule,
+            applicationType,
+            examineeType,
+            entityType,
+            alternateRequirements,
+            useDifferentAddress,
+        };
+
+
+        saveDraft(draft);
+
+    }, [
+        form,
+        applicationCart,
+        currentStep,
+        region,
+        schedule,
+        applicationType,
+        examineeType,
+        entityType,
+        alternateRequirements,
+        useDifferentAddress,
+    ]);
+    const onSplit = () => {
+        dispatch(setSplit(!split));
+    }
+    return (
+        <>
+            <ApplicationSteps
+                bulkApplicationReview={bulkApplicationReview}
+                split={split}
+                applicationProcess={applicationProcess?.value}
+                onSplit={onSplit}
+                steps={memoizedSteps}
+                currentStep={currentStep}
+                completed={completed}
+                onExit={onExitApplication}
+                loading={fetchingSOA || savingApplication}
+                UDAAlert={udaAlert}
+                logoutAlert={logoutAlert}
+            />
+
+            <TermsAndConditions
+                agree={agree}
+                onClick={() => setAgree(!agree)}
+                visible={reviewed && !completed && !(fetchingSOA || savingApplication) /*&& !saveApplicationError && !fetchSOAError*/}
+                buttonLabel='Confirm'
+                onPress={() => onSaveApplication()}
+                disabled={!agree}
+                onDismiss={() => setReviewed(false)}
+            />
+
+        </>
+    )
+};
+
+
+export default  React.memo(ApplicationNav)

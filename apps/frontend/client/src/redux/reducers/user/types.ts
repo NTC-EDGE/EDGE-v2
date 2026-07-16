@@ -1,0 +1,33 @@
+import keyMirror from 'key-mirror';
+
+export default keyMirror({
+  REGISTER: null,
+  TABSWITCH: null,
+  REGISTERING: null,
+  REGISTER_SUCCESS: null,
+  REGISTER_ERROR: null,
+  LOGIN_USER: null,
+  LOGIN_GUEST_USER: null,
+  LOGIN_USER_SUCCESS: null,
+  LOGIN_USER_ERROR: null,
+  LOGOUT_USER: null,
+  LOGGING_IN: null,
+  SET_USER: null,
+  SET_USER_TEMPORARILY: null,
+  SAVE_CC: null,
+  UPDATE_USER: null,
+  UPDATING_USER_PHOTO: null,
+  UPDATING_USER_PROFILE: null,
+  UPDATE_USER_SUCCESS: null,
+  UPDATE_USER_ERROR: null,
+  CHANGE_PASSWORD: null,
+  CHANGING_PASSWORD: null,
+  CHANGE_PASSWORD_SUCCESS: null,
+  CHANGE_PASSWORD_ERROR: null,
+  SET_BIOMETRICS_LOGIN: null,
+  UPLOAD_SIGNATURE: null,
+  UPLOADING_SIGNATURE: null,
+  UPLOAD_SIGNATURE_SUCCESS: null,
+  UPLOAD_SIGNATURE_ERROR: null,
+  SET_CREATED_AT: null
+});

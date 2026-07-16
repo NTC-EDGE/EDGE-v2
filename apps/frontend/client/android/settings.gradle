@@ -1,0 +1,83 @@
+// --- Keep your existing includeBuild for RN settings plugin
+pluginManagement {
+  includeBuild(new File(
+    ["node", "--print", "require.resolve('@react-native/gradle-plugin/package.json', { paths: [require.resolve('react-native/package.json')] })"]
+      .execute(null, rootDir).text.trim()
+  ).getParentFile().toString())
+
+  // ★ Add official plugin repos (blocks mirror rewrites)
+  repositories {
+    google()
+    mavenCentral()
+    gradlePluginPortal()
+  }
+}
+
+// Keep the RN settings plugin
+plugins { id("com.facebook.react.settings") }
+
+// Configure React settings / Expo autolinking (unchanged)
+extensions.configure(com.facebook.react.ReactSettingsExtension) { ex ->
+  if (System.getenv('EXPO_USE_COMMUNITY_AUTOLINKING') == '1') {
+    ex.autolinkLibrariesFromCommand()
+  } else {
+    def command = [
+      'node',
+      '--no-warnings',
+      '--eval',
+      'require(require.resolve(\'expo-modules-autolinking\', { paths: [require.resolve(\'expo/package.json\')] }))(process.argv.slice(1))',
+      'react-native-config',
+      '--json',
+      '--platform',
+      'android'
+    ].toList()
+    ex.autolinkLibrariesFromCommand(command)
+  }
+}
+
+rootProject.name = 'NTC-EDGE'
+
+// ★ Lock dependency repos and prefer this file as the single source of truth
+dependencyResolutionManagement {
+  repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
+
+  // ★ Hard-lock module repositories (no HTTP mirrors)
+  repositories {
+    // Standard repos
+    google()
+    mavenCentral()
+    gradlePluginPortal()
+
+    // (Optional) If you actually use JitPack artifacts, keep this HTTPS entry:
+    maven { url "https://www.jitpack.io" }
+
+    // (Optional fallback – only if you truly need JFrog, NOT the internal mirror)
+    // maven { url "https://repo.jfrog.org/artifactory/libs-release" }
+  }
+
+  // Your existing RN version catalog
+  versionCatalogs {
+    reactAndroidLibs {
+      from(files(new File(
+        ["node", "--print", "require.resolve('react-native/package.json')"]
+          .execute(null, rootDir).text.trim(),
+        "../gradle/libs.versions.toml"
+      )))
+    }
+  }
+}
+
+// Expo autolinking (unchanged)
+apply from: new File(
+  ["node", "--print", "require.resolve('expo/package.json')"].execute(null, rootDir).text.trim(),
+  "../scripts/autolinking.gradle"
+)
+useExpoModules()
+
+include ':app'
+
+// Keep includeBuild for RN plugin (unchanged)
+includeBuild(new File(
+  ["node", "--print", "require.resolve('@react-native/gradle-plugin/package.json', { paths: [require.resolve('react-native/package.json')] })"]
+    .execute(null, rootDir).text.trim()
+).getParentFile())
