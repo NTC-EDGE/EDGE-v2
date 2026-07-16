@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using FluentValidation;
 using System.Reflection;
+using EDGE.Application.Common.Behaviors;
 
 namespace EDGE.Application;
 
@@ -10,7 +11,12 @@ public static class DependencyInjection
     {
         var assembly = Assembly.GetExecutingAssembly();
 
-        services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(assembly));
+        services.AddMediatR(cfg =>
+        {
+            cfg.RegisterServicesFromAssembly(assembly);
+            cfg.AddOpenBehavior(typeof(UserActivityLoggingBehavior<,>));
+        });
+        
         services.AddValidatorsFromAssembly(assembly);
 
         return services;

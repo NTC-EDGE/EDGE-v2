@@ -42,6 +42,8 @@ jobs:
           SSH_USER: ${{ secrets.SSH_USER }}
           SSH_KEY: ${{ secrets.SSH_KEY }}
           SSH_PASSPHRASE: ${{ secrets.SSH_PASSPHRASE }}
+          DB_CONNECTION_STRING: ${{ secrets.DB_CONNECTION_STRING }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
           TARGET_PORT: ${{ vars.PORT }}
           TARGET_ENV: ${{ github.ref_type == 'tag' && 'production' || (github.ref == 'refs/heads/main' && 'staging' || (github.ref == 'refs/heads/develop' && 'development' || 'preview')) }}
         run: |
@@ -76,6 +78,9 @@ jobs:
             docker load -i /tmp/backend-image.tar
             docker stop edge-backend-$TARGET_ENV || true
             docker rm edge-backend-$TARGET_ENV || true
-            docker run -d --name edge-backend-$TARGET_ENV -p $TARGET_PORT:80 edge-backend:${{ github.sha }}
+            docker run -d --name edge-backend-$TARGET_ENV -p $TARGET_PORT:80 \
+              -e ConnectionStrings__DefaultConnection="$DB_CONNECTION_STRING" \
+              -e Clerk__SecretKey="$CLERK_SECRET_KEY" \
+              edge-backend:${{ github.sha }}
             rm /tmp/backend-image.tar
           EOF
