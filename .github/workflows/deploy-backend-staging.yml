@@ -96,7 +96,7 @@ jobs:
             gunzip -c /tmp/backend-image-staging.tar.gz | docker load
             docker stop edge-backend-staging || true
             docker rm edge-backend-staging || true
-            docker run -d --name edge-backend-staging -p $TARGET_PORT:80 \
+            docker run -d --name edge-backend-staging -p $TARGET_PORT:8080 \
               -e ConnectionStrings__DefaultConnection="$DB_CONNECTION_STRING" \
               -e Clerk__SecretKey="$CLERK_SECRET_KEY" \
               edge-backend-staging:${{ github.sha }}

@@ -87,7 +87,7 @@ jobs:
             gunzip -c /tmp/backend-image-prod.tar.gz | docker load
             docker stop edge-backend-production || true
             docker rm edge-backend-production || true
-            docker run -d --name edge-backend-production -p $TARGET_PORT:80 \
+            docker run -d --name edge-backend-production -p $TARGET_PORT:8080 \
               -e ConnectionStrings__DefaultConnection="$DB_CONNECTION_STRING" \
               -e Clerk__SecretKey="$CLERK_SECRET_KEY" \
               edge-backend-prod:${{ github.sha }}
