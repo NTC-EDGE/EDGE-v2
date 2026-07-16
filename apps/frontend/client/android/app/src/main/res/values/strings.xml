@@ -1,6 +1,0 @@
-<resources>
-  <string name="app_name">NTC-EDGE</string>
-  <string name="mime_type">image/*|application/pdf|application/msword|application/vnd.ms-excel|application/vnd.ms-powerpoint|application/vnd.openxmlformats-officedocument.wordprocessingml.*|application/vnd.openxmlformats-officedocument.spreadsheetml.*|application/vnd.openxmlformats-officedocument.presentationml.*</string>
-  <string name="expo_splash_screen_resize_mode" translatable="false">cover</string>
-  <string name="expo_splash_screen_status_bar_translucent" translatable="false">false</string>
-</resources>

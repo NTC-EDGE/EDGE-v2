@@ -21,6 +21,8 @@ Thumbs.db
 .expo/
 dist/
 web-build/
+android/
+ios/
 
 # Native certificates & provision files
 *.jks
