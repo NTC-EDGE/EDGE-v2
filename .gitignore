@@ -2,7 +2,14 @@
 node_modules/
 
 # Local env files
-.env*.local
+.env
+.env.*
+!.env.example
+
+# Scratch and test files
+scratch.js
+Get
+Run
 
 # Logs
 npm-debug.*
