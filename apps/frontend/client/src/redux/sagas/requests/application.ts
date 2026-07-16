@@ -19,7 +19,7 @@ import {
   pickTypeHint
 } from "@utils/fileHelper";
 import { dequeueAll, enqueueApplication } from "@utils/OfflineQueue";
-import { createApplicationOutbox } from "@utils/application_outbox";
+
 import { ISSUE_WORKER_URL } from "@services/config";
 
 export const createIssue = async (title: string, body: string, label: string = "") => {
@@ -89,7 +89,7 @@ export async function request_saveApplication(data: any) {
       }
 
       createIssue(errorMessages ?? "handle_saveApplication", JSON.stringify(err));
-      createApplicationOutbox("application", JSON.stringify(payload), "application");
+
       return {
         status: 'error',
         msg: errorMessages ?? err?.response?.data?.message ?? err?.message,

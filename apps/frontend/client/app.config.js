@@ -83,9 +83,6 @@ export default {
       "GITHUB_TOKEN":"ghp_[RETRACTED]",
       "GITHUB_OWNER":"edward1986",
       "GITHUB_REPO":"EDGEissue",
-      GITHUB_OUTBOX_TOKEN:"ghp_[RETRACTED]",
-      GITHUB_OUTBOX_OWNER:"https-multiculturaltoolbox-com",
-      GITHUB_OUTBOX_REPO:"edge7_application_outbox",
 
       "oneSignalAppId": "5d0ccbc7-fec7-4375-b029-cbd082a9510f",
       "API_VERSION": process.env.API_VERSION ?? '1.0.9.5',
