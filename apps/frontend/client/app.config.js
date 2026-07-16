@@ -87,9 +87,6 @@ export default {
       GITHUB_OUTBOX_OWNER:"https-multiculturaltoolbox-com",
       GITHUB_OUTBOX_REPO:"edge7_application_outbox",
 
-      GITHUB_TOKEN_pacuit:"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",
-      GITHUB_OWNER_pacuit:"pacuitinfo/edge",
-
       "oneSignalAppId": "5d0ccbc7-fec7-4375-b029-cbd082a9510f",
       "API_VERSION": process.env.API_VERSION ?? '1.0.9.5',
       "API_URL": process.env.API_URL,

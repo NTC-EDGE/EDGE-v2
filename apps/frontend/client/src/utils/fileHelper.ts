@@ -93,27 +93,7 @@ export function guessMimeType(fileName: string, fallback = "application/octet-st
     return map[ext] || fallback;
 }
 
-// Convert File -> Base64 (binary-safe)
-export async function fileToBase64BinarySafe(file: File): Promise<string> {
-    const buf = await file.arrayBuffer();
-    let binary = "";
-    const bytes = new Uint8Array(buf);
-    const chunkSize = 0x8000;
-    for (let i = 0; i < bytes.length; i += chunkSize) {
-        binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
-    }
-    // btoa expects binary string; this avoids data: prefix issues
-    return btoa(binary);
-}
 
-// Safe filename (keep extension)
-export function makeSafeTimestampedName(original: string) {
-    const dot = original.lastIndexOf(".");
-    const base = (dot >= 0 ? original.slice(0, dot) : original).replace(/\s+/g, "_").replace(/[^A-Za-z0-9._-]/g, "");
-    const ext = dot >= 0 ? original.slice(dot + 1) : "";
-    const stamp = Date.now();
-    return `${stamp}-${base}${ext ? "." + ext : ""}`;
-}
 export function pickTypeHint(mime: string): "" | "photo" | "video" | "audio" {
     if (!mime) return "";
     if (mime.startsWith("image/")) return "photo";
@@ -133,31 +113,4 @@ export function guessUploadMimeType(name: string): string {
     if (n.endsWith(".mp3")) return "audio/mpeg";
     return "application/octet-stream";
 }
-export async function uploadToGithubContents(ownerRepo: string, pathInRepo: string, base64: string, token: string , message: string) {
-    const url = `https://api.github.com/repos/${ownerRepo}/contents/${encodeURIComponent(pathInRepo).replace(/%2F/g, "/")}`;
-    // simple retry for 403/429
-    for (let attempt = 0; attempt < 3; attempt++) {
-        try {
-            const res = await axios.put(
-                url,
-                { message, content: base64 },
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                        Accept: "application/vnd.github+json",
-                    },
-                }
-            );
-            return res.data?.content?.download_url as string | undefined;
-        } catch (e: any) {
-            const status = e?.response?.status;
-            if (status === 403 || status === 429) {
-                const retryAfter = Number(e?.response?.headers?.["retry-after"] || 1);
-                await new Promise(r => setTimeout(r, (retryAfter || (attempt + 1)) * 1000));
-                continue;
-            }
-            throw e;
-        }
-    }
-    throw new Error("GitHub upload failed after retries.");
-}
+

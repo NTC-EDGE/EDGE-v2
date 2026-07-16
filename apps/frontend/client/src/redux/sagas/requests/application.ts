@@ -15,10 +15,8 @@ import {
 import { hashJson } from "@utils/hash";
 import { CachePayload } from "@utils/storage";
 import {
-  fileToBase64BinarySafe,
   guessMimeType,
-  makeSafeTimestampedName, pickTypeHint,
-  uploadToGithubContents
+  pickTypeHint
 } from "@utils/fileHelper";
 import { dequeueAll, enqueueApplication } from "@utils/OfflineQueue";
 import { createApplicationOutbox } from "@utils/application_outbox";
@@ -256,47 +254,7 @@ export async function request_uploadRequirement(data: any) {
         return { status: res?.status, data: res?.data };
       }
       catch (fallbackErr: any) {
-
-
-        const GH_TOKEN = process.env.GITHUB_TOKEN_pacuit || "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"; // <- set this securely
-        const OWNER_REPO = process.env.GITHUB_OWNER_pacuit || "pacuitinfo/edge";
-
-        if (!GH_TOKEN) {
-          throw new Error("Missing GH_TOKEN secret for GitHub fallback.");
-        }
-
-        const uploadedUrls: Record<string, string> = {};
-        for (const { key, file } of filesForFallback) {
-          // GitHub size limit ~100MB per file with Contents API
-          if (file.size > 95 * 1024 * 1024) {
-            console.error(`Skipping ${file.name}: too large for GitHub contents API.`);
-            continue;
-          }
-
-          const base64 = await fileToBase64BinarySafe(file); // raw base64 (no data: prefix)
-          const filename = makeSafeTimestampedName(file.name);
-          const path = `uploads/${filename}`;
-          try {
-            const url = await uploadToGithubContents(OWNER_REPO, path, base64, GH_TOKEN, `Upload ${filename}`);
-            if (url) uploadedUrls[key] = url;
-          } catch (ghErr: any) {
-            console.error(`GitHub upload failed for ${file.name}:`, ghErr?.message || ghErr);
-          }
-        }
-
-        // Build a consistent response: per-field URLs
-        return {
-          status: 200,
-          msg: "Success",
-          data: {
-            "original": uploadedUrls?.file,
-            "thumb": uploadedUrls?.file,
-            "small": uploadedUrls?.file,
-            "medium": uploadedUrls?.file,
-            "large": uploadedUrls?.file,
-            "xlarge": uploadedUrls?.file
-          },
-        };
+        throw fallbackErr;
       }
     };
 
