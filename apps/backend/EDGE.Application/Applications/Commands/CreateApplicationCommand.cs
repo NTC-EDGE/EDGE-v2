@@ -1,6 +1,6 @@
 using MediatR;
-using NtcEdge.Domain.Entities;
+using EDGE.Domain.Entities;
 
-namespace NtcEdge.Application.Applications.Commands;
+namespace EDGE.Application.Applications.Commands;
 
 public record CreateApplicationCommand(string Title, string ApplicantName) : IRequest<ApplicationRecord>;

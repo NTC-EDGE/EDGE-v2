@@ -1,4 +1,4 @@
-namespace NtcEdge.Domain.Entities;
+namespace EDGE.Domain.Entities;
 
 public class ApplicationRecord
 {

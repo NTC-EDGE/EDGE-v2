@@ -2,7 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using FluentValidation;
 using System.Reflection;
 
-namespace NtcEdge.Application;
+namespace EDGE.Application;
 
 public static class DependencyInjection
 {

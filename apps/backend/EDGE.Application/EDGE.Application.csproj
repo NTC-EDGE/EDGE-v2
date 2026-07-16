@@ -1,7 +1,7 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <ProjectReference Include="..\Domain\NtcEdge.Domain.csproj" />
+    <ProjectReference Include="..\EDGE.Domain\EDGE.Domain.csproj" />
   </ItemGroup>
 
   <ItemGroup>

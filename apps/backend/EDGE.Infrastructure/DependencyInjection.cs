@@ -2,7 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Hangfire;
 using Hangfire.MemoryStorage;
 
-namespace NtcEdge.Infrastructure;
+namespace EDGE.Infrastructure;
 
 public static class DependencyInjection
 {

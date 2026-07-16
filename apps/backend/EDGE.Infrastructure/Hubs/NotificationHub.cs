@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.SignalR;
 
-namespace NtcEdge.Infrastructure.Hubs;
+namespace EDGE.Infrastructure.Hubs;
 
 public class NotificationHub : Hub
 {

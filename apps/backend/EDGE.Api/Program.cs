@@ -3,10 +3,10 @@ using MediatR;
 using Microsoft.AspNetCore.SignalR;
 using Hangfire;
 using Scalar.AspNetCore;
-using NtcEdge.Application;
-using NtcEdge.Application.Applications.Commands;
-using NtcEdge.Infrastructure;
-using NtcEdge.Infrastructure.Hubs;
+using EDGE.Application;
+using EDGE.Application.Applications.Commands;
+using EDGE.Infrastructure;
+using EDGE.Infrastructure.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 

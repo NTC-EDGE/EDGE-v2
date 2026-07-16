@@ -1,6 +1,6 @@
 using FluentValidation;
 
-namespace NtcEdge.Application.Applications.Commands;
+namespace EDGE.Application.Applications.Commands;
 
 public class CreateApplicationCommandValidator : AbstractValidator<CreateApplicationCommand>
 {
