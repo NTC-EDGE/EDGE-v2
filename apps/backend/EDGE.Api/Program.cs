@@ -3,6 +3,8 @@ using MediatR;
 using Microsoft.AspNetCore.SignalR;
 using Hangfire;
 using Scalar.AspNetCore;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
 using EDGE.Application;
 using EDGE.Application.Applications.Commands;
 using EDGE.Infrastructure;
@@ -14,10 +16,31 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure();
 
+// Configure Clerk JWT Authentication
+var clerkAuthority = builder.Configuration["Clerk:Authority"] ?? "https://easy-snipe-36.clerk.accounts.dev";
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.Authority = clerkAuthority;
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = clerkAuthority,
+            ValidateAudience = false,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true
+        };
+    });
+
+builder.Services.AddAuthorization();
+
 // Configure OpenAPI
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 // Configure HTTP request pipeline
 if (app.Environment.IsDevelopment())
@@ -53,7 +76,8 @@ app.MapPost("/api/applications", async (
 
     return Results.Created($"/api/applications/{result.Id}", result);
 })
-.WithName("CreateApplication");
+.WithName("CreateApplication")
+.RequireAuthorization();
 
 // Map SignalR Hub
 app.MapHub<NotificationHub>("/hubs/notifications");
