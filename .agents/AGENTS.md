@@ -12,6 +12,11 @@ This workspace houses both the C# .NET 10 Clean Architecture backend (`apps/back
 *   **No `any` Type**: Do not use the `any` type. If a type is unknown or dynamic, use `unknown` and implement proper type guards (`typeof`, `instanceof`, or custom type guard functions).
 *   **Automatic Type Inference**: Rely on TypeScript's automatic type inference as much as possible. When explicit types are required, write them safely and completely.
 
+### Mobile-First & Responsive Web Design
+*   **Mobile-First Approach**: All frontend layouts must be built using a mobile-first philosophy, ensuring clean, native-feeling views on iOS and Android devices.
+*   **Prevent Overstretching on Web**: To prevent inputs, buttons, cards, forms, and main container wrappers from stretching awkwardly across wide desktop web browsers, you **must** apply a reasonable `maxWidth` constraint (e.g., `maxWidth: 440` for authentication/modals, or `maxWidth: 1200` for grid/dashboards) combined with `alignSelf: 'center'` (or centering parent flex layouts).
+*   **Layout Adaptability**: Avoid creating duplicate platform-specific files for layout structures (e.g., avoiding `.web.tsx` vs `.tsx`). Instead, use React Native's `useWindowDimensions()` hook to adapt layout flex directions (e.g., `row` on desktop, `column` on mobile) and override styling properties dynamically.
+
 ---
 
 ## 2. Backend (C# & .NET 10 Clean Architecture) Rules
