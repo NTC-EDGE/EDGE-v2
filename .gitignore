@@ -41,3 +41,11 @@ ios/
 # Temp / seed files
 new.json
 ntcservices.json
+
+# .NET Build and VS outputs
+[Bb]in/
+[Oo]bj/
+*.user
+*.suo
+.vs/
+*.sln.docstates
