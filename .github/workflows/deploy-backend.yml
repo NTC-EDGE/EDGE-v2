@@ -1,0 +1,81 @@
+name: Deploy Backend
+
+on:
+  push:
+    branches:
+      - '**'
+    tags:
+      - 'v*'
+    paths:
+      - 'apps/backend/**'
+      - '.github/workflows/deploy-backend.yml'
+
+jobs:
+  deploy:
+    name: Deploy Web API
+    runs-on: ubuntu-latest
+    environment:
+      name: >-
+        ${{ github.ref_type == 'tag' && 'production' ||
+            (github.ref == 'refs/heads/main' && 'staging' ||
+             (github.ref == 'refs/heads/develop' && 'development' ||
+              'preview')) }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker Image
+        run: |
+          docker build -t edge-backend:${{ github.sha }} -f apps/backend/Dockerfile apps/backend
+
+      - name: Save Docker Image to Tarball
+        run: |
+          docker save -o backend-image.tar edge-backend:${{ github.sha }}
+
+      - name: Deploy to Server via SCP & SSH
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          SSH_PASSPHRASE: ${{ secrets.SSH_PASSPHRASE }}
+          TARGET_PORT: ${{ vars.PORT }}
+          TARGET_ENV: ${{ github.ref_type == 'tag' && 'production' || (github.ref == 'refs/heads/main' && 'staging' || (github.ref == 'refs/heads/develop' && 'development' || 'preview')) }}
+        run: |
+          # Write SSH Private Key to file
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+          # Start SSH Agent
+          eval $(ssh-agent -s)
+
+          # Add Key to Agent depending on passphrase presence
+          if [ -n "$SSH_PASSPHRASE" ]; then
+            echo "SSH passphrase provided. Adding key via expect..."
+            sudo apt-get update && sudo apt-get install -y expect
+            expect -c "
+              spawn ssh-add $HOME/.ssh/id_rsa
+              expect \"Enter passphrase\"
+              send \"$SSH_PASSPHRASE\r\"
+              expect eof
+            "
+          else
+            echo "No SSH passphrase provided. Adding key directly..."
+            ssh-add ~/.ssh/id_rsa
+          fi
+
+          # Copy Tarball to Remote Host
+          scp -o StrictHostKeyChecking=no backend-image.tar $SSH_USER@$SSH_HOST:/tmp/backend-image.tar
+
+          # Execute Deployment Commands on Remote Host
+          ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST << EOF
+            docker load -i /tmp/backend-image.tar
+            docker stop edge-backend-$TARGET_ENV || true
+            docker rm edge-backend-$TARGET_ENV || true
+            docker run -d --name edge-backend-$TARGET_ENV -p $TARGET_PORT:80 edge-backend:${{ github.sha }}
+            rm /tmp/backend-image.tar
+          EOF
