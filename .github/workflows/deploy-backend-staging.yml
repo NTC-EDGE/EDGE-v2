@@ -1,14 +1,17 @@
-name: Deploy Backend
+name: Deploy Backend - Staging
 
 on:
   push:
     branches:
-      - '**'
-    tags:
-      - 'v*'
+      - main
     paths:
       - 'apps/backend/**'
-      - '.github/workflows/deploy-backend.yml'
+      - '.github/workflows/deploy-backend-staging.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'apps/backend/**'
 
 jobs:
   build:
@@ -24,35 +27,32 @@ jobs:
 
       - name: Build Docker Image
         run: |
-          docker build -t edge-backend:${{ github.sha }} -f apps/backend/Dockerfile apps/backend
+          docker build -t edge-backend-staging:${{ github.sha }} -f apps/backend/Dockerfile apps/backend
 
       - name: Save & Compress Image (Gzip)
         run: |
-          docker save edge-backend:${{ github.sha }} | gzip > backend-image.tar.gz
+          docker save edge-backend-staging:${{ github.sha }} | gzip > backend-image-staging.tar.gz
 
       - name: Upload Compressed Image Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: backend-image
-          path: backend-image.tar.gz
+          name: backend-image-staging
+          path: backend-image-staging.tar.gz
           retention-days: 1
 
   deploy:
     name: Deploy Web API
     runs-on: ubuntu-latest
     needs: build
+    if: github.event_name != 'pull_request'
     environment:
-      name: >-
-        ${{ github.ref_type == 'tag' && 'production' ||
-            (github.ref == 'refs/heads/main' && 'staging' ||
-             (github.ref == 'refs/heads/develop' && 'development' ||
-              'preview')) }}
+      name: staging
 
     steps:
       - name: Download Compressed Image
         uses: actions/download-artifact@v4
         with:
-          name: backend-image
+          name: backend-image-staging
 
       - name: Deploy to Server via SCP & SSH
         env:
@@ -63,7 +63,6 @@ jobs:
           DB_CONNECTION_STRING: ${{ secrets.DB_CONNECTION_STRING }}
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
           TARGET_PORT: ${{ vars.PORT }}
-          TARGET_ENV: ${{ github.ref_type == 'tag' && 'production' || (github.ref == 'refs/heads/main' && 'staging' || (github.ref == 'refs/heads/develop' && 'development' || 'preview')) }}
         run: |
           # Write SSH Private Key to file
           mkdir -p ~/.ssh
@@ -89,17 +88,17 @@ jobs:
           fi
 
           # Secure Copy Compressed Archive to Remote Host
-          scp -o StrictHostKeyChecking=no backend-image.tar.gz $SSH_USER@$SSH_HOST:/tmp/backend-image.tar.gz
+          scp -o StrictHostKeyChecking=no backend-image-staging.tar.gz $SSH_USER@$SSH_HOST:/tmp/backend-image-staging.tar.gz
 
           # Execute Deployment Commands on Remote Host
           ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST << EOF
             # Unzip and load image in stream
-            gunzip -c /tmp/backend-image.tar.gz | docker load
-            docker stop edge-backend-$TARGET_ENV || true
-            docker rm edge-backend-$TARGET_ENV || true
-            docker run -d --name edge-backend-$TARGET_ENV -p $TARGET_PORT:80 \
+            gunzip -c /tmp/backend-image-staging.tar.gz | docker load
+            docker stop edge-backend-staging || true
+            docker rm edge-backend-staging || true
+            docker run -d --name edge-backend-staging -p $TARGET_PORT:80 \
               -e ConnectionStrings__DefaultConnection="$DB_CONNECTION_STRING" \
               -e Clerk__SecretKey="$CLERK_SECRET_KEY" \
-              edge-backend:${{ github.sha }}
-            rm /tmp/backend-image.tar.gz
+              edge-backend-staging:${{ github.sha }}
+            rm /tmp/backend-image-staging.tar.gz
           EOF

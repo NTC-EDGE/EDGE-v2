@@ -1,0 +1,106 @@
+name: Deploy Backend - Preview
+
+on:
+  push:
+    branches-ignore:
+      - main
+      - develop
+    paths:
+      - 'apps/backend/**'
+      - '.github/workflows/deploy-backend-preview.yml'
+  pull_request:
+    branches-ignore:
+      - main
+      - develop
+    paths:
+      - 'apps/backend/**'
+
+jobs:
+  build:
+    name: Build & Compress Image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker Image
+        run: |
+          docker build -t edge-backend-preview:${{ github.sha }} -f apps/backend/Dockerfile apps/backend
+
+      - name: Save & Compress Image (Gzip)
+        run: |
+          docker save edge-backend-preview:${{ github.sha }} | gzip > backend-image-preview.tar.gz
+
+      - name: Upload Compressed Image Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-image-preview
+          path: backend-image-preview.tar.gz
+          retention-days: 1
+
+  deploy:
+    name: Deploy Web API
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name != 'pull_request'
+    environment:
+      name: preview
+
+    steps:
+      - name: Download Compressed Image
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-image-preview
+
+      - name: Deploy to Server via SCP & SSH
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          SSH_PASSPHRASE: ${{ secrets.SSH_PASSPHRASE }}
+          DB_CONNECTION_STRING: ${{ secrets.DB_CONNECTION_STRING }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          TARGET_PORT: ${{ vars.PORT }}
+        run: |
+          # Write SSH Private Key to file
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+          # Start SSH Agent
+          eval $(ssh-agent -s)
+
+          # Add Key to Agent depending on passphrase presence
+          if [ -n "$SSH_PASSPHRASE" ]; then
+            echo "SSH passphrase provided. Adding key via expect..."
+            sudo apt-get update && sudo apt-get install -y expect
+            expect -c "
+              spawn ssh-add $HOME/.ssh/id_rsa
+              expect \"Enter passphrase\"
+              send \"$SSH_PASSPHRASE\r\"
+              expect eof
+            "
+          else
+            echo "No SSH passphrase provided. Adding key directly..."
+            ssh-add ~/.ssh/id_rsa
+          fi
+
+          # Secure Copy Compressed Archive to Remote Host
+          scp -o StrictHostKeyChecking=no backend-image-preview.tar.gz $SSH_USER@$SSH_HOST:/tmp/backend-image-preview.tar.gz
+
+          # Execute Deployment Commands on Remote Host
+          ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST << EOF
+            # Unzip and load image in stream
+            gunzip -c /tmp/backend-image-preview.tar.gz | docker load
+            docker stop edge-backend-preview || true
+            docker rm edge-backend-preview || true
+            docker run -d --name edge-backend-preview -p $TARGET_PORT:80 \
+              -e ConnectionStrings__DefaultConnection="$DB_CONNECTION_STRING" \
+              -e Clerk__SecretKey="$CLERK_SECRET_KEY" \
+              edge-backend-preview:${{ github.sha }}
+            rm /tmp/backend-image-preview.tar.gz
+          EOF
