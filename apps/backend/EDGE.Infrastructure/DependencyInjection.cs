@@ -32,6 +32,7 @@ public static class DependencyInjection
 
         // Register Repositories and Unit of Work
         services.AddScoped<IApplicationRepository, ApplicationRepository>();
+        services.AddScoped<IGeographicRepository, GeographicRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IUserActivityService, UserActivityService>();
 
