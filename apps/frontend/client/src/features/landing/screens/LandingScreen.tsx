@@ -314,31 +314,8 @@ export function LandingScreen({ navigation }: LandingScreenProps) {
               <TouchableOpacity onPress={() => scrollToSection('faqs')} style={styles.navLink}>
                 <Text style={styles.navLinkText}>FAQs</Text>
               </TouchableOpacity>
-              
-              <TouchableOpacity onPress={() => setIsTrackModalVisible(true)} style={[styles.navLink, { marginRight: SPACING[16] }]}>
-                <Text style={[styles.navLinkText, { color: '#1236A8', fontWeight: '700' }]}>Track Application</Text>
-              </TouchableOpacity>
-
-              <Button
-                title="Get Started"
-                size="sm"
-                onPress={() => setIsGetStartedModalVisible(true)}
-                style={styles.headerCtaBtn}
-              />
             </View>
-          ) : (
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <TouchableOpacity onPress={() => setIsTrackModalVisible(true)} style={[styles.navLink, { marginRight: SPACING[12] }]}>
-                <Text style={[styles.navLinkText, { color: '#1236A8', fontWeight: '700', fontSize: 13 }]}>Track Application</Text>
-              </TouchableOpacity>
-              <Button
-                title="Get Started"
-                size="sm"
-                onPress={() => setIsGetStartedModalVisible(true)}
-                style={styles.headerCtaBtn}
-              />
-            </View>
-          )}
+          ) : null}
         </View>
       </View>
 
