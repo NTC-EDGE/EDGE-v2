@@ -104,11 +104,115 @@ const RootStack = createNativeStackNavigator({
 
 const Navigation = createStaticNavigation(RootStack);
 
+interface ClerkErrorItem {
+  message: string;
+}
+
+interface ClerkErrorResponse {
+  errors: ClerkErrorItem[];
+}
+
+function isObject(val: unknown): val is Record<string, unknown> {
+  return typeof val === "object" && val !== null;
+}
+
+function isClerkError(err: unknown): err is ClerkErrorResponse {
+  if (!isObject(err)) {
+    return false;
+  }
+  const errors = err.errors;
+  if (!Array.isArray(errors)) {
+    return false;
+  }
+  return errors.every((item): boolean => {
+    if (!isObject(item)) {
+      return false;
+    }
+    return typeof item.message === "string";
+  });
+}
+
 function AuthScreen() {
-  const { loginWithBypass } = useAuthContext();
+  const { loginWithClerk, signUpWithClerk, verifySignUp } = useAuthContext();
+  const [mode, setMode] = useState<"signin" | "signup" | "verify">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error] = useState("");
+  const [code, setCode] = useState("");
+  const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleAuthError = (err: unknown, defaultMsg: string) => {
+    if (err instanceof Error) {
+      setError(err.message);
+    } else if (isClerkError(err)) {
+      if (err.errors.length > 0) {
+        setError(err.errors[0].message);
+      } else {
+        setError(defaultMsg);
+      }
+    } else {
+      setError(defaultMsg);
+    }
+  };
+
+  const handleSignIn = async () => {
+    if (email.trim() === "" || password.trim() === "") {
+      setError("Please enter your email and password.");
+      return;
+    }
+    setError("");
+    setIsSubmitting(true);
+    try {
+      await loginWithClerk(email, password);
+    } catch (err: unknown) {
+      handleAuthError(err, "Invalid email or password.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSignUp = async () => {
+    if (email.trim() === "" || password.trim() === "") {
+      setError("Please enter your email and password.");
+      return;
+    }
+    setError("");
+    setIsSubmitting(true);
+    try {
+      const isComplete = await signUpWithClerk(email, password);
+      if (isComplete) {
+        // Handled by active session detection
+      } else {
+        setMode("verify");
+      }
+    } catch (err: unknown) {
+      handleAuthError(err, "Failed to create account. Please check your credentials.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleVerify = async () => {
+    if (code.trim() === "") {
+      setError("Please enter the verification code.");
+      return;
+    }
+    setError("");
+    setIsSubmitting(true);
+    try {
+      await verifySignUp(code);
+    } catch (err: unknown) {
+      handleAuthError(err, "Incorrect verification code. Please check and try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const switchMode = (newMode: "signin" | "signup" | "verify") => {
+    setMode(newMode);
+    setError("");
+    setCode("");
+  };
 
   return (
     <View style={styles.authBg}>
@@ -117,42 +221,139 @@ function AuthScreen() {
           <Lucide name="shield" size={24} color={COLORS.brand[700]} />
         </View>
         <Text style={styles.authTitle}>NTC-EDGE Staff Portal</Text>
-        <Text style={styles.authSubtitle}>Authentication Required</Text>
 
-        <TextInput
-          autoCapitalize="none"
-          placeholder="Email Address"
-          placeholderTextColor={COLORS.neutral[400]}
-          value={email}
-          onChangeText={setEmail}
-          style={styles.input}
-        />
-        <TextInput
-          placeholder="Password"
-          placeholderTextColor={COLORS.neutral[400]}
-          secureTextEntry={true}
-          value={password}
-          onChangeText={setPassword}
-          style={styles.input}
-        />
+        {mode === "signin" && (
+          <>
+            <Text style={styles.authSubtitle}>Authentication Required</Text>
+            <TextInput
+              autoCapitalize="none"
+              placeholder="Email Address"
+              placeholderTextColor={COLORS.neutral[400]}
+              value={email}
+              onChangeText={setEmail}
+              style={styles.input}
+              editable={!isSubmitting}
+            />
+            <TextInput
+              placeholder="Password"
+              placeholderTextColor={COLORS.neutral[400]}
+              secureTextEntry={true}
+              value={password}
+              onChangeText={setPassword}
+              style={styles.input}
+              editable={!isSubmitting}
+            />
 
-        {error.length > 0 ? (
-          <Text style={styles.errorText}>{error}</Text>
-        ) : null}
+            {error.length > 0 ? (
+              <Text style={styles.errorText}>{error}</Text>
+            ) : null}
 
-        <TouchableOpacity style={styles.authButton} onPress={() => { }}>
-          <Text style={styles.buttonText}>Sign In</Text>
-        </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.authButton, isSubmitting && styles.authButtonDisabled]}
+              onPress={handleSignIn}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <ActivityIndicator size="small" color={COLORS.neutral.white} />
+              ) : (
+                <Text style={styles.buttonText}>Sign In</Text>
+              )}
+            </TouchableOpacity>
 
-        {/* Developer Bypass (active in dev mode) */}
-        {__DEV__ ? (
-          <TouchableOpacity
-            style={styles.bypassButton}
-            onPress={loginWithBypass}
-          >
-            <Text style={styles.bypassButtonText}>Developer Login Bypass</Text>
-          </TouchableOpacity>
-        ) : null}
+            <TouchableOpacity onPress={() => switchMode("signup")} disabled={isSubmitting}>
+              <Text style={styles.authToggleText}>
+                Don't have an account? <Text style={styles.authToggleLink}>Sign Up</Text>
+              </Text>
+            </TouchableOpacity>
+          </>
+        )}
+
+        {mode === "signup" && (
+          <>
+            <Text style={styles.authSubtitle}>Create Your Account</Text>
+            <TextInput
+              autoCapitalize="none"
+              placeholder="Email Address"
+              placeholderTextColor={COLORS.neutral[400]}
+              value={email}
+              onChangeText={setEmail}
+              style={styles.input}
+              editable={!isSubmitting}
+            />
+            <TextInput
+              placeholder="Password"
+              placeholderTextColor={COLORS.neutral[400]}
+              secureTextEntry={true}
+              value={password}
+              onChangeText={setPassword}
+              style={styles.input}
+              editable={!isSubmitting}
+            />
+
+            {error.length > 0 ? (
+              <Text style={styles.errorText}>{error}</Text>
+            ) : null}
+
+            <TouchableOpacity
+              style={[styles.authButton, isSubmitting && styles.authButtonDisabled]}
+              onPress={handleSignUp}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <ActivityIndicator size="small" color={COLORS.neutral.white} />
+              ) : (
+                <Text style={styles.buttonText}>Create Account</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={() => switchMode("signin")} disabled={isSubmitting}>
+              <Text style={styles.authToggleText}>
+                Already have an account? <Text style={styles.authToggleLink}>Sign In</Text>
+              </Text>
+            </TouchableOpacity>
+          </>
+        )}
+
+        {mode === "verify" && (
+          <>
+            <Text style={styles.authSubtitle}>Verify Your Email</Text>
+            <Text style={styles.verifyDescription}>
+              We sent a verification code to {email}. Please enter it below to complete registration.
+            </Text>
+
+            <TextInput
+              autoCapitalize="none"
+              placeholder="Verification Code"
+              placeholderTextColor={COLORS.neutral[400]}
+              value={code}
+              onChangeText={setCode}
+              style={styles.input}
+              editable={!isSubmitting}
+            />
+
+            {error.length > 0 ? (
+              <Text style={styles.errorText}>{error}</Text>
+            ) : null}
+
+            <TouchableOpacity
+              style={[styles.authButton, isSubmitting && styles.authButtonDisabled]}
+              onPress={handleVerify}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <ActivityIndicator size="small" color={COLORS.neutral.white} />
+              ) : (
+                <Text style={styles.buttonText}>Verify & Sign Up</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={() => switchMode("signup")} disabled={isSubmitting}>
+              <Text style={styles.authToggleText}>
+                Back to <Text style={styles.authToggleLink}>Sign Up</Text>
+              </Text>
+            </TouchableOpacity>
+          </>
+        )}
       </View>
     </View>
   );
@@ -300,6 +501,9 @@ const styles = StyleSheet.create({
       },
     }),
   },
+  authButtonDisabled: {
+    opacity: 0.6,
+  },
   bypassButton: {
     width: "100%",
     height: 40,
@@ -316,6 +520,9 @@ const styles = StyleSheet.create({
         cursor: 'pointer',
       },
     }),
+  },
+  bypassButtonDisabled: {
+    opacity: 0.6,
   },
   buttonText: {
     color: COLORS.neutral.white,
@@ -335,6 +542,25 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontSize: 13,
     fontFamily: TYPOGRAPHY.fonts.primary,
+  },
+  authToggleText: {
+    color: COLORS.neutral[500],
+    fontSize: 13,
+    marginTop: SPACING[16],
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    textAlign: "center",
+  },
+  authToggleLink: {
+    color: COLORS.brand[700],
+    fontWeight: TYPOGRAPHY.weights.semibold,
+  },
+  verifyDescription: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    color: COLORS.neutral[500],
+    textAlign: "center",
+    marginBottom: SPACING[16],
+    lineHeight: 18,
   },
   placeholderContainer: {
     flex: 1,
