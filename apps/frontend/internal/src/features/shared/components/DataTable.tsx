@@ -10,50 +10,18 @@ import {
   Row,
 } from '@tanstack/react-table';
 import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY } from '../theme/tokens';
+import { StatusBadge } from './StatusBadge';
 
-// Status color helper mapping
-export const getStatusColors = (status: string) => {
-  const normalized = status.toLowerCase();
-  if (normalized === 'approved' || normalized === 'active' || normalized === 'complete') {
-    return {
-      bg: COLORS.semantic.successBg,
-      border: COLORS.semantic.successBorder,
-      text: COLORS.semantic.success,
-    };
-  }
-  if (normalized === 'pending' || normalized === 'reviewing' || normalized === 'warning') {
-    return {
-      bg: COLORS.semantic.warningBg,
-      border: COLORS.semantic.warningBorder,
-      text: COLORS.semantic.warning,
-    };
-  }
-  if (normalized === 'rejected' || normalized === 'failed' || normalized === 'error') {
-    return {
-      bg: COLORS.semantic.errorBg,
-      border: COLORS.semantic.errorBorder,
-      text: COLORS.semantic.error,
-    };
-  }
-  return {
-    bg: COLORS.neutral[100],
-    border: COLORS.neutral[200],
-    text: COLORS.neutral[600],
-  };
-};
+type TabType = 'All' | 'Approved' | 'Pending' | 'Rejected' | 'Draft';
+const TABS: TabType[] = ['All', 'Approved', 'Pending', 'Rejected', 'Draft'];
 
-export function StatusBadge({ status }: { status: string }) {
-  const colors = getStatusColors(status);
-  return (
-    <View style={[styles.badge, { backgroundColor: colors.bg, borderColor: colors.border }]}>
-      <Text style={[styles.badgeText, { color: colors.text }]}>{status}</Text>
-    </View>
-  );
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
 }
 
 // 1. Modular Tab Button with local hover state
 interface TabButtonProps {
-  tab: 'All' | 'Approved' | 'Pending' | 'Rejected' | 'Draft';
+  tab: TabType;
   isActive: boolean;
   onPress: () => void;
 }
@@ -95,8 +63,7 @@ function DataTableRow<TData>({ row }: DataTableRowProps<TData>) {
       ]}
     >
       {row.getVisibleCells().map((cell) => {
-        const columnMeta = cell.column.columnDef.meta as Record<string, unknown> | undefined;
-        const colFlex = columnMeta?.flex !== undefined ? Number(columnMeta.flex) : 1;
+        const colFlex = cell.column.columnDef.meta?.flex ?? 1;
 
         return (
           <View key={cell.id} style={[styles.tableCell, { flex: colFlex }]}>
@@ -155,14 +122,16 @@ export function DataTable<TData, TValue>({
   statusKey,
 }: DataTableProps<TData, TValue>) {
   const [searchText, setSearchText] = useState('');
-  const [activeTab, setActiveTab] = useState<'All' | 'Approved' | 'Pending' | 'Rejected' | 'Draft'>('All');
+  const [activeTab, setActiveTab] = useState<TabType>('All');
 
   const filteredData = useMemo(() => {
     return data.filter((row) => {
       if (statusKey !== undefined && activeTab !== 'All') {
-        const rowStatus = String(row[statusKey]).toLowerCase();
-        if (rowStatus !== activeTab.toLowerCase()) {
-          return false;
+        if (isRecord(row)) {
+          const rowStatus = String(row[statusKey]).toLowerCase();
+          if (rowStatus !== activeTab.toLowerCase()) {
+            return false;
+          }
         }
       }
 
@@ -173,13 +142,22 @@ export function DataTable<TData, TValue>({
       const query = searchText.toLowerCase();
 
       if (searchKey !== undefined) {
-        const value = row[searchKey];
-        return value !== null && value !== undefined && String(value).toLowerCase().includes(query);
+        if (isRecord(row)) {
+          const value = row[searchKey];
+          if (value !== null && value !== undefined && String(value).toLowerCase().includes(query)) {
+            return true;
+          }
+        }
+        return false;
       }
 
-      return Object.values(row as Record<string, unknown>).some(
-        (val) => val !== null && val !== undefined && String(val).toLowerCase().includes(query)
-      );
+      if (isRecord(row)) {
+        return Object.values(row).some(
+          (val) => val !== null && val !== undefined && String(val).toLowerCase().includes(query)
+        );
+      }
+
+      return false;
     });
   }, [data, searchText, activeTab, searchKey, statusKey]);
 
@@ -207,7 +185,7 @@ export function DataTable<TData, TValue>({
         {/* Status Tabs */}
         {statusKey !== undefined ? (
           <View style={styles.tabsContainer}>
-            {(['All', 'Approved', 'Pending', 'Rejected', 'Draft'] as const).map((tab) => {
+            {TABS.map((tab) => {
               const isActive = activeTab === tab;
               return (
                 <TabButton
@@ -243,8 +221,7 @@ export function DataTable<TData, TValue>({
           {table.getHeaderGroups().map((headerGroup) => (
             <React.Fragment key={headerGroup.id}>
               {headerGroup.headers.map((header) => {
-                const columnMeta = header.column.columnDef.meta as Record<string, unknown> | undefined;
-                const colFlex = columnMeta?.flex !== undefined ? Number(columnMeta.flex) : 1;
+                const colFlex = header.column.columnDef.meta?.flex ?? 1;
 
                 return (
                   <View key={header.id} style={[styles.tableHeaderCell, { flex: colFlex }]}>
@@ -427,18 +404,6 @@ const styles = StyleSheet.create({
   },
   tableCell: {
     justifyContent: 'center',
-  },
-  badge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 9999,
-    borderWidth: 1,
-  },
-  badgeText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
-    fontWeight: TYPOGRAPHY.weights.semibold,
   },
   emptyState: {
     alignItems: 'center',

@@ -28,8 +28,8 @@ import {
   AuthProvider,
   useAuthContext,
 } from "./src/features/auth/context/AuthContext";
-import { RoleProvider } from "./src/features/navigation/context/RoleContext";
-import { DashboardShell } from "./src/features/navigation/components/DashboardShell";
+import { RoleProvider } from "./src/features/shell/context/RoleContext";
+import { DashboardShell } from "./src/features/shell/components/DashboardShell";
 import { DashboardScreen } from "./src/features/dashboard/screens/DashboardScreen";
 import { QueueScreen } from "./src/features/queue/screens/QueueScreen";
 
