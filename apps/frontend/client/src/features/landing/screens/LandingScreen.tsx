@@ -86,6 +86,78 @@ export function LandingScreen({ navigation }: LandingScreenProps) {
     new Animated.Value(0),
   ]).current;
 
+  // Scroll Tracking & Animations
+  const scrollY = useRef(new Animated.Value(0)).current;
+
+  // Parallax translation for background blue glow: moves slower
+  const backgroundBlueParallax = scrollY.interpolate({
+    inputRange: [0, 1000],
+    outputRange: [0, 150],
+    extrapolate: 'clamp',
+  });
+
+  // Parallax translation for background pink glow: moves in opposite direction
+  const backgroundPinkParallax = scrollY.interpolate({
+    inputRange: [0, 1000],
+    outputRange: [0, -100],
+    extrapolate: 'clamp',
+  });
+
+  // Hero Section Parallax translation on scroll
+  const heroParallaxTranslateY = scrollY.interpolate({
+    inputRange: [0, 500],
+    outputRange: [0, -40],
+    extrapolate: 'clamp',
+  });
+
+  // About EDGE reveal animations
+  const aboutFade = scrollY.interpolate({
+    inputRange: [0, 350],
+    outputRange: [0.4, 1],
+    extrapolate: 'clamp',
+  });
+  const aboutTranslateY = scrollY.interpolate({
+    inputRange: [0, 350],
+    outputRange: [35, 0],
+    extrapolate: 'clamp',
+  });
+
+  // Features Section reveal animations
+  const featuresFade = scrollY.interpolate({
+    inputRange: [150, 550],
+    outputRange: [0.4, 1],
+    extrapolate: 'clamp',
+  });
+  const featuresTranslateY = scrollY.interpolate({
+    inputRange: [150, 550],
+    outputRange: [35, 0],
+    extrapolate: 'clamp',
+  });
+
+  // How It Works Section reveal animations
+  const howItWorksFade = scrollY.interpolate({
+    inputRange: [450, 850],
+    outputRange: [0.4, 1],
+    extrapolate: 'clamp',
+  });
+  const howItWorksTranslateY = scrollY.interpolate({
+    inputRange: [450, 850],
+    outputRange: [35, 0],
+    extrapolate: 'clamp',
+  });
+
+  // FAQs Section reveal animations
+  const faqsFade = scrollY.interpolate({
+    inputRange: [750, 1200],
+    outputRange: [0.4, 1],
+    extrapolate: 'clamp',
+  });
+  const faqsTranslateY = scrollY.interpolate({
+    inputRange: [750, 1200],
+    outputRange: [35, 0],
+    extrapolate: 'clamp',
+  });
+
   useEffect(() => {
     // Floating background animations loop
     const createFloatAnim = (animValue: Animated.Value, duration: number) => {
@@ -319,19 +391,38 @@ export function LandingScreen({ navigation }: LandingScreenProps) {
         </View>
       </View>
 
-      <ScrollView ref={scrollViewRef} contentContainerStyle={styles.scrollContent} style={styles.scrollView}>
+      <ScrollView
+        ref={scrollViewRef}
+        contentContainerStyle={styles.scrollContent}
+        style={styles.scrollView}
+        scrollEventThrottle={16}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true }
+        )}
+      >
         {/* Glow Spots */}
         <Animated.View
           style={[
             styles.glowSpotBlue,
-            { transform: [{ translateY: translateYBlue }, { translateX: translateXBlue }] },
+            {
+              transform: [
+                { translateY: Animated.add(translateYBlue, backgroundBlueParallax) },
+                { translateX: translateXBlue }
+              ]
+            },
             Platform.OS === 'web' ? { filter: 'blur(100px)' } as any : { opacity: 0.08 },
           ]}
         />
         <Animated.View
           style={[
             styles.glowSpotPink,
-            { transform: [{ translateY: translateYPink }, { translateX: translateXPink }] },
+            {
+              transform: [
+                { translateY: Animated.add(translateYPink, backgroundPinkParallax) },
+                { translateX: translateXPink }
+              ]
+            },
             Platform.OS === 'web' ? { filter: 'blur(100px)' } as any : { opacity: 0.06 },
           ]}
         />
@@ -348,7 +439,12 @@ export function LandingScreen({ navigation }: LandingScreenProps) {
         <Animated.View style={[
           styles.heroSection,
           isDesktop ? styles.heroSectionDesktop : null,
-          { opacity: fadeAnimHero, transform: [{ translateY: slideAnimHero }] }
+          {
+            opacity: fadeAnimHero,
+            transform: [
+              { translateY: Animated.add(slideAnimHero, heroParallaxTranslateY) }
+            ]
+          }
         ]}>
           <View style={isDesktop ? styles.heroLeftCol : styles.heroFullWidth}>
             {/* Lavender/Blue Pill Badge */}
@@ -459,10 +555,83 @@ export function LandingScreen({ navigation }: LandingScreenProps) {
           ) : null}
         </Animated.View>
 
-        {/* "Why Choose EDGE?" Section */}
-        <View
-          style={styles.featuresSection}
+        {/* "About EDGE" Section */}
+        <Animated.View
+          style={[
+            styles.aboutEdgeSection,
+            isDesktop ? styles.rowLayout : styles.columnLayout,
+            {
+              opacity: aboutFade,
+              transform: [{ translateY: aboutTranslateY }]
+            }
+          ]}
           onLayout={(e) => handleSectionLayout('about', e.nativeEvent.layout.y)}
+        >
+          {isDesktop ? (
+            <View style={styles.aboutLeftCol}>
+              <View style={[styles.aboutGraphicCard, SHADOWS.card]}>
+                <View style={styles.aboutGraphicHeader}>
+                  <Lucide name="shield" size={24} color="#1236A8" />
+                  <Text style={styles.aboutGraphicHeaderText}>NTC SECURE GATEWAY</Text>
+                </View>
+                <View style={styles.aboutGraphicGrid}>
+                  <View style={styles.aboutGridItem}>
+                    <Lucide name="file-text" size={20} color="#1236A8" style={{ marginBottom: 6 }} />
+                    <Text style={styles.aboutGridItemText}>Certificates</Text>
+                  </View>
+                  <View style={styles.aboutGridItem}>
+                    <Lucide name="file" size={20} color="#1236A8" style={{ marginBottom: 6 }} />
+                    <Text style={styles.aboutGridItemText}>Permits</Text>
+                  </View>
+                  <View style={styles.aboutGridItem}>
+                    <Lucide name="award" size={20} color="#1236A8" style={{ marginBottom: 6 }} />
+                    <Text style={styles.aboutGridItemText}>Licenses</Text>
+                  </View>
+                  <View style={styles.aboutGridItem}>
+                    <Lucide name="help-circle" size={20} color="#1236A8" style={{ marginBottom: 6 }} />
+                    <Text style={styles.aboutGridItemText}>Requests</Text>
+                  </View>
+                </View>
+                <View style={styles.aboutGraphicFooter}>
+                  <View style={styles.dotIndicatorActive} />
+                  <Text style={styles.aboutGraphicFooterText}>Data Sync Active</Text>
+                </View>
+              </View>
+            </View>
+          ) : null}
+
+          <View style={isDesktop ? styles.aboutRightCol : styles.aboutFullCol}>
+            <View style={styles.aboutBadge}>
+              <Text style={styles.aboutBadgeText}>PLATFORM OVERVIEW</Text>
+            </View>
+            <Text style={styles.aboutTitle}>About EDGE</Text>
+            
+            <Text style={styles.aboutHighlightText}>
+              Welcome to the Electronic Data Governance and Evaluation (EDGE) application. This system is a flagship initiative by the National Telecommunications Commission (NTC) to modernize and streamline public services.
+            </Text>
+            
+            <Text style={styles.aboutBodyText}>
+              Our mission is to provide a transparent, efficient, and accessible online platform for all stakeholders. EDGE is a secure online platform developed to streamline application processing, licensing, and public requests.
+            </Text>
+            
+            <View style={styles.aboutInfoBox}>
+              <Lucide name="info" size={18} color="#1236A8" style={{ marginRight: 12, marginTop: 2 }} />
+              <Text style={styles.aboutInfoBoxText}>
+                This portal issues Certificates, Permits, Licenses, and manages Complaints/Requests efficiently.
+              </Text>
+            </View>
+          </View>
+        </Animated.View>
+
+        {/* "Why Choose EDGE?" Section */}
+        <Animated.View
+          style={[
+            styles.featuresSection,
+            {
+              opacity: featuresFade,
+              transform: [{ translateY: featuresTranslateY }]
+            }
+          ]}
         >
           <Text style={styles.featuresTitle}>Why Choose EDGE?</Text>
           <Text style={styles.featuresSubtitle}>Everything you need for seamless government services</Text>
@@ -496,11 +665,18 @@ export function LandingScreen({ navigation }: LandingScreenProps) {
               );
             })}
           </View>
-        </View>
+        </Animated.View>
 
         {/* How It Works Section */}
-        <View
-          style={[styles.sectionContainer, styles.greyBg]}
+        <Animated.View
+          style={[
+            styles.sectionContainer,
+            styles.greyBg,
+            {
+              opacity: howItWorksFade,
+              transform: [{ translateY: howItWorksTranslateY }]
+            }
+          ]}
           onLayout={(e) => handleSectionLayout('howItWorks', e.nativeEvent.layout.y)}
         >
           <Text style={[styles.sectionTitle, styles.centerText]}>How It Works</Text>
@@ -539,11 +715,17 @@ export function LandingScreen({ navigation }: LandingScreenProps) {
               <Text style={styles.stepCardDesc}>Monitor status using your reference number or dashboard.</Text>
             </View>
           </View>
-        </View>
+        </Animated.View>
 
         {/* FAQs Accordion */}
-        <View
-          style={styles.sectionContainer}
+        <Animated.View
+          style={[
+            styles.sectionContainer,
+            {
+              opacity: faqsFade,
+              transform: [{ translateY: faqsTranslateY }]
+            }
+          ]}
           onLayout={(e) => handleSectionLayout('faqs', e.nativeEvent.layout.y)}
         >
           <Text style={[styles.sectionTitle, styles.centerText]}>Frequently Asked Questions</Text>
@@ -590,7 +772,7 @@ export function LandingScreen({ navigation }: LandingScreenProps) {
               );
             })}
           </View>
-        </View>
+        </Animated.View>
 
         {/* Dynamic Blue Gradient CTA Section */}
         <View style={styles.ctaBoxContainer}>
@@ -1843,5 +2025,147 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 48,
     borderColor: '#1236A8',
+  },
+  aboutEdgeSection: {
+    paddingVertical: SPACING[48],
+    paddingHorizontal: SPACING[20],
+    maxWidth: 1200,
+    alignSelf: 'center',
+    width: '100%',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  aboutLeftCol: {
+    flex: 0.9,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    paddingRight: SPACING[40],
+  },
+  aboutRightCol: {
+    flex: 1.1,
+    alignItems: 'flex-start',
+  },
+  aboutFullCol: {
+    width: '100%',
+    alignItems: 'flex-start',
+  },
+  aboutGraphicCard: {
+    backgroundColor: COLORS.neutral.white,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: COLORS.neutral[200],
+    width: '100%',
+    maxWidth: 380,
+    padding: SPACING[24],
+  },
+  aboutGraphicHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: SPACING[20],
+  },
+  aboutGraphicHeaderText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.neutral[700],
+    marginLeft: 8,
+    letterSpacing: 1.2,
+  },
+  aboutGraphicGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: SPACING[16],
+    width: '100%',
+  },
+  aboutGridItem: {
+    width: '47%',
+    backgroundColor: COLORS.neutral[50],
+    borderColor: COLORS.neutral[100],
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: SPACING[12],
+    alignItems: 'center',
+    marginBottom: SPACING[12],
+  },
+  aboutGridItemText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    fontWeight: '600',
+    color: COLORS.neutral[600],
+  },
+  aboutGraphicFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: COLORS.neutral[100],
+    paddingTop: SPACING[12],
+    width: '100%',
+  },
+  aboutGraphicFooterText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    color: COLORS.neutral[500],
+    fontWeight: '500',
+  },
+  dotIndicatorActive: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: COLORS.semantic.success,
+    marginRight: 6,
+  },
+  aboutBadge: {
+    backgroundColor: '#E6EDFF',
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    marginBottom: SPACING[12],
+  },
+  aboutBadgeText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#1236A8',
+    letterSpacing: 1.0,
+  },
+  aboutTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 28,
+    fontWeight: '800',
+    color: COLORS.neutral[900],
+    marginBottom: SPACING[16],
+  },
+  aboutHighlightText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.neutral[700],
+    lineHeight: 24,
+    marginBottom: SPACING[16],
+  },
+  aboutBodyText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    color: COLORS.neutral[500],
+    lineHeight: 22,
+    marginBottom: SPACING[20],
+  },
+  aboutInfoBox: {
+    flexDirection: 'row',
+    backgroundColor: '#EEF2FF',
+    borderColor: '#E2E8F0',
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: SPACING[16],
+    width: '100%',
+  },
+  aboutInfoBoxText: {
+    flex: 1,
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    color: '#1236A8',
+    fontWeight: '600',
+    lineHeight: 18,
   },
 });
