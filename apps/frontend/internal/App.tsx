@@ -85,6 +85,7 @@ const RootStack = createNativeStackNavigator({
   screenOptions: {
     headerShown: false,
     contentStyle: { backgroundColor: "transparent" },
+    animation: "fade",
   },
   screens: {
     Dashboard: { screen: DashboardScreen },
@@ -139,7 +140,7 @@ function AuthScreen() {
           <Text style={styles.errorText}>{error}</Text>
         ) : null}
 
-        <TouchableOpacity style={styles.authButton} onPress={() => {}}>
+        <TouchableOpacity style={styles.authButton} onPress={() => { }}>
           <Text style={styles.buttonText}>Sign In</Text>
         </TouchableOpacity>
 

@@ -6,6 +6,8 @@ import { ROLE_NAVIGATION_LINKS } from '../context/RoleContext';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 
+import { TransitionWrapper } from './TransitionWrapper';
+
 interface DashboardShellProps {
   children: React.ReactNode;
   activeScreen?: string;
@@ -71,7 +73,11 @@ export function DashboardShell({
           style={styles.contentScrollView}
           contentContainerStyle={styles.contentContainer}
         >
-          <View style={styles.maxContainer}>{children}</View>
+          <View style={styles.maxContainer}>
+            <TransitionWrapper trigger={activeScreen}>
+              {children}
+            </TransitionWrapper>
+          </View>
         </ScrollView>
       </View>
     </View>
