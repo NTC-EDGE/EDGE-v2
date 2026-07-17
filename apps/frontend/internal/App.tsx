@@ -1,11 +1,16 @@
-import React, { useState } from 'react';
-import { createStaticNavigation } from '@react-navigation/native';
+import React, { useState, useEffect } from 'react';
+import { createStaticNavigation, useNavigationContainerRef, ParamListBase } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View, Button, TextInput, TouchableOpacity } from 'react-native';
-import { ClerkProvider, SignedIn, SignedOut, useAuth, useSignIn, useSignUp } from '@clerk/clerk-expo';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { ClerkProvider } from '@clerk/clerk-expo';
 import { tokenCache } from './tokenCache';
-import { apiClient } from '@edge/api';
+import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY } from './src/features/shared/theme/tokens';
+import { AuthProvider, useAuthContext } from './src/features/auth/context/AuthContext';
+import { RoleProvider } from './src/features/navigation/context/RoleContext';
+import { DashboardShell } from './src/features/navigation/components/DashboardShell';
+import { DashboardScreen } from './src/features/dashboard/screens/DashboardScreen';
+import { QueueScreen } from './src/features/queue/screens/QueueScreen';
 
 const getClerkKey = (): string => {
   const key = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
@@ -21,184 +26,24 @@ if (publishableKey.length === 0) {
   console.warn('Missing EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY environment variable. Clerk will not initialize properly.');
 }
 
-interface ApplicationResponse {
-  id: string;
-  title: string;
-  applicantName: string;
-  status: string;
-  createdAt: string;
-}
+// Fallback Placeholder screen for role specific navigation links
+function PlaceholderScreen({ route }: any) {
+  const name = route?.name ?? 'Section';
 
-function DashboardScreen({ navigation }: any) {
-  const { signOut, getToken } = useAuth();
-  const [submitting, setSubmitting] = useState(false);
-  const [statusMessage, setStatusMessage] = useState('');
-
-  const submitApplication = async () => {
-    setSubmitting(true);
-    setStatusMessage('');
-    try {
-      const token = await getToken();
-      const headers = token !== null ? { Authorization: `Bearer ${token}` } : {};
-      const response = await apiClient.post<ApplicationResponse>(
-        '/api/applications',
-        {
-          title: 'Internal Review Request',
-          applicantName: 'Staff Portal User'
-        },
-        { headers }
-      );
-      setStatusMessage(`Created Application: ${response.data.title}`);
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setStatusMessage(`Error: ${err.message}`);
-      } else {
-        setStatusMessage('Error: Unknown server error occurred.');
-      }
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  // Format the camelCase name into a user friendly title (e.g. AuditLogs -> Audit Logs)
+  const formattedName = name
+    .replace(/([A-Z])/g, ' $1')
+    .replace(/^./, (str: string) => str.toUpperCase())
+    .trim();
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>NTC-EDGE Internal Portal</Text>
-      <Text style={styles.subtitle}>Official Staff Dashboard • SDK 57 & React Nav 8</Text>
-      
-      <Button
-        title="Review Application Queue"
-        onPress={() => navigation.navigate('Queue')}
-        color="#2e7d32" // Green theme for internal
-      />
-
-      <View style={{ marginTop: 15, width: '100%' }}>
-        <Button
-          title={submitting ? "Creating Job..." : "Submit Internal App to BE"}
-          onPress={submitApplication}
-          disabled={submitting}
-          color="#388e3c"
-        />
-      </View>
-
-      {statusMessage.length > 0 ? (
-        <Text style={styles.statusText}>{statusMessage}</Text>
-      ) : null}
-
-      <View style={{ marginTop: 25, width: '100%' }}>
-        <Button
-          title="Sign Out"
-          onPress={() => signOut()}
-          color="#d32f2f"
-        />
-      </View>
-      <StatusBar style="auto" />
-    </View>
-  );
-}
-
-function QueueScreen({ navigation }: any) {
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Pending Review Queue</Text>
-      <Text style={styles.subtitle}>Applications requiring immediate evaluation.</Text>
-      <Button
-        title="Back to Dashboard"
-        onPress={() => navigation.goBack()}
-        color="#2e7d32"
-      />
-      <StatusBar style="auto" />
-    </View>
-  );
-}
-
-function AuthScreen() {
-  const { signIn, setActive, isLoaded: signInLoaded } = useSignIn();
-  const { signUp, isLoaded: signUpLoaded } = useSignUp();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [isSignUpMode, setIsSignUpMode] = useState(false);
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  const onSignInPress = async () => {
-    if (!signInLoaded) return;
-    setError('');
-    setLoading(true);
-    try {
-      const completeSignIn = await signIn.create({
-        identifier: email,
-        password,
-      });
-      if (setActive !== undefined) {
-        await setActive({ session: completeSignIn.createdSessionId });
-      }
-    } catch (err: any) {
-      setError(err.errors?.[0]?.message || 'Sign in failed');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const onSignUpPress = async () => {
-    if (!signUpLoaded) return;
-    setError('');
-    setLoading(true);
-    try {
-      const completeSignUp = await signUp.create({
-        emailAddress: email,
-        password,
-      });
-      if (completeSignUp.status === 'complete') {
-        if (setActive !== undefined) {
-          await setActive({ session: completeSignUp.createdSessionId });
-        }
-      } else {
-        setError('Verification is required. Please check your Clerk setup.');
-      }
-    } catch (err: any) {
-      setError(err.errors?.[0]?.message || 'Sign up failed');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>NTC-EDGE Staff Portal</Text>
-      <Text style={styles.subtitle}>Authentication Required</Text>
-
-      <TextInput
-        autoCapitalize="none"
-        placeholder="Email Address"
-        placeholderTextColor="#a5bda6"
-        value={email}
-        onChangeText={setEmail}
-        style={styles.input}
-      />
-      <TextInput
-        placeholder="Password"
-        placeholderTextColor="#a5bda6"
-        secureTextEntry={true}
-        value={password}
-        onChangeText={setPassword}
-        style={styles.input}
-      />
-
-      {error.length > 0 ? <Text style={styles.errorText}>{error}</Text> : null}
-
-      <TouchableOpacity 
-        style={styles.authButton} 
-        onPress={isSignUpMode ? onSignUpPress : onSignInPress}
-        disabled={loading}
-      >
-        <Text style={styles.buttonText}>{loading ? 'Processing...' : (isSignUpMode ? 'Register' : 'Sign In')}</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity onPress={() => setIsSignUpMode(!isSignUpMode)} style={{ marginTop: 15 }}>
-        <Text style={styles.toggleText}>
-          {isSignUpMode ? 'Already have an account? Sign In' : "Don't have an account? Register"}
+    <View style={styles.placeholderContainer}>
+      <View style={[styles.placeholderCard, SHADOWS.card]}>
+        <Text style={styles.placeholderTitle}>{formattedName} Portal</Text>
+        <Text style={styles.placeholderText}>
+          This sub-module is currently undergoing staging and compliance verification. All interactions are simulated under the active role constraints.
         </Text>
-      </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -206,92 +51,242 @@ function AuthScreen() {
 // React Navigation 8 Static configuration
 const RootStack = createNativeStackNavigator({
   initialRouteName: 'Dashboard',
+  screenOptions: {
+    headerShown: false,
+    contentStyle: { backgroundColor: 'transparent' },
+  },
   screens: {
-    Dashboard: {
-      screen: DashboardScreen,
-      options: { title: 'NTC Staff Home' },
-    },
-    Queue: {
-      screen: QueueScreen,
-      options: { title: 'Pending Queue' },
-    },
+    Dashboard: { screen: DashboardScreen },
+    Activities: { screen: QueueScreen },
+    Chat: { screen: PlaceholderScreen },
+    Meet: { screen: PlaceholderScreen },
+    Reports: { screen: PlaceholderScreen },
+    ReceiptManagement: { screen: PlaceholderScreen },
+    RolesPermission: { screen: PlaceholderScreen },
+    Schedule: { screen: PlaceholderScreen },
+    Employees: { screen: PlaceholderScreen },
+    Users: { screen: PlaceholderScreen },
+    Settings: { screen: PlaceholderScreen },
   },
 });
 
 const Navigation = createStaticNavigation(RootStack);
 
+function AuthScreen() {
+  const { loginWithBypass } = useAuthContext();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error] = useState('');
+
+  return (
+    <View style={styles.authBg}>
+      <View style={[styles.authCard, SHADOWS.modal]}>
+        <Text style={styles.authTitle}>NTC-EDGE Staff Portal</Text>
+        <Text style={styles.authSubtitle}>Authentication Required</Text>
+
+        <TextInput
+          autoCapitalize="none"
+          placeholder="Email Address"
+          placeholderTextColor={COLORS.neutral[400]}
+          value={email}
+          onChangeText={setEmail}
+          style={styles.input}
+        />
+        <TextInput
+          placeholder="Password"
+          placeholderTextColor={COLORS.neutral[400]}
+          secureTextEntry={true}
+          value={password}
+          onChangeText={setPassword}
+          style={styles.input}
+        />
+
+        {error.length > 0 ? <Text style={styles.errorText}>{error}</Text> : null}
+
+        <TouchableOpacity
+          style={styles.authButton}
+          onPress={() => { }}
+        >
+          <Text style={styles.buttonText}>Sign In</Text>
+        </TouchableOpacity>
+
+        {/* Developer Bypass (active in dev mode) */}
+        {__DEV__ ? (
+          <TouchableOpacity
+            style={[styles.authButton, styles.bypassButton]}
+            onPress={loginWithBypass}
+          >
+            <Text style={styles.buttonText}>Developer Login Bypass</Text>
+          </TouchableOpacity>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
+function AppContent() {
+  const { isAuthenticated, isLoading } = useAuthContext();
+  const navigationRef = useNavigationContainerRef<ParamListBase>();
+  const [activeScreen, setActiveScreen] = useState('Dashboard');
+
+  // Track the current route inside the stack to sync the Sidebar highlights
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const unsubscribe = navigationRef.addListener('state', () => {
+      const route = navigationRef.getCurrentRoute();
+      if (route !== null && route !== undefined) {
+        setActiveScreen(route.name);
+      }
+    });
+
+    return unsubscribe;
+  }, [isAuthenticated, navigationRef]);
+
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={COLORS.brand[800]} />
+      </View>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <AuthScreen />;
+  }
+
+  return (
+    <DashboardShell
+      activeScreen={activeScreen}
+      onNavigate={(screen) => {
+        if (navigationRef.isReady()) {
+          navigationRef.navigate(screen);
+        }
+      }}
+    >
+      <Navigation ref={navigationRef} />
+    </DashboardShell>
+  );
+}
+
 export default function App() {
   return (
     <ClerkProvider tokenCache={tokenCache} publishableKey={publishableKey}>
-      <SignedIn>
-        <Navigation />
-      </SignedIn>
-      <SignedOut>
-        <AuthScreen />
-      </SignedOut>
+      <AuthProvider>
+        <RoleProvider>
+          <AppContent />
+          <StatusBar style="dark" />
+        </RoleProvider>
+      </AuthProvider>
     </ClerkProvider>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  loadingContainer: {
     flex: 1,
-    backgroundColor: '#1b2a1c', // Forest dark theme for internal portal
+    backgroundColor: COLORS.bg,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 20,
   },
-  title: {
+  authBg: {
+    flex: 1,
+    backgroundColor: COLORS.bg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: SPACING[20],
+  },
+  authCard: {
+    backgroundColor: COLORS.neutral.white,
+    borderRadius: RADIUS.dialog,
+    borderWidth: 1,
+    borderColor: COLORS.neutral[200],
+    padding: SPACING[40],
+    width: '100%',
+    maxWidth: 440,
+    alignItems: 'center',
+  },
+  authTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#ffffff',
-    marginBottom: 8,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: COLORS.neutral[900],
+    marginBottom: 4,
   },
-  subtitle: {
+  authSubtitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 14,
-    color: '#a5bda6',
-    marginBottom: 20,
+    color: COLORS.neutral[500],
+    marginBottom: SPACING[32],
     textAlign: 'center',
   },
   input: {
     width: '100%',
-    height: 50,
-    backgroundColor: '#273e29',
-    color: '#ffffff',
-    borderRadius: 8,
+    height: 44,
+    backgroundColor: COLORS.neutral.white,
+    borderColor: COLORS.neutral[200],
+    borderWidth: 1,
+    color: COLORS.neutral[900],
+    borderRadius: RADIUS.input,
     paddingHorizontal: 15,
     marginBottom: 15,
-    fontSize: 16,
+    fontSize: 14,
+    fontFamily: TYPOGRAPHY.fonts.primary,
   },
   authButton: {
     width: '100%',
-    height: 50,
-    backgroundColor: '#2e7d32',
+    height: 44,
+    backgroundColor: COLORS.brand[800],
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 8,
+    borderRadius: RADIUS.button,
     marginTop: 10,
   },
+  bypassButton: {
+    backgroundColor: COLORS.neutral[800],
+    marginTop: 12,
+  },
   buttonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: 'bold',
+    color: COLORS.neutral.white,
+    fontSize: 14,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    fontFamily: TYPOGRAPHY.fonts.primary,
   },
   errorText: {
-    color: '#ff8a80',
+    color: COLORS.semantic.error,
     marginBottom: 10,
     textAlign: 'center',
-  },
-  toggleText: {
-    color: '#a5bda6',
     fontSize: 14,
-    textDecorationLine: 'underline',
+    fontFamily: TYPOGRAPHY.fonts.primary,
   },
-  statusText: {
-    color: '#a5bda6',
-    marginTop: 12,
-    fontSize: 14,
+  placeholderContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING[20],
+  },
+  placeholderCard: {
+    backgroundColor: COLORS.neutral.white,
+    borderRadius: RADIUS.card,
+    borderWidth: 1,
+    borderColor: COLORS.neutral[200],
+    padding: SPACING[32],
+    maxWidth: 600,
+    alignItems: 'center',
     textAlign: 'center',
-    fontWeight: 'bold',
+  },
+  placeholderTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 24,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: COLORS.neutral[900],
+    marginBottom: SPACING[12],
+  },
+  placeholderText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    color: COLORS.neutral[500],
+    textAlign: 'center',
+    lineHeight: 22,
   },
 });
