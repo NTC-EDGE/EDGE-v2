@@ -27,4 +27,19 @@ public class UserRepository : IUserRepository
     {
         await _context.Users.AddAsync(user, cancellationToken);
     }
+
+    public async Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return await _context.Users.Include(x => x.Role).FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+    }
+
+    public async Task<List<User>> GetAllAsync(CancellationToken cancellationToken = default)
+    {
+        return await _context.Users.Include(x => x.Role).ToListAsync(cancellationToken);
+    }
+
+    public void Delete(User user)
+    {
+        _context.Users.Remove(user);
+    }
 }

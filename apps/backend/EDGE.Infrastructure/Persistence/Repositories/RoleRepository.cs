@@ -32,4 +32,9 @@ public class RoleRepository : IRoleRepository
     {
         return await _context.Set<Role>().ToListAsync(cancellationToken);
     }
+
+    public void Delete(Role role)
+    {
+        _context.Set<Role>().Remove(role);
+    }
 }
