@@ -330,7 +330,7 @@ const styles = StyleSheet.create({
       web: {
         transition: 'all 200ms ease-out',
         cursor: 'pointer',
-      } as any,
+      },
     }),
   },
   tabItemHover: {
@@ -341,7 +341,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       web: {
         boxShadow: '0 1px 3px rgba(15,23,42,.08)',
-      } as any,
+      },
     }),
   },
   tabText: {
@@ -377,8 +377,8 @@ const styles = StyleSheet.create({
     padding: 0,
     ...Platform.select({
       web: {
-        outlineStyle: 'none',
-      } as any,
+        outlineWidth: 0,
+      },
     }),
   },
   tableWrapper: {
@@ -419,7 +419,7 @@ const styles = StyleSheet.create({
       web: {
         transition: 'all 200ms ease-out',
         cursor: 'pointer',
-      } as any,
+      },
     }),
   },
   tableRowHover: {
@@ -479,7 +479,7 @@ const styles = StyleSheet.create({
       web: {
         transition: 'all 200ms ease-out',
         cursor: 'pointer',
-      } as any,
+      },
     }),
   },
   pageBtnHover: {
@@ -491,7 +491,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       web: {
         cursor: 'not-allowed',
-      } as any,
+      },
     }),
   },
 });

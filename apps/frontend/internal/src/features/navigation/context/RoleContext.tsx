@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, ComponentProps } from 'react';
+import { Feather } from '@expo/vector-icons';
 
 export type UserRole =
   | 'Administrator'
@@ -12,7 +13,7 @@ export type UserRole =
 export interface NavigationLink {
   name: string;
   screen: string;
-  icon: string;
+  icon: ComponentProps<typeof Feather>['name'];
 }
 
 export const ROLES: UserRole[] = [

@@ -29,7 +29,7 @@ function SidebarNavItem({ link, isActive, onPress }: SidebarNavItemProps) {
     >
       <View style={styles.navIconWrapper}>
         <Lucide
-          name={link.icon as any}
+          name={link.icon}
           size={20}
           color={
             isActive
@@ -248,18 +248,11 @@ export function DashboardShell({ children, activeScreen = 'Dashboard', onNavigat
   );
 }
 
-const styles = StyleSheet.create({
+const styles = {
   shell: {
     flex: 1,
-    flexDirection: 'row',
+    flexDirection: 'row' as const,
     backgroundColor: COLORS.bg,
-    ...Platform.select({
-      web: {
-        height: '100vh',
-        width: '100vw',
-        overflow: 'hidden',
-      } as any,
-    }),
   },
   dropdownOverlay: {
     position: 'absolute',
@@ -274,14 +267,14 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.neutral.white,
     borderRightWidth: 1,
     borderRightColor: COLORS.neutral[200],
-    flexDirection: 'column',
+    flexDirection: 'column' as const,
     height: '100%',
     zIndex: 10,
   },
   sidebarHeader: {
     height: 72,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
     paddingHorizontal: SPACING[20],
     borderBottomWidth: 1,
     borderBottomColor: COLORS.neutral[200],
@@ -291,8 +284,8 @@ const styles = StyleSheet.create({
     height: 38,
     borderRadius: RADIUS.button,
     backgroundColor: COLORS.neutral[100],
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
     marginRight: SPACING[12],
   },
   logoTitle: {
@@ -317,18 +310,12 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING[16],
   },
   navItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
     paddingHorizontal: SPACING[20],
     paddingVertical: SPACING[16],
     borderRadius: 14,
     marginBottom: SPACING[8],
-    ...Platform.select({
-      web: {
-        transition: 'all 200ms ease-out',
-        cursor: 'pointer',
-      } as any,
-    }),
   },
   navItemActive: {
     backgroundColor: COLORS.brand[700],
@@ -342,11 +329,12 @@ const styles = StyleSheet.create({
   navIconWrapper: {
     marginRight: SPACING[16],
     width: 24,
-    alignItems: 'center',
+    alignItems: 'center' as const,
   },
   navText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 15,
+    // color: COLORS.neutral[500],
   },
   navTextActive: {
     color: COLORS.neutral.white,
@@ -382,24 +370,19 @@ const styles = StyleSheet.create({
   },
   mainWrapper: {
     flex: 1,
-    flexDirection: 'column',
+    flexDirection: 'column' as const,
     height: '100%',
   },
   header: {
     height: 72,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'space-between' as const,
     paddingHorizontal: SPACING[32],
     zIndex: 5,
   },
   headerGradient: {
     backgroundColor: COLORS.brand[900],
-    ...Platform.select({
-      web: {
-        backgroundImage: `linear-gradient(90deg, ${COLORS.brand[900]} 0%, ${COLORS.brand[700]} 100%)`,
-      } as any,
-    }),
   },
   headerTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
@@ -409,28 +392,22 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   headerControls: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
   },
   switcherContainer: {
     position: 'relative',
     zIndex: 100,
   },
   switcherBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
     backgroundColor: 'rgba(255, 255, 255, 0.12)',
     paddingHorizontal: SPACING[12],
     paddingVertical: SPACING[8],
     borderRadius: RADIUS.input,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
-    ...Platform.select({
-      web: {
-        transition: 'all 200ms ease-out',
-        cursor: 'pointer',
-      } as any,
-    }),
   },
   switcherBtnHover: {
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
@@ -471,17 +448,11 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   dropdownItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'space-between' as const,
     paddingHorizontal: SPACING[16],
     paddingVertical: SPACING[12],
-    ...Platform.select({
-      web: {
-        transition: 'all 200ms ease-out',
-        cursor: 'pointer',
-      } as any,
-    }),
   },
   dropdownItemHover: {
     backgroundColor: COLORS.neutral[50],
@@ -506,8 +477,8 @@ const styles = StyleSheet.create({
     marginHorizontal: SPACING[20],
   },
   profileContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
   },
   profileAvatar: {
     width: 36,
@@ -520,8 +491,8 @@ const styles = StyleSheet.create({
     height: 36,
     borderRadius: RADIUS.circle,
     backgroundColor: COLORS.neutral.white,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
     marginRight: SPACING[12],
   },
   avatarFallbackText: {
@@ -532,10 +503,6 @@ const styles = StyleSheet.create({
   },
   profileInfo: {
     marginRight: SPACING[20],
-    ...Platform.select({
-      default: { display: 'none' },
-      web: { display: 'flex' } as any,
-    }),
   },
   profileName: {
     fontFamily: TYPOGRAPHY.fonts.primary,
@@ -549,17 +516,11 @@ const styles = StyleSheet.create({
     color: COLORS.neutral[300],
   },
   logoutBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
     paddingHorizontal: SPACING[12],
     paddingVertical: SPACING[8],
     borderRadius: RADIUS.input,
-    ...Platform.select({
-      web: {
-        transition: 'all 200ms ease-out',
-        cursor: 'pointer',
-      } as any,
-    }),
   },
   logoutBtnHover: {
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
@@ -570,10 +531,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: TYPOGRAPHY.weights.medium,
     marginLeft: 8,
-    ...Platform.select({
-      default: { display: 'none' },
-      web: { display: 'flex' } as any,
-    }),
   },
   contentScrollView: {
     flex: 1,
@@ -581,11 +538,11 @@ const styles = StyleSheet.create({
   contentContainer: {
     paddingHorizontal: SPACING[32],
     paddingVertical: SPACING[32],
-    alignItems: 'center',
+    alignItems: 'center' as const,
   },
   maxContainer: {
     width: '100%',
     maxWidth: 1600,
-    alignSelf: 'center',
+    alignSelf: 'center' as const,
   },
-});
+} as const;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { createStaticNavigation, useNavigationContainerRef, ParamListBase } from '@react-navigation/native';
+import { createStaticNavigation, useNavigationContainerRef, ParamListBase, RouteProp } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
@@ -27,8 +27,8 @@ if (publishableKey.length === 0) {
 }
 
 // Fallback Placeholder screen for role specific navigation links
-function PlaceholderScreen({ route }: any) {
-  const name = route?.name ?? 'Section';
+function PlaceholderScreen({ route }: { route: RouteProp<ParamListBase, string> }) {
+  const name = route.name;
 
   // Format the camelCase name into a user friendly title (e.g. AuditLogs -> Audit Logs)
   const formattedName = name

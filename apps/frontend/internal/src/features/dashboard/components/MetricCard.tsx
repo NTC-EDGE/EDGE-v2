@@ -24,7 +24,7 @@ export function MetricCard({ title, value, change, isPositive, iconName, subtitl
       <View style={styles.topRow}>
         <Text style={styles.titleText}>{title}</Text>
         <View style={styles.iconContainer}>
-          <Lucide name={iconName as any} size={20} color={COLORS.brand[700]} />
+          <Lucide name={iconName} size={20} color={COLORS.brand[700]} />
         </View>
       </View>
 
