@@ -13,6 +13,7 @@ import { Feather as Lucide } from '@expo/vector-icons';
 import { COLORS, SHADOWS, SPACING, RADIUS, TYPOGRAPHY } from '../../shared/theme/tokens';
 import { Button } from '../../shared/components/Button';
 import { Logo } from '../../shared/components/Logo';
+import { useGuestAuth } from '../../auth/context/GuestAuthContext';
 
 interface LandingScreenProps {
   navigation: {
@@ -23,6 +24,8 @@ interface LandingScreenProps {
 export function LandingScreen({ navigation }: LandingScreenProps) {
   const { width } = useWindowDimensions();
   const isDesktop = width >= 768;
+
+  const { loginAsGuest } = useGuestAuth();
 
   const scrollViewRef = useRef<ScrollView>(null);
   
@@ -35,9 +38,19 @@ export function LandingScreen({ navigation }: LandingScreenProps) {
   // Animation values
   const floatAnimBlue = useRef(new Animated.Value(0)).current;
   const floatAnimPink = useRef(new Animated.Value(0)).current;
+  const floatAnimMockup = useRef(new Animated.Value(0)).current;
   const fadeAnimHero = useRef(new Animated.Value(0)).current;
   const slideAnimHero = useRef(new Animated.Value(30)).current;
-  const fadeAnimCards = useRef(new Animated.Value(0)).current;
+  const cardAnims = useRef([
+    new Animated.Value(0),
+    new Animated.Value(0),
+    new Animated.Value(0),
+  ]).current;
+  const faqAnims = useRef([
+    new Animated.Value(0),
+    new Animated.Value(0),
+    new Animated.Value(0),
+  ]).current;
 
   useEffect(() => {
     // Floating background animations loop
@@ -61,6 +74,25 @@ export function LandingScreen({ navigation }: LandingScreenProps) {
     createFloatAnim(floatAnimBlue, 10000).start();
     createFloatAnim(floatAnimPink, 12000).start();
 
+    // Floating hero mockup animation
+    const createMockupFloat = () => {
+      return Animated.loop(
+        Animated.sequence([
+          Animated.timing(floatAnimMockup, {
+            toValue: -12,
+            duration: 3500,
+            useNativeDriver: true,
+          }),
+          Animated.timing(floatAnimMockup, {
+            toValue: 0,
+            duration: 3500,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+    };
+    createMockupFloat().start();
+
     // Entrance animations
     Animated.parallel([
       Animated.timing(fadeAnimHero, {
@@ -74,13 +106,16 @@ export function LandingScreen({ navigation }: LandingScreenProps) {
         useNativeDriver: true,
       }),
     ]).start(() => {
-      Animated.timing(fadeAnimCards, {
-        toValue: 1,
-        duration: 700,
-        useNativeDriver: true,
-      }).start();
+      // Staggered feature card entrances
+      Animated.stagger(150, cardAnims.map(anim => 
+        Animated.timing(anim, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        })
+      )).start();
     });
-  }, [floatAnimBlue, floatAnimPink, fadeAnimHero, slideAnimHero, fadeAnimCards]);
+  }, [floatAnimBlue, floatAnimPink, floatAnimMockup, fadeAnimHero, slideAnimHero, cardAnims]);
 
   const handleSectionLayout = (name: string, y: number) => {
     setSectionYCoords((prev) => ({ ...prev, [name]: y }));
@@ -90,6 +125,35 @@ export function LandingScreen({ navigation }: LandingScreenProps) {
     const y = sectionYCoords[name];
     if (y !== undefined) {
       scrollViewRef.current?.scrollTo({ y: y - 20, animated: true });
+    }
+  };
+
+  const handleFaqPress = (idx: number) => {
+    const isExpanded = expandedFaq === idx;
+    
+    if (isExpanded) {
+      Animated.timing(faqAnims[idx], {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: false,
+      }).start(() => {
+        setExpandedFaq(null);
+      });
+    } else {
+      if (expandedFaq !== null) {
+        Animated.timing(faqAnims[expandedFaq], {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: false,
+        }).start();
+      }
+      
+      setExpandedFaq(idx);
+      Animated.timing(faqAnims[idx], {
+        toValue: 1,
+        duration: 250,
+        useNativeDriver: false,
+      }).start();
     }
   };
 
@@ -152,20 +216,29 @@ export function LandingScreen({ navigation }: LandingScreenProps) {
                 <Text style={styles.navLinkText}>FAQs</Text>
               </TouchableOpacity>
               
+              <TouchableOpacity onPress={() => navigation.navigate('Login')} style={[styles.navLink, { marginRight: SPACING[16] }]}>
+                <Text style={[styles.navLinkText, { color: '#1236A8', fontWeight: '700' }]}>Sign In</Text>
+              </TouchableOpacity>
+
               <Button
                 title="Get Started"
                 size="sm"
-                onPress={() => navigation.navigate('Login')}
+                onPress={loginAsGuest}
                 style={styles.headerCtaBtn}
               />
             </View>
           ) : (
-            <Button
-              title="Get Started"
-              size="sm"
-              onPress={() => navigation.navigate('Login')}
-              style={styles.headerCtaBtn}
-            />
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <TouchableOpacity onPress={() => navigation.navigate('Login')} style={[styles.navLink, { marginRight: SPACING[12] }]}>
+                <Text style={[styles.navLinkText, { color: '#1236A8', fontWeight: '700', fontSize: 13 }]}>Sign In</Text>
+              </TouchableOpacity>
+              <Button
+                title="Get Started"
+                size="sm"
+                onPress={loginAsGuest}
+                style={styles.headerCtaBtn}
+              />
+            </View>
           )}
         </View>
       </View>
@@ -176,55 +249,138 @@ export function LandingScreen({ navigation }: LandingScreenProps) {
           style={[
             styles.glowSpotBlue,
             { transform: [{ translateY: translateYBlue }, { translateX: translateXBlue }] },
-            Platform.OS === 'web' ? { filter: 'blur(100px)' } as any : { opacity: 0.12 },
+            Platform.OS === 'web' ? { filter: 'blur(100px)' } as any : { opacity: 0.08 },
           ]}
         />
         <Animated.View
           style={[
             styles.glowSpotPink,
             { transform: [{ translateY: translateYPink }, { translateX: translateXPink }] },
-            Platform.OS === 'web' ? { filter: 'blur(100px)' } as any : { opacity: 0.08 },
+            Platform.OS === 'web' ? { filter: 'blur(100px)' } as any : { opacity: 0.06 },
           ]}
         />
+        {Platform.OS === 'web' && (
+          <View
+            style={[
+              styles.glowSpotCenter,
+              { filter: 'blur(120px)' } as any,
+            ]}
+          />
+        )}
 
         {/* Hero Section */}
-        <Animated.View style={[styles.heroSection, { opacity: fadeAnimHero, transform: [{ translateY: slideAnimHero }] }]}>
-          {/* Lavender/Blue Pill Badge */}
-          <View style={styles.pillBadge}>
-            <View style={styles.pillBadgeDot} />
-            <Text style={styles.pillBadgeText}>Official NTC-EDGE Portal</Text>
+        <Animated.View style={[
+          styles.heroSection,
+          isDesktop ? styles.heroSectionDesktop : null,
+          { opacity: fadeAnimHero, transform: [{ translateY: slideAnimHero }] }
+        ]}>
+          <View style={isDesktop ? styles.heroLeftCol : styles.heroFullWidth}>
+            {/* Lavender/Blue Pill Badge */}
+            <View style={[styles.pillBadge, isDesktop ? { alignSelf: 'flex-start' } : { alignSelf: 'center' }]}>
+              <View style={styles.pillBadgeDot} />
+              <Text style={styles.pillBadgeText}>Official NTC-EDGE Portal</Text>
+            </View>
+            
+            {/* Split Color Hero Title */}
+            <Text style={[styles.heroTitle, isDesktop ? styles.heroTitleDesktop : null]}>
+              <Text style={styles.titleBlue}>Empowering </Text>
+              <Text style={styles.titleRed}>NTC's</Text>
+              {'\n'}
+              <Text style={styles.titleBlue}>Data Governance</Text>
+            </Text>
+            
+            <Text style={[styles.heroSubtitle, isDesktop ? styles.heroSubtitleDesktop : null]}>
+              Streamline your government services experience. Apply for permits, licenses, and certificates with secure, efficient, and transparent processes powered by EDGE.
+            </Text>
+            
+            <View style={styles.heroButtonsRow}>
+              <Button
+                title="Get Started"
+                onPress={loginAsGuest}
+                size="lg"
+                style={styles.heroPrimaryBtn}
+                icon={<Lucide name="arrow-right" size={16} color={COLORS.neutral.white} />}
+              />
+              <Button
+                title="Sign In"
+                onPress={() => navigation.navigate('Login')}
+                variant="outline"
+                size="lg"
+                style={styles.heroSecondaryBtn}
+                textStyle={{ color: '#1236A8' }}
+                icon={<Lucide name="log-in" size={16} color="#1236A8" />}
+              />
+            </View>
           </View>
-          
-          {/* Split Color Hero Title */}
-          <Text style={[styles.heroTitle, isDesktop ? styles.heroTitleDesktop : null]}>
-            <Text style={styles.titleBlue}>Empowering </Text>
-            <Text style={styles.titleRed}>NTC's</Text>
-            {'\n'}
-            <Text style={styles.titleBlue}>Data Governance</Text>
-          </Text>
-          
-          <Text style={styles.heroSubtitle}>
-            Streamline your government services experience. Apply for permits, licenses, and certificates with secure, efficient, and transparent processes powered by EDGE.
-          </Text>
-          
-          <View style={styles.heroButtonsRow}>
-            <Button
-              title="Get Started"
-              onPress={() => navigation.navigate('Login')}
-              size="lg"
-              style={styles.heroPrimaryBtn}
-              icon={<Lucide name="arrow-right" size={16} color={COLORS.neutral.white} />}
-            />
-            <Button
-              title="Track Application"
-              onPress={() => navigation.navigate('Login')}
-              variant="outline"
-              size="lg"
-              style={styles.heroSecondaryBtn}
-              textStyle={{ color: '#1236A8' }}
-              icon={<Lucide name="search" size={16} color="#1236A8" />}
-            />
-          </View>
+
+          {isDesktop ? (
+            <Animated.View style={[styles.heroRightCol, { transform: [{ translateY: floatAnimMockup }] }]}>
+              {/* Modern dashboard preview card */}
+              <View style={[styles.mockupCard, SHADOWS.modal]}>
+                <View style={styles.mockupHeader}>
+                  <View style={styles.mockupDots}>
+                    <View style={[styles.mockupDot, { backgroundColor: '#EF4444' }]} />
+                    <View style={[styles.mockupDot, { backgroundColor: '#F59E0B' }]} />
+                    <View style={[styles.mockupDot, { backgroundColor: '#10B981' }]} />
+                  </View>
+                  <Text style={styles.mockupHeaderText}>ntc-edge.gov.ph</Text>
+                </View>
+                
+                <View style={styles.mockupBody}>
+                  {/* Stats Row */}
+                  <View style={styles.mockupStatsRow}>
+                    <View style={styles.mockupStatCard}>
+                      <Text style={styles.mockupStatLabel}>Applications</Text>
+                      <Text style={[styles.mockupStatValue, { color: '#1236A8' }]}>12,450</Text>
+                    </View>
+                    <View style={styles.mockupStatCard}>
+                      <Text style={styles.mockupStatLabel}>Pending</Text>
+                      <Text style={[styles.mockupStatValue, { color: '#DC2626' }]}>18</Text>
+                    </View>
+                    <View style={styles.mockupStatCard}>
+                      <Text style={styles.mockupStatLabel}>Approved</Text>
+                      <Text style={[styles.mockupStatValue, { color: '#10B981' }]}>99.4%</Text>
+                    </View>
+                  </View>
+
+                  {/* Active Application Card */}
+                  <View style={styles.mockupAppCard}>
+                    <View style={styles.mockupAppHeader}>
+                      <View>
+                        <Text style={styles.mockupAppTitle}>Radio Station License</Text>
+                        <Text style={styles.mockupAppMeta}>Ref: NTC-2026-9812</Text>
+                      </View>
+                      <View style={styles.mockupStatusBadge}>
+                        <Text style={styles.mockupStatusText}>IN REVIEW</Text>
+                      </View>
+                    </View>
+                    
+                    {/* Progress Bar */}
+                    <View style={styles.mockupProgressContainer}>
+                      <View style={styles.mockupProgressBar}>
+                        <View style={[styles.mockupProgressFill, { backgroundColor: '#1236A8', width: '65%' }]} />
+                        <View style={[styles.mockupProgressFillRed, { backgroundColor: '#DC2626', width: '10%', left: '65%' }]} />
+                      </View>
+                      <View style={styles.mockupProgressLabels}>
+                        <Text style={styles.mockupProgressLabel}>Submission</Text>
+                        <Text style={styles.mockupProgressLabel}>Evaluation</Text>
+                        <Text style={styles.mockupProgressLabel}>Issuance</Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Realtime Alert Activity */}
+                  <View style={styles.mockupActivityCard}>
+                    <Lucide name="bell" size={14} color="#1236A8" style={{ marginRight: 8 }} />
+                    <Text style={styles.mockupActivityText}>
+                      License issued successfully for <Text style={{ fontWeight: '600' }}>CIGNAL TV INC.</Text>
+                    </Text>
+                    <Text style={styles.mockupActivityTime}>2m ago</Text>
+                  </View>
+                </View>
+              </View>
+            </Animated.View>
+          ) : null}
         </Animated.View>
 
         {/* "Why Choose EDGE?" Section */}
@@ -235,17 +391,35 @@ export function LandingScreen({ navigation }: LandingScreenProps) {
           <Text style={styles.featuresTitle}>Why Choose EDGE?</Text>
           <Text style={styles.featuresSubtitle}>Everything you need for seamless government services</Text>
           
-          <Animated.View style={[styles.featuresGrid, isDesktop ? styles.rowLayout : styles.columnLayout, { opacity: fadeAnimCards }]}>
-            {features.map((feat) => (
-              <View key={feat.title} style={[styles.featCard, SHADOWS.card, isDesktop ? styles.featCardDesktop : null]}>
-                <View style={styles.featIconWrapper}>
-                  <Lucide name={feat.icon} size={20} color={COLORS.neutral.white} />
-                </View>
-                <Text style={styles.featCardTitle}>{feat.title}</Text>
-                <Text style={styles.featCardDesc}>{feat.desc}</Text>
-              </View>
-            ))}
-          </Animated.View>
+          <View style={[styles.featuresGrid, isDesktop ? styles.rowLayout : styles.columnLayout]}>
+            {features.map((feat, index) => {
+              const cardAnim = cardAnims[index];
+              const cardTranslateY = cardAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [30, 0],
+              });
+              return (
+                <Animated.View
+                  key={feat.title}
+                  style={[
+                    styles.featCard,
+                    SHADOWS.card,
+                    isDesktop ? styles.featCardDesktop : null,
+                    {
+                      opacity: cardAnim,
+                      transform: [{ translateY: cardTranslateY }],
+                    }
+                  ]}
+                >
+                  <View style={styles.featIconWrapper}>
+                    <Lucide name={feat.icon} size={20} color={COLORS.neutral.white} />
+                  </View>
+                  <Text style={styles.featCardTitle}>{feat.title}</Text>
+                  <Text style={styles.featCardDesc}>{feat.desc}</Text>
+                </Animated.View>
+              );
+            })}
+          </View>
         </View>
 
         {/* How It Works Section */}
@@ -302,27 +476,41 @@ export function LandingScreen({ navigation }: LandingScreenProps) {
           <View style={styles.faqList}>
             {faqs.map((faq, idx) => {
               const isExpanded = expandedFaq === idx;
+              const faqAnim = faqAnims[idx];
+              const faqAnswerStyle = {
+                maxHeight: faqAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, 150],
+                }),
+                opacity: faqAnim,
+                borderTopWidth: faqAnim.interpolate({
+                  inputRange: [0, 0.1, 1],
+                  outputRange: [0, 1, 1],
+                }),
+              };
+
               return (
-                <TouchableOpacity
+                <View
                   key={idx}
-                  activeOpacity={0.9}
-                  onPress={() => setExpandedFaq(isExpanded ? null : idx)}
                   style={[styles.faqItem, SHADOWS.card, isExpanded ? styles.faqItemExpanded : null]}
                 >
-                  <View style={styles.faqHeader}>
+                  <TouchableOpacity
+                    activeOpacity={0.9}
+                    onPress={() => handleFaqPress(idx)}
+                    style={styles.faqHeader}
+                  >
                     <Text style={styles.faqQuestion}>{faq.q}</Text>
                     <Lucide
                       name={isExpanded ? 'chevron-up' : 'chevron-down'}
                       size={16}
                       color="#1236A8"
                     />
-                  </View>
-                  {isExpanded ? (
-                    <View style={styles.faqAnswerContainer}>
-                      <Text style={styles.faqAnswer}>{faq.a}</Text>
-                    </View>
-                  ) : null}
-                </TouchableOpacity>
+                  </TouchableOpacity>
+                  
+                  <Animated.View style={[styles.faqAnswerContainer, faqAnswerStyle, { overflow: 'hidden' }]}>
+                    <Text style={styles.faqAnswer}>{faq.a}</Text>
+                  </Animated.View>
+                </View>
               );
             })}
           </View>
@@ -339,7 +527,7 @@ export function LandingScreen({ navigation }: LandingScreenProps) {
             </Text>
             <Button
               title="Begin Your Application"
-              onPress={() => navigation.navigate('Login')}
+              onPress={loginAsGuest}
               style={styles.ctaPrimaryBtn}
               textStyle={{ color: '#1236A8' }}
               icon={<Lucide name="arrow-right" size={16} color="#1236A8" />}
@@ -463,24 +651,35 @@ const styles = StyleSheet.create({
   },
   glowSpotBlue: {
     position: 'absolute',
-    top: 30,
-    left: -80,
-    width: 350,
-    height: 350,
-    borderRadius: 175,
-    backgroundColor: '#C5D3E8', // Soft lavender blue glow
-    opacity: 0.12,
+    top: -50,
+    left: -100,
+    width: 450,
+    height: 450,
+    borderRadius: 225,
+    backgroundColor: '#1236A8',
+    opacity: 0.08,
     zIndex: -1,
   },
   glowSpotPink: {
     position: 'absolute',
-    top: 130,
-    right: -80,
-    width: 350,
-    height: 350,
-    borderRadius: 175,
-    backgroundColor: '#F5E6E8', // Soft pink glow
-    opacity: 0.08,
+    top: 100,
+    right: -100,
+    width: 450,
+    height: 450,
+    borderRadius: 225,
+    backgroundColor: '#DC2626',
+    opacity: 0.06,
+    zIndex: -1,
+  },
+  glowSpotCenter: {
+    position: 'absolute',
+    bottom: '25%',
+    left: '30%',
+    width: 500,
+    height: 500,
+    borderRadius: 250,
+    backgroundColor: '#1236A8',
+    opacity: 0.04,
     zIndex: -1,
   },
   heroSection: {
@@ -488,8 +687,181 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING[20],
     alignItems: 'center',
     justifyContent: 'center',
-    maxWidth: 880,
+    maxWidth: 1200,
     alignSelf: 'center',
+    width: '100%',
+  },
+  heroSectionDesktop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  heroLeftCol: {
+    flex: 1.1,
+    paddingRight: SPACING[40],
+    alignItems: 'flex-start',
+  },
+  heroRightCol: {
+    flex: 0.9,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroFullWidth: {
+    width: '100%',
+    alignItems: 'center',
+  },
+  mockupCard: {
+    width: '100%',
+    maxWidth: 420,
+    backgroundColor: COLORS.neutral.white,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: COLORS.neutral[100],
+    overflow: 'hidden',
+  },
+  mockupHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.neutral[50],
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.neutral[200],
+  },
+  mockupDots: {
+    flexDirection: 'row',
+    marginRight: 16,
+  },
+  mockupDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 6,
+  },
+  mockupHeaderText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    color: COLORS.neutral[400],
+    fontWeight: '500',
+  },
+  mockupBody: {
+    padding: 20,
+  },
+  mockupStatsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  mockupStatCard: {
+    flex: 1,
+    backgroundColor: COLORS.neutral[50],
+    borderRadius: 12,
+    padding: 12,
+    marginHorizontal: 4,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.neutral[100],
+  },
+  mockupStatLabel: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 10,
+    color: COLORS.neutral[500],
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  mockupStatValue: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  mockupAppCard: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#EEF2FF',
+    marginBottom: 16,
+  },
+  mockupAppHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  mockupAppTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.neutral[800],
+  },
+  mockupAppMeta: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 10,
+    color: COLORS.neutral[400],
+  },
+  mockupStatusBadge: {
+    backgroundColor: '#FEF3C7',
+    borderRadius: 6,
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  mockupStatusText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#D97706',
+  },
+  mockupProgressContainer: {
+    width: '100%',
+  },
+  mockupProgressBar: {
+    height: 6,
+    backgroundColor: COLORS.neutral[200],
+    borderRadius: 3,
+    position: 'relative',
+    overflow: 'hidden',
+    flexDirection: 'row',
+  },
+  mockupProgressFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  mockupProgressFillRed: {
+    height: '100%',
+    position: 'absolute',
+  },
+  mockupProgressLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 6,
+  },
+  mockupProgressLabel: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 9,
+    color: COLORS.neutral[400],
+  },
+  mockupActivityCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EEF2FF',
+    borderRadius: 10,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#E0E7FF',
+  },
+  mockupActivityText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    color: COLORS.neutral[700],
+    flex: 1,
+  },
+  mockupActivityTime: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 9,
+    color: COLORS.neutral[400],
+    marginLeft: 8,
   },
   pillBadge: {
     flexDirection: 'row',
@@ -525,8 +897,9 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   heroTitleDesktop: {
-    fontSize: 58,
-    lineHeight: 68,
+    fontSize: 54,
+    lineHeight: 64,
+    textAlign: 'left',
   },
   titleBlue: {
     color: '#1236A8',
@@ -542,6 +915,10 @@ const styles = StyleSheet.create({
     lineHeight: 26,
     marginBottom: SPACING[32],
     maxWidth: 700,
+  },
+  heroSubtitleDesktop: {
+    textAlign: 'left',
+    alignSelf: 'flex-start',
   },
   heroButtonsRow: {
     flexDirection: 'row',
@@ -762,7 +1139,6 @@ const styles = StyleSheet.create({
   faqAnswerContainer: {
     paddingHorizontal: SPACING[20],
     paddingBottom: SPACING[20],
-    borderTopWidth: 1,
     borderTopColor: COLORS.neutral[100],
   },
   faqAnswer: {
