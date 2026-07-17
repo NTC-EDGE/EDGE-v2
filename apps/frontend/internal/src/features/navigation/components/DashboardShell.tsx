@@ -395,7 +395,7 @@ const styles = {
     fontWeight: TYPOGRAPHY.weights.semibold,
   },
   navTextInactive: {
-    color: COLORS.neutral[50],
+    color: COLORS.neutral[600],
     fontWeight: TYPOGRAPHY.weights.medium,
   },
   navTextHover: {
