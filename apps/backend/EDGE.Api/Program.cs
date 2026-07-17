@@ -10,7 +10,6 @@ using System.Text;
 using EDGE.Application;
 using EDGE.Application.Applications.Commands;
 using EDGE.Application.Applications.Queries;
-using EDGE.Application.Auth.Commands.Login;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Infrastructure;
 using EDGE.Infrastructure.Hubs;

@@ -36,8 +36,6 @@ public static class DependencyInjection
         services.AddScoped<IRoleRepository, RoleRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IUserActivityService, UserActivityService>();
-        services.AddScoped<IPasswordHasher, BCryptPasswordHasher>();
-        services.AddScoped<ITokenService, JwtTokenService>();
 
         // Register Clerk Client
         services.AddHttpClient<IClerkUserService, ClerkUserService>((sp, client) =>
