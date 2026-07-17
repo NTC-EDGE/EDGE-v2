@@ -8,12 +8,34 @@ import {
   useWindowDimensions,
   Platform,
   Animated,
+  Modal,
 } from 'react-native';
 import { Feather as Lucide } from '@expo/vector-icons';
 import { COLORS, SHADOWS, SPACING, RADIUS, TYPOGRAPHY } from '../../shared/theme/tokens';
 import { Button } from '../../shared/components/Button';
 import { Logo } from '../../shared/components/Logo';
+import { Input } from '../../shared/components/Input';
 import { useGuestAuth } from '../../auth/context/GuestAuthContext';
+
+const PHILIPPINE_REGIONS = [
+  'NCR - National Capital Region',
+  'CAR - Cordillera Administrative Region',
+  'Region I - Ilocos Region',
+  'Region II - Cagayan Valley',
+  'Region III - Central Luzon',
+  'Region IV-A - CALABARZON',
+  'MIMAROPA Region',
+  'Region V - Bicol Region',
+  'Region VI - Western Visayas',
+  'Region VII - Central Visayas',
+  'Region VIII - Eastern Visayas',
+  'Region IX - Zamboanga Peninsula',
+  'Region X - Northern Mindanao',
+  'Region XI - Davao Region',
+  'Region XII - SOCCSKSARGEN',
+  'Region XIII - Caraga',
+  'BARMM - Bangsamoro Autonomous Region in Muslim Mindanao',
+];
 
 interface LandingScreenProps {
   navigation: {
@@ -26,6 +48,18 @@ export function LandingScreen({ navigation }: LandingScreenProps) {
   const isDesktop = width >= 768;
 
   const { loginAsGuest } = useGuestAuth();
+
+  // Modal visibility states
+  const [isGetStartedModalVisible, setIsGetStartedModalVisible] = useState(false);
+  const [isTrackModalVisible, setIsTrackModalVisible] = useState(false);
+
+  // Tracking form states
+  const [referenceNo, setReferenceNo] = useState('');
+  const [selectedRegion, setSelectedRegion] = useState('');
+  const [isRegionDropdownOpen, setIsRegionDropdownOpen] = useState(false);
+  const [trackingLoading, setTrackingLoading] = useState(false);
+  const [trackingError, setTrackingError] = useState('');
+  const [trackingResult, setTrackingResult] = useState<any | null>(null);
 
   const scrollViewRef = useRef<ScrollView>(null);
   
@@ -128,6 +162,71 @@ export function LandingScreen({ navigation }: LandingScreenProps) {
     }
   };
 
+  const handleTrackSubmit = () => {
+    setTrackingError('');
+    setTrackingResult(null);
+
+    if (referenceNo.trim().length === 0) {
+      setTrackingError('Reference number is required.');
+      return;
+    }
+
+    if (selectedRegion.length === 0) {
+      setTrackingError('Please select a region.');
+      return;
+    }
+
+    setTrackingLoading(true);
+
+    setTimeout(() => {
+      setTrackingLoading(false);
+      const cleanRef = referenceNo.toUpperCase().trim();
+      if (cleanRef === 'NTC-2026-9812') {
+        setTrackingResult({
+          referenceNo: 'NTC-2026-9812',
+          region: selectedRegion,
+          type: 'Radio Station License',
+          applicantName: 'Cignal TV Inc.',
+          status: 'IN REVIEW',
+          updatedAt: '2 hours ago',
+          stage: 'Evaluation (Step 2 of 3)',
+        });
+      } else if (cleanRef === 'NTC-2026-0001') {
+        setTrackingResult({
+          referenceNo: 'NTC-2026-0001',
+          region: selectedRegion,
+          type: 'Permit to Purchase',
+          applicantName: 'Globe Telecom',
+          status: 'APPROVED',
+          updatedAt: '1 day ago',
+          stage: 'Issuance (Step 3 of 3)',
+        });
+      } else if (cleanRef === 'NTC-2026-0002') {
+        setTrackingResult({
+          referenceNo: 'NTC-2026-0002',
+          region: selectedRegion,
+          type: 'Certificate of Public Convenience',
+          applicantName: 'Smart Communications',
+          status: 'PENDING DOCUMENTS',
+          updatedAt: '3 days ago',
+          stage: 'Submission (Step 1 of 3)',
+        });
+      } else if (cleanRef.startsWith('NTC-')) {
+        setTrackingResult({
+          referenceNo: cleanRef,
+          region: selectedRegion,
+          type: 'General Application',
+          applicantName: 'Guest User',
+          status: 'DRAFT/IN PROGRESS',
+          updatedAt: 'Just now',
+          stage: 'Submission (Step 1 of 3)',
+        });
+      } else {
+        setTrackingError("Reference number not found for the selected region. Try 'NTC-2026-9812'.");
+      }
+    }, 1500);
+  };
+
   const handleFaqPress = (idx: number) => {
     const isExpanded = expandedFaq === idx;
     
@@ -216,26 +315,26 @@ export function LandingScreen({ navigation }: LandingScreenProps) {
                 <Text style={styles.navLinkText}>FAQs</Text>
               </TouchableOpacity>
               
-              <TouchableOpacity onPress={() => navigation.navigate('Login')} style={[styles.navLink, { marginRight: SPACING[16] }]}>
-                <Text style={[styles.navLinkText, { color: '#1236A8', fontWeight: '700' }]}>Sign In</Text>
+              <TouchableOpacity onPress={() => setIsTrackModalVisible(true)} style={[styles.navLink, { marginRight: SPACING[16] }]}>
+                <Text style={[styles.navLinkText, { color: '#1236A8', fontWeight: '700' }]}>Track Application</Text>
               </TouchableOpacity>
 
               <Button
                 title="Get Started"
                 size="sm"
-                onPress={loginAsGuest}
+                onPress={() => setIsGetStartedModalVisible(true)}
                 style={styles.headerCtaBtn}
               />
             </View>
           ) : (
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <TouchableOpacity onPress={() => navigation.navigate('Login')} style={[styles.navLink, { marginRight: SPACING[12] }]}>
-                <Text style={[styles.navLinkText, { color: '#1236A8', fontWeight: '700', fontSize: 13 }]}>Sign In</Text>
+              <TouchableOpacity onPress={() => setIsTrackModalVisible(true)} style={[styles.navLink, { marginRight: SPACING[12] }]}>
+                <Text style={[styles.navLinkText, { color: '#1236A8', fontWeight: '700', fontSize: 13 }]}>Track Application</Text>
               </TouchableOpacity>
               <Button
                 title="Get Started"
                 size="sm"
-                onPress={loginAsGuest}
+                onPress={() => setIsGetStartedModalVisible(true)}
                 style={styles.headerCtaBtn}
               />
             </View>
@@ -296,19 +395,19 @@ export function LandingScreen({ navigation }: LandingScreenProps) {
             <View style={styles.heroButtonsRow}>
               <Button
                 title="Get Started"
-                onPress={loginAsGuest}
+                onPress={() => setIsGetStartedModalVisible(true)}
                 size="lg"
                 style={styles.heroPrimaryBtn}
                 icon={<Lucide name="arrow-right" size={16} color={COLORS.neutral.white} />}
               />
               <Button
-                title="Sign In"
-                onPress={() => navigation.navigate('Login')}
+                title="Track Application"
+                onPress={() => setIsTrackModalVisible(true)}
                 variant="outline"
                 size="lg"
                 style={styles.heroSecondaryBtn}
                 textStyle={{ color: '#1236A8' }}
-                icon={<Lucide name="log-in" size={16} color="#1236A8" />}
+                icon={<Lucide name="search" size={16} color="#1236A8" />}
               />
             </View>
           </View>
@@ -527,7 +626,7 @@ export function LandingScreen({ navigation }: LandingScreenProps) {
             </Text>
             <Button
               title="Begin Your Application"
-              onPress={loginAsGuest}
+              onPress={() => setIsGetStartedModalVisible(true)}
               style={styles.ctaPrimaryBtn}
               textStyle={{ color: '#1236A8' }}
               icon={<Lucide name="arrow-right" size={16} color="#1236A8" />}
@@ -597,6 +696,272 @@ export function LandingScreen({ navigation }: LandingScreenProps) {
           </View>
         </View>
       </ScrollView>
+
+      {/* Get Started Modal */}
+      <Modal
+        visible={isGetStartedModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setIsGetStartedModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setIsGetStartedModalVisible(false)}
+        >
+          <TouchableOpacity
+            style={[styles.modalCard, SHADOWS.modal]}
+            activeOpacity={1}
+            onPress={() => {}} // prevent click propagation
+          >
+            {/* Close Button */}
+            <TouchableOpacity
+              style={styles.modalCloseBtn}
+              onPress={() => setIsGetStartedModalVisible(false)}
+            >
+              <Lucide name="x" size={20} color={COLORS.neutral[500]} />
+            </TouchableOpacity>
+
+            {/* Modal Logo */}
+            <View style={styles.modalHeader}>
+              <Logo height={32} />
+            </View>
+
+            <Text style={styles.modalTitle}>How would you like to proceed?</Text>
+            
+            <Text style={styles.modalSubtitleText}>
+              To save your progress and access application history, we recommend having an account.
+            </Text>
+
+            <View style={styles.modalButtonsContainer}>
+              <Button
+                title="Login"
+                onPress={() => {
+                  setIsGetStartedModalVisible(false);
+                  navigation.navigate('Login');
+                }}
+                style={styles.modalActionBtn}
+                icon={<Lucide name="log-in" size={16} color={COLORS.neutral.white} />}
+              />
+
+              <Button
+                title="Continue as Guest"
+                variant="outline"
+                onPress={() => {
+                  setIsGetStartedModalVisible(false);
+                  loginAsGuest();
+                }}
+                style={{ ...styles.modalActionBtn, ...styles.modalGuestBtn }}
+                textStyle={{ color: '#1236A8' }}
+                icon={<Lucide name="user" size={16} color="#1236A8" />}
+              />
+            </View>
+
+            {/* Footer Sign Up Link */}
+            <View style={styles.modalFooter}>
+              <Text style={styles.modalFooterText}>Don't have an account yet? </Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setIsGetStartedModalVisible(false);
+                  navigation.navigate('SignUp');
+                }}
+              >
+                <Text style={styles.modalFooterLink}>Sign Up</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Track Application Modal */}
+      <Modal
+        visible={isTrackModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => {
+          setIsTrackModalVisible(false);
+          // reset state
+          setReferenceNo('');
+          setSelectedRegion('');
+          setIsRegionDropdownOpen(false);
+          setTrackingError('');
+          setTrackingResult(null);
+        }}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => {
+            setIsTrackModalVisible(false);
+            // reset state
+            setReferenceNo('');
+            setSelectedRegion('');
+            setIsRegionDropdownOpen(false);
+            setTrackingError('');
+            setTrackingResult(null);
+          }}
+        >
+          <TouchableOpacity
+            style={[styles.modalCard, SHADOWS.modal, { maxWidth: 440 }]}
+            activeOpacity={1}
+            onPress={() => setIsRegionDropdownOpen(false)} // close dropdown if clicked elsewhere in card
+          >
+            {/* Close Button */}
+            <TouchableOpacity
+              style={styles.modalCloseBtn}
+              onPress={() => {
+                setIsTrackModalVisible(false);
+                // reset state
+                setReferenceNo('');
+                setSelectedRegion('');
+                setIsRegionDropdownOpen(false);
+                setTrackingError('');
+                setTrackingResult(null);
+              }}
+            >
+              <Lucide name="x" size={20} color={COLORS.neutral[500]} />
+            </TouchableOpacity>
+
+            {/* Modal Logo */}
+            <View style={styles.modalHeader}>
+              <Logo height={32} />
+            </View>
+
+            <Text style={styles.modalTitle}>Track Application</Text>
+
+            {trackingResult === null ? (
+              <View style={{ width: '100%' }}>
+                <Text style={styles.modalInstructionText}>
+                  Enter your reference number and select the region to track status.
+                </Text>
+
+                {/* Reference No Input */}
+                <Input
+                  label="Reference No."
+                  placeholder="e.g., NTC-2026-9812"
+                  value={referenceNo}
+                  onChangeText={(text) => {
+                    setReferenceNo(text);
+                    setTrackingError('');
+                  }}
+                  iconName="search"
+                />
+
+                {/* Region Picker Dropdown */}
+                <View style={{ zIndex: 100, marginBottom: SPACING[16], position: 'relative' }}>
+                  <Text style={styles.dropdownLabel}>Region</Text>
+                  <TouchableOpacity
+                    style={styles.dropdownTrigger}
+                    activeOpacity={0.9}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      setIsRegionDropdownOpen(!isRegionDropdownOpen);
+                    }}
+                  >
+                    <Text style={selectedRegion ? styles.dropdownSelectedText : styles.dropdownPlaceholderText}>
+                      {selectedRegion || 'Select Region...'}
+                    </Text>
+                    <Lucide name={isRegionDropdownOpen ? 'chevron-up' : 'chevron-down'} size={18} color={COLORS.neutral[500]} />
+                  </TouchableOpacity>
+
+                  {isRegionDropdownOpen && (
+                    <View style={[styles.dropdownMenu, SHADOWS.modal]}>
+                      <ScrollView style={{ maxHeight: 180 }} nestedScrollEnabled={true}>
+                        {PHILIPPINE_REGIONS.map((region) => (
+                          <TouchableOpacity
+                            key={region}
+                            style={styles.dropdownItem}
+                            onPress={() => {
+                              setSelectedRegion(region);
+                              setIsRegionDropdownOpen(false);
+                              setTrackingError('');
+                            }}
+                          >
+                            <Text style={styles.dropdownItemText}>{region}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </ScrollView>
+                    </View>
+                  )}
+                </View>
+
+                {/* Error Banner */}
+                {trackingError.length > 0 && (
+                  <View style={styles.errorBanner}>
+                    <Lucide name="alert-circle" size={16} color={COLORS.semantic.error} style={{ marginRight: 8 }} />
+                    <Text style={styles.errorBannerText}>{trackingError}</Text>
+                  </View>
+                )}
+
+                {/* Action button */}
+                <Button
+                  title={trackingLoading ? 'Checking Database...' : 'Track Application'}
+                  onPress={handleTrackSubmit}
+                  loading={trackingLoading}
+                  style={styles.modalSubmitBtn}
+                  icon={!trackingLoading ? <Lucide name="activity" size={16} color={COLORS.neutral.white} /> : undefined}
+                />
+              </View>
+            ) : (
+              /* Tracking Result display */
+              <View style={{ width: '100%', alignItems: 'center' }}>
+                <View style={styles.resultHeader}>
+                  <Text style={styles.resultRef}>{trackingResult.referenceNo}</Text>
+                  <View style={[
+                    styles.resultBadge,
+                    trackingResult.status === 'APPROVED' ? styles.badgeSuccess :
+                    trackingResult.status === 'IN REVIEW' ? styles.badgeInfo :
+                    trackingResult.status === 'PENDING DOCUMENTS' ? styles.badgeWarning : styles.badgeDefault
+                  ]}>
+                    <Text style={[
+                      styles.resultBadgeText,
+                      trackingResult.status === 'APPROVED' ? styles.textSuccess :
+                      trackingResult.status === 'IN REVIEW' ? styles.textInfo :
+                      trackingResult.status === 'PENDING DOCUMENTS' ? styles.textWarning : styles.textDefault
+                    ]}>{trackingResult.status}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.resultCard}>
+                  <View style={styles.resultRow}>
+                    <Text style={styles.resultLabel}>Application Type:</Text>
+                    <Text style={styles.resultValue}>{trackingResult.type}</Text>
+                  </View>
+                  <View style={styles.resultRow}>
+                    <Text style={styles.resultLabel}>Applicant:</Text>
+                    <Text style={styles.resultValue}>{trackingResult.applicantName}</Text>
+                  </View>
+                  <View style={styles.resultRow}>
+                    <Text style={styles.resultLabel}>Region:</Text>
+                    <Text style={styles.resultValue}>{trackingResult.region}</Text>
+                  </View>
+                  <View style={styles.resultRow}>
+                    <Text style={styles.resultLabel}>Current Stage:</Text>
+                    <Text style={styles.resultValue}>{trackingResult.stage}</Text>
+                  </View>
+                  <View style={styles.resultRow}>
+                    <Text style={styles.resultLabel}>Last Updated:</Text>
+                    <Text style={styles.resultValue}>{trackingResult.updatedAt}</Text>
+                  </View>
+                </View>
+
+                <Button
+                  title="Track Another Application"
+                  variant="outline"
+                  onPress={() => {
+                    setReferenceNo('');
+                    setSelectedRegion('');
+                    setTrackingResult(null);
+                  }}
+                  style={styles.modalResetBtn}
+                  textStyle={{ color: '#1236A8' }}
+                  icon={<Lucide name="refresh-cw" size={16} color="#1236A8" />}
+                />
+              </View>
+            )}
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -1261,5 +1626,245 @@ const styles = StyleSheet.create({
   },
   columnLayout: {
     flexDirection: 'column',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING[20],
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 400,
+    backgroundColor: COLORS.neutral.white,
+    borderRadius: 16,
+    padding: SPACING[24],
+    position: 'relative',
+    alignSelf: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.neutral[200],
+  },
+  modalCloseBtn: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    zIndex: 10,
+    padding: 4,
+  },
+  modalHeader: {
+    alignItems: 'center',
+    marginBottom: SPACING[20],
+  },
+  modalTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 20,
+    fontWeight: '700',
+    color: COLORS.neutral[900],
+    textAlign: 'center',
+    marginBottom: SPACING[12],
+    lineHeight: 26,
+  },
+  modalSubtitleText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    color: COLORS.neutral[500],
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: SPACING[24],
+  },
+  modalInstructionText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    color: COLORS.neutral[500],
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: SPACING[20],
+  },
+  modalButtonsContainer: {
+    width: '100%',
+    marginBottom: SPACING[20],
+  },
+  modalActionBtn: {
+    width: '100%',
+    height: 48,
+    marginBottom: SPACING[12],
+  },
+  modalGuestBtn: {
+    borderColor: '#1236A8',
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: SPACING[8],
+  },
+  modalFooterText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    color: COLORS.neutral[600],
+  },
+  modalFooterLink: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1236A8',
+  },
+  dropdownLabel: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: TYPOGRAPHY.sizes.smallLabel,
+    fontWeight: TYPOGRAPHY.weights.medium,
+    color: COLORS.neutral[700],
+    marginBottom: SPACING[8],
+  },
+  dropdownTrigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    height: 48,
+    backgroundColor: COLORS.neutral.white,
+    borderColor: COLORS.neutral[200],
+    borderWidth: 1.5,
+    borderRadius: RADIUS.input,
+    paddingHorizontal: SPACING[16],
+  },
+  dropdownPlaceholderText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: TYPOGRAPHY.sizes.body,
+    color: COLORS.neutral[400],
+  },
+  dropdownSelectedText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: TYPOGRAPHY.sizes.body,
+    color: COLORS.neutral[900],
+  },
+  dropdownMenu: {
+    position: 'absolute',
+    top: 76,
+    left: 0,
+    right: 0,
+    backgroundColor: COLORS.neutral.white,
+    borderColor: COLORS.neutral[200],
+    borderWidth: 1.5,
+    borderRadius: RADIUS.input,
+    zIndex: 1000,
+    maxHeight: 180,
+    elevation: 5,
+  },
+  dropdownItem: {
+    padding: SPACING[12],
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.neutral[100],
+  },
+  dropdownItemText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    color: COLORS.neutral[800],
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.semantic.errorBg,
+    borderColor: COLORS.semantic.errorBorder,
+    borderWidth: 1,
+    borderRadius: RADIUS.input,
+    padding: SPACING[12],
+    marginBottom: SPACING[16],
+  },
+  errorBannerText: {
+    flex: 1,
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    color: COLORS.semantic.error,
+  },
+  modalSubmitBtn: {
+    width: '100%',
+    height: 48,
+    marginTop: SPACING[8],
+  },
+  resultHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: SPACING[16],
+    paddingBottom: SPACING[12],
+    borderBottomWidth: 1.5,
+    borderBottomColor: COLORS.neutral[100],
+  },
+  resultRef: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.neutral[900],
+  },
+  resultBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  resultBadgeText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  badgeSuccess: {
+    backgroundColor: COLORS.semantic.successBg,
+  },
+  textSuccess: {
+    color: COLORS.semantic.success,
+  },
+  badgeInfo: {
+    backgroundColor: COLORS.semantic.infoBg,
+  },
+  textInfo: {
+    color: COLORS.semantic.info,
+  },
+  badgeWarning: {
+    backgroundColor: COLORS.semantic.warningBg,
+  },
+  textWarning: {
+    color: COLORS.semantic.warning,
+  },
+  badgeDefault: {
+    backgroundColor: COLORS.neutral[100],
+  },
+  textDefault: {
+    color: COLORS.neutral[600],
+  },
+  resultCard: {
+    width: '100%',
+    backgroundColor: COLORS.neutral[50],
+    borderRadius: 12,
+    padding: SPACING[16],
+    marginBottom: SPACING[20],
+    borderWidth: 1,
+    borderColor: COLORS.neutral[200],
+  },
+  resultRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.03)',
+  },
+  resultLabel: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    color: COLORS.neutral[500],
+    fontWeight: '500',
+  },
+  resultValue: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    color: COLORS.neutral[800],
+    fontWeight: '600',
+    textAlign: 'right',
+  },
+  modalResetBtn: {
+    width: '100%',
+    height: 48,
+    borderColor: '#1236A8',
   },
 });
