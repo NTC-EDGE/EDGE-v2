@@ -1,38 +1,65 @@
-import React, { useState, useEffect } from 'react';
-import { createStaticNavigation, useNavigationContainerRef, ParamListBase, RouteProp } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { ClerkProvider } from '@clerk/clerk-expo';
-import { tokenCache } from './tokenCache';
-import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY } from './src/features/shared/theme/tokens';
-import { AuthProvider, useAuthContext } from './src/features/auth/context/AuthContext';
-import { RoleProvider } from './src/features/navigation/context/RoleContext';
-import { DashboardShell } from './src/features/navigation/components/DashboardShell';
-import { DashboardScreen } from './src/features/dashboard/screens/DashboardScreen';
-import { QueueScreen } from './src/features/queue/screens/QueueScreen';
+import React, { useState, useEffect } from "react";
+import {
+  createStaticNavigation,
+  useNavigationContainerRef,
+  ParamListBase,
+  RouteProp,
+} from "@react-navigation/native";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { StatusBar } from "expo-status-bar";
+import {
+  StyleSheet,
+  Text,
+  View,
+  TextInput,
+  TouchableOpacity,
+  ActivityIndicator,
+} from "react-native";
+import { ClerkProvider } from "@clerk/clerk-expo";
+import { tokenCache } from "./tokenCache";
+import {
+  COLORS,
+  SPACING,
+  RADIUS,
+  SHADOWS,
+  TYPOGRAPHY,
+} from "./src/features/shared/theme/tokens";
+import {
+  AuthProvider,
+  useAuthContext,
+} from "./src/features/auth/context/AuthContext";
+import { RoleProvider } from "./src/features/navigation/context/RoleContext";
+import { DashboardShell } from "./src/features/navigation/components/DashboardShell";
+import { DashboardScreen } from "./src/features/dashboard/screens/DashboardScreen";
+import { QueueScreen } from "./src/features/queue/screens/QueueScreen";
 
 const getClerkKey = (): string => {
   const key = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
-  if (typeof key === 'string' && key.length > 0) {
+  if (typeof key === "string" && key.length > 0) {
     return key;
   }
-  return '';
+  return "";
 };
 
 const publishableKey = getClerkKey();
 
 if (publishableKey.length === 0) {
-  console.warn('Missing EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY environment variable. Clerk will not initialize properly.');
+  console.warn(
+    "Missing EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY environment variable. Clerk will not initialize properly.",
+  );
 }
 
 // Fallback Placeholder screen for role specific navigation links
-function PlaceholderScreen({ route }: { route: RouteProp<ParamListBase, string> }) {
+function PlaceholderScreen({
+  route,
+}: {
+  route: RouteProp<ParamListBase, string>;
+}) {
   const name = route.name;
 
   // Format the camelCase name into a user friendly title (e.g. AuditLogs -> Audit Logs)
   const formattedName = name
-    .replace(/([A-Z])/g, ' $1')
+    .replace(/([A-Z])/g, " $1")
     .replace(/^./, (str: string) => str.toUpperCase())
     .trim();
 
@@ -41,7 +68,9 @@ function PlaceholderScreen({ route }: { route: RouteProp<ParamListBase, string> 
       <View style={[styles.placeholderCard, SHADOWS.card]}>
         <Text style={styles.placeholderTitle}>{formattedName} Portal</Text>
         <Text style={styles.placeholderText}>
-          This sub-module is currently undergoing staging and compliance verification. All interactions are simulated under the active role constraints.
+          This sub-module is currently undergoing staging and compliance
+          verification. All interactions are simulated under the active role
+          constraints.
         </Text>
       </View>
     </View>
@@ -50,10 +79,10 @@ function PlaceholderScreen({ route }: { route: RouteProp<ParamListBase, string> 
 
 // React Navigation 8 Static configuration
 const RootStack = createNativeStackNavigator({
-  initialRouteName: 'Dashboard',
+  initialRouteName: "Dashboard",
   screenOptions: {
     headerShown: false,
-    contentStyle: { backgroundColor: 'transparent' },
+    contentStyle: { backgroundColor: "transparent" },
   },
   screens: {
     Dashboard: { screen: DashboardScreen },
@@ -74,9 +103,9 @@ const Navigation = createStaticNavigation(RootStack);
 
 function AuthScreen() {
   const { loginWithBypass } = useAuthContext();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error] = useState("");
 
   return (
     <View style={styles.authBg}>
@@ -101,12 +130,11 @@ function AuthScreen() {
           style={styles.input}
         />
 
-        {error.length > 0 ? <Text style={styles.errorText}>{error}</Text> : null}
+        {error.length > 0 ? (
+          <Text style={styles.errorText}>{error}</Text>
+        ) : null}
 
-        <TouchableOpacity
-          style={styles.authButton}
-          onPress={() => { }}
-        >
+        <TouchableOpacity style={styles.authButton} onPress={() => {}}>
           <Text style={styles.buttonText}>Sign In</Text>
         </TouchableOpacity>
 
@@ -127,13 +155,13 @@ function AuthScreen() {
 function AppContent() {
   const { isAuthenticated, isLoading } = useAuthContext();
   const navigationRef = useNavigationContainerRef<ParamListBase>();
-  const [activeScreen, setActiveScreen] = useState('Dashboard');
+  const [activeScreen, setActiveScreen] = useState("Dashboard");
 
   // Track the current route inside the stack to sync the Sidebar highlights
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    const unsubscribe = navigationRef.addListener('state', () => {
+    const unsubscribe = navigationRef.addListener("state", () => {
       const route = navigationRef.getCurrentRoute();
       if (route !== null && route !== undefined) {
         setActiveScreen(route.name);
@@ -186,14 +214,14 @@ const styles = StyleSheet.create({
   loadingContainer: {
     flex: 1,
     backgroundColor: COLORS.bg,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   authBg: {
     flex: 1,
     backgroundColor: COLORS.bg,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     padding: SPACING[20],
   },
   authCard: {
@@ -202,9 +230,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.neutral[200],
     padding: SPACING[40],
-    width: '100%',
+    width: "100%",
     maxWidth: 440,
-    alignItems: 'center',
+    alignItems: "center",
   },
   authTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
@@ -218,10 +246,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.neutral[500],
     marginBottom: SPACING[32],
-    textAlign: 'center',
+    textAlign: "center",
   },
   input: {
-    width: '100%',
+    width: "100%",
     height: 44,
     backgroundColor: COLORS.neutral.white,
     borderColor: COLORS.neutral[200],
@@ -234,11 +262,11 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
   },
   authButton: {
-    width: '100%',
+    width: "100%",
     height: 44,
     backgroundColor: COLORS.brand[800],
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     borderRadius: RADIUS.button,
     marginTop: 10,
   },
@@ -255,14 +283,14 @@ const styles = StyleSheet.create({
   errorText: {
     color: COLORS.semantic.error,
     marginBottom: 10,
-    textAlign: 'center',
+    textAlign: "center",
     fontSize: 14,
     fontFamily: TYPOGRAPHY.fonts.primary,
   },
   placeholderContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     padding: SPACING[20],
   },
   placeholderCard: {
@@ -272,8 +300,8 @@ const styles = StyleSheet.create({
     borderColor: COLORS.neutral[200],
     padding: SPACING[32],
     maxWidth: 600,
-    alignItems: 'center',
-    textAlign: 'center',
+    alignItems: "center",
+    textAlign: "center",
   },
   placeholderTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
@@ -286,7 +314,7 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 14,
     color: COLORS.neutral[500],
-    textAlign: 'center',
+    textAlign: "center",
     lineHeight: 22,
   },
 });

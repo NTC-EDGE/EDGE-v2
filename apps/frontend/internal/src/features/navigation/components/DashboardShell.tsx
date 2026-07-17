@@ -1,11 +1,31 @@
-import React, { useState, ComponentProps } from 'react';
-import { StyleSheet, View, Text, Pressable, Platform, ScrollView, Image } from 'react-native';
-import { Feather as Lucide } from '@expo/vector-icons';
-import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY } from '../../shared/theme/tokens';
-import { useRole, ROLES, ROLE_NAVIGATION_LINKS, UserRole, NavigationLink } from '../context/RoleContext';
-import { useAuthContext } from '../../auth/context/AuthContext';
+import React, { useState, ComponentProps } from "react";
+import {
+  StyleSheet,
+  View,
+  Text,
+  Pressable,
+  Platform,
+  ScrollView,
+  Image,
+} from "react-native";
+import { Feather as Lucide } from "@expo/vector-icons";
+import {
+  COLORS,
+  SPACING,
+  RADIUS,
+  SHADOWS,
+  TYPOGRAPHY,
+} from "../../shared/theme/tokens";
+import {
+  useRole,
+  ROLES,
+  ROLE_NAVIGATION_LINKS,
+  UserRole,
+  NavigationLink,
+} from "../context/RoleContext";
+import { useAuthContext } from "../../auth/context/AuthContext";
 
-type LucideIconName = ComponentProps<typeof Lucide>['name'];
+type LucideIconName = ComponentProps<typeof Lucide>["name"];
 
 interface SidebarNavItemProps {
   link: NavigationLink;
@@ -59,7 +79,11 @@ interface RoleDropdownItemProps {
   onSelect: (role: UserRole) => void;
 }
 
-function RoleDropdownItem({ role, isSelected, onSelect }: RoleDropdownItemProps) {
+function RoleDropdownItem({
+  role,
+  isSelected,
+  onSelect,
+}: RoleDropdownItemProps) {
   const [isHovered, setIsHovered] = useState(false);
 
   return (
@@ -94,7 +118,11 @@ interface DashboardShellProps {
   onNavigate?: (screenName: string) => void;
 }
 
-export function DashboardShell({ children, activeScreen = 'Dashboard', onNavigate }: DashboardShellProps) {
+export function DashboardShell({
+  children,
+  activeScreen = "Dashboard",
+  onNavigate,
+}: DashboardShellProps) {
   const { currentRole, setCurrentRole } = useRole();
   const { user, logout } = useAuthContext();
   const [showRoleDropdown, setShowRoleDropdown] = useState(false);
@@ -114,11 +142,13 @@ export function DashboardShell({ children, activeScreen = 'Dashboard', onNavigat
     }
   };
 
-  const userInitial = user !== null && user.name.length > 0 ? user.name.charAt(0).toUpperCase() : 'S';
+  const userInitial =
+    user !== null && user.name.length > 0
+      ? user.name.charAt(0).toUpperCase()
+      : "S";
 
   return (
     <View style={styles.shell}>
-
       {/* Left Sidebar */}
       <View style={styles.sidebar}>
         {/* Sidebar Header */}
@@ -133,7 +163,10 @@ export function DashboardShell({ children, activeScreen = 'Dashboard', onNavigat
         </View>
 
         {/* Sidebar Navigation Links */}
-        <ScrollView style={styles.sidebarNav} contentContainerStyle={styles.sidebarNavContent}>
+        <ScrollView
+          style={styles.sidebarNav}
+          contentContainerStyle={styles.sidebarNavContent}
+        >
           {links.map((link) => {
             const isActive = activeScreen === link.screen;
             return (
@@ -158,7 +191,9 @@ export function DashboardShell({ children, activeScreen = 'Dashboard', onNavigat
       <View style={styles.mainWrapper}>
         {/* Top Navigation Header */}
         <View style={[styles.header, styles.headerGradient]}>
-          <Text style={styles.headerTitle}>National Telecomminications Commission</Text>
+          <Text style={styles.headerTitle}>
+            National Telecomminications Commission
+          </Text>
 
           {/* Header Controls */}
           <View style={styles.headerControls}>
@@ -173,9 +208,18 @@ export function DashboardShell({ children, activeScreen = 'Dashboard', onNavigat
                   isSwitcherHovered && styles.switcherBtnHover,
                 ]}
               >
-                <Lucide name="user-check" size={16} color={COLORS.neutral.white} style={styles.switcherIcon} />
+                <Lucide
+                  name="user-check"
+                  size={16}
+                  color={COLORS.neutral.white}
+                  style={styles.switcherIcon}
+                />
                 <Text style={styles.switcherText}>Role: {currentRole}</Text>
-                <Lucide name="chevron-down" size={14} color={COLORS.neutral.white} />
+                <Lucide
+                  name="chevron-down"
+                  size={14}
+                  color={COLORS.neutral.white}
+                />
               </Pressable>
 
               {/* Custom Dropdown Popover */}
@@ -186,7 +230,9 @@ export function DashboardShell({ children, activeScreen = 'Dashboard', onNavigat
                     onPress={() => setShowRoleDropdown(false)}
                   />
                   <View style={[styles.dropdownPopover, SHADOWS.modal]}>
-                    <Text style={styles.dropdownHeader}>Switch Active Role</Text>
+                    <Text style={styles.dropdownHeader}>
+                      Switch Active Role
+                    </Text>
                     {ROLES.map((role) => {
                       const isSelected = currentRole === role;
                       return (
@@ -209,15 +255,22 @@ export function DashboardShell({ children, activeScreen = 'Dashboard', onNavigat
             {/* User Profile */}
             <View style={styles.profileContainer}>
               {user?.avatarUrl !== undefined && user.avatarUrl.length > 0 ? (
-                <Image source={{ uri: user.avatarUrl }} style={styles.profileAvatar} />
+                <Image
+                  source={{ uri: user.avatarUrl }}
+                  style={styles.profileAvatar}
+                />
               ) : (
                 <View style={styles.avatarFallback}>
                   <Text style={styles.avatarFallbackText}>{userInitial}</Text>
                 </View>
               )}
               <View style={styles.profileInfo}>
-                <Text style={styles.profileName}>{user?.name ?? 'Staff User'}</Text>
-                <Text style={styles.profileEmail}>{user?.email ?? 'staff@edge.gov'}</Text>
+                <Text style={styles.profileName}>
+                  {user?.name ?? "Staff User"}
+                </Text>
+                <Text style={styles.profileEmail}>
+                  {user?.email ?? "staff@edge.gov"}
+                </Text>
               </View>
             </View>
 
@@ -238,10 +291,11 @@ export function DashboardShell({ children, activeScreen = 'Dashboard', onNavigat
         </View>
 
         {/* Main Scrolling Body */}
-        <ScrollView style={styles.contentScrollView} contentContainerStyle={styles.contentContainer}>
-          <View style={styles.maxContainer}>
-            {children}
-          </View>
+        <ScrollView
+          style={styles.contentScrollView}
+          contentContainerStyle={styles.contentContainer}
+        >
+          <View style={styles.maxContainer}>{children}</View>
         </ScrollView>
       </View>
     </View>
@@ -251,11 +305,11 @@ export function DashboardShell({ children, activeScreen = 'Dashboard', onNavigat
 const styles = {
   shell: {
     flex: 1,
-    flexDirection: 'row' as const,
+    flexDirection: "row" as const,
     backgroundColor: COLORS.bg,
   },
   dropdownOverlay: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
@@ -267,14 +321,14 @@ const styles = {
     backgroundColor: COLORS.neutral.white,
     borderRightWidth: 1,
     borderRightColor: COLORS.neutral[200],
-    flexDirection: 'column' as const,
-    height: '100%',
+    flexDirection: "column" as const,
+    height: "100%",
     zIndex: 10,
   },
   sidebarHeader: {
     height: 72,
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
     paddingHorizontal: SPACING[20],
     borderBottomWidth: 1,
     borderBottomColor: COLORS.neutral[200],
@@ -284,8 +338,8 @@ const styles = {
     height: 38,
     borderRadius: RADIUS.button,
     backgroundColor: COLORS.neutral[100],
-    justifyContent: 'center' as const,
-    alignItems: 'center' as const,
+    justifyContent: "center" as const,
+    alignItems: "center" as const,
     marginRight: SPACING[12],
   },
   logoTitle: {
@@ -310,8 +364,8 @@ const styles = {
     paddingVertical: SPACING[16],
   },
   navItem: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
     paddingHorizontal: SPACING[20],
     paddingVertical: SPACING[16],
     borderRadius: 14,
@@ -321,7 +375,7 @@ const styles = {
     backgroundColor: COLORS.brand[700],
   },
   navItemInactive: {
-    backgroundColor: 'transparent',
+    backgroundColor: "transparent",
   },
   navItemHover: {
     backgroundColor: COLORS.neutral[100],
@@ -329,7 +383,7 @@ const styles = {
   navIconWrapper: {
     marginRight: SPACING[16],
     width: 24,
-    alignItems: 'center' as const,
+    alignItems: "center" as const,
   },
   navText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
@@ -358,7 +412,7 @@ const styles = {
     fontSize: 12,
     color: COLORS.neutral[500],
     fontWeight: TYPOGRAPHY.weights.medium,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 0.5,
     marginBottom: 4,
   },
@@ -370,14 +424,14 @@ const styles = {
   },
   mainWrapper: {
     flex: 1,
-    flexDirection: 'column' as const,
-    height: '100%',
+    flexDirection: "column" as const,
+    height: "100%",
   },
   header: {
     height: 72,
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    justifyContent: 'space-between' as const,
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    justifyContent: "space-between" as const,
     paddingHorizontal: SPACING[32],
     zIndex: 5,
   },
@@ -392,25 +446,25 @@ const styles = {
     letterSpacing: 0.5,
   },
   headerControls: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
   },
   switcherContainer: {
-    position: 'relative',
+    position: "relative",
     zIndex: 100,
   },
   switcherBtn: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    backgroundColor: "rgba(255, 255, 255, 0.12)",
     paddingHorizontal: SPACING[12],
     paddingVertical: SPACING[8],
     borderRadius: RADIUS.input,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: "rgba(255, 255, 255, 0.2)",
   },
   switcherBtnHover: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
   },
   switcherIcon: {
     marginRight: 8,
@@ -423,7 +477,7 @@ const styles = {
     marginRight: 8,
   },
   dropdownPopover: {
-    position: 'absolute',
+    position: "absolute",
     top: 48,
     right: 0,
     width: 200,
@@ -442,15 +496,15 @@ const styles = {
     fontWeight: TYPOGRAPHY.weights.semibold,
     paddingHorizontal: SPACING[16],
     paddingVertical: SPACING[8],
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     borderBottomWidth: 1,
     borderBottomColor: COLORS.neutral[100],
     marginBottom: 4,
   },
   dropdownItem: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    justifyContent: 'space-between' as const,
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    justifyContent: "space-between" as const,
     paddingHorizontal: SPACING[16],
     paddingVertical: SPACING[12],
   },
@@ -473,12 +527,12 @@ const styles = {
   divider: {
     width: 1,
     height: 32,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
     marginHorizontal: SPACING[20],
   },
   profileContainer: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
   },
   profileAvatar: {
     width: 36,
@@ -491,8 +545,8 @@ const styles = {
     height: 36,
     borderRadius: RADIUS.circle,
     backgroundColor: COLORS.neutral.white,
-    justifyContent: 'center' as const,
-    alignItems: 'center' as const,
+    justifyContent: "center" as const,
+    alignItems: "center" as const,
     marginRight: SPACING[12],
   },
   avatarFallbackText: {
@@ -516,14 +570,14 @@ const styles = {
     color: COLORS.neutral[300],
   },
   logoutBtn: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
     paddingHorizontal: SPACING[12],
     paddingVertical: SPACING[8],
     borderRadius: RADIUS.input,
   },
   logoutBtnHover: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
   },
   logoutText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
@@ -538,11 +592,11 @@ const styles = {
   contentContainer: {
     paddingHorizontal: SPACING[32],
     paddingVertical: SPACING[32],
-    alignItems: 'center' as const,
+    alignItems: "center" as const,
   },
   maxContainer: {
-    width: '100%',
+    width: "100%",
     maxWidth: 1600,
-    alignSelf: 'center' as const,
+    alignSelf: "center" as const,
   },
 } as const;
