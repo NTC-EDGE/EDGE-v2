@@ -49,3 +49,6 @@ ntcservices.json
 *.suo
 .vs/
 *.sln.docstates
+
+# VS Code
+.vscode/

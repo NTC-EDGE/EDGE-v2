@@ -3,7 +3,7 @@ import { createStaticNavigation } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View, Button, TextInput, TouchableOpacity } from 'react-native';
-import { ClerkProvider, SignedIn, SignedOut, useAuth, useSignIn, useSignUp } from '@clerk/clerk-expo';
+import { ClerkProvider, SignedIn, SignedOut, useAuth, useSignIn, useSignUp, useUser } from '@clerk/clerk-expo';
 import { tokenCache } from './tokenCache';
 import { apiClient } from '@edge/api';
 
@@ -31,8 +31,12 @@ interface ApplicationResponse {
 
 function DashboardScreen({ navigation }: any) {
   const { signOut, getToken } = useAuth();
+  const { user } = useUser();
   const [submitting, setSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
+
+  // Read role from Clerk metadata, defaulting to evaluator for internal preview
+  const role = (user?.publicMetadata?.role as string) || 'evaluator';
 
   const submitApplication = async () => {
     setSubmitting(true);
@@ -63,13 +67,70 @@ function DashboardScreen({ navigation }: any) {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>NTC-EDGE Internal Portal</Text>
-      <Text style={styles.subtitle}>Official Staff Dashboard • SDK 57 & React Nav 8</Text>
+      <Text style={styles.subtitle}>Logged in as: {user?.primaryEmailAddress?.emailAddress}</Text>
+      <View style={styles.roleBadge}>
+        <Text style={styles.roleBadgeText}>Role: {role.toUpperCase()}</Text>
+      </View>
       
-      <Button
-        title="Review Application Queue"
-        onPress={() => navigation.navigate('Queue')}
-        color="#2e7d32" // Green theme for internal
-      />
+      {/* 1. Evaluator Panel */}
+      {role === 'evaluator' && (
+        <View style={styles.panel}>
+          <Text style={styles.panelTitle}>Evaluator Actions</Text>
+          <Button
+            title="Review Application Queue"
+            onPress={() => navigation.navigate('Queue')}
+            color="#2e7d32"
+          />
+        </View>
+      )}
+
+      {/* 2. Higher-Ups Panel */}
+      {role === 'higherups' && (
+        <View style={styles.panel}>
+          <Text style={styles.panelTitle}>Executive Actions</Text>
+          <Button
+            title="Approve / Reject Requests"
+            onPress={() => setStatusMessage("Navigating to Executive Approval Queue...")}
+            color="#1976d2"
+          />
+        </View>
+      )}
+
+      {/* 3. Accountant Panel */}
+      {role === 'accountant' && (
+        <View style={styles.panel}>
+          <Text style={styles.panelTitle}>Accountant Actions</Text>
+          <Button
+            title="Generate Invoices & Billing"
+            onPress={() => setStatusMessage("Opening Billing Interface...")}
+            color="#ed6c02"
+          />
+        </View>
+      )}
+
+      {/* 4. Cashier Panel */}
+      {role === 'cashier' && (
+        <View style={styles.panel}>
+          <Text style={styles.panelTitle}>Cashier Actions</Text>
+          <Button
+            title="Collect Payments & Issue Receipts"
+            onPress={() => setStatusMessage("Opening Payment Terminal...")}
+            color="#9c27b0"
+          />
+        </View>
+      )}
+
+      {/* 5. Admin Panel */}
+      {role === 'admin' && (
+        <View style={styles.panel}>
+          <Text style={styles.panelTitle}>System Admin Actions</Text>
+          <Button
+            title="Configure System Roles"
+            onPress={() => setStatusMessage("Opening User Configuration Panel...")}
+            color="#d32f2f"
+          />
+        </View>
+      )}
 
       <View style={{ marginTop: 15, width: '100%' }}>
         <Button
@@ -293,5 +354,32 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     fontWeight: 'bold',
+  },
+  roleBadge: {
+    backgroundColor: '#273e29',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    marginBottom: 20,
+  },
+  roleBadgeText: {
+    color: '#a5bda6',
+    fontWeight: 'bold',
+    fontSize: 12,
+  },
+  panel: {
+    width: '100%',
+    backgroundColor: '#273e29',
+    borderRadius: 8,
+    padding: 15,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: '#3a583d',
+  },
+  panelTitle: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 10,
   },
 });

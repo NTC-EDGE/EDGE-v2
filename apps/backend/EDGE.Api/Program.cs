@@ -6,11 +6,15 @@ using Scalar.AspNetCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
+using System.Text;
 using EDGE.Application;
 using EDGE.Application.Applications.Commands;
+using EDGE.Application.Auth.Commands.Login;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Infrastructure;
 using EDGE.Infrastructure.Hubs;
+using EDGE.Infrastructure.Authorization;
+using EDGE.Domain.Authorization;
 using EDGE.Api.Services;
 
 // Configure Serilog
@@ -37,22 +41,22 @@ try
     builder.Services.AddInfrastructure();
 
     // Configure Clerk JWT Authentication
-    var clerkAuthority = builder.Configuration["Clerk:Authority"] ?? "https://easy-snipe-36.clerk.accounts.dev";
     builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         .AddJwtBearer(options =>
         {
-            options.Authority = clerkAuthority;
+            options.Authority = builder.Configuration["Clerk:Authority"] ?? "https://easy-snipe-36.clerk.accounts.dev";
             options.TokenValidationParameters = new TokenValidationParameters
             {
                 ValidateIssuer = true,
-                ValidIssuer = clerkAuthority,
+                ValidIssuer = builder.Configuration["Clerk:Authority"] ?? "https://easy-snipe-36.clerk.accounts.dev",
                 ValidateAudience = false,
                 ValidateLifetime = true,
-                ValidateIssuerSigningKey = true
+                NameClaimType = System.Security.Claims.ClaimTypes.NameIdentifier
             };
         });
 
-    builder.Services.AddAuthorization();
+    builder.Services.AddDynamicAuthorization();
+    builder.Services.AddControllers();
 
     // Configure OpenAPI
     builder.Services.AddOpenApi();
@@ -69,6 +73,8 @@ try
         app.MapScalarApiReference();
         app.UseHangfireDashboard("/hangfire");
     }
+
+    app.MapControllers();
 
     app.MapGet("/", () => "NTC-EDGE Clean Architecture API (.NET 10)");
 
@@ -97,7 +103,7 @@ try
         return Results.Created($"/api/applications/{result.Id}", result);
     })
     .WithName("CreateApplication")
-    .RequireAuthorization();
+    .RequireAuthorization(Policies.CanSubmitApplication);
 
     // Map SignalR Hub
     app.MapHub<NotificationHub>("/hubs/notifications");

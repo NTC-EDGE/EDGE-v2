@@ -32,8 +32,21 @@ public static class DependencyInjection
 
         // Register Repositories and Unit of Work
         services.AddScoped<IApplicationRepository, ApplicationRepository>();
+        services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IRoleRepository, RoleRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IUserActivityService, UserActivityService>();
+        services.AddScoped<IPasswordHasher, BCryptPasswordHasher>();
+        services.AddScoped<ITokenService, JwtTokenService>();
+
+        // Register Clerk Client
+        services.AddHttpClient<IClerkUserService, ClerkUserService>((sp, client) =>
+        {
+            var configuration = sp.GetRequiredService<IConfiguration>();
+            var clerkSecret = configuration["Clerk:SecretKey"] ?? "";
+            client.BaseAddress = new Uri("https://api.clerk.com/v1/");
+            client.DefaultRequestHeaders.Add("Authorization", $"Bearer {clerkSecret}");
+        });
 
         // Configure Hangfire storage to use PostgreSQL with a dedicated schema
         services.AddHangfire((sp, config) =>
