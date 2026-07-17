@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, createContext, useContext } from 'react';
 import { createStaticNavigation } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
@@ -29,13 +29,54 @@ interface ApplicationResponse {
   createdAt: string;
 }
 
+// ----------------------------------------------------
+// Unified Authentication & User Context Hooks
+// ----------------------------------------------------
+const MockAuthContext = createContext<{
+  mockUser: any;
+  setMockUser: (user: any) => void;
+  useMock: boolean;
+  setUseMock: (val: boolean) => void;
+} | null>(null);
+
+function useAppAuth() {
+  const mockContext = useContext(MockAuthContext);
+  const clerkAuth = useAuth();
+
+  if (mockContext?.useMock || publishableKey.length === 0) {
+    return {
+      signOut: () => mockContext?.setMockUser(null),
+      getToken: async () => `mock_${mockContext?.mockUser?.role || 'evaluator'}`
+    };
+  }
+  return clerkAuth;
+}
+
+function useAppUser() {
+  const mockContext = useContext(MockAuthContext);
+  const clerkUser = useUser();
+
+  if (mockContext?.useMock || publishableKey.length === 0) {
+    return {
+      user: mockContext?.mockUser ? {
+        primaryEmailAddress: { emailAddress: mockContext.mockUser.email },
+        publicMetadata: { role: mockContext.mockUser.role }
+      } : null
+    };
+  }
+  return clerkUser;
+}
+
+// ----------------------------------------------------
+// UI Screens
+// ----------------------------------------------------
 function DashboardScreen({ navigation }: any) {
-  const { signOut, getToken } = useAuth();
-  const { user } = useUser();
+  const { signOut, getToken } = useAppAuth();
+  const { user } = useAppUser();
   const [submitting, setSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
 
-  // Read role from Clerk metadata, defaulting to evaluator for internal preview
+  // Read role from metadata, defaulting to evaluator for staff preview
   const role = (user?.publicMetadata?.role as string) || 'evaluator';
 
   const submitApplication = async () => {
@@ -173,6 +214,7 @@ function QueueScreen({ navigation }: any) {
 }
 
 function AuthScreen() {
+  const mockContext = useContext(MockAuthContext);
   const { signIn, setActive, isLoaded: signInLoaded } = useSignIn();
   const { signUp, isLoaded: signUpLoaded } = useSignUp();
   const [email, setEmail] = useState('');
@@ -260,6 +302,43 @@ function AuthScreen() {
           {isSignUpMode ? 'Already have an account? Sign In' : "Don't have an account? Register"}
         </Text>
       </TouchableOpacity>
+
+      <TouchableOpacity onPress={() => mockContext?.setUseMock(true)} style={{ marginTop: 25 }}>
+        <Text style={[styles.toggleText, { color: '#a5d6a7', fontWeight: 'bold' }]}>
+          Bypass Clerk (Mock Dev Mode)
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+function MockAuthScreen() {
+  const mockContext = useContext(MockAuthContext);
+  const roles = ['client', 'evaluator', 'higherups', 'accountant', 'cashier', 'admin'];
+
+  const selectRole = (role: string) => {
+    mockContext?.setMockUser({
+      role,
+      email: `${role}@ntcedge.com`
+    });
+  };
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>NTC Staff Portal (Mock Mode)</Text>
+      <Text style={styles.subtitle}>Select a seeded role to test offline/without Clerk:</Text>
+      
+      {roles.map(r => (
+        <TouchableOpacity key={r} style={[styles.authButton, { backgroundColor: '#2e7d32', marginVertical: 6 }]} onPress={() => selectRole(r)}>
+          <Text style={styles.buttonText}>{r.toUpperCase()}</Text>
+        </TouchableOpacity>
+      ))}
+      
+      {publishableKey.length > 0 && (
+        <TouchableOpacity style={{ marginTop: 25 }} onPress={() => mockContext?.setUseMock(false)}>
+          <Text style={styles.toggleText}>Use Clerk Sign In</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
@@ -282,15 +361,24 @@ const RootStack = createNativeStackNavigator({
 const Navigation = createStaticNavigation(RootStack);
 
 export default function App() {
+  const [mockUser, setMockUser] = useState<any>(null);
+  const [useMock, setUseMock] = useState(publishableKey.length === 0);
+
   return (
-    <ClerkProvider tokenCache={tokenCache} publishableKey={publishableKey}>
-      <SignedIn>
-        <Navigation />
-      </SignedIn>
-      <SignedOut>
-        <AuthScreen />
-      </SignedOut>
-    </ClerkProvider>
+    <MockAuthContext.Provider value={{ mockUser, setMockUser, useMock, setUseMock }}>
+      {useMock ? (
+        mockUser ? <Navigation /> : <MockAuthScreen />
+      ) : (
+        <ClerkProvider tokenCache={tokenCache} publishableKey={publishableKey}>
+          <SignedIn>
+            <Navigation />
+          </SignedIn>
+          <SignedOut>
+            <AuthScreen />
+          </SignedOut>
+        </ClerkProvider>
+      )}
+    </MockAuthContext.Provider>
   );
 }
 

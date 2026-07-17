@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, createContext, useContext } from 'react';
 import { createStaticNavigation } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
@@ -29,8 +29,34 @@ interface ApplicationResponse {
   createdAt: string;
 }
 
+// ----------------------------------------------------
+// Unified Authentication Context Hooks
+// ----------------------------------------------------
+const MockAuthContext = createContext<{
+  mockUser: any;
+  setMockUser: (user: any) => void;
+  useMock: boolean;
+  setUseMock: (val: boolean) => void;
+} | null>(null);
+
+function useAppAuth() {
+  const mockContext = useContext(MockAuthContext);
+  const clerkAuth = useAuth();
+
+  if (mockContext?.useMock || publishableKey.length === 0) {
+    return {
+      signOut: () => mockContext?.setMockUser(null),
+      getToken: async () => `mock_${mockContext?.mockUser?.role || 'client'}`
+    };
+  }
+  return clerkAuth;
+}
+
+// ----------------------------------------------------
+// UI Screens
+// ----------------------------------------------------
 function HomeScreen({ navigation }: any) {
-  const { signOut, getToken } = useAuth();
+  const { signOut, getToken } = useAppAuth();
   const [submitting, setSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
 
@@ -110,6 +136,7 @@ function DetailsScreen({ navigation }: any) {
 }
 
 function AuthScreen() {
+  const mockContext = useContext(MockAuthContext);
   const { signIn, setActive, isLoaded: signInLoaded } = useSignIn();
   const { signUp, isLoaded: signUpLoaded } = useSignUp();
   const [email, setEmail] = useState('');
@@ -197,6 +224,40 @@ function AuthScreen() {
           {isSignUpMode ? 'Already have an account? Sign In' : "Don't have an account? Register"}
         </Text>
       </TouchableOpacity>
+
+      <TouchableOpacity onPress={() => mockContext?.setUseMock(true)} style={{ marginTop: 25 }}>
+        <Text style={[styles.toggleText, { color: '#a5d6a7', fontWeight: 'bold' }]}>
+          Bypass Clerk (Mock Dev Mode)
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+function MockAuthScreen() {
+  const mockContext = useContext(MockAuthContext);
+
+  const handleMockLogin = () => {
+    mockContext?.setMockUser({
+      role: 'client',
+      email: 'client@ntcedge.com'
+    });
+  };
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>NTC External Client (Mock Mode)</Text>
+      <Text style={styles.subtitle}>Click below to simulate client login offline:</Text>
+      
+      <TouchableOpacity style={[styles.authButton, { backgroundColor: '#2e7d32', marginTop: 10 }]} onPress={handleMockLogin}>
+        <Text style={styles.buttonText}>LOGIN AS CLIENT</Text>
+      </TouchableOpacity>
+      
+      {publishableKey.length > 0 && (
+        <TouchableOpacity style={{ marginTop: 25 }} onPress={() => mockContext?.setUseMock(false)}>
+          <Text style={styles.toggleText}>Use Clerk Sign In</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
@@ -219,15 +280,24 @@ const RootStack = createNativeStackNavigator({
 const Navigation = createStaticNavigation(RootStack);
 
 export default function App() {
+  const [mockUser, setMockUser] = useState<any>(null);
+  const [useMock, setUseMock] = useState(publishableKey.length === 0);
+
   return (
-    <ClerkProvider tokenCache={tokenCache} publishableKey={publishableKey}>
-      <SignedIn>
-        <Navigation />
-      </SignedIn>
-      <SignedOut>
-        <AuthScreen />
-      </SignedOut>
-    </ClerkProvider>
+    <MockAuthContext.Provider value={{ mockUser, setMockUser, useMock, setUseMock }}>
+      {useMock ? (
+        mockUser ? <Navigation /> : <MockAuthScreen />
+      ) : (
+        <ClerkProvider tokenCache={tokenCache} publishableKey={publishableKey}>
+          <SignedIn>
+            <Navigation />
+          </SignedIn>
+          <SignedOut>
+            <AuthScreen />
+          </SignedOut>
+        </ClerkProvider>
+      )}
+    </MockAuthContext.Provider>
   );
 }
 
