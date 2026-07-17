@@ -42,7 +42,7 @@ public class GeographicRepository : IGeographicRepository
     // Provinces
     public async Task<List<Province>> GetProvincesAsync(Guid? regionId, bool? activeOnly, CancellationToken cancellationToken = default)
     {
-        var query = _context.Provinces.AsQueryable();
+        var query = _context.Provinces.Include(p => p.Region).AsQueryable();
         if (regionId.HasValue)
         {
             query = query.Where(p => p.RegionId == regionId.Value);
@@ -56,7 +56,7 @@ public class GeographicRepository : IGeographicRepository
 
     public async Task<Province?> GetProvinceByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        return await _context.Provinces.FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
+        return await _context.Provinces.Include(p => p.Region).FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
     }
 
     public async Task AddProvinceAsync(Province province, CancellationToken cancellationToken = default)
@@ -72,7 +72,7 @@ public class GeographicRepository : IGeographicRepository
     // Municipalities
     public async Task<List<Municipality>> GetMunicipalitiesAsync(Guid? provinceId, bool? activeOnly, CancellationToken cancellationToken = default)
     {
-        var query = _context.Municipalities.AsQueryable();
+        var query = _context.Municipalities.Include(m => m.Province).ThenInclude(p => p.Region).AsQueryable();
         if (provinceId.HasValue)
         {
             query = query.Where(m => m.ProvinceId == provinceId.Value);
@@ -86,7 +86,7 @@ public class GeographicRepository : IGeographicRepository
 
     public async Task<Municipality?> GetMunicipalityByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        return await _context.Municipalities.FirstOrDefaultAsync(m => m.Id == id, cancellationToken);
+        return await _context.Municipalities.Include(m => m.Province).ThenInclude(p => p.Region).FirstOrDefaultAsync(m => m.Id == id, cancellationToken);
     }
 
     public async Task AddMunicipalityAsync(Municipality municipality, CancellationToken cancellationToken = default)
@@ -102,7 +102,7 @@ public class GeographicRepository : IGeographicRepository
     // Barangays
     public async Task<List<Barangay>> GetBarangaysAsync(Guid? municipalityId, bool? activeOnly, CancellationToken cancellationToken = default)
     {
-        var query = _context.Barangays.AsQueryable();
+        var query = _context.Barangays.Include(b => b.Municipality).ThenInclude(m => m.Province).ThenInclude(p => p.Region).AsQueryable();
         if (municipalityId.HasValue)
         {
             query = query.Where(b => b.MunicipalityId == municipalityId.Value);
@@ -116,7 +116,7 @@ public class GeographicRepository : IGeographicRepository
 
     public async Task<Barangay?> GetBarangayByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        return await _context.Barangays.FirstOrDefaultAsync(b => b.Id == id, cancellationToken);
+        return await _context.Barangays.Include(b => b.Municipality).ThenInclude(m => m.Province).ThenInclude(p => p.Region).FirstOrDefaultAsync(b => b.Id == id, cancellationToken);
     }
 
     public async Task AddBarangayAsync(Barangay barangay, CancellationToken cancellationToken = default)
