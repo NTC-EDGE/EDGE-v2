@@ -14,8 +14,10 @@ import {
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
+  Platform,
 } from "react-native";
 import { ClerkProvider } from "@clerk/clerk-expo";
+import { Feather as Lucide } from "@expo/vector-icons";
 import { tokenCache } from "./tokenCache";
 import {
   COLORS,
@@ -110,6 +112,9 @@ function AuthScreen() {
   return (
     <View style={styles.authBg}>
       <View style={[styles.authCard, SHADOWS.modal]}>
+        <View style={styles.authLogo}>
+          <Lucide name="shield" size={24} color={COLORS.brand[700]} />
+        </View>
         <Text style={styles.authTitle}>NTC-EDGE Staff Portal</Text>
         <Text style={styles.authSubtitle}>Authentication Required</Text>
 
@@ -141,10 +146,10 @@ function AuthScreen() {
         {/* Developer Bypass (active in dev mode) */}
         {__DEV__ ? (
           <TouchableOpacity
-            style={[styles.authButton, styles.bypassButton]}
+            style={styles.bypassButton}
             onPress={loginWithBypass}
           >
-            <Text style={styles.buttonText}>Developer Login Bypass</Text>
+            <Text style={styles.bypassButtonText}>Developer Login Bypass</Text>
           </TouchableOpacity>
         ) : null}
       </View>
@@ -226,53 +231,90 @@ const styles = StyleSheet.create({
   },
   authCard: {
     backgroundColor: COLORS.neutral.white,
-    borderRadius: RADIUS.dialog,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: COLORS.neutral[200],
     padding: SPACING[40],
     width: "100%",
-    maxWidth: 440,
+    maxWidth: 400,
     alignItems: "center",
+  },
+  authLogo: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: 'rgba(37, 99, 235, 0.08)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: SPACING[20],
+    borderWidth: 1,
+    borderColor: 'rgba(37, 99, 235, 0.15)',
   },
   authTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: TYPOGRAPHY.weights.bold,
     color: COLORS.neutral[900],
-    marginBottom: 4,
+    marginBottom: 6,
   },
   authSubtitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
-    color: COLORS.neutral[500],
-    marginBottom: SPACING[32],
+    fontSize: 13,
+    color: COLORS.neutral[400],
+    marginBottom: SPACING[24],
     textAlign: "center",
+    fontWeight: TYPOGRAPHY.weights.medium,
   },
   input: {
     width: "100%",
-    height: 44,
-    backgroundColor: COLORS.neutral.white,
+    height: 40,
+    backgroundColor: COLORS.neutral[50],
     borderColor: COLORS.neutral[200],
     borderWidth: 1,
     color: COLORS.neutral[900],
-    borderRadius: RADIUS.input,
-    paddingHorizontal: 15,
-    marginBottom: 15,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    marginBottom: 12,
     fontSize: 14,
     fontFamily: TYPOGRAPHY.fonts.primary,
+    ...Platform.select({
+      web: {
+        outlineWidth: 0,
+        transition: 'all 200ms ease-out',
+      },
+    }),
   },
   authButton: {
     width: "100%",
-    height: 44,
-    backgroundColor: COLORS.brand[800],
+    height: 40,
+    backgroundColor: COLORS.brand[700],
     justifyContent: "center",
     alignItems: "center",
-    borderRadius: RADIUS.button,
-    marginTop: 10,
+    borderRadius: 8,
+    marginTop: 8,
+    ...Platform.select({
+      web: {
+        transition: 'background-color 200ms ease-out',
+        cursor: 'pointer',
+      },
+    }),
   },
   bypassButton: {
-    backgroundColor: COLORS.neutral[800],
+    width: "100%",
+    height: 40,
+    backgroundColor: 'transparent',
+    borderColor: COLORS.neutral[200],
+    borderWidth: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 8,
     marginTop: 12,
+    ...Platform.select({
+      web: {
+        transition: 'all 200ms ease-out',
+        cursor: 'pointer',
+      },
+    }),
   },
   buttonText: {
     color: COLORS.neutral.white,
@@ -280,11 +322,17 @@ const styles = StyleSheet.create({
     fontWeight: TYPOGRAPHY.weights.semibold,
     fontFamily: TYPOGRAPHY.fonts.primary,
   },
+  bypassButtonText: {
+    color: COLORS.neutral[600],
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    fontFamily: TYPOGRAPHY.fonts.primary,
+  },
   errorText: {
     color: COLORS.semantic.error,
     marginBottom: 10,
     textAlign: "center",
-    fontSize: 14,
+    fontSize: 13,
     fontFamily: TYPOGRAPHY.fonts.primary,
   },
   placeholderContainer: {

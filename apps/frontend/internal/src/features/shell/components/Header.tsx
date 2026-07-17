@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, View, Text, Pressable } from 'react-native';
+import { StyleSheet, View, Text, Pressable, Platform } from 'react-native';
 import { Feather as Lucide } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, TYPOGRAPHY } from '../../shared/theme/tokens';
 import { UserRole } from '../context/RoleContext';
@@ -105,11 +105,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING[32],
     zIndex: 5,
     backgroundColor: COLORS.brand[900],
+    ...Platform.select({
+      web: {
+        backgroundImage: `linear-gradient(135deg, ${COLORS.brand[900]} 0%, ${COLORS.brand[800]} 100%)`,
+        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1)',
+      },
+    }),
   },
   headerTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 16,
-    fontWeight: TYPOGRAPHY.weights.bold,
+    fontSize: 15,
+    fontWeight: TYPOGRAPHY.weights.semibold,
     color: COLORS.neutral.white,
     letterSpacing: 0.5,
   },
@@ -119,8 +125,8 @@ const styles = StyleSheet.create({
   },
   divider: {
     width: 1,
-    height: 32,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    height: 28,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     marginHorizontal: SPACING[20],
   },
   profileContainer: {
@@ -140,7 +146,7 @@ const styles = StyleSheet.create({
   profileEmail: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 11,
-    color: COLORS.neutral[300],
+    color: 'rgba(255, 255, 255, 0.7)',
   },
   logoutBtn: {
     flexDirection: 'row',
@@ -148,6 +154,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING[12],
     paddingVertical: SPACING[8],
     borderRadius: RADIUS.input,
+    ...Platform.select({
+      web: {
+        transition: 'all 200ms ease-out',
+        cursor: 'pointer',
+      },
+    }),
   },
   logoutBtnHover: {
     backgroundColor: 'rgba(255, 255, 255, 0.1)',

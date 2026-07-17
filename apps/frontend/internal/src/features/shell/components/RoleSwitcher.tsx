@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, Pressable } from 'react-native';
+import { StyleSheet, View, Text, Pressable, Platform } from 'react-native';
 import { Feather as Lucide } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY } from '../../shared/theme/tokens';
 import { UserRole, ROLES } from '../context/RoleContext';
@@ -124,6 +124,12 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.input,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
+    ...Platform.select({
+      web: {
+        transition: 'all 200ms ease-out',
+        cursor: 'pointer',
+      },
+    }),
   },
   switcherBtnHover: {
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
@@ -134,7 +140,7 @@ const styles = StyleSheet.create({
   switcherText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     color: COLORS.neutral.white,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: TYPOGRAPHY.weights.medium,
     marginRight: 8,
   },
@@ -155,43 +161,53 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.card,
     borderWidth: 1,
     borderColor: COLORS.neutral[200],
-    paddingHorizontal: SPACING[8],
-    paddingVertical: SPACING[8],
+    paddingHorizontal: SPACING[4],
+    paddingVertical: SPACING[4],
     zIndex: 101,
   },
   dropdownHeader: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
+    fontSize: 10,
     color: COLORS.neutral[400],
-    fontWeight: TYPOGRAPHY.weights.semibold,
-    paddingHorizontal: SPACING[16],
+    fontWeight: TYPOGRAPHY.weights.bold,
+    paddingHorizontal: SPACING[12],
     paddingVertical: SPACING[8],
     textTransform: 'uppercase',
     borderBottomWidth: 1,
     borderBottomColor: COLORS.neutral[100],
     marginBottom: 4,
+    letterSpacing: 0.5,
   },
   dropdownItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: SPACING[16],
-    paddingVertical: SPACING[12],
+    paddingHorizontal: SPACING[12],
+    paddingVertical: SPACING[8],
+    borderRadius: 6,
+    marginHorizontal: 4,
+    marginBottom: 2,
+    ...Platform.select({
+      web: {
+        transition: 'all 150ms ease-out',
+        cursor: 'pointer',
+      },
+    }),
   },
   dropdownItemHover: {
     backgroundColor: COLORS.neutral[50],
   },
   dropdownItemActive: {
-    backgroundColor: COLORS.neutral[50],
+    backgroundColor: 'rgba(37, 99, 235, 0.04)',
   },
   dropdownItemText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
+    fontSize: 13,
     color: COLORS.neutral[700],
     fontWeight: TYPOGRAPHY.weights.medium,
   },
   dropdownItemTextActive: {
     color: COLORS.brand[700],
-    fontWeight: TYPOGRAPHY.weights.bold,
+    fontWeight: TYPOGRAPHY.weights.semibold,
   },
 });

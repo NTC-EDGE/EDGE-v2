@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, Pressable } from 'react-native';
+import { StyleSheet, View, Text, Pressable, Platform } from 'react-native';
 import { Feather as Lucide } from '@expo/vector-icons';
 import { COLORS, SPACING, TYPOGRAPHY } from '../../shared/theme/tokens';
 import { NavigationLink } from '../context/RoleContext';
@@ -24,61 +24,100 @@ export function SidebarNavItem({ link, isActive, onPress }: SidebarNavItemProps)
         !isActive && isHovered && styles.navItemHover,
       ]}
     >
-      <View style={styles.navIconWrapper}>
-        <Lucide
-          name={link.icon}
-          size={20}
-          color={
-            isActive
-              ? COLORS.neutral.white
-              : isHovered
-                ? COLORS.brand[800]
-                : COLORS.neutral[500]
-          }
-        />
-      </View>
-      <Text
+      {/* Left active border indicator */}
+      {isActive ? <View style={styles.activeBar} /> : null}
+
+      <View
         style={[
-          styles.navText,
-          isActive ? styles.navTextActive : styles.navTextInactive,
-          !isActive && isHovered && styles.navTextHover,
+          styles.contentWrapper,
+          !isActive && isHovered && styles.contentWrapperHover,
         ]}
       >
-        {link.name}
-      </Text>
+        <View style={styles.navIconWrapper}>
+          <Lucide
+            name={link.icon}
+            size={18}
+            color={
+              isActive
+                ? COLORS.brand[700]
+                : isHovered
+                  ? COLORS.brand[800]
+                  : COLORS.neutral[500]
+            }
+          />
+        </View>
+        <Text
+          style={[
+            styles.navText,
+            isActive ? styles.navTextActive : styles.navTextInactive,
+            !isActive && isHovered && styles.navTextHover,
+          ]}
+        >
+          {link.name}
+        </Text>
+      </View>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   navItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: SPACING[20],
-    paddingVertical: SPACING[16],
-    borderRadius: 14,
-    marginBottom: SPACING[8],
+    position: 'relative',
+    borderRadius: 8,
+    marginBottom: SPACING[4],
+    overflow: 'hidden',
+    ...Platform.select({
+      web: {
+        transition: 'all 200ms ease-out',
+        cursor: 'pointer',
+      },
+    }),
   },
   navItemActive: {
-    backgroundColor: COLORS.brand[700],
+    backgroundColor: 'rgba(37, 99, 235, 0.08)', // Soft blue wash background
   },
   navItemInactive: {
     backgroundColor: 'transparent',
   },
   navItemHover: {
-    backgroundColor: COLORS.neutral[100],
+    backgroundColor: COLORS.neutral[100], // Soft gray hover
+  },
+  activeBar: {
+    position: 'absolute',
+    left: 0,
+    top: 8,
+    bottom: 8,
+    width: 3,
+    backgroundColor: COLORS.brand[700],
+    borderRadius: 9999,
+    zIndex: 2,
+  },
+  contentWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING[16],
+    paddingVertical: SPACING[12],
+    width: '100%',
+    ...Platform.select({
+      web: {
+        transition: 'transform 200ms ease-out',
+      },
+    }),
+  },
+  contentWrapperHover: {
+    transform: [{ translateX: 4 }], // Micro-shift hover animation
   },
   navIconWrapper: {
-    marginRight: SPACING[16],
-    width: 24,
+    marginRight: SPACING[12],
+    width: 20,
     alignItems: 'center',
   },
   navText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 15,
+    fontSize: 14,
   },
   navTextActive: {
-    color: COLORS.neutral.white,
+    color: COLORS.brand[700],
     fontWeight: TYPOGRAPHY.weights.semibold,
   },
   navTextInactive: {

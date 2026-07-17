@@ -203,7 +203,7 @@ export function DataTable<TData, TValue>({
 
         {/* Search Input */}
         <View style={styles.searchContainer}>
-          <Lucide name="search" size={16} color={COLORS.neutral[400]} style={styles.searchIcon} />
+          <Lucide name="search" size={15} color={COLORS.neutral[400]} style={styles.searchIcon} />
           <TextInput
             placeholder={searchPlaceholder}
             placeholderTextColor={COLORS.neutral[400]}
@@ -246,7 +246,7 @@ export function DataTable<TData, TValue>({
           ))
         ) : (
           <View style={styles.emptyState}>
-            <Lucide name="folder" size={40} color={COLORS.neutral[300]} style={{ marginBottom: 12 }} />
+            <Lucide name="folder" size={32} color={COLORS.neutral[300]} style={{ marginBottom: 12 }} />
             <Text style={styles.emptyText}>No records found matching your selection.</Text>
           </View>
         )}
@@ -294,15 +294,15 @@ const styles = StyleSheet.create({
   tabsContainer: {
     flexDirection: 'row',
     backgroundColor: COLORS.neutral[50],
-    padding: 4,
-    borderRadius: 10,
+    padding: 3,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: COLORS.neutral[200],
   },
   tabItem: {
     paddingHorizontal: SPACING[12],
     paddingVertical: 6,
-    borderRadius: 8,
+    borderRadius: 6,
     ...Platform.select({
       web: {
         transition: 'all 200ms ease-out',
@@ -317,13 +317,13 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.neutral.white,
     ...Platform.select({
       web: {
-        boxShadow: '0 1px 3px rgba(15,23,42,.08)',
+        boxShadow: '0 1px 2px rgba(15,23,42,.05)',
       },
     }),
   },
   tabText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: TYPOGRAPHY.weights.medium,
     color: COLORS.neutral[500],
   },
@@ -338,8 +338,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.neutral[200],
     borderRadius: RADIUS.input,
-    height: 40,
-    width: 260,
+    height: 36,
+    width: 240,
     paddingHorizontal: SPACING[12],
   },
   searchIcon: {
@@ -348,7 +348,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
+    fontSize: 13,
     color: COLORS.neutral[900],
     height: '100%',
     padding: 0,
@@ -361,7 +361,7 @@ const styles = StyleSheet.create({
   tableWrapper: {
     borderWidth: 1,
     borderColor: COLORS.neutral[200],
-    borderRadius: 12,
+    borderRadius: 8,
     overflow: 'hidden',
   },
   tableHeaderRow: {
@@ -369,7 +369,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.neutral[50],
     borderBottomWidth: 1,
     borderBottomColor: COLORS.neutral[200],
-    height: 52,
+    height: 44,
     alignItems: 'center',
     paddingHorizontal: SPACING[16],
   },
@@ -378,23 +378,25 @@ const styles = StyleSheet.create({
   },
   headerText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-    color: COLORS.neutral[700],
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: COLORS.neutral[500],
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   tableRowContainer: {
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.neutral[100],
+    borderBottomColor: COLORS.neutral[200],
   },
   tableRow: {
     flexDirection: 'row',
-    height: 56,
+    height: 52,
     alignItems: 'center',
     paddingHorizontal: SPACING[16],
     backgroundColor: COLORS.neutral.white,
     ...Platform.select({
       web: {
-        transition: 'all 200ms ease-out',
+        transition: 'background-color 150ms ease-out',
         cursor: 'pointer',
       },
     }),
@@ -413,8 +415,8 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    color: COLORS.neutral[500],
-    fontSize: 14,
+    color: COLORS.neutral[400],
+    fontSize: 13,
   },
   pagination: {
     flexDirection: 'row',
@@ -424,7 +426,7 @@ const styles = StyleSheet.create({
   },
   paginationText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
+    fontSize: 13,
     color: COLORS.neutral[500],
   },
   paginationActions: {
@@ -432,17 +434,17 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   pageBtn: {
-    width: 36,
-    height: 36,
+    width: 32,
+    height: 32,
     borderWidth: 1,
     borderColor: COLORS.neutral[200],
-    borderRadius: 8,
+    borderRadius: 6,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: COLORS.neutral.white,
     ...Platform.select({
       web: {
-        transition: 'all 200ms ease-out',
+        transition: 'all 150ms ease-out',
         cursor: 'pointer',
       },
     }),

@@ -18,7 +18,7 @@ export function Sidebar({ currentRole, links, activeScreen, onNavigate }: Sideba
       {/* Sidebar Header */}
       <View style={styles.sidebarHeader}>
         <View style={styles.logoIcon}>
-          <Lucide name="shield" size={24} color={COLORS.brand[800]} />
+          <Lucide name="shield" size={20} color={COLORS.brand[800]} />
         </View>
         <View>
           <Text style={styles.logoTitle}>EDGE</Text>
@@ -55,7 +55,7 @@ export function Sidebar({ currentRole, links, activeScreen, onNavigate }: Sideba
 
 const styles = StyleSheet.create({
   sidebar: {
-    width: 280,
+    width: 260, // Refined sidebar width
     backgroundColor: COLORS.neutral.white,
     borderRightWidth: 1,
     borderRightColor: COLORS.neutral[200],
@@ -72,53 +72,55 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.neutral[200],
   },
   logoIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: RADIUS.button,
-    backgroundColor: COLORS.neutral[100],
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: COLORS.neutral[50],
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: SPACING[12],
+    borderWidth: 1,
+    borderColor: COLORS.neutral[200],
   },
   logoTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: TYPOGRAPHY.weights.bold,
     color: COLORS.neutral[900],
     letterSpacing: 0.5,
   },
   logoSubtitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: TYPOGRAPHY.weights.semibold,
-    color: COLORS.neutral[500],
+    color: COLORS.neutral[400],
     letterSpacing: 1,
   },
   sidebarNav: {
     flex: 1,
   },
   sidebarNavContent: {
-    paddingHorizontal: SPACING[16],
+    paddingHorizontal: SPACING[12],
     paddingVertical: SPACING[16],
   },
   sidebarFooter: {
     padding: SPACING[20],
     borderTopWidth: 1,
-    borderTopColor: COLORS.neutral[200],
+    borderTopColor: COLORS.neutral[100],
     backgroundColor: COLORS.neutral[50],
   },
   roleLabel: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
-    color: COLORS.neutral[500],
-    fontWeight: TYPOGRAPHY.weights.medium,
+    fontSize: 11,
+    color: COLORS.neutral[400],
+    fontWeight: TYPOGRAPHY.weights.semibold,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 4,
   },
   roleValue: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 15,
+    fontSize: 14,
     color: COLORS.brand[800],
     fontWeight: TYPOGRAPHY.weights.bold,
   },

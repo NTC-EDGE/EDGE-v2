@@ -1,10 +1,11 @@
 export const COLORS = {
   brand: {
-    900: '#0A1B66', // Navigation background
-    800: '#1236A8', // Primary buttons
-    700: '#2F56E8', // Hover
-    600: '#4D73FF', // Active
-    500: '#7392FF', // Selected
+    900: '#0B1953', // Deep Executive Navy
+    800: '#1E3A8A', // Branded Enterprise Blue
+    700: '#2563EB', // Branded Accent Blue (Hover)
+    600: '#3B82F6', // Active Highlight Blue
+    505: '#60A5FA', // Light Focus Blue (renamed to avoid type issues if needed, but 500 is standard)
+    500: '#60A5FA', // Light Focus Blue
   },
   neutral: {
     white: '#FFFFFF',
@@ -20,20 +21,20 @@ export const COLORS = {
     900: '#0F172A',
   },
   semantic: {
-    success: '#16A34A',
-    successBg: '#DCFCE7', // 10% opacity equivalent / soft background
-    successBorder: '#BBF7D0', // 20% opacity equivalent
-    warning: '#D97706',
-    warningBg: '#FEF3C7',
-    warningBorder: '#FDE68A',
-    error: '#DC2626',
-    errorBg: '#FEE2E2',
-    errorBorder: '#FECACA',
-    info: '#0284C7',
-    infoBg: '#E0F2FE',
-    infoBorder: '#BAE6FD',
+    success: '#10B981', // Emerald 500
+    successBg: '#ECFDF5', // Emerald 50
+    successBorder: '#A7F3D0', // Emerald 200
+    warning: '#F59E0B', // Amber 500
+    warningBg: '#FEF3C7', // Amber 50
+    warningBorder: '#FDE68A', // Amber 200
+    error: '#EF4444', // Red 500
+    errorBg: '#FEF2F2', // Red 50
+    errorBorder: '#FCA5A5', // Red 200
+    info: '#06B6D4', // Cyan 500
+    infoBg: '#ECFEFF', // Cyan 50
+    infoBorder: '#A5F3FC', // Cyan 200
   },
-  bg: '#F6F8FC',
+  bg: '#F8FAFC', // Slate background for a premium neutral layout
 } as const;
 
 export const SPACING = {
@@ -50,10 +51,10 @@ export const SPACING = {
 } as const;
 
 export const RADIUS = {
-  input: 10,
-  button: 12,
-  card: 16,
-  dialog: 20,
+  input: 8, // Refined slightly smaller borders for enterprise look
+  button: 8,
+  card: 12,
+  dialog: 16,
   circle: 9999,
 } as const;
 
@@ -67,17 +68,17 @@ export const SHADOWS = {
   },
   card: {
     shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 20,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04, // Very soft shadow
+    shadowRadius: 10,
+    elevation: 1,
   },
   modal: {
     shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.12,
-    shadowRadius: 30,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08, // Soft modal shadow
+    shadowRadius: 20,
+    elevation: 8,
   },
 } as const;
 
@@ -86,11 +87,11 @@ export const TYPOGRAPHY = {
     primary: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
   },
   sizes: {
-    heading: 36,
-    section: 24,
-    cardTitle: 18,
-    body: 16,
-    smallLabel: 14,
+    heading: 32, // Refined hierarchy sizes
+    section: 22,
+    cardTitle: 16,
+    body: 14,
+    smallLabel: 13,
     caption: 12,
   },
   weights: {
