@@ -541,7 +541,7 @@ export function LandingScreen({ navigation }: LandingScreenProps) {
             
             {/* Logo, Bio */}
             <View style={isDesktop ? styles.footerBioCol : styles.footerFullWidthCol}>
-              <Logo />
+              <Logo variant="light" />
               <Text style={styles.footerBioText}>
                 Electronic Data Governance and Evaluation - Streamlining NTC services since 2024.
               </Text>
