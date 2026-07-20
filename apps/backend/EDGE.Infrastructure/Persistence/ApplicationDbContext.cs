@@ -12,7 +12,6 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<ActivityLog> ActivityLogs => Set<ActivityLog>();
     public DbSet<Tenant> Tenants => Set<Tenant>();
-    public DbSet<User> Users => Set<User>();
     public DbSet<TenantMember> TenantMembers => Set<TenantMember>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -36,16 +35,7 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
             entity.Property(e => e.RegionId).IsRequired();
         });
 
-        // User Configuration (Stub)
-        modelBuilder.Entity<User>(entity =>
-        {
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.ClerkId).IsRequired().HasMaxLength(100);
-            entity.HasIndex(e => e.ClerkId).IsUnique();
-            entity.Property(e => e.Email).IsRequired().HasMaxLength(256);
-            entity.Property(e => e.FirstName).IsRequired().HasMaxLength(100);
-            entity.Property(e => e.LastName).IsRequired().HasMaxLength(100);
-        });
+
 
         // TenantMember Configuration
         modelBuilder.Entity<TenantMember>(entity =>
@@ -60,10 +50,7 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
                   .HasForeignKey(e => e.TenantId)
                   .OnDelete(DeleteBehavior.Cascade);
 
-            entity.HasOne(e => e.User)
-                  .WithMany(u => u.TenantMembers)
-                  .HasForeignKey(e => e.UserId)
-                  .OnDelete(DeleteBehavior.Cascade);
+
 
             // Unique constraint to prevent registering the same user to the same tenant twice
             entity.HasIndex(e => new { e.TenantId, e.UserId }).IsUnique();

@@ -8,18 +8,15 @@ namespace EDGE.Application.TenantMembers.Commands;
 public class AssignUserToTenantCommandHandler : IRequestHandler<AssignUserToTenantCommand, TenantMemberDto>
 {
     private readonly ITenantRepository _tenantRepository;
-    private readonly IUserRepository _userRepository;
     private readonly ITenantMemberRepository _memberRepository;
     private readonly IUnitOfWork _unitOfWork;
 
     public AssignUserToTenantCommandHandler(
         ITenantRepository tenantRepository,
-        IUserRepository userRepository,
         ITenantMemberRepository memberRepository,
         IUnitOfWork unitOfWork)
     {
         _tenantRepository = tenantRepository;
-        _userRepository = userRepository;
         _memberRepository = memberRepository;
         _unitOfWork = unitOfWork;
     }
@@ -33,14 +30,7 @@ public class AssignUserToTenantCommandHandler : IRequestHandler<AssignUserToTena
             throw new KeyNotFoundException($"Tenant with ID '{request.TenantId}' was not found.");
         }
 
-        // 2. Verify User exists
-        var user = await _userRepository.GetByIdAsync(request.UserId, cancellationToken);
-        if (user == null)
-        {
-            throw new KeyNotFoundException($"User with ID '{request.UserId}' was not found.");
-        }
-
-        // 3. Verify duplication
+        // 2. Verify duplication
         var existingAssignment = await _memberRepository.GetByTenantAndUserAsync(request.TenantId, request.UserId, cancellationToken);
         if (existingAssignment != null)
         {
@@ -74,9 +64,9 @@ public class AssignUserToTenantCommandHandler : IRequestHandler<AssignUserToTena
             TenantId = savedMember.TenantId,
             TenantName = savedMember.Tenant.Name,
             UserId = savedMember.UserId,
-            UserEmail = savedMember.User.Email,
-            UserFirstName = savedMember.User.FirstName,
-            UserLastName = savedMember.User.LastName,
+            UserEmail = string.Empty, // Populate dynamically later when User entity is available
+            UserFirstName = string.Empty,
+            UserLastName = string.Empty,
             JobTitle = savedMember.JobTitle,
             ContactNumber = savedMember.ContactNumber,
             Department = savedMember.Department,

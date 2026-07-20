@@ -8,7 +8,6 @@ public class TenantMember : AuditableEntity
     public virtual Tenant Tenant { get; set; } = null!;
 
     public Guid UserId { get; set; }
-    public virtual User User { get; set; } = null!;
 
     public string JobTitle { get; set; } = string.Empty;
     public string ContactNumber { get; set; } = string.Empty;

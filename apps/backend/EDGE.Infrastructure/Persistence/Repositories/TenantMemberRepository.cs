@@ -22,7 +22,6 @@ public class TenantMemberRepository : ITenantMemberRepository
     {
         return await _context.TenantMembers
             .Include(m => m.Tenant)
-            .Include(m => m.User)
             .FirstOrDefaultAsync(m => m.Id == id, cancellationToken);
     }
 
@@ -30,14 +29,12 @@ public class TenantMemberRepository : ITenantMemberRepository
     {
         return await _context.TenantMembers
             .Include(m => m.Tenant)
-            .Include(m => m.User)
             .FirstOrDefaultAsync(m => m.TenantId == tenantId && m.UserId == userId, cancellationToken);
     }
 
     public async Task<List<TenantMember>> GetMembersByTenantAsync(Guid tenantId, CancellationToken cancellationToken = default)
     {
         return await _context.TenantMembers
-            .Include(m => m.User)
             .Where(m => m.TenantId == tenantId)
             .ToListAsync(cancellationToken);
     }

@@ -29,11 +29,11 @@ public class GetMembersByTenantQueryHandler : IRequestHandler<GetMembersByTenant
         {
             Id = m.Id,
             TenantId = m.TenantId,
-            TenantName = tenant.Name, // Using tenant name from verify step
+            TenantName = tenant.Name,
             UserId = m.UserId,
-            UserEmail = m.User.Email,
-            UserFirstName = m.User.FirstName,
-            UserLastName = m.User.LastName,
+            UserEmail = string.Empty, // Populate dynamically later when User entity is available
+            UserFirstName = string.Empty,
+            UserLastName = string.Empty,
             JobTitle = m.JobTitle,
             ContactNumber = m.ContactNumber,
             Department = m.Department,

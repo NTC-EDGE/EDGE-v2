@@ -38,9 +38,9 @@ public class UpdateMemberDetailsCommandHandler : IRequestHandler<UpdateMemberDet
             TenantId = member.TenantId,
             TenantName = member.Tenant.Name,
             UserId = member.UserId,
-            UserEmail = member.User.Email,
-            UserFirstName = member.User.FirstName,
-            UserLastName = member.User.LastName,
+            UserEmail = string.Empty, // Populate dynamically later when User entity is available
+            UserFirstName = string.Empty,
+            UserLastName = string.Empty,
             JobTitle = member.JobTitle,
             ContactNumber = member.ContactNumber,
             Department = member.Department,

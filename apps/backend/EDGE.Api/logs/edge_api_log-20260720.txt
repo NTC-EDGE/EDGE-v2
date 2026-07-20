@@ -308,3 +308,317 @@ DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
 2026-07-20 11:24:39.396 +08:00 [INF] Executed endpoint 'HTTP: GET /scalar/v2/favicon.svg'
 2026-07-20 11:24:39.399 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/scalar/v2/favicon.svg - 304 null null 18.6121ms
 2026-07-20 11:29:20.263 +08:00 [INF] 2 servers were removed due to timeout
+2026-07-20 11:49:44.964 +08:00 [INF] Starting NTC-EDGE Web API...
+2026-07-20 11:49:45.808 +08:00 [INF] Start installing Hangfire SQL objects...
+2026-07-20 11:49:46.834 +08:00 [INF] Hangfire SQL objects installed.
+2026-07-20 11:49:47.028 +08:00 [INF] User profile is available. Using 'C:\Users\User\AppData\Local\ASP.NET\DataProtection-Keys' as key repository and Windows DPAPI to encrypt keys at rest.
+2026-07-20 11:49:47.662 +08:00 [INF] Now listening on: https://localhost:7096
+2026-07-20 11:49:47.666 +08:00 [INF] Now listening on: http://localhost:5038
+2026-07-20 11:49:47.684 +08:00 [INF] No action descriptors found. This may indicate an incorrectly configured application or missing application parts. To learn more, visit https://aka.ms/aspnet/mvc/app-parts
+2026-07-20 11:49:48.042 +08:00 [INF] Starting Hangfire Server using job storage: 'PostgreSQL Server: Host: pg.dev.nextstep-software.com, DB: EDGE_DB, Schema: hangfire'
+2026-07-20 11:49:48.044 +08:00 [INF] Using the following options for PostgreSQL job storage:
+2026-07-20 11:49:48.045 +08:00 [INF]     Queue poll interval: 00:00:15.
+2026-07-20 11:49:48.047 +08:00 [INF]     Invisibility timeout: 00:30:00.
+2026-07-20 11:49:48.048 +08:00 [INF]     Use sliding invisibility timeout: False.
+2026-07-20 11:49:48.049 +08:00 [INF] Using the following options for Hangfire Server:
+    Worker count: 20
+    Listening queues: 'default'
+    Shutdown timeout: 00:00:15
+    Schedule polling interval: 00:00:15
+2026-07-20 11:49:48.079 +08:00 [INF] Application started. Press Ctrl+C to shut down.
+2026-07-20 11:49:48.086 +08:00 [INF] Hosting environment: Development
+2026-07-20 11:49:48.088 +08:00 [INF] Content root path: C:\Dev\NEXTSTEP\EDGE-v2\apps\backend\EDGE.Api
+2026-07-20 11:49:48.332 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/scalar/v2 - null null
+2026-07-20 11:49:48.500 +08:00 [INF] Server laptop-rqcv0odj:22524:0c1b4e3a successfully announced in 411.8528 ms
+2026-07-20 11:49:48.514 +08:00 [INF] Server laptop-rqcv0odj:22524:0c1b4e3a is starting the registered dispatchers: ServerWatchdog, ServerJobCancellationWatcher, ExpirationManager, CountersAggregator, Worker, DelayedJobScheduler, RecurringJobScheduler...
+2026-07-20 11:49:48.609 +08:00 [INF] 1 servers were removed due to timeout
+2026-07-20 11:49:48.881 +08:00 [INF] Server laptop-rqcv0odj:22524:0c1b4e3a all the dispatchers started
+2026-07-20 11:49:49.414 +08:00 [INF] Executing endpoint 'HTTP: GET /scalar/v2/{documentName?}'
+2026-07-20 11:49:49.440 +08:00 [INF] Executing RedirectResult, redirecting to v2/.
+2026-07-20 11:49:49.445 +08:00 [INF] Executed endpoint 'HTTP: GET /scalar/v2/{documentName?}'
+2026-07-20 11:49:49.460 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/scalar/v2 - 302 null null 1143.2252ms
+2026-07-20 11:49:49.470 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/scalar/v2/ - null null
+2026-07-20 11:49:49.498 +08:00 [INF] Executing endpoint 'HTTP: GET /scalar/v2/{documentName?}'
+2026-07-20 11:49:49.813 +08:00 [INF] Write content with HTTP Response ContentType of text/html
+2026-07-20 11:49:49.855 +08:00 [INF] Executed endpoint 'HTTP: GET /scalar/v2/{documentName?}'
+2026-07-20 11:49:49.861 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/scalar/v2/ - 200 null text/html 391.3526ms
+2026-07-20 11:49:49.863 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/scalar/v2/scalar.aspnetcore.js - null null
+2026-07-20 11:49:49.862 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/_framework/aspnetcore-browser-refresh.js - null null
+2026-07-20 11:49:49.863 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/scalar/v2/scalar.js - null null
+2026-07-20 11:49:49.864 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/_vs/browserLink - null null
+2026-07-20 11:49:49.886 +08:00 [INF] Executing endpoint 'HTTP: GET /scalar/v2/scalar.aspnetcore.js'
+2026-07-20 11:49:49.897 +08:00 [INF] Executing endpoint 'HTTP: GET /scalar/v2/scalar.js'
+2026-07-20 11:49:49.946 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/_framework/aspnetcore-browser-refresh.js - 200 14921 application/javascript; charset=utf-8 83.7388ms
+2026-07-20 11:49:49.953 +08:00 [INF] Sending file with download name ''.
+2026-07-20 11:49:49.990 +08:00 [INF] Sending file with download name ''.
+2026-07-20 11:49:49.999 +08:00 [INF] Executed endpoint 'HTTP: GET /scalar/v2/scalar.aspnetcore.js'
+2026-07-20 11:49:49.999 +08:00 [INF] Executed endpoint 'HTTP: GET /scalar/v2/scalar.js'
+2026-07-20 11:49:50.001 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/scalar/v2/scalar.aspnetcore.js - 304 null null 138.8288ms
+2026-07-20 11:49:50.004 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/scalar/v2/scalar.js - 304 null null 141.8556ms
+2026-07-20 11:49:50.063 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/_vs/browserLink - 200 null text/javascript; charset=UTF-8 199.1584ms
+2026-07-20 11:49:50.266 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/openapi/v1.json - null null
+2026-07-20 11:49:50.272 +08:00 [INF] Executing endpoint 'HTTP: GET /openapi/{documentName}.json'
+2026-07-20 11:49:50.287 +08:00 [INF] Executed endpoint 'HTTP: GET /openapi/{documentName}.json'
+2026-07-20 11:49:50.288 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/openapi/v1.json - 200 null application/json;charset=utf-8 22.2658ms
+2026-07-20 12:04:28.514 +08:00 [INF] Starting NTC-EDGE Web API...
+2026-07-20 12:05:01.201 +08:00 [INF] User profile is available. Using 'C:\Users\User\AppData\Local\ASP.NET\DataProtection-Keys' as key repository and Windows DPAPI to encrypt keys at rest.
+2026-07-20 12:05:01.716 +08:00 [INF] Now listening on: https://localhost:7096
+2026-07-20 12:05:01.719 +08:00 [INF] Now listening on: http://localhost:5038
+2026-07-20 12:05:01.740 +08:00 [INF] No action descriptors found. This may indicate an incorrectly configured application or missing application parts. To learn more, visit https://aka.ms/aspnet/mvc/app-parts
+2026-07-20 12:05:02.271 +08:00 [INF] Starting Hangfire Server using job storage: 'PostgreSQL Server: Host: localhost:5432, DB: EDGE-db, Schema: hangfire'
+2026-07-20 12:05:02.273 +08:00 [INF] Using the following options for PostgreSQL job storage:
+2026-07-20 12:05:02.276 +08:00 [INF]     Queue poll interval: 00:00:15.
+2026-07-20 12:05:02.280 +08:00 [INF]     Invisibility timeout: 00:30:00.
+2026-07-20 12:05:02.283 +08:00 [INF]     Use sliding invisibility timeout: False.
+2026-07-20 12:05:02.286 +08:00 [INF] Using the following options for Hangfire Server:
+    Worker count: 20
+    Listening queues: 'default'
+    Shutdown timeout: 00:00:15
+    Schedule polling interval: 00:00:15
+2026-07-20 12:05:02.342 +08:00 [INF] Application started. Press Ctrl+C to shut down.
+2026-07-20 12:05:02.345 +08:00 [INF] Hosting environment: Development
+2026-07-20 12:05:02.350 +08:00 [INF] Content root path: C:\Dev\NEXTSTEP\EDGE-v2\apps\backend\EDGE.Api
+2026-07-20 12:05:02.546 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/scalar/v2 - null null
+2026-07-20 12:05:03.041 +08:00 [INF] Executing endpoint 'HTTP: GET /scalar/v2/{documentName?}'
+2026-07-20 12:05:03.070 +08:00 [INF] Executing RedirectResult, redirecting to v2/.
+2026-07-20 12:05:03.072 +08:00 [INF] Executed endpoint 'HTTP: GET /scalar/v2/{documentName?}'
+2026-07-20 12:05:03.083 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/scalar/v2 - 302 null null 557.9494ms
+2026-07-20 12:05:03.089 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/scalar/v2/ - null null
+2026-07-20 12:05:03.101 +08:00 [INF] Executing endpoint 'HTTP: GET /scalar/v2/{documentName?}'
+2026-07-20 12:05:03.429 +08:00 [INF] Write content with HTTP Response ContentType of text/html
+2026-07-20 12:05:03.477 +08:00 [INF] Executed endpoint 'HTTP: GET /scalar/v2/{documentName?}'
+2026-07-20 12:05:03.499 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/scalar/v2/ - 200 null text/html 393.2981ms
+2026-07-20 12:05:03.501 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/scalar/v2/scalar.aspnetcore.js - null null
+2026-07-20 12:05:03.501 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/scalar/v2/scalar.js - null null
+2026-07-20 12:05:03.501 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/_vs/browserLink - null null
+2026-07-20 12:05:03.502 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/_framework/aspnetcore-browser-refresh.js - null null
+2026-07-20 12:05:03.516 +08:00 [INF] Executing endpoint 'HTTP: GET /scalar/v2/scalar.js'
+2026-07-20 12:05:03.516 +08:00 [INF] Executing endpoint 'HTTP: GET /scalar/v2/scalar.aspnetcore.js'
+2026-07-20 12:05:03.535 +08:00 [INF] Sending file with download name ''.
+2026-07-20 12:05:03.586 +08:00 [INF] Executed endpoint 'HTTP: GET /scalar/v2/scalar.aspnetcore.js'
+2026-07-20 12:05:03.589 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/_framework/aspnetcore-browser-refresh.js - 200 14921 application/javascript; charset=utf-8 87.2247ms
+2026-07-20 12:05:03.590 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/scalar/v2/scalar.aspnetcore.js - 304 null null 88.8122ms
+2026-07-20 12:05:03.603 +08:00 [INF] Sending file with download name ''.
+2026-07-20 12:05:03.613 +08:00 [INF] Executed endpoint 'HTTP: GET /scalar/v2/scalar.js'
+2026-07-20 12:05:03.616 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/scalar/v2/scalar.js - 304 null null 114.3782ms
+2026-07-20 12:05:03.653 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/_vs/browserLink - 200 null text/javascript; charset=UTF-8 151.6106ms
+2026-07-20 12:05:03.891 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/openapi/v1.json - null null
+2026-07-20 12:05:03.895 +08:00 [INF] Executing endpoint 'HTTP: GET /openapi/{documentName}.json'
+2026-07-20 12:05:03.920 +08:00 [INF] Executed endpoint 'HTTP: GET /openapi/{documentName}.json'
+2026-07-20 12:05:03.925 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/openapi/v1.json - 200 null application/json;charset=utf-8 33.7052ms
+2026-07-20 12:05:33.846 +08:00 [ERR] Execution BackgroundServerProcess is in the Failed state now due to an exception, execution will be retried in no more than 00:00:15
+Npgsql.PostgresException (0x80004005): 3D000: database "EDGE-db" does not exist
+   at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.Open()
+   at Hangfire.PostgreSql.PostgreSqlStorage.CreateAndOpenConnection()
+   at Hangfire.PostgreSql.PostgreSqlStorage.UseConnection[T](DbConnection dedicatedConnection, Func`2 func)
+   at Hangfire.PostgreSql.PostgreSqlConnection.AnnounceServer(String serverId, ServerContext context)
+   at Hangfire.Server.BackgroundServerProcess.CreateServer(BackgroundServerContext context) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 209
+   at Hangfire.Server.BackgroundServerProcess.Execute(Guid executionId, BackgroundExecution execution, CancellationToken stoppingToken, CancellationToken stoppedToken, CancellationToken shutdownToken) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 101
+   at Hangfire.Server.BackgroundProcessingServer.RunServer(Guid executionId, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundProcessingServer.cs:line 249
+   at Hangfire.Processing.BackgroundExecution.Run(Action`2 callback, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Processing\BackgroundExecution.cs:line 118
+  Exception data:
+    Severity: FATAL
+    SqlState: 3D000
+    MessageText: database "EDGE-db" does not exist
+    File: postinit.c
+    Line: 1016
+    Routine: InitPostgres
+2026-07-20 12:27:23.597 +08:00 [INF] Starting NTC-EDGE Web API...
+2026-07-20 12:28:20.653 +08:00 [INF] User profile is available. Using 'C:\Users\User\AppData\Local\ASP.NET\DataProtection-Keys' as key repository and Windows DPAPI to encrypt keys at rest.
+2026-07-20 12:28:21.452 +08:00 [INF] Now listening on: https://localhost:7096
+2026-07-20 12:28:21.456 +08:00 [INF] Now listening on: http://localhost:5038
+2026-07-20 12:28:21.483 +08:00 [INF] No action descriptors found. This may indicate an incorrectly configured application or missing application parts. To learn more, visit https://aka.ms/aspnet/mvc/app-parts
+2026-07-20 12:28:21.584 +08:00 [INF] Starting Hangfire Server using job storage: 'PostgreSQL Server: Host: localhost:5433, DB: EDGE-db, Schema: hangfire'
+2026-07-20 12:28:21.587 +08:00 [INF] Using the following options for PostgreSQL job storage:
+2026-07-20 12:28:21.594 +08:00 [INF]     Queue poll interval: 00:00:15.
+2026-07-20 12:28:21.599 +08:00 [INF]     Invisibility timeout: 00:30:00.
+2026-07-20 12:28:21.601 +08:00 [INF]     Use sliding invisibility timeout: False.
+2026-07-20 12:28:21.603 +08:00 [INF] Using the following options for Hangfire Server:
+    Worker count: 20
+    Listening queues: 'default'
+    Shutdown timeout: 00:00:15
+    Schedule polling interval: 00:00:15
+2026-07-20 12:28:21.677 +08:00 [INF] Application started. Press Ctrl+C to shut down.
+2026-07-20 12:28:21.698 +08:00 [INF] Hosting environment: Development
+2026-07-20 12:28:21.703 +08:00 [INF] Content root path: C:\Dev\NEXTSTEP\EDGE-v2\apps\backend\EDGE.Api
+2026-07-20 12:28:22.114 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/scalar/v2 - null null
+2026-07-20 12:28:22.612 +08:00 [INF] Executing endpoint 'HTTP: GET /scalar/v2/{documentName?}'
+2026-07-20 12:28:22.653 +08:00 [INF] Executing RedirectResult, redirecting to v2/.
+2026-07-20 12:28:22.667 +08:00 [INF] Executed endpoint 'HTTP: GET /scalar/v2/{documentName?}'
+2026-07-20 12:28:22.683 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/scalar/v2 - 302 null null 582.7665ms
+2026-07-20 12:28:22.692 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/scalar/v2/ - null null
+2026-07-20 12:28:22.710 +08:00 [INF] Executing endpoint 'HTTP: GET /scalar/v2/{documentName?}'
+2026-07-20 12:28:23.007 +08:00 [INF] Write content with HTTP Response ContentType of text/html
+2026-07-20 12:28:23.053 +08:00 [INF] Executed endpoint 'HTTP: GET /scalar/v2/{documentName?}'
+2026-07-20 12:28:23.058 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/scalar/v2/ - 200 null text/html 365.4126ms
+2026-07-20 12:28:23.059 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/scalar/v2/scalar.js - null null
+2026-07-20 12:28:23.059 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/_framework/aspnetcore-browser-refresh.js - null null
+2026-07-20 12:28:23.059 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/scalar/v2/scalar.aspnetcore.js - null null
+2026-07-20 12:28:23.096 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/_vs/browserLink - null null
+2026-07-20 12:28:23.121 +08:00 [INF] Executing endpoint 'HTTP: GET /scalar/v2/scalar.js'
+2026-07-20 12:28:23.124 +08:00 [INF] Executing endpoint 'HTTP: GET /scalar/v2/scalar.aspnetcore.js'
+2026-07-20 12:28:23.143 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/_framework/aspnetcore-browser-refresh.js - 200 14921 application/javascript; charset=utf-8 83.62ms
+2026-07-20 12:28:23.146 +08:00 [INF] Sending file with download name ''.
+2026-07-20 12:28:23.190 +08:00 [INF] Executed endpoint 'HTTP: GET /scalar/v2/scalar.aspnetcore.js'
+2026-07-20 12:28:23.196 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/scalar/v2/scalar.aspnetcore.js - 304 null null 136.7406ms
+2026-07-20 12:28:23.209 +08:00 [INF] Sending file with download name ''.
+2026-07-20 12:28:23.217 +08:00 [INF] Executed endpoint 'HTTP: GET /scalar/v2/scalar.js'
+2026-07-20 12:28:23.219 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/scalar/v2/scalar.js - 304 null null 159.8454ms
+2026-07-20 12:28:23.246 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/_vs/browserLink - 200 null text/javascript; charset=UTF-8 150.014ms
+2026-07-20 12:28:23.290 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/openapi/v1.json - null null
+2026-07-20 12:28:23.297 +08:00 [INF] Executing endpoint 'HTTP: GET /openapi/{documentName}.json'
+2026-07-20 12:28:23.320 +08:00 [INF] Executed endpoint 'HTTP: GET /openapi/{documentName}.json'
+2026-07-20 12:28:23.329 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/openapi/v1.json - 200 null application/json;charset=utf-8 39.1314ms
+2026-07-20 12:28:50.752 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/scalar/ - null null
+2026-07-20 12:28:50.761 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/scalar/ - 404 null null 8.9151ms
+2026-07-20 12:28:50.767 +08:00 [INF] Request reached the end of the middleware pipeline without being handled by application code. Request path: GET https://localhost:7096/scalar/, Response status code: 404
+2026-07-20 12:29:21.467 +08:00 [ERR] Execution BackgroundServerProcess is in the Failed state now due to an exception, execution will be retried in no more than 00:00:15
+Npgsql.NpgsqlException (0x80004005): Failed to connect to 127.0.0.1:5433
+ ---> System.Net.Sockets.SocketException (10061): No connection could be made because the target machine actively refused it.
+   at Npgsql.Internal.NpgsqlConnector.Connect(NpgsqlTimeout timeout)
+   at Npgsql.Internal.NpgsqlConnector.Connect(NpgsqlTimeout timeout)
+   at Npgsql.Internal.NpgsqlConnector.RawOpen(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.Open()
+   at Hangfire.PostgreSql.PostgreSqlStorage.CreateAndOpenConnection()
+   at Hangfire.PostgreSql.PostgreSqlStorage.UseConnection[T](DbConnection dedicatedConnection, Func`2 func)
+   at Hangfire.PostgreSql.PostgreSqlConnection.AnnounceServer(String serverId, ServerContext context)
+   at Hangfire.Server.BackgroundServerProcess.CreateServer(BackgroundServerContext context) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 209
+   at Hangfire.Server.BackgroundServerProcess.Execute(Guid executionId, BackgroundExecution execution, CancellationToken stoppingToken, CancellationToken stoppedToken, CancellationToken shutdownToken) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 101
+   at Hangfire.Server.BackgroundProcessingServer.RunServer(Guid executionId, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundProcessingServer.cs:line 249
+   at Hangfire.Processing.BackgroundExecution.Run(Action`2 callback, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Processing\BackgroundExecution.cs:line 118
+2026-07-20 12:30:36.336 +08:00 [ERR] Execution BackgroundServerProcess is still in the Failed state for 00:01:14.7857217 due to an exception, will be retried in no more than 00:00:15
+Npgsql.NpgsqlException (0x80004005): Failed to connect to 127.0.0.1:5433
+ ---> System.Net.Sockets.SocketException (10061): No connection could be made because the target machine actively refused it.
+   at Npgsql.Internal.NpgsqlConnector.Connect(NpgsqlTimeout timeout)
+   at Npgsql.Internal.NpgsqlConnector.Connect(NpgsqlTimeout timeout)
+   at Npgsql.Internal.NpgsqlConnector.RawOpen(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.Open()
+   at Hangfire.PostgreSql.PostgreSqlStorage.CreateAndOpenConnection()
+   at Hangfire.PostgreSql.PostgreSqlStorage.UseConnection[T](DbConnection dedicatedConnection, Func`2 func)
+   at Hangfire.PostgreSql.PostgreSqlConnection.AnnounceServer(String serverId, ServerContext context)
+   at Hangfire.Server.BackgroundServerProcess.CreateServer(BackgroundServerContext context) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 209
+   at Hangfire.Server.BackgroundServerProcess.Execute(Guid executionId, BackgroundExecution execution, CancellationToken stoppingToken, CancellationToken stoppedToken, CancellationToken shutdownToken) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 101
+   at Hangfire.Server.BackgroundProcessingServer.RunServer(Guid executionId, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundProcessingServer.cs:line 249
+   at Hangfire.Processing.BackgroundExecution.Run(Action`2 callback, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Processing\BackgroundExecution.cs:line 118
+2026-07-20 12:31:51.177 +08:00 [ERR] Execution BackgroundServerProcess is still in the Failed state for 00:02:29.6272741 due to an exception, will be retried in no more than 00:00:15
+Npgsql.NpgsqlException (0x80004005): Failed to connect to 127.0.0.1:5433
+ ---> System.Net.Sockets.SocketException (10061): No connection could be made because the target machine actively refused it.
+   at Npgsql.Internal.NpgsqlConnector.Connect(NpgsqlTimeout timeout)
+   at Npgsql.Internal.NpgsqlConnector.Connect(NpgsqlTimeout timeout)
+   at Npgsql.Internal.NpgsqlConnector.RawOpen(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.Open()
+   at Hangfire.PostgreSql.PostgreSqlStorage.CreateAndOpenConnection()
+   at Hangfire.PostgreSql.PostgreSqlStorage.UseConnection[T](DbConnection dedicatedConnection, Func`2 func)
+   at Hangfire.PostgreSql.PostgreSqlConnection.AnnounceServer(String serverId, ServerContext context)
+   at Hangfire.Server.BackgroundServerProcess.CreateServer(BackgroundServerContext context) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 209
+   at Hangfire.Server.BackgroundServerProcess.Execute(Guid executionId, BackgroundExecution execution, CancellationToken stoppingToken, CancellationToken stoppedToken, CancellationToken shutdownToken) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 101
+   at Hangfire.Server.BackgroundProcessingServer.RunServer(Guid executionId, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundProcessingServer.cs:line 249
+   at Hangfire.Processing.BackgroundExecution.Run(Action`2 callback, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Processing\BackgroundExecution.cs:line 118
+2026-07-20 12:33:06.013 +08:00 [ERR] Execution BackgroundServerProcess is still in the Failed state for 00:03:44.4638492 due to an exception, will be retried in no more than 00:00:15
+Npgsql.NpgsqlException (0x80004005): Failed to connect to 127.0.0.1:5433
+ ---> System.Net.Sockets.SocketException (10061): No connection could be made because the target machine actively refused it.
+   at Npgsql.Internal.NpgsqlConnector.Connect(NpgsqlTimeout timeout)
+   at Npgsql.Internal.NpgsqlConnector.Connect(NpgsqlTimeout timeout)
+   at Npgsql.Internal.NpgsqlConnector.RawOpen(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.Open()
+   at Hangfire.PostgreSql.PostgreSqlStorage.CreateAndOpenConnection()
+   at Hangfire.PostgreSql.PostgreSqlStorage.UseConnection[T](DbConnection dedicatedConnection, Func`2 func)
+   at Hangfire.PostgreSql.PostgreSqlConnection.AnnounceServer(String serverId, ServerContext context)
+   at Hangfire.Server.BackgroundServerProcess.CreateServer(BackgroundServerContext context) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 209
+   at Hangfire.Server.BackgroundServerProcess.Execute(Guid executionId, BackgroundExecution execution, CancellationToken stoppingToken, CancellationToken stoppedToken, CancellationToken shutdownToken) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 101
+   at Hangfire.Server.BackgroundProcessingServer.RunServer(Guid executionId, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundProcessingServer.cs:line 249
+   at Hangfire.Processing.BackgroundExecution.Run(Action`2 callback, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Processing\BackgroundExecution.cs:line 118
+2026-07-20 12:34:20.882 +08:00 [ERR] Execution BackgroundServerProcess is still in the Failed state for 00:04:59.3319979 due to an exception, will be retried in no more than 00:00:15
+Npgsql.NpgsqlException (0x80004005): Failed to connect to 127.0.0.1:5433
+ ---> System.Net.Sockets.SocketException (10061): No connection could be made because the target machine actively refused it.
+   at Npgsql.Internal.NpgsqlConnector.Connect(NpgsqlTimeout timeout)
+   at Npgsql.Internal.NpgsqlConnector.Connect(NpgsqlTimeout timeout)
+   at Npgsql.Internal.NpgsqlConnector.RawOpen(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.Open()
+   at Hangfire.PostgreSql.PostgreSqlStorage.CreateAndOpenConnection()
+   at Hangfire.PostgreSql.PostgreSqlStorage.UseConnection[T](DbConnection dedicatedConnection, Func`2 func)
+   at Hangfire.PostgreSql.PostgreSqlConnection.AnnounceServer(String serverId, ServerContext context)
+   at Hangfire.Server.BackgroundServerProcess.CreateServer(BackgroundServerContext context) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 209
+   at Hangfire.Server.BackgroundServerProcess.Execute(Guid executionId, BackgroundExecution execution, CancellationToken stoppingToken, CancellationToken stoppedToken, CancellationToken shutdownToken) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 101
+   at Hangfire.Server.BackgroundProcessingServer.RunServer(Guid executionId, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundProcessingServer.cs:line 249
+   at Hangfire.Processing.BackgroundExecution.Run(Action`2 callback, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Processing\BackgroundExecution.cs:line 118
+2026-07-20 12:35:43.876 +08:00 [INF] Starting NTC-EDGE Web API...
+2026-07-20 12:40:24.831 +08:00 [INF] Starting NTC-EDGE Web API...
+2026-07-20 12:40:25.785 +08:00 [INF] Start installing Hangfire SQL objects...
+2026-07-20 12:40:26.516 +08:00 [INF] Hangfire SQL objects installed.
+2026-07-20 12:40:26.613 +08:00 [INF] User profile is available. Using 'C:\Users\User\AppData\Local\ASP.NET\DataProtection-Keys' as key repository and Windows DPAPI to encrypt keys at rest.
+2026-07-20 12:40:27.004 +08:00 [INF] Now listening on: https://localhost:7096
+2026-07-20 12:40:27.006 +08:00 [INF] Now listening on: http://localhost:5038
+2026-07-20 12:40:27.019 +08:00 [INF] No action descriptors found. This may indicate an incorrectly configured application or missing application parts. To learn more, visit https://aka.ms/aspnet/mvc/app-parts
+2026-07-20 12:40:27.452 +08:00 [INF] Starting Hangfire Server using job storage: 'PostgreSQL Server: Host: localhost:5432, DB: EDGE-db, Schema: hangfire'
+2026-07-20 12:40:27.455 +08:00 [INF] Using the following options for PostgreSQL job storage:
+2026-07-20 12:40:27.458 +08:00 [INF]     Queue poll interval: 00:00:15.
+2026-07-20 12:40:27.460 +08:00 [INF]     Invisibility timeout: 00:30:00.
+2026-07-20 12:40:27.461 +08:00 [INF]     Use sliding invisibility timeout: False.
+2026-07-20 12:40:27.464 +08:00 [INF] Using the following options for Hangfire Server:
+    Worker count: 20
+    Listening queues: 'default'
+    Shutdown timeout: 00:00:15
+    Schedule polling interval: 00:00:15
+2026-07-20 12:40:27.653 +08:00 [INF] Application started. Press Ctrl+C to shut down.
+2026-07-20 12:40:27.887 +08:00 [INF] Hosting environment: Development
+2026-07-20 12:40:27.909 +08:00 [INF] Content root path: C:\Dev\NEXTSTEP\EDGE-v2\apps\backend\EDGE.Api
+2026-07-20 12:40:28.010 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/scalar/v2 - null null
+2026-07-20 12:40:28.398 +08:00 [INF] Server laptop-rqcv0odj:8400:3bc65b90 successfully announced in 742.6212 ms
+2026-07-20 12:40:28.411 +08:00 [INF] Server laptop-rqcv0odj:8400:3bc65b90 is starting the registered dispatchers: ServerWatchdog, ServerJobCancellationWatcher, ExpirationManager, CountersAggregator, Worker, DelayedJobScheduler, RecurringJobScheduler...
+2026-07-20 12:40:28.878 +08:00 [INF] Server laptop-rqcv0odj:8400:3bc65b90 all the dispatchers started
+2026-07-20 12:40:29.227 +08:00 [INF] Executing endpoint 'HTTP: GET /scalar/v2/{documentName?}'
+2026-07-20 12:40:29.311 +08:00 [INF] Executing RedirectResult, redirecting to v2/.
+2026-07-20 12:40:29.314 +08:00 [INF] Executed endpoint 'HTTP: GET /scalar/v2/{documentName?}'
+2026-07-20 12:40:29.345 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/scalar/v2 - 302 null null 1347.658ms
+2026-07-20 12:40:29.347 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/scalar/v2/ - null null
+2026-07-20 12:40:29.381 +08:00 [INF] Executing endpoint 'HTTP: GET /scalar/v2/{documentName?}'
+2026-07-20 12:40:29.723 +08:00 [INF] Write content with HTTP Response ContentType of text/html
+2026-07-20 12:40:29.762 +08:00 [INF] Executed endpoint 'HTTP: GET /scalar/v2/{documentName?}'
+2026-07-20 12:40:29.766 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/scalar/v2/ - 200 null text/html 419.2331ms
+2026-07-20 12:40:29.778 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/_vs/browserLink - null null
+2026-07-20 12:40:29.776 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/scalar/v2/scalar.js - null null
+2026-07-20 12:40:29.777 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/scalar/v2/scalar.aspnetcore.js - null null
+2026-07-20 12:40:29.775 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/_framework/aspnetcore-browser-refresh.js - null null
+2026-07-20 12:40:29.808 +08:00 [INF] Executing endpoint 'HTTP: GET /scalar/v2/scalar.js'
+2026-07-20 12:40:29.809 +08:00 [INF] Executing endpoint 'HTTP: GET /scalar/v2/scalar.aspnetcore.js'
+2026-07-20 12:40:29.872 +08:00 [INF] Sending file with download name ''.
+2026-07-20 12:40:29.881 +08:00 [INF] Sending file with download name ''.
+2026-07-20 12:40:29.885 +08:00 [INF] Executed endpoint 'HTTP: GET /scalar/v2/scalar.aspnetcore.js'
+2026-07-20 12:40:29.892 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/_framework/aspnetcore-browser-refresh.js - 200 14921 application/javascript; charset=utf-8 117.8801ms
+2026-07-20 12:40:29.894 +08:00 [INF] Executed endpoint 'HTTP: GET /scalar/v2/scalar.js'
+2026-07-20 12:40:29.896 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/scalar/v2/scalar.aspnetcore.js - 304 null null 119.0614ms
+2026-07-20 12:40:29.907 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/scalar/v2/scalar.js - 304 null null 130.1556ms
+2026-07-20 12:40:29.926 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/_vs/browserLink - 200 null text/javascript; charset=UTF-8 148.4206ms
