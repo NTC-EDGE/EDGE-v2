@@ -41,7 +41,7 @@ export function Button({
   const getButtonStyles = (hovered: boolean, pressed: boolean): ViewStyle[] => {
     const list: ViewStyle[] = [styles.base];
 
-    // Variant styles
+    // Variant styles with clear background color changes on hover
     if (variant === 'primary') {
       list.push(styles.primary);
       if (hovered && !disabled) {
@@ -88,7 +88,7 @@ export function Button({
     return list;
   };
 
-  const getTextStyles = (): TextStyle[] => {
+  const getTextStyles = (hovered: boolean): TextStyle[] => {
     const list: TextStyle[] = [styles.textBase];
 
     // Variant text styles
@@ -98,8 +98,14 @@ export function Button({
       list.push(styles.textSecondary);
     } else if (variant === 'outline') {
       list.push(styles.textOutline);
+      if (hovered && !disabled) {
+        list.push(styles.textOutlineHovered);
+      }
     } else if (variant === 'text') {
       list.push(styles.textLink);
+      if (hovered && !disabled) {
+        list.push(styles.textLinkHovered);
+      }
     }
 
     // Size text styles
@@ -140,16 +146,18 @@ export function Button({
         getButtonStyles(hovered, pressed)
       }
     >
-      {loading ? (
-        <ActivityIndicator size="small" color={getIndicatorColor()} />
-      ) : (
-        <View style={styles.contentContainer}>
-          {icon !== undefined && icon !== null ? (
-            <View style={styles.iconContainer}>{icon}</View>
-          ) : null}
-          <Text style={getTextStyles()}>{title}</Text>
-        </View>
-      )}
+      {({ hovered = false }: PressableState) =>
+        loading ? (
+          <ActivityIndicator size="small" color={getIndicatorColor()} />
+        ) : (
+          <View style={styles.contentContainer}>
+            {icon !== undefined && icon !== null ? (
+              <View style={styles.iconContainer}>{icon}</View>
+            ) : null}
+            <Text style={getTextStyles(hovered)}>{title}</Text>
+          </View>
+        )
+      }
     </Pressable>
   );
 }
@@ -172,14 +180,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   primary: {
-    backgroundColor: COLORS.brand[800],
+    backgroundColor: '#1236A8',
   },
   primaryHovered: {
-    backgroundColor: '#0F2B88',
+    backgroundColor: '#0D2678', // Noticeable dark blue hover state
     transform: [{ translateY: -2 }],
     shadowColor: '#1236A8',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.35,
     shadowRadius: 12,
     elevation: 4,
   },
@@ -187,21 +195,21 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.neutral[800],
   },
   secondaryHovered: {
-    backgroundColor: COLORS.neutral[900],
+    backgroundColor: '#090D16',
     transform: [{ translateY: -2 }],
   },
   outline: {
     backgroundColor: 'transparent',
     borderWidth: 1.5,
-    borderColor: COLORS.brand[800],
+    borderColor: '#1236A8',
   },
   outlineHovered: {
-    backgroundColor: '#EEF2FF',
-    borderColor: '#0F2B88',
+    backgroundColor: '#EEF2FF', // Noticeable light blue fill on hover
+    borderColor: '#0D2678',
     transform: [{ translateY: -2 }],
     shadowColor: '#1236A8',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 2,
   },
@@ -244,11 +252,17 @@ const styles = StyleSheet.create({
     color: COLORS.neutral.white,
   },
   textOutline: {
-    color: COLORS.brand[800],
+    color: '#1236A8',
+  },
+  textOutlineHovered: {
+    color: '#0D2678',
   },
   textLink: {
-    color: COLORS.brand[800],
+    color: '#1236A8',
     textDecorationLine: 'underline',
+  },
+  textLinkHovered: {
+    color: '#0D2678',
   },
   textSm: {
     fontSize: TYPOGRAPHY.sizes.caption,
