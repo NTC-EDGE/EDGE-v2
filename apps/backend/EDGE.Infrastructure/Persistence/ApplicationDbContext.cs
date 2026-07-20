@@ -16,6 +16,10 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
     public DbSet<Role> Roles => Set<Role>();
     public DbSet<Permission> Permissions => Set<Permission>();
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
+    public DbSet<Region> Regions => Set<Region>();
+    public DbSet<Province> Provinces => Set<Province>();
+    public DbSet<Municipality> Municipalities => Set<Municipality>();
+    public DbSet<Barangay> Barangays => Set<Barangay>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -27,7 +31,7 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
             .Property(e => e.Status)
             .HasConversion<string>();
 
-        // Mappings
+        // IAM Mappings
         modelBuilder.Entity<User>()
             .HasOne(u => u.Role)
             .WithMany(r => r.Users)
@@ -126,5 +130,46 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
             new User { Id = Guid.Parse("55555555-5555-5555-5555-555555555555"), AuthUserId = "user_cashier123", Email = "cashier@ntcedge.com", FirstName = "Bob", LastName = "Cashier", RoleId = cashierRoleId, CreatedAt = staticDate },
             new User { Id = Guid.Parse("66666666-6666-6666-6666-666666666666"), AuthUserId = "user_admin123", Email = "admin@ntcedge.com", FirstName = "Super", LastName = "Admin", RoleId = adminRoleId, CreatedAt = staticDate }
         );
+
+        // Geographic entity configurations
+        modelBuilder.Entity<Region>(entity =>
+        {
+            entity.HasIndex(e => e.Code).IsUnique();
+            entity.Property(e => e.Code).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+        });
+
+        modelBuilder.Entity<Province>(entity =>
+        {
+            entity.HasIndex(e => e.Code).IsUnique();
+            entity.Property(e => e.Code).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+            entity.HasOne(d => d.Region)
+                  .WithMany(p => p.Provinces)
+                  .HasForeignKey(d => d.RegionId)
+                  .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<Municipality>(entity =>
+        {
+            entity.HasIndex(e => e.Code).IsUnique();
+            entity.Property(e => e.Code).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+            entity.HasOne(d => d.Province)
+                  .WithMany(p => p.Municipalities)
+                  .HasForeignKey(d => d.ProvinceId)
+                  .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<Barangay>(entity =>
+        {
+            entity.HasIndex(e => e.Code).IsUnique();
+            entity.Property(e => e.Code).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+            entity.HasOne(d => d.Municipality)
+                  .WithMany(p => p.Barangays)
+                  .HasForeignKey(d => d.MunicipalityId)
+                  .OnDelete(DeleteBehavior.Restrict);
+        });
     }
 }

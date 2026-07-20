@@ -15,6 +15,7 @@ using EDGE.Infrastructure;
 using EDGE.Infrastructure.Hubs;
 using EDGE.Infrastructure.Authorization;
 using EDGE.Domain.Authorization;
+using EDGE.Api.Middleware;
 using EDGE.Api.Services;
 using EDGE.Api.Endpoints;
 
@@ -42,14 +43,15 @@ try
     builder.Services.AddInfrastructure();
 
     // Configure Clerk JWT Authentication (with Mock Bypass Fallback in Dev)
+    var clerkAuthority = builder.Configuration["Clerk:Authority"] ?? "https://easy-snipe-36.clerk.accounts.dev";
     builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         .AddJwtBearer(options =>
         {
-            options.Authority = builder.Configuration["Clerk:Authority"] ?? "https://easy-snipe-36.clerk.accounts.dev";
+            options.Authority = clerkAuthority;
             options.TokenValidationParameters = new TokenValidationParameters
             {
                 ValidateIssuer = true,
-                ValidIssuer = builder.Configuration["Clerk:Authority"] ?? "https://easy-snipe-36.clerk.accounts.dev",
+                ValidIssuer = clerkAuthority,
                 ValidateAudience = false,
                 ValidateLifetime = true,
                 NameClaimType = System.Security.Claims.ClaimTypes.NameIdentifier
@@ -91,6 +93,9 @@ try
 
     var app = builder.Build();
 
+    // Use global exception handling middleware
+    app.UseMiddleware<ExceptionHandlingMiddleware>();
+
     app.UseAuthentication();
     app.UseAuthorization();
 
@@ -108,6 +113,9 @@ try
 
     // Map SignalR Hub
     app.MapHub<NotificationHub>("/hubs/notifications");
+
+    // Seed geographic reference data on startup
+    await app.SeedDatabaseAsync();
 
     app.Run();
 }

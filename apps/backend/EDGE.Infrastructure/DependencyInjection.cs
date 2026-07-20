@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using Hangfire;
 using Hangfire.PostgreSql;
@@ -35,6 +36,7 @@ public static class DependencyInjection
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IRoleRepository, RoleRepository>();
         services.AddScoped<IRolePermissionRepository, RolePermissionRepository>();
+        services.AddScoped<IGeographicRepository, GeographicRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IUserActivityService, UserActivityService>();
 
@@ -68,5 +70,19 @@ public static class DependencyInjection
         services.AddHangfireServer();
 
         return services;
+    }
+}
+
+public static class WebApplicationExtensions
+{
+    /// <summary>
+    /// Seeds the database with Philippine geographic reference data (Regions → Provinces → Municipalities → Barangays)
+    /// on application startup. Skips seeding if data already exists.
+    /// </summary>
+    public static async Task SeedDatabaseAsync(this WebApplication app)
+    {
+        using var scope = app.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<EDGE.Infrastructure.Persistence.ApplicationDbContext>();
+        await EDGE.Infrastructure.Persistence.GeographicDataSeeder.SeedAsync(context);
     }
 }

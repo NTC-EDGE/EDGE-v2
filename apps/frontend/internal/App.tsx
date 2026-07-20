@@ -1,447 +1,615 @@
-import React, { useState, createContext, useContext } from 'react';
-import { createStaticNavigation } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View, Button, TextInput, TouchableOpacity } from 'react-native';
-import { ClerkProvider, SignedIn, SignedOut, useAuth, useSignIn, useSignUp, useUser } from '@clerk/clerk-expo';
-import { tokenCache } from './tokenCache';
-import { apiClient } from '@edge/api';
+import { useState, useEffect } from "react";
+import { StatusBar } from "expo-status-bar";
+import {
+  StyleSheet,
+  Text,
+  View,
+  TextInput,
+  TouchableOpacity,
+  ActivityIndicator,
+  Platform,
+  KeyboardAvoidingView,
+  ScrollView,
+} from "react-native";
+import { tokenCache } from "./tokenCache";
+import {
+  COLORS,
+  SPACING,
+  RADIUS,
+  SHADOWS,
+  TYPOGRAPHY,
+  Icon as Lucide,
+  ClerkProvider,
+  createStaticNavigation,
+  useNavigationContainerRef,
+  ParamListBase,
+  RouteProp,
+  createNativeStackNavigator,
+} from "@edge/ui";
+import {
+  AuthProvider,
+  useAuthContext,
+} from "./src/features/auth/context/AuthContext";
+import { RoleProvider } from "./src/features/shell/context/RoleContext";
+import { DashboardShell } from "./src/features/shell/components/DashboardShell";
+import { DashboardScreen } from "./src/features/dashboard/screens/DashboardScreen";
+import { QueueScreen } from "./src/features/queue/screens/QueueScreen";
 
 const getClerkKey = (): string => {
   const key = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
-  if (typeof key === 'string' && key.length > 0) {
+  if (typeof key === "string" && key.length > 0) {
     return key;
   }
-  return '';
+  return "";
 };
 
 const publishableKey = getClerkKey();
 
 if (publishableKey.length === 0) {
-  console.warn('Missing EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY environment variable. Clerk will not initialize properly.');
-}
-
-interface ApplicationResponse {
-  id: string;
-  title: string;
-  applicantName: string;
-  status: string;
-  createdAt: string;
-}
-
-// ----------------------------------------------------
-// Unified Authentication & User Context Hooks
-// ----------------------------------------------------
-const MockAuthContext = createContext<{
-  mockUser: any;
-  setMockUser: (user: any) => void;
-  useMock: boolean;
-  setUseMock: (val: boolean) => void;
-} | null>(null);
-
-function useAppAuth() {
-  const mockContext = useContext(MockAuthContext);
-  const clerkAuth = useAuth();
-
-  if (mockContext?.useMock || publishableKey.length === 0) {
-    return {
-      signOut: () => mockContext?.setMockUser(null),
-      getToken: async () => `mock_${mockContext?.mockUser?.role || 'evaluator'}`
-    };
-  }
-  return clerkAuth;
-}
-
-function useAppUser() {
-  const mockContext = useContext(MockAuthContext);
-  const clerkUser = useUser();
-
-  if (mockContext?.useMock || publishableKey.length === 0) {
-    return {
-      user: mockContext?.mockUser ? {
-        primaryEmailAddress: { emailAddress: mockContext.mockUser.email },
-        publicMetadata: { role: mockContext.mockUser.role }
-      } : null
-    };
-  }
-  return clerkUser;
-}
-
-// ----------------------------------------------------
-// UI Screens
-// ----------------------------------------------------
-function DashboardScreen({ navigation }: any) {
-  const { signOut, getToken } = useAppAuth();
-  const { user } = useAppUser();
-  const [submitting, setSubmitting] = useState(false);
-  const [statusMessage, setStatusMessage] = useState('');
-
-  // Read role from metadata, defaulting to evaluator for staff preview
-  const role = (user?.publicMetadata?.role as string) || 'evaluator';
-
-  const submitApplication = async () => {
-    setSubmitting(true);
-    setStatusMessage('');
-    try {
-      const token = await getToken();
-      const headers = token !== null ? { Authorization: `Bearer ${token}` } : {};
-      const response = await apiClient.post<ApplicationResponse>(
-        '/api/applications',
-        {
-          title: 'Internal Review Request',
-          applicantName: 'Staff Portal User'
-        },
-        { headers }
-      );
-      setStatusMessage(`Created Application: ${response.data.title}`);
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setStatusMessage(`Error: ${err.message}`);
-      } else {
-        setStatusMessage('Error: Unknown server error occurred.');
-      }
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>NTC-EDGE Internal Portal</Text>
-      <Text style={styles.subtitle}>Logged in as: {user?.primaryEmailAddress?.emailAddress}</Text>
-      <View style={styles.roleBadge}>
-        <Text style={styles.roleBadgeText}>Role: {role.toUpperCase()}</Text>
-      </View>
-      
-      {/* 1. Evaluator Panel */}
-      {role === 'evaluator' && (
-        <View style={styles.panel}>
-          <Text style={styles.panelTitle}>Evaluator Actions</Text>
-          <Button
-            title="Review Application Queue"
-            onPress={() => navigation.navigate('Queue')}
-            color="#2e7d32"
-          />
-        </View>
-      )}
-
-      {/* 2. Higher-Ups Panel */}
-      {role === 'higherups' && (
-        <View style={styles.panel}>
-          <Text style={styles.panelTitle}>Executive Actions</Text>
-          <Button
-            title="Approve / Reject Requests"
-            onPress={() => setStatusMessage("Navigating to Executive Approval Queue...")}
-            color="#1976d2"
-          />
-        </View>
-      )}
-
-      {/* 3. Accountant Panel */}
-      {role === 'accountant' && (
-        <View style={styles.panel}>
-          <Text style={styles.panelTitle}>Accountant Actions</Text>
-          <Button
-            title="Generate Invoices & Billing"
-            onPress={() => setStatusMessage("Opening Billing Interface...")}
-            color="#ed6c02"
-          />
-        </View>
-      )}
-
-      {/* 4. Cashier Panel */}
-      {role === 'cashier' && (
-        <View style={styles.panel}>
-          <Text style={styles.panelTitle}>Cashier Actions</Text>
-          <Button
-            title="Collect Payments & Issue Receipts"
-            onPress={() => setStatusMessage("Opening Payment Terminal...")}
-            color="#9c27b0"
-          />
-        </View>
-      )}
-
-      {/* 5. Admin Panel */}
-      {role === 'admin' && (
-        <View style={styles.panel}>
-          <Text style={styles.panelTitle}>System Admin Actions</Text>
-          <Button
-            title="Configure System Roles"
-            onPress={() => setStatusMessage("Opening User Configuration Panel...")}
-            color="#d32f2f"
-          />
-        </View>
-      )}
-
-      <View style={{ marginTop: 15, width: '100%' }}>
-        <Button
-          title={submitting ? "Creating Job..." : "Submit Internal App to BE"}
-          onPress={submitApplication}
-          disabled={submitting}
-          color="#388e3c"
-        />
-      </View>
-
-      {statusMessage.length > 0 ? (
-        <Text style={styles.statusText}>{statusMessage}</Text>
-      ) : null}
-
-      <View style={{ marginTop: 25, width: '100%' }}>
-        <Button
-          title="Sign Out"
-          onPress={() => signOut()}
-          color="#d32f2f"
-        />
-      </View>
-      <StatusBar style="auto" />
-    </View>
+  console.warn(
+    "Missing EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY environment variable. Clerk will not initialize properly.",
+>>>>>>> develop
   );
 }
 
-function QueueScreen({ navigation }: any) {
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Pending Review Queue</Text>
-      <Text style={styles.subtitle}>Applications requiring immediate evaluation.</Text>
-      <Button
-        title="Back to Dashboard"
-        onPress={() => navigation.goBack()}
-        color="#2e7d32"
-      />
-      <StatusBar style="auto" />
-    </View>
-  );
-}
+// Fallback Placeholder screen for role specific navigation links
+function PlaceholderScreen({
+  route,
+}: {
+  route: RouteProp<ParamListBase, string>;
+}) {
+  const name = route.name;
 
-function AuthScreen() {
-  const mockContext = useContext(MockAuthContext);
-  const { signIn, setActive, isLoaded: signInLoaded } = useSignIn();
-  const { signUp, isLoaded: signUpLoaded } = useSignUp();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [isSignUpMode, setIsSignUpMode] = useState(false);
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  const onSignInPress = async () => {
-    if (!signInLoaded) return;
-    setError('');
-    setLoading(true);
-    try {
-      const completeSignIn = await signIn.create({
-        identifier: email,
-        password,
-      });
-      if (setActive !== undefined) {
-        await setActive({ session: completeSignIn.createdSessionId });
-      }
-    } catch (err: any) {
-      setError(err.errors?.[0]?.message || 'Sign in failed');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const onSignUpPress = async () => {
-    if (!signUpLoaded) return;
-    setError('');
-    setLoading(true);
-    try {
-      const completeSignUp = await signUp.create({
-        emailAddress: email,
-        password,
-      });
-      if (completeSignUp.status === 'complete') {
-        if (setActive !== undefined) {
-          await setActive({ session: completeSignUp.createdSessionId });
-        }
-      } else {
-        setError('Verification is required. Please check your Clerk setup.');
-      }
-    } catch (err: any) {
-      setError(err.errors?.[0]?.message || 'Sign up failed');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Format the camelCase name into a user friendly title (e.g. AuditLogs -> Audit Logs)
+  const formattedName = name
+    .replace(/([A-Z])/g, " $1")
+    .replace(/^./, (str: string) => str.toUpperCase())
+    .trim();
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>NTC-EDGE Staff Portal</Text>
-      <Text style={styles.subtitle}>Authentication Required</Text>
-
-      <TextInput
-        autoCapitalize="none"
-        placeholder="Email Address"
-        placeholderTextColor="#a5bda6"
-        value={email}
-        onChangeText={setEmail}
-        style={styles.input}
-      />
-      <TextInput
-        placeholder="Password"
-        placeholderTextColor="#a5bda6"
-        secureTextEntry={true}
-        value={password}
-        onChangeText={setPassword}
-        style={styles.input}
-      />
-
-      {error.length > 0 ? <Text style={styles.errorText}>{error}</Text> : null}
-
-      <TouchableOpacity 
-        style={styles.authButton} 
-        onPress={isSignUpMode ? onSignUpPress : onSignInPress}
-        disabled={loading}
-      >
-        <Text style={styles.buttonText}>{loading ? 'Processing...' : (isSignUpMode ? 'Register' : 'Sign In')}</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity onPress={() => setIsSignUpMode(!isSignUpMode)} style={{ marginTop: 15 }}>
-        <Text style={styles.toggleText}>
-          {isSignUpMode ? 'Already have an account? Sign In' : "Don't have an account? Register"}
+    <View style={styles.placeholderContainer}>
+      <View style={[styles.placeholderCard, SHADOWS.card]}>
+        <Text style={styles.placeholderTitle}>{formattedName} Portal</Text>
+        <Text style={styles.placeholderText}>
+          This sub-module is currently undergoing staging and compliance
+          verification. All interactions are simulated under the active role
+          constraints.
         </Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity onPress={() => mockContext?.setUseMock(true)} style={{ marginTop: 25 }}>
-        <Text style={[styles.toggleText, { color: '#a5d6a7', fontWeight: 'bold' }]}>
-          Bypass Clerk (Mock Dev Mode)
-        </Text>
-      </TouchableOpacity>
-    </View>
-  );
-}
-
-function MockAuthScreen() {
-  const mockContext = useContext(MockAuthContext);
-  const roles = ['client', 'evaluator', 'higherups', 'accountant', 'cashier', 'admin'];
-
-  const selectRole = (role: string) => {
-    mockContext?.setMockUser({
-      role,
-      email: `${role}@ntcedge.com`
-    });
-  };
-
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>NTC Staff Portal (Mock Mode)</Text>
-      <Text style={styles.subtitle}>Select a seeded role to test offline/without Clerk:</Text>
-      
-      {roles.map(r => (
-        <TouchableOpacity key={r} style={[styles.authButton, { backgroundColor: '#2e7d32', marginVertical: 6 }]} onPress={() => selectRole(r)}>
-          <Text style={styles.buttonText}>{r.toUpperCase()}</Text>
-        </TouchableOpacity>
-      ))}
-      
-      {publishableKey.length > 0 && (
-        <TouchableOpacity style={{ marginTop: 25 }} onPress={() => mockContext?.setUseMock(false)}>
-          <Text style={styles.toggleText}>Use Clerk Sign In</Text>
-        </TouchableOpacity>
-      )}
+      </View>
     </View>
   );
 }
 
 // React Navigation 8 Static configuration
 const RootStack = createNativeStackNavigator({
-  initialRouteName: 'Dashboard',
+  initialRouteName: "Dashboard",
+  screenOptions: {
+    headerShown: false,
+    contentStyle: { backgroundColor: "transparent" },
+    animation: "fade",
+  },
   screens: {
-    Dashboard: {
-      screen: DashboardScreen,
-      options: { title: 'NTC Staff Home' },
-    },
-    Queue: {
-      screen: QueueScreen,
-      options: { title: 'Pending Queue' },
-    },
+    Dashboard: { screen: DashboardScreen },
+    Activities: { screen: QueueScreen },
+    Chat: { screen: PlaceholderScreen },
+    Meet: { screen: PlaceholderScreen },
+    Reports: { screen: PlaceholderScreen },
+    ReceiptManagement: { screen: PlaceholderScreen },
+    RolesPermission: { screen: PlaceholderScreen },
+    Schedule: { screen: PlaceholderScreen },
+    Employees: { screen: PlaceholderScreen },
+    Users: { screen: PlaceholderScreen },
+    Settings: { screen: PlaceholderScreen },
   },
 });
 
 const Navigation = createStaticNavigation(RootStack);
 
-export default function App() {
-  const [mockUser, setMockUser] = useState<any>(null);
-  const [useMock, setUseMock] = useState(publishableKey.length === 0);
+interface ClerkErrorItem {
+  message: string;
+}
+
+interface ClerkErrorResponse {
+  errors: ClerkErrorItem[];
+}
+
+function isObject(val: unknown): val is Record<string, unknown> {
+  return typeof val === "object" && val !== null;
+}
+
+function isClerkError(err: unknown): err is ClerkErrorResponse {
+  if (!isObject(err)) {
+    return false;
+  }
+  const errors = err.errors;
+  if (!Array.isArray(errors)) {
+    return false;
+  }
+  return errors.every((item): boolean => {
+    if (!isObject(item)) {
+      return false;
+    }
+    return typeof item.message === "string";
+  });
+}
+
+function AuthScreen() {
+  const { loginWithClerk, signUpWithClerk, verifySignUp } = useAuthContext();
+  const [mode, setMode] = useState<"signin" | "signup" | "verify">("signin");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
+  const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleAuthError = (err: unknown, defaultMsg: string) => {
+    if (err instanceof Error) {
+      setError(err.message);
+    } else if (isClerkError(err)) {
+      if (err.errors.length > 0) {
+        setError(err.errors[0].message);
+      } else {
+        setError(defaultMsg);
+      }
+    } else {
+      setError(defaultMsg);
+    }
+  };
+
+  const handleSignIn = async () => {
+    if (email.trim() === "" || password.trim() === "") {
+      setError("Please enter your email and password.");
+      return;
+    }
+    setError("");
+    setIsSubmitting(true);
+    try {
+      await loginWithClerk(email, password);
+    } catch (err: unknown) {
+      handleAuthError(err, "Invalid email or password.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSignUp = async () => {
+    if (email.trim() === "" || password.trim() === "") {
+      setError("Please enter your email and password.");
+      return;
+    }
+    setError("");
+    setIsSubmitting(true);
+    try {
+      const isComplete = await signUpWithClerk(email, password);
+      if (isComplete) {
+        // Handled by active session detection
+      } else {
+        setMode("verify");
+      }
+    } catch (err: unknown) {
+      handleAuthError(err, "Failed to create account. Please check your credentials.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleVerify = async () => {
+    if (code.trim() === "") {
+      setError("Please enter the verification code.");
+      return;
+    }
+    setError("");
+    setIsSubmitting(true);
+    try {
+      await verifySignUp(code);
+    } catch (err: unknown) {
+      handleAuthError(err, "Incorrect verification code. Please check and try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const switchMode = (newMode: "signin" | "signup" | "verify") => {
+    setMode(newMode);
+    setError("");
+    setCode("");
+  };
 
   return (
-    <MockAuthContext.Provider value={{ mockUser, setMockUser, useMock, setUseMock }}>
-      {useMock ? (
-        mockUser ? <Navigation /> : <MockAuthScreen />
-      ) : (
-        <ClerkProvider tokenCache={tokenCache} publishableKey={publishableKey}>
-          <SignedIn>
-            <Navigation />
-          </SignedIn>
-          <SignedOut>
-            <AuthScreen />
-          </SignedOut>
-        </ClerkProvider>
-      )}
-    </MockAuthContext.Provider>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={styles.keyboardAvoid}
+    >
+      <ScrollView
+        contentContainerStyle={styles.scrollContainer}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.authBg}>
+          <View style={[styles.authCard, SHADOWS.modal]}>
+            <View style={styles.authLogo}>
+              <Lucide name="shield" size={24} color={COLORS.brand[700]} />
+            </View>
+            <Text style={styles.authTitle}>NTC-EDGE Staff Portal</Text>
+
+            {mode === "signin" && (
+              <>
+                <Text style={styles.authSubtitle}>Authentication Required</Text>
+                <TextInput
+                  autoCapitalize="none"
+                  placeholder="Email Address"
+                  placeholderTextColor={COLORS.neutral[400]}
+                  value={email}
+                  onChangeText={setEmail}
+                  style={styles.input}
+                  editable={!isSubmitting}
+                />
+                <TextInput
+                  placeholder="Password"
+                  placeholderTextColor={COLORS.neutral[400]}
+                  secureTextEntry={true}
+                  value={password}
+                  onChangeText={setPassword}
+                  style={styles.input}
+                  editable={!isSubmitting}
+                />
+
+                {error.length > 0 ? (
+                  <Text style={styles.errorText}>{error}</Text>
+                ) : null}
+
+                <TouchableOpacity
+                  style={[styles.authButton, isSubmitting && styles.authButtonDisabled]}
+                  onPress={handleSignIn}
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <ActivityIndicator size="small" color={COLORS.neutral.white} />
+                  ) : (
+                    <Text style={styles.buttonText}>Sign In</Text>
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity onPress={() => switchMode("signup")} disabled={isSubmitting}>
+                  <Text style={styles.authToggleText}>
+                    Don't have an account? <Text style={styles.authToggleLink}>Sign Up</Text>
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
+
+            {mode === "signup" && (
+              <>
+                <Text style={styles.authSubtitle}>Create Your Account</Text>
+                <TextInput
+                  autoCapitalize="none"
+                  placeholder="Email Address"
+                  placeholderTextColor={COLORS.neutral[400]}
+                  value={email}
+                  onChangeText={setEmail}
+                  style={styles.input}
+                  editable={!isSubmitting}
+                />
+                <TextInput
+                  placeholder="Password"
+                  placeholderTextColor={COLORS.neutral[400]}
+                  secureTextEntry={true}
+                  value={password}
+                  onChangeText={setPassword}
+                  style={styles.input}
+                  editable={!isSubmitting}
+                />
+
+                {error.length > 0 ? (
+                  <Text style={styles.errorText}>{error}</Text>
+                ) : null}
+
+                <TouchableOpacity
+                  style={[styles.authButton, isSubmitting && styles.authButtonDisabled]}
+                  onPress={handleSignUp}
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <ActivityIndicator size="small" color={COLORS.neutral.white} />
+                  ) : (
+                    <Text style={styles.buttonText}>Create Account</Text>
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity onPress={() => switchMode("signin")} disabled={isSubmitting}>
+                  <Text style={styles.authToggleText}>
+                    Already have an account? <Text style={styles.authToggleLink}>Sign In</Text>
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
+
+            {mode === "verify" && (
+              <>
+                <Text style={styles.authSubtitle}>Verify Your Email</Text>
+                <Text style={styles.verifyDescription}>
+                  We sent a verification code to {email}. Please enter it below to complete registration.
+                </Text>
+
+                <TextInput
+                  autoCapitalize="none"
+                  placeholder="Verification Code"
+                  placeholderTextColor={COLORS.neutral[400]}
+                  value={code}
+                  onChangeText={setCode}
+                  style={styles.input}
+                  editable={!isSubmitting}
+                />
+
+                {error.length > 0 ? (
+                  <Text style={styles.errorText}>{error}</Text>
+                ) : null}
+
+                <TouchableOpacity
+                  style={[styles.authButton, isSubmitting && styles.authButtonDisabled]}
+                  onPress={handleVerify}
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <ActivityIndicator size="small" color={COLORS.neutral.white} />
+                  ) : (
+                    <Text style={styles.buttonText}>Verify & Sign Up</Text>
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity onPress={() => switchMode("signup")} disabled={isSubmitting}>
+                  <Text style={styles.authToggleText}>
+                    Back to <Text style={styles.authToggleLink}>Sign Up</Text>
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
+}
+
+function AppContent() {
+  const { isAuthenticated, isLoading } = useAuthContext();
+  const navigationRef = useNavigationContainerRef<ParamListBase>();
+  const [activeScreen, setActiveScreen] = useState("Dashboard");
+
+  // Track the current route inside the stack to sync the Sidebar highlights
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const unsubscribe = navigationRef.addListener("state", () => {
+      const route = navigationRef.getCurrentRoute();
+      if (route !== null && route !== undefined) {
+        setActiveScreen(route.name);
+      }
+    });
+
+    return unsubscribe;
+  }, [isAuthenticated, navigationRef]);
+
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={COLORS.brand[800]} />
+      </View>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <AuthScreen />;
+  }
+
+  return (
+    <DashboardShell
+      activeScreen={activeScreen}
+      onNavigate={(screen) => {
+        if (navigationRef.isReady()) {
+          navigationRef.navigate(screen);
+        }
+      }}
+    >
+      <Navigation ref={navigationRef} />
+    </DashboardShell>
+  );
+}
+
+export default function App() {
+  return (
+    <ClerkProvider tokenCache={tokenCache} publishableKey={publishableKey}>
+      <AuthProvider>
+        <RoleProvider>
+          <AppContent />
+          <StatusBar style="dark" />
+        </RoleProvider>
+      </AuthProvider>
+    </ClerkProvider>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  loadingContainer: {
     flex: 1,
-    backgroundColor: '#1b2a1c', // Forest dark theme for internal portal
-    alignItems: 'center',
+    backgroundColor: COLORS.bg,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  keyboardAvoid: {
+    flex: 1,
+    backgroundColor: COLORS.bg,
+  },
+  scrollContainer: {
+    flexGrow: 1,
+    justifyContent: "center",
+  },
+  authBg: {
+    flex: 1,
+    backgroundColor: COLORS.bg,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: SPACING[20],
+  },
+  authCard: {
+    backgroundColor: COLORS.neutral.white,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: COLORS.neutral[200],
+    padding: SPACING[40],
+    width: "100%",
+    maxWidth: 400,
+    alignItems: "center",
+  },
+  authLogo: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: 'rgba(37, 99, 235, 0.08)',
     justifyContent: 'center',
-    padding: 20,
+    alignItems: 'center',
+    marginBottom: SPACING[20],
+    borderWidth: 1,
+    borderColor: 'rgba(37, 99, 235, 0.15)',
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#ffffff',
-    marginBottom: 8,
+  authTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 20,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: COLORS.neutral[900],
+    marginBottom: 6,
   },
-  subtitle: {
-    fontSize: 14,
-    color: '#a5bda6',
-    marginBottom: 20,
-    textAlign: 'center',
+  authSubtitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    color: COLORS.neutral[400],
+    marginBottom: SPACING[24],
+    textAlign: "center",
+    fontWeight: TYPOGRAPHY.weights.medium,
   },
   input: {
-    width: '100%',
-    height: 50,
-    backgroundColor: '#273e29',
-    color: '#ffffff',
+    width: "100%",
+    height: 40,
+    backgroundColor: COLORS.neutral[50],
+    borderColor: COLORS.neutral[200],
+    borderWidth: 1,
+    color: COLORS.neutral[900],
     borderRadius: 8,
-    paddingHorizontal: 15,
-    marginBottom: 15,
-    fontSize: 16,
+    paddingHorizontal: 12,
+    marginBottom: 12,
+    fontSize: 14,
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    ...Platform.select({
+      web: {
+        outlineWidth: 0,
+        transition: 'all 200ms ease-out',
+      },
+    }),
   },
   authButton: {
-    width: '100%',
-    height: 50,
-    backgroundColor: '#2e7d32',
-    justifyContent: 'center',
-    alignItems: 'center',
+    width: "100%",
+    height: 40,
+    backgroundColor: COLORS.brand[700],
+    justifyContent: "center",
+    alignItems: "center",
     borderRadius: 8,
-    marginTop: 10,
+    marginTop: 8,
+    ...Platform.select({
+      web: {
+        transition: 'background-color 200ms ease-out',
+        cursor: 'pointer',
+      },
+    }),
+  },
+  authButtonDisabled: {
+    opacity: 0.6,
+  },
+  bypassButton: {
+    width: "100%",
+    height: 40,
+    backgroundColor: 'transparent',
+    borderColor: COLORS.neutral[200],
+    borderWidth: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 8,
+    marginTop: 12,
+    ...Platform.select({
+      web: {
+        transition: 'all 200ms ease-out',
+        cursor: 'pointer',
+      },
+    }),
+  },
+  bypassButtonDisabled: {
+    opacity: 0.6,
   },
   buttonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: 'bold',
+    color: COLORS.neutral.white,
+    fontSize: 14,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    fontFamily: TYPOGRAPHY.fonts.primary,
+  },
+  bypassButtonText: {
+    color: COLORS.neutral[600],
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    fontFamily: TYPOGRAPHY.fonts.primary,
   },
   errorText: {
-    color: '#ff8a80',
+    color: COLORS.semantic.error,
     marginBottom: 10,
-    textAlign: 'center',
+    textAlign: "center",
+    fontSize: 13,
+    fontFamily: TYPOGRAPHY.fonts.primary,
   },
-  toggleText: {
-    color: '#a5bda6',
-    fontSize: 14,
-    textDecorationLine: 'underline',
+  authToggleText: {
+    color: COLORS.neutral[500],
+    fontSize: 13,
+    marginTop: SPACING[16],
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    textAlign: "center",
   },
-  statusText: {
-    color: '#a5bda6',
-    marginTop: 12,
+  authToggleLink: {
+    color: COLORS.brand[700],
+    fontWeight: TYPOGRAPHY.weights.semibold,
+  },
+  verifyDescription: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    color: COLORS.neutral[500],
+    textAlign: "center",
+    marginBottom: SPACING[16],
+    lineHeight: 18,
+  },
+  placeholderContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: SPACING[20],
+  },
+  placeholderCard: {
+    backgroundColor: COLORS.neutral.white,
+    borderRadius: RADIUS.card,
+    borderWidth: 1,
+    borderColor: COLORS.neutral[200],
+    padding: SPACING[32],
+    maxWidth: 600,
+    alignItems: "center",
+    textAlign: "center",
+  },
+  placeholderTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 24,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: COLORS.neutral[900],
+    marginBottom: SPACING[12],
+  },
+  placeholderText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 14,
-    textAlign: 'center',
-    fontWeight: 'bold',
+    color: COLORS.neutral[500],
+    textAlign: "center",
+    lineHeight: 22,
   },
   roleBadge: {
     backgroundColor: '#273e29',
