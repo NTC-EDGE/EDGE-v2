@@ -99,7 +99,7 @@ try
     }
 
     app.MapApiEndpoints();
-8
+
     app.MapGet("/", () => "NTC-EDGE Clean Architecture API (.NET 10)");
 
     // Map SignalR Hub

@@ -122,7 +122,7 @@ namespace EDGE.Infrastructure.Migrations
                     b.ToTable("AuditLogs", "public");
                 });
 
-            modelBuilder.Entity("EDGE.Domain.Entities.User", b =>
+            modelBuilder.Entity("EDGE.Domain.Entities.Permission", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -134,6 +134,385 @@ namespace EDGE.Infrastructure.Migrations
                     b.Property<string>("CreatedBy")
                         .HasColumnType("text");
 
+                    b.Property<string>("Description")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Permissions", "public");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("20000000-0000-0000-0000-000000000001"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Can submit new applications",
+                            Key = "applications.submit",
+                            Name = "Submit Application"
+                        },
+                        new
+                        {
+                            Id = new Guid("20000000-0000-0000-0000-000000000002"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Can view personal applications",
+                            Key = "applications.view_own",
+                            Name = "View Own Applications"
+                        },
+                        new
+                        {
+                            Id = new Guid("20000000-0000-0000-0000-000000000003"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Can view all applications in system",
+                            Key = "applications.view_all",
+                            Name = "View All Applications"
+                        },
+                        new
+                        {
+                            Id = new Guid("20000000-0000-0000-0000-000000000004"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Can run evaluation checks",
+                            Key = "applications.evaluate",
+                            Name = "Evaluate Application"
+                        },
+                        new
+                        {
+                            Id = new Guid("20000000-0000-0000-0000-000000000005"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Can approve or reject applications",
+                            Key = "applications.approve",
+                            Name = "Approve Application"
+                        },
+                        new
+                        {
+                            Id = new Guid("20000000-0000-0000-0000-000000000006"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Can create bills and invoices",
+                            Key = "billing.create",
+                            Name = "Create Billing"
+                        },
+                        new
+                        {
+                            Id = new Guid("20000000-0000-0000-0000-000000000007"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Can process payments and print receipts",
+                            Key = "billing.collect",
+                            Name = "Collect Payment"
+                        },
+                        new
+                        {
+                            Id = new Guid("20000000-0000-0000-0000-000000000008"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Can update user roles and configurations",
+                            Key = "users.manage",
+                            Name = "Manage Users"
+                        },
+                        new
+                        {
+                            Id = new Guid("20000000-0000-0000-0000-000000000009"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Full system administration capability",
+                            Key = "system.admin",
+                            Name = "System Admin Access"
+                        });
+                });
+
+            modelBuilder.Entity("EDGE.Domain.Entities.Role", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Roles", "public");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("10000000-0000-0000-0000-000000000001"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "External portal user requesting services",
+                            Key = "client",
+                            Name = "Client"
+                        },
+                        new
+                        {
+                            Id = new Guid("10000000-0000-0000-0000-000000000002"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Staff member performing assessments",
+                            Key = "evaluator",
+                            Name = "Evaluator"
+                        },
+                        new
+                        {
+                            Id = new Guid("10000000-0000-0000-0000-000000000003"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Executive approver of applications",
+                            Key = "higherups",
+                            Name = "Higher-Ups"
+                        },
+                        new
+                        {
+                            Id = new Guid("10000000-0000-0000-0000-000000000004"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Billing and financial administrator",
+                            Key = "accountant",
+                            Name = "Accountant"
+                        },
+                        new
+                        {
+                            Id = new Guid("10000000-0000-0000-0000-000000000005"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "Payment processing administrator",
+                            Key = "cashier",
+                            Name = "Cashier"
+                        },
+                        new
+                        {
+                            Id = new Guid("10000000-0000-0000-0000-000000000006"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "System administrator with full access",
+                            Key = "admin",
+                            Name = "Administrator"
+                        });
+                });
+
+            modelBuilder.Entity("EDGE.Domain.Entities.RolePermission", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("PermissionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("RoleId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PermissionId");
+
+                    b.HasIndex("RoleId");
+
+                    b.ToTable("RolePermissions", "public");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("30000000-0000-0000-0000-000000000001"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            PermissionId = new Guid("20000000-0000-0000-0000-000000000001"),
+                            RoleId = new Guid("10000000-0000-0000-0000-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("30000000-0000-0000-0000-000000000002"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            PermissionId = new Guid("20000000-0000-0000-0000-000000000002"),
+                            RoleId = new Guid("10000000-0000-0000-0000-000000000001")
+                        },
+                        new
+                        {
+                            Id = new Guid("30000000-0000-0000-0000-000000000003"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            PermissionId = new Guid("20000000-0000-0000-0000-000000000003"),
+                            RoleId = new Guid("10000000-0000-0000-0000-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("30000000-0000-0000-0000-000000000004"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            PermissionId = new Guid("20000000-0000-0000-0000-000000000004"),
+                            RoleId = new Guid("10000000-0000-0000-0000-000000000002")
+                        },
+                        new
+                        {
+                            Id = new Guid("30000000-0000-0000-0000-000000000005"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            PermissionId = new Guid("20000000-0000-0000-0000-000000000003"),
+                            RoleId = new Guid("10000000-0000-0000-0000-000000000003")
+                        },
+                        new
+                        {
+                            Id = new Guid("30000000-0000-0000-0000-000000000006"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            PermissionId = new Guid("20000000-0000-0000-0000-000000000005"),
+                            RoleId = new Guid("10000000-0000-0000-0000-000000000003")
+                        },
+                        new
+                        {
+                            Id = new Guid("30000000-0000-0000-0000-000000000007"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            PermissionId = new Guid("20000000-0000-0000-0000-000000000003"),
+                            RoleId = new Guid("10000000-0000-0000-0000-000000000004")
+                        },
+                        new
+                        {
+                            Id = new Guid("30000000-0000-0000-0000-000000000008"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            PermissionId = new Guid("20000000-0000-0000-0000-000000000006"),
+                            RoleId = new Guid("10000000-0000-0000-0000-000000000004")
+                        },
+                        new
+                        {
+                            Id = new Guid("30000000-0000-0000-0000-000000000009"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            PermissionId = new Guid("20000000-0000-0000-0000-000000000003"),
+                            RoleId = new Guid("10000000-0000-0000-0000-000000000005")
+                        },
+                        new
+                        {
+                            Id = new Guid("30000000-0000-0000-0000-000000000010"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            PermissionId = new Guid("20000000-0000-0000-0000-000000000007"),
+                            RoleId = new Guid("10000000-0000-0000-0000-000000000005")
+                        },
+                        new
+                        {
+                            Id = new Guid("30000000-0000-0000-0000-000000000011"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            PermissionId = new Guid("20000000-0000-0000-0000-000000000001"),
+                            RoleId = new Guid("10000000-0000-0000-0000-000000000006")
+                        },
+                        new
+                        {
+                            Id = new Guid("30000000-0000-0000-0000-000000000012"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            PermissionId = new Guid("20000000-0000-0000-0000-000000000002"),
+                            RoleId = new Guid("10000000-0000-0000-0000-000000000006")
+                        },
+                        new
+                        {
+                            Id = new Guid("30000000-0000-0000-0000-000000000013"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            PermissionId = new Guid("20000000-0000-0000-0000-000000000003"),
+                            RoleId = new Guid("10000000-0000-0000-0000-000000000006")
+                        },
+                        new
+                        {
+                            Id = new Guid("30000000-0000-0000-0000-000000000014"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            PermissionId = new Guid("20000000-0000-0000-0000-000000000004"),
+                            RoleId = new Guid("10000000-0000-0000-0000-000000000006")
+                        },
+                        new
+                        {
+                            Id = new Guid("30000000-0000-0000-0000-000000000015"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            PermissionId = new Guid("20000000-0000-0000-0000-000000000005"),
+                            RoleId = new Guid("10000000-0000-0000-0000-000000000006")
+                        },
+                        new
+                        {
+                            Id = new Guid("30000000-0000-0000-0000-000000000016"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            PermissionId = new Guid("20000000-0000-0000-0000-000000000006"),
+                            RoleId = new Guid("10000000-0000-0000-0000-000000000006")
+                        },
+                        new
+                        {
+                            Id = new Guid("30000000-0000-0000-0000-000000000017"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            PermissionId = new Guid("20000000-0000-0000-0000-000000000007"),
+                            RoleId = new Guid("10000000-0000-0000-0000-000000000006")
+                        },
+                        new
+                        {
+                            Id = new Guid("30000000-0000-0000-0000-000000000018"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            PermissionId = new Guid("20000000-0000-0000-0000-000000000008"),
+                            RoleId = new Guid("10000000-0000-0000-0000-000000000006")
+                        },
+                        new
+                        {
+                            Id = new Guid("30000000-0000-0000-0000-000000000019"),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            PermissionId = new Guid("20000000-0000-0000-0000-000000000009"),
+                            RoleId = new Guid("10000000-0000-0000-0000-000000000006")
+                        });
+                });
+
+            modelBuilder.Entity("EDGE.Domain.Entities.User", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AuthUserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("BarangayId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ContactNumber")
+                        .HasColumnType("text");
+
+                    b.Property<string>("CourseTaken")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("DateOfBirth")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ESignature")
+                        .HasColumnType("text");
+
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasColumnType("text");
@@ -141,6 +520,12 @@ namespace EDGE.Infrastructure.Migrations
                     b.Property<string>("FirstName")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<float?>("Height")
+                        .HasColumnType("real");
+
+                    b.Property<bool?>("IsOnline")
+                        .HasColumnType("boolean");
 
                     b.Property<DateTime?>("LastModifiedAt")
                         .HasColumnType("timestamp with time zone");
@@ -152,15 +537,45 @@ namespace EDGE.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("PasswordHash")
-                        .IsRequired()
+                    b.Property<DateTime?>("LastOnline")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("MiddleName")
                         .HasColumnType("text");
 
-                    b.Property<string>("Role")
-                        .IsRequired()
+                    b.Property<string>("Nationality")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ProfilePicture")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("RoleId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("SchoolAttended")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Sex")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Street")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Suffix")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Unit")
+                        .HasColumnType("text");
+
+                    b.Property<float?>("Weight")
+                        .HasColumnType("real");
+
+                    b.Property<string>("ZipCode")
                         .HasColumnType("text");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("RoleId");
 
                     b.ToTable("Users", "public");
 
@@ -168,63 +583,105 @@ namespace EDGE.Infrastructure.Migrations
                         new
                         {
                             Id = new Guid("11111111-1111-1111-1111-111111111111"),
+                            AuthUserId = "user_client123",
                             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             Email = "client@ntcedge.com",
                             FirstName = "John",
                             LastName = "Client",
-                            PasswordHash = "$2a$11$H/esh9ssCwL4iJaOPJWSa.aLLbSUZCZRcIS0WVReGuQeD/LyPvXRu",
-                            Role = "Client"
+                            RoleId = new Guid("10000000-0000-0000-0000-000000000001")
                         },
                         new
                         {
                             Id = new Guid("22222222-2222-2222-2222-222222222222"),
+                            AuthUserId = "user_evaluator123",
                             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             Email = "evaluator@ntcedge.com",
                             FirstName = "Jane",
                             LastName = "Evaluator",
-                            PasswordHash = "$2a$11$H/esh9ssCwL4iJaOPJWSa.aLLbSUZCZRcIS0WVReGuQeD/LyPvXRu",
-                            Role = "Evaluator"
+                            RoleId = new Guid("10000000-0000-0000-0000-000000000002")
                         },
                         new
                         {
                             Id = new Guid("33333333-3333-3333-3333-333333333333"),
+                            AuthUserId = "user_higherups123",
                             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             Email = "higherups@ntcedge.com",
                             FirstName = "Chief",
                             LastName = "Officer",
-                            PasswordHash = "$2a$11$H/esh9ssCwL4iJaOPJWSa.aLLbSUZCZRcIS0WVReGuQeD/LyPvXRu",
-                            Role = "HigherUps"
+                            RoleId = new Guid("10000000-0000-0000-0000-000000000003")
                         },
                         new
                         {
                             Id = new Guid("44444444-4444-4444-4444-444444444444"),
+                            AuthUserId = "user_accountant123",
                             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             Email = "accountant@ntcedge.com",
                             FirstName = "Alice",
                             LastName = "Accountant",
-                            PasswordHash = "$2a$11$H/esh9ssCwL4iJaOPJWSa.aLLbSUZCZRcIS0WVReGuQeD/LyPvXRu",
-                            Role = "Accountant"
+                            RoleId = new Guid("10000000-0000-0000-0000-000000000004")
                         },
                         new
                         {
                             Id = new Guid("55555555-5555-5555-5555-555555555555"),
+                            AuthUserId = "user_cashier123",
                             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             Email = "cashier@ntcedge.com",
                             FirstName = "Bob",
                             LastName = "Cashier",
-                            PasswordHash = "$2a$11$H/esh9ssCwL4iJaOPJWSa.aLLbSUZCZRcIS0WVReGuQeD/LyPvXRu",
-                            Role = "Cashier"
+                            RoleId = new Guid("10000000-0000-0000-0000-000000000005")
                         },
                         new
                         {
                             Id = new Guid("66666666-6666-6666-6666-666666666666"),
+                            AuthUserId = "user_admin123",
                             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             Email = "admin@ntcedge.com",
                             FirstName = "Super",
                             LastName = "Admin",
-                            PasswordHash = "$2a$11$H/esh9ssCwL4iJaOPJWSa.aLLbSUZCZRcIS0WVReGuQeD/LyPvXRu",
-                            Role = "Admin"
+                            RoleId = new Guid("10000000-0000-0000-0000-000000000006")
                         });
+                });
+
+            modelBuilder.Entity("EDGE.Domain.Entities.RolePermission", b =>
+                {
+                    b.HasOne("EDGE.Domain.Entities.Permission", "Permission")
+                        .WithMany("RolePermissions")
+                        .HasForeignKey("PermissionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("EDGE.Domain.Entities.Role", "Role")
+                        .WithMany("RolePermissions")
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Permission");
+
+                    b.Navigation("Role");
+                });
+
+            modelBuilder.Entity("EDGE.Domain.Entities.User", b =>
+                {
+                    b.HasOne("EDGE.Domain.Entities.Role", "Role")
+                        .WithMany("Users")
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Role");
+                });
+
+            modelBuilder.Entity("EDGE.Domain.Entities.Permission", b =>
+                {
+                    b.Navigation("RolePermissions");
+                });
+
+            modelBuilder.Entity("EDGE.Domain.Entities.Role", b =>
+                {
+                    b.Navigation("RolePermissions");
+
+                    b.Navigation("Users");
                 });
 #pragma warning restore 612, 618
         }
