@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { StyleSheet, View, Text, Pressable, Platform } from 'react-native';
-import { Feather as Lucide } from '@expo/vector-icons';
-import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY } from '@edge/ui';
+import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide } from '@edge/ui';
 import { UserRole, ROLES } from '../context/RoleContext';
 
 interface RoleDropdownItemProps {
@@ -47,6 +46,7 @@ interface RoleSwitcherProps {
   closeRoleDropdown: () => void;
   isSwitcherHovered: boolean;
   setIsSwitcherHovered: (hovered: boolean) => void;
+  variant?: 'header' | 'sidebar';
 }
 
 export function RoleSwitcher({
@@ -57,7 +57,12 @@ export function RoleSwitcher({
   closeRoleDropdown,
   isSwitcherHovered,
   setIsSwitcherHovered,
+  variant = 'header',
 }: RoleSwitcherProps) {
+  const isSidebar = variant === 'sidebar';
+  const textColor = isSidebar ? COLORS.neutral[700] : COLORS.neutral.white;
+  const iconColor = isSidebar ? COLORS.neutral[500] : COLORS.neutral.white;
+
   return (
     <View style={styles.switcherContainer}>
       <Pressable
@@ -66,20 +71,23 @@ export function RoleSwitcher({
         onHoverOut={() => setIsSwitcherHovered(false)}
         style={[
           styles.switcherBtn,
-          isSwitcherHovered && styles.switcherBtnHover,
+          isSidebar ? styles.switcherBtnSidebar : styles.switcherBtnHeader,
+          isSwitcherHovered && (isSidebar ? styles.switcherBtnSidebarHover : styles.switcherBtnHeaderHover),
         ]}
       >
         <Lucide
           name="user-check"
           size={16}
-          color={COLORS.neutral.white}
+          color={iconColor}
           style={styles.switcherIcon}
         />
-        <Text style={styles.switcherText}>Role: {currentRole}</Text>
+        <Text style={[styles.switcherText, { color: textColor }]}>
+          Role: {currentRole}
+        </Text>
         <Lucide
           name="chevron-down"
           size={14}
-          color={COLORS.neutral.white}
+          color={iconColor}
         />
       </Pressable>
 
@@ -90,7 +98,13 @@ export function RoleSwitcher({
             style={styles.dropdownOverlay}
             onPress={closeRoleDropdown}
           />
-          <View style={[styles.dropdownPopover, SHADOWS.modal]}>
+          <View
+            style={[
+              styles.dropdownPopover,
+              isSidebar ? styles.dropdownPopoverSidebar : styles.dropdownPopoverHeader,
+              SHADOWS.modal,
+            ]}
+          >
             <Text style={styles.dropdownHeader}>Switch Active Role</Text>
             {ROLES.map((role) => {
               const isSelected = currentRole === role;
@@ -118,12 +132,10 @@ const styles = StyleSheet.create({
   switcherBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
     paddingHorizontal: SPACING[12],
     paddingVertical: SPACING[8],
     borderRadius: RADIUS.input,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
     ...Platform.select({
       web: {
         transition: 'all 200ms ease-out',
@@ -131,15 +143,25 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  switcherBtnHover: {
+  switcherBtnHeader: {
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  switcherBtnHeaderHover: {
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  switcherBtnSidebar: {
+    backgroundColor: COLORS.neutral[50],
+    borderColor: COLORS.neutral[200],
+  },
+  switcherBtnSidebarHover: {
+    backgroundColor: COLORS.neutral[100],
   },
   switcherIcon: {
     marginRight: 8,
   },
   switcherText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    color: COLORS.neutral.white,
     fontSize: 13,
     fontWeight: TYPOGRAPHY.weights.medium,
     marginRight: 8,
@@ -154,8 +176,6 @@ const styles = StyleSheet.create({
   },
   dropdownPopover: {
     position: 'absolute',
-    top: 48,
-    right: 0,
     width: 200,
     backgroundColor: COLORS.neutral.white,
     borderRadius: RADIUS.card,
@@ -164,6 +184,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING[4],
     paddingVertical: SPACING[4],
     zIndex: 101,
+  },
+  dropdownPopoverHeader: {
+    top: 48,
+    right: 0,
+  },
+  dropdownPopoverSidebar: {
+    bottom: 44, // Open upwards on sidebar so it doesn't run off screen
+    left: 0,
+    width: 252, // Adapted width to fit sidebar padding nicely
   },
   dropdownHeader: {
     fontFamily: TYPOGRAPHY.fonts.primary,

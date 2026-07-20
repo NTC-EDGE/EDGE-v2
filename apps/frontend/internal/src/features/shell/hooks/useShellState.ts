@@ -9,6 +9,7 @@ export function useShellState() {
   const [showRoleDropdown, setShowRoleDropdown] = useState(false);
   const [isSwitcherHovered, setIsSwitcherHovered] = useState(false);
   const [isLogoutHovered, setIsLogoutHovered] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const toggleRoleDropdown = () => {
     setShowRoleDropdown((prev) => !prev);
@@ -23,6 +24,18 @@ export function useShellState() {
     setShowRoleDropdown(false);
   };
 
+  const openSidebar = () => {
+    setIsSidebarOpen(true);
+  };
+
+  const closeSidebar = () => {
+    setIsSidebarOpen(false);
+  };
+
+  const toggleSidebar = () => {
+    setIsSidebarOpen((prev) => !prev);
+  };
+
   return {
     currentRole,
     user,
@@ -35,5 +48,10 @@ export function useShellState() {
     setIsSwitcherHovered,
     isLogoutHovered,
     setIsLogoutHovered,
+    isSidebarOpen,
+    openSidebar,
+    closeSidebar,
+    toggleSidebar,
   };
 }
+

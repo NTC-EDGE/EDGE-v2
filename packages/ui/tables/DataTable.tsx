@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { StyleSheet, View, Text, TextInput, Pressable, Platform } from 'react-native';
+import { StyleSheet, View, Text, TextInput, Pressable, Platform, useWindowDimensions, ScrollView } from 'react-native';
 import { Feather as Lucide } from '@expo/vector-icons';
 import {
   useReactTable,
@@ -123,6 +123,8 @@ export function DataTable<TData, TValue>({
 }: DataTableProps<TData, TValue>) {
   const [searchText, setSearchText] = useState('');
   const [activeTab, setActiveTab] = useState<TabType>('All');
+  const { width } = useWindowDimensions();
+  const isMobile = width < 768;
 
   const filteredData = useMemo(() => {
     return data.filter((row) => {
@@ -179,7 +181,7 @@ export function DataTable<TData, TValue>({
   const hasNextPage = table.getCanNextPage();
 
   return (
-    <View style={[styles.container, SHADOWS.card]}>
+    <View style={[styles.container, isMobile && styles.containerMobile, SHADOWS.card]}>
       {/* Table Toolbar */}
       <View style={styles.toolbar}>
         {/* Status Tabs */}
@@ -202,7 +204,7 @@ export function DataTable<TData, TValue>({
         )}
 
         {/* Search Input */}
-        <View style={styles.searchContainer}>
+        <View style={[styles.searchContainer, isMobile && styles.searchContainerMobile]}>
           <Lucide name="search" size={15} color={COLORS.neutral[400]} style={styles.searchIcon} />
           <TextInput
             placeholder={searchPlaceholder}
@@ -214,43 +216,50 @@ export function DataTable<TData, TValue>({
         </View>
       </View>
 
-      {/* Main Table Grid */}
-      <View style={styles.tableWrapper}>
-        {/* Table Header */}
-        <View style={styles.tableHeaderRow}>
-          {table.getHeaderGroups().map((headerGroup) => (
-            <React.Fragment key={headerGroup.id}>
-              {headerGroup.headers.map((header) => {
-                const colFlex = header.column.columnDef.meta?.flex ?? 1;
+      {/* Main Table Grid - scrollable horizontally on mobile to prevent squishing */}
+      <ScrollView
+        horizontal={isMobile}
+        showsHorizontalScrollIndicator={isMobile}
+        scrollEnabled={isMobile}
+        style={isMobile ? styles.mobileTableScroll : undefined}
+      >
+        <View style={[styles.tableWrapper, isMobile && { width: 680 }]}>
+          {/* Table Header */}
+          <View style={styles.tableHeaderRow}>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <React.Fragment key={headerGroup.id}>
+                {headerGroup.headers.map((header) => {
+                  const colFlex = header.column.columnDef.meta?.flex ?? 1;
 
-                return (
-                  <View key={header.id} style={[styles.tableHeaderCell, { flex: colFlex }]}>
-                    <Text style={styles.headerText}>
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(header.column.columnDef.header, header.getContext())}
-                    </Text>
-                  </View>
-                );
-              })}
-            </React.Fragment>
-          ))}
-        </View>
-
-        {/* Table Body */}
-        {table.getRowModel().rows.length > 0 ? (
-          table.getRowModel().rows.map((row) => (
-            <View key={row.id} style={styles.tableRowContainer}>
-              <DataTableRow row={row} />
-            </View>
-          ))
-        ) : (
-          <View style={styles.emptyState}>
-            <Lucide name="folder" size={32} color={COLORS.neutral[300]} style={{ marginBottom: 12 }} />
-            <Text style={styles.emptyText}>No records found matching your selection.</Text>
+                  return (
+                    <View key={header.id} style={[styles.tableHeaderCell, { flex: colFlex }]}>
+                      <Text style={styles.headerText}>
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(header.column.columnDef.header, header.getContext())}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </React.Fragment>
+            ))}
           </View>
-        )}
-      </View>
+
+          {/* Table Body */}
+          {table.getRowModel().rows.length > 0 ? (
+            table.getRowModel().rows.map((row) => (
+              <View key={row.id} style={styles.tableRowContainer}>
+                <DataTableRow row={row} />
+              </View>
+            ))
+          ) : (
+            <View style={styles.emptyState}>
+              <Lucide name="folder" size={32} color={COLORS.neutral[300]} style={{ marginBottom: 12 }} />
+              <Text style={styles.emptyText}>No records found matching your selection.</Text>
+            </View>
+          )}
+        </View>
+      </ScrollView>
 
       {/* Table Pagination */}
       <View style={styles.pagination}>
@@ -282,6 +291,9 @@ const styles = StyleSheet.create({
     borderColor: COLORS.neutral[200],
     padding: SPACING[24],
     width: '100%',
+  },
+  containerMobile: {
+    padding: SPACING[12],
   },
   toolbar: {
     flexDirection: 'row',
@@ -460,5 +472,11 @@ const styles = StyleSheet.create({
         cursor: 'not-allowed',
       },
     }),
+  },
+  searchContainerMobile: {
+    width: '100%',
+  },
+  mobileTableScroll: {
+    width: '100%',
   },
 });

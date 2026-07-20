@@ -34,13 +34,10 @@
       "name": "ntc-edge-internal",
       "version": "1.0.0",
       "dependencies": {
-        "@clerk/clerk-expo": "^2.19.31",
         "@edge/api": "workspace:*",
         "@edge/ui": "workspace:*",
         "@expo/vector-icons": "^15.0.2",
         "@react-navigation/bottom-tabs": "8.0.0-alpha.35",
-        "@react-navigation/native": "8.0.0-alpha.35",
-        "@react-navigation/native-stack": "8.0.0-alpha.35",
         "@tanstack/react-table": "^8.20.5",
         "expo": "~57.0.7",
         "expo-secure-store": "^57.0.1",
@@ -80,14 +77,18 @@
       "name": "@edge/ui",
       "version": "1.0.0",
       "dependencies": {
+        "@clerk/clerk-expo": "^2.19.31",
+        "@expo/vector-icons": "^15.0.2",
+        "@react-navigation/native": "8.0.0-alpha.35",
+        "@react-navigation/native-stack": "8.0.0-alpha.35",
         "@tanstack/react-table": "^8.20.5",
       },
       "devDependencies": {
         "@types/react": "~19.2.2",
         "@types/react-native": "*",
+        "typescript": "~6.0.3",
       },
       "peerDependencies": {
-        "@expo/vector-icons": "*",
         "react": "*",
         "react-native": "*",
       },

@@ -1,11 +1,4 @@
-import React, { useState, useEffect } from "react";
-import {
-  createStaticNavigation,
-  useNavigationContainerRef,
-  ParamListBase,
-  RouteProp,
-} from "@react-navigation/native";
-import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { useState, useEffect } from "react";
 import { StatusBar } from "expo-status-bar";
 import {
   StyleSheet,
@@ -15,9 +8,9 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Platform,
+  KeyboardAvoidingView,
+  ScrollView,
 } from "react-native";
-import { ClerkProvider } from "@clerk/clerk-expo";
-import { Feather as Lucide } from "@expo/vector-icons";
 import { tokenCache } from "./tokenCache";
 import {
   COLORS,
@@ -25,6 +18,13 @@ import {
   RADIUS,
   SHADOWS,
   TYPOGRAPHY,
+  Icon as Lucide,
+  ClerkProvider,
+  createStaticNavigation,
+  useNavigationContainerRef,
+  ParamListBase,
+  RouteProp,
+  createNativeStackNavigator,
 } from "@edge/ui";
 import {
   AuthProvider,
@@ -215,147 +215,157 @@ function AuthScreen() {
   };
 
   return (
-    <View style={styles.authBg}>
-      <View style={[styles.authCard, SHADOWS.modal]}>
-        <View style={styles.authLogo}>
-          <Lucide name="shield" size={24} color={COLORS.brand[700]} />
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={styles.keyboardAvoid}
+    >
+      <ScrollView
+        contentContainerStyle={styles.scrollContainer}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.authBg}>
+          <View style={[styles.authCard, SHADOWS.modal]}>
+            <View style={styles.authLogo}>
+              <Lucide name="shield" size={24} color={COLORS.brand[700]} />
+            </View>
+            <Text style={styles.authTitle}>NTC-EDGE Staff Portal</Text>
+
+            {mode === "signin" && (
+              <>
+                <Text style={styles.authSubtitle}>Authentication Required</Text>
+                <TextInput
+                  autoCapitalize="none"
+                  placeholder="Email Address"
+                  placeholderTextColor={COLORS.neutral[400]}
+                  value={email}
+                  onChangeText={setEmail}
+                  style={styles.input}
+                  editable={!isSubmitting}
+                />
+                <TextInput
+                  placeholder="Password"
+                  placeholderTextColor={COLORS.neutral[400]}
+                  secureTextEntry={true}
+                  value={password}
+                  onChangeText={setPassword}
+                  style={styles.input}
+                  editable={!isSubmitting}
+                />
+
+                {error.length > 0 ? (
+                  <Text style={styles.errorText}>{error}</Text>
+                ) : null}
+
+                <TouchableOpacity
+                  style={[styles.authButton, isSubmitting && styles.authButtonDisabled]}
+                  onPress={handleSignIn}
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <ActivityIndicator size="small" color={COLORS.neutral.white} />
+                  ) : (
+                    <Text style={styles.buttonText}>Sign In</Text>
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity onPress={() => switchMode("signup")} disabled={isSubmitting}>
+                  <Text style={styles.authToggleText}>
+                    Don't have an account? <Text style={styles.authToggleLink}>Sign Up</Text>
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
+
+            {mode === "signup" && (
+              <>
+                <Text style={styles.authSubtitle}>Create Your Account</Text>
+                <TextInput
+                  autoCapitalize="none"
+                  placeholder="Email Address"
+                  placeholderTextColor={COLORS.neutral[400]}
+                  value={email}
+                  onChangeText={setEmail}
+                  style={styles.input}
+                  editable={!isSubmitting}
+                />
+                <TextInput
+                  placeholder="Password"
+                  placeholderTextColor={COLORS.neutral[400]}
+                  secureTextEntry={true}
+                  value={password}
+                  onChangeText={setPassword}
+                  style={styles.input}
+                  editable={!isSubmitting}
+                />
+
+                {error.length > 0 ? (
+                  <Text style={styles.errorText}>{error}</Text>
+                ) : null}
+
+                <TouchableOpacity
+                  style={[styles.authButton, isSubmitting && styles.authButtonDisabled]}
+                  onPress={handleSignUp}
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <ActivityIndicator size="small" color={COLORS.neutral.white} />
+                  ) : (
+                    <Text style={styles.buttonText}>Create Account</Text>
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity onPress={() => switchMode("signin")} disabled={isSubmitting}>
+                  <Text style={styles.authToggleText}>
+                    Already have an account? <Text style={styles.authToggleLink}>Sign In</Text>
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
+
+            {mode === "verify" && (
+              <>
+                <Text style={styles.authSubtitle}>Verify Your Email</Text>
+                <Text style={styles.verifyDescription}>
+                  We sent a verification code to {email}. Please enter it below to complete registration.
+                </Text>
+
+                <TextInput
+                  autoCapitalize="none"
+                  placeholder="Verification Code"
+                  placeholderTextColor={COLORS.neutral[400]}
+                  value={code}
+                  onChangeText={setCode}
+                  style={styles.input}
+                  editable={!isSubmitting}
+                />
+
+                {error.length > 0 ? (
+                  <Text style={styles.errorText}>{error}</Text>
+                ) : null}
+
+                <TouchableOpacity
+                  style={[styles.authButton, isSubmitting && styles.authButtonDisabled]}
+                  onPress={handleVerify}
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <ActivityIndicator size="small" color={COLORS.neutral.white} />
+                  ) : (
+                    <Text style={styles.buttonText}>Verify & Sign Up</Text>
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity onPress={() => switchMode("signup")} disabled={isSubmitting}>
+                  <Text style={styles.authToggleText}>
+                    Back to <Text style={styles.authToggleLink}>Sign Up</Text>
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
         </View>
-        <Text style={styles.authTitle}>NTC-EDGE Staff Portal</Text>
-
-        {mode === "signin" && (
-          <>
-            <Text style={styles.authSubtitle}>Authentication Required</Text>
-            <TextInput
-              autoCapitalize="none"
-              placeholder="Email Address"
-              placeholderTextColor={COLORS.neutral[400]}
-              value={email}
-              onChangeText={setEmail}
-              style={styles.input}
-              editable={!isSubmitting}
-            />
-            <TextInput
-              placeholder="Password"
-              placeholderTextColor={COLORS.neutral[400]}
-              secureTextEntry={true}
-              value={password}
-              onChangeText={setPassword}
-              style={styles.input}
-              editable={!isSubmitting}
-            />
-
-            {error.length > 0 ? (
-              <Text style={styles.errorText}>{error}</Text>
-            ) : null}
-
-            <TouchableOpacity
-              style={[styles.authButton, isSubmitting && styles.authButtonDisabled]}
-              onPress={handleSignIn}
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? (
-                <ActivityIndicator size="small" color={COLORS.neutral.white} />
-              ) : (
-                <Text style={styles.buttonText}>Sign In</Text>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity onPress={() => switchMode("signup")} disabled={isSubmitting}>
-              <Text style={styles.authToggleText}>
-                Don't have an account? <Text style={styles.authToggleLink}>Sign Up</Text>
-              </Text>
-            </TouchableOpacity>
-          </>
-        )}
-
-        {mode === "signup" && (
-          <>
-            <Text style={styles.authSubtitle}>Create Your Account</Text>
-            <TextInput
-              autoCapitalize="none"
-              placeholder="Email Address"
-              placeholderTextColor={COLORS.neutral[400]}
-              value={email}
-              onChangeText={setEmail}
-              style={styles.input}
-              editable={!isSubmitting}
-            />
-            <TextInput
-              placeholder="Password"
-              placeholderTextColor={COLORS.neutral[400]}
-              secureTextEntry={true}
-              value={password}
-              onChangeText={setPassword}
-              style={styles.input}
-              editable={!isSubmitting}
-            />
-
-            {error.length > 0 ? (
-              <Text style={styles.errorText}>{error}</Text>
-            ) : null}
-
-            <TouchableOpacity
-              style={[styles.authButton, isSubmitting && styles.authButtonDisabled]}
-              onPress={handleSignUp}
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? (
-                <ActivityIndicator size="small" color={COLORS.neutral.white} />
-              ) : (
-                <Text style={styles.buttonText}>Create Account</Text>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity onPress={() => switchMode("signin")} disabled={isSubmitting}>
-              <Text style={styles.authToggleText}>
-                Already have an account? <Text style={styles.authToggleLink}>Sign In</Text>
-              </Text>
-            </TouchableOpacity>
-          </>
-        )}
-
-        {mode === "verify" && (
-          <>
-            <Text style={styles.authSubtitle}>Verify Your Email</Text>
-            <Text style={styles.verifyDescription}>
-              We sent a verification code to {email}. Please enter it below to complete registration.
-            </Text>
-
-            <TextInput
-              autoCapitalize="none"
-              placeholder="Verification Code"
-              placeholderTextColor={COLORS.neutral[400]}
-              value={code}
-              onChangeText={setCode}
-              style={styles.input}
-              editable={!isSubmitting}
-            />
-
-            {error.length > 0 ? (
-              <Text style={styles.errorText}>{error}</Text>
-            ) : null}
-
-            <TouchableOpacity
-              style={[styles.authButton, isSubmitting && styles.authButtonDisabled]}
-              onPress={handleVerify}
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? (
-                <ActivityIndicator size="small" color={COLORS.neutral.white} />
-              ) : (
-                <Text style={styles.buttonText}>Verify & Sign Up</Text>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity onPress={() => switchMode("signup")} disabled={isSubmitting}>
-              <Text style={styles.authToggleText}>
-                Back to <Text style={styles.authToggleLink}>Sign Up</Text>
-              </Text>
-            </TouchableOpacity>
-          </>
-        )}
-      </View>
-    </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -422,6 +432,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.bg,
     alignItems: "center",
+    justifyContent: "center",
+  },
+  keyboardAvoid: {
+    flex: 1,
+    backgroundColor: COLORS.bg,
+  },
+  scrollContainer: {
+    flexGrow: 1,
     justifyContent: "center",
   },
   authBg: {

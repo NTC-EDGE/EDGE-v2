@@ -1,8 +1,7 @@
 import React from "react";
 import { StyleSheet, View, Text, Pressable } from "react-native";
-import { Feather as Lucide } from "@expo/vector-icons";
 import { ColumnDef } from "@tanstack/react-table";
-import { COLORS, SPACING, RADIUS, TYPOGRAPHY, DataTable, StatusBadge } from "@edge/ui";
+import { COLORS, SPACING, TYPOGRAPHY, DataTable, StatusBadge, Icon as Lucide } from "@edge/ui";
 import { mockApplications, ApplicationData } from "../data/mockApplications";
 
 const columns: ColumnDef<ApplicationData, unknown>[] = [

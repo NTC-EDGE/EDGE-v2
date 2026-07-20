@@ -4,15 +4,22 @@
   "main": "index.ts",
   "types": "index.ts",
   "dependencies": {
-    "@tanstack/react-table": "^8.20.5"
+    "@clerk/clerk-expo": "^2.19.31",
+    "@react-navigation/native": "8.0.0-alpha.35",
+    "@react-navigation/native-stack": "8.0.0-alpha.35",
+    "@tanstack/react-table": "^8.20.5",
+    "@expo/vector-icons": "^15.0.2"
   },
   "peerDependencies": {
     "react": "*",
-    "react-native": "*",
-    "@expo/vector-icons": "*"
+    "react-native": "*"
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
-    "@types/react-native": "*"
+    "@types/react-native": "*",
+    "typescript": "~6.0.3"
+  },
+  "scripts": {
+    "build": "tsc"
   }
 }
