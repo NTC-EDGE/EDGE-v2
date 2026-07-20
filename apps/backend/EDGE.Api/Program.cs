@@ -65,10 +65,15 @@ try
     // Configure OpenAPI
     builder.Services.AddOpenApi();
 
+    // Configure CORS
+    builder.Services.AddApiCors();
+
     var app = builder.Build();
 
     // Use global exception handling middleware
     app.UseMiddleware<ExceptionHandlingMiddleware>();
+
+    app.UseApiCors();
 
     app.UseAuthentication();
     app.UseAuthorization();
