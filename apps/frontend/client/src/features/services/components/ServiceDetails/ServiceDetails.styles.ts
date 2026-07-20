@@ -1,0 +1,142 @@
+import { StyleSheet, Platform } from "react-native";
+import { COLORS, SPACING, SHADOWS, TYPOGRAPHY } from "@edge/ui";
+
+export const styles = StyleSheet.create({
+  detailsContent: {
+    padding: SPACING[24],
+  },
+  mobileNavbar: {
+    height: 50,
+    backgroundColor: COLORS.neutral.white,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.neutral[200],
+    justifyContent: "center",
+    paddingHorizontal: SPACING[16],
+  },
+  mobileBackBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  mobileBackBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: COLORS.neutral[800],
+  },
+  backLink: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: SPACING[16],
+  },
+  backLinkText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: COLORS.brand[700],
+    marginLeft: 4,
+  },
+  detailsCard: {
+    backgroundColor: COLORS.neutral.white,
+    borderColor: COLORS.neutral[200],
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: SPACING[24],
+  },
+  detailsTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 22,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: COLORS.neutral[900],
+    marginBottom: SPACING[12],
+    lineHeight: 28,
+  },
+  detailsDescription: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    color: COLORS.neutral[500],
+    lineHeight: 22,
+    marginBottom: SPACING[20],
+  },
+  panelDivider: {
+    height: 1,
+    backgroundColor: COLORS.neutral[200],
+    marginVertical: SPACING[20],
+  },
+  sectionHeading: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: COLORS.neutral[800],
+    textTransform: "uppercase",
+    marginBottom: SPACING[12],
+    letterSpacing: 0.5,
+  },
+  requirementRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: SPACING[12],
+  },
+  bulletDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: COLORS.brand[700],
+    marginRight: 10,
+    marginTop: 7,
+  },
+  requirementText: {
+    flex: 1,
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    color: COLORS.neutral[700],
+    lineHeight: 20,
+  },
+  metadataGrid: {
+    flexDirection: "row",
+    gap: SPACING[16],
+    marginBottom: SPACING[24],
+  },
+  metaBox: {
+    flex: 1,
+    backgroundColor: COLORS.neutral[50],
+    borderColor: COLORS.neutral[200],
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    alignItems: "center",
+  },
+  metaLabel: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    color: COLORS.neutral[400],
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    textTransform: "uppercase",
+    marginBottom: 2,
+  },
+  metaValue: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: COLORS.neutral[800],
+    textAlign: "center",
+  },
+  applyBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: COLORS.brand[700],
+    paddingVertical: 12,
+    borderRadius: 8,
+    ...Platform.select({
+      web: {
+        cursor: "pointer",
+      },
+    }),
+  },
+  applyBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 15,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: COLORS.neutral.white,
+  },
+});
