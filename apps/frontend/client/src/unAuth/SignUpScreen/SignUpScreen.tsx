@@ -14,15 +14,11 @@ import { COLORS, SHADOWS, SPACING, RADIUS, TYPOGRAPHY } from '../../shared/theme
 import { Input } from '../../shared/components/Input';
 import { Button } from '../../shared/components/Button';
 import { Logo } from '../../shared/components/Logo';
+import { useNavigation } from '@react-navigation/native';
 import { useSignUp } from '@clerk/clerk-expo';
 
-interface SignUpScreenProps {
-  navigation: {
-    navigate: (screen: string) => void;
-  };
-}
-
-export function SignUpScreen({ navigation }: SignUpScreenProps) {
+export function SignUpScreen() {
+  const navigation = useNavigation<any>();
   const { signUp, setActive, isLoaded: signUpLoaded } = useSignUp();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');

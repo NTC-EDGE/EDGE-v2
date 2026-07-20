@@ -21,15 +21,10 @@ import { Input } from "../../shared/components/Input";
 import { Button } from "../../shared/components/Button";
 import { Logo } from "../../shared/components/Logo";
 
-interface ForgotPasswordScreenProps {
-  navigation: {
-    navigate: (screen: string) => void;
-  };
-}
+import { useNavigation } from "@react-navigation/native";
 
-export function ForgotPasswordScreen({
-  navigation,
-}: ForgotPasswordScreenProps) {
+export function ForgotPasswordScreen() {
+  const navigation = useNavigation<any>();
   const [email, setEmail] = useState("");
   const [emailError, setEmailError] = useState("");
   const [loading, setLoading] = useState(false);
