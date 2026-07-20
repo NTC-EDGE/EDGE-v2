@@ -9,9 +9,9 @@ interface LogoProps {
   style?: ViewStyle;
 }
 
-export function Logo({ height = 44, style }: LogoProps) {
-  // Standard aspect ratio for ntc-logo.png
-  const width = height * 3.5;
+export function Logo({ height = 56, style }: LogoProps) {
+  // Generous aspect ratio (3.8:1) for ntc-logo.png to render crystal clear
+  const width = height * 3.8;
 
   return (
     <View style={[styles.container, { height, width }, style]}>
