@@ -1,0 +1,20 @@
+name: Build Internal Android
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: 'EAS Build profile to use'
+        required: true
+        type: choice
+        default: preview
+        options:
+          - development
+          - preview
+          - production
+jobs:
+  build:
+    name: Build Android App
+    type: build
+    params:
+      platform: android
+      profile: ${{ inputs.profile }}
