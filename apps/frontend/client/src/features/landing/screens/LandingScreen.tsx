@@ -180,6 +180,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
 
   // In-modal Login form states
   const [loginRegion, setLoginRegion] = useState('');
+  const [isLoginRegionDropdownOpen, setIsLoginRegionDropdownOpen] = useState(false);
   const [loginPhoneOrEmail, setLoginPhoneOrEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -204,12 +205,14 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
   const closeGetStartedModal = () => {
     setIsGetStartedModalVisible(false);
     setModalMode('choice');
+    setIsLoginRegionDropdownOpen(false);
     resetLoginForm();
     resetForgotPasswordForm();
   };
 
   const resetLoginForm = () => {
     setLoginRegion('');
+    setIsLoginRegionDropdownOpen(false);
     setLoginPhoneOrEmail('');
     setLoginPassword('');
     setShowPassword(false);
@@ -1468,7 +1471,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
           <TouchableOpacity
             style={[styles.modalCard, SHADOWS.modal]}
             activeOpacity={1}
-            onPress={() => {}}
+            onPress={() => setIsLoginRegionDropdownOpen(false)}
           >
             {/* Header Nav inside Modal */}
             <View style={styles.modalTopNavRow}>
@@ -1574,20 +1577,58 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
                   ) : null}
 
                   <View style={styles.modalLoginFormContainer}>
-                    {/* Region Select */}
-                    <Select
-                      label="Philippine Region"
-                      placeholder="Select your region..."
-                      value={loginRegion}
-                      onValueChange={(val) => {
-                        setLoginRegion(val);
-                        setLoginRegionError('');
-                      }}
-                      options={PHILIPPINE_REGIONS.map((r) => ({ label: r, value: r }))}
-                      error={loginRegionError}
-                      iconName="map-pin"
-                      style={{ marginBottom: 14 }}
-                    />
+                    {/* Region Picker Dropdown */}
+                    <View style={{ zIndex: 100, marginBottom: SPACING[16], position: 'relative' }}>
+                      <Text style={styles.dropdownLabel}>Philippine Region</Text>
+                      <TouchableOpacity
+                        style={[
+                          styles.dropdownTrigger,
+                          loginRegionError !== '' ? { borderColor: COLORS.semantic.error } : null,
+                        ]}
+                        activeOpacity={0.9}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          setIsLoginRegionDropdownOpen(!isLoginRegionDropdownOpen);
+                        }}
+                      >
+                        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 8 }}>
+                          <Lucide name="map-pin" size={18} color={COLORS.neutral[400]} style={{ marginRight: 12 }} />
+                          <Text
+                            style={loginRegion ? styles.dropdownSelectedText : styles.dropdownPlaceholderText}
+                            numberOfLines={1}
+                          >
+                            {loginRegion || 'Select your region...'}
+                          </Text>
+                        </View>
+                        <Lucide name={isLoginRegionDropdownOpen ? 'chevron-up' : 'chevron-down'} size={18} color={COLORS.neutral[500]} />
+                      </TouchableOpacity>
+
+                      {isLoginRegionDropdownOpen && (
+                        <View style={[styles.dropdownMenu, SHADOWS.modal]}>
+                          <ScrollView style={{ maxHeight: 180 }} nestedScrollEnabled={true}>
+                            {PHILIPPINE_REGIONS.map((region) => (
+                              <Pressable
+                                key={region}
+                                style={({ hovered }: PressableState) => [
+                                  styles.dropdownItem,
+                                  hovered ? styles.dropdownItemHovered : null,
+                                ]}
+                                onPress={() => {
+                                  setLoginRegion(region);
+                                  setIsLoginRegionDropdownOpen(false);
+                                  setLoginRegionError('');
+                                }}
+                              >
+                                <Text style={styles.dropdownItemText}>{region}</Text>
+                              </Pressable>
+                            ))}
+                          </ScrollView>
+                        </View>
+                      )}
+                      {loginRegionError !== '' ? (
+                        <Text style={styles.dropdownErrorText}>{loginRegionError}</Text>
+                      ) : null}
+                    </View>
 
                     {/* Phone No. / Email Address */}
                     <Input
@@ -3118,6 +3159,12 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: TYPOGRAPHY.sizes.body,
     color: COLORS.neutral[900],
+  },
+  dropdownErrorText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: TYPOGRAPHY.sizes.caption,
+    color: COLORS.semantic.error,
+    marginTop: SPACING[4],
   },
   dropdownMenu: {
     position: 'absolute',
