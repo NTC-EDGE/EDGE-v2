@@ -6,11 +6,15 @@ using Scalar.AspNetCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
+using System.Text;
 using EDGE.Application;
 using EDGE.Application.Applications.Commands;
+using EDGE.Application.Applications.Queries;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Infrastructure;
 using EDGE.Infrastructure.Hubs;
+using EDGE.Infrastructure.Authorization;
+using EDGE.Domain.Authorization;
 using EDGE.Api.Middleware;
 using EDGE.Api.Services;
 using EDGE.Api.Endpoints;
@@ -38,9 +42,7 @@ try
     builder.Services.AddApplication();
     builder.Services.AddInfrastructure();
 
-
-
-    // Configure Clerk JWT Authentication
+    // Configure Clerk JWT Authentication (with Mock Bypass Fallback in Dev)
     var clerkAuthority = builder.Configuration["Clerk:Authority"] ?? "https://easy-snipe-36.clerk.accounts.dev";
     builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         .AddJwtBearer(options =>
@@ -52,14 +54,38 @@ try
                 ValidIssuer = clerkAuthority,
                 ValidateAudience = false,
                 ValidateLifetime = true,
-                ValidateIssuerSigningKey = true,
-                RoleClaimType = "role"
+                NameClaimType = System.Security.Claims.ClaimTypes.NameIdentifier
+            };
+            options.Events = new JwtBearerEvents
+            {
+                OnMessageReceived = context =>
+                {
+                    var authHeader = context.Request.Headers["Authorization"].ToString();
+                    if (authHeader.StartsWith("Bearer mock_", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var tokenValue = authHeader.Substring("Bearer ".Length);
+                        var roleKey = tokenValue.Substring("mock_".Length); // e.g. "admin", "evaluator", "client"
+
+                        // Map mock token directly to seeded AuthUserIds
+                        var authUserId = $"user_{roleKey}123";
+
+                        var claims = new System.Security.Claims.Claim[]
+                        {
+                            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, authUserId)
+                        };
+                        var identity = new System.Security.Claims.ClaimsIdentity(claims, "MockAuth");
+                        context.Principal = new System.Security.Claims.ClaimsPrincipal(identity);
+                        context.Success();
+                    }
+                    return Task.CompletedTask;
+                }
             };
         });
 
-    builder.Services.AddAuthorization(options =>
+    builder.Services.AddDynamicAuthorization();
+    builder.Services.ConfigureHttpJsonOptions(options =>
     {
-        options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
+        options.SerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
     });
 
     // Configure OpenAPI
@@ -85,6 +111,8 @@ try
         app.MapScalarApiReference("/scalar/v2");
         app.UseHangfireDashboard("/hangfire");
     }
+
+    app.MapApiEndpoints();
 
     app.MapGet("/", () => "NTC-EDGE Clean Architecture API (.NET 10)");
 

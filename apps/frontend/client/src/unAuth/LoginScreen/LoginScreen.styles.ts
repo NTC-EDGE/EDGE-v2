@@ -1,0 +1,151 @@
+import { StyleSheet, Platform } from 'react-native';
+import { COLORS, SHADOWS, SPACING, RADIUS, TYPOGRAPHY } from '../../shared/theme/tokens';
+
+export const styles = StyleSheet.create({
+  keyboardContainer: {
+    flex: 1,
+    backgroundColor: COLORS.bg,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    padding: SPACING[20],
+    position: 'relative',
+  },
+  bgGlow: {
+    position: 'absolute',
+    top: '30%',
+    left: '25%',
+    width: 350,
+    height: 350,
+    borderRadius: 175,
+    backgroundColor: '#7392FF',
+    opacity: 0.15,
+    zIndex: -1,
+  },
+  outerContainer: {
+    width: '100%',
+    maxWidth: 440,
+    alignSelf: 'center',
+    zIndex: 1,
+  },
+  backButton: {
+    alignSelf: 'flex-start',
+    marginBottom: SPACING[16],
+  },
+  backButtonText: {
+    color: COLORS.neutral[600],
+    textDecorationLine: 'none',
+    marginLeft: 4,
+  },
+  card: {
+    backgroundColor: COLORS.glass.bg,
+    borderColor: COLORS.glass.border,
+    borderWidth: 1.5,
+    borderRadius: RADIUS.dialog,
+    padding: SPACING[32],
+    width: '100%',
+  },
+  logoWrapper: {
+    alignItems: 'center',
+    marginBottom: SPACING[24],
+  },
+  title: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 24,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: COLORS.neutral[900],
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    color: COLORS.neutral[500],
+    textAlign: 'center',
+    marginBottom: SPACING[24],
+  },
+  form: {
+    width: '100%',
+  },
+  forgotButton: {
+    alignSelf: 'flex-end',
+    marginBottom: SPACING[20],
+  },
+  forgotText: {
+    fontSize: TYPOGRAPHY.sizes.caption,
+    color: COLORS.brand[800],
+    textDecorationLine: 'none',
+  },
+  submitButton: {
+    width: '100%',
+  },
+  dividerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: SPACING[20],
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: COLORS.neutral[200],
+  },
+  dividerText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    color: COLORS.neutral[400],
+    paddingHorizontal: SPACING[12],
+    textTransform: 'uppercase',
+  },
+  guestButton: {
+    width: '100%',
+    borderColor: COLORS.neutral[300],
+  },
+  footerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: SPACING[24],
+  },
+  footerText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    color: COLORS.neutral[600],
+  },
+  footerLink: {
+    fontSize: 14,
+    color: COLORS.brand[800],
+    fontWeight: TYPOGRAPHY.weights.semibold,
+  },
+  generalError: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    color: COLORS.semantic.error,
+    backgroundColor: COLORS.semantic.errorBg,
+    borderColor: COLORS.semantic.errorBorder,
+    borderWidth: 1,
+    borderRadius: RADIUS.input,
+    padding: SPACING[12],
+    textAlign: 'center',
+    marginBottom: SPACING[16],
+  },
+  successBox: {
+    backgroundColor: COLORS.semantic.successBg,
+    borderColor: COLORS.semantic.successBorder,
+    borderWidth: 1,
+    borderRadius: RADIUS.input,
+    padding: SPACING[20],
+    marginVertical: SPACING[20],
+    alignItems: 'center',
+  },
+  successIcon: {
+    marginBottom: SPACING[8],
+  },
+  successText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    color: COLORS.semantic.success,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    textAlign: 'center',
+  },
+});

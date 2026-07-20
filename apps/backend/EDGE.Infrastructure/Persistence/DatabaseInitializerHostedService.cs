@@ -32,10 +32,15 @@ public class DatabaseInitializerHostedService : IHostedService
             await context.Database.MigrateAsync(cancellationToken);
             _logger.LogInformation("Database migrations applied successfully.");
 
-            // 2. Run seed geographic data
+            // 2. Seed IAM reference data (Roles, Permissions, RolePermissions, default Users)
+            _logger.LogInformation("Seeding database IAM reference data...");
+            await RolePermissionDataSeeder.SeedAsync(context);
+            _logger.LogInformation("IAM seed data completed.");
+
+            // 3. Seed geographic reference data
             _logger.LogInformation("Seeding database geographic reference data...");
             await GeographicDataSeeder.SeedAsync(context);
-            _logger.LogInformation("Database seeding completed.");
+            _logger.LogInformation("Geographic seed data completed.");
         }
         catch (Exception ex)
         {

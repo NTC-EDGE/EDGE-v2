@@ -4,16 +4,21 @@
     "module": "commonjs",
     "moduleResolution": "bundler",
     "jsx": "react-native",
-    "lib": ["dom", "es2022"],
+    "lib": [
+      "dom",
+      "es2022"
+    ],
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "declaration": true
+    "declaration": true,
+    "outDir": "dist"
   },
   "include": [
     "index.ts",
     "react-native.d.ts",
+    "tanstack-table.d.ts",
     "theme/**/*",
     "components/**/*",
     "tables/**/*"
