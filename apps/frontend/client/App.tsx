@@ -1,8 +1,8 @@
 
 import "./src/navigation";
 import { createStaticNavigation } from "@react-navigation/native";
-import { ClerkProvider, useAuth } from "@clerk/clerk-expo";
-import { tokenCache } from "./tokenCache";
+import { ClerkProvider, useAuth } from "@clerk/expo";
+import { tokenCache } from "@clerk/expo/token-cache";
 import { UnauthenticatedStack, type UnauthParamList } from "./src/routes/public";
 import { AuthenticatedStack, type AuthParamList } from "./src/routes/auth";
 

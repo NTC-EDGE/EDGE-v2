@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { Icon } from "@edge/ui";
 import { useNavigation, NavigationProp } from "@react-navigation/native";
-import { useUser, useAuth } from "@clerk/clerk-expo";
+import { useUser, useAuth } from "@clerk/expo";
 import { apiClient } from "@edge/api";
 import { styles } from "./MyApplications.styles";
 

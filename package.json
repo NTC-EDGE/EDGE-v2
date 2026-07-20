@@ -25,5 +25,8 @@
     "internal:check-types": "bun --filter ntc-edge-internal check-types",
     "admin:check-types": "bun --filter @edge/admin check-types",
     "check-types": "bun --filter ntc-edge-app --filter ntc-edge-internal --filter @edge/admin check-types"
+  },
+  "overrides": {
+    "lru-cache": "^7.18.3"
   }
 }

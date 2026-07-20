@@ -21,7 +21,7 @@ import { Input } from "../../shared/components/Input";
 import { Button } from "../../shared/components/Button";
 import { Logo } from "../../shared/components/Logo";
 import { useNavigation, NavigationProp } from "@react-navigation/native";
-import { useSignIn, isClerkAPIResponseError } from "@clerk/clerk-expo";
+import { useSignIn, isClerkAPIResponseError } from "@clerk/expo";
 import { Select } from "../../shared/components/Select";
 import { PHILIPPINE_REGIONS } from "../../shared/constants/regions";
 
@@ -34,7 +34,8 @@ type UnauthParamList = {
 
 export function LoginScreen() {
   const navigation = useNavigation();
-  const { signIn, setActive, isLoaded: signInLoaded } = useSignIn();
+  const signInResult = useSignIn();
+  const { signIn } = signInResult;
   const [region, setRegion] = useState("");
   const [phoneOrEmail, setPhoneOrEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -65,64 +66,47 @@ export function LoginScreen() {
         duration: 650,
         useNativeDriver: true,
       }),
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(glowAnim, {
+            toValue: 1,
+            duration: 4000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(glowAnim, {
+            toValue: 0,
+            duration: 4000,
+            useNativeDriver: true,
+          }),
+        ]),
+      ),
     ]).start();
-
-    // Subtle background glow breathing effect
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(glowAnim, {
-          toValue: 1,
-          duration: 4000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(glowAnim, {
-          toValue: 0,
-          duration: 4000,
-          useNativeDriver: true,
-        }),
-      ]),
-    ).start();
   }, [cardFade, cardSlide, glowAnim]);
 
-  const validate = (): boolean => {
-    let isValid = true;
-    setRegionError("");
-    setPhoneOrEmailError("");
-    setPasswordError("");
-    setGeneralError("");
-
-    if (region.length === 0) {
-      setRegionError("Philippine region is required");
-      isValid = false;
-    }
-
-    const trimmedIdentifier = phoneOrEmail.trim();
-    if (trimmedIdentifier.length === 0) {
-      setPhoneOrEmailError("Phone number or email address is required");
-      isValid = false;
-    } else if (trimmedIdentifier.includes("@")) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(trimmedIdentifier)) {
-        setPhoneOrEmailError("Please enter a valid email address");
-        isValid = false;
-      }
+  const validate = () => {
+    let valid = true;
+    if (!region) {
+      setRegionError("Please select your region.");
+      valid = false;
     } else {
-      const sanitizedPhone = trimmedIdentifier.replace(/\s+/g, "");
-      const phoneRegex = /^\+?[0-9]{10,15}$/;
-      if (!phoneRegex.test(sanitizedPhone)) {
-        setPhoneOrEmailError(
-          "Please enter a valid phone number or email address",
-        );
-        isValid = false;
-      }
+      setRegionError("");
     }
 
-    if (password.length === 0) {
-      setPasswordError("Password is required");
-      isValid = false;
+    if (!phoneOrEmail) {
+      setPhoneOrEmailError("Email or phone number is required.");
+      valid = false;
+    } else {
+      setPhoneOrEmailError("");
     }
 
-    return isValid;
+    if (!password) {
+      setPasswordError("Password is required.");
+      valid = false;
+    } else {
+      setPasswordError("");
+    }
+
+    return valid;
   };
 
   const handleSignIn = async () => {
@@ -131,7 +115,7 @@ export function LoginScreen() {
     setLoading(true);
     setGeneralError("");
 
-    if (!signInLoaded) {
+    if (signIn === null) {
       setGeneralError(
         "Authentication service is not loaded yet. Please try again.",
       );
@@ -140,19 +124,26 @@ export function LoginScreen() {
     }
 
     try {
-      const completeSignIn = await signIn.create({
+      const result = await signIn.create({
         identifier: phoneOrEmail,
         password,
       });
 
-      if (completeSignIn.status === "complete") {
-        if (setActive !== undefined) {
-          await setActive({ session: completeSignIn.createdSessionId });
+      if (result.error) {
+        setGeneralError(result.error.message || "Invalid email/phone or password.");
+        return;
+      }
+
+      if (signIn.status === "complete") {
+        const finalizeResult = await signIn.finalize();
+        if (finalizeResult.error) {
+          setGeneralError(finalizeResult.error.message || "Sign-in finalization failed.");
+        } else {
+          setSuccess(true);
         }
-        setSuccess(true);
       } else {
         setGeneralError(
-          `Unable to complete sign-in. Status is: ${completeSignIn.status}. Please complete verification.`,
+          `Unable to complete sign-in. Status is: ${signIn.status}. Please complete verification.`,
         );
       }
     } catch (err: unknown) {
