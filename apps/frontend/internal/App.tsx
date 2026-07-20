@@ -34,6 +34,7 @@ import { RoleProvider } from "./src/features/shell/context/RoleContext";
 import { DashboardShell } from "./src/features/shell/components/DashboardShell";
 import { DashboardScreen } from "./src/features/dashboard/screens/DashboardScreen";
 import { QueueScreen } from "./src/features/queue/screens/QueueScreen";
+import { InternalLandingPage } from "./src/features/landing/components/InternalLandingPage";
 
 const getClerkKey = (): string => {
   const key = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
@@ -397,7 +398,7 @@ function AppContent() {
   }
 
   if (!isAuthenticated) {
-    return <AuthScreen />;
+    return <InternalLandingPage />;
   }
 
   return (
