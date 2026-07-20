@@ -52,14 +52,12 @@ jobs:
           fi
 
       - name: Pull Vercel Environment Information
-        working-directory: apps/frontend/client
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_CLIENT_PROJECT_ID }}
         run: npx vercel pull --yes --environment=${{ steps.resolve.outputs.vercel_env }} --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Build Project Artifacts
-        working-directory: apps/frontend/client
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_CLIENT_PROJECT_ID }}
@@ -67,7 +65,6 @@ jobs:
 
       - name: Deploy Project Artifacts to Vercel
         id: deploy
-        working-directory: apps/frontend/client
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_CLIENT_PROJECT_ID }}
