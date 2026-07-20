@@ -69,20 +69,9 @@ public static class DependencyInjection
 
         services.AddHangfireServer();
 
-        return services;
-    }
-}
+        // Register Database Initializer Hosted Service to apply migrations and seed data on startup
+        services.AddHostedService<DatabaseInitializerHostedService>();
 
-public static class WebApplicationExtensions
-{
-    /// <summary>
-    /// Seeds the database with Philippine geographic reference data (Regions → Provinces → Municipalities → Barangays)
-    /// on application startup. Skips seeding if data already exists.
-    /// </summary>
-    public static async Task SeedDatabaseAsync(this WebApplication app)
-    {
-        using var scope = app.Services.CreateScope();
-        var context = scope.ServiceProvider.GetRequiredService<EDGE.Infrastructure.Persistence.ApplicationDbContext>();
-        await EDGE.Infrastructure.Persistence.GeographicDataSeeder.SeedAsync(context);
+        return services;
     }
 }
