@@ -223,3 +223,88 @@ DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
 2026-07-20 11:21:50.074 +08:00 [INF] Executing endpoint 'HTTP: GET /openapi/{documentName}.json'
 2026-07-20 11:21:50.096 +08:00 [INF] Executed endpoint 'HTTP: GET /openapi/{documentName}.json'
 2026-07-20 11:21:50.099 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/openapi/v1.json - 200 null application/json;charset=utf-8 34.1417ms
+2026-07-20 11:24:16.233 +08:00 [INF] Starting NTC-EDGE Web API...
+2026-07-20 11:24:17.185 +08:00 [INF] Start installing Hangfire SQL objects...
+2026-07-20 11:24:18.199 +08:00 [INF] Hangfire SQL objects installed.
+2026-07-20 11:24:18.451 +08:00 [INF] User profile is available. Using 'C:\Users\User\AppData\Local\ASP.NET\DataProtection-Keys' as key repository and Windows DPAPI to encrypt keys at rest.
+2026-07-20 11:24:19.079 +08:00 [INF] Now listening on: https://localhost:7096
+2026-07-20 11:24:19.084 +08:00 [INF] Now listening on: http://localhost:5038
+2026-07-20 11:24:19.099 +08:00 [INF] No action descriptors found. This may indicate an incorrectly configured application or missing application parts. To learn more, visit https://aka.ms/aspnet/mvc/app-parts
+2026-07-20 11:24:19.210 +08:00 [INF] Starting Hangfire Server using job storage: 'PostgreSQL Server: Host: pg.dev.nextstep-software.com, DB: EDGE_DB, Schema: hangfire'
+2026-07-20 11:24:19.213 +08:00 [INF] Using the following options for PostgreSQL job storage:
+2026-07-20 11:24:19.217 +08:00 [INF]     Queue poll interval: 00:00:15.
+2026-07-20 11:24:19.220 +08:00 [INF]     Invisibility timeout: 00:30:00.
+2026-07-20 11:24:19.222 +08:00 [INF]     Use sliding invisibility timeout: False.
+2026-07-20 11:24:19.225 +08:00 [INF] Using the following options for Hangfire Server:
+    Worker count: 20
+    Listening queues: 'default'
+    Shutdown timeout: 00:00:15
+    Schedule polling interval: 00:00:15
+2026-07-20 11:24:19.261 +08:00 [INF] Application started. Press Ctrl+C to shut down.
+2026-07-20 11:24:19.276 +08:00 [INF] Hosting environment: Development
+2026-07-20 11:24:19.279 +08:00 [INF] Content root path: C:\Dev\NEXTSTEP\EDGE-v2\apps\backend\EDGE.Api
+2026-07-20 11:24:19.572 +08:00 [INF] Server laptop-rqcv0odj:51404:1d55c496 successfully announced in 292.2509 ms
+2026-07-20 11:24:19.591 +08:00 [INF] Server laptop-rqcv0odj:51404:1d55c496 is starting the registered dispatchers: ServerWatchdog, ServerJobCancellationWatcher, ExpirationManager, CountersAggregator, Worker, DelayedJobScheduler, RecurringJobScheduler...
+2026-07-20 11:24:19.884 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/scalar/v2 - null null
+2026-07-20 11:24:19.950 +08:00 [INF] Server laptop-rqcv0odj:51404:1d55c496 all the dispatchers started
+2026-07-20 11:24:20.614 +08:00 [INF] Executing endpoint 'HTTP: GET /scalar/v2/{documentName?}'
+2026-07-20 11:24:20.639 +08:00 [INF] Executing RedirectResult, redirecting to v2/.
+2026-07-20 11:24:20.644 +08:00 [INF] Executed endpoint 'HTTP: GET /scalar/v2/{documentName?}'
+2026-07-20 11:24:20.659 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/scalar/v2 - 302 null null 981.227ms
+2026-07-20 11:24:20.671 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/scalar/v2/ - null null
+2026-07-20 11:24:20.687 +08:00 [INF] Executing endpoint 'HTTP: GET /scalar/v2/{documentName?}'
+2026-07-20 11:24:20.993 +08:00 [INF] Write content with HTTP Response ContentType of text/html
+2026-07-20 11:24:21.030 +08:00 [INF] Executed endpoint 'HTTP: GET /scalar/v2/{documentName?}'
+2026-07-20 11:24:21.036 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/scalar/v2/ - 200 null text/html 365.368ms
+2026-07-20 11:24:21.042 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/scalar/v2/scalar.aspnetcore.js - null null
+2026-07-20 11:24:21.042 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/scalar/v2/scalar.js - null null
+2026-07-20 11:24:21.042 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/_framework/aspnetcore-browser-refresh.js - null null
+2026-07-20 11:24:21.059 +08:00 [INF] Executing endpoint 'HTTP: GET /scalar/v2/scalar.aspnetcore.js'
+2026-07-20 11:24:21.062 +08:00 [INF] Executing endpoint 'HTTP: GET /scalar/v2/scalar.js'
+2026-07-20 11:24:21.076 +08:00 [INF] Sending file with download name ''.
+2026-07-20 11:24:21.082 +08:00 [INF] Sending file with download name ''.
+2026-07-20 11:24:21.103 +08:00 [INF] Executed endpoint 'HTTP: GET /scalar/v2/scalar.aspnetcore.js'
+2026-07-20 11:24:21.107 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/scalar/v2/scalar.aspnetcore.js - 200 1111 text/javascript 64.6391ms
+2026-07-20 11:24:21.120 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/_framework/aspnetcore-browser-refresh.js - 200 14921 application/javascript; charset=utf-8 77.9766ms
+2026-07-20 11:24:21.142 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/_vs/browserLink - null null
+2026-07-20 11:24:21.156 +08:00 [INF] Executed endpoint 'HTTP: GET /scalar/v2/scalar.js'
+2026-07-20 11:24:21.161 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/scalar/v2/scalar.js - 200 1072587 text/javascript 119.4623ms
+2026-07-20 11:24:21.253 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/_vs/browserLink - 200 null text/javascript; charset=UTF-8 110.5075ms
+2026-07-20 11:24:21.808 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/openapi/v1.json - null null
+2026-07-20 11:24:21.818 +08:00 [INF] Executing endpoint 'HTTP: GET /openapi/{documentName}.json'
+2026-07-20 11:24:21.847 +08:00 [INF] Executed endpoint 'HTTP: GET /openapi/{documentName}.json'
+2026-07-20 11:24:21.850 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/openapi/v1.json - 200 null application/json;charset=utf-8 42.1134ms
+2026-07-20 11:24:22.925 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/scalar/v2/favicon.svg - null null
+2026-07-20 11:24:22.934 +08:00 [INF] Executing endpoint 'HTTP: GET /scalar/v2/favicon.svg'
+2026-07-20 11:24:22.938 +08:00 [INF] Sending file with download name ''.
+2026-07-20 11:24:22.941 +08:00 [INF] Executed endpoint 'HTTP: GET /scalar/v2/favicon.svg'
+2026-07-20 11:24:22.944 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/scalar/v2/favicon.svg - 200 533 image/svg+xml 18.7987ms
+2026-07-20 11:24:39.140 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/scalar/v2/ - null null
+2026-07-20 11:24:39.156 +08:00 [INF] Executing endpoint 'HTTP: GET /scalar/v2/{documentName?}'
+2026-07-20 11:24:39.168 +08:00 [INF] Write content with HTTP Response ContentType of text/html
+2026-07-20 11:24:39.171 +08:00 [INF] Executed endpoint 'HTTP: GET /scalar/v2/{documentName?}'
+2026-07-20 11:24:39.175 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/scalar/v2/ - 200 null text/html 36.6822ms
+2026-07-20 11:24:39.222 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/scalar/v2/scalar.js - null null
+2026-07-20 11:24:39.222 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/_framework/aspnetcore-browser-refresh.js - null null
+2026-07-20 11:24:39.222 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/scalar/v2/scalar.aspnetcore.js - null null
+2026-07-20 11:24:39.223 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/_vs/browserLink - null null
+2026-07-20 11:24:39.228 +08:00 [INF] Executing endpoint 'HTTP: GET /scalar/v2/scalar.js'
+2026-07-20 11:24:39.232 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/_framework/aspnetcore-browser-refresh.js - 200 14921 application/javascript; charset=utf-8 10.3406ms
+2026-07-20 11:24:39.239 +08:00 [INF] Executing endpoint 'HTTP: GET /scalar/v2/scalar.aspnetcore.js'
+2026-07-20 11:24:39.246 +08:00 [INF] Sending file with download name ''.
+2026-07-20 11:24:39.255 +08:00 [INF] Sending file with download name ''.
+2026-07-20 11:24:39.257 +08:00 [INF] Executed endpoint 'HTTP: GET /scalar/v2/scalar.js'
+2026-07-20 11:24:39.258 +08:00 [INF] Executed endpoint 'HTTP: GET /scalar/v2/scalar.aspnetcore.js'
+2026-07-20 11:24:39.260 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/scalar/v2/scalar.js - 304 null null 37.8099ms
+2026-07-20 11:24:39.261 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/scalar/v2/scalar.aspnetcore.js - 304 null null 38.8143ms
+2026-07-20 11:24:39.265 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/_vs/browserLink - 200 null text/javascript; charset=UTF-8 42.1319ms
+2026-07-20 11:24:39.333 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/openapi/v1.json - null null
+2026-07-20 11:24:39.347 +08:00 [INF] Executing endpoint 'HTTP: GET /openapi/{documentName}.json'
+2026-07-20 11:24:39.361 +08:00 [INF] Executed endpoint 'HTTP: GET /openapi/{documentName}.json'
+2026-07-20 11:24:39.377 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/openapi/v1.json - 200 null application/json;charset=utf-8 44.0483ms
+2026-07-20 11:24:39.380 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/scalar/v2/favicon.svg - null null
+2026-07-20 11:24:39.394 +08:00 [INF] Executing endpoint 'HTTP: GET /scalar/v2/favicon.svg'
+2026-07-20 11:24:39.395 +08:00 [INF] Sending file with download name ''.
+2026-07-20 11:24:39.396 +08:00 [INF] Executed endpoint 'HTTP: GET /scalar/v2/favicon.svg'
+2026-07-20 11:24:39.399 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/scalar/v2/favicon.svg - 304 null null 18.6121ms
+2026-07-20 11:29:20.263 +08:00 [INF] 2 servers were removed due to timeout
