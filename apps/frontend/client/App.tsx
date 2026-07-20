@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, createContext, useContext } from 'react';
 import { createStaticNavigation } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
@@ -193,6 +193,9 @@ function AppContent() {
 }
 
 export default function App() {
+  const [mockUser, setMockUser] = useState<any>(null);
+  const [useMock, setUseMock] = useState(publishableKey.length === 0);
+
   return (
     <ClerkProvider tokenCache={tokenCache} publishableKey={publishableKey}>
       <GuestAuthProvider>

@@ -16,8 +16,8 @@ npm-debug.*
 yarn-debug.*
 yarn-error.*
 *.log
-# .NET Serilog text logs
 logs/
+[Ll]ogs/
 *.txt
 
 # macOS / OS
@@ -52,3 +52,6 @@ ntcservices.json
 *.suo
 .vs/
 *.sln.docstates
+
+# VS Code
+.vscode/

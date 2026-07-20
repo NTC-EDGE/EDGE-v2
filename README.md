@@ -90,3 +90,32 @@ Run type checks for both client and internal applications:
 ```bash
 bun check-types
 ```
+
+---
+
+## Troubleshooting & Common Issues
+
+### 1. Unsupported Protocol Error (`EUNSUPPORTEDPROTOCOL`)
+If you try to run `npm install` or Yarn v1 (`Classic`), you will get an error like:
+```
+npm error code EUNSUPPORTEDPROTOCOL
+npm error Unsupported URL Type "workspace:": workspace:*
+```
+**Reason**: Standard `npm` and Yarn v1 do not support the `workspace:` protocol notation used to link local packages inside this monorepo.
+**Solution**: Use **`bun install`** (or Yarn Berry v2+ / pnpm) which natively support monorepos.
+
+### 2. `bun: command not found` in Git Bash (Windows)
+If you installed Bun but get a command not found error in Git Bash:
+**Reason**: Git Bash does not automatically sync environmental PATH changes on Windows without a reload.
+**Solution**:
+1. Run this command to load Bun in your current session:
+   ```bash
+   export PATH="$PATH:$USERPROFILE/.bun/bin"
+   ```
+2. Make it permanent by adding it to your `.bashrc`:
+   ```bash
+   echo 'export PATH="$PATH:$USERPROFILE/.bun/bin"' >> ~/.bashrc
+   source ~/.bashrc
+   ```
+3. Alternatively, run the commands from **PowerShell** or **Command Prompt** (cmd.exe) which reload the PATH variables immediately.
+
