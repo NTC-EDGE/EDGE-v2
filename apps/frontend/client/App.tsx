@@ -3,10 +3,15 @@ import { createStaticNavigation } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View, Button, TextInput, TouchableOpacity, Alert, Platform } from 'react-native';
-import { ClerkProvider, SignedIn, SignedOut, useAuth, useSignIn, useSignUp, useUser } from '@clerk/clerk-expo';
+import { ClerkProvider, useAuth, useUser } from '@clerk/clerk-expo';
 import { tokenCache } from './tokenCache';
 import { apiClient } from '@edge/api';
 import { ServicesPortal } from './src/features/services/components/ServicesPortal';
+import { GuestAuthProvider, useGuestAuth } from './src/features/auth/context/GuestAuthContext';
+import { LandingScreen } from './src/features/landing/screens/LandingScreen';
+import { LoginScreen } from './src/features/auth/screens/LoginScreen';
+import { SignUpScreen } from './src/features/auth/screens/SignUpScreen';
+import { ForgotPasswordScreen } from './src/features/auth/screens/ForgotPasswordScreen';
 
 const getClerkKey = (): string => {
   const key = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
@@ -30,9 +35,15 @@ interface ApplicationResponse {
   createdAt: string;
 }
 
-function HomeScreen({ navigation }: any) {
+interface NavigationProp {
+  navigate: (screen: string) => void;
+  goBack: () => void;
+}
+
+function HomeScreen({ navigation }: { navigation: NavigationProp }) {
   const { signOut, getToken } = useAuth();
   const { user: clerkUser } = useUser();
+  const { isGuest, logoutGuest } = useGuestAuth();
   const [submitting, setSubmitting] = useState(false);
 
   const userProfile = clerkUser !== null && clerkUser !== undefined ? {
@@ -47,9 +58,9 @@ function HomeScreen({ navigation }: any) {
   ) => {
     setSubmitting(true);
     try {
-      const token = await getToken();
+      const token = isGuest ? null : await getToken();
       const headers = token !== null ? { Authorization: `Bearer ${token}` } : {};
-      
+
       await apiClient.post<ApplicationResponse>(
         '/api/applications',
         {
@@ -77,6 +88,14 @@ function HomeScreen({ navigation }: any) {
     }
   };
 
+  const handleSignOut = async () => {
+    if (isGuest) {
+      logoutGuest();
+    } else {
+      await signOut();
+    }
+  };
+
   return (
     <View style={{ flex: 1 }}>
       <ServicesPortal
@@ -90,7 +109,7 @@ function HomeScreen({ navigation }: any) {
   );
 }
 
-function DetailsScreen({ navigation }: any) {
+function DetailsScreen({ navigation }: { navigation: NavigationProp }) {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Application Details</Text>
@@ -104,100 +123,33 @@ function DetailsScreen({ navigation }: any) {
   );
 }
 
-function AuthScreen() {
-  const { signIn, setActive, isLoaded: signInLoaded } = useSignIn();
-  const { signUp, isLoaded: signUpLoaded } = useSignUp();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [isSignUpMode, setIsSignUpMode] = useState(false);
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+const UnauthenticatedStack = createNativeStackNavigator({
+  initialRouteName: 'Landing',
+  screenOptions: {
+    headerShown: false,
+    contentStyle: { backgroundColor: 'transparent' },
+  },
+  screens: {
+    Landing: {
+      screen: LandingScreen,
+      path: 'landingPage',
+    },
+    Login: {
+      screen: LoginScreen,
+      path: 'login',
+    },
+    SignUp: {
+      screen: SignUpScreen,
+      path: 'signup',
+    },
+    ForgotPassword: {
+      screen: ForgotPasswordScreen,
+      path: 'forgot-password',
+    },
+  },
+});
 
-  const onSignInPress = async () => {
-    if (!signInLoaded) return;
-    setError('');
-    setLoading(true);
-    try {
-      const completeSignIn = await signIn.create({
-        identifier: email,
-        password,
-      });
-      if (setActive !== undefined) {
-        await setActive({ session: completeSignIn.createdSessionId });
-      }
-    } catch (err: any) {
-      setError(err.errors?.[0]?.message || 'Sign in failed');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const onSignUpPress = async () => {
-    if (!signUpLoaded) return;
-    setError('');
-    setLoading(true);
-    try {
-      const completeSignUp = await signUp.create({
-        emailAddress: email,
-        password,
-      });
-      if (completeSignUp.status === 'complete') {
-        if (setActive !== undefined) {
-          await setActive({ session: completeSignUp.createdSessionId });
-        }
-      } else {
-        setError('Verification is required. Please check your Clerk setup.');
-      }
-    } catch (err: any) {
-      setError(err.errors?.[0]?.message || 'Sign up failed');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>NTC-EDGE Portal</Text>
-      <Text style={styles.subtitle}>Authentication Required</Text>
-
-      <TextInput
-        autoCapitalize="none"
-        placeholder="Email Address"
-        placeholderTextColor="#8b9bb4"
-        value={email}
-        onChangeText={setEmail}
-        style={styles.input}
-      />
-      <TextInput
-        placeholder="Password"
-        placeholderTextColor="#8b9bb4"
-        secureTextEntry={true}
-        value={password}
-        onChangeText={setPassword}
-        style={styles.input}
-      />
-
-      {error.length > 0 ? <Text style={styles.errorText}>{error}</Text> : null}
-
-      <TouchableOpacity 
-        style={styles.authButton} 
-        onPress={isSignUpMode ? onSignUpPress : onSignInPress}
-        disabled={loading}
-      >
-        <Text style={styles.buttonText}>{loading ? 'Processing...' : (isSignUpMode ? 'Register' : 'Sign In')}</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity onPress={() => setIsSignUpMode(!isSignUpMode)} style={{ marginTop: 15 }}>
-        <Text style={styles.toggleText}>
-          {isSignUpMode ? 'Already have an account? Sign In' : "Don't have an account? Register"}
-        </Text>
-      </TouchableOpacity>
-    </View>
-  );
-}
-
-// React Navigation 8 Static configuration
-const RootStack = createNativeStackNavigator({
+const AuthenticatedStack = createNativeStackNavigator({
   initialRouteName: 'Home',
   screens: {
     Home: {
@@ -211,17 +163,34 @@ const RootStack = createNativeStackNavigator({
   },
 });
 
-const Navigation = createStaticNavigation(RootStack);
+const UnauthNavigation = createStaticNavigation(UnauthenticatedStack);
+const AuthNavigation = createStaticNavigation(AuthenticatedStack);
+
+const unauthLinking = {
+  prefixes: ['http://localhost:8082', 'http://localhost:8081', 'edge://'],
+};
+
+const authLinking = {
+  prefixes: ['http://localhost:8082', 'http://localhost:8081', 'edge://'],
+};
+
+function AppContent() {
+  const { isSignedIn } = useAuth();
+  const { isGuest } = useGuestAuth();
+
+  if (isSignedIn || isGuest) {
+    return <AuthNavigation linking={authLinking} />;
+  }
+
+  return <UnauthNavigation linking={unauthLinking} />;
+}
 
 export default function App() {
   return (
     <ClerkProvider tokenCache={tokenCache} publishableKey={publishableKey}>
-      <SignedIn>
-        <Navigation />
-      </SignedIn>
-      <SignedOut>
-        <AuthScreen />
-      </SignedOut>
+      <GuestAuthProvider>
+        <AppContent />
+      </GuestAuthProvider>
     </ClerkProvider>
   );
 }
