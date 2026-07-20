@@ -11,7 +11,9 @@ using EDGE.Application.Applications.Commands;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Infrastructure;
 using EDGE.Infrastructure.Hubs;
+using EDGE.Api.Middleware;
 using EDGE.Api.Services;
+using EDGE.Api.Endpoints;
 
 // Configure Serilog
 Log.Logger = new LoggerConfiguration()
@@ -36,6 +38,8 @@ try
     builder.Services.AddApplication();
     builder.Services.AddInfrastructure();
 
+
+
     // Configure Clerk JWT Authentication
     var clerkAuthority = builder.Configuration["Clerk:Authority"] ?? "https://easy-snipe-36.clerk.accounts.dev";
     builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -48,16 +52,23 @@ try
                 ValidIssuer = clerkAuthority,
                 ValidateAudience = false,
                 ValidateLifetime = true,
-                ValidateIssuerSigningKey = true
+                ValidateIssuerSigningKey = true,
+                RoleClaimType = "role"
             };
         });
 
-    builder.Services.AddAuthorization();
+    builder.Services.AddAuthorization(options =>
+    {
+        options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
+    });
 
     // Configure OpenAPI
     builder.Services.AddOpenApi();
 
     var app = builder.Build();
+
+    // Use global exception handling middleware
+    app.UseMiddleware<ExceptionHandlingMiddleware>();
 
     app.UseAuthentication();
     app.UseAuthorization();
@@ -99,8 +110,17 @@ try
     .WithName("CreateApplication")
     .RequireAuthorization();
 
+    // Map Minimal API Endpoint Groups (Geographic CRUD: Regions, Provinces, Municipalities, Barangays)
+    app.MapRegionEndpoints();
+    app.MapProvinceEndpoints();
+    app.MapMunicipalityEndpoints();
+    app.MapBarangayEndpoints();
+
     // Map SignalR Hub
     app.MapHub<NotificationHub>("/hubs/notifications");
+
+    // Seed geographic reference data on startup
+    await app.SeedDatabaseAsync();
 
     app.Run();
 }
