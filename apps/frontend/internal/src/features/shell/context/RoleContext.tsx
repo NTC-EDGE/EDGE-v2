@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, ReactNode, ComponentProps } from 'react';
-import { Feather } from '@expo/vector-icons';
+import { createContext, useContext, useState, ReactNode, ComponentProps } from 'react';
+import { Icon } from '@edge/ui';
 
 export type UserRole =
   | 'Administrator'
@@ -13,10 +13,10 @@ export type UserRole =
 export interface NavigationLink {
   name: string;
   screen: string;
-  icon: ComponentProps<typeof Feather>['name'];
+  icon: ComponentProps<typeof Icon>['name'];
 }
 
-export const ROLES: UserRole[] = [
+export const ROLES: readonly UserRole[] = [
   'Administrator',
   'Reviewer',
   'Approver',
@@ -24,9 +24,9 @@ export const ROLES: UserRole[] = [
   'Support Agent',
   'Staff Manager',
   'Viewer',
-];
+] as const;
 
-export const ROLE_NAVIGATION_LINKS: Record<UserRole, NavigationLink[]> = {
+export const ROLE_NAVIGATION_LINKS = {
   Administrator: [
     { name: 'Dashboard', screen: 'Dashboard', icon: 'grid' },
     { name: 'Activities', screen: 'Activities', icon: 'bell' },
@@ -74,7 +74,7 @@ export const ROLE_NAVIGATION_LINKS: Record<UserRole, NavigationLink[]> = {
     { name: 'Meet', screen: 'Meet', icon: 'video' },
     { name: 'Schedule', screen: 'Schedule', icon: 'calendar' },
   ],
-};
+} as const satisfies Record<UserRole, readonly NavigationLink[]>;
 
 interface RoleContextType {
   currentRole: UserRole;

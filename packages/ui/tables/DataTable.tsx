@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { StyleSheet, View, Text, TextInput, Pressable, Platform } from 'react-native';
+import { StyleSheet, View, Text, TextInput, Pressable, Platform, useWindowDimensions, ScrollView } from 'react-native';
 import { Feather as Lucide } from '@expo/vector-icons';
 import {
   useReactTable,
@@ -10,50 +10,18 @@ import {
   Row,
 } from '@tanstack/react-table';
 import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY } from '../theme/tokens';
+import { StatusBadge } from './StatusBadge';
 
-// Status color helper mapping
-export const getStatusColors = (status: string) => {
-  const normalized = status.toLowerCase();
-  if (normalized === 'approved' || normalized === 'active' || normalized === 'complete') {
-    return {
-      bg: COLORS.semantic.successBg,
-      border: COLORS.semantic.successBorder,
-      text: COLORS.semantic.success,
-    };
-  }
-  if (normalized === 'pending' || normalized === 'reviewing' || normalized === 'warning') {
-    return {
-      bg: COLORS.semantic.warningBg,
-      border: COLORS.semantic.warningBorder,
-      text: COLORS.semantic.warning,
-    };
-  }
-  if (normalized === 'rejected' || normalized === 'failed' || normalized === 'error') {
-    return {
-      bg: COLORS.semantic.errorBg,
-      border: COLORS.semantic.errorBorder,
-      text: COLORS.semantic.error,
-    };
-  }
-  return {
-    bg: COLORS.neutral[100],
-    border: COLORS.neutral[200],
-    text: COLORS.neutral[600],
-  };
-};
+type TabType = 'All' | 'Approved' | 'Pending' | 'Rejected' | 'Draft';
+const TABS: TabType[] = ['All', 'Approved', 'Pending', 'Rejected', 'Draft'];
 
-export function StatusBadge({ status }: { status: string }) {
-  const colors = getStatusColors(status);
-  return (
-    <View style={[styles.badge, { backgroundColor: colors.bg, borderColor: colors.border }]}>
-      <Text style={[styles.badgeText, { color: colors.text }]}>{status}</Text>
-    </View>
-  );
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
 }
 
 // 1. Modular Tab Button with local hover state
 interface TabButtonProps {
-  tab: 'All' | 'Approved' | 'Pending' | 'Rejected' | 'Draft';
+  tab: TabType;
   isActive: boolean;
   onPress: () => void;
 }
@@ -95,8 +63,7 @@ function DataTableRow<TData>({ row }: DataTableRowProps<TData>) {
       ]}
     >
       {row.getVisibleCells().map((cell) => {
-        const columnMeta = cell.column.columnDef.meta as Record<string, unknown> | undefined;
-        const colFlex = columnMeta?.flex !== undefined ? Number(columnMeta.flex) : 1;
+        const colFlex = cell.column.columnDef.meta?.flex ?? 1;
 
         return (
           <View key={cell.id} style={[styles.tableCell, { flex: colFlex }]}>
@@ -155,14 +122,18 @@ export function DataTable<TData, TValue>({
   statusKey,
 }: DataTableProps<TData, TValue>) {
   const [searchText, setSearchText] = useState('');
-  const [activeTab, setActiveTab] = useState<'All' | 'Approved' | 'Pending' | 'Rejected' | 'Draft'>('All');
+  const [activeTab, setActiveTab] = useState<TabType>('All');
+  const { width } = useWindowDimensions();
+  const isMobile = width < 768;
 
   const filteredData = useMemo(() => {
     return data.filter((row) => {
       if (statusKey !== undefined && activeTab !== 'All') {
-        const rowStatus = String(row[statusKey]).toLowerCase();
-        if (rowStatus !== activeTab.toLowerCase()) {
-          return false;
+        if (isRecord(row)) {
+          const rowStatus = String(row[statusKey]).toLowerCase();
+          if (rowStatus !== activeTab.toLowerCase()) {
+            return false;
+          }
         }
       }
 
@@ -173,13 +144,22 @@ export function DataTable<TData, TValue>({
       const query = searchText.toLowerCase();
 
       if (searchKey !== undefined) {
-        const value = row[searchKey];
-        return value !== null && value !== undefined && String(value).toLowerCase().includes(query);
+        if (isRecord(row)) {
+          const value = row[searchKey];
+          if (value !== null && value !== undefined && String(value).toLowerCase().includes(query)) {
+            return true;
+          }
+        }
+        return false;
       }
 
-      return Object.values(row as Record<string, unknown>).some(
-        (val) => val !== null && val !== undefined && String(val).toLowerCase().includes(query)
-      );
+      if (isRecord(row)) {
+        return Object.values(row).some(
+          (val) => val !== null && val !== undefined && String(val).toLowerCase().includes(query)
+        );
+      }
+
+      return false;
     });
   }, [data, searchText, activeTab, searchKey, statusKey]);
 
@@ -201,13 +181,13 @@ export function DataTable<TData, TValue>({
   const hasNextPage = table.getCanNextPage();
 
   return (
-    <View style={[styles.container, SHADOWS.card]}>
+    <View style={[styles.container, isMobile && styles.containerMobile, SHADOWS.card]}>
       {/* Table Toolbar */}
       <View style={styles.toolbar}>
         {/* Status Tabs */}
         {statusKey !== undefined ? (
           <View style={styles.tabsContainer}>
-            {(['All', 'Approved', 'Pending', 'Rejected', 'Draft'] as const).map((tab) => {
+            {TABS.map((tab) => {
               const isActive = activeTab === tab;
               return (
                 <TabButton
@@ -224,8 +204,8 @@ export function DataTable<TData, TValue>({
         )}
 
         {/* Search Input */}
-        <View style={styles.searchContainer}>
-          <Lucide name="search" size={16} color={COLORS.neutral[400]} style={styles.searchIcon} />
+        <View style={[styles.searchContainer, isMobile && styles.searchContainerMobile]}>
+          <Lucide name="search" size={15} color={COLORS.neutral[400]} style={styles.searchIcon} />
           <TextInput
             placeholder={searchPlaceholder}
             placeholderTextColor={COLORS.neutral[400]}
@@ -236,44 +216,50 @@ export function DataTable<TData, TValue>({
         </View>
       </View>
 
-      {/* Main Table Grid */}
-      <View style={styles.tableWrapper}>
-        {/* Table Header */}
-        <View style={styles.tableHeaderRow}>
-          {table.getHeaderGroups().map((headerGroup) => (
-            <React.Fragment key={headerGroup.id}>
-              {headerGroup.headers.map((header) => {
-                const columnMeta = header.column.columnDef.meta as Record<string, unknown> | undefined;
-                const colFlex = columnMeta?.flex !== undefined ? Number(columnMeta.flex) : 1;
+      {/* Main Table Grid - scrollable horizontally on mobile to prevent squishing */}
+      <ScrollView
+        horizontal={isMobile}
+        showsHorizontalScrollIndicator={isMobile}
+        scrollEnabled={isMobile}
+        style={isMobile ? styles.mobileTableScroll : undefined}
+      >
+        <View style={[styles.tableWrapper, isMobile && { width: 680 }]}>
+          {/* Table Header */}
+          <View style={styles.tableHeaderRow}>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <React.Fragment key={headerGroup.id}>
+                {headerGroup.headers.map((header) => {
+                  const colFlex = header.column.columnDef.meta?.flex ?? 1;
 
-                return (
-                  <View key={header.id} style={[styles.tableHeaderCell, { flex: colFlex }]}>
-                    <Text style={styles.headerText}>
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(header.column.columnDef.header, header.getContext())}
-                    </Text>
-                  </View>
-                );
-              })}
-            </React.Fragment>
-          ))}
-        </View>
-
-        {/* Table Body */}
-        {table.getRowModel().rows.length > 0 ? (
-          table.getRowModel().rows.map((row) => (
-            <View key={row.id} style={styles.tableRowContainer}>
-              <DataTableRow row={row} />
-            </View>
-          ))
-        ) : (
-          <View style={styles.emptyState}>
-            <Lucide name="folder" size={40} color={COLORS.neutral[300]} style={{ marginBottom: 12 }} />
-            <Text style={styles.emptyText}>No records found matching your selection.</Text>
+                  return (
+                    <View key={header.id} style={[styles.tableHeaderCell, { flex: colFlex }]}>
+                      <Text style={styles.headerText}>
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(header.column.columnDef.header, header.getContext())}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </React.Fragment>
+            ))}
           </View>
-        )}
-      </View>
+
+          {/* Table Body */}
+          {table.getRowModel().rows.length > 0 ? (
+            table.getRowModel().rows.map((row) => (
+              <View key={row.id} style={styles.tableRowContainer}>
+                <DataTableRow row={row} />
+              </View>
+            ))
+          ) : (
+            <View style={styles.emptyState}>
+              <Lucide name="folder" size={32} color={COLORS.neutral[300]} style={{ marginBottom: 12 }} />
+              <Text style={styles.emptyText}>No records found matching your selection.</Text>
+            </View>
+          )}
+        </View>
+      </ScrollView>
 
       {/* Table Pagination */}
       <View style={styles.pagination}>
@@ -306,6 +292,9 @@ const styles = StyleSheet.create({
     padding: SPACING[24],
     width: '100%',
   },
+  containerMobile: {
+    padding: SPACING[12],
+  },
   toolbar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -317,15 +306,15 @@ const styles = StyleSheet.create({
   tabsContainer: {
     flexDirection: 'row',
     backgroundColor: COLORS.neutral[50],
-    padding: 4,
-    borderRadius: 10,
+    padding: 3,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: COLORS.neutral[200],
   },
   tabItem: {
     paddingHorizontal: SPACING[12],
     paddingVertical: 6,
-    borderRadius: 8,
+    borderRadius: 6,
     ...Platform.select({
       web: {
         transition: 'all 200ms ease-out',
@@ -340,13 +329,13 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.neutral.white,
     ...Platform.select({
       web: {
-        boxShadow: '0 1px 3px rgba(15,23,42,.08)',
+        boxShadow: '0 1px 2px rgba(15,23,42,.05)',
       },
     }),
   },
   tabText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: TYPOGRAPHY.weights.medium,
     color: COLORS.neutral[500],
   },
@@ -361,8 +350,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.neutral[200],
     borderRadius: RADIUS.input,
-    height: 40,
-    width: 260,
+    height: 36,
+    width: 240,
     paddingHorizontal: SPACING[12],
   },
   searchIcon: {
@@ -371,7 +360,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
+    fontSize: 13,
     color: COLORS.neutral[900],
     height: '100%',
     padding: 0,
@@ -384,7 +373,7 @@ const styles = StyleSheet.create({
   tableWrapper: {
     borderWidth: 1,
     borderColor: COLORS.neutral[200],
-    borderRadius: 12,
+    borderRadius: 8,
     overflow: 'hidden',
   },
   tableHeaderRow: {
@@ -392,7 +381,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.neutral[50],
     borderBottomWidth: 1,
     borderBottomColor: COLORS.neutral[200],
-    height: 52,
+    height: 44,
     alignItems: 'center',
     paddingHorizontal: SPACING[16],
   },
@@ -401,23 +390,25 @@ const styles = StyleSheet.create({
   },
   headerText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-    color: COLORS.neutral[700],
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: COLORS.neutral[500],
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   tableRowContainer: {
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.neutral[100],
+    borderBottomColor: COLORS.neutral[200],
   },
   tableRow: {
     flexDirection: 'row',
-    height: 56,
+    height: 52,
     alignItems: 'center',
     paddingHorizontal: SPACING[16],
     backgroundColor: COLORS.neutral.white,
     ...Platform.select({
       web: {
-        transition: 'all 200ms ease-out',
+        transition: 'background-color 150ms ease-out',
         cursor: 'pointer',
       },
     }),
@@ -428,18 +419,6 @@ const styles = StyleSheet.create({
   tableCell: {
     justifyContent: 'center',
   },
-  badge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 9999,
-    borderWidth: 1,
-  },
-  badgeText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-  },
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -448,8 +427,8 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    color: COLORS.neutral[500],
-    fontSize: 14,
+    color: COLORS.neutral[400],
+    fontSize: 13,
   },
   pagination: {
     flexDirection: 'row',
@@ -459,7 +438,7 @@ const styles = StyleSheet.create({
   },
   paginationText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
+    fontSize: 13,
     color: COLORS.neutral[500],
   },
   paginationActions: {
@@ -467,17 +446,17 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   pageBtn: {
-    width: 36,
-    height: 36,
+    width: 32,
+    height: 32,
     borderWidth: 1,
     borderColor: COLORS.neutral[200],
-    borderRadius: 8,
+    borderRadius: 6,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: COLORS.neutral.white,
     ...Platform.select({
       web: {
-        transition: 'all 200ms ease-out',
+        transition: 'all 150ms ease-out',
         cursor: 'pointer',
       },
     }),
@@ -493,5 +472,11 @@ const styles = StyleSheet.create({
         cursor: 'not-allowed',
       },
     }),
+  },
+  searchContainerMobile: {
+    width: '100%',
+  },
+  mobileTableScroll: {
+    width: '100%',
   },
 });

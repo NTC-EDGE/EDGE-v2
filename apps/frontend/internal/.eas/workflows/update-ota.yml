@@ -1,0 +1,29 @@
+name: Update Internal OTA
+on:
+  push:
+    branches:
+      - '**'
+jobs:
+  update_production:
+    if: ${{ github.ref_type == 'tag' }}
+    type: update
+    params:
+      platform: all
+      branch: production
+      message: ${{ github.event.head_commit.message || 'Auto OTA Update' }}
+
+  update_development:
+    if: ${{ github.ref == 'refs/heads/develop' }}
+    type: update
+    params:
+      platform: all
+      branch: development
+      message: ${{ github.event.head_commit.message || 'Auto OTA Update' }}
+
+  update_preview:
+    if: ${{ github.ref == 'refs/heads/main' || (github.ref_type != 'tag' && github.ref != 'refs/heads/develop' && github.ref != 'refs/heads/main') }}
+    type: update
+    params:
+      platform: all
+      branch: preview
+      message: ${{ github.event.head_commit.message || 'Auto OTA Update' }}

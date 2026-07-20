@@ -1,10 +1,8 @@
 import React from 'react';
-import { StyleSheet, View, Text, Pressable, ScrollView } from 'react-native';
-import { Feather as Lucide } from '@expo/vector-icons';
+import { StyleSheet, View, Text, Pressable } from 'react-native';
 import { ColumnDef } from '@tanstack/react-table';
-import { COLORS, SPACING, RADIUS, TYPOGRAPHY } from '../../shared/theme/tokens';
+import { COLORS, SPACING, TYPOGRAPHY, DataTable, StatusBadge, Icon as Lucide } from '@edge/ui';
 import { MetricCard } from '../components/MetricCard';
-import { DataTable, StatusBadge } from '../../shared/components/DataTable';
 import { mockApplications, ApplicationData } from '../../queue/data/mockApplications';
 
 // Columns definitions for the applications table
