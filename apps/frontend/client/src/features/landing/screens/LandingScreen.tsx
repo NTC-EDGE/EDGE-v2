@@ -16,34 +16,22 @@ import { Button } from '../../shared/components/Button';
 import { Logo } from '../../shared/components/Logo';
 import { Input } from '../../shared/components/Input';
 import { useGuestAuth } from '../../auth/context/GuestAuthContext';
+import { PHILIPPINE_REGIONS } from '../../shared/constants/regions';
 
-const PHILIPPINE_REGIONS = [
-  'NCR - National Capital Region',
-  'CAR - Cordillera Administrative Region',
-  'Region I - Ilocos Region',
-  'Region II - Cagayan Valley',
-  'Region III - Central Luzon',
-  'Region IV-A - CALABARZON',
-  'MIMAROPA Region',
-  'Region V - Bicol Region',
-  'Region VI - Western Visayas',
-  'Region VII - Central Visayas',
-  'Region VIII - Eastern Visayas',
-  'Region IX - Zamboanga Peninsula',
-  'Region X - Northern Mindanao',
-  'Region XI - Davao Region',
-  'Region XII - SOCCSKSARGEN',
-  'Region XIII - Caraga',
-  'BARMM - Bangsamoro Autonomous Region in Muslim Mindanao',
-];
+type UnauthParamList = {
+  Landing: undefined;
+  Login: undefined;
+  SignUp: undefined;
+  ForgotPassword: undefined;
+};
 
 interface LandingScreenProps {
-  navigation: {
-    navigate: (screen: string) => void;
+  navigation?: {
+    navigate: (screen: keyof UnauthParamList) => void;
   };
 }
 
-export function LandingScreen({ navigation }: LandingScreenProps) {
+export function LandingScreen({ navigation }: LandingScreenProps = {}) {
   const { width } = useWindowDimensions();
   const isDesktop = width >= 768;
 
@@ -897,7 +885,7 @@ export function LandingScreen({ navigation }: LandingScreenProps) {
                 title="Login"
                 onPress={() => {
                   setIsGetStartedModalVisible(false);
-                  navigation.navigate('Login');
+                  navigation?.navigate('Login');
                 }}
                 style={styles.modalActionBtn}
                 icon={<Lucide name="log-in" size={16} color={COLORS.neutral.white} />}
@@ -922,7 +910,7 @@ export function LandingScreen({ navigation }: LandingScreenProps) {
               <TouchableOpacity
                 onPress={() => {
                   setIsGetStartedModalVisible(false);
-                  navigation.navigate('SignUp');
+                  navigation?.navigate('SignUp');
                 }}
               >
                 <Text style={styles.modalFooterLink}>Sign Up</Text>
