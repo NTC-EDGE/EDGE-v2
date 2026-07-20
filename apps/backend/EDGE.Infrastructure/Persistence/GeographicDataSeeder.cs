@@ -16,6 +16,10 @@ public static class GeographicDataSeeder
         }
 
         var assembly = Assembly.GetExecutingAssembly();
+
+        // geographic-data.json was generated from the OCHA Philippine admin boundary GeoJSON files
+        // (Regionbdry, Provincebdry, Municipalitybdry, Barangaybdry) using a one-time .NET converter tool.
+        // It contains 17 regions, 88 provinces, 1,642 municipalities, and 42,048 barangays — no geometry included.
         var resourceName = "EDGE.Infrastructure.Persistence.SeedData.geographic-data.json";
 
         using var stream = assembly.GetManifestResourceStream(resourceName);
