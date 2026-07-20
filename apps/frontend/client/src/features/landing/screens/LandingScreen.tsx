@@ -185,10 +185,10 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
   const [trackingResult, setTrackingResult] = useState<TrackingResult | null>(null);
 
   const scrollViewRef = useRef<ScrollView>(null);
-  
+
   // Section Y coordinates for smooth scroll
   const [sectionYCoords, setSectionYCoords] = useState<{ [key: string]: number }>({});
-  
+
   // FAQ state
   const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
 
@@ -198,7 +198,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
   const floatAnimMockup = useRef(new Animated.Value(0)).current;
   const fadeAnimHero = useRef(new Animated.Value(0)).current;
   const slideAnimHero = useRef(new Animated.Value(30)).current;
-  
+
   const cardAnims = useRef([
     new Animated.Value(0),
     new Animated.Value(0),
@@ -255,7 +255,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
     outputRange: [35, 0],
     extrapolate: 'clamp',
   });
-  
+
   // About EDGE Gateway 4-card scroll-down animation
   const aboutGridTranslateY = scrollY.interpolate({
     inputRange: [0, 450],
@@ -317,7 +317,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
         ])
       );
     };
-    
+
     createFloatAnim(floatAnimBlue, 10000).start();
     createFloatAnim(floatAnimPink, 12000).start();
 
@@ -354,7 +354,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
       }),
     ]).start(() => {
       // Staggered feature card entrances
-      Animated.stagger(150, cardAnims.map(anim => 
+      Animated.stagger(150, cardAnims.map(anim =>
         Animated.timing(anim, {
           toValue: 1,
           duration: 600,
@@ -363,7 +363,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
       )).start();
 
       // Staggered step entrances
-      Animated.stagger(120, stepAnims.map(anim => 
+      Animated.stagger(120, stepAnims.map(anim =>
         Animated.timing(anim, {
           toValue: 1,
           duration: 500,
@@ -451,7 +451,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
 
   const handleFaqPress = (idx: number) => {
     const isExpanded = expandedFaq === idx;
-    
+
     if (isExpanded) {
       Animated.timing(faqAnims[idx], {
         toValue: 0,
@@ -468,7 +468,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
           useNativeDriver: false,
         }).start();
       }
-      
+
       setExpandedFaq(idx);
       Animated.timing(faqAnims[idx], {
         toValue: 1,
@@ -486,7 +486,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
     inputRange: [0, 1],
     outputRange: [-20, 20],
   });
-  
+
   const translateYPink = floatAnimPink.interpolate({
     inputRange: [0, 1],
     outputRange: [30, -30],
@@ -562,7 +562,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
       <View style={styles.headerOuter}>
         <View style={styles.headerInner}>
           <Logo height={84} />
-          
+
           {isDesktop ? (
             <View style={styles.navLinks}>
               <Pressable
@@ -657,7 +657,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
               <View style={styles.pillBadgeDot} />
               <Text style={styles.pillBadgeText}>Official NTC-EDGE Portal</Text>
             </View>
-            
+
             {/* Split Color Hero Title */}
             <Text style={[styles.heroTitle, isDesktop ? styles.heroTitleDesktop : null]}>
               <Text style={styles.titleBlue}>Empowering </Text>
@@ -665,11 +665,11 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
               {'\n'}
               <Text style={styles.titleBlue}>Data Governance</Text>
             </Text>
-            
+
             <Text style={[styles.heroSubtitle, isDesktop ? styles.heroSubtitleDesktop : null]}>
               Streamline your government services experience. Apply for permits, licenses, and certificates with secure, efficient, and transparent processes powered by EDGE.
             </Text>
-            
+
             <View style={styles.heroButtonsRow}>
               <Button
                 title="Get Started"
@@ -705,7 +705,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
                     <Text style={styles.mockupHeaderText}>ntc-edge.gov.ph</Text>
                   </View>
                 </View>
-                
+
                 <View style={styles.mockupBody}>
                   {/* Stats Row */}
                   <View style={styles.mockupStatsRow}>
@@ -737,7 +737,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
                         <Text style={styles.mockupStatusText}>IN REVIEW</Text>
                       </View>
                     </View>
-                    
+
                     {/* Progress Bar */}
                     <View style={styles.mockupProgressContainer}>
                       <View style={styles.mockupProgressBar}>
@@ -807,7 +807,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
                     <Text style={styles.aboutGridItemText}>Requests</Text>
                   </View>
                 </Animated.View>
-                
+
                 <View style={styles.aboutGraphicFooter}>
                   <View style={styles.dotIndicatorActive} />
                   <Text style={styles.aboutGraphicFooterText}>Data Sync Active • Live Encryption</Text>
@@ -821,15 +821,15 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
               <Text style={styles.aboutBadgeText}>PLATFORM OVERVIEW</Text>
             </View>
             <Text style={styles.aboutTitle}>About EDGE</Text>
-            
+
             <Text style={styles.aboutHighlightText}>
               Welcome to the Electronic Data Governance and Evaluation (EDGE) application. This system is a flagship initiative by the National Telecommunications Commission (NTC) to modernize and streamline public services.
             </Text>
-            
+
             <Text style={styles.aboutBodyText}>
               Our mission is to provide a transparent, efficient, and accessible online platform for all stakeholders. EDGE is a secure online platform developed to streamline application processing, licensing, and public requests.
             </Text>
-            
+
             <View style={styles.aboutInfoBox}>
               <Lucide name="info" size={20} color="#1236A8" style={{ marginRight: 12, marginTop: 2 }} />
               <Text style={styles.aboutInfoBoxText}>
@@ -851,7 +851,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
         >
           <Text style={styles.featuresTitle}>Why Choose EDGE?</Text>
           <Text style={styles.featuresSubtitle}>Everything you need for seamless government services</Text>
-          
+
           <View style={[styles.featuresGrid, isDesktop ? styles.rowLayout : styles.columnLayout]}>
             {features.map((feat, index) => {
               const cardAnim = cardAnims[index];
@@ -902,7 +902,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
           onLayout={(e) => handleSectionLayout('howItWorks', e.nativeEvent.layout.y)}
         >
           <Text style={[styles.sectionTitleBlue, styles.centerText]}>How It Works</Text>
-          
+
           {isDesktop ? (
             <View style={styles.stepsTwoRowContainer}>
               {/* Row 1: Steps 1, 2, 3 */}
@@ -1071,7 +1071,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
                       />
                     </View>
                   </Pressable>
-                  
+
                   <Animated.View style={[styles.faqAnswerContainer, faqAnswerStyle, { overflow: 'hidden' }]}>
                     <Text style={styles.faqAnswer}>{faq.a}</Text>
                   </Animated.View>
@@ -1100,53 +1100,47 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
           </View>
         </View>
 
-        {/* Ultra-Premium Unique Footer with High-Contrast Logo Badge */}
+        {/* Sleek Minimal Footer */}
         <View style={styles.footerContainer}>
           <View style={styles.footerInner}>
-            
-            {/* Top Logo Hero Card */}
-            <View style={styles.footerLogoHeroRow}>
-              <View style={[styles.footerLogoBadgeCard, SHADOWS.card]}>
-                <Logo height={70} />
-              </View>
+            <View style={[styles.footerMainContent, isDesktop ? styles.rowLayout : styles.columnLayout]}>
 
-              <View style={styles.footerHeroTaglineCol}>
-                <View style={styles.footerLiveSyncBadge}>
-                  <View style={styles.dotIndicatorActive} />
-                  <Text style={styles.footerLiveSyncText}>NTC EDGE PLATFORM ONLINE • LIVE DATA GOVERNANCE</Text>
+              {/* Branding Column */}
+              <View style={styles.footerBrandCol}>
+                <View style={styles.footerLogoBadgeCard}>
+                  <Logo height={36} />
                 </View>
                 <Text style={styles.footerTaglineTitle}>National Telecommunications Commission</Text>
                 <Text style={styles.footerTaglineDesc}>
-                  Electronic Data Governance and Evaluation System — Serving the Filipino public with integrity, transparency, and digital excellence.
+                  Electronic Data Governance and Evaluation System
                 </Text>
-              </View>
-            </View>
-
-            <View style={styles.footerDividerLine} />
-
-            {/* Unique 2-Column Policy Card Links with Hover Color Fill */}
-            <View style={styles.footerLinksGrid}>
-              {/* Legal Category Card */}
-              <View style={styles.footerPolicyCard}>
-                <View style={styles.footerPolicyCardHeader}>
-                  <View style={styles.footerCategoryIconBadge}>
-                    <Lucide name="shield" size={18} color="#1236A8" />
-                  </View>
-                  <Text style={styles.footerCategoryTitle}>Legal & Transparency</Text>
+                <View style={styles.footerLiveSyncBadge}>
+                  <View style={styles.dotIndicatorActive} />
+                  <Text style={styles.footerLiveSyncText}>NTC EDGE PLATFORM ONLINE</Text>
                 </View>
+              </View>
 
-                <View style={styles.footerPillsList}>
+              {/* Links Columns */}
+              <View style={styles.footerNavColumns}>
+                {/* Legal Column */}
+                <View style={styles.footerNavCol}>
+                  <View style={styles.footerColHeader}>
+                    <Lucide name="shield" size={15} color="#93C5FD" style={{ marginRight: 6 }} />
+                    <Text style={styles.footerColTitle}>Legal & Transparency</Text>
+                  </View>
                   <Pressable
                     onPress={() => setActiveFooterModal(FOOTER_POLICIES['user-agreement'])}
                     style={({ hovered }: PressableState) => [
-                      styles.footerPillItem,
-                      hovered ? styles.footerPillItemHovered : null,
+                      styles.footerLinkItem,
+                      hovered ? styles.footerLinkItemHovered : null,
                     ]}
                   >
                     {({ hovered }: PressableState) => (
-                      <View style={styles.footerPillContent}>
-                        <Lucide name="file-text" size={15} color={hovered ? '#FFFFFF' : '#93C5FD'} style={{ marginRight: 10 }} />
-                        <Text style={[styles.footerPillText, hovered ? styles.footerPillTextHovered : null]}>User Agreement</Text>
+                      <View style={styles.footerLinkRow}>
+                        <Lucide name="file-text" size={13} color={hovered ? '#60A5FA' : '#64748B'} style={{ marginRight: 6 }} />
+                        <Text style={[styles.footerLinkText, hovered ? styles.footerLinkTextHovered : null]}>
+                          User Agreement
+                        </Text>
                       </View>
                     )}
                   </Pressable>
@@ -1154,14 +1148,16 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
                   <Pressable
                     onPress={() => setActiveFooterModal(FOOTER_POLICIES['privacy-policy'])}
                     style={({ hovered }: PressableState) => [
-                      styles.footerPillItem,
-                      hovered ? styles.footerPillItemHovered : null,
+                      styles.footerLinkItem,
+                      hovered ? styles.footerLinkItemHovered : null,
                     ]}
                   >
                     {({ hovered }: PressableState) => (
-                      <View style={styles.footerPillContent}>
-                        <Lucide name="lock" size={15} color={hovered ? '#FFFFFF' : '#93C5FD'} style={{ marginRight: 10 }} />
-                        <Text style={[styles.footerPillText, hovered ? styles.footerPillTextHovered : null]}>Privacy Policy</Text>
+                      <View style={styles.footerLinkRow}>
+                        <Lucide name="lock" size={13} color={hovered ? '#60A5FA' : '#64748B'} style={{ marginRight: 6 }} />
+                        <Text style={[styles.footerLinkText, hovered ? styles.footerLinkTextHovered : null]}>
+                          Privacy Policy
+                        </Text>
                       </View>
                     )}
                   </Pressable>
@@ -1169,41 +1165,40 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
                   <Pressable
                     onPress={() => setActiveFooterModal(FOOTER_POLICIES['cookie-policy'])}
                     style={({ hovered }: PressableState) => [
-                      styles.footerPillItem,
-                      hovered ? styles.footerPillItemHovered : null,
+                      styles.footerLinkItem,
+                      hovered ? styles.footerLinkItemHovered : null,
                     ]}
                   >
                     {({ hovered }: PressableState) => (
-                      <View style={styles.footerPillContent}>
-                        <Lucide name="database" size={15} color={hovered ? '#FFFFFF' : '#93C5FD'} style={{ marginRight: 10 }} />
-                        <Text style={[styles.footerPillText, hovered ? styles.footerPillTextHovered : null]}>Cookie Policy</Text>
+                      <View style={styles.footerLinkRow}>
+                        <Lucide name="database" size={13} color={hovered ? '#60A5FA' : '#64748B'} style={{ marginRight: 6 }} />
+                        <Text style={[styles.footerLinkText, hovered ? styles.footerLinkTextHovered : null]}>
+                          Cookie Policy
+                        </Text>
                       </View>
                     )}
                   </Pressable>
                 </View>
-              </View>
 
-              {/* Support Category Card */}
-              <View style={styles.footerPolicyCard}>
-                <View style={styles.footerPolicyCardHeader}>
-                  <View style={styles.footerCategoryIconBadge}>
-                    <Lucide name="headphones" size={18} color="#1236A8" />
+                {/* Support Column */}
+                <View style={styles.footerNavCol}>
+                  <View style={styles.footerColHeader}>
+                    <Lucide name="headphones" size={15} color="#93C5FD" style={{ marginRight: 6 }} />
+                    <Text style={styles.footerColTitle}>Support & Community</Text>
                   </View>
-                  <Text style={styles.footerCategoryTitle}>Support & Community</Text>
-                </View>
-
-                <View style={styles.footerPillsList}>
                   <Pressable
                     onPress={() => setActiveFooterModal(FOOTER_POLICIES['community-guidelines'])}
                     style={({ hovered }: PressableState) => [
-                      styles.footerPillItem,
-                      hovered ? styles.footerPillItemHovered : null,
+                      styles.footerLinkItem,
+                      hovered ? styles.footerLinkItemHovered : null,
                     ]}
                   >
                     {({ hovered }: PressableState) => (
-                      <View style={styles.footerPillContent}>
-                        <Lucide name="users" size={15} color={hovered ? '#FFFFFF' : '#93C5FD'} style={{ marginRight: 10 }} />
-                        <Text style={[styles.footerPillText, hovered ? styles.footerPillTextHovered : null]}>Community Guidelines</Text>
+                      <View style={styles.footerLinkRow}>
+                        <Lucide name="users" size={13} color={hovered ? '#60A5FA' : '#64748B'} style={{ marginRight: 6 }} />
+                        <Text style={[styles.footerLinkText, hovered ? styles.footerLinkTextHovered : null]}>
+                          Community Guidelines
+                        </Text>
                       </View>
                     )}
                   </Pressable>
@@ -1211,14 +1206,16 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
                   <Pressable
                     onPress={() => setActiveFooterModal(FOOTER_POLICIES['send-feedback'])}
                     style={({ hovered }: PressableState) => [
-                      styles.footerPillItem,
-                      hovered ? styles.footerPillItemHovered : null,
+                      styles.footerLinkItem,
+                      hovered ? styles.footerLinkItemHovered : null,
                     ]}
                   >
                     {({ hovered }: PressableState) => (
-                      <View style={styles.footerPillContent}>
-                        <Lucide name="message-square" size={15} color={hovered ? '#FFFFFF' : '#93C5FD'} style={{ marginRight: 10 }} />
-                        <Text style={[styles.footerPillText, hovered ? styles.footerPillTextHovered : null]}>Send Feedback</Text>
+                      <View style={styles.footerLinkRow}>
+                        <Lucide name="message-square" size={13} color={hovered ? '#60A5FA' : '#64748B'} style={{ marginRight: 6 }} />
+                        <Text style={[styles.footerLinkText, hovered ? styles.footerLinkTextHovered : null]}>
+                          Send Feedback
+                        </Text>
                       </View>
                     )}
                   </Pressable>
@@ -1226,14 +1223,16 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
                   <Pressable
                     onPress={() => setActiveFooterModal(FOOTER_POLICIES['help-center'])}
                     style={({ hovered }: PressableState) => [
-                      styles.footerPillItem,
-                      hovered ? styles.footerPillItemHovered : null,
+                      styles.footerLinkItem,
+                      hovered ? styles.footerLinkItemHovered : null,
                     ]}
                   >
                     {({ hovered }: PressableState) => (
-                      <View style={styles.footerPillContent}>
-                        <Lucide name="help-circle" size={15} color={hovered ? '#FFFFFF' : '#93C5FD'} style={{ marginRight: 10 }} />
-                        <Text style={[styles.footerPillText, hovered ? styles.footerPillTextHovered : null]}>Help Center</Text>
+                      <View style={styles.footerLinkRow}>
+                        <Lucide name="help-circle" size={13} color={hovered ? '#60A5FA' : '#64748B'} style={{ marginRight: 6 }} />
+                        <Text style={[styles.footerLinkText, hovered ? styles.footerLinkTextHovered : null]}>
+                          Help Center
+                        </Text>
                       </View>
                     )}
                   </Pressable>
@@ -1244,7 +1243,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
             {/* Bottom Copyright */}
             <View style={styles.footerBottomRow}>
               <Text style={styles.copyrightText}>
-                © 2025 EDGE Portal — National Telecommunications Commission. Republic of the Philippines. All rights reserved.
+                © 2025 EDGE Portal • National Telecommunications Commission • Republic of the Philippines. All rights reserved.
               </Text>
             </View>
           </View>
@@ -1266,7 +1265,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
           <TouchableOpacity
             style={[styles.modalCard, SHADOWS.modal, { maxWidth: 840, padding: 36, borderRadius: 24 }]}
             activeOpacity={1}
-            onPress={() => {}}
+            onPress={() => { }}
           >
             {/* Close X Button */}
             <Pressable
@@ -1289,7 +1288,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
                   <Text style={styles.policyModalTitle}>{activeFooterModal.title}</Text>
                 </View>
                 <View style={styles.policyTitleDivider} />
-                
+
                 {/* Intro Box */}
                 <View style={styles.policyIntroBox}>
                   <Lucide name="info" size={18} color="#1236A8" style={{ marginRight: 10, marginTop: 2 }} />
@@ -1330,7 +1329,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
           <TouchableOpacity
             style={[styles.modalCard, SHADOWS.modal]}
             activeOpacity={1}
-            onPress={() => {}}
+            onPress={() => { }}
           >
             {/* Close Button */}
             <Pressable
@@ -1349,7 +1348,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
             </View>
 
             <Text style={styles.modalTitle}>How would you like to proceed?</Text>
-            
+
             <Text style={styles.modalSubtitleText}>
               To save your progress and access application history, we recommend having an account.
             </Text>
@@ -1536,14 +1535,14 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
                   <View style={[
                     styles.resultBadge,
                     trackingResult.status === 'APPROVED' ? styles.badgeSuccess :
-                    trackingResult.status === 'IN REVIEW' ? styles.badgeInfo :
-                    trackingResult.status === 'PENDING DOCUMENTS' ? styles.badgeWarning : styles.badgeDefault
+                      trackingResult.status === 'IN REVIEW' ? styles.badgeInfo :
+                        trackingResult.status === 'PENDING DOCUMENTS' ? styles.badgeWarning : styles.badgeDefault
                   ]}>
                     <Text style={[
                       styles.resultBadgeText,
                       trackingResult.status === 'APPROVED' ? styles.textSuccess :
-                      trackingResult.status === 'IN REVIEW' ? styles.textInfo :
-                      trackingResult.status === 'PENDING DOCUMENTS' ? styles.textWarning : styles.textDefault
+                        trackingResult.status === 'IN REVIEW' ? styles.textInfo :
+                          trackingResult.status === 'PENDING DOCUMENTS' ? styles.textWarning : styles.textDefault
                     ]}>{trackingResult.status}</Text>
                   </View>
                 </View>
@@ -2430,156 +2429,115 @@ const styles = StyleSheet.create({
   },
   footerContainer: {
     backgroundColor: '#060E33',
-    paddingTop: SPACING[64],
-    paddingBottom: 36,
+    paddingVertical: SPACING[32],
     paddingHorizontal: SPACING[24],
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.08)',
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
   },
   footerInner: {
-    maxWidth: 1400,
+    maxWidth: 1200,
     width: '100%',
     alignSelf: 'center',
   },
-  footerLogoHeroRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
+  footerMainContent: {
     justifyContent: 'space-between',
-    marginBottom: SPACING[32],
+    alignItems: 'flex-start',
+    gap: 32,
+    marginBottom: SPACING[24],
+  },
+  footerBrandCol: {
+    flex: 1,
+    maxWidth: 420,
+    minWidth: 260,
   },
   footerLogoBadgeCard: {
     backgroundColor: COLORS.neutral.white,
-    borderRadius: 20,
-    paddingHorizontal: 28,
-    paddingVertical: 18,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    marginBottom: SPACING[16],
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    alignSelf: 'flex-start',
+    marginBottom: 12,
   },
-  footerHeroTaglineCol: {
-    flex: 1,
-    minWidth: 300,
-    marginLeft: SPACING[24],
-    marginBottom: SPACING[16],
+  footerTaglineTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.neutral.white,
+    marginBottom: 4,
+  },
+  footerTaglineDesc: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    color: '#94A3B8',
+    lineHeight: 18,
+    marginBottom: 12,
   },
   footerLiveSyncBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(18, 54, 168, 0.35)',
-    paddingVertical: 5,
-    paddingHorizontal: 12,
+    backgroundColor: 'rgba(18, 54, 168, 0.25)',
+    paddingVertical: 4,
+    paddingHorizontal: 10,
     borderRadius: RADIUS.circle,
     borderWidth: 1,
-    borderColor: 'rgba(147, 197, 253, 0.3)',
+    borderColor: 'rgba(147, 197, 253, 0.2)',
     alignSelf: 'flex-start',
-    marginBottom: 10,
   },
   footerLiveSyncText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 10,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#93C5FD',
-    letterSpacing: 0.8,
+    letterSpacing: 0.5,
   },
-  footerTaglineTitle: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 20,
-    fontWeight: '800',
-    color: COLORS.neutral.white,
-    marginBottom: 6,
-  },
-  footerTaglineDesc: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
-    color: '#94A3B8',
-    lineHeight: 22,
-    maxWidth: 750,
-  },
-  footerDividerLine: {
-    height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    marginVertical: SPACING[24],
-    width: '100%',
-  },
-  footerLinksGrid: {
+  footerNavColumns: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginHorizontal: -10,
+    gap: 48,
   },
-  footerPolicyCard: {
-    flex: 1,
-    minWidth: 320,
-    marginHorizontal: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    padding: 24,
-    marginBottom: SPACING[20],
+  footerNavCol: {
+    minWidth: 160,
   },
-  footerPolicyCardHeader: {
+  footerColHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
-  },
-  footerCategoryIconBadge: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    backgroundColor: COLORS.neutral.white,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  footerCategoryTitle: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 16,
-    fontWeight: '700',
-    color: COLORS.neutral.white,
-  },
-  footerPillsList: {
-    width: '100%',
-  },
-  footerPillItem: {
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
     marginBottom: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
   },
-  footerPillItemHovered: {
-    backgroundColor: '#1236A8',
-    borderColor: '#3B82F6',
-    transform: [{ translateX: 4 }],
-  },
-  footerPillContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  footerPillText: {
+  footerColTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 14,
-    fontWeight: '600',
-    color: '#CBD5E1',
-  },
-  footerPillTextHovered: {
-    color: COLORS.neutral.white,
     fontWeight: '700',
+    color: COLORS.neutral.white,
+  },
+  footerLinkItem: {
+    paddingVertical: 5,
+  },
+  footerLinkItemHovered: {
+    opacity: 0.9,
+  },
+  footerLinkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  footerLinkText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#94A3B8',
+  },
+  footerLinkTextHovered: {
+    color: '#60A5FA',
+    fontWeight: '600',
   },
   footerBottomRow: {
     borderTopWidth: 1,
     borderTopColor: 'rgba(255, 255, 255, 0.08)',
-    paddingTop: SPACING[24],
-    marginTop: SPACING[16],
+    paddingTop: SPACING[16],
     alignItems: 'center',
   },
   copyrightText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
+    fontSize: 12,
     color: '#64748B',
     textAlign: 'center',
   },
