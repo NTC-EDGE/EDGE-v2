@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Icon } from "@edge/ui";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, NavigationProp } from "@react-navigation/native";
 import { useUser, useAuth } from "@clerk/clerk-expo";
 import { apiClient } from "@edge/api";
 import { styles } from "./MyApplications.styles";
@@ -24,10 +24,15 @@ interface Application {
   createdAt: string;
 }
 
+type AuthParamList = {
+  Services: undefined;
+  MyApplications: undefined;
+};
+
 export function MyApplications() {
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation();
 
   // Clerk Contexts
   const { user: clerkUser } = useUser();
@@ -140,7 +145,7 @@ export function MyApplications() {
             </TouchableOpacity>
 
             <View style={styles.sidebarItems}>
-              <TouchableOpacity onPress={() => navigation.navigate("Services")} style={styles.sidebarItem}>
+              <TouchableOpacity onPress={() => navigation.navigate('Services')} style={styles.sidebarItem}>
                 <Icon name="radio" size={20} color="#9ca3af" />
                 {!isSidebarCollapsed && <Text style={styles.sidebarItemText}>Services</Text>}
               </TouchableOpacity>

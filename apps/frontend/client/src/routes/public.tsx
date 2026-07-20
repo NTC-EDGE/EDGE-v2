@@ -1,4 +1,5 @@
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { type StaticParamList } from "@react-navigation/native";
 import { LandingScreen } from "../unAuth/LandingScreen";
 import { LoginScreen } from "../unAuth/LoginScreen";
 import { SignUpScreen } from "../unAuth/SignUpScreen";
@@ -29,3 +30,6 @@ export const UnauthenticatedStack = createNativeStackNavigator({
     },
   },
 });
+
+export type UnauthParamList = StaticParamList<typeof UnauthenticatedStack>;
+

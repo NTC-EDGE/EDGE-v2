@@ -20,13 +20,20 @@ import {
 import { Input } from "../../shared/components/Input";
 import { Button } from "../../shared/components/Button";
 import { Logo } from "../../shared/components/Logo";
-import { useNavigation } from "@react-navigation/native";
-import { useSignIn } from "@clerk/clerk-expo";
+import { useNavigation, NavigationProp } from "@react-navigation/native";
+import { useSignIn, isClerkAPIResponseError } from "@clerk/clerk-expo";
 import { Select } from "../../shared/components/Select";
 import { PHILIPPINE_REGIONS } from "../../shared/constants/regions";
 
+type UnauthParamList = {
+  Landing: undefined;
+  Login: undefined;
+  SignUp: undefined;
+  ForgotPassword: undefined;
+};
+
 export function LoginScreen() {
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation();
   const { signIn, setActive, isLoaded: signInLoaded } = useSignIn();
   const [region, setRegion] = useState("");
   const [phoneOrEmail, setPhoneOrEmail] = useState("");
@@ -148,9 +155,13 @@ export function LoginScreen() {
           `Unable to complete sign-in. Status is: ${completeSignIn.status}. Please complete verification.`,
         );
       }
-    } catch (err: any) {
-      const errMsg =
-        err.errors?.[0]?.message || "Invalid email/phone or password.";
+    } catch (err: unknown) {
+      let errMsg = "Invalid email/phone or password.";
+      if (isClerkAPIResponseError(err)) {
+        errMsg = err.errors[0]?.message || errMsg;
+      } else if (err instanceof Error) {
+        errMsg = err.message;
+      }
       setGeneralError(errMsg);
     } finally {
       setLoading(false);
@@ -161,6 +172,14 @@ export function LoginScreen() {
     inputRange: [0, 1],
     outputRange: [0.95, 1.05],
   });
+
+  const webGlowStyle: Record<string, string | number> = {
+    filter: "blur(100px)",
+    opacity: 0.12,
+  };
+  const mobileGlowStyle = {
+    opacity: 0.12,
+  };
 
   return (
     <KeyboardAvoidingView
@@ -176,9 +195,7 @@ export function LoginScreen() {
           style={[
             styles.bgGlow,
             { transform: [{ scale: glowScale }] },
-            Platform.OS === "web"
-              ? ({ filter: "blur(100px)" } as any)
-              : { opacity: 0.12 },
+            Platform.OS === "web" ? webGlowStyle : mobileGlowStyle,
           ]}
         />
 

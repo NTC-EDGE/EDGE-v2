@@ -1,3 +1,6 @@
+import { Icon } from "@edge/ui";
+import { ComponentProps } from "react";
+
 export interface NTCService {
   title: string;
   description: string;
@@ -9,7 +12,7 @@ export interface NTCService {
 export interface NTCServiceCategory {
   id: string;
   title: string;
-  icon: string;
+  icon: ComponentProps<typeof Icon>["name"];
   description: string;
   services: NTCService[];
 }

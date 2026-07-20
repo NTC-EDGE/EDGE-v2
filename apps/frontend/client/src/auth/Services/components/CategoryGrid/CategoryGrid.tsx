@@ -105,7 +105,7 @@ export function CategoryGrid({
               ]}
             >
               <View style={[styles.iconBadge, { backgroundColor: theme.bg, borderColor: theme.border }]}>
-                <Icon name={category.icon as any} size={22} color={theme.icon} />
+                <Icon name={category.icon} size={22} color={theme.icon} />
               </View>
               <Text style={styles.categoryCardTitle}>{category.title}</Text>
               <Text style={styles.categoryCardCount}>

@@ -1,4 +1,5 @@
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { type StaticParamList } from "@react-navigation/native";
 import { Services } from "../auth/Services";
 import { MyApplications } from "../auth/MyApplications";
 
@@ -18,3 +19,5 @@ export const AuthenticatedStack = createNativeStackNavigator({
     },
   },
 });
+
+export type AuthParamList = StaticParamList<typeof AuthenticatedStack>;

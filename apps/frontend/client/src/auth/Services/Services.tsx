@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import axios from "axios";
 import {
   Text,
   View,
@@ -7,7 +8,7 @@ import {
   Alert,
 } from "react-native";
 import { Icon, ServiceFormModal } from "@edge/ui";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, NavigationProp } from "@react-navigation/native";
 import { useUser, useAuth } from "@clerk/clerk-expo";
 import { apiClient } from "@edge/api";
 import { servicesData, NTCService } from "./data/servicesData";
@@ -16,10 +17,15 @@ import { ServiceList } from "./components/ServiceList";
 import { ServiceDetails } from "./components/ServiceDetails";
 import { styles } from "./Services.styles";
 
+type AuthParamList = {
+  Services: undefined;
+  MyApplications: undefined;
+};
+
 export function Services() {
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation();
 
   // Clerk Contexts
   const { user: clerkUser } = useUser();
@@ -113,9 +119,18 @@ export function Services() {
       );
       setIsModalOpen(false);
       Alert.alert("Success", "Your application has been submitted successfully.");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      Alert.alert("Error", err.response?.data?.message || "Failed to submit application.");
+      let errMsg = "Failed to submit application.";
+      if (axios.isAxiosError(err)) {
+        const responseData = err.response?.data;
+        if (responseData && typeof responseData === "object" && "message" in responseData) {
+          errMsg = String(responseData.message);
+        }
+      } else if (err instanceof Error) {
+        errMsg = err.message;
+      }
+      Alert.alert("Error", errMsg);
     } finally {
       setSubmitting(false);
     }
