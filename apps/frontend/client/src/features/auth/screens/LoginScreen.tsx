@@ -14,6 +14,8 @@ import { Input } from '../../shared/components/Input';
 import { Button } from '../../shared/components/Button';
 import { Logo } from '../../shared/components/Logo';
 import { useGuestAuth } from '../context/GuestAuthContext';
+import { Select } from '../../shared/components/Select';
+import { PHILIPPINE_REGIONS } from '../../shared/constants/regions';
 
 interface LoginScreenProps {
   navigation: {
@@ -23,11 +25,13 @@ interface LoginScreenProps {
 
 export function LoginScreen({ navigation }: LoginScreenProps) {
   const { loginAsGuest } = useGuestAuth();
-  const [email, setEmail] = useState('');
+  const [region, setRegion] = useState('');
+  const [phoneOrEmail, setPhoneOrEmail] = useState('');
   const [password, setPassword] = useState('');
   
   // Validation errors
-  const [emailError, setEmailError] = useState('');
+  const [regionError, setRegionError] = useState('');
+  const [phoneOrEmailError, setPhoneOrEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [generalError, setGeneralError] = useState('');
   
@@ -72,16 +76,33 @@ export function LoginScreen({ navigation }: LoginScreenProps) {
 
   const validate = (): boolean => {
     let isValid = true;
-    setEmailError('');
+    setRegionError('');
+    setPhoneOrEmailError('');
     setPasswordError('');
     setGeneralError('');
 
-    if (email.trim().length === 0) {
-      setEmailError('Email address is required');
+    if (region.length === 0) {
+      setRegionError('Philippine region is required');
       isValid = false;
-    } else if (!email.includes('@')) {
-      setEmailError('Please enter a valid email containing "@"');
+    }
+
+    const trimmedIdentifier = phoneOrEmail.trim();
+    if (trimmedIdentifier.length === 0) {
+      setPhoneOrEmailError('Phone number or email address is required');
       isValid = false;
+    } else if (trimmedIdentifier.includes('@')) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(trimmedIdentifier)) {
+        setPhoneOrEmailError('Please enter a valid email address');
+        isValid = false;
+      }
+    } else {
+      const sanitizedPhone = trimmedIdentifier.replace(/\s+/g, '');
+      const phoneRegex = /^\+?[0-9]{10,15}$/;
+      if (!phoneRegex.test(sanitizedPhone)) {
+        setPhoneOrEmailError('Please enter a valid phone number or email address');
+        isValid = false;
+      }
     }
 
     if (password.length === 0) {
@@ -166,15 +187,25 @@ export function LoginScreen({ navigation }: LoginScreenProps) {
               </View>
             ) : (
               <View style={styles.form}>
+                <Select
+                  label="Philippine Region"
+                  placeholder="Select administrative region..."
+                  value={region}
+                  onValueChange={setRegion}
+                  options={PHILIPPINE_REGIONS.map((reg) => ({ label: reg, value: reg }))}
+                  error={regionError}
+                  iconName="map-pin"
+                />
+
                 <Input
-                  label="Email Address"
-                  placeholder="name@example.com"
-                  value={email}
-                  onChangeText={setEmail}
-                  error={emailError}
-                  keyboardType="email-address"
+                  label="Phone No. / Email Address"
+                  placeholder="e.g. 09171234567 or email@domain.com"
+                  value={phoneOrEmail}
+                  onChangeText={setPhoneOrEmail}
+                  error={phoneOrEmailError}
+                  keyboardType="default"
                   autoCapitalize="none"
-                  iconName="mail"
+                  iconName="user"
                 />
 
                 <Input
