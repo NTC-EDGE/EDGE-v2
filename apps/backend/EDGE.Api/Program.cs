@@ -81,6 +81,10 @@ try
         });
 
     builder.Services.AddDynamicAuthorization();
+    builder.Services.ConfigureHttpJsonOptions(options =>
+    {
+        options.SerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+    });
 
     // Configure OpenAPI
     builder.Services.AddOpenApi();
