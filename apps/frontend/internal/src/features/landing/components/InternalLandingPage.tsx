@@ -11,6 +11,7 @@ import {
   ScrollView,
   useWindowDimensions,
   Pressable,
+  Modal,
 } from "react-native";
 import {
   COLORS,
@@ -34,6 +35,130 @@ interface ClerkErrorResponse {
 function isObject(val: unknown): val is Record<string, unknown> {
   return typeof val === "object" && val !== null;
 }
+
+interface FooterPolicySection {
+  title: string;
+  body: string;
+  highlight?: string;
+}
+
+interface FooterPolicyContent {
+  title: string;
+  intro: string;
+  sections: FooterPolicySection[];
+}
+
+const FOOTER_POLICIES: Record<string, FooterPolicyContent> = {
+  "user-agreement": {
+    title: "User Agreement",
+    intro: "Welcome to the EDGE Portal. This User Agreement governs your access to and use of all services provided by the National Telecommunications Commission (NTC) via this platform.",
+    sections: [
+      {
+        title: "1. Acceptance of Terms",
+        body: "By accessing or using the EDGE Portal, you agree to be bound by these terms and all policies incorporated herein. If you do not agree, you must cease use immediately.",
+      },
+      {
+        title: "2. User Obligations",
+        body: "You agree to use the portal only for lawful purposes related to NTC services. You are responsible for maintaining the confidentiality of your account credentials and for all activities that occur under your account.",
+      },
+      {
+        title: "3. Termination",
+        body: "The NTC reserves the right to suspend or terminate your account and access to the service for any breach of this agreement without prior notice.",
+      },
+    ],
+  },
+  "privacy-policy": {
+    title: "Privacy Policy",
+    intro: "Your privacy is important to us. This policy outlines how the NTC collects, uses, and protects the personal and application data you provide through the EDGE Portal.",
+    sections: [
+      {
+        title: "1. Data Collection",
+        body: "We collect personal information (e.g., name, address, contact details) and transactional data related to your applications and requests required for NTC services.",
+      },
+      {
+        title: "2. Use of Data",
+        body: "The collected data is used exclusively for processing NTC services, verifying identities, internal reporting, and improving the portal's functionality, in accordance with applicable Philippine data privacy laws.",
+      },
+      {
+        title: "3. Data Security",
+        body: "We implement technical and organizational measures to safeguard your data against unauthorized access, disclosure, alteration, and destruction.",
+      },
+    ],
+  },
+  "community-guidelines": {
+    title: "Community Guidelines",
+    intro: "These guidelines promote a safe and productive environment for all users of the EDGE Portal, especially when utilizing public-facing features like feedback forums or communication channels.",
+    sections: [
+      {
+        title: "1. Respectful Conduct",
+        body: "All interactions must be respectful, professional, and courteous. Hate speech, harassment, threats, or discrimination are strictly prohibited.",
+      },
+      {
+        title: "2. Truthfulness",
+        body: "Do not submit false, misleading, or fraudulent information in any application or communication within the portal. Accuracy and honesty are mandatory.",
+      },
+      {
+        title: "3. Prohibited Content",
+        body: "Do not upload or share content that is illegal, defamatory, obscene, or violates the intellectual property rights of others. Violations may lead to account suspension and legal action.",
+      },
+    ],
+  },
+  "cookie-policy": {
+    title: "Cookie Policy",
+    intro: "This portal uses cookies to ensure optimal performance and user experience. By continuing to use the EDGE Portal, you consent to the use of cookies.",
+    sections: [
+      {
+        title: "1. What are Cookies?",
+        body: "Cookies are small text files stored on your device that help us remember your preferences and settings, and analyze how you interact with our services.",
+      },
+      {
+        title: "2. Types of Cookies Used",
+        body: "• Essential Cookies: Necessary for the website to function securely (e.g., managing your session).\n• Performance Cookies: Used for analytics to improve the portal's speed and reliability.",
+      },
+      {
+        title: "3. Managing Cookies",
+        body: "You may control and/or delete cookies as you wish. Please note that disabling essential cookies may affect the functionality of the EDGE Portal.",
+      },
+    ],
+  },
+  "send-feedback": {
+    title: "Send Feedback",
+    intro: "Your feedback is crucial for the continuous improvement of the EDGE Portal. Please use this channel to submit suggestions, bug reports, or compliments.",
+    sections: [
+      {
+        title: "1. Focus on Specifics",
+        body: "When reporting issues, include the steps you took, the device you used, and the desired outcome. For suggestions, explain how the change would benefit your experience.",
+      },
+      {
+        title: "2. Response Time",
+        body: "While we read all feedback, we cannot promise a personal response to every submission. If your concern is urgent, please refer to the Help Center for official support channels.",
+      },
+      {
+        title: "3. Confidentiality",
+        body: "All feedback submitted is considered non-confidential and may be used by the NTC to enhance the system without compensation.",
+      },
+    ],
+  },
+  "help-center": {
+    title: "Help Center & Support",
+    intro: "Find comprehensive guides, video tutorials, and technical support for all NTC EDGE Portal services.",
+    sections: [
+      {
+        title: "1. Self-Service Resources",
+        body: "Before contacting support, please check our extensive FAQ section and step-by-step guides available within the portal's main Help Center link (this will lead to a dedicated website).",
+      },
+      {
+        title: "2. Contact Information",
+        body: "For application-specific inquiries or technical issues that cannot be resolved via self-service:",
+        highlight: "Email Support: support@ntcedge.gov.ph",
+      },
+      {
+        title: "3. Operating Hours",
+        body: "Live support is available Monday to Friday, 8:00 AM to 5:00 PM (Philippine Standard Time).",
+      },
+    ],
+  },
+};
 
 function isClerkError(err: unknown): err is ClerkErrorResponse {
   if (!isObject(err)) {
@@ -87,6 +212,7 @@ export function InternalLandingPage() {
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [activeFooterModal, setActiveFooterModal] = useState<FooterPolicyContent | null>(null);
 
   const handleAuthError = (err: unknown, defaultMsg: string) => {
     if (err instanceof Error) {
@@ -472,28 +598,107 @@ export function InternalLandingPage() {
             </View>
 
             <View style={[styles.footerRightLinks, isMobile && styles.footerRightLinksMobile]}>
-              <Pressable style={styles.footerLinkPressable}>
+              <Pressable
+                style={styles.footerLinkPressable}
+                onPress={() => setActiveFooterModal(FOOTER_POLICIES["user-agreement"])}
+              >
                 <Text style={styles.footerLinkText}>User Agreement</Text>
               </Pressable>
-              <Pressable style={styles.footerLinkPressable}>
+              <Pressable
+                style={styles.footerLinkPressable}
+                onPress={() => setActiveFooterModal(FOOTER_POLICIES["privacy-policy"])}
+              >
                 <Text style={styles.footerLinkText}>Privacy Policy</Text>
               </Pressable>
-              <Pressable style={styles.footerLinkPressable}>
+              <Pressable
+                style={styles.footerLinkPressable}
+                onPress={() => setActiveFooterModal(FOOTER_POLICIES["community-guidelines"])}
+              >
                 <Text style={styles.footerLinkText}>Community Guidelines</Text>
               </Pressable>
-              <Pressable style={styles.footerLinkPressable}>
+              <Pressable
+                style={styles.footerLinkPressable}
+                onPress={() => setActiveFooterModal(FOOTER_POLICIES["cookie-policy"])}
+              >
                 <Text style={styles.footerLinkText}>Cookie Policy</Text>
               </Pressable>
-              <Pressable style={styles.footerLinkPressable}>
+              <Pressable
+                style={styles.footerLinkPressable}
+                onPress={() => setActiveFooterModal(FOOTER_POLICIES["send-feedback"])}
+              >
                 <Text style={styles.footerLinkText}>Send Feedback</Text>
               </Pressable>
-              <Pressable style={styles.footerLinkPressable}>
+              <Pressable
+                style={styles.footerLinkPressable}
+                onPress={() => setActiveFooterModal(FOOTER_POLICIES["help-center"])}
+              >
                 <Text style={styles.footerLinkText}>Help Center</Text>
               </Pressable>
             </View>
           </View>
         </View>
       </ScrollView>
+
+      {/* Policy & Support Dialog Modal */}
+      <Modal
+        visible={activeFooterModal !== null}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setActiveFooterModal(null)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setActiveFooterModal(null)}
+        >
+          <TouchableOpacity
+            style={[styles.modalCard, SHADOWS.modal]}
+            activeOpacity={1}
+            onPress={() => {}}
+          >
+            {/* Close X Button */}
+            <Pressable
+              style={styles.modalCloseBtn}
+              onPress={() => setActiveFooterModal(null)}
+            >
+              <Lucide name="x" size={20} color={COLORS.neutral[500]} />
+            </Pressable>
+
+            {activeFooterModal !== null ? (
+              <ScrollView style={{ maxHeight: 560 }} showsVerticalScrollIndicator={true}>
+                {/* Header */}
+                <View style={styles.policyModalHeader}>
+                  <View style={styles.policyHeaderIconCircle}>
+                    <Lucide name="file-text" size={20} color="#1E3A8A" />
+                  </View>
+                  <Text style={styles.policyModalTitle}>{activeFooterModal.title}</Text>
+                </View>
+                <View style={styles.policyTitleDivider} />
+
+                {/* Intro Box */}
+                <View style={styles.policyIntroBox}>
+                  <Lucide name="info" size={18} color="#1E3A8A" style={styles.policyIntroIcon} />
+                  <Text style={styles.policyIntroText}>{activeFooterModal.intro}</Text>
+                </View>
+
+                {/* Section Cards */}
+                {activeFooterModal.sections.map((sec, i) => (
+                  <View key={i} style={[styles.policySectionCard, SHADOWS.card]}>
+                    <Text style={styles.policySecTitle}>{sec.title}</Text>
+                    <Text style={styles.policySecBody}>{sec.body}</Text>
+                    {sec.highlight !== undefined ? (
+                      <View style={styles.policyHighlightBadge}>
+                        <Lucide name="mail" size={14} color="#1E3A8A" style={styles.policyMailIcon} />
+                        <Text style={styles.policyHighlightText}>{sec.highlight}</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                ))}
+              </ScrollView>
+            ) : null}
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -758,5 +963,125 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: COLORS.neutral[200],
     fontWeight: TYPOGRAPHY.weights.medium,
+  },
+
+  /* Policy Modal Styles */
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(15, 23, 42, 0.65)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: SPACING[20],
+  },
+  modalCard: {
+    width: "100%",
+    maxWidth: 840,
+    backgroundColor: COLORS.neutral.white,
+    borderRadius: 24,
+    padding: 36,
+    position: "relative",
+    alignSelf: "center",
+  },
+  modalCloseBtn: {
+    position: "absolute",
+    top: 20,
+    right: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#F1F5F9",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 10,
+  },
+  policyModalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  policyHeaderIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: "#EEF2FF",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  policyModalTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 22,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: "#0F2042",
+  },
+  policyTitleDivider: {
+    height: 1,
+    backgroundColor: COLORS.neutral[200],
+    marginBottom: 20,
+    width: "100%",
+  },
+  policyIntroBox: {
+    flexDirection: "row",
+    backgroundColor: "#EEF2FF",
+    borderColor: "#C7D2FE",
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 20,
+    alignItems: "flex-start",
+  },
+  policyIntroIcon: {
+    marginRight: 10,
+    marginTop: 2,
+  },
+  policyIntroText: {
+    flex: 1,
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    color: "#1E3A8A",
+    fontWeight: TYPOGRAPHY.weights.medium,
+    lineHeight: 22,
+  },
+  policySectionCard: {
+    backgroundColor: "#F8FAFC",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    padding: 20,
+    marginBottom: 16,
+  },
+  policySecTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 15,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: "#1E3A8A",
+    marginBottom: 8,
+  },
+  policySecBody: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    color: COLORS.neutral[700],
+    lineHeight: 22,
+  },
+  policyHighlightBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: COLORS.neutral.white,
+    borderColor: "#C7D2FE",
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginTop: 12,
+    alignSelf: "flex-start",
+  },
+  policyMailIcon: {
+    marginRight: 8,
+  },
+  policyHighlightText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: "#1E3A8A",
   },
 });
