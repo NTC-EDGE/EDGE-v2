@@ -11,6 +11,9 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
     public DbSet<ApplicationRecord> Applications => Set<ApplicationRecord>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<ActivityLog> ActivityLogs => Set<ActivityLog>();
+    public DbSet<Tenant> Tenants => Set<Tenant>();
+    public DbSet<User> Users => Set<User>();
+    public DbSet<TenantMember> TenantMembers => Set<TenantMember>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -21,5 +24,49 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
         modelBuilder.Entity<ApplicationRecord>()
             .Property(e => e.Status)
             .HasConversion<string>();
+
+        // Tenant Configuration
+        modelBuilder.Entity<Tenant>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(150);
+            entity.Property(e => e.Code).IsRequired().HasMaxLength(50);
+            entity.HasIndex(e => e.Code).IsUnique();
+            entity.Property(e => e.Description).HasMaxLength(500);
+            entity.Property(e => e.RegionId).IsRequired();
+        });
+
+        // User Configuration (Stub)
+        modelBuilder.Entity<User>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ClerkId).IsRequired().HasMaxLength(100);
+            entity.HasIndex(e => e.ClerkId).IsUnique();
+            entity.Property(e => e.Email).IsRequired().HasMaxLength(256);
+            entity.Property(e => e.FirstName).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.LastName).IsRequired().HasMaxLength(100);
+        });
+
+        // TenantMember Configuration
+        modelBuilder.Entity<TenantMember>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.JobTitle).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.ContactNumber).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Department).HasMaxLength(100);
+
+            entity.HasOne(e => e.Tenant)
+                  .WithMany(t => t.Members)
+                  .HasForeignKey(e => e.TenantId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.User)
+                  .WithMany(u => u.TenantMembers)
+                  .HasForeignKey(e => e.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            // Unique constraint to prevent registering the same user to the same tenant twice
+            entity.HasIndex(e => new { e.TenantId, e.UserId }).IsUnique();
+        });
     }
 }

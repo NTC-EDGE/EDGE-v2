@@ -12,6 +12,7 @@ using EDGE.Application.Common.Interfaces;
 using EDGE.Infrastructure;
 using EDGE.Infrastructure.Hubs;
 using EDGE.Api.Services;
+using EDGE.Api.Endpoints;
 
 // Configure Serilog
 Log.Logger = new LoggerConfiguration()
@@ -66,7 +67,7 @@ try
     if (app.Environment.IsDevelopment())
     {
         app.MapOpenApi();
-        app.MapScalarApiReference();
+        app.MapScalarApiReference("/scalar/v2");
         app.UseHangfireDashboard("/hangfire");
     }
 
@@ -98,6 +99,11 @@ try
     })
     .WithName("CreateApplication")
     .RequireAuthorization();
+
+    // Map API V2 Group and endpoints
+    var v2Group = app.MapGroup("api/v2");
+    v2Group.MapTenantEndpoints();
+    v2Group.MapTenantMemberEndpoints();
 
     // Map SignalR Hub
     app.MapHub<NotificationHub>("/hubs/notifications");

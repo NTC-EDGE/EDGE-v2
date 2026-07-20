@@ -1,0 +1,225 @@
+2026-07-20 09:26:34.299 +08:00 [INF] Starting NTC-EDGE Web API...
+2026-07-20 09:26:36.319 +08:00 [INF] Start installing Hangfire SQL objects...
+2026-07-20 09:26:37.374 +08:00 [INF] Hangfire SQL objects installed.
+2026-07-20 09:26:37.509 +08:00 [INF] User profile is available. Using 'C:\Users\User\AppData\Local\ASP.NET\DataProtection-Keys' as key repository and Windows DPAPI to encrypt keys at rest.
+2026-07-20 09:26:37.797 +08:00 [INF] Now listening on: https://localhost:7096
+2026-07-20 09:26:37.799 +08:00 [INF] Now listening on: http://localhost:5038
+2026-07-20 09:26:37.809 +08:00 [INF] No action descriptors found. This may indicate an incorrectly configured application or missing application parts. To learn more, visit https://aka.ms/aspnet/mvc/app-parts
+2026-07-20 09:26:37.855 +08:00 [INF] Starting Hangfire Server using job storage: 'PostgreSQL Server: Host: pg.dev.nextstep-software.com, DB: EDGE_DB, Schema: hangfire'
+2026-07-20 09:26:37.856 +08:00 [INF] Using the following options for PostgreSQL job storage:
+2026-07-20 09:26:37.863 +08:00 [INF]     Queue poll interval: 00:00:15.
+2026-07-20 09:26:37.863 +08:00 [INF]     Invisibility timeout: 00:30:00.
+2026-07-20 09:26:37.864 +08:00 [INF]     Use sliding invisibility timeout: False.
+2026-07-20 09:26:37.865 +08:00 [INF] Using the following options for Hangfire Server:
+    Worker count: 20
+    Listening queues: 'default'
+    Shutdown timeout: 00:00:15
+    Schedule polling interval: 00:00:15
+2026-07-20 09:26:37.921 +08:00 [INF] Application started. Press Ctrl+C to shut down.
+2026-07-20 09:26:37.922 +08:00 [INF] Hosting environment: Development
+2026-07-20 09:26:37.923 +08:00 [INF] Content root path: C:\Dev\NEXTSTEP\EDGE-v2\apps\backend\EDGE.Api
+2026-07-20 09:26:38.187 +08:00 [INF] Server laptop-rqcv0odj:20152:b67786c0 successfully announced in 264.9744 ms
+2026-07-20 09:26:38.194 +08:00 [INF] Server laptop-rqcv0odj:20152:b67786c0 is starting the registered dispatchers: ServerWatchdog, ServerJobCancellationWatcher, ExpirationManager, CountersAggregator, Worker, DelayedJobScheduler, RecurringJobScheduler...
+2026-07-20 09:26:38.320 +08:00 [INF] Server laptop-rqcv0odj:20152:b67786c0 all the dispatchers started
+2026-07-20 09:26:38.771 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/ - null null
+2026-07-20 09:26:39.253 +08:00 [INF] Executing endpoint 'HTTP: GET /'
+2026-07-20 09:26:39.288 +08:00 [INF] Executed endpoint 'HTTP: GET /'
+2026-07-20 09:26:39.297 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/ - 200 null text/plain; charset=utf-8 543.9161ms
+2026-07-20 09:26:39.337 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/favicon.ico - null null
+2026-07-20 09:26:39.348 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/favicon.ico - 404 0 null 12.5603ms
+2026-07-20 09:26:39.367 +08:00 [INF] Request reached the end of the middleware pipeline without being handled by application code. Request path: GET https://localhost:7096/favicon.ico, Response status code: 404
+2026-07-20 09:26:46.991 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/scalar - null null
+2026-07-20 09:26:47.010 +08:00 [INF] Executing endpoint 'HTTP: GET /scalar/{documentName?}'
+2026-07-20 09:26:47.057 +08:00 [INF] Executing RedirectResult, redirecting to scalar/.
+2026-07-20 09:26:47.061 +08:00 [INF] Executed endpoint 'HTTP: GET /scalar/{documentName?}'
+2026-07-20 09:26:47.064 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/scalar - 302 null null 73.0086ms
+2026-07-20 09:26:47.070 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/scalar/ - null null
+2026-07-20 09:26:47.080 +08:00 [INF] Executing endpoint 'HTTP: GET /scalar/{documentName?}'
+2026-07-20 09:26:47.358 +08:00 [INF] Write content with HTTP Response ContentType of text/html
+2026-07-20 09:26:47.378 +08:00 [INF] Executed endpoint 'HTTP: GET /scalar/{documentName?}'
+2026-07-20 09:26:47.386 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/scalar/ - 200 null text/html 315.7334ms
+2026-07-20 09:26:47.395 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/scalar/scalar.js - null null
+2026-07-20 09:26:47.396 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/scalar/scalar.aspnetcore.js - null null
+2026-07-20 09:26:47.396 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/_framework/aspnetcore-browser-refresh.js - null null
+2026-07-20 09:26:47.396 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/_vs/browserLink - null null
+2026-07-20 09:26:47.410 +08:00 [INF] Executing endpoint 'HTTP: GET /scalar/scalar.js'
+2026-07-20 09:26:47.415 +08:00 [INF] Executing endpoint 'HTTP: GET /scalar/scalar.aspnetcore.js'
+2026-07-20 09:26:47.425 +08:00 [INF] Sending file with download name ''.
+2026-07-20 09:26:47.440 +08:00 [INF] Executed endpoint 'HTTP: GET /scalar/scalar.aspnetcore.js'
+2026-07-20 09:26:47.484 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/scalar/scalar.aspnetcore.js - 200 1111 text/javascript 87.9835ms
+2026-07-20 09:26:47.489 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/_framework/aspnetcore-browser-refresh.js - 200 14921 application/javascript; charset=utf-8 92.7573ms
+2026-07-20 09:26:47.511 +08:00 [INF] Sending file with download name ''.
+2026-07-20 09:26:47.554 +08:00 [INF] Executed endpoint 'HTTP: GET /scalar/scalar.js'
+2026-07-20 09:26:47.563 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/_vs/browserLink - 200 null text/javascript; charset=UTF-8 167.316ms
+2026-07-20 09:26:47.565 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/scalar/scalar.js - 200 1072587 text/javascript 169.4197ms
+2026-07-20 09:26:47.930 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/openapi/v1.json - null null
+2026-07-20 09:26:47.937 +08:00 [INF] Executing endpoint 'HTTP: GET /openapi/{documentName}.json'
+2026-07-20 09:26:47.953 +08:00 [INF] Executed endpoint 'HTTP: GET /openapi/{documentName}.json'
+2026-07-20 09:26:47.954 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/openapi/v1.json - 200 null application/json;charset=utf-8 24.3058ms
+2026-07-20 09:26:48.513 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/scalar/favicon.svg - null null
+2026-07-20 09:26:48.528 +08:00 [INF] Executing endpoint 'HTTP: GET /scalar/favicon.svg'
+2026-07-20 09:26:48.530 +08:00 [INF] Sending file with download name ''.
+2026-07-20 09:26:48.533 +08:00 [INF] Executed endpoint 'HTTP: GET /scalar/favicon.svg'
+2026-07-20 09:26:48.535 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/scalar/favicon.svg - 200 533 image/svg+xml 21.6541ms
+2026-07-20 09:42:48.004 +08:00 [INF] Request starting HTTP/2 POST https://localhost:7096/api/applications - application/json 31
+2026-07-20 09:42:48.038 +08:00 [INF] Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-07-20 09:42:48.048 +08:00 [INF] AuthenticationScheme: Bearer was challenged.
+2026-07-20 09:42:48.050 +08:00 [INF] Request finished HTTP/2 POST https://localhost:7096/api/applications - 401 0 null 46.3834ms
+2026-07-20 11:02:44.849 +08:00 [INF] Starting NTC-EDGE Web API...
+2026-07-20 11:02:47.911 +08:00 [INF] Start installing Hangfire SQL objects...
+2026-07-20 11:02:49.073 +08:00 [INF] Hangfire SQL objects installed.
+2026-07-20 11:02:49.443 +08:00 [INF] User profile is available. Using 'C:\Users\User\AppData\Local\ASP.NET\DataProtection-Keys' as key repository and Windows DPAPI to encrypt keys at rest.
+2026-07-20 11:02:50.467 +08:00 [INF] Now listening on: https://localhost:7096
+2026-07-20 11:02:50.474 +08:00 [INF] Now listening on: http://localhost:5038
+2026-07-20 11:02:50.515 +08:00 [INF] No action descriptors found. This may indicate an incorrectly configured application or missing application parts. To learn more, visit https://aka.ms/aspnet/mvc/app-parts
+2026-07-20 11:02:50.643 +08:00 [INF] Starting Hangfire Server using job storage: 'PostgreSQL Server: Host: pg.dev.nextstep-software.com, DB: EDGE_DB, Schema: hangfire'
+2026-07-20 11:02:50.649 +08:00 [INF] Using the following options for PostgreSQL job storage:
+2026-07-20 11:02:50.664 +08:00 [INF]     Queue poll interval: 00:00:15.
+2026-07-20 11:02:50.669 +08:00 [INF]     Invisibility timeout: 00:30:00.
+2026-07-20 11:02:50.675 +08:00 [INF]     Use sliding invisibility timeout: False.
+2026-07-20 11:02:50.679 +08:00 [INF] Using the following options for Hangfire Server:
+    Worker count: 20
+    Listening queues: 'default'
+    Shutdown timeout: 00:00:15
+    Schedule polling interval: 00:00:15
+2026-07-20 11:02:50.772 +08:00 [INF] Application started. Press Ctrl+C to shut down.
+2026-07-20 11:02:50.775 +08:00 [INF] Hosting environment: Development
+2026-07-20 11:02:50.779 +08:00 [INF] Content root path: C:\Dev\NEXTSTEP\EDGE-v2\apps\backend\EDGE.Api
+2026-07-20 11:02:51.170 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/ - null null
+2026-07-20 11:02:51.361 +08:00 [INF] Server laptop-rqcv0odj:39992:b78794d8 successfully announced in 583.33 ms
+2026-07-20 11:02:51.390 +08:00 [INF] Server laptop-rqcv0odj:39992:b78794d8 is starting the registered dispatchers: ServerWatchdog, ServerJobCancellationWatcher, ExpirationManager, CountersAggregator, Worker, DelayedJobScheduler, RecurringJobScheduler...
+2026-07-20 11:02:51.898 +08:00 [INF] Server laptop-rqcv0odj:39992:b78794d8 all the dispatchers started
+2026-07-20 11:02:52.531 +08:00 [INF] Executing endpoint 'HTTP: GET /'
+2026-07-20 11:02:52.611 +08:00 [INF] Executed endpoint 'HTTP: GET /'
+2026-07-20 11:02:52.622 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/ - 200 null text/plain; charset=utf-8 1469.1747ms
+2026-07-20 11:02:56.756 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/scalar - null null
+2026-07-20 11:02:56.780 +08:00 [INF] Executing endpoint 'HTTP: GET /scalar/{documentName?}'
+2026-07-20 11:02:56.820 +08:00 [INF] Executing RedirectResult, redirecting to scalar/.
+2026-07-20 11:02:56.824 +08:00 [INF] Executed endpoint 'HTTP: GET /scalar/{documentName?}'
+2026-07-20 11:02:56.827 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/scalar - 302 null null 71.0532ms
+2026-07-20 11:02:56.840 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/scalar/ - null null
+2026-07-20 11:02:56.858 +08:00 [INF] Executing endpoint 'HTTP: GET /scalar/{documentName?}'
+2026-07-20 11:02:57.194 +08:00 [INF] Write content with HTTP Response ContentType of text/html
+2026-07-20 11:02:57.209 +08:00 [INF] Executed endpoint 'HTTP: GET /scalar/{documentName?}'
+2026-07-20 11:02:57.215 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/scalar/ - 200 null text/html 375.276ms
+2026-07-20 11:02:57.226 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/_framework/aspnetcore-browser-refresh.js - null null
+2026-07-20 11:02:57.226 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/_vs/browserLink - null null
+2026-07-20 11:02:57.226 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/scalar/scalar.js - null null
+2026-07-20 11:02:57.226 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/scalar/scalar.aspnetcore.js - null null
+2026-07-20 11:02:57.305 +08:00 [INF] Executing endpoint 'HTTP: GET /scalar/scalar.js'
+2026-07-20 11:02:57.307 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/_framework/aspnetcore-browser-refresh.js - 200 14921 application/javascript; charset=utf-8 81.4684ms
+2026-07-20 11:02:57.322 +08:00 [INF] Executing endpoint 'HTTP: GET /scalar/scalar.aspnetcore.js'
+2026-07-20 11:02:57.357 +08:00 [INF] Sending file with download name ''.
+2026-07-20 11:02:57.365 +08:00 [INF] Executed endpoint 'HTTP: GET /scalar/scalar.aspnetcore.js'
+2026-07-20 11:02:57.371 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/scalar/scalar.aspnetcore.js - 304 null null 145.0426ms
+2026-07-20 11:02:57.382 +08:00 [INF] Sending file with download name ''.
+2026-07-20 11:02:57.383 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/_vs/browserLink - 200 null text/javascript; charset=UTF-8 157.6486ms
+2026-07-20 11:02:57.397 +08:00 [INF] Executed endpoint 'HTTP: GET /scalar/scalar.js'
+2026-07-20 11:02:57.406 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/scalar/scalar.js - 304 null null 180.8822ms
+2026-07-20 11:02:57.662 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/openapi/v1.json - null null
+2026-07-20 11:02:57.680 +08:00 [INF] Executing endpoint 'HTTP: GET /openapi/{documentName}.json'
+2026-07-20 11:02:57.715 +08:00 [INF] Executed endpoint 'HTTP: GET /openapi/{documentName}.json'
+2026-07-20 11:02:57.723 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/openapi/v1.json - 200 null application/json;charset=utf-8 61.7219ms
+2026-07-20 11:11:23.498 +08:00 [INF] Starting NTC-EDGE Web API...
+2026-07-20 11:11:25.578 +08:00 [INF] Start installing Hangfire SQL objects...
+2026-07-20 11:11:26.724 +08:00 [INF] Hangfire SQL objects installed.
+2026-07-20 11:11:26.977 +08:00 [INF] User profile is available. Using 'C:\Users\User\AppData\Local\ASP.NET\DataProtection-Keys' as key repository and Windows DPAPI to encrypt keys at rest.
+2026-07-20 11:11:27.753 +08:00 [INF] Now listening on: https://localhost:7096
+2026-07-20 11:11:27.757 +08:00 [INF] Now listening on: http://localhost:5038
+2026-07-20 11:11:27.773 +08:00 [INF] No action descriptors found. This may indicate an incorrectly configured application or missing application parts. To learn more, visit https://aka.ms/aspnet/mvc/app-parts
+2026-07-20 11:11:28.218 +08:00 [INF] Starting Hangfire Server using job storage: 'PostgreSQL Server: Host: pg.dev.nextstep-software.com, DB: EDGE_DB, Schema: hangfire'
+2026-07-20 11:11:28.236 +08:00 [INF] Using the following options for PostgreSQL job storage:
+2026-07-20 11:11:28.240 +08:00 [INF]     Queue poll interval: 00:00:15.
+2026-07-20 11:11:28.242 +08:00 [INF]     Invisibility timeout: 00:30:00.
+2026-07-20 11:11:28.244 +08:00 [INF]     Use sliding invisibility timeout: False.
+2026-07-20 11:11:28.246 +08:00 [INF] Using the following options for Hangfire Server:
+    Worker count: 20
+    Listening queues: 'default'
+    Shutdown timeout: 00:00:15
+    Schedule polling interval: 00:00:15
+2026-07-20 11:11:28.309 +08:00 [INF] Application started. Press Ctrl+C to shut down.
+2026-07-20 11:11:28.311 +08:00 [INF] Hosting environment: Development
+2026-07-20 11:11:28.313 +08:00 [INF] Content root path: C:\Dev\NEXTSTEP\EDGE-v2\apps\backend\EDGE.Api
+2026-07-20 11:11:28.627 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/ - null null
+2026-07-20 11:11:28.745 +08:00 [INF] Server laptop-rqcv0odj:39124:3b594b99 successfully announced in 433.5115 ms
+2026-07-20 11:11:28.761 +08:00 [INF] Server laptop-rqcv0odj:39124:3b594b99 is starting the registered dispatchers: ServerWatchdog, ServerJobCancellationWatcher, ExpirationManager, CountersAggregator, Worker, DelayedJobScheduler, RecurringJobScheduler...
+2026-07-20 11:11:29.299 +08:00 [INF] Server laptop-rqcv0odj:39124:3b594b99 all the dispatchers started
+2026-07-20 11:11:29.865 +08:00 [INF] Executing endpoint 'HTTP: GET /'
+2026-07-20 11:11:29.913 +08:00 [INF] Executed endpoint 'HTTP: GET /'
+2026-07-20 11:11:29.937 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/ - 200 null text/plain; charset=utf-8 1326.5805ms
+2026-07-20 11:11:34.950 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/scalar - null null
+2026-07-20 11:11:34.975 +08:00 [INF] Executing endpoint 'HTTP: GET /scalar/{documentName?}'
+2026-07-20 11:11:35.015 +08:00 [INF] Executing RedirectResult, redirecting to scalar/.
+2026-07-20 11:11:35.019 +08:00 [INF] Executed endpoint 'HTTP: GET /scalar/{documentName?}'
+2026-07-20 11:11:35.023 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/scalar - 302 null null 73.5692ms
+2026-07-20 11:11:35.034 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/scalar/ - null null
+2026-07-20 11:11:35.052 +08:00 [INF] Executing endpoint 'HTTP: GET /scalar/{documentName?}'
+2026-07-20 11:11:35.380 +08:00 [INF] Write content with HTTP Response ContentType of text/html
+2026-07-20 11:11:35.401 +08:00 [INF] Executed endpoint 'HTTP: GET /scalar/{documentName?}'
+2026-07-20 11:11:35.406 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/scalar/ - 200 null text/html 372.4762ms
+2026-07-20 11:11:35.419 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/_vs/browserLink - null null
+2026-07-20 11:11:35.419 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/scalar/scalar.js - null null
+2026-07-20 11:11:35.418 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/scalar/scalar.aspnetcore.js - null null
+2026-07-20 11:11:35.418 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/_framework/aspnetcore-browser-refresh.js - null null
+2026-07-20 11:11:35.446 +08:00 [INF] Executing endpoint 'HTTP: GET /scalar/scalar.js'
+2026-07-20 11:11:35.453 +08:00 [INF] Executing endpoint 'HTTP: GET /scalar/scalar.aspnetcore.js'
+2026-07-20 11:11:35.478 +08:00 [INF] Sending file with download name ''.
+2026-07-20 11:11:35.485 +08:00 [INF] Sending file with download name ''.
+2026-07-20 11:11:35.505 +08:00 [INF] Executed endpoint 'HTTP: GET /scalar/scalar.aspnetcore.js'
+2026-07-20 11:11:35.505 +08:00 [INF] Executed endpoint 'HTTP: GET /scalar/scalar.js'
+2026-07-20 11:11:35.506 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/_framework/aspnetcore-browser-refresh.js - 200 14921 application/javascript; charset=utf-8 88.2238ms
+2026-07-20 11:11:35.517 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/scalar/scalar.js - 304 null null 98.8244ms
+2026-07-20 11:11:35.513 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/scalar/scalar.aspnetcore.js - 304 null null 94.5382ms
+2026-07-20 11:11:35.603 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/_vs/browserLink - 200 null text/javascript; charset=UTF-8 183.3823ms
+2026-07-20 11:11:35.751 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/openapi/v1.json - null null
+2026-07-20 11:11:35.763 +08:00 [INF] Executing endpoint 'HTTP: GET /openapi/{documentName}.json'
+2026-07-20 11:11:35.797 +08:00 [INF] Executed endpoint 'HTTP: GET /openapi/{documentName}.json'
+2026-07-20 11:11:35.825 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/openapi/v1.json - 200 null application/json;charset=utf-8 74.6145ms
+2026-07-20 11:16:29.532 +08:00 [INF] 1 servers were removed due to timeout
+2026-07-20 11:21:45.099 +08:00 [INF] Starting NTC-EDGE Web API...
+2026-07-20 11:21:46.003 +08:00 [INF] Start installing Hangfire SQL objects...
+2026-07-20 11:21:46.988 +08:00 [INF] Hangfire SQL objects installed.
+2026-07-20 11:21:47.117 +08:00 [INF] User profile is available. Using 'C:\Users\User\AppData\Local\ASP.NET\DataProtection-Keys' as key repository and Windows DPAPI to encrypt keys at rest.
+2026-07-20 11:21:47.674 +08:00 [INF] Now listening on: https://localhost:7096
+2026-07-20 11:21:47.678 +08:00 [INF] Now listening on: http://localhost:5038
+2026-07-20 11:21:47.697 +08:00 [INF] No action descriptors found. This may indicate an incorrectly configured application or missing application parts. To learn more, visit https://aka.ms/aspnet/mvc/app-parts
+2026-07-20 11:21:48.050 +08:00 [INF] Starting Hangfire Server using job storage: 'PostgreSQL Server: Host: pg.dev.nextstep-software.com, DB: EDGE_DB, Schema: hangfire'
+2026-07-20 11:21:48.053 +08:00 [INF] Using the following options for PostgreSQL job storage:
+2026-07-20 11:21:48.055 +08:00 [INF]     Queue poll interval: 00:00:15.
+2026-07-20 11:21:48.057 +08:00 [INF]     Invisibility timeout: 00:30:00.
+2026-07-20 11:21:48.059 +08:00 [INF]     Use sliding invisibility timeout: False.
+2026-07-20 11:21:48.060 +08:00 [INF] Using the following options for Hangfire Server:
+    Worker count: 20
+    Listening queues: 'default'
+    Shutdown timeout: 00:00:15
+    Schedule polling interval: 00:00:15
+2026-07-20 11:21:48.106 +08:00 [INF] Application started. Press Ctrl+C to shut down.
+2026-07-20 11:21:48.108 +08:00 [INF] Hosting environment: Development
+2026-07-20 11:21:48.110 +08:00 [INF] Content root path: C:\Dev\NEXTSTEP\EDGE-v2\apps\backend\EDGE.Api
+2026-07-20 11:21:48.403 +08:00 [INF] Server laptop-rqcv0odj:20796:c4c6e420 successfully announced in 293.639 ms
+2026-07-20 11:21:48.420 +08:00 [INF] Server laptop-rqcv0odj:20796:c4c6e420 is starting the registered dispatchers: ServerWatchdog, ServerJobCancellationWatcher, ExpirationManager, CountersAggregator, Worker, DelayedJobScheduler, RecurringJobScheduler...
+2026-07-20 11:21:48.772 +08:00 [INF] Server laptop-rqcv0odj:20796:c4c6e420 all the dispatchers started
+2026-07-20 11:21:48.886 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/scalar/v1 - null null
+2026-07-20 11:21:49.383 +08:00 [INF] Executing endpoint 'HTTP: GET /scalar/{documentName?}'
+2026-07-20 11:21:49.722 +08:00 [INF] Write content with HTTP Response ContentType of text/html
+2026-07-20 11:21:49.765 +08:00 [INF] Executed endpoint 'HTTP: GET /scalar/{documentName?}'
+2026-07-20 11:21:49.775 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/_framework/aspnetcore-browser-refresh.js - null null
+2026-07-20 11:21:49.777 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/_vs/browserLink - null null
+2026-07-20 11:21:49.775 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/scalar/scalar.js - null null
+2026-07-20 11:21:49.775 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/scalar/scalar.aspnetcore.js - null null
+2026-07-20 11:21:49.871 +08:00 [INF] Executing endpoint 'HTTP: GET /scalar/scalar.js'
+2026-07-20 11:21:49.847 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/scalar/v1 - 200 null text/html 960.5992ms
+2026-07-20 11:21:49.939 +08:00 [INF] Executing endpoint 'HTTP: GET /scalar/scalar.aspnetcore.js'
+2026-07-20 11:21:49.944 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/_framework/aspnetcore-browser-refresh.js - 200 14921 application/javascript; charset=utf-8 169.5276ms
+2026-07-20 11:21:49.981 +08:00 [INF] Sending file with download name ''.
+2026-07-20 11:21:49.982 +08:00 [INF] Sending file with download name ''.
+2026-07-20 11:21:49.988 +08:00 [INF] Executed endpoint 'HTTP: GET /scalar/scalar.aspnetcore.js'
+2026-07-20 11:21:49.988 +08:00 [INF] Executed endpoint 'HTTP: GET /scalar/scalar.js'
+2026-07-20 11:21:49.991 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/scalar/scalar.aspnetcore.js - 304 null null 215.382ms
+2026-07-20 11:21:49.993 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/scalar/scalar.js - 304 null null 217.9243ms
+2026-07-20 11:21:50.014 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/_vs/browserLink - 200 null text/javascript; charset=UTF-8 237.624ms
+2026-07-20 11:21:50.065 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/openapi/v1.json - null null
+2026-07-20 11:21:50.074 +08:00 [INF] Executing endpoint 'HTTP: GET /openapi/{documentName}.json'
+2026-07-20 11:21:50.096 +08:00 [INF] Executed endpoint 'HTTP: GET /openapi/{documentName}.json'
+2026-07-20 11:21:50.099 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/openapi/v1.json - 200 null application/json;charset=utf-8 34.1417ms

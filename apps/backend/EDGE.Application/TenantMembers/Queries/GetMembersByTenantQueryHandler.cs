@@ -1,0 +1,48 @@
+using MediatR;
+using EDGE.Application.Common.Interfaces;
+using EDGE.Application.TenantMembers.DTOs;
+
+namespace EDGE.Application.TenantMembers.Queries;
+
+public class GetMembersByTenantQueryHandler : IRequestHandler<GetMembersByTenantQuery, List<TenantMemberDto>>
+{
+    private readonly ITenantRepository _tenantRepository;
+    private readonly ITenantMemberRepository _memberRepository;
+
+    public GetMembersByTenantQueryHandler(ITenantRepository tenantRepository, ITenantMemberRepository memberRepository)
+    {
+        _tenantRepository = tenantRepository;
+        _memberRepository = memberRepository;
+    }
+
+    public async Task<List<TenantMemberDto>> Handle(GetMembersByTenantQuery request, CancellationToken cancellationToken)
+    {
+        var tenant = await _tenantRepository.GetByIdAsync(request.TenantId, cancellationToken);
+        if (tenant == null)
+        {
+            throw new KeyNotFoundException($"Tenant with ID '{request.TenantId}' was not found.");
+        }
+
+        var members = await _memberRepository.GetMembersByTenantAsync(request.TenantId, cancellationToken);
+
+        return members.Select(m => new TenantMemberDto
+        {
+            Id = m.Id,
+            TenantId = m.TenantId,
+            TenantName = tenant.Name, // Using tenant name from verify step
+            UserId = m.UserId,
+            UserEmail = m.User.Email,
+            UserFirstName = m.User.FirstName,
+            UserLastName = m.User.LastName,
+            JobTitle = m.JobTitle,
+            ContactNumber = m.ContactNumber,
+            Department = m.Department,
+            IsAdmin = m.IsAdmin,
+            IsActive = m.IsActive,
+            CreatedAt = m.CreatedAt,
+            CreatedBy = m.CreatedBy,
+            LastModifiedAt = m.LastModifiedAt,
+            LastModifiedBy = m.LastModifiedBy
+        }).ToList();
+    }
+}
