@@ -24,6 +24,7 @@ interface InputProps {
   style?: ViewStyle;
   inputStyle?: TextStyle;
   iconName?: LucideIconName;
+  rightIcon?: React.ReactNode;
 }
 
 export function Input({
@@ -38,6 +39,7 @@ export function Input({
   style,
   inputStyle,
   iconName,
+  rightIcon,
 }: InputProps) {
   const getRowStyles = (): ViewStyle[] => {
     const list: ViewStyle[] = [styles.inputRow];
@@ -66,6 +68,9 @@ export function Input({
           keyboardType={keyboardType}
           style={[styles.input, inputStyle]}
         />
+        {rightIcon !== undefined && rightIcon !== null ? (
+          <View style={styles.rightIconContainer}>{rightIcon}</View>
+        ) : null}
       </View>
       {error !== undefined && error.length > 0 ? (
         <Text style={styles.errorText}>{error}</Text>
@@ -102,6 +107,11 @@ const styles = StyleSheet.create({
   },
   icon: {
     marginRight: SPACING[12],
+  },
+  rightIconContainer: {
+    marginLeft: SPACING[8],
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   input: {
     flex: 1,
