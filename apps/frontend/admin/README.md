@@ -6,11 +6,11 @@ This is the **System Administrator Web Application** for the **NTC-EDGE** ecosys
 
 ## 🚀 Tech Stack
 
-- **Core Framework**: [Next.js 15](https://nextjs.org/) (App Router, React 19)
-- **Data Caching & Fetching**: [SWR](https://swr.vercel.app/) (State-While-Revalidate hooks) & [Axios](https://github.com/axios/axios)
-- **Authentication**: [Clerk](https://clerk.com/) (`@clerk/nextjs` middleware and pre-configured screens)
+- **Core Framework**: [Next.js 15.1.0](https://nextjs.org/) (App Router, React 19.0.0)
+- **Data Caching & Fetching**: [SWR v2.3.0](https://swr.vercel.app/) & [Axios v1.7.9](https://github.com/axios/axios)
+- **Authentication**: [Clerk v6.10.1](https://clerk.com/) (`@clerk/nextjs` middleware and preconfigured pages)
 - **Styling**: [Tailwind CSS v4](https://tailwindcss.com/) & [Radix UI Primitives](https://www.radix-ui.com/)
-- **Monorepo Linkage**: [Bun](https://bun.sh/) (Workspace package links, leveraging `@edge/api`)
+- **Monorepo Linkage**: [Bun v1.3.14](https://bun.sh/) (Workspace package links, leveraging `@edge/api`)
 
 ---
 
