@@ -16,6 +16,13 @@ npm-debug.*
 yarn-debug.*
 yarn-error.*
 *.log
+# .NET Serilog text logs
+logs/
+*.txt
+
+# Large GeoJSON source boundary files (use GeoJsonConverter to regenerate geographic-data.json)
+docs/*.geojson
+docs/Convert-GeoJsonToSeedData.ps1
 
 # macOS / OS
 .DS_Store

@@ -72,7 +72,13 @@ public class GeographicRepository : IGeographicRepository
     // Municipalities
     public async Task<List<Municipality>> GetMunicipalitiesAsync(Guid? provinceId, bool? activeOnly, CancellationToken cancellationToken = default)
     {
-        var query = _context.Municipalities.Include(m => m.Province).ThenInclude(p => p.Region).AsQueryable();
+        // CS8602: EF Core handles nullable navigation properties safely in ThenInclude chains at runtime
+#pragma warning disable CS8602
+        var query = _context.Municipalities
+            .Include(m => m.Province)
+                .ThenInclude(p => p.Region)
+            .AsQueryable();
+#pragma warning restore CS8602
         if (provinceId.HasValue)
         {
             query = query.Where(m => m.ProvinceId == provinceId.Value);
@@ -86,7 +92,13 @@ public class GeographicRepository : IGeographicRepository
 
     public async Task<Municipality?> GetMunicipalityByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        return await _context.Municipalities.Include(m => m.Province).ThenInclude(p => p.Region).FirstOrDefaultAsync(m => m.Id == id, cancellationToken);
+        // CS8602: EF Core handles nullable navigation properties safely in ThenInclude chains at runtime
+#pragma warning disable CS8602
+        return await _context.Municipalities
+            .Include(m => m.Province)
+                .ThenInclude(p => p.Region)
+            .FirstOrDefaultAsync(m => m.Id == id, cancellationToken);
+#pragma warning restore CS8602
     }
 
     public async Task AddMunicipalityAsync(Municipality municipality, CancellationToken cancellationToken = default)
@@ -102,7 +114,14 @@ public class GeographicRepository : IGeographicRepository
     // Barangays
     public async Task<List<Barangay>> GetBarangaysAsync(Guid? municipalityId, bool? activeOnly, CancellationToken cancellationToken = default)
     {
-        var query = _context.Barangays.Include(b => b.Municipality).ThenInclude(m => m.Province).ThenInclude(p => p.Region).AsQueryable();
+        // CS8602: EF Core handles nullable navigation properties safely in ThenInclude chains at runtime
+#pragma warning disable CS8602
+        var query = _context.Barangays
+            .Include(b => b.Municipality)
+                .ThenInclude(m => m.Province)
+                    .ThenInclude(p => p.Region)
+            .AsQueryable();
+#pragma warning restore CS8602
         if (municipalityId.HasValue)
         {
             query = query.Where(b => b.MunicipalityId == municipalityId.Value);
@@ -116,7 +135,14 @@ public class GeographicRepository : IGeographicRepository
 
     public async Task<Barangay?> GetBarangayByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        return await _context.Barangays.Include(b => b.Municipality).ThenInclude(m => m.Province).ThenInclude(p => p.Region).FirstOrDefaultAsync(b => b.Id == id, cancellationToken);
+        // CS8602: EF Core handles nullable navigation properties safely in ThenInclude chains at runtime
+#pragma warning disable CS8602
+        return await _context.Barangays
+            .Include(b => b.Municipality)
+                .ThenInclude(m => m.Province)
+                    .ThenInclude(p => p.Region)
+            .FirstOrDefaultAsync(b => b.Id == id, cancellationToken);
+#pragma warning restore CS8602
     }
 
     public async Task AddBarangayAsync(Barangay barangay, CancellationToken cancellationToken = default)
