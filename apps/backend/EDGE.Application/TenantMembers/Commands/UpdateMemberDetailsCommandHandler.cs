@@ -24,11 +24,12 @@ public class UpdateMemberDetailsCommandHandler : IRequestHandler<UpdateMemberDet
             throw new KeyNotFoundException($"Tenant member with ID '{request.MemberId}' was not found in Tenant '{request.TenantId}'.");
         }
 
+        member.RoleId = request.RoleId;
         member.JobTitle = request.JobTitle;
-        member.ContactNumber = request.ContactNumber;
-        member.Department = request.Department;
-        member.IsAdmin = request.IsAdmin;
-        member.IsActive = request.IsActive;
+        member.Level = request.Level;
+        member.Division = request.Division;
+        member.Position = request.Position;
+        member.Designation = request.Designation;
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -36,16 +37,18 @@ public class UpdateMemberDetailsCommandHandler : IRequestHandler<UpdateMemberDet
         {
             Id = member.Id,
             TenantId = member.TenantId,
-            TenantName = member.Tenant.Name,
+            TenantName = member.Tenant?.Name ?? string.Empty,
             UserId = member.UserId,
             UserEmail = string.Empty, // Populate dynamically later when User entity is available
             UserFirstName = string.Empty,
             UserLastName = string.Empty,
+            RoleId = member.RoleId,
             JobTitle = member.JobTitle,
-            ContactNumber = member.ContactNumber,
-            Department = member.Department,
-            IsAdmin = member.IsAdmin,
-            IsActive = member.IsActive,
+            Level = member.Level,
+            Division = member.Division,
+            Position = member.Position,
+            Designation = member.Designation,
+            IsDeleted = member.IsDeleted,
             CreatedAt = member.CreatedAt,
             CreatedBy = member.CreatedBy,
             LastModifiedAt = member.LastModifiedAt,

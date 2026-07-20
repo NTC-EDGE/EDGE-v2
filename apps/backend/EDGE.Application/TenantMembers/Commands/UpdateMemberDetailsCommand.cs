@@ -6,9 +6,10 @@ namespace EDGE.Application.TenantMembers.Commands;
 public record UpdateMemberDetailsCommand(
     Guid MemberId,
     Guid TenantId,
-    string JobTitle,
-    string ContactNumber,
-    string? Department,
-    bool IsAdmin,
-    bool IsActive
+    Guid RoleId,
+    string? JobTitle,
+    string? Level,
+    string Division,
+    string Position,
+    string? Designation
 ) : IRequest<TenantMemberDto>;

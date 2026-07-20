@@ -9,11 +9,13 @@ public class TenantMemberDto
     public string UserEmail { get; set; } = string.Empty;
     public string UserFirstName { get; set; } = string.Empty;
     public string UserLastName { get; set; } = string.Empty;
-    public string JobTitle { get; set; } = string.Empty;
-    public string ContactNumber { get; set; } = string.Empty;
-    public string? Department { get; set; }
-    public bool IsAdmin { get; set; }
-    public bool IsActive { get; set; }
+    public Guid RoleId { get; set; }
+    public string? JobTitle { get; set; }
+    public string? Level { get; set; }
+    public string Division { get; set; } = string.Empty;
+    public string Position { get; set; } = string.Empty;
+    public string? Designation { get; set; }
+    public bool IsDeleted { get; set; }
     public DateTime CreatedAt { get; set; }
     public string? CreatedBy { get; set; }
     public DateTime? LastModifiedAt { get; set; }

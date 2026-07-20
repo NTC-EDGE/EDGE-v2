@@ -6,8 +6,10 @@ namespace EDGE.Application.TenantMembers.Commands;
 public record AssignUserToTenantCommand(
     Guid TenantId,
     Guid UserId,
-    string JobTitle,
-    string ContactNumber,
-    string? Department,
-    bool IsAdmin
+    Guid RoleId,
+    string? JobTitle,
+    string? Level,
+    string Division,
+    string Position,
+    string? Designation
 ) : IRequest<TenantMemberDto>;

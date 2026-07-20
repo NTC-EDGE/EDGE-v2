@@ -41,11 +41,12 @@ public class AssignUserToTenantCommandHandler : IRequestHandler<AssignUserToTena
         {
             TenantId = request.TenantId,
             UserId = request.UserId,
+            RoleId = request.RoleId,
             JobTitle = request.JobTitle,
-            ContactNumber = request.ContactNumber,
-            Department = request.Department,
-            IsAdmin = request.IsAdmin,
-            IsActive = true
+            Level = request.Level,
+            Division = request.Division,
+            Position = request.Position,
+            Designation = request.Designation
         };
 
         await _memberRepository.AddAsync(member, cancellationToken);
@@ -62,16 +63,18 @@ public class AssignUserToTenantCommandHandler : IRequestHandler<AssignUserToTena
         {
             Id = savedMember.Id,
             TenantId = savedMember.TenantId,
-            TenantName = savedMember.Tenant.Name,
+            TenantName = savedMember.Tenant?.Name ?? string.Empty,
             UserId = savedMember.UserId,
             UserEmail = string.Empty, // Populate dynamically later when User entity is available
             UserFirstName = string.Empty,
             UserLastName = string.Empty,
+            RoleId = savedMember.RoleId,
             JobTitle = savedMember.JobTitle,
-            ContactNumber = savedMember.ContactNumber,
-            Department = savedMember.Department,
-            IsAdmin = savedMember.IsAdmin,
-            IsActive = savedMember.IsActive,
+            Level = savedMember.Level,
+            Division = savedMember.Division,
+            Position = savedMember.Position,
+            Designation = savedMember.Designation,
+            IsDeleted = savedMember.IsDeleted,
             CreatedAt = savedMember.CreatedAt,
             CreatedBy = savedMember.CreatedBy,
             LastModifiedAt = savedMember.LastModifiedAt,

@@ -50,3 +50,4 @@ ntcservices.json
 .vs/
 *.sln.docstates
 apps/backend/EDGE.Api/logs
+apps/backend/EDGE.Api/logs/edge_api_log-20260720.txt

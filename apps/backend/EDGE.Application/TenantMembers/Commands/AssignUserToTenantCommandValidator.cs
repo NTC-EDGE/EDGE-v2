@@ -12,15 +12,24 @@ public class AssignUserToTenantCommandValidator : AbstractValidator<AssignUserTo
         RuleFor(x => x.UserId)
             .NotEmpty().WithMessage("User ID is required.");
 
+        RuleFor(x => x.RoleId)
+            .NotEmpty().WithMessage("Role ID is required.");
+
         RuleFor(x => x.JobTitle)
-            .NotEmpty().WithMessage("Job Title is required.")
             .MaximumLength(100).WithMessage("Job Title must not exceed 100 characters.");
 
-        RuleFor(x => x.ContactNumber)
-            .NotEmpty().WithMessage("Contact Number is required.")
-            .MaximumLength(50).WithMessage("Contact Number must not exceed 50 characters.");
+        RuleFor(x => x.Level)
+            .MaximumLength(100).WithMessage("Level must not exceed 100 characters.");
 
-        RuleFor(x => x.Department)
-            .MaximumLength(100).WithMessage("Department name must not exceed 100 characters.");
+        RuleFor(x => x.Division)
+            .NotEmpty().WithMessage("Division is required.")
+            .MaximumLength(100).WithMessage("Division must not exceed 100 characters.");
+
+        RuleFor(x => x.Position)
+            .NotEmpty().WithMessage("Position is required.")
+            .MaximumLength(100).WithMessage("Position must not exceed 100 characters.");
+
+        RuleFor(x => x.Designation)
+            .MaximumLength(100).WithMessage("Designation must not exceed 100 characters.");
     }
 }
