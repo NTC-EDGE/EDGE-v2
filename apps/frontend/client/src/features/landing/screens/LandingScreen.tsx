@@ -561,7 +561,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
       {/* Sticky Glassmorphic Header/Navbar */}
       <View style={styles.headerOuter}>
         <View style={styles.headerInner}>
-          <Logo height={60} />
+          <Logo height={84} />
           
           {isDesktop ? (
             <View style={styles.navLinks}>
@@ -1529,7 +1529,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(226, 232, 240, 0.8)',
-    height: 96,
+    height: 120,
     zIndex: 100,
   },
   headerInner: {

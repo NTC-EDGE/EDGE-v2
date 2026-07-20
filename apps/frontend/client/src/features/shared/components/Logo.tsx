@@ -9,7 +9,7 @@ interface LogoProps {
   style?: ViewStyle;
 }
 
-export function Logo({ height = 56, style }: LogoProps) {
+export function Logo({ height = 72, style }: LogoProps) {
   // Generous aspect ratio (3.8:1) for ntc-logo.png to render crystal clear
   const width = height * 3.8;
 
