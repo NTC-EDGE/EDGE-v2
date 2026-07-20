@@ -12,7 +12,7 @@ public class ClerkWebhookVerificationFilter : IEndpointFilter
 {
     private static readonly JsonSerializerOptions SerializerOptions = new()
     {
-        PropertyNamingPolicy = null
+        PropertyNameCaseInsensitive = true
     };
 
     public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
