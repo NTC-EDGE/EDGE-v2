@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, View, Text, ScrollView } from 'react-native';
 import { Feather as Lucide } from '@expo/vector-icons';
-import { COLORS, SPACING, RADIUS, TYPOGRAPHY } from '../../shared/theme/tokens';
+import { COLORS, SPACING, RADIUS, TYPOGRAPHY } from '@edge/ui';
 import { UserRole, NavigationLink } from '../context/RoleContext';
 import { SidebarNavItem } from './SidebarNavItem';
 

@@ -1,0 +1,18 @@
+{
+  "name": "@edge/ui",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "types": "index.ts",
+  "dependencies": {
+    "@tanstack/react-table": "^8.20.5"
+  },
+  "peerDependencies": {
+    "react": "*",
+    "react-native": "*",
+    "@expo/vector-icons": "*"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.2",
+    "@types/react-native": "*"
+  }
+}

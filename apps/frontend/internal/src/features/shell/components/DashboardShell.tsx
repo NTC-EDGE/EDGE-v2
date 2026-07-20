@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, View, ScrollView } from 'react-native';
-import { COLORS, SPACING } from '../../shared/theme/tokens';
+import { COLORS, SPACING } from '@edge/ui';
 import { useShellState } from '../hooks/useShellState';
 import { ROLE_NAVIGATION_LINKS } from '../context/RoleContext';
 import { Sidebar } from './Sidebar';

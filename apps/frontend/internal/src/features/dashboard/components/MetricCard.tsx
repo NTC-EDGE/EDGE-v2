@@ -1,7 +1,7 @@
 import React, { ComponentProps } from 'react';
 import { StyleSheet, View, Text } from 'react-native';
 import { Feather as Lucide } from '@expo/vector-icons';
-import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY } from '../../shared/theme/tokens';
+import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY } from '@edge/ui';
 
 type LucideIconName = ComponentProps<typeof Lucide>['name'];
 

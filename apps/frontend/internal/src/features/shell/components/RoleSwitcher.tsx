@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { StyleSheet, View, Text, Pressable, Platform } from 'react-native';
 import { Feather as Lucide } from '@expo/vector-icons';
-import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY } from '../../shared/theme/tokens';
+import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY } from '@edge/ui';
 import { UserRole, ROLES } from '../context/RoleContext';
 
 interface RoleDropdownItemProps {

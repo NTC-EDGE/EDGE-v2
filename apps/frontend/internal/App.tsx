@@ -25,7 +25,7 @@ import {
   RADIUS,
   SHADOWS,
   TYPOGRAPHY,
-} from "./src/features/shared/theme/tokens";
+} from "@edge/ui";
 import {
   AuthProvider,
   useAuthContext,

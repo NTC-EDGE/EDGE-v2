@@ -1,10 +1,9 @@
 import React from 'react';
 import { StyleSheet, View, Text, Pressable, Platform } from 'react-native';
 import { Feather as Lucide } from '@expo/vector-icons';
-import { COLORS, SPACING, RADIUS, TYPOGRAPHY } from '../../shared/theme/tokens';
+import { COLORS, SPACING, RADIUS, TYPOGRAPHY, Avatar } from '@edge/ui';
 import { UserRole } from '../context/RoleContext';
 import { UserProfile as UserProfileType } from '../../auth/context/AuthContext';
-import { Avatar } from '../../shared/components/Avatar';
 import { RoleSwitcher } from './RoleSwitcher';
 
 interface HeaderProps {
