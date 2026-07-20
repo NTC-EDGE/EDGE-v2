@@ -18,6 +18,9 @@
     "internal:ios": "bun --filter ntc-edge-internal ios",
     "internal:web": "bun --filter ntc-edge-internal web",
     "internal:build:web": "bun --filter ntc-edge-internal build:web",
-    "check-types": "bun --filter ntc-edge-app --filter ntc-edge-internal check-types"
+    "admin:dev": "bun --filter @edge/admin dev",
+    "admin:build": "bun --filter @edge/admin build",
+    "admin:start": "bun --filter @edge/admin start",
+    "check-types": "bun --filter ntc-edge-app --filter ntc-edge-internal --filter @edge/admin check-types"
   }
 }
