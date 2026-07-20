@@ -7,6 +7,7 @@ import {
   ViewStyle,
   TextStyle,
   View,
+  Platform,
 } from 'react-native';
 import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from '../theme/tokens';
 
@@ -18,7 +19,9 @@ interface ButtonProps {
   loading?: boolean;
   disabled?: boolean;
   style?: ViewStyle;
+  hoverStyle?: ViewStyle;
   textStyle?: TextStyle;
+  hoverTextStyle?: TextStyle;
   icon?: React.ReactNode;
 }
 
@@ -35,33 +38,23 @@ export function Button({
   loading = false,
   disabled = false,
   style,
+  hoverStyle,
   textStyle,
+  hoverTextStyle,
   icon,
 }: ButtonProps) {
   const getButtonStyles = (hovered: boolean, pressed: boolean): ViewStyle[] => {
     const list: ViewStyle[] = [styles.base];
 
-    // Variant styles with clear background color changes on hover
+    // Variant styles
     if (variant === 'primary') {
       list.push(styles.primary);
-      if (hovered && !disabled) {
-        list.push(styles.primaryHovered);
-      }
     } else if (variant === 'secondary') {
       list.push(styles.secondary);
-      if (hovered && !disabled) {
-        list.push(styles.secondaryHovered);
-      }
     } else if (variant === 'outline') {
       list.push(styles.outline);
-      if (hovered && !disabled) {
-        list.push(styles.outlineHovered);
-      }
     } else if (variant === 'text') {
       list.push(styles.textVariant);
-      if (hovered && !disabled) {
-        list.push(styles.textVariantHovered);
-      }
     }
 
     // Size styles
@@ -73,16 +66,32 @@ export function Button({
       list.push(styles.lg);
     }
 
+    if (style !== undefined) {
+      list.push(style);
+    }
+
+    // Hover styles applied after static styles so hover color takes effect smoothly
+    if (hovered && !disabled) {
+      if (variant === 'primary') {
+        list.push(styles.primaryHovered);
+      } else if (variant === 'secondary') {
+        list.push(styles.secondaryHovered);
+      } else if (variant === 'outline') {
+        list.push(styles.outlineHovered);
+      } else if (variant === 'text') {
+        list.push(styles.textVariantHovered);
+      }
+      if (hoverStyle !== undefined) {
+        list.push(hoverStyle);
+      }
+    }
+
     if (disabled) {
       list.push(styles.disabled);
     }
 
     if (pressed && !disabled) {
       list.push(styles.pressed);
-    }
-
-    if (style !== undefined) {
-      list.push(style);
     }
 
     return list;
@@ -98,14 +107,8 @@ export function Button({
       list.push(styles.textSecondary);
     } else if (variant === 'outline') {
       list.push(styles.textOutline);
-      if (hovered && !disabled) {
-        list.push(styles.textOutlineHovered);
-      }
     } else if (variant === 'text') {
       list.push(styles.textLink);
-      if (hovered && !disabled) {
-        list.push(styles.textLinkHovered);
-      }
     }
 
     // Size text styles
@@ -117,12 +120,23 @@ export function Button({
       list.push(styles.textLg);
     }
 
-    if (disabled) {
-      list.push(styles.textDisabled);
-    }
-
     if (textStyle !== undefined) {
       list.push(textStyle);
+    }
+
+    if (hovered && !disabled) {
+      if (variant === 'outline') {
+        list.push(styles.textOutlineHovered);
+      } else if (variant === 'text') {
+        list.push(styles.textLinkHovered);
+      }
+      if (hoverTextStyle !== undefined) {
+        list.push(hoverTextStyle);
+      }
+    }
+
+    if (disabled) {
+      list.push(styles.textDisabled);
     }
 
     return list;
@@ -168,6 +182,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: RADIUS.button,
     flexDirection: 'row',
+    ...(Platform.OS === 'web'
+      ? {
+          transitionProperty: 'all',
+          transitionDuration: '200ms',
+          transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)',
+          cursor: 'pointer',
+        }
+      : {}),
   },
   contentContainer: {
     flexDirection: 'row',
@@ -244,6 +266,12 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontWeight: TYPOGRAPHY.weights.semibold,
     textAlign: 'center',
+    ...(Platform.OS === 'web'
+      ? {
+          transitionProperty: 'color',
+          transitionDuration: '200ms',
+        }
+      : {}),
   },
   textPrimary: {
     color: COLORS.neutral.white,
