@@ -289,6 +289,10 @@ export function InternalLandingPage() {
         contentContainerStyle={styles.scrollContainer}
         showsVerticalScrollIndicator={false}
       >
+        {/* Soft Ambient Background Glow Spots matching Screenshot 2 theme */}
+        <View style={styles.glowSpotBlue} />
+        <View style={styles.glowSpotPink} />
+
         {/* Main Content Area with Centered Setup */}
         <View style={styles.mainBody}>
           {/* Top Logo Section */}
@@ -465,7 +469,7 @@ export function InternalLandingPage() {
 
         {/* Slate Gray Footer */}
         <View style={styles.footerBar}>
-          <View style={[styles.footerContentContainer, { maxWidth: 1280 }]}>
+          <View style={styles.footerContentContainer}>
             <View style={styles.footerLeftBrand}>
               <NtcLogo size="small" variant="light" showSubtext={false} />
               <Text style={styles.footerCopyrightText}>© 2026</Text>
@@ -641,17 +645,42 @@ export function InternalLandingPage() {
 const styles = StyleSheet.create({
   keyboardAvoid: {
     flex: 1,
-    backgroundColor: "#EBEFF4",
+    backgroundColor: "#F8FAFC",
   },
   scrollContainer: {
     flexGrow: 1,
     justifyContent: "space-between",
-    backgroundColor: "#EBEFF4",
+    backgroundColor: "#F8FAFC",
+    position: "relative",
+    overflow: "hidden",
+  },
+  glowSpotBlue: {
+    position: "absolute",
+    top: -120,
+    left: -120,
+    width: 600,
+    height: 600,
+    borderRadius: 300,
+    backgroundColor: "rgba(219, 234, 254, 0.7)", // Soft ambient blue
+    zIndex: 0,
     ...Platform.select({
       web: {
-        backgroundImage: `radial-gradient(#cbd5e1 1px, transparent 1px), radial-gradient(#cbd5e1 1px, #ebeff4 1px)`,
-        backgroundSize: '40px 40px',
-        backgroundPosition: '0 0, 20px 20px',
+        filter: "blur(100px)",
+      },
+    }),
+  },
+  glowSpotPink: {
+    position: "absolute",
+    bottom: -50,
+    right: -100,
+    width: 550,
+    height: 550,
+    borderRadius: 275,
+    backgroundColor: "rgba(254, 226, 226, 0.6)", // Soft ambient pink
+    zIndex: 0,
+    ...Platform.select({
+      web: {
+        filter: "blur(100px)",
       },
     }),
   },
@@ -663,6 +692,7 @@ const styles = StyleSheet.create({
     paddingTop: SPACING[40],
     paddingBottom: SPACING[40],
     width: "100%",
+    zIndex: 1,
   },
   logoHeaderWrapper: {
     alignItems: "center",
@@ -672,11 +702,16 @@ const styles = StyleSheet.create({
     width: "100%",
     maxWidth: 440,
     backgroundColor: COLORS.neutral.white,
-    borderRadius: 16,
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: "rgba(226, 232, 240, 0.8)",
+    borderColor: "#E2E8F0",
     padding: SPACING[40],
     alignSelf: "center",
+    ...Platform.select({
+      web: {
+        boxShadow: "0 20px 25px -5px rgba(15, 23, 42, 0.06), 0 8px 10px -6px rgba(15, 23, 42, 0.04)",
+      },
+    }),
   },
   cardTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
@@ -910,18 +945,18 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 
-  /* Slate Gray Footer */
+  /* Premium Slate Gray Footer - Logo positioned at the most left side */
   footerBar: {
     width: "100%",
-    backgroundColor: "#E2E8F0", // Slate gray
+    backgroundColor: "#F8FAFC",
     borderTopWidth: 1,
-    borderTopColor: "#CBD5E1",
+    borderTopColor: "#E2E8F0",
     paddingHorizontal: SPACING[32],
     paddingVertical: SPACING[20],
+    zIndex: 2,
   },
   footerContentContainer: {
     width: "100%",
-    alignSelf: "center",
     flexDirection: "row",
     flexWrap: "wrap",
     alignItems: "center",
@@ -931,18 +966,18 @@ const styles = StyleSheet.create({
   footerLeftBrand: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 12,
   },
   footerCopyrightText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 13,
-    color: "#475569",
+    color: "#64748B",
     fontWeight: TYPOGRAPHY.weights.semibold,
   },
   footerRightLinks: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 20,
+    gap: 24,
     alignItems: "center",
   },
   footerRightLinksMobile: {
@@ -954,7 +989,7 @@ const styles = StyleSheet.create({
   footerLinkText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 13,
-    color: "#334155",
+    color: "#475569",
     fontWeight: TYPOGRAPHY.weights.medium,
   },
 
