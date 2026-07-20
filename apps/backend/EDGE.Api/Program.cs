@@ -119,9 +119,6 @@ try
     // Map SignalR Hub
     app.MapHub<NotificationHub>("/hubs/notifications");
 
-    // Seed geographic reference data on startup
-    await app.SeedDatabaseAsync();
-
     app.Run();
 }
 catch (Exception ex)
