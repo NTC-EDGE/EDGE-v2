@@ -47,8 +47,7 @@ const publishableKey = getClerkKey();
 
 if (publishableKey.length === 0) {
   console.warn(
-    "Missing EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY environment variable. Clerk will not initialize properly.",
->>>>>>> develop
+    "Missing EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY environment variable. Clerk will not initialize properly."
   );
 }
 
