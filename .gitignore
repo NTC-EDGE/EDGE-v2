@@ -49,4 +49,4 @@ ntcservices.json
 *.suo
 .vs/
 *.sln.docstates
-apps/backend/EDGE.Api/logs/edge_api_log-20260720.txt
+apps/backend/EDGE.Api/logs
