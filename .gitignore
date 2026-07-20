@@ -16,6 +16,9 @@ npm-debug.*
 yarn-debug.*
 yarn-error.*
 *.log
+# .NET Serilog text logs
+logs/
+*.txt
 
 # macOS / OS
 .DS_Store

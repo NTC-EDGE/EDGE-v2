@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using Hangfire;
 using Hangfire.PostgreSql;
@@ -32,6 +33,7 @@ public static class DependencyInjection
 
         // Register Repositories and Unit of Work
         services.AddScoped<IApplicationRepository, ApplicationRepository>();
+        services.AddScoped<IGeographicRepository, GeographicRepository>();
         services.AddScoped<ITenantRepository, TenantRepository>();
         services.AddScoped<ITenantMemberRepository, TenantMemberRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
@@ -56,6 +58,9 @@ public static class DependencyInjection
         });
 
         services.AddHangfireServer();
+
+        // Register Database Initializer Hosted Service to apply migrations and seed data on startup
+        services.AddHostedService<DatabaseInitializerHostedService>();
 
         return services;
     }
