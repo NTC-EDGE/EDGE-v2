@@ -72,7 +72,7 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_INTERNAL_PROJECT_ID }}
         run: |
-          DEPLOY_URL=$(npx vercel deploy --prebuilt ${{ steps.resolve.outputs.prod_flag }} --token=${{ secrets.VERCEL_TOKEN }} --stdout)
+          DEPLOY_URL=$(npx vercel deploy --prebuilt ${{ steps.resolve.outputs.prod_flag }} --token=${{ secrets.VERCEL_TOKEN }})
           echo "url=$DEPLOY_URL" >> $GITHUB_OUTPUT
 
       - name: Comment Preview URL on PR
