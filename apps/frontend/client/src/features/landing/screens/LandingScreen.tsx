@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Pressable,
   useWindowDimensions,
   Platform,
   Animated,
@@ -31,6 +32,21 @@ interface LandingScreenProps {
   };
 }
 
+interface TrackingResult {
+  referenceNo: string;
+  region: string;
+  type: string;
+  applicantName: string;
+  status: string;
+  updatedAt: string;
+  stage: string;
+}
+
+interface PressableState {
+  pressed: boolean;
+  hovered?: boolean;
+}
+
 export function LandingScreen({ navigation }: LandingScreenProps = {}) {
   const { width } = useWindowDimensions();
   const isDesktop = width >= 768;
@@ -47,7 +63,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
   const [isRegionDropdownOpen, setIsRegionDropdownOpen] = useState(false);
   const [trackingLoading, setTrackingLoading] = useState(false);
   const [trackingError, setTrackingError] = useState('');
-  const [trackingResult, setTrackingResult] = useState<any | null>(null);
+  const [trackingResult, setTrackingResult] = useState<TrackingResult | null>(null);
 
   const scrollViewRef = useRef<ScrollView>(null);
   
@@ -345,7 +361,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
     },
     {
       q: 'Is my data secure?',
-      a: 'Yes, absolutely. We implement industry-standard encryption, strict user authentication protocol through Clerk, and secure role-based access control to safeguard all application data.',
+      a: 'Yes, absolutely. We implement industry-standard encryption, strict user authentication protocols, and secure role-based access control to safeguard all application data.',
     },
   ];
 
@@ -358,22 +374,40 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
 
   return (
     <View style={styles.container}>
-      {/* Header/Navbar */}
+      {/* Sticky Glassmorphic Header/Navbar */}
       <View style={styles.headerOuter}>
         <View style={styles.headerInner}>
           <Logo />
           
           {isDesktop ? (
             <View style={styles.navLinks}>
-              <TouchableOpacity onPress={() => scrollToSection('about')} style={styles.navLink}>
+              <Pressable
+                onPress={() => scrollToSection('about')}
+                style={({ hovered }: PressableState) => [
+                  styles.navLink,
+                  hovered ? styles.navLinkHovered : null,
+                ]}
+              >
                 <Text style={styles.navLinkText}>About</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => scrollToSection('howItWorks')} style={styles.navLink}>
+              </Pressable>
+              <Pressable
+                onPress={() => scrollToSection('howItWorks')}
+                style={({ hovered }: PressableState) => [
+                  styles.navLink,
+                  hovered ? styles.navLinkHovered : null,
+                ]}
+              >
                 <Text style={styles.navLinkText}>How it works</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => scrollToSection('faqs')} style={styles.navLink}>
+              </Pressable>
+              <Pressable
+                onPress={() => scrollToSection('faqs')}
+                style={({ hovered }: PressableState) => [
+                  styles.navLink,
+                  hovered ? styles.navLinkHovered : null,
+                ]}
+              >
                 <Text style={styles.navLinkText}>FAQs</Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
           ) : null}
         </View>
@@ -389,7 +423,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
           { useNativeDriver: true }
         )}
       >
-        {/* Glow Spots */}
+        {/* Animated Glow Spots */}
         <Animated.View
           style={[
             styles.glowSpotBlue,
@@ -399,7 +433,6 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
                 { translateX: translateXBlue }
               ]
             },
-            Platform.OS === 'web' ? { filter: 'blur(100px)' } as any : { opacity: 0.08 },
           ]}
         />
         <Animated.View
@@ -411,16 +444,10 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
                 { translateX: translateXPink }
               ]
             },
-            Platform.OS === 'web' ? { filter: 'blur(100px)' } as any : { opacity: 0.06 },
           ]}
         />
         {Platform.OS === 'web' && (
-          <View
-            style={[
-              styles.glowSpotCenter,
-              { filter: 'blur(120px)' } as any,
-            ]}
-          />
+          <View style={styles.glowSpotCenter} />
         )}
 
         {/* Hero Section */}
@@ -436,10 +463,15 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
         ]}>
           <View style={isDesktop ? styles.heroLeftCol : styles.heroFullWidth}>
             {/* Lavender/Blue Pill Badge */}
-            <View style={[styles.pillBadge, isDesktop ? { alignSelf: 'flex-start' } : { alignSelf: 'center' }]}>
+            <Pressable style={({ hovered }: PressableState) => [
+              styles.pillBadge,
+              isDesktop ? { alignSelf: 'flex-start' } : { alignSelf: 'center' },
+              hovered ? styles.pillBadgeHovered : null,
+            ]}>
               <View style={styles.pillBadgeDot} />
               <Text style={styles.pillBadgeText}>Official NTC-EDGE Portal</Text>
-            </View>
+              <Lucide name="chevron-right" size={14} color="#3538CD" style={{ marginLeft: 4 }} />
+            </Pressable>
             
             {/* Split Color Hero Title */}
             <Text style={[styles.heroTitle, isDesktop ? styles.heroTitleDesktop : null]}>
@@ -459,7 +491,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
                 onPress={() => setIsGetStartedModalVisible(true)}
                 size="lg"
                 style={styles.heroPrimaryBtn}
-                icon={<Lucide name="arrow-right" size={16} color={COLORS.neutral.white} />}
+                icon={<Lucide name="arrow-right" size={18} color={COLORS.neutral.white} />}
               />
               <Button
                 title="Track Application"
@@ -468,7 +500,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
                 size="lg"
                 style={styles.heroSecondaryBtn}
                 textStyle={{ color: '#1236A8' }}
-                icon={<Lucide name="search" size={16} color="#1236A8" />}
+                icon={<Lucide name="search" size={18} color="#1236A8" />}
               />
             </View>
           </View>
@@ -476,28 +508,38 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
           {isDesktop ? (
             <Animated.View style={[styles.heroRightCol, { transform: [{ translateY: floatAnimMockup }] }]}>
               {/* Modern dashboard preview card */}
-              <View style={[styles.mockupCard, SHADOWS.modal]}>
+              <Pressable style={({ hovered }: PressableState) => [
+                styles.mockupCard,
+                SHADOWS.modal,
+                hovered ? styles.mockupCardHovered : null,
+              ]}>
                 <View style={styles.mockupHeader}>
                   <View style={styles.mockupDots}>
                     <View style={[styles.mockupDot, { backgroundColor: '#EF4444' }]} />
                     <View style={[styles.mockupDot, { backgroundColor: '#F59E0B' }]} />
                     <View style={[styles.mockupDot, { backgroundColor: '#10B981' }]} />
                   </View>
-                  <Text style={styles.mockupHeaderText}>ntc-edge.gov.ph</Text>
+                  <View style={styles.mockupUrlContainer}>
+                    <Lucide name="lock" size={10} color={COLORS.neutral[400]} style={{ marginRight: 4 }} />
+                    <Text style={styles.mockupHeaderText}>ntc-edge.gov.ph</Text>
+                  </View>
                 </View>
                 
                 <View style={styles.mockupBody}>
                   {/* Stats Row */}
                   <View style={styles.mockupStatsRow}>
                     <View style={styles.mockupStatCard}>
+                      <Lucide name="file-text" size={14} color="#1236A8" style={{ marginBottom: 4 }} />
                       <Text style={styles.mockupStatLabel}>Applications</Text>
                       <Text style={[styles.mockupStatValue, { color: '#1236A8' }]}>12,450</Text>
                     </View>
                     <View style={styles.mockupStatCard}>
+                      <Lucide name="clock" size={14} color="#DC2626" style={{ marginBottom: 4 }} />
                       <Text style={styles.mockupStatLabel}>Pending</Text>
                       <Text style={[styles.mockupStatValue, { color: '#DC2626' }]}>18</Text>
                     </View>
                     <View style={styles.mockupStatCard}>
+                      <Lucide name="check-circle" size={14} color="#10B981" style={{ marginBottom: 4 }} />
                       <Text style={styles.mockupStatLabel}>Approved</Text>
                       <Text style={[styles.mockupStatValue, { color: '#10B981' }]}>99.4%</Text>
                     </View>
@@ -538,7 +580,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
                     <Text style={styles.mockupActivityTime}>2m ago</Text>
                   </View>
                 </View>
-              </View>
+              </Pressable>
             </Animated.View>
           ) : null}
         </Animated.View>
@@ -557,34 +599,52 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
         >
           {isDesktop ? (
             <View style={styles.aboutLeftCol}>
-              <View style={[styles.aboutGraphicCard, SHADOWS.card]}>
+              <Pressable style={({ hovered }: PressableState) => [
+                styles.aboutGraphicCard,
+                SHADOWS.card,
+                hovered ? styles.graphicCardHovered : null,
+              ]}>
                 <View style={styles.aboutGraphicHeader}>
-                  <Lucide name="shield" size={24} color="#1236A8" />
+                  <View style={styles.aboutGraphicBadge}>
+                    <Lucide name="shield" size={20} color="#1236A8" />
+                  </View>
                   <Text style={styles.aboutGraphicHeaderText}>NTC SECURE GATEWAY</Text>
                 </View>
                 <View style={styles.aboutGraphicGrid}>
-                  <View style={styles.aboutGridItem}>
-                    <Lucide name="file-text" size={20} color="#1236A8" style={{ marginBottom: 6 }} />
+                  <Pressable style={({ hovered }: PressableState) => [
+                    styles.aboutGridItem,
+                    hovered ? styles.gridItemHovered : null,
+                  ]}>
+                    <Lucide name="file-text" size={22} color="#1236A8" style={{ marginBottom: 6 }} />
                     <Text style={styles.aboutGridItemText}>Certificates</Text>
-                  </View>
-                  <View style={styles.aboutGridItem}>
-                    <Lucide name="file" size={20} color="#1236A8" style={{ marginBottom: 6 }} />
+                  </Pressable>
+                  <Pressable style={({ hovered }: PressableState) => [
+                    styles.aboutGridItem,
+                    hovered ? styles.gridItemHovered : null,
+                  ]}>
+                    <Lucide name="file" size={22} color="#1236A8" style={{ marginBottom: 6 }} />
                     <Text style={styles.aboutGridItemText}>Permits</Text>
-                  </View>
-                  <View style={styles.aboutGridItem}>
-                    <Lucide name="award" size={20} color="#1236A8" style={{ marginBottom: 6 }} />
+                  </Pressable>
+                  <Pressable style={({ hovered }: PressableState) => [
+                    styles.aboutGridItem,
+                    hovered ? styles.gridItemHovered : null,
+                  ]}>
+                    <Lucide name="award" size={22} color="#1236A8" style={{ marginBottom: 6 }} />
                     <Text style={styles.aboutGridItemText}>Licenses</Text>
-                  </View>
-                  <View style={styles.aboutGridItem}>
-                    <Lucide name="help-circle" size={20} color="#1236A8" style={{ marginBottom: 6 }} />
+                  </Pressable>
+                  <Pressable style={({ hovered }: PressableState) => [
+                    styles.aboutGridItem,
+                    hovered ? styles.gridItemHovered : null,
+                  ]}>
+                    <Lucide name="help-circle" size={22} color="#1236A8" style={{ marginBottom: 6 }} />
                     <Text style={styles.aboutGridItemText}>Requests</Text>
-                  </View>
+                  </Pressable>
                 </View>
                 <View style={styles.aboutGraphicFooter}>
                   <View style={styles.dotIndicatorActive} />
-                  <Text style={styles.aboutGraphicFooterText}>Data Sync Active</Text>
+                  <Text style={styles.aboutGraphicFooterText}>Data Sync Active • Live Encryption</Text>
                 </View>
-              </View>
+              </Pressable>
             </View>
           ) : null}
 
@@ -603,7 +663,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
             </Text>
             
             <View style={styles.aboutInfoBox}>
-              <Lucide name="info" size={18} color="#1236A8" style={{ marginRight: 12, marginTop: 2 }} />
+              <Lucide name="info" size={20} color="#1236A8" style={{ marginRight: 12, marginTop: 2 }} />
               <Text style={styles.aboutInfoBoxText}>
                 This portal issues Certificates, Permits, Licenses, and manages Complaints/Requests efficiently.
               </Text>
@@ -635,8 +695,6 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
                 <Animated.View
                   key={feat.title}
                   style={[
-                    styles.featCard,
-                    SHADOWS.card,
                     isDesktop ? styles.featCardDesktop : null,
                     {
                       opacity: cardAnim,
@@ -644,11 +702,17 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
                     }
                   ]}
                 >
-                  <View style={styles.featIconWrapper}>
-                    <Lucide name={feat.icon} size={20} color={COLORS.neutral.white} />
-                  </View>
-                  <Text style={styles.featCardTitle}>{feat.title}</Text>
-                  <Text style={styles.featCardDesc}>{feat.desc}</Text>
+                  <Pressable style={({ hovered }: PressableState) => [
+                    styles.featCard,
+                    SHADOWS.card,
+                    hovered ? styles.featCardHovered : null,
+                  ]}>
+                    <View style={styles.featIconWrapper}>
+                      <Lucide name={feat.icon} size={22} color={COLORS.neutral.white} />
+                    </View>
+                    <Text style={styles.featCardTitle}>{feat.title}</Text>
+                    <Text style={styles.featCardDesc}>{feat.desc}</Text>
+                  </Pressable>
                 </Animated.View>
               );
             })}
@@ -671,37 +735,55 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
           <View style={[styles.titleUnderline, styles.centerSelf]} />
           
           <View style={[styles.stepsContainer, isDesktop ? styles.stepsRow : styles.stepsColumn]}>
-            <View style={[styles.stepCard, SHADOWS.card, isDesktop ? styles.stepCardDesktop : null]}>
-              <View style={styles.stepBadge}>
-                <Lucide name="user-plus" size={18} color={COLORS.neutral.white} />
-              </View>
-              <Text style={styles.stepCardTitle}>Create Account/Apply</Text>
-              <Text style={styles.stepCardDesc}>Register an account or tap Start Application to begin.</Text>
-            </View>
+            <Animated.View style={[isDesktop ? styles.stepCardDesktop : { width: '100%' }]}>
+              <Pressable style={({ hovered }: PressableState) => [
+                styles.stepCard,
+                SHADOWS.card,
+                hovered ? styles.stepCardHovered : null,
+              ]}>
+                <View style={styles.stepBadge}>
+                  <Lucide name="user-plus" size={20} color={COLORS.neutral.white} />
+                </View>
+                <Text style={styles.stepCardTitle}>Create Account / Apply</Text>
+                <Text style={styles.stepCardDesc}>Register an account or tap Start Application to begin.</Text>
+              </Pressable>
+            </Animated.View>
             
             <View style={[isDesktop ? styles.arrowDesktop : styles.arrowMobile]}>
-              <Lucide name={isDesktop ? 'arrow-right' : 'arrow-down'} size={18} color={COLORS.neutral[300]} />
+              <Lucide name={isDesktop ? 'arrow-right' : 'arrow-down'} size={20} color={COLORS.neutral[300]} />
             </View>
 
-            <View style={[styles.stepCard, SHADOWS.card, isDesktop ? styles.stepCardDesktop : null]}>
-              <View style={styles.stepBadge}>
-                <Lucide name="file-text" size={18} color={COLORS.neutral.white} />
-              </View>
-              <Text style={styles.stepCardTitle}>Submit Application</Text>
-              <Text style={styles.stepCardDesc}>Complete forms and upload necessary requirements.</Text>
-            </View>
+            <Animated.View style={[isDesktop ? styles.stepCardDesktop : { width: '100%' }]}>
+              <Pressable style={({ hovered }: PressableState) => [
+                styles.stepCard,
+                SHADOWS.card,
+                hovered ? styles.stepCardHovered : null,
+              ]}>
+                <View style={styles.stepBadge}>
+                  <Lucide name="file-text" size={20} color={COLORS.neutral.white} />
+                </View>
+                <Text style={styles.stepCardTitle}>Submit Application</Text>
+                <Text style={styles.stepCardDesc}>Complete forms and upload necessary requirements.</Text>
+              </Pressable>
+            </Animated.View>
 
             <View style={[isDesktop ? styles.arrowDesktop : styles.arrowMobile]}>
-              <Lucide name={isDesktop ? 'arrow-right' : 'arrow-down'} size={18} color={COLORS.neutral[300]} />
+              <Lucide name={isDesktop ? 'arrow-right' : 'arrow-down'} size={20} color={COLORS.neutral[300]} />
             </View>
 
-            <View style={[styles.stepCard, SHADOWS.card, isDesktop ? styles.stepCardDesktop : null]}>
-              <View style={styles.stepBadge}>
-                <Lucide name="activity" size={18} color={COLORS.neutral.white} />
-              </View>
-              <Text style={styles.stepCardTitle}>Track Application</Text>
-              <Text style={styles.stepCardDesc}>Monitor status using your reference number or dashboard.</Text>
-            </View>
+            <Animated.View style={[isDesktop ? styles.stepCardDesktop : { width: '100%' }]}>
+              <Pressable style={({ hovered }: PressableState) => [
+                styles.stepCard,
+                SHADOWS.card,
+                hovered ? styles.stepCardHovered : null,
+              ]}>
+                <View style={styles.stepBadge}>
+                  <Lucide name="activity" size={20} color={COLORS.neutral.white} />
+                </View>
+                <Text style={styles.stepCardTitle}>Track Application</Text>
+                <Text style={styles.stepCardDesc}>Monitor status using your reference number or dashboard.</Text>
+              </Pressable>
+            </Animated.View>
           </View>
         </Animated.View>
 
@@ -740,18 +822,22 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
                   key={idx}
                   style={[styles.faqItem, SHADOWS.card, isExpanded ? styles.faqItemExpanded : null]}
                 >
-                  <TouchableOpacity
-                    activeOpacity={0.9}
+                  <Pressable
                     onPress={() => handleFaqPress(idx)}
-                    style={styles.faqHeader}
+                    style={({ hovered }: PressableState) => [
+                      styles.faqHeader,
+                      hovered ? styles.faqHeaderHovered : null,
+                    ]}
                   >
                     <Text style={styles.faqQuestion}>{faq.q}</Text>
-                    <Lucide
-                      name={isExpanded ? 'chevron-up' : 'chevron-down'}
-                      size={16}
-                      color="#1236A8"
-                    />
-                  </TouchableOpacity>
+                    <View style={[styles.faqIconCircle, isExpanded ? styles.faqIconCircleActive : null]}>
+                      <Lucide
+                        name={isExpanded ? 'chevron-up' : 'chevron-down'}
+                        size={16}
+                        color={isExpanded ? COLORS.neutral.white : '#1236A8'}
+                      />
+                    </View>
+                  </Pressable>
                   
                   <Animated.View style={[styles.faqAnswerContainer, faqAnswerStyle, { overflow: 'hidden' }]}>
                     <Text style={styles.faqAnswer}>{faq.a}</Text>
@@ -775,8 +861,8 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
               title="Begin Your Application"
               onPress={() => setIsGetStartedModalVisible(true)}
               style={styles.ctaPrimaryBtn}
-              textStyle={{ color: '#1236A8' }}
-              icon={<Lucide name="arrow-right" size={16} color="#1236A8" />}
+              textStyle={{ color: '#1236A8', fontWeight: '700' }}
+              icon={<Lucide name="arrow-right" size={18} color="#1236A8" />}
             />
           </View>
         </View>
@@ -797,41 +883,77 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
             <View style={[styles.footerLinksWrapper, { marginTop: Platform.OS !== 'web' || width < 800 ? SPACING[32] : 0 }]}>
               <View style={styles.footerLinksCol}>
                 <Text style={styles.footerColHeader}>Quick Links</Text>
-                <TouchableOpacity onPress={() => scrollToSection('about')} style={styles.footerLinkItem}>
+                <Pressable
+                  onPress={() => scrollToSection('about')}
+                  style={({ hovered }: PressableState) => [
+                    styles.footerLinkItem,
+                    hovered ? styles.footerLinkHovered : null,
+                  ]}
+                >
                   <Text style={styles.footerLinkText}>About</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => scrollToSection('howItWorks')} style={styles.footerLinkItem}>
+                </Pressable>
+                <Pressable
+                  onPress={() => scrollToSection('howItWorks')}
+                  style={({ hovered }: PressableState) => [
+                    styles.footerLinkItem,
+                    hovered ? styles.footerLinkHovered : null,
+                  ]}
+                >
                   <Text style={styles.footerLinkText}>How It Works</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => scrollToSection('faqs')} style={styles.footerLinkItem}>
+                </Pressable>
+                <Pressable
+                  onPress={() => scrollToSection('faqs')}
+                  style={({ hovered }: PressableState) => [
+                    styles.footerLinkItem,
+                    hovered ? styles.footerLinkHovered : null,
+                  ]}
+                >
                   <Text style={styles.footerLinkText}>FAQs</Text>
-                </TouchableOpacity>
+                </Pressable>
               </View>
 
               <View style={styles.footerLinksCol}>
                 <Text style={styles.footerColHeader}>Legal</Text>
-                <TouchableOpacity style={styles.footerLinkItem}>
+                <Pressable style={({ hovered }: PressableState) => [
+                  styles.footerLinkItem,
+                  hovered ? styles.footerLinkHovered : null,
+                ]}>
                   <Text style={styles.footerLinkText}>User Agreement</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.footerLinkItem}>
+                </Pressable>
+                <Pressable style={({ hovered }: PressableState) => [
+                  styles.footerLinkItem,
+                  hovered ? styles.footerLinkHovered : null,
+                ]}>
                   <Text style={styles.footerLinkText}>Privacy Policy</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.footerLinkItem}>
+                </Pressable>
+                <Pressable style={({ hovered }: PressableState) => [
+                  styles.footerLinkItem,
+                  hovered ? styles.footerLinkHovered : null,
+                ]}>
                   <Text style={styles.footerLinkText}>Cookie Policy</Text>
-                </TouchableOpacity>
+                </Pressable>
               </View>
 
               <View style={styles.footerLinksCol}>
                 <Text style={styles.footerColHeader}>Support</Text>
-                <TouchableOpacity style={styles.footerLinkItem}>
+                <Pressable style={({ hovered }: PressableState) => [
+                  styles.footerLinkItem,
+                  hovered ? styles.footerLinkHovered : null,
+                ]}>
                   <Text style={styles.footerLinkText}>Community Guidelines</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.footerLinkItem}>
+                </Pressable>
+                <Pressable style={({ hovered }: PressableState) => [
+                  styles.footerLinkItem,
+                  hovered ? styles.footerLinkHovered : null,
+                ]}>
                   <Text style={styles.footerLinkText}>Send Feedback</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.footerLinkItem}>
+                </Pressable>
+                <Pressable style={({ hovered }: PressableState) => [
+                  styles.footerLinkItem,
+                  hovered ? styles.footerLinkHovered : null,
+                ]}>
                   <Text style={styles.footerLinkText}>Help Center</Text>
-                </TouchableOpacity>
+                </Pressable>
               </View>
             </View>
           </View>
@@ -862,12 +984,15 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
             onPress={() => {}} // prevent click propagation
           >
             {/* Close Button */}
-            <TouchableOpacity
-              style={styles.modalCloseBtn}
+            <Pressable
+              style={({ hovered }: PressableState) => [
+                styles.modalCloseBtn,
+                hovered ? styles.closeBtnHovered : null,
+              ]}
               onPress={() => setIsGetStartedModalVisible(false)}
             >
               <Lucide name="x" size={20} color={COLORS.neutral[500]} />
-            </TouchableOpacity>
+            </Pressable>
 
             {/* Modal Logo */}
             <View style={styles.modalHeader}>
@@ -907,14 +1032,14 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
             {/* Footer Sign Up Link */}
             <View style={styles.modalFooter}>
               <Text style={styles.modalFooterText}>Don't have an account yet? </Text>
-              <TouchableOpacity
+              <Pressable
                 onPress={() => {
                   setIsGetStartedModalVisible(false);
                   navigation?.navigate('SignUp');
                 }}
               >
                 <Text style={styles.modalFooterLink}>Sign Up</Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
           </TouchableOpacity>
         </TouchableOpacity>
@@ -927,7 +1052,6 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
         animationType="fade"
         onRequestClose={() => {
           setIsTrackModalVisible(false);
-          // reset state
           setReferenceNo('');
           setSelectedRegion('');
           setIsRegionDropdownOpen(false);
@@ -940,7 +1064,6 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
           activeOpacity={1}
           onPress={() => {
             setIsTrackModalVisible(false);
-            // reset state
             setReferenceNo('');
             setSelectedRegion('');
             setIsRegionDropdownOpen(false);
@@ -949,16 +1072,18 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
           }}
         >
           <TouchableOpacity
-            style={[styles.modalCard, SHADOWS.modal, { maxWidth: 440 }]}
+            style={[styles.modalCard, SHADOWS.modal, { maxWidth: 460 }]}
             activeOpacity={1}
-            onPress={() => setIsRegionDropdownOpen(false)} // close dropdown if clicked elsewhere in card
+            onPress={() => setIsRegionDropdownOpen(false)}
           >
             {/* Close Button */}
-            <TouchableOpacity
-              style={styles.modalCloseBtn}
+            <Pressable
+              style={({ hovered }: PressableState) => [
+                styles.modalCloseBtn,
+                hovered ? styles.closeBtnHovered : null,
+              ]}
               onPress={() => {
                 setIsTrackModalVisible(false);
-                // reset state
                 setReferenceNo('');
                 setSelectedRegion('');
                 setIsRegionDropdownOpen(false);
@@ -967,7 +1092,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
               }}
             >
               <Lucide name="x" size={20} color={COLORS.neutral[500]} />
-            </TouchableOpacity>
+            </Pressable>
 
             {/* Modal Logo */}
             <View style={styles.modalHeader}>
@@ -1015,9 +1140,12 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
                     <View style={[styles.dropdownMenu, SHADOWS.modal]}>
                       <ScrollView style={{ maxHeight: 180 }} nestedScrollEnabled={true}>
                         {PHILIPPINE_REGIONS.map((region) => (
-                          <TouchableOpacity
+                          <Pressable
                             key={region}
-                            style={styles.dropdownItem}
+                            style={({ hovered }: PressableState) => [
+                              styles.dropdownItem,
+                              hovered ? styles.dropdownItemHovered : null,
+                            ]}
                             onPress={() => {
                               setSelectedRegion(region);
                               setIsRegionDropdownOpen(false);
@@ -1025,7 +1153,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
                             }}
                           >
                             <Text style={styles.dropdownItemText}>{region}</Text>
-                          </TouchableOpacity>
+                          </Pressable>
                         ))}
                       </ScrollView>
                     </View>
@@ -1116,43 +1244,44 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.neutral.white,
+    backgroundColor: '#FAFCFF',
   },
   headerOuter: {
     width: '100%',
-    backgroundColor: COLORS.neutral.white,
+    backgroundColor: 'rgba(255, 255, 255, 0.92)',
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.neutral[100],
-    height: 70,
+    borderBottomColor: 'rgba(226, 232, 240, 0.8)',
+    height: 72,
     zIndex: 100,
   },
   headerInner: {
-    maxWidth: 1200,
+    maxWidth: 1400,
     width: '100%',
     height: '100%',
     alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: SPACING[20],
+    paddingHorizontal: SPACING[24],
   },
   navLinks: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   navLink: {
-    marginRight: SPACING[24],
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: RADIUS.circle,
+    marginRight: SPACING[8],
+  },
+  navLinkHovered: {
+    backgroundColor: '#EEF2FF',
   },
   navLinkText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 14,
-    fontWeight: '500',
-    color: COLORS.neutral[600],
-  },
-  headerCtaBtn: {
-    height: 38,
-    backgroundColor: '#1236A8', // Vibrant dark blue button
-    borderRadius: RADIUS.button,
+    fontWeight: '600',
+    color: '#334155',
   },
   scrollView: {
     flex: 1,
@@ -1163,43 +1292,43 @@ const styles = StyleSheet.create({
   },
   glowSpotBlue: {
     position: 'absolute',
-    top: -50,
-    left: -100,
-    width: 450,
-    height: 450,
-    borderRadius: 225,
+    top: -80,
+    left: -120,
+    width: 550,
+    height: 550,
+    borderRadius: 275,
     backgroundColor: '#1236A8',
-    opacity: 0.08,
+    opacity: 0.07,
     zIndex: -1,
   },
   glowSpotPink: {
     position: 'absolute',
-    top: 100,
-    right: -100,
-    width: 450,
-    height: 450,
-    borderRadius: 225,
+    top: 120,
+    right: -120,
+    width: 550,
+    height: 550,
+    borderRadius: 275,
     backgroundColor: '#DC2626',
-    opacity: 0.06,
+    opacity: 0.05,
     zIndex: -1,
   },
   glowSpotCenter: {
     position: 'absolute',
     bottom: '25%',
     left: '30%',
-    width: 500,
-    height: 500,
-    borderRadius: 250,
-    backgroundColor: '#1236A8',
-    opacity: 0.04,
+    width: 600,
+    height: 600,
+    borderRadius: 300,
+    backgroundColor: '#3B82F6',
+    opacity: 0.03,
     zIndex: -1,
   },
   heroSection: {
-    paddingVertical: SPACING[64] + 30,
-    paddingHorizontal: SPACING[20],
+    paddingVertical: SPACING[64] + 40,
+    paddingHorizontal: SPACING[24],
     alignItems: 'center',
     justifyContent: 'center',
-    maxWidth: 1200,
+    maxWidth: 1400,
     alignSelf: 'center',
     width: '100%',
   },
@@ -1209,12 +1338,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   heroLeftCol: {
-    flex: 1.1,
-    paddingRight: SPACING[40],
+    flex: 1.15,
+    paddingRight: SPACING[48],
     alignItems: 'flex-start',
   },
   heroRightCol: {
-    flex: 0.9,
+    flex: 0.85,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1222,202 +1351,53 @@ const styles = StyleSheet.create({
     width: '100%',
     alignItems: 'center',
   },
-  mockupCard: {
-    width: '100%',
-    maxWidth: 420,
-    backgroundColor: COLORS.neutral.white,
-    borderRadius: 20,
-    borderWidth: 1.5,
-    borderColor: COLORS.neutral[100],
-    overflow: 'hidden',
-  },
-  mockupHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.neutral[50],
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.neutral[200],
-  },
-  mockupDots: {
-    flexDirection: 'row',
-    marginRight: 16,
-  },
-  mockupDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 6,
-  },
-  mockupHeaderText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-    color: COLORS.neutral[400],
-    fontWeight: '500',
-  },
-  mockupBody: {
-    padding: 20,
-  },
-  mockupStatsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  mockupStatCard: {
-    flex: 1,
-    backgroundColor: COLORS.neutral[50],
-    borderRadius: 12,
-    padding: 12,
-    marginHorizontal: 4,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.neutral[100],
-  },
-  mockupStatLabel: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 10,
-    color: COLORS.neutral[500],
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  mockupStatValue: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  mockupAppCard: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#EEF2FF',
-    marginBottom: 16,
-  },
-  mockupAppHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-  },
-  mockupAppTitle: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
-    fontWeight: '700',
-    color: COLORS.neutral[800],
-  },
-  mockupAppMeta: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 10,
-    color: COLORS.neutral[400],
-  },
-  mockupStatusBadge: {
-    backgroundColor: '#FEF3C7',
-    borderRadius: 6,
-    paddingVertical: 2,
-    paddingHorizontal: 6,
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-  },
-  mockupStatusText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 9,
-    fontWeight: '700',
-    color: '#D97706',
-  },
-  mockupProgressContainer: {
-    width: '100%',
-  },
-  mockupProgressBar: {
-    height: 6,
-    backgroundColor: COLORS.neutral[200],
-    borderRadius: 3,
-    position: 'relative',
-    overflow: 'hidden',
-    flexDirection: 'row',
-  },
-  mockupProgressFill: {
-    height: '100%',
-    borderRadius: 3,
-  },
-  mockupProgressFillRed: {
-    height: '100%',
-    position: 'absolute',
-  },
-  mockupProgressLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 6,
-  },
-  mockupProgressLabel: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 9,
-    color: COLORS.neutral[400],
-  },
-  mockupActivityCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#EEF2FF',
-    borderRadius: 10,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: '#E0E7FF',
-  },
-  mockupActivityText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-    color: COLORS.neutral[700],
-    flex: 1,
-  },
-  mockupActivityTime: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 9,
-    color: COLORS.neutral[400],
-    marginLeft: 8,
-  },
   pillBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#EEF2FF', // Lavender / light blue background from reference
-    paddingVertical: 6,
-    paddingHorizontal: 12,
+    backgroundColor: '#EEF2FF',
+    paddingVertical: 7,
+    paddingHorizontal: 14,
     borderRadius: RADIUS.circle,
     borderWidth: 1,
-    borderColor: '#E0E7FF',
+    borderColor: '#C7D2FE',
     marginBottom: SPACING[24],
   },
+  pillBadgeHovered: {
+    backgroundColor: '#E0E7FF',
+    borderColor: '#A5B4FC',
+  },
   pillBadgeDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#3538CD', // Lavender dot
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: '#3538CD',
     marginRight: 8,
   },
   pillBadgeText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
-    color: '#3538CD', // Lavender text
+    color: '#3538CD',
   },
   heroTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 36,
+    fontSize: 38,
     fontWeight: '800',
     textAlign: 'center',
     lineHeight: 48,
     marginBottom: SPACING[24],
-    letterSpacing: -0.5,
+    letterSpacing: -0.8,
   },
   heroTitleDesktop: {
-    fontSize: 54,
-    lineHeight: 64,
+    fontSize: 60,
+    lineHeight: 70,
     textAlign: 'left',
   },
   titleBlue: {
     color: '#1236A8',
   },
   titleRed: {
-    color: '#DC2626', // Vibrant red word "NTC's"
+    color: '#DC2626',
   },
   heroSubtitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
@@ -1425,12 +1405,14 @@ const styles = StyleSheet.create({
     color: COLORS.neutral[600],
     textAlign: 'center',
     lineHeight: 26,
-    marginBottom: SPACING[32],
-    maxWidth: 700,
+    marginBottom: 36,
+    maxWidth: 720,
   },
   heroSubtitleDesktop: {
     textAlign: 'left',
     alignSelf: 'flex-start',
+    fontSize: 18,
+    lineHeight: 28,
   },
   heroButtonsRow: {
     flexDirection: 'row',
@@ -1440,28 +1422,375 @@ const styles = StyleSheet.create({
     backgroundColor: '#1236A8',
     marginRight: SPACING[16],
     paddingHorizontal: SPACING[32],
-    height: 48,
+    height: 52,
+    borderRadius: RADIUS.button,
+    shadowColor: '#1236A8',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 3,
   },
   heroSecondaryBtn: {
     borderColor: '#1236A8',
     backgroundColor: COLORS.neutral.white,
     paddingHorizontal: SPACING[32],
-    height: 48,
+    height: 52,
+    borderRadius: RADIUS.button,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.04,
     shadowRadius: 8,
     elevation: 1,
   },
+  mockupCard: {
+    width: '100%',
+    maxWidth: 520,
+    backgroundColor: COLORS.neutral.white,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    borderColor: 'rgba(18, 54, 168, 0.10)',
+    overflow: 'hidden',
+  },
+  mockupCardHovered: {
+    borderColor: '#1236A8',
+    shadowColor: '#1236A8',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.15,
+    shadowRadius: 24,
+    elevation: 8,
+  },
+  mockupHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.neutral[200],
+    justifyContent: 'space-between',
+  },
+  mockupDots: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  mockupDot: {
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    marginRight: 6,
+  },
+  mockupUrlContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.neutral.white,
+    paddingVertical: 3,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.neutral[200],
+  },
+  mockupHeaderText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    color: COLORS.neutral[500],
+    fontWeight: '600',
+  },
+  mockupBody: {
+    padding: 24,
+  },
+  mockupStatsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  mockupStatCard: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    padding: 14,
+    marginHorizontal: 4,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#EEF2FF',
+  },
+  mockupStatLabel: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 10,
+    color: COLORS.neutral[500],
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  mockupStatValue: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 17,
+    fontWeight: '800',
+  },
+  mockupAppCard: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: '#EEF2FF',
+    marginBottom: 16,
+  },
+  mockupAppHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 14,
+  },
+  mockupAppTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.neutral[800],
+  },
+  mockupAppMeta: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    color: COLORS.neutral[400],
+    marginTop: 2,
+  },
+  mockupStatusBadge: {
+    backgroundColor: '#FEF3C7',
+    borderRadius: 8,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  mockupStatusText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#D97706',
+    letterSpacing: 0.5,
+  },
+  mockupProgressContainer: {
+    width: '100%',
+  },
+  mockupProgressBar: {
+    height: 7,
+    backgroundColor: COLORS.neutral[200],
+    borderRadius: 4,
+    position: 'relative',
+    overflow: 'hidden',
+    flexDirection: 'row',
+  },
+  mockupProgressFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  mockupProgressFillRed: {
+    height: '100%',
+    position: 'absolute',
+  },
+  mockupProgressLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  mockupProgressLabel: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 10,
+    color: COLORS.neutral[500],
+    fontWeight: '500',
+  },
+  mockupActivityCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EEF2FF',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E0E7FF',
+  },
+  mockupActivityText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    color: COLORS.neutral[700],
+    flex: 1,
+  },
+  mockupActivityTime: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 10,
+    color: COLORS.neutral[400],
+    marginLeft: 8,
+  },
+  aboutEdgeSection: {
+    paddingVertical: SPACING[64],
+    paddingHorizontal: SPACING[24],
+    maxWidth: 1400,
+    alignSelf: 'center',
+    width: '100%',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  aboutLeftCol: {
+    flex: 0.9,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    paddingRight: SPACING[48],
+  },
+  aboutRightCol: {
+    flex: 1.1,
+    alignItems: 'flex-start',
+  },
+  aboutFullCol: {
+    width: '100%',
+    alignItems: 'flex-start',
+  },
+  aboutGraphicCard: {
+    backgroundColor: COLORS.neutral.white,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    borderColor: COLORS.neutral[200],
+    width: '100%',
+    maxWidth: 440,
+    padding: 28,
+  },
+  graphicCardHovered: {
+    borderColor: '#1236A8',
+    shadowColor: '#1236A8',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 20,
+    elevation: 6,
+  },
+  aboutGraphicHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: SPACING[24],
+  },
+  aboutGraphicBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#EEF2FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  aboutGraphicHeaderText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    fontWeight: '800',
+    color: COLORS.neutral[800],
+    letterSpacing: 1.2,
+  },
+  aboutGraphicGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: SPACING[16],
+    width: '100%',
+  },
+  aboutGridItem: {
+    width: '48%',
+    backgroundColor: COLORS.neutral[50],
+    borderColor: COLORS.neutral[200],
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: SPACING[16],
+    alignItems: 'center',
+    marginBottom: SPACING[12],
+  },
+  gridItemHovered: {
+    backgroundColor: '#EEF2FF',
+    borderColor: '#C7D2FE',
+  },
+  aboutGridItemText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.neutral[700],
+  },
+  aboutGraphicFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: COLORS.neutral[100],
+    paddingTop: 14,
+    width: '100%',
+  },
+  aboutGraphicFooterText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    color: COLORS.neutral[500],
+    fontWeight: '500',
+  },
+  dotIndicatorActive: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: COLORS.semantic.success,
+    marginRight: 8,
+  },
+  aboutBadge: {
+    backgroundColor: '#EEF2FF',
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#C7D2FE',
+  },
+  aboutBadgeText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#1236A8',
+    letterSpacing: 1.2,
+  },
+  aboutTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 32,
+    fontWeight: '800',
+    color: COLORS.neutral[900],
+    marginBottom: SPACING[16],
+    letterSpacing: -0.5,
+  },
+  aboutHighlightText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 17,
+    fontWeight: '600',
+    color: COLORS.neutral[700],
+    lineHeight: 26,
+    marginBottom: SPACING[16],
+  },
+  aboutBodyText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 15,
+    color: COLORS.neutral[500],
+    lineHeight: 24,
+    marginBottom: SPACING[24],
+  },
+  aboutInfoBox: {
+    flexDirection: 'row',
+    backgroundColor: '#EEF2FF',
+    borderColor: '#C7D2FE',
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 18,
+    width: '100%',
+  },
+  aboutInfoBoxText: {
+    flex: 1,
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    color: '#1236A8',
+    fontWeight: '600',
+    lineHeight: 20,
+  },
   featuresSection: {
     paddingVertical: SPACING[64],
-    paddingHorizontal: SPACING[20],
+    paddingHorizontal: SPACING[24],
     width: '100%',
     alignItems: 'center',
   },
   featuresTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 32,
+    fontSize: 34,
     fontWeight: '800',
     color: '#1236A8',
     textAlign: 'center',
@@ -1470,84 +1799,92 @@ const styles = StyleSheet.create({
   },
   featuresSubtitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 16,
+    fontSize: 17,
     color: COLORS.neutral[500],
     textAlign: 'center',
     marginBottom: SPACING[48],
   },
   featuresGrid: {
-    maxWidth: 1200,
+    maxWidth: 1400,
     width: '100%',
     alignSelf: 'center',
     justifyContent: 'space-between',
   },
   featCard: {
     backgroundColor: COLORS.neutral.white,
-    borderRadius: RADIUS.card,
-    borderWidth: 1,
-    borderColor: COLORS.neutral[100],
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: COLORS.neutral[200],
     padding: SPACING[32],
     width: '100%',
     marginBottom: SPACING[20],
   },
+  featCardHovered: {
+    borderColor: '#1236A8',
+    shadowColor: '#1236A8',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.14,
+    shadowRadius: 20,
+    elevation: 6,
+  },
   featCardDesktop: {
     flex: 1,
-    marginHorizontal: SPACING[8],
+    marginHorizontal: 10,
     marginBottom: 0,
-    minHeight: 220,
+    minHeight: 240,
   },
   featIconWrapper: {
-    width: 44,
-    height: 44,
-    borderRadius: RADIUS.button,
-    backgroundColor: '#1236A8', // Solid blue rounded square background for icons from reference
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: '#1236A8',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: SPACING[20],
     shadowColor: '#1236A8',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 2,
+    shadowRadius: 8,
+    elevation: 3,
   },
   featCardTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
-    color: '#1236A8', // Blue card titles
+    color: '#1236A8',
     marginBottom: SPACING[12],
   },
   featCardDesc: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
+    fontSize: 15,
     color: COLORS.neutral[600],
-    lineHeight: 20,
+    lineHeight: 22,
   },
   sectionContainer: {
     paddingVertical: SPACING[64],
-    paddingHorizontal: SPACING[20],
+    paddingHorizontal: SPACING[24],
     width: '100%',
   },
   greyBg: {
-    backgroundColor: COLORS.neutral[50],
+    backgroundColor: '#F8FAFC',
     borderTopWidth: 1,
     borderBottomWidth: 1,
     borderColor: COLORS.neutral[200],
   },
   sectionTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: '800',
     color: COLORS.neutral[900],
     marginBottom: SPACING[12],
     letterSpacing: -0.5,
   },
   titleUnderline: {
-    width: 50,
+    width: 60,
     height: 4,
     backgroundColor: '#1236A8',
     borderRadius: 2,
-    marginBottom: SPACING[32],
+    marginBottom: SPACING[40],
   },
   centerText: {
     textAlign: 'center',
@@ -1556,7 +1893,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   stepsContainer: {
-    maxWidth: 1200,
+    maxWidth: 1400,
     width: '100%',
     alignSelf: 'center',
     marginTop: SPACING[16],
@@ -1572,31 +1909,44 @@ const styles = StyleSheet.create({
   },
   stepCard: {
     backgroundColor: COLORS.neutral.white,
-    borderRadius: RADIUS.card,
-    borderWidth: 1,
+    borderRadius: 20,
+    borderWidth: 1.5,
     borderColor: COLORS.neutral[200],
-    padding: SPACING[24],
+    padding: 28,
     width: '100%',
-    maxWidth: 320,
+    maxWidth: 360,
     alignItems: 'center',
+  },
+  stepCardHovered: {
+    borderColor: '#1236A8',
+    shadowColor: '#1236A8',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.14,
+    shadowRadius: 20,
+    elevation: 6,
   },
   stepCardDesktop: {
     flex: 1,
-    marginHorizontal: SPACING[8],
-    minHeight: 200,
+    marginHorizontal: 10,
+    minHeight: 220,
   },
   stepBadge: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: '#1236A8',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: SPACING[16],
+    marginBottom: 18,
+    shadowColor: '#1236A8',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 3,
   },
   stepCardTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '700',
     color: COLORS.neutral[900],
     marginBottom: SPACING[8],
@@ -1604,10 +1954,10 @@ const styles = StyleSheet.create({
   },
   stepCardDesc: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
+    fontSize: 14,
     color: COLORS.neutral[500],
     textAlign: 'center',
-    lineHeight: 18,
+    lineHeight: 20,
   },
   arrowMobile: {
     marginVertical: SPACING[12],
@@ -1615,18 +1965,18 @@ const styles = StyleSheet.create({
   arrowDesktop: {
     justifyContent: 'center',
     alignItems: 'center',
-    marginHorizontal: 12,
+    marginHorizontal: 16,
   },
   faqList: {
-    maxWidth: 800,
+    maxWidth: 960,
     width: '100%',
     alignSelf: 'center',
     marginTop: SPACING[16],
   },
   faqItem: {
     backgroundColor: COLORS.neutral.white,
-    borderRadius: RADIUS.input,
-    borderWidth: 1,
+    borderRadius: 16,
+    borderWidth: 1.5,
     borderColor: COLORS.neutral[200],
     marginBottom: SPACING[16],
     overflow: 'hidden',
@@ -1640,13 +1990,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: SPACING[20],
   },
+  faqHeaderHovered: {
+    backgroundColor: '#F8FAFC',
+  },
   faqQuestion: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700',
     color: COLORS.neutral[900],
     flex: 1,
     paddingRight: SPACING[12],
+  },
+  faqIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#EEF2FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  faqIconCircleActive: {
+    backgroundColor: '#1236A8',
   },
   faqAnswerContainer: {
     paddingHorizontal: SPACING[20],
@@ -1655,60 +2019,71 @@ const styles = StyleSheet.create({
   },
   faqAnswer: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
+    fontSize: 15,
     color: COLORS.neutral[600],
-    lineHeight: 22,
+    lineHeight: 24,
     marginTop: SPACING[12],
   },
   ctaBoxContainer: {
     width: '100%',
-    paddingHorizontal: SPACING[20],
+    paddingHorizontal: SPACING[24],
     paddingBottom: SPACING[64],
   },
   ctaBox: {
-    maxWidth: 1200,
+    maxWidth: 1400,
     width: '100%',
     alignSelf: 'center',
-    backgroundColor: '#1236A8', // Vibrant dark blue box matching CTA from reference
-    borderRadius: 24,
-    paddingVertical: SPACING[64],
-    paddingHorizontal: SPACING[32],
+    backgroundColor: '#0F2B88',
+    borderRadius: 28,
+    paddingVertical: SPACING[64] + 10,
+    paddingHorizontal: 36,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#1236A8',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.3,
+    shadowRadius: 24,
+    elevation: 8,
   },
   ctaBoxTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: '800',
     color: COLORS.neutral.white,
     textAlign: 'center',
-    lineHeight: 38,
-    marginBottom: SPACING[12],
-    maxWidth: 700,
+    lineHeight: 42,
+    marginBottom: SPACING[16],
+    maxWidth: 780,
+    letterSpacing: -0.5,
   },
   ctaBoxSubtitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 15,
+    fontSize: 16,
     color: '#E0E7FF',
     textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: SPACING[32],
-    maxWidth: 680,
+    lineHeight: 26,
+    marginBottom: 36,
+    maxWidth: 720,
   },
   ctaPrimaryBtn: {
     backgroundColor: COLORS.neutral.white,
-    height: 48,
-    paddingHorizontal: SPACING[32],
+    height: 52,
+    paddingHorizontal: 36,
     borderRadius: RADIUS.button,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 4,
   },
   footerContainer: {
-    backgroundColor: '#0A1B66', // Deep dark blue footer from reference
-    paddingTop: SPACING[64],
-    paddingBottom: SPACING[32],
-    paddingHorizontal: SPACING[20],
+    backgroundColor: '#081448',
+    paddingTop: SPACING[64] + 10,
+    paddingBottom: 36,
+    paddingHorizontal: SPACING[24],
   },
   footerInnerGrid: {
-    maxWidth: 1200,
+    maxWidth: 1400,
     width: '100%',
     alignSelf: 'center',
     justifyContent: 'space-between',
@@ -1724,7 +2099,7 @@ const styles = StyleSheet.create({
   footerBioText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 14,
-    color: '#8b9bb4', // Muted slate color for bio text
+    color: '#94A3B8',
     lineHeight: 22,
     marginTop: SPACING[16],
   },
@@ -1735,26 +2110,31 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   footerLinksCol: {
-    minWidth: 130,
+    minWidth: 140,
     marginBottom: SPACING[24],
   },
   footerColHeader: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
-    color: COLORS.neutral.white, // White headers from reference
-    marginBottom: SPACING[16],
+    color: COLORS.neutral.white,
+    marginBottom: 18,
+    letterSpacing: 0.5,
   },
   footerLinkItem: {
     marginBottom: SPACING[12],
+    paddingVertical: 2,
+  },
+  footerLinkHovered: {
+    opacity: 0.85,
   },
   footerLinkText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
-    color: '#8b9bb4', // Slate links matching reference
+    fontSize: 14,
+    color: '#94A3B8',
   },
   footerBottom: {
-    maxWidth: 1200,
+    maxWidth: 1400,
     width: '100%',
     alignSelf: 'center',
     borderTopWidth: 1,
@@ -1765,8 +2145,8 @@ const styles = StyleSheet.create({
   },
   copyrightText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
-    color: '#8b9bb4',
+    fontSize: 13,
+    color: '#64748B',
   },
   rowLayout: {
     flexDirection: 'row',
@@ -1776,17 +2156,17 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.4)',
+    backgroundColor: 'rgba(15, 23, 42, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: SPACING[20],
   },
   modalCard: {
     width: '100%',
-    maxWidth: 400,
+    maxWidth: 440,
     backgroundColor: COLORS.neutral.white,
-    borderRadius: 16,
-    padding: SPACING[24],
+    borderRadius: 20,
+    padding: 28,
     position: 'relative',
     alignSelf: 'center',
     borderWidth: 1,
@@ -1797,7 +2177,11 @@ const styles = StyleSheet.create({
     top: 16,
     right: 16,
     zIndex: 10,
-    padding: 4,
+    padding: 6,
+    borderRadius: 16,
+  },
+  closeBtnHovered: {
+    backgroundColor: COLORS.neutral[100],
   },
   modalHeader: {
     alignItems: 'center',
@@ -1805,12 +2189,12 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '700',
     color: COLORS.neutral[900],
     textAlign: 'center',
     marginBottom: SPACING[12],
-    lineHeight: 26,
+    lineHeight: 28,
   },
   modalSubtitleText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
@@ -1822,10 +2206,10 @@ const styles = StyleSheet.create({
   },
   modalInstructionText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
+    fontSize: 14,
     color: COLORS.neutral[500],
     textAlign: 'center',
-    lineHeight: 18,
+    lineHeight: 20,
     marginBottom: SPACING[20],
   },
   modalButtonsContainer: {
@@ -1834,8 +2218,9 @@ const styles = StyleSheet.create({
   },
   modalActionBtn: {
     width: '100%',
-    height: 48,
+    height: 50,
     marginBottom: SPACING[12],
+    borderRadius: RADIUS.button,
   },
   modalGuestBtn: {
     borderColor: '#1236A8',
@@ -1904,6 +2289,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: COLORS.neutral[100],
   },
+  dropdownItemHovered: {
+    backgroundColor: '#EEF2FF',
+  },
   dropdownItemText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 13,
@@ -1927,8 +2315,9 @@ const styles = StyleSheet.create({
   },
   modalSubmitBtn: {
     width: '100%',
-    height: 48,
+    height: 50,
     marginTop: SPACING[8],
+    borderRadius: RADIUS.button,
   },
   resultHeader: {
     flexDirection: 'row',
@@ -2011,149 +2400,8 @@ const styles = StyleSheet.create({
   },
   modalResetBtn: {
     width: '100%',
-    height: 48,
+    height: 50,
     borderColor: '#1236A8',
-  },
-  aboutEdgeSection: {
-    paddingVertical: SPACING[48],
-    paddingHorizontal: SPACING[20],
-    maxWidth: 1200,
-    alignSelf: 'center',
-    width: '100%',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  aboutLeftCol: {
-    flex: 0.9,
-    alignItems: 'flex-start',
-    justifyContent: 'center',
-    paddingRight: SPACING[40],
-  },
-  aboutRightCol: {
-    flex: 1.1,
-    alignItems: 'flex-start',
-  },
-  aboutFullCol: {
-    width: '100%',
-    alignItems: 'flex-start',
-  },
-  aboutGraphicCard: {
-    backgroundColor: COLORS.neutral.white,
-    borderRadius: 20,
-    borderWidth: 1.5,
-    borderColor: COLORS.neutral[200],
-    width: '100%',
-    maxWidth: 380,
-    padding: SPACING[24],
-  },
-  aboutGraphicHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: SPACING[20],
-  },
-  aboutGraphicHeaderText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-    fontWeight: '700',
-    color: COLORS.neutral[700],
-    marginLeft: 8,
-    letterSpacing: 1.2,
-  },
-  aboutGraphicGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginBottom: SPACING[16],
-    width: '100%',
-  },
-  aboutGridItem: {
-    width: '47%',
-    backgroundColor: COLORS.neutral[50],
-    borderColor: COLORS.neutral[100],
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: SPACING[12],
-    alignItems: 'center',
-    marginBottom: SPACING[12],
-  },
-  aboutGridItemText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-    fontWeight: '600',
-    color: COLORS.neutral[600],
-  },
-  aboutGraphicFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderTopWidth: 1,
-    borderTopColor: COLORS.neutral[100],
-    paddingTop: SPACING[12],
-    width: '100%',
-  },
-  aboutGraphicFooterText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-    color: COLORS.neutral[500],
-    fontWeight: '500',
-  },
-  dotIndicatorActive: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: COLORS.semantic.success,
-    marginRight: 6,
-  },
-  aboutBadge: {
-    backgroundColor: '#E6EDFF',
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    marginBottom: SPACING[12],
-  },
-  aboutBadgeText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#1236A8',
-    letterSpacing: 1.0,
-  },
-  aboutTitle: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 28,
-    fontWeight: '800',
-    color: COLORS.neutral[900],
-    marginBottom: SPACING[16],
-  },
-  aboutHighlightText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.neutral[700],
-    lineHeight: 24,
-    marginBottom: SPACING[16],
-  },
-  aboutBodyText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
-    color: COLORS.neutral[500],
-    lineHeight: 22,
-    marginBottom: SPACING[20],
-  },
-  aboutInfoBox: {
-    flexDirection: 'row',
-    backgroundColor: '#EEF2FF',
-    borderColor: '#E2E8F0',
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: SPACING[16],
-    width: '100%',
-  },
-  aboutInfoBoxText: {
-    flex: 1,
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
-    color: '#1236A8',
-    fontWeight: '600',
-    lineHeight: 18,
+    borderRadius: RADIUS.button,
   },
 });
