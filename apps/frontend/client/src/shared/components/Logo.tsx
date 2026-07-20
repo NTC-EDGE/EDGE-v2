@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Image, StyleSheet, ViewStyle } from 'react-native';
 
-const logoAsset = require('../../../../assets/ntc-logo.png');
+const logoAsset = require('../../../assets/ntc-logo.png');
 
 interface LogoProps {
   height?: number;

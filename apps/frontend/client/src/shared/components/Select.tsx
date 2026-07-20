@@ -9,7 +9,7 @@ import {
   ViewStyle,
   TouchableWithoutFeedback,
 } from 'react-native';
-import { Feather as Lucide } from '@expo/vector-icons';
+import { Icon as Lucide } from '@edge/ui';
 import { COLORS, RADIUS, SPACING, TYPOGRAPHY, SHADOWS } from '../theme/tokens';
 
 type LucideIconName = React.ComponentProps<typeof Lucide>['name'];

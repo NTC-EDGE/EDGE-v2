@@ -1,3 +1,4 @@
+import { styles } from './SignUpScreen.styles';
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
@@ -8,19 +9,24 @@ import {
   Platform,
   Animated,
 } from 'react-native';
-import { Feather as Lucide } from '@expo/vector-icons';
+import { Icon as Lucide } from '@edge/ui';
 import { COLORS, SHADOWS, SPACING, RADIUS, TYPOGRAPHY } from '../../shared/theme/tokens';
 import { Input } from '../../shared/components/Input';
 import { Button } from '../../shared/components/Button';
 import { Logo } from '../../shared/components/Logo';
+import { useNavigation, NavigationProp } from '@react-navigation/native';
+import { useSignUp, isClerkAPIResponseError } from '@clerk/clerk-expo';
 
-interface SignUpScreenProps {
-  navigation: {
-    navigate: (screen: string) => void;
-  };
-}
+type UnauthParamList = {
+  Landing: undefined;
+  Login: undefined;
+  SignUp: undefined;
+  ForgotPassword: undefined;
+};
 
-export function SignUpScreen({ navigation }: SignUpScreenProps) {
+export function SignUpScreen() {
+  const navigation = useNavigation();
+  const { signUp, setActive, isLoaded: signUpLoaded } = useSignUp();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -31,6 +37,7 @@ export function SignUpScreen({ navigation }: SignUpScreenProps) {
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [confirmPasswordError, setConfirmPasswordError] = useState('');
+  const [generalError, setGeneralError] = useState('');
 
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -110,26 +117,57 @@ export function SignUpScreen({ navigation }: SignUpScreenProps) {
     return isValid;
   };
 
-  const handleSignUp = () => {
+  const handleSignUp = async () => {
     if (!validate()) return;
 
     setLoading(true);
-    // Simulate API registration request
-    setTimeout(() => {
+    setGeneralError('');
+
+    if (!signUpLoaded) {
+      setGeneralError('Sign up service is not loaded yet. Please try again.');
       setLoading(false);
-      setSuccess(true);
-      
-      // Auto navigate to login page
-      setTimeout(() => {
-        navigation.navigate('Login');
-      }, 2000);
-    }, 1500);
+      return;
+    }
+
+    try {
+      const completeSignUp = await signUp.create({
+        emailAddress: email,
+        password,
+      });
+
+      if (completeSignUp.status === 'complete') {
+        if (setActive !== undefined) {
+          await setActive({ session: completeSignUp.createdSessionId });
+        }
+        setSuccess(true);
+      } else {
+        setGeneralError('Verification required. Please check your Clerk verification setup.');
+      }
+    } catch (err: unknown) {
+      let errMsg = 'Sign up failed. Please check your inputs.';
+      if (isClerkAPIResponseError(err)) {
+        errMsg = err.errors[0]?.message || errMsg;
+      } else if (err instanceof Error) {
+        errMsg = err.message;
+      }
+      setGeneralError(errMsg);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const glowScale = glowAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [0.95, 1.05],
   });
+
+  const webGlowStyle: Record<string, string | number> = {
+    filter: 'blur(100px)',
+    opacity: 0.12,
+  };
+  const mobileGlowStyle = {
+    opacity: 0.12,
+  };
 
   return (
     <KeyboardAvoidingView
@@ -142,7 +180,7 @@ export function SignUpScreen({ navigation }: SignUpScreenProps) {
           style={[
             styles.bgGlow,
             { transform: [{ scale: glowScale }] },
-            Platform.OS === 'web' ? { filter: 'blur(100px)' } as any : { opacity: 0.12 }
+            Platform.OS === 'web' ? webGlowStyle : mobileGlowStyle
           ]}
         />
 
@@ -172,6 +210,10 @@ export function SignUpScreen({ navigation }: SignUpScreenProps) {
 
             <Text style={styles.title}>Create Account</Text>
             <Text style={styles.subtitle}>Register to start filing your applications</Text>
+
+            {generalError.length > 0 ? (
+              <Text style={styles.generalError}>{generalError}</Text>
+            ) : null}
 
             {success ? (
               <View style={styles.successBox}>
@@ -251,111 +293,3 @@ export function SignUpScreen({ navigation }: SignUpScreenProps) {
     </KeyboardAvoidingView>
   );
 }
-
-const styles = StyleSheet.create({
-  keyboardContainer: {
-    flex: 1,
-    backgroundColor: COLORS.bg,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    padding: SPACING[20],
-    position: 'relative',
-  },
-  bgGlow: {
-    position: 'absolute',
-    top: '20%',
-    right: '25%',
-    width: 350,
-    height: 350,
-    borderRadius: 175,
-    backgroundColor: '#FF7392',
-    opacity: 0.1,
-    zIndex: -1,
-  },
-  outerContainer: {
-    width: '100%',
-    maxWidth: 440,
-    alignSelf: 'center',
-    zIndex: 1,
-  },
-  backButton: {
-    alignSelf: 'flex-start',
-    marginBottom: SPACING[16],
-  },
-  backButtonText: {
-    color: COLORS.neutral[600],
-    textDecorationLine: 'none',
-    marginLeft: 4,
-  },
-  card: {
-    backgroundColor: COLORS.glass.bg,
-    borderColor: COLORS.glass.border,
-    borderWidth: 1.5,
-    borderRadius: RADIUS.dialog,
-    padding: SPACING[32],
-    width: '100%',
-  },
-  logoWrapper: {
-    alignItems: 'center',
-    marginBottom: SPACING[24],
-  },
-  title: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 24,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    color: COLORS.neutral[900],
-    textAlign: 'center',
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
-    color: COLORS.neutral[500],
-    textAlign: 'center',
-    marginBottom: SPACING[24],
-  },
-  form: {
-    width: '100%',
-  },
-  submitButton: {
-    width: '100%',
-    marginTop: SPACING[8],
-  },
-  footerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: SPACING[24],
-  },
-  footerText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
-    color: COLORS.neutral[600],
-  },
-  footerLink: {
-    fontSize: 14,
-    color: COLORS.brand[800],
-    fontWeight: TYPOGRAPHY.weights.semibold,
-  },
-  successBox: {
-    backgroundColor: COLORS.semantic.successBg,
-    borderColor: COLORS.semantic.successBorder,
-    borderWidth: 1,
-    borderRadius: RADIUS.input,
-    padding: SPACING[20],
-    marginVertical: SPACING[20],
-    alignItems: 'center',
-  },
-  successIcon: {
-    marginBottom: SPACING[8],
-  },
-  successText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
-    color: COLORS.semantic.success,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-    textAlign: 'center',
-  },
-});
