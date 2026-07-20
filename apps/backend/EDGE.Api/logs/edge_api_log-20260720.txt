@@ -622,3 +622,912 @@ Npgsql.NpgsqlException (0x80004005): Failed to connect to 127.0.0.1:5433
 2026-07-20 12:40:29.896 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/scalar/v2/scalar.aspnetcore.js - 304 null null 119.0614ms
 2026-07-20 12:40:29.907 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/scalar/v2/scalar.js - 304 null null 130.1556ms
 2026-07-20 12:40:29.926 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/_vs/browserLink - 200 null text/javascript; charset=UTF-8 148.4206ms
+2026-07-20 13:53:57.203 +08:00 [INF] Starting NTC-EDGE Web API...
+2026-07-20 13:54:31.872 +08:00 [INF] User profile is available. Using 'C:\Users\User\AppData\Local\ASP.NET\DataProtection-Keys' as key repository and Windows DPAPI to encrypt keys at rest.
+2026-07-20 13:54:32.836 +08:00 [INF] Now listening on: https://localhost:7096
+2026-07-20 13:54:32.840 +08:00 [INF] Now listening on: http://localhost:5038
+2026-07-20 13:54:32.865 +08:00 [INF] No action descriptors found. This may indicate an incorrectly configured application or missing application parts. To learn more, visit https://aka.ms/aspnet/mvc/app-parts
+2026-07-20 13:54:33.548 +08:00 [INF] Starting Hangfire Server using job storage: 'PostgreSQL Server: Host: localhost:5432, DB: EDGE-db, Schema: hangfire'
+2026-07-20 13:54:33.582 +08:00 [INF] Using the following options for PostgreSQL job storage:
+2026-07-20 13:54:33.650 +08:00 [INF]     Queue poll interval: 00:00:15.
+2026-07-20 13:54:33.655 +08:00 [INF]     Invisibility timeout: 00:30:00.
+2026-07-20 13:54:33.658 +08:00 [INF]     Use sliding invisibility timeout: False.
+2026-07-20 13:54:33.660 +08:00 [INF] Using the following options for Hangfire Server:
+    Worker count: 20
+    Listening queues: 'default'
+    Shutdown timeout: 00:00:15
+    Schedule polling interval: 00:00:15
+2026-07-20 13:54:33.818 +08:00 [INF] Application started. Press Ctrl+C to shut down.
+2026-07-20 13:54:33.855 +08:00 [INF] Hosting environment: Development
+2026-07-20 13:54:33.863 +08:00 [INF] Content root path: C:\Dev\NEXTSTEP\EDGE-v2\apps\backend\EDGE.Api
+2026-07-20 13:54:33.981 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/scalar/v2 - null null
+2026-07-20 13:54:34.562 +08:00 [INF] Executing endpoint 'HTTP: GET /scalar/v2/{documentName?}'
+2026-07-20 13:54:34.591 +08:00 [INF] Executing RedirectResult, redirecting to v2/.
+2026-07-20 13:54:34.594 +08:00 [INF] Executed endpoint 'HTTP: GET /scalar/v2/{documentName?}'
+2026-07-20 13:54:34.609 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/scalar/v2 - 302 null null 650.7767ms
+2026-07-20 13:54:34.620 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/scalar/v2/ - null null
+2026-07-20 13:54:34.638 +08:00 [INF] Executing endpoint 'HTTP: GET /scalar/v2/{documentName?}'
+2026-07-20 13:54:34.995 +08:00 [INF] Write content with HTTP Response ContentType of text/html
+2026-07-20 13:54:35.035 +08:00 [INF] Executed endpoint 'HTTP: GET /scalar/v2/{documentName?}'
+2026-07-20 13:54:35.040 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/scalar/v2/ - 200 null text/html 419.2115ms
+2026-07-20 13:54:35.051 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/_vs/browserLink - null null
+2026-07-20 13:54:35.047 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/scalar/v2/scalar.js - null null
+2026-07-20 13:54:35.047 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/scalar/v2/scalar.aspnetcore.js - null null
+2026-07-20 13:54:35.048 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/_framework/aspnetcore-browser-refresh.js - null null
+2026-07-20 13:54:35.089 +08:00 [INF] Executing endpoint 'HTTP: GET /scalar/v2/scalar.js'
+2026-07-20 13:54:35.089 +08:00 [INF] Executing endpoint 'HTTP: GET /scalar/v2/scalar.aspnetcore.js'
+2026-07-20 13:54:35.147 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/_framework/aspnetcore-browser-refresh.js - 200 14921 application/javascript; charset=utf-8 99.7217ms
+2026-07-20 13:54:35.154 +08:00 [INF] Sending file with download name ''.
+2026-07-20 13:54:35.161 +08:00 [INF] Executed endpoint 'HTTP: GET /scalar/v2/scalar.aspnetcore.js'
+2026-07-20 13:54:35.165 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/scalar/v2/scalar.aspnetcore.js - 304 null null 118.2779ms
+2026-07-20 13:54:35.178 +08:00 [INF] Sending file with download name ''.
+2026-07-20 13:54:35.221 +08:00 [INF] Executed endpoint 'HTTP: GET /scalar/v2/scalar.js'
+2026-07-20 13:54:35.223 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/scalar/v2/scalar.js - 304 null null 175.2799ms
+2026-07-20 13:54:35.223 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/_vs/browserLink - 200 null text/javascript; charset=UTF-8 172.6284ms
+2026-07-20 13:54:35.324 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/openapi/v1.json - null null
+2026-07-20 13:54:35.334 +08:00 [INF] Executing endpoint 'HTTP: GET /openapi/{documentName}.json'
+2026-07-20 13:54:35.363 +08:00 [INF] Executed endpoint 'HTTP: GET /openapi/{documentName}.json'
+2026-07-20 13:54:35.370 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/openapi/v1.json - 200 null application/json;charset=utf-8 45.7347ms
+2026-07-20 13:55:05.942 +08:00 [ERR] Execution BackgroundServerProcess is in the Failed state now due to an exception, execution will be retried in no more than 00:00:15
+Npgsql.PostgresException (0x80004005): 28P01: password authentication failed for user "postgres"
+   at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at Npgsql.Internal.NpgsqlConnector.AuthenticateSASL(List`1 mechanisms, String username, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Authenticate(String username, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.Open()
+   at Hangfire.PostgreSql.PostgreSqlStorage.CreateAndOpenConnection()
+   at Hangfire.PostgreSql.PostgreSqlStorage.UseConnection[T](DbConnection dedicatedConnection, Func`2 func)
+   at Hangfire.PostgreSql.PostgreSqlConnection.AnnounceServer(String serverId, ServerContext context)
+   at Hangfire.Server.BackgroundServerProcess.CreateServer(BackgroundServerContext context) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 209
+   at Hangfire.Server.BackgroundServerProcess.Execute(Guid executionId, BackgroundExecution execution, CancellationToken stoppingToken, CancellationToken stoppedToken, CancellationToken shutdownToken) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 101
+   at Hangfire.Server.BackgroundProcessingServer.RunServer(Guid executionId, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundProcessingServer.cs:line 249
+   at Hangfire.Processing.BackgroundExecution.Run(Action`2 callback, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Processing\BackgroundExecution.cs:line 118
+  Exception data:
+    Severity: FATAL
+    SqlState: 28P01
+    MessageText: password authentication failed for user "postgres"
+    File: auth.c
+    Line: 320
+    Routine: auth_failed
+2026-07-20 13:55:52.950 +08:00 [ERR] Execution BackgroundServerProcess is still in the Failed state for 00:00:46.9289193 due to an exception, will be retried in no more than 00:00:15
+Npgsql.PostgresException (0x80004005): 28P01: password authentication failed for user "postgres"
+   at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at Npgsql.Internal.NpgsqlConnector.AuthenticateSASL(List`1 mechanisms, String username, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Authenticate(String username, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.Open()
+   at Hangfire.PostgreSql.PostgreSqlStorage.CreateAndOpenConnection()
+   at Hangfire.PostgreSql.PostgreSqlStorage.UseConnection[T](DbConnection dedicatedConnection, Func`2 func)
+   at Hangfire.PostgreSql.PostgreSqlConnection.AnnounceServer(String serverId, ServerContext context)
+   at Hangfire.Server.BackgroundServerProcess.CreateServer(BackgroundServerContext context) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 209
+   at Hangfire.Server.BackgroundServerProcess.Execute(Guid executionId, BackgroundExecution execution, CancellationToken stoppingToken, CancellationToken stoppedToken, CancellationToken shutdownToken) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 101
+   at Hangfire.Server.BackgroundProcessingServer.RunServer(Guid executionId, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundProcessingServer.cs:line 249
+   at Hangfire.Processing.BackgroundExecution.Run(Action`2 callback, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Processing\BackgroundExecution.cs:line 118
+  Exception data:
+    Severity: FATAL
+    SqlState: 28P01
+    MessageText: password authentication failed for user "postgres"
+    File: auth.c
+    Line: 320
+    Routine: auth_failed
+2026-07-20 13:56:39.994 +08:00 [ERR] Execution BackgroundServerProcess is still in the Failed state for 00:01:33.9729322 due to an exception, will be retried in no more than 00:00:15
+Npgsql.PostgresException (0x80004005): 28P01: password authentication failed for user "postgres"
+   at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at Npgsql.Internal.NpgsqlConnector.AuthenticateSASL(List`1 mechanisms, String username, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Authenticate(String username, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.Open()
+   at Hangfire.PostgreSql.PostgreSqlStorage.CreateAndOpenConnection()
+   at Hangfire.PostgreSql.PostgreSqlStorage.UseConnection[T](DbConnection dedicatedConnection, Func`2 func)
+   at Hangfire.PostgreSql.PostgreSqlConnection.AnnounceServer(String serverId, ServerContext context)
+   at Hangfire.Server.BackgroundServerProcess.CreateServer(BackgroundServerContext context) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 209
+   at Hangfire.Server.BackgroundServerProcess.Execute(Guid executionId, BackgroundExecution execution, CancellationToken stoppingToken, CancellationToken stoppedToken, CancellationToken shutdownToken) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 101
+   at Hangfire.Server.BackgroundProcessingServer.RunServer(Guid executionId, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundProcessingServer.cs:line 249
+   at Hangfire.Processing.BackgroundExecution.Run(Action`2 callback, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Processing\BackgroundExecution.cs:line 118
+  Exception data:
+    Severity: FATAL
+    SqlState: 28P01
+    MessageText: password authentication failed for user "postgres"
+    File: auth.c
+    Line: 320
+    Routine: auth_failed
+2026-07-20 13:57:26.919 +08:00 [ERR] Execution BackgroundServerProcess is still in the Failed state for 00:02:20.8981484 due to an exception, will be retried in no more than 00:00:15
+Npgsql.PostgresException (0x80004005): 28P01: password authentication failed for user "postgres"
+   at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at Npgsql.Internal.NpgsqlConnector.AuthenticateSASL(List`1 mechanisms, String username, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Authenticate(String username, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.Open()
+   at Hangfire.PostgreSql.PostgreSqlStorage.CreateAndOpenConnection()
+   at Hangfire.PostgreSql.PostgreSqlStorage.UseConnection[T](DbConnection dedicatedConnection, Func`2 func)
+   at Hangfire.PostgreSql.PostgreSqlConnection.AnnounceServer(String serverId, ServerContext context)
+   at Hangfire.Server.BackgroundServerProcess.CreateServer(BackgroundServerContext context) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 209
+   at Hangfire.Server.BackgroundServerProcess.Execute(Guid executionId, BackgroundExecution execution, CancellationToken stoppingToken, CancellationToken stoppedToken, CancellationToken shutdownToken) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 101
+   at Hangfire.Server.BackgroundProcessingServer.RunServer(Guid executionId, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundProcessingServer.cs:line 249
+   at Hangfire.Processing.BackgroundExecution.Run(Action`2 callback, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Processing\BackgroundExecution.cs:line 118
+  Exception data:
+    Severity: FATAL
+    SqlState: 28P01
+    MessageText: password authentication failed for user "postgres"
+    File: auth.c
+    Line: 320
+    Routine: auth_failed
+2026-07-20 14:05:28.732 +08:00 [INF] Starting NTC-EDGE Web API...
+2026-07-20 14:06:02.112 +08:00 [INF] User profile is available. Using 'C:\Users\User\AppData\Local\ASP.NET\DataProtection-Keys' as key repository and Windows DPAPI to encrypt keys at rest.
+2026-07-20 14:06:03.050 +08:00 [INF] Now listening on: https://localhost:7096
+2026-07-20 14:06:03.056 +08:00 [INF] Now listening on: http://localhost:5038
+2026-07-20 14:06:03.096 +08:00 [INF] No action descriptors found. This may indicate an incorrectly configured application or missing application parts. To learn more, visit https://aka.ms/aspnet/mvc/app-parts
+2026-07-20 14:06:03.246 +08:00 [INF] Starting Hangfire Server using job storage: 'PostgreSQL Server: Host: localhost:5432, DB: EDGE-db, Schema: hangfire'
+2026-07-20 14:06:03.250 +08:00 [INF] Using the following options for PostgreSQL job storage:
+2026-07-20 14:06:03.254 +08:00 [INF]     Queue poll interval: 00:00:15.
+2026-07-20 14:06:03.260 +08:00 [INF]     Invisibility timeout: 00:30:00.
+2026-07-20 14:06:03.262 +08:00 [INF]     Use sliding invisibility timeout: False.
+2026-07-20 14:06:03.266 +08:00 [INF] Using the following options for Hangfire Server:
+    Worker count: 20
+    Listening queues: 'default'
+    Shutdown timeout: 00:00:15
+    Schedule polling interval: 00:00:15
+2026-07-20 14:06:03.360 +08:00 [INF] Application started. Press Ctrl+C to shut down.
+2026-07-20 14:06:03.369 +08:00 [INF] Hosting environment: Development
+2026-07-20 14:06:03.373 +08:00 [INF] Content root path: C:\Dev\NEXTSTEP\EDGE-v2\apps\backend\EDGE.Api
+2026-07-20 14:06:03.771 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/scalar/v2 - null null
+2026-07-20 14:06:04.459 +08:00 [INF] Executing endpoint 'HTTP: GET /scalar/v2/{documentName?}'
+2026-07-20 14:06:04.495 +08:00 [INF] Executing RedirectResult, redirecting to v2/.
+2026-07-20 14:06:04.501 +08:00 [INF] Executed endpoint 'HTTP: GET /scalar/v2/{documentName?}'
+2026-07-20 14:06:04.518 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/scalar/v2 - 302 null null 764.6836ms
+2026-07-20 14:06:04.529 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/scalar/v2/ - null null
+2026-07-20 14:06:04.564 +08:00 [INF] Executing endpoint 'HTTP: GET /scalar/v2/{documentName?}'
+2026-07-20 14:06:05.267 +08:00 [INF] Write content with HTTP Response ContentType of text/html
+2026-07-20 14:06:05.356 +08:00 [INF] Executed endpoint 'HTTP: GET /scalar/v2/{documentName?}'
+2026-07-20 14:06:05.370 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/_framework/aspnetcore-browser-refresh.js - null null
+2026-07-20 14:06:05.385 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/_vs/browserLink - null null
+2026-07-20 14:06:05.372 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/scalar/v2/scalar.aspnetcore.js - null null
+2026-07-20 14:06:05.372 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/scalar/v2/scalar.js - null null
+2026-07-20 14:06:05.386 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/scalar/v2/ - 200 null text/html 857.1439ms
+2026-07-20 14:06:05.471 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/_framework/aspnetcore-browser-refresh.js - 200 14921 application/javascript; charset=utf-8 100.7048ms
+2026-07-20 14:06:05.502 +08:00 [INF] Executing endpoint 'HTTP: GET /scalar/v2/scalar.aspnetcore.js'
+2026-07-20 14:06:05.523 +08:00 [INF] Executing endpoint 'HTTP: GET /scalar/v2/scalar.js'
+2026-07-20 14:06:05.727 +08:00 [INF] Sending file with download name ''.
+2026-07-20 14:06:05.743 +08:00 [INF] Executed endpoint 'HTTP: GET /scalar/v2/scalar.aspnetcore.js'
+2026-07-20 14:06:05.751 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/scalar/v2/scalar.aspnetcore.js - 304 null null 378.6219ms
+2026-07-20 14:06:05.777 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/_vs/browserLink - 200 null text/javascript; charset=UTF-8 403.9935ms
+2026-07-20 14:06:05.792 +08:00 [INF] Sending file with download name ''.
+2026-07-20 14:06:05.836 +08:00 [INF] Executed endpoint 'HTTP: GET /scalar/v2/scalar.js'
+2026-07-20 14:06:05.845 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/scalar/v2/scalar.js - 304 null null 473.2715ms
+2026-07-20 14:06:06.259 +08:00 [INF] Request starting HTTP/2 GET https://localhost:7096/openapi/v1.json - null null
+2026-07-20 14:06:06.287 +08:00 [INF] Executing endpoint 'HTTP: GET /openapi/{documentName}.json'
+2026-07-20 14:06:06.352 +08:00 [INF] Executed endpoint 'HTTP: GET /openapi/{documentName}.json'
+2026-07-20 14:06:06.370 +08:00 [INF] Request finished HTTP/2 GET https://localhost:7096/openapi/v1.json - 200 null application/json;charset=utf-8 111.5059ms
+2026-07-20 14:06:35.270 +08:00 [ERR] Execution BackgroundServerProcess is in the Failed state now due to an exception, execution will be retried in no more than 00:00:15
+Npgsql.PostgresException (0x80004005): 28P01: password authentication failed for user "postgres"
+   at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at Npgsql.Internal.NpgsqlConnector.AuthenticateSASL(List`1 mechanisms, String username, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Authenticate(String username, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.Open()
+   at Hangfire.PostgreSql.PostgreSqlStorage.CreateAndOpenConnection()
+   at Hangfire.PostgreSql.PostgreSqlStorage.UseConnection[T](DbConnection dedicatedConnection, Func`2 func)
+   at Hangfire.PostgreSql.PostgreSqlConnection.AnnounceServer(String serverId, ServerContext context)
+   at Hangfire.Server.BackgroundServerProcess.CreateServer(BackgroundServerContext context) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 209
+   at Hangfire.Server.BackgroundServerProcess.Execute(Guid executionId, BackgroundExecution execution, CancellationToken stoppingToken, CancellationToken stoppedToken, CancellationToken shutdownToken) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 101
+   at Hangfire.Server.BackgroundProcessingServer.RunServer(Guid executionId, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundProcessingServer.cs:line 249
+   at Hangfire.Processing.BackgroundExecution.Run(Action`2 callback, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Processing\BackgroundExecution.cs:line 118
+  Exception data:
+    Severity: FATAL
+    SqlState: 28P01
+    MessageText: password authentication failed for user "postgres"
+    File: auth.c
+    Line: 320
+    Routine: auth_failed
+2026-07-20 14:07:22.109 +08:00 [ERR] Execution BackgroundServerProcess is still in the Failed state for 00:00:46.7383043 due to an exception, will be retried in no more than 00:00:15
+Npgsql.PostgresException (0x80004005): 28P01: password authentication failed for user "postgres"
+   at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at Npgsql.Internal.NpgsqlConnector.AuthenticateSASL(List`1 mechanisms, String username, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Authenticate(String username, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.Open()
+   at Hangfire.PostgreSql.PostgreSqlStorage.CreateAndOpenConnection()
+   at Hangfire.PostgreSql.PostgreSqlStorage.UseConnection[T](DbConnection dedicatedConnection, Func`2 func)
+   at Hangfire.PostgreSql.PostgreSqlConnection.AnnounceServer(String serverId, ServerContext context)
+   at Hangfire.Server.BackgroundServerProcess.CreateServer(BackgroundServerContext context) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 209
+   at Hangfire.Server.BackgroundServerProcess.Execute(Guid executionId, BackgroundExecution execution, CancellationToken stoppingToken, CancellationToken stoppedToken, CancellationToken shutdownToken) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 101
+   at Hangfire.Server.BackgroundProcessingServer.RunServer(Guid executionId, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundProcessingServer.cs:line 249
+   at Hangfire.Processing.BackgroundExecution.Run(Action`2 callback, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Processing\BackgroundExecution.cs:line 118
+  Exception data:
+    Severity: FATAL
+    SqlState: 28P01
+    MessageText: password authentication failed for user "postgres"
+    File: auth.c
+    Line: 320
+    Routine: auth_failed
+2026-07-20 14:08:08.857 +08:00 [ERR] Execution BackgroundServerProcess is still in the Failed state for 00:01:33.4860561 due to an exception, will be retried in no more than 00:00:15
+Npgsql.PostgresException (0x80004005): 28P01: password authentication failed for user "postgres"
+   at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at Npgsql.Internal.NpgsqlConnector.AuthenticateSASL(List`1 mechanisms, String username, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Authenticate(String username, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.Open()
+   at Hangfire.PostgreSql.PostgreSqlStorage.CreateAndOpenConnection()
+   at Hangfire.PostgreSql.PostgreSqlStorage.UseConnection[T](DbConnection dedicatedConnection, Func`2 func)
+   at Hangfire.PostgreSql.PostgreSqlConnection.AnnounceServer(String serverId, ServerContext context)
+   at Hangfire.Server.BackgroundServerProcess.CreateServer(BackgroundServerContext context) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 209
+   at Hangfire.Server.BackgroundServerProcess.Execute(Guid executionId, BackgroundExecution execution, CancellationToken stoppingToken, CancellationToken stoppedToken, CancellationToken shutdownToken) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 101
+   at Hangfire.Server.BackgroundProcessingServer.RunServer(Guid executionId, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundProcessingServer.cs:line 249
+   at Hangfire.Processing.BackgroundExecution.Run(Action`2 callback, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Processing\BackgroundExecution.cs:line 118
+  Exception data:
+    Severity: FATAL
+    SqlState: 28P01
+    MessageText: password authentication failed for user "postgres"
+    File: auth.c
+    Line: 320
+    Routine: auth_failed
+2026-07-20 14:08:55.489 +08:00 [ERR] Execution BackgroundServerProcess is still in the Failed state for 00:02:20.1182354 due to an exception, will be retried in no more than 00:00:15
+Npgsql.PostgresException (0x80004005): 28P01: password authentication failed for user "postgres"
+   at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at Npgsql.Internal.NpgsqlConnector.AuthenticateSASL(List`1 mechanisms, String username, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Authenticate(String username, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.Open()
+   at Hangfire.PostgreSql.PostgreSqlStorage.CreateAndOpenConnection()
+   at Hangfire.PostgreSql.PostgreSqlStorage.UseConnection[T](DbConnection dedicatedConnection, Func`2 func)
+   at Hangfire.PostgreSql.PostgreSqlConnection.AnnounceServer(String serverId, ServerContext context)
+   at Hangfire.Server.BackgroundServerProcess.CreateServer(BackgroundServerContext context) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 209
+   at Hangfire.Server.BackgroundServerProcess.Execute(Guid executionId, BackgroundExecution execution, CancellationToken stoppingToken, CancellationToken stoppedToken, CancellationToken shutdownToken) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 101
+   at Hangfire.Server.BackgroundProcessingServer.RunServer(Guid executionId, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundProcessingServer.cs:line 249
+   at Hangfire.Processing.BackgroundExecution.Run(Action`2 callback, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Processing\BackgroundExecution.cs:line 118
+  Exception data:
+    Severity: FATAL
+    SqlState: 28P01
+    MessageText: password authentication failed for user "postgres"
+    File: auth.c
+    Line: 320
+    Routine: auth_failed
+2026-07-20 14:09:42.191 +08:00 [ERR] Execution BackgroundServerProcess is still in the Failed state for 00:03:06.8196480 due to an exception, will be retried in no more than 00:00:15
+Npgsql.PostgresException (0x80004005): 28P01: password authentication failed for user "postgres"
+   at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at Npgsql.Internal.NpgsqlConnector.AuthenticateSASL(List`1 mechanisms, String username, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Authenticate(String username, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.Open()
+   at Hangfire.PostgreSql.PostgreSqlStorage.CreateAndOpenConnection()
+   at Hangfire.PostgreSql.PostgreSqlStorage.UseConnection[T](DbConnection dedicatedConnection, Func`2 func)
+   at Hangfire.PostgreSql.PostgreSqlConnection.AnnounceServer(String serverId, ServerContext context)
+   at Hangfire.Server.BackgroundServerProcess.CreateServer(BackgroundServerContext context) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 209
+   at Hangfire.Server.BackgroundServerProcess.Execute(Guid executionId, BackgroundExecution execution, CancellationToken stoppingToken, CancellationToken stoppedToken, CancellationToken shutdownToken) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 101
+   at Hangfire.Server.BackgroundProcessingServer.RunServer(Guid executionId, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundProcessingServer.cs:line 249
+   at Hangfire.Processing.BackgroundExecution.Run(Action`2 callback, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Processing\BackgroundExecution.cs:line 118
+  Exception data:
+    Severity: FATAL
+    SqlState: 28P01
+    MessageText: password authentication failed for user "postgres"
+    File: auth.c
+    Line: 320
+    Routine: auth_failed
+2026-07-20 14:10:28.733 +08:00 [ERR] Execution BackgroundServerProcess is still in the Failed state for 00:03:53.3625216 due to an exception, will be retried in no more than 00:00:15
+Npgsql.PostgresException (0x80004005): 28P01: password authentication failed for user "postgres"
+   at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at Npgsql.Internal.NpgsqlConnector.AuthenticateSASL(List`1 mechanisms, String username, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Authenticate(String username, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.Open()
+   at Hangfire.PostgreSql.PostgreSqlStorage.CreateAndOpenConnection()
+   at Hangfire.PostgreSql.PostgreSqlStorage.UseConnection[T](DbConnection dedicatedConnection, Func`2 func)
+   at Hangfire.PostgreSql.PostgreSqlConnection.AnnounceServer(String serverId, ServerContext context)
+   at Hangfire.Server.BackgroundServerProcess.CreateServer(BackgroundServerContext context) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 209
+   at Hangfire.Server.BackgroundServerProcess.Execute(Guid executionId, BackgroundExecution execution, CancellationToken stoppingToken, CancellationToken stoppedToken, CancellationToken shutdownToken) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 101
+   at Hangfire.Server.BackgroundProcessingServer.RunServer(Guid executionId, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundProcessingServer.cs:line 249
+   at Hangfire.Processing.BackgroundExecution.Run(Action`2 callback, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Processing\BackgroundExecution.cs:line 118
+  Exception data:
+    Severity: FATAL
+    SqlState: 28P01
+    MessageText: password authentication failed for user "postgres"
+    File: auth.c
+    Line: 320
+    Routine: auth_failed
+2026-07-20 14:11:15.367 +08:00 [ERR] Execution BackgroundServerProcess is still in the Failed state for 00:04:39.9960322 due to an exception, will be retried in no more than 00:00:15
+Npgsql.PostgresException (0x80004005): 28P01: password authentication failed for user "postgres"
+   at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at Npgsql.Internal.NpgsqlConnector.AuthenticateSASL(List`1 mechanisms, String username, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Authenticate(String username, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.Open()
+   at Hangfire.PostgreSql.PostgreSqlStorage.CreateAndOpenConnection()
+   at Hangfire.PostgreSql.PostgreSqlStorage.UseConnection[T](DbConnection dedicatedConnection, Func`2 func)
+   at Hangfire.PostgreSql.PostgreSqlConnection.AnnounceServer(String serverId, ServerContext context)
+   at Hangfire.Server.BackgroundServerProcess.CreateServer(BackgroundServerContext context) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 209
+   at Hangfire.Server.BackgroundServerProcess.Execute(Guid executionId, BackgroundExecution execution, CancellationToken stoppingToken, CancellationToken stoppedToken, CancellationToken shutdownToken) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 101
+   at Hangfire.Server.BackgroundProcessingServer.RunServer(Guid executionId, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundProcessingServer.cs:line 249
+   at Hangfire.Processing.BackgroundExecution.Run(Action`2 callback, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Processing\BackgroundExecution.cs:line 118
+  Exception data:
+    Severity: FATAL
+    SqlState: 28P01
+    MessageText: password authentication failed for user "postgres"
+    File: auth.c
+    Line: 320
+    Routine: auth_failed
+2026-07-20 14:12:01.921 +08:00 [ERR] Execution BackgroundServerProcess is still in the Failed state for 00:05:26.5504617 due to an exception, will be retried in no more than 00:00:15
+Npgsql.PostgresException (0x80004005): 28P01: password authentication failed for user "postgres"
+   at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at Npgsql.Internal.NpgsqlConnector.AuthenticateSASL(List`1 mechanisms, String username, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Authenticate(String username, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Hangfire.PostgreSql.PostgreSqlStorage.CreateAndOpenConnection()
+   at Hangfire.PostgreSql.PostgreSqlStorage.UseConnection[T](DbConnection dedicatedConnection, Func`2 func)
+   at Hangfire.PostgreSql.PostgreSqlConnection.AnnounceServer(String serverId, ServerContext context)
+   at Hangfire.Server.BackgroundServerProcess.CreateServer(BackgroundServerContext context) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 209
+   at Hangfire.Server.BackgroundServerProcess.Execute(Guid executionId, BackgroundExecution execution, CancellationToken stoppingToken, CancellationToken stoppedToken, CancellationToken shutdownToken) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 101
+   at Hangfire.Server.BackgroundProcessingServer.RunServer(Guid executionId, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundProcessingServer.cs:line 249
+   at Hangfire.Processing.BackgroundExecution.Run(Action`2 callback, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Processing\BackgroundExecution.cs:line 118
+  Exception data:
+    Severity: FATAL
+    SqlState: 28P01
+    MessageText: password authentication failed for user "postgres"
+    File: auth.c
+    Line: 320
+    Routine: auth_failed
+2026-07-20 14:12:48.514 +08:00 [ERR] Execution BackgroundServerProcess is still in the Failed state for 00:06:13.1431464 due to an exception, will be retried in no more than 00:00:15
+Npgsql.PostgresException (0x80004005): 28P01: password authentication failed for user "postgres"
+   at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at Npgsql.Internal.NpgsqlConnector.AuthenticateSASL(List`1 mechanisms, String username, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Authenticate(String username, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Hangfire.PostgreSql.PostgreSqlStorage.CreateAndOpenConnection()
+   at Hangfire.PostgreSql.PostgreSqlStorage.UseConnection[T](DbConnection dedicatedConnection, Func`2 func)
+   at Hangfire.PostgreSql.PostgreSqlConnection.AnnounceServer(String serverId, ServerContext context)
+   at Hangfire.Server.BackgroundServerProcess.CreateServer(BackgroundServerContext context) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 209
+   at Hangfire.Server.BackgroundServerProcess.Execute(Guid executionId, BackgroundExecution execution, CancellationToken stoppingToken, CancellationToken stoppedToken, CancellationToken shutdownToken) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 101
+   at Hangfire.Server.BackgroundProcessingServer.RunServer(Guid executionId, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundProcessingServer.cs:line 249
+   at Hangfire.Processing.BackgroundExecution.Run(Action`2 callback, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Processing\BackgroundExecution.cs:line 118
+  Exception data:
+    Severity: FATAL
+    SqlState: 28P01
+    MessageText: password authentication failed for user "postgres"
+    File: auth.c
+    Line: 320
+    Routine: auth_failed
+2026-07-20 14:13:35.227 +08:00 [ERR] Execution BackgroundServerProcess is still in the Failed state for 00:06:59.8565016 due to an exception, will be retried in no more than 00:00:15
+Npgsql.PostgresException (0x80004005): 28P01: password authentication failed for user "postgres"
+   at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at Npgsql.Internal.NpgsqlConnector.AuthenticateSASL(List`1 mechanisms, String username, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Authenticate(String username, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Hangfire.PostgreSql.PostgreSqlStorage.CreateAndOpenConnection()
+   at Hangfire.PostgreSql.PostgreSqlStorage.UseConnection[T](DbConnection dedicatedConnection, Func`2 func)
+   at Hangfire.PostgreSql.PostgreSqlConnection.AnnounceServer(String serverId, ServerContext context)
+   at Hangfire.Server.BackgroundServerProcess.CreateServer(BackgroundServerContext context) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 209
+   at Hangfire.Server.BackgroundServerProcess.Execute(Guid executionId, BackgroundExecution execution, CancellationToken stoppingToken, CancellationToken stoppedToken, CancellationToken shutdownToken) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 101
+   at Hangfire.Server.BackgroundProcessingServer.RunServer(Guid executionId, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundProcessingServer.cs:line 249
+   at Hangfire.Processing.BackgroundExecution.Run(Action`2 callback, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Processing\BackgroundExecution.cs:line 118
+  Exception data:
+    Severity: FATAL
+    SqlState: 28P01
+    MessageText: password authentication failed for user "postgres"
+    File: auth.c
+    Line: 320
+    Routine: auth_failed
+2026-07-20 14:14:22.511 +08:00 [ERR] Execution BackgroundServerProcess is still in the Failed state for 00:07:47.1398101 due to an exception, will be retried in no more than 00:00:15
+Npgsql.PostgresException (0x80004005): 28P01: password authentication failed for user "postgres"
+   at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at Npgsql.Internal.NpgsqlConnector.AuthenticateSASL(List`1 mechanisms, String username, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Authenticate(String username, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Hangfire.PostgreSql.PostgreSqlStorage.CreateAndOpenConnection()
+   at Hangfire.PostgreSql.PostgreSqlStorage.UseConnection[T](DbConnection dedicatedConnection, Func`2 func)
+   at Hangfire.PostgreSql.PostgreSqlConnection.AnnounceServer(String serverId, ServerContext context)
+   at Hangfire.Server.BackgroundServerProcess.CreateServer(BackgroundServerContext context) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 209
+   at Hangfire.Server.BackgroundServerProcess.Execute(Guid executionId, BackgroundExecution execution, CancellationToken stoppingToken, CancellationToken stoppedToken, CancellationToken shutdownToken) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 101
+   at Hangfire.Server.BackgroundProcessingServer.RunServer(Guid executionId, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundProcessingServer.cs:line 249
+   at Hangfire.Processing.BackgroundExecution.Run(Action`2 callback, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Processing\BackgroundExecution.cs:line 118
+  Exception data:
+    Severity: FATAL
+    SqlState: 28P01
+    MessageText: password authentication failed for user "postgres"
+    File: auth.c
+    Line: 320
+    Routine: auth_failed
+2026-07-20 14:15:09.061 +08:00 [ERR] Execution BackgroundServerProcess is still in the Failed state for 00:08:33.6897573 due to an exception, will be retried in no more than 00:00:15
+Npgsql.PostgresException (0x80004005): 28P01: password authentication failed for user "postgres"
+   at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at Npgsql.Internal.NpgsqlConnector.AuthenticateSASL(List`1 mechanisms, String username, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Authenticate(String username, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Hangfire.PostgreSql.PostgreSqlStorage.CreateAndOpenConnection()
+   at Hangfire.PostgreSql.PostgreSqlStorage.UseConnection[T](DbConnection dedicatedConnection, Func`2 func)
+   at Hangfire.PostgreSql.PostgreSqlConnection.AnnounceServer(String serverId, ServerContext context)
+   at Hangfire.Server.BackgroundServerProcess.CreateServer(BackgroundServerContext context) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 209
+   at Hangfire.Server.BackgroundServerProcess.Execute(Guid executionId, BackgroundExecution execution, CancellationToken stoppingToken, CancellationToken stoppedToken, CancellationToken shutdownToken) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 101
+   at Hangfire.Server.BackgroundProcessingServer.RunServer(Guid executionId, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundProcessingServer.cs:line 249
+   at Hangfire.Processing.BackgroundExecution.Run(Action`2 callback, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Processing\BackgroundExecution.cs:line 118
+  Exception data:
+    Severity: FATAL
+    SqlState: 28P01
+    MessageText: password authentication failed for user "postgres"
+    File: auth.c
+    Line: 320
+    Routine: auth_failed
+2026-07-20 14:15:55.578 +08:00 [ERR] Execution BackgroundServerProcess is still in the Failed state for 00:09:20.2064373 due to an exception, will be retried in no more than 00:00:15
+Npgsql.PostgresException (0x80004005): 28P01: password authentication failed for user "postgres"
+   at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at Npgsql.Internal.NpgsqlConnector.AuthenticateSASL(List`1 mechanisms, String username, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Authenticate(String username, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Hangfire.PostgreSql.PostgreSqlStorage.CreateAndOpenConnection()
+   at Hangfire.PostgreSql.PostgreSqlStorage.UseConnection[T](DbConnection dedicatedConnection, Func`2 func)
+   at Hangfire.PostgreSql.PostgreSqlConnection.AnnounceServer(String serverId, ServerContext context)
+   at Hangfire.Server.BackgroundServerProcess.CreateServer(BackgroundServerContext context) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 209
+   at Hangfire.Server.BackgroundServerProcess.Execute(Guid executionId, BackgroundExecution execution, CancellationToken stoppingToken, CancellationToken stoppedToken, CancellationToken shutdownToken) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 101
+   at Hangfire.Server.BackgroundProcessingServer.RunServer(Guid executionId, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundProcessingServer.cs:line 249
+   at Hangfire.Processing.BackgroundExecution.Run(Action`2 callback, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Processing\BackgroundExecution.cs:line 118
+  Exception data:
+    Severity: FATAL
+    SqlState: 28P01
+    MessageText: password authentication failed for user "postgres"
+    File: auth.c
+    Line: 320
+    Routine: auth_failed
+2026-07-20 14:16:42.171 +08:00 [ERR] Execution BackgroundServerProcess is still in the Failed state for 00:10:06.7997801 due to an exception, will be retried in no more than 00:00:15
+Npgsql.PostgresException (0x80004005): 28P01: password authentication failed for user "postgres"
+   at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at Npgsql.Internal.NpgsqlConnector.AuthenticateSASL(List`1 mechanisms, String username, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Authenticate(String username, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Hangfire.PostgreSql.PostgreSqlStorage.CreateAndOpenConnection()
+   at Hangfire.PostgreSql.PostgreSqlStorage.UseConnection[T](DbConnection dedicatedConnection, Func`2 func)
+   at Hangfire.PostgreSql.PostgreSqlConnection.AnnounceServer(String serverId, ServerContext context)
+   at Hangfire.Server.BackgroundServerProcess.CreateServer(BackgroundServerContext context) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 209
+   at Hangfire.Server.BackgroundServerProcess.Execute(Guid executionId, BackgroundExecution execution, CancellationToken stoppingToken, CancellationToken stoppedToken, CancellationToken shutdownToken) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 101
+   at Hangfire.Server.BackgroundProcessingServer.RunServer(Guid executionId, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundProcessingServer.cs:line 249
+   at Hangfire.Processing.BackgroundExecution.Run(Action`2 callback, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Processing\BackgroundExecution.cs:line 118
+  Exception data:
+    Severity: FATAL
+    SqlState: 28P01
+    MessageText: password authentication failed for user "postgres"
+    File: auth.c
+    Line: 320
+    Routine: auth_failed
+2026-07-20 14:17:28.760 +08:00 [ERR] Execution BackgroundServerProcess is still in the Failed state for 00:10:53.3893350 due to an exception, will be retried in no more than 00:00:15
+Npgsql.PostgresException (0x80004005): 28P01: password authentication failed for user "postgres"
+   at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at Npgsql.Internal.NpgsqlConnector.AuthenticateSASL(List`1 mechanisms, String username, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Authenticate(String username, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Hangfire.PostgreSql.PostgreSqlStorage.CreateAndOpenConnection()
+   at Hangfire.PostgreSql.PostgreSqlStorage.UseConnection[T](DbConnection dedicatedConnection, Func`2 func)
+   at Hangfire.PostgreSql.PostgreSqlConnection.AnnounceServer(String serverId, ServerContext context)
+   at Hangfire.Server.BackgroundServerProcess.CreateServer(BackgroundServerContext context) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 209
+   at Hangfire.Server.BackgroundServerProcess.Execute(Guid executionId, BackgroundExecution execution, CancellationToken stoppingToken, CancellationToken stoppedToken, CancellationToken shutdownToken) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 101
+   at Hangfire.Server.BackgroundProcessingServer.RunServer(Guid executionId, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundProcessingServer.cs:line 249
+   at Hangfire.Processing.BackgroundExecution.Run(Action`2 callback, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Processing\BackgroundExecution.cs:line 118
+  Exception data:
+    Severity: FATAL
+    SqlState: 28P01
+    MessageText: password authentication failed for user "postgres"
+    File: auth.c
+    Line: 320
+    Routine: auth_failed
+2026-07-20 14:18:15.362 +08:00 [ERR] Execution BackgroundServerProcess is still in the Failed state for 00:11:39.9912210 due to an exception, will be retried in no more than 00:00:15
+Npgsql.PostgresException (0x80004005): 28P01: password authentication failed for user "postgres"
+   at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at Npgsql.Internal.NpgsqlConnector.AuthenticateSASL(List`1 mechanisms, String username, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Authenticate(String username, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Hangfire.PostgreSql.PostgreSqlStorage.CreateAndOpenConnection()
+   at Hangfire.PostgreSql.PostgreSqlStorage.UseConnection[T](DbConnection dedicatedConnection, Func`2 func)
+   at Hangfire.PostgreSql.PostgreSqlConnection.AnnounceServer(String serverId, ServerContext context)
+   at Hangfire.Server.BackgroundServerProcess.CreateServer(BackgroundServerContext context) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 209
+   at Hangfire.Server.BackgroundServerProcess.Execute(Guid executionId, BackgroundExecution execution, CancellationToken stoppingToken, CancellationToken stoppedToken, CancellationToken shutdownToken) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 101
+   at Hangfire.Server.BackgroundProcessingServer.RunServer(Guid executionId, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundProcessingServer.cs:line 249
+   at Hangfire.Processing.BackgroundExecution.Run(Action`2 callback, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Processing\BackgroundExecution.cs:line 118
+  Exception data:
+    Severity: FATAL
+    SqlState: 28P01
+    MessageText: password authentication failed for user "postgres"
+    File: auth.c
+    Line: 320
+    Routine: auth_failed
+2026-07-20 14:19:01.998 +08:00 [ERR] Execution BackgroundServerProcess is still in the Failed state for 00:12:26.6269192 due to an exception, will be retried in no more than 00:00:15
+Npgsql.PostgresException (0x80004005): 28P01: password authentication failed for user "postgres"
+   at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at Npgsql.Internal.NpgsqlConnector.AuthenticateSASL(List`1 mechanisms, String username, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Authenticate(String username, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Hangfire.PostgreSql.PostgreSqlStorage.CreateAndOpenConnection()
+   at Hangfire.PostgreSql.PostgreSqlStorage.UseConnection[T](DbConnection dedicatedConnection, Func`2 func)
+   at Hangfire.PostgreSql.PostgreSqlConnection.AnnounceServer(String serverId, ServerContext context)
+   at Hangfire.Server.BackgroundServerProcess.CreateServer(BackgroundServerContext context) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 209
+   at Hangfire.Server.BackgroundServerProcess.Execute(Guid executionId, BackgroundExecution execution, CancellationToken stoppingToken, CancellationToken stoppedToken, CancellationToken shutdownToken) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 101
+   at Hangfire.Server.BackgroundProcessingServer.RunServer(Guid executionId, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundProcessingServer.cs:line 249
+   at Hangfire.Processing.BackgroundExecution.Run(Action`2 callback, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Processing\BackgroundExecution.cs:line 118
+  Exception data:
+    Severity: FATAL
+    SqlState: 28P01
+    MessageText: password authentication failed for user "postgres"
+    File: auth.c
+    Line: 320
+    Routine: auth_failed
+2026-07-20 14:19:48.565 +08:00 [ERR] Execution BackgroundServerProcess is still in the Failed state for 00:13:13.1942190 due to an exception, will be retried in no more than 00:00:15
+Npgsql.PostgresException (0x80004005): 28P01: password authentication failed for user "postgres"
+   at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at Npgsql.Internal.NpgsqlConnector.AuthenticateSASL(List`1 mechanisms, String username, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Authenticate(String username, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Hangfire.PostgreSql.PostgreSqlStorage.CreateAndOpenConnection()
+   at Hangfire.PostgreSql.PostgreSqlStorage.UseConnection[T](DbConnection dedicatedConnection, Func`2 func)
+   at Hangfire.PostgreSql.PostgreSqlConnection.AnnounceServer(String serverId, ServerContext context)
+   at Hangfire.Server.BackgroundServerProcess.CreateServer(BackgroundServerContext context) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 209
+   at Hangfire.Server.BackgroundServerProcess.Execute(Guid executionId, BackgroundExecution execution, CancellationToken stoppingToken, CancellationToken stoppedToken, CancellationToken shutdownToken) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 101
+   at Hangfire.Server.BackgroundProcessingServer.RunServer(Guid executionId, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundProcessingServer.cs:line 249
+   at Hangfire.Processing.BackgroundExecution.Run(Action`2 callback, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Processing\BackgroundExecution.cs:line 118
+  Exception data:
+    Severity: FATAL
+    SqlState: 28P01
+    MessageText: password authentication failed for user "postgres"
+    File: auth.c
+    Line: 320
+    Routine: auth_failed
+2026-07-20 14:20:35.140 +08:00 [ERR] Execution BackgroundServerProcess is still in the Failed state for 00:13:59.7687513 due to an exception, will be retried in no more than 00:00:15
+Npgsql.PostgresException (0x80004005): 28P01: password authentication failed for user "postgres"
+   at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at Npgsql.Internal.NpgsqlConnector.AuthenticateSASL(List`1 mechanisms, String username, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Authenticate(String username, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Hangfire.PostgreSql.PostgreSqlStorage.CreateAndOpenConnection()
+   at Hangfire.PostgreSql.PostgreSqlStorage.UseConnection[T](DbConnection dedicatedConnection, Func`2 func)
+   at Hangfire.PostgreSql.PostgreSqlConnection.AnnounceServer(String serverId, ServerContext context)
+   at Hangfire.Server.BackgroundServerProcess.CreateServer(BackgroundServerContext context) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 209
+   at Hangfire.Server.BackgroundServerProcess.Execute(Guid executionId, BackgroundExecution execution, CancellationToken stoppingToken, CancellationToken stoppedToken, CancellationToken shutdownToken) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 101
+   at Hangfire.Server.BackgroundProcessingServer.RunServer(Guid executionId, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundProcessingServer.cs:line 249
+   at Hangfire.Processing.BackgroundExecution.Run(Action`2 callback, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Processing\BackgroundExecution.cs:line 118
+  Exception data:
+    Severity: FATAL
+    SqlState: 28P01
+    MessageText: password authentication failed for user "postgres"
+    File: auth.c
+    Line: 320
+    Routine: auth_failed
+2026-07-20 14:21:21.682 +08:00 [ERR] Execution BackgroundServerProcess is still in the Failed state for 00:14:46.3106627 due to an exception, will be retried in no more than 00:00:15
+Npgsql.PostgresException (0x80004005): 28P01: password authentication failed for user "postgres"
+   at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at Npgsql.Internal.NpgsqlConnector.AuthenticateSASL(List`1 mechanisms, String username, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Authenticate(String username, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Hangfire.PostgreSql.PostgreSqlStorage.CreateAndOpenConnection()
+   at Hangfire.PostgreSql.PostgreSqlStorage.UseConnection[T](DbConnection dedicatedConnection, Func`2 func)
+   at Hangfire.PostgreSql.PostgreSqlConnection.AnnounceServer(String serverId, ServerContext context)
+   at Hangfire.Server.BackgroundServerProcess.CreateServer(BackgroundServerContext context) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 209
+   at Hangfire.Server.BackgroundServerProcess.Execute(Guid executionId, BackgroundExecution execution, CancellationToken stoppingToken, CancellationToken stoppedToken, CancellationToken shutdownToken) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 101
+   at Hangfire.Server.BackgroundProcessingServer.RunServer(Guid executionId, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundProcessingServer.cs:line 249
+   at Hangfire.Processing.BackgroundExecution.Run(Action`2 callback, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Processing\BackgroundExecution.cs:line 118
+  Exception data:
+    Severity: FATAL
+    SqlState: 28P01
+    MessageText: password authentication failed for user "postgres"
+    File: auth.c
+    Line: 320
+    Routine: auth_failed
+2026-07-20 14:22:08.379 +08:00 [ERR] Execution BackgroundServerProcess is still in the Failed state for 00:15:33.0083418 due to an exception, will be retried in no more than 00:00:15
+Npgsql.PostgresException (0x80004005): 28P01: password authentication failed for user "postgres"
+   at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at Npgsql.Internal.NpgsqlConnector.AuthenticateSASL(List`1 mechanisms, String username, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Authenticate(String username, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Hangfire.PostgreSql.PostgreSqlStorage.CreateAndOpenConnection()
+   at Hangfire.PostgreSql.PostgreSqlStorage.UseConnection[T](DbConnection dedicatedConnection, Func`2 func)
+   at Hangfire.PostgreSql.PostgreSqlConnection.AnnounceServer(String serverId, ServerContext context)
+   at Hangfire.Server.BackgroundServerProcess.CreateServer(BackgroundServerContext context) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 209
+   at Hangfire.Server.BackgroundServerProcess.Execute(Guid executionId, BackgroundExecution execution, CancellationToken stoppingToken, CancellationToken stoppedToken, CancellationToken shutdownToken) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 101
+   at Hangfire.Server.BackgroundProcessingServer.RunServer(Guid executionId, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundProcessingServer.cs:line 249
+   at Hangfire.Processing.BackgroundExecution.Run(Action`2 callback, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Processing\BackgroundExecution.cs:line 118
+  Exception data:
+    Severity: FATAL
+    SqlState: 28P01
+    MessageText: password authentication failed for user "postgres"
+    File: auth.c
+    Line: 320
+    Routine: auth_failed
+2026-07-20 14:22:54.932 +08:00 [ERR] Execution BackgroundServerProcess is still in the Failed state for 00:16:19.5608378 due to an exception, will be retried in no more than 00:00:15
+Npgsql.PostgresException (0x80004005): 28P01: password authentication failed for user "postgres"
+   at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at Npgsql.Internal.NpgsqlConnector.AuthenticateSASL(List`1 mechanisms, String username, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Authenticate(String username, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Hangfire.PostgreSql.PostgreSqlStorage.CreateAndOpenConnection()
+   at Hangfire.PostgreSql.PostgreSqlStorage.UseConnection[T](DbConnection dedicatedConnection, Func`2 func)
+   at Hangfire.PostgreSql.PostgreSqlConnection.AnnounceServer(String serverId, ServerContext context)
+   at Hangfire.Server.BackgroundServerProcess.CreateServer(BackgroundServerContext context) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 209
+   at Hangfire.Server.BackgroundServerProcess.Execute(Guid executionId, BackgroundExecution execution, CancellationToken stoppingToken, CancellationToken stoppedToken, CancellationToken shutdownToken) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 101
+   at Hangfire.Server.BackgroundProcessingServer.RunServer(Guid executionId, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundProcessingServer.cs:line 249
+   at Hangfire.Processing.BackgroundExecution.Run(Action`2 callback, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Processing\BackgroundExecution.cs:line 118
+  Exception data:
+    Severity: FATAL
+    SqlState: 28P01
+    MessageText: password authentication failed for user "postgres"
+    File: auth.c
+    Line: 320
+    Routine: auth_failed
+2026-07-20 14:23:41.518 +08:00 [ERR] Execution BackgroundServerProcess is still in the Failed state for 00:17:06.1470266 due to an exception, will be retried in no more than 00:00:15
+Npgsql.PostgresException (0x80004005): 28P01: password authentication failed for user "postgres"
+   at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at Npgsql.Internal.NpgsqlConnector.AuthenticateSASL(List`1 mechanisms, String username, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Authenticate(String username, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Hangfire.PostgreSql.PostgreSqlStorage.CreateAndOpenConnection()
+   at Hangfire.PostgreSql.PostgreSqlStorage.UseConnection[T](DbConnection dedicatedConnection, Func`2 func)
+   at Hangfire.PostgreSql.PostgreSqlConnection.AnnounceServer(String serverId, ServerContext context)
+   at Hangfire.Server.BackgroundServerProcess.CreateServer(BackgroundServerContext context) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 209
+   at Hangfire.Server.BackgroundServerProcess.Execute(Guid executionId, BackgroundExecution execution, CancellationToken stoppingToken, CancellationToken stoppedToken, CancellationToken shutdownToken) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 101
+   at Hangfire.Server.BackgroundProcessingServer.RunServer(Guid executionId, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundProcessingServer.cs:line 249
+   at Hangfire.Processing.BackgroundExecution.Run(Action`2 callback, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Processing\BackgroundExecution.cs:line 118
+  Exception data:
+    Severity: FATAL
+    SqlState: 28P01
+    MessageText: password authentication failed for user "postgres"
+    File: auth.c
+    Line: 320
+    Routine: auth_failed
+2026-07-20 14:24:28.220 +08:00 [ERR] Execution BackgroundServerProcess is still in the Failed state for 00:17:52.8487223 due to an exception, will be retried in no more than 00:00:15
+Npgsql.PostgresException (0x80004005): 28P01: password authentication failed for user "postgres"
+   at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at Npgsql.Internal.NpgsqlConnector.AuthenticateSASL(List`1 mechanisms, String username, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Authenticate(String username, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Hangfire.PostgreSql.PostgreSqlStorage.CreateAndOpenConnection()
+   at Hangfire.PostgreSql.PostgreSqlStorage.UseConnection[T](DbConnection dedicatedConnection, Func`2 func)
+   at Hangfire.PostgreSql.PostgreSqlConnection.AnnounceServer(String serverId, ServerContext context)
+   at Hangfire.Server.BackgroundServerProcess.CreateServer(BackgroundServerContext context) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 209
+   at Hangfire.Server.BackgroundServerProcess.Execute(Guid executionId, BackgroundExecution execution, CancellationToken stoppingToken, CancellationToken stoppedToken, CancellationToken shutdownToken) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 101
+   at Hangfire.Server.BackgroundProcessingServer.RunServer(Guid executionId, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundProcessingServer.cs:line 249
+   at Hangfire.Processing.BackgroundExecution.Run(Action`2 callback, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Processing\BackgroundExecution.cs:line 118
+  Exception data:
+    Severity: FATAL
+    SqlState: 28P01
+    MessageText: password authentication failed for user "postgres"
+    File: auth.c
+    Line: 320
+    Routine: auth_failed
+2026-07-20 14:25:14.848 +08:00 [ERR] Execution BackgroundServerProcess is still in the Failed state for 00:18:39.4771474 due to an exception, will be retried in no more than 00:00:15
+Npgsql.PostgresException (0x80004005): 28P01: password authentication failed for user "postgres"
+   at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at Npgsql.Internal.NpgsqlConnector.AuthenticateSASL(List`1 mechanisms, String username, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Authenticate(String username, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Hangfire.PostgreSql.PostgreSqlStorage.CreateAndOpenConnection()
+   at Hangfire.PostgreSql.PostgreSqlStorage.UseConnection[T](DbConnection dedicatedConnection, Func`2 func)
+   at Hangfire.PostgreSql.PostgreSqlConnection.AnnounceServer(String serverId, ServerContext context)
+   at Hangfire.Server.BackgroundServerProcess.CreateServer(BackgroundServerContext context) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 209
+   at Hangfire.Server.BackgroundServerProcess.Execute(Guid executionId, BackgroundExecution execution, CancellationToken stoppingToken, CancellationToken stoppedToken, CancellationToken shutdownToken) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 101
+   at Hangfire.Server.BackgroundProcessingServer.RunServer(Guid executionId, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundProcessingServer.cs:line 249
+   at Hangfire.Processing.BackgroundExecution.Run(Action`2 callback, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Processing\BackgroundExecution.cs:line 118
+  Exception data:
+    Severity: FATAL
+    SqlState: 28P01
+    MessageText: password authentication failed for user "postgres"
+    File: auth.c
+    Line: 320
+    Routine: auth_failed
+2026-07-20 14:26:01.449 +08:00 [ERR] Execution BackgroundServerProcess is still in the Failed state for 00:19:26.0779637 due to an exception, will be retried in no more than 00:00:15
+Npgsql.PostgresException (0x80004005): 28P01: password authentication failed for user "postgres"
+   at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at Npgsql.Internal.NpgsqlConnector.AuthenticateSASL(List`1 mechanisms, String username, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Authenticate(String username, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Hangfire.PostgreSql.PostgreSqlStorage.CreateAndOpenConnection()
+   at Hangfire.PostgreSql.PostgreSqlStorage.UseConnection[T](DbConnection dedicatedConnection, Func`2 func)
+   at Hangfire.PostgreSql.PostgreSqlConnection.AnnounceServer(String serverId, ServerContext context)
+   at Hangfire.Server.BackgroundServerProcess.CreateServer(BackgroundServerContext context) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 209
+   at Hangfire.Server.BackgroundServerProcess.Execute(Guid executionId, BackgroundExecution execution, CancellationToken stoppingToken, CancellationToken stoppedToken, CancellationToken shutdownToken) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 101
+   at Hangfire.Server.BackgroundProcessingServer.RunServer(Guid executionId, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundProcessingServer.cs:line 249
+   at Hangfire.Processing.BackgroundExecution.Run(Action`2 callback, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Processing\BackgroundExecution.cs:line 118
+  Exception data:
+    Severity: FATAL
+    SqlState: 28P01
+    MessageText: password authentication failed for user "postgres"
+    File: auth.c
+    Line: 320
+    Routine: auth_failed
+2026-07-20 14:26:48.041 +08:00 [ERR] Execution BackgroundServerProcess is still in the Failed state for 00:20:12.6702555 due to an exception, will be retried in no more than 00:00:15
+Npgsql.PostgresException (0x80004005): 28P01: password authentication failed for user "postgres"
+   at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at Npgsql.Internal.NpgsqlConnector.AuthenticateSASL(List`1 mechanisms, String username, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Authenticate(String username, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+   at Hangfire.PostgreSql.PostgreSqlStorage.CreateAndOpenConnection()
+   at Hangfire.PostgreSql.PostgreSqlStorage.UseConnection[T](DbConnection dedicatedConnection, Func`2 func)
+   at Hangfire.PostgreSql.PostgreSqlConnection.AnnounceServer(String serverId, ServerContext context)
+   at Hangfire.Server.BackgroundServerProcess.CreateServer(BackgroundServerContext context) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 209
+   at Hangfire.Server.BackgroundServerProcess.Execute(Guid executionId, BackgroundExecution execution, CancellationToken stoppingToken, CancellationToken stoppedToken, CancellationToken shutdownToken) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundServerProcess.cs:line 101
+   at Hangfire.Server.BackgroundProcessingServer.RunServer(Guid executionId, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Server\BackgroundProcessingServer.cs:line 249
+   at Hangfire.Processing.BackgroundExecution.Run(Action`2 callback, Object state) in C:\projects\hangfire-525\src\Hangfire.Core\Processing\BackgroundExecution.cs:line 118
+  Exception data:
+    Severity: FATAL
+    SqlState: 28P01
+    MessageText: password authentication failed for user "postgres"
+    File: auth.c
+    Line: 320
+    Routine: auth_failed
