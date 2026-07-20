@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { createStaticNavigation } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View, Button, TextInput, TouchableOpacity } from 'react-native';
-import { ClerkProvider, SignedIn, SignedOut, useAuth, useSignIn, useSignUp } from '@clerk/clerk-expo';
+import { StyleSheet, Text, View, Button, TextInput, TouchableOpacity, Alert, Platform } from 'react-native';
+import { ClerkProvider, SignedIn, SignedOut, useAuth, useSignIn, useSignUp, useUser } from '@clerk/clerk-expo';
 import { tokenCache } from './tokenCache';
 import { apiClient } from '@edge/api';
+import { ServicesPortal } from './src/features/services/components/ServicesPortal';
 
 const getClerkKey = (): string => {
   const key = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
@@ -31,66 +32,60 @@ interface ApplicationResponse {
 
 function HomeScreen({ navigation }: any) {
   const { signOut, getToken } = useAuth();
+  const { user: clerkUser } = useUser();
   const [submitting, setSubmitting] = useState(false);
-  const [statusMessage, setStatusMessage] = useState('');
 
-  const submitApplication = async () => {
+  const userProfile = clerkUser !== null && clerkUser !== undefined ? {
+    name: clerkUser.fullName ?? clerkUser.firstName ?? 'Client User',
+    email: clerkUser.primaryEmailAddress?.emailAddress ?? 'client@edge.gov',
+    avatarUrl: clerkUser.imageUrl,
+  } : null;
+
+  const handleApplySubmit = async (
+    serviceTitle: string,
+    formData: { applicantName: string; email: string; notes: string }
+  ) => {
     setSubmitting(true);
-    setStatusMessage('');
     try {
       const token = await getToken();
       const headers = token !== null ? { Authorization: `Bearer ${token}` } : {};
-      const response = await apiClient.post<ApplicationResponse>(
+      
+      await apiClient.post<ApplicationResponse>(
         '/api/applications',
         {
-          title: 'External Client Request',
-          applicantName: 'External Client Portal'
+          title: serviceTitle,
+          applicantName: formData.applicantName,
         },
         { headers }
       );
-      setStatusMessage(`Successfully submitted: ${response.data.title}`);
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setStatusMessage(`Error: ${err.message}`);
+
+      if (Platform.OS === 'web') {
+        window.alert(`Successfully submitted application for: ${serviceTitle}`);
       } else {
-        setStatusMessage('Error: Unknown server error occurred.');
+        Alert.alert('Success', `Successfully submitted application for: ${serviceTitle}`);
       }
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : 'Unknown server error occurred.';
+      if (Platform.OS === 'web') {
+        window.alert(`Submission failed: ${errMsg}`);
+      } else {
+        Alert.alert('Error', `Submission failed: ${errMsg}`);
+      }
+      throw err; // Re-throw to allow modal to display the error message
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>NTC-EDGE External Client</Text>
-      <Text style={styles.subtitle}>Powered by Expo SDK 57 & React Navigation 8</Text>
-      
-      <Button
-        title="View Application Details"
-        onPress={() => navigation.navigate('Details')}
+    <View style={{ flex: 1 }}>
+      <ServicesPortal
+        user={userProfile}
+        onLogout={signOut}
+        onApplySubmit={handleApplySubmit}
+        isSubmitting={submitting}
       />
-
-      <View style={{ marginTop: 15, width: '100%' }}>
-        <Button
-          title={submitting ? "Submitting Application..." : "Submit Test Application to BE"}
-          onPress={submitApplication}
-          disabled={submitting}
-          color="#2e7d32"
-        />
-      </View>
-
-      {statusMessage.length > 0 ? (
-        <Text style={styles.statusText}>{statusMessage}</Text>
-      ) : null}
-
-      <View style={{ marginTop: 25, width: '100%' }}>
-        <Button
-          title="Sign Out"
-          onPress={() => signOut()}
-          color="#d32f2f"
-        />
-      </View>
-      <StatusBar style="auto" />
+      <StatusBar style="light" />
     </View>
   );
 }
@@ -207,7 +202,7 @@ const RootStack = createNativeStackNavigator({
   screens: {
     Home: {
       screen: HomeScreen,
-      options: { title: 'Welcome Portal' },
+      options: { headerShown: false },
     },
     Details: {
       screen: DetailsScreen,

@@ -15,6 +15,8 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Icon = void 0;
+/// <reference path="./react-native.d.ts" />
+/// <reference path="./tanstack-table.d.ts" />
 __exportStar(require("./theme/tokens"), exports);
 __exportStar(require("./components/Avatar"), exports);
 __exportStar(require("./tables/DataTable"), exports);
@@ -24,3 +26,4 @@ Object.defineProperty(exports, "Icon", { enumerable: true, get: function () { re
 __exportStar(require("@clerk/clerk-expo"), exports);
 __exportStar(require("@react-navigation/native"), exports);
 __exportStar(require("@react-navigation/native-stack"), exports);
+__exportStar(require("./client/ServiceFormModal"), exports);
