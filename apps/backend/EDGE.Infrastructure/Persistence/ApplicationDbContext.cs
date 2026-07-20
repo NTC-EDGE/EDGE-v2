@@ -21,8 +21,6 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
     public DbSet<Province> Provinces => Set<Province>();
     public DbSet<Municipality> Municipalities => Set<Municipality>();
     public DbSet<Barangay> Barangays => Set<Barangay>();
-    public DbSet<Tenant> Tenants => Set<Tenant>();
-    public DbSet<TenantMember> TenantMembers => Set<TenantMember>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -43,19 +41,11 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
             .Property(e => e.Status)
             .HasConversion<string>();
 
-        // Tenant Configuration
-        modelBuilder.Entity<Tenant>(entity =>
-        {
-            entity.HasIndex(e => e.Slug).IsUnique();
-            entity.Property(e => e.Name).IsRequired().HasMaxLength(150);
-            entity.Property(e => e.Slug).IsRequired().HasMaxLength(50);
-        });
-
         // Role Configuration
         modelBuilder.Entity<Role>(entity =>
         {
             entity.HasOne(r => r.Tenant)
-                  .WithMany(t => t.Roles)
+                  .WithMany()
                   .HasForeignKey(r => r.TenantId)
                   .OnDelete(DeleteBehavior.Cascade);
         });
@@ -68,27 +58,6 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
                   .WithMany(r => r.RolePermissions)
                   .HasForeignKey(rp => rp.RoleId)
                   .OnDelete(DeleteBehavior.Cascade);
-        });
-
-        // TenantMember Configuration
-        modelBuilder.Entity<TenantMember>(entity =>
-        {
-            entity.HasIndex(tm => new { tm.TenantId, tm.UserId }).IsUnique();
-
-            entity.HasOne(tm => tm.Tenant)
-                  .WithMany(t => t.Members)
-                  .HasForeignKey(tm => tm.TenantId)
-                  .OnDelete(DeleteBehavior.Cascade);
-
-            entity.HasOne(tm => tm.User)
-                  .WithMany(u => u.TenantMemberships)
-                  .HasForeignKey(tm => tm.UserId)
-                  .OnDelete(DeleteBehavior.Cascade);
-
-            entity.HasOne(tm => tm.Role)
-                  .WithMany(r => r.Members)
-                  .HasForeignKey(tm => tm.RoleId)
-                  .OnDelete(DeleteBehavior.Restrict);
         });
 
         // Geographic entity configurations
@@ -161,7 +130,15 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
                   .HasForeignKey(e => e.TenantId)
                   .OnDelete(DeleteBehavior.Cascade);
 
+            entity.HasOne(e => e.User)
+                  .WithMany(u => u.TenantMemberships)
+                  .HasForeignKey(e => e.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
 
+            entity.HasOne(e => e.Role)
+                  .WithMany(r => r.Members)
+                  .HasForeignKey(e => e.RoleId)
+                  .OnDelete(DeleteBehavior.Restrict);
 
             // Unique constraint to prevent registering the same user to the same tenant twice
             entity.HasIndex(e => new { e.TenantId, e.UserId }).IsUnique();
