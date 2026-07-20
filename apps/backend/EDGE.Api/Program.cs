@@ -16,6 +16,7 @@ using EDGE.Infrastructure.Hubs;
 using EDGE.Infrastructure.Authorization;
 using EDGE.Domain.Authorization;
 using EDGE.Api.Services;
+using EDGE.Api.Endpoints;
 
 // Configure Serilog
 Log.Logger = new LoggerConfiguration()
@@ -80,7 +81,6 @@ try
         });
 
     builder.Services.AddDynamicAuthorization();
-    builder.Services.AddControllers();
 
     // Configure OpenAPI
     builder.Services.AddOpenApi();
@@ -98,7 +98,7 @@ try
         app.UseHangfireDashboard("/hangfire");
     }
 
-    app.MapControllers();
+    app.MapApiEndpoints();
 
     app.MapGet("/", () => "NTC-EDGE Clean Architecture API (.NET 10)");
 

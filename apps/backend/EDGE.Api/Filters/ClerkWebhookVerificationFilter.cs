@@ -1,5 +1,6 @@
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Filters;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Configuration;
 using Svix;
 using System.Net;
 using System.Text.Json;
@@ -7,24 +8,24 @@ using EDGE.Domain.Models;
 
 namespace EDGE.Api.Filters;
 
-public class ClerkWebhookVerificationAttribute : ActionFilterAttribute, IAsyncActionFilter
+public class ClerkWebhookVerificationFilter : IEndpointFilter
 {
     private static readonly JsonSerializerOptions SerializerOptions = new()
     {
         PropertyNamingPolicy = null
     };
 
-    public override async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
+    public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
     {
-        var configuration = context.HttpContext.RequestServices.GetRequiredService<IConfiguration>();
+        var httpContext = context.HttpContext;
+        var configuration = httpContext.RequestServices.GetRequiredService<IConfiguration>();
         var webhookSecret = configuration["Clerk:WebhookSecret"];
         if (string.IsNullOrEmpty(webhookSecret))
         {
-            context.Result = new BadRequestObjectResult("Webhook secret not configured");
-            return;
+            return Results.BadRequest("Webhook secret not configured");
         }
 
-        var request = context.HttpContext.Request;
+        var request = httpContext.Request;
         request.EnableBuffering();
 
         string body;
@@ -33,7 +34,7 @@ public class ClerkWebhookVerificationAttribute : ActionFilterAttribute, IAsyncAc
             body = await reader.ReadToEndAsync();
         }
 
-        // Reset the stream position for the action to read it again
+        // Reset the stream position
         request.Body.Position = 0;
 
         var headers = request.Headers;
@@ -55,15 +56,13 @@ public class ClerkWebhookVerificationAttribute : ActionFilterAttribute, IAsyncAc
         }
         catch (Exception)
         {
-            context.Result = new UnauthorizedObjectResult("Invalid signature");
-            return;
+            return Results.Json(new { Succeeded = false, Message = "Invalid signature" }, statusCode: 401);
         }
 
         var payload = JsonSerializer.Deserialize<ClerkWebhookPayload>(body);
         if (payload == null)
         {
-            context.Result = new BadRequestObjectResult("Invalid payload");
-            return;
+            return Results.BadRequest("Invalid payload");
         }
 
         // Deserialize Data based on Type
@@ -73,8 +72,7 @@ public class ClerkWebhookVerificationAttribute : ActionFilterAttribute, IAsyncAc
             var userData = JsonSerializer.Deserialize<ClerkUserData>(dataJson, SerializerOptions);
             if (userData == null)
             {
-                context.Result = new BadRequestObjectResult("Invalid user data in payload");
-                return;
+                return Results.BadRequest("Invalid user data in payload");
             }
             payload.Data = userData;
         }
@@ -84,14 +82,13 @@ public class ClerkWebhookVerificationAttribute : ActionFilterAttribute, IAsyncAc
             var sessionData = JsonSerializer.Deserialize<ClerkSessionData>(dataJson, SerializerOptions);
             if (sessionData == null)
             {
-                context.Result = new BadRequestObjectResult("Invalid session data in payload");
-                return;
+                return Results.BadRequest("Invalid session data in payload");
             }
             payload.Data = sessionData;
         }
 
-        context.HttpContext.Items["ClerkWebhookPayload"] = payload;
+        httpContext.Items["ClerkWebhookPayload"] = payload;
 
-        await next();
+        return await next(context);
     }
 }
