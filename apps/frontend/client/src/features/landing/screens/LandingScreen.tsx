@@ -79,12 +79,23 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
   const floatAnimMockup = useRef(new Animated.Value(0)).current;
   const fadeAnimHero = useRef(new Animated.Value(0)).current;
   const slideAnimHero = useRef(new Animated.Value(30)).current;
+  
   const cardAnims = useRef([
     new Animated.Value(0),
     new Animated.Value(0),
     new Animated.Value(0),
   ]).current;
+
+  const stepAnims = useRef([
+    new Animated.Value(0),
+    new Animated.Value(0),
+    new Animated.Value(0),
+    new Animated.Value(0),
+    new Animated.Value(0),
+  ]).current;
+
   const faqAnims = useRef([
+    new Animated.Value(0),
     new Animated.Value(0),
     new Animated.Value(0),
     new Animated.Value(0),
@@ -123,6 +134,13 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
   const aboutTranslateY = scrollY.interpolate({
     inputRange: [0, 350],
     outputRange: [35, 0],
+    extrapolate: 'clamp',
+  });
+  
+  // About EDGE Gateway 4-card scroll-down animation (animates downwards on scroll)
+  const aboutGridTranslateY = scrollY.interpolate({
+    inputRange: [0, 450],
+    outputRange: [-30, 0],
     extrapolate: 'clamp',
   });
 
@@ -224,8 +242,17 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
           useNativeDriver: true,
         })
       )).start();
+
+      // Staggered step entrances
+      Animated.stagger(120, stepAnims.map(anim => 
+        Animated.timing(anim, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
+        })
+      )).start();
     });
-  }, [floatAnimBlue, floatAnimPink, floatAnimMockup, fadeAnimHero, slideAnimHero, cardAnims]);
+  }, [floatAnimBlue, floatAnimPink, floatAnimMockup, fadeAnimHero, slideAnimHero, cardAnims, stepAnims]);
 
   const handleSectionLayout = (name: string, y: number) => {
     setSectionYCoords((prev) => ({ ...prev, [name]: y }));
@@ -350,26 +377,66 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
     outputRange: [20, -20],
   });
 
+  // Updated 4 FAQs per user request
   const faqs = [
     {
       q: 'What is the EDGE application?',
-      a: 'The Electronic Data Governance and Evaluation (EDGE) application is an online information system built by the National Telecommunications Commission (NTC) for issuing certificates, permits, licenses, and handling complaints or requests.',
+      a: 'The Electronic Data Governance and Evaluation (EDGE) application is an online information system by the NTC for issuing certificates, permits, licenses, and handling complaints/requests.',
     },
     {
       q: 'Who can use this portal?',
-      a: 'Individuals, businesses, and network operators who need to interact with the NTC for telecommunication services, permits, licenses, and tracking complaints.',
+      a: 'Individuals and businesses who need to interact with the NTC for services like permits, licenses, and tracking complaints.',
+    },
+    {
+      q: 'How do I track my application?',
+      a: 'Tap “Track Application” and enter your reference number or open “My Applications” in your dashboard.',
     },
     {
       q: 'Is my data secure?',
-      a: 'Yes, absolutely. We implement industry-standard encryption, strict user authentication protocols, and secure role-based access control to safeguard all application data.',
+      a: 'Yes. We use industry-standard security to protect your information and application data.',
     },
   ];
 
   type IconName = 'shield' | 'search' | 'file-text';
-  const features: { title: string; desc: string; icon: IconName }[] = [
-    { title: 'Secure & Trusted', desc: 'Industry-standard security protects your information with encryption and compliance.', icon: 'shield' },
-    { title: 'Real-time Tracking', desc: 'Monitor your application status anytime, anywhere. Get instant updates.', icon: 'search' },
-    { title: 'Simple Process', desc: 'Streamlined workflows make applying quick and easy.', icon: 'file-text' },
+  const features: { tag: string; title: string; desc: string; icon: IconName }[] = [
+    { tag: 'SECURITY', title: 'Secure & Trusted', desc: 'Industry-standard security protects your information with encryption and compliance.', icon: 'shield' },
+    { tag: 'REAL-TIME', title: 'Real-time Tracking', desc: 'Monitor your application status anytime, anywhere. Get instant updates.', icon: 'search' },
+    { tag: 'WORKFLOW', title: 'Simple Process', desc: 'Streamlined workflows make applying quick and easy.', icon: 'file-text' },
+  ];
+
+  // 5 Step Process Workflow per user request
+  type StepIcon = 'user-plus' | 'file-text' | 'activity' | 'credit-card' | 'award';
+  const steps: { number: string; title: string; desc: string; icon: StepIcon }[] = [
+    {
+      number: '01',
+      title: 'Create Account / Apply',
+      desc: 'Register an account or tap Start Application to begin.',
+      icon: 'user-plus',
+    },
+    {
+      number: '02',
+      title: 'Submit Application',
+      desc: 'Complete forms and upload requirements.',
+      icon: 'file-text',
+    },
+    {
+      number: '03',
+      title: 'Track Application',
+      desc: 'Use your reference number or My Applications.',
+      icon: 'activity',
+    },
+    {
+      number: '04',
+      title: 'Process Payment',
+      desc: 'Pay fees at the nearest NTC office once approved.',
+      icon: 'credit-card',
+    },
+    {
+      number: '05',
+      title: 'Get Issuance',
+      desc: 'Receive your License, Certificate, Permit, or resolution.',
+      icon: 'award',
+    },
   ];
 
   return (
@@ -462,16 +529,11 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
           }
         ]}>
           <View style={isDesktop ? styles.heroLeftCol : styles.heroFullWidth}>
-            {/* Lavender/Blue Pill Badge */}
-            <Pressable style={({ hovered }: PressableState) => [
-              styles.pillBadge,
-              isDesktop ? { alignSelf: 'flex-start' } : { alignSelf: 'center' },
-              hovered ? styles.pillBadgeHovered : null,
-            ]}>
+            {/* Static Solid Dark Blue Pill Badge (Non-Hoverable) */}
+            <View style={[styles.pillBadge, isDesktop ? { alignSelf: 'flex-start' } : { alignSelf: 'center' }]}>
               <View style={styles.pillBadgeDot} />
               <Text style={styles.pillBadgeText}>Official NTC-EDGE Portal</Text>
-              <Lucide name="chevron-right" size={14} color="#3538CD" style={{ marginLeft: 4 }} />
-            </Pressable>
+            </View>
             
             {/* Split Color Hero Title */}
             <Text style={[styles.heroTitle, isDesktop ? styles.heroTitleDesktop : null]}>
@@ -507,12 +569,8 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
 
           {isDesktop ? (
             <Animated.View style={[styles.heroRightCol, { transform: [{ translateY: floatAnimMockup }] }]}>
-              {/* Modern dashboard preview card */}
-              <Pressable style={({ hovered }: PressableState) => [
-                styles.mockupCard,
-                SHADOWS.modal,
-                hovered ? styles.mockupCardHovered : null,
-              ]}>
+              {/* Static Modern Dashboard Preview Card (Non-Hoverable) */}
+              <View style={[styles.mockupCard, SHADOWS.modal]}>
                 <View style={styles.mockupHeader}>
                   <View style={styles.mockupDots}>
                     <View style={[styles.mockupDot, { backgroundColor: '#EF4444' }]} />
@@ -580,7 +638,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
                     <Text style={styles.mockupActivityTime}>2m ago</Text>
                   </View>
                 </View>
-              </Pressable>
+              </View>
             </Animated.View>
           ) : null}
         </Animated.View>
@@ -599,52 +657,39 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
         >
           {isDesktop ? (
             <View style={styles.aboutLeftCol}>
-              <Pressable style={({ hovered }: PressableState) => [
-                styles.aboutGraphicCard,
-                SHADOWS.card,
-                hovered ? styles.graphicCardHovered : null,
-              ]}>
+              <View style={[styles.aboutGraphicCard, SHADOWS.card]}>
                 <View style={styles.aboutGraphicHeader}>
                   <View style={styles.aboutGraphicBadge}>
                     <Lucide name="shield" size={20} color="#1236A8" />
                   </View>
                   <Text style={styles.aboutGraphicHeaderText}>NTC SECURE GATEWAY</Text>
                 </View>
-                <View style={styles.aboutGraphicGrid}>
-                  <Pressable style={({ hovered }: PressableState) => [
-                    styles.aboutGridItem,
-                    hovered ? styles.gridItemHovered : null,
-                  ]}>
+
+                {/* Animated Scroll-Down Slide transition for the 4 gateway items */}
+                <Animated.View style={[styles.aboutGraphicGrid, { transform: [{ translateY: aboutGridTranslateY }] }]}>
+                  <View style={styles.aboutGridItem}>
                     <Lucide name="file-text" size={22} color="#1236A8" style={{ marginBottom: 6 }} />
                     <Text style={styles.aboutGridItemText}>Certificates</Text>
-                  </Pressable>
-                  <Pressable style={({ hovered }: PressableState) => [
-                    styles.aboutGridItem,
-                    hovered ? styles.gridItemHovered : null,
-                  ]}>
+                  </View>
+                  <View style={styles.aboutGridItem}>
                     <Lucide name="file" size={22} color="#1236A8" style={{ marginBottom: 6 }} />
                     <Text style={styles.aboutGridItemText}>Permits</Text>
-                  </Pressable>
-                  <Pressable style={({ hovered }: PressableState) => [
-                    styles.aboutGridItem,
-                    hovered ? styles.gridItemHovered : null,
-                  ]}>
+                  </View>
+                  <View style={styles.aboutGridItem}>
                     <Lucide name="award" size={22} color="#1236A8" style={{ marginBottom: 6 }} />
                     <Text style={styles.aboutGridItemText}>Licenses</Text>
-                  </Pressable>
-                  <Pressable style={({ hovered }: PressableState) => [
-                    styles.aboutGridItem,
-                    hovered ? styles.gridItemHovered : null,
-                  ]}>
+                  </View>
+                  <View style={styles.aboutGridItem}>
                     <Lucide name="help-circle" size={22} color="#1236A8" style={{ marginBottom: 6 }} />
                     <Text style={styles.aboutGridItemText}>Requests</Text>
-                  </Pressable>
-                </View>
+                  </View>
+                </Animated.View>
+                
                 <View style={styles.aboutGraphicFooter}>
                   <View style={styles.dotIndicatorActive} />
                   <Text style={styles.aboutGraphicFooterText}>Data Sync Active • Live Encryption</Text>
                 </View>
-              </Pressable>
+              </View>
             </View>
           ) : null}
 
@@ -671,7 +716,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
           </View>
         </Animated.View>
 
-        {/* "Why Choose EDGE?" Section */}
+        {/* "Why Choose EDGE?" Section (Creative Premium Design, Non-Hoverable) */}
         <Animated.View
           style={[
             styles.featuresSection,
@@ -702,24 +747,26 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
                     }
                   ]}
                 >
-                  <Pressable style={({ hovered }: PressableState) => [
-                    styles.featCard,
-                    SHADOWS.card,
-                    hovered ? styles.featCardHovered : null,
-                  ]}>
-                    <View style={styles.featIconWrapper}>
-                      <Lucide name={feat.icon} size={22} color={COLORS.neutral.white} />
+                  <View style={[styles.featCard, SHADOWS.card]}>
+                    <View style={styles.featTopAccentBar} />
+                    <View style={styles.featCardHeader}>
+                      <View style={styles.featIconWrapper}>
+                        <Lucide name={feat.icon} size={22} color={COLORS.neutral.white} />
+                      </View>
+                      <View style={styles.featTagBadge}>
+                        <Text style={styles.featTagBadgeText}>{feat.tag}</Text>
+                      </View>
                     </View>
                     <Text style={styles.featCardTitle}>{feat.title}</Text>
                     <Text style={styles.featCardDesc}>{feat.desc}</Text>
-                  </Pressable>
+                  </View>
                 </Animated.View>
               );
             })}
           </View>
         </Animated.View>
 
-        {/* How It Works Section */}
+        {/* How It Works Section (5 Steps Connected Process Workflow) */}
         <Animated.View
           style={[
             styles.sectionContainer,
@@ -734,60 +781,49 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
           <Text style={[styles.sectionTitle, styles.centerText]}>How It Works</Text>
           <View style={[styles.titleUnderline, styles.centerSelf]} />
           
+          {/* 5 Connected Steps Grid / Flow */}
           <View style={[styles.stepsContainer, isDesktop ? styles.stepsRow : styles.stepsColumn]}>
-            <Animated.View style={[isDesktop ? styles.stepCardDesktop : { width: '100%' }]}>
-              <Pressable style={({ hovered }: PressableState) => [
-                styles.stepCard,
-                SHADOWS.card,
-                hovered ? styles.stepCardHovered : null,
-              ]}>
-                <View style={styles.stepBadge}>
-                  <Lucide name="user-plus" size={20} color={COLORS.neutral.white} />
-                </View>
-                <Text style={styles.stepCardTitle}>Create Account / Apply</Text>
-                <Text style={styles.stepCardDesc}>Register an account or tap Start Application to begin.</Text>
-              </Pressable>
-            </Animated.View>
-            
-            <View style={[isDesktop ? styles.arrowDesktop : styles.arrowMobile]}>
-              <Lucide name={isDesktop ? 'arrow-right' : 'arrow-down'} size={20} color={COLORS.neutral[300]} />
-            </View>
+            {steps.map((st, index) => {
+              const stepAnim = stepAnims[index];
+              const stepTranslateY = stepAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [25, 0],
+              });
+              
+              return (
+                <React.Fragment key={st.number}>
+                  <Animated.View style={[
+                    isDesktop ? styles.stepCardDesktop : { width: '100%', marginBottom: SPACING[16] },
+                    {
+                      opacity: stepAnim,
+                      transform: [{ translateY: stepTranslateY }],
+                    }
+                  ]}>
+                    <View style={[styles.stepCard, SHADOWS.card]}>
+                      <View style={styles.stepHeaderRow}>
+                        <View style={styles.stepBadge}>
+                          <Lucide name={st.icon} size={18} color={COLORS.neutral.white} />
+                        </View>
+                        <Text style={styles.stepNumberText}>{st.number}</Text>
+                      </View>
+                      <Text style={styles.stepCardTitle}>{st.title}</Text>
+                      <Text style={styles.stepCardDesc}>{st.desc}</Text>
+                    </View>
+                  </Animated.View>
 
-            <Animated.View style={[isDesktop ? styles.stepCardDesktop : { width: '100%' }]}>
-              <Pressable style={({ hovered }: PressableState) => [
-                styles.stepCard,
-                SHADOWS.card,
-                hovered ? styles.stepCardHovered : null,
-              ]}>
-                <View style={styles.stepBadge}>
-                  <Lucide name="file-text" size={20} color={COLORS.neutral.white} />
-                </View>
-                <Text style={styles.stepCardTitle}>Submit Application</Text>
-                <Text style={styles.stepCardDesc}>Complete forms and upload necessary requirements.</Text>
-              </Pressable>
-            </Animated.View>
-
-            <View style={[isDesktop ? styles.arrowDesktop : styles.arrowMobile]}>
-              <Lucide name={isDesktop ? 'arrow-right' : 'arrow-down'} size={20} color={COLORS.neutral[300]} />
-            </View>
-
-            <Animated.View style={[isDesktop ? styles.stepCardDesktop : { width: '100%' }]}>
-              <Pressable style={({ hovered }: PressableState) => [
-                styles.stepCard,
-                SHADOWS.card,
-                hovered ? styles.stepCardHovered : null,
-              ]}>
-                <View style={styles.stepBadge}>
-                  <Lucide name="activity" size={20} color={COLORS.neutral.white} />
-                </View>
-                <Text style={styles.stepCardTitle}>Track Application</Text>
-                <Text style={styles.stepCardDesc}>Monitor status using your reference number or dashboard.</Text>
-              </Pressable>
-            </Animated.View>
+                  {/* Connector arrow between steps */}
+                  {index < steps.length - 1 && (
+                    <View style={[isDesktop ? styles.arrowDesktop : styles.arrowMobile]}>
+                      <Lucide name={isDesktop ? 'chevron-right' : 'chevron-down'} size={18} color="#94A3B8" />
+                    </View>
+                  )}
+                </React.Fragment>
+              );
+            })}
           </View>
         </Animated.View>
 
-        {/* FAQs Accordion */}
+        {/* FAQs Accordion (4 Updated Q&As) */}
         <Animated.View
           style={[
             styles.sectionContainer,
@@ -1362,10 +1398,6 @@ const styles = StyleSheet.create({
     borderColor: '#C7D2FE',
     marginBottom: SPACING[24],
   },
-  pillBadgeHovered: {
-    backgroundColor: '#E0E7FF',
-    borderColor: '#A5B4FC',
-  },
   pillBadgeDot: {
     width: 7,
     height: 7,
@@ -1450,14 +1482,6 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: 'rgba(18, 54, 168, 0.10)',
     overflow: 'hidden',
-  },
-  mockupCardHovered: {
-    borderColor: '#1236A8',
-    shadowColor: '#1236A8',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.15,
-    shadowRadius: 24,
-    elevation: 8,
   },
   mockupHeader: {
     flexDirection: 'row',
@@ -1649,14 +1673,6 @@ const styles = StyleSheet.create({
     maxWidth: 440,
     padding: 28,
   },
-  graphicCardHovered: {
-    borderColor: '#1236A8',
-    shadowColor: '#1236A8',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 20,
-    elevation: 6,
-  },
   aboutGraphicHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1694,10 +1710,6 @@ const styles = StyleSheet.create({
     padding: SPACING[16],
     alignItems: 'center',
     marginBottom: SPACING[12],
-  },
-  gridItemHovered: {
-    backgroundColor: '#EEF2FF',
-    borderColor: '#C7D2FE',
   },
   aboutGridItemText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
@@ -1818,29 +1830,51 @@ const styles = StyleSheet.create({
     padding: SPACING[32],
     width: '100%',
     marginBottom: SPACING[20],
+    position: 'relative',
+    overflow: 'hidden',
   },
-  featCardHovered: {
-    borderColor: '#1236A8',
-    shadowColor: '#1236A8',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.14,
-    shadowRadius: 20,
-    elevation: 6,
+  featTopAccentBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 4,
+    backgroundColor: '#1236A8',
+  },
+  featCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: SPACING[20],
+  },
+  featTagBadge: {
+    backgroundColor: '#EEF2FF',
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#C7D2FE',
+  },
+  featTagBadgeText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#1236A8',
+    letterSpacing: 0.8,
   },
   featCardDesktop: {
     flex: 1,
     marginHorizontal: 10,
     marginBottom: 0,
-    minHeight: 240,
+    minHeight: 250,
   },
   featIconWrapper: {
-    width: 52,
-    height: 52,
+    width: 50,
+    height: 50,
     borderRadius: 16,
     backgroundColor: '#1236A8',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: SPACING[20],
     shadowColor: '#1236A8',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
@@ -1904,68 +1938,70 @@ const styles = StyleSheet.create({
   },
   stepsRow: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'space-between',
+    alignItems: 'stretch',
   },
   stepCard: {
     backgroundColor: COLORS.neutral.white,
     borderRadius: 20,
     borderWidth: 1.5,
     borderColor: COLORS.neutral[200],
-    padding: 28,
+    padding: 22,
     width: '100%',
-    maxWidth: 360,
-    alignItems: 'center',
-  },
-  stepCardHovered: {
-    borderColor: '#1236A8',
-    shadowColor: '#1236A8',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.14,
-    shadowRadius: 20,
-    elevation: 6,
+    height: '100%',
+    justifyContent: 'flex-start',
   },
   stepCardDesktop: {
     flex: 1,
-    marginHorizontal: 10,
-    minHeight: 220,
+    marginHorizontal: 4,
+    minHeight: 210,
+  },
+  stepHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: SPACING[16],
   },
   stepBadge: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 42,
+    height: 42,
+    borderRadius: 14,
     backgroundColor: '#1236A8',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 18,
     shadowColor: '#1236A8',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  stepNumberText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#CBD5E1',
+    letterSpacing: -0.5,
   },
   stepCardTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '700',
     color: COLORS.neutral[900],
     marginBottom: SPACING[8],
-    textAlign: 'center',
   },
   stepCardDesc: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
+    fontSize: 13,
     color: COLORS.neutral[500],
-    textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 19,
   },
   arrowMobile: {
-    marginVertical: SPACING[12],
+    marginVertical: SPACING[8],
   },
   arrowDesktop: {
     justifyContent: 'center',
     alignItems: 'center',
-    marginHorizontal: 16,
+    marginHorizontal: 2,
   },
   faqList: {
     maxWidth: 960,
