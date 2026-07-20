@@ -2,6 +2,7 @@ import React from "react";
 import { StyleSheet, View, Image, ViewStyle, StyleProp } from "react-native";
 
 const logoAsset = require("../../../../assets/logo.png");
+const whiteLogoAsset = require("../../../../assets/white-ntc-logo.png");
 
 interface NtcLogoProps {
   size?: "small" | "medium" | "large";
@@ -12,6 +13,7 @@ interface NtcLogoProps {
 
 export function NtcLogo({
   size = "medium",
+  variant = "light",
   style,
 }: NtcLogoProps) {
   const heightMap: Record<"small" | "medium" | "large", number> = {
@@ -22,11 +24,12 @@ export function NtcLogo({
 
   const height = heightMap[size];
   const width = height * 2.75;
+  const asset = variant === "dark" ? whiteLogoAsset : logoAsset;
 
   return (
     <View style={[styles.container, { height, width }, style]}>
       <Image
-        source={logoAsset}
+        source={asset}
         style={styles.image}
         resizeMode="contain"
       />
@@ -44,4 +47,5 @@ const styles = StyleSheet.create({
     height: "100%",
   },
 });
+
 

@@ -200,11 +200,11 @@ export function InternalLandingPage() {
   const { width } = useWindowDimensions();
   const isMobile = width < 640;
 
-  const { loginWithClerk, signUpWithClerk, verifySignUp } = useAuthContext();
+  const { loginWithClerk, verifySignUp } = useAuthContext();
 
-  const [mode, setMode] = useState<"signin" | "signup" | "verify" | "forgot">("signin");
+  const [mode, setMode] = useState<"signin" | "verify" | "forgot">("signin");
   const [selectedRegion, setSelectedRegion] = useState("Region X - Northern Mindanao");
-  const [showRegionDropdown, setShowRegionDropdown] = useState(false);
+  const [showRegionModal, setShowRegionModal] = useState(false);
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -245,28 +245,6 @@ export function InternalLandingPage() {
     }
   };
 
-  const handleSignUp = async () => {
-    if (identifier.trim() === "" || password.trim() === "") {
-      setError("Please enter your email address and password.");
-      return;
-    }
-    setError("");
-    setSuccessMessage("");
-    setIsSubmitting(true);
-    try {
-      const isComplete = await signUpWithClerk(identifier, password);
-      if (isComplete) {
-        // Session created
-      } else {
-        setMode("verify");
-      }
-    } catch (err: unknown) {
-      handleAuthError(err, "Failed to create account. Please check your credentials.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   const handleVerify = async () => {
     if (code.trim() === "") {
       setError("Please enter the verification code.");
@@ -293,7 +271,7 @@ export function InternalLandingPage() {
     setSuccessMessage(`Password reset link sent to ${identifier}.`);
   };
 
-  const switchMode = (newMode: "signin" | "signup" | "verify" | "forgot") => {
+  const switchMode = (newMode: "signin" | "verify" | "forgot") => {
     setMode(newMode);
     setError("");
     setSuccessMessage("");
@@ -323,8 +301,6 @@ export function InternalLandingPage() {
             <Text style={styles.cardTitle}>
               {mode === "signin"
                 ? "Login"
-                : mode === "signup"
-                ? "Staff Registration"
                 : mode === "verify"
                 ? "Verify Account"
                 : "Reset Password"}
@@ -337,51 +313,21 @@ export function InternalLandingPage() {
                   <Text style={styles.fieldLabelSmall}>Region</Text>
                   <TouchableOpacity
                     style={styles.regionSelectorBox}
-                    onPress={() => setShowRegionDropdown((prev) => !prev)}
+                    onPress={() => setShowRegionModal(true)}
                     activeOpacity={0.8}
                   >
-                    <Text style={styles.regionSelectorValue} numberOfLines={1}>
-                      {selectedRegion}
-                    </Text>
+                    <View style={styles.regionSelectorInner}>
+                      <Lucide name="map-pin" size={16} color={COLORS.neutral[500]} />
+                      <Text style={styles.regionSelectorValue} numberOfLines={1}>
+                        {selectedRegion}
+                      </Text>
+                    </View>
                     <Lucide
-                      name={showRegionDropdown ? "chevron-up" : "chevron-down"}
+                      name="chevron-down"
                       size={18}
                       color={COLORS.neutral[600]}
                     />
                   </TouchableOpacity>
-
-                  {/* Dropdown Options */}
-                  {showRegionDropdown && (
-                    <View style={styles.dropdownMenu}>
-                      <ScrollView nestedScrollEnabled style={{ maxHeight: 190 }}>
-                        {REGION_OPTIONS.map((region) => (
-                          <TouchableOpacity
-                            key={region}
-                            style={[
-                              styles.dropdownMenuItem,
-                              region === selectedRegion && styles.dropdownMenuItemActive,
-                            ]}
-                            onPress={() => {
-                              setSelectedRegion(region);
-                              setShowRegionDropdown(false);
-                            }}
-                          >
-                            <Text
-                              style={[
-                                styles.dropdownMenuItemText,
-                                region === selectedRegion && styles.dropdownMenuItemTextActive,
-                              ]}
-                            >
-                              {region}
-                            </Text>
-                            {region === selectedRegion && (
-                              <Lucide name="check" size={14} color={COLORS.brand[700]} />
-                            )}
-                          </TouchableOpacity>
-                        ))}
-                      </ScrollView>
-                    </View>
-                  )}
                 </View>
 
                 {/* Phone / Email Input */}
@@ -469,78 +415,6 @@ export function InternalLandingPage() {
                 >
                   <Text style={styles.forgotPasswordLinkText}>Forgot your password?</Text>
                 </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={() => switchMode("signup")}
-                  style={styles.registerToggleWrapper}
-                >
-                  <Text style={styles.registerToggleText}>
-                    Don't have an account? <Text style={styles.registerToggleBold}>Register</Text>
-                  </Text>
-                </TouchableOpacity>
-              </>
-            )}
-
-            {mode === "signup" && (
-              <>
-                <View style={styles.fieldGroup}>
-                  <TextInput
-                    autoCapitalize="none"
-                    placeholder="Official Email Address *"
-                    placeholderTextColor={COLORS.neutral[400]}
-                    value={identifier}
-                    onChangeText={setIdentifier}
-                    style={styles.greyInput}
-                    editable={!isSubmitting}
-                  />
-                </View>
-
-                <View style={styles.fieldGroup}>
-                  <View style={styles.inputWithIconWrapper}>
-                    <TextInput
-                      placeholder="Password *"
-                      placeholderTextColor={COLORS.neutral[400]}
-                      secureTextEntry={!showPassword}
-                      value={password}
-                      onChangeText={setPassword}
-                      style={[styles.greyInput, { paddingRight: 42 }]}
-                      editable={!isSubmitting}
-                    />
-                    <TouchableOpacity
-                      style={styles.eyeIconButton}
-                      onPress={() => setShowPassword((prev) => !prev)}
-                    >
-                      <Lucide
-                        name={showPassword ? "eye-off" : "eye"}
-                        size={18}
-                        color={COLORS.neutral[500]}
-                      />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-
-                {error.length > 0 ? (
-                  <Text style={styles.errorText}>{error}</Text>
-                ) : null}
-
-                <TouchableOpacity
-                  style={[styles.loginButton, styles.loginButtonActive, isSubmitting && styles.buttonDisabled]}
-                  onPress={handleSignUp}
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? (
-                    <ActivityIndicator size="small" color={COLORS.neutral.white} />
-                  ) : (
-                    <Text style={[styles.loginButtonText, styles.loginButtonTextActive]}>Register</Text>
-                  )}
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={() => switchMode("signin")}
-                  style={styles.forgotPasswordLinkWrapper}
-                >
-                  <Text style={styles.forgotPasswordLinkText}>Already have an account? Login</Text>
-                </TouchableOpacity>
               </>
             )}
 
@@ -589,11 +463,11 @@ export function InternalLandingPage() {
           </View>
         </View>
 
-        {/* Dark Navy Footer (Screenshot 2 Reference) */}
+        {/* Slate Gray Footer */}
         <View style={styles.footerBar}>
           <View style={[styles.footerContentContainer, { maxWidth: 1280 }]}>
             <View style={styles.footerLeftBrand}>
-              <NtcLogo size="small" variant="dark" showSubtext={false} />
+              <NtcLogo size="small" variant="light" showSubtext={false} />
               <Text style={styles.footerCopyrightText}>© 2026</Text>
             </View>
 
@@ -638,6 +512,67 @@ export function InternalLandingPage() {
           </View>
         </View>
       </ScrollView>
+
+      {/* Region Selector Dropdown Modal (Same as client Select component) */}
+      <Modal
+        visible={showRegionModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowRegionModal(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowRegionModal(false)}
+        >
+          <TouchableOpacity
+            style={styles.regionModalCard}
+            activeOpacity={1}
+            onPress={() => {}}
+          >
+            <View style={styles.regionModalHeader}>
+              <Text style={styles.regionModalTitle}>Select Administrative Region</Text>
+              <TouchableOpacity
+                onPress={() => setShowRegionModal(false)}
+                style={styles.closeBtnSmall}
+              >
+                <Lucide name="x" size={18} color={COLORS.neutral[500]} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ maxHeight: 320 }} showsVerticalScrollIndicator={true}>
+              {REGION_OPTIONS.map((region) => {
+                const isSelected = region === selectedRegion;
+                return (
+                  <TouchableOpacity
+                    key={region}
+                    style={[
+                      styles.regionOptionItem,
+                      isSelected && styles.regionOptionItemSelected,
+                    ]}
+                    onPress={() => {
+                      setSelectedRegion(region);
+                      setShowRegionModal(false);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.regionOptionText,
+                        isSelected && styles.regionOptionTextSelected,
+                      ]}
+                    >
+                      {region}
+                    </Text>
+                    {isSelected && (
+                      <Lucide name="check" size={16} color={COLORS.brand[800]} />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
 
       {/* Policy & Support Dialog Modal */}
       <Modal
@@ -772,12 +707,68 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
+  regionSelectorInner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    flex: 1,
+  },
   regionSelectorValue: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 14,
     color: COLORS.neutral[900],
     fontWeight: TYPOGRAPHY.weights.medium,
     flex: 1,
+  },
+  regionModalCard: {
+    width: "100%",
+    maxWidth: 440,
+    backgroundColor: COLORS.neutral.white,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    padding: SPACING[20],
+    alignSelf: "center",
+  },
+  regionModalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingBottom: 12,
+    marginBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.neutral[200],
+  },
+  regionModalTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 16,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: COLORS.neutral[900],
+  },
+  closeBtnSmall: {
+    padding: 4,
+  },
+  regionOptionItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginVertical: 2,
+  },
+  regionOptionItemSelected: {
+    backgroundColor: "rgba(37, 99, 235, 0.08)",
+  },
+  regionOptionText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    color: COLORS.neutral[700],
+    flex: 1,
+  },
+  regionOptionTextSelected: {
+    color: COLORS.brand[800],
+    fontWeight: TYPOGRAPHY.weights.semibold,
   },
   dropdownMenu: {
     backgroundColor: COLORS.neutral.white,
@@ -919,10 +910,12 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 
-  /* Dark Navy Footer (Screenshot 2 Reference) */
+  /* Slate Gray Footer */
   footerBar: {
     width: "100%",
-    backgroundColor: "#0B1953", // Deep navy blue
+    backgroundColor: "#E2E8F0", // Slate gray
+    borderTopWidth: 1,
+    borderTopColor: "#CBD5E1",
     paddingHorizontal: SPACING[32],
     paddingVertical: SPACING[20],
   },
@@ -943,7 +936,7 @@ const styles = StyleSheet.create({
   footerCopyrightText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 13,
-    color: COLORS.neutral[200],
+    color: "#475569",
     fontWeight: TYPOGRAPHY.weights.semibold,
   },
   footerRightLinks: {
@@ -961,7 +954,7 @@ const styles = StyleSheet.create({
   footerLinkText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 13,
-    color: COLORS.neutral[200],
+    color: "#334155",
     fontWeight: TYPOGRAPHY.weights.medium,
   },
 
