@@ -558,7 +558,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
 
   return (
     <View style={styles.container}>
-      {/* Sticky Glassmorphic Header/Navbar */}
+      {/* Sticky Glassmorphic Header/Navbar - Logo positioned at far left */}
       <View style={styles.headerOuter}>
         <View style={styles.headerInner}>
           <Logo height={84} />
@@ -572,7 +572,9 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
                   hovered ? styles.navLinkHovered : null,
                 ]}
               >
-                <Text style={styles.navLinkText}>About</Text>
+                {({ hovered }: PressableState) => (
+                  <Text style={[styles.navLinkText, hovered ? styles.navLinkTextHovered : null]}>About</Text>
+                )}
               </Pressable>
               <Pressable
                 onPress={() => scrollToSection('howItWorks')}
@@ -581,7 +583,9 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
                   hovered ? styles.navLinkHovered : null,
                 ]}
               >
-                <Text style={styles.navLinkText}>How it works</Text>
+                {({ hovered }: PressableState) => (
+                  <Text style={[styles.navLinkText, hovered ? styles.navLinkTextHovered : null]}>How it works</Text>
+                )}
               </Pressable>
               <Pressable
                 onPress={() => scrollToSection('faqs')}
@@ -590,7 +594,9 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
                   hovered ? styles.navLinkHovered : null,
                 ]}
               >
-                <Text style={styles.navLinkText}>FAQs</Text>
+                {({ hovered }: PressableState) => (
+                  <Text style={[styles.navLinkText, hovered ? styles.navLinkTextHovered : null]}>FAQs</Text>
+                )}
               </Pressable>
             </View>
           ) : null}
@@ -929,7 +935,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
 
                       {index < stepsRow1.length - 1 && (
                         <View style={styles.arrowDesktopExact}>
-                          <Lucide name="arrow-right" size={16} color="#334155" />
+                          <Lucide name="arrow-right" size={16} color="#1236A8" />
                         </View>
                       )}
                     </React.Fragment>
@@ -937,7 +943,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
                 })}
               </View>
 
-              {/* Row 2: Steps 4, 5 */}
+              {/* Row 2: Steps 4, 5 centered */}
               <View style={styles.stepsRowBottom}>
                 {stepsRow2.map((st, index) => {
                   const globalIndex = index + 3;
@@ -967,7 +973,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
 
                       {index < stepsRow2.length - 1 && (
                         <View style={styles.arrowDesktopExact}>
-                          <Lucide name="arrow-right" size={16} color="#334155" />
+                          <Lucide name="arrow-right" size={16} color="#1236A8" />
                         </View>
                       )}
                     </React.Fragment>
@@ -1005,7 +1011,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
 
                     {index < allStepsMobile.length - 1 && (
                       <View style={{ marginVertical: SPACING[12], alignItems: 'center' }}>
-                        <Lucide name="arrow-down" size={16} color="#334155" />
+                        <Lucide name="arrow-down" size={16} color="#1236A8" />
                       </View>
                     )}
                   </React.Fragment>
@@ -1094,88 +1100,153 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
           </View>
         </View>
 
-        {/* Detailed Footer with 6 Important Links */}
+        {/* Ultra-Premium Unique Footer with High-Contrast Logo Badge */}
         <View style={styles.footerContainer}>
-          <View style={[styles.footerInnerGrid, { flexDirection: Platform.OS === 'web' && width >= 800 ? 'row' : 'column' }]}>
+          <View style={styles.footerInner}>
             
-            {/* Logo, Bio */}
-            <View style={isDesktop ? styles.footerBioCol : styles.footerFullWidthCol}>
-              <Logo variant="light" />
-              <Text style={styles.footerBioText}>
-                Electronic Data Governance and Evaluation - Streamlining NTC services since 2024.
+            {/* Top Logo Hero Card */}
+            <View style={styles.footerLogoHeroRow}>
+              <View style={[styles.footerLogoBadgeCard, SHADOWS.card]}>
+                <Logo height={70} />
+              </View>
+
+              <View style={styles.footerHeroTaglineCol}>
+                <View style={styles.footerLiveSyncBadge}>
+                  <View style={styles.dotIndicatorActive} />
+                  <Text style={styles.footerLiveSyncText}>NTC EDGE PLATFORM ONLINE • LIVE DATA GOVERNANCE</Text>
+                </View>
+                <Text style={styles.footerTaglineTitle}>National Telecommunications Commission</Text>
+                <Text style={styles.footerTaglineDesc}>
+                  Electronic Data Governance and Evaluation System — Serving the Filipino public with integrity, transparency, and digital excellence.
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.footerDividerLine} />
+
+            {/* Unique 2-Column Policy Card Links with Hover Color Fill */}
+            <View style={styles.footerLinksGrid}>
+              {/* Legal Category Card */}
+              <View style={styles.footerPolicyCard}>
+                <View style={styles.footerPolicyCardHeader}>
+                  <View style={styles.footerCategoryIconBadge}>
+                    <Lucide name="shield" size={18} color="#1236A8" />
+                  </View>
+                  <Text style={styles.footerCategoryTitle}>Legal & Transparency</Text>
+                </View>
+
+                <View style={styles.footerPillsList}>
+                  <Pressable
+                    onPress={() => setActiveFooterModal(FOOTER_POLICIES['user-agreement'])}
+                    style={({ hovered }: PressableState) => [
+                      styles.footerPillItem,
+                      hovered ? styles.footerPillItemHovered : null,
+                    ]}
+                  >
+                    {({ hovered }: PressableState) => (
+                      <View style={styles.footerPillContent}>
+                        <Lucide name="file-text" size={15} color={hovered ? '#FFFFFF' : '#93C5FD'} style={{ marginRight: 10 }} />
+                        <Text style={[styles.footerPillText, hovered ? styles.footerPillTextHovered : null]}>User Agreement</Text>
+                      </View>
+                    )}
+                  </Pressable>
+
+                  <Pressable
+                    onPress={() => setActiveFooterModal(FOOTER_POLICIES['privacy-policy'])}
+                    style={({ hovered }: PressableState) => [
+                      styles.footerPillItem,
+                      hovered ? styles.footerPillItemHovered : null,
+                    ]}
+                  >
+                    {({ hovered }: PressableState) => (
+                      <View style={styles.footerPillContent}>
+                        <Lucide name="lock" size={15} color={hovered ? '#FFFFFF' : '#93C5FD'} style={{ marginRight: 10 }} />
+                        <Text style={[styles.footerPillText, hovered ? styles.footerPillTextHovered : null]}>Privacy Policy</Text>
+                      </View>
+                    )}
+                  </Pressable>
+
+                  <Pressable
+                    onPress={() => setActiveFooterModal(FOOTER_POLICIES['cookie-policy'])}
+                    style={({ hovered }: PressableState) => [
+                      styles.footerPillItem,
+                      hovered ? styles.footerPillItemHovered : null,
+                    ]}
+                  >
+                    {({ hovered }: PressableState) => (
+                      <View style={styles.footerPillContent}>
+                        <Lucide name="database" size={15} color={hovered ? '#FFFFFF' : '#93C5FD'} style={{ marginRight: 10 }} />
+                        <Text style={[styles.footerPillText, hovered ? styles.footerPillTextHovered : null]}>Cookie Policy</Text>
+                      </View>
+                    )}
+                  </Pressable>
+                </View>
+              </View>
+
+              {/* Support Category Card */}
+              <View style={styles.footerPolicyCard}>
+                <View style={styles.footerPolicyCardHeader}>
+                  <View style={styles.footerCategoryIconBadge}>
+                    <Lucide name="headphones" size={18} color="#1236A8" />
+                  </View>
+                  <Text style={styles.footerCategoryTitle}>Support & Community</Text>
+                </View>
+
+                <View style={styles.footerPillsList}>
+                  <Pressable
+                    onPress={() => setActiveFooterModal(FOOTER_POLICIES['community-guidelines'])}
+                    style={({ hovered }: PressableState) => [
+                      styles.footerPillItem,
+                      hovered ? styles.footerPillItemHovered : null,
+                    ]}
+                  >
+                    {({ hovered }: PressableState) => (
+                      <View style={styles.footerPillContent}>
+                        <Lucide name="users" size={15} color={hovered ? '#FFFFFF' : '#93C5FD'} style={{ marginRight: 10 }} />
+                        <Text style={[styles.footerPillText, hovered ? styles.footerPillTextHovered : null]}>Community Guidelines</Text>
+                      </View>
+                    )}
+                  </Pressable>
+
+                  <Pressable
+                    onPress={() => setActiveFooterModal(FOOTER_POLICIES['send-feedback'])}
+                    style={({ hovered }: PressableState) => [
+                      styles.footerPillItem,
+                      hovered ? styles.footerPillItemHovered : null,
+                    ]}
+                  >
+                    {({ hovered }: PressableState) => (
+                      <View style={styles.footerPillContent}>
+                        <Lucide name="message-square" size={15} color={hovered ? '#FFFFFF' : '#93C5FD'} style={{ marginRight: 10 }} />
+                        <Text style={[styles.footerPillText, hovered ? styles.footerPillTextHovered : null]}>Send Feedback</Text>
+                      </View>
+                    )}
+                  </Pressable>
+
+                  <Pressable
+                    onPress={() => setActiveFooterModal(FOOTER_POLICIES['help-center'])}
+                    style={({ hovered }: PressableState) => [
+                      styles.footerPillItem,
+                      hovered ? styles.footerPillItemHovered : null,
+                    ]}
+                  >
+                    {({ hovered }: PressableState) => (
+                      <View style={styles.footerPillContent}>
+                        <Lucide name="help-circle" size={15} color={hovered ? '#FFFFFF' : '#93C5FD'} style={{ marginRight: 10 }} />
+                        <Text style={[styles.footerPillText, hovered ? styles.footerPillTextHovered : null]}>Help Center</Text>
+                      </View>
+                    )}
+                  </Pressable>
+                </View>
+              </View>
+            </View>
+
+            {/* Bottom Copyright */}
+            <View style={styles.footerBottomRow}>
+              <Text style={styles.copyrightText}>
+                © 2025 EDGE Portal — National Telecommunications Commission. Republic of the Philippines. All rights reserved.
               </Text>
             </View>
-
-            {/* Links Columns */}
-            <View style={[styles.footerLinksWrapper, { marginTop: Platform.OS !== 'web' || width < 800 ? SPACING[32] : 0 }]}>
-              <View style={styles.footerLinksCol}>
-                <Text style={styles.footerColHeader}>Legal</Text>
-                <Pressable
-                  onPress={() => setActiveFooterModal(FOOTER_POLICIES['user-agreement'])}
-                  style={({ hovered }: PressableState) => [
-                    styles.footerLinkItem,
-                    hovered ? styles.footerLinkHovered : null,
-                  ]}
-                >
-                  <Text style={styles.footerLinkText}>User Agreement</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => setActiveFooterModal(FOOTER_POLICIES['privacy-policy'])}
-                  style={({ hovered }: PressableState) => [
-                    styles.footerLinkItem,
-                    hovered ? styles.footerLinkHovered : null,
-                  ]}
-                >
-                  <Text style={styles.footerLinkText}>Privacy Policy</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => setActiveFooterModal(FOOTER_POLICIES['cookie-policy'])}
-                  style={({ hovered }: PressableState) => [
-                    styles.footerLinkItem,
-                    hovered ? styles.footerLinkHovered : null,
-                  ]}
-                >
-                  <Text style={styles.footerLinkText}>Cookie Policy</Text>
-                </Pressable>
-              </View>
-
-              <View style={styles.footerLinksCol}>
-                <Text style={styles.footerColHeader}>Support</Text>
-                <Pressable
-                  onPress={() => setActiveFooterModal(FOOTER_POLICIES['community-guidelines'])}
-                  style={({ hovered }: PressableState) => [
-                    styles.footerLinkItem,
-                    hovered ? styles.footerLinkHovered : null,
-                  ]}
-                >
-                  <Text style={styles.footerLinkText}>Community Guidelines</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => setActiveFooterModal(FOOTER_POLICIES['send-feedback'])}
-                  style={({ hovered }: PressableState) => [
-                    styles.footerLinkItem,
-                    hovered ? styles.footerLinkHovered : null,
-                  ]}
-                >
-                  <Text style={styles.footerLinkText}>Send Feedback</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => setActiveFooterModal(FOOTER_POLICIES['help-center'])}
-                  style={({ hovered }: PressableState) => [
-                    styles.footerLinkItem,
-                    hovered ? styles.footerLinkHovered : null,
-                  ]}
-                >
-                  <Text style={styles.footerLinkText}>Help Center</Text>
-                </Pressable>
-              </View>
-            </View>
-          </View>
-          
-          <View style={styles.footerBottom}>
-            <Text style={styles.copyrightText}>
-              © 2025 EDGE - National Telecommunications Commission. All rights reserved.
-            </Text>
           </View>
         </View>
       </ScrollView>
@@ -1274,7 +1345,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
 
             {/* Modal Logo */}
             <View style={styles.modalHeader}>
-              <Logo height={32} />
+              <Logo height={42} />
             </View>
 
             <Text style={styles.modalTitle}>How would you like to proceed?</Text>
@@ -1316,7 +1387,9 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
                   navigation?.navigate('SignUp');
                 }}
               >
-                <Text style={styles.modalFooterLink}>Sign Up</Text>
+                {({ hovered }: PressableState) => (
+                  <Text style={[styles.modalFooterLink, hovered ? styles.modalFooterLinkHovered : null]}>Sign Up</Text>
+                )}
               </Pressable>
             </View>
           </TouchableOpacity>
@@ -1374,7 +1447,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
 
             {/* Modal Logo */}
             <View style={styles.modalHeader}>
-              <Logo height={32} />
+              <Logo height={42} />
             </View>
 
             <Text style={styles.modalTitle}>Track Application</Text>
@@ -1533,22 +1606,21 @@ const styles = StyleSheet.create({
     zIndex: 100,
   },
   headerInner: {
-    maxWidth: 1400,
     width: '100%',
     height: '100%',
-    alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: SPACING[24],
+    paddingLeft: SPACING[12], // Position logo at the far left edge
+    paddingRight: SPACING[32],
   },
   navLinks: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   navLink: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     borderRadius: RADIUS.circle,
     marginRight: SPACING[8],
   },
@@ -1557,9 +1629,13 @@ const styles = StyleSheet.create({
   },
   navLinkText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
     color: '#334155',
+  },
+  navLinkTextHovered: {
+    color: '#1236A8',
+    fontWeight: '700',
   },
   scrollView: {
     flex: 1,
@@ -1974,8 +2050,8 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   dotIndicatorActive: {
-    width: 7,
-    height: 7,
+    width: 8,
+    height: 8,
     borderRadius: 4,
     backgroundColor: COLORS.semantic.success,
     marginRight: 8,
@@ -2353,76 +2429,159 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   footerContainer: {
-    backgroundColor: '#081448',
-    paddingTop: SPACING[64] + 10,
+    backgroundColor: '#060E33',
+    paddingTop: SPACING[64],
     paddingBottom: 36,
     paddingHorizontal: SPACING[24],
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.08)',
   },
-  footerInnerGrid: {
+  footerInner: {
     maxWidth: 1400,
     width: '100%',
     alignSelf: 'center',
+  },
+  footerLogoHeroRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
     justifyContent: 'space-between',
+    marginBottom: SPACING[32],
   },
-  footerBioCol: {
-    width: '35%',
-    paddingRight: SPACING[32],
+  footerLogoBadgeCard: {
+    backgroundColor: COLORS.neutral.white,
+    borderRadius: 20,
+    paddingHorizontal: 28,
+    paddingVertical: 18,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    marginBottom: SPACING[16],
   },
-  footerFullWidthCol: {
-    width: '100%',
-    marginBottom: SPACING[40],
+  footerHeroTaglineCol: {
+    flex: 1,
+    minWidth: 300,
+    marginLeft: SPACING[24],
+    marginBottom: SPACING[16],
   },
-  footerBioText: {
+  footerLiveSyncBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(18, 54, 168, 0.35)',
+    paddingVertical: 5,
+    paddingHorizontal: 12,
+    borderRadius: RADIUS.circle,
+    borderWidth: 1,
+    borderColor: 'rgba(147, 197, 253, 0.3)',
+    alignSelf: 'flex-start',
+    marginBottom: 10,
+  },
+  footerLiveSyncText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#93C5FD',
+    letterSpacing: 0.8,
+  },
+  footerTaglineTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 20,
+    fontWeight: '800',
+    color: COLORS.neutral.white,
+    marginBottom: 6,
+  },
+  footerTaglineDesc: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 14,
     color: '#94A3B8',
     lineHeight: 22,
-    marginTop: SPACING[16],
+    maxWidth: 750,
   },
-  footerLinksWrapper: {
-    flex: 1,
+  footerDividerLine: {
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    marginVertical: SPACING[24],
+    width: '100%',
+  },
+  footerLinksGrid: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
     flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginHorizontal: -10,
   },
-  footerLinksCol: {
-    minWidth: 180,
-    marginBottom: SPACING[24],
+  footerPolicyCard: {
+    flex: 1,
+    minWidth: 320,
+    marginHorizontal: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    padding: 24,
+    marginBottom: SPACING[20],
   },
-  footerColHeader: {
+  footerPolicyCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  footerCategoryIconBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: COLORS.neutral.white,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  footerCategoryTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '700',
     color: COLORS.neutral.white,
-    marginBottom: 18,
-    letterSpacing: 0.5,
   },
-  footerLinkItem: {
-    marginBottom: SPACING[12],
-    paddingVertical: 2,
+  footerPillsList: {
+    width: '100%',
   },
-  footerLinkHovered: {
-    opacity: 0.85,
+  footerPillItem: {
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
   },
-  footerLinkText: {
+  footerPillItemHovered: {
+    backgroundColor: '#1236A8',
+    borderColor: '#3B82F6',
+    transform: [{ translateX: 4 }],
+  },
+  footerPillContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  footerPillText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 14,
-    color: '#94A3B8',
+    fontWeight: '600',
+    color: '#CBD5E1',
   },
-  footerBottom: {
-    maxWidth: 1400,
-    width: '100%',
-    alignSelf: 'center',
+  footerPillTextHovered: {
+    color: COLORS.neutral.white,
+    fontWeight: '700',
+  },
+  footerBottomRow: {
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.1)',
-    marginTop: SPACING[40],
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
     paddingTop: SPACING[24],
+    marginTop: SPACING[16],
     alignItems: 'center',
   },
   copyrightText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 13,
     color: '#64748B',
+    textAlign: 'center',
   },
   rowLayout: {
     flexDirection: 'row',
@@ -2517,6 +2676,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: '#1236A8',
+  },
+  modalFooterLinkHovered: {
+    color: '#0D2678',
+    textDecorationLine: 'underline',
   },
   dropdownLabel: {
     fontFamily: TYPOGRAPHY.fonts.primary,
