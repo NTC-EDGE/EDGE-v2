@@ -2,7 +2,7 @@ import axios from 'axios';
 import useSWR, { SWRConfiguration, SWRResponse } from 'swr';
 
 const getApiUrl = (): string => {
-  const envUrl = process.env.EXPO_PUBLIC_API_URL;
+  const envUrl = process.env.EXPO_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_URL;
   if (typeof envUrl === 'string' && envUrl.length > 0) {
     return envUrl;
   }
@@ -24,7 +24,7 @@ export const setAuthToken = (token: string | null): void => {
 export const fetcher = <T>(url: string): Promise<T> =>
   apiClient.get<T>(url).then((res) => res.data);
 
-export function useAuthenticatedSWR<Data = any, Error = any>(
+export function useAuthenticatedSWR<Data = unknown, Error = unknown>(
   key: string | null,
   clerkGetToken: () => Promise<string | null>,
   config?: SWRConfiguration<Data, Error>
@@ -38,3 +38,5 @@ export function useAuthenticatedSWR<Data = any, Error = any>(
 
   return useSWR<Data, Error>(key, customFetcher, config);
 }
+
+export * from './types';
