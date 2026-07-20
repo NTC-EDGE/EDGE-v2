@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  TouchableOpacity,
+  Pressable,
   Text,
   ActivityIndicator,
   StyleSheet,
@@ -22,6 +22,11 @@ interface ButtonProps {
   icon?: React.ReactNode;
 }
 
+interface PressableState {
+  pressed: boolean;
+  hovered?: boolean;
+}
+
 export function Button({
   title,
   onPress,
@@ -33,18 +38,30 @@ export function Button({
   textStyle,
   icon,
 }: ButtonProps) {
-  const getButtonStyles = (): ViewStyle[] => {
+  const getButtonStyles = (hovered: boolean, pressed: boolean): ViewStyle[] => {
     const list: ViewStyle[] = [styles.base];
 
     // Variant styles
     if (variant === 'primary') {
       list.push(styles.primary);
+      if (hovered && !disabled) {
+        list.push(styles.primaryHovered);
+      }
     } else if (variant === 'secondary') {
       list.push(styles.secondary);
+      if (hovered && !disabled) {
+        list.push(styles.secondaryHovered);
+      }
     } else if (variant === 'outline') {
       list.push(styles.outline);
+      if (hovered && !disabled) {
+        list.push(styles.outlineHovered);
+      }
     } else if (variant === 'text') {
       list.push(styles.textVariant);
+      if (hovered && !disabled) {
+        list.push(styles.textVariantHovered);
+      }
     }
 
     // Size styles
@@ -58,6 +75,10 @@ export function Button({
 
     if (disabled) {
       list.push(styles.disabled);
+    }
+
+    if (pressed && !disabled) {
+      list.push(styles.pressed);
     }
 
     if (style !== undefined) {
@@ -112,11 +133,12 @@ export function Button({
   };
 
   return (
-    <TouchableOpacity
+    <Pressable
       onPress={onPress}
       disabled={disabled || loading}
-      activeOpacity={0.8}
-      style={getButtonStyles()}
+      style={({ hovered = false, pressed }: PressableState) =>
+        getButtonStyles(hovered, pressed)
+      }
     >
       {loading ? (
         <ActivityIndicator size="small" color={getIndicatorColor()} />
@@ -128,7 +150,7 @@ export function Button({
           <Text style={getTextStyles()}>{title}</Text>
         </View>
       )}
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 
@@ -152,17 +174,47 @@ const styles = StyleSheet.create({
   primary: {
     backgroundColor: COLORS.brand[800],
   },
+  primaryHovered: {
+    backgroundColor: '#0F2B88',
+    transform: [{ translateY: -2 }],
+    shadowColor: '#1236A8',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 4,
+  },
   secondary: {
     backgroundColor: COLORS.neutral[800],
+  },
+  secondaryHovered: {
+    backgroundColor: COLORS.neutral[900],
+    transform: [{ translateY: -2 }],
   },
   outline: {
     backgroundColor: 'transparent',
     borderWidth: 1.5,
     borderColor: COLORS.brand[800],
   },
+  outlineHovered: {
+    backgroundColor: '#EEF2FF',
+    borderColor: '#0F2B88',
+    transform: [{ translateY: -2 }],
+    shadowColor: '#1236A8',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 2,
+  },
   textVariant: {
     backgroundColor: 'transparent',
     paddingHorizontal: 0,
+  },
+  textVariantHovered: {
+    opacity: 0.8,
+  },
+  pressed: {
+    opacity: 0.85,
+    transform: [{ translateY: 0 }],
   },
   sm: {
     height: 36,

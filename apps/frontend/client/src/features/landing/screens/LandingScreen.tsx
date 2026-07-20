@@ -47,6 +47,124 @@ interface PressableState {
   hovered?: boolean;
 }
 
+interface FooterPolicyContent {
+  title: string;
+  intro: string;
+  sections: { title: string; body: string; highlight?: string }[];
+}
+
+const FOOTER_POLICIES: { [key: string]: FooterPolicyContent } = {
+  'user-agreement': {
+    title: 'User Agreement',
+    intro: 'Welcome to the EDGE Portal. This User Agreement governs your access to and use of all services provided by the National Telecommunications Commission (NTC) via this platform.',
+    sections: [
+      {
+        title: '1. Acceptance of Terms',
+        body: 'By accessing or using the EDGE Portal, you agree to be bound by these terms and all policies incorporated herein. If you do not agree, you must cease use immediately.',
+      },
+      {
+        title: '2. User Obligations',
+        body: 'You agree to use the portal only for lawful purposes related to NTC services. You are responsible for maintaining the confidentiality of your account credentials and for all activities that occur under your account.',
+      },
+      {
+        title: '3. Termination',
+        body: 'The NTC reserves the right to suspend or terminate your account and access to the service for any breach of this agreement without prior notice.',
+      },
+    ],
+  },
+  'privacy-policy': {
+    title: 'Privacy Policy',
+    intro: 'Your privacy is important to us. This policy outlines how the NTC collects, uses, and protects the personal and application data you provide through the EDGE Portal.',
+    sections: [
+      {
+        title: '1. Data Collection',
+        body: 'We collect personal information (e.g., name, address, contact details) and transactional data related to your applications and requests required for NTC services.',
+      },
+      {
+        title: '2. Use of Data',
+        body: 'The collected data is used exclusively for processing NTC services, verifying identities, internal reporting, and improving the portal\'s functionality, in accordance with applicable Philippine data privacy laws.',
+      },
+      {
+        title: '3. Data Security',
+        body: 'We implement technical and organizational measures to safeguard your data against unauthorized access, disclosure, alteration, and destruction.',
+      },
+    ],
+  },
+  'community-guidelines': {
+    title: 'Community Guidelines',
+    intro: 'These guidelines promote a safe and productive environment for all users of the EDGE Portal, especially when utilizing public-facing features like feedback forums or communication channels.',
+    sections: [
+      {
+        title: '1. Respectful Conduct',
+        body: 'All interactions must be respectful, professional, and courteous. Hate speech, harassment, threats, or discrimination are strictly prohibited.',
+      },
+      {
+        title: '2. Truthfulness',
+        body: 'Do not submit false, misleading, or fraudulent information in any application or communication within the portal. Accuracy and honesty are mandatory.',
+      },
+      {
+        title: '3. Prohibited Content',
+        body: 'Do not upload or share content that is illegal, defamatory, obscene, or violates the intellectual property rights of others. Violations may lead to account suspension and legal action.',
+      },
+    ],
+  },
+  'cookie-policy': {
+    title: 'Cookie Policy',
+    intro: 'This portal uses cookies to ensure optimal performance and user experience. By continuing to use the EDGE Portal, you consent to the use of cookies.',
+    sections: [
+      {
+        title: '1. What are Cookies?',
+        body: 'Cookies are small text files stored on your device that help us remember your preferences and settings, and analyze how you interact with our services.',
+      },
+      {
+        title: '2. Types of Cookies Used',
+        body: '• Essential Cookies: Necessary for the website to function securely (e.g., managing your session).\n• Performance Cookies: Used for analytics to improve the portal\'s speed and reliability.',
+      },
+      {
+        title: '3. Managing Cookies',
+        body: 'You may control and/or delete cookies as you wish. Please note that disabling essential cookies may affect the functionality of the EDGE Portal.',
+      },
+    ],
+  },
+  'send-feedback': {
+    title: 'Send Feedback',
+    intro: 'Your feedback is crucial for the continuous improvement of the EDGE Portal. Please use this channel to submit suggestions, bug reports, or compliments.',
+    sections: [
+      {
+        title: '1. Focus on Specifics',
+        body: 'When reporting issues, include the steps you took, the device you used, and the desired outcome. For suggestions, explain how the change would benefit your experience.',
+      },
+      {
+        title: '2. Response Time',
+        body: 'While we read all feedback, we cannot promise a personal response to every submission. If your concern is urgent, please refer to the Help Center for official support channels.',
+      },
+      {
+        title: '3. Confidentiality',
+        body: 'All feedback submitted is considered non-confidential and may be used by the NTC to enhance the system without compensation.',
+      },
+    ],
+  },
+  'help-center': {
+    title: 'Help Center & Support',
+    intro: 'Find comprehensive guides, video tutorials, and technical support for all NTC EDGE Portal services.',
+    sections: [
+      {
+        title: '1. Self-Service Resources',
+        body: 'Before contacting support, please check our extensive FAQ section and step-by-step guides available within the portal\'s main Help Center link (this will lead to a dedicated website).',
+      },
+      {
+        title: '2. Contact Information',
+        body: 'For application-specific inquiries or technical issues that cannot be resolved via self-service:',
+        highlight: 'Email Support: support@ntcedge.gov.ph',
+      },
+      {
+        title: '3. Operating Hours',
+        body: 'Live support is available Monday to Friday, 8:00 AM to 5:00 PM (Philippine Standard Time).',
+      },
+    ],
+  },
+};
+
 export function LandingScreen({ navigation }: LandingScreenProps = {}) {
   const { width } = useWindowDimensions();
   const isDesktop = width >= 768;
@@ -56,6 +174,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
   // Modal visibility states
   const [isGetStartedModalVisible, setIsGetStartedModalVisible] = useState(false);
   const [isTrackModalVisible, setIsTrackModalVisible] = useState(false);
+  const [activeFooterModal, setActiveFooterModal] = useState<FooterPolicyContent | null>(null);
 
   // Tracking form states
   const [referenceNo, setReferenceNo] = useState('');
@@ -137,7 +256,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
     extrapolate: 'clamp',
   });
   
-  // About EDGE Gateway 4-card scroll-down animation (animates downwards on scroll)
+  // About EDGE Gateway 4-card scroll-down animation
   const aboutGridTranslateY = scrollY.interpolate({
     inputRange: [0, 450],
     outputRange: [-30, 0],
@@ -377,7 +496,6 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
     outputRange: [20, -20],
   });
 
-  // Updated 4 FAQs per user request
   const faqs = [
     {
       q: 'What is the EDGE application?',
@@ -404,40 +522,39 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
     { tag: 'WORKFLOW', title: 'Simple Process', desc: 'Streamlined workflows make applying quick and easy.', icon: 'file-text' },
   ];
 
-  // 5 Step Process Workflow per user request
-  type StepIcon = 'user-plus' | 'file-text' | 'activity' | 'credit-card' | 'award';
-  const steps: { number: string; title: string; desc: string; icon: StepIcon }[] = [
+  // Steps matching exact layout from reference screenshot
+  const stepsRow1 = [
     {
-      number: '01',
-      title: 'Create Account / Apply',
+      number: '1',
+      title: 'Create Account/Apply',
       desc: 'Register an account or tap Start Application to begin.',
-      icon: 'user-plus',
     },
     {
-      number: '02',
+      number: '2',
       title: 'Submit Application',
       desc: 'Complete forms and upload requirements.',
-      icon: 'file-text',
     },
     {
-      number: '03',
+      number: '3',
       title: 'Track Application',
       desc: 'Use your reference number or My Applications.',
-      icon: 'activity',
-    },
-    {
-      number: '04',
-      title: 'Process Payment',
-      desc: 'Pay fees at the nearest NTC office once approved.',
-      icon: 'credit-card',
-    },
-    {
-      number: '05',
-      title: 'Get Issuance',
-      desc: 'Receive your License, Certificate, Permit, or resolution.',
-      icon: 'award',
     },
   ];
+
+  const stepsRow2 = [
+    {
+      number: '4',
+      title: 'Process Payment',
+      desc: 'Pay fees at the nearest NTC office once approved.',
+    },
+    {
+      number: '5',
+      title: 'Get Issuance',
+      desc: 'Receive your License, Certificate, Permit, or resolution.',
+    },
+  ];
+
+  const allStepsMobile = [...stepsRow1, ...stepsRow2];
 
   return (
     <View style={styles.container}>
@@ -529,7 +646,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
           }
         ]}>
           <View style={isDesktop ? styles.heroLeftCol : styles.heroFullWidth}>
-            {/* Static Solid Dark Blue Pill Badge (Non-Hoverable) */}
+            {/* Pill Badge with Fill Color */}
             <View style={[styles.pillBadge, isDesktop ? { alignSelf: 'flex-start' } : { alignSelf: 'center' }]}>
               <View style={styles.pillBadgeDot} />
               <Text style={styles.pillBadgeText}>Official NTC-EDGE Portal</Text>
@@ -569,7 +686,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
 
           {isDesktop ? (
             <Animated.View style={[styles.heroRightCol, { transform: [{ translateY: floatAnimMockup }] }]}>
-              {/* Static Modern Dashboard Preview Card (Non-Hoverable) */}
+              {/* Static Dashboard Preview Card */}
               <View style={[styles.mockupCard, SHADOWS.modal]}>
                 <View style={styles.mockupHeader}>
                   <View style={styles.mockupDots}>
@@ -716,7 +833,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
           </View>
         </Animated.View>
 
-        {/* "Why Choose EDGE?" Section (Creative Premium Design, Non-Hoverable) */}
+        {/* "Why Choose EDGE?" Section */}
         <Animated.View
           style={[
             styles.featuresSection,
@@ -766,7 +883,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
           </View>
         </Animated.View>
 
-        {/* How It Works Section (5 Steps Connected Process Workflow) */}
+        {/* How It Works Section */}
         <Animated.View
           style={[
             styles.sectionContainer,
@@ -778,52 +895,127 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
           ]}
           onLayout={(e) => handleSectionLayout('howItWorks', e.nativeEvent.layout.y)}
         >
-          <Text style={[styles.sectionTitle, styles.centerText]}>How It Works</Text>
-          <View style={[styles.titleUnderline, styles.centerSelf]} />
+          <Text style={[styles.sectionTitleBlue, styles.centerText]}>How It Works</Text>
           
-          {/* 5 Connected Steps Grid / Flow */}
-          <View style={[styles.stepsContainer, isDesktop ? styles.stepsRow : styles.stepsColumn]}>
-            {steps.map((st, index) => {
-              const stepAnim = stepAnims[index];
-              const stepTranslateY = stepAnim.interpolate({
-                inputRange: [0, 1],
-                outputRange: [25, 0],
-              });
-              
-              return (
-                <React.Fragment key={st.number}>
-                  <Animated.View style={[
-                    isDesktop ? styles.stepCardDesktop : { width: '100%', marginBottom: SPACING[16] },
-                    {
-                      opacity: stepAnim,
-                      transform: [{ translateY: stepTranslateY }],
-                    }
-                  ]}>
-                    <View style={[styles.stepCard, SHADOWS.card]}>
-                      <View style={styles.stepHeaderRow}>
-                        <View style={styles.stepBadge}>
-                          <Lucide name={st.icon} size={18} color={COLORS.neutral.white} />
-                        </View>
-                        <Text style={styles.stepNumberText}>{st.number}</Text>
-                      </View>
-                      <Text style={styles.stepCardTitle}>{st.title}</Text>
-                      <Text style={styles.stepCardDesc}>{st.desc}</Text>
-                    </View>
-                  </Animated.View>
+          {isDesktop ? (
+            <View style={styles.stepsTwoRowContainer}>
+              {/* Row 1: Steps 1, 2, 3 */}
+              <View style={styles.stepsRowTop}>
+                {stepsRow1.map((st, index) => {
+                  const globalIndex = index;
+                  const stepAnim = stepAnims[globalIndex];
+                  const stepTranslateY = stepAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [25, 0],
+                  });
 
-                  {/* Connector arrow between steps */}
-                  {index < steps.length - 1 && (
-                    <View style={[isDesktop ? styles.arrowDesktop : styles.arrowMobile]}>
-                      <Lucide name={isDesktop ? 'chevron-right' : 'chevron-down'} size={18} color="#94A3B8" />
-                    </View>
-                  )}
-                </React.Fragment>
-              );
-            })}
-          </View>
+                  return (
+                    <React.Fragment key={st.number}>
+                      <Animated.View style={[
+                        styles.stepCardDesktopExact,
+                        {
+                          opacity: stepAnim,
+                          transform: [{ translateY: stepTranslateY }],
+                        }
+                      ]}>
+                        <View style={[styles.stepCardExact, SHADOWS.card]}>
+                          <View style={styles.stepCircleBadge}>
+                            <Text style={styles.stepCircleBadgeText}>{st.number}</Text>
+                          </View>
+                          <Text style={styles.stepCardExactTitle}>{st.title}</Text>
+                          <Text style={styles.stepCardExactDesc}>{st.desc}</Text>
+                        </View>
+                      </Animated.View>
+
+                      {index < stepsRow1.length - 1 && (
+                        <View style={styles.arrowDesktopExact}>
+                          <Lucide name="arrow-right" size={16} color="#334155" />
+                        </View>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </View>
+
+              {/* Row 2: Steps 4, 5 */}
+              <View style={styles.stepsRowBottom}>
+                {stepsRow2.map((st, index) => {
+                  const globalIndex = index + 3;
+                  const stepAnim = stepAnims[globalIndex];
+                  const stepTranslateY = stepAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [25, 0],
+                  });
+
+                  return (
+                    <React.Fragment key={st.number}>
+                      <Animated.View style={[
+                        styles.stepCardDesktopExact,
+                        {
+                          opacity: stepAnim,
+                          transform: [{ translateY: stepTranslateY }],
+                        }
+                      ]}>
+                        <View style={[styles.stepCardExact, SHADOWS.card]}>
+                          <View style={styles.stepCircleBadge}>
+                            <Text style={styles.stepCircleBadgeText}>{st.number}</Text>
+                          </View>
+                          <Text style={styles.stepCardExactTitle}>{st.title}</Text>
+                          <Text style={styles.stepCardExactDesc}>{st.desc}</Text>
+                        </View>
+                      </Animated.View>
+
+                      {index < stepsRow2.length - 1 && (
+                        <View style={styles.arrowDesktopExact}>
+                          <Lucide name="arrow-right" size={16} color="#334155" />
+                        </View>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </View>
+            </View>
+          ) : (
+            /* Mobile vertical layout */
+            <View style={styles.stepsMobileContainer}>
+              {allStepsMobile.map((st, index) => {
+                const stepAnim = stepAnims[index];
+                const stepTranslateY = stepAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [25, 0],
+                });
+
+                return (
+                  <React.Fragment key={st.number}>
+                    <Animated.View style={[
+                      { width: '100%', alignItems: 'center' },
+                      {
+                        opacity: stepAnim,
+                        transform: [{ translateY: stepTranslateY }],
+                      }
+                    ]}>
+                      <View style={[styles.stepCardExact, SHADOWS.card, { width: '100%', maxWidth: 320 }]}>
+                        <View style={styles.stepCircleBadge}>
+                          <Text style={styles.stepCircleBadgeText}>{st.number}</Text>
+                        </View>
+                        <Text style={styles.stepCardExactTitle}>{st.title}</Text>
+                        <Text style={styles.stepCardExactDesc}>{st.desc}</Text>
+                      </View>
+                    </Animated.View>
+
+                    {index < allStepsMobile.length - 1 && (
+                      <View style={{ marginVertical: SPACING[12], alignItems: 'center' }}>
+                        <Lucide name="arrow-down" size={16} color="#334155" />
+                      </View>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </View>
+          )}
         </Animated.View>
 
-        {/* FAQs Accordion (4 Updated Q&As) */}
+        {/* FAQs Accordion */}
         <Animated.View
           style={[
             styles.sectionContainer,
@@ -834,8 +1026,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
           ]}
           onLayout={(e) => handleSectionLayout('faqs', e.nativeEvent.layout.y)}
         >
-          <Text style={[styles.sectionTitle, styles.centerText]}>Frequently Asked Questions</Text>
-          <View style={[styles.titleUnderline, styles.centerSelf]} />
+          <Text style={[styles.sectionTitleBlue, styles.centerText]}>Frequently Asked Questions</Text>
 
           <View style={styles.faqList}>
             {faqs.map((faq, idx) => {
@@ -903,7 +1094,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
           </View>
         </View>
 
-        {/* Detailed Footer */}
+        {/* Detailed Footer with 6 Important Links */}
         <View style={styles.footerContainer}>
           <View style={[styles.footerInnerGrid, { flexDirection: Platform.OS === 'web' && width >= 800 ? 'row' : 'column' }]}>
             
@@ -918,76 +1109,63 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
             {/* Links Columns */}
             <View style={[styles.footerLinksWrapper, { marginTop: Platform.OS !== 'web' || width < 800 ? SPACING[32] : 0 }]}>
               <View style={styles.footerLinksCol}>
-                <Text style={styles.footerColHeader}>Quick Links</Text>
-                <Pressable
-                  onPress={() => scrollToSection('about')}
-                  style={({ hovered }: PressableState) => [
-                    styles.footerLinkItem,
-                    hovered ? styles.footerLinkHovered : null,
-                  ]}
-                >
-                  <Text style={styles.footerLinkText}>About</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => scrollToSection('howItWorks')}
-                  style={({ hovered }: PressableState) => [
-                    styles.footerLinkItem,
-                    hovered ? styles.footerLinkHovered : null,
-                  ]}
-                >
-                  <Text style={styles.footerLinkText}>How It Works</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => scrollToSection('faqs')}
-                  style={({ hovered }: PressableState) => [
-                    styles.footerLinkItem,
-                    hovered ? styles.footerLinkHovered : null,
-                  ]}
-                >
-                  <Text style={styles.footerLinkText}>FAQs</Text>
-                </Pressable>
-              </View>
-
-              <View style={styles.footerLinksCol}>
                 <Text style={styles.footerColHeader}>Legal</Text>
-                <Pressable style={({ hovered }: PressableState) => [
-                  styles.footerLinkItem,
-                  hovered ? styles.footerLinkHovered : null,
-                ]}>
+                <Pressable
+                  onPress={() => setActiveFooterModal(FOOTER_POLICIES['user-agreement'])}
+                  style={({ hovered }: PressableState) => [
+                    styles.footerLinkItem,
+                    hovered ? styles.footerLinkHovered : null,
+                  ]}
+                >
                   <Text style={styles.footerLinkText}>User Agreement</Text>
                 </Pressable>
-                <Pressable style={({ hovered }: PressableState) => [
-                  styles.footerLinkItem,
-                  hovered ? styles.footerLinkHovered : null,
-                ]}>
+                <Pressable
+                  onPress={() => setActiveFooterModal(FOOTER_POLICIES['privacy-policy'])}
+                  style={({ hovered }: PressableState) => [
+                    styles.footerLinkItem,
+                    hovered ? styles.footerLinkHovered : null,
+                  ]}
+                >
                   <Text style={styles.footerLinkText}>Privacy Policy</Text>
                 </Pressable>
-                <Pressable style={({ hovered }: PressableState) => [
-                  styles.footerLinkItem,
-                  hovered ? styles.footerLinkHovered : null,
-                ]}>
+                <Pressable
+                  onPress={() => setActiveFooterModal(FOOTER_POLICIES['cookie-policy'])}
+                  style={({ hovered }: PressableState) => [
+                    styles.footerLinkItem,
+                    hovered ? styles.footerLinkHovered : null,
+                  ]}
+                >
                   <Text style={styles.footerLinkText}>Cookie Policy</Text>
                 </Pressable>
               </View>
 
               <View style={styles.footerLinksCol}>
                 <Text style={styles.footerColHeader}>Support</Text>
-                <Pressable style={({ hovered }: PressableState) => [
-                  styles.footerLinkItem,
-                  hovered ? styles.footerLinkHovered : null,
-                ]}>
+                <Pressable
+                  onPress={() => setActiveFooterModal(FOOTER_POLICIES['community-guidelines'])}
+                  style={({ hovered }: PressableState) => [
+                    styles.footerLinkItem,
+                    hovered ? styles.footerLinkHovered : null,
+                  ]}
+                >
                   <Text style={styles.footerLinkText}>Community Guidelines</Text>
                 </Pressable>
-                <Pressable style={({ hovered }: PressableState) => [
-                  styles.footerLinkItem,
-                  hovered ? styles.footerLinkHovered : null,
-                ]}>
+                <Pressable
+                  onPress={() => setActiveFooterModal(FOOTER_POLICIES['send-feedback'])}
+                  style={({ hovered }: PressableState) => [
+                    styles.footerLinkItem,
+                    hovered ? styles.footerLinkHovered : null,
+                  ]}
+                >
                   <Text style={styles.footerLinkText}>Send Feedback</Text>
                 </Pressable>
-                <Pressable style={({ hovered }: PressableState) => [
-                  styles.footerLinkItem,
-                  hovered ? styles.footerLinkHovered : null,
-                ]}>
+                <Pressable
+                  onPress={() => setActiveFooterModal(FOOTER_POLICIES['help-center'])}
+                  style={({ hovered }: PressableState) => [
+                    styles.footerLinkItem,
+                    hovered ? styles.footerLinkHovered : null,
+                  ]}
+                >
                   <Text style={styles.footerLinkText}>Help Center</Text>
                 </Pressable>
               </View>
@@ -1001,6 +1179,70 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
           </View>
         </View>
       </ScrollView>
+
+      {/* Wider, Ultra-Premium Interactive Policy & Help Dialog */}
+      <Modal
+        visible={activeFooterModal !== null}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setActiveFooterModal(null)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setActiveFooterModal(null)}
+        >
+          <TouchableOpacity
+            style={[styles.modalCard, SHADOWS.modal, { maxWidth: 840, padding: 36, borderRadius: 24 }]}
+            activeOpacity={1}
+            onPress={() => {}}
+          >
+            {/* Close X Button */}
+            <Pressable
+              style={({ hovered }: PressableState) => [
+                styles.modalCloseBtn,
+                hovered ? styles.closeBtnHovered : null,
+              ]}
+              onPress={() => setActiveFooterModal(null)}
+            >
+              <Lucide name="x" size={20} color={COLORS.neutral[500]} />
+            </Pressable>
+
+            {activeFooterModal && (
+              <ScrollView style={{ maxHeight: 560 }} showsVerticalScrollIndicator={true}>
+                {/* Header */}
+                <View style={styles.policyModalHeader}>
+                  <View style={styles.policyHeaderIconCircle}>
+                    <Lucide name="file-text" size={20} color="#1236A8" />
+                  </View>
+                  <Text style={styles.policyModalTitle}>{activeFooterModal.title}</Text>
+                </View>
+                <View style={styles.policyTitleDivider} />
+                
+                {/* Intro Box */}
+                <View style={styles.policyIntroBox}>
+                  <Lucide name="info" size={18} color="#1236A8" style={{ marginRight: 10, marginTop: 2 }} />
+                  <Text style={styles.policyIntroText}>{activeFooterModal.intro}</Text>
+                </View>
+
+                {/* Section Cards */}
+                {activeFooterModal.sections.map((sec, i) => (
+                  <View key={i} style={[styles.policySectionCard, SHADOWS.card]}>
+                    <Text style={styles.policySecTitle}>{sec.title}</Text>
+                    <Text style={styles.policySecBody}>{sec.body}</Text>
+                    {sec.highlight && (
+                      <View style={styles.policyHighlightBadge}>
+                        <Lucide name="mail" size={14} color="#1236A8" style={{ marginRight: 8 }} />
+                        <Text style={styles.policyHighlightText}>{sec.highlight}</Text>
+                      </View>
+                    )}
+                  </View>
+                ))}
+              </ScrollView>
+            )}
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
 
       {/* Get Started Modal */}
       <Modal
@@ -1017,7 +1259,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
           <TouchableOpacity
             style={[styles.modalCard, SHADOWS.modal]}
             activeOpacity={1}
-            onPress={() => {}} // prevent click propagation
+            onPress={() => {}}
           >
             {/* Close Button */}
             <Pressable
@@ -1391,25 +1633,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#EEF2FF',
-    paddingVertical: 7,
-    paddingHorizontal: 14,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
     borderRadius: RADIUS.circle,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: '#C7D2FE',
     marginBottom: SPACING[24],
   },
   pillBadgeDot: {
-    width: 7,
-    height: 7,
+    width: 8,
+    height: 8,
     borderRadius: 4,
-    backgroundColor: '#3538CD',
+    backgroundColor: '#1236A8',
     marginRight: 8,
   },
   pillBadgeText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 13,
-    fontWeight: '600',
-    color: '#3538CD',
+    fontWeight: '700',
+    color: '#1236A8',
   },
   heroTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
@@ -1900,25 +2142,18 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   greyBg: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#FAFCFF',
     borderTopWidth: 1,
     borderBottomWidth: 1,
-    borderColor: COLORS.neutral[200],
+    borderColor: COLORS.neutral[100],
   },
-  sectionTitle: {
+  sectionTitleBlue: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 32,
     fontWeight: '800',
-    color: COLORS.neutral[900],
-    marginBottom: SPACING[12],
+    color: '#1236A8',
+    marginBottom: SPACING[32],
     letterSpacing: -0.5,
-  },
-  titleUnderline: {
-    width: 60,
-    height: 4,
-    backgroundColor: '#1236A8',
-    borderRadius: 2,
-    marginBottom: SPACING[40],
   },
   centerText: {
     textAlign: 'center',
@@ -1926,88 +2161,81 @@ const styles = StyleSheet.create({
   centerSelf: {
     alignSelf: 'center',
   },
-  stepsContainer: {
-    maxWidth: 1400,
+  stepsTwoRowContainer: {
+    maxWidth: 1100,
     width: '100%',
     alignSelf: 'center',
     marginTop: SPACING[16],
   },
-  stepsColumn: {
-    flexDirection: 'column',
+  stepsRowTop: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: SPACING[24],
+  },
+  stepsRowBottom: {
+    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  stepsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'stretch',
-  },
-  stepCard: {
-    backgroundColor: COLORS.neutral.white,
-    borderRadius: 20,
-    borderWidth: 1.5,
-    borderColor: COLORS.neutral[200],
-    padding: 22,
+  stepsMobileContainer: {
     width: '100%',
-    height: '100%',
-    justifyContent: 'flex-start',
-  },
-  stepCardDesktop: {
-    flex: 1,
-    marginHorizontal: 4,
-    minHeight: 210,
-  },
-  stepHeaderRow: {
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    marginTop: SPACING[24],
+  },
+  stepCardDesktopExact: {
+    width: 270,
+  },
+  stepCardExact: {
+    backgroundColor: COLORS.neutral.white,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: SPACING[24],
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 190,
+  },
+  stepCircleBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#0F2042',
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: SPACING[16],
   },
-  stepBadge: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
-    backgroundColor: '#1236A8',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#1236A8',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  stepNumberText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#CBD5E1',
-    letterSpacing: -0.5,
-  },
-  stepCardTitle: {
+  stepCircleBadgeText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 16,
+    fontWeight: '800',
+    color: COLORS.neutral.white,
+  },
+  stepCardExactTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 15,
     fontWeight: '700',
-    color: COLORS.neutral[900],
+    color: '#0F2042',
+    textAlign: 'center',
     marginBottom: SPACING[8],
   },
-  stepCardDesc: {
+  stepCardExactDesc: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
-    color: COLORS.neutral[500],
-    lineHeight: 19,
+    fontSize: 12,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 18,
   },
-  arrowMobile: {
-    marginVertical: SPACING[8],
-  },
-  arrowDesktop: {
+  arrowDesktopExact: {
     justifyContent: 'center',
     alignItems: 'center',
-    marginHorizontal: 2,
+    marginHorizontal: SPACING[16],
   },
   faqList: {
     maxWidth: 960,
     width: '100%',
     alignSelf: 'center',
-    marginTop: SPACING[16],
+    marginTop: SPACING[8],
   },
   faqItem: {
     backgroundColor: COLORS.neutral.white,
@@ -2142,16 +2370,16 @@ const styles = StyleSheet.create({
   footerLinksWrapper: {
     flex: 1,
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'space-around',
     flexWrap: 'wrap',
   },
   footerLinksCol: {
-    minWidth: 140,
+    minWidth: 180,
     marginBottom: SPACING[24],
   },
   footerColHeader: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '700',
     color: COLORS.neutral.white,
     marginBottom: 18,
@@ -2439,5 +2667,88 @@ const styles = StyleSheet.create({
     height: 50,
     borderColor: '#1236A8',
     borderRadius: RADIUS.button,
+  },
+  policyModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  policyHeaderIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#EEF2FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  policyModalTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#0F2042',
+  },
+  policyTitleDivider: {
+    height: 1,
+    backgroundColor: COLORS.neutral[200],
+    marginBottom: 20,
+    width: '100%',
+  },
+  policyIntroBox: {
+    flexDirection: 'row',
+    backgroundColor: '#EEF2FF',
+    borderColor: '#C7D2FE',
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 20,
+    alignItems: 'flex-start',
+  },
+  policyIntroText: {
+    flex: 1,
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    color: '#1236A8',
+    fontWeight: '500',
+    lineHeight: 22,
+  },
+  policySectionCard: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 20,
+    marginBottom: 16,
+  },
+  policySecTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1236A8',
+    marginBottom: 8,
+  },
+  policySecBody: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    color: COLORS.neutral[700],
+    lineHeight: 22,
+  },
+  policyHighlightBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.neutral.white,
+    borderColor: '#C7D2FE',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginTop: 12,
+    alignSelf: 'flex-start',
+  },
+  policyHighlightText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1236A8',
   },
 });
