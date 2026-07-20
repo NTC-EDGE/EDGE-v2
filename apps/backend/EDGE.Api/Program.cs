@@ -63,10 +63,10 @@ try
                     {
                         var tokenValue = authHeader.Substring("Bearer ".Length);
                         var roleKey = tokenValue.Substring("mock_".Length); // e.g. "admin", "evaluator", "client"
-                        
+
                         // Map mock token directly to seeded AuthUserIds
                         var authUserId = $"user_{roleKey}123";
-                        
+
                         var claims = new System.Security.Claims.Claim[]
                         {
                             new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, authUserId)
@@ -99,10 +99,8 @@ try
     }
 
     app.MapApiEndpoints();
-
+8
     app.MapGet("/", () => "NTC-EDGE Clean Architecture API (.NET 10)");
-
-
 
     // Map SignalR Hub
     app.MapHub<NotificationHub>("/hubs/notifications");
