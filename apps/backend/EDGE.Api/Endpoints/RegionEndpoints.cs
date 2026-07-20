@@ -12,7 +12,7 @@ public static class RegionEndpoints
 {
     public static IEndpointRouteBuilder MapRegionEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/regions").WithTags("Region");
+        var group = app.MapGroup("/api/v2/regions").WithTags("Region");
 
         group.MapGet("/", async (bool? activeOnly, IMediator mediator) =>
         {
@@ -32,7 +32,7 @@ public static class RegionEndpoints
         {
             var result = await mediator.Send(command);
             return result.Succeeded
-                ? Results.Created($"/api/regions/{result.Data}", result)
+                ? Results.Created($"/api/v2/regions/{result.Data}", result)
                 : Results.BadRequest(result);
         })
         .WithName("CreateRegion");

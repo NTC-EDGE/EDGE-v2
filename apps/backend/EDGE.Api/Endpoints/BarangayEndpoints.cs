@@ -12,7 +12,7 @@ public static class BarangayEndpoints
 {
     public static IEndpointRouteBuilder MapBarangayEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/barangays").WithTags("Barangay");
+        var group = app.MapGroup("/api/v2/barangays").WithTags("Barangay");
 
         group.MapGet("/", async (Guid? municipalityId, bool? activeOnly, IMediator mediator) =>
         {
@@ -32,7 +32,7 @@ public static class BarangayEndpoints
         {
             var result = await mediator.Send(command);
             return result.Succeeded
-                ? Results.Created($"/api/barangays/{result.Data}", result)
+                ? Results.Created($"/api/v2/barangays/{result.Data}", result)
                 : Results.BadRequest(result);
         })
         .WithName("CreateBarangay");

@@ -12,7 +12,7 @@ public static class MunicipalityEndpoints
 {
     public static IEndpointRouteBuilder MapMunicipalityEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/municipalities").WithTags("Municipality");
+        var group = app.MapGroup("/api/v2/municipalities").WithTags("Municipality");
 
         group.MapGet("/", async (Guid? provinceId, bool? activeOnly, IMediator mediator) =>
         {
@@ -32,7 +32,7 @@ public static class MunicipalityEndpoints
         {
             var result = await mediator.Send(command);
             return result.Succeeded
-                ? Results.Created($"/api/municipalities/{result.Data}", result)
+                ? Results.Created($"/api/v2/municipalities/{result.Data}", result)
                 : Results.BadRequest(result);
         })
         .WithName("CreateMunicipality");
