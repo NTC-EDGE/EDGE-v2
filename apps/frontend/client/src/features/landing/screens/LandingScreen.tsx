@@ -174,13 +174,9 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
 
   // Modal visibility & mode states
   const [isGetStartedModalVisible, setIsGetStartedModalVisible] = useState(false);
-  const [modalMode, setModalMode] = useState<'choice' | 'login'>('choice');
+  const [modalMode, setModalMode] = useState<'choice' | 'login' | 'forgotPassword'>('choice');
   const [isTrackModalVisible, setIsTrackModalVisible] = useState(false);
   const [activeFooterModal, setActiveFooterModal] = useState<FooterPolicyContent | null>(null);
-
-  // Modal animations
-  const modalAnim = useRef(new Animated.Value(0)).current;
-  const modalModeAnim = useRef(new Animated.Value(1)).current;
 
   // In-modal Login form states
   const [loginRegion, setLoginRegion] = useState('');
@@ -194,43 +190,22 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginSuccess, setLoginSuccess] = useState(false);
 
-  const openGetStartedModal = (initialMode: 'choice' | 'login' = 'choice') => {
+  // In-modal Forgot Password states
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotEmailError, setForgotEmailError] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotSuccess, setForgotSuccess] = useState(false);
+
+  const openGetStartedModal = (initialMode: 'choice' | 'login' | 'forgotPassword' = 'choice') => {
     setModalMode(initialMode);
     setIsGetStartedModalVisible(true);
-    modalAnim.setValue(0);
-    Animated.spring(modalAnim, {
-      toValue: 1,
-      tension: 65,
-      friction: 8,
-      useNativeDriver: true,
-    }).start();
   };
 
   const closeGetStartedModal = () => {
-    Animated.timing(modalAnim, {
-      toValue: 0,
-      duration: 180,
-      useNativeDriver: true,
-    }).start(() => {
-      setIsGetStartedModalVisible(false);
-      setModalMode('choice');
-      resetLoginForm();
-    });
-  };
-
-  const switchModalMode = (newMode: 'choice' | 'login') => {
-    Animated.timing(modalModeAnim, {
-      toValue: 0,
-      duration: 120,
-      useNativeDriver: true,
-    }).start(() => {
-      setModalMode(newMode);
-      Animated.timing(modalModeAnim, {
-        toValue: 1,
-        duration: 180,
-        useNativeDriver: true,
-      }).start();
-    });
+    setIsGetStartedModalVisible(false);
+    setModalMode('choice');
+    resetLoginForm();
+    resetForgotPasswordForm();
   };
 
   const resetLoginForm = () => {
@@ -244,6 +219,13 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
     setLoginGeneralError('');
     setLoginLoading(false);
     setLoginSuccess(false);
+  };
+
+  const resetForgotPasswordForm = () => {
+    setForgotEmail('');
+    setForgotEmailError('');
+    setForgotLoading(false);
+    setForgotSuccess(false);
   };
 
   const validateModalLogin = (): boolean => {
@@ -296,6 +278,35 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
         closeGetStartedModal();
         loginAsGuest();
       }, 800);
+    }, 1200);
+  };
+
+  const validateForgotPassword = (): boolean => {
+    setForgotEmailError('');
+    const trimmed = forgotEmail.trim();
+    if (trimmed.length === 0) {
+      setForgotEmailError('Email address is required');
+      return false;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmed)) {
+      setForgotEmailError('Please enter a valid email address');
+      return false;
+    }
+    return true;
+  };
+
+  const handleForgotPasswordSubmit = () => {
+    if (!validateForgotPassword()) return;
+
+    setForgotLoading(true);
+    setTimeout(() => {
+      setForgotLoading(false);
+      setForgotSuccess(true);
+      setTimeout(() => {
+        setModalMode('login');
+        resetForgotPasswordForm();
+      }, 2000);
     }, 1200);
   };
 
@@ -721,17 +732,6 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
                   <Text style={[styles.navLinkText, hovered ? styles.navLinkTextHovered : null]}>FAQs</Text>
                 )}
               </Pressable>
-              <Button
-                title="Log In"
-                variant="outline"
-                size="sm"
-                onPress={() => openGetStartedModal('login')}
-                style={styles.headerLoginBtn}
-                hoverStyle={styles.headerLoginBtnHovered}
-                textStyle={{ color: '#1236A8', fontWeight: '600' }}
-                hoverTextStyle={{ color: '#0D2678', fontWeight: '600' }}
-                icon={<Lucide name="log-in" size={14} color="#1236A8" />}
-              />
             </View>
           ) : null}
         </View>
@@ -1453,247 +1453,273 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
         </TouchableOpacity>
       </Modal>
 
-      {/* Get Started / Log In Modal */}
+      {/* Get Started / Log In / Forgot Password Modal */}
       <Modal
         visible={isGetStartedModalVisible}
         transparent={true}
-        animationType="none"
+        animationType="fade"
         onRequestClose={closeGetStartedModal}
       >
-        <Animated.View
-          style={[
-            styles.modalOverlay,
-            { opacity: modalAnim }
-          ]}
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={closeGetStartedModal}
         >
           <TouchableOpacity
-            style={styles.modalOverlayTouchable}
+            style={[styles.modalCard, SHADOWS.modal]}
             activeOpacity={1}
-            onPress={closeGetStartedModal}
+            onPress={() => {}}
           >
-            <Animated.View
-              style={[
-                styles.modalCard,
-                SHADOWS.modal,
-                {
-                  opacity: modalAnim,
-                  transform: [
-                    {
-                      scale: modalAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [0.93, 1],
-                      }),
-                    },
-                    {
-                      translateY: modalAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [16, 0],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-              onStartShouldSetResponder={() => true}
-            >
-              {/* Header Nav inside Modal */}
-              <View style={styles.modalTopNavRow}>
-                {modalMode === 'login' ? (
-                  <Pressable
-                    style={({ hovered }: PressableState) => [
-                      styles.modalBackBtn,
-                      hovered ? styles.closeBtnHovered : null,
-                    ]}
-                    onPress={() => switchModalMode('choice')}
-                  >
-                    <Lucide name="arrow-left" size={20} color={COLORS.neutral[600]} />
-                  </Pressable>
-                ) : (
-                  <View style={{ width: 32 }} />
-                )}
-
-                <View style={styles.modalHeaderLogoContainer}>
-                  <Logo height={38} />
-                </View>
-
+            {/* Header Nav inside Modal */}
+            <View style={styles.modalTopNavRow}>
+              {modalMode !== 'choice' ? (
                 <Pressable
                   style={({ hovered }: PressableState) => [
-                    styles.modalCloseBtnInline,
+                    styles.modalBackBtn,
                     hovered ? styles.closeBtnHovered : null,
                   ]}
-                  onPress={closeGetStartedModal}
+                  onPress={() => setModalMode('choice')}
                 >
-                  <Lucide name="x" size={20} color={COLORS.neutral[500]} />
+                  <Lucide name="arrow-left" size={20} color={COLORS.neutral[600]} />
                 </Pressable>
+              ) : (
+                <View style={{ width: 32 }} />
+              )}
+
+              <View style={styles.modalHeaderLogoContainer}>
+                <Logo height={38} />
               </View>
 
-              <Animated.View style={{ opacity: modalModeAnim, width: '100%' }}>
-                {modalMode === 'choice' ? (
-                  <>
-                    <Text style={styles.modalTitle}>How would you like to proceed?</Text>
+              <Pressable
+                style={({ hovered }: PressableState) => [
+                  styles.modalCloseBtnInline,
+                  hovered ? styles.closeBtnHovered : null,
+                ]}
+                onPress={closeGetStartedModal}
+              >
+                <Lucide name="x" size={20} color={COLORS.neutral[500]} />
+              </Pressable>
+            </View>
 
-                    <Text style={styles.modalSubtitleText}>
-                      To save your progress and access application history, we recommend having an account.
-                    </Text>
+            <View style={{ width: '100%' }}>
+              {modalMode === 'choice' && (
+                <>
+                  <Text style={styles.modalTitle}>How would you like to proceed?</Text>
 
-                    <View style={styles.modalButtonsContainer}>
-                      <Button
-                        title="Login"
-                        onPress={() => switchModalMode('login')}
-                        style={styles.modalActionBtn}
-                        hoverStyle={styles.heroPrimaryBtnHovered}
-                        icon={<Lucide name="log-in" size={16} color={COLORS.neutral.white} />}
-                      />
+                  <Text style={styles.modalSubtitleText}>
+                    To save your progress and access application history, we recommend having an account.
+                  </Text>
 
-                      <Button
-                        title="Continue as Guest"
-                        variant="outline"
-                        onPress={() => {
-                          closeGetStartedModal();
-                          loginAsGuest();
-                        }}
-                        style={{ ...styles.modalActionBtn, ...styles.modalGuestBtn }}
-                        hoverStyle={styles.heroSecondaryBtnHovered}
-                        textStyle={{ color: '#1236A8' }}
-                        hoverTextStyle={{ color: '#0D2678' }}
-                        icon={<Lucide name="user" size={16} color="#1236A8" />}
-                      />
+                  <View style={styles.modalButtonsContainer}>
+                    <Button
+                      title="Login"
+                      onPress={() => setModalMode('login')}
+                      style={styles.modalActionBtn}
+                      hoverStyle={styles.heroPrimaryBtnHovered}
+                      icon={<Lucide name="log-in" size={16} color={COLORS.neutral.white} />}
+                    />
+
+                    <Button
+                      title="Continue as Guest"
+                      variant="outline"
+                      onPress={() => {
+                        closeGetStartedModal();
+                        loginAsGuest();
+                      }}
+                      style={{ ...styles.modalActionBtn, ...styles.modalGuestBtn }}
+                      hoverStyle={styles.heroSecondaryBtnHovered}
+                      textStyle={{ color: '#1236A8' }}
+                      hoverTextStyle={{ color: '#0D2678' }}
+                      icon={<Lucide name="user" size={16} color="#1236A8" />}
+                    />
+                  </View>
+
+                  {/* Footer Sign Up Link */}
+                  <View style={styles.modalFooter}>
+                    <Text style={styles.modalFooterText}>Don't have an account yet? </Text>
+                    <Pressable
+                      onPress={() => {
+                        closeGetStartedModal();
+                        navigation?.navigate('SignUp');
+                      }}
+                    >
+                      {({ hovered }: PressableState) => (
+                        <Text style={[styles.modalFooterLink, hovered ? styles.modalFooterLinkHovered : null]}>Sign Up</Text>
+                      )}
+                    </Pressable>
+                  </View>
+                </>
+              )}
+
+              {modalMode === 'login' && (
+                <>
+                  <Text style={styles.modalTitle}>Welcome Back</Text>
+
+                  <Text style={styles.modalSubtitleText}>
+                    Log in to your NTC EDGE account to continue.
+                  </Text>
+
+                  {loginSuccess ? (
+                    <View style={styles.loginSuccessBanner}>
+                      <Lucide name="check-circle" size={18} color="#10B981" style={{ marginRight: 8 }} />
+                      <Text style={styles.loginSuccessText}>Authentication successful! Redirecting...</Text>
                     </View>
+                  ) : null}
 
-                    {/* Footer Sign Up Link */}
-                    <View style={styles.modalFooter}>
-                      <Text style={styles.modalFooterText}>Don't have an account yet? </Text>
-                      <Pressable
-                        onPress={() => {
-                          closeGetStartedModal();
-                          navigation?.navigate('SignUp');
-                        }}
-                      >
-                        {({ hovered }: PressableState) => (
-                          <Text style={[styles.modalFooterLink, hovered ? styles.modalFooterLinkHovered : null]}>Sign Up</Text>
-                        )}
-                      </Pressable>
+                  {loginGeneralError !== '' ? (
+                    <View style={styles.loginErrorBanner}>
+                      <Lucide name="alert-circle" size={18} color="#EF4444" style={{ marginRight: 8 }} />
+                      <Text style={styles.loginErrorText}>{loginGeneralError}</Text>
                     </View>
-                  </>
-                ) : (
-                  <>
-                    <Text style={styles.modalTitle}>Welcome Back</Text>
+                  ) : null}
 
-                    <Text style={styles.modalSubtitleText}>
-                      Log in to your NTC EDGE account to continue.
-                    </Text>
+                  <View style={styles.modalLoginFormContainer}>
+                    {/* Region Select */}
+                    <Select
+                      label="Philippine Region"
+                      placeholder="Select your region..."
+                      value={loginRegion}
+                      onValueChange={(val) => {
+                        setLoginRegion(val);
+                        setLoginRegionError('');
+                      }}
+                      options={PHILIPPINE_REGIONS.map((r) => ({ label: r, value: r }))}
+                      error={loginRegionError}
+                      iconName="map-pin"
+                      style={{ marginBottom: 14 }}
+                    />
 
-                    {loginSuccess ? (
-                      <View style={styles.loginSuccessBanner}>
-                        <Lucide name="check-circle" size={18} color="#10B981" style={{ marginRight: 8 }} />
-                        <Text style={styles.loginSuccessText}>Authentication successful! Redirecting...</Text>
-                      </View>
-                    ) : null}
+                    {/* Phone No. / Email Address */}
+                    <Input
+                      label="Phone No. / Email Address"
+                      placeholder="09171234567 or email@domain.gov.ph"
+                      value={loginPhoneOrEmail}
+                      onChangeText={(text) => {
+                        setLoginPhoneOrEmail(text);
+                        setLoginPhoneOrEmailError('');
+                      }}
+                      error={loginPhoneOrEmailError}
+                      iconName="mail"
+                      autoCapitalize="none"
+                      keyboardType="email-address"
+                    />
 
-                    {loginGeneralError !== '' ? (
-                      <View style={styles.loginErrorBanner}>
-                        <Lucide name="alert-circle" size={18} color="#EF4444" style={{ marginRight: 8 }} />
-                        <Text style={styles.loginErrorText}>{loginGeneralError}</Text>
-                      </View>
-                    ) : null}
-
-                    <View style={styles.modalLoginFormContainer}>
-                      {/* Region Select */}
-                      <Select
-                        label="Philippine Region"
-                        placeholder="Select your region..."
-                        value={loginRegion}
-                        onValueChange={(val) => {
-                          setLoginRegion(val);
-                          setLoginRegionError('');
-                        }}
-                        options={PHILIPPINE_REGIONS.map((r) => ({ label: r, value: r }))}
-                        error={loginRegionError}
-                        iconName="map-pin"
-                        style={{ marginBottom: 14 }}
-                      />
-
-                      {/* Phone No. / Email Address */}
-                      <Input
-                        label="Phone No. / Email Address"
-                        placeholder="09171234567 or email@domain.gov.ph"
-                        value={loginPhoneOrEmail}
-                        onChangeText={(text) => {
-                          setLoginPhoneOrEmail(text);
-                          setLoginPhoneOrEmailError('');
-                        }}
-                        error={loginPhoneOrEmailError}
-                        iconName="mail"
-                        autoCapitalize="none"
-                        keyboardType="email-address"
-                      />
-
-                      {/* Password */}
-                      <Input
-                        label="Password"
-                        placeholder="Enter your password"
-                        value={loginPassword}
-                        onChangeText={(text) => {
-                          setLoginPassword(text);
-                          setLoginPasswordError('');
-                        }}
-                        error={loginPasswordError}
-                        iconName="lock"
-                        secureTextEntry={!showPassword}
-                        rightIcon={
-                          <Pressable onPress={() => setShowPassword(!showPassword)} style={{ padding: 4 }}>
-                            <Lucide name={showPassword ? 'eye-off' : 'eye'} size={18} color={COLORS.neutral[500]} />
-                          </Pressable>
-                        }
-                      />
-
-                      {/* Forgot Password Link */}
-                      <View style={styles.forgotPasswordRow}>
-                        <Pressable
-                          onPress={() => {
-                            closeGetStartedModal();
-                            navigation?.navigate('ForgotPassword');
-                          }}
-                        >
-                          {({ hovered }: PressableState) => (
-                            <Text style={[styles.forgotPasswordText, hovered ? styles.forgotPasswordHovered : null]}>
-                              Forgot Password?
-                            </Text>
-                          )}
+                    {/* Password */}
+                    <Input
+                      label="Password"
+                      placeholder="Enter your password"
+                      value={loginPassword}
+                      onChangeText={(text) => {
+                        setLoginPassword(text);
+                        setLoginPasswordError('');
+                      }}
+                      error={loginPasswordError}
+                      iconName="lock"
+                      secureTextEntry={!showPassword}
+                      rightIcon={
+                        <Pressable onPress={() => setShowPassword(!showPassword)} style={{ padding: 4 }}>
+                          <Lucide name={showPassword ? 'eye-off' : 'eye'} size={18} color={COLORS.neutral[500]} />
                         </Pressable>
-                      </View>
+                      }
+                    />
 
-                      {/* Submit Log In Button */}
-                      <Button
-                        title={loginLoading ? 'Logging In...' : 'Log In'}
-                        onPress={handleModalLoginSubmit}
-                        loading={loginLoading}
-                        size="lg"
-                        style={styles.modalLoginSubmitBtn}
-                        hoverStyle={styles.heroPrimaryBtnHovered}
-                        icon={<Lucide name="log-in" size={18} color={COLORS.neutral.white} />}
-                      />
-                    </View>
-
-                    {/* Footer Sign Up Link */}
-                    <View style={styles.modalFooter}>
-                      <Text style={styles.modalFooterText}>Don't have an account yet? </Text>
-                      <Pressable
-                        onPress={() => {
-                          closeGetStartedModal();
-                          navigation?.navigate('SignUp');
-                        }}
-                      >
+                    {/* Forgot Password Link */}
+                    <View style={styles.forgotPasswordRow}>
+                      <Pressable onPress={() => setModalMode('forgotPassword')}>
                         {({ hovered }: PressableState) => (
-                          <Text style={[styles.modalFooterLink, hovered ? styles.modalFooterLinkHovered : null]}>Sign Up</Text>
+                          <Text style={[styles.forgotPasswordText, hovered ? styles.forgotPasswordHovered : null]}>
+                            Forgot Password?
+                          </Text>
                         )}
                       </Pressable>
                     </View>
-                  </>
-                )}
-              </Animated.View>
-            </Animated.View>
+
+                    {/* Submit Log In Button */}
+                    <Button
+                      title={loginLoading ? 'Logging In...' : 'Log In'}
+                      onPress={handleModalLoginSubmit}
+                      loading={loginLoading}
+                      size="lg"
+                      style={styles.modalLoginSubmitBtn}
+                      hoverStyle={styles.heroPrimaryBtnHovered}
+                      icon={<Lucide name="log-in" size={18} color={COLORS.neutral.white} />}
+                    />
+                  </View>
+
+                  {/* Footer Sign Up Link */}
+                  <View style={styles.modalFooter}>
+                    <Text style={styles.modalFooterText}>Don't have an account yet? </Text>
+                    <Pressable
+                      onPress={() => {
+                        closeGetStartedModal();
+                        navigation?.navigate('SignUp');
+                      }}
+                    >
+                      {({ hovered }: PressableState) => (
+                        <Text style={[styles.modalFooterLink, hovered ? styles.modalFooterLinkHovered : null]}>Sign Up</Text>
+                      )}
+                    </Pressable>
+                  </View>
+                </>
+              )}
+
+              {modalMode === 'forgotPassword' && (
+                <>
+                  <Text style={styles.modalTitle}>Reset Password</Text>
+
+                  <Text style={styles.modalSubtitleText}>
+                    Enter your registered email address and we'll send you instructions to reset your password.
+                  </Text>
+
+                  {forgotSuccess ? (
+                    <View style={styles.loginSuccessBanner}>
+                      <Lucide name="check-circle" size={18} color="#10B981" style={{ marginRight: 8 }} />
+                      <Text style={styles.loginSuccessText}>Reset link sent! Please check your email inbox.</Text>
+                    </View>
+                  ) : null}
+
+                  <View style={styles.modalLoginFormContainer}>
+                    {/* Email Input */}
+                    <Input
+                      label="Email Address"
+                      placeholder="email@domain.gov.ph"
+                      value={forgotEmail}
+                      onChangeText={(text) => {
+                        setForgotEmail(text);
+                        setForgotEmailError('');
+                      }}
+                      error={forgotEmailError}
+                      iconName="mail"
+                      autoCapitalize="none"
+                      keyboardType="email-address"
+                    />
+
+                    {/* Submit Reset Button */}
+                    <Button
+                      title={forgotLoading ? 'Sending Instructions...' : 'Send Reset Link'}
+                      onPress={handleForgotPasswordSubmit}
+                      loading={forgotLoading}
+                      size="lg"
+                      style={styles.modalLoginSubmitBtn}
+                      hoverStyle={styles.heroPrimaryBtnHovered}
+                      icon={<Lucide name="send" size={18} color={COLORS.neutral.white} />}
+                    />
+                  </View>
+
+                  {/* Footer Return to Login Link */}
+                  <View style={styles.modalFooter}>
+                    <Text style={styles.modalFooterText}>Remember your password? </Text>
+                    <Pressable onPress={() => setModalMode('login')}>
+                      {({ hovered }: PressableState) => (
+                        <Text style={[styles.modalFooterLink, hovered ? styles.modalFooterLinkHovered : null]}>Log In</Text>
+                      )}
+                    </Pressable>
+                  </View>
+                </>
+              )}
+            </View>
           </TouchableOpacity>
-        </Animated.View>
+        </TouchableOpacity>
       </Modal>
 
       {/* Track Application Modal */}
