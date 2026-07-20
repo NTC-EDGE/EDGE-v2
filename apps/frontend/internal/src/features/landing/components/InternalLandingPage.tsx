@@ -289,10 +289,6 @@ export function InternalLandingPage() {
         contentContainerStyle={styles.scrollContainer}
         showsVerticalScrollIndicator={false}
       >
-        {/* Soft Ambient Background Glow Spots matching Screenshot 2 theme */}
-        <View style={styles.glowSpotBlue} />
-        <View style={styles.glowSpotPink} />
-
         {/* Main Content Area with Centered Setup */}
         <View style={styles.mainBody}>
           {/* Top Logo Section */}
@@ -467,11 +463,11 @@ export function InternalLandingPage() {
           </View>
         </View>
 
-        {/* Slate Gray Footer */}
+        {/* Dark Navy Footer (Screenshot Reference) */}
         <View style={styles.footerBar}>
           <View style={styles.footerContentContainer}>
             <View style={styles.footerLeftBrand}>
-              <NtcLogo size="small" variant="light" showSubtext={false} />
+              <NtcLogo size="small" variant="dark" showSubtext={false} />
               <Text style={styles.footerCopyrightText}>© 2026</Text>
             </View>
 
@@ -642,45 +638,22 @@ export function InternalLandingPage() {
   );
 }
 
+const GEOMETRIC_TEXTURE_SVG = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Cpath d='M0 0 L30 30 L0 60 Z' fill='%23000000' fill-opacity='0.02'/%3E%3Cpath d='M60 0 L30 30 L60 60 Z' fill='%23000000' fill-opacity='0.035'/%3E%3Cpath d='M0 0 L30 30 L60 0 Z' fill='%23000000' fill-opacity='0.015'/%3E%3Cpath d='M0 60 L30 30 L60 60 Z' fill='%23000000' fill-opacity='0.025'/%3E%3C/svg%3E`;
+
 const styles = StyleSheet.create({
   keyboardAvoid: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#EBEFF4",
   },
   scrollContainer: {
     flexGrow: 1,
     justifyContent: "space-between",
-    backgroundColor: "#F8FAFC",
-    position: "relative",
-    overflow: "hidden",
-  },
-  glowSpotBlue: {
-    position: "absolute",
-    top: -120,
-    left: -120,
-    width: 600,
-    height: 600,
-    borderRadius: 300,
-    backgroundColor: "rgba(219, 234, 254, 0.7)", // Soft ambient blue
-    zIndex: 0,
+    backgroundColor: "#EBEFF4",
     ...Platform.select({
       web: {
-        filter: "blur(100px)",
-      },
-    }),
-  },
-  glowSpotPink: {
-    position: "absolute",
-    bottom: -50,
-    right: -100,
-    width: 550,
-    height: 550,
-    borderRadius: 275,
-    backgroundColor: "rgba(254, 226, 226, 0.6)", // Soft ambient pink
-    zIndex: 0,
-    ...Platform.select({
-      web: {
-        filter: "blur(100px)",
+        backgroundImage: `url("${GEOMETRIC_TEXTURE_SVG}")`,
+        backgroundSize: '60px 60px',
+        backgroundRepeat: 'repeat',
       },
     }),
   },
@@ -692,7 +665,6 @@ const styles = StyleSheet.create({
     paddingTop: SPACING[40],
     paddingBottom: SPACING[40],
     width: "100%",
-    zIndex: 1,
   },
   logoHeaderWrapper: {
     alignItems: "center",
@@ -702,16 +674,11 @@ const styles = StyleSheet.create({
     width: "100%",
     maxWidth: 440,
     backgroundColor: COLORS.neutral.white,
-    borderRadius: 24,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: "rgba(226, 232, 240, 0.8)",
     padding: SPACING[40],
     alignSelf: "center",
-    ...Platform.select({
-      web: {
-        boxShadow: "0 20px 25px -5px rgba(15, 23, 42, 0.06), 0 8px 10px -6px rgba(15, 23, 42, 0.04)",
-      },
-    }),
   },
   cardTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
@@ -874,10 +841,10 @@ const styles = StyleSheet.create({
     }),
   },
   loginButtonDefault: {
-    backgroundColor: "#CBD5E1", // Grey matching reference
+    backgroundColor: "#CBD5E1",
   },
   loginButtonActive: {
-    backgroundColor: COLORS.brand[800], // Branded navy/blue when active
+    backgroundColor: COLORS.brand[800],
   },
   buttonDisabled: {
     opacity: 0.6,
@@ -945,15 +912,11 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 
-  /* Premium Slate Gray Footer - Logo positioned at the most left side */
   footerBar: {
     width: "100%",
-    backgroundColor: "#F8FAFC",
-    borderTopWidth: 1,
-    borderTopColor: "#E2E8F0",
+    backgroundColor: "#0B1953",
     paddingHorizontal: SPACING[32],
     paddingVertical: SPACING[20],
-    zIndex: 2,
   },
   footerContentContainer: {
     width: "100%",
@@ -971,7 +934,7 @@ const styles = StyleSheet.create({
   footerCopyrightText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 13,
-    color: "#64748B",
+    color: COLORS.neutral[200],
     fontWeight: TYPOGRAPHY.weights.semibold,
   },
   footerRightLinks: {
@@ -989,11 +952,10 @@ const styles = StyleSheet.create({
   footerLinkText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 13,
-    color: "#475569",
+    color: COLORS.neutral[200],
     fontWeight: TYPOGRAPHY.weights.medium,
   },
 
-  /* Policy Modal Styles */
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(15, 23, 42, 0.65)",
