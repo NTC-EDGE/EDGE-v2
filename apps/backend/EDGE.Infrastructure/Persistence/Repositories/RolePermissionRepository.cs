@@ -23,14 +23,17 @@ public class RolePermissionRepository : IRolePermissionRepository
         _context.Set<RolePermission>().Remove(rolePermission);
     }
 
-    public async Task<RolePermission?> GetAsync(Guid roleId, Guid permissionId, CancellationToken cancellationToken = default)
+    public async Task<RolePermission?> GetAsync(Guid roleId, string permissionKey, CancellationToken cancellationToken = default)
     {
         return await _context.Set<RolePermission>()
-            .FirstOrDefaultAsync(x => x.RoleId == roleId && x.PermissionId == permissionId, cancellationToken);
+            .FirstOrDefaultAsync(x => x.RoleId == roleId && x.PermissionKey == permissionKey, cancellationToken);
     }
 
-    public async Task<List<Permission>> GetAllPermissionsAsync(CancellationToken cancellationToken = default)
+    public async Task<List<string>> GetPermissionKeysForRoleAsync(Guid roleId, CancellationToken cancellationToken = default)
     {
-        return await _context.Set<Permission>().ToListAsync(cancellationToken);
+        return await _context.Set<RolePermission>()
+            .Where(x => x.RoleId == roleId)
+            .Select(x => x.PermissionKey)
+            .ToListAsync(cancellationToken);
     }
 }

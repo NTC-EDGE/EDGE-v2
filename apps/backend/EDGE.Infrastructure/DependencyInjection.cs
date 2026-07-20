@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Hangfire;
 using Hangfire.PostgreSql;
 using EDGE.Application.Common.Interfaces;
+using EDGE.Domain.Authorization;
 using EDGE.Infrastructure.Persistence;
 using EDGE.Infrastructure.Persistence.Interceptors;
 using EDGE.Infrastructure.Persistence.Repositories;
@@ -17,6 +18,9 @@ public static class DependencyInjection
     public static IServiceCollection AddInfrastructure(this IServiceCollection services)
     {
         services.AddSignalR();
+
+        // Register Tenant Context Service
+        services.AddScoped<ITenantContextService, TenantContextService>();
 
         // Register interceptors
         services.AddScoped<AuditableEntitySaveChangesInterceptor>();
@@ -32,6 +36,8 @@ public static class DependencyInjection
         });
 
         // Register Repositories and Unit of Work
+        services.AddScoped<ITenantRepository, TenantRepository>();
+        services.AddScoped<ITenantMemberRepository, TenantMemberRepository>();
         services.AddScoped<IApplicationRepository, ApplicationRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IRoleRepository, RoleRepository>();

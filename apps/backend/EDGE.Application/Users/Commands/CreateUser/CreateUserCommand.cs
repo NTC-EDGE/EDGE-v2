@@ -8,20 +8,17 @@ public record CreateUserCommand(
     string AuthUserId,
     string Email,
     string FirstName,
-    string LastName,
-    string? RoleKey = null
+    string LastName
 ) : IRequest<Guid>;
 
 public class CreateUserCommandHandler : IRequestHandler<CreateUserCommand, Guid>
 {
     private readonly IUserRepository _userRepository;
-    private readonly IRoleRepository _roleRepository;
     private readonly IUnitOfWork _unitOfWork;
 
-    public CreateUserCommandHandler(IUserRepository userRepository, IRoleRepository roleRepository, IUnitOfWork unitOfWork)
+    public CreateUserCommandHandler(IUserRepository userRepository, IUnitOfWork unitOfWork)
     {
         _userRepository = userRepository;
-        _roleRepository = roleRepository;
         _unitOfWork = unitOfWork;
     }
 
@@ -33,25 +30,12 @@ public class CreateUserCommandHandler : IRequestHandler<CreateUserCommand, Guid>
             return existing.Id;
         }
 
-        var targetRoleKey = request.RoleKey ?? "client";
-        var role = await _roleRepository.GetByKeyAsync(targetRoleKey, cancellationToken);
-        if (role == null)
-        {
-            role = await _roleRepository.GetByKeyAsync("client", cancellationToken);
-        }
-
-        if (role == null)
-        {
-            throw new InvalidOperationException($"Role '{targetRoleKey}' or default role 'client' not found in system database.");
-        }
-
         var user = new User
         {
             AuthUserId = request.AuthUserId,
             Email = request.Email,
             FirstName = request.FirstName,
-            LastName = request.LastName,
-            RoleId = role.Id
+            LastName = request.LastName
         };
 
         await _userRepository.AddAsync(user, cancellationToken);

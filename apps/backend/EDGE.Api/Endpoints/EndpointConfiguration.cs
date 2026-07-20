@@ -13,6 +13,8 @@ public static class EndpointConfiguration
         // Standardize all CRUD endpoints under the '/api/v2' route group prefix
         var apiV2Group = app.MapGroup("/api/v2");
 
+        apiV2Group.MapTenantEndpoints();
+        apiV2Group.MapTenantMemberEndpoints();
         apiV2Group.MapApplicationEndpoints();
         apiV2Group.MapUserEndpoints();
         apiV2Group.MapRoleEndpoints();

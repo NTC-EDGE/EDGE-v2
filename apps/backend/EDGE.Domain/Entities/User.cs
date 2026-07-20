@@ -9,8 +9,9 @@ public class User : AuditableEntity
     public string Email { get; set; } = string.Empty;
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
-    public Guid RoleId { get; set; }
-    public virtual Role Role { get; set; } = null!;
+
+    public bool IsSuperAdmin { get; set; } = false;
+    public virtual List<TenantMember> TenantMemberships { get; set; } = [];
 
     public Guid? BarangayId { get; set; }
     public string? MiddleName { get; set; }

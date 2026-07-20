@@ -38,18 +38,8 @@ public class ApplicationDbContextFactory : IDesignTimeDbContextFactory<Applicati
             .AddEnvironmentVariables()
             .Build();
 
-        var connectionString = configuration.GetConnectionString("DefaultConnection");
-
-        if (string.IsNullOrEmpty(connectionString))
-        {
-            var checkedPaths = string.Join(", ", basePaths.Where(Directory.Exists));
-            throw new InvalidOperationException(
-                "Connection string 'DefaultConnection' not found in configuration. " +
-                "Checked sources: appsettings.json, appsettings.{env}.json, user secrets, environment variables. " +
-                $"Current environment: {env}, " +
-                $"Checked base paths: {checkedPaths}, " +
-                $"Current directory: {Directory.GetCurrentDirectory()}");
-        }
+        var connectionString = configuration.GetConnectionString("DefaultConnection") 
+            ?? "Host=localhost;Database=edge_v2_db;Username=postgres;Password=postgres";
 
         var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
         optionsBuilder.UseNpgsql(connectionString, x => x.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.GetName().Name));

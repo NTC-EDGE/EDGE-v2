@@ -16,8 +16,5 @@ public class AdminUpdateUserCommandValidator : AbstractValidator<AdminUpdateUser
         RuleFor(x => x.LastName)
             .NotEmpty().WithMessage("Last Name is required.")
             .MaximumLength(100).WithMessage("Last Name must not exceed 100 characters.");
-
-        RuleFor(x => x.RoleId)
-            .NotEmpty().WithMessage("Role ID is required.");
     }
 }

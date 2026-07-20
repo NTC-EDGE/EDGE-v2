@@ -1,9 +1,7 @@
-using MediatR;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using EDGE.Domain.Authorization;
-using EDGE.Application.Permissions.Queries;
 
 namespace EDGE.Api.Endpoints;
 
@@ -13,10 +11,10 @@ public static class PermissionEndpoints
     {
         var group = app.MapGroup("/permissions").WithTags("Permissions");
 
-        group.MapGet("/", async (IMediator mediator) =>
+        group.MapGet("/", () =>
         {
-            var result = await mediator.Send(new GetPermissionsQuery());
-            return Results.Ok(result);
+            var keys = Permissions.AllKeys.Select(k => new { Key = k }).ToList();
+            return Results.Ok(keys);
         })
         .WithName("GetPermissions")
         .RequireAuthorization(Policies.CanManageUsers);

@@ -2,4 +2,4 @@ using MediatR;
 
 namespace EDGE.Application.RolePermissions.Commands;
 
-public record RevokePermissionCommand(Guid RoleId, Guid PermissionId) : IRequest<bool>;
+public record RevokePermissionCommand(Guid RoleId, string PermissionKey) : IRequest<bool>;

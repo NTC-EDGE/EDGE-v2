@@ -15,9 +15,9 @@ public static class RoleEndpoints
     {
         var group = app.MapGroup("/roles").WithTags("Roles");
 
-        group.MapGet("/", async (IMediator mediator) =>
+        group.MapGet("/", async (Guid? tenantId, IMediator mediator) =>
         {
-            var result = await mediator.Send(new GetRolesQuery());
+            var result = await mediator.Send(new GetRolesQuery(tenantId));
             return Results.Ok(result);
         })
         .WithName("GetRoles")

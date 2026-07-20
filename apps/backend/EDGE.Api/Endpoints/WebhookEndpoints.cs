@@ -42,8 +42,7 @@ public static class WebhookEndpoints
                             createData.Id,
                             createData.EmailAddresses.FirstOrDefault()?.EmailAddress ?? "",
                             createData.FirstName ?? "",
-                            createData.LastName ?? "",
-                            "client"
+                            createData.LastName ?? ""
                         );
                         await mediator.Send(cmd);
                         success = true;
@@ -77,8 +76,7 @@ public static class WebhookEndpoints
                                     clerkUser.Id,
                                     clerkUser.EmailAddresses.FirstOrDefault()?.EmailAddress ?? "",
                                     clerkUser.FirstName ?? "",
-                                    clerkUser.LastName ?? "",
-                                    "client"
+                                    clerkUser.LastName ?? ""
                                 );
                                 await mediator.Send(cmd);
                             }

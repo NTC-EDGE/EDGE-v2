@@ -18,7 +18,7 @@ public class RevokePermissionCommandHandler : IRequestHandler<RevokePermissionCo
 
     public async Task<bool> Handle(RevokePermissionCommand request, CancellationToken cancellationToken)
     {
-        var existing = await _rolePermissionRepository.GetAsync(request.RoleId, request.PermissionId, cancellationToken);
+        var existing = await _rolePermissionRepository.GetAsync(request.RoleId, request.PermissionKey, cancellationToken);
         if (existing == null) return false;
 
         _rolePermissionRepository.Delete(existing);

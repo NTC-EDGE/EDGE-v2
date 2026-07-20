@@ -15,12 +15,12 @@ public class UserRepository : IUserRepository
 
     public async Task<User?> GetByEmailAsync(string email, CancellationToken cancellationToken = default)
     {
-        return await _context.Users.Include(x => x.Role).FirstOrDefaultAsync(x => x.Email == email, cancellationToken);
+        return await _context.Users.FirstOrDefaultAsync(x => x.Email == email, cancellationToken);
     }
 
     public async Task<User?> GetByAuthUserIdAsync(string authUserId, CancellationToken cancellationToken = default)
     {
-        return await _context.Users.Include(x => x.Role).FirstOrDefaultAsync(x => x.AuthUserId == authUserId, cancellationToken);
+        return await _context.Users.FirstOrDefaultAsync(x => x.AuthUserId == authUserId, cancellationToken);
     }
 
     public async Task AddAsync(User user, CancellationToken cancellationToken = default)
@@ -30,12 +30,12 @@ public class UserRepository : IUserRepository
 
     public async Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        return await _context.Users.Include(x => x.Role).FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        return await _context.Users.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
     }
 
     public async Task<List<User>> GetAllAsync(CancellationToken cancellationToken = default)
     {
-        return await _context.Users.Include(x => x.Role).ToListAsync(cancellationToken);
+        return await _context.Users.ToListAsync(cancellationToken);
     }
 
     public void Delete(User user)

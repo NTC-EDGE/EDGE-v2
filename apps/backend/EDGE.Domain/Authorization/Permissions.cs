@@ -11,4 +11,17 @@ public static class Permissions
     public const string CollectPayment = "billing.collect";
     public const string ManageUsers = "users.manage";
     public const string SystemAdmin = "system.admin";
+
+    public static readonly IReadOnlySet<string> AllKeys = new HashSet<string>
+    {
+        SubmitApplication,
+        ViewOwnApplications,
+        ViewAllApplications,
+        EvaluateApplication,
+        ApproveApplication,
+        CreateBilling,
+        CollectPayment,
+        ManageUsers,
+        SystemAdmin
+    };
 }

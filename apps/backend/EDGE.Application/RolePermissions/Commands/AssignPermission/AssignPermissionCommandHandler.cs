@@ -1,5 +1,6 @@
 using MediatR;
 using EDGE.Domain.Entities;
+using EDGE.Domain.Authorization;
 using EDGE.Application.Common.Interfaces;
 
 namespace EDGE.Application.RolePermissions.Commands;
@@ -22,18 +23,21 @@ public class AssignPermissionCommandHandler : IRequestHandler<AssignPermissionCo
 
     public async Task<bool> Handle(AssignPermissionCommand request, CancellationToken cancellationToken)
     {
-        // Verify role exists
         var role = await _roleRepository.GetByIdAsync(request.RoleId, cancellationToken);
         if (role == null) return false;
 
-        // Check if permission mapping already exists
-        var existing = await _rolePermissionRepository.GetAsync(request.RoleId, request.PermissionId, cancellationToken);
+        if (!Permissions.AllKeys.Contains(request.PermissionKey))
+        {
+            throw new InvalidOperationException($"Permission key '{request.PermissionKey}' is not a valid system permission.");
+        }
+
+        var existing = await _rolePermissionRepository.GetAsync(request.RoleId, request.PermissionKey, cancellationToken);
         if (existing != null) return true; // Already assigned
 
         var rp = new RolePermission
         {
             RoleId = request.RoleId,
-            PermissionId = request.PermissionId
+            PermissionKey = request.PermissionKey
         };
 
         await _rolePermissionRepository.AddAsync(rp, cancellationToken);
