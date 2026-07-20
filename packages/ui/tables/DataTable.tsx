@@ -1,3 +1,4 @@
+/// <reference path="../react-native.d.ts" />
 import React, { useMemo, useState } from 'react';
 import { StyleSheet, View, Text, TextInput, Pressable, Platform, useWindowDimensions, ScrollView } from 'react-native';
 import { Feather as Lucide } from '@expo/vector-icons';
