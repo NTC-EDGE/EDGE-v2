@@ -9,31 +9,40 @@ public class ApplicationDbContextFactory : IDesignTimeDbContextFactory<Applicati
 {
     public ApplicationDbContext CreateDbContext(string[] args)
     {
-        // Adjust directory path based on where the CLI command is run
-        var currentDir = Directory.GetCurrentDirectory();
-        var basePath = currentDir;
+        var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
 
-        if (Path.GetFileName(currentDir) == "backend")
+        // Try different base paths to find configuration files
+        var basePaths = new[]
         {
-            basePath = Path.Combine(currentDir, "EDGE.Api");
-        }
-        else if (Path.GetFileName(currentDir) == "EDGE.Infrastructure")
+            Directory.GetCurrentDirectory(),
+            Path.Combine(Directory.GetCurrentDirectory(), "EDGE.Api"),
+            Path.Combine(Directory.GetCurrentDirectory(), "..", "EDGE.Api"),
+            Path.GetDirectoryName(typeof(ApplicationDbContextFactory).Assembly.Location) ?? Directory.GetCurrentDirectory()
+        };
+
+        ConfigurationBuilder configBuilder = new();
+
+        foreach (var basePath in basePaths)
         {
-            basePath = Path.Combine(currentDir, "../EDGE.Api");
+            if (Directory.Exists(basePath))
+            {
+                configBuilder.SetBasePath(basePath);
+                break;
+            }
         }
 
-        var configuration = new ConfigurationBuilder()
-            .SetBasePath(basePath)
+        var configuration = configBuilder
             .AddJsonFile("appsettings.json", optional: true)
-            .AddJsonFile("appsettings.Development.json", optional: true)
-            .AddUserSecrets("57d677f4-ed2b-4a3e-9089-80ef049dd2f7")
+            .AddJsonFile($"appsettings.{env}.json", optional: true)
+            .AddUserSecrets<ApplicationDbContextFactory>() // Enables reading from secrets.json at design-time
             .AddEnvironmentVariables()
             .Build();
 
-        var connectionString = configuration.GetConnectionString("DefaultConnection");
+        var connectionString = configuration.GetConnectionString("DefaultConnection") 
+            ?? "Host=localhost;Database=edge_v2_db;Username=postgres;Password=postgres";
 
         var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
-        optionsBuilder.UseNpgsql(connectionString);
+        optionsBuilder.UseNpgsql(connectionString, x => x.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.GetName().Name));
 
         return new ApplicationDbContext(optionsBuilder.Options);
     }

@@ -1,4 +1,4 @@
-import React from "react";
+
 import { createStaticNavigation } from "@react-navigation/native";
 import { ClerkProvider, useAuth } from "@clerk/clerk-expo";
 import { tokenCache } from "./tokenCache";
@@ -43,6 +43,7 @@ function AppContent() {
 }
 
 export default function App() {
+
   return (
     <ClerkProvider tokenCache={tokenCache} publishableKey={publishableKey}>
       <AppContent />
@@ -52,6 +53,6 @@ export default function App() {
 
 declare global {
   namespace ReactNavigation {
-    interface RootParamList extends UnauthParamList, AuthParamList {}
+    interface RootParamList extends UnauthParamList, AuthParamList { }
   }
 }

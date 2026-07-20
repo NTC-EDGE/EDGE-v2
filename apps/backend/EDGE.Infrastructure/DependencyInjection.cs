@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Hangfire;
 using Hangfire.PostgreSql;
 using EDGE.Application.Common.Interfaces;
+using EDGE.Domain.Authorization;
 using EDGE.Infrastructure.Persistence;
 using EDGE.Infrastructure.Persistence.Interceptors;
 using EDGE.Infrastructure.Persistence.Repositories;
@@ -17,6 +18,9 @@ public static class DependencyInjection
     public static IServiceCollection AddInfrastructure(this IServiceCollection services)
     {
         services.AddSignalR();
+
+        // Register Tenant Context Service
+        services.AddScoped<ITenantContextService, TenantContextService>();
 
         // Register interceptors
         services.AddScoped<AuditableEntitySaveChangesInterceptor>();
@@ -32,10 +36,24 @@ public static class DependencyInjection
         });
 
         // Register Repositories and Unit of Work
+        services.AddScoped<ITenantRepository, TenantRepository>();
+        services.AddScoped<ITenantMemberRepository, TenantMemberRepository>();
         services.AddScoped<IApplicationRepository, ApplicationRepository>();
+        services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IRoleRepository, RoleRepository>();
+        services.AddScoped<IRolePermissionRepository, RolePermissionRepository>();
         services.AddScoped<IGeographicRepository, GeographicRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IUserActivityService, UserActivityService>();
+
+        // Register Clerk Client
+        services.AddHttpClient<IClerkUserService, ClerkUserService>((sp, client) =>
+        {
+            var configuration = sp.GetRequiredService<IConfiguration>();
+            var clerkSecret = configuration["Clerk:SecretKey"] ?? "";
+            client.BaseAddress = new Uri("https://api.clerk.com/v1/");
+            client.DefaultRequestHeaders.Add("Authorization", $"Bearer {clerkSecret}");
+        });
 
         // Configure Hangfire storage to use PostgreSQL with a dedicated schema
         services.AddHangfire((sp, config) =>
