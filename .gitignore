@@ -45,10 +45,6 @@ ios/
 new.json
 ntcservices.json
 
-# .NET Serilog text logs
-logs/
-*.txt
-
 # .NET Build and VS outputs
 [Bb]in/
 [Oo]bj/
