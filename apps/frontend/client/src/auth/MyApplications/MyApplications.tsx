@@ -482,7 +482,7 @@ export function MyApplications() {
                     key={app.id}
                     app={app}
                     onPress={() => setSelectedApp(app)}
-                    onDownload={() => handleQuickDownloadAppDocs(app)}
+                    onDownloadDoc={handleDownloadDoc}
                   />
                 ))
               )}
