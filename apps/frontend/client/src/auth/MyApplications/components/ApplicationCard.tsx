@@ -51,13 +51,13 @@ export function ApplicationCard({
             <View
               style={[
                 styles.modeDot,
-                { backgroundColor: isBulk ? '#D97706' : '#2F56E8' },
+                { backgroundColor: isBulk ? '#D97706' : '#1D4ED8' },
               ]}
             />
             <Text
               style={[
                 styles.modeBadgeText,
-                { color: isBulk ? '#D97706' : '#2F56E8' },
+                { color: isBulk ? '#D97706' : '#1D4ED8' },
               ]}
             >
               {isBulk ? `BULK (${totalApplicants})` : 'SINGLE'}
@@ -75,40 +75,36 @@ export function ApplicationCard({
         </View>
       </View>
 
-      {/* ── Main Content Body ──────────────────────────────────────────────── */}
-      <TouchableOpacity
-        activeOpacity={0.9}
-        onPress={onPress}
-        style={styles.cardBody}
-      >
+      {/* ── Main Content Body (Read-only, no click on row) ──────────────── */}
+      <View style={styles.cardBody}>
         <Text style={styles.serviceName} numberOfLines={2}>
           {app.serviceName}
         </Text>
 
         <View style={styles.detailsMetaRow}>
           <View style={styles.metaItem}>
-            <Icon name="user" size={13} color="#64748B" />
+            <Icon name="user" size={14} color="#64748B" />
             <Text style={styles.primaryName} numberOfLines={1}>
               {primaryName}
             </Text>
           </View>
 
           <View style={styles.metaItem}>
-            <Icon name="tag" size={13} color="#64748B" />
+            <Icon name="tag" size={14} color="#64748B" />
             <Text style={styles.metaText}>{app.element}</Text>
           </View>
 
           <View style={styles.metaItem}>
-            <Icon name="clock" size={13} color="#64748B" />
+            <Icon name="clock" size={14} color="#64748B" />
             <Text style={styles.metaText}>{formatRelativeTime(app.submittedAt)}</Text>
           </View>
         </View>
-      </TouchableOpacity>
+      </View>
 
       {/* ── Card Footer Actions Bar ───────────────────────────────────────── */}
       <View style={styles.cardFooter}>
         <View style={styles.docsSummary}>
-          <Icon name="file-text" size={14} color="#475569" />
+          <Icon name="file-text" size={15} color="#475569" />
           <Text style={styles.docsSummaryText}>
             {docs.length} Document{docs.length === 1 ? '' : 's'} available
           </Text>
@@ -121,7 +117,7 @@ export function ApplicationCard({
               style={styles.downloadBtn}
               activeOpacity={0.8}
             >
-              <Icon name="download" size={13} color={COLORS.brand[700]} />
+              <Icon name="download" size={14} color={COLORS.brand[700]} />
               <Text style={styles.downloadBtnText}>Download</Text>
             </TouchableOpacity>
           )}
@@ -131,7 +127,7 @@ export function ApplicationCard({
             style={styles.viewDetailsBtn}
             activeOpacity={0.85}
           >
-            <Text style={styles.viewDetailsBtnText}>Details</Text>
+            <Text style={styles.viewDetailsBtnText}>View Details</Text>
             <Icon name="chevron-right" size={14} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
@@ -147,16 +143,19 @@ export function ApplicationCard({
 const styles = StyleSheet.create({
   card: {
     backgroundColor: COLORS.neutral.white,
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: '#E2E8F0',
+    borderLeftWidth: 6,
+    borderLeftColor: '#1D4ED8', // Colored left border on EVERY card in the list
     overflow: 'hidden',
     display: 'flex',
     flexDirection: 'column',
     justifyContent: 'space-between',
+    minHeight: 220, // Bigger spacious cards
     ...Platform.select({
       web: {
-        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.04), 0 2px 4px -1px rgba(0, 0, 0, 0.02)',
+        boxShadow: '0 8px 16px -2px rgba(15, 23, 42, 0.06), 0 2px 4px -1px rgba(15, 23, 42, 0.04)',
       },
     }),
   },
@@ -165,8 +164,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: SPACING[16],
-    paddingVertical: 12,
+    paddingHorizontal: SPACING[20],
+    paddingVertical: 14,
     backgroundColor: '#F8FAFC',
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
@@ -175,7 +174,7 @@ const styles = StyleSheet.create({
   leftBadges: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
     flexWrap: 'wrap',
     flex: 1,
   },
@@ -183,8 +182,8 @@ const styles = StyleSheet.create({
   modeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     borderRadius: 6,
   },
   singleBadge: {
@@ -205,13 +204,13 @@ const styles = StyleSheet.create({
   },
   modeBadgeText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
 
   refNumber: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: TYPOGRAPHY.weights.bold,
     color: '#334155',
   },
@@ -219,8 +218,8 @@ const styles = StyleSheet.create({
   statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: 12,
   },
   statusDot: {
@@ -231,49 +230,47 @@ const styles = StyleSheet.create({
   },
   statusBadgeText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
 
   cardBody: {
-    padding: SPACING[16],
+    padding: SPACING[20],
     flex: 1,
-    ...Platform.select({
-      web: { cursor: 'pointer' as unknown as undefined },
-    }),
+    justifyContent: 'center',
   },
 
   serviceName: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: TYPOGRAPHY.weights.bold,
     color: '#0F172A',
-    marginBottom: 12,
-    lineHeight: 20,
+    marginBottom: 14,
+    lineHeight: 24,
   },
 
   detailsMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 16,
     flexWrap: 'wrap',
   },
 
   metaItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 6,
   },
   primaryName: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: TYPOGRAPHY.weights.semibold,
     color: '#334155',
-    maxWidth: 160,
+    maxWidth: 200,
   },
   metaText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
+    fontSize: 13,
     color: '#64748B',
   },
 
@@ -281,22 +278,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: SPACING[16],
-    paddingVertical: 10,
+    paddingHorizontal: SPACING[20],
+    paddingVertical: 14,
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: '#F1F5F9',
-    gap: 8,
+    gap: 12,
   },
 
   docsSummary: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
   },
   docsSummaryText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
+    fontSize: 12,
     color: '#475569',
     fontWeight: TYPOGRAPHY.weights.medium,
   },
@@ -304,23 +301,23 @@ const styles = StyleSheet.create({
   actionsGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
   },
 
   downloadBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
     backgroundColor: '#EFF6FF',
     borderWidth: 1,
     borderColor: '#BFDBFE',
-    gap: 4,
+    gap: 6,
   },
   downloadBtnText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: TYPOGRAPHY.weights.semibold,
     color: COLORS.brand[700],
   },
@@ -328,15 +325,15 @@ const styles = StyleSheet.create({
   viewDetailsBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
     backgroundColor: COLORS.brand[700],
-    gap: 4,
+    gap: 6,
   },
   viewDetailsBtnText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: TYPOGRAPHY.weights.semibold,
     color: '#FFFFFF',
   },

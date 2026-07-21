@@ -22,7 +22,7 @@ import {
   getStatusLabel,
   ApplicationDocument,
 } from './data/applicationsData';
-import { ApplicationCard, SinglePreview, BulkPreview } from './components';
+import { ApplicationCard, ApplicationDetailsPage } from './components';
 import { styles } from './MyApplications.styles';
 
 const LIST_PAGE_SIZE = 6;
@@ -210,11 +210,18 @@ export function MyApplications() {
 
         {/* Content Column */}
         <View style={styles.contentColumn}>
-          <ScrollView
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
-            onScrollBeginDrag={() => setOpenDropdown(null)}
-          >
+          {selectedApp !== null ? (
+            <ApplicationDetailsPage
+              app={selectedApp}
+              onBack={() => setSelectedApp(null)}
+              onDownloadDoc={handleDownloadDoc}
+            />
+          ) : (
+            <ScrollView
+              contentContainerStyle={styles.scrollContent}
+              showsVerticalScrollIndicator={false}
+              onScrollBeginDrag={() => setOpenDropdown(null)}
+            >
             {/* ── Hero Section ───────────────────────────────────────────── */}
             <View style={styles.heroHeader}>
               <Text style={styles.heroTitle}>My Applications Dashboard</Text>
@@ -544,25 +551,9 @@ export function MyApplications() {
               </View>
             )}
           </ScrollView>
+          )}
         </View>
       </View>
-
-      {/* ── Modal Overlay for Details & Documents (Zero Page Redirection!) ── */}
-      {selectedApp !== null && selectedApp.mode === 'SINGLE' && (
-        <SinglePreview
-          app={selectedApp as SingleApplication}
-          onClose={() => setSelectedApp(null)}
-          onDownloadDocument={handleDownloadDoc}
-        />
-      )}
-
-      {selectedApp !== null && selectedApp.mode === 'BULK' && (
-        <BulkPreview
-          app={selectedApp as BulkApplication}
-          onClose={() => setSelectedApp(null)}
-          onDownloadDocument={handleDownloadDoc}
-        />
-      )}
 
       {/* ── Toast Feedback Notification ─────────────────────────────────── */}
       {toastMessage !== null && (
