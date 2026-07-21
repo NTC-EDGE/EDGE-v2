@@ -10,11 +10,10 @@ import {
   Building,
   Home,
   ArrowRight,
-  TrendingUp,
-  Activity,
   ShieldCheck,
   UserCheck,
-  CircleDollarSign
+  CircleDollarSign,
+  Calendar
 } from "lucide-react";
 import { useRegionService } from "@/services/regionService";
 import { useProvinceService } from "@/services/provinceService";
@@ -66,6 +65,17 @@ export default function Dashboard() {
       borderColor: "border-sky-500/30",
       bgGradient: "from-sky-500/10 to-transparent",
       href: "/tenant-members",
+    },
+    {
+      name: "Exam Schedules",
+      count: "Published",
+      loading: false,
+      subtitle: "Regional Examinations",
+      icon: Calendar,
+      textColor: "text-purple-400",
+      borderColor: "border-purple-500/30",
+      bgGradient: "from-purple-500/10 to-transparent",
+      href: "/schedules",
     },
     {
       name: "Region Fee Rules",

@@ -389,4 +389,46 @@ export interface RegionSettings {
   fees: RegionFeeSchedule;
 }
 
+export interface ExamSchedule {
+  id: string;
+  title: string;
+  examType: string;
+  regionId: string;
+  regionName: string;
+  venue: string;
+  examDate: string;
+  applicationDeadline: string;
+  maxSlots: number;
+  registeredSlots: number;
+  isPublished: boolean;
+  description?: string | null;
+  createdAt?: string;
+}
+
+export interface CreateExamScheduleCommand {
+  title: string;
+  examType: string;
+  regionId: string;
+  venue: string;
+  examDate: string;
+  applicationDeadline: string;
+  maxSlots: number;
+  isPublished: boolean;
+  description?: string | null;
+}
+
+export interface UpdateExamScheduleCommand {
+  id: string;
+  title: string;
+  examType: string;
+  regionId: string;
+  venue: string;
+  examDate: string;
+  applicationDeadline: string;
+  maxSlots: number;
+  isPublished: boolean;
+  description?: string | null;
+}
+
+
 

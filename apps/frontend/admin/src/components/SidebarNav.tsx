@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { UserButton } from "@clerk/nextjs";
@@ -12,15 +12,12 @@ import {
   Home,
   ShieldCheck,
   Building2 as TenantIcon,
-  Users,
-  KeyRound,
-  Sliders,
   ChevronDown,
   UserCheck,
-  ShieldAlert,
   Menu,
   X,
-  LifeBuoy
+  LifeBuoy,
+  Calendar
 } from "lucide-react";
 import { useAdminScope, AdminRoleType } from "@/lib/admin-scope-context";
 
@@ -170,77 +167,7 @@ export function SidebarNav() {
               </Link>
             )}
 
-            {isTenantAdmin && (
-              <Link
-                href="/tenant-members"
-                onClick={() => setMobileOpen(false)}
-                className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                  isActive("/tenant-members")
-                    ? "bg-gradient-to-r from-indigo-600/30 to-slate-800 text-white border border-indigo-500/30 shadow-sm"
-                    : "text-slate-300 hover:text-white hover:bg-slate-800/60"
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <Users className="h-4 w-4 text-sky-400" />
-                  <span>Tenant Members</span>
-                </div>
-                <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-800 text-slate-400 font-mono">Members</span>
-              </Link>
-            )}
 
-            {isRegionAdmin && (
-              <Link
-                href="/field-offices"
-                onClick={() => setMobileOpen(false)}
-                className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                  isActive("/field-offices")
-                    ? "bg-gradient-to-r from-indigo-600/30 to-slate-800 text-white border border-indigo-500/30 shadow-sm"
-                    : "text-slate-300 hover:text-white hover:bg-slate-800/60"
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <Building className="h-4 w-4 text-emerald-400" />
-                  <span>Field & Extension Offices</span>
-                </div>
-                <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-800 text-slate-400 font-mono">Offices</span>
-              </Link>
-            )}
-
-            {isRegionAdmin && (
-              <Link
-                href="/region-settings"
-                onClick={() => setMobileOpen(false)}
-                className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                  isActive("/region-settings")
-                    ? "bg-gradient-to-r from-indigo-600/30 to-slate-800 text-white border border-indigo-500/30 shadow-sm"
-                    : "text-slate-300 hover:text-white hover:bg-slate-800/60"
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <Sliders className="h-4 w-4 text-amber-400" />
-                  <span>Region Settings & Fees</span>
-                </div>
-                <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-800 text-slate-400 font-mono">Fees</span>
-              </Link>
-            )}
-
-            {isSystemAdmin && (
-              <Link
-                href="/roles-permissions"
-                onClick={() => setMobileOpen(false)}
-                className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                  isActive("/roles-permissions")
-                    ? "bg-gradient-to-r from-indigo-600/30 to-slate-800 text-white border border-indigo-500/30 shadow-sm"
-                    : "text-slate-300 hover:text-white hover:bg-slate-800/60"
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <KeyRound className="h-4 w-4 text-purple-400" />
-                  <span>Roles & Access Control</span>
-                </div>
-                <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-800 text-slate-400 font-mono">Security</span>
-              </Link>
-            )}
           </div>
 
           {/* Geographics Reference Group */}
