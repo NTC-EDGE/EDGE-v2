@@ -13,9 +13,18 @@ export type ApplicationStatus =
 
 export type ApplicationMode = 'SINGLE' | 'BULK';
 export type ModeFilterOption = 'ALL' | 'SINGLE' | 'BULK';
-export type StatusFilterOption = 'ALL' | 'FOR_APPROVAL' | 'APPROVED' | 'EXPIRING_SOON';
+export type StatusFilterOption = 'ALL' | 'FOR_APPROVAL' | 'FOR_EVALUATION' | 'APPROVED' | 'EXPIRING_SOON' | 'PENDING';
 export type DensityOption = 'std' | 'cozy' | 'compact';
 export type ExamineeType = 'New' | 'Renewal' | 'Modification' | 'Upgrading' | 'Additional';
+
+export interface ApplicationDocument {
+  id: string;
+  name: string;
+  type: 'PDF' | 'DOCX' | 'ZIP' | 'IMAGE';
+  size: string;
+  category: 'ATTACHMENT' | 'ISSUED_PERMIT' | 'RECEIPT' | 'SOA' | 'ADMISSION_SLIP';
+  uploadedAt: string;
+}
 
 export interface Schedule {
   date: string;
@@ -128,6 +137,110 @@ export function formatRelativeTime(isoDate: string): string {
   if (diffDay < 30)  return `${diffDay} day${diffDay === 1 ? '' : 's'} ago`;
   const diffMonth = Math.floor(diffDay / 30);
   return `${diffMonth} month${diffMonth === 1 ? '' : 's'} ago`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Document Helper
+// ─────────────────────────────────────────────────────────────────────────────
+
+export function getAppDocuments(app: Application): ApplicationDocument[] {
+  const docs: ApplicationDocument[] = [];
+  const ref = app.referenceNumber;
+
+  if (app.mode === 'SINGLE') {
+    docs.push({
+      id: `${app.id}-doc-1`,
+      name: `Admission_Slip_${ref.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`,
+      type: 'PDF',
+      size: '284 KB',
+      category: 'ADMISSION_SLIP',
+      uploadedAt: app.submittedAt,
+    });
+    docs.push({
+      id: `${app.id}-doc-2`,
+      name: `Submitted_Application_Form.pdf`,
+      type: 'PDF',
+      size: '1.4 MB',
+      category: 'ATTACHMENT',
+      uploadedAt: app.submittedAt,
+    });
+    docs.push({
+      id: `${app.id}-doc-3`,
+      name: `Government_ID_Verification.pdf`,
+      type: 'PDF',
+      size: '890 KB',
+      category: 'ATTACHMENT',
+      uploadedAt: app.submittedAt,
+    });
+
+    if (app.status === 'APPROVED' || app.status === 'READY_FOR_PAYMENT') {
+      docs.push({
+        id: `${app.id}-doc-4`,
+        name: `Official_Receipt_OR-2026.pdf`,
+        type: 'PDF',
+        size: '195 KB',
+        category: 'RECEIPT',
+        uploadedAt: app.submittedAt,
+      });
+    }
+
+    if (app.status === 'APPROVED') {
+      docs.push({
+        id: `${app.id}-doc-5`,
+        name: `NTC_Official_License_Certificate.pdf`,
+        type: 'PDF',
+        size: '560 KB',
+        category: 'ISSUED_PERMIT',
+        uploadedAt: app.submittedAt,
+      });
+    }
+  } else {
+    docs.push({
+      id: `${app.id}-doc-1`,
+      name: `Statement_of_Account_${app.soaNumber ?? 'BATCH-2026'}.pdf`,
+      type: 'PDF',
+      size: '410 KB',
+      category: 'SOA',
+      uploadedAt: app.submittedAt,
+    });
+    docs.push({
+      id: `${app.id}-doc-2`,
+      name: `Master_Applicant_Roster_${app.companyName.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`,
+      type: 'PDF',
+      size: '2.4 MB',
+      category: 'ATTACHMENT',
+      uploadedAt: app.submittedAt,
+    });
+    docs.push({
+      id: `${app.id}-doc-3`,
+      name: `Company_SEC_Board_Resolution.pdf`,
+      type: 'PDF',
+      size: '1.8 MB',
+      category: 'ATTACHMENT',
+      uploadedAt: app.submittedAt,
+    });
+
+    if (app.status === 'APPROVED') {
+      docs.push({
+        id: `${app.id}-doc-4`,
+        name: `Batch_Approved_Certificates.zip`,
+        type: 'ZIP',
+        size: '8.7 MB',
+        category: 'ISSUED_PERMIT',
+        uploadedAt: app.submittedAt,
+      });
+      docs.push({
+        id: `${app.id}-doc-5`,
+        name: `Batch_Official_Payment_Receipt.pdf`,
+        type: 'PDF',
+        size: '320 KB',
+        category: 'RECEIPT',
+        uploadedAt: app.submittedAt,
+      });
+    }
+  }
+
+  return docs;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
