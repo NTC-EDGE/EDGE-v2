@@ -20,6 +20,8 @@ import {
   ParamListBase,
   RouteProp,
   createNativeStackNavigator,
+  getStateFromPath,
+  getPathFromState,
 } from "@edge/ui";
 import {
   AuthProvider,
@@ -136,13 +138,43 @@ const getPrefixes = (): string[] => {
 
 const unauthLinking = {
   prefixes: getPrefixes(),
+  getStateFromPath(path: string, options?: Parameters<typeof getStateFromPath>[1]) {
+    const cleanPath = path.split("?")[0].replace(/\/$/, "");
+    if (cleanPath === "" || cleanPath === "/" || cleanPath === "internal/landing" || cleanPath === "/internal/landing") {
+      return {
+        routes: [{ name: "InternalLanding" }],
+      };
+    }
+    return getStateFromPath(path, options);
+  },
+  getPathFromState(state: Parameters<typeof getPathFromState>[0], options?: Parameters<typeof getPathFromState>[1]) {
+    const generatedPath = getPathFromState(state, options);
+    if (generatedPath === "" || generatedPath === "/") {
+      return "/internal/landing";
+    }
+    return generatedPath;
+  },
 };
 
 const authLinking = {
   prefixes: getPrefixes(),
+  getStateFromPath(path: string, options?: Parameters<typeof getStateFromPath>[1]) {
+    const cleanPath = path.split("?")[0].replace(/\/$/, "");
+    if (cleanPath === "" || cleanPath === "/" || cleanPath === "internal/landing" || cleanPath === "/internal/landing") {
+      return {
+        routes: [{ name: "Dashboard" }],
+      };
+    }
+    return getStateFromPath(path, options);
+  },
+  getPathFromState(state: Parameters<typeof getPathFromState>[0], options?: Parameters<typeof getPathFromState>[1]) {
+    const generatedPath = getPathFromState(state, options);
+    if (generatedPath === "" || generatedPath === "/") {
+      return "/dashboard";
+    }
+    return generatedPath;
+  },
 };
-
-
 
 function AppContent() {
   const { isAuthenticated, isLoading } = useAuthContext();
@@ -163,7 +195,7 @@ function AppContent() {
       }
     }
     if (!isAuthenticated && Platform.OS === "web" && typeof window !== "undefined") {
-      if (window.location.pathname === "/") {
+      if (window.location.pathname === "/" || window.location.pathname === "") {
         window.history.replaceState(null, "", "/internal/landing");
       }
     }
@@ -173,11 +205,19 @@ function AppContent() {
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    const unsubscribe = navigationRef.addListener("state", () => {
-      const route = navigationRef.getCurrentRoute();
-      if (route !== null && route !== undefined) {
-        setActiveScreen(route.name);
+    const syncActiveScreen = () => {
+      if (navigationRef.isReady()) {
+        const route = navigationRef.getCurrentRoute();
+        if (route !== null && route !== undefined) {
+          setActiveScreen(route.name);
+        }
       }
+    };
+
+    syncActiveScreen();
+
+    const unsubscribe = navigationRef.addListener("state", () => {
+      syncActiveScreen();
     });
 
     return unsubscribe;
