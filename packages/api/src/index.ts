@@ -1,8 +1,11 @@
 import axios from 'axios';
 import useSWR, { SWRConfiguration, SWRResponse } from 'swr';
 
+declare const process: { env: Record<string, string | undefined> } | undefined;
+
 const getApiUrl = (): string => {
-  const envUrl = process.env.EXPO_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_URL;
+  const env = typeof process !== 'undefined' ? process.env : undefined;
+  const envUrl = env?.EXPO_PUBLIC_API_URL ?? env?.NEXT_PUBLIC_API_URL;
   if (typeof envUrl === 'string' && envUrl.length > 0) {
     return envUrl;
   }

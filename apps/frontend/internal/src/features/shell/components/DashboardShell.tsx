@@ -62,8 +62,8 @@ export function DashboardShell({
         duration: 220,
         easing: Easing.bezier(0.16, 1, 0.3, 1), // easeOutExpo
         useNativeDriver: true,
-      }).start(({ finished }) => {
-        if (finished) {
+      }).start(({ finished }: { finished?: boolean }) => {
+        if (finished === true) {
           setShouldRenderSidebar(false);
         }
       });
