@@ -64,7 +64,7 @@ export function Select({
       ) : null}
 
       <TouchableOpacity
-        activeOpacity={0.7}
+        activeOpacity={1}
         onPress={() => setModalVisible(true)}
         style={getRowStyles()}
       >
@@ -201,8 +201,8 @@ const styles = StyleSheet.create({
     padding: SPACING[20],
   },
   modalCard: {
-    backgroundColor: COLORS.glass.bg,
-    borderColor: COLORS.glass.border,
+    backgroundColor: COLORS.neutral.white,
+    borderColor: COLORS.neutral[200],
     borderWidth: 1.5,
     borderRadius: RADIUS.dialog,
     width: '100%',
