@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -14,60 +14,6 @@ namespace EDGE.Infrastructure.Migrations
             migrationBuilder.EnsureSchema(
                 name: "public");
 
-            migrationBuilder.CreateTable(
-                name: "ActivityLogs",
-                schema: "public",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    ActivityType = table.Column<string>(type: "text", nullable: false),
-                    Description = table.Column<string>(type: "text", nullable: false),
-                    UserId = table.Column<string>(type: "text", nullable: false),
-                    IpAddress = table.Column<string>(type: "text", nullable: false),
-                    Timestamp = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_ActivityLogs", x => x.Id);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "Applications",
-                schema: "public",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    Title = table.Column<string>(type: "text", nullable: false),
-                    ApplicantName = table.Column<string>(type: "text", nullable: false),
-                    Status = table.Column<string>(type: "text", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    CreatedBy = table.Column<string>(type: "text", nullable: true),
-                    LastModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    LastModifiedBy = table.Column<string>(type: "text", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Applications", x => x.Id);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "AuditLogs",
-                schema: "public",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    EntityName = table.Column<string>(type: "text", nullable: false),
-                    Action = table.Column<string>(type: "text", nullable: false),
-                    ChangedBy = table.Column<string>(type: "text", nullable: true),
-                    ChangedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    KeyValues = table.Column<string>(type: "text", nullable: true),
-                    OldValues = table.Column<string>(type: "text", nullable: true),
-                    NewValues = table.Column<string>(type: "text", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_AuditLogs", x => x.Id);
-                });
 
             migrationBuilder.CreateTable(
                 name: "Regions",
@@ -203,18 +149,6 @@ namespace EDGE.Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
-                name: "ActivityLogs",
-                schema: "public");
-
-            migrationBuilder.DropTable(
-                name: "Applications",
-                schema: "public");
-
-            migrationBuilder.DropTable(
-                name: "AuditLogs",
-                schema: "public");
-
             migrationBuilder.DropTable(
                 name: "Barangays",
                 schema: "public");
