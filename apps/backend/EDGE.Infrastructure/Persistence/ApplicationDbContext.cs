@@ -20,6 +20,7 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
     public DbSet<Province> Provinces => Set<Province>();
     public DbSet<Municipality> Municipalities => Set<Municipality>();
     public DbSet<Barangay> Barangays => Set<Barangay>();
+    public DbSet<Schedule> Schedules => Set<Schedule>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -118,6 +119,19 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
                   .WithMany(p => p.Barangays)
                   .HasForeignKey(d => d.MunicipalityId)
                   .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Schedule Configuration
+        modelBuilder.Entity<Schedule>(entity =>
+        {
+            entity.Property(e => e.Venue).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.SeatNumber).HasMaxLength(50);
+            entity.Property(e => e.Remarks).HasMaxLength(500);
+
+            // Prepared relationship mappings (uncomment once Tenant, Service, & ApplicationRecord entities are ready):
+            // entity.HasOne(s => s.Tenant).WithMany(t => t.Schedules).HasForeignKey(s => s.TenantId).OnDelete(DeleteBehavior.Cascade);
+            // entity.HasOne(s => s.Application).WithMany(a => a.Schedules).HasForeignKey(s => s.ApplicationId).OnDelete(DeleteBehavior.SetNull);
+            // entity.HasOne(s => s.Service).WithMany(sv => sv.Schedules).HasForeignKey(s => s.ServiceId).OnDelete(DeleteBehavior.Restrict);
         });
     }
 }
