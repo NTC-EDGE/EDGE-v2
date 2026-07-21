@@ -8,13 +8,13 @@ import {
   Platform,
 } from "react-native";
 import { tokenCache } from "./tokenCache";
+import { ClerkProvider } from "@clerk/expo";
 import {
   COLORS,
   SPACING,
   RADIUS,
   SHADOWS,
   TYPOGRAPHY,
-  ClerkProvider,
   createStaticNavigation,
   useNavigationContainerRef,
   ParamListBase,
@@ -31,7 +31,7 @@ import { RoleProvider } from "./src/features/shell/context/RoleContext";
 import { DashboardShell } from "./src/features/shell/components/DashboardShell";
 import { DashboardScreen } from "./src/features/dashboard/screens/DashboardScreen";
 import { QueueScreen } from "./src/features/queue/screens/QueueScreen";
-import { InternalLandingPage } from "./src/features/landing/components/InternalLandingPage";
+import { InternalLoginPage } from "./src/features/login/components/InternalLoginPage";
 
 const getClerkKey = (): string => {
   const key = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
@@ -79,18 +79,18 @@ function PlaceholderScreen({
 
 // React Navigation 8 Static configuration
 const UnauthStack = createNativeStackNavigator({
-  initialRouteName: "InternalLanding",
+  initialRouteName: "InternalLogin",
   screenOptions: {
     headerShown: false,
     contentStyle: { backgroundColor: "transparent" },
     animation: "fade",
   },
   screens: {
-    InternalLanding: {
-      screen: InternalLandingPage,
-      path: "internal/landing",
+    InternalLogin: {
+      screen: InternalLoginPage,
+      path: "internal/login",
       options: {
-        title: "Landing",
+        title: "Login",
       },
     },
   },
@@ -140,9 +140,16 @@ const unauthLinking = {
   prefixes: getPrefixes(),
   getStateFromPath(path: string, options?: Parameters<typeof getStateFromPath>[1]) {
     const cleanPath = path.split("?")[0].replace(/\/$/, "");
-    if (cleanPath === "" || cleanPath === "/" || cleanPath === "internal/landing" || cleanPath === "/internal/landing") {
+    if (
+      cleanPath === "" ||
+      cleanPath === "/" ||
+      cleanPath === "internal/login" ||
+      cleanPath === "/internal/login" ||
+      cleanPath === "internal/landing" ||
+      cleanPath === "/internal/landing"
+    ) {
       return {
-        routes: [{ name: "InternalLanding" }],
+        routes: [{ name: "InternalLogin" }],
       };
     }
     return getStateFromPath(path, options);
@@ -150,7 +157,7 @@ const unauthLinking = {
   getPathFromState(state: Parameters<typeof getPathFromState>[0], options?: Parameters<typeof getPathFromState>[1]) {
     const generatedPath = getPathFromState(state, options);
     if (generatedPath === "" || generatedPath === "/") {
-      return "/internal/landing";
+      return "/internal/login";
     }
     return generatedPath;
   },
@@ -160,7 +167,14 @@ const authLinking = {
   prefixes: getPrefixes(),
   getStateFromPath(path: string, options?: Parameters<typeof getStateFromPath>[1]) {
     const cleanPath = path.split("?")[0].replace(/\/$/, "");
-    if (cleanPath === "" || cleanPath === "/" || cleanPath === "internal/landing" || cleanPath === "/internal/landing") {
+    if (
+      cleanPath === "" ||
+      cleanPath === "/" ||
+      cleanPath === "internal/login" ||
+      cleanPath === "/internal/login" ||
+      cleanPath === "internal/landing" ||
+      cleanPath === "/internal/landing"
+    ) {
       return {
         routes: [{ name: "Dashboard" }],
       };
@@ -181,11 +195,11 @@ function AppContent() {
   const navigationRef = useNavigationContainerRef<ParamListBase>();
   const [activeScreen, setActiveScreen] = useState("Dashboard");
 
-  // Sync root URL '/' to '/internal/landing' in browser address bar when unauthenticated and update document title based on auth state and active screen
+  // Sync root URL '/' to '/internal/login' in browser address bar when unauthenticated and update document title based on auth state and active screen
   useEffect(() => {
     if (Platform.OS === "web" && typeof document !== "undefined") {
       if (!isAuthenticated) {
-        document.title = "Landing";
+        document.title = "Login";
       } else {
         const formattedTitle = activeScreen
           .replace(/([A-Z])/g, " $1")
@@ -196,7 +210,7 @@ function AppContent() {
     }
     if (!isAuthenticated && Platform.OS === "web" && typeof window !== "undefined") {
       if (window.location.pathname === "/" || window.location.pathname === "") {
-        window.history.replaceState(null, "", "/internal/landing");
+        window.history.replaceState(null, "", "/internal/login");
       }
     }
   }, [isAuthenticated, activeScreen]);

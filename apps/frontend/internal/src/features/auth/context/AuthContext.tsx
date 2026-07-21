@@ -1,5 +1,5 @@
 import { createContext, useContext, ReactNode, useState } from "react";
-import { useAuth, useUser, useSignIn, useSignUp } from "@edge/ui";
+import { useAuth, useUser, useSignIn, useSignUp } from "@clerk/expo";
 
 export interface UserProfile {
   name: string;

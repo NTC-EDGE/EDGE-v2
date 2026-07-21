@@ -196,7 +196,7 @@ const REGION_OPTIONS: readonly string[] = [
   "CAR - Cordillera Administrative Region",
 ] as const;
 
-export function InternalLandingPage() {
+export function InternalLoginPage() {
   const { width } = useWindowDimensions();
   const isMobile = width < 640;
   const isTablet = width >= 640 && width < 1024;
@@ -293,7 +293,6 @@ export function InternalLandingPage() {
       setIsSubmitting(false);
     }
   };
-
 
   const switchMode = (newMode: "signin" | "verify" | "forgot") => {
     setMode(newMode);
@@ -571,7 +570,7 @@ export function InternalLandingPage() {
           </View>
         </View>
 
-        {/* Dark Navy Footer (Screenshot Reference) */}
+        {/* Dark Navy Footer */}
         <View style={styles.footerBar}>
           <View style={styles.footerContentContainer}>
             <View style={styles.footerLeftBrand}>
@@ -620,8 +619,6 @@ export function InternalLandingPage() {
           </View>
         </View>
       </ScrollView>
-
-
 
       {/* Forgot Password Dialog Modal */}
       <Modal
