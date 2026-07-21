@@ -21,6 +21,9 @@ public static class TenantMemberEndpoints
             return Results.Ok(result);
         })
         .WithName("GetTenantMembers")
+        .WithTags("Tenant Members")
+        .WithSummary("Get tenant members")
+        .WithDescription("Retrieves members assigned to a specific tenant organization.")
         .RequireAuthorization(Policies.CanManageUsers);
 
         group.MapPost("/", async (
@@ -44,6 +47,9 @@ public static class TenantMemberEndpoints
             return Results.Created($"/tenants/{tenantId}/members/{result.UserId}", result);
         })
         .WithName("AddTenantMember")
+        .WithTags("Tenant Members")
+        .WithSummary("Add member to tenant")
+        .WithDescription("Assigns a user to a tenant with role, division, position, and field office.")
         .RequireAuthorization(Policies.CanManageUsers);
 
         group.MapPut("/{userId:guid}", async (
@@ -68,6 +74,9 @@ public static class TenantMemberEndpoints
             return result is not null ? Results.Ok(result) : Results.NotFound();
         })
         .WithName("UpdateTenantMember")
+        .WithTags("Tenant Members")
+        .WithSummary("Update tenant member details")
+        .WithDescription("Updates member role, field office assignment, division, or position.")
         .RequireAuthorization(Policies.CanManageUsers);
 
         group.MapDelete("/{userId:guid}", async (
@@ -79,6 +88,9 @@ public static class TenantMemberEndpoints
             return success ? Results.NoContent() : Results.NotFound();
         })
         .WithName("RemoveTenantMember")
+        .WithTags("Tenant Members")
+        .WithSummary("Remove member from tenant")
+        .WithDescription("Removes a user's membership from a tenant organization.")
         .RequireAuthorization(Policies.CanManageUsers);
 
         app.MapGet("/users/{userId:guid}/tenants", async (Guid userId, IMediator mediator) =>
@@ -88,6 +100,8 @@ public static class TenantMemberEndpoints
         })
         .WithTags("Tenant Members")
         .WithName("GetUserTenants")
+        .WithSummary("Get user's assigned tenants")
+        .WithDescription("Retrieves all tenant organizations linked to a specific user.")
         .RequireAuthorization(Policies.CanManageUsers);
     }
 }
