@@ -261,7 +261,17 @@ export function InternalLandingPage() {
     try {
       await loginWithClerk(identifier, password, selectedRegion);
     } catch (err: unknown) {
-      handleAuthError(err, "Invalid credentials. Please check your login details and try again.");
+      if (
+        err instanceof Error &&
+        (err.message.toLowerCase().includes("verify") ||
+          err.message.toLowerCase().includes("verification") ||
+          err.message.toLowerCase().includes("status is"))
+      ) {
+        switchMode("verify");
+        setError("Verification code required to complete login.");
+      } else {
+        handleAuthError(err, "Invalid credentials. Please check your login details and try again.");
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -502,14 +512,23 @@ export function InternalLandingPage() {
                         )}
                       </TouchableOpacity>
 
-                      {/* Forgot Password Link */}
-                      <TouchableOpacity
-                        onPress={handleOpenForgotPassword}
-                        style={styles.forgotPasswordLinkWrapper}
-                        disabled={isSubmitting}
-                      >
-                        <Text style={styles.forgotPasswordLinkText}>Forgot your password?</Text>
-                      </TouchableOpacity>
+                      {/* Forgot Password & Verify Links */}
+                      <View style={{ gap: 8, marginTop: 12 }}>
+                        <TouchableOpacity
+                          onPress={handleOpenForgotPassword}
+                          style={styles.forgotPasswordLinkWrapper}
+                          disabled={isSubmitting}
+                        >
+                          <Text style={styles.forgotPasswordLinkText}>Forgot your password?</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => switchMode("verify")}
+                          style={styles.forgotPasswordLinkWrapper}
+                          disabled={isSubmitting}
+                        >
+                          <Text style={styles.forgotPasswordLinkText}>Have a verification code?</Text>
+                        </TouchableOpacity>
+                      </View>
                     </>
                   )}
 
