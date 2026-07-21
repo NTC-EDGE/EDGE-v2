@@ -46,6 +46,12 @@ public static class DependencyInjection
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IUserActivityService, UserActivityService>();
 
+        // Catalog repositories
+        services.AddScoped<IServiceCategoryRepository, ServiceCategoryRepository>();
+        services.AddScoped<IServiceRepository, ServiceRepository>();
+        services.AddScoped<IServiceVariantRepository, ServiceVariantRepository>();
+
+
         // Register Clerk Client
         services.AddHttpClient<IClerkUserService, ClerkUserService>((sp, client) =>
         {

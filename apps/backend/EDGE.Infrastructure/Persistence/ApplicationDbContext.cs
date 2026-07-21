@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using EDGE.Domain.Entities;
 using EDGE.Application.Common.Interfaces;
@@ -20,6 +21,11 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
     public DbSet<Province> Provinces => Set<Province>();
     public DbSet<Municipality> Municipalities => Set<Municipality>();
     public DbSet<Barangay> Barangays => Set<Barangay>();
+
+    // Catalog
+    public DbSet<ServiceCategory> ServiceCategories => Set<ServiceCategory>();
+    public DbSet<Service> Services => Set<Service>();
+    public DbSet<ServiceVariant> ServiceVariants => Set<ServiceVariant>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -118,6 +124,54 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
                   .WithMany(p => p.Barangays)
                   .HasForeignKey(d => d.MunicipalityId)
                   .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ── Catalog Configuration ──────────────────────────────────────────────
+
+        // ServiceCategory
+        modelBuilder.Entity<ServiceCategory>(entity =>
+        {
+            entity.Property(e => e.Type).HasConversion<string>().IsRequired();
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Code).HasMaxLength(50);
+        });
+
+        // Service
+        modelBuilder.Entity<Service>(entity =>
+        {
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(300);
+            entity.Property(e => e.Group).HasMaxLength(200);
+            entity.Property(e => e.Code).HasMaxLength(50);
+
+            // Store JsonDocument as jsonb column in PostgreSQL
+            entity.Property(e => e.Contract)
+                  .HasColumnType("jsonb")
+                  .HasConversion(
+                      doc => doc.RootElement.GetRawText(),
+                      json => JsonDocument.Parse(json, new JsonDocumentOptions { AllowTrailingCommas = true }))
+                  .IsRequired();
+
+            entity.HasOne(s => s.ServiceCategory)
+                  .WithMany(c => c.Services)
+                  .HasForeignKey(s => s.ServiceCategoryId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(s => s.Tenant)
+                  .WithMany()
+                  .HasForeignKey(s => s.TenantId)
+                  .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ServiceVariant
+        modelBuilder.Entity<ServiceVariant>(entity =>
+        {
+            entity.Property(e => e.Type).HasConversion<string>().IsRequired();
+            entity.Property(e => e.Description).HasMaxLength(500);
+
+            entity.HasOne(v => v.Service)
+                  .WithMany(s => s.Variants)
+                  .HasForeignKey(v => v.ServiceId)
+                  .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

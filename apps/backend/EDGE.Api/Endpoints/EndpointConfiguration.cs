@@ -20,5 +20,11 @@ public static class EndpointConfiguration
         apiV2Group.MapRoleEndpoints();
         apiV2Group.MapPermissionEndpoints();
         apiV2Group.MapRolePermissionEndpoints();
+
+        // Catalog hierarchy endpoints
+        apiV2Group.MapServiceCategoryEndpoints();
+        apiV2Group.MapServiceEndpoints();
+        apiV2Group.MapServiceVariantEndpoints();
     }
 }
+

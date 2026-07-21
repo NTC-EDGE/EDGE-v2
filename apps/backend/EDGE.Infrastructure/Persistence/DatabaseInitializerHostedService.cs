@@ -28,9 +28,21 @@ public class DatabaseInitializerHostedService : IHostedService
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
             // 1. Run migrations first
-            _logger.LogInformation("Applying database migrations...");
-            await context.Database.MigrateAsync(cancellationToken);
-            _logger.LogInformation("Database migrations applied successfully.");
+            var appliedMigrations = (await context.Database.GetAppliedMigrationsAsync(cancellationToken)).ToList();
+            var pendingMigrations = (await context.Database.GetPendingMigrationsAsync(cancellationToken)).ToList();
+
+            _logger.LogInformation("Found {Count} applied migration(s) in database: [{Applied}]", appliedMigrations.Count, string.Join(", ", appliedMigrations));
+
+            if (pendingMigrations.Count > 0)
+            {
+                _logger.LogInformation("Applying {Count} pending migration(s): [{Pending}]", pendingMigrations.Count, string.Join(", ", pendingMigrations));
+                await context.Database.MigrateAsync(cancellationToken);
+                _logger.LogInformation("Database migrations applied successfully.");
+            }
+            else
+            {
+                _logger.LogInformation("No pending database migrations found. Database schema is up to date.");
+            }
 
             // 2. Seed IAM reference data (Roles, Permissions, RolePermissions, default Users)
             _logger.LogInformation("Seeding database IAM reference data...");
@@ -41,6 +53,12 @@ public class DatabaseInitializerHostedService : IHostedService
             _logger.LogInformation("Seeding database geographic reference data...");
             await GeographicDataSeeder.SeedAsync(context);
             _logger.LogInformation("Geographic seed data completed.");
+
+            // 4. Seed catalog hierarchy (ServiceCategory → Service → ServiceVariant)
+            _logger.LogInformation("Seeding catalog hierarchy reference data...");
+            await CatalogDataSeeder.SeedAsync(context);
+            _logger.LogInformation("Catalog seed data completed.");
+
         }
         catch (Exception ex)
         {
