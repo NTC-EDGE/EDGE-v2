@@ -59,7 +59,7 @@ public static class FastTrackSeeder
         {
             ["NTC_1_01"] = new()
             {
-                Id = Guid.Parse("s0000000-0000-0000-0000-000000000001"),
+                Id = Guid.Parse("50000000-0000-0000-0000-000000000001"),
                 ServiceCategoryId = categories["Certificate"].Id,
                 TenantId = tenant.Id,
                 Name = "Radio Operator Certificate",
@@ -70,7 +70,7 @@ public static class FastTrackSeeder
             },
             ["NTC_1_02"] = new()
             {
-                Id = Guid.Parse("s0000000-0000-0000-0000-000000000002"),
+                Id = Guid.Parse("50000000-0000-0000-0000-000000000002"),
                 ServiceCategoryId = categories["License"].Id,
                 TenantId = tenant.Id,
                 Name = "Radio Station License",
@@ -87,10 +87,10 @@ public static class FastTrackSeeder
         // 3. Seed Service Variants
         var variants = new List<ServiceVariant>
         {
-            new() { Id = Guid.Parse("v0000000-0000-0000-0000-000000000001"), ServiceId = services["NTC_1_01"].Id, Type = ServiceVariantType.New, Description = "New Radio Operator Certificate Application" },
-            new() { Id = Guid.Parse("v0000000-0000-0000-0000-000000000002"), ServiceId = services["NTC_1_01"].Id, Type = ServiceVariantType.Renewal, Description = "Renew Radio Operator Certificate" },
-            new() { Id = Guid.Parse("v0000000-0000-0000-0000-000000000003"), ServiceId = services["NTC_1_02"].Id, Type = ServiceVariantType.New, Description = "New Radio Station License Application" },
-            new() { Id = Guid.Parse("v0000000-0000-0000-0000-000000000004"), ServiceId = services["NTC_1_02"].Id, Type = ServiceVariantType.Renewal, Description = "Renew Radio Station License" }
+            new() { Id = Guid.Parse("60000000-0000-0000-0000-000000000001"), ServiceId = services["NTC_1_01"].Id, Type = ServiceVariantType.New, Description = "New Radio Operator Certificate Application" },
+            new() { Id = Guid.Parse("60000000-0000-0000-0000-000000000002"), ServiceId = services["NTC_1_01"].Id, Type = ServiceVariantType.Renewal, Description = "Renew Radio Operator Certificate" },
+            new() { Id = Guid.Parse("60000000-0000-0000-0000-000000000003"), ServiceId = services["NTC_1_02"].Id, Type = ServiceVariantType.New, Description = "New Radio Station License Application" },
+            new() { Id = Guid.Parse("60000000-0000-0000-0000-000000000004"), ServiceId = services["NTC_1_02"].Id, Type = ServiceVariantType.Renewal, Description = "Renew Radio Station License" }
         };
 
         await context.ServiceVariants.AddRangeAsync(variants);
@@ -134,7 +134,7 @@ public static class FastTrackSeeder
 
         var section101Personal = new FormSection
         {
-            Id = Guid.Parse("f01s0000-0000-0000-0000-000000000001"),
+            Id = Guid.Parse("f01a0000-0000-0000-0000-000000000001"),
             FormId = form101.Id,
             Key = "personalInfo",
             Title = "Personal Information",
@@ -142,7 +142,7 @@ public static class FastTrackSeeder
         };
         var section101Elig = new FormSection
         {
-            Id = Guid.Parse("f01s0000-0000-0000-0000-000000000002"),
+            Id = Guid.Parse("f01a0000-0000-0000-0000-000000000002"),
             FormId = form101.Id,
             Key = "eligibility",
             Title = "Eligibility & Operator Details",
@@ -162,7 +162,7 @@ public static class FastTrackSeeder
 
         var section102Company = new FormSection
         {
-            Id = Guid.Parse("f02s0000-0000-0000-0000-000000000001"),
+            Id = Guid.Parse("f02a0000-0000-0000-0000-000000000001"),
             FormId = form102.Id,
             Key = "companyInfo",
             Title = "Company Information",
@@ -170,7 +170,7 @@ public static class FastTrackSeeder
         };
         var section102Station = new FormSection
         {
-            Id = Guid.Parse("f02s0000-0000-0000-0000-000000000002"),
+            Id = Guid.Parse("f02a0000-0000-0000-0000-000000000002"),
             FormId = form102.Id,
             Key = "stationDetails",
             Title = "Station Technical Details",
