@@ -47,16 +47,11 @@ public class ScheduleRepository : IScheduleRepository
         return await query.OrderBy(s => s.StartDate).ToListAsync(cancellationToken);
     }
 
-    public async Task<List<Schedule>> GetAvailableSchedulesAsync(Guid serviceId, Guid? tenantId = null, DateTime? date = null, CancellationToken cancellationToken = default)
+    public async Task<List<Schedule>> GetAvailableSchedulesAsync(Guid serviceId, Guid tenantId, DateTime? date = null, CancellationToken cancellationToken = default)
     {
         var query = _context.Schedules
             .AsNoTracking()
-            .Where(s => s.ServiceId == serviceId && s.IsPublished);
-
-        if (tenantId.HasValue && tenantId.Value != Guid.Empty)
-        {
-            query = query.Where(s => s.TenantId == tenantId.Value);
-        }
+            .Where(s => s.ServiceId == serviceId && s.TenantId == tenantId && s.IsPublished);
 
         if (date.HasValue)
         {

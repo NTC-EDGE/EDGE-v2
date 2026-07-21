@@ -5,6 +5,6 @@ namespace EDGE.Application.Schedules.Queries.GetAvailableSchedules;
 
 public record GetAvailableSchedulesQuery(
     Guid ServiceId,
-    Guid? TenantId = null,
+    Guid TenantId,
     DateTime? Date = null
 ) : IRequest<List<ClientScheduleDto>>;
