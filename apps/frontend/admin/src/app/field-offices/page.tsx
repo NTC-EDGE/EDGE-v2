@@ -366,7 +366,7 @@ function FieldOfficesContent() {
   return (
     <div className="space-y-6">
       {/* Top Banner */}
-      <div className="p-6 md:p-8 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-900/90 to-emerald-950/60 border border-slate-800 shadow-xl relative overflow-hidden">
+      <div className="p-5 md:p-6 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-900/90 to-emerald-950/60 border border-slate-800 shadow-xl relative overflow-hidden">
         <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
           <Building className="w-64 h-64 text-emerald-400" />
         </div>

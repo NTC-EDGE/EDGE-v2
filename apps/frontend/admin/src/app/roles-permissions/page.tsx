@@ -237,7 +237,7 @@ export default function RolesPermissionsPage() {
   return (
     <div className="space-y-6">
       {/* Header Banner */}
-      <div className="p-6 md:p-8 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-900/90 to-purple-950/60 border border-slate-800 shadow-xl relative overflow-hidden">
+      <div className="p-5 md:p-6 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-900/90 to-purple-950/60 border border-slate-800 shadow-xl relative overflow-hidden">
         <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
           <KeyRound className="w-64 h-64 text-purple-400" />
         </div>

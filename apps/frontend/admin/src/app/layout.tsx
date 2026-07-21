@@ -40,7 +40,7 @@ export default function RootLayout({
             {/* Main Area */}
             <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
               {/* Top Header */}
-              <header className="h-16 border-b border-slate-800 flex items-center justify-between px-6 md:px-8 bg-slate-900/40 backdrop-blur-md flex-shrink-0">
+              <header className="h-16 border-b border-slate-800 flex items-center justify-between px-4 md:px-6 bg-slate-900/40 backdrop-blur-md flex-shrink-0">
                 <div className="flex items-center gap-3">
                   <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
                   <span className="text-xs text-slate-300 font-medium">System Configuration Service Connected</span>
@@ -51,8 +51,8 @@ export default function RootLayout({
               </header>
 
               {/* Content Area */}
-              <main className="flex-1 overflow-y-auto p-4 md:p-8 bg-slate-950">
-                <div className="max-w-[1200px] w-full mx-auto space-y-6">
+              <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-slate-950">
+                <div className="w-full space-y-6">
                   {children}
                 </div>
               </main>
