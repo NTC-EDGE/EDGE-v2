@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { Icon, ServiceFormModal } from "@edge/ui";
 import { useNavigation, NavigationProp } from "@react-navigation/native";
-import { useUser, useAuth } from "@clerk/clerk-expo";
+import { useUser, useAuth } from "@clerk/expo";
 import { apiClient } from "@edge/api";
 import { servicesData, NTCService } from "./data/servicesData";
 import { CategoryGrid } from "./components/CategoryGrid";

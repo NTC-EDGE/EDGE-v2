@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.ts",
   "dependencies": {
-    "@clerk/clerk-expo": "^2.19.31",
+    "@clerk/expo": "^3.2.0",
     "@edge/api": "workspace:*",
     "@edge/ui": "workspace:*",
     "@react-navigation/bottom-tabs": "8.0.0-alpha.35",
@@ -24,6 +24,7 @@
     "react-native-web": "^0.21.2"
   },
   "devDependencies": {
+    "@react-navigation/core": "^8.0.0-alpha.26",
     "@types/react": "~19.2.2",
     "typescript": "~6.0.3"
   },

@@ -15,7 +15,7 @@ import { Input } from '../../shared/components/Input';
 import { Button } from '../../shared/components/Button';
 import { Logo } from '../../shared/components/Logo';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
-import { useSignUp, isClerkAPIResponseError } from '@clerk/clerk-expo';
+import { useSignUp, isClerkAPIResponseError } from '@clerk/expo';
 
 type UnauthParamList = {
   Landing: undefined;
@@ -26,7 +26,8 @@ type UnauthParamList = {
 
 export function SignUpScreen() {
   const navigation = useNavigation();
-  const { signUp, setActive, isLoaded: signUpLoaded } = useSignUp();
+  const signUpResult = useSignUp();
+  const { signUp } = signUpResult;
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -59,23 +60,21 @@ export function SignUpScreen() {
         duration: 650,
         useNativeDriver: true,
       }),
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(glowAnim, {
+            toValue: 1,
+            duration: 4000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(glowAnim, {
+            toValue: 0,
+            duration: 4000,
+            useNativeDriver: true,
+          }),
+        ]),
+      ),
     ]).start();
-
-    // Breathing background glow
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(glowAnim, {
-          toValue: 1,
-          duration: 4000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(glowAnim, {
-          toValue: 0,
-          duration: 4000,
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
   }, [cardFade, cardSlide, glowAnim]);
 
   const validate = (): boolean => {
@@ -84,25 +83,30 @@ export function SignUpScreen() {
     setEmailError('');
     setPasswordError('');
     setConfirmPasswordError('');
+    setGeneralError('');
 
     if (name.trim().length === 0) {
       setNameError('Full name is required');
       isValid = false;
     }
 
-    if (email.trim().length === 0) {
+    const trimmedEmail = email.trim();
+    if (trimmedEmail.length === 0) {
       setEmailError('Email address is required');
       isValid = false;
-    } else if (!email.includes('@')) {
-      setEmailError('Please enter a valid email containing "@"');
-      isValid = false;
+    } else {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(trimmedEmail)) {
+        setEmailError('Please enter a valid email address');
+        isValid = false;
+      }
     }
 
     if (password.length === 0) {
       setPasswordError('Password is required');
       isValid = false;
-    } else if (password.length < 6) {
-      setPasswordError('Password must be at least 6 characters long');
+    } else if (password.length < 8) {
+      setPasswordError('Password must be at least 8 characters');
       isValid = false;
     }
 
@@ -123,23 +127,30 @@ export function SignUpScreen() {
     setLoading(true);
     setGeneralError('');
 
-    if (!signUpLoaded) {
+    if (signUp === null) {
       setGeneralError('Sign up service is not loaded yet. Please try again.');
       setLoading(false);
       return;
     }
 
     try {
-      const completeSignUp = await signUp.create({
+      const result = await signUp.create({
         emailAddress: email,
         password,
       });
 
-      if (completeSignUp.status === 'complete') {
-        if (setActive !== undefined) {
-          await setActive({ session: completeSignUp.createdSessionId });
+      if (result.error) {
+        setGeneralError(result.error.message || 'Sign up failed.');
+        return;
+      }
+
+      if (signUp.status === 'complete') {
+        const finalizeResult = await signUp.finalize();
+        if (finalizeResult.error) {
+          setGeneralError(finalizeResult.error.message || 'Sign up finalization failed.');
+        } else {
+          setSuccess(true);
         }
-        setSuccess(true);
       } else {
         setGeneralError('Verification required. Please check your Clerk verification setup.');
       }
