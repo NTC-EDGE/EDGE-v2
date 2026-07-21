@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Text,
   View,
@@ -8,60 +8,54 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { Icon } from '@edge/ui';
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useNavigation, NavigationProp } from '@react-navigation/native';
 import { useUser, useAuth } from '@clerk/expo';
+import { AuthParamList } from '../../routes/auth';
 import {
   mockApplications,
   Application,
   ModeFilterOption,
   StatusFilterOption,
-  DensityOption,
   SingleApplication,
   BulkApplication,
+  getAppDocuments,
+  getStatusLabel,
+  ApplicationDocument,
 } from './data/applicationsData';
 import { ApplicationCard, SinglePreview, BulkPreview } from './components';
 import { styles } from './MyApplications.styles';
 
-// ─── Local nav type ────────────────────────────────────────────────────────
-type AuthParamList = {
-  Services: undefined;
-  MyApplications: undefined;
-};
-
-// ─── Pagination constant ───────────────────────────────────────────────────
-const LIST_PAGE_SIZE = 5;
-
-// ─── Mode dot colours ─────────────────────────────────────────────────────
-const MODE_DOT_COLORS: Record<Exclude<ModeFilterOption, 'ALL'>, string> = {
-  SINGLE: '#2F56E8',
-  BULK: '#D97706',
-};
+const LIST_PAGE_SIZE = 6;
 
 export function MyApplications() {
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
-  const navigation: NativeStackNavigationProp<AuthParamList> = useNavigation<NativeStackNavigationProp<AuthParamList>>();
+  const navigation = useNavigation<NavigationProp<AuthParamList>>();
 
-  // Clerk
+  // Clerk auth
   const { user: clerkUser } = useUser();
   const { signOut } = useAuth();
 
-  // ── UI state ──────────────────────────────────────────────────────────
+  // Sidebar collapse state
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
-  // Left-pane filter state
+  // Filter & Search state
   const [filterText, setFilterText] = useState('');
   const [selectedMode, setSelectedMode] = useState<ModeFilterOption>('ALL');
   const [selectedStatus, setSelectedStatus] = useState<StatusFilterOption>('ALL');
-  const [density, setDensity] = useState<DensityOption>('std');
-  const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
+  const [sortOrder, setSortOrder] = useState<'NEWEST' | 'OLDEST'>('NEWEST');
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Right-pane preview state
-  const [previewApp, setPreviewApp] = useState<Application | null>(null);
+  // Dropdown open state
+  const [openDropdown, setOpenDropdown] = useState<'TYPE' | 'STATUS' | 'SORT' | null>(null);
 
-  // User profile
+  // Selected Modal Application Detail state
+  const [selectedApp, setSelectedApp] = useState<Application | null>(null);
+
+  // Toast feedback state
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // User Profile
   const userProfile = useMemo(() => {
     if (clerkUser !== null && clerkUser !== undefined) {
       return {
@@ -79,15 +73,15 @@ export function MyApplications() {
     await signOut();
   };
 
-  // ── Filtering ─────────────────────────────────────────────────────────
+  // Filtered & Sorted Applications
   const filteredApps = useMemo<Application[]>(() => {
-    return mockApplications.filter((app) => {
-      // Text search
+    const list = mockApplications.filter((app) => {
+      // Search text match
       const q = filterText.toLowerCase();
-      const primaryName =
-        app.mode === 'BULK' ? app.companyName : app.applicantName;
+      const primaryName = app.mode === 'BULK' ? app.companyName : app.applicantName;
       const matchesSearch =
         q === '' ||
+        app.referenceNumber.toLowerCase().includes(q) ||
         app.serviceName.toLowerCase().includes(q) ||
         primaryName.toLowerCase().includes(q);
 
@@ -97,92 +91,70 @@ export function MyApplications() {
       if (selectedMode !== 'ALL' && app.mode !== selectedMode) return false;
 
       // Status filter
-      if (selectedStatus === 'FOR_APPROVAL' && app.status !== 'FOR_APPROVAL') return false;
-      if (selectedStatus === 'APPROVED' && app.status !== 'APPROVED') return false;
-      if (selectedStatus === 'EXPIRING_SOON' && app.status !== 'EXPIRING_SOON') return false;
+      if (selectedStatus !== 'ALL' && app.status !== selectedStatus) return false;
 
       return true;
     });
-  }, [filterText, selectedMode, selectedStatus]);
 
-  // Reset page when filters change
+    // Sort order
+    return list.sort((a, b) => {
+      const timeA = new Date(a.submittedAt).getTime();
+      const timeB = new Date(b.submittedAt).getTime();
+      return sortOrder === 'NEWEST' ? timeB - timeA : timeA - timeB;
+    });
+  }, [filterText, selectedMode, selectedStatus, sortOrder]);
+
+  // Statistics
+  const stats = useMemo(() => {
+    const totalCount = mockApplications.length;
+    const singleCount = mockApplications.filter((a) => a.mode === 'SINGLE').length;
+    const bulkCount = mockApplications.filter((a) => a.mode === 'BULK').length;
+    const readyDocsCount = mockApplications.reduce(
+      (acc, app) => acc + getAppDocuments(app).length,
+      0,
+    );
+
+    return { totalCount, singleCount, bulkCount, readyDocsCount };
+  }, []);
+
+  // Reset pagination on filter change
   useEffect(() => {
     setCurrentPage(1);
-  }, [filterText, selectedMode, selectedStatus]);
+  }, [filterText, selectedMode, selectedStatus, sortOrder]);
 
-  // ── Pagination ────────────────────────────────────────────────────────
+  // Pagination
   const totalPages = Math.max(1, Math.ceil(filteredApps.length / LIST_PAGE_SIZE));
   const pagedApps = filteredApps.slice(
     (currentPage - 1) * LIST_PAGE_SIZE,
     currentPage * LIST_PAGE_SIZE,
   );
-  const showingCount = pagedApps.length;
 
-  // ── Card expand / preview handlers ───────────────────────────────────
-  const handleCardPress = (appId: string) => {
-    setExpandedCardId((prev) => (prev === appId ? null : appId));
+  // Download Handler
+  const handleDownloadDoc = (doc: ApplicationDocument) => {
+    setToastMessage(`Downloading document "${doc.name}"...`);
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 3500);
   };
 
-  const handlePreview = (app: Application) => {
-    setPreviewApp(app);
-    // On mobile, we navigate into the detail pane
-  };
-
-  const handleBackFromPreview = () => {
-    setPreviewApp(null);
-  };
-
-  // ── Mobile layout helpers ─────────────────────────────────────────────
-  const isLeftHiddenOnMobile = isMobile && previewApp !== null;
-
-  // ── Right pane renderer ───────────────────────────────────────────────
-  const renderRightPane = () => {
-    if (previewApp === null) {
-      return (
-        <View style={styles.emptyPlaceholder}>
-          <View style={styles.placeholderIllustration}>
-            <Icon name="file" size={48} color="#d1d5db" />
-            <Icon
-              name="mouse-pointer"
-              size={24}
-              color="#1d4ed8"
-              style={styles.pointerOverlay}
-            />
-          </View>
-          <Text style={styles.placeholderTitleText}>No application selected</Text>
-          <Text style={styles.placeholderSubtitleText}>
-            Select an application card from the list on the left to view
-            detailed status logs and information.
-          </Text>
-        </View>
-      );
+  const handleQuickDownloadAppDocs = (app: Application) => {
+    const docs = getAppDocuments(app);
+    if (docs.length > 0) {
+      handleDownloadDoc(docs[0]);
     }
+  };
 
-    if (previewApp.mode === 'SINGLE') {
-      return (
-        <SinglePreview
-          app={previewApp as SingleApplication}
-          onBack={handleBackFromPreview}
-        />
-      );
-    }
-
-    // previewApp.mode === 'BULK'
-    return (
-      <BulkPreview
-        app={previewApp as BulkApplication}
-        onBack={handleBackFromPreview}
-      />
-    );
+  const toggleDropdown = (key: 'TYPE' | 'STATUS' | 'SORT') => {
+    setOpenDropdown((prev) => (prev === key ? null : key));
   };
 
   return (
     <View style={styles.rootContainer}>
-      {/* ── Top header ─────────────────────────────────────────────── */}
+      {/* ── Top Header ─────────────────────────────────────────────────── */}
       <View style={styles.topHeader}>
         <View style={styles.logoWrapper}>
           <View style={styles.circularLogo}>
-            <Icon name="globe" size={16} color="#1e40af" />
+            <Icon name="globe" size={16} color="#1E40AF" />
           </View>
           <Text style={styles.brandTitle}>NTC EDGE</Text>
           <Text style={styles.brandSubtitle}>PORTAL</Text>
@@ -193,20 +165,17 @@ export function MyApplications() {
             {!isMobile && (
               <Text style={styles.headerUserName}>{userProfile.name}</Text>
             )}
-            <TouchableOpacity onPress={handleSignOut} style={styles.topLogoutBtn}>
-              <Icon name="log-out" size={14} color="#ffffff" style={{ marginRight: 6 }} />
-              {!isMobile && (
-                <Text style={styles.topLogoutText}>Sign Out</Text>
-              )}
+            <TouchableOpacity onPress={handleSignOut} style={styles.topLogoutBtn} activeOpacity={0.8}>
+              <Icon name="log-out" size={14} color="#FFFFFF" style={{ marginRight: 6 }} />
+              {!isMobile && <Text style={styles.topLogoutText}>Sign Out</Text>}
             </TouchableOpacity>
           </View>
         )}
       </View>
 
-      {/* ── Main body ──────────────────────────────────────────────── */}
+      {/* ── Main Layout (Left Sidebar + Content Column) ────────────────── */}
       <View style={styles.mainLayout}>
-
-        {/* Left mini sidebar – hidden on mobile */}
+        {/* Left Sidebar Panel (Restored to original location) */}
         {!isMobile && (
           <View style={[styles.sidebar, isSidebarCollapsed && styles.sidebarCollapsed]}>
             <TouchableOpacity
@@ -216,7 +185,7 @@ export function MyApplications() {
               <Icon
                 name={isSidebarCollapsed ? 'chevron-right' : 'chevron-left'}
                 size={16}
-                color="#6b7280"
+                color="#64748B"
               />
             </TouchableOpacity>
 
@@ -225,14 +194,12 @@ export function MyApplications() {
                 onPress={() => navigation.navigate('Services')}
                 style={styles.sidebarItem}
               >
-                <Icon name="radio" size={20} color="#9ca3af" />
-                {!isSidebarCollapsed && (
-                  <Text style={styles.sidebarItemText}>Services</Text>
-                )}
+                <Icon name="radio" size={20} color="#94A3B8" />
+                {!isSidebarCollapsed && <Text style={styles.sidebarItemText}>Services</Text>}
               </TouchableOpacity>
 
               <TouchableOpacity style={[styles.sidebarItem, styles.sidebarItemActive]}>
-                <Icon name="credit-card" size={20} color="#1d4ed8" />
+                <Icon name="credit-card" size={20} color="#1D4ED8" />
                 {!isSidebarCollapsed && (
                   <Text style={styles.sidebarItemTextActive}>My Applications</Text>
                 )}
@@ -241,19 +208,76 @@ export function MyApplications() {
           </View>
         )}
 
-        {/* ── Left content column (application list) ───────────────── */}
-        {!isLeftHiddenOnMobile && (
-          <View style={styles.contentColumn}>
-            <ScrollView
-              contentContainerStyle={styles.scrollContent}
-              showsVerticalScrollIndicator={false}
-            >
-              {/* Search bar */}
-              <View style={styles.searchContainer}>
-                <Icon name="search" size={16} color="#9ca3af" style={styles.searchIcon} />
+        {/* Content Column */}
+        <View style={styles.contentColumn}>
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            onScrollBeginDrag={() => setOpenDropdown(null)}
+          >
+            {/* ── Hero Section ───────────────────────────────────────────── */}
+            <View style={styles.heroHeader}>
+              <Text style={styles.heroTitle}>My Applications Dashboard</Text>
+              <Text style={styles.heroSubtitle}>
+                View details, check status timelines, and download official documents for your single and bulk applications.
+              </Text>
+            </View>
+
+            {/* ── 4 Stat Metric Cards ────────────────────────────────────── */}
+            <View style={styles.statsGrid}>
+              <View style={styles.statCard}>
+                <View style={[styles.statIconWrap, { backgroundColor: '#EFF6FF' }]}>
+                  <Icon name="file-text" size={20} color="#2563EB" />
+                </View>
+                <View style={styles.statContent}>
+                  <Text style={styles.statLabel}>TOTAL APPLICATIONS</Text>
+                  <Text style={styles.statValue}>{stats.totalCount}</Text>
+                  <Text style={styles.statSubtext}>Submitted records</Text>
+                </View>
+              </View>
+
+              <View style={styles.statCard}>
+                <View style={[styles.statIconWrap, { backgroundColor: '#EEF2FF' }]}>
+                  <Icon name="user" size={20} color="#2F56E8" />
+                </View>
+                <View style={styles.statContent}>
+                  <Text style={styles.statLabel}>SINGLE APPLICATIONS</Text>
+                  <Text style={styles.statValue}>{stats.singleCount}</Text>
+                  <Text style={styles.statSubtext}>1 Applicant per app</Text>
+                </View>
+              </View>
+
+              <View style={styles.statCard}>
+                <View style={[styles.statIconWrap, { backgroundColor: '#FFFBEB' }]}>
+                  <Icon name="users" size={20} color="#D97706" />
+                </View>
+                <View style={styles.statContent}>
+                  <Text style={styles.statLabel}>BULK APPLICATIONS</Text>
+                  <Text style={styles.statValue}>{stats.bulkCount}</Text>
+                  <Text style={styles.statSubtext}>Multiple applicants batch</Text>
+                </View>
+              </View>
+
+              <View style={styles.statCard}>
+                <View style={[styles.statIconWrap, { backgroundColor: '#DCFCE7' }]}>
+                  <Icon name="download" size={20} color="#16A34A" />
+                </View>
+                <View style={styles.statContent}>
+                  <Text style={styles.statLabel}>READY DOCUMENTS</Text>
+                  <Text style={[styles.statValue, { color: '#16A34A' }]}>{stats.readyDocsCount}</Text>
+                  <Text style={styles.statSubtext}>Permits & receipts</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* ── Search Bar & Dropdown Select Filters Toolbar ─────────────── */}
+            <View style={styles.toolbarPanel}>
+              {/* Search Input */}
+              <View style={styles.searchInputContainer}>
+                <Icon name="search" size={16} color="#94A3B8" style={styles.searchIcon} />
                 <TextInput
-                  placeholder="Type to filter..."
-                  placeholderTextColor="#9ca3af"
+                  placeholder="Search by application #, applicant name, company, or service..."
+                  placeholderTextColor="#94A3B8"
                   value={filterText}
                   onChangeText={setFilterText}
                   style={styles.searchInput}
@@ -261,150 +285,224 @@ export function MyApplications() {
                 {filterText.length > 0 && (
                   <TouchableOpacity
                     onPress={() => setFilterText('')}
-                    style={styles.clearSearch}
+                    style={styles.clearSearchBtn}
                   >
-                    <Icon name="x" size={14} color="#9ca3af" />
+                    <Icon name="x" size={14} color="#94A3B8" />
                   </TouchableOpacity>
                 )}
               </View>
 
-              {/* Meta row: count + Refresh + density */}
-              <View style={styles.metaRow}>
-                <Text style={styles.metaSummary}>
-                  <Text style={styles.metaBold}>{filteredApps.length}</Text>
-                  {' item(s) found'}
-                  {filteredApps.length > 0 && (
-                    <Text style={styles.metaShowing}>
-                      {' · Showing '}
-                      <Text style={styles.metaBold}>{showingCount}</Text>
+              {/* Dropdown Filters Group */}
+              <View style={styles.dropdownsGroup}>
+                {/* Dropdown 1: Application Type */}
+                <View style={styles.dropdownWrap}>
+                  <TouchableOpacity
+                    onPress={() => toggleDropdown('TYPE')}
+                    style={[
+                      styles.dropdownTrigger,
+                      selectedMode !== 'ALL' && styles.dropdownTriggerActive,
+                    ]}
+                    activeOpacity={0.85}
+                  >
+                    <Icon name="layers" size={14} color={selectedMode !== 'ALL' ? '#1D4ED8' : '#64748B'} />
+                    <Text style={styles.dropdownLabelText}>
+                      {selectedMode === 'ALL'
+                        ? 'Type: All'
+                        : selectedMode === 'SINGLE'
+                          ? 'Type: Single'
+                          : 'Type: Bulk'}
                     </Text>
-                  )}
-                </Text>
-
-                <View style={styles.metaActions}>
-                  <TouchableOpacity style={styles.actionChip}>
-                    <Icon name="refresh-cw" size={12} color="#475569" style={{ marginRight: 4 }} />
-                    <Text style={styles.actionChipText}>Refresh</Text>
+                    <Icon name="chevron-down" size={14} color="#64748B" />
                   </TouchableOpacity>
 
-                  {(['std', 'cozy', 'compact'] as DensityOption[]).map((d) => (
-                    <TouchableOpacity
-                      key={d}
-                      onPress={() => setDensity(d)}
-                      style={[
-                        styles.actionChip,
-                        density === d && styles.actionChipActive,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.actionChipText,
-                          density === d && styles.actionChipTextActive,
-                        ]}
-                      >
-                        {d.charAt(0).toUpperCase() + d.slice(1)}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+                  {openDropdown === 'TYPE' && (
+                    <View style={styles.dropdownMenu}>
+                      {(['ALL', 'SINGLE', 'BULK'] as ModeFilterOption[]).map((mode) => (
+                        <TouchableOpacity
+                          key={mode}
+                          onPress={() => {
+                            setSelectedMode(mode);
+                            setOpenDropdown(null);
+                          }}
+                          style={[
+                            styles.dropdownOption,
+                            selectedMode === mode && styles.dropdownOptionSelected,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.dropdownOptionText,
+                              selectedMode === mode && styles.dropdownOptionTextSelected,
+                            ]}
+                          >
+                            {mode === 'ALL'
+                              ? 'All Application Types'
+                              : mode === 'SINGLE'
+                                ? 'Single Applications'
+                                : 'Bulk Applications'}
+                          </Text>
+                          {selectedMode === mode && (
+                            <Icon name="check" size={14} color="#1D4ED8" />
+                          )}
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+                </View>
+
+                {/* Dropdown 2: Application Status */}
+                <View style={styles.dropdownWrap}>
+                  <TouchableOpacity
+                    onPress={() => toggleDropdown('STATUS')}
+                    style={[
+                      styles.dropdownTrigger,
+                      selectedStatus !== 'ALL' && styles.dropdownTriggerActive,
+                    ]}
+                    activeOpacity={0.85}
+                  >
+                    <Icon name="filter" size={14} color={selectedStatus !== 'ALL' ? '#1D4ED8' : '#64748B'} />
+                    <Text style={styles.dropdownLabelText}>
+                      {selectedStatus === 'ALL'
+                        ? 'Status: All'
+                        : `Status: ${getStatusLabel(selectedStatus)}`}
+                    </Text>
+                    <Icon name="chevron-down" size={14} color="#64748B" />
+                  </TouchableOpacity>
+
+                  {openDropdown === 'STATUS' && (
+                    <View style={styles.dropdownMenu}>
+                      {(
+                        [
+                          ['ALL', 'All Statuses'],
+                          ['FOR_APPROVAL', 'For Approval'],
+                          ['FOR_EVALUATION', 'For Evaluation'],
+                          ['APPROVED', 'Approved'],
+                          ['EXPIRING_SOON', 'Expiring Soon'],
+                          ['PENDING', 'Pending'],
+                        ] as [StatusFilterOption, string][]
+                      ).map(([val, label]) => (
+                        <TouchableOpacity
+                          key={val}
+                          onPress={() => {
+                            setSelectedStatus(val);
+                            setOpenDropdown(null);
+                          }}
+                          style={[
+                            styles.dropdownOption,
+                            selectedStatus === val && styles.dropdownOptionSelected,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.dropdownOptionText,
+                              selectedStatus === val && styles.dropdownOptionTextSelected,
+                            ]}
+                          >
+                            {label}
+                          </Text>
+                          {selectedStatus === val && (
+                            <Icon name="check" size={14} color="#1D4ED8" />
+                          )}
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+                </View>
+
+                {/* Dropdown 3: Sort Order */}
+                <View style={styles.dropdownWrap}>
+                  <TouchableOpacity
+                    onPress={() => toggleDropdown('SORT')}
+                    style={styles.dropdownTrigger}
+                    activeOpacity={0.85}
+                  >
+                    <Icon name={sortOrder === 'NEWEST' ? 'arrow-down' : 'arrow-up'} size={14} color="#64748B" />
+                    <Text style={styles.dropdownLabelText}>
+                      {sortOrder === 'NEWEST' ? 'Sort: Newest' : 'Sort: Oldest'}
+                    </Text>
+                    <Icon name="chevron-down" size={14} color="#64748B" />
+                  </TouchableOpacity>
+
+                  {openDropdown === 'SORT' && (
+                    <View style={styles.dropdownMenu}>
+                      {[
+                        { key: 'NEWEST', label: 'Newest First' },
+                        { key: 'OLDEST', label: 'Oldest First' },
+                      ].map((opt) => (
+                        <TouchableOpacity
+                          key={opt.key}
+                          onPress={() => {
+                            setSortOrder(opt.key as 'NEWEST' | 'OLDEST');
+                            setOpenDropdown(null);
+                          }}
+                          style={[
+                            styles.dropdownOption,
+                            sortOrder === opt.key && styles.dropdownOptionSelected,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.dropdownOptionText,
+                              sortOrder === opt.key && styles.dropdownOptionTextSelected,
+                            ]}
+                          >
+                            {opt.label}
+                          </Text>
+                          {sortOrder === opt.key && (
+                            <Icon name="check" size={14} color="#1D4ED8" />
+                          )}
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
                 </View>
               </View>
+            </View>
 
-              {/* Mode filter pills */}
-              <View style={styles.filterRow}>
-                {(['ALL', 'SINGLE', 'BULK'] as ModeFilterOption[]).map((mode) => (
-                  <TouchableOpacity
-                    key={mode}
-                    onPress={() => setSelectedMode(mode)}
-                    style={[
-                      styles.filterPill,
-                      selectedMode === mode && styles.filterPillActive,
-                    ]}
-                  >
-                    {mode !== 'ALL' && (
-                      <View
-                        style={[
-                          styles.filterDot,
-                          { backgroundColor: MODE_DOT_COLORS[mode] },
-                        ]}
-                      />
-                    )}
-                    <Text
-                      style={[
-                        styles.filterPillText,
-                        selectedMode === mode && styles.filterPillTextActive,
-                      ]}
-                    >
-                      {mode === 'ALL' ? 'All' : mode.charAt(0) + mode.slice(1).toLowerCase()}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              {/* Status filter chips */}
-              <View style={styles.statusFilterRow}>
-                {(
-                  [
-                    ['ALL', 'All Statuses'],
-                    ['FOR_APPROVAL', 'For Approval'],
-                    ['APPROVED', 'Approved'],
-                    ['EXPIRING_SOON', 'Expiring Soon'],
-                  ] as [StatusFilterOption, string][]
-                ).map(([val, label]) => (
-                  <TouchableOpacity
-                    key={val}
-                    onPress={() => setSelectedStatus(val)}
-                    style={[
-                      styles.statusChip,
-                      selectedStatus === val && styles.statusChipActive,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.statusChipText,
-                        selectedStatus === val && styles.statusChipTextActive,
-                      ]}
-                    >
-                      {label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              {/* Application cards */}
+            {/* ── Applications Cards Container ────────────────────────────── */}
+            <View style={styles.cardsContainer}>
               {pagedApps.length === 0 ? (
-                <View style={styles.emptyList}>
-                  <Icon name="info" size={24} color="#9ca3af" style={{ marginBottom: 8 }} />
-                  <Text style={styles.emptyListText}>No applications found.</Text>
+                <View style={styles.emptyStateCard}>
+                  <Icon name="file-text" size={36} color="#CBD5E1" />
+                  <Text style={styles.emptyStateTitle}>No applications match your filter</Text>
+                  <Text style={styles.emptyStateSub}>
+                    Try selecting a different type or status from the dropdown menus above.
+                  </Text>
                 </View>
               ) : (
                 pagedApps.map((app) => (
                   <ApplicationCard
                     key={app.id}
                     app={app}
-                    isExpanded={expandedCardId === app.id}
-                    isSelected={previewApp?.id === app.id}
-                    density={density}
-                    onPress={() => handleCardPress(app.id)}
-                    onPreview={() => handlePreview(app)}
+                    onPress={() => setSelectedApp(app)}
+                    onDownload={() => handleQuickDownloadAppDocs(app)}
                   />
                 ))
               )}
+            </View>
 
-              {/* List Pagination */}
-              {totalPages > 1 && (
-                <View style={styles.listPagination}>
+            {/* ── Pagination Bar ────────────────────────────────────────────── */}
+            {totalPages > 1 && (
+              <View style={styles.paginationBar}>
+                <Text style={styles.paginationSummary}>
+                  Showing {(currentPage - 1) * LIST_PAGE_SIZE + 1} to{' '}
+                  {Math.min(currentPage * LIST_PAGE_SIZE, filteredApps.length)} of{' '}
+                  {filteredApps.length} applications
+                </Text>
+
+                <View style={styles.paginationBtns}>
                   <TouchableOpacity
                     onPress={() => setCurrentPage((p) => Math.max(1, p - 1))}
                     disabled={currentPage === 1}
                     style={[
-                      styles.listPageBtn,
-                      currentPage === 1 && styles.listPageBtnDisabled,
+                      styles.pageNavBtn,
+                      currentPage === 1 && styles.pageNavBtnDisabled,
                     ]}
                   >
                     <Icon
                       name="chevron-left"
-                      size={14}
-                      color={currentPage === 1 ? '#cbd5e1' : '#334155'}
+                      size={16}
+                      color={currentPage === 1 ? '#CBD5E1' : '#334155'}
                     />
                   </TouchableOpacity>
 
@@ -413,14 +511,14 @@ export function MyApplications() {
                       key={pg}
                       onPress={() => setCurrentPage(pg)}
                       style={[
-                        styles.listPageBtn,
-                        pg === currentPage && styles.listPageBtnCurrent,
+                        styles.pageNumberBtn,
+                        pg === currentPage && styles.pageNumberBtnActive,
                       ]}
                     >
                       <Text
                         style={[
-                          styles.listPageBtnText,
-                          pg === currentPage && styles.listPageBtnTextCurrent,
+                          styles.pageNumberBtnText,
+                          pg === currentPage && styles.pageNumberBtnTextActive,
                         ]}
                       >
                         {pg}
@@ -432,35 +530,47 @@ export function MyApplications() {
                     onPress={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                     disabled={currentPage === totalPages}
                     style={[
-                      styles.listPageBtn,
-                      currentPage === totalPages && styles.listPageBtnDisabled,
+                      styles.pageNavBtn,
+                      currentPage === totalPages && styles.pageNavBtnDisabled,
                     ]}
                   >
                     <Icon
                       name="chevron-right"
-                      size={14}
-                      color={currentPage === totalPages ? '#cbd5e1' : '#334155'}
+                      size={16}
+                      color={currentPage === totalPages ? '#CBD5E1' : '#334155'}
                     />
                   </TouchableOpacity>
                 </View>
-              )}
-            </ScrollView>
-          </View>
-        )}
-
-        {/* ── Right pane (details / preview) ───────────────────────── */}
-        {(!isMobile || previewApp !== null) && (
-          <View style={[styles.detailsColumn, isMobile && styles.mobileDetailsColumn]}>
-            {renderRightPane()}
-          </View>
-        )}
+              </View>
+            )}
+          </ScrollView>
+        </View>
       </View>
 
-      {/* ── Footer banner ──────────────────────────────────────────── */}
-      <View style={styles.footerBanner}>
-        <Text style={styles.footerText}>National Telecommunications Commission</Text>
-        <Text style={styles.footerButtonText}>I'm done!</Text>
-      </View>
+      {/* ── Modal Overlay for Details & Documents (Zero Page Redirection!) ── */}
+      {selectedApp !== null && selectedApp.mode === 'SINGLE' && (
+        <SinglePreview
+          app={selectedApp as SingleApplication}
+          onClose={() => setSelectedApp(null)}
+          onDownloadDocument={handleDownloadDoc}
+        />
+      )}
+
+      {selectedApp !== null && selectedApp.mode === 'BULK' && (
+        <BulkPreview
+          app={selectedApp as BulkApplication}
+          onClose={() => setSelectedApp(null)}
+          onDownloadDocument={handleDownloadDoc}
+        />
+      )}
+
+      {/* ── Toast Feedback Notification ─────────────────────────────────── */}
+      {toastMessage !== null && (
+        <View style={styles.toastContainer}>
+          <Icon name="check-circle" size={18} color="#22C55E" />
+          <Text style={styles.toastText}>{toastMessage}</Text>
+        </View>
+      )}
     </View>
   );
 }
