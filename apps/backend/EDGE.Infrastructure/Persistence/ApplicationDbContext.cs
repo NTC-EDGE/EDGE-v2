@@ -251,7 +251,7 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
         {
             entity.Property(e => e.Type).HasConversion<string>();
             entity.HasOne(e => e.Service)
-                  .WithMany()
+                  .WithMany(s => s.ServiceVariants)
                   .HasForeignKey(e => e.ServiceId)
                   .OnDelete(DeleteBehavior.Cascade);
         });
