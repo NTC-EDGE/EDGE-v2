@@ -19,14 +19,20 @@ public static class MunicipalityEndpoints
             var result = await mediator.Send(new GetMunicipalitiesQuery(provinceId, activeOnly));
             return Results.Ok(result);
         })
-        .WithName("GetMunicipalities");
+        .WithName("GetMunicipalities")
+        .WithTags("Municipality")
+        .WithSummary("Get list of municipalities")
+        .WithDescription("Retrieves municipalities filtered by province ID and active status.");
 
         group.MapGet("/{id:guid}", async (Guid id, IMediator mediator) =>
         {
             var result = await mediator.Send(new GetMunicipalityByIdQuery(id));
             return result.Succeeded ? Results.Ok(result) : Results.NotFound(result);
         })
-        .WithName("GetMunicipalityById");
+        .WithName("GetMunicipalityById")
+        .WithTags("Municipality")
+        .WithSummary("Get municipality by ID")
+        .WithDescription("Fetches single municipality record by ID.");
 
         group.MapPost("/", async (CreateMunicipalityCommand command, IMediator mediator) =>
         {
@@ -35,7 +41,10 @@ public static class MunicipalityEndpoints
                 ? Results.Created($"/api/v2/municipalities/{result.Data}", result)
                 : Results.BadRequest(result);
         })
-        .WithName("CreateMunicipality");
+        .WithName("CreateMunicipality")
+        .WithTags("Municipality")
+        .WithSummary("Create municipality reference")
+        .WithDescription("Creates a new municipality entity.");
 
         group.MapPut("/{id:guid}", async (Guid id, UpdateMunicipalityCommand command, IMediator mediator) =>
         {
@@ -47,7 +56,10 @@ public static class MunicipalityEndpoints
             var result = await mediator.Send(command);
             return result.Succeeded ? Results.Ok(result) : Results.NotFound(result);
         })
-        .WithName("UpdateMunicipality");
+        .WithName("UpdateMunicipality")
+        .WithTags("Municipality")
+        .WithSummary("Update municipality details")
+        .WithDescription("Updates municipality name, code, or active state.");
 
         group.MapDelete("/{id:guid}", async (Guid id, IMediator mediator) =>
         {
@@ -60,7 +72,10 @@ public static class MunicipalityEndpoints
             }
             return Results.Ok(result);
         })
-        .WithName("DeleteMunicipality");
+        .WithName("DeleteMunicipality")
+        .WithTags("Municipality")
+        .WithSummary("Delete municipality reference")
+        .WithDescription("Deletes a municipality entity.");
 
         return app;
     }
