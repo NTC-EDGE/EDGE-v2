@@ -19,14 +19,20 @@ public static class BarangayEndpoints
             var result = await mediator.Send(new GetBarangaysQuery(municipalityId, activeOnly));
             return Results.Ok(result);
         })
-        .WithName("GetBarangays");
+        .WithName("GetBarangays")
+        .WithTags("Barangay")
+        .WithSummary("Get list of barangays")
+        .WithDescription("Retrieves barangays with optional filtering by municipality ID and active status.");
 
         group.MapGet("/{id:guid}", async (Guid id, IMediator mediator) =>
         {
             var result = await mediator.Send(new GetBarangayByIdQuery(id));
             return result.Succeeded ? Results.Ok(result) : Results.NotFound(result);
         })
-        .WithName("GetBarangayById");
+        .WithName("GetBarangayById")
+        .WithTags("Barangay")
+        .WithSummary("Get barangay details by ID")
+        .WithDescription("Fetches single barangay reference record by ID.");
 
         group.MapPost("/", async (CreateBarangayCommand command, IMediator mediator) =>
         {
@@ -35,7 +41,10 @@ public static class BarangayEndpoints
                 ? Results.Created($"/api/v2/barangays/{result.Data}", result)
                 : Results.BadRequest(result);
         })
-        .WithName("CreateBarangay");
+        .WithName("CreateBarangay")
+        .WithTags("Barangay")
+        .WithSummary("Create new barangay")
+        .WithDescription("Creates a new geographic barangay reference entity.");
 
         group.MapPut("/{id:guid}", async (Guid id, UpdateBarangayCommand command, IMediator mediator) =>
         {
@@ -47,7 +56,10 @@ public static class BarangayEndpoints
             var result = await mediator.Send(command);
             return result.Succeeded ? Results.Ok(result) : Results.NotFound(result);
         })
-        .WithName("UpdateBarangay");
+        .WithName("UpdateBarangay")
+        .WithTags("Barangay")
+        .WithSummary("Update barangay reference")
+        .WithDescription("Updates details, code, or active status of a barangay.");
 
         group.MapDelete("/{id:guid}", async (Guid id, IMediator mediator) =>
         {
@@ -60,7 +72,10 @@ public static class BarangayEndpoints
             }
             return Results.Ok(result);
         })
-        .WithName("DeleteBarangay");
+        .WithName("DeleteBarangay")
+        .WithTags("Barangay")
+        .WithSummary("Delete barangay reference")
+        .WithDescription("Deletes a barangay reference record if no dependent records exist.");
 
         return app;
     }

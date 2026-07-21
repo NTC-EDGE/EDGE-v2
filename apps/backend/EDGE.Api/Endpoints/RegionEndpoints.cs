@@ -19,14 +19,20 @@ public static class RegionEndpoints
             var result = await mediator.Send(new GetRegionsQuery(activeOnly));
             return Results.Ok(result);
         })
-        .WithName("GetRegions");
+        .WithName("GetRegions")
+        .WithTags("Region")
+        .WithSummary("Get list of regions")
+        .WithDescription("Retrieves all administrative regions with optional active-only filter.");
 
         group.MapGet("/{id:guid}", async (Guid id, IMediator mediator) =>
         {
             var result = await mediator.Send(new GetRegionByIdQuery(id));
             return result.Succeeded ? Results.Ok(result) : Results.NotFound(result);
         })
-        .WithName("GetRegionById");
+        .WithName("GetRegionById")
+        .WithTags("Region")
+        .WithSummary("Get region by ID")
+        .WithDescription("Fetches a single region by ID.");
 
         group.MapPost("/", async (CreateRegionCommand command, IMediator mediator) =>
         {
@@ -35,7 +41,10 @@ public static class RegionEndpoints
                 ? Results.Created($"/api/v2/regions/{result.Data}", result)
                 : Results.BadRequest(result);
         })
-        .WithName("CreateRegion");
+        .WithName("CreateRegion")
+        .WithTags("Region")
+        .WithSummary("Create new region")
+        .WithDescription("Creates a new administrative region record.");
 
         group.MapPut("/{id:guid}", async (Guid id, UpdateRegionCommand command, IMediator mediator) =>
         {
@@ -47,7 +56,10 @@ public static class RegionEndpoints
             var result = await mediator.Send(command);
             return result.Succeeded ? Results.Ok(result) : Results.NotFound(result);
         })
-        .WithName("UpdateRegion");
+        .WithName("UpdateRegion")
+        .WithTags("Region")
+        .WithSummary("Update region details")
+        .WithDescription("Updates region code, name, or active status.");
 
         group.MapDelete("/{id:guid}", async (Guid id, IMediator mediator) =>
         {
@@ -60,7 +72,10 @@ public static class RegionEndpoints
             }
             return Results.Ok(result);
         })
-        .WithName("DeleteRegion");
+        .WithName("DeleteRegion")
+        .WithTags("Region")
+        .WithSummary("Delete region reference")
+        .WithDescription("Deletes a region record.");
 
         return app;
     }
