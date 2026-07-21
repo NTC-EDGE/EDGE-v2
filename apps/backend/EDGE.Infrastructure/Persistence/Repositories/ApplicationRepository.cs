@@ -22,4 +22,14 @@ public class ApplicationRepository : IApplicationRepository
     {
         return await _context.Applications.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
     }
+
+    public async Task<List<ApplicationRecord>> GetAllAsync(CancellationToken cancellationToken = default)
+    {
+        return await _context.Applications.ToListAsync(cancellationToken);
+    }
+
+    public void Delete(ApplicationRecord application)
+    {
+        _context.Applications.Remove(application);
+    }
 }

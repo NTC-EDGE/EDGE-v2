@@ -43,7 +43,7 @@ const publishableKey = getClerkKey();
 
 if (publishableKey.length === 0) {
   console.warn(
-    "Missing EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY environment variable. Clerk will not initialize properly.",
+    "Missing EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY environment variable. Clerk will not initialize properly."
   );
 }
 
@@ -259,5 +259,32 @@ const styles = StyleSheet.create({
     color: COLORS.neutral[500],
     textAlign: "center",
     lineHeight: 22,
+  },
+  roleBadge: {
+    backgroundColor: '#273e29',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    marginBottom: 20,
+  },
+  roleBadgeText: {
+    color: '#a5bda6',
+    fontWeight: 'bold',
+    fontSize: 12,
+  },
+  panel: {
+    width: '100%',
+    backgroundColor: '#273e29',
+    borderRadius: 8,
+    padding: 15,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: '#3a583d',
+  },
+  panelTitle: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 10,
   },
 });

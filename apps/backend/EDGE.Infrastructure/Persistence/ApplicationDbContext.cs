@@ -8,9 +8,14 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
 {
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) {}
 
+    public DbSet<Tenant> Tenants => Set<Tenant>();
+    public DbSet<TenantMember> TenantMembers => Set<TenantMember>();
     public DbSet<ApplicationRecord> Applications => Set<ApplicationRecord>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<ActivityLog> ActivityLogs => Set<ActivityLog>();
+    public DbSet<User> Users => Set<User>();
+    public DbSet<Role> Roles => Set<Role>();
+    public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
     public DbSet<Region> Regions => Set<Region>();
     public DbSet<Province> Provinces => Set<Province>();
     public DbSet<Municipality> Municipalities => Set<Municipality>();
@@ -26,7 +31,55 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
             .Property(e => e.Status)
             .HasConversion<string>();
 
-        // Geographic configurations
+        // Tenant Configuration
+        modelBuilder.Entity<Tenant>(entity =>
+        {
+            entity.HasIndex(e => e.Slug).IsUnique();
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(150);
+            entity.Property(e => e.Slug).IsRequired().HasMaxLength(50);
+        });
+
+        // Role Configuration
+        modelBuilder.Entity<Role>(entity =>
+        {
+            entity.HasOne(r => r.Tenant)
+                  .WithMany(t => t.Roles)
+                  .HasForeignKey(r => r.TenantId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // RolePermission Configuration
+        modelBuilder.Entity<RolePermission>(entity =>
+        {
+            entity.HasIndex(rp => new { rp.RoleId, rp.PermissionKey }).IsUnique();
+            entity.HasOne(rp => rp.Role)
+                  .WithMany(r => r.RolePermissions)
+                  .HasForeignKey(rp => rp.RoleId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // TenantMember Configuration
+        modelBuilder.Entity<TenantMember>(entity =>
+        {
+            entity.HasIndex(tm => new { tm.TenantId, tm.UserId }).IsUnique();
+
+            entity.HasOne(tm => tm.Tenant)
+                  .WithMany(t => t.Members)
+                  .HasForeignKey(tm => tm.TenantId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(tm => tm.User)
+                  .WithMany(u => u.TenantMemberships)
+                  .HasForeignKey(tm => tm.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(tm => tm.Role)
+                  .WithMany(r => r.Members)
+                  .HasForeignKey(tm => tm.RoleId)
+                  .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Geographic entity configurations
         modelBuilder.Entity<Region>(entity =>
         {
             entity.HasIndex(e => e.Code).IsUnique();
@@ -42,7 +95,7 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
             entity.HasOne(d => d.Region)
                   .WithMany(p => p.Provinces)
                   .HasForeignKey(d => d.RegionId)
-                  .OnDelete(DeleteBehavior.Restrict); // Strict deletion handling
+                  .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<Municipality>(entity =>

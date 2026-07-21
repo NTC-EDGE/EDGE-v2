@@ -33,38 +33,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Clerk hooks (safe to call even if key is empty, but they won't trigger authenticated states)
   const clerkAuth = useAuth();
   const clerkUser = useUser();
-  const {
-    signIn,
-    setActive: setSignInActive,
-    isLoaded: isSignInLoaded,
-  } = useSignIn();
-  const {
-    signUp,
-    setActive: setSignUpActive,
-    isLoaded: isSignUpLoaded,
-  } = useSignUp();
+  const signInResult = useSignIn();
+  const signUpResult = useSignUp();
 
   const loginWithClerk = async (email: string, password: string, region?: string) => {
     if (!isClerkEnabled) {
       throw new Error("Clerk publishable key is not configured.");
     }
-    if (!isSignInLoaded) {
+    const { signIn } = signInResult;
+    if (signIn === null) {
       throw new Error(
         "Authentication service is not loaded yet. Please try again.",
       );
     }
 
-    const completeSignIn = await signIn.create({
+    const result = await signIn.create({
       identifier: email,
       password,
     });
 
-    if (completeSignIn.status === "complete") {
-      setSelectedRegionState(region);
-      await setSignInActive({ session: completeSignIn.createdSessionId });
+    if (result.error) {
+      throw new Error(result.error.message || "Invalid email or password.");
+    }
+
+    if (signIn.status === "complete") {
+      const finalizeResult = await signIn.finalize();
+      if (finalizeResult.error) {
+        throw new Error(finalizeResult.error.message || "Sign-in finalization failed.");
+      }
     } else {
       throw new Error(
-        `Authentication incomplete: status is ${completeSignIn.status}`,
+        `Authentication incomplete: status is ${signIn.status}`,
       );
     }
   };
@@ -76,22 +75,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!isClerkEnabled) {
       throw new Error("Clerk publishable key is not configured.");
     }
-    if (!isSignUpLoaded) {
+    const { signUp } = signUpResult;
+    if (signUp === null) {
       throw new Error("Sign up service is not loaded yet. Please try again.");
     }
 
-    const completeSignUp = await signUp.create({
+    const result = await signUp.create({
       emailAddress: email,
       password,
     });
 
-    if (completeSignUp.status === "complete") {
-      await setSignUpActive({ session: completeSignUp.createdSessionId });
+    if (result.error) {
+      throw new Error(result.error.message || "Sign up failed.");
+    }
+
+    if (signUp.status === "complete") {
+      const finalizeResult = await signUp.finalize();
+      if (finalizeResult.error) {
+        throw new Error(finalizeResult.error.message || "Sign up finalization failed.");
+      }
       return true;
     }
 
     // Prepare email verification strategy by default
-    await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
+    const prepareResult = await signUp.verifications.sendEmailCode();
+    if (prepareResult.error) {
+      throw new Error(prepareResult.error.message || "Sending verification code failed.");
+    }
     return false;
   };
 
@@ -99,18 +109,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!isClerkEnabled) {
       throw new Error("Clerk publishable key is not configured.");
     }
-    if (!isSignUpLoaded) {
+    const { signUp } = signUpResult;
+    if (signUp === null) {
       throw new Error("Sign up service is not loaded yet. Please try again.");
     }
 
-    const completeSignUp = await signUp.attemptEmailAddressVerification({
+    const result = await signUp.verifications.verifyEmailCode({
       code,
     });
 
-    if (completeSignUp.status === "complete") {
-      await setSignUpActive({ session: completeSignUp.createdSessionId });
+    if (result.error) {
+      throw new Error(result.error.message || "Verification code is incorrect.");
+    }
+
+    if (signUp.status === "complete") {
+      const finalizeResult = await signUp.finalize();
+      if (finalizeResult.error) {
+        throw new Error(finalizeResult.error.message || "Sign up finalization failed.");
+      }
     } else {
-      throw new Error(`Sign up incomplete: status is ${completeSignUp.status}`);
+      throw new Error(`Sign up incomplete: status is ${signUp.status}`);
     }
   };
 

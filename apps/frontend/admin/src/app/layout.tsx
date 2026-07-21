@@ -33,7 +33,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider>
+    <ClerkProvider afterSignOutUrl="/sign-in">
       <html
         lang="en"
         className={`${geistSans.variable} ${geistMono.variable} dark h-full antialiased`}
@@ -104,7 +104,7 @@ export default function RootLayout({
             {/* Sidebar Footer with Auth Profile */}
             <div className="p-4 border-t border-slate-800 flex items-center justify-between">
               <div className="flex items-center gap-3 overflow-hidden">
-                <UserButton afterSignOutUrl="/sign-in" />
+                <UserButton />
                 <div className="text-left overflow-hidden">
                   <p className="text-xs font-semibold text-white truncate">Administrator</p>
                   <p className="text-[10px] text-slate-400 truncate">System Manager</p>
@@ -123,7 +123,7 @@ export default function RootLayout({
               </div>
               <div className="flex items-center gap-4">
                 {/* Fallback Clerk control just in case */}
-                <UserButton afterSignOutUrl="/sign-in" />
+                <UserButton />
               </div>
             </header>
 

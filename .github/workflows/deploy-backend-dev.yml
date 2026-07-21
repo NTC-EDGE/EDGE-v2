@@ -62,6 +62,7 @@ jobs:
           SSH_PASSPHRASE: ${{ secrets.SSH_PASSPHRASE }}
           DB_CONNECTION_STRING: ${{ secrets.DB_CONNECTION_STRING }}
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          CLERK_WEBHOOK_SECRET: ${{ secrets.CLERK_WEBHOOK_SECRET }}
           TARGET_PORT: ${{ vars.PORT }}
         run: |
           # Write SSH Private Key to file
@@ -96,9 +97,10 @@ jobs:
             gunzip -c /tmp/backend-image-dev.tar.gz | docker load
             docker stop edge-backend-development || true
             docker rm edge-backend-development || true
-            docker run -d --name edge-backend-development -p $TARGET_PORT:8080 \
-              -e ConnectionStrings__DefaultConnection="$DB_CONNECTION_STRING" \
-              -e Clerk__SecretKey="$CLERK_SECRET_KEY" \
+            docker run -d --name edge-backend-development -p \$TARGET_PORT:8080 \
+              -e ConnectionStrings__DefaultConnection="\$DB_CONNECTION_STRING" \
+              -e Clerk__SecretKey="\$CLERK_SECRET_KEY" \
+              -e Clerk__WebhookSecret="\$CLERK_WEBHOOK_SECRET" \
               -e ASPNETCORE_ENVIRONMENT="Development" \
               edge-backend-dev:${{ github.sha }}
             rm /tmp/backend-image-dev.tar.gz
