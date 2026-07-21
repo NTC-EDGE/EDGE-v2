@@ -232,46 +232,57 @@ export const styles = StyleSheet.create({
 
   // Dropdown Toolbar Panel
   toolbarPanel: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    padding: SPACING[16],
-    marginBottom: SPACING[20],
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    marginBottom: SPACING[20],
     flexWrap: 'wrap',
     zIndex: 50,
-    ...Platform.select({
-      web: { boxShadow: '0 1px 3px rgba(0,0,0,0.04)' },
-    }),
   },
 
   searchInputContainer: {
-    flex: 2,
-    minWidth: 240,
+    flex: 1,
+    minWidth: 280,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#CBD5E1',
-    paddingHorizontal: 12,
-    height: 40,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: 14,
+    height: 44,
+    ...Platform.select({
+      web: {
+        boxShadow: '0 1px 3px rgba(15, 23, 42, 0.04)',
+      },
+    }),
+  },
+  searchInputContainerFocused: {
+    borderColor: '#2563EB',
+    backgroundColor: '#FFFFFF',
+    ...Platform.select({
+      web: {
+        boxShadow: '0 0 0 3px rgba(37, 99, 235, 0.12), 0 1px 2px rgba(0, 0, 0, 0.05)',
+      },
+    }),
+  },
+  searchInputContainerActive: {
+    borderColor: '#3B82F6',
   },
   searchIcon: {
-    marginRight: 8,
+    marginRight: 10,
   },
   searchInput: {
     flex: 1,
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
+    fontSize: 14,
     color: '#0F172A',
     padding: 0,
+    outlineStyle: 'none' as any,
   },
   clearSearchBtn: {
     padding: 4,
+    borderRadius: 4,
   },
 
   dropdownsGroup: {
@@ -289,16 +300,21 @@ export const styles = StyleSheet.create({
   dropdownTrigger: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#CBD5E1',
-    paddingHorizontal: 12,
-    height: 40,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: 14,
+    height: 44,
     gap: 8,
+    ...Platform.select({
+      web: {
+        boxShadow: '0 1px 3px rgba(15, 23, 42, 0.04)',
+      },
+    }),
   },
   dropdownTriggerActive: {
-    borderColor: COLORS.brand[700],
+    borderColor: '#2563EB',
     backgroundColor: '#EFF6FF',
   },
   dropdownLabelText: {

@@ -55,6 +55,9 @@ export function MyApplications() {
   // Toast feedback state
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // Search focus state
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+
   // User Profile
   const userProfile = useMemo(() => {
     if (clerkUser !== null && clerkUser !== undefined) {
@@ -279,22 +282,36 @@ export function MyApplications() {
 
             {/* ── Search Bar & Dropdown Select Filters Toolbar ─────────────── */}
             <View style={styles.toolbarPanel}>
-              {/* Search Input */}
-              <View style={styles.searchInputContainer}>
-                <Icon name="search" size={16} color="#94A3B8" style={styles.searchIcon} />
+              {/* Standard Premium Search Bar Input */}
+              <View
+                style={[
+                  styles.searchInputContainer,
+                  isSearchFocused && styles.searchInputContainerFocused,
+                  filterText.length > 0 && styles.searchInputContainerActive,
+                ]}
+              >
+                <Icon
+                  name="search"
+                  size={18}
+                  color={isSearchFocused || filterText.length > 0 ? '#2563EB' : '#64748B'}
+                  style={styles.searchIcon}
+                />
                 <TextInput
                   placeholder="Search by application #, applicant name, company, or service..."
                   placeholderTextColor="#94A3B8"
                   value={filterText}
                   onChangeText={setFilterText}
+                  onFocus={() => setIsSearchFocused(true)}
+                  onBlur={() => setIsSearchFocused(false)}
                   style={styles.searchInput}
                 />
                 {filterText.length > 0 && (
                   <TouchableOpacity
                     onPress={() => setFilterText('')}
                     style={styles.clearSearchBtn}
+                    activeOpacity={0.7}
                   >
-                    <Icon name="x" size={14} color="#94A3B8" />
+                    <Icon name="x" size={15} color="#64748B" />
                   </TouchableOpacity>
                 )}
               </View>
