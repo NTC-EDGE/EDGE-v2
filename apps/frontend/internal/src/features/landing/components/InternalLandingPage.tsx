@@ -770,12 +770,10 @@ export function InternalLandingPage() {
   );
 }
 
-const GEOMETRIC_TEXTURE_SVG = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Cpath d='M0 0 L30 30 L0 60 Z' fill='%23000000' fill-opacity='0.02'/%3E%3Cpath d='M60 0 L30 30 L60 60 Z' fill='%23000000' fill-opacity='0.035'/%3E%3Cpath d='M0 0 L30 30 L60 0 Z' fill='%23000000' fill-opacity='0.015'/%3E%3Cpath d='M0 60 L30 30 L60 60 Z' fill='%23000000' fill-opacity='0.025'/%3E%3C/svg%3E`;
-
 const styles = StyleSheet.create({
   keyboardAvoid: {
     flex: 1,
-    backgroundColor: "#EBEFF4",
+    backgroundColor: "#FAF9F6",
   },
 
   scrollContainer: {
@@ -784,13 +782,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     backgroundColor: "#FAF9F6",
     position: "relative",
-    ...Platform.select({
-      web: {
-        backgroundImage: `url("${GEOMETRIC_TEXTURE_SVG}")`,
-        backgroundSize: '60px 60px',
-        backgroundRepeat: 'repeat',
-      },
-    }),
   },
   backgroundBlobLeft: {
     position: "absolute",
