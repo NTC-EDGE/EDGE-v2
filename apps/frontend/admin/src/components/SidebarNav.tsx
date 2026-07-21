@@ -19,7 +19,8 @@ import {
   UserCheck,
   ShieldAlert,
   Menu,
-  X
+  X,
+  LifeBuoy
 } from "lucide-react";
 import { useAdminScope, AdminRoleType } from "@/lib/admin-scope-context";
 
@@ -119,6 +120,29 @@ export function SidebarNav() {
             >
               <LayoutDashboard className="h-4 w-4 text-indigo-400" />
               <span>Dashboard</span>
+            </Link>
+          </div>
+
+          {/* Tech Support & Diagnostics Group */}
+          <div className="space-y-1">
+            <div className="px-3 pb-1">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tech Support & Helpdesk</p>
+            </div>
+
+            <Link
+              href="/support-users"
+              onClick={() => setMobileOpen(false)}
+              className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                isActive("/support-users")
+                  ? "bg-gradient-to-r from-indigo-600/30 to-slate-800 text-white border border-indigo-500/30 shadow-sm"
+                  : "text-slate-300 hover:text-white hover:bg-slate-800/60"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <LifeBuoy className="h-4 w-4 text-cyan-400" />
+                <span>Global User Directory</span>
+              </div>
+              <span className="text-[10px] px-2 py-0.5 rounded-md bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 font-mono">Support</span>
             </Link>
           </div>
 

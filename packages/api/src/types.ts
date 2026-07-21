@@ -243,6 +243,97 @@ export interface User {
   createdAt?: string;
 }
 
+export type AccountStatus = "active" | "locked" | "suspended" | "pending_verification";
+
+export interface GlobalSupportUser {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  phoneNumber?: string | null;
+  regionId: string;
+  regionName: string;
+  tenantId?: string | null;
+  tenantName?: string | null;
+  fieldOfficeName?: string | null;
+  status: AccountStatus;
+  isLockedOut: boolean;
+  mfaEnabled: boolean;
+  mfaMethod?: string | null;
+  lastLoginAt?: string | null;
+  failedLoginAttempts: number;
+  authProvider: "Clerk" | "Local" | "AzureAD" | "GovSSO";
+  assignedRoles: string[];
+  createdAt: string;
+  openTicketsCount: number;
+  totalTicketsCount: number;
+}
+
+export interface UserSession {
+  id: string;
+  userId: string;
+  device: string;
+  browser: string;
+  ipAddress: string;
+  location: string;
+  lastActive: string;
+  isCurrent: boolean;
+}
+
+export interface LoginAuditLog {
+  id: string;
+  userId: string;
+  timestamp: string;
+  status: "success" | "failed";
+  ipAddress: string;
+  location: string;
+  deviceInfo: string;
+  authProvider: string;
+  failureReason?: string | null;
+}
+
+export interface SupportTicketSummary {
+  id: string;
+  ticketNumber: string;
+  subject: string;
+  category: "Login Issue" | "Access Rights" | "MFA Problem" | "Region Scope" | "General Troubleshooting";
+  status: "Open" | "In Progress" | "Resolved" | "Closed";
+  priority: "Low" | "Medium" | "High" | "Urgent";
+  createdAt: string;
+  lastUpdatedAt: string;
+}
+
+export interface SupportDiagnosticNote {
+  id: string;
+  userId: string;
+  authorName: string;
+  authorRole: string;
+  createdAt: string;
+  note: string;
+  actionTaken?: string | null;
+}
+
+export interface UserDiagnosticDetails {
+  user: GlobalSupportUser;
+  activeSessions: UserSession[];
+  loginHistory: LoginAuditLog[];
+  effectivePermissions: string[];
+  supportTickets: SupportTicketSummary[];
+  diagnosticNotes: SupportDiagnosticNote[];
+}
+
+export interface UpdateUserStatusRequest {
+  userId: string;
+  status: AccountStatus;
+  reason: string;
+}
+
+export interface AddSupportNoteRequest {
+  userId: string;
+  note: string;
+  actionTaken?: string | null;
+}
+
 export interface Role {
   id: string;
   tenantId?: string | null;
@@ -297,4 +388,5 @@ export interface RegionSettings {
   isActive: boolean;
   fees: RegionFeeSchedule;
 }
+
 
