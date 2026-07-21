@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -15,11 +15,14 @@ import {
   getStatusColor,
   getStatusBgColor,
   formatRelativeTime,
+  getAppDocuments,
+  ApplicationDocument,
 } from '../data/applicationsData';
 
 interface SinglePreviewProps {
   app: SingleApplication;
-  onBack: () => void;
+  onClose: () => void;
+  onDownloadDocument: (doc: ApplicationDocument) => void;
 }
 
 interface InfoRowProps {
@@ -36,114 +39,209 @@ function InfoRow({ label, value }: InfoRowProps) {
   );
 }
 
-interface SectionCardProps {
-  title: string;
-  children: React.ReactNode;
-}
-
-function SectionCard({ title, children }: SectionCardProps) {
+function SectionCard({ title, icon, children }: { title: string; icon: string; children: React.ReactNode }) {
   return (
     <View style={styles.sectionCard}>
-      <Text style={styles.sectionTitle}>{title}</Text>
+      <View style={styles.sectionTitleRow}>
+        <Icon name={icon as unknown as any} size={16} color={COLORS.brand[700]} />
+        <Text style={styles.sectionTitle}>{title}</Text>
+      </View>
       <View style={styles.sectionDivider} />
-      {children}
+      <View style={styles.sectionBody}>{children}</View>
     </View>
   );
 }
 
-export function SinglePreview({ app, onBack }: SinglePreviewProps) {
+export function SinglePreview({ app, onClose, onDownloadDocument }: SinglePreviewProps) {
+  const [activeTab, setActiveTab] = useState<'DETAILS' | 'DOCUMENTS'>('DETAILS');
   const statusColor = getStatusColor(app.status);
-  const statusBg    = getStatusBgColor(app.status);
+  const statusBg = getStatusBgColor(app.status);
+  const documents = getAppDocuments(app);
+
+  // Status timeline steps
+  const steps = [
+    { label: 'Submitted', done: true },
+    { label: 'Evaluation', done: app.status !== 'PENDING' },
+    { label: 'For Approval', done: app.status === 'FOR_APPROVAL' || app.status === 'APPROVED' },
+    { label: 'Approved & Issued', done: app.status === 'APPROVED' },
+  ];
 
   return (
-    <ScrollView
-      contentContainerStyle={styles.scrollContent}
-      showsVerticalScrollIndicator={false}
-    >
-      {/* Back link */}
-      <TouchableOpacity onPress={onBack} style={styles.backLink} activeOpacity={0.7}>
-        <Icon name="arrow-left" size={14} color={COLORS.brand[700]} />
-        <Text style={styles.backLinkText}>BACK TO MY APPLICATIONS</Text>
-      </TouchableOpacity>
+    <View style={styles.modalOverlay}>
+      <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={onClose} />
+      <View style={styles.modalContainer}>
+        {/* ── Modal Header ────────────────────────────────────────────────── */}
+        <View style={styles.modalHeader}>
+          <View style={styles.headerTitleGroup}>
+            <View style={styles.badgeRow}>
+              <View style={styles.singleBadge}>
+                <View style={styles.singleDot} />
+                <Text style={styles.singleBadgeText}>SINGLE APPLICATION</Text>
+              </View>
+              <View style={[styles.statusBadge, { backgroundColor: statusBg }]}>
+                <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
+                <Text style={[styles.statusBadgeText, { color: statusColor }]}>
+                  {getStatusLabel(app.status)}
+                </Text>
+              </View>
+            </View>
+            <Text style={styles.refNumber}>#{app.referenceNumber}</Text>
+            <Text style={styles.serviceName}>{app.serviceName}</Text>
+          </View>
 
-      {/* Header card */}
-      <View style={styles.headerCard}>
-        {/* Reference number + status badge */}
-        <View style={styles.headerTopRow}>
-          <Text style={styles.refNumber}>
-            Application #{app.referenceNumber}
-          </Text>
-          <View style={[styles.statusBadge, { backgroundColor: statusBg }]}>
-            <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
-            <Text style={[styles.statusBadgeText, { color: statusColor }]}>
-              {getStatusLabel(app.status).toUpperCase()}
+          <TouchableOpacity onPress={onClose} style={styles.closeBtn} activeOpacity={0.8}>
+            <Icon name="x" size={18} color="#64748B" />
+          </TouchableOpacity>
+        </View>
+
+        {/* ── Modal Tabs Bar ──────────────────────────────────────────────── */}
+        <View style={styles.tabsBar}>
+          <TouchableOpacity
+            onPress={() => setActiveTab('DETAILS')}
+            style={[styles.tabBtn, activeTab === 'DETAILS' && styles.tabBtnActive]}
+          >
+            <Icon
+              name="user"
+              size={15}
+              color={activeTab === 'DETAILS' ? COLORS.brand[700] : '#64748B'}
+            />
+            <Text style={[styles.tabBtnText, activeTab === 'DETAILS' && styles.tabBtnTextActive]}>
+              Applicant Details
             </Text>
-          </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => setActiveTab('DOCUMENTS')}
+            style={[styles.tabBtn, activeTab === 'DOCUMENTS' && styles.tabBtnActive]}
+          >
+            <Icon
+              name="file-text"
+              size={15}
+              color={activeTab === 'DOCUMENTS' ? COLORS.brand[700] : '#64748B'}
+            />
+            <Text style={[styles.tabBtnText, activeTab === 'DOCUMENTS' && styles.tabBtnTextActive]}>
+              Documents ({documents.length})
+            </Text>
+          </TouchableOpacity>
         </View>
 
-        {/* Service name */}
-        <Text style={styles.headerServiceName}>{app.serviceName}</Text>
+        {/* ── Modal Scrollable Body ───────────────────────────────────────── */}
+        <ScrollView contentContainerStyle={styles.scrollBody} showsVerticalScrollIndicator={false}>
+          {activeTab === 'DETAILS' ? (
+            <>
+              {/* Status Stepper Timeline */}
+              <View style={styles.stepperContainer}>
+                <Text style={styles.stepperHeaderTitle}>Application Progress</Text>
+                <View style={styles.stepperTrack}>
+                  {steps.map((step, idx) => (
+                    <View key={step.label} style={styles.stepItem}>
+                      <View
+                        style={[
+                          styles.stepDot,
+                          step.done ? styles.stepDotDone : styles.stepDotPending,
+                        ]}
+                      >
+                        {step.done ? (
+                          <Icon name="check" size={11} color="#FFFFFF" />
+                        ) : (
+                          <Text style={styles.stepNumber}>{idx + 1}</Text>
+                        )}
+                      </View>
+                      <Text
+                        style={[
+                          styles.stepLabel,
+                          step.done ? styles.stepLabelDone : styles.stepLabelPending,
+                        ]}
+                      >
+                        {step.label}
+                      </Text>
+                      {idx < steps.length - 1 && (
+                        <View
+                          style={[
+                            styles.stepConnector,
+                            steps[idx + 1].done && styles.stepConnectorDone,
+                          ]}
+                        />
+                      )}
+                    </View>
+                  ))}
+                </View>
+              </View>
 
-        {/* Meta row: category | SINGLE badge | submission time */}
-        <View style={styles.headerMeta}>
-          <Text style={styles.headerCategory}>{app.serviceCategory}</Text>
+              {/* Basic Information (1 Applicant) */}
+              <SectionCard title="1. Applicant Profile" icon="user">
+                <InfoRow label="Full Name" value={app.applicantName} />
+                <InfoRow label="Sex" value={app.sex} />
+                <InfoRow label="Nationality" value={app.nationality} />
+                <InfoRow label="Element Type" value={app.element} />
+                <InfoRow label="Submission Date" value={formatRelativeTime(app.submittedAt)} />
+              </SectionCard>
 
-          <View style={styles.singleBadge}>
-            <View style={styles.singleDot} />
-            <Text style={styles.singleBadgeText}>SINGLE</Text>
-          </View>
+              {/* Contact Information */}
+              <SectionCard title="2. Contact Details" icon="mail">
+                <InfoRow label="Mobile Number" value={app.mobileNumber} />
+                <InfoRow label="Email Address" value={app.email} />
+              </SectionCard>
 
-          <Text style={styles.headerTime}>
-            Submitted {formatRelativeTime(app.submittedAt)}
-          </Text>
-        </View>
+              {/* Location & Address */}
+              <SectionCard title="3. Permanent Address" icon="map-pin">
+                <InfoRow label="Street Address" value={app.streetAddress} />
+                <InfoRow label="City / Municipality" value={app.cityMunicipality} />
+                <InfoRow label="Province" value={app.province} />
+                <InfoRow label="Region" value={app.region} />
+              </SectionCard>
+
+              {/* Examination Schedule */}
+              <SectionCard title="4. Examination Schedule" icon="calendar">
+                <InfoRow label="Scheduled Date" value={app.schedule.date} />
+                <InfoRow label="Scheduled Time" value={app.schedule.time} />
+                <InfoRow label="Venue Location" value={app.schedule.venue} />
+              </SectionCard>
+            </>
+          ) : (
+            /* Documents & Downloads Tab */
+            <View style={styles.documentsContainer}>
+              <Text style={styles.documentsSectionTitle}>Attached & Issued Documents</Text>
+              <Text style={styles.documentsSectionSubtitle}>
+                Download official application documents, admission slips, receipts, and permits below.
+              </Text>
+
+              {documents.map((doc) => (
+                <View key={doc.id} style={styles.documentCard}>
+                  <View style={styles.docIconWrap}>
+                    <Icon
+                      name={doc.type === 'ZIP' ? 'folder' : 'file-text'}
+                      size={20}
+                      color={COLORS.brand[700]}
+                    />
+                  </View>
+
+                  <View style={styles.docInfoWrap}>
+                    <Text style={styles.docName}>{doc.name}</Text>
+                    <View style={styles.docMetaRow}>
+                      <Text style={styles.docCategory}>{doc.category.replace('_', ' ')}</Text>
+                      <Text style={styles.docDot}>•</Text>
+                      <Text style={styles.docSize}>{doc.size}</Text>
+                      <Text style={styles.docDot}>•</Text>
+                      <Text style={styles.docFormat}>{doc.type}</Text>
+                    </View>
+                  </View>
+
+                  <TouchableOpacity
+                    onPress={() => onDownloadDocument(doc)}
+                    style={styles.docDownloadBtn}
+                    activeOpacity={0.8}
+                  >
+                    <Icon name="download" size={14} color={COLORS.brand[700]} />
+                    <Text style={styles.docDownloadBtnText}>Download</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          )}
+        </ScrollView>
       </View>
-
-      {/* Application Details */}
-      <SectionCard title="Application Details">
-        <InfoRow label="Service"  value={app.serviceName} />
-        <InfoRow label="Category" value={app.serviceCategory} />
-        <InfoRow label="Element"  value={app.element} />
-      </SectionCard>
-
-      {/* Basic Information */}
-      <SectionCard title="Basic Information">
-        <InfoRow label="Full Name"    value={app.applicantName} />
-        <InfoRow label="Sex"          value={app.sex} />
-        <InfoRow label="Nationality"  value={app.nationality} />
-      </SectionCard>
-
-      {/* Address */}
-      <SectionCard title="Address">
-        <InfoRow label="Street Address"   value={app.streetAddress} />
-        <InfoRow label="City/Municipality" value={app.cityMunicipality} />
-        <InfoRow label="Province"          value={app.province} />
-        <InfoRow label="Region"            value={app.region} />
-      </SectionCard>
-
-      {/* Contact Details */}
-      <SectionCard title="Contact Details">
-        <InfoRow label="Mobile Number" value={app.mobileNumber} />
-        <InfoRow label="Email Address" value={app.email} />
-      </SectionCard>
-
-      {/* Examinee Type */}
-      <SectionCard title="Examinee Type">
-        <InfoRow label="Type" value={app.examineeType} />
-      </SectionCard>
-
-      {/* Region */}
-      <SectionCard title="Region">
-        <InfoRow label="Region" value={app.region} />
-      </SectionCard>
-
-      {/* Schedule */}
-      <SectionCard title="Schedule">
-        <InfoRow label="Date"  value={app.schedule.date} />
-        <InfoRow label="Time"  value={app.schedule.time} />
-        <InfoRow label="Venue" value={app.schedule.venue} />
-      </SectionCard>
-    </ScrollView>
+    </View>
   );
 }
 
@@ -152,161 +250,368 @@ export function SinglePreview({ app, onBack }: SinglePreviewProps) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  scrollContent: {
-    padding: SPACING[24],
-    paddingBottom: 40,
-  },
-
-  // Back link
-  backLink: {
-    flexDirection: 'row',
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    zIndex: 1000,
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: SPACING[20],
-    ...Platform.select({ web: { cursor: 'pointer' as unknown as undefined } }),
+    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    padding: SPACING[16],
   },
-  backLinkText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    color: COLORS.brand[700],
-    letterSpacing: 0.5,
+  modalBackdrop: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
   },
-
-  // Header card
-  headerCard: {
-    backgroundColor: COLORS.neutral.white,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: COLORS.neutral[200],
-    padding: SPACING[24],
-    marginBottom: SPACING[16],
+  modalContainer: {
+    width: '100%',
+    maxWidth: 720,
+    maxHeight: '90%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    overflow: 'hidden',
     ...Platform.select({
-      web: { boxShadow: '0 1px 4px rgba(0,0,0,0.06)' as unknown as undefined },
+      web: {
+        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+      },
     }),
   },
-  headerTopRow: {
+
+  modalHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: 10,
+    padding: SPACING[20],
+    backgroundColor: '#F8FAFC',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
   },
-  refNumber: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 22,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    color: COLORS.neutral[900],
+  headerTitleGroup: {
     flex: 1,
+    paddingRight: 16,
   },
-  statusBadge: {
+  badgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
-    gap: 6,
-  },
-  statusDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-  },
-  statusBadgeText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    letterSpacing: 0.5,
-  },
-  headerServiceName: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
-    color: COLORS.neutral[600],
-    marginBottom: 12,
-    lineHeight: 20,
-  },
-  headerMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
     flexWrap: 'wrap',
-    gap: 12,
   },
-  headerCategory: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
-    color: COLORS.neutral[500],
-  },
+
   singleBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#EEF2FF',
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 4,
-    gap: 5,
+    borderRadius: 6,
   },
   singleDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
     backgroundColor: '#2F56E8',
+    marginRight: 6,
   },
   singleBadgeText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: TYPOGRAPHY.weights.bold,
     color: '#2F56E8',
   },
-  headerTime: {
+
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 12,
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 6,
+  },
+  statusBadgeText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+
+  refNumber: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: '#475569',
+    marginBottom: 2,
+  },
+  serviceName: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 18,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: '#0F172A',
+  },
+
+  closeBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#E2E8F0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  tabsBar: {
+    flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+    paddingHorizontal: SPACING[20],
+  },
+  tabBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+    gap: 8,
+  },
+  tabBtnActive: {
+    borderBottomColor: COLORS.brand[700],
+  },
+  tabBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    fontWeight: TYPOGRAPHY.weights.medium,
+    color: '#64748B',
+  },
+  tabBtnTextActive: {
+    color: COLORS.brand[700],
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+
+  scrollBody: {
+    padding: SPACING[20],
+  },
+
+  // Stepper
+  stepperContainer: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    padding: SPACING[16],
+    marginBottom: SPACING[16],
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  stepperHeaderTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 13,
-    color: COLORS.neutral[400],
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: '#334155',
+    marginBottom: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  stepperTrack: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  stepItem: {
+    flex: 1,
+    alignItems: 'center',
+    position: 'relative',
+  },
+  stepDot: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 6,
+    zIndex: 2,
+  },
+  stepDotDone: {
+    backgroundColor: '#16A34A',
+  },
+  stepDotPending: {
+    backgroundColor: '#CBD5E1',
+  },
+  stepNumber: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  stepLabel: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    textAlign: 'center',
+  },
+  stepLabelDone: {
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: '#0F172A',
+  },
+  stepLabelPending: {
+    color: '#94A3B8',
+  },
+  stepConnector: {
+    position: 'absolute',
+    top: 11,
+    left: '50%',
+    right: '-50%',
+    height: 2,
+    backgroundColor: '#E2E8F0',
+    zIndex: 1,
+  },
+  stepConnectorDone: {
+    backgroundColor: '#16A34A',
   },
 
   // Section card
   sectionCard: {
-    backgroundColor: COLORS.neutral.white,
-    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: COLORS.neutral[200],
-    padding: SPACING[20],
-    marginBottom: SPACING[12],
+    borderColor: '#E2E8F0',
+    padding: SPACING[16],
+    marginBottom: SPACING[16],
+  },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
   },
   sectionTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: TYPOGRAPHY.weights.bold,
-    color: COLORS.neutral[500],
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-    marginBottom: SPACING[12],
+    color: '#0F172A',
   },
   sectionDivider: {
     height: 1,
-    backgroundColor: COLORS.neutral[100],
-    marginBottom: SPACING[12],
+    backgroundColor: '#F1F5F9',
+    marginBottom: 12,
+  },
+  sectionBody: {
+    gap: 10,
   },
 
-  // Info row
   infoRow: {
     flexDirection: 'row',
-    paddingVertical: 6,
-    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   infoLabel: {
-    width: 160,
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 13,
-    color: COLORS.neutral[400],
-    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: '#64748B',
   },
   infoValue: {
-    flex: 1,
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 13,
-    color: COLORS.neutral[800],
-    fontWeight: TYPOGRAPHY.weights.medium,
-    lineHeight: 18,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: '#0F172A',
+  },
+
+  // Documents tab
+  documentsContainer: {
+    gap: 12,
+  },
+  documentsSectionTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 16,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: '#0F172A',
+  },
+  documentsSectionSubtitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    color: '#64748B',
+    marginBottom: 8,
+  },
+
+  documentCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: SPACING[16],
+    gap: 12,
+  },
+  docIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: '#EFF6FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  docInfoWrap: {
+    flex: 1,
+  },
+  docName: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: '#0F172A',
+    marginBottom: 2,
+  },
+  docMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  docCategory: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    color: COLORS.brand[700],
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    textTransform: 'uppercase',
+  },
+  docDot: {
+    color: '#CBD5E1',
+    fontSize: 11,
+  },
+  docSize: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    color: '#64748B',
+  },
+  docFormat: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: TYPOGRAPHY.weights.semibold,
+  },
+
+  docDownloadBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 6,
+  },
+  docDownloadBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: COLORS.brand[700],
   },
 });
