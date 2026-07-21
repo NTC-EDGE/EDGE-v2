@@ -371,7 +371,9 @@ export function InternalLandingPage() {
                     <>
                       {/* Region Selector */}
                       <View style={[styles.fieldGroup, { zIndex: 100 }]}>
-                        <Text style={styles.fieldLabelSmall}>Region</Text>
+                        <Text style={styles.fieldLabelSmall}>
+                          Region <Text style={styles.requiredStar}>*</Text>
+                        </Text>
                         <TouchableOpacity
                           style={styles.regionSelectorBox}
                           onPress={() => setShowRegionDropdown((prev) => !prev)}
@@ -434,9 +436,12 @@ export function InternalLandingPage() {
 
                       {/* Phone / Email Input */}
                       <View style={styles.fieldGroup}>
+                        <Text style={styles.fieldLabelSmall}>
+                          Phone no./Email address <Text style={styles.requiredStar}>*</Text>
+                        </Text>
                         <TextInput
                           autoCapitalize="none"
-                          placeholder="Phone no./Email address *"
+                          placeholder="Phone no./Email address"
                           placeholderTextColor={COLORS.neutral[400]}
                           value={identifier}
                           onChangeText={setIdentifier}
@@ -447,6 +452,9 @@ export function InternalLandingPage() {
 
                       {/* Password Input with Eye Toggle */}
                       <View style={styles.fieldGroup}>
+                        <Text style={styles.fieldLabelSmall}>
+                          Password <Text style={styles.requiredStar}>*</Text>
+                        </Text>
                         <View style={styles.inputWithIconWrapper}>
                           <TextInput
                             placeholder="Password"
@@ -823,8 +831,8 @@ const styles = StyleSheet.create({
   },
   heroLeftCol: {
     flex: 1,
-    minWidth: 300,
-    maxWidth: 540,
+    minWidth: 320,
+    maxWidth: 580,
   },
   heroPillBadge: {
     flexDirection: "row",
@@ -847,14 +855,14 @@ const styles = StyleSheet.create({
   },
   heroBadgeText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: TYPOGRAPHY.weights.semibold,
     color: "#1E40AF",
   },
   heroTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 44,
-    lineHeight: 54,
+    fontSize: 52,
+    lineHeight: 62,
     fontWeight: TYPOGRAPHY.weights.bold,
     color: "#0E1B61",
     marginBottom: 18,
@@ -864,8 +872,8 @@ const styles = StyleSheet.create({
   },
   heroSubtitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 15,
-    lineHeight: 24,
+    fontSize: 17,
+    lineHeight: 28,
     color: COLORS.neutral[600],
     marginBottom: 32,
   },
@@ -988,6 +996,10 @@ const styles = StyleSheet.create({
     fontWeight: TYPOGRAPHY.weights.bold,
     color: "#0F172A",
     marginBottom: SPACING[24],
+    textAlign: "center",
+  },
+  requiredStar: {
+    color: "#EF4444",
   },
   fieldGroup: {
     marginBottom: 20,
