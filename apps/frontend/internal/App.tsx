@@ -92,6 +92,9 @@ const UnauthStack = createNativeStackNavigator({
     InternalLanding: {
       screen: InternalLandingPage,
       path: "internal/landing",
+      options: {
+        title: "Landing",
+      },
     },
   },
 });
@@ -414,8 +417,11 @@ function AppContent() {
   const navigationRef = useNavigationContainerRef<ParamListBase>();
   const [activeScreen, setActiveScreen] = useState("Dashboard");
 
-  // Sync root URL '/' to '/internal/landing' in browser address bar when unauthenticated
+  // Sync root URL '/' to '/internal/landing' in browser address bar when unauthenticated and set document title
   useEffect(() => {
+    if (Platform.OS === "web" && typeof document !== "undefined") {
+      document.title = "Landing";
+    }
     if (!isAuthenticated && Platform.OS === "web" && typeof window !== "undefined") {
       if (window.location.pathname === "/") {
         window.history.replaceState(null, "", "/internal/landing");
