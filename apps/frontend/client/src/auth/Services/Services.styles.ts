@@ -258,4 +258,15 @@ export const styles = StyleSheet.create({
     fontWeight: TYPOGRAPHY.weights.bold,
     color: COLORS.neutral.white,
   },
+  footerDoneBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    ...Platform.select({
+      web: {
+        cursor: "pointer",
+      },
+    }),
+  },
 });

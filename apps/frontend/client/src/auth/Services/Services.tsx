@@ -15,6 +15,7 @@ import { servicesData, NTCService } from "./data/servicesData";
 import { CategoryGrid } from "./components/CategoryGrid";
 import { ServiceList } from "./components/ServiceList";
 import { ServiceDetails } from "./components/ServiceDetails";
+import { CPEAccreditationWizard } from "./accreditation/customer-premises";
 import { styles } from "./Services.styles";
 
 type AuthParamList = {
@@ -37,6 +38,8 @@ export function Services() {
   const [selectedService, setSelectedService] = useState<NTCService | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [activeWizardService, setActiveWizardService] = useState<string | null>(null);
+  const [isDetailsExpanded, setIsDetailsExpanded] = useState(false);
 
   // User Profile Memo
   const userProfile = useMemo(() => {
@@ -178,64 +181,86 @@ export function Services() {
         )}
 
         {/* Content Column (Category Grid OR Sub-items List) */}
-        <View style={[styles.contentColumn, isLeftColumnHiddenOnMobile && styles.hiddenColumn]}>
-          {searchQuery.trim() !== "" ? (
-            <ServiceList
-              searchQuery={searchQuery}
-              activeCategory={null}
-              searchResults={searchResults}
-              onServiceSelect={(service) => {
-                setSelectedService(service);
-                if (isMobile) {
-                  // Bypass standard grid to show details in mobile stack
-                  setSelectedCategoryId("search-active");
-                }
-              }}
-              onBack={handleClearSearch}
-              isMobile={isMobile}
-            />
-          ) : selectedCategoryId !== null ? (
-            <ServiceList
-              searchQuery=""
-              activeCategory={activeCategory}
-              searchResults={null}
-              onServiceSelect={setSelectedService}
-              onBack={handleBackToCategories}
-              isMobile={isMobile}
-            />
-          ) : (
-            <CategoryGrid
-              user={userProfile}
-              searchQuery={searchQuery}
-              onSearchQueryChange={setSearchQuery}
-              selectedCategoryId={selectedCategoryId}
-              onCategorySelect={setSelectedCategoryId}
-            />
-          )}
-        </View>
+        {!(activeWizardService !== null && isDetailsExpanded) && (
+          <View style={[styles.contentColumn, isLeftColumnHiddenOnMobile && styles.hiddenColumn]}>
+            {searchQuery.trim() !== "" ? (
+              <ServiceList
+                searchQuery={searchQuery}
+                activeCategory={null}
+                searchResults={searchResults}
+                onServiceSelect={(service) => {
+                  setSelectedService(service);
+                  if (service.title.includes("Premises")) {
+                    setActiveWizardService("cpe-accreditation");
+                  }
+                  if (isMobile) {
+                    // Bypass standard grid to show details in mobile stack
+                    setSelectedCategoryId("search-active");
+                  }
+                }}
+                onBack={handleClearSearch}
+                isMobile={isMobile}
+              />
+            ) : selectedCategoryId !== null ? (
+              <ServiceList
+                searchQuery=""
+                activeCategory={activeCategory}
+                searchResults={null}
+                onServiceSelect={(service) => {
+                  setSelectedService(service);
+                  if (service.title.includes("Premises")) {
+                    setActiveWizardService("cpe-accreditation");
+                  }
+                }}
+                onBack={handleBackToCategories}
+                isMobile={isMobile}
+              />
+            ) : (
+              <CategoryGrid
+                user={userProfile}
+                searchQuery={searchQuery}
+                onSearchQueryChange={setSearchQuery}
+                selectedCategoryId={selectedCategoryId}
+                onCategorySelect={setSelectedCategoryId}
+              />
+            )}
+          </View>
+        )}
 
         {/* Details / Interactive Panel Column (Tablet / Web View) */}
         {/* On mobile, this column takes full screen if category or service is selected */}
         {(!isMobile || selectedCategoryId !== null || selectedService !== null) && (
           <View style={[styles.detailsColumn, isMobile && styles.mobileDetailsColumn]}>
             
-            {/* Note alert at top */}
-            <View style={styles.noticeAlert}>
-              <View style={styles.noticeIcon}>
-                <Icon name="clock" size={16} color="#1e40af" />
-              </View>
-              <Text style={styles.noticeText}>
-                <Text style={{ fontWeight: "700" }}>Note:</Text> Applications are processed on weekdays, 8:00 AM–5:00 PM. Submissions outside these hours will be processed on the next business day.
-              </Text>
-            </View>
-
             {/* Interactive Panel Content */}
             <View style={{ flex: 1 }}>
-              {selectedService !== null ? (
+              {activeWizardService === "cpe-accreditation" ? (
+                <CPEAccreditationWizard
+                  onClose={() => {
+                    setActiveWizardService(null);
+                    setIsDetailsExpanded(false);
+                    setSelectedService(null);
+                  }}
+                  onSuccess={() => {
+                    setActiveWizardService(null);
+                    setIsDetailsExpanded(false);
+                    setSelectedService(null);
+                    navigation.navigate("MyApplications");
+                  }}
+                  isDetailsExpanded={isDetailsExpanded}
+                  onToggleExpand={() => setIsDetailsExpanded((prev) => !prev)}
+                />
+              ) : selectedService !== null ? (
                 <ServiceDetails
                   selectedService={selectedService}
                   onBackToServices={handleBackToServices}
-                  onApplyPress={() => setIsModalOpen(true)}
+                  onApplyPress={() => {
+                    if (selectedService.title.includes("Premises")) {
+                      setActiveWizardService("cpe-accreditation");
+                    } else {
+                      setIsModalOpen(true);
+                    }
+                  }}
                   isMobile={isMobile}
                 />
               ) : activeCategory !== null ? (
@@ -270,7 +295,7 @@ export function Services() {
             </View>
 
             {/* Web Help Button overlay */}
-            {!isMobile && (
+            {!isMobile && selectedService === null && activeWizardService === null && (
               <TouchableOpacity style={styles.helpButton}>
                 <Text style={styles.helpButtonText}>Help Center</Text>
               </TouchableOpacity>
@@ -282,7 +307,9 @@ export function Services() {
       {/* Footer Banner */}
       <View style={styles.footerBanner}>
         <Text style={styles.footerText}>National Telecommunications Commission</Text>
-        <Text style={styles.footerButtonText}>I'm done!</Text>
+        <TouchableOpacity onPress={handleSignOut} style={styles.footerDoneBtn}>
+          <Text style={styles.footerButtonText}>I'm done!</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Application Form Modal */}
