@@ -16,6 +16,7 @@ import { CategoryGrid } from "./components/CategoryGrid";
 import { ServiceList } from "./components/ServiceList";
 import { ServiceDetails } from "./components/ServiceDetails";
 import { CPEAccreditationWizard, ApplicantData, initialApplicant, BulkApplicantsPanel } from "./accreditation/customer-premises";
+import { RadioOperatorExamWizard, ExamApplicantData, initialExamApplicant, ExamBulkApplicantsPanel } from "./exams/radio-operator";
 import { styles } from "./Services.styles";
 
 type AuthParamList = {
@@ -51,9 +52,13 @@ export function Services() {
   const [uploadedFileName, setUploadedFileName] = useState("");
   const [applicants, setApplicants] = useState<ApplicantData[]>([initialApplicant(1)]);
   const [currentApplicantIndex, setCurrentApplicantIndex] = useState(0);
+  const [examWizardStep, setExamWizardStep] = useState(1);
+  const [examApplicants, setExamApplicants] = useState<ExamApplicantData[]>([initialExamApplicant(1)]);
+  const [currentExamApplicantIndex, setCurrentExamApplicantIndex] = useState(0);
 
   const resetWizardState = () => {
     setWizardStep(1);
+    setExamWizardStep(1);
     setSelectedRegionId("");
     setSelectedOfficeId("");
     setAppMode("BULK");
@@ -61,7 +66,9 @@ export function Services() {
     setIsFileUploaded(false);
     setUploadedFileName("");
     setApplicants([initialApplicant(1)]);
+    setExamApplicants([initialExamApplicant(1)]);
     setCurrentApplicantIndex(0);
+    setCurrentExamApplicantIndex(0);
   };
 
   // Check if we should display the left-side list view (standard grid or sub-items list)
@@ -219,6 +226,14 @@ export function Services() {
                 setStep={setWizardStep}
                 resetWizardState={resetWizardState}
               />
+            ) : activeWizardService === "radio-operator-exam" && appMode === "BULK" && examWizardStep >= 3 ? (
+              <ExamBulkApplicantsPanel
+                applicants={examApplicants}
+                currentApplicantIndex={currentExamApplicantIndex}
+                onSelectApplicant={setCurrentExamApplicantIndex}
+                setStep={setExamWizardStep}
+                resetWizardState={resetWizardState}
+              />
             ) : searchQuery.trim() !== "" ? (
               <ServiceList
                 searchQuery={searchQuery}
@@ -228,6 +243,8 @@ export function Services() {
                   setSelectedService(service);
                   if (service.title.includes("Premises")) {
                     setActiveWizardService("cpe-accreditation");
+                  } else if (service.title.includes("Radio Operator")) {
+                    setActiveWizardService("radio-operator-exam");
                   }
                   if (isMobile) {
                     setSelectedCategoryId("search-active");
@@ -245,6 +262,8 @@ export function Services() {
                   setSelectedService(service);
                   if (service.title.includes("Premises")) {
                     setActiveWizardService("cpe-accreditation");
+                  } else if (service.title.includes("Radio Operator")) {
+                    setActiveWizardService("radio-operator-exam");
                   }
                 }}
                 onBack={handleBackToCategories}
@@ -305,6 +324,42 @@ export function Services() {
                   currentApplicantIndex={currentApplicantIndex}
                   setCurrentApplicantIndex={setCurrentApplicantIndex}
                 />
+              ) : activeWizardService === "radio-operator-exam" ? (
+                <RadioOperatorExamWizard
+                  onClose={() => {
+                    setActiveWizardService(null);
+                    setIsDetailsExpanded(false);
+                    setSelectedService(null);
+                    resetWizardState();
+                  }}
+                  onSuccess={() => {
+                    setActiveWizardService(null);
+                    setIsDetailsExpanded(false);
+                    setSelectedService(null);
+                    resetWizardState();
+                    navigation.navigate("MyApplications");
+                  }}
+                  isDetailsExpanded={isDetailsExpanded}
+                  onToggleExpand={() => setIsDetailsExpanded((prev) => !prev)}
+                  step={examWizardStep}
+                  setStep={setExamWizardStep}
+                  selectedRegionId={selectedRegionId}
+                  setSelectedRegionId={setSelectedRegionId}
+                  selectedOfficeId={selectedOfficeId}
+                  setSelectedOfficeId={setSelectedOfficeId}
+                  appMode={appMode}
+                  setAppMode={setAppMode}
+                  bulkMethod={bulkMethod}
+                  setBulkMethod={setBulkMethod}
+                  isFileUploaded={isFileUploaded}
+                  setIsFileUploaded={setIsFileUploaded}
+                  uploadedFileName={uploadedFileName}
+                  setUploadedFileName={setUploadedFileName}
+                  applicants={examApplicants}
+                  setApplicants={setExamApplicants}
+                  currentApplicantIndex={currentExamApplicantIndex}
+                  setCurrentApplicantIndex={setCurrentExamApplicantIndex}
+                />
               ) : selectedService !== null ? (
                 <ServiceDetails
                   selectedService={selectedService}
@@ -312,6 +367,8 @@ export function Services() {
                   onApplyPress={() => {
                     if (selectedService.title.includes("Premises")) {
                       setActiveWizardService("cpe-accreditation");
+                    } else if (selectedService.title.includes("Radio Operator")) {
+                      setActiveWizardService("radio-operator-exam");
                     } else {
                       setIsModalOpen(true);
                     }
