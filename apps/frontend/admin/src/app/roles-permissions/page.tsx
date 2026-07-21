@@ -117,7 +117,7 @@ export default function RolesPermissionsPage() {
   );
 
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(6);
+  const [pageSize, setPageSize] = useState(10);
 
   const paginatedRoles = filteredRoles.slice(
     (currentPage - 1) * pageSize,

@@ -25,7 +25,8 @@ import {
   Clock,
   Calendar,
   Layers,
-  Award
+  Award,
+  Columns,
 } from "lucide-react";
 import { useTenantService } from "@/services/tenantService";
 import { useRegionService } from "@/services/regionService";
@@ -195,13 +196,59 @@ export default function TenantsPage() {
     ? fetchedTenants
     : MOCK_TENANTS;
 
+  // Regional scale generator for external users (simulating thousands across the region)
+  const getRegionalExternalUsers = (regionId: string, regionCode: string): ExternalUser[] => {
+    const base = MOCK_EXTERNAL_USERS[regionId] ?? [];
+    const categories = [
+      "Public Telecommunications Entity (PTE)",
+      "Cellular Mobile Telephone System (CMTS)",
+      "Class A Amateur Radio Permit",
+      "FM Commercial Radio Station",
+      "Ship Radio Station License",
+      "Broadband Wireless Access (BWA)",
+      "CATV Cable Television Network",
+      "Aeronautical Ground Radio",
+      "VSAT Satellite Earth Station",
+    ];
+    const orgs = [
+      "Telecommunications Carrier",
+      "Cellular Network Operator",
+      "Amateur Radio Society",
+      "Commercial Broadcast Network",
+      "Maritime Fleet Logistics",
+      "Internet Service Provider",
+      "Cable Television Provider",
+      "Aeronautical Station Lead",
+      "Satellite Broadband Provider",
+    ];
+    const statuses = ["Active License", "Active License", "Active License", "Pending Renewal", "Under Audit"];
+
+    const result: ExternalUser[] = [...base];
+    for (let i = 1; i <= 1248; i++) {
+      const cat = categories[i % categories.length];
+      const org = orgs[i % orgs.length];
+      const st = statuses[i % statuses.length];
+      const num = String(i).padStart(4, "0");
+      result.push({
+        id: `eu-${regionCode}-${num}`,
+        name: `Regional Licensee ${regionCode}-${num} (${cat.split(" ")[0]})`,
+        email: `contact.usr${num}@ntc-region-${regionCode.toLowerCase()}.gov.ph`,
+        organization: org,
+        licenseCategory: cat,
+        status: st,
+        registeredDate: `2025-0${(i % 9) + 1}-${10 + (i % 18)}`,
+      });
+    }
+    return result;
+  };
+
   // Search & Filter state
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRegionFilter, setSelectedRegionFilter] = useState<string>("ALL");
 
-  // Pagination state
+  // Main table pagination state
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(5);
+  const [pageSize, setPageSize] = useState(10);
 
   // Modal State
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -210,6 +257,17 @@ export default function TenantsPage() {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
   const [activeDetailsTab, setActiveDetailsTab] = useState<"members" | "external_users" | "transactions">("members");
+
+  // Client Details Sub-Modal State
+  const [isExternalUserModalOpen, setIsExternalUserModalOpen] = useState(false);
+  const [selectedExternalUser, setSelectedExternalUser] = useState<ExternalUser | null>(null);
+
+  // Modal Internal & External Users Search/Filter/Pagination State
+  const [internalSearchTerm, setInternalSearchTerm] = useState("");
+  const [externalSearchTerm, setExternalSearchTerm] = useState("");
+  const [externalCategoryFilter, setExternalCategoryFilter] = useState("ALL");
+  const [externalPage, setExternalPage] = useState(1);
+  const [externalPageSize, setExternalPageSize] = useState(10);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -258,7 +316,16 @@ export default function TenantsPage() {
   const handleOpenViewDetails = (tenant: Tenant) => {
     setSelectedTenant(tenant);
     setActiveDetailsTab("members");
+    setInternalSearchTerm("");
+    setExternalSearchTerm("");
+    setExternalCategoryFilter("ALL");
+    setExternalPage(1);
     setIsDetailsOpen(true);
+  };
+
+  const handleOpenExternalUserDetails = (user: ExternalUser) => {
+    setSelectedExternalUser(user);
+    setIsExternalUserModalOpen(true);
   };
 
   const handleOpenEdit = (tenant: Tenant) => {
@@ -386,12 +453,31 @@ export default function TenantsPage() {
         },
       ];
 
-  const currentExternalUsers: ExternalUser[] = (selectedTenant !== null && MOCK_EXTERNAL_USERS[selectedTenant.regionId] !== undefined)
-    ? MOCK_EXTERNAL_USERS[selectedTenant.regionId]
-    : [
-        { id: "eu-def-1", name: "Regional Telecom Operator", email: "contact@regionaltelecom.ph", organization: "Telecommunications Carrier", licenseCategory: "Public Telecom Entity", status: "Active License", registeredDate: "2025-11-20" },
-        { id: "eu-def-2", name: "Commercial Radio Network", email: "station@radio.ph", organization: "Broadcast Station", licenseCategory: "Commercial Radio Station License", status: "Active License", registeredDate: "2026-01-15" },
-      ];
+  const fullExternalUsers: ExternalUser[] = selectedTenant !== null
+    ? getRegionalExternalUsers(selectedTenant.regionId, selectedTenant.code)
+    : [];
+
+  const filteredExternalUsers = fullExternalUsers.filter((user) => {
+    const matchesSearch =
+      user.name.toLowerCase().includes(externalSearchTerm.toLowerCase()) ||
+      user.email.toLowerCase().includes(externalSearchTerm.toLowerCase()) ||
+      user.organization.toLowerCase().includes(externalSearchTerm.toLowerCase()) ||
+      user.licenseCategory.toLowerCase().includes(externalSearchTerm.toLowerCase());
+    const matchesCat =
+      externalCategoryFilter === "ALL" || user.licenseCategory === externalCategoryFilter;
+    return matchesSearch && matchesCat;
+  });
+
+  const paginatedExternalUsers = filteredExternalUsers.slice(
+    (externalPage - 1) * externalPageSize,
+    externalPage * externalPageSize
+  );
+
+  const filteredInternalMembers = currentTenantMembers.filter((member) =>
+    `${member.userFirstName} ${member.userLastName}`.toLowerCase().includes(internalSearchTerm.toLowerCase()) ||
+    member.userEmail.toLowerCase().includes(internalSearchTerm.toLowerCase()) ||
+    member.position.toLowerCase().includes(internalSearchTerm.toLowerCase())
+  );
 
   const currentTransactions: RegionalTransaction[] = (selectedTenant !== null && MOCK_TRANSACTIONS[selectedTenant.regionId] !== undefined)
     ? MOCK_TRANSACTIONS[selectedTenant.regionId]
@@ -591,7 +677,7 @@ export default function TenantsPage() {
 
       {/* Tenant Details Modal */}
       <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-        <DialogContent className="sm:max-w-[840px] bg-slate-900 border-slate-800 text-white max-h-[90vh] flex flex-col overflow-hidden">
+        <DialogContent className="sm:max-w-[1050px] bg-slate-900 border-slate-800 text-white h-[82vh] max-h-[750px] flex flex-col overflow-hidden">
           <DialogHeader className="border-b border-slate-800 pb-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -635,52 +721,53 @@ export default function TenantsPage() {
                 <Calendar className="w-3 h-3 text-slate-500" /> Created: {selectedTenant?.createdAt ? new Date(selectedTenant.createdAt).toLocaleDateString() : "2026-01-15"}
               </span>
               <span className="flex items-center gap-1 text-sky-400">
-                <Users className="w-3 h-3" /> {currentTenantMembers.length} Internal Members
+                <Users className="w-3 h-3" /> {currentTenantMembers.length} Internal Staff
               </span>
               <span className="flex items-center gap-1 text-purple-400">
-                <UserCheck className="w-3 h-3" /> {currentExternalUsers.length} Regional Licensees
+                <UserCheck className="w-3 h-3" /> {fullExternalUsers.length.toLocaleString()} Regional Licensees
               </span>
             </div>
           </div>
 
           {/* Tab Selection Navigation */}
-          <div className="flex items-center border-b border-slate-800 gap-2 shrink-0">
+          <div className="flex items-center border-b border-slate-800 gap-2 shrink-0 overflow-x-auto">
             <button
               onClick={() => setActiveDetailsTab("members")}
-              className={`px-4 py-2.5 text-xs font-bold transition-all border-b-2 flex items-center gap-2 ${
+              className={`px-4 py-2.5 text-xs font-bold transition-all border-b-2 flex items-center gap-2 shrink-0 ${
                 activeDetailsTab === "members"
                   ? "border-indigo-500 text-indigo-300 bg-indigo-500/10"
                   : "border-transparent text-slate-400 hover:text-white"
               }`}
             >
-              <Users className="w-4 h-4" /> Internal Members ({currentTenantMembers.length})
+              <Users className="w-4 h-4 text-sky-400" /> Internal Tenant Members ({currentTenantMembers.length})
             </button>
 
             <button
               onClick={() => setActiveDetailsTab("external_users")}
-              className={`px-4 py-2.5 text-xs font-bold transition-all border-b-2 flex items-center gap-2 ${
+              className={`px-4 py-2.5 text-xs font-bold transition-all border-b-2 flex items-center gap-2 shrink-0 ${
                 activeDetailsTab === "external_users"
                   ? "border-indigo-500 text-indigo-300 bg-indigo-500/10"
                   : "border-transparent text-slate-400 hover:text-white"
               }`}
             >
-              <UserCheck className="w-4 h-4" /> External Regional Licensees ({currentExternalUsers.length})
+              <UserCheck className="w-4 h-4 text-purple-400" /> External Members / Clients ({fullExternalUsers.length.toLocaleString()})
             </button>
 
             <button
               onClick={() => setActiveDetailsTab("transactions")}
-              className={`px-4 py-2.5 text-xs font-bold transition-all border-b-2 flex items-center gap-2 ${
+              className={`px-4 py-2.5 text-xs font-bold transition-all border-b-2 flex items-center gap-2 shrink-0 ${
                 activeDetailsTab === "transactions"
                   ? "border-indigo-500 text-indigo-300 bg-indigo-500/10"
                   : "border-transparent text-slate-400 hover:text-white"
               }`}
             >
-              <Receipt className="w-4 h-4" /> Regional Transactions ({currentTransactions.length})
+              <Receipt className="w-4 h-4 text-emerald-400" /> Regional Transactions ({currentTransactions.length})
             </button>
           </div>
 
           {/* Tab Content Body */}
           <div className="flex-1 overflow-y-auto py-3 space-y-4 pr-1">
+            {/* FULL INTERNAL MEMBERS TAB */}
             {activeDetailsTab === "members" && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
@@ -725,42 +812,109 @@ export default function TenantsPage() {
               </div>
             )}
 
+            {/* FULL EXTERNAL REGIONAL MEMBERS (CLIENTS) TAB WITH 3-DOTS ACTION MENU */}
             {activeDetailsTab === "external_users" && (
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">External Registered Operators & Licensees (Under Selected Region)</h4>
-                  <span className="text-xs text-slate-500">{currentExternalUsers.length} Regional Licensees</span>
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 bg-slate-950/70 border border-slate-800 rounded-xl">
+                  <div className="relative w-full sm:w-72">
+                    <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-500" />
+                    <input
+                      type="text"
+                      placeholder="Search clients / regional operators..."
+                      value={externalSearchTerm}
+                      onChange={(e) => {
+                        setExternalSearchTerm(e.target.value);
+                        setExternalPage(1);
+                      }}
+                      className="w-full pl-9 pr-3 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <span className="text-xs text-slate-400 shrink-0">Filter Category:</span>
+                    <select
+                      value={externalCategoryFilter}
+                      onChange={(e) => {
+                        setExternalCategoryFilter(e.target.value);
+                        setExternalPage(1);
+                      }}
+                      className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-purple-500 cursor-pointer"
+                    >
+                      <option value="ALL">All Categories ({fullExternalUsers.length.toLocaleString()})</option>
+                      <option value="Public Telecommunications Entity (PTE)">Public Telecommunications Entity (PTE)</option>
+                      <option value="Cellular Mobile Telephone System (CMTS)">Cellular Mobile Telephone System (CMTS)</option>
+                      <option value="Class A Amateur Radio Permit">Class A Amateur Radio Permit</option>
+                      <option value="FM Commercial Radio Station">FM Commercial Radio Station</option>
+                      <option value="Ship Radio Station License">Ship Radio Station License</option>
+                      <option value="Broadband Wireless Access (BWA)">Broadband Wireless Access (BWA)</option>
+                      <option value="CATV Cable Television Network">CATV Cable Television Network</option>
+                      <option value="Aeronautical Ground Radio">Aeronautical Ground Radio</option>
+                      <option value="VSAT Satellite Earth Station">VSAT Satellite Earth Station</option>
+                    </select>
+                  </div>
                 </div>
 
                 <div className="divide-y divide-slate-800 border border-slate-800 rounded-xl overflow-hidden bg-slate-950/60">
-                  {currentExternalUsers.map((user) => (
-                    <div key={user.id} className="p-3.5 flex items-center justify-between hover:bg-slate-800/40 transition-colors">
-                      <div className="space-y-1">
-                        <div className="text-sm font-bold text-white flex items-center gap-2">
-                          <span>{user.name}</span>
-                          <span className="text-[10px] px-2 py-0.5 rounded bg-slate-900 text-purple-300 border border-slate-800 font-mono">
-                            {user.organization}
-                          </span>
-                        </div>
-                        <div className="text-xs text-slate-400 flex items-center gap-2">
-                          <span><Mail className="w-3 h-3 inline text-slate-500 mr-1" />{user.email}</span>
-                          <span className="text-slate-600">•</span>
-                          <span className="text-slate-300">{user.licenseCategory}</span>
-                        </div>
-                      </div>
-
-                      <div className="text-right space-y-1">
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                          <CheckCircle2 className="w-3 h-3" /> {user.status}
-                        </span>
-                        <div className="text-[11px] text-slate-500 font-mono">Reg: {user.registeredDate}</div>
-                      </div>
+                  {filteredExternalUsers.length === 0 ? (
+                    <div className="p-8 text-center text-sm text-slate-400">
+                      No external regional clients match your filter criteria.
                     </div>
-                  ))}
+                  ) : (
+                    paginatedExternalUsers.map((user) => (
+                      <div key={user.id} className="p-3.5 flex items-center justify-between hover:bg-slate-800/40 transition-colors">
+                        <div className="space-y-1">
+                          <div className="text-sm font-bold text-white flex items-center gap-2">
+                            <span>{user.name}</span>
+                            <span className="text-[10px] px-2 py-0.5 rounded bg-slate-900 text-purple-300 border border-slate-800 font-mono">
+                              {user.organization}
+                            </span>
+                          </div>
+                          <div className="text-xs text-slate-400 flex items-center gap-2">
+                            <span><Mail className="w-3 h-3 inline text-slate-500 mr-1" />{user.email}</span>
+                            <span className="text-slate-600">•</span>
+                            <span className="text-slate-300">{user.licenseCategory}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-4">
+                          <div className="text-right space-y-1">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                              <CheckCircle2 className="w-3 h-3" /> {user.status}
+                            </span>
+                            <div className="text-[11px] text-slate-500 font-mono">Reg: {user.registeredDate}</div>
+                          </div>
+
+                          <ActionMenu
+                            items={[
+                              {
+                                label: "View Details",
+                                icon: Eye,
+                                onClick: () => handleOpenExternalUserDetails(user),
+                              },
+                            ]}
+                          />
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
+
+                {filteredExternalUsers.length > 0 && (
+                  <Pagination
+                    currentPage={externalPage}
+                    totalItems={filteredExternalUsers.length}
+                    pageSize={externalPageSize}
+                    onPageChange={setExternalPage}
+                    onPageSizeChange={(sz) => {
+                      setExternalPageSize(sz);
+                      setExternalPage(1);
+                    }}
+                  />
+                )}
               </div>
             )}
 
+            {/* REGIONAL TRANSACTIONS TAB */}
             {activeDetailsTab === "transactions" && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
@@ -810,6 +964,73 @@ export default function TenantsPage() {
               className="border-slate-800 text-slate-300"
             >
               Close Details
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* EXTERNAL MEMBER / CLIENT DETAILS SUB-MODAL */}
+      <Dialog open={isExternalUserModalOpen} onOpenChange={setIsExternalUserModalOpen}>
+        <DialogContent className="sm:max-w-[560px] bg-slate-900 border-slate-800 text-white shadow-2xl">
+          <DialogHeader className="border-b border-slate-800 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-2xl bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                <UserCheck className="w-6 h-6" />
+              </div>
+              <div>
+                <DialogTitle className="text-lg font-bold text-white flex items-center gap-2">
+                  {selectedExternalUser?.name}
+                </DialogTitle>
+                <DialogDescription className="text-slate-400 text-xs mt-0.5">
+                  External Regional Member / Client Information Profile
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          {selectedExternalUser !== null && (
+            <div className="space-y-4 py-2 text-xs">
+              <div className="grid grid-cols-2 gap-3 p-3 bg-slate-950/70 border border-slate-800/80 rounded-xl">
+                <div>
+                  <span className="text-slate-400 block text-[10px] uppercase font-semibold">Client Reference ID</span>
+                  <span className="font-mono text-purple-300 text-xs font-bold">{selectedExternalUser.id}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[10px] uppercase font-semibold">Permit / License Status</span>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mt-1">
+                    <CheckCircle2 className="w-3 h-3" /> {selectedExternalUser.status}
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-2.5 bg-slate-950/40 p-4 rounded-xl border border-slate-800/60">
+                <div className="flex items-center justify-between py-1.5 border-b border-slate-800/60">
+                  <span className="text-slate-400">Organization / Entity:</span>
+                  <span className="font-semibold text-white">{selectedExternalUser.organization}</span>
+                </div>
+                <div className="flex items-center justify-between py-1.5 border-b border-slate-800/60">
+                  <span className="text-slate-400">License Permit Category:</span>
+                  <span className="font-semibold text-indigo-300">{selectedExternalUser.licenseCategory}</span>
+                </div>
+                <div className="flex items-center justify-between py-1.5 border-b border-slate-800/60">
+                  <span className="text-slate-400">Official Contact Email:</span>
+                  <span className="font-mono text-slate-200">{selectedExternalUser.email}</span>
+                </div>
+                <div className="flex items-center justify-between py-1.5 border-b border-slate-800/60">
+                  <span className="text-slate-400">Assigned Regional Scope:</span>
+                  <span className="text-emerald-400 font-semibold">{getRegionName(selectedTenant?.regionId ?? "")}</span>
+                </div>
+                <div className="flex items-center justify-between py-1.5">
+                  <span className="text-slate-400">Date Registered:</span>
+                  <span className="font-mono text-slate-300">{selectedExternalUser.registeredDate}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="pt-2">
+            <Button variant="outline" size="sm" onClick={() => setIsExternalUserModalOpen(false)}>
+              Close Profile
             </Button>
           </DialogFooter>
         </DialogContent>
