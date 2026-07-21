@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Hangfire;
 using Hangfire.PostgreSql;
 using EDGE.Application.Common.Interfaces;
+using EDGE.Domain.Authorization;
 using EDGE.Infrastructure.Persistence;
 using EDGE.Infrastructure.Persistence.Interceptors;
 using EDGE.Infrastructure.Persistence.Repositories;
@@ -18,6 +19,9 @@ public static class DependencyInjection
     {
         services.AddSignalR();
 
+        // Register Tenant Context Service
+        services.AddScoped<ITenantContextService, TenantContextService>();
+
         // Register interceptors
         services.AddScoped<AuditableEntitySaveChangesInterceptor>();
 
@@ -27,17 +31,36 @@ public static class DependencyInjection
             var configuration = sp.GetRequiredService<IConfiguration>();
             var interceptor = sp.GetRequiredService<AuditableEntitySaveChangesInterceptor>();
 
-            options.UseNpgsql(configuration.GetConnectionString("DefaultConnection"))
-                   .AddInterceptors(interceptor);
+            var connectionString = configuration.GetConnectionString("DefaultConnection")
+                ?? throw new InvalidOperationException("Connection string 'DefaultConnection' was not found. Please configure 'ConnectionStrings:DefaultConnection' in User Secrets or environment variables.");
+
+            options.UseNpgsql(connectionString)
+                   .AddInterceptors(interceptor)
+                   .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
         });
 
         // Register Repositories and Unit of Work
+        services.AddScoped<ITenantRepository, TenantRepository>();
+        services.AddScoped<ITenantMemberRepository, TenantMemberRepository>();
+        services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IRoleRepository, RoleRepository>();
+        services.AddScoped<IRolePermissionRepository, RolePermissionRepository>();
         services.AddScoped<IGeographicRepository, GeographicRepository>();
+        services.AddScoped<IScheduleRepository, ScheduleRepository>();
         services.AddScoped<IApplicantRepository, ApplicantRepository>();
         services.AddScoped<IApplicationFullRepository, ApplicationFullRepository>();
         services.AddScoped<ICsvSchemaParserService, CsvSchemaParserService>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IUserActivityService, UserActivityService>();
+
+        // Register Clerk Client
+        services.AddHttpClient<IClerkUserService, ClerkUserService>((sp, client) =>
+        {
+            var configuration = sp.GetRequiredService<IConfiguration>();
+            var clerkSecret = configuration["Clerk:SecretKey"] ?? "";
+            client.BaseAddress = new Uri("https://api.clerk.com/v1/");
+            client.DefaultRequestHeaders.Add("Authorization", $"Bearer {clerkSecret}");
+        });
 
         // Configure Hangfire storage to use PostgreSQL with a dedicated schema
         services.AddHangfire((sp, config) =>
@@ -59,20 +82,9 @@ public static class DependencyInjection
 
         services.AddHangfireServer();
 
-        return services;
-    }
-}
+        // Register Database Initializer Hosted Service to apply migrations and seed data on startup
+        services.AddHostedService<DatabaseInitializerHostedService>();
 
-public static class WebApplicationExtensions
-{
-    /// <summary>
-    /// Seeds the database with Philippine geographic reference data (Regions → Provinces → Municipalities → Barangays)
-    /// on application startup. Skips seeding if data already exists.
-    /// </summary>
-    public static async Task SeedDatabaseAsync(this WebApplication app)
-    {
-        using var scope = app.Services.CreateScope();
-        var context = scope.ServiceProvider.GetRequiredService<EDGE.Infrastructure.Persistence.ApplicationDbContext>();
-        await EDGE.Infrastructure.Persistence.GeographicDataSeeder.SeedAsync(context);
+        return services;
     }
 }

@@ -29,12 +29,17 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
         }
     }
 
+    public DbSet<Tenant> Tenants => Set<Tenant>();
+    public DbSet<TenantMember> TenantMembers => Set<TenantMember>();
     public DbSet<EDGE.Domain.Entities.Application> Applications => Set<EDGE.Domain.Entities.Application>();
     public DbSet<ApplicationService> ApplicationServices => Set<ApplicationService>();
     public DbSet<ApplicationApplicant> ApplicationApplicants => Set<ApplicationApplicant>();
     public DbSet<ApplicationRequirement> ApplicationRequirements => Set<ApplicationRequirement>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<ActivityLog> ActivityLogs => Set<ActivityLog>();
+    public DbSet<User> Users => Set<User>();
+    public DbSet<Role> Roles => Set<Role>();
+    public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
     public DbSet<Region> Regions => Set<Region>();
     public DbSet<Province> Provinces => Set<Province>();
     public DbSet<Municipality> Municipalities => Set<Municipality>();
@@ -42,6 +47,7 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
     public DbSet<CompanyDetail> CompanyDetails => Set<CompanyDetail>();
     public DbSet<ApplicantDetail> ApplicantDetails => Set<ApplicantDetail>();
     public DbSet<Applicant> Applicants => Set<Applicant>();
+    public DbSet<Schedule> Schedules => Set<Schedule>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -56,7 +62,55 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
             entity.Property(e => e.DataEntryMethod).HasConversion<string>();
         });
 
-        // Geographic configurations
+        // Tenant Configuration
+        modelBuilder.Entity<Tenant>(entity =>
+        {
+            entity.HasIndex(e => e.Slug).IsUnique();
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(150);
+            entity.Property(e => e.Slug).IsRequired().HasMaxLength(50);
+        });
+
+        // Role Configuration
+        modelBuilder.Entity<Role>(entity =>
+        {
+            entity.HasOne(r => r.Tenant)
+                  .WithMany(t => t.Roles)
+                  .HasForeignKey(r => r.TenantId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // RolePermission Configuration
+        modelBuilder.Entity<RolePermission>(entity =>
+        {
+            entity.HasIndex(rp => new { rp.RoleId, rp.PermissionKey }).IsUnique();
+            entity.HasOne(rp => rp.Role)
+                  .WithMany(r => r.RolePermissions)
+                  .HasForeignKey(rp => rp.RoleId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // TenantMember Configuration
+        modelBuilder.Entity<TenantMember>(entity =>
+        {
+            entity.HasIndex(tm => new { tm.TenantId, tm.UserId }).IsUnique();
+
+            entity.HasOne(tm => tm.Tenant)
+                  .WithMany(t => t.Members)
+                  .HasForeignKey(tm => tm.TenantId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(tm => tm.User)
+                  .WithMany(u => u.TenantMemberships)
+                  .HasForeignKey(tm => tm.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(tm => tm.Role)
+                  .WithMany(r => r.Members)
+                  .HasForeignKey(tm => tm.RoleId)
+                  .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Geographic entity configurations
         modelBuilder.Entity<Region>(entity =>
         {
             entity.HasIndex(e => e.Code).IsUnique();
@@ -130,6 +184,15 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
                   .HasForeignKey(d => d.ApplicantDetailId)
                   .OnDelete(DeleteBehavior.SetNull);
         });
+
+        // Schedule Configuration
+        modelBuilder.Entity<Schedule>(entity =>
+        {
+            entity.Property(e => e.Venue).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.SeatNumber).HasMaxLength(50);
+            entity.Property(e => e.Remarks).HasMaxLength(500);
+            entity.Property(e => e.IsPublished).HasDefaultValue(false);
+            entity.Property(e => e.MaximumSlots).IsRequired(false);
+        });
     }
 }
-

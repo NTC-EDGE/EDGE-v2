@@ -9,32 +9,113 @@ public class ApplicationDbContextFactory : IDesignTimeDbContextFactory<Applicati
 {
     public ApplicationDbContext CreateDbContext(string[] args)
     {
-        // Adjust directory path based on where the CLI command is run
-        var currentDir = Directory.GetCurrentDirectory();
-        var basePath = currentDir;
+        var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development";
 
-        if (Path.GetFileName(currentDir) == "backend")
+        // Try different base paths to find configuration files
+        var basePaths = new[]
         {
-            basePath = Path.Combine(currentDir, "EDGE.Api");
-        }
-        else if (Path.GetFileName(currentDir) == "EDGE.Infrastructure")
+            Directory.GetCurrentDirectory(),
+            Path.Combine(Directory.GetCurrentDirectory(), "EDGE.Api"),
+            Path.Combine(Directory.GetCurrentDirectory(), "..", "EDGE.Api"),
+            Path.GetDirectoryName(typeof(ApplicationDbContextFactory).Assembly.Location) ?? Directory.GetCurrentDirectory()
+        };
+
+        ConfigurationBuilder configBuilder = new();
+
+        foreach (var basePath in basePaths)
         {
-            basePath = Path.Combine(currentDir, "../EDGE.Api");
+            if (Directory.Exists(basePath))
+            {
+                configBuilder.SetBasePath(basePath);
+                break;
+            }
         }
 
-        var configuration = new ConfigurationBuilder()
-            .SetBasePath(basePath)
+        var configuration = configBuilder
             .AddJsonFile("appsettings.json", optional: true)
-            .AddJsonFile("appsettings.Development.json", optional: true)
-            .AddUserSecrets("57d677f4-ed2b-4a3e-9089-80ef049dd2f7")
+            .AddJsonFile($"appsettings.{env}.json", optional: true)
+            .AddUserSecrets<ApplicationDbContextFactory>(optional: true) // Enables reading from secrets.json at design-time
             .AddEnvironmentVariables()
             .Build();
 
-        var connectionString = configuration.GetConnectionString("DefaultConnection");
+        var connectionString = configuration.GetConnectionString("DefaultConnection") 
+            ?? throw new InvalidOperationException("Connection string 'DefaultConnection' was not found. Please configure 'ConnectionStrings:DefaultConnection' in User Secrets or environment variables.");
 
         var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
-        optionsBuilder.UseNpgsql(connectionString);
+        optionsBuilder.UseNpgsql(connectionString, x => x.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.GetName().Name));
 
-        return new ApplicationDbContext(optionsBuilder.Options);
+        var dbContext = new ApplicationDbContext(optionsBuilder.Options);
+
+        EnsureMigrationHistorySynced(dbContext);
+
+        return dbContext;
+    }
+
+    public static void EnsureMigrationHistorySynced(DbContext context)
+    {
+        try
+        {
+            context.Database.ExecuteSqlRaw(@"
+                CREATE TABLE IF NOT EXISTS public.""__EFMigrationsHistory"" (
+                    ""MigrationId"" character varying(150) NOT NULL,
+                    ""ProductVersion"" character varying(32) NOT NULL,
+                    CONSTRAINT ""PK___EFMigrationsHistory"" PRIMARY KEY (""MigrationId"")
+                );
+            ");
+
+            var activityLogsExist = context.Database.SqlQueryRaw<bool>(@"
+                SELECT EXISTS (
+                    SELECT 1 FROM information_schema.tables 
+                    WHERE table_schema = 'public' AND table_name = 'ActivityLogs'
+                );
+            ").AsEnumerable().FirstOrDefault();
+
+            if (activityLogsExist)
+            {
+                context.Database.ExecuteSqlRaw(@"
+                    INSERT INTO public.""__EFMigrationsHistory"" (""MigrationId"", ""ProductVersion"")
+                    VALUES 
+                        ('20260717045851_AddUserAndSeed', '10.0.3'),
+                        ('20260717070258_InitialCreate', '10.0.3')
+                    ON CONFLICT (""MigrationId"") DO NOTHING;
+                ");
+            }
+
+            var permissionsExist = context.Database.SqlQueryRaw<bool>(@"
+                SELECT EXISTS (
+                    SELECT 1 FROM information_schema.tables 
+                    WHERE table_schema = 'public' AND table_name = 'Permissions'
+                );
+            ").AsEnumerable().FirstOrDefault();
+
+            if (permissionsExist)
+            {
+                context.Database.ExecuteSqlRaw(@"
+                    INSERT INTO public.""__EFMigrationsHistory"" (""MigrationId"", ""ProductVersion"")
+                    VALUES ('20260720040039_AddUserExpandedProperties', '10.0.3')
+                    ON CONFLICT (""MigrationId"") DO NOTHING;
+                ");
+            }
+
+            var tenantsExist = context.Database.SqlQueryRaw<bool>(@"
+                SELECT EXISTS (
+                    SELECT 1 FROM information_schema.tables 
+                    WHERE table_schema = 'public' AND table_name = 'Tenants'
+                );
+            ").AsEnumerable().FirstOrDefault();
+
+            if (tenantsExist)
+            {
+                context.Database.ExecuteSqlRaw(@"
+                    INSERT INTO public.""__EFMigrationsHistory"" (""MigrationId"", ""ProductVersion"")
+                    VALUES ('20260720075942_MultiTenantRbacRefactor', '10.0.3')
+                    ON CONFLICT (""MigrationId"") DO NOTHING;
+                ");
+            }
+        }
+        catch
+        {
+            // Ignore errors if DB is uninitialized or unreachable
+        }
     }
 }

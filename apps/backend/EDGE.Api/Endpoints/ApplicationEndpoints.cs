@@ -18,7 +18,7 @@ public static class ApplicationEndpoints
 {
     public static IEndpointRouteBuilder MapApplicationEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/v2/applications").WithTags("Application");
+        var group = app.MapGroup("/applications").WithTags("Application");
 
         group.MapPost("/csv-preview", async (IFormFile file, IMediator mediator) =>
         {

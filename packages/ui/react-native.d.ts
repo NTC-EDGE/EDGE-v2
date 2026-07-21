@@ -13,4 +13,8 @@ declare module 'react-native' {
     cursor?: 'auto' | 'pointer' | 'default' | 'not-allowed';
     transition?: string;
   }
+  interface ImageStyle {
+    cursor?: 'auto' | 'pointer' | 'default' | 'not-allowed';
+    transition?: string;
+  }
 }
