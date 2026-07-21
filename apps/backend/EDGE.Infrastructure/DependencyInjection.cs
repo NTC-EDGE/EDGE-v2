@@ -32,8 +32,10 @@ public static class DependencyInjection
         });
 
         // Register Repositories and Unit of Work
-        services.AddScoped<IApplicationRepository, ApplicationRepository>();
         services.AddScoped<IGeographicRepository, GeographicRepository>();
+        services.AddScoped<IApplicantRepository, ApplicantRepository>();
+        services.AddScoped<IApplicationFullRepository, ApplicationFullRepository>();
+        services.AddScoped<ICsvSchemaParserService, CsvSchemaParserService>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IUserActivityService, UserActivityService>();
 

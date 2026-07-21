@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
 using EDGE.Application;
-using EDGE.Application.Applications.Commands;
+
 using EDGE.Application.Common.Interfaces;
 using EDGE.Infrastructure;
 using EDGE.Infrastructure.Hubs;
@@ -83,38 +83,15 @@ try
 
     app.MapGet("/", () => "NTC-EDGE Clean Architecture API (.NET 10)");
 
-    // Minimal API Endpoint for Application Creation
-    app.MapPost("/api/applications", async (
-        CreateApplicationCommand command,
-        IValidator<CreateApplicationCommand> validator,
-        IMediator mediator,
-        IBackgroundJobClient backgroundJobs,
-        IHubContext<NotificationHub> hubContext) =>
-    {
-        var validationResult = await validator.ValidateAsync(command);
-        if (!validationResult.IsValid)
-        {
-            return Results.ValidationProblem(validationResult.ToDictionary());
-        }
 
-        var result = await mediator.Send(command);
-
-        // Queue a Hangfire background job
-        backgroundJobs.Enqueue(() => Console.WriteLine($"[Hangfire Job] Processed application: {result.Title} by {result.ApplicantName}"));
-
-        // Broadcast SignalR notification
-        await hubContext.Clients.All.SendAsync("ReceiveNotification", $"New application submitted: '{result.Title}'");
-
-        return Results.Created($"/api/applications/{result.Id}", result);
-    })
-    .WithName("CreateApplication")
-    .RequireAuthorization();
 
     // Map Minimal API Endpoint Groups (Geographic CRUD: Regions, Provinces, Municipalities, Barangays)
     app.MapRegionEndpoints();
     app.MapProvinceEndpoints();
     app.MapMunicipalityEndpoints();
     app.MapBarangayEndpoints();
+
+    app.MapApplicationEndpoints();
 
     // Map SignalR Hub
     app.MapHub<NotificationHub>("/hubs/notifications");
