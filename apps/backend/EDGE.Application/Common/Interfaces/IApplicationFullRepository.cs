@@ -21,4 +21,6 @@ public interface IApplicationFullRepository
     Task AddApplicationRequirementAsync(ApplicationRequirement appRequirement, CancellationToken cancellationToken = default);
     Task<List<ApplicationRequirement>> GetApplicantRequirementsAsync(Guid applicationId, Guid applicantId, CancellationToken cancellationToken = default);
     Task AddApplicationStatusHistoryAsync(ApplicationStatusHistory statusHistory, CancellationToken cancellationToken = default);
+    Task AddFormSubmissionAsync(FormSubmission formSubmission, CancellationToken cancellationToken = default);
+    Task AddFormFieldValueAsync(FormFieldValue fieldValue, CancellationToken cancellationToken = default);
 }

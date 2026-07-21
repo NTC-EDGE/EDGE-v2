@@ -92,4 +92,14 @@ public class ApplicationFullRepository : IApplicationFullRepository
     {
         await _context.ApplicationStatusHistories.AddAsync(statusHistory, cancellationToken);
     }
+
+    public async Task AddFormSubmissionAsync(FormSubmission formSubmission, CancellationToken cancellationToken = default)
+    {
+        await _context.FormSubmissions.AddAsync(formSubmission, cancellationToken);
+    }
+
+    public async Task AddFormFieldValueAsync(FormFieldValue fieldValue, CancellationToken cancellationToken = default)
+    {
+        await _context.FormFieldValues.AddAsync(fieldValue, cancellationToken);
+    }
 }

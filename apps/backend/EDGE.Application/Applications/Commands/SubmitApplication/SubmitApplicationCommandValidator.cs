@@ -16,9 +16,8 @@ public class SubmitApplicationCommandValidator : AbstractValidator<SubmitApplica
 
         RuleFor(x => x.SubmissionMode)
             .NotEmpty()
-            .Must(mode => string.Equals(mode, "Single", System.StringComparison.OrdinalIgnoreCase) || 
-                          string.Equals(mode, "Bulk", System.StringComparison.OrdinalIgnoreCase))
-            .WithMessage("Submission mode must be either 'Single' or 'Bulk'.");
+            .Must(mode => string.Equals(mode, "Single", System.StringComparison.OrdinalIgnoreCase))
+            .WithMessage("Bulk submission mode is not supported in this version.");
 
         RuleFor(x => x.AccountType)
             .NotEmpty()
@@ -26,13 +25,13 @@ public class SubmitApplicationCommandValidator : AbstractValidator<SubmitApplica
                           string.Equals(type, "Company", System.StringComparison.OrdinalIgnoreCase))
             .WithMessage("Account type must be either 'Individual' or 'Company'.");
 
-        RuleFor(x => x.Applicants)
+        RuleFor(x => x.ApplicantIds)
             .NotEmpty()
-            .WithMessage("At least one applicant is required.");
+            .WithMessage("At least one applicant ID is required.");
 
-        RuleFor(x => x.Applicants)
-            .Must(applicants => applicants.Count == 1)
+        RuleFor(x => x.ApplicantIds)
+            .Must(ids => ids.Count == 1)
             .When(x => string.Equals(x.SubmissionMode, "Single", System.StringComparison.OrdinalIgnoreCase))
-            .WithMessage("Single submission mode does not allow multiple applicants.");
+            .WithMessage("Single submission mode must have exactly one applicant.");
     }
 }

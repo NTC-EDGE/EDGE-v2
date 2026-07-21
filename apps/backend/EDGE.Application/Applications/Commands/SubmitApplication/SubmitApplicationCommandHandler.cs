@@ -66,8 +66,11 @@ public class SubmitApplicationCommandHandler : IRequestHandler<SubmitApplication
     {
         // 1. Validate Single/Bulk submission constraints
         bool isBulkMode = request.SubmissionMode.Equals("Bulk", StringComparison.OrdinalIgnoreCase);
-        bool isCompanyAccount = request.AccountType.Equals("Company", StringComparison.OrdinalIgnoreCase);
-        
+        if (isBulkMode)
+        {
+            return ApiResponse<Guid>.Fail("Validation Error: Bulk submission mode is not supported in this version.");
+        }
+
         var currentUserIdStr = _currentUserService.UserId;
         bool isGuest = string.IsNullOrEmpty(currentUserIdStr);
         Guid? submitterUserId = null;
@@ -84,14 +87,9 @@ public class SubmitApplicationCommandHandler : IRequestHandler<SubmitApplication
             }
         }
 
-        if (isBulkMode && (isGuest || !isCompanyAccount))
+        if (request.ApplicantIds.Count != 1)
         {
-            return ApiResponse<Guid>.Fail("403 Forbidden: Bulk applications are strictly restricted to authenticated Company accounts.");
-        }
-
-        if (!isBulkMode && request.Applicants.Count > 1)
-        {
-            return ApiResponse<Guid>.Fail("Validation Error: Single submission mode does not allow multiple applicants.");
+            return ApiResponse<Guid>.Fail("Validation Error: Single submission mode must have exactly one applicant.");
         }
 
         // 2. Fetch Service Catalog and Validate Category conformance
@@ -116,7 +114,25 @@ public class SubmitApplicationCommandHandler : IRequestHandler<SubmitApplication
             }
         }
 
-        // 4. Validate dynamic contract and unknown fields mapping
+        // 4. Validate that applicant exists, belongs to tenant, and is Complete
+        var applicantId = request.ApplicantIds[0];
+        var applicant = await _applicantRepository.GetApplicantWithDetailsByIdAsync(applicantId, cancellationToken);
+        if (applicant == null)
+        {
+            return ApiResponse<Guid>.Fail($"Validation Error: Applicant '{applicantId}' does not exist.");
+        }
+
+        if (applicant.TenantId != request.TenantId)
+        {
+            return ApiResponse<Guid>.Fail($"Validation Error: Applicant '{applicantId}' does not belong to the requested tenant.");
+        }
+
+        if (applicant.Status != ApplicantStatus.Complete)
+        {
+            return ApiResponse<Guid>.Fail($"Validation Error: The applicant details must be fully filled out and complete before submission.");
+        }
+
+        // 5. Validate dynamic contract and unknown fields mapping
         if (string.IsNullOrWhiteSpace(service.Contract))
         {
             return ApiResponse<Guid>.Fail("Validation Error: Service contract is missing or malformed.");
@@ -142,6 +158,9 @@ public class SubmitApplicationCommandHandler : IRequestHandler<SubmitApplication
             return ApiResponse<Guid>.Fail("Validation Error: Failed to parse service contract schema.");
         }
 
+        var form = await _formRepository.GetFormByServiceIdAsync(service.Id, cancellationToken);
+        var fieldValuesToInsert = new List<FormFieldValue>();
+
         if (requiredSectionKeys.Count > 0)
         {
             if (string.IsNullOrWhiteSpace(request.DynamicDataJson))
@@ -163,35 +182,47 @@ public class SubmitApplicationCommandHandler : IRequestHandler<SubmitApplication
                     }
                 }
 
-                // Verify no unknown fields exist
-                var form = await _formRepository.GetFormByServiceIdAsync(service.Id, cancellationToken);
                 if (form != null)
                 {
-                    var validKeysPerSection = form.Sections.ToDictionary(
-                        fs => fs.Key,
-                        fs => fs.SectionFields.Select(sf => {
-                            var label = sf.Field?.Label ?? "";
-                            return LabelToKeyMap.TryGetValue(label, out var keyVal) ? keyVal : NormalizeLabel(label);
-                        }).ToHashSet(StringComparer.OrdinalIgnoreCase),
-                        StringComparer.OrdinalIgnoreCase
-                    );
+                    // Map key to Section and its fields
+                    var sectionMap = form.Sections.ToDictionary(s => s.Key, s => s, StringComparer.OrdinalIgnoreCase);
 
                     foreach (var sectionProp in root.EnumerateObject())
                     {
                         var sectionKey = sectionProp.Name;
-                        if (!validKeysPerSection.TryGetValue(sectionKey, out var validKeys))
+                        if (!sectionMap.TryGetValue(sectionKey, out var formSection))
                         {
                             return ApiResponse<Guid>.Fail($"Validation Error: Unknown section '{sectionKey}' is not defined in the service form layout.");
                         }
+
+                        // Map field key (normalized label or LabelToKeyMap) to Field ID
+                        var fieldKeyMap = formSection.SectionFields
+                            .Where(sf => sf.Field != null)
+                            .ToDictionary(
+                                sf => LabelToKeyMap.TryGetValue(sf.Field!.Label, out var keyVal) ? keyVal : NormalizeLabel(sf.Field.Label),
+                                sf => sf.Field!.Id,
+                                StringComparer.OrdinalIgnoreCase
+                            );
 
                         if (sectionProp.Value.ValueKind == JsonValueKind.Object)
                         {
                             foreach (var fieldProp in sectionProp.Value.EnumerateObject())
                             {
-                                if (!validKeys.Contains(fieldProp.Name))
+                                if (!fieldKeyMap.TryGetValue(fieldProp.Name, out var fieldId))
                                 {
                                     return ApiResponse<Guid>.Fail($"Validation Error: Unknown field '{fieldProp.Name}' under section '{sectionKey}' is not defined in the service form layout.");
                                 }
+
+                                string strValue = fieldProp.Value.ValueKind == JsonValueKind.String
+                                    ? fieldProp.Value.GetString() ?? ""
+                                    : fieldProp.Value.GetRawText();
+
+                                fieldValuesToInsert.Add(new FormFieldValue
+                                {
+                                    Id = Guid.NewGuid(),
+                                    FieldId = fieldId,
+                                    Value = strValue
+                                });
                             }
                         }
                     }
@@ -203,11 +234,11 @@ public class SubmitApplicationCommandHandler : IRequestHandler<SubmitApplication
             }
         }
 
-        // 5. Begin Database Transaction
+        // 6. Begin Database Transaction
         await _unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
-            var submissionMode = isBulkMode ? SubmissionMode.Bulk : SubmissionMode.Single;
+            var submissionMode = SubmissionMode.Single;
             var dataEntryMethod = string.Equals(request.DataEntryMethod, "CSV", StringComparison.OrdinalIgnoreCase)
                 ? DataEntryMethod.CSV
                 : DataEntryMethod.Manual;
@@ -251,92 +282,36 @@ public class SubmitApplicationCommandHandler : IRequestHandler<SubmitApplication
             };
             await _applicationRepository.AddApplicationServiceAsync(appService, cancellationToken);
 
-            // Process Applicants array
-            int sequenceOrder = 1;
-            foreach (var appInput in request.Applicants)
+            // Link Applicant to Application
+            var appApplicant = new ApplicationApplicant
             {
-                Guid? companyDetailId = null;
-                if (appInput.ApplicantType.Equals("Company", StringComparison.OrdinalIgnoreCase) && appInput.Company != null)
-                {
-                    CompanyEntityType? entityType = null;
-                    if (!string.IsNullOrEmpty(appInput.Company.EntityType) &&
-                        Enum.TryParse<CompanyEntityType>(appInput.Company.EntityType, true, out var parsedEnum))
-                    {
-                        entityType = parsedEnum;
-                    }
+                ApplicationId = application.Id,
+                ApplicantId = applicantId,
+                SequenceOrder = 1
+            };
+            await _applicationRepository.AddApplicationApplicantAsync(appApplicant, cancellationToken);
 
-                    var companyDetail = new CompanyDetail
-                    {
-                        Id = Guid.NewGuid(),
-                        BarangayId = appInput.Company.BarangayId ?? Guid.Empty,
-                        Address = appInput.Company.Address ?? string.Empty,
-                        Name = appInput.Company.Name ?? string.Empty,
-                        RegistrationNumber = appInput.Company.RegistrationNumber ?? string.Empty,
-                        ContactNumber = appInput.Company.ContactNumber ?? string.Empty,
-                        Email = appInput.Company.Email,
-                        EntityType = entityType
-                    };
-
-                    await _applicantRepository.AddCompanyDetailAsync(companyDetail, cancellationToken);
-                    await _unitOfWork.SaveChangesAsync(cancellationToken);
-                    companyDetailId = companyDetail.Id;
-                }
-
-                var applicantDetail = new ApplicantDetail
+            // Create FormSubmission and FormFieldValue rows
+            if (form != null)
+            {
+                var formSubmission = new FormSubmission
                 {
                     Id = Guid.NewGuid(),
-                    BarangayId = appInput.Details.BarangayId ?? Guid.Empty,
-                    CompanyDetailId = companyDetailId,
-                    Address = appInput.Details.Address ?? string.Empty,
-                    FirstName = appInput.Details.FirstName ?? string.Empty,
-                    MiddleName = appInput.Details.MiddleName,
-                    LastName = appInput.Details.LastName ?? string.Empty,
-                    Suffix = appInput.Details.Suffix,
-                    Nationality = appInput.Details.Nationality ?? string.Empty,
-                    Sex = appInput.Details.Sex ?? string.Empty,
-                    Height = appInput.Details.Height,
-                    Weight = appInput.Details.Weight,
-                    BirthDate = appInput.Details.BirthDate ?? DateOnly.FromDateTime(DateTime.UtcNow.AddYears(-20)),
-                    ContactNumber = appInput.Details.ContactNumber ?? string.Empty,
-                    ZipCode = appInput.Details.ZipCode,
-                    SchoolAttended = appInput.Details.SchoolAttended,
-                    CourseTaken = appInput.Details.CourseTaken,
-                    YearGraduated = appInput.Details.YearGraduated,
-                    ESignature = appInput.Details.ESignature
-                };
-
-                await _applicantRepository.AddApplicantDetailAsync(applicantDetail, cancellationToken);
-                await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-                var applicantType = appInput.ApplicantType.Equals("Company", StringComparison.OrdinalIgnoreCase)
-                    ? ApplicantType.Company
-                    : ApplicantType.Individual;
-
-                var applicant = new Applicant
-                {
-                    Id = Guid.NewGuid(),
-                    TenantId = request.TenantId,
-                    UserId = isGuest ? null : submitterUserId,
-                    IsGuest = isGuest,
-                    ApplicantType = applicantType,
-                    ApplicantDetailId = applicantDetail.Id,
-                    CompanyDetailId = companyDetailId,
-                    Status = ApplicantStatus.Complete
-                };
-
-                await _applicantRepository.AddApplicantAsync(applicant, cancellationToken);
-                await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-                var appApplicant = new ApplicationApplicant
-                {
                     ApplicationId = application.Id,
-                    ApplicantId = applicant.Id,
-                    SequenceOrder = sequenceOrder++
+                    FormId = form.Id,
+                    ApplicantId = applicantId
                 };
+                await _applicationRepository.AddFormSubmissionAsync(formSubmission, cancellationToken);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-                await _applicationRepository.AddApplicationApplicantAsync(appApplicant, cancellationToken);
+                foreach (var fieldValue in fieldValuesToInsert)
+                {
+                    fieldValue.FormSubmissionId = formSubmission.Id;
+                    await _applicationRepository.AddFormFieldValueAsync(fieldValue, cancellationToken);
+                }
             }
 
+            // Create ApplicationStatusHistory row
             var statusHistory = new ApplicationStatusHistory
             {
                 Id = Guid.NewGuid(),
@@ -385,7 +360,6 @@ public class SubmitApplicationCommandHandler : IRequestHandler<SubmitApplication
             }
             else if (char.IsWhiteSpace(c))
             {
-                // Next letter should be capitalized for camelCase (wait, let's keep it lowercase for simple matches)
                 makeNextLower = false; 
             }
         }
