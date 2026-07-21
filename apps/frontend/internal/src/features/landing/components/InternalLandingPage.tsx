@@ -217,7 +217,6 @@ export function InternalLandingPage() {
   const [resetIdentifier, setResetIdentifier] = useState("");
   const [resetError, setResetError] = useState("");
   const [resetSuccess, setResetSuccess] = useState("");
-  const [isSendingReset, setIsSendingReset] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleOpenForgotPassword = () => {
@@ -230,14 +229,11 @@ export function InternalLandingPage() {
   const handleSendResetLink = () => {
     if (resetIdentifier.trim() === "") {
       setResetError("Please enter your registered phone number or email address.");
+      setResetSuccess("");
       return;
     }
-    setResetError("");
-    setIsSendingReset(true);
-    setTimeout(() => {
-      setIsSendingReset(false);
-      setResetSuccess(`Password reset instructions have been sent to ${resetIdentifier.trim()}.`);
-    }, 600);
+    setResetSuccess("");
+    setResetError("Password reset functionality is currently not available. Please contact support or your administrator.");
   };
 
   const handleAuthError = (err: unknown, defaultMsg: string) => {
@@ -288,14 +284,6 @@ export function InternalLandingPage() {
     }
   };
 
-  const handleForgotPassword = () => {
-    if (identifier.trim() === "") {
-      setError("Please enter your phone no. or email address above first.");
-      return;
-    }
-    setError("");
-    setSuccessMessage(`Password reset link sent to ${identifier}.`);
-  };
 
   const switchMode = (newMode: "signin" | "verify" | "forgot") => {
     setMode(newMode);
@@ -671,7 +659,6 @@ export function InternalLandingPage() {
                   value={resetIdentifier}
                   onChangeText={setResetIdentifier}
                   style={styles.greyInput}
-                  editable={!isSendingReset}
                 />
               </View>
 
@@ -687,24 +674,18 @@ export function InternalLandingPage() {
                 style={[
                   styles.loginButton,
                   resetIdentifier.trim().length > 0 ? styles.loginButtonActive : styles.loginButtonDefault,
-                  isSendingReset && styles.buttonDisabled,
                   { marginTop: 12 }
                 ]}
                 onPress={handleSendResetLink}
-                disabled={isSendingReset}
               >
-                {isSendingReset ? (
-                  <ActivityIndicator size="small" color={COLORS.neutral.white} />
-                ) : (
-                  <Text
-                    style={[
-                      styles.loginButtonText,
-                      resetIdentifier.trim().length > 0 ? styles.loginButtonTextActive : styles.loginButtonTextDefault,
-                    ]}
-                  >
-                    Send Reset Instructions
-                  </Text>
-                )}
+                <Text
+                  style={[
+                    styles.loginButtonText,
+                    resetIdentifier.trim().length > 0 ? styles.loginButtonTextActive : styles.loginButtonTextDefault,
+                  ]}
+                >
+                  Send Reset Instructions
+                </Text>
               </TouchableOpacity>
             </View>
           </TouchableOpacity>
