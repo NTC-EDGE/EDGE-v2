@@ -885,7 +885,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   heroTitleHighlight: {
-    color: "#E11D48",
+    color: "#CE1127",
   },
   heroSubtitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
