@@ -18,10 +18,10 @@ export function NtcLogo({
   style,
 }: NtcLogoProps) {
   const heightMap: Record<"small" | "medium" | "large" | "xlarge", number> = {
-    small: 38,
-    medium: 56,
-    large: 104,
-    xlarge: 128,
+    small: 42,
+    medium: 68,
+    large: 136,
+    xlarge: 164,
   };
 
   const height = heightMap[size];
