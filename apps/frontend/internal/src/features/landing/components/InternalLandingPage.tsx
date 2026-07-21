@@ -211,8 +211,33 @@ export function InternalLandingPage() {
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeFooterModal, setActiveFooterModal] = useState<FooterPolicyContent | null>(null);
+  const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
+  const [resetIdentifier, setResetIdentifier] = useState("");
+  const [resetError, setResetError] = useState("");
+  const [resetSuccess, setResetSuccess] = useState("");
+  const [isSendingReset, setIsSendingReset] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleOpenForgotPassword = () => {
+    setResetIdentifier(identifier);
+    setResetError("");
+    setResetSuccess("");
+    setShowForgotPasswordModal(true);
+  };
+
+  const handleSendResetLink = () => {
+    if (resetIdentifier.trim() === "") {
+      setResetError("Please enter your registered phone number or email address.");
+      return;
+    }
+    setResetError("");
+    setIsSendingReset(true);
+    setTimeout(() => {
+      setIsSendingReset(false);
+      setResetSuccess(`Password reset instructions have been sent to ${resetIdentifier.trim()}.`);
+    }, 600);
+  };
 
   const handleAuthError = (err: unknown, defaultMsg: string) => {
     if (err instanceof Error) {
@@ -285,222 +310,265 @@ export function InternalLandingPage() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={styles.keyboardAvoid}
     >
+      {/* Top Header Navbar */}
+      <View style={styles.topHeaderBar}>
+        <View style={styles.topHeaderInner}>
+          <NtcLogo size="small" variant="light" showSubtext={false} />
+        </View>
+      </View>
+
       <ScrollView
         contentContainerStyle={styles.scrollContainer}
         showsVerticalScrollIndicator={false}
       >
-        {/* Main Content Area with Centered Setup */}
-        <View style={styles.mainBody}>
-          {/* Top Logo Section */}
-          <View style={styles.logoHeaderWrapper}>
-            <NtcLogo size="large" showSubtext={true} />
-          </View>
+        {/* Decorative Soft Background Blobs */}
+        <View style={styles.backgroundBlobLeft} pointerEvents="none" />
+        <View style={styles.backgroundBlobRight} pointerEvents="none" />
 
-          {/* Centered Login Card */}
-          <View style={[styles.loginCardContainer, SHADOWS.modal]}>
-            <Text style={styles.cardTitle}>
-              {mode === "signin"
-                ? "Login"
-                : mode === "verify"
-                ? "Verify Account"
-                : "Reset Password"}
-            </Text>
+        {/* Main Hero Section */}
+        <View style={styles.heroSection}>
+          <View style={styles.heroContentWrapper}>
+            {/* Left Hero Column */}
+            <View style={styles.heroLeftCol}>
+              <View style={styles.heroPillBadge}>
+                <View style={styles.heroBadgeDot} />
+                <Text style={styles.heroBadgeText}>Official NTC-EDGE Portal</Text>
+              </View>
 
-            {mode === "signin" && (
-              <>
-                {/* Region Selector */}
-                <View style={[styles.fieldGroup, { zIndex: 100 }]}>
-                  <Text style={styles.fieldLabelSmall}>Region</Text>
-                  <TouchableOpacity
-                    style={styles.regionSelectorBox}
-                    onPress={() => setShowRegionDropdown((prev) => !prev)}
-                    activeOpacity={0.8}
-                  >
-                    <View style={styles.regionSelectorInner}>
-                      <Lucide name="map-pin" size={16} color={COLORS.neutral[500]} />
-                      <Text style={styles.regionSelectorValue} numberOfLines={1}>
-                        {selectedRegion}
-                      </Text>
-                    </View>
-                    <Lucide
-                      name={showRegionDropdown ? "chevron-up" : "chevron-down"}
-                      size={18}
-                      color={COLORS.neutral[600]}
-                    />
-                  </TouchableOpacity>
+              <Text style={styles.heroTitle}>
+                Empowering <Text style={styles.heroTitleHighlight}>NTC's</Text>
+                {"\n"}Data Governance
+              </Text>
 
-                  {showRegionDropdown && (
-                    <>
-                      <Pressable
-                        style={styles.dropdownBackdrop}
-                        onPress={() => setShowRegionDropdown(false)}
-                      />
-                      <View style={styles.regionPopoverMenu}>
-                        <ScrollView style={{ maxHeight: 220 }} nestedScrollEnabled={true}>
-                          {REGION_OPTIONS.map((region) => {
-                            const isSelected = region === selectedRegion;
-                            return (
-                              <TouchableOpacity
-                                key={region}
-                                style={[
-                                  styles.regionOptionItem,
-                                  isSelected && styles.regionOptionItemSelected,
-                                ]}
-                                onPress={() => {
-                                  setSelectedRegion(region);
-                                  setShowRegionDropdown(false);
-                                }}
-                              >
-                                <Text
-                                  style={[
-                                    styles.regionOptionText,
-                                    isSelected && styles.regionOptionTextSelected,
-                                  ]}
-                                >
-                                  {region}
-                                </Text>
-                                {isSelected && (
-                                  <Lucide name="check" size={16} color={COLORS.brand[800]} />
-                                )}
-                              </TouchableOpacity>
-                            );
-                          })}
-                        </ScrollView>
-                      </View>
-                    </>
-                  )}
-                </View>
+              <Text style={styles.heroSubtitle}>
+                Streamline your government services experience. Apply for permits, licenses, and certificates with secure, efficient, and transparent processes powered by EDGE.
+              </Text>
+            </View>
 
-                {/* Phone / Email Input */}
-                <View style={styles.fieldGroup}>
-                  <TextInput
-                    autoCapitalize="none"
-                    placeholder="Phone no./Email address *"
-                    placeholderTextColor={COLORS.neutral[400]}
-                    value={identifier}
-                    onChangeText={setIdentifier}
-                    style={styles.greyInput}
-                    editable={!isSubmitting}
-                  />
-                </View>
-
-                {/* Password Input with Eye Toggle */}
-                <View style={styles.fieldGroup}>
-                  <View style={styles.inputWithIconWrapper}>
-                    <TextInput
-                      placeholder="Password"
-                      placeholderTextColor={COLORS.neutral[400]}
-                      secureTextEntry={!showPassword}
-                      value={password}
-                      onChangeText={setPassword}
-                      style={[styles.greyInput, { paddingRight: 42 }]}
-                      editable={!isSubmitting}
-                    />
-                    <TouchableOpacity
-                      style={styles.eyeIconButton}
-                      onPress={() => setShowPassword((prev) => !prev)}
-                    >
-                      <Lucide
-                        name={showPassword ? "eye-off" : "eye"}
-                        size={18}
-                        color={COLORS.neutral[500]}
-                      />
-                    </TouchableOpacity>
+            {/* Right Hero Column: Browser Mockup Card enclosing the Login Form */}
+            <View style={styles.heroRightCol}>
+              <View style={[styles.mockupWindowCard, SHADOWS.modal]}>
+                {/* Mockup Window Top Header */}
+                <View style={styles.mockupWindowHeader}>
+                  <View style={styles.windowDotsRow}>
+                    <View style={styles.windowDotRed} />
+                    <View style={styles.windowDotYellow} />
+                    <View style={styles.windowDotGreen} />
+                  </View>
+                  <View style={styles.windowAddressPill}>
+                    <Lucide name="lock" size={12} color={COLORS.neutral[500]} />
+                    <Text style={styles.windowAddressText}>edge.ntc.gov.ph</Text>
                   </View>
                 </View>
 
-                {error.length > 0 ? (
-                  <Text style={styles.errorText}>{error}</Text>
-                ) : null}
+                {/* Login Form Body */}
+                <View style={styles.mockupWindowBody}>
+                  <Text style={styles.cardTitle}>
+                    {mode === "signin"
+                      ? "Login"
+                      : mode === "verify"
+                      ? "Verify Account"
+                      : "Reset Password"}
+                  </Text>
 
-                {successMessage.length > 0 ? (
-                  <Text style={styles.successText}>{successMessage}</Text>
-                ) : null}
+                  {mode === "signin" && (
+                    <>
+                      {/* Region Selector */}
+                      <View style={[styles.fieldGroup, { zIndex: 100 }]}>
+                        <Text style={styles.fieldLabelSmall}>Region</Text>
+                        <TouchableOpacity
+                          style={styles.regionSelectorBox}
+                          onPress={() => setShowRegionDropdown((prev) => !prev)}
+                          activeOpacity={0.8}
+                        >
+                          <View style={styles.regionSelectorInner}>
+                            <Lucide name="map-pin" size={16} color={COLORS.neutral[500]} />
+                            <Text style={styles.regionSelectorValue} numberOfLines={1}>
+                              {selectedRegion}
+                            </Text>
+                          </View>
+                          <Lucide
+                            name={showRegionDropdown ? "chevron-up" : "chevron-down"}
+                            size={18}
+                            color={COLORS.neutral[600]}
+                          />
+                        </TouchableOpacity>
 
-                {/* Submit Login Button */}
-                <TouchableOpacity
-                  style={[
-                    styles.loginButton,
-                    isFormFilled ? styles.loginButtonActive : styles.loginButtonDefault,
-                    isSubmitting && styles.buttonDisabled,
-                  ]}
-                  onPress={handleSignIn}
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? (
-                    <ActivityIndicator size="small" color={COLORS.neutral.white} />
-                  ) : (
-                    <View style={styles.loginButtonInner}>
-                      <Lucide
-                        name="log-in"
-                        size={18}
-                        color={isFormFilled ? COLORS.neutral.white : "#475569"}
-                      />
-                      <Text
+                        {showRegionDropdown && (
+                          <>
+                            <Pressable
+                              style={styles.dropdownBackdrop}
+                              onPress={() => setShowRegionDropdown(false)}
+                            />
+                            <View style={styles.regionPopoverMenu}>
+                              <ScrollView style={{ maxHeight: 220 }} nestedScrollEnabled={true}>
+                                {REGION_OPTIONS.map((region) => {
+                                  const isSelected = region === selectedRegion;
+                                  return (
+                                    <TouchableOpacity
+                                      key={region}
+                                      style={[
+                                        styles.regionOptionItem,
+                                        isSelected && styles.regionOptionItemSelected,
+                                      ]}
+                                      onPress={() => {
+                                        setSelectedRegion(region);
+                                        setShowRegionDropdown(false);
+                                      }}
+                                    >
+                                      <Text
+                                        style={[
+                                          styles.regionOptionText,
+                                          isSelected && styles.regionOptionTextSelected,
+                                        ]}
+                                      >
+                                        {region}
+                                      </Text>
+                                      {isSelected && (
+                                        <Lucide name="check" size={16} color={COLORS.brand[800]} />
+                                      )}
+                                    </TouchableOpacity>
+                                  );
+                                })}
+                              </ScrollView>
+                            </View>
+                          </>
+                        )}
+                      </View>
+
+                      {/* Phone / Email Input */}
+                      <View style={styles.fieldGroup}>
+                        <TextInput
+                          autoCapitalize="none"
+                          placeholder="Phone no./Email address *"
+                          placeholderTextColor={COLORS.neutral[400]}
+                          value={identifier}
+                          onChangeText={setIdentifier}
+                          style={styles.greyInput}
+                          editable={!isSubmitting}
+                        />
+                      </View>
+
+                      {/* Password Input with Eye Toggle */}
+                      <View style={styles.fieldGroup}>
+                        <View style={styles.inputWithIconWrapper}>
+                          <TextInput
+                            placeholder="Password"
+                            placeholderTextColor={COLORS.neutral[400]}
+                            secureTextEntry={!showPassword}
+                            value={password}
+                            onChangeText={setPassword}
+                            style={[styles.greyInput, { paddingRight: 42 }]}
+                            editable={!isSubmitting}
+                          />
+                          <TouchableOpacity
+                            style={styles.eyeIconButton}
+                            onPress={() => setShowPassword((prev) => !prev)}
+                          >
+                            <Lucide
+                              name={showPassword ? "eye-off" : "eye"}
+                              size={18}
+                              color={COLORS.neutral[500]}
+                            />
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+
+                      {error.length > 0 ? (
+                        <Text style={styles.errorText}>{error}</Text>
+                      ) : null}
+
+                      {successMessage.length > 0 ? (
+                        <Text style={styles.successText}>{successMessage}</Text>
+                      ) : null}
+
+                      {/* Submit Login Button */}
+                      <TouchableOpacity
                         style={[
-                          styles.loginButtonText,
-                          isFormFilled ? styles.loginButtonTextActive : styles.loginButtonTextDefault,
+                          styles.loginButton,
+                          isFormFilled ? styles.loginButtonActive : styles.loginButtonDefault,
+                          isSubmitting && styles.buttonDisabled,
                         ]}
+                        onPress={handleSignIn}
+                        disabled={isSubmitting}
                       >
-                        Login
+                        {isSubmitting ? (
+                          <ActivityIndicator size="small" color={COLORS.neutral.white} />
+                        ) : (
+                          <View style={styles.loginButtonInner}>
+                            <Lucide
+                              name="log-in"
+                              size={18}
+                              color={isFormFilled ? COLORS.neutral.white : "#475569"}
+                            />
+                            <Text
+                              style={[
+                                styles.loginButtonText,
+                                isFormFilled ? styles.loginButtonTextActive : styles.loginButtonTextDefault,
+                              ]}
+                            >
+                              Login
+                            </Text>
+                          </View>
+                        )}
+                      </TouchableOpacity>
+
+                      {/* Forgot Password Link */}
+                      <TouchableOpacity
+                        onPress={handleOpenForgotPassword}
+                        style={styles.forgotPasswordLinkWrapper}
+                        disabled={isSubmitting}
+                      >
+                        <Text style={styles.forgotPasswordLinkText}>Forgot your password?</Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
+
+                  {mode === "verify" && (
+                    <>
+                      <Text style={styles.verifyDescriptionText}>
+                        Enter the verification code sent to {identifier}.
                       </Text>
-                    </View>
+
+                      <View style={styles.fieldGroup}>
+                        <TextInput
+                          autoCapitalize="none"
+                          placeholder="Verification Code *"
+                          placeholderTextColor={COLORS.neutral[400]}
+                          value={code}
+                          onChangeText={setCode}
+                          style={styles.greyInput}
+                          editable={!isSubmitting}
+                        />
+                      </View>
+
+                      {error.length > 0 ? (
+                        <Text style={styles.errorText}>{error}</Text>
+                      ) : null}
+
+                      <TouchableOpacity
+                        style={[styles.loginButton, styles.loginButtonActive, isSubmitting && styles.buttonDisabled]}
+                        onPress={handleVerify}
+                        disabled={isSubmitting}
+                      >
+                        {isSubmitting ? (
+                          <ActivityIndicator size="small" color={COLORS.neutral.white} />
+                        ) : (
+                          <Text style={[styles.loginButtonText, styles.loginButtonTextActive]}>Verify & Login</Text>
+                        )}
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        onPress={() => switchMode("signin")}
+                        style={styles.forgotPasswordLinkWrapper}
+                      >
+                        <Text style={styles.forgotPasswordLinkText}>Back to Login</Text>
+                      </TouchableOpacity>
+                    </>
                   )}
-                </TouchableOpacity>
-
-                {/* Forgot Password Link */}
-                <TouchableOpacity
-                  onPress={handleForgotPassword}
-                  style={styles.forgotPasswordLinkWrapper}
-                  disabled={isSubmitting}
-                >
-                  <Text style={styles.forgotPasswordLinkText}>Forgot your password?</Text>
-                </TouchableOpacity>
-              </>
-            )}
-
-            {mode === "verify" && (
-              <>
-                <Text style={styles.verifyDescriptionText}>
-                  Enter the verification code sent to {identifier}.
-                </Text>
-
-                <View style={styles.fieldGroup}>
-                  <TextInput
-                    autoCapitalize="none"
-                    placeholder="Verification Code *"
-                    placeholderTextColor={COLORS.neutral[400]}
-                    value={code}
-                    onChangeText={setCode}
-                    style={styles.greyInput}
-                    editable={!isSubmitting}
-                  />
                 </View>
-
-                {error.length > 0 ? (
-                  <Text style={styles.errorText}>{error}</Text>
-                ) : null}
-
-                <TouchableOpacity
-                  style={[styles.loginButton, styles.loginButtonActive, isSubmitting && styles.buttonDisabled]}
-                  onPress={handleVerify}
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? (
-                    <ActivityIndicator size="small" color={COLORS.neutral.white} />
-                  ) : (
-                    <Text style={[styles.loginButtonText, styles.loginButtonTextActive]}>Verify & Login</Text>
-                  )}
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={() => switchMode("signin")}
-                  style={styles.forgotPasswordLinkWrapper}
-                >
-                  <Text style={styles.forgotPasswordLinkText}>Back to Login</Text>
-                </TouchableOpacity>
-              </>
-            )}
+              </View>
+            </View>
           </View>
         </View>
 
@@ -555,6 +623,92 @@ export function InternalLandingPage() {
       </ScrollView>
 
 
+
+      {/* Forgot Password Dialog Modal */}
+      <Modal
+        visible={showForgotPasswordModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowForgotPasswordModal(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowForgotPasswordModal(false)}
+        >
+          <TouchableOpacity
+            style={[styles.modalCard, SHADOWS.modal, { maxWidth: 460 }]}
+            activeOpacity={1}
+            onPress={() => {}}
+          >
+            {/* Close X Button */}
+            <Pressable
+              style={styles.modalCloseBtn}
+              onPress={() => setShowForgotPasswordModal(false)}
+            >
+              <Lucide name="x" size={20} color={COLORS.neutral[500]} />
+            </Pressable>
+
+            <View style={{ padding: 4 }}>
+              <View style={styles.policyModalHeader}>
+                <View style={styles.policyHeaderIconCircle}>
+                  <Lucide name="key" size={20} color="#1E3A8A" />
+                </View>
+                <Text style={styles.policyModalTitle}>Reset Password</Text>
+              </View>
+
+              <Text style={[styles.policyIntroText, { marginBottom: 20 }]}>
+                Enter your registered phone number or email address below to receive password reset instructions.
+              </Text>
+
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabelSmall}>Phone no. / Email address</Text>
+                <TextInput
+                  autoCapitalize="none"
+                  placeholder="Enter your phone or email *"
+                  placeholderTextColor={COLORS.neutral[400]}
+                  value={resetIdentifier}
+                  onChangeText={setResetIdentifier}
+                  style={styles.greyInput}
+                  editable={!isSendingReset}
+                />
+              </View>
+
+              {resetError.length > 0 ? (
+                <Text style={styles.errorText}>{resetError}</Text>
+              ) : null}
+
+              {resetSuccess.length > 0 ? (
+                <Text style={styles.successText}>{resetSuccess}</Text>
+              ) : null}
+
+              <TouchableOpacity
+                style={[
+                  styles.loginButton,
+                  resetIdentifier.trim().length > 0 ? styles.loginButtonActive : styles.loginButtonDefault,
+                  isSendingReset && styles.buttonDisabled,
+                  { marginTop: 12 }
+                ]}
+                onPress={handleSendResetLink}
+                disabled={isSendingReset}
+              >
+                {isSendingReset ? (
+                  <ActivityIndicator size="small" color={COLORS.neutral.white} />
+                ) : (
+                  <Text
+                    style={[
+                      styles.loginButtonText,
+                      resetIdentifier.trim().length > 0 ? styles.loginButtonTextActive : styles.loginButtonTextDefault,
+                    ]}
+                  >
+                    Send Reset Instructions
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
 
       {/* Policy & Support Dialog Modal */}
       <Modal
@@ -627,10 +781,44 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#EBEFF4",
   },
+  topHeaderBar: {
+    width: "100%",
+    backgroundColor: COLORS.neutral.white,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
+    zIndex: 10,
+  },
+  topHeaderInner: {
+    maxWidth: 1280,
+    width: "100%",
+    alignSelf: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+  },
+  topHeaderNavLinks: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 28,
+  },
+  headerNavLink: {
+    paddingVertical: 4,
+  },
+  headerNavLinkText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    color: COLORS.neutral[700],
+    fontWeight: TYPOGRAPHY.weights.medium,
+  },
+
   scrollContainer: {
     flexGrow: 1,
+    minHeight: "100%",
     justifyContent: "space-between",
-    backgroundColor: "#EBEFF4",
+    backgroundColor: "#FAF9F6",
+    position: "relative",
     ...Platform.select({
       web: {
         backgroundImage: `url("${GEOMETRIC_TEXTURE_SVG}")`,
@@ -639,28 +827,200 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  mainBody: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: SPACING[20],
-    paddingTop: SPACING[40],
-    paddingBottom: SPACING[40],
-    width: "100%",
+  backgroundBlobLeft: {
+    position: "absolute",
+    top: -80,
+    left: -120,
+    width: 480,
+    height: 480,
+    borderRadius: 240,
+    backgroundColor: "rgba(219, 234, 254, 0.55)",
   },
-  logoHeaderWrapper: {
+  backgroundBlobRight: {
+    position: "absolute",
+    bottom: 40,
+    right: -100,
+    width: 420,
+    height: 420,
+    borderRadius: 210,
+    backgroundColor: "rgba(254, 226, 226, 0.45)",
+  },
+
+  heroSection: {
+    flex: 1,
+    justifyContent: "center",
+    width: "100%",
+    paddingVertical: 40,
+    position: "relative",
+    zIndex: 1,
+  },
+  heroContentWrapper: {
+    maxWidth: 1200,
+    width: "100%",
+    alignSelf: "center",
+    flexDirection: "row",
+    flexWrap: "wrap",
     alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 24,
+    gap: 40,
+  },
+  heroLeftCol: {
+    flex: 1,
+    minWidth: 300,
+    maxWidth: 540,
+  },
+  heroPillBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(37, 99, 235, 0.08)",
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "rgba(37, 99, 235, 0.15)",
+  },
+  heroBadgeDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: "#1D4ED8",
+    marginRight: 8,
+  },
+  heroBadgeText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: "#1E40AF",
+  },
+  heroTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 44,
+    lineHeight: 54,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: "#0E1B61",
+    marginBottom: 18,
+  },
+  heroTitleHighlight: {
+    color: "#E11D48",
+  },
+  heroSubtitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 15,
+    lineHeight: 24,
+    color: COLORS.neutral[600],
     marginBottom: 32,
   },
-  loginCardContainer: {
+  heroActionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+    flexWrap: "wrap",
+  },
+  getStartedBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#0E1B61",
+    paddingHorizontal: 22,
+    paddingVertical: 14,
+    borderRadius: 12,
+  },
+  getStartedBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: COLORS.neutral.white,
+  },
+  trackAppBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: COLORS.neutral.white,
+    borderWidth: 1.5,
+    borderColor: "#1E40AF",
+    paddingHorizontal: 20,
+    paddingVertical: 13,
+    borderRadius: 12,
+  },
+  trackAppBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: "#1E40AF",
+  },
+
+  heroRightCol: {
+    flex: 1,
+    minWidth: 320,
+    maxWidth: 480,
+  },
+  mockupWindowCard: {
     width: "100%",
-    maxWidth: 540,
     backgroundColor: COLORS.neutral.white,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: "rgba(226, 232, 240, 0.8)",
-    padding: 44,
-    alignSelf: "center",
+    borderColor: "#E2E8F0",
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.1,
+    shadowRadius: 24,
+    elevation: 8,
+  },
+  mockupWindowHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
+    backgroundColor: "#FAFAFC",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
+  windowDotsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  windowDotRed: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#FF5F56",
+  },
+  windowDotYellow: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#FFBD2E",
+  },
+  windowDotGreen: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#27C93F",
+  },
+  windowAddressPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F1F5F9",
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 10,
+    gap: 5,
+  },
+  windowAddressText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    color: COLORS.neutral[600],
+    fontWeight: TYPOGRAPHY.weights.medium,
+  },
+  mockupWindowBody: {
+    padding: 28,
   },
   cardTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
