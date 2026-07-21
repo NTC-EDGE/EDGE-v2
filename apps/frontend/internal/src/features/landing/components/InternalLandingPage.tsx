@@ -340,6 +340,9 @@ export function InternalLandingPage() {
 
             {/* Right Hero Column: Browser Mockup Card enclosing the Login Form */}
             <View style={styles.heroRightCol}>
+              <View style={styles.loginCardLogoWrapper}>
+                <NtcLogo size="medium" variant="light" showSubtext={false} />
+              </View>
               <View style={[styles.mockupWindowCard, SHADOWS.modal]}>
                 {/* Mockup Window Top Header */}
                 <View style={styles.mockupWindowHeader}>
@@ -914,6 +917,10 @@ const styles = StyleSheet.create({
     color: "#1E40AF",
   },
 
+  loginCardLogoWrapper: {
+    alignItems: "center",
+    marginBottom: 20,
+  },
   heroRightCol: {
     flex: 1,
     minWidth: 320,
