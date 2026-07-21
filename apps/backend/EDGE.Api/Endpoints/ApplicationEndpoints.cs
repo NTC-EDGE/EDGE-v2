@@ -106,6 +106,29 @@ public static class ApplicationEndpoints
         })
         .WithName("UploadApplicantRequirement");
 
+        // V2 tenant-specific mappings
+        app.MapPost("/tenants/{id:guid}/applications", async (Guid id, SubmitApplicationCommand command, IMediator mediator) =>
+        {
+            var updatedCommand = command with { TenantId = id };
+            var result = await mediator.Send(updatedCommand);
+            return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
+        })
+        .WithName("SubmitTenantApplication")
+        .WithTags("Application")
+        .WithSummary("Submit tenant-scoped application")
+        .WithDescription("Creates and validates a single application submission linked to a tenant.");
+
+        app.MapPatch("/tenants/{id:guid}/applications/{appId:guid}", async (Guid id, Guid appId, UploadApplicantRequirementCommand command, IMediator mediator) =>
+        {
+            var updatedCommand = command with { TenantId = id, ApplicationId = appId };
+            var result = await mediator.Send(updatedCommand);
+            return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
+        })
+        .WithName("UploadTenantApplicationRequirement")
+        .WithTags("Application")
+        .WithSummary("Upload requirement document for application")
+        .WithDescription("Updates or uploads a requirement file for a tenant-scoped application.");
+
         return app;
     }
 }
