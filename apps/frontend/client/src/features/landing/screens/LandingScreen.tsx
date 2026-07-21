@@ -960,11 +960,29 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
             <View style={styles.aboutBadge}>
               <Text style={styles.aboutBadgeText}>PLATFORM OVERVIEW</Text>
             </View>
-            <Text style={styles.aboutTitle}>About EDGE</Text>
+            <Text style={styles.aboutTitle}>
+              About <Text style={{ color: '#1236A8' }}>EDGE</Text>
+            </Text>
 
             <Text style={styles.aboutHighlightText}>
               Welcome to the Electronic Data Governance and Evaluation (EDGE) application. This system is a flagship initiative by the National Telecommunications Commission (NTC) to modernize and streamline public services.
             </Text>
+
+            {/* Feature Highlights Grid */}
+            <View style={styles.aboutHighlightsGrid}>
+              <View style={styles.aboutHighlightChip}>
+                <Lucide name="shield" size={18} color="#1236A8" style={{ marginRight: 8 }} />
+                <Text style={styles.aboutHighlightChipText}>256-Bit SSL Encryption</Text>
+              </View>
+              <View style={styles.aboutHighlightChip}>
+                <Lucide name="zap" size={18} color="#1236A8" style={{ marginRight: 8 }} />
+                <Text style={styles.aboutHighlightChipText}>Instant Verification</Text>
+              </View>
+              <View style={styles.aboutHighlightChip}>
+                <Lucide name="clock" size={18} color="#1236A8" style={{ marginRight: 8 }} />
+                <Text style={styles.aboutHighlightChipText}>24/7 Portal Access</Text>
+              </View>
+            </View>
 
             <Text style={styles.aboutBodyText}>
               Our mission is to provide a transparent, efficient, and accessible online platform for all stakeholders. EDGE is a secure online platform developed to streamline application processing, licensing, and public requests.
@@ -1077,7 +1095,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
 
                       {index < stepsRow1.length - 1 && (
                         <View style={styles.arrowDesktopExact}>
-                          <Lucide name="arrow-right" size={16} color="#1236A8" />
+                          <Lucide name="arrow-right" size={20} color="#93C5FD" />
                         </View>
                       )}
                     </React.Fragment>
@@ -1115,7 +1133,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
 
                       {index < stepsRow2.length - 1 && (
                         <View style={styles.arrowDesktopExact}>
-                          <Lucide name="arrow-right" size={16} color="#1236A8" />
+                          <Lucide name="arrow-right" size={20} color="#93C5FD" />
                         </View>
                       )}
                     </React.Fragment>
@@ -2065,13 +2083,13 @@ const styles = StyleSheet.create({
     flex: 1.15,
     paddingRight: SPACING[32],
     alignItems: 'flex-start',
-    marginTop: -24,
+    marginTop: -40,
   },
   heroRightCol: {
     flex: 0.85,
     alignItems: 'flex-end',
     justifyContent: 'center',
-    marginTop: -24,
+    marginTop: -40,
   },
   heroFullWidth: {
     width: '100%',
@@ -2111,8 +2129,8 @@ const styles = StyleSheet.create({
     letterSpacing: -0.8,
   },
   heroTitleDesktop: {
-    fontSize: 58,
-    lineHeight: 68,
+    fontSize: 62,
+    lineHeight: 72,
     textAlign: 'left',
   },
   titleBlue: {
@@ -2133,8 +2151,8 @@ const styles = StyleSheet.create({
   heroSubtitleDesktop: {
     textAlign: 'left',
     alignSelf: 'flex-start',
-    fontSize: 18,
-    lineHeight: 28,
+    fontSize: 19,
+    lineHeight: 30,
   },
   heroButtonsRow: {
     flexDirection: 'row',
@@ -2197,7 +2215,7 @@ const styles = StyleSheet.create({
   },
   mockupCard: {
     width: '100%',
-    maxWidth: 540,
+    maxWidth: 580,
     backgroundColor: COLORS.neutral.white,
     borderRadius: 24,
     borderWidth: 1.5,
@@ -2369,6 +2387,10 @@ const styles = StyleSheet.create({
     width: '100%',
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#F8FAFF',
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: '#EEF2FF',
   },
   aboutLeftCol: {
     flex: 1,
@@ -2497,6 +2519,28 @@ const styles = StyleSheet.create({
     color: COLORS.neutral[500],
     lineHeight: 27,
     marginBottom: 28,
+  },
+  aboutHighlightsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 20,
+  },
+  aboutHighlightChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EEF2FF',
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#C7D2FE',
+  },
+  aboutHighlightChipText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1236A8',
   },
   aboutInfoBox: {
     flexDirection: 'row',
@@ -2630,16 +2674,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   greyBg: {
-    backgroundColor: '#FAFCFF',
+    backgroundColor: '#0F267A',
     borderTopWidth: 1,
     borderBottomWidth: 1,
-    borderColor: COLORS.neutral[100],
+    borderColor: '#1D3B9E',
   },
   sectionTitleBlue: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 42,
     fontWeight: '800',
-    color: '#1236A8',
+    color: COLORS.neutral.white,
     marginBottom: SPACING[40],
     letterSpacing: -0.5,
   },
@@ -2678,14 +2722,19 @@ const styles = StyleSheet.create({
     width: 320,
   },
   stepCardExact: {
-    backgroundColor: '#EEF2FF',
+    backgroundColor: COLORS.neutral.white,
     borderRadius: 22,
     borderWidth: 1.5,
-    borderColor: '#C7D2FE',
+    borderColor: '#93C5FD',
     padding: 28,
     alignItems: 'center',
     justifyContent: 'center',
     height: 220,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
+    elevation: 4,
   },
   stepCircleBadge: {
     width: 52,
