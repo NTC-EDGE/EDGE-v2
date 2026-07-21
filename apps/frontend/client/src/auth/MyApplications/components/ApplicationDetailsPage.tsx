@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Platform,
   useWindowDimensions,
+  Modal,
 } from 'react-native';
 import { Icon, COLORS, TYPOGRAPHY, SPACING } from '@edge/ui';
 import {
@@ -35,6 +36,7 @@ export function ApplicationDetailsPage({
 
   // Active Tab: 'DETAILS' | 'DOCUMENTS'
   const [activeTab, setActiveTab] = useState<'DETAILS' | 'DOCUMENTS'>('DETAILS');
+  const [previewDoc, setPreviewDoc] = useState<ApplicationDocument | null>(null);
 
   const isBulk = app.mode === 'BULK';
   const statusColor = getStatusColor(app.status);
@@ -349,7 +351,7 @@ export function ApplicationDetailsPage({
             <View style={styles.docHeaderContainer}>
               <Text style={styles.docHeaderTitle}>Attached & Issued Documents</Text>
               <Text style={styles.docHeaderSubtitle}>
-                Download official application documents, admission slips, receipts, and permits below.
+                Preview official application documents, admission slips, receipts, and permits below.
               </Text>
             </View>
 
@@ -368,21 +370,131 @@ export function ApplicationDetailsPage({
                   </Text>
                 </View>
 
-                <TouchableOpacity
-                  onPress={() => {
-                    if (onDownloadDoc !== undefined) onDownloadDoc(doc);
-                  }}
-                  style={styles.docDownloadBtn}
-                  activeOpacity={0.8}
-                >
-                  <Icon name="download" size={14} color="#1D4ED8" />
-                  <Text style={styles.docDownloadBtnText}>Download</Text>
-                </TouchableOpacity>
+                <View style={styles.docActionsRowGroup}>
+                  <TouchableOpacity
+                    onPress={() => setPreviewDoc(doc)}
+                    style={styles.docPreviewPillBtn}
+                    activeOpacity={0.8}
+                  >
+                    <Icon name="eye" size={14} color="#1D4ED8" />
+                    <Text style={styles.docPreviewPillBtnText}>Preview</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={() => {
+                      if (onDownloadDoc !== undefined) onDownloadDoc(doc);
+                    }}
+                    style={styles.docDownloadBtn}
+                    activeOpacity={0.8}
+                  >
+                    <Icon name="download" size={14} color="#475569" />
+                    <Text style={styles.docDownloadBtnText}>Download</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             ))}
           </View>
         )}
       </View>
+
+      {/* ── Document Preview Modal ───────────────────────────────────────── */}
+      <Modal
+        visible={previewDoc !== null}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setPreviewDoc(null)}
+      >
+        {previewDoc !== null && (
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, { maxWidth: isMobile ? '95%' : 600 }]}>
+              <View style={styles.modalHeader}>
+                <View style={styles.modalHeaderTitleGroup}>
+                  <Icon name="file-text" size={20} color="#1D4ED8" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.modalTitle} numberOfLines={1}>
+                      {previewDoc.name}
+                    </Text>
+                    <Text style={styles.modalSubtitle}>
+                      {previewDoc.category.replace('_', ' ')} · {previewDoc.size} · {previewDoc.type}
+                    </Text>
+                  </View>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setPreviewDoc(null)}
+                  style={styles.modalCloseBtn}
+                >
+                  <Icon name="x" size={18} color="#64748B" />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView style={styles.modalBodyScroll} contentContainerStyle={styles.modalBodyContent}>
+                <View style={styles.docSheetHeader}>
+                  <Text style={styles.docSheetGovText}>REPUBLIC OF THE PHILIPPINES</Text>
+                  <Text style={styles.docSheetAgencyText}>NATIONAL TELECOMMUNICATIONS COMMISSION</Text>
+                  <Text style={styles.docSheetSubAgency}>NTC Building, BIR Road, East Triangle, Diliman, Quezon City</Text>
+                </View>
+
+                <View style={styles.docSheetDivider} />
+
+                <View style={styles.docSheetTitleBox}>
+                  <Text style={styles.docSheetTitleText}>{previewDoc.name}</Text>
+                  <Text style={styles.docSheetRefText}>REF NO: #{app.referenceNumber}</Text>
+                </View>
+
+                <View style={styles.docSheetDataGrid}>
+                  <View style={styles.docSheetDataRow}>
+                    <Text style={styles.docSheetLabel}>Service Name:</Text>
+                    <Text style={styles.docSheetValue}>{app.serviceName}</Text>
+                  </View>
+
+                  <View style={styles.docSheetDataRow}>
+                    <Text style={styles.docSheetLabel}>Applicant / Company:</Text>
+                    <Text style={styles.docSheetValue}>{primaryName}</Text>
+                  </View>
+
+                  <View style={styles.docSheetDataRow}>
+                    <Text style={styles.docSheetLabel}>Document Category:</Text>
+                    <Text style={styles.docSheetValue}>{previewDoc.category.replace('_', ' ')}</Text>
+                  </View>
+
+                  <View style={styles.docSheetDataRow}>
+                    <Text style={styles.docSheetLabel}>Uploaded Date:</Text>
+                    <Text style={styles.docSheetValue}>{formatRelativeTime(previewDoc.uploadedAt)}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.docSheetStampRow}>
+                  <View style={styles.officialStampBadge}>
+                    <Icon name="check-circle" size={16} color="#16A34A" />
+                    <Text style={styles.officialStampText}>OFFICIALLY VERIFIED & VALID</Text>
+                  </View>
+                </View>
+              </ScrollView>
+
+              <View style={styles.modalFooter}>
+                <TouchableOpacity
+                  onPress={() => {
+                    if (onDownloadDoc !== undefined) onDownloadDoc(previewDoc);
+                  }}
+                  style={styles.modalDownloadBtn}
+                  activeOpacity={0.85}
+                >
+                  <Icon name="download" size={15} color="#FFFFFF" />
+                  <Text style={styles.modalDownloadBtnText}>Download File</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => setPreviewDoc(null)}
+                  style={styles.modalCloseFooterBtn}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.modalCloseFooterBtnText}>Close</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        )}
+      </Modal>
     </ScrollView>
   );
 }
@@ -744,7 +856,12 @@ const styles = StyleSheet.create({
     color: '#2563EB',
     letterSpacing: 0.4,
   },
-  docDownloadBtn: {
+  docActionsRowGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  docPreviewPillBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
@@ -755,10 +872,237 @@ const styles = StyleSheet.create({
     borderColor: '#BFDBFE',
     gap: 6,
   },
-  docDownloadBtnText: {
+  docPreviewPillBtnText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 12,
     fontWeight: TYPOGRAPHY.weights.bold,
     color: '#1D4ED8',
+  },
+  docDownloadBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 6,
+  },
+  docDownloadBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: '#475569',
+  },
+
+  /* Modal Overlay & Sheet */
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+    padding: 16,
+  },
+  modalContent: {
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    maxHeight: '90%',
+    overflow: 'hidden',
+    ...Platform.select({
+      web: {
+        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
+      },
+    }),
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
+  },
+  modalHeaderTitleGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  modalTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 15,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: '#0F172A',
+  },
+  modalSubtitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  modalCloseBtn: {
+    padding: 6,
+    borderRadius: 8,
+    backgroundColor: '#EFF6FF',
+  },
+  modalBodyScroll: {
+    maxHeight: 450,
+  },
+  modalBodyContent: {
+    padding: 20,
+  },
+  docSheetMockup: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    padding: 24,
+  },
+  docSheetHeader: {
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  docSheetGovText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: '#475569',
+    letterSpacing: 0.6,
+  },
+  docSheetAgencyText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: '#1D4ED8',
+    letterSpacing: 0.5,
+    marginTop: 2,
+  },
+  docSheetSubAgency: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 10,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  docSheetDivider: {
+    height: 2,
+    backgroundColor: '#1D4ED8',
+    marginVertical: 12,
+  },
+  docSheetTitleBox: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  docSheetTitleText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 15,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: '#0F172A',
+  },
+  docSheetRefText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  docSheetDataGrid: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 14,
+    gap: 8,
+    marginBottom: 16,
+  },
+  docSheetDataRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  docSheetLabel: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    color: '#64748B',
+  },
+  docSheetValue: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: '#0F172A',
+  },
+  docSheetStampRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+  },
+  officialStampBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#86EFAC',
+  },
+  officialStampText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: '#16A34A',
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
+    gap: 12,
+  },
+  modalDownloadBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#1D4ED8',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  modalDownloadBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: '#FFFFFF',
+  },
+  modalCloseFooterBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: '#E2E8F0',
+  },
+  modalCloseFooterBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: '#334155',
   },
 });
