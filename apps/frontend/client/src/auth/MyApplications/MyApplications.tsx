@@ -39,7 +39,6 @@ export function MyApplications() {
   const { signOut, getToken } = useAuth();
 
   // Layout/UI state
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [filterText, setFilterText] = useState("");
   const [selectedTab, setSelectedTab] = useState<"All" | "Single" | "Bulk">("All");
 
@@ -136,23 +135,16 @@ export function MyApplications() {
 
         {/* Sidebar Navigation */}
         {!isMobile && (
-          <View style={[styles.sidebar, isSidebarCollapsed && styles.sidebarCollapsed]}>
-            <TouchableOpacity
-              onPress={() => setIsSidebarCollapsed((prev) => !prev)}
-              style={styles.collapseToggle}
-            >
-              <Icon name={isSidebarCollapsed ? "chevron-right" : "chevron-left"} size={16} color="#6b7280" />
-            </TouchableOpacity>
-
+          <View style={styles.sidebar}>
             <View style={styles.sidebarItems}>
               <TouchableOpacity onPress={() => navigation.navigate('Services')} style={styles.sidebarItem}>
                 <Icon name="radio" size={20} color="#9ca3af" />
-                {!isSidebarCollapsed && <Text style={styles.sidebarItemText}>Services</Text>}
+                <Text style={styles.sidebarItemText}>Services</Text>
               </TouchableOpacity>
 
               <TouchableOpacity style={[styles.sidebarItem, styles.sidebarItemActive]}>
                 <Icon name="credit-card" size={20} color="#1d4ed8" />
-                {!isSidebarCollapsed && <Text style={styles.sidebarItemTextActive}>My Applications</Text>}
+                <Text style={styles.sidebarItemTextActive}>My Applications</Text>
               </TouchableOpacity>
             </View>
           </View>

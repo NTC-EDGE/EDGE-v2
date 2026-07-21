@@ -35,7 +35,6 @@ export function Services() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [selectedService, setSelectedService] = useState<NTCService | null>(null);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -161,25 +160,18 @@ export function Services() {
 
       {/* Main Body Area */}
       <View style={styles.mainLayout}>
-        {/* Left Mini Sidebar (Collapsible) - hidden on mobile */}
+        {/* Left Sidebar - hidden on mobile */}
         {!isMobile && (
-          <View style={[styles.sidebar, isSidebarCollapsed && styles.sidebarCollapsed]}>
-            <TouchableOpacity
-              onPress={() => setIsSidebarCollapsed((prev) => !prev)}
-              style={styles.collapseToggle}
-            >
-              <Icon name={isSidebarCollapsed ? "chevron-right" : "chevron-left"} size={16} color="#6b7280" />
-            </TouchableOpacity>
-
+          <View style={styles.sidebar}>
             <View style={styles.sidebarItems}>
               <TouchableOpacity style={[styles.sidebarItem, styles.sidebarItemActive]}>
                 <Icon name="radio" size={20} color="#1d4ed8" />
-                {!isSidebarCollapsed && <Text style={styles.sidebarItemTextActive}>Services</Text>}
+                <Text style={styles.sidebarItemTextActive}>Services</Text>
               </TouchableOpacity>
 
               <TouchableOpacity onPress={() => navigation.navigate("MyApplications")} style={styles.sidebarItem}>
                 <Icon name="credit-card" size={20} color="#9ca3af" />
-                {!isSidebarCollapsed && <Text style={styles.sidebarItemText}>My Applications</Text>}
+                <Text style={styles.sidebarItemText}>My Applications</Text>
               </TouchableOpacity>
             </View>
           </View>

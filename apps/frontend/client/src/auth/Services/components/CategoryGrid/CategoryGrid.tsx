@@ -77,9 +77,6 @@ export function CategoryGrid({
     <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
       {/* Column Header */}
       <View style={styles.panelHeader}>
-        <View style={styles.menuIconContainer}>
-          <Icon name="menu" size={18} color="#1f2937" />
-        </View>
         <Text style={styles.panelTitle}>Services</Text>
       </View>
 
