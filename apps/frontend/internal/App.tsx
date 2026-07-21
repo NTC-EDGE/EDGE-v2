@@ -417,17 +417,25 @@ function AppContent() {
   const navigationRef = useNavigationContainerRef<ParamListBase>();
   const [activeScreen, setActiveScreen] = useState("Dashboard");
 
-  // Sync root URL '/' to '/internal/landing' in browser address bar when unauthenticated and set document title
+  // Sync root URL '/' to '/internal/landing' in browser address bar when unauthenticated and update document title based on auth state and active screen
   useEffect(() => {
     if (Platform.OS === "web" && typeof document !== "undefined") {
-      document.title = "Landing";
+      if (!isAuthenticated) {
+        document.title = "Landing";
+      } else {
+        const formattedTitle = activeScreen
+          .replace(/([A-Z])/g, " $1")
+          .replace(/^./, (str: string) => str.toUpperCase())
+          .trim();
+        document.title = `${formattedTitle} | EDGE`;
+      }
     }
     if (!isAuthenticated && Platform.OS === "web" && typeof window !== "undefined") {
       if (window.location.pathname === "/") {
         window.history.replaceState(null, "", "/internal/landing");
       }
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, activeScreen]);
 
   // Track the current route inside the stack to sync the Sidebar highlights
   useEffect(() => {
