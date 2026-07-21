@@ -668,11 +668,11 @@ const styles = StyleSheet.create({
   },
   logoHeaderWrapper: {
     alignItems: "center",
-    marginBottom: 36,
+    marginBottom: 40,
   },
   loginCardContainer: {
     width: "100%",
-    maxWidth: 440,
+    maxWidth: 500,
     backgroundColor: COLORS.neutral.white,
     borderRadius: 16,
     borderWidth: 1,
@@ -682,7 +682,7 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: TYPOGRAPHY.weights.bold,
     color: "#0F172A",
     marginBottom: SPACING[24],
@@ -699,7 +699,7 @@ const styles = StyleSheet.create({
     fontWeight: TYPOGRAPHY.weights.medium,
   },
   regionSelectorBox: {
-    height: 48,
+    height: 52,
     backgroundColor: "#F1F5F9",
     borderWidth: 1,
     borderColor: "#E2E8F0",
@@ -724,12 +724,12 @@ const styles = StyleSheet.create({
   },
   regionModalCard: {
     width: "100%",
-    maxWidth: 440,
+    maxWidth: 500,
     backgroundColor: COLORS.neutral.white,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: "#E2E8F0",
-    padding: SPACING[20],
+    padding: SPACING[24],
     alignSelf: "center",
   },
   regionModalHeader: {
@@ -812,13 +812,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   greyInput: {
-    height: 48,
+    height: 52,
     backgroundColor: "#F1F5F9",
     borderWidth: 1,
     borderColor: "#E2E8F0",
     borderRadius: 10,
     paddingHorizontal: 16,
-    fontSize: 14,
+    fontSize: 15,
     color: COLORS.neutral[900],
     fontFamily: TYPOGRAPHY.fonts.primary,
   },
@@ -828,7 +828,7 @@ const styles = StyleSheet.create({
     padding: 6,
   },
   loginButton: {
-    height: 48,
+    height: 52,
     borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
@@ -914,7 +914,7 @@ const styles = StyleSheet.create({
 
   footerBar: {
     width: "100%",
-    backgroundColor: "#0B1953",
+    backgroundColor: "#0E1B61",
     paddingHorizontal: SPACING[32],
     paddingVertical: SPACING[20],
   },
