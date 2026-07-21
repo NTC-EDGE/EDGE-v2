@@ -13,6 +13,20 @@ public static class TenantMemberEndpoints
             .WithTags("Tenant Members");
 
         members.MapPost("/", async (
+        var group = app.MapGroup("/tenants/{tenantId:guid}/members").WithTags("Tenant Members");
+
+        group.MapGet("/", async (Guid tenantId, IMediator mediator) =>
+        {
+            var result = await mediator.Send(new GetTenantMembersQuery(tenantId));
+            return Results.Ok(result);
+        })
+        .WithName("GetTenantMembers")
+        .WithTags("Tenant Members")
+        .WithSummary("Get tenant members")
+        .WithDescription("Retrieves members assigned to a specific tenant organization.")
+        .RequireAuthorization(Policies.CanManageUsers);
+
+        group.MapPost("/", async (
             Guid tenantId,
             AssignUserToTenantCommand command,
             IValidator<AssignUserToTenantCommand> validator,

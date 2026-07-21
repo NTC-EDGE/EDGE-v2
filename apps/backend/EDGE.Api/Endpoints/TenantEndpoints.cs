@@ -9,10 +9,31 @@ public static class TenantEndpoints
 {
     public static RouteGroupBuilder MapTenantEndpoints(this RouteGroupBuilder group)
     {
-        var tenants = group.MapGroup("tenants")
-            .WithTags("Tenants");
+        var group = app.MapGroup("/tenants").WithTags("Tenants");
 
-        tenants.MapPost("/", async (
+        group.MapGet("/", async (IMediator mediator) =>
+        {
+            var result = await mediator.Send(new GetTenantsQuery());
+            return Results.Ok(result);
+        })
+        .WithName("GetTenants")
+        .WithTags("Tenants")
+        .WithSummary("Get list of tenants")
+        .WithDescription("Retrieves all tenant organizations across regions.")
+        .RequireAuthorization(Policies.CanManageUsers);
+
+        group.MapGet("/{id:guid}", async (Guid id, IMediator mediator) =>
+        {
+            var result = await mediator.Send(new GetTenantByIdQuery(id));
+            return result is not null ? Results.Ok(result) : Results.NotFound();
+        })
+        .WithName("GetTenantById")
+        .WithTags("Tenants")
+        .WithSummary("Get tenant details by ID")
+        .WithDescription("Fetches single tenant organization by ID.")
+        .RequireAuthorization(Policies.CanManageUsers);
+
+        group.MapPost("/", async (
             CreateTenantCommand command,
             IValidator<CreateTenantCommand> validator,
             IMediator mediator) =>

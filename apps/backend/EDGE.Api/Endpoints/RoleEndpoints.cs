@@ -21,6 +21,9 @@ public static class RoleEndpoints
             return Results.Ok(result);
         })
         .WithName("GetRoles")
+        .WithTags("Roles")
+        .WithSummary("Get list of roles")
+        .WithDescription("Retrieves system and tenant-specific roles.")
         .RequireAuthorization(Policies.CanManageUsers);
 
         group.MapGet("/{id:guid}", async (Guid id, IMediator mediator) =>
@@ -29,6 +32,9 @@ public static class RoleEndpoints
             return result is not null ? Results.Ok(result) : Results.NotFound();
         })
         .WithName("GetRoleById")
+        .WithTags("Roles")
+        .WithSummary("Get role by ID")
+        .WithDescription("Fetches a single role by ID.")
         .RequireAuthorization(Policies.CanManageUsers);
 
         group.MapPost("/", async (
@@ -46,6 +52,9 @@ public static class RoleEndpoints
             return Results.Created($"/roles/{result.Id}", result);
         })
         .WithName("CreateRole")
+        .WithTags("Roles")
+        .WithSummary("Create custom role")
+        .WithDescription("Creates a new role for tenant or system access control.")
         .RequireAuthorization(Policies.CanManageUsers);
 
         group.MapPut("/{id:guid}", async (
@@ -69,6 +78,9 @@ public static class RoleEndpoints
             return result is not null ? Results.Ok(result) : Results.NotFound();
         })
         .WithName("UpdateRole")
+        .WithTags("Roles")
+        .WithSummary("Update role definition")
+        .WithDescription("Updates role name, key, or scope.")
         .RequireAuthorization(Policies.CanManageUsers);
 
         group.MapDelete("/{id:guid}", async (Guid id, IMediator mediator) =>
@@ -77,6 +89,9 @@ public static class RoleEndpoints
             return success ? Results.NoContent() : Results.NotFound();
         })
         .WithName("DeleteRole")
+        .WithTags("Roles")
+        .WithSummary("Delete role")
+        .WithDescription("Deletes a custom role definition.")
         .RequireAuthorization(Policies.CanManageUsers);
     }
 }

@@ -29,6 +29,9 @@ public static class RolePermissionEndpoints
             return success ? Results.Ok(new { Message = "Permission assigned successfully." }) : Results.BadRequest("Could not assign permission.");
         })
         .WithName("AssignRolePermission")
+        .WithTags("RolePermissions")
+        .WithSummary("Assign permission to role")
+        .WithDescription("Maps a system permission to a target role.")
         .RequireAuthorization(Policies.CanManageUsers);
 
         group.MapPost("/revoke", async (
@@ -46,6 +49,9 @@ public static class RolePermissionEndpoints
             return success ? Results.Ok(new { Message = "Permission revoked successfully." }) : Results.NotFound("Mapping not found.");
         })
         .WithName("RevokeRolePermission")
+        .WithTags("RolePermissions")
+        .WithSummary("Revoke permission from role")
+        .WithDescription("Removes a permission mapping from a role.")
         .RequireAuthorization(Policies.CanManageUsers);
     }
 }

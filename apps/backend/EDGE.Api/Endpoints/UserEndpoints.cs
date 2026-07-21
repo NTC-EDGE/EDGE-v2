@@ -22,6 +22,9 @@ public static class UserEndpoints
             return Results.Ok(result);
         })
         .WithName("GetUsers")
+        .WithTags("Users")
+        .WithSummary("Get list of platform users")
+        .WithDescription("Retrieves user accounts.")
         .RequireAuthorization(Policies.CanManageUsers);
 
         group.MapGet("/{id:guid}", async (Guid id, IMediator mediator) =>
@@ -30,6 +33,9 @@ public static class UserEndpoints
             return result is not null ? Results.Ok(result) : Results.NotFound();
         })
         .WithName("GetUserById")
+        .WithTags("Users")
+        .WithSummary("Get user profile by ID")
+        .WithDescription("Fetches single user profile by ID.")
         .RequireAuthorization(Policies.CanManageUsers);
 
         group.MapPut("/{id:guid}", async (
@@ -53,6 +59,9 @@ public static class UserEndpoints
             return result is not null ? Results.Ok(result) : Results.NotFound();
         })
         .WithName("UpdateUser")
+        .WithTags("Users")
+        .WithSummary("Update user profile")
+        .WithDescription("Updates user name, email, or active state.")
         .RequireAuthorization(Policies.CanManageUsers);
 
         group.MapDelete("/{id:guid}", async (Guid id, IMediator mediator) =>
@@ -61,6 +70,9 @@ public static class UserEndpoints
             return success ? Results.NoContent() : Results.NotFound();
         })
         .WithName("DeleteUser")
+        .WithTags("Users")
+        .WithSummary("Delete user account")
+        .WithDescription("Deletes user account.")
         .RequireAuthorization(Policies.CanManageUsers);
 
         // Tech Support Global User Directory & Troubleshooting Endpoints

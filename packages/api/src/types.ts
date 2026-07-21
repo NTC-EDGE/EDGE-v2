@@ -103,6 +103,56 @@ export interface UpdateBarangayCommand {
   isActive: boolean;
 }
 
+export interface ExamSchedule {
+  id: string;
+  title: string;
+  examType: string;
+  regionId: string;
+  regionName?: string;
+  venue: string;
+  examDate: string;
+  applicationDeadline: string;
+  maxSlots?: number | null;
+  maximumSlots?: number | null;
+  registeredSlots?: number;
+  isPublished: boolean;
+  description?: string | null;
+  remarks?: string | null;
+  seatNumber?: string | null;
+  createdAt?: string;
+}
+
+export interface CreateExamScheduleCommand {
+  title: string;
+  examType: string;
+  regionId: string;
+  venue: string;
+  examDate: string;
+  applicationDeadline: string;
+  maxSlots?: number | null;
+  maximumSlots?: number | null;
+  isPublished?: boolean;
+  description?: string;
+  remarks?: string;
+  seatNumber?: string;
+}
+
+export interface UpdateExamScheduleCommand {
+  id: string;
+  title: string;
+  examType: string;
+  regionId: string;
+  venue: string;
+  examDate: string;
+  applicationDeadline: string;
+  maxSlots?: number | null;
+  maximumSlots?: number | null;
+  isPublished?: boolean;
+  description?: string;
+  remarks?: string;
+  seatNumber?: string;
+}
+
 // Tenant and Member Management Types
 export interface Tenant {
   id: string;
