@@ -21,6 +21,9 @@ public static class TenantEndpoints
             return Results.Ok(result);
         })
         .WithName("GetTenants")
+        .WithTags("Tenants")
+        .WithSummary("Get list of tenants")
+        .WithDescription("Retrieves all tenant organizations across regions.")
         .RequireAuthorization(Policies.CanManageUsers);
 
         group.MapGet("/{id:guid}", async (Guid id, IMediator mediator) =>
@@ -29,6 +32,9 @@ public static class TenantEndpoints
             return result is not null ? Results.Ok(result) : Results.NotFound();
         })
         .WithName("GetTenantById")
+        .WithTags("Tenants")
+        .WithSummary("Get tenant details by ID")
+        .WithDescription("Fetches single tenant organization by ID.")
         .RequireAuthorization(Policies.CanManageUsers);
 
         group.MapPost("/", async (
@@ -46,6 +52,9 @@ public static class TenantEndpoints
             return Results.Created($"/tenants/{result.Id}", result);
         })
         .WithName("CreateTenant")
+        .WithTags("Tenants")
+        .WithSummary("Create new tenant organization")
+        .WithDescription("Creates a new regional tenant entity.")
         .RequireAuthorization(Policies.CanManageUsers);
 
         group.MapPut("/{id:guid}", async (
@@ -69,6 +78,9 @@ public static class TenantEndpoints
             return result is not null ? Results.Ok(result) : Results.NotFound();
         })
         .WithName("UpdateTenant")
+        .WithTags("Tenants")
+        .WithSummary("Update tenant details")
+        .WithDescription("Updates tenant name, code, or active status.")
         .RequireAuthorization(Policies.CanManageUsers);
 
         group.MapDelete("/{id:guid}", async (Guid id, IMediator mediator) =>
@@ -77,6 +89,9 @@ public static class TenantEndpoints
             return success ? Results.NoContent() : Results.NotFound();
         })
         .WithName("DeleteTenant")
+        .WithTags("Tenants")
+        .WithSummary("Delete tenant organization")
+        .WithDescription("Deletes a tenant entity.")
         .RequireAuthorization(Policies.CanManageUsers);
     }
 }

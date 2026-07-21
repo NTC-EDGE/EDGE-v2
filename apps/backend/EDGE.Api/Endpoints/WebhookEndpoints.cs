@@ -93,8 +93,10 @@ public static class WebhookEndpoints
             return success ? Results.Ok(new { Succeeded = true }) : Results.BadRequest(new { Succeeded = false, Message = message });
         })
         .WithName("HandleClerkWebhook")
+        .WithTags("Webhooks")
+        .WithSummary("Handle Clerk identity webhooks")
+        .WithDescription("Processes Clerk authentication webhook events for user creation, profile sync, and session management.")
         .AddEndpointFilter<ClerkWebhookVerificationFilter>()
-        .AllowAnonymous()
-        .WithTags("Webhooks");
+        .AllowAnonymous();
     }
 }
