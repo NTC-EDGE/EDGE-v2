@@ -12,5 +12,5 @@ public class Tenant : AuditableEntity
 
     // Navigation property
     public virtual ICollection<TenantMember> Members { get; set; } = new List<TenantMember>();
-    public virtual ICollection<Region> Regions { get; set; } = new List<Region>();
+    public virtual Region Region { get; set; } = null!;
 }
