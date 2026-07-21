@@ -108,6 +108,28 @@ export function CPEAccreditationWizard({
   const [applicants, setApplicants] = useState<ApplicantData[]>([initialApplicant(1)]);
   const [currentApplicantIndex, setCurrentApplicantIndex] = useState(0);
 
+  // Confirmation & Feedback States
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [isAgreedToTerms, setIsAgreedToTerms] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
+  const [feedbackRating, setFeedbackRating] = useState(0);
+  const [feedbackComment, setFeedbackComment] = useState("");
+
+  // CSV Import States
+  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
+  const [csvRows, setCsvRows] = useState<Array<{
+    id: number;
+    status: "Valid" | "Invalid";
+    name: string;
+    type: "NEW" | "RENEWAL" | "MODIFICATION";
+    reason?: string;
+  }>>([
+    { id: 1, status: "Valid", name: "John Doe", type: "NEW" },
+    { id: 2, status: "Invalid", name: "Maria Reyes", type: "NEW", reason: "Missing SEC registration document" },
+    { id: 3, status: "Invalid", name: "Juan Cruz", type: "RENEWAL", reason: "Expired mayor's permit date" },
+  ]);
+
   // Scroll ref for jump-links in Form Step
   const scrollViewRef = useRef<ScrollView | null>(null);
 
@@ -796,19 +818,24 @@ export function CPEAccreditationWizard({
         Alert.alert("Error", "Please select region and office.");
         return;
       }
-      setStep(3);
-    } else if (step === 3) {
-      if (appMode === "BULK" && bulkMethod === "EXCEL" && !isFileUploaded) {
-        Alert.alert("Error", "Please upload the CSV/Excel file to proceed.");
-        return;
+      if (appMode === "SINGLE") {
+        setStep(5);
+      } else {
+        setStep(3);
       }
-      setStep(4);
-    } else if (step === 4) {
-      setStep(5);
+    } else if (step === 3) {
+      if (bulkMethod === "EXCEL") {
+        if (!isFileUploaded) {
+          Alert.alert("Error", "Please upload the CSV/Excel file to proceed.");
+          return;
+        }
+        setStep(7);
+      } else {
+        setStep(5);
+      }
     } else if (step === 5) {
       const isValid = validateForm(activeApplicant);
       if (!isValid) {
-        // Touch all fields to show validation redmarks
         const fields = [
           "years", "variation", "accreditationNo", "businessName", "entityType", "dtiNo",
           "province", "city", "barangay", "street", "zone", "unitBldgNo", "zipCode",
@@ -824,7 +851,6 @@ export function CPEAccreditationWizard({
       }
       setStep(6);
     } else if (step === 6) {
-      // Validate all required files uploaded
       const reqList = getRequirementsList(activeApplicant.appType);
       const allUploaded = reqList.every((_, idx) => activeApplicant.uploads[idx.toString()]);
       if (!allUploaded) {
@@ -832,21 +858,38 @@ export function CPEAccreditationWizard({
         return;
       }
 
-      // If BULK manual and there are more applicants to encode, or we want to loop
       if (appMode === "BULK" && bulkMethod === "MANUAL" && currentApplicantIndex < applicants.length - 1) {
         setCurrentApplicantIndex((prev) => prev + 1);
-        setStep(4); // Loop back to configuration step for next applicant
+        setStep(5);
       } else {
         setStep(7);
       }
     } else if (step === 7) {
-      setStep(8); // Success Screen
+      setIsConfirmModalOpen(true);
     }
   };
 
   const handleBack = () => {
     if (step === 1) {
       onClose();
+    } else if (step === 2) {
+      setStep(1);
+    } else if (step === 3) {
+      setStep(2);
+    } else if (step === 5) {
+      if (appMode === "SINGLE") {
+        setStep(2);
+      } else {
+        setStep(3);
+      }
+    } else if (step === 6) {
+      setStep(5);
+    } else if (step === 7) {
+      if (appMode === "BULK" && bulkMethod === "EXCEL") {
+        setStep(3);
+      } else {
+        setStep(6);
+      }
     } else {
       setStep((prev) => prev - 1);
     }
@@ -861,9 +904,13 @@ export function CPEAccreditationWizard({
 
   // Mock excel file upload trigger
   const handleMockFileUpload = () => {
+    setIsPreviewModalOpen(true);
+  };
+
+  // Confirm and ingest rows from CSV Import
+  const handleConfirmCSVImport = () => {
     setIsFileUploaded(true);
     setUploadedFileName("CPE_Supplier_Applicants_Template_2026.csv");
-    // Pre-populate list of applicants representing parsed CSV rows
     setApplicants([
       {
         ...initialApplicant(1),
@@ -871,16 +918,10 @@ export function CPEAccreditationWizard({
         appType: "NEW",
         contactNo: "09171234567",
         email: "contact@apex.com",
-      },
-      {
-        ...initialApplicant(2),
-        businessName: "MetroWave WiFi Corp",
-        appType: "RENEWAL",
-        contactNo: "09187654321",
-        email: "support@metrowave.com",
-      },
+      }
     ]);
     setCurrentApplicantIndex(0);
+    setIsPreviewModalOpen(false);
   };
 
   // Add another manual applicant
@@ -892,23 +933,25 @@ export function CPEAccreditationWizard({
     const nextId = applicants.length + 1;
     setApplicants((prev) => [...prev, initialApplicant(nextId)]);
     setCurrentApplicantIndex(applicants.length);
-    setStep(4); // Start applicant details setup
+    setStep(5);
   };
 
   // Render horizontal indicators
   const renderProgressIndicator = () => {
     const list: React.ReactNode[] = [];
-    for (let i = 1; i <= totalSteps; i++) {
+    const activeSteps = appMode === "SINGLE" ? [1, 2, 5, 6, 7] : [1, 2, 3, 5, 6, 7];
+    activeSteps.forEach((s, idx) => {
       list.push(
         <View
-          key={i}
+          key={s}
           style={[
             styles.progressDash,
-            step === i && styles.progressDashActive,
+            step === s && styles.progressDashActive,
+            step > s && { backgroundColor: COLORS.brand[500] }
           ]}
         />
       );
-    }
+    });
     return <View style={styles.progressContainer}>{list}</View>;
   };
 
@@ -983,6 +1026,35 @@ export function CPEAccreditationWizard({
                 label: o.name,
                 value: o.id,
               }))}
+            />
+
+            <Text style={styles.selectLabel}>Application Mode</Text>
+            <Select
+              placeholder="Select Application Mode"
+              value={appMode}
+              onValueChange={(val) => {
+                setAppMode(val as any);
+                if (val === "SINGLE") {
+                  setApplicants([initialApplicant(1)]);
+                  setCurrentApplicantIndex(0);
+                }
+              }}
+              options={[
+                { label: "Single Application", value: "SINGLE" },
+                { label: "Bulk Application", value: "BULK" },
+              ]}
+            />
+
+            <Text style={styles.selectLabel}>Application Type</Text>
+            <Select
+              placeholder="Select Application Type"
+              value={activeApplicant.appType}
+              onValueChange={(val) => updateActiveApplicant({ appType: val as any })}
+              options={[
+                { label: "NEW", value: "NEW" },
+                { label: "RENEWAL", value: "RENEWAL" },
+                { label: "MODIFICATION", value: "MODIFICATION" },
+              ]}
             />
           </View>
         )}
@@ -1163,44 +1235,7 @@ export function CPEAccreditationWizard({
           </View>
         )}
 
-        {/* STEP 4: Application Type & Requirements */}
-        {step === 4 && (
-          <View>
-            {appMode === "BULK" && (
-              <Text style={{ color: COLORS.brand[700], fontWeight: "700", marginBottom: 8 }}>
-                [Applicant {currentApplicantIndex + 1} of {applicants.length}]
-              </Text>
-            )}
-            <Text style={styles.stepSubtitle}>Select Application Type:</Text>
-            <Select
-              placeholder="Application Type"
-              value={activeApplicant.appType}
-              onValueChange={(val) => updateActiveApplicant({ appType: val as any })}
-              options={[
-                { label: "NEW", value: "NEW" },
-                { label: "RENEWAL", value: "RENEWAL" },
-                { label: "MODIFICATION", value: "MODIFICATION" },
-              ]}
-            />
 
-            <View style={styles.reqContainer}>
-              <Text style={styles.reqTitle}>Requirements checklist for {activeApplicant.appType}</Text>
-              {getRequirementsList(activeApplicant.appType).map((req, idx) => (
-                <View key={idx} style={styles.reqItemRow}>
-                  <Text style={{ marginRight: 8, color: COLORS.neutral[500], fontWeight: "bold" }}>•</Text>
-                  <Text style={styles.reqItemText}>{req}</Text>
-                </View>
-              ))}
-              {activeApplicant.appType === "NEW" && (
-                <View style={styles.reqNoteBox}>
-                  <Text style={styles.reqNoteText}>
-                    Note: The purpose of the company as indicated in its registration document must include information related to the accreditation applied for.
-                  </Text>
-                </View>
-              )}
-            </View>
-          </View>
-        )}
 
         {/* STEP 5: Application Form */}
         {step === 5 && (
@@ -1577,14 +1612,14 @@ export function CPEAccreditationWizard({
                 </Text>
               </View>
             </View>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 14, fontWeight: "750", color: COLORS.brand[800], paddingHorizontal: 12, marginBottom: 16 }}>
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 14, fontWeight: "700", color: COLORS.brand[800], paddingHorizontal: 12, marginBottom: 16 }}>
               {activeApplicant.appType}
             </Text>
 
             {applicants.map((app, idx) => (
               <View key={app.id} style={{ marginBottom: 24 }}>
                 {appMode === "BULK" && (
-                  <Text style={{ color: COLORS.brand[700], fontWeight: "750", fontSize: 15, marginHorizontal: 12, marginBottom: 8 }}>
+                  <Text style={{ color: COLORS.brand[700], fontWeight: "700", fontSize: 15, marginHorizontal: 12, marginBottom: 8 }}>
                     Applicant {idx + 1} Details:
                   </Text>
                 )}
@@ -1755,10 +1790,308 @@ export function CPEAccreditationWizard({
               onPress={() => setIsUploadSheetOpen(false)}
               style={{ paddingVertical: 14, alignItems: "center", marginTop: 8 }}
             >
-              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 15, fontWeight: "750", color: COLORS.semantic.error }}>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 15, fontWeight: "700", color: COLORS.semantic.error }}>
                 Cancel
               </Text>
             </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+      {/* Submission Loading Overlay */}
+      {isSubmitting && (
+        <View style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: "rgba(255,255,255,0.85)",
+          justifyContent: "center",
+          alignItems: "center",
+          zIndex: 9999,
+        }}>
+          <Icon name="loader" size={48} color={COLORS.brand[700]} style={{ marginBottom: 16 }} />
+          <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 16, fontWeight: "700", color: COLORS.neutral[800] }}>
+            Submitting Application...
+          </Text>
+          <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: COLORS.neutral[500], marginTop: 6 }}>
+            Please wait while we validate and process your filing details.
+          </Text>
+        </View>
+      )}
+
+      {/* CSV Import Preview Modal */}
+      <Modal
+        visible={isPreviewModalOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setIsPreviewModalOpen(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "center", alignItems: "center" }}>
+          <View style={{ backgroundColor: COLORS.neutral.white, width: "90%", maxWidth: 640, borderRadius: 16, overflow: "hidden", padding: 24 }}>
+
+            {/* Header */}
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 18, fontWeight: "700", color: COLORS.neutral[800] }}>
+                CSV Import Preview
+              </Text>
+              <TouchableOpacity onPress={() => setIsPreviewModalOpen(false)}>
+                <Icon name="x" size={20} color={COLORS.neutral[500]} />
+              </TouchableOpacity>
+            </View>
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: COLORS.neutral[500], marginBottom: 20 }}>
+              Review your uploaded CSV data before importing.
+            </Text>
+
+            {/* Row of stats cards */}
+            <View style={{ flexDirection: "row", gap: 12, marginBottom: 20 }}>
+              <View style={{ flex: 1, backgroundColor: COLORS.neutral[50], borderColor: COLORS.neutral[200], borderWidth: 1, borderRadius: 12, padding: 12 }}>
+                <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: "700", color: COLORS.neutral[500], marginBottom: 4 }}>Total Rows</Text>
+                <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 20, fontWeight: "700", color: COLORS.neutral[800] }}>3</Text>
+              </View>
+              <View style={{ flex: 1, backgroundColor: "#f0fdf4", borderColor: "#bbf7d0", borderWidth: 1, borderRadius: 12, padding: 12 }}>
+                <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: "700", color: "#16a34a", marginBottom: 4 }}>Valid</Text>
+                <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 20, fontWeight: "700", color: "#15803d" }}>1</Text>
+              </View>
+              <View style={{ flex: 1, backgroundColor: "#fef2f2", borderColor: "#fecaca", borderWidth: 1, borderRadius: 12, padding: 12 }}>
+                <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: "700", color: "#dc2626", marginBottom: 4 }}>Invalid</Text>
+                <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 20, fontWeight: "700", color: "#991b1b" }}>2</Text>
+              </View>
+            </View>
+
+            {/* List Table of rows */}
+            <View style={{ borderWidth: 1, borderColor: COLORS.neutral[200], borderRadius: 12, overflow: "hidden", marginBottom: 20 }}>
+              {/* Header row */}
+              <View style={{ flexDirection: "row", backgroundColor: COLORS.neutral[50], borderBottomWidth: 1, borderBottomColor: COLORS.neutral[200], paddingVertical: 10, paddingHorizontal: 12 }}>
+                <Text style={{ width: 40, fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: "700", color: COLORS.neutral[500] }}>#</Text>
+                <Text style={{ width: 80, fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: "700", color: COLORS.neutral[500] }}>STATUS</Text>
+                <Text style={{ flex: 1.5, fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: "700", color: COLORS.neutral[500] }}>APPLICANT NAME</Text>
+                <Text style={{ flex: 1, fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: "700", color: COLORS.neutral[500] }}>APPLICATION TYPE</Text>
+              </View>
+              {/* Data rows */}
+              {csvRows.map((row) => (
+                <View key={row.id} style={{ flexDirection: "row", borderBottomWidth: 1, borderBottomColor: COLORS.neutral[100], paddingVertical: 12, paddingHorizontal: 12, alignItems: "center", backgroundColor: row.status === "Invalid" ? "#fffafb" : COLORS.neutral.white }}>
+                  <Text style={{ width: 40, fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: COLORS.neutral[600] }}>{row.id}</Text>
+                  <View style={{ width: 80 }}>
+                    <View style={{
+                      backgroundColor: row.status === "Valid" ? "#e6f4ea" : "#fce8e6",
+                      borderRadius: 12,
+                      paddingVertical: 2,
+                      paddingHorizontal: 8,
+                      alignSelf: "flex-start",
+                    }}>
+                      <Text style={{
+                        fontFamily: TYPOGRAPHY.fonts.primary,
+                        fontSize: 11,
+                        fontWeight: "700",
+                        color: row.status === "Valid" ? "#137333" : "#c5221f",
+                      }}>{row.status}</Text>
+                    </View>
+                  </View>
+                  <Text style={{ flex: 1.5, fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "600", color: COLORS.neutral[800] }}>{row.name}</Text>
+                  <Text style={{ flex: 1, fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: COLORS.neutral[600] }}>{row.type}</Text>
+                </View>
+              ))}
+            </View>
+
+            {/* Footer Notice */}
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: COLORS.neutral[800], fontWeight: "700", marginBottom: 6 }}>
+              2 row/s need correction
+            </Text>
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: COLORS.neutral[500], marginBottom: 20 }}>
+              Only valid rows will be imported into the system.
+            </Text>
+
+            {/* Buttons */}
+            <View style={{ flexDirection: "row", justifyContent: "flex-end", gap: 12 }}>
+              <TouchableOpacity
+                onPress={() => setIsPreviewModalOpen(false)}
+                style={{
+                  paddingVertical: 10,
+                  paddingHorizontal: 16,
+                  borderRadius: 8,
+                  borderWidth: 1,
+                  borderColor: COLORS.neutral[300],
+                  backgroundColor: COLORS.neutral.white,
+                }}
+              >
+                <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: COLORS.neutral[700] }}>
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleConfirmCSVImport}
+                style={{
+                  paddingVertical: 10,
+                  paddingHorizontal: 16,
+                  borderRadius: 8,
+                  backgroundColor: COLORS.brand[700],
+                }}
+              >
+                <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: COLORS.neutral.white }}>
+                  Import 1 Valid Rows
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Terms Confirmation Modal */}
+      <Modal
+        visible={isConfirmModalOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setIsConfirmModalOpen(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "center", alignItems: "center" }}>
+          <View style={{ backgroundColor: COLORS.neutral.white, width: "90%", maxWidth: 540, borderRadius: 16, overflow: "hidden", padding: 24 }}>
+
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 18, fontWeight: "700", color: COLORS.neutral[800], marginBottom: 16 }}>
+              Declaration of Intent & Consent
+            </Text>
+
+            {/* Declaration Text Block */}
+            <View style={{ borderWidth: 1, borderColor: COLORS.neutral[200], borderRadius: 12, padding: 16, backgroundColor: COLORS.neutral[50], marginBottom: 20 }}>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: COLORS.neutral[600], lineHeight: 20, textAlign: "justify" }}>
+                I hereby declare that all the entries are true and correct. Under the Revised Penal Code, I shall be held liable for any willful false statement(s) or misrepresentation(s) made in this application form that may serve as a valid ground for the denial of this application and/or cancellation/revocation of the permit issued/granted. Further, I am freely giving full consent for the collection and processing of personal information in accordance with Republic Act No. 10713, <Text style={{ color: COLORS.brand[700], fontWeight: "600" }}>Data Privacy Act of 2012</Text>.
+              </Text>
+            </View>
+
+            {/* Checkbox row */}
+            <TouchableOpacity
+              onPress={() => setIsAgreedToTerms((prev) => !prev)}
+              style={{ flexDirection: "row", alignItems: "center", marginBottom: 24 }}
+            >
+              <Icon
+                name={isAgreedToTerms ? "check-circle" : "circle"}
+                size={22}
+                color={isAgreedToTerms ? COLORS.brand[700] : COLORS.neutral[300]}
+                style={{ marginRight: 10 }}
+              />
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 14, fontWeight: "600", color: COLORS.neutral[800] }}>
+                I agree to the Terms and Conditions
+              </Text>
+            </TouchableOpacity>
+
+            {/* Confirm button */}
+            <TouchableOpacity
+              onPress={() => {
+                if (!isAgreedToTerms) {
+                  Alert.alert("Warning", "You must agree to the Terms and Conditions to proceed.");
+                  return;
+                }
+                setIsConfirmModalOpen(false);
+                setIsSubmitting(true);
+                setTimeout(() => {
+                  setIsSubmitting(false);
+                  setIsFeedbackModalOpen(true);
+                }, 2000);
+              }}
+              style={{
+                backgroundColor: isAgreedToTerms ? COLORS.brand[700] : COLORS.neutral[300],
+                borderRadius: 24,
+                paddingVertical: 12,
+                alignItems: "center",
+                width: "100%",
+              }}
+              disabled={!isAgreedToTerms}
+            >
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 14, fontWeight: "700", color: COLORS.neutral.white }}>
+                Confirm
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Feedback Rating Modal */}
+      <Modal
+        visible={isFeedbackModalOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setIsFeedbackModalOpen(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "center", alignItems: "center" }}>
+          <View style={{ backgroundColor: COLORS.neutral.white, width: "90%", maxWidth: 440, borderRadius: 16, padding: 24, alignItems: "center" }}>
+
+            <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: "#e8f5e9", justifyContent: "center", alignItems: "center", marginBottom: 16 }}>
+              <Icon name="check-circle" size={32} color="#2e7d32" />
+            </View>
+
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 18, fontWeight: "700", color: COLORS.brand[800], textAlign: "center", marginBottom: 6 }}>
+              Your application has been submitted.
+            </Text>
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: COLORS.neutral[500], textAlign: "center", marginBottom: 20 }}>
+              We will notify you once your application is validated. Thank you!
+            </Text>
+
+            {/* Inner Feedback card */}
+            <View style={{ backgroundColor: COLORS.neutral[50], borderRadius: 12, padding: 16, width: "100%", borderColor: COLORS.neutral[200], borderWidth: 1 }}>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: "700", color: COLORS.neutral[500], textAlign: "center", marginBottom: 12, letterSpacing: 0.5 }}>
+                HOW WAS YOUR EXPERIENCE?
+              </Text>
+
+              {/* Stars layout */}
+              <View style={{ flexDirection: "row", justifyContent: "center", gap: 8, marginBottom: 16 }}>
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <TouchableOpacity key={star} onPress={() => setFeedbackRating(star)}>
+                    <Icon
+                      name="star"
+                      size={28}
+                      color={star <= feedbackRating ? "#eab308" : COLORS.neutral[300]}
+                    />
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Comment text area */}
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, fontWeight: "600", color: COLORS.neutral[600], marginBottom: 6 }}>
+                Share your comment/s
+              </Text>
+              <TextInput
+                style={{
+                  height: 80,
+                  backgroundColor: COLORS.neutral.white,
+                  borderColor: COLORS.neutral[200],
+                  borderWidth: 1,
+                  borderRadius: 8,
+                  padding: 10,
+                  fontSize: 13,
+                  fontFamily: TYPOGRAPHY.fonts.primary,
+                  color: COLORS.neutral[800],
+                  textAlignVertical: "top",
+                  marginBottom: 16,
+                }}
+                placeholder="Share any thoughts on the application process..."
+                placeholderTextColor={COLORS.neutral[400]}
+                multiline
+                value={feedbackComment}
+                onChangeText={setFeedbackComment}
+              />
+
+              {/* Submit Feedback */}
+              <TouchableOpacity
+                onPress={() => {
+                  Alert.alert("Feedback Received", "Thank you for sharing your experience!");
+                  setIsFeedbackModalOpen(false);
+                  setStep(8);
+                }}
+                style={{
+                  backgroundColor: "#8b9dc3",
+                  borderRadius: 8,
+                  paddingVertical: 10,
+                  flexDirection: "row",
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                <Icon name="send" size={14} color={COLORS.neutral.white} style={{ marginRight: 8 }} />
+                <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: COLORS.neutral.white }}>
+                  Send your feedback
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>

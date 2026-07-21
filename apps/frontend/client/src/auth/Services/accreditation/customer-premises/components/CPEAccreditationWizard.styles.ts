@@ -5,6 +5,9 @@ export const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.neutral[50],
+    width: "100%",
+    maxWidth: 1200,
+    alignSelf: "center",
   },
   header: {
     flexDirection: "row",
@@ -352,6 +355,7 @@ export const styles = StyleSheet.create({
         zIndex: 10,
       },
     }),
+    position: "static"
   },
   formTab: {
     paddingVertical: SPACING[12],
@@ -595,7 +599,7 @@ export const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 14,
     fontWeight: TYPOGRAPHY.weights.bold,
-    color: COLORS.neutral[850],
+    color: COLORS.neutral[800],
   },
   csvMeta: {
     fontFamily: TYPOGRAPHY.fonts.primary,
