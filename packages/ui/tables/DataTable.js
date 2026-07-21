@@ -34,6 +34,7 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DataTable = DataTable;
+/// <reference path="../react-native.d.ts" />
 const react_1 = __importStar(require("react"));
 const react_native_1 = require("react-native");
 const vector_icons_1 = require("@expo/vector-icons");
