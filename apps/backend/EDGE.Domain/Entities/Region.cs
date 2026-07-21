@@ -9,4 +9,5 @@ public class Region : BaseEntity
     public bool IsActive { get; set; } = true;
     // Navigation property
     public ICollection<Province> Provinces { get; set; } = new List<Province>();
+    public ICollection<FieldOffice> FieldOffices { get; set; } = new List<FieldOffice>();
 }

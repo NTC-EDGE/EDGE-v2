@@ -21,6 +21,7 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
     public DbSet<Province> Provinces => Set<Province>();
     public DbSet<Municipality> Municipalities => Set<Municipality>();
     public DbSet<Barangay> Barangays => Set<Barangay>();
+    public DbSet<FieldOffice> FieldOffices => Set<FieldOffice>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -79,6 +80,18 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
                   .OnDelete(DeleteBehavior.Restrict);
         });
 
+        modelBuilder.Entity<FieldOffice>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(150);
+            entity.Property(e => e.Code).IsRequired().HasMaxLength(50);
+            entity.HasIndex(e => e.Code).IsUnique();
+            entity.HasOne(e => e.Region)
+                  .WithMany(r => r.FieldOffices)
+                  .HasForeignKey(e => e.RegionId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
         modelBuilder.Entity<Municipality>(entity =>
         {
             entity.HasIndex(e => e.Code).IsUnique();
@@ -112,8 +125,6 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
             entity.Property(e => e.RegionId).IsRequired();
         });
 
-
-
         // TenantMember Configuration
         modelBuilder.Entity<TenantMember>(entity =>
         {
@@ -139,6 +150,11 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
                   .WithMany(r => r.Members)
                   .HasForeignKey(e => e.RoleId)
                   .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.FieldOffice)
+                  .WithMany(fo => fo.AssignedMembers)
+                  .HasForeignKey(e => e.FieldOfficeId)
+                  .OnDelete(DeleteBehavior.SetNull);
 
             // Unique constraint to prevent registering the same user to the same tenant twice
             entity.HasIndex(e => new { e.TenantId, e.UserId }).IsUnique();

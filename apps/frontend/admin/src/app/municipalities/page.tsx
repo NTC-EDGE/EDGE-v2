@@ -5,6 +5,8 @@ import { Plus, Edit2, Trash2, Building2, Loader2, Search, CheckCircle, XCircle }
 import { useMunicipalityService } from "@/services/municipalityService";
 import { useProvinceService } from "@/services/provinceService";
 import { Button } from "@/components/ui/button";
+import { ActionMenu } from "@/components/ui/action-menu";
+import { Pagination } from "@/components/ui/pagination";
 import { 
   Dialog, 
   DialogContent, 
@@ -57,6 +59,14 @@ export default function MunicipalitiesPage() {
     if (activeFilter === "inactive") return matchesSearch && !muni.isActive;
     return matchesSearch;
   });
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  const paginatedMunicipalities = filteredMunicipalities.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
 
   // Handlers
   const handleOpenCreate = () => {
@@ -267,7 +277,7 @@ export default function MunicipalitiesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/80 text-sm">
-                {filteredMunicipalities.map((muni) => (
+                {paginatedMunicipalities.map((muni) => (
                   <tr key={muni.id} className="hover:bg-slate-800/20 transition-colors">
                     <td className="px-6 py-4 font-mono font-bold text-white text-xs">{muni.code}</td>
                     <td className="px-6 py-4 text-slate-200">{muni.name}</td>
@@ -285,19 +295,41 @@ export default function MunicipalitiesPage() {
                         </span>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-right space-x-1">
-                      <Button onClick={() => handleOpenEdit(muni)} size="icon" variant="ghost">
-                        <Edit2 className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button onClick={() => handleOpenDelete(muni)} size="icon" variant="ghost" className="hover:text-red-400">
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                    <td className="px-6 py-4 text-right">
+                      <ActionMenu
+                        items={[
+                          {
+                            label: "Edit Municipality",
+                            icon: Edit2,
+                            onClick: () => handleOpenEdit(muni),
+                          },
+                          {
+                            label: "Delete Municipality",
+                            icon: Trash2,
+                            onClick: () => handleOpenDelete(muni),
+                            variant: "destructive",
+                          },
+                        ]}
+                      />
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+        )}
+
+        {filteredMunicipalities.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalItems={filteredMunicipalities.length}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={(newSize) => {
+              setPageSize(newSize);
+              setCurrentPage(1);
+            }}
+          />
         )}
       </div>
 
