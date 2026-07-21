@@ -1061,7 +1061,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
           ]}
           onLayout={(e) => handleSectionLayout('howItWorks', e.nativeEvent.layout.y)}
         >
-          <Text style={[styles.sectionTitleBlue, styles.centerText]}>How It Works</Text>
+          <Text style={[styles.sectionTitleWhite, styles.centerText]}>How It Works</Text>
 
           {isDesktop ? (
             <View style={styles.stepsTwoRowContainer}>
@@ -1193,7 +1193,11 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
           ]}
           onLayout={(e) => handleSectionLayout('faqs', e.nativeEvent.layout.y)}
         >
+          <View style={styles.faqBadge}>
+            <Text style={styles.faqBadgeText}>HELP & SUPPORT</Text>
+          </View>
           <Text style={[styles.sectionTitleBlue, styles.centerText]}>Frequently Asked Questions</Text>
+          <Text style={styles.faqSubtitle}>Everything you need to know about the NTC EDGE platform</Text>
 
           <View style={styles.faqList}>
             {faqs.map((faq, idx) => {
@@ -2683,6 +2687,14 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 42,
     fontWeight: '800',
+    color: '#1236A8',
+    marginBottom: SPACING[12],
+    letterSpacing: -0.5,
+  },
+  sectionTitleWhite: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 42,
+    fontWeight: '800',
     color: COLORS.neutral.white,
     marginBottom: SPACING[40],
     letterSpacing: -0.5,
@@ -2776,6 +2788,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginHorizontal: 16,
   },
+  faqBadge: {
+    backgroundColor: '#EEF2FF',
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    borderRadius: RADIUS.circle,
+    borderWidth: 1.5,
+    borderColor: '#C7D2FE',
+    marginBottom: 14,
+    alignSelf: 'center',
+  },
+  faqBadgeText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#1236A8',
+    letterSpacing: 1.2,
+  },
+  faqSubtitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 18,
+    color: COLORS.neutral[500],
+    textAlign: 'center',
+    marginBottom: SPACING[40],
+  },
   faqList: {
     maxWidth: 1100,
     width: '100%',
@@ -2784,14 +2820,16 @@ const styles = StyleSheet.create({
   },
   faqItem: {
     backgroundColor: COLORS.neutral.white,
-    borderRadius: 18,
+    borderRadius: 20,
     borderWidth: 1.5,
     borderColor: COLORS.neutral[200],
-    marginBottom: SPACING[20],
+    marginBottom: 18,
     overflow: 'hidden',
   },
   faqItemExpanded: {
     borderColor: '#1236A8',
+    borderLeftWidth: 5,
+    borderLeftColor: '#1236A8',
   },
   faqHeader: {
     flexDirection: 'row',
