@@ -341,7 +341,7 @@ export function InternalLandingPage() {
             {/* Right Hero Column: Browser Mockup Card enclosing the Login Form */}
             <View style={styles.heroRightCol}>
               <View style={styles.loginCardLogoWrapper}>
-                <NtcLogo size="medium" variant="light" showSubtext={false} />
+                <NtcLogo size="large" variant="light" showSubtext={false} />
               </View>
               <View style={[styles.mockupWindowCard, SHADOWS.modal]}>
                 {/* Mockup Window Top Header */}
