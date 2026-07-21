@@ -352,6 +352,9 @@ namespace EDGE.Infrastructure.Migrations
                     b.Property<string>("LastModifiedBy")
                         .HasColumnType("text");
 
+                    b.Property<int?>("MaximumSlots")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Remarks")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");

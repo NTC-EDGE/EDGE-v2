@@ -33,6 +33,7 @@ public class GetScheduleByIdQueryHandler : IRequestHandler<GetScheduleByIdQuery,
             schedule.StartApplication,
             schedule.EndApplication,
             schedule.IsPublished,
+            schedule.MaximumSlots,
             schedule.Remarks,
             schedule.CreatedAt
         );

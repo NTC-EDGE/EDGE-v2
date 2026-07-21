@@ -28,6 +28,7 @@ public class CreateScheduleCommandHandler : IRequestHandler<CreateScheduleComman
             StartApplication = request.StartApplication,
             EndApplication = request.EndApplication,
             IsPublished = request.IsPublished,
+            MaximumSlots = request.MaximumSlots,
             SeatNumber = request.SeatNumber,
             Remarks = request.Remarks,
             ApplicationId = request.ApplicationId
@@ -48,6 +49,7 @@ public class CreateScheduleCommandHandler : IRequestHandler<CreateScheduleComman
             schedule.StartApplication,
             schedule.EndApplication,
             schedule.IsPublished,
+            schedule.MaximumSlots,
             schedule.Remarks,
             schedule.CreatedAt
         );

@@ -13,6 +13,7 @@ public record UpdateScheduleCommand(
     DateTime? StartApplication = null,
     DateTime? EndApplication = null,
     bool IsPublished = false,
+    int? MaximumSlots = null,
     string? SeatNumber = null,
     string? Remarks = null,
     Guid? ApplicationId = null

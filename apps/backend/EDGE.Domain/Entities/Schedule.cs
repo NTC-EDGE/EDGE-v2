@@ -15,6 +15,7 @@ public class Schedule : AuditableEntity
     public DateTime? StartApplication { get; set; }
     public DateTime? EndApplication { get; set; }
     public bool IsPublished { get; set; } = false;
+    public int? MaximumSlots { get; set; }
     public string? Remarks { get; set; }
 
     // Navigation properties (prepared for future integration once other entities are available):

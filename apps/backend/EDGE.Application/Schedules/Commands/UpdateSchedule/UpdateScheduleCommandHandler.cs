@@ -31,6 +31,7 @@ public class UpdateScheduleCommandHandler : IRequestHandler<UpdateScheduleComman
         schedule.StartApplication = request.StartApplication;
         schedule.EndApplication = request.EndApplication;
         schedule.IsPublished = request.IsPublished;
+        schedule.MaximumSlots = request.MaximumSlots;
         schedule.SeatNumber = request.SeatNumber;
         schedule.Remarks = request.Remarks;
         schedule.ApplicationId = request.ApplicationId;
@@ -50,6 +51,7 @@ public class UpdateScheduleCommandHandler : IRequestHandler<UpdateScheduleComman
             schedule.StartApplication,
             schedule.EndApplication,
             schedule.IsPublished,
+            schedule.MaximumSlots,
             schedule.Remarks,
             schedule.CreatedAt
         );

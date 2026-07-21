@@ -29,6 +29,7 @@ public class GetSchedulesQueryHandler : IRequestHandler<GetSchedulesQuery, List<
             s.StartApplication,
             s.EndApplication,
             s.IsPublished,
+            s.MaximumSlots,
             s.Remarks,
             s.CreatedAt
         )).ToList();

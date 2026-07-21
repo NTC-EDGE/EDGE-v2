@@ -12,6 +12,7 @@ public record ScheduleDto(
     DateTime? StartApplication,
     DateTime? EndApplication,
     bool IsPublished,
+    int? MaximumSlots,
     string? Remarks,
     DateTime CreatedAt
 );

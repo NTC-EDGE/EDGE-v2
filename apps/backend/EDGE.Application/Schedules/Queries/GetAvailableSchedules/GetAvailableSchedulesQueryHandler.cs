@@ -33,6 +33,7 @@ public class GetAvailableSchedulesQueryHandler : IRequestHandler<GetAvailableSch
             s.StartApplication,
             s.EndApplication,
             s.IsPublished,
+            s.MaximumSlots,
             s.Remarks
         )).ToList();
     }

@@ -40,6 +40,7 @@ public class SetSchedulePublishCommandHandler : IRequestHandler<SetSchedulePubli
             schedule.StartApplication,
             schedule.EndApplication,
             schedule.IsPublished,
+            schedule.MaximumSlots,
             schedule.Remarks,
             schedule.CreatedAt
         );
