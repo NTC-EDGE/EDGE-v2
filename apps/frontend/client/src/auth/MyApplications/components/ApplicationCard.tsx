@@ -10,61 +10,38 @@ import { Icon } from '@edge/ui';
 import { COLORS, SPACING, TYPOGRAPHY } from '@edge/ui';
 import {
   Application,
-  DensityOption,
   getStatusLabel,
   getStatusColor,
   getStatusBgColor,
   formatRelativeTime,
+  getAppDocuments,
 } from '../data/applicationsData';
 
 interface ApplicationCardProps {
   app: Application;
-  isExpanded: boolean;
-  isSelected: boolean;
-  density: DensityOption;
   onPress: () => void;
-  onPreview: () => void;
+  onDownload?: () => void;
+  style?: object;
 }
 
 export function ApplicationCard({
   app,
-  isExpanded,
-  isSelected,
-  density,
   onPress,
-  onPreview,
+  onDownload,
+  style,
 }: ApplicationCardProps) {
   const isBulk = app.mode === 'BULK';
   const primaryName = isBulk ? app.companyName : app.applicantName;
   const statusColor = getStatusColor(app.status);
-
-  const isPaymentAvailable =
-    app.status === 'READY_FOR_PAYMENT' || app.status === 'APPROVED';
-  const isAccreditationAvailable = app.status === 'APPROVED';
-
-  const verticalPad =
-    density === 'compact' ? 8 : density === 'cozy' ? 10 : 14;
+  const statusBg = getStatusBgColor(app.status);
+  const docs = getAppDocuments(app);
+  const totalApplicants = isBulk ? app.applicants.length : 1;
 
   return (
-    <TouchableOpacity
-      activeOpacity={0.88}
-      onPress={onPress}
-      style={[
-        styles.card,
-        isSelected && styles.cardSelected,
-        isExpanded && styles.cardExpanded,
-        { borderLeftColor: statusColor },
-      ]}
-    >
-      {/* ── Element / type header row ─────────────────────────── */}
-      <View style={styles.elementRow}>
-        <Text style={styles.elementLabel}>{app.element.toUpperCase()}</Text>
-      </View>
-
-      {/* ── Main card body ────────────────────────────────────── */}
-      <View style={[styles.cardBody, { paddingVertical: verticalPad }]}>
-        {/* Mode badge + primary name */}
-        <View style={styles.titleRow}>
+    <View style={[styles.card, style]}>
+      {/* ── Card Header Bar ────────────────────────────────────────────── */}
+      <View style={styles.cardTopHeader}>
+        <View style={styles.leftBadges}>
           <View
             style={[
               styles.modeBadge,
@@ -83,126 +60,83 @@ export function ApplicationCard({
                 { color: isBulk ? '#D97706' : '#2F56E8' },
               ]}
             >
-              {isBulk ? 'Bulk' : 'Single'}
+              {isBulk ? `BULK (${totalApplicants})` : 'SINGLE'}
             </Text>
           </View>
 
-          <Text style={styles.primaryName} numberOfLines={1}>
-            {primaryName}
-          </Text>
+          <Text style={styles.refNumber}>#{app.referenceNumber}</Text>
         </View>
 
-        {/* Service name – hidden on compact */}
-        {density !== 'compact' && (
-          <Text style={styles.serviceName} numberOfLines={2}>
-            {app.serviceName}
+        <View style={[styles.statusBadge, { backgroundColor: statusBg }]}>
+          <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
+          <Text style={[styles.statusBadgeText, { color: statusColor }]}>
+            {getStatusLabel(app.status)}
           </Text>
-        )}
+        </View>
+      </View>
 
-        {/* Submission time */}
-        <Text style={styles.submittedTime}>
-          Submitted {formatRelativeTime(app.submittedAt)}
+      {/* ── Main Content Body ──────────────────────────────────────────────── */}
+      <TouchableOpacity
+        activeOpacity={0.9}
+        onPress={onPress}
+        style={styles.cardBody}
+      >
+        <Text style={styles.serviceName} numberOfLines={2}>
+          {app.serviceName}
         </Text>
-      </View>
 
-      {/* ── Expanded section ─────────────────────────────────── */}
-      {isExpanded && (
-        <View style={styles.expandedSection}>
-          <View style={styles.sectionDivider} />
-
-          {/* Status + Preview button row */}
-          <View style={styles.statusRow}>
-            <View style={styles.statusPill}>
-              <View
-                style={[
-                  styles.statusDot,
-                  { backgroundColor: statusColor },
-                ]}
-              />
-              <Text
-                style={[styles.statusLabel, { color: statusColor }]}
-              >
-                {getStatusLabel(app.status).toUpperCase()}
-              </Text>
-            </View>
-
-            <TouchableOpacity
-              onPress={(e) => {
-                // Prevent outer onPress from toggling collapse
-                e.stopPropagation?.();
-                onPreview();
-              }}
-              activeOpacity={0.85}
-              style={styles.previewBtn}
-            >
-              <Text style={styles.previewBtnText}>Preview</Text>
-              <Icon
-                name="chevron-right"
-                size={14}
-                color={COLORS.neutral.white}
-              />
-            </TouchableOpacity>
+        <View style={styles.detailsMetaRow}>
+          <View style={styles.metaItem}>
+            <Icon name="user" size={13} color="#64748B" />
+            <Text style={styles.primaryName} numberOfLines={1}>
+              {primaryName}
+            </Text>
           </View>
 
-          {/* Payment section */}
-          <View style={styles.docSection}>
-            <Text style={styles.docSectionHeader}>PAYMENT</Text>
-            {isPaymentAvailable ? (
-              <TouchableOpacity style={styles.docActiveBtn} activeOpacity={0.8}>
-                <Text style={styles.docActiveBtnText}>Order of Payment</Text>
-                <Icon
-                  name="chevron-right"
-                  size={14}
-                  color={COLORS.brand[700]}
-                />
-              </TouchableOpacity>
-            ) : (
-              <View style={styles.docPendingRow}>
-                <Text style={styles.docPendingName}>Order of Payment</Text>
-                <Text style={styles.pendingText}>Pending</Text>
-              </View>
-            )}
+          <View style={styles.metaItem}>
+            <Icon name="tag" size={13} color="#64748B" />
+            <Text style={styles.metaText}>{app.element}</Text>
           </View>
 
-          {/* Accreditation section */}
-          <View style={styles.docSection}>
-            <Text style={styles.docSectionHeader}>ACCREDITATION</Text>
-            {isAccreditationAvailable ? (
-              <TouchableOpacity style={styles.docActiveBtn} activeOpacity={0.8}>
-                <Text style={styles.docActiveBtnText}>Download Certificate</Text>
-                <Icon
-                  name="download"
-                  size={14}
-                  color={COLORS.brand[700]}
-                />
-              </TouchableOpacity>
-            ) : (
-              <View style={styles.docPendingRow}>
-                <Text style={styles.docPendingName}>Certificate</Text>
-                <View style={styles.pendingWithIcon}>
-                  <Text style={styles.pendingText}>Pending</Text>
-                  <Icon
-                    name="download"
-                    size={12}
-                    color={COLORS.neutral[400]}
-                    style={{ marginLeft: 4 }}
-                  />
-                </View>
-              </View>
-            )}
+          <View style={styles.metaItem}>
+            <Icon name="clock" size={13} color="#64748B" />
+            <Text style={styles.metaText}>{formatRelativeTime(app.submittedAt)}</Text>
           </View>
         </View>
-      )}
+      </TouchableOpacity>
 
-      {/* ── Expand / collapse chevron ─────────────────────────── */}
-      <View style={styles.chevronRow}>
-        <Icon
-          name={isExpanded ? 'chevron-up' : 'chevron-down'}
-          size={14}
-          color={COLORS.neutral[400]}
-        />
+      {/* ── Card Footer Actions Bar ───────────────────────────────────────── */}
+      <View style={styles.cardFooter}>
+        <View style={styles.docsSummary}>
+          <Icon name="file-text" size={14} color="#475569" />
+          <Text style={styles.docsSummaryText}>
+            {docs.length} Document{docs.length === 1 ? '' : 's'} available
+          </Text>
+        </View>
+
+        <View style={styles.actionsGroup}>
+          {onDownload !== undefined && (
+            <TouchableOpacity
+              onPress={onDownload}
+              style={styles.downloadBtn}
+              activeOpacity={0.8}
+            >
+              <Icon name="download" size={13} color={COLORS.brand[700]} />
+              <Text style={styles.downloadBtnText}>Download</Text>
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity
+            onPress={onPress}
+            style={styles.viewDetailsBtn}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.viewDetailsBtnText}>Details</Text>
+            <Icon name="chevron-right" size={14} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
       </View>
-    </TouchableOpacity>
+    </View>
   );
 }
 
@@ -213,208 +147,197 @@ export function ApplicationCard({
 const styles = StyleSheet.create({
   card: {
     backgroundColor: COLORS.neutral.white,
-    borderRadius: 10,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: COLORS.neutral[200],
-    borderLeftWidth: 4,
-    marginBottom: SPACING[12],
+    borderColor: '#E2E8F0',
     overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'space-between',
     ...Platform.select({
-      web: { cursor: 'pointer' as unknown as undefined },
+      web: {
+        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.04), 0 2px 4px -1px rgba(0, 0, 0, 0.02)',
+      },
     }),
   },
-  cardSelected: {
-    borderColor: COLORS.brand[700],
-    backgroundColor: '#FAFBFF',
-  },
-  cardExpanded: {
-    borderColor: COLORS.neutral[300],
-  },
 
-  // Element header row
-  elementRow: {
-    backgroundColor: COLORS.neutral[50],
-    paddingHorizontal: SPACING[16],
-    paddingVertical: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.neutral[100],
-  },
-  elementLabel: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 10,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    color: COLORS.neutral[500],
-    letterSpacing: 0.8,
-  },
-
-  // Card body
-  cardBody: {
-    paddingHorizontal: SPACING[16],
-  },
-  titleRow: {
+  cardTopHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 6,
-    flexWrap: 'wrap',
-    gap: 8,
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING[16],
+    paddingVertical: 12,
+    backgroundColor: '#F8FAFC',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
   },
+
+  leftBadges: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+    flex: 1,
+  },
+
   modeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 4,
+    borderRadius: 6,
   },
   singleBadge: {
-    backgroundColor: '#EEF2FF',
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
   },
   bulkBadge: {
-    backgroundColor: '#FEF3C7',
+    backgroundColor: '#FFFBEB',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
   },
   modeDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    marginRight: 5,
+    marginRight: 6,
   },
   modeBadgeText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
-  primaryName: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    color: COLORS.neutral[900],
-    flex: 1,
-  },
-  serviceName: {
+
+  refNumber: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 12,
-    color: COLORS.neutral[500],
-    marginBottom: 6,
-    lineHeight: 16,
-  },
-  submittedTime: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-    color: COLORS.neutral[400],
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: '#334155',
   },
 
-  // Expanded section
-  expandedSection: {
-    paddingHorizontal: SPACING[16],
-    paddingBottom: SPACING[12],
-  },
-  sectionDivider: {
-    height: 1,
-    backgroundColor: COLORS.neutral[100],
-    marginBottom: SPACING[12],
-    marginTop: 4,
-  },
-  statusRow: {
+  statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: SPACING[16],
-  },
-  statusPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
   statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
     marginRight: 6,
   },
-  statusLabel: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    letterSpacing: 0.5,
-  },
-  previewBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.brand[800],
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 8,
-    gap: 4,
-    ...Platform.select({
-      web: { cursor: 'pointer' as unknown as undefined },
-    }),
-  },
-  previewBtnText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-    color: COLORS.neutral.white,
-  },
-
-  // Document links
-  docSection: {
-    marginBottom: SPACING[12],
-  },
-  docSectionHeader: {
+  statusBadgeText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 10,
     fontWeight: TYPOGRAPHY.weights.bold,
-    color: COLORS.neutral[400],
-    letterSpacing: 0.8,
-    marginBottom: 6,
   },
-  docActiveBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: COLORS.neutral[200],
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+
+  cardBody: {
+    padding: SPACING[16],
+    flex: 1,
     ...Platform.select({
       web: { cursor: 'pointer' as unknown as undefined },
     }),
   },
-  docActiveBtnText: {
+
+  serviceName: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
-    color: COLORS.brand[700],
-    fontWeight: TYPOGRAPHY.weights.medium,
+    fontSize: 15,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: '#0F172A',
+    marginBottom: 12,
+    lineHeight: 20,
   },
-  docPendingRow: {
+
+  detailsMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flexWrap: 'wrap',
+  },
+
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  primaryName: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: '#334155',
+    maxWidth: 160,
+  },
+  metaText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    color: '#64748B',
+  },
+
+  cardFooter: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: COLORS.neutral[100],
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: COLORS.neutral[50],
-  },
-  docPendingName: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
-    color: COLORS.neutral[400],
-  },
-  pendingText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
-    color: COLORS.neutral[400],
-    fontStyle: 'italic',
-  },
-  pendingWithIcon: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    paddingHorizontal: SPACING[16],
+    paddingVertical: 10,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    gap: 8,
   },
 
-  // Footer chevron
-  chevronRow: {
+  docsSummary: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingBottom: 8,
+    gap: 6,
+  },
+  docsSummaryText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    color: '#475569',
+    fontWeight: TYPOGRAPHY.weights.medium,
+  },
+
+  actionsGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+
+  downloadBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    gap: 4,
+  },
+  downloadBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: COLORS.brand[700],
+  },
+
+  viewDetailsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: COLORS.brand[700],
+    gap: 4,
+  },
+  viewDetailsBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: '#FFFFFF',
   },
 });
