@@ -30,7 +30,12 @@ export const ROLE_NAVIGATION_LINKS = {
   Administrator: [
     { name: 'Dashboard', screen: 'Dashboard', icon: 'grid' },
     { name: 'Activities', screen: 'Activities', icon: 'bell' },
+    { name: 'Chat', screen: 'Chat', icon: 'message-square' },
+    { name: 'Meet', screen: 'Meet', icon: 'video' },
+    { name: 'Reports', screen: 'Reports', icon: 'file-text' },
+    { name: 'Receipt Management', screen: 'ReceiptManagement', icon: 'file' },
     { name: 'Roles & Permission', screen: 'RolesPermission', icon: 'shield' },
+    { name: 'Schedule', screen: 'Schedule', icon: 'calendar' },
     { name: 'Employees', screen: 'Employees', icon: 'users' },
     { name: 'Users', screen: 'Users', icon: 'user' },
     { name: 'Settings', screen: 'Settings', icon: 'settings' },

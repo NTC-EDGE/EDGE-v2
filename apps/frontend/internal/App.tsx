@@ -1,3 +1,4 @@
+import "./src/navigation";
 import { useState, useEffect } from "react";
 import { StatusBar } from "expo-status-bar";
 import {
@@ -33,7 +34,7 @@ import {
 import { RoleProvider } from "./src/features/shell/context/RoleContext";
 import { DashboardShell } from "./src/features/shell/components/DashboardShell";
 import { DashboardScreen } from "./src/features/dashboard/screens/DashboardScreen";
-import { QueueScreen } from "./src/features/queue/screens/QueueScreen";
+import { ActivitiesNavigator } from "./src/navigation/ActivitiesNavigator";
 
 const getClerkKey = (): string => {
   const key = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
@@ -89,7 +90,7 @@ const RootStack = createNativeStackNavigator({
   },
   screens: {
     Dashboard: { screen: DashboardScreen },
-    Activities: { screen: QueueScreen },
+    Activities: { screen: ActivitiesNavigator },
     Chat: { screen: PlaceholderScreen },
     Meet: { screen: PlaceholderScreen },
     Reports: { screen: PlaceholderScreen },
@@ -381,7 +382,12 @@ function AppContent() {
     const unsubscribe = navigationRef.addListener("state", () => {
       const route = navigationRef.getCurrentRoute();
       if (route !== null && route !== undefined) {
-        setActiveScreen(route.name);
+        const name = route.name;
+        if (name === "ActivitiesList" || name === "ActivitiesDetail") {
+          setActiveScreen("Activities");
+        } else {
+          setActiveScreen(name);
+        }
       }
     });
 

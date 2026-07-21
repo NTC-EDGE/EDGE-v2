@@ -2,79 +2,68 @@ export interface ApplicationData {
   id: string;
   title: string;
   applicant: string;
-  status: 'Approved' | 'Pending' | 'Rejected' | 'Draft';
+  status: 'FOR APPROVAL' | 'APPROVED' | 'COMPLETED' | 'PENDING' | 'REJECTED' | 'Approved' | 'Pending' | 'Rejected' | 'Draft';
   date: string;
+  company: string;
+  description?: string;
+  timeAgo: string;
+  flowType: 'BULK' | 'SINGLE';
+  code: string;
+  dateGroup: string;
+  isBeingViewed?: boolean;
 }
 
 export const mockApplications: ApplicationData[] = [
   {
-    id: 'APP-2026-001',
-    title: '5G Spectrum Allocation License',
-    applicant: 'Apex Telecom Group',
-    status: 'Approved',
-    date: '2026-07-15',
+    id: 'APP-2026-0521',
+    title: 'Admission Slip for Radio Operator Examination',
+    applicant: 'Dezza Collection',
+    company: 'Dezza Telecom Group',
+    status: 'FOR APPROVAL',
+    date: '2026-07-16',
+    timeAgo: '5 days ago',
+    flowType: 'BULK',
+    code: 'DP-003',
+    dateGroup: 'Today - Jul 16, 2026',
+    isBeingViewed: true,
   },
   {
-    id: 'APP-2026-002',
-    title: 'Broadband Expansion Subsidy',
-    applicant: 'RuralNet ISP',
-    status: 'Pending',
+    id: 'APP-2026-0522',
+    title: 'Admission Slip for Radio Operator Examination',
+    applicant: 'EDWARD LANCE L. LORILLA',
+    company: 'Lorilla Holdings',
+    status: 'APPROVED',
     date: '2026-07-14',
+    timeAgo: '1 week ago',
+    flowType: 'SINGLE',
+    code: 'ZC-001',
+    dateGroup: '3 days ago - Jul 14, 2026',
+    isBeingViewed: false,
   },
   {
-    id: 'APP-2026-003',
-    title: 'Infrastructure Sharing Permit',
-    applicant: 'TowerCo Towers Corp',
-    status: 'Approved',
+    id: 'APP-2026-0523',
+    title: 'Admission Slip for Radio Operator Examination',
+    applicant: 'EDISSA A. AMANTE',
+    company: 'Amante Solutions LLC',
+    status: 'COMPLETED',
     date: '2026-07-13',
+    timeAgo: 'Jul 13, 2026',
+    flowType: 'SINGLE',
+    code: 'ZC-001',
+    dateGroup: '4 days ago - Jul 13, 2026',
+    isBeingViewed: false,
   },
   {
-    id: 'APP-2026-004',
-    title: 'Satellite Uplink Authorization',
-    applicant: 'OrbitLink Communications',
-    status: 'Rejected',
+    id: 'APP-2026-0524',
+    title: 'Admission Slip for Radio Operator Examination',
+    applicant: 'Dezza Collection',
+    company: 'Dezza Telecom Group',
+    status: 'FOR APPROVAL',
     date: '2026-07-12',
-  },
-  {
-    id: 'APP-2026-005',
-    title: 'Submarine Cable Landing Permit',
-    applicant: 'Global Connect Ltd',
-    status: 'Pending',
-    date: '2026-07-10',
-  },
-  {
-    id: 'APP-2026-006',
-    title: 'ISP Operations Registration',
-    applicant: 'Astra ISP Solutions',
-    status: 'Approved',
-    date: '2026-07-09',
-  },
-  {
-    id: 'APP-2026-007',
-    title: 'VoIP Services Accreditation',
-    applicant: 'TalkSoft Solutions Inc.',
-    status: 'Draft',
-    date: '2026-07-08',
-  },
-  {
-    id: 'APP-2026-008',
-    title: 'Spectrum License Renewal (2.4GHz)',
-    applicant: 'MetroWave WiFi Corp',
-    status: 'Approved',
-    date: '2026-07-07',
-  },
-  {
-    id: 'APP-2026-009',
-    title: 'Fiber Optic Rollout Approval',
-    applicant: 'CityFiber Infrastructures',
-    status: 'Pending',
-    date: '2026-07-05',
-  },
-  {
-    id: 'APP-2026-010',
-    title: 'Emergency Frequency Permit',
-    applicant: 'National Rescue & Medical Services',
-    status: 'Rejected',
-    date: '2026-07-03',
+    timeAgo: 'Jul 12, 2026',
+    flowType: 'BULK',
+    code: 'DP-003',
+    dateGroup: '4 days ago - Jul 13, 2026',
+    isBeingViewed: false,
   },
 ];
