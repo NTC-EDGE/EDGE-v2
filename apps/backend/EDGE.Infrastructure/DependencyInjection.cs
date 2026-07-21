@@ -43,6 +43,8 @@ public static class DependencyInjection
         services.AddScoped<IRoleRepository, RoleRepository>();
         services.AddScoped<IRolePermissionRepository, RolePermissionRepository>();
         services.AddScoped<IGeographicRepository, GeographicRepository>();
+        services.AddScoped<IFeeRepository, FeeRepository>();
+        services.AddScoped<IServiceFeeRepository, ServiceFeeRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IUserActivityService, UserActivityService>();
 

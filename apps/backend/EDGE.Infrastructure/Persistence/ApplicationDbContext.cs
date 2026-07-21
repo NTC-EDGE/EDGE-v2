@@ -20,6 +20,8 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
     public DbSet<Province> Provinces => Set<Province>();
     public DbSet<Municipality> Municipalities => Set<Municipality>();
     public DbSet<Barangay> Barangays => Set<Barangay>();
+    public DbSet<Fee> Fees => Set<Fee>();
+    public DbSet<ServiceFee> ServiceFees => Set<ServiceFee>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -117,6 +119,25 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
             entity.HasOne(d => d.Municipality)
                   .WithMany(p => p.Barangays)
                   .HasForeignKey(d => d.MunicipalityId)
+                  .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Fee entity configuration
+        modelBuilder.Entity<Fee>(entity =>
+        {
+            entity.HasIndex(e => e.Code).IsUnique();
+            entity.Property(e => e.Code).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(150);
+            entity.Property(e => e.Description).HasMaxLength(500);
+        });
+
+        // ServiceFee entity configuration
+        modelBuilder.Entity<ServiceFee>(entity =>
+        {
+            entity.Property(e => e.Amount).HasColumnType("decimal(18,2)");
+            entity.HasOne(d => d.Fee)
+                  .WithMany(p => p.ServiceFees)
+                  .HasForeignKey(d => d.FeeId)
                   .OnDelete(DeleteBehavior.Restrict);
         });
     }
