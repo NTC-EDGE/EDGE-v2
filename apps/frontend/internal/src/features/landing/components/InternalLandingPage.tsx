@@ -512,23 +512,14 @@ export function InternalLandingPage() {
                         )}
                       </TouchableOpacity>
 
-                      {/* Forgot Password & Verify Links */}
-                      <View style={{ gap: 8, marginTop: 12 }}>
-                        <TouchableOpacity
-                          onPress={handleOpenForgotPassword}
-                          style={styles.forgotPasswordLinkWrapper}
-                          disabled={isSubmitting}
-                        >
-                          <Text style={styles.forgotPasswordLinkText}>Forgot your password?</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          onPress={() => switchMode("verify")}
-                          style={styles.forgotPasswordLinkWrapper}
-                          disabled={isSubmitting}
-                        >
-                          <Text style={styles.forgotPasswordLinkText}>Have a verification code?</Text>
-                        </TouchableOpacity>
-                      </View>
+                      {/* Forgot Password Link */}
+                      <TouchableOpacity
+                        onPress={handleOpenForgotPassword}
+                        style={styles.forgotPasswordLinkWrapper}
+                        disabled={isSubmitting}
+                      >
+                        <Text style={styles.forgotPasswordLinkText}>Forgot your password?</Text>
+                      </TouchableOpacity>
                     </>
                   )}
 
