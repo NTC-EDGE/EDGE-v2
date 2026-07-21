@@ -337,6 +337,17 @@ public class SubmitApplicationCommandHandler : IRequestHandler<SubmitApplication
                 await _applicationRepository.AddApplicationApplicantAsync(appApplicant, cancellationToken);
             }
 
+            var statusHistory = new ApplicationStatusHistory
+            {
+                Id = Guid.NewGuid(),
+                ApplicationId = application.Id,
+                Status = status,
+                Remarks = status == ApplicationStatus.Submitted ? "Initial submission" : "Draft created",
+                Timestamp = DateTime.UtcNow,
+                UserId = submitterUserId
+            };
+            await _applicationRepository.AddApplicationStatusHistoryAsync(statusHistory, cancellationToken);
+
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             await _unitOfWork.CommitTransactionAsync(cancellationToken);
 

@@ -87,4 +87,9 @@ public class ApplicationFullRepository : IApplicationFullRepository
             .Where(r => r.ApplicationId == applicationId && r.ApplicantId == applicantId)
             .ToListAsync(cancellationToken);
     }
+
+    public async Task AddApplicationStatusHistoryAsync(ApplicationStatusHistory statusHistory, CancellationToken cancellationToken = default)
+    {
+        await _context.ApplicationStatusHistories.AddAsync(statusHistory, cancellationToken);
+    }
 }
