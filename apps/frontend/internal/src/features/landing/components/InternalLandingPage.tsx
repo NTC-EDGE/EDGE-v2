@@ -259,9 +259,9 @@ export function InternalLandingPage() {
     setSuccessMessage("");
     setIsSubmitting(true);
     try {
-      await loginWithClerk(identifier, password);
+      await loginWithClerk(identifier, password, selectedRegion);
     } catch (err: unknown) {
-      handleAuthError(err, "Invalid credentials or region authorization.");
+      handleAuthError(err, "Invalid credentials. Please check your login details and try again.");
     } finally {
       setIsSubmitting(false);
     }
