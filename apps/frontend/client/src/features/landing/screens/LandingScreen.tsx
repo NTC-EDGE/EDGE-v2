@@ -167,8 +167,10 @@ const FOOTER_POLICIES: { [key: string]: FooterPolicyContent } = {
 };
 
 export function LandingScreen({ navigation }: LandingScreenProps = {}) {
-  const { width } = useWindowDimensions();
+  const { width, height: windowHeight } = useWindowDimensions();
   const isDesktop = width >= 768;
+  const headerHeight = 110;
+  const heroMinHeight = isDesktop ? Math.max(560, windowHeight - headerHeight) : undefined;
 
   const { loginAsGuest } = useGuestAuth();
 
@@ -698,7 +700,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
       {/* Sticky Glassmorphic Header/Navbar - Logo positioned at far left */}
       <View style={styles.headerOuter}>
         <View style={styles.headerInner}>
-          <Logo height={84} />
+          <Logo height={80} />
 
           {isDesktop ? (
             <View style={styles.navLinks}>
@@ -781,6 +783,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
         <Animated.View style={[
           styles.heroSection,
           isDesktop ? styles.heroSectionDesktop : null,
+          isDesktop ? { minHeight: heroMinHeight } : null,
           {
             opacity: fadeAnimHero,
             transform: [
@@ -840,27 +843,23 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
                     <View style={[styles.mockupDot, { backgroundColor: '#F59E0B' }]} />
                     <View style={[styles.mockupDot, { backgroundColor: '#10B981' }]} />
                   </View>
-                  <View style={styles.mockupUrlContainer}>
-                    <Lucide name="lock" size={10} color={COLORS.neutral[400]} style={{ marginRight: 4 }} />
-                    <Text style={styles.mockupHeaderText}>ntc-edge.gov.ph</Text>
-                  </View>
                 </View>
 
                 <View style={styles.mockupBody}>
                   {/* Stats Row */}
                   <View style={styles.mockupStatsRow}>
                     <View style={styles.mockupStatCard}>
-                      <Lucide name="file-text" size={14} color="#1236A8" style={{ marginBottom: 4 }} />
+                      <Lucide name="file-text" size={16} color="#1236A8" style={{ marginBottom: 4 }} />
                       <Text style={styles.mockupStatLabel}>Applications</Text>
                       <Text style={[styles.mockupStatValue, { color: '#1236A8' }]}>12,450</Text>
                     </View>
                     <View style={styles.mockupStatCard}>
-                      <Lucide name="clock" size={14} color="#DC2626" style={{ marginBottom: 4 }} />
+                      <Lucide name="clock" size={16} color="#DC2626" style={{ marginBottom: 4 }} />
                       <Text style={styles.mockupStatLabel}>Pending</Text>
                       <Text style={[styles.mockupStatValue, { color: '#DC2626' }]}>18</Text>
                     </View>
                     <View style={styles.mockupStatCard}>
-                      <Lucide name="check-circle" size={14} color="#10B981" style={{ marginBottom: 4 }} />
+                      <Lucide name="check-circle" size={16} color="#10B981" style={{ marginBottom: 4 }} />
                       <Text style={styles.mockupStatLabel}>Approved</Text>
                       <Text style={[styles.mockupStatValue, { color: '#10B981' }]}>99.4%</Text>
                     </View>
@@ -894,7 +893,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
 
                   {/* Realtime Alert Activity */}
                   <View style={styles.mockupActivityCard}>
-                    <Lucide name="bell" size={14} color="#1236A8" style={{ marginRight: 8 }} />
+                    <Lucide name="bell" size={16} color="#1236A8" style={{ marginRight: 8 }} />
                     <Text style={styles.mockupActivityText}>
                       License issued successfully for <Text style={{ fontWeight: '600' }}>CIGNAL TV INC.</Text>
                     </Text>
@@ -911,6 +910,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
           style={[
             styles.aboutEdgeSection,
             isDesktop ? styles.rowLayout : styles.columnLayout,
+            isDesktop ? { minHeight: heroMinHeight } : null,
             {
               opacity: aboutFade,
               transform: [{ translateY: aboutTranslateY }]
@@ -923,7 +923,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
               <View style={[styles.aboutGraphicCard, SHADOWS.card]}>
                 <View style={styles.aboutGraphicHeader}>
                   <View style={styles.aboutGraphicBadge}>
-                    <Lucide name="shield" size={20} color="#1236A8" />
+                    <Lucide name="shield" size={24} color="#1236A8" />
                   </View>
                   <Text style={styles.aboutGraphicHeaderText}>NTC SECURE GATEWAY</Text>
                 </View>
@@ -931,19 +931,19 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
                 {/* Animated Scroll-Down Slide transition for the 4 gateway items */}
                 <Animated.View style={[styles.aboutGraphicGrid, { transform: [{ translateY: aboutGridTranslateY }] }]}>
                   <View style={styles.aboutGridItem}>
-                    <Lucide name="file-text" size={22} color="#1236A8" style={{ marginBottom: 6 }} />
+                    <Lucide name="file-text" size={28} color="#1236A8" style={{ marginBottom: 6 }} />
                     <Text style={styles.aboutGridItemText}>Certificates</Text>
                   </View>
                   <View style={styles.aboutGridItem}>
-                    <Lucide name="file" size={22} color="#1236A8" style={{ marginBottom: 6 }} />
+                    <Lucide name="file" size={28} color="#1236A8" style={{ marginBottom: 6 }} />
                     <Text style={styles.aboutGridItemText}>Permits</Text>
                   </View>
                   <View style={styles.aboutGridItem}>
-                    <Lucide name="award" size={22} color="#1236A8" style={{ marginBottom: 6 }} />
+                    <Lucide name="award" size={28} color="#1236A8" style={{ marginBottom: 6 }} />
                     <Text style={styles.aboutGridItemText}>Licenses</Text>
                   </View>
                   <View style={styles.aboutGridItem}>
-                    <Lucide name="help-circle" size={22} color="#1236A8" style={{ marginBottom: 6 }} />
+                    <Lucide name="help-circle" size={28} color="#1236A8" style={{ marginBottom: 6 }} />
                     <Text style={styles.aboutGridItemText}>Requests</Text>
                   </View>
                 </Animated.View>
@@ -983,6 +983,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
         <Animated.View
           style={[
             styles.featuresSection,
+            isDesktop ? { minHeight: heroMinHeight } : null,
             {
               opacity: featuresFade,
               transform: [{ translateY: featuresTranslateY }]
@@ -1014,7 +1015,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
                     <View style={styles.featTopAccentBar} />
                     <View style={styles.featCardHeader}>
                       <View style={styles.featIconWrapper}>
-                        <Lucide name={feat.icon} size={22} color={COLORS.neutral.white} />
+                        <Lucide name={feat.icon} size={26} color={COLORS.neutral.white} />
                       </View>
                       <View style={styles.featTagBadge}>
                         <Text style={styles.featTagBadgeText}>{feat.tag}</Text>
@@ -1034,6 +1035,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
           style={[
             styles.sectionContainer,
             styles.greyBg,
+            isDesktop ? { minHeight: heroMinHeight } : null,
             {
               opacity: howItWorksFade,
               transform: [{ translateY: howItWorksTranslateY }]
@@ -1165,6 +1167,7 @@ export function LandingScreen({ navigation }: LandingScreenProps = {}) {
         <Animated.View
           style={[
             styles.sectionContainer,
+            isDesktop ? { minHeight: heroMinHeight } : null,
             {
               opacity: faqsFade,
               transform: [{ translateY: faqsTranslateY }]
@@ -1969,7 +1972,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(226, 232, 240, 0.8)',
-    height: 120,
+    height: 110,
     zIndex: 100,
   },
   headerInner: {
@@ -1978,7 +1981,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingLeft: SPACING[12], // Position logo at the far left edge
+    paddingLeft: SPACING[16],
     paddingRight: SPACING[32],
   },
   navLinks: {
@@ -1986,8 +1989,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   navLink: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: 22,
+    paddingVertical: 12,
     borderRadius: RADIUS.circle,
     marginRight: SPACING[8],
   },
@@ -1996,8 +1999,8 @@ const styles = StyleSheet.create({
   },
   navLinkText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 17,
+    fontWeight: '700',
     color: '#334155',
   },
   navLinkTextHovered: {
@@ -2045,11 +2048,11 @@ const styles = StyleSheet.create({
     zIndex: -1,
   },
   heroSection: {
-    paddingVertical: SPACING[64] + 40,
-    paddingHorizontal: SPACING[24],
+    paddingVertical: SPACING[24],
+    paddingHorizontal: SPACING[48],
     alignItems: 'center',
     justifyContent: 'center',
-    maxWidth: 1400,
+    maxWidth: 1600,
     alignSelf: 'center',
     width: '100%',
   },
@@ -2060,13 +2063,15 @@ const styles = StyleSheet.create({
   },
   heroLeftCol: {
     flex: 1.15,
-    paddingRight: SPACING[48],
+    paddingRight: SPACING[32],
     alignItems: 'flex-start',
+    marginTop: -24,
   },
   heroRightCol: {
     flex: 0.85,
-    alignItems: 'center',
+    alignItems: 'flex-end',
     justifyContent: 'center',
+    marginTop: -24,
   },
   heroFullWidth: {
     width: '100%',
@@ -2077,11 +2082,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#EEF2FF',
     paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingHorizontal: 18,
     borderRadius: RADIUS.circle,
     borderWidth: 1.5,
     borderColor: '#C7D2FE',
-    marginBottom: SPACING[24],
+    marginBottom: SPACING[20],
   },
   pillBadgeDot: {
     width: 8,
@@ -2092,7 +2097,7 @@ const styles = StyleSheet.create({
   },
   pillBadgeText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '700',
     color: '#1236A8',
   },
@@ -2102,12 +2107,12 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     textAlign: 'center',
     lineHeight: 48,
-    marginBottom: SPACING[24],
+    marginBottom: SPACING[20],
     letterSpacing: -0.8,
   },
   heroTitleDesktop: {
-    fontSize: 60,
-    lineHeight: 70,
+    fontSize: 58,
+    lineHeight: 68,
     textAlign: 'left',
   },
   titleBlue: {
@@ -2122,7 +2127,7 @@ const styles = StyleSheet.create({
     color: COLORS.neutral[600],
     textAlign: 'center',
     lineHeight: 26,
-    marginBottom: 36,
+    marginBottom: 32,
     maxWidth: 720,
   },
   heroSubtitleDesktop: {
@@ -2192,7 +2197,7 @@ const styles = StyleSheet.create({
   },
   mockupCard: {
     width: '100%',
-    maxWidth: 520,
+    maxWidth: 540,
     backgroundColor: COLORS.neutral.white,
     borderRadius: 24,
     borderWidth: 1.5,
@@ -2203,19 +2208,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F8FAFC',
-    paddingVertical: 12,
-    paddingHorizontal: 18,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.neutral[200],
-    justifyContent: 'space-between',
   },
   mockupDots: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   mockupDot: {
-    width: 9,
-    height: 9,
+    width: 10,
+    height: 10,
     borderRadius: 5,
     marginRight: 6,
   },
@@ -2241,7 +2245,7 @@ const styles = StyleSheet.create({
   mockupStatsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 20,
+    marginBottom: 18,
   },
   mockupStatCard: {
     flex: 1,
@@ -2255,14 +2259,14 @@ const styles = StyleSheet.create({
   },
   mockupStatLabel: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 10,
+    fontSize: 11,
     color: COLORS.neutral[500],
     fontWeight: '600',
     marginBottom: 2,
   },
   mockupStatValue: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '800',
   },
   mockupAppCard: {
@@ -2281,13 +2285,13 @@ const styles = StyleSheet.create({
   },
   mockupAppTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
     color: COLORS.neutral[800],
   },
   mockupAppMeta: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
+    fontSize: 12,
     color: COLORS.neutral[400],
     marginTop: 2,
   },
@@ -2332,7 +2336,7 @@ const styles = StyleSheet.create({
   },
   mockupProgressLabel: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 10,
+    fontSize: 11,
     color: COLORS.neutral[500],
     fontWeight: '500',
   },
@@ -2358,23 +2362,24 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   aboutEdgeSection: {
-    paddingVertical: SPACING[64],
-    paddingHorizontal: SPACING[24],
-    maxWidth: 1400,
+    paddingVertical: SPACING[48],
+    paddingHorizontal: SPACING[48],
+    maxWidth: 1600,
     alignSelf: 'center',
     width: '100%',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     alignItems: 'center',
   },
   aboutLeftCol: {
-    flex: 0.9,
+    flex: 1,
     alignItems: 'flex-start',
     justifyContent: 'center',
     paddingRight: SPACING[48],
   },
   aboutRightCol: {
-    flex: 1.1,
+    flex: 1.15,
     alignItems: 'flex-start',
+    justifyContent: 'center',
   },
   aboutFullCol: {
     width: '100%',
@@ -2386,26 +2391,26 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: COLORS.neutral[200],
     width: '100%',
-    maxWidth: 440,
-    padding: 28,
+    maxWidth: 500,
+    padding: 32,
   },
   aboutGraphicHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: SPACING[24],
+    marginBottom: 28,
   },
   aboutGraphicBadge: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
+    width: 44,
+    height: 44,
+    borderRadius: 12,
     backgroundColor: '#EEF2FF',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 10,
+    marginRight: 12,
   },
   aboutGraphicHeaderText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '800',
     color: COLORS.neutral[800],
     letterSpacing: 1.2,
@@ -2414,7 +2419,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    marginBottom: SPACING[16],
+    marginBottom: SPACING[20],
     width: '100%',
   },
   aboutGridItem: {
@@ -2422,14 +2427,14 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.neutral[50],
     borderColor: COLORS.neutral[200],
     borderWidth: 1,
-    borderRadius: 14,
-    padding: SPACING[16],
+    borderRadius: 16,
+    padding: SPACING[20],
     alignItems: 'center',
-    marginBottom: SPACING[12],
+    marginBottom: 14,
   },
   aboutGridItemText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '600',
     color: COLORS.neutral[700],
   },
@@ -2438,12 +2443,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderTopWidth: 1,
     borderTopColor: COLORS.neutral[100],
-    paddingTop: 14,
+    paddingTop: 16,
     width: '100%',
   },
   aboutGraphicFooterText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
+    fontSize: 12,
     color: COLORS.neutral[500],
     fontWeight: '500',
   },
@@ -2457,83 +2462,86 @@ const styles = StyleSheet.create({
   aboutBadge: {
     backgroundColor: '#EEF2FF',
     borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 5,
-    marginBottom: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: '#C7D2FE',
   },
   aboutBadgeText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '800',
     color: '#1236A8',
     letterSpacing: 1.2,
   },
   aboutTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 32,
+    fontSize: 42,
     fontWeight: '800',
     color: COLORS.neutral[900],
-    marginBottom: SPACING[16],
+    marginBottom: SPACING[20],
     letterSpacing: -0.5,
   },
   aboutHighlightText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 17,
+    fontSize: 19,
     fontWeight: '600',
     color: COLORS.neutral[700],
-    lineHeight: 26,
-    marginBottom: SPACING[16],
+    lineHeight: 30,
+    marginBottom: SPACING[20],
   },
   aboutBodyText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 15,
+    fontSize: 17,
     color: COLORS.neutral[500],
-    lineHeight: 24,
-    marginBottom: SPACING[24],
+    lineHeight: 27,
+    marginBottom: 28,
   },
   aboutInfoBox: {
     flexDirection: 'row',
     backgroundColor: '#EEF2FF',
     borderColor: '#C7D2FE',
     borderWidth: 1,
-    borderRadius: 14,
-    padding: 18,
+    borderRadius: 16,
+    padding: 22,
     width: '100%',
   },
   aboutInfoBoxText: {
     flex: 1,
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
+    fontSize: 15,
     color: '#1236A8',
     fontWeight: '600',
-    lineHeight: 20,
+    lineHeight: 22,
   },
   featuresSection: {
-    paddingVertical: SPACING[64],
-    paddingHorizontal: SPACING[24],
+    paddingVertical: SPACING[48],
+    paddingHorizontal: SPACING[48],
     width: '100%',
+    maxWidth: 1600,
+    alignSelf: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   featuresTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 34,
+    fontSize: 42,
     fontWeight: '800',
     color: '#1236A8',
     textAlign: 'center',
-    marginBottom: SPACING[8],
+    marginBottom: SPACING[12],
     letterSpacing: -0.5,
   },
   featuresSubtitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 17,
+    fontSize: 19,
     color: COLORS.neutral[500],
     textAlign: 'center',
-    marginBottom: SPACING[48],
+    marginBottom: 56,
   },
   featuresGrid: {
-    maxWidth: 1400,
+    maxWidth: 1600,
     width: '100%',
     alignSelf: 'center',
     justifyContent: 'space-between',
@@ -2541,19 +2549,19 @@ const styles = StyleSheet.create({
   },
   featCardDesktop: {
     flex: 1,
-    marginHorizontal: 10,
+    marginHorizontal: 12,
     marginBottom: 0,
     height: '100%',
   },
   featCard: {
     backgroundColor: COLORS.neutral.white,
-    borderRadius: 20,
+    borderRadius: 24,
     borderWidth: 1.5,
     borderColor: COLORS.neutral[200],
-    padding: SPACING[32],
+    padding: 36,
     width: '100%',
     height: '100%',
-    minHeight: 240,
+    minHeight: 280,
     marginBottom: SPACING[20],
     position: 'relative',
     overflow: 'hidden',
@@ -2571,27 +2579,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: SPACING[20],
+    marginBottom: SPACING[24],
   },
   featTagBadge: {
     backgroundColor: '#EEF2FF',
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 6,
+    paddingVertical: 5,
+    paddingHorizontal: 12,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: '#C7D2FE',
   },
   featTagBadgeText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '800',
     color: '#1236A8',
     letterSpacing: 0.8,
   },
   featIconWrapper: {
-    width: 50,
-    height: 50,
-    borderRadius: 16,
+    width: 60,
+    height: 60,
+    borderRadius: 18,
     backgroundColor: '#1236A8',
     justifyContent: 'center',
     alignItems: 'center',
@@ -2603,21 +2611,23 @@ const styles = StyleSheet.create({
   },
   featCardTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '700',
     color: '#1236A8',
-    marginBottom: SPACING[12],
+    marginBottom: 14,
   },
   featCardDesc: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 15,
+    fontSize: 16,
     color: COLORS.neutral[600],
-    lineHeight: 22,
+    lineHeight: 25,
   },
   sectionContainer: {
-    paddingVertical: SPACING[64],
-    paddingHorizontal: SPACING[24],
+    paddingVertical: SPACING[48],
+    paddingHorizontal: SPACING[48],
     width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   greyBg: {
     backgroundColor: '#FAFCFF',
@@ -2627,10 +2637,10 @@ const styles = StyleSheet.create({
   },
   sectionTitleBlue: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 32,
+    fontSize: 42,
     fontWeight: '800',
     color: '#1236A8',
-    marginBottom: SPACING[32],
+    marginBottom: SPACING[40],
     letterSpacing: -0.5,
   },
   centerText: {
@@ -2640,7 +2650,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   stepsTwoRowContainer: {
-    maxWidth: 1100,
+    maxWidth: 1300,
     width: '100%',
     alignSelf: 'center',
     marginTop: SPACING[16],
@@ -2649,13 +2659,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: SPACING[24],
+    marginBottom: 28,
   },
   stepsRowBottom: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    maxWidth: 640,
+    maxWidth: 720,
     width: '100%',
     alignSelf: 'center',
   },
@@ -2665,26 +2675,26 @@ const styles = StyleSheet.create({
     marginTop: SPACING[24],
   },
   stepCardDesktopExact: {
-    width: 275,
+    width: 320,
   },
   stepCardExact: {
     backgroundColor: '#EEF2FF',
-    borderRadius: 20,
+    borderRadius: 22,
     borderWidth: 1.5,
     borderColor: '#C7D2FE',
-    padding: SPACING[24],
+    padding: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    height: 195,
+    height: 220,
   },
   stepCircleBadge: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     backgroundColor: '#1236A8',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 14,
+    marginBottom: 16,
     shadowColor: '#1236A8',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
@@ -2693,42 +2703,42 @@ const styles = StyleSheet.create({
   },
   stepCircleBadgeText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '800',
     color: COLORS.neutral.white,
   },
   stepCardExactTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: '700',
     color: '#1236A8',
     textAlign: 'center',
-    marginBottom: SPACING[8],
+    marginBottom: 10,
   },
   stepCardExactDesc: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
+    fontSize: 14,
     color: '#334155',
     textAlign: 'center',
-    lineHeight: 18,
+    lineHeight: 20,
   },
   arrowDesktopExact: {
     justifyContent: 'center',
     alignItems: 'center',
-    marginHorizontal: 14,
+    marginHorizontal: 16,
   },
   faqList: {
-    maxWidth: 960,
+    maxWidth: 1100,
     width: '100%',
     alignSelf: 'center',
     marginTop: SPACING[8],
   },
   faqItem: {
     backgroundColor: COLORS.neutral.white,
-    borderRadius: 16,
+    borderRadius: 18,
     borderWidth: 1.5,
     borderColor: COLORS.neutral[200],
-    marginBottom: SPACING[16],
+    marginBottom: SPACING[20],
     overflow: 'hidden',
   },
   faqItemExpanded: {
@@ -2738,23 +2748,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: SPACING[20],
+    padding: SPACING[24],
   },
   faqHeaderHovered: {
     backgroundColor: '#F8FAFC',
   },
   faqQuestion: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '700',
     color: COLORS.neutral[900],
     flex: 1,
-    paddingRight: SPACING[12],
+    paddingRight: SPACING[16],
   },
   faqIconCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: '#EEF2FF',
     justifyContent: 'center',
     alignItems: 'center',
@@ -2763,16 +2773,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#1236A8',
   },
   faqAnswerContainer: {
-    paddingHorizontal: SPACING[20],
-    paddingBottom: SPACING[20],
+    paddingHorizontal: SPACING[24],
+    paddingBottom: SPACING[24],
     borderTopColor: COLORS.neutral[100],
   },
   faqAnswer: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 15,
+    fontSize: 16,
     color: COLORS.neutral[600],
-    lineHeight: 24,
-    marginTop: SPACING[12],
+    lineHeight: 26,
+    marginTop: 14,
   },
   ctaBoxContainer: {
     width: '100%',
@@ -2836,7 +2846,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   footerContainer: {
-    backgroundColor: '#060E33',
+    backgroundColor: '#0E1B61',
     paddingVertical: SPACING[32],
     paddingHorizontal: SPACING[24],
     borderTopWidth: 1,
