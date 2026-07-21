@@ -39,7 +39,9 @@ public class SubmitApplicationCommandHandler : IRequestHandler<SubmitApplication
         ["Station Type"] = "stationType",
         ["Assigned Frequency (MHz)"] = "frequency",
         ["Transmitter Power Output (W)"] = "powerOutput",
-        ["Station Location"] = "location"
+        ["Station Location"] = "location",
+        ["Signature"] = "signatureField",
+        ["I declare the info is true"] = "declarationCheckbox"
     };
 
     public SubmitApplicationCommandHandler(
@@ -170,7 +172,7 @@ public class SubmitApplicationCommandHandler : IRequestHandler<SubmitApplication
                         fs => fs.SectionFields.Select(sf => {
                             var label = sf.Field?.Label ?? "";
                             return LabelToKeyMap.TryGetValue(label, out var keyVal) ? keyVal : NormalizeLabel(label);
-                        }).ToHashSet(),
+                        }).ToHashSet(StringComparer.OrdinalIgnoreCase),
                         StringComparer.OrdinalIgnoreCase
                     );
 
