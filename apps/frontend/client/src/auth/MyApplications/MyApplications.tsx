@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo, useEffect } from 'react';
 import {
   Text,
   View,
@@ -6,55 +6,70 @@ import {
   TouchableOpacity,
   ScrollView,
   useWindowDimensions,
-  ActivityIndicator,
-} from "react-native";
-import { Icon } from "@edge/ui";
-import { useNavigation, NavigationProp } from "@react-navigation/native";
-import { useUser, useAuth } from "@clerk/expo";
-import { apiClient } from "@edge/api";
-import { styles } from "./MyApplications.styles";
+} from 'react-native';
+import { Icon } from '@edge/ui';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useUser, useAuth } from '@clerk/expo';
+import {
+  mockApplications,
+  Application,
+  ModeFilterOption,
+  StatusFilterOption,
+  DensityOption,
+  SingleApplication,
+  BulkApplication,
+} from './data/applicationsData';
+import { ApplicationCard, SinglePreview, BulkPreview } from './components';
+import { styles } from './MyApplications.styles';
 
-interface Application {
-  id: string;
-  title: string;
-  applicantName: string;
-  email: string;
-  notes?: string;
-  status: string;
-  createdAt: string;
-}
-
+// ─── Local nav type ────────────────────────────────────────────────────────
 type AuthParamList = {
   Services: undefined;
   MyApplications: undefined;
 };
 
+// ─── Pagination constant ───────────────────────────────────────────────────
+const LIST_PAGE_SIZE = 5;
+
+// ─── Mode dot colours ─────────────────────────────────────────────────────
+const MODE_DOT_COLORS: Record<Exclude<ModeFilterOption, 'ALL'>, string> = {
+  SINGLE: '#2F56E8',
+  BULK: '#D97706',
+};
+
 export function MyApplications() {
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
-  const navigation = useNavigation();
+  const navigation: NativeStackNavigationProp<AuthParamList> = useNavigation<NativeStackNavigationProp<AuthParamList>>();
 
-  // Clerk Contexts
+  // Clerk
   const { user: clerkUser } = useUser();
-  const { signOut, getToken } = useAuth();
+  const { signOut } = useAuth();
 
-  // Layout/UI state
+  // ── UI state ──────────────────────────────────────────────────────────
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [filterText, setFilterText] = useState("");
-  const [selectedTab, setSelectedTab] = useState<"All" | "Single" | "Bulk">("All");
 
-  // Selected details item
-  const [selectedApp, setSelectedApp] = useState<Application | null>(null);
+  // Left-pane filter state
+  const [filterText, setFilterText] = useState('');
+  const [selectedMode, setSelectedMode] = useState<ModeFilterOption>('ALL');
+  const [selectedStatus, setSelectedStatus] = useState<StatusFilterOption>('ALL');
+  const [density, setDensity] = useState<DensityOption>('std');
+  const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
-  // Dynamic applications query
-  const [applications, setApplications] = useState<Application[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Right-pane preview state
+  const [previewApp, setPreviewApp] = useState<Application | null>(null);
 
+  // User profile
   const userProfile = useMemo(() => {
     if (clerkUser !== null && clerkUser !== undefined) {
       return {
-        name: clerkUser.fullName || clerkUser.primaryEmailAddress?.emailAddress?.split("@")[0] || "Client User",
-        email: clerkUser.primaryEmailAddress?.emailAddress ?? "",
+        name:
+          clerkUser.fullName ??
+          clerkUser.primaryEmailAddress?.emailAddress?.split('@')[0] ??
+          'Client User',
+        email: clerkUser.primaryEmailAddress?.emailAddress ?? '',
       };
     }
     return null;
@@ -64,56 +79,106 @@ export function MyApplications() {
     await signOut();
   };
 
-  const fetchApplications = async () => {
-    setLoading(true);
-    try {
-      const token = await getToken();
-      const headers = token !== null ? { Authorization: `Bearer ${token}` } : {};
-
-      const response = await apiClient.get<Application[]>("/api/applications", { headers });
-      setApplications(response.data);
-    } catch (err) {
-      console.error("Error fetching applications:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchApplications();
-  }, []);
-
-  // Filtered applications
-  const filteredApps = useMemo(() => {
-    return applications.filter((app) => {
-      // 1. Filter text
+  // ── Filtering ─────────────────────────────────────────────────────────
+  const filteredApps = useMemo<Application[]>(() => {
+    return mockApplications.filter((app) => {
+      // Text search
+      const q = filterText.toLowerCase();
+      const primaryName =
+        app.mode === 'BULK' ? app.companyName : app.applicantName;
       const matchesSearch =
-        app.title.toLowerCase().includes(filterText.toLowerCase()) ||
-        app.applicantName.toLowerCase().includes(filterText.toLowerCase());
+        q === '' ||
+        app.serviceName.toLowerCase().includes(q) ||
+        primaryName.toLowerCase().includes(q);
 
       if (!matchesSearch) return false;
 
-      // 2. Tab selection
-      if (selectedTab === "All") return true;
-      // In this system, standard applications are "SINGLE", bulk are "BULK". Let's classify as Single or Bulk.
-      // E.g., if notes/data specifies bulk, otherwise Single
-      const isBulk = app.title.toLowerCase().includes("bulk") || (app.notes && app.notes.toLowerCase().includes("bulk"));
-      if (selectedTab === "Single") return !isBulk;
-      if (selectedTab === "Bulk") return !!isBulk;
+      // Mode filter
+      if (selectedMode !== 'ALL' && app.mode !== selectedMode) return false;
+
+      // Status filter
+      if (selectedStatus === 'FOR_APPROVAL' && app.status !== 'FOR_APPROVAL') return false;
+      if (selectedStatus === 'APPROVED' && app.status !== 'APPROVED') return false;
+      if (selectedStatus === 'EXPIRING_SOON' && app.status !== 'EXPIRING_SOON') return false;
 
       return true;
     });
-  }, [applications, filterText, selectedTab]);
+  }, [filterText, selectedMode, selectedStatus]);
 
-  const handleBackToGrid = () => {
-    setSelectedApp(null);
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterText, selectedMode, selectedStatus]);
+
+  // ── Pagination ────────────────────────────────────────────────────────
+  const totalPages = Math.max(1, Math.ceil(filteredApps.length / LIST_PAGE_SIZE));
+  const pagedApps = filteredApps.slice(
+    (currentPage - 1) * LIST_PAGE_SIZE,
+    currentPage * LIST_PAGE_SIZE,
+  );
+  const showingCount = pagedApps.length;
+
+  // ── Card expand / preview handlers ───────────────────────────────────
+  const handleCardPress = (appId: string) => {
+    setExpandedCardId((prev) => (prev === appId ? null : appId));
   };
 
-  const isLeftColumnHiddenOnMobile = isMobile && selectedApp !== null;
+  const handlePreview = (app: Application) => {
+    setPreviewApp(app);
+    // On mobile, we navigate into the detail pane
+  };
+
+  const handleBackFromPreview = () => {
+    setPreviewApp(null);
+  };
+
+  // ── Mobile layout helpers ─────────────────────────────────────────────
+  const isLeftHiddenOnMobile = isMobile && previewApp !== null;
+
+  // ── Right pane renderer ───────────────────────────────────────────────
+  const renderRightPane = () => {
+    if (previewApp === null) {
+      return (
+        <View style={styles.emptyPlaceholder}>
+          <View style={styles.placeholderIllustration}>
+            <Icon name="file" size={48} color="#d1d5db" />
+            <Icon
+              name="mouse-pointer"
+              size={24}
+              color="#1d4ed8"
+              style={styles.pointerOverlay}
+            />
+          </View>
+          <Text style={styles.placeholderTitleText}>No application selected</Text>
+          <Text style={styles.placeholderSubtitleText}>
+            Select an application card from the list on the left to view
+            detailed status logs and information.
+          </Text>
+        </View>
+      );
+    }
+
+    if (previewApp.mode === 'SINGLE') {
+      return (
+        <SinglePreview
+          app={previewApp as SingleApplication}
+          onBack={handleBackFromPreview}
+        />
+      );
+    }
+
+    // previewApp.mode === 'BULK'
+    return (
+      <BulkPreview
+        app={previewApp as BulkApplication}
+        onBack={handleBackFromPreview}
+      />
+    );
+  };
 
   return (
     <View style={styles.rootContainer}>
-      {/* Top Banner Header */}
+      {/* ── Top header ─────────────────────────────────────────────── */}
       <View style={styles.topHeader}>
         <View style={styles.logoWrapper}>
           <View style={styles.circularLogo}>
@@ -124,201 +189,274 @@ export function MyApplications() {
         </View>
 
         {userProfile !== null && (
-          <TouchableOpacity onPress={handleSignOut} style={styles.topLogoutBtn}>
-            <Icon name="log-out" size={14} color="#ffffff" style={{ marginRight: 6 }} />
-            {!isMobile && <Text style={styles.topLogoutText}>Sign Out</Text>}
-          </TouchableOpacity>
+          <View style={styles.headerRight}>
+            {!isMobile && (
+              <Text style={styles.headerUserName}>{userProfile.name}</Text>
+            )}
+            <TouchableOpacity onPress={handleSignOut} style={styles.topLogoutBtn}>
+              <Icon name="log-out" size={14} color="#ffffff" style={{ marginRight: 6 }} />
+              {!isMobile && (
+                <Text style={styles.topLogoutText}>Sign Out</Text>
+              )}
+            </TouchableOpacity>
+          </View>
         )}
       </View>
 
-      {/* Main Body */}
+      {/* ── Main body ──────────────────────────────────────────────── */}
       <View style={styles.mainLayout}>
 
-        {/* Sidebar Navigation */}
+        {/* Left mini sidebar – hidden on mobile */}
         {!isMobile && (
           <View style={[styles.sidebar, isSidebarCollapsed && styles.sidebarCollapsed]}>
             <TouchableOpacity
               onPress={() => setIsSidebarCollapsed((prev) => !prev)}
               style={styles.collapseToggle}
             >
-              <Icon name={isSidebarCollapsed ? "chevron-right" : "chevron-left"} size={16} color="#6b7280" />
+              <Icon
+                name={isSidebarCollapsed ? 'chevron-right' : 'chevron-left'}
+                size={16}
+                color="#6b7280"
+              />
             </TouchableOpacity>
 
             <View style={styles.sidebarItems}>
-              <TouchableOpacity onPress={() => navigation.navigate('Services')} style={styles.sidebarItem}>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('Services')}
+                style={styles.sidebarItem}
+              >
                 <Icon name="radio" size={20} color="#9ca3af" />
-                {!isSidebarCollapsed && <Text style={styles.sidebarItemText}>Services</Text>}
+                {!isSidebarCollapsed && (
+                  <Text style={styles.sidebarItemText}>Services</Text>
+                )}
               </TouchableOpacity>
 
               <TouchableOpacity style={[styles.sidebarItem, styles.sidebarItemActive]}>
                 <Icon name="credit-card" size={20} color="#1d4ed8" />
-                {!isSidebarCollapsed && <Text style={styles.sidebarItemTextActive}>My Applications</Text>}
+                {!isSidebarCollapsed && (
+                  <Text style={styles.sidebarItemTextActive}>My Applications</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
         )}
 
-        {/* Content Column */}
-        <View style={[styles.contentColumn, isLeftColumnHiddenOnMobile && styles.hiddenColumn]}>
-          <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-            {/* Filter Search */}
-            <View style={styles.searchContainer}>
-              <Icon name="search" size={16} color="#9ca3af" style={styles.searchIcon} />
-              <TextInput
-                placeholder="Type to filter..."
-                placeholderTextColor="#9ca3af"
-                value={filterText}
-                onChangeText={setFilterText}
-                style={styles.searchInput}
-              />
-              {filterText.length > 0 && (
-                <TouchableOpacity onPress={() => setFilterText("")} style={styles.clearSearch}>
-                  <Icon name="x" size={14} color="#9ca3af" />
-                </TouchableOpacity>
-              )}
-            </View>
-
-            {/* Meta Row */}
-            <View style={styles.metaSummaryRow}>
-              <Text style={styles.summaryText}>
-                <Text style={styles.boldSummaryText}>{filteredApps.length}</Text> item(s) found
-              </Text>
-              <TouchableOpacity onPress={fetchApplications} style={styles.refreshBtn}>
-                <Text style={styles.refreshBtnText}>Refresh</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Filter tabs */}
-            <View style={styles.filterTabsRow}>
-              {(["All", "Single", "Bulk"] as const).map((tab) => (
-                <TouchableOpacity
-                  key={tab}
-                  onPress={() => setSelectedTab(tab)}
-                  style={[styles.tabBtn, selectedTab === tab && styles.tabBtnActive]}
-                >
-                  <Text style={[styles.tabText, selectedTab === tab && styles.tabTextActive]}>
-                    {tab}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            {/* Applications List */}
-            {loading ? (
-              <ActivityIndicator size="large" color="#1d4ed8" style={{ marginTop: 24 }} />
-            ) : filteredApps.length === 0 ? (
-              <View style={{ alignItems: "center", paddingVertical: 40 }}>
-                <Icon name="info" size={24} color="#9ca3af" style={{ marginBottom: 8 }} />
-                <Text style={{ color: "#9ca3af", fontSize: 14 }}>No applications found.</Text>
-              </View>
-            ) : (
-              filteredApps.map((app) => {
-                const isSelected = selectedApp?.id === app.id;
-                const isBulk = app.title.toLowerCase().includes("bulk") || (app.notes && app.notes.toLowerCase().includes("bulk"));
-                const daysText = "Submitted recently";
-                return (
+        {/* ── Left content column (application list) ───────────────── */}
+        {!isLeftHiddenOnMobile && (
+          <View style={styles.contentColumn}>
+            <ScrollView
+              contentContainerStyle={styles.scrollContent}
+              showsVerticalScrollIndicator={false}
+            >
+              {/* Search bar */}
+              <View style={styles.searchContainer}>
+                <Icon name="search" size={16} color="#9ca3af" style={styles.searchIcon} />
+                <TextInput
+                  placeholder="Type to filter..."
+                  placeholderTextColor="#9ca3af"
+                  value={filterText}
+                  onChangeText={setFilterText}
+                  style={styles.searchInput}
+                />
+                {filterText.length > 0 && (
                   <TouchableOpacity
-                    key={app.id}
-                    onPress={() => setSelectedApp(app)}
-                    style={[styles.appCard, isSelected && styles.appCardActive]}
+                    onPress={() => setFilterText('')}
+                    style={styles.clearSearch}
                   >
-                    <View style={styles.cardHeader}>
-                      <Text style={styles.cardTitle} numberOfLines={2}>{app.title}</Text>
-                      <View style={styles.badge}>
-                        <Text style={styles.badgeText}>{isBulk ? "BULK" : "SINGLE"}</Text>
-                      </View>
-                    </View>
-                    <Text style={styles.cardDetail}>{app.applicantName}</Text>
-                    <Text style={styles.cardTime}>{daysText}</Text>
+                    <Icon name="x" size={14} color="#9ca3af" />
                   </TouchableOpacity>
-                );
-              })
-            )}
-          </ScrollView>
-        </View>
-
-        {/* Details Column */}
-        {(!isMobile || selectedApp !== null) && (
-          <View style={[styles.detailsColumn, isMobile && styles.mobileDetailsColumn]}>
-            {isMobile && (
-              <View style={styles.mobileNavbar}>
-                <TouchableOpacity onPress={handleBackToGrid} style={styles.mobileBackBtn}>
-                  <Icon name="arrow-left" size={18} color="#1f2937" style={{ marginRight: 6 }} />
-                  <Text style={styles.mobileBackBtnText}>Back to Applications</Text>
-                </TouchableOpacity>
+                )}
               </View>
-            )}
 
-            <ScrollView contentContainerStyle={styles.detailsContent} showsVerticalScrollIndicator={false}>
-              {selectedApp !== null ? (
-                <View style={styles.detailsCard}>
-                  {!isMobile && (
-                    <TouchableOpacity onPress={handleBackToGrid} style={styles.backLink}>
-                      <Icon name="chevron-left" size={14} color="#1d4ed8" />
-                      <Text style={styles.backLinkText}>Clear Details Selection</Text>
-                    </TouchableOpacity>
-                  )}
-
-                  <Text style={styles.detailsTitle}>{selectedApp.title}</Text>
-
-                  <View style={styles.panelDivider} />
-
-                  <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>Application ID</Text>
-                    <Text style={styles.infoValue}>{selectedApp.id}</Text>
-                  </View>
-
-                  <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>Applicant Name</Text>
-                    <Text style={styles.infoValue}>{selectedApp.applicantName}</Text>
-                  </View>
-
-                  <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>Email Address</Text>
-                    <Text style={styles.infoValue}>{selectedApp.email}</Text>
-                  </View>
-
-                  <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>Date Submitted</Text>
-                    <Text style={styles.infoValue}>
-                      {new Date(selectedApp.createdAt).toLocaleDateString()} {new Date(selectedApp.createdAt).toLocaleTimeString()}
+              {/* Meta row: count + Refresh + density */}
+              <View style={styles.metaRow}>
+                <Text style={styles.metaSummary}>
+                  <Text style={styles.metaBold}>{filteredApps.length}</Text>
+                  {' item(s) found'}
+                  {filteredApps.length > 0 && (
+                    <Text style={styles.metaShowing}>
+                      {' · Showing '}
+                      <Text style={styles.metaBold}>{showingCount}</Text>
                     </Text>
-                  </View>
+                  )}
+                </Text>
 
-                  <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>Status</Text>
-                    <View style={styles.statusBadge}>
-                      <Text style={styles.statusBadgeText}>{selectedApp.status}</Text>
-                    </View>
-                  </View>
+                <View style={styles.metaActions}>
+                  <TouchableOpacity style={styles.actionChip}>
+                    <Icon name="refresh-cw" size={12} color="#475569" style={{ marginRight: 4 }} />
+                    <Text style={styles.actionChipText}>Refresh</Text>
+                  </TouchableOpacity>
 
-                  {selectedApp.notes ? (
-                    <View style={styles.infoRow}>
-                      <Text style={styles.infoLabel}>Additional Notes</Text>
-                      <Text style={styles.infoValue}>{selectedApp.notes}</Text>
-                    </View>
-                  ) : null}
+                  {(['std', 'cozy', 'compact'] as DensityOption[]).map((d) => (
+                    <TouchableOpacity
+                      key={d}
+                      onPress={() => setDensity(d)}
+                      style={[
+                        styles.actionChip,
+                        density === d && styles.actionChipActive,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.actionChipText,
+                          density === d && styles.actionChipTextActive,
+                        ]}
+                      >
+                        {d.charAt(0).toUpperCase() + d.slice(1)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {/* Mode filter pills */}
+              <View style={styles.filterRow}>
+                {(['ALL', 'SINGLE', 'BULK'] as ModeFilterOption[]).map((mode) => (
+                  <TouchableOpacity
+                    key={mode}
+                    onPress={() => setSelectedMode(mode)}
+                    style={[
+                      styles.filterPill,
+                      selectedMode === mode && styles.filterPillActive,
+                    ]}
+                  >
+                    {mode !== 'ALL' && (
+                      <View
+                        style={[
+                          styles.filterDot,
+                          { backgroundColor: MODE_DOT_COLORS[mode] },
+                        ]}
+                      />
+                    )}
+                    <Text
+                      style={[
+                        styles.filterPillText,
+                        selectedMode === mode && styles.filterPillTextActive,
+                      ]}
+                    >
+                      {mode === 'ALL' ? 'All' : mode.charAt(0) + mode.slice(1).toLowerCase()}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Status filter chips */}
+              <View style={styles.statusFilterRow}>
+                {(
+                  [
+                    ['ALL', 'All Statuses'],
+                    ['FOR_APPROVAL', 'For Approval'],
+                    ['APPROVED', 'Approved'],
+                    ['EXPIRING_SOON', 'Expiring Soon'],
+                  ] as [StatusFilterOption, string][]
+                ).map(([val, label]) => (
+                  <TouchableOpacity
+                    key={val}
+                    onPress={() => setSelectedStatus(val)}
+                    style={[
+                      styles.statusChip,
+                      selectedStatus === val && styles.statusChipActive,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.statusChipText,
+                        selectedStatus === val && styles.statusChipTextActive,
+                      ]}
+                    >
+                      {label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Application cards */}
+              {pagedApps.length === 0 ? (
+                <View style={styles.emptyList}>
+                  <Icon name="info" size={24} color="#9ca3af" style={{ marginBottom: 8 }} />
+                  <Text style={styles.emptyListText}>No applications found.</Text>
                 </View>
               ) : (
-                !isMobile && (
-                  <View style={styles.emptyPlaceholder}>
-                    <View style={styles.placeholderIllustration}>
-                      <Icon name="file" size={48} color="#d1d5db" />
-                      <Icon name="mouse-pointer" size={24} color="#1d4ed8" style={styles.pointerOverlay} />
-                    </View>
-                    <Text style={styles.placeholderTitleText}>No application selected</Text>
-                    <Text style={styles.placeholderSubtitleText}>
-                      Select an application card from the list on the left to view detailed status logs and information.
-                    </Text>
-                  </View>
-                )
+                pagedApps.map((app) => (
+                  <ApplicationCard
+                    key={app.id}
+                    app={app}
+                    isExpanded={expandedCardId === app.id}
+                    isSelected={previewApp?.id === app.id}
+                    density={density}
+                    onPress={() => handleCardPress(app.id)}
+                    onPreview={() => handlePreview(app)}
+                  />
+                ))
+              )}
+
+              {/* List Pagination */}
+              {totalPages > 1 && (
+                <View style={styles.listPagination}>
+                  <TouchableOpacity
+                    onPress={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    style={[
+                      styles.listPageBtn,
+                      currentPage === 1 && styles.listPageBtnDisabled,
+                    ]}
+                  >
+                    <Icon
+                      name="chevron-left"
+                      size={14}
+                      color={currentPage === 1 ? '#cbd5e1' : '#334155'}
+                    />
+                  </TouchableOpacity>
+
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((pg) => (
+                    <TouchableOpacity
+                      key={pg}
+                      onPress={() => setCurrentPage(pg)}
+                      style={[
+                        styles.listPageBtn,
+                        pg === currentPage && styles.listPageBtnCurrent,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.listPageBtnText,
+                          pg === currentPage && styles.listPageBtnTextCurrent,
+                        ]}
+                      >
+                        {pg}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+
+                  <TouchableOpacity
+                    onPress={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    style={[
+                      styles.listPageBtn,
+                      currentPage === totalPages && styles.listPageBtnDisabled,
+                    ]}
+                  >
+                    <Icon
+                      name="chevron-right"
+                      size={14}
+                      color={currentPage === totalPages ? '#cbd5e1' : '#334155'}
+                    />
+                  </TouchableOpacity>
+                </View>
               )}
             </ScrollView>
           </View>
         )}
+
+        {/* ── Right pane (details / preview) ───────────────────────── */}
+        {(!isMobile || previewApp !== null) && (
+          <View style={[styles.detailsColumn, isMobile && styles.mobileDetailsColumn]}>
+            {renderRightPane()}
+          </View>
+        )}
       </View>
 
-      {/* Footer Banner */}
+      {/* ── Footer banner ──────────────────────────────────────────── */}
       <View style={styles.footerBanner}>
         <Text style={styles.footerText}>National Telecommunications Commission</Text>
         <Text style={styles.footerButtonText}>I'm done!</Text>
