@@ -199,6 +199,7 @@ const REGION_OPTIONS: readonly string[] = [
 export function InternalLandingPage() {
   const { width } = useWindowDimensions();
   const isMobile = width < 640;
+  const isTablet = width >= 640 && width < 1024;
 
   const { loginWithClerk, verifySignUp } = useAuthContext();
 
@@ -320,20 +321,20 @@ export function InternalLandingPage() {
 
         {/* Main Hero Section */}
         <View style={styles.heroSection}>
-          <View style={styles.heroContentWrapper}>
+          <View style={[styles.heroContentWrapper, isMobile && styles.heroContentWrapperMobile]}>
             {/* Left Hero Column */}
-            <View style={styles.heroLeftCol}>
-              <View style={styles.heroPillBadge}>
+            <View style={[styles.heroLeftCol, isMobile && styles.heroLeftColMobile]}>
+              <View style={[styles.heroPillBadge, isMobile && { alignSelf: "center" }]}>
                 <View style={styles.heroBadgeDot} />
                 <Text style={styles.heroBadgeText}>Official NTC-EDGE Portal</Text>
               </View>
 
-              <Text style={styles.heroTitle}>
+              <Text style={[styles.heroTitle, isMobile ? styles.heroTitleMobile : isTablet ? styles.heroTitleTablet : null]}>
                 Empowering <Text style={styles.heroTitleHighlight}>NTC's</Text>
-                {"\n"}Data Governance
+                {isMobile ? " " : "\n"}Data Governance
               </Text>
 
-              <Text style={styles.heroSubtitle}>
+              <Text style={[styles.heroSubtitle, isMobile && styles.heroSubtitleMobile]}>
                 Streamline your government services experience. Apply for permits, licenses, and certificates with secure, efficient, and transparent processes powered by EDGE.
               </Text>
             </View>
@@ -341,7 +342,7 @@ export function InternalLandingPage() {
             {/* Right Hero Column: Browser Mockup Card enclosing the Login Form */}
             <View style={styles.heroRightCol}>
               <View style={styles.loginCardLogoWrapper}>
-                <NtcLogo size="large" variant="light" showSubtext={false} />
+                <NtcLogo size={isMobile ? "medium" : "large"} variant="light" showSubtext={false} />
               </View>
               <View style={[styles.mockupWindowCard, SHADOWS.modal]}>
                 {/* Mockup Window Top Header */}
@@ -358,7 +359,7 @@ export function InternalLandingPage() {
                 </View>
 
                 {/* Login Form Body */}
-                <View style={styles.mockupWindowBody}>
+                <View style={[styles.mockupWindowBody, isMobile && { padding: 20 }]}>
                   <Text style={styles.cardTitle}>
                     {mode === "signin"
                       ? "Login"
@@ -790,6 +791,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     backgroundColor: "#FAF9F6",
     position: "relative",
+    overflow: "hidden",
   },
   backgroundBlobLeft: {
     position: "absolute",
@@ -814,7 +816,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     width: "100%",
-    paddingVertical: 40,
+    paddingVertical: 24,
     position: "relative",
     zIndex: 1,
   },
@@ -829,10 +831,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     gap: 40,
   },
+  heroContentWrapperMobile: {
+    paddingHorizontal: 16,
+    gap: 24,
+    justifyContent: "center",
+  },
   heroLeftCol: {
     flex: 1,
-    minWidth: 320,
+    minWidth: 300,
     maxWidth: 580,
+  },
+  heroLeftColMobile: {
+    maxWidth: "100%",
+    alignItems: "center",
   },
   heroPillBadge: {
     flexDirection: "row",
@@ -867,6 +878,15 @@ const styles = StyleSheet.create({
     color: "#0E1B61",
     marginBottom: 18,
   },
+  heroTitleTablet: {
+    fontSize: 42,
+    lineHeight: 52,
+  },
+  heroTitleMobile: {
+    fontSize: 32,
+    lineHeight: 40,
+    textAlign: "center",
+  },
   heroTitleHighlight: {
     color: "#E11D48",
   },
@@ -876,6 +896,11 @@ const styles = StyleSheet.create({
     lineHeight: 28,
     color: COLORS.neutral[600],
     marginBottom: 32,
+  },
+  heroSubtitleMobile: {
+    fontSize: 14,
+    lineHeight: 22,
+    textAlign: "center",
   },
   heroActionRow: {
     flexDirection: "row",
@@ -922,8 +947,10 @@ const styles = StyleSheet.create({
   },
   heroRightCol: {
     flex: 1,
-    minWidth: 320,
+    minWidth: 280,
     maxWidth: 480,
+    width: "100%",
+    alignSelf: "center",
   },
   mockupWindowCard: {
     width: "100%",
@@ -1275,14 +1302,15 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(15, 23, 42, 0.65)",
     justifyContent: "center",
     alignItems: "center",
-    padding: SPACING[20],
+    padding: 16,
   },
   modalCard: {
     width: "100%",
     maxWidth: 840,
+    maxHeight: "90%",
     backgroundColor: COLORS.neutral.white,
     borderRadius: 24,
-    padding: 36,
+    padding: 24,
     position: "relative",
     alignSelf: "center",
   },
