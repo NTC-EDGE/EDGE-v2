@@ -9,6 +9,9 @@ public record CreateScheduleCommand(
     string Venue,
     DateTime StartDate,
     DateTime EndDate,
+    DateTime? StartApplication = null,
+    DateTime? EndApplication = null,
+    bool IsPublished = false,
     string? SeatNumber = null,
     string? Remarks = null,
     Guid? ApplicationId = null

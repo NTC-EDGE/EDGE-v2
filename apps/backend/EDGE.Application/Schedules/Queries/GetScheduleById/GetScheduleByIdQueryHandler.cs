@@ -30,6 +30,9 @@ public class GetScheduleByIdQueryHandler : IRequestHandler<GetScheduleByIdQuery,
             schedule.Venue,
             schedule.StartDate,
             schedule.EndDate,
+            schedule.StartApplication,
+            schedule.EndApplication,
+            schedule.IsPublished,
             schedule.Remarks,
             schedule.CreatedAt
         );

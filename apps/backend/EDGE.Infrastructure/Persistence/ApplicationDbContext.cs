@@ -127,6 +127,7 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
             entity.Property(e => e.Venue).IsRequired().HasMaxLength(200);
             entity.Property(e => e.SeatNumber).HasMaxLength(50);
             entity.Property(e => e.Remarks).HasMaxLength(500);
+            entity.Property(e => e.IsPublished).HasDefaultValue(false);
 
             // Prepared relationship mappings (uncomment once Tenant, Service, & ApplicationRecord entities are ready):
             // entity.HasOne(s => s.Tenant).WithMany(t => t.Schedules).HasForeignKey(s => s.TenantId).OnDelete(DeleteBehavior.Cascade);

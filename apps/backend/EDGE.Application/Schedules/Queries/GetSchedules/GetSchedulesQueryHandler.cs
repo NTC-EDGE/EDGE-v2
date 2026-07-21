@@ -26,6 +26,9 @@ public class GetSchedulesQueryHandler : IRequestHandler<GetSchedulesQuery, List<
             s.Venue,
             s.StartDate,
             s.EndDate,
+            s.StartApplication,
+            s.EndApplication,
+            s.IsPublished,
             s.Remarks,
             s.CreatedAt
         )).ToList();

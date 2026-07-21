@@ -30,6 +30,9 @@ public class GetAvailableSchedulesQueryHandler : IRequestHandler<GetAvailableSch
             s.Venue,
             s.StartDate,
             s.EndDate,
+            s.StartApplication,
+            s.EndApplication,
+            s.IsPublished,
             s.Remarks
         )).ToList();
     }

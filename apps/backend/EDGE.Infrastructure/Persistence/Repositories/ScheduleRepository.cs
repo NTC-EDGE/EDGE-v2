@@ -51,7 +51,7 @@ public class ScheduleRepository : IScheduleRepository
     {
         var query = _context.Schedules
             .AsNoTracking()
-            .Where(s => s.ServiceId == serviceId);
+            .Where(s => s.ServiceId == serviceId && s.IsPublished);
 
         if (tenantId.HasValue && tenantId.Value != Guid.Empty)
         {

@@ -9,6 +9,7 @@ using EDGE.Application.Schedules.Commands.DeleteSchedule;
 using EDGE.Application.Schedules.Queries.GetSchedules;
 using EDGE.Application.Schedules.Queries.GetScheduleById;
 using EDGE.Application.Schedules.Queries.GetAvailableSchedules;
+using EDGE.Application.Schedules.Commands.SetSchedulePublishStatus;
 
 namespace EDGE.Api.Endpoints;
 
@@ -88,6 +89,25 @@ public static class ScheduleEndpoints
             return result is not null ? Results.Ok(result) : Results.NotFound();
         })
         .WithName("UpdateSchedule");
+
+        // PATCH toggle or set publish status
+        group.MapPatch("/{id:guid}/publish", async (
+            Guid id,
+            PublishScheduleRequest? request,
+            IValidator<SetSchedulePublishStatusCommand> validator,
+            IMediator mediator) =>
+        {
+            var command = new SetSchedulePublishStatusCommand(id, request?.IsPublished);
+            var validationResult = await validator.ValidateAsync(command);
+            if (!validationResult.IsValid)
+            {
+                return Results.ValidationProblem(validationResult.ToDictionary());
+            }
+
+            var result = await mediator.Send(command);
+            return result is not null ? Results.Ok(result) : Results.NotFound();
+        })
+        .WithName("TogglePublishSchedule");
 
         // DELETE schedule
         group.MapDelete("/{id:guid}", async (Guid id, IMediator mediator) =>

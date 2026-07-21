@@ -28,6 +28,9 @@ public class UpdateScheduleCommandHandler : IRequestHandler<UpdateScheduleComman
         schedule.Venue = request.Venue;
         schedule.StartDate = request.StartDate;
         schedule.EndDate = request.EndDate;
+        schedule.StartApplication = request.StartApplication;
+        schedule.EndApplication = request.EndApplication;
+        schedule.IsPublished = request.IsPublished;
         schedule.SeatNumber = request.SeatNumber;
         schedule.Remarks = request.Remarks;
         schedule.ApplicationId = request.ApplicationId;
@@ -44,6 +47,9 @@ public class UpdateScheduleCommandHandler : IRequestHandler<UpdateScheduleComman
             schedule.Venue,
             schedule.StartDate,
             schedule.EndDate,
+            schedule.StartApplication,
+            schedule.EndApplication,
+            schedule.IsPublished,
             schedule.Remarks,
             schedule.CreatedAt
         );

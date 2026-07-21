@@ -8,5 +8,8 @@ public record ClientScheduleDto(
     string Venue,
     DateTime StartDate,
     DateTime EndDate,
+    DateTime? StartApplication,
+    DateTime? EndApplication,
+    bool IsPublished,
     string? Remarks
 );

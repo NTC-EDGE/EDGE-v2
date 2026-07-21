@@ -25,6 +25,9 @@ public class CreateScheduleCommandHandler : IRequestHandler<CreateScheduleComman
             Venue = request.Venue,
             StartDate = request.StartDate,
             EndDate = request.EndDate,
+            StartApplication = request.StartApplication,
+            EndApplication = request.EndApplication,
+            IsPublished = request.IsPublished,
             SeatNumber = request.SeatNumber,
             Remarks = request.Remarks,
             ApplicationId = request.ApplicationId
@@ -42,6 +45,9 @@ public class CreateScheduleCommandHandler : IRequestHandler<CreateScheduleComman
             schedule.Venue,
             schedule.StartDate,
             schedule.EndDate,
+            schedule.StartApplication,
+            schedule.EndApplication,
+            schedule.IsPublished,
             schedule.Remarks,
             schedule.CreatedAt
         );

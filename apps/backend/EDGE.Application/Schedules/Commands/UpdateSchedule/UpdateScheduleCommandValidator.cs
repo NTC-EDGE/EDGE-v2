@@ -26,6 +26,12 @@ public class UpdateScheduleCommandValidator : AbstractValidator<UpdateScheduleCo
             .NotEmpty().WithMessage("EndDate is required.")
             .GreaterThan(x => x.StartDate).WithMessage("EndDate must be later than StartDate.");
 
+        When(x => x.StartApplication.HasValue && x.EndApplication.HasValue, () =>
+        {
+            RuleFor(x => x.EndApplication!.Value)
+                .GreaterThanOrEqualTo(x => x.StartApplication!.Value).WithMessage("EndApplication must be later than or equal to StartApplication.");
+        });
+
         RuleFor(x => x.SeatNumber)
             .MaximumLength(50).WithMessage("SeatNumber must not exceed 50 characters.");
 
