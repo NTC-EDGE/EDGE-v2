@@ -81,7 +81,22 @@ function PlaceholderScreen({
 }
 
 // React Navigation 8 Static configuration
-const RootStack = createNativeStackNavigator({
+const UnauthStack = createNativeStackNavigator({
+  initialRouteName: "InternalLanding",
+  screenOptions: {
+    headerShown: false,
+    contentStyle: { backgroundColor: "transparent" },
+    animation: "fade",
+  },
+  screens: {
+    InternalLanding: {
+      screen: InternalLandingPage,
+      path: "internal/landing",
+    },
+  },
+});
+
+const AuthStack = createNativeStackNavigator({
   initialRouteName: "Dashboard",
   screenOptions: {
     headerShown: false,
@@ -89,21 +104,45 @@ const RootStack = createNativeStackNavigator({
     animation: "fade",
   },
   screens: {
-    Dashboard: { screen: DashboardScreen },
-    Activities: { screen: QueueScreen },
-    Chat: { screen: PlaceholderScreen },
-    Meet: { screen: PlaceholderScreen },
-    Reports: { screen: PlaceholderScreen },
-    ReceiptManagement: { screen: PlaceholderScreen },
-    RolesPermission: { screen: PlaceholderScreen },
-    Schedule: { screen: PlaceholderScreen },
-    Employees: { screen: PlaceholderScreen },
-    Users: { screen: PlaceholderScreen },
-    Settings: { screen: PlaceholderScreen },
+    Dashboard: { screen: DashboardScreen, path: "dashboard" },
+    Activities: { screen: QueueScreen, path: "activities" },
+    Chat: { screen: PlaceholderScreen, path: "chat" },
+    Meet: { screen: PlaceholderScreen, path: "meet" },
+    Reports: { screen: PlaceholderScreen, path: "reports" },
+    ReceiptManagement: { screen: PlaceholderScreen, path: "receipt-management" },
+    RolesPermission: { screen: PlaceholderScreen, path: "roles-permissions" },
+    Schedule: { screen: PlaceholderScreen, path: "schedule" },
+    Employees: { screen: PlaceholderScreen, path: "employees" },
+    Users: { screen: PlaceholderScreen, path: "users" },
+    Settings: { screen: PlaceholderScreen, path: "settings" },
   },
 });
 
-const Navigation = createStaticNavigation(RootStack);
+const UnauthNavigation = createStaticNavigation(UnauthStack);
+const AuthNavigation = createStaticNavigation(AuthStack);
+
+const getPrefixes = (): string[] => {
+  const prefixes = [
+    "http://localhost:8081",
+    "http://localhost:8082",
+    "http://localhost:8083",
+    "edge://",
+  ];
+  if (typeof window !== "undefined" && window.location !== undefined && typeof window.location.origin === "string") {
+    if (!prefixes.includes(window.location.origin)) {
+      prefixes.push(window.location.origin);
+    }
+  }
+  return prefixes;
+};
+
+const unauthLinking = {
+  prefixes: getPrefixes(),
+};
+
+const authLinking = {
+  prefixes: getPrefixes(),
+};
 
 interface ClerkErrorItem {
   message: string;
@@ -375,6 +414,15 @@ function AppContent() {
   const navigationRef = useNavigationContainerRef<ParamListBase>();
   const [activeScreen, setActiveScreen] = useState("Dashboard");
 
+  // Sync root URL '/' to '/internal/landing' in browser address bar when unauthenticated
+  useEffect(() => {
+    if (!isAuthenticated && Platform.OS === "web" && typeof window !== "undefined") {
+      if (window.location.pathname === "/") {
+        window.history.replaceState(null, "", "/internal/landing");
+      }
+    }
+  }, [isAuthenticated]);
+
   // Track the current route inside the stack to sync the Sidebar highlights
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -410,7 +458,7 @@ function AppContent() {
         }
       }}
     >
-      <Navigation ref={navigationRef} />
+      <AuthNavigation ref={navigationRef} linking={authLinking} />
     </DashboardShell>
   );
 }
