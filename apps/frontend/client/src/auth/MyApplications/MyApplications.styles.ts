@@ -5,11 +5,11 @@ export const styles = StyleSheet.create({
   // ── Root ──────────────────────────────────────────────────────────────
   rootContainer: {
     flex: 1,
-    backgroundColor: COLORS.bg,
+    backgroundColor: '#F8FAFC',
     flexDirection: 'column',
   },
 
-  // ── Top header ────────────────────────────────────────────────────────
+  // ── Top Header ────────────────────────────────────────────────────────
   topHeader: {
     height: 60,
     backgroundColor: COLORS.brand[900],
@@ -17,6 +17,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING[20],
+    zIndex: 100,
     ...Platform.select({
       web: {
         backgroundImage: `linear-gradient(135deg, ${COLORS.brand[900]} 0%, ${COLORS.brand[800]} 100%)`,
@@ -82,20 +83,21 @@ export const styles = StyleSheet.create({
     fontWeight: TYPOGRAPHY.weights.medium,
   },
 
-  // ── Main layout ───────────────────────────────────────────────────────
+  // ── Main Layout (Left Sidebar + Content) ─────────────────────────────
   mainLayout: {
     flex: 1,
     flexDirection: 'row',
   },
 
-  // ── Sidebar ───────────────────────────────────────────────────────────
+  // ── Left Sidebar Panel ────────────────────────────────────────────────
   sidebar: {
     width: 200,
     backgroundColor: COLORS.neutral.white,
     borderRightWidth: 1,
-    borderRightColor: COLORS.neutral[200],
+    borderRightColor: '#E2E8F0',
     paddingTop: SPACING[20],
     position: 'relative',
+    zIndex: 10,
   },
   sidebarCollapsed: {
     width: 64,
@@ -109,10 +111,10 @@ export const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: COLORS.neutral.white,
     borderWidth: 1,
-    borderColor: COLORS.neutral[200],
+    borderColor: '#CBD5E1',
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 10,
+    zIndex: 20,
     ...Platform.select({
       web: {
         cursor: 'pointer',
@@ -140,7 +142,7 @@ export const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 14,
     fontWeight: TYPOGRAPHY.weights.medium,
-    color: COLORS.neutral[400],
+    color: '#64748B',
     marginLeft: 12,
   },
   sidebarItemTextActive: {
@@ -151,28 +153,112 @@ export const styles = StyleSheet.create({
     marginLeft: 12,
   },
 
-  // ── Content column (left pane) ────────────────────────────────────────
+  // ── Content Column ────────────────────────────────────────────────────
   contentColumn: {
-    width: 340,
-    backgroundColor: COLORS.neutral[50],
-    borderRightWidth: 1,
-    borderRightColor: COLORS.neutral[200],
+    flex: 1,
   },
   scrollContent: {
-    padding: SPACING[16],
+    padding: SPACING[24],
+    paddingBottom: 40,
   },
 
-  // Search bar
-  searchContainer: {
+  // Hero Section
+  heroHeader: {
+    marginBottom: SPACING[20],
+  },
+  heroTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 24,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: '#0F172A',
+  },
+  heroSubtitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    color: '#64748B',
+    marginTop: 4,
+  },
+
+  // Stats Grid
+  statsGrid: {
+    flexDirection: 'row',
+    gap: 16,
+    marginBottom: SPACING[20],
+    flexWrap: 'wrap',
+  },
+  statCard: {
+    flex: 1,
+    minWidth: 180,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: SPACING[16],
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.neutral.white,
-    borderColor: COLORS.neutral[200],
+    gap: 12,
+    ...Platform.select({
+      web: { boxShadow: '0 1px 3px rgba(0,0,0,0.04)' },
+    }),
+  },
+  statIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  statContent: {
+    flex: 1,
+  },
+  statLabel: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 10,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: '#64748B',
+    letterSpacing: 0.5,
+  },
+  statValue: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 22,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: '#0F172A',
+  },
+  statSubtext: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    color: '#94A3B8',
+  },
+
+  // Dropdown Toolbar Panel
+  toolbarPanel: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
     borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: SPACING[16],
+    marginBottom: SPACING[20],
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flexWrap: 'wrap',
+    zIndex: 50,
+    ...Platform.select({
+      web: { boxShadow: '0 1px 3px rgba(0,0,0,0.04)' },
+    }),
+  },
+
+  searchInputContainer: {
+    flex: 2,
+    minWidth: 240,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
     borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
     paddingHorizontal: 12,
     height: 40,
-    marginBottom: SPACING[12],
   },
   searchIcon: {
     marginRight: 8,
@@ -180,252 +266,194 @@ export const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
-    color: COLORS.neutral[900],
-    ...Platform.select({
-      web: { outlineWidth: 0 },
-    }),
+    fontSize: 13,
+    color: '#0F172A',
+    padding: 0,
   },
-  clearSearch: {
+  clearSearchBtn: {
     padding: 4,
-    ...Platform.select({ web: { cursor: 'pointer' } }),
   },
 
-  // Meta row
-  metaRow: {
+  dropdownsGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flexWrap: 'wrap',
+    zIndex: 50,
+  },
+
+  dropdownWrap: {
+    position: 'relative',
+    zIndex: 50,
+  },
+  dropdownTrigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    paddingHorizontal: 12,
+    height: 40,
+    gap: 8,
+  },
+  dropdownTriggerActive: {
+    borderColor: COLORS.brand[700],
+    backgroundColor: '#EFF6FF',
+  },
+  dropdownLabelText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: '#334155',
+  },
+
+  dropdownMenu: {
+    position: 'absolute',
+    top: 46,
+    left: 0,
+    minWidth: 200,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    paddingVertical: 4,
+    zIndex: 1000,
+    ...Platform.select({
+      web: {
+        boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+      },
+    }),
+  },
+  dropdownOption: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: SPACING[12],
-    flexWrap: 'wrap',
-    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
   },
-  metaSummary: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
-    color: COLORS.neutral[500],
+  dropdownOptionSelected: {
+    backgroundColor: '#EFF6FF',
   },
-  metaBold: {
-    fontWeight: TYPOGRAPHY.weights.bold,
-    color: COLORS.neutral[800],
-  },
-  metaShowing: {
-    color: COLORS.neutral[400],
-  },
-  metaActions: {
-    flexDirection: 'row',
-    gap: 4,
-    flexWrap: 'wrap',
-  },
-  actionChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 6,
-    backgroundColor: COLORS.neutral[100],
-    borderWidth: 1,
-    borderColor: COLORS.neutral[200],
-    ...Platform.select({ web: { cursor: 'pointer' } }),
-  },
-  actionChipActive: {
-    backgroundColor: COLORS.neutral[800],
-    borderColor: COLORS.neutral[800],
-  },
-  actionChipText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-    color: COLORS.neutral[700],
-    fontWeight: TYPOGRAPHY.weights.medium,
-  },
-  actionChipTextActive: {
-    color: COLORS.neutral.white,
-  },
-
-  // Mode filter pills row
-  filterRow: {
-    flexDirection: 'row',
-    gap: 6,
-    marginBottom: SPACING[8],
-    flexWrap: 'wrap',
-  },
-  filterPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
-    backgroundColor: COLORS.neutral[100],
-    borderWidth: 1,
-    borderColor: 'transparent',
-    gap: 6,
-    ...Platform.select({ web: { cursor: 'pointer' } }),
-  },
-  filterPillActive: {
-    backgroundColor: COLORS.neutral.white,
-    borderColor: COLORS.brand[700],
-  },
-  filterDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-  },
-  filterPillText: {
+  dropdownOptionText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 13,
-    color: COLORS.neutral[600],
-    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: '#334155',
   },
-  filterPillTextActive: {
-    color: COLORS.brand[700],
-  },
-
-  // Status filter chips row
-  statusFilterRow: {
-    flexDirection: 'row',
-    gap: 6,
-    marginBottom: SPACING[16],
-    flexWrap: 'wrap',
-  },
-  statusChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 4,
-    backgroundColor: COLORS.neutral[100],
-    ...Platform.select({ web: { cursor: 'pointer' } }),
-  },
-  statusChipActive: {
-    backgroundColor: '#EEF2FF',
-  },
-  statusChipText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-    color: COLORS.neutral[500],
-    fontWeight: TYPOGRAPHY.weights.medium,
-  },
-  statusChipTextActive: {
+  dropdownOptionTextSelected: {
     color: COLORS.brand[700],
     fontWeight: TYPOGRAPHY.weights.bold,
   },
 
-  // Empty list state
-  emptyList: {
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
-  emptyListText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    color: '#9ca3af',
-    fontSize: 14,
+  // Cards List / Grid
+  cardsContainer: {
+    gap: 16,
   },
 
-  // List pagination
-  listPagination: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 6,
-    paddingTop: SPACING[16],
-    paddingBottom: 8,
-  },
-  listPageBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
+  emptyStateCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: COLORS.neutral[200],
-    justifyContent: 'center',
+    borderColor: '#E2E8F0',
+    padding: SPACING[32],
     alignItems: 'center',
-    backgroundColor: COLORS.neutral.white,
-    ...Platform.select({ web: { cursor: 'pointer' } }),
-  },
-  listPageBtnDisabled: {
-    backgroundColor: COLORS.neutral[50],
-    borderColor: COLORS.neutral[100],
-  },
-  listPageBtnCurrent: {
-    backgroundColor: COLORS.brand[800],
-    borderColor: COLORS.brand[800],
-  },
-  listPageBtnText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
-    color: COLORS.neutral[700],
-    fontWeight: TYPOGRAPHY.weights.medium,
-  },
-  listPageBtnTextCurrent: {
-    color: COLORS.neutral.white,
-    fontWeight: TYPOGRAPHY.weights.bold,
-  },
-
-  // ── Details column (right pane) ───────────────────────────────────────
-  detailsColumn: {
-    flex: 1,
-    backgroundColor: COLORS.neutral[50],
-  },
-  mobileDetailsColumn: {
-    flex: 1,
-  },
-
-  // ── Empty placeholder (right pane) ────────────────────────────────────
-  emptyPlaceholder: {
-    flex: 1,
     justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: SPACING[40],
-    paddingHorizontal: SPACING[24],
   },
-  placeholderIllustration: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: COLORS.neutral[100],
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: SPACING[16],
-    position: 'relative',
-  },
-  pointerOverlay: {
-    position: 'absolute',
-    bottom: 12,
-    right: 12,
-  },
-  placeholderTitleText: {
+  emptyStateTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 16,
     fontWeight: TYPOGRAPHY.weights.bold,
-    color: COLORS.neutral[700],
-    marginBottom: 6,
+    color: '#0F172A',
+    marginTop: 12,
   },
-  placeholderSubtitleText: {
+  emptyStateSub: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 13,
-    color: COLORS.neutral[400],
-    textAlign: 'center',
-    lineHeight: 18,
-    maxWidth: 280,
+    color: '#64748B',
+    marginTop: 4,
   },
 
-  // ── Footer banner ─────────────────────────────────────────────────────
-  footerBanner: {
-    height: 48,
-    backgroundColor: COLORS.brand[900],
+  // Pagination
+  paginationBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: SPACING[24],
+    marginTop: SPACING[20],
+    paddingTop: SPACING[16],
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.1)',
+    borderTopColor: '#E2E8F0',
+    flexWrap: 'wrap',
+    gap: 12,
   },
-  footerText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.7)',
-  },
-  footerButtonText: {
+  paginationSummary: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 13,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    color: COLORS.neutral.white,
+    color: '#64748B',
+  },
+  paginationBtns: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  pageNavBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 6,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pageNavBtnDisabled: {
+    backgroundColor: '#F1F5F9',
+    borderColor: '#E2E8F0',
+  },
+  pageNumberBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 6,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pageNumberBtnActive: {
+    backgroundColor: COLORS.brand[700],
+    borderColor: COLORS.brand[700],
+  },
+  pageNumberBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: '#334155',
+  },
+  pageNumberBtnTextActive: {
+    color: '#FFFFFF',
+  },
+
+  // Toast
+  toastContainer: {
+    position: 'absolute',
+    bottom: 24,
+    right: 24,
+    backgroundColor: '#0F172A',
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    zIndex: 2000,
+    ...Platform.select({
+      web: { boxShadow: '0 10px 15px -3px rgba(0,0,0,0.2)' },
+    }),
+  },
+  toastText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    color: '#FFFFFF',
+    fontWeight: TYPOGRAPHY.weights.medium,
   },
 });
