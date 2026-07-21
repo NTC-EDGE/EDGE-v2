@@ -3,10 +3,11 @@ import { StyleSheet, View, Image, ViewStyle, StyleProp } from "react-native";
 
 const logoAsset = require("../../../../assets/logo.png");
 const whiteLogoAsset = require("../../../../assets/white-ntc-logo.png");
+const footerLogoAsset = require("../../../../assets/footer-logo.png");
 
 interface NtcLogoProps {
-  size?: "small" | "medium" | "large";
-  variant?: "light" | "dark";
+  size?: "small" | "medium" | "large" | "xlarge";
+  variant?: "light" | "dark" | "footer";
   showSubtext?: boolean;
   style?: StyleProp<ViewStyle>;
 }
@@ -16,15 +17,19 @@ export function NtcLogo({
   variant = "light",
   style,
 }: NtcLogoProps) {
-  const heightMap: Record<"small" | "medium" | "large", number> = {
-    small: 32,
-    medium: 52,
-    large: 76,
+  const heightMap: Record<"small" | "medium" | "large" | "xlarge", number> = {
+    small: 38,
+    medium: 56,
+    large: 104,
+    xlarge: 128,
   };
 
   const height = heightMap[size];
-  const width = height * 2.75;
-  const asset = variant === "dark" ? whiteLogoAsset : logoAsset;
+  const width = height * 3.2;
+  const asset =
+    variant === "dark" || variant === "footer"
+      ? footerLogoAsset
+      : logoAsset;
 
   return (
     <View style={[styles.container, { height, width }, style]}>
@@ -47,5 +52,6 @@ const styles = StyleSheet.create({
     height: "100%",
   },
 });
+
 
 
