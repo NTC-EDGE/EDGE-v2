@@ -310,13 +310,6 @@ export function InternalLandingPage() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={styles.keyboardAvoid}
     >
-      {/* Top Header Navbar */}
-      <View style={styles.topHeaderBar}>
-        <View style={styles.topHeaderInner}>
-          <NtcLogo size="small" variant="light" showSubtext={false} />
-        </View>
-      </View>
-
       <ScrollView
         contentContainerStyle={styles.scrollContainer}
         showsVerticalScrollIndicator={false}
@@ -780,37 +773,6 @@ const styles = StyleSheet.create({
   keyboardAvoid: {
     flex: 1,
     backgroundColor: "#EBEFF4",
-  },
-  topHeaderBar: {
-    width: "100%",
-    backgroundColor: COLORS.neutral.white,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
-    zIndex: 10,
-  },
-  topHeaderInner: {
-    maxWidth: 1280,
-    width: "100%",
-    alignSelf: "center",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 24,
-    paddingVertical: 14,
-  },
-  topHeaderNavLinks: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 28,
-  },
-  headerNavLink: {
-    paddingVertical: 4,
-  },
-  headerNavLinkText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
-    color: COLORS.neutral[700],
-    fontWeight: TYPOGRAPHY.weights.medium,
   },
 
   scrollContainer: {
