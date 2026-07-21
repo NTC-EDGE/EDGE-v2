@@ -34,7 +34,9 @@ public static class TenantEndpoints
             }
         })
         .WithName("CreateTenant")
-        .WithDescription("Create a new Tenant (organization, company, or branch)")
+        .WithTags("Tenants")
+        .WithSummary("Create new tenant organization")
+        .WithDescription("Creates a new Tenant organization, company, or regional branch.")
         .RequireAuthorization();
 
         tenants.MapGet("/", async (IMediator mediator) =>
@@ -43,7 +45,9 @@ public static class TenantEndpoints
             return Results.Ok(result);
         })
         .WithName("GetAllTenants")
-        .WithDescription("Retrieve all Tenants")
+        .WithTags("Tenants")
+        .WithSummary("Retrieve all tenants")
+        .WithDescription("Retrieves all Tenant organizations registered across regions.")
         .RequireAuthorization();
 
         tenants.MapGet("/{id:guid}", async (Guid id, IMediator mediator) =>
@@ -59,7 +63,9 @@ public static class TenantEndpoints
             }
         })
         .WithName("GetTenantById")
-        .WithDescription("Retrieve a specific Tenant by ID")
+        .WithTags("Tenants")
+        .WithSummary("Retrieve tenant by ID")
+        .WithDescription("Retrieves detailed profile information for a specific Tenant by its unique identifier.")
         .RequireAuthorization();
 
         tenants.MapPut("/{id:guid}", async (
@@ -94,7 +100,9 @@ public static class TenantEndpoints
             }
         })
         .WithName("UpdateTenant")
-        .WithDescription("Update an existing Tenant's details")
+        .WithTags("Tenants")
+        .WithSummary("Update tenant details")
+        .WithDescription("Updates an existing Tenant's name, code, description, or active status.")
         .RequireAuthorization();
 
         tenants.MapDelete("/{id:guid}", async (Guid id, IMediator mediator) =>
@@ -110,7 +118,9 @@ public static class TenantEndpoints
             }
         })
         .WithName("DeleteTenant")
-        .WithDescription("Delete a Tenant by ID")
+        .WithTags("Tenants")
+        .WithSummary("Delete tenant organization")
+        .WithDescription("Deletes a Tenant organization by its unique ID.")
         .RequireAuthorization();
 
         return group;

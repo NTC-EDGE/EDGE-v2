@@ -44,7 +44,9 @@ public static class TenantMemberEndpoints
             }
         })
         .WithName("AssignUserToTenant")
-        .WithDescription("Assign a User to a Tenant and register their profile details")
+        .WithTags("Tenant Members")
+        .WithSummary("Assign user to tenant")
+        .WithDescription("Assigns a user to a tenant organization and registers member details including role, division, position, level, and field office.")
         .RequireAuthorization();
 
         members.MapGet("/", async (Guid tenantId, IMediator mediator) =>
@@ -60,7 +62,9 @@ public static class TenantMemberEndpoints
             }
         })
         .WithName("GetTenantMembers")
-        .WithDescription("Retrieve all members under a specific Tenant")
+        .WithTags("Tenant Members")
+        .WithSummary("Retrieve tenant members")
+        .WithDescription("Retrieves all assigned members under a specific tenant organization.")
         .RequireAuthorization();
 
         members.MapGet("/{memberId:guid}", async (Guid tenantId, Guid memberId, IMediator mediator) =>
@@ -76,7 +80,9 @@ public static class TenantMemberEndpoints
             }
         })
         .WithName("GetMemberDetails")
-        .WithDescription("Retrieve specific membership and profile details for a tenant member")
+        .WithTags("Tenant Members")
+        .WithSummary("Get tenant member details")
+        .WithDescription("Retrieves specific membership and profile details for a tenant member.")
         .RequireAuthorization();
 
         members.MapPut("/{memberId:guid}", async (
@@ -108,7 +114,9 @@ public static class TenantMemberEndpoints
             }
         })
         .WithName("UpdateMemberDetails")
-        .WithDescription("Update extended profile information or configuration for a tenant member")
+        .WithTags("Tenant Members")
+        .WithSummary("Update tenant member details")
+        .WithDescription("Updates extended profile information, role, field office, division, or position for a tenant member.")
         .RequireAuthorization();
 
         members.MapDelete("/{memberId:guid}", async (Guid tenantId, Guid memberId, IMediator mediator) =>
@@ -124,7 +132,9 @@ public static class TenantMemberEndpoints
             }
         })
         .WithName("RemoveUserFromTenant")
-        .WithDescription("Remove a member from a Tenant")
+        .WithTags("Tenant Members")
+        .WithSummary("Remove user from tenant")
+        .WithDescription("Removes a member's assignment from a tenant organization.")
         .RequireAuthorization();
 
         return group;
