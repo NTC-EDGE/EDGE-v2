@@ -48,7 +48,6 @@ const publishableKey = getClerkKey();
 if (publishableKey.length === 0) {
   console.warn(
     "Missing EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY environment variable. Clerk will not initialize properly.",
->>>>>>> develop
   );
 }
 
@@ -187,7 +186,10 @@ function AuthScreen() {
         setMode("verify");
       }
     } catch (err: unknown) {
-      handleAuthError(err, "Failed to create account. Please check your credentials.");
+      handleAuthError(
+        err,
+        "Failed to create account. Please check your credentials.",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -203,7 +205,10 @@ function AuthScreen() {
     try {
       await verifySignUp(code);
     } catch (err: unknown) {
-      handleAuthError(err, "Incorrect verification code. Please check and try again.");
+      handleAuthError(
+        err,
+        "Incorrect verification code. Please check and try again.",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -258,20 +263,30 @@ function AuthScreen() {
                 ) : null}
 
                 <TouchableOpacity
-                  style={[styles.authButton, isSubmitting && styles.authButtonDisabled]}
+                  style={[
+                    styles.authButton,
+                    isSubmitting && styles.authButtonDisabled,
+                  ]}
                   onPress={handleSignIn}
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? (
-                    <ActivityIndicator size="small" color={COLORS.neutral.white} />
+                    <ActivityIndicator
+                      size="small"
+                      color={COLORS.neutral.white}
+                    />
                   ) : (
                     <Text style={styles.buttonText}>Sign In</Text>
                   )}
                 </TouchableOpacity>
 
-                <TouchableOpacity onPress={() => switchMode("signup")} disabled={isSubmitting}>
+                <TouchableOpacity
+                  onPress={() => switchMode("signup")}
+                  disabled={isSubmitting}
+                >
                   <Text style={styles.authToggleText}>
-                    Don't have an account? <Text style={styles.authToggleLink}>Sign Up</Text>
+                    Don't have an account?{" "}
+                    <Text style={styles.authToggleLink}>Sign Up</Text>
                   </Text>
                 </TouchableOpacity>
               </>
@@ -304,20 +319,30 @@ function AuthScreen() {
                 ) : null}
 
                 <TouchableOpacity
-                  style={[styles.authButton, isSubmitting && styles.authButtonDisabled]}
+                  style={[
+                    styles.authButton,
+                    isSubmitting && styles.authButtonDisabled,
+                  ]}
                   onPress={handleSignUp}
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? (
-                    <ActivityIndicator size="small" color={COLORS.neutral.white} />
+                    <ActivityIndicator
+                      size="small"
+                      color={COLORS.neutral.white}
+                    />
                   ) : (
                     <Text style={styles.buttonText}>Create Account</Text>
                   )}
                 </TouchableOpacity>
 
-                <TouchableOpacity onPress={() => switchMode("signin")} disabled={isSubmitting}>
+                <TouchableOpacity
+                  onPress={() => switchMode("signin")}
+                  disabled={isSubmitting}
+                >
                   <Text style={styles.authToggleText}>
-                    Already have an account? <Text style={styles.authToggleLink}>Sign In</Text>
+                    Already have an account?{" "}
+                    <Text style={styles.authToggleLink}>Sign In</Text>
                   </Text>
                 </TouchableOpacity>
               </>
@@ -327,7 +352,8 @@ function AuthScreen() {
               <>
                 <Text style={styles.authSubtitle}>Verify Your Email</Text>
                 <Text style={styles.verifyDescription}>
-                  We sent a verification code to {email}. Please enter it below to complete registration.
+                  We sent a verification code to {email}. Please enter it below
+                  to complete registration.
                 </Text>
 
                 <TextInput
@@ -345,18 +371,27 @@ function AuthScreen() {
                 ) : null}
 
                 <TouchableOpacity
-                  style={[styles.authButton, isSubmitting && styles.authButtonDisabled]}
+                  style={[
+                    styles.authButton,
+                    isSubmitting && styles.authButtonDisabled,
+                  ]}
                   onPress={handleVerify}
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? (
-                    <ActivityIndicator size="small" color={COLORS.neutral.white} />
+                    <ActivityIndicator
+                      size="small"
+                      color={COLORS.neutral.white}
+                    />
                   ) : (
                     <Text style={styles.buttonText}>Verify & Sign Up</Text>
                   )}
                 </TouchableOpacity>
 
-                <TouchableOpacity onPress={() => switchMode("signup")} disabled={isSubmitting}>
+                <TouchableOpacity
+                  onPress={() => switchMode("signup")}
+                  disabled={isSubmitting}
+                >
                   <Text style={styles.authToggleText}>
                     Back to <Text style={styles.authToggleLink}>Sign Up</Text>
                   </Text>
@@ -464,12 +499,12 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 12,
-    backgroundColor: 'rgba(37, 99, 235, 0.08)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(37, 99, 235, 0.08)",
+    justifyContent: "center",
+    alignItems: "center",
     marginBottom: SPACING[20],
     borderWidth: 1,
-    borderColor: 'rgba(37, 99, 235, 0.15)',
+    borderColor: "rgba(37, 99, 235, 0.15)",
   },
   authTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
@@ -501,7 +536,7 @@ const styles = StyleSheet.create({
     ...Platform.select({
       web: {
         outlineWidth: 0,
-        transition: 'all 200ms ease-out',
+        transition: "all 200ms ease-out",
       },
     }),
   },
@@ -515,8 +550,8 @@ const styles = StyleSheet.create({
     marginTop: 8,
     ...Platform.select({
       web: {
-        transition: 'background-color 200ms ease-out',
-        cursor: 'pointer',
+        transition: "background-color 200ms ease-out",
+        cursor: "pointer",
       },
     }),
   },
@@ -526,7 +561,7 @@ const styles = StyleSheet.create({
   bypassButton: {
     width: "100%",
     height: 40,
-    backgroundColor: 'transparent',
+    backgroundColor: "transparent",
     borderColor: COLORS.neutral[200],
     borderWidth: 1,
     justifyContent: "center",
@@ -535,8 +570,8 @@ const styles = StyleSheet.create({
     marginTop: 12,
     ...Platform.select({
       web: {
-        transition: 'all 200ms ease-out',
-        cursor: 'pointer',
+        transition: "all 200ms ease-out",
+        cursor: "pointer",
       },
     }),
   },
@@ -612,30 +647,30 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   roleBadge: {
-    backgroundColor: '#273e29',
+    backgroundColor: "#273e29",
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 16,
     marginBottom: 20,
   },
   roleBadgeText: {
-    color: '#a5bda6',
-    fontWeight: 'bold',
+    color: "#a5bda6",
+    fontWeight: "bold",
     fontSize: 12,
   },
   panel: {
-    width: '100%',
-    backgroundColor: '#273e29',
+    width: "100%",
+    backgroundColor: "#273e29",
     borderRadius: 8,
     padding: 15,
     marginBottom: 15,
     borderWidth: 1,
-    borderColor: '#3a583d',
+    borderColor: "#3a583d",
   },
   panelTitle: {
-    color: '#ffffff',
+    color: "#ffffff",
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 10,
   },
 });
