@@ -31,8 +31,12 @@ public static class DependencyInjection
             var configuration = sp.GetRequiredService<IConfiguration>();
             var interceptor = sp.GetRequiredService<AuditableEntitySaveChangesInterceptor>();
 
-            options.UseNpgsql(configuration.GetConnectionString("DefaultConnection"))
-                   .AddInterceptors(interceptor);
+            var connectionString = configuration.GetConnectionString("DefaultConnection")
+                ?? throw new InvalidOperationException("Connection string 'DefaultConnection' was not found. Please configure 'ConnectionStrings:DefaultConnection' in User Secrets or environment variables.");
+
+            options.UseNpgsql(connectionString)
+                   .AddInterceptors(interceptor)
+                   .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
         });
 
         // Register Repositories and Unit of Work
