@@ -204,7 +204,7 @@ export function InternalLandingPage() {
 
   const [mode, setMode] = useState<"signin" | "verify" | "forgot">("signin");
   const [selectedRegion, setSelectedRegion] = useState("Region X - Northern Mindanao");
-  const [showRegionModal, setShowRegionModal] = useState(false);
+  const [showRegionDropdown, setShowRegionDropdown] = useState(false);
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -309,11 +309,11 @@ export function InternalLandingPage() {
             {mode === "signin" && (
               <>
                 {/* Region Selector */}
-                <View style={styles.fieldGroup}>
+                <View style={[styles.fieldGroup, { zIndex: 100 }]}>
                   <Text style={styles.fieldLabelSmall}>Region</Text>
                   <TouchableOpacity
                     style={styles.regionSelectorBox}
-                    onPress={() => setShowRegionModal(true)}
+                    onPress={() => setShowRegionDropdown((prev) => !prev)}
                     activeOpacity={0.8}
                   >
                     <View style={styles.regionSelectorInner}>
@@ -323,11 +323,52 @@ export function InternalLandingPage() {
                       </Text>
                     </View>
                     <Lucide
-                      name="chevron-down"
+                      name={showRegionDropdown ? "chevron-up" : "chevron-down"}
                       size={18}
                       color={COLORS.neutral[600]}
                     />
                   </TouchableOpacity>
+
+                  {showRegionDropdown && (
+                    <>
+                      <Pressable
+                        style={styles.dropdownBackdrop}
+                        onPress={() => setShowRegionDropdown(false)}
+                      />
+                      <View style={styles.regionPopoverMenu}>
+                        <ScrollView style={{ maxHeight: 220 }} nestedScrollEnabled={true}>
+                          {REGION_OPTIONS.map((region) => {
+                            const isSelected = region === selectedRegion;
+                            return (
+                              <TouchableOpacity
+                                key={region}
+                                style={[
+                                  styles.regionOptionItem,
+                                  isSelected && styles.regionOptionItemSelected,
+                                ]}
+                                onPress={() => {
+                                  setSelectedRegion(region);
+                                  setShowRegionDropdown(false);
+                                }}
+                              >
+                                <Text
+                                  style={[
+                                    styles.regionOptionText,
+                                    isSelected && styles.regionOptionTextSelected,
+                                  ]}
+                                >
+                                  {region}
+                                </Text>
+                                {isSelected && (
+                                  <Lucide name="check" size={16} color={COLORS.brand[800]} />
+                                )}
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </ScrollView>
+                      </View>
+                    </>
+                  )}
                 </View>
 
                 {/* Phone / Email Input */}
@@ -513,66 +554,7 @@ export function InternalLandingPage() {
         </View>
       </ScrollView>
 
-      {/* Region Selector Dropdown Modal (Same as client Select component) */}
-      <Modal
-        visible={showRegionModal}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowRegionModal(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setShowRegionModal(false)}
-        >
-          <TouchableOpacity
-            style={styles.regionModalCard}
-            activeOpacity={1}
-            onPress={() => {}}
-          >
-            <View style={styles.regionModalHeader}>
-              <Text style={styles.regionModalTitle}>Select Administrative Region</Text>
-              <TouchableOpacity
-                onPress={() => setShowRegionModal(false)}
-                style={styles.closeBtnSmall}
-              >
-                <Lucide name="x" size={18} color={COLORS.neutral[500]} />
-              </TouchableOpacity>
-            </View>
 
-            <ScrollView style={{ maxHeight: 320 }} showsVerticalScrollIndicator={true}>
-              {REGION_OPTIONS.map((region) => {
-                const isSelected = region === selectedRegion;
-                return (
-                  <TouchableOpacity
-                    key={region}
-                    style={[
-                      styles.regionOptionItem,
-                      isSelected && styles.regionOptionItemSelected,
-                    ]}
-                    onPress={() => {
-                      setSelectedRegion(region);
-                      setShowRegionModal(false);
-                    }}
-                  >
-                    <Text
-                      style={[
-                        styles.regionOptionText,
-                        isSelected && styles.regionOptionTextSelected,
-                      ]}
-                    >
-                      {region}
-                    </Text>
-                    {isSelected && (
-                      <Lucide name="check" size={16} color={COLORS.brand[800]} />
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          </TouchableOpacity>
-        </TouchableOpacity>
-      </Modal>
 
       {/* Policy & Support Dialog Modal */}
       <Modal
@@ -722,33 +704,32 @@ const styles = StyleSheet.create({
     fontWeight: TYPOGRAPHY.weights.medium,
     flex: 1,
   },
-  regionModalCard: {
-    width: "100%",
-    maxWidth: 540,
+  dropdownBackdrop: {
+    position: "absolute",
+    top: -1000,
+    bottom: -1000,
+    left: -1000,
+    right: -1000,
+    zIndex: 99,
+  },
+  regionPopoverMenu: {
+    position: "absolute",
+    top: "100%",
+    left: 0,
+    right: 0,
+    marginTop: 6,
     backgroundColor: COLORS.neutral.white,
-    borderRadius: 20,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: "#E2E8F0",
-    padding: SPACING[24],
-    alignSelf: "center",
-  },
-  regionModalHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingBottom: 12,
-    marginBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.neutral[200],
-  },
-  regionModalTitle: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 16,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    color: COLORS.neutral[900],
-  },
-  closeBtnSmall: {
-    padding: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 6,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 8,
+    zIndex: 100,
   },
   regionOptionItem: {
     flexDirection: "row",
@@ -924,12 +905,12 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     alignItems: "center",
     justifyContent: "center",
-    gap: 28,
+    gap: 36,
   },
   footerLeftBrand: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
+    gap: 10,
   },
   footerCopyrightText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
@@ -940,12 +921,12 @@ const styles = StyleSheet.create({
   footerRightLinks: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 28,
+    gap: 36,
     alignItems: "center",
     justifyContent: "center",
   },
   footerRightLinksMobile: {
-    gap: 14,
+    gap: 18,
   },
   footerLinkPressable: {
     paddingVertical: 4,
