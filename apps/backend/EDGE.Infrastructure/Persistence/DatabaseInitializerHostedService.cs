@@ -61,6 +61,18 @@ public class DatabaseInitializerHostedService : IHostedService
         {
             _logger.LogWarning(ex, "Geographic seed data encountered an issue.");
         }
+
+        // 4. Seed Fast-Track catalog data (ServiceCategory, Service, ServiceVariant, Form templates, etc.)
+        try
+        {
+            _logger.LogInformation("Seeding Fast-Track catalog data...");
+            await FastTrackSeeder.SeedAsync(context);
+            _logger.LogInformation("Fast-Track catalog data seeded successfully.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Fast-Track seed data encountered an issue.");
+        }
     }
 
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
