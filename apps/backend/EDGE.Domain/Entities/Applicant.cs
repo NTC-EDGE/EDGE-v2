@@ -7,9 +7,14 @@ namespace EDGE.Domain.Entities;
 public class Applicant : AuditableEntity
 {
     public Guid TenantId { get; set; }
+    public Tenant? Tenant { get; set; }
     public Guid? UserId { get; set; }
+    public User? User { get; set; }
     public bool IsGuest { get; set; }
     public ApplicantType ApplicantType { get; set; }
     public Guid? ApplicantDetailId { get; set; }
     public ApplicantDetail? ApplicantDetail { get; set; }
+    public Guid? CompanyDetailId { get; set; }
+    public CompanyDetail? CompanyDetail { get; set; }
+    public ApplicantStatus Status { get; set; } = ApplicantStatus.Draft;
 }

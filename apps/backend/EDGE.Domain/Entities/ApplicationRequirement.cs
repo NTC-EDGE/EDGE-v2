@@ -15,6 +15,7 @@ public class ApplicationRequirement : AuditableEntity
     public Guid? ServiceVariantRequirementId { get; set; }
 
     public Guid TenantId { get; set; }
+    public Tenant? Tenant { get; set; }
     public string Url { get; set; } = string.Empty;
     public bool IsApproved { get; set; }
     public string? ApprovedBy { get; set; }
