@@ -352,10 +352,6 @@ export function InternalLandingPage() {
                     <View style={styles.windowDotYellow} />
                     <View style={styles.windowDotGreen} />
                   </View>
-                  <View style={styles.windowAddressPill}>
-                    <Lucide name="lock" size={12} color={COLORS.neutral[500]} />
-                    <Text style={styles.windowAddressText}>edge.ntc.gov.ph</Text>
-                  </View>
                 </View>
 
                 {/* Login Form Body */}
@@ -999,21 +995,6 @@ const styles = StyleSheet.create({
     height: 10,
     borderRadius: 5,
     backgroundColor: "#27C93F",
-  },
-  windowAddressPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#F1F5F9",
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 10,
-    gap: 5,
-  },
-  windowAddressText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-    color: COLORS.neutral[600],
-    fontWeight: TYPOGRAPHY.weights.medium,
   },
   mockupWindowBody: {
     padding: 28,
