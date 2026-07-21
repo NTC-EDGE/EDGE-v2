@@ -15,7 +15,7 @@ import { servicesData, NTCService } from "./data/servicesData";
 import { CategoryGrid } from "./components/CategoryGrid";
 import { ServiceList } from "./components/ServiceList";
 import { ServiceDetails } from "./components/ServiceDetails";
-import { CPEAccreditationWizard } from "./accreditation/customer-premises";
+import { CPEAccreditationWizard, ApplicantData, initialApplicant, BulkApplicantsPanel } from "./accreditation/customer-premises";
 import { styles } from "./Services.styles";
 
 type AuthParamList = {
@@ -25,7 +25,7 @@ type AuthParamList = {
 
 export function Services() {
   const { width } = useWindowDimensions();
-  const isMobile = width < 768;
+  const isMobile = width < 640;
   const navigation = useNavigation();
 
   // Clerk Contexts
@@ -40,6 +40,38 @@ export function Services() {
   const [submitting, setSubmitting] = useState(false);
   const [activeWizardService, setActiveWizardService] = useState<string | null>(null);
   const [isDetailsExpanded, setIsDetailsExpanded] = useState(false);
+
+  // Shared Wizard States
+  const [wizardStep, setWizardStep] = useState(1);
+  const [selectedRegionId, setSelectedRegionId] = useState("");
+  const [selectedOfficeId, setSelectedOfficeId] = useState("");
+  const [appMode, setAppMode] = useState<"SINGLE" | "BULK">("BULK");
+  const [bulkMethod, setBulkMethod] = useState<"MANUAL" | "EXCEL">("MANUAL");
+  const [isFileUploaded, setIsFileUploaded] = useState(false);
+  const [uploadedFileName, setUploadedFileName] = useState("");
+  const [applicants, setApplicants] = useState<ApplicantData[]>([initialApplicant(1)]);
+  const [currentApplicantIndex, setCurrentApplicantIndex] = useState(0);
+
+  const resetWizardState = () => {
+    setWizardStep(1);
+    setSelectedRegionId("");
+    setSelectedOfficeId("");
+    setAppMode("BULK");
+    setBulkMethod("MANUAL");
+    setIsFileUploaded(false);
+    setUploadedFileName("");
+    setApplicants([initialApplicant(1)]);
+    setCurrentApplicantIndex(0);
+  };
+
+  // Check if we should display the left-side list view (standard grid or sub-items list)
+  // On mobile, if a detail card or wizard is active, we hide the left main grid column
+  const isLeftColumnHiddenOnMobile = isMobile && (selectedService !== null || activeWizardService !== null);
+
+  // Hide navigation/categories if wizard is active on smaller screens
+  const isWizardActive = activeWizardService !== null;
+  const hideSidebar = isMobile || (isWizardActive && width < 1024);
+  const hideCategories = (isWizardActive && isDetailsExpanded) || (isWizardActive && width < 1024) || isLeftColumnHiddenOnMobile;
 
   // User Profile Memo
   const userProfile = useMemo(() => {
@@ -68,7 +100,7 @@ export function Services() {
     if (searchQuery.trim() === "") return null;
     const query = searchQuery.toLowerCase();
     const results: { categoryTitle: string; service: NTCService }[] = [];
-    
+
     servicesData.forEach((category) => {
       category.services.forEach((service) => {
         if (
@@ -108,7 +140,7 @@ export function Services() {
     try {
       const token = await getToken();
       const headers = token !== null ? { Authorization: `Bearer ${token}` } : {};
-      
+
       await apiClient.post(
         "/api/applications",
         {
@@ -138,10 +170,6 @@ export function Services() {
     }
   };
 
-  // Check if we should display the left-side list view (standard grid or sub-items list)
-  // On mobile, if a detail card or sub-items list is active, we hide the left main grid column
-  const isLeftColumnHiddenOnMobile = isMobile && (selectedCategoryId !== null || selectedService !== null);
-
   return (
     <View style={styles.rootContainer}>
       {/* Top Banner / Brand Header */}
@@ -163,8 +191,8 @@ export function Services() {
 
       {/* Main Body Area */}
       <View style={styles.mainLayout}>
-        {/* Left Sidebar - hidden on mobile */}
-        {!isMobile && (
+        {/* Left Sidebar - hidden on mobile / smaller tablet screens during wizard */}
+        {!hideSidebar && (
           <View style={styles.sidebar}>
             <View style={styles.sidebarItems}>
               <TouchableOpacity style={[styles.sidebarItem, styles.sidebarItemActive]}>
@@ -180,10 +208,18 @@ export function Services() {
           </View>
         )}
 
-        {/* Content Column (Category Grid OR Sub-items List) */}
-        {!(activeWizardService !== null && isDetailsExpanded) && (
+        {/* Content Column (Category Grid OR Sub-items List / Bulk Drafts List) */}
+        {!hideCategories && (
           <View style={[styles.contentColumn, isLeftColumnHiddenOnMobile && styles.hiddenColumn]}>
-            {searchQuery.trim() !== "" ? (
+            {activeWizardService === "cpe-accreditation" && appMode === "BULK" && wizardStep >= 4 ? (
+              <BulkApplicantsPanel
+                applicants={applicants}
+                currentApplicantIndex={currentApplicantIndex}
+                onSelectApplicant={setCurrentApplicantIndex}
+                setStep={setWizardStep}
+                resetWizardState={resetWizardState}
+              />
+            ) : searchQuery.trim() !== "" ? (
               <ServiceList
                 searchQuery={searchQuery}
                 activeCategory={null}
@@ -194,7 +230,6 @@ export function Services() {
                     setActiveWizardService("cpe-accreditation");
                   }
                   if (isMobile) {
-                    // Bypass standard grid to show details in mobile stack
                     setSelectedCategoryId("search-active");
                   }
                 }}
@@ -229,9 +264,9 @@ export function Services() {
 
         {/* Details / Interactive Panel Column (Tablet / Web View) */}
         {/* On mobile, this column takes full screen if category or service is selected */}
-        {(!isMobile || selectedCategoryId !== null || selectedService !== null) && (
-          <View style={[styles.detailsColumn, isMobile && styles.mobileDetailsColumn]}>
-            
+        {(!isMobile || activeWizardService !== null || selectedService !== null) && (
+          <View style={[styles.detailsColumn, (isMobile || (isWizardActive && width < 1024)) && styles.mobileDetailsColumn]}>
+
             {/* Interactive Panel Content */}
             <View style={{ flex: 1 }}>
               {activeWizardService === "cpe-accreditation" ? (
@@ -240,15 +275,35 @@ export function Services() {
                     setActiveWizardService(null);
                     setIsDetailsExpanded(false);
                     setSelectedService(null);
+                    resetWizardState();
                   }}
                   onSuccess={() => {
                     setActiveWizardService(null);
                     setIsDetailsExpanded(false);
                     setSelectedService(null);
+                    resetWizardState();
                     navigation.navigate("MyApplications");
                   }}
                   isDetailsExpanded={isDetailsExpanded}
                   onToggleExpand={() => setIsDetailsExpanded((prev) => !prev)}
+                  step={wizardStep}
+                  setStep={setWizardStep}
+                  selectedRegionId={selectedRegionId}
+                  setSelectedRegionId={setSelectedRegionId}
+                  selectedOfficeId={selectedOfficeId}
+                  setSelectedOfficeId={setSelectedOfficeId}
+                  appMode={appMode}
+                  setAppMode={setAppMode}
+                  bulkMethod={bulkMethod}
+                  setBulkMethod={setBulkMethod}
+                  isFileUploaded={isFileUploaded}
+                  setIsFileUploaded={setIsFileUploaded}
+                  uploadedFileName={uploadedFileName}
+                  setUploadedFileName={setUploadedFileName}
+                  applicants={applicants}
+                  setApplicants={setApplicants}
+                  currentApplicantIndex={currentApplicantIndex}
+                  setCurrentApplicantIndex={setCurrentApplicantIndex}
                 />
               ) : selectedService !== null ? (
                 <ServiceDetails

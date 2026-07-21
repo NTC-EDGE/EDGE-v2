@@ -1,4 +1,5 @@
 import React, { useState, useRef } from "react";
+import * as DocumentPicker from "expo-document-picker";
 import {
   Text,
   View,
@@ -21,9 +22,28 @@ interface CPEAccreditationWizardProps {
   onSuccess: () => void;
   isDetailsExpanded: boolean;
   onToggleExpand: () => void;
+  // Lifted states for sharing with middle list view
+  step: number;
+  setStep: (step: number | ((p: number) => number)) => void;
+  selectedRegionId: string;
+  setSelectedRegionId: (id: string) => void;
+  selectedOfficeId: string;
+  setSelectedOfficeId: (id: string) => void;
+  appMode: "SINGLE" | "BULK";
+  setAppMode: (mode: "SINGLE" | "BULK") => void;
+  bulkMethod: "MANUAL" | "EXCEL";
+  setBulkMethod: (method: "MANUAL" | "EXCEL") => void;
+  isFileUploaded: boolean;
+  setIsFileUploaded: (val: boolean) => void;
+  uploadedFileName: string;
+  setUploadedFileName: (name: string) => void;
+  applicants: ApplicantData[];
+  setApplicants: React.Dispatch<React.SetStateAction<ApplicantData[]>>;
+  currentApplicantIndex: number;
+  setCurrentApplicantIndex: (idx: number) => void;
 }
 
-interface ApplicantData {
+export interface ApplicantData {
   id: number;
   appType: "NEW" | "RENEWAL" | "MODIFICATION";
   years: string;
@@ -52,7 +72,7 @@ interface ApplicantData {
   uploads: Record<string, string>; // Maps requirement index to filename
 }
 
-const initialApplicant = (id: number): ApplicantData => ({
+export const initialApplicant = (id: number): ApplicantData => ({
   id,
   appType: "NEW",
   years: "1",
@@ -86,27 +106,28 @@ export function CPEAccreditationWizard({
   onSuccess,
   isDetailsExpanded,
   onToggleExpand,
+  step,
+  setStep,
+  selectedRegionId,
+  setSelectedRegionId,
+  selectedOfficeId,
+  setSelectedOfficeId,
+  appMode,
+  setAppMode,
+  bulkMethod,
+  setBulkMethod,
+  isFileUploaded,
+  setIsFileUploaded,
+  uploadedFileName,
+  setUploadedFileName,
+  applicants,
+  setApplicants,
+  currentApplicantIndex,
+  setCurrentApplicantIndex,
 }: CPEAccreditationWizardProps) {
-  // Stepper State (Step index 1-7, success screen is step 8)
-  const [step, setStep] = useState(1);
-
-  // Initial Configuration State (Defaults to BULK manual encoding board per requests)
-  const [selectedRegionId, setSelectedRegionId] = useState("");
-  const [selectedOfficeId, setSelectedOfficeId] = useState("");
-  const [appMode, setAppMode] = useState<"SINGLE" | "BULK">("BULK");
-
-  // Bulk Data Setup States
-  const [bulkMethod, setBulkMethod] = useState<"MANUAL" | "EXCEL">("MANUAL");
-  const [isFileUploaded, setIsFileUploaded] = useState(false);
-  const [uploadedFileName, setUploadedFileName] = useState("");
-
   // Upload action sheet states
   const [isUploadSheetOpen, setIsUploadSheetOpen] = useState(false);
   const [activeUploadSlot, setActiveUploadSlot] = useState<string | null>(null);
-
-  // Array of applicants currently being processed
-  const [applicants, setApplicants] = useState<ApplicantData[]>([initialApplicant(1)]);
-  const [currentApplicantIndex, setCurrentApplicantIndex] = useState(0);
 
   // Confirmation & Feedback States
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
@@ -146,9 +167,9 @@ export function CPEAccreditationWizard({
       case 2:
         return "Region";
       case 3:
-        return "Filing Data Configuration";
+        return "Application Type & Requirements";
       case 4:
-        return "Application Type";
+        return "Filing Data Configuration";
       case 5:
         return "Application Form";
       case 6:
@@ -375,8 +396,7 @@ export function CPEAccreditationWizard({
           ) : (
             <TouchableOpacity
               onPress={() => {
-                setActiveUploadSlot(fileKey);
-                setIsUploadSheetOpen(true);
+                handleDocumentPick(fileKey);
               }}
               style={styles.uploadButton}
             >
@@ -385,6 +405,149 @@ export function CPEAccreditationWizard({
             </TouchableOpacity>
           )}
         </View>
+      </View>
+    );
+  };
+
+  const renderStep3Requirements = (type: "NEW" | "RENEWAL" | "MODIFICATION") => {
+    return (
+      <View style={{ marginTop: 24, padding: 16, backgroundColor: COLORS.neutral[50], borderRadius: 12, borderColor: COLORS.neutral[200], borderWidth: 1 }}>
+        <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 16, fontWeight: "700", color: COLORS.neutral[800], marginBottom: 16 }}>
+          Requirements
+        </Text>
+
+        {type === "NEW" && (
+          <View style={{ gap: 16 }}>
+            {/* Req 1 */}
+            <View>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 14, fontWeight: "600", color: COLORS.neutral[800], marginBottom: 6 }}>
+                1. Copy of ANY of the following:<Text style={{ color: COLORS.semantic.error }}>*</Text>
+              </Text>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: COLORS.neutral[600], marginLeft: 16, marginBottom: 4 }}>
+                • SEC Registration
+              </Text>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: COLORS.neutral[600], marginLeft: 16, marginBottom: 4 }}>
+                • DTI Registration
+              </Text>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: COLORS.neutral[600], marginLeft: 16, marginBottom: 10 }}>
+                • Business/Mayor's Permit
+              </Text>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: COLORS.neutral[500], fontStyle: "italic", marginLeft: 16, lineHeight: 18 }}>
+                Note : The purpose of the company as indicated in its registration document must include information related to the accreditation applied for.
+              </Text>
+            </View>
+
+            {/* Req 2 */}
+            <View>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 14, fontWeight: "600", color: COLORS.neutral[800], marginBottom: 4 }}>
+                2. Proof of Paid-Up Capital<Text style={{ color: COLORS.semantic.error }}>*</Text>
+              </Text>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: COLORS.neutral[600], marginLeft: 16, lineHeight: 18 }}>
+                Minimum of PHP 250,000.00, duly certified by the Treasurer of the Corporation or by the partners in a partnership or by the owner in a sole proprietorship
+              </Text>
+            </View>
+
+            {/* Req 3 */}
+            <View>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 14, fontWeight: "600", color: COLORS.neutral[800] }}>
+                3. Distributorship OR Representation Agreement on products to be sold<Text style={{ color: COLORS.semantic.error }}>*</Text>
+              </Text>
+            </View>
+
+            {/* Req 4 */}
+            <View>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 14, fontWeight: "600", color: COLORS.neutral[800] }}>
+                4. Type Approval Certificate OR Copy of Grant of Equipment Conformity for CPE to be sold<Text style={{ color: COLORS.semantic.error }}>*</Text>
+              </Text>
+            </View>
+
+            {/* Req 5 */}
+            <View>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 14, fontWeight: "600", color: COLORS.neutral[800], marginBottom: 4 }}>
+                5. Copy of the following:<Text style={{ color: COLORS.semantic.error }}>*</Text>
+              </Text>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: COLORS.neutral[600], marginLeft: 16, lineHeight: 18 }}>
+                Certificate of Employment AND copy of valid ROC/license of two (2) qualified radio technicians (i.e. Radio Communications Technician OR Electronics Technician) employed on a full-time basis
+              </Text>
+            </View>
+
+            {/* Req 6 */}
+            <View>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 14, fontWeight: "600", color: COLORS.neutral[800], marginBottom: 4 }}>
+                6. Copy of the following:<Text style={{ color: COLORS.semantic.error }}>*</Text>
+              </Text>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: COLORS.neutral[600], marginLeft: 16, lineHeight: 18 }}>
+                Certificate of Employment and copy of valid license of supervising Electronics Engineer (ECE) OR Professional Electronics Engineer (PECE)
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {type === "RENEWAL" && (
+          <View style={{ gap: 16 }}>
+            {/* Req 1 */}
+            <View>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 14, fontWeight: "600", color: COLORS.neutral[800] }}>
+                1. CPE Supplier Accreditation<Text style={{ color: COLORS.semantic.error }}>*</Text>
+              </Text>
+            </View>
+
+            {/* Req 2 */}
+            <View>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 14, fontWeight: "600", color: COLORS.neutral[800] }}>
+                2. Business/Mayor's Permit<Text style={{ color: COLORS.semantic.error }}>*</Text>
+              </Text>
+            </View>
+
+            {/* Req 3 */}
+            <View>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 14, fontWeight: "600", color: COLORS.neutral[800] }}>
+                3. Distributorship OR Representation Agreement on products to be sold<Text style={{ color: COLORS.semantic.error }}>*</Text>
+              </Text>
+            </View>
+
+            {/* Req 4 */}
+            <View>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 14, fontWeight: "600", color: COLORS.neutral[800], marginBottom: 4 }}>
+                4. Copy of the following:<Text style={{ color: COLORS.semantic.error }}>*</Text>
+              </Text>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: COLORS.neutral[600], marginLeft: 16, lineHeight: 18 }}>
+                Certificate of Employment AND copy of valid ROC/license of two (2) qualified radio technicians (i.e. Radio Communications Technician OR Electronics Technician) employed on a full-time basis
+              </Text>
+            </View>
+
+            {/* Req 5 */}
+            <View>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 14, fontWeight: "600", color: COLORS.neutral[800], marginBottom: 4 }}>
+                5. Copy of the following:<Text style={{ color: COLORS.semantic.error }}>*</Text>
+              </Text>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: COLORS.neutral[600], marginLeft: 16, lineHeight: 18 }}>
+                Certificate of Employment and copy of valid license of supervising Electronics Engineer (ECE) OR Professional Electronics Engineer (PECE)
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {type === "MODIFICATION" && (
+          <View style={{ gap: 16 }}>
+            {/* Req 1 */}
+            <View>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 14, fontWeight: "600", color: COLORS.neutral[800] }}>
+                1. CPE Supplier Accreditation<Text style={{ color: COLORS.semantic.error }}>*</Text>
+              </Text>
+            </View>
+
+            {/* Req 2 */}
+            <View>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 14, fontWeight: "600", color: COLORS.neutral[800], marginBottom: 4 }}>
+                2. For equipment not previously indicated in the CPE Supplier Accreditation:
+              </Text>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: COLORS.neutral[600], marginLeft: 16, lineHeight: 18 }}>
+                Copy of Type Approval Certificate OR Copy of Grant of Equipment Conformity for CPE to be sold
+              </Text>
+            </View>
+          </View>
+        )}
       </View>
     );
   };
@@ -818,12 +981,14 @@ export function CPEAccreditationWizard({
         Alert.alert("Error", "Please select region and office.");
         return;
       }
+      setStep(3);
+    } else if (step === 3) {
       if (appMode === "SINGLE") {
         setStep(5);
       } else {
-        setStep(3);
+        setStep(4);
       }
-    } else if (step === 3) {
+    } else if (step === 4) {
       if (bulkMethod === "EXCEL") {
         if (!isFileUploaded) {
           Alert.alert("Error", "Please upload the CSV/Excel file to proceed.");
@@ -876,17 +1041,19 @@ export function CPEAccreditationWizard({
       setStep(1);
     } else if (step === 3) {
       setStep(2);
+    } else if (step === 4) {
+      setStep(3);
     } else if (step === 5) {
       if (appMode === "SINGLE") {
-        setStep(2);
-      } else {
         setStep(3);
+      } else {
+        setStep(4);
       }
     } else if (step === 6) {
       setStep(5);
     } else if (step === 7) {
       if (appMode === "BULK" && bulkMethod === "EXCEL") {
-        setStep(3);
+        setStep(4);
       } else {
         setStep(6);
       }
@@ -902,9 +1069,41 @@ export function CPEAccreditationWizard({
     }
   };
 
-  // Mock excel file upload trigger
-  const handleMockFileUpload = () => {
-    setIsPreviewModalOpen(true);
+  // Real excel file upload trigger using DocumentPicker
+  const handleMockFileUpload = async () => {
+    try {
+      const res = await DocumentPicker.getDocumentAsync({
+        type: ["text/csv", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.ms-excel"],
+        copyToCacheDirectory: true,
+      });
+      if (res.canceled === false && res.assets && res.assets.length > 0) {
+        setIsPreviewModalOpen(true);
+      }
+    } catch (err) {
+      console.error(err);
+      setIsPreviewModalOpen(true);
+    }
+  };
+
+  // Real document picker trigger for step 6 individual uploads
+  const handleDocumentPick = async (slot: string) => {
+    try {
+      const res = await DocumentPicker.getDocumentAsync({
+        type: "*/*",
+        copyToCacheDirectory: true,
+      });
+      if (res.canceled === false && res.assets && res.assets.length > 0) {
+        const file = res.assets[0];
+        const nextUploads = { ...activeApplicant.uploads };
+        nextUploads[slot] = file.name;
+        updateActiveApplicant({ uploads: nextUploads });
+      }
+    } catch (err) {
+      console.error("Document Picker Error:", err);
+      const nextUploads = { ...activeApplicant.uploads };
+      nextUploads[slot] = `Attachment_${parseInt(slot) + 1}.pdf`;
+      updateActiveApplicant({ uploads: nextUploads });
+    }
   };
 
   // Confirm and ingest rows from CSV Import
@@ -939,7 +1138,7 @@ export function CPEAccreditationWizard({
   // Render horizontal indicators
   const renderProgressIndicator = () => {
     const list: React.ReactNode[] = [];
-    const activeSteps = appMode === "SINGLE" ? [1, 2, 5, 6, 7] : [1, 2, 3, 5, 6, 7];
+    const activeSteps = appMode === "SINGLE" ? [1, 2, 3, 5, 6, 7] : [1, 2, 3, 4, 5, 6, 7];
     activeSteps.forEach((s, idx) => {
       list.push(
         <View
@@ -960,7 +1159,7 @@ export function CPEAccreditationWizard({
     if (step === 2) {
       return !selectedRegionId || !selectedOfficeId;
     }
-    if (step === 3 && appMode === "BULK" && bulkMethod === "EXCEL") {
+    if (step === 4 && appMode === "BULK" && bulkMethod === "EXCEL") {
       return !isFileUploaded;
     }
     return false;
@@ -1027,6 +1226,13 @@ export function CPEAccreditationWizard({
                 value: o.id,
               }))}
             />
+          </View>
+        )}
+
+        {/* STEP 3: Application Concern & Requirements */}
+        {step === 3 && (
+          <View>
+            <Text style={styles.stepSubtitle}>Specify your application concern and view the required documents:</Text>
 
             <Text style={styles.selectLabel}>Application Mode</Text>
             <Select
@@ -1056,11 +1262,13 @@ export function CPEAccreditationWizard({
                 { label: "MODIFICATION", value: "MODIFICATION" },
               ]}
             />
+
+            {renderStep3Requirements(activeApplicant.appType)}
           </View>
         )}
 
-        {/* STEP 3: Filing Data Configuration */}
-        {step === 3 && (
+        {/* STEP 4: Filing Data Configuration */}
+        {step === 4 && (
           <View>
             <Text style={styles.stepSubtitle}>SELECT YOUR BULK DATA ENTRY METHOD</Text>
             <Text style={[styles.infoDesc, { marginBottom: SPACING[16] }]}>
