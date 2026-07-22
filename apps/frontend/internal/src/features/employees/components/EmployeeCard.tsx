@@ -12,7 +12,7 @@ interface EmployeeCardProps {
 
 export function EmployeeCard({ employee, onView, onEdit, onDelete }: EmployeeCardProps) {
   const [isHovered, setIsHovered] = useState(false);
-  const [showMenu, setShowMenu] = useState(false);
+  const [showPopover, setShowPopover] = useState(false);
 
   const getInitials = (first: string, last: string): string => {
     const f = first.trim().length > 0 ? first.trim().charAt(0) : '';
@@ -21,6 +21,17 @@ export function EmployeeCard({ employee, onView, onEdit, onDelete }: EmployeeCar
   };
 
   const initials = getInitials(employee.firstName, employee.lastName);
+
+  const handleAction = (action: 'view' | 'edit' | 'delete') => {
+    setShowPopover(false);
+    if (action === 'view') {
+      onView(employee);
+    } else if (action === 'edit') {
+      onEdit(employee);
+    } else if (action === 'delete') {
+      onDelete(employee);
+    }
+  };
 
   return (
     <View
@@ -34,11 +45,18 @@ export function EmployeeCard({ employee, onView, onEdit, onDelete }: EmployeeCar
             onMouseEnter: () => setIsHovered(true),
             onMouseLeave: () => {
               setIsHovered(false);
-              setShowMenu(false);
             },
           }
         : {})}
     >
+      {/* Click Outside Overlay for Popover */}
+      {showPopover && (
+        <Pressable
+          style={styles.popoverBackdrop}
+          onPress={() => setShowPopover(false)}
+        />
+      )}
+
       <View style={styles.cardMain}>
         {/* Left Section: Avatar with Status Indicator */}
         <View style={styles.avatarWrapper}>
@@ -84,29 +102,46 @@ export function EmployeeCard({ employee, onView, onEdit, onDelete }: EmployeeCar
           </View>
         </View>
 
-        {/* Right Section: Quick Action Buttons / Dropdown */}
-        <View style={styles.actionsSection}>
+        {/* Right Section: 3-Dotted Vertical Action Button & Popover Menu */}
+        <View style={styles.actionMenuWrapper}>
           <Pressable
-            style={styles.iconBtn}
-            onPress={() => onView(employee)}
-            accessibilityLabel="View Employee Profile"
+            style={[styles.threeDotsBtn, showPopover && styles.threeDotsBtnActive]}
+            onPress={() => setShowPopover((prev) => !prev)}
+            accessibilityLabel="More Options"
           >
-            <Lucide name="eye" size={15} color={COLORS.brand[700]} />
+            <Lucide name="more-vertical" size={18} color={COLORS.neutral[600]} />
           </Pressable>
-          <Pressable
-            style={styles.iconBtn}
-            onPress={() => onEdit(employee)}
-            accessibilityLabel="Edit Employee"
-          >
-            <Lucide name="edit-2" size={15} color={COLORS.brand[700]} />
-          </Pressable>
-          <Pressable
-            style={styles.iconBtnDanger}
-            onPress={() => onDelete(employee)}
-            accessibilityLabel="Delete Employee"
-          >
-            <Lucide name="trash-2" size={15} color={COLORS.semantic.error} />
-          </Pressable>
+
+          {/* Popover Dropdown */}
+          {showPopover && (
+            <View style={[styles.popoverMenu, SHADOWS.modal]}>
+              <Pressable
+                style={styles.popoverItem}
+                onPress={() => handleAction('view')}
+              >
+                <Lucide name="eye" size={15} color={COLORS.brand[700]} style={styles.popoverIcon} />
+                <Text style={styles.popoverItemText}>View Details</Text>
+              </Pressable>
+
+              <Pressable
+                style={styles.popoverItem}
+                onPress={() => handleAction('edit')}
+              >
+                <Lucide name="edit-2" size={15} color={COLORS.brand[700]} style={styles.popoverIcon} />
+                <Text style={styles.popoverItemText}>Edit Employee</Text>
+              </Pressable>
+
+              <View style={styles.popoverDivider} />
+
+              <Pressable
+                style={styles.popoverItemDanger}
+                onPress={() => handleAction('delete')}
+              >
+                <Lucide name="trash-2" size={15} color={COLORS.semantic.error} style={styles.popoverIcon} />
+                <Text style={styles.popoverItemTextDanger}>Delete Employee</Text>
+              </Pressable>
+            </View>
+          )}
         </View>
       </View>
     </View>
@@ -123,6 +158,7 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING[16],
     marginBottom: SPACING[12],
     width: '100%',
+    position: 'relative',
     ...Platform.select({
       web: {
         transition: 'all 200ms ease-in-out',
@@ -138,11 +174,16 @@ const styles = StyleSheet.create({
       },
     }),
   },
+  popoverBackdrop: {
+    ...StyleSheet.absoluteFill,
+    zIndex: 90,
+  },
   cardMain: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: SPACING[16],
+    zIndex: 95,
   },
   avatarWrapper: {
     position: 'relative',
@@ -238,14 +279,13 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: COLORS.neutral[500],
   },
-  actionsSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING[8],
+  actionMenuWrapper: {
+    position: 'relative',
+    zIndex: 100,
   },
-  iconBtn: {
-    width: 34,
-    height: 34,
+  threeDotsBtn: {
+    width: 36,
+    height: 36,
     borderRadius: RADIUS.button,
     borderWidth: 1,
     borderColor: COLORS.neutral[200],
@@ -259,20 +299,62 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  iconBtnDanger: {
-    width: 34,
-    height: 34,
+  threeDotsBtnActive: {
+    backgroundColor: COLORS.neutral[200],
+    borderColor: COLORS.neutral[300],
+  },
+  popoverMenu: {
+    position: 'absolute',
+    top: 42,
+    right: 0,
+    width: 170,
+    backgroundColor: COLORS.neutral.white,
     borderRadius: RADIUS.button,
     borderWidth: 1,
-    borderColor: COLORS.semantic.errorBorder,
-    backgroundColor: COLORS.semantic.errorBg,
-    justifyContent: 'center',
+    borderColor: COLORS.neutral[200],
+    paddingVertical: 6,
+    zIndex: 200,
+  },
+  popoverItem: {
+    flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: SPACING[12],
+    paddingVertical: 9,
     ...Platform.select({
       web: {
         cursor: 'pointer',
-        transition: 'all 150ms ease',
       },
     }),
+  },
+  popoverItemDanger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING[12],
+    paddingVertical: 9,
+    ...Platform.select({
+      web: {
+        cursor: 'pointer',
+      },
+    }),
+  },
+  popoverIcon: {
+    marginRight: 10,
+  },
+  popoverItemText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.medium,
+    color: COLORS.neutral[700],
+  },
+  popoverItemTextDanger: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: COLORS.semantic.error,
+  },
+  popoverDivider: {
+    height: 1,
+    backgroundColor: COLORS.neutral[200],
+    marginVertical: 4,
   },
 });

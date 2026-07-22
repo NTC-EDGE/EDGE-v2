@@ -25,6 +25,68 @@ import { DeleteConfirmModal } from '../components/DeleteConfirmModal';
 
 type ViewMode = 'cards' | 'table';
 
+// Helper Table Action Menu Cell
+function TableActionCell({
+  employee,
+  onView,
+  onEdit,
+  onDelete,
+}: {
+  employee: Employee;
+  onView: (emp: Employee) => void;
+  onEdit: (emp: Employee) => void;
+  onDelete: (emp: Employee) => void;
+}) {
+  const [showPopover, setShowPopover] = useState(false);
+
+  const handleAction = (action: 'view' | 'edit' | 'delete') => {
+    setShowPopover(false);
+    if (action === 'view') {
+      onView(employee);
+    } else if (action === 'edit') {
+      onEdit(employee);
+    } else if (action === 'delete') {
+      onDelete(employee);
+    }
+  };
+
+  return (
+    <View style={styles.tableActionWrapper}>
+      {showPopover && (
+        <Pressable style={styles.popoverBackdrop} onPress={() => setShowPopover(false)} />
+      )}
+      <Pressable
+        style={[styles.tableThreeDotsBtn, showPopover && styles.tableThreeDotsBtnActive]}
+        onPress={() => setShowPopover((prev) => !prev)}
+        accessibilityLabel="Actions Menu"
+      >
+        <Lucide name="more-vertical" size={16} color={COLORS.neutral[700]} />
+      </Pressable>
+
+      {showPopover && (
+        <View style={[styles.tablePopoverMenu, SHADOWS.modal]}>
+          <Pressable style={styles.popoverItem} onPress={() => handleAction('view')}>
+            <Lucide name="eye" size={14} color={COLORS.brand[700]} style={styles.popoverIcon} />
+            <Text style={styles.popoverItemText}>View Details</Text>
+          </Pressable>
+
+          <Pressable style={styles.popoverItem} onPress={() => handleAction('edit')}>
+            <Lucide name="edit-2" size={14} color={COLORS.brand[700]} style={styles.popoverIcon} />
+            <Text style={styles.popoverItemText}>Edit Employee</Text>
+          </Pressable>
+
+          <View style={styles.popoverDivider} />
+
+          <Pressable style={styles.popoverItemDanger} onPress={() => handleAction('delete')}>
+            <Lucide name="trash-2" size={14} color={COLORS.semantic.error} style={styles.popoverIcon} />
+            <Text style={styles.popoverItemTextDanger}>Delete Employee</Text>
+          </Pressable>
+        </View>
+      )}
+    </View>
+  );
+}
+
 export function EmployeesScreen() {
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
@@ -37,6 +99,10 @@ export function EmployeesScreen() {
   const [selectedRole, setSelectedRole] = useState<string>('All');
   const [selectedStatus, setSelectedStatus] = useState<string>('All');
   const [viewMode, setViewMode] = useState<ViewMode>('cards');
+
+  // Dropdown open states
+  const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
+  const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
 
   // Modal states
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
@@ -231,32 +297,15 @@ export function EmployeesScreen() {
         cell: (info) => {
           const emp = info.row.original;
           return (
-            <View style={styles.tableActions}>
-              <Pressable
-                style={styles.tableActionBtn}
-                onPress={() => handleOpenDetailModal(emp)}
-                accessibilityLabel="View details"
-              >
-                <Lucide name="eye" size={14} color={COLORS.brand[800]} />
-              </Pressable>
-              <Pressable
-                style={styles.tableActionBtn}
-                onPress={() => handleOpenEditModal(emp)}
-                accessibilityLabel="Edit employee"
-              >
-                <Lucide name="edit" size={14} color={COLORS.brand[800]} />
-              </Pressable>
-              <Pressable
-                style={styles.tableActionBtnDanger}
-                onPress={() => handleOpenDeleteModal(emp)}
-                accessibilityLabel="Delete employee"
-              >
-                <Lucide name="trash-2" size={14} color={COLORS.semantic.error} />
-              </Pressable>
-            </View>
+            <TableActionCell
+              employee={emp}
+              onView={handleOpenDetailModal}
+              onEdit={handleOpenEditModal}
+              onDelete={handleOpenDeleteModal}
+            />
           );
         },
-        meta: { flex: 1.4 },
+        meta: { flex: 1.0 },
       },
     ],
     []
@@ -272,11 +321,11 @@ export function EmployeesScreen() {
         </View>
       )}
 
-      {/* Breadcrumb Navigation */}
+      {/* Breadcrumb Navigation: ADMIN -> DASHBOARD -> EMPLOYEE ACCOUNTS */}
       <View style={styles.breadcrumb}>
-        <Text style={styles.breadcrumbText}>Dashboard</Text>
-        <Lucide name="chevron-right" size={12} color={COLORS.neutral[400]} style={styles.breadcrumbDivider} />
         <Text style={styles.breadcrumbText}>Admin</Text>
+        <Lucide name="chevron-right" size={12} color={COLORS.neutral[400]} style={styles.breadcrumbDivider} />
+        <Text style={styles.breadcrumbText}>Dashboard</Text>
         <Lucide name="chevron-right" size={12} color={COLORS.neutral[400]} style={styles.breadcrumbDivider} />
         <Text style={[styles.breadcrumbText, styles.breadcrumbActive]}>Employee Accounts</Text>
       </View>
@@ -366,7 +415,7 @@ export function EmployeesScreen() {
         </View>
       </View>
 
-      {/* Toolbar: Search and Filter Row */}
+      {/* Toolbar: Search and Dropdown Filter Row */}
       <View style={[styles.toolbarCard, SHADOWS.card]}>
         {/* Search Bar */}
         <View style={styles.searchBox}>
@@ -385,56 +434,116 @@ export function EmployeesScreen() {
           )}
         </View>
 
-        {/* Filters */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filtersScroll}>
-          {/* Role Filter Chips */}
-          <View style={styles.filterChipGroup}>
-            <Text style={styles.filterChipLabel}>Role:</Text>
-            {['All', ...ROLES_LIST].map((roleName) => (
-              <Pressable
-                key={roleName}
-                onPress={() => setSelectedRole(roleName)}
-                style={[
-                  styles.filterChip,
-                  selectedRole === roleName && styles.filterChipActive,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.filterChipText,
-                    selectedRole === roleName && styles.filterChipTextActive,
-                  ]}
+        {/* Dropdown Filters Row */}
+        <View style={[styles.dropdownFiltersRow, isMobile && styles.dropdownFiltersRowMobile]}>
+          {/* Role Dropdown */}
+          <View style={styles.dropdownContainer}>
+            <Text style={styles.dropdownLabel}>Role:</Text>
+            <Pressable
+              style={[styles.dropdownTrigger, isRoleDropdownOpen && styles.dropdownTriggerActive]}
+              onPress={() => {
+                setIsRoleDropdownOpen((prev) => !prev);
+                setIsStatusDropdownOpen(false);
+              }}
+            >
+              <Text style={styles.dropdownTriggerText}>
+                {selectedRole === 'All' ? 'All Roles' : selectedRole}
+              </Text>
+              <Lucide
+                name={isRoleDropdownOpen ? 'chevron-up' : 'chevron-down'}
+                size={14}
+                color={COLORS.neutral[600]}
+              />
+            </Pressable>
+
+            {isRoleDropdownOpen && (
+              <View style={[styles.dropdownMenu, SHADOWS.modal]}>
+                <Pressable
+                  style={[styles.dropdownOption, selectedRole === 'All' && styles.dropdownOptionActive]}
+                  onPress={() => {
+                    setSelectedRole('All');
+                    setIsRoleDropdownOpen(false);
+                  }}
                 >
-                  {roleName}
-                </Text>
-              </Pressable>
-            ))}
+                  <Text style={[styles.dropdownOptionText, selectedRole === 'All' && styles.dropdownOptionTextActive]}>
+                    All Roles
+                  </Text>
+                </Pressable>
+                {ROLES_LIST.map((r) => (
+                  <Pressable
+                    key={r}
+                    style={[styles.dropdownOption, selectedRole === r && styles.dropdownOptionActive]}
+                    onPress={() => {
+                      setSelectedRole(r);
+                      setIsRoleDropdownOpen(false);
+                    }}
+                  >
+                    <Text style={[styles.dropdownOptionText, selectedRole === r && styles.dropdownOptionTextActive]}>
+                      {r}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
           </View>
 
-          {/* Status Filter Chips */}
-          <View style={styles.filterChipGroup}>
-            <Text style={styles.filterChipLabel}>Status:</Text>
-            {['All', 'Active', 'On Leave', 'Inactive'].map((statusName) => (
-              <Pressable
-                key={statusName}
-                onPress={() => setSelectedStatus(statusName)}
-                style={[
-                  styles.filterChip,
-                  selectedStatus === statusName && styles.filterChipActive,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.filterChipText,
-                    selectedStatus === statusName && styles.filterChipTextActive,
-                  ]}
-                >
-                  {statusName}
-                </Text>
-              </Pressable>
-            ))}
+          {/* Status Dropdown */}
+          <View style={styles.dropdownContainer}>
+            <Text style={styles.dropdownLabel}>Status:</Text>
+            <Pressable
+              style={[styles.dropdownTrigger, isStatusDropdownOpen && styles.dropdownTriggerActive]}
+              onPress={() => {
+                setIsStatusDropdownOpen((prev) => !prev);
+                setIsRoleDropdownOpen(false);
+              }}
+            >
+              <Text style={styles.dropdownTriggerText}>
+                {selectedStatus === 'All' ? 'All Statuses' : selectedStatus}
+              </Text>
+              <Lucide
+                name={isStatusDropdownOpen ? 'chevron-up' : 'chevron-down'}
+                size={14}
+                color={COLORS.neutral[600]}
+              />
+            </Pressable>
+
+            {isStatusDropdownOpen && (
+              <View style={[styles.dropdownMenu, SHADOWS.modal]}>
+                {['All', 'Active', 'On Leave', 'Inactive'].map((st) => (
+                  <Pressable
+                    key={st}
+                    style={[styles.dropdownOption, selectedStatus === st && styles.dropdownOptionActive]}
+                    onPress={() => {
+                      setSelectedStatus(st);
+                      setIsStatusDropdownOpen(false);
+                    }}
+                  >
+                    <Text style={[styles.dropdownOptionText, selectedStatus === st && styles.dropdownOptionTextActive]}>
+                      {st === 'All' ? 'All Statuses' : st}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
           </View>
-        </ScrollView>
+
+          {/* Reset Filters Option if any filter is active */}
+          {(selectedRole !== 'All' || selectedStatus !== 'All' || searchQuery.length > 0) && (
+            <Pressable
+              style={styles.resetFiltersBtn}
+              onPress={() => {
+                setSelectedRole('All');
+                setSelectedStatus('All');
+                setSearchQuery('');
+                setIsRoleDropdownOpen(false);
+                setIsStatusDropdownOpen(false);
+              }}
+            >
+              <Lucide name="rotate-ccw" size={13} color={COLORS.brand[700]} style={{ marginRight: 4 }} />
+              <Text style={styles.resetFiltersText}>Reset Filters</Text>
+            </Pressable>
+          )}
+        </View>
       </View>
 
       {/* Main Content Area: Cards or Table */}
@@ -688,6 +797,7 @@ const styles = StyleSheet.create({
     padding: SPACING[16],
     marginBottom: SPACING[20],
     gap: SPACING[12],
+    zIndex: 20,
   },
   searchBox: {
     flexDirection: 'row',
@@ -718,47 +828,117 @@ const styles = StyleSheet.create({
   clearSearchBtn: {
     padding: 4,
   },
-  filtersScroll: {
-    flexDirection: 'row',
-  },
-  filterChipGroup: {
+  dropdownFiltersRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: SPACING[20],
-    gap: 6,
+    gap: SPACING[16],
+    flexWrap: 'wrap',
+    zIndex: 30,
   },
-  filterChipLabel: {
+  dropdownFiltersRowMobile: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
+  },
+  dropdownContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    position: 'relative',
+    gap: 8,
+    zIndex: 40,
+  },
+  dropdownLabel: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: TYPOGRAPHY.weights.bold,
-    color: COLORS.neutral[400],
+    color: COLORS.neutral[500],
     textTransform: 'uppercase',
-    marginRight: 4,
   },
-  filterChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 16,
-    backgroundColor: COLORS.neutral[100],
+  dropdownTrigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: COLORS.neutral[50],
     borderWidth: 1,
     borderColor: COLORS.neutral[200],
+    borderRadius: RADIUS.button,
+    paddingHorizontal: SPACING[12],
+    height: 38,
+    minWidth: 160,
+    gap: 8,
+    ...Platform.select({
+      web: {
+        cursor: 'pointer',
+      },
+    }),
   },
-  filterChipActive: {
-    backgroundColor: COLORS.brand[800],
-    borderColor: COLORS.brand[800],
+  dropdownTriggerActive: {
+    borderColor: COLORS.brand[700],
+    backgroundColor: COLORS.neutral.white,
   },
-  filterChipText: {
+  dropdownTriggerText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
-    fontWeight: TYPOGRAPHY.weights.medium,
-    color: COLORS.neutral[600],
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: COLORS.neutral[800],
   },
-  filterChipTextActive: {
+  dropdownMenu: {
+    position: 'absolute',
+    top: 44,
+    left: 45,
+    width: 200,
+    backgroundColor: COLORS.neutral.white,
+    borderRadius: RADIUS.button,
+    borderWidth: 1,
+    borderColor: COLORS.neutral[200],
+    maxHeight: 240,
+    overflow: 'hidden',
+    zIndex: 100,
+  },
+  dropdownOption: {
+    paddingHorizontal: SPACING[16],
+    paddingVertical: 10,
+    ...Platform.select({
+      web: {
+        cursor: 'pointer',
+      },
+    }),
+  },
+  dropdownOptionActive: {
+    backgroundColor: COLORS.brand[500],
+  },
+  dropdownOptionText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    color: COLORS.neutral[700],
+  },
+  dropdownOptionTextActive: {
     color: COLORS.neutral.white,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
+  resetFiltersBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING[12],
+    paddingVertical: 8,
+    borderRadius: RADIUS.button,
+    backgroundColor: COLORS.neutral[100],
+    borderWidth: 1,
+    borderColor: COLORS.neutral[200],
+    ...Platform.select({
+      web: {
+        cursor: 'pointer',
+      },
+    }),
+  },
+  resetFiltersText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: COLORS.brand[700],
+  },
   cardsGrid: {
     width: '100%',
+    zIndex: 10,
   },
   emptyState: {
     backgroundColor: COLORS.neutral.white,
@@ -800,6 +980,7 @@ const styles = StyleSheet.create({
   },
   tableSection: {
     width: '100%',
+    zIndex: 10,
   },
   tableIdText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
@@ -854,14 +1035,13 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: COLORS.neutral[700],
   },
-  tableActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+  tableActionWrapper: {
+    position: 'relative',
+    alignItems: 'flex-end',
   },
-  tableActionBtn: {
-    width: 28,
-    height: 28,
+  tableThreeDotsBtn: {
+    width: 30,
+    height: 30,
     borderRadius: 6,
     borderWidth: 1,
     borderColor: COLORS.neutral[200],
@@ -869,14 +1049,65 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  tableActionBtnDanger: {
-    width: 28,
-    height: 28,
-    borderRadius: 6,
+  tableThreeDotsBtnActive: {
+    backgroundColor: COLORS.neutral[100],
+    borderColor: COLORS.neutral[300],
+  },
+  tablePopoverMenu: {
+    position: 'absolute',
+    top: 34,
+    right: 0,
+    width: 160,
+    backgroundColor: COLORS.neutral.white,
+    borderRadius: RADIUS.button,
     borderWidth: 1,
-    borderColor: COLORS.semantic.errorBorder,
-    backgroundColor: COLORS.semantic.errorBg,
-    justifyContent: 'center',
+    borderColor: COLORS.neutral[200],
+    paddingVertical: 4,
+    zIndex: 300,
+  },
+  popoverBackdrop: {
+    ...StyleSheet.absoluteFill,
+    zIndex: 90,
+  },
+  popoverItem: {
+    flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: SPACING[12],
+    paddingVertical: 8,
+    ...Platform.select({
+      web: {
+        cursor: 'pointer',
+      },
+    }),
+  },
+  popoverItemDanger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING[12],
+    paddingVertical: 8,
+    ...Platform.select({
+      web: {
+        cursor: 'pointer',
+      },
+    }),
+  },
+  popoverIcon: {
+    marginRight: 8,
+  },
+  popoverItemText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    color: COLORS.neutral[700],
+  },
+  popoverItemTextDanger: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: COLORS.semantic.error,
+  },
+  popoverDivider: {
+    height: 1,
+    backgroundColor: COLORS.neutral[200],
+    marginVertical: 4,
   },
 });
