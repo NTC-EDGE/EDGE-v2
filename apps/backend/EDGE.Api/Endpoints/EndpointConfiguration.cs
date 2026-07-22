@@ -24,6 +24,12 @@ public static class EndpointConfiguration
         apiV2Group.MapNoteEndpoints();
         apiV2Group.MapFeeEndpoints();
         apiV2Group.MapServiceFeeEndpoints();
+
+        // Geographic CRUD endpoints (Regions, Provinces, Municipalities, Barangays)
+        app.MapRegionEndpoints();
+        app.MapProvinceEndpoints();
+        app.MapMunicipalityEndpoints();
+        app.MapBarangayEndpoints();
     }
 
 }

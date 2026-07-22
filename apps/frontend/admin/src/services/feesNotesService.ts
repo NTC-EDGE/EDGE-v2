@@ -38,7 +38,7 @@ export const MOCK_CATEGORIES: ServiceCategoryItem[] = [
 ];
 
 export function useFeesNotesService() {
-  const { useQuery, post, put, del } = useApi();
+  const { useQuery, post, put, patch, del } = useApi();
 
   // --- FEES CRUD ---
   const useFees = () => {
@@ -59,6 +59,10 @@ export function useFeesNotesService() {
 
   const deleteFee = async (id: string): Promise<void> => {
     await del<void>(`/api/v2/fees/${id}`);
+  };
+
+  const toggleFeeStatus = async (id: string, isActive: boolean): Promise<Fee> => {
+    return await patch<Fee, { isActive: boolean }>(`/api/v2/fees/${id}/status`, { isActive });
   };
 
   // --- SERVICE FEES CRUD ---
@@ -109,6 +113,7 @@ export function useFeesNotesService() {
     createFee,
     updateFee,
     deleteFee,
+    toggleFeeStatus,
     useServiceFees,
     createServiceFee,
     updateServiceFee,

@@ -8,5 +8,5 @@ public record UpdateFeeCommand(
     string Code,
     string Name,
     string? Description,
-    bool IsActive
+    bool? IsActive = null
 ) : IRequest<FeeDto?>;

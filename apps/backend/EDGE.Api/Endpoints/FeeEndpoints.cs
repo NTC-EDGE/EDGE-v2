@@ -9,6 +9,7 @@ using EDGE.Application.Fees.Queries;
 namespace EDGE.Api.Endpoints;
 
 public record SetFeeStatusRequest(bool IsActive);
+public record UpdateFeeRequest(string Code, string Name, string? Description);
 
 public static class FeeEndpoints
 {
@@ -74,15 +75,11 @@ public static class FeeEndpoints
 
         group.MapPut("/{id:guid}", async (
             Guid id,
-            UpdateFeeCommand command,
+            UpdateFeeRequest request,
             IValidator<UpdateFeeCommand> validator,
             IMediator mediator) =>
         {
-            if (id != command.Id)
-            {
-                return Results.BadRequest("Route ID does not match request body ID.");
-            }
-
+            var command = new UpdateFeeCommand(id, request.Code, request.Name, request.Description, null);
             var validationResult = await validator.ValidateAsync(command);
             if (!validationResult.IsValid)
             {

@@ -1,27 +1,31 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Coins, Edit2, Trash2 } from "lucide-react";
-import { Fee } from "@edge/api";
+import { Coins, Edit2, Trash2, CheckCircle, XCircle } from "lucide-react";
+import { Fee, ServiceFee } from "@edge/api";
 import { ActionMenu, ActionMenuItem } from "@/components/ui/action-menu";
 import { Pagination } from "@/components/ui/pagination";
 
 export interface FeesTableProps {
   fees: Fee[];
+  serviceFees: ServiceFee[];
   loading: boolean;
   canManage: boolean;
   searchTerm: string;
   onEdit: (item: Fee) => void;
   onDelete: (item: Fee) => void;
+  onToggleStatus: (item: Fee) => void;
 }
 
 export function FeesTable({
   fees,
+  serviceFees,
   loading,
   canManage,
   searchTerm,
   onEdit,
   onDelete,
+  onToggleStatus,
 }: FeesTableProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -52,19 +56,20 @@ export function FeesTable({
               <th className="px-6 py-4">Fee Code</th>
               <th className="px-6 py-4">Fee Name</th>
               <th className="px-6 py-4">Description</th>
+              <th className="px-6 py-4">Status</th>
               {canManage && <th className="px-6 py-4 text-right">Actions</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800 text-sm">
             {loading ? (
               <tr>
-                <td colSpan={canManage ? 4 : 3} className="px-6 py-12 text-center text-slate-400">
+                <td colSpan={canManage ? 5 : 4} className="px-6 py-12 text-center text-slate-400">
                   <span>Loading fees catalog...</span>
                 </td>
               </tr>
             ) : filteredFees.length === 0 ? (
               <tr>
-                <td colSpan={canManage ? 4 : 3} className="px-6 py-12 text-center text-slate-400">
+                <td colSpan={canManage ? 5 : 4} className="px-6 py-12 text-center text-slate-400">
                   <Coins className="w-10 h-10 mx-auto text-slate-600 mb-2" />
                   <p className="font-semibold text-slate-300">No fees configured</p>
                   <p className="text-xs text-slate-500">There are no administrative fees registered in the catalog yet.</p>
@@ -72,19 +77,33 @@ export function FeesTable({
               </tr>
             ) : (
               paginatedFees.map((item) => {
+                const isUsedInServiceFee = serviceFees.some((sf) => sf.feeId === item.id);
+                const isDeleteAllowed = item.isActive === false && !isUsedInServiceFee;
+
                 const menuItems: ActionMenuItem[] = [
                   {
+                    label: item.isActive ? "Set Inactive" : "Set Active",
+                    icon: item.isActive ? XCircle : CheckCircle,
+                    onClick: () => onToggleStatus(item),
+                  },
+                ];
+
+                if (item.isActive === false) {
+                  menuItems.push({
                     label: "Edit Fee Details",
                     icon: Edit2,
                     onClick: () => onEdit(item),
-                  },
-                  {
+                  });
+                }
+
+                if (isDeleteAllowed) {
+                  menuItems.push({
                     label: "Delete Fee",
                     icon: Trash2,
                     onClick: () => onDelete(item),
                     variant: "destructive",
-                  },
-                ];
+                  });
+                }
 
                 return (
                   <tr key={item.id} className="hover:bg-slate-800/40 transition-colors group">
@@ -95,6 +114,19 @@ export function FeesTable({
                     </td>
                     <td className="px-6 py-4 font-semibold text-white">{item.name}</td>
                     <td className="px-6 py-4 text-slate-400 text-xs">{item.description ?? "—"}</td>
+                    <td className="px-6 py-4">
+                      <button
+                        onClick={() => onToggleStatus(item)}
+                        disabled={!canManage}
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border transition-all ${
+                          item.isActive
+                            ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/25"
+                            : "bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700"
+                        }`}
+                      >
+                        {item.isActive ? "Active" : "Inactive"}
+                      </button>
+                    </td>
                     {canManage && (
                       <td className="px-6 py-4 text-right">
                         <ActionMenu items={menuItems} />

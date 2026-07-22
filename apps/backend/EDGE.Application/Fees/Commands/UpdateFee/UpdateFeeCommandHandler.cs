@@ -36,7 +36,10 @@ public class UpdateFeeCommandHandler : IRequestHandler<UpdateFeeCommand, FeeDto?
         fee.Code = normalizedCode;
         fee.Name = request.Name.Trim();
         fee.Description = request.Description?.Trim();
-        fee.IsActive = request.IsActive;
+        if (request.IsActive.HasValue)
+        {
+            fee.IsActive = request.IsActive.Value;
+        }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 

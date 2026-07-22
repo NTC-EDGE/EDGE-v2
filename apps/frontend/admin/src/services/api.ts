@@ -28,6 +28,12 @@ export function useApi() {
     return response.data;
   };
 
+  const patch = async <T, D = unknown>(url: string, data: D): Promise<T> => {
+    const headers = await getHeaders();
+    const response = await apiClient.patch<T>(url, data, { headers });
+    return response.data;
+  };
+
   const del = async <T>(url: string): Promise<T> => {
     const headers = await getHeaders();
     const response = await apiClient.delete<T>(url, { headers });
@@ -41,5 +47,5 @@ export function useApi() {
     return useAuthenticatedSWR<Data, Error>(key, getToken, config);
   }
 
-  return { get, post, put, del, useQuery };
+  return { get, post, put, patch, del, useQuery };
 }

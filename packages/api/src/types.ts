@@ -446,6 +446,7 @@ export interface Fee {
   code: string;
   name: string;
   description?: string | null;
+  isActive?: boolean;
 }
 
 export interface ServiceFee {
@@ -453,6 +454,7 @@ export interface ServiceFee {
   serviceId: string;
   feeId: string;
   amount: number;
+  isActive?: boolean;
 }
 
 export interface Note {
