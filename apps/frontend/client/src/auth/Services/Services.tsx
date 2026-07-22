@@ -25,7 +25,7 @@ type AuthParamList = {
 export function Services() {
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp<AuthParamList>>();
 
   // Clerk Contexts
   const { user: clerkUser } = useUser();
@@ -108,7 +108,7 @@ export function Services() {
       const headers = token !== null ? { Authorization: `Bearer ${token}` } : {};
       
       await apiClient.post(
-        "/api/applications",
+        "/api/v2/applications",
         {
           title: selectedService.title,
           applicantName: formData.applicantName,

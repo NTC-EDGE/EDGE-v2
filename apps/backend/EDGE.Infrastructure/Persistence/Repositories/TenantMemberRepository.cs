@@ -13,38 +13,30 @@ public class TenantMemberRepository : ITenantMemberRepository
         _context = context;
     }
 
-    public async Task<TenantMember?> GetMemberAsync(Guid userId, Guid tenantId, CancellationToken cancellationToken = default)
-    {
-        return await _context.TenantMembers
-            .Include(x => x.Tenant)
-            .Include(x => x.User)
-            .Include(x => x.Role)
-            .FirstOrDefaultAsync(x => x.UserId == userId && x.TenantId == tenantId, cancellationToken);
-    }
-
-    public async Task<List<TenantMember>> GetMembersOfTenantAsync(Guid tenantId, CancellationToken cancellationToken = default)
-    {
-        return await _context.TenantMembers
-            .Include(x => x.Tenant)
-            .Include(x => x.User)
-            .Include(x => x.Role)
-            .Where(x => x.TenantId == tenantId)
-            .ToListAsync(cancellationToken);
-    }
-
-    public async Task<List<TenantMember>> GetTenantsForUserAsync(Guid userId, CancellationToken cancellationToken = default)
-    {
-        return await _context.TenantMembers
-            .Include(x => x.Tenant)
-            .Include(x => x.User)
-            .Include(x => x.Role)
-            .Where(x => x.UserId == userId)
-            .ToListAsync(cancellationToken);
-    }
-
     public async Task AddAsync(TenantMember member, CancellationToken cancellationToken = default)
     {
         await _context.TenantMembers.AddAsync(member, cancellationToken);
+    }
+
+    public async Task<TenantMember?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return await _context.TenantMembers
+            .Include(m => m.Tenant)
+            .FirstOrDefaultAsync(m => m.Id == id, cancellationToken);
+    }
+
+    public async Task<TenantMember?> GetByTenantAndUserAsync(Guid tenantId, Guid userId, CancellationToken cancellationToken = default)
+    {
+        return await _context.TenantMembers
+            .Include(m => m.Tenant)
+            .FirstOrDefaultAsync(m => m.TenantId == tenantId && m.UserId == userId, cancellationToken);
+    }
+
+    public async Task<List<TenantMember>> GetMembersByTenantAsync(Guid tenantId, CancellationToken cancellationToken = default)
+    {
+        return await _context.TenantMembers
+            .Where(m => m.TenantId == tenantId)
+            .ToListAsync(cancellationToken);
     }
 
     public void Delete(TenantMember member)

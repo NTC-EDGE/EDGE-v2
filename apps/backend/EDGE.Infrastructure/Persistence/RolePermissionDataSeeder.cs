@@ -21,9 +21,10 @@ public static class RolePermissionDataSeeder
         {
             Id = defaultTenantId,
             Name = "NTC Central Office",
-            Slug = "ntc-central",
+            Code = "NTC-CENTRAL",
             Description = "National Telecommunications Commission Main Office",
             IsActive = true,
+            RegionId = Guid.Parse("1e66819d-583c-4852-83bd-a4195bd126a8"),
             CreatedAt = staticDate
         };
         await context.Tenants.AddAsync(defaultTenant);
@@ -98,12 +99,12 @@ public static class RolePermissionDataSeeder
         // ── Seed Tenant Memberships ───────────────────────────────────────────
         var tenantMembers = new List<TenantMember>
         {
-            new() { Id = Guid.Parse("40000000-0000-0000-0000-000000000001"), TenantId = defaultTenantId, UserId = userClient.Id, RoleId = clientRoleId, IsActive = true, JoinedAt = staticDate, CreatedAt = staticDate },
-            new() { Id = Guid.Parse("40000000-0000-0000-0000-000000000002"), TenantId = defaultTenantId, UserId = userEval.Id,   RoleId = evaluatorRoleId, IsActive = true, JoinedAt = staticDate, CreatedAt = staticDate },
-            new() { Id = Guid.Parse("40000000-0000-0000-0000-000000000003"), TenantId = defaultTenantId, UserId = userHigher.Id, RoleId = higherUpsRoleId, IsActive = true, JoinedAt = staticDate, CreatedAt = staticDate },
-            new() { Id = Guid.Parse("40000000-0000-0000-0000-000000000004"), TenantId = defaultTenantId, UserId = userAcct.Id,   RoleId = accountantRoleId, IsActive = true, JoinedAt = staticDate, CreatedAt = staticDate },
-            new() { Id = Guid.Parse("40000000-0000-0000-0000-000000000005"), TenantId = defaultTenantId, UserId = userCash.Id,   RoleId = cashierRoleId, IsActive = true, JoinedAt = staticDate, CreatedAt = staticDate },
-            new() { Id = Guid.Parse("40000000-0000-0000-0000-000000000006"), TenantId = defaultTenantId, UserId = userAdmin.Id,  RoleId = adminRoleId, IsActive = true, JoinedAt = staticDate, CreatedAt = staticDate },
+            new() { Id = Guid.Parse("40000000-0000-0000-0000-000000000001"), TenantId = defaultTenantId, UserId = userClient.Id, RoleId = clientRoleId, CreatedAt = staticDate },
+            new() { Id = Guid.Parse("40000000-0000-0000-0000-000000000002"), TenantId = defaultTenantId, UserId = userEval.Id,   RoleId = evaluatorRoleId, CreatedAt = staticDate },
+            new() { Id = Guid.Parse("40000000-0000-0000-0000-000000000003"), TenantId = defaultTenantId, UserId = userHigher.Id, RoleId = higherUpsRoleId, CreatedAt = staticDate },
+            new() { Id = Guid.Parse("40000000-0000-0000-0000-000000000004"), TenantId = defaultTenantId, UserId = userAcct.Id,   RoleId = accountantRoleId, CreatedAt = staticDate },
+            new() { Id = Guid.Parse("40000000-0000-0000-0000-000000000005"), TenantId = defaultTenantId, UserId = userCash.Id,   RoleId = cashierRoleId, CreatedAt = staticDate },
+            new() { Id = Guid.Parse("40000000-0000-0000-0000-000000000006"), TenantId = defaultTenantId, UserId = userAdmin.Id,  RoleId = adminRoleId, CreatedAt = staticDate },
         };
         await context.TenantMembers.AddRangeAsync(tenantMembers);
 

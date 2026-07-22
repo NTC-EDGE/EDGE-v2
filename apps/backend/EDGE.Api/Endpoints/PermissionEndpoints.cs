@@ -17,6 +17,9 @@ public static class PermissionEndpoints
             return Results.Ok(keys);
         })
         .WithName("GetPermissions")
+        .WithTags("Permissions")
+        .WithSummary("Get all authorization permissions")
+        .WithDescription("Returns all available permission keys defined in the system.")
         .RequireAuthorization(Policies.CanManageUsers);
     }
 }
