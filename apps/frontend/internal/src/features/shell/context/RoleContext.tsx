@@ -45,7 +45,6 @@ export const ROLE_NAVIGATION_LINKS = {
     { name: 'Activities', screen: 'Activities', icon: 'bell' },
     { name: 'Chat', screen: 'Chat', icon: 'message-square' },
     { name: 'Meet', screen: 'Meet', icon: 'video' },
-    { name: 'Reports', screen: 'Reports', icon: 'file-text' },
   ],
   Approver: [
     { name: 'Dashboard', screen: 'Dashboard', icon: 'grid' },

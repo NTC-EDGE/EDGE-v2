@@ -91,7 +91,13 @@ export function Header({
             >
               <View style={styles.profileInfo}>
                 <Text style={styles.profileName}>{profileName}</Text>
-                <Text style={styles.profileRole}>{currentRole === 'Administrator' ? 'Admin' : currentRole}</Text>
+                <Text style={styles.profileRole}>
+                  {currentRole === 'Administrator'
+                    ? 'Admin'
+                    : currentRole === 'Reviewer'
+                      ? 'Evaluator'
+                      : currentRole}
+                </Text>
               </View>
               <View style={styles.avatarCircle}>
                 <Text style={styles.avatarText}>{getInitials(profileName)}</Text>
