@@ -26,5 +26,6 @@ public static class EndpointConfiguration
         apiV2Group.MapFieldOfficeEndpoints();
         apiV2Group.MapApplicantEndpoints();
         apiV2Group.MapNoteEndpoints();
+        apiV2Group.MapStorageEndpoints();
     }
 }

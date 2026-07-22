@@ -461,6 +461,18 @@ export interface Note {
   serviceCategoryId: string;
 }
 
+export interface StoredFileDto {
+  id: string;
+  fileName: string;
+  contentType: string;
+  fileSizeBytes: number;
+  category: string;
+  tenantId: string;
+  uploadedByUserId: string;
+  createdAt: string;
+}
+
+
 
 
 
