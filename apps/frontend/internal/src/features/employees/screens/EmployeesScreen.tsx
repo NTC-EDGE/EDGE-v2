@@ -19,10 +19,12 @@ import {
 } from '../data/mockEmployees';
 import { EmployeeCard } from '../components/EmployeeCard';
 import { EmployeeFormModal } from '../components/EmployeeFormModal';
-import { EmployeeDetailModal } from '../components/EmployeeDetailModal';
+import { EmployeeDetailsPage } from '../components/EmployeeDetailsPage';
 import { DeleteConfirmModal } from '../components/DeleteConfirmModal';
 
 type ViewMode = 'cards' | 'table';
+type SubViewMode = 'list' | 'details';
+
 const ITEMS_PER_PAGE = 10;
 
 // Helper Table Action Menu Cell
@@ -94,6 +96,10 @@ export function EmployeesScreen() {
   // Primary employee dataset in state
   const [employees, setEmployees] = useState<Employee[]>(INITIAL_EMPLOYEES);
 
+  // View state
+  const [subView, setSubView] = useState<SubViewMode>('list');
+  const [viewingEmployee, setViewingEmployee] = useState<Employee | null>(null);
+
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRole, setSelectedRole] = useState<string>('All');
@@ -110,9 +116,6 @@ export function EmployeesScreen() {
   // Modal states
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
-
-  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-  const [viewingEmployee, setViewingEmployee] = useState<Employee | null>(null);
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deletingEmployee, setDeletingEmployee] = useState<Employee | null>(null);
@@ -188,9 +191,9 @@ export function EmployeesScreen() {
     setIsFormModalOpen(true);
   };
 
-  const handleOpenDetailModal = (emp: Employee) => {
+  const handleOpenDetailsPage = (emp: Employee) => {
     setViewingEmployee(emp);
-    setIsDetailModalOpen(true);
+    setSubView('details');
   };
 
   const handleOpenDeleteModal = (emp: Employee) => {
@@ -204,18 +207,31 @@ export function EmployeesScreen() {
       setEmployees((prev) =>
         prev.map((item) => {
           if (item.id === editingEmployee.id) {
-            return {
+            const updated = {
               ...item,
               ...data,
               firstName: data.firstName ?? item.firstName,
               lastName: data.lastName ?? item.lastName,
+              middleName: data.middleName ?? item.middleName,
+              suffix: data.suffix ?? item.suffix,
               email: data.email ?? item.email,
               phone: data.phone ?? item.phone,
               role: (data.role as EmployeeRole) ?? item.role,
+              region: data.region ?? item.region,
               department: data.department ?? item.department,
+              division: data.division ?? item.division,
+              level: data.level ?? item.level,
+              title: data.title ?? item.title,
+              position: data.position ?? item.position,
+              designation: data.designation ?? item.designation,
+              signatureDisplay: data.signatureDisplay ?? item.signatureDisplay,
               status: (data.status as EmployeeStatus) ?? item.status,
               location: data.location ?? item.location,
             };
+            if (viewingEmployee !== null && viewingEmployee.id === item.id) {
+              setViewingEmployee(updated);
+            }
+            return updated;
           }
           return item;
         })
@@ -242,6 +258,7 @@ export function EmployeesScreen() {
         position: data.position ?? 'Technical Evaluator',
         designation: data.designation ?? '',
         signatureDisplay: data.signatureDisplay ?? 'beside',
+        signatureUri: 'mock_signature_new.png',
         status: (data.status as EmployeeStatus) ?? 'Active',
         avatarColor: '#2563EB',
         dateJoined: 'Today',
@@ -260,6 +277,10 @@ export function EmployeesScreen() {
     showToast(`Deleted employee ${emp.firstName} ${emp.lastName}`);
     setIsDeleteModalOpen(false);
     setDeletingEmployee(null);
+    if (subView === 'details' && viewingEmployee !== null && viewingEmployee.id === emp.id) {
+      setSubView('list');
+      setViewingEmployee(null);
+    }
   };
 
   // TanStack DataTable Columns definition
@@ -325,7 +346,7 @@ export function EmployeesScreen() {
           return (
             <TableActionCell
               employee={emp}
-              onView={handleOpenDetailModal}
+              onView={handleOpenDetailsPage}
               onEdit={handleOpenEditModal}
               onDelete={handleOpenDeleteModal}
             />
@@ -337,6 +358,51 @@ export function EmployeesScreen() {
     []
   );
 
+  // If in 'details' subView mode, render EmployeeDetailsPage
+  if (subView === 'details' && viewingEmployee !== null && viewingEmployee !== undefined) {
+    return (
+      <View style={styles.container}>
+        {toastMessage !== null && (
+          <View style={[styles.toastContainer, SHADOWS.modal]}>
+            <Lucide name="check-circle" size={16} color={COLORS.semantic.success} style={{ marginRight: 8 }} />
+            <Text style={styles.toastText}>{toastMessage}</Text>
+          </View>
+        )}
+
+        <EmployeeDetailsPage
+          employee={viewingEmployee}
+          onBack={() => {
+            setSubView('list');
+            setViewingEmployee(null);
+          }}
+          onEdit={handleOpenEditModal}
+          onDelete={handleOpenDeleteModal}
+        />
+
+        <EmployeeFormModal
+          visible={isFormModalOpen}
+          onClose={() => {
+            setIsFormModalOpen(false);
+            setEditingEmployee(null);
+          }}
+          onSave={handleSaveEmployee}
+          initialEmployee={editingEmployee}
+        />
+
+        <DeleteConfirmModal
+          visible={isDeleteModalOpen}
+          employee={deletingEmployee}
+          onClose={() => {
+            setIsDeleteModalOpen(false);
+            setDeletingEmployee(null);
+          }}
+          onConfirm={handleConfirmDelete}
+        />
+      </View>
+    );
+  }
+
+  // Main Employee List View
   return (
     <View style={styles.container}>
       {/* Toast Notification */}
@@ -347,314 +413,319 @@ export function EmployeesScreen() {
         </View>
       )}
 
-      {/* Breadcrumb Navigation: ADMIN -> DASHBOARD -> EMPLOYEE ACCOUNTS */}
-      <View style={styles.breadcrumb}>
-        <Text style={styles.breadcrumbText}>Admin</Text>
-        <Lucide name="chevron-right" size={12} color={COLORS.neutral[400]} style={styles.breadcrumbDivider} />
-        <Text style={styles.breadcrumbText}>Dashboard</Text>
-        <Lucide name="chevron-right" size={12} color={COLORS.neutral[400]} style={styles.breadcrumbDivider} />
-        <Text style={[styles.breadcrumbText, styles.breadcrumbActive]}>Employee Accounts</Text>
-      </View>
-
-      {/* Header Banner Section */}
-      <View style={[styles.headerBanner, isMobile && styles.headerBannerMobile]}>
-        <View style={styles.headerTitleArea}>
-          <Text style={styles.headerTitle}>Employee Accounts</Text>
-          <Text style={styles.headerSubtitle}>
-            Manage staff roles, evaluator assignments, and system administrative access.
-          </Text>
+      {/* TOP SECTION (Breadcrumb, Header, KPI Stats, Toolbar) */}
+      <View style={styles.topSection}>
+        {/* Breadcrumb Navigation: ADMIN -> DASHBOARD -> EMPLOYEE ACCOUNTS */}
+        <View style={styles.breadcrumb}>
+          <Text style={styles.breadcrumbText}>Admin</Text>
+          <Lucide name="chevron-right" size={12} color={COLORS.neutral[400]} style={styles.breadcrumbDivider} />
+          <Text style={styles.breadcrumbText}>Dashboard</Text>
+          <Lucide name="chevron-right" size={12} color={COLORS.neutral[400]} style={styles.breadcrumbDivider} />
+          <Text style={[styles.breadcrumbText, styles.breadcrumbActive]}>Employee Accounts</Text>
         </View>
 
-        <View style={[styles.headerActions, isMobile && styles.headerActionsMobile]}>
-          {/* View Mode Toggle */}
-          <View style={styles.viewToggleGroup}>
-            <Pressable
-              style={[styles.toggleBtn, viewMode === 'cards' && styles.toggleBtnActive]}
-              onPress={() => setViewMode('cards')}
-            >
-              <Lucide
-                name="grid"
-                size={16}
-                color={viewMode === 'cards' ? COLORS.brand[800] : COLORS.neutral[500]}
-              />
-            </Pressable>
-            <Pressable
-              style={[styles.toggleBtn, viewMode === 'table' && styles.toggleBtnActive]}
-              onPress={() => setViewMode('table')}
-            >
-              <Lucide
-                name="list"
-                size={16}
-                color={viewMode === 'table' ? COLORS.brand[800] : COLORS.neutral[500]}
-              />
-            </Pressable>
+        {/* Header Banner Section */}
+        <View style={[styles.headerBanner, isMobile && styles.headerBannerMobile]}>
+          <View style={styles.headerTitleArea}>
+            <Text style={styles.headerTitle}>Employee Accounts</Text>
+            <Text style={styles.headerSubtitle}>
+              Manage staff roles, evaluator assignments, and system administrative access.
+            </Text>
           </View>
 
-          {/* Add Employee Button */}
-          <Pressable style={styles.addEmployeeBtn} onPress={handleOpenAddModal}>
-            <Lucide name="plus" size={18} color={COLORS.neutral.white} style={{ marginRight: 6 }} />
-            <Text style={styles.addEmployeeBtnText}>Add Employee</Text>
-          </Pressable>
-        </View>
-      </View>
-
-      {/* KPI Stats Strip */}
-      <View style={[styles.statsStrip, isMobile && styles.statsStripMobile]}>
-        <View style={[styles.statCard, SHADOWS.card]}>
-          <View style={[styles.statIconBadge, { backgroundColor: COLORS.neutral[100] }]}>
-            <Lucide name="users" size={18} color={COLORS.brand[700]} />
-          </View>
-          <View>
-            <Text style={styles.statValue}>{stats.total}</Text>
-            <Text style={styles.statLabel}>Total Staff</Text>
-          </View>
-        </View>
-
-        <View style={[styles.statCard, SHADOWS.card]}>
-          <View style={[styles.statIconBadge, { backgroundColor: COLORS.semantic.successBg }]}>
-            <Lucide name="check-circle" size={18} color={COLORS.semantic.success} />
-          </View>
-          <View>
-            <Text style={styles.statValue}>{stats.active}</Text>
-            <Text style={styles.statLabel}>Active Employees</Text>
-          </View>
-        </View>
-
-        <View style={[styles.statCard, SHADOWS.card]}>
-          <View style={[styles.statIconBadge, { backgroundColor: COLORS.neutral[100] }]}>
-            <Lucide name="award" size={18} color={COLORS.brand[700]} />
-          </View>
-          <View>
-            <Text style={styles.statValue}>{stats.evaluators}</Text>
-            <Text style={styles.statLabel}>Evaluators</Text>
-          </View>
-        </View>
-
-        <View style={[styles.statCard, SHADOWS.card]}>
-          <View style={[styles.statIconBadge, { backgroundColor: COLORS.semantic.warningBg }]}>
-            <Lucide name="shield" size={18} color={COLORS.semantic.warning} />
-          </View>
-          <View>
-            <Text style={styles.statValue}>{stats.admins}</Text>
-            <Text style={styles.statLabel}>Admins & Managers</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Toolbar: Search and Dropdown Filter Row (HORIZONTALLY ALIGNED ON SAME ROW) */}
-      <View style={[styles.toolbarCard, SHADOWS.card]}>
-        <View style={[styles.toolbarRow, isMobile && styles.toolbarRowMobile]}>
-          {/* Horizontally Aligned Search Bar */}
-          <View style={styles.searchBox}>
-            <Lucide name="search" size={16} color={COLORS.neutral[400]} style={styles.searchIcon} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search employees by name, email, or department..."
-              placeholderTextColor={COLORS.neutral[400]}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-            {searchQuery.length > 0 && (
-              <Pressable onPress={() => setSearchQuery('')} style={styles.clearSearchBtn}>
-                <Lucide name="x" size={14} color={COLORS.neutral[500]} />
+          <View style={[styles.headerActions, isMobile && styles.headerActionsMobile]}>
+            {/* View Mode Toggle */}
+            <View style={styles.viewToggleGroup}>
+              <Pressable
+                style={[styles.toggleBtn, viewMode === 'cards' && styles.toggleBtnActive]}
+                onPress={() => setViewMode('cards')}
+              >
+                <Lucide
+                  name="grid"
+                  size={16}
+                  color={viewMode === 'cards' ? COLORS.brand[800] : COLORS.neutral[500]}
+                />
               </Pressable>
-            )}
+              <Pressable
+                style={[styles.toggleBtn, viewMode === 'table' && styles.toggleBtnActive]}
+                onPress={() => setViewMode('table')}
+              >
+                <Lucide
+                  name="list"
+                  size={16}
+                  color={viewMode === 'table' ? COLORS.brand[800] : COLORS.neutral[500]}
+                />
+              </Pressable>
+            </View>
+
+            {/* Add Employee Button */}
+            <Pressable style={styles.addEmployeeBtn} onPress={handleOpenAddModal}>
+              <Lucide name="plus" size={18} color={COLORS.neutral.white} style={{ marginRight: 6 }} />
+              <Text style={styles.addEmployeeBtnText}>Add Employee</Text>
+            </Pressable>
+          </View>
+        </View>
+
+        {/* KPI Stats Strip */}
+        <View style={[styles.statsStrip, isMobile && styles.statsStripMobile]}>
+          <View style={[styles.statCard, SHADOWS.card]}>
+            <View style={[styles.statIconBadge, { backgroundColor: COLORS.neutral[100] }]}>
+              <Lucide name="users" size={18} color={COLORS.brand[700]} />
+            </View>
+            <View>
+              <Text style={styles.statValue}>{stats.total}</Text>
+              <Text style={styles.statLabel}>Total Staff</Text>
+            </View>
           </View>
 
-          {/* Horizontally Aligned Role Dropdown */}
-          <View style={styles.dropdownContainer}>
-            <Text style={styles.dropdownLabel}>Role:</Text>
-            <Pressable
-              style={[styles.dropdownTrigger, isRoleDropdownOpen && styles.dropdownTriggerActive]}
-              onPress={() => {
-                setIsRoleDropdownOpen((prev) => !prev);
-                setIsStatusDropdownOpen(false);
-              }}
-            >
-              <Text style={styles.dropdownTriggerText} numberOfLines={1}>
-                {selectedRole === 'All' ? 'All Roles' : selectedRole}
-              </Text>
-              <Lucide
-                name={isRoleDropdownOpen ? 'chevron-up' : 'chevron-down'}
-                size={14}
-                color={COLORS.neutral[600]}
-              />
-            </Pressable>
+          <View style={[styles.statCard, SHADOWS.card]}>
+            <View style={[styles.statIconBadge, { backgroundColor: COLORS.semantic.successBg }]}>
+              <Lucide name="check-circle" size={18} color={COLORS.semantic.success} />
+            </View>
+            <View>
+              <Text style={styles.statValue}>{stats.active}</Text>
+              <Text style={styles.statLabel}>Active Employees</Text>
+            </View>
+          </View>
 
-            {isRoleDropdownOpen && (
-              <View style={[styles.dropdownMenu, SHADOWS.modal]}>
-                <Pressable
-                  style={[styles.dropdownOption, selectedRole === 'All' && styles.dropdownOptionActive]}
-                  onPress={() => {
-                    setSelectedRole('All');
-                    setIsRoleDropdownOpen(false);
-                  }}
-                >
-                  <Text style={[styles.dropdownOptionText, selectedRole === 'All' && styles.dropdownOptionTextActive]}>
-                    All Roles
-                  </Text>
+          <View style={[styles.statCard, SHADOWS.card]}>
+            <View style={[styles.statIconBadge, { backgroundColor: COLORS.neutral[100] }]}>
+              <Lucide name="award" size={18} color={COLORS.brand[700]} />
+            </View>
+            <View>
+              <Text style={styles.statValue}>{stats.evaluators}</Text>
+              <Text style={styles.statLabel}>Evaluators</Text>
+            </View>
+          </View>
+
+          <View style={[styles.statCard, SHADOWS.card]}>
+            <View style={[styles.statIconBadge, { backgroundColor: COLORS.semantic.warningBg }]}>
+              <Lucide name="shield" size={18} color={COLORS.semantic.warning} />
+            </View>
+            <View>
+              <Text style={styles.statValue}>{stats.admins}</Text>
+              <Text style={styles.statLabel}>Admins & Managers</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Toolbar: Search and Dropdown Filter Row */}
+        <View style={[styles.toolbarCard, SHADOWS.card]}>
+          <View style={[styles.toolbarRow, isMobile && styles.toolbarRowMobile]}>
+            {/* Search Bar */}
+            <View style={styles.searchBox}>
+              <Lucide name="search" size={16} color={COLORS.neutral[400]} style={styles.searchIcon} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search employees by name, email, or department..."
+                placeholderTextColor={COLORS.neutral[400]}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+              {searchQuery.length > 0 && (
+                <Pressable onPress={() => setSearchQuery('')} style={styles.clearSearchBtn}>
+                  <Lucide name="x" size={14} color={COLORS.neutral[500]} />
                 </Pressable>
-                {ROLES_LIST.map((r) => (
+              )}
+            </View>
+
+            {/* Role Dropdown */}
+            <View style={styles.dropdownContainer}>
+              <Text style={styles.dropdownLabel}>Role:</Text>
+              <Pressable
+                style={[styles.dropdownTrigger, isRoleDropdownOpen && styles.dropdownTriggerActive]}
+                onPress={() => {
+                  setIsRoleDropdownOpen((prev) => !prev);
+                  setIsStatusDropdownOpen(false);
+                }}
+              >
+                <Text style={styles.dropdownTriggerText} numberOfLines={1}>
+                  {selectedRole === 'All' ? 'All Roles' : selectedRole}
+                </Text>
+                <Lucide
+                  name={isRoleDropdownOpen ? 'chevron-up' : 'chevron-down'}
+                  size={14}
+                  color={COLORS.neutral[600]}
+                />
+              </Pressable>
+
+              {isRoleDropdownOpen && (
+                <View style={[styles.dropdownMenu, SHADOWS.modal]}>
                   <Pressable
-                    key={r}
-                    style={[styles.dropdownOption, selectedRole === r && styles.dropdownOptionActive]}
+                    style={[styles.dropdownOption, selectedRole === 'All' && styles.dropdownOptionActive]}
                     onPress={() => {
-                      setSelectedRole(r);
+                      setSelectedRole('All');
                       setIsRoleDropdownOpen(false);
                     }}
                   >
-                    <Text style={[styles.dropdownOptionText, selectedRole === r && styles.dropdownOptionTextActive]}>
-                      {r}
+                    <Text style={[styles.dropdownOptionText, selectedRole === 'All' && styles.dropdownOptionTextActive]}>
+                      All Roles
                     </Text>
                   </Pressable>
-                ))}
-              </View>
+                  {ROLES_LIST.map((r) => (
+                    <Pressable
+                      key={r}
+                      style={[styles.dropdownOption, selectedRole === r && styles.dropdownOptionActive]}
+                      onPress={() => {
+                        setSelectedRole(r);
+                        setIsRoleDropdownOpen(false);
+                      }}
+                    >
+                      <Text style={[styles.dropdownOptionText, selectedRole === r && styles.dropdownOptionTextActive]}>
+                        {r}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              )}
+            </View>
+
+            {/* Status Dropdown */}
+            <View style={styles.dropdownContainer}>
+              <Text style={styles.dropdownLabel}>Status:</Text>
+              <Pressable
+                style={[styles.dropdownTrigger, isStatusDropdownOpen && styles.dropdownTriggerActive]}
+                onPress={() => {
+                  setIsStatusDropdownOpen((prev) => !prev);
+                  setIsRoleDropdownOpen(false);
+                }}
+              >
+                <Text style={styles.dropdownTriggerText} numberOfLines={1}>
+                  {selectedStatus === 'All' ? 'All Statuses' : selectedStatus}
+                </Text>
+                <Lucide
+                  name={isStatusDropdownOpen ? 'chevron-up' : 'chevron-down'}
+                  size={14}
+                  color={COLORS.neutral[600]}
+                />
+              </Pressable>
+
+              {isStatusDropdownOpen && (
+                <View style={[styles.dropdownMenu, SHADOWS.modal]}>
+                  {['All', 'Active', 'On Leave', 'Inactive'].map((st) => (
+                    <Pressable
+                      key={st}
+                      style={[styles.dropdownOption, selectedStatus === st && styles.dropdownOptionActive]}
+                      onPress={() => {
+                        setSelectedStatus(st);
+                        setIsStatusDropdownOpen(false);
+                      }}
+                    >
+                      <Text style={[styles.dropdownOptionText, selectedStatus === st && styles.dropdownOptionTextActive]}>
+                        {st === 'All' ? 'All Statuses' : st}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              )}
+            </View>
+
+            {/* Reset Filters Option */}
+            {(selectedRole !== 'All' || selectedStatus !== 'All' || searchQuery.length > 0) && (
+              <Pressable
+                style={styles.resetFiltersBtn}
+                onPress={() => {
+                  setSelectedRole('All');
+                  setSelectedStatus('All');
+                  setSearchQuery('');
+                  setIsRoleDropdownOpen(false);
+                  setIsStatusDropdownOpen(false);
+                }}
+              >
+                <Lucide name="rotate-ccw" size={13} color={COLORS.brand[700]} style={{ marginRight: 4 }} />
+                <Text style={styles.resetFiltersText}>Reset</Text>
+              </Pressable>
             )}
           </View>
-
-          {/* Horizontally Aligned Status Dropdown */}
-          <View style={styles.dropdownContainer}>
-            <Text style={styles.dropdownLabel}>Status:</Text>
-            <Pressable
-              style={[styles.dropdownTrigger, isStatusDropdownOpen && styles.dropdownTriggerActive]}
-              onPress={() => {
-                setIsStatusDropdownOpen((prev) => !prev);
-                setIsRoleDropdownOpen(false);
-              }}
-            >
-              <Text style={styles.dropdownTriggerText} numberOfLines={1}>
-                {selectedStatus === 'All' ? 'All Statuses' : selectedStatus}
-              </Text>
-              <Lucide
-                name={isStatusDropdownOpen ? 'chevron-up' : 'chevron-down'}
-                size={14}
-                color={COLORS.neutral[600]}
-              />
-            </Pressable>
-
-            {isStatusDropdownOpen && (
-              <View style={[styles.dropdownMenu, SHADOWS.modal]}>
-                {['All', 'Active', 'On Leave', 'Inactive'].map((st) => (
-                  <Pressable
-                    key={st}
-                    style={[styles.dropdownOption, selectedStatus === st && styles.dropdownOptionActive]}
-                    onPress={() => {
-                      setSelectedStatus(st);
-                      setIsStatusDropdownOpen(false);
-                    }}
-                  >
-                    <Text style={[styles.dropdownOptionText, selectedStatus === st && styles.dropdownOptionTextActive]}>
-                      {st === 'All' ? 'All Statuses' : st}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            )}
-          </View>
-
-          {/* Reset Filters Option */}
-          {(selectedRole !== 'All' || selectedStatus !== 'All' || searchQuery.length > 0) && (
-            <Pressable
-              style={styles.resetFiltersBtn}
-              onPress={() => {
-                setSelectedRole('All');
-                setSelectedStatus('All');
-                setSearchQuery('');
-                setIsRoleDropdownOpen(false);
-                setIsStatusDropdownOpen(false);
-              }}
-            >
-              <Lucide name="rotate-ccw" size={13} color={COLORS.brand[700]} style={{ marginRight: 4 }} />
-              <Text style={styles.resetFiltersText}>Reset</Text>
-            </Pressable>
-          )}
         </View>
       </View>
 
-      {/* Main Content Area: Cards or Table */}
-      {viewMode === 'cards' ? (
-        <View style={styles.cardsGrid}>
-          {paginatedEmployees.length > 0 ? (
-            paginatedEmployees.map((employee) => (
-              <EmployeeCard
-                key={employee.id}
-                employee={employee}
-                onView={handleOpenDetailModal}
-                onEdit={handleOpenEditModal}
-                onDelete={handleOpenDeleteModal}
-              />
-            ))
-          ) : (
-            <View style={styles.emptyState}>
-              <Lucide name="users" size={40} color={COLORS.neutral[300]} style={{ marginBottom: 12 }} />
-              <Text style={styles.emptyTitle}>No Employees Found</Text>
-              <Text style={styles.emptyText}>
-                No employee records match your search criteria. Try adjusting your search query or filters.
-              </Text>
-              <Pressable
-                style={styles.resetFilterBtn}
-                onPress={() => {
-                  setSearchQuery('');
-                  setSelectedRole('All');
-                  setSelectedStatus('All');
-                }}
-              >
-                <Text style={styles.resetFilterText}>Reset Filters</Text>
-              </Pressable>
-            </View>
-          )}
-
-          {/* Pagination Controls Bar (10 entries per page) */}
-          {filteredEmployees.length > 0 && (
-            <View style={[styles.paginationBar, SHADOWS.card]}>
-              <Text style={styles.paginationText}>
-                Showing <Text style={styles.boldText}>{startIndex + 1}</Text> to{' '}
-                <Text style={styles.boldText}>{endIndex}</Text> of{' '}
-                <Text style={styles.boldText}>{filteredEmployees.length}</Text> employees (Page{' '}
-                {currentPage} of {totalPages})
-              </Text>
-
-              <View style={styles.paginationActions}>
+      {/* MIDDLE LIST SECTION (Renders Card Grid or Data Table) */}
+      <View style={styles.listArea}>
+        {viewMode === 'cards' ? (
+          <View style={styles.cardsGrid}>
+            {paginatedEmployees.length > 0 ? (
+              paginatedEmployees.map((employee) => (
+                <EmployeeCard
+                  key={employee.id}
+                  employee={employee}
+                  onView={handleOpenDetailsPage}
+                  onEdit={handleOpenEditModal}
+                  onDelete={handleOpenDeleteModal}
+                />
+              ))
+            ) : (
+              <View style={styles.emptyState}>
+                <Lucide name="users" size={40} color={COLORS.neutral[300]} style={{ marginBottom: 12 }} />
+                <Text style={styles.emptyTitle}>No Employees Found</Text>
+                <Text style={styles.emptyText}>
+                  No employee records match your search criteria. Try adjusting your search query or filters.
+                </Text>
                 <Pressable
-                  disabled={currentPage <= 1}
-                  onPress={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-                  style={[styles.pageBtn, currentPage <= 1 && styles.pageBtnDisabled]}
+                  style={styles.resetFilterBtn}
+                  onPress={() => {
+                    setSearchQuery('');
+                    setSelectedRole('All');
+                    setSelectedStatus('All');
+                  }}
                 >
-                  <Lucide
-                    name="chevron-left"
-                    size={16}
-                    color={currentPage > 1 ? COLORS.neutral[700] : COLORS.neutral[300]}
-                  />
-                  <Text style={[styles.pageBtnText, currentPage <= 1 && styles.pageBtnTextDisabled]}>
-                    Previous
-                  </Text>
-                </Pressable>
-
-                <Pressable
-                  disabled={currentPage >= totalPages}
-                  onPress={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-                  style={[styles.pageBtn, currentPage >= totalPages && styles.pageBtnDisabled]}
-                >
-                  <Text style={[styles.pageBtnText, currentPage >= totalPages && styles.pageBtnTextDisabled]}>
-                    Next
-                  </Text>
-                  <Lucide
-                    name="chevron-right"
-                    size={16}
-                    color={currentPage < totalPages ? COLORS.neutral[700] : COLORS.neutral[300]}
-                  />
+                  <Text style={styles.resetFilterText}>Reset Filters</Text>
                 </Pressable>
               </View>
-            </View>
-          )}
-        </View>
-      ) : (
-        <View style={styles.tableSection}>
-          <DataTable
-            data={filteredEmployees}
-            columns={tableColumns}
-            searchPlaceholder="Filter table results..."
-          />
+            )}
+          </View>
+        ) : (
+          <View style={styles.tableSection}>
+            <DataTable
+              data={filteredEmployees}
+              columns={tableColumns}
+              searchPlaceholder="Filter table results..."
+            />
+          </View>
+        )}
+      </View>
+
+      {/* BOTTOM FOOTER SECTION (PAGINATION BAR) */}
+      {viewMode === 'cards' && filteredEmployees.length > 0 && (
+        <View style={[styles.bottomPagination, SHADOWS.card]}>
+          <Text style={styles.paginationText}>
+            Showing <Text style={styles.boldText}>{startIndex + 1}</Text> to{' '}
+            <Text style={styles.boldText}>{endIndex}</Text> of{' '}
+            <Text style={styles.boldText}>{filteredEmployees.length}</Text> employees (Page{' '}
+            {currentPage} of {totalPages})
+          </Text>
+
+          <View style={styles.paginationActions}>
+            <Pressable
+              disabled={currentPage <= 1}
+              onPress={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+              style={[styles.pageBtn, currentPage <= 1 && styles.pageBtnDisabled]}
+            >
+              <Lucide
+                name="chevron-left"
+                size={16}
+                color={currentPage > 1 ? COLORS.neutral[700] : COLORS.neutral[300]}
+              />
+              <Text style={[styles.pageBtnText, currentPage <= 1 && styles.pageBtnTextDisabled]}>
+                Previous
+              </Text>
+            </Pressable>
+
+            <Pressable
+              disabled={currentPage >= totalPages}
+              onPress={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+              style={[styles.pageBtn, currentPage >= totalPages && styles.pageBtnDisabled]}
+            >
+              <Text style={[styles.pageBtnText, currentPage >= totalPages && styles.pageBtnTextDisabled]}>
+                Next
+              </Text>
+              <Lucide
+                name="chevron-right"
+                size={16}
+                color={currentPage < totalPages ? COLORS.neutral[700] : COLORS.neutral[300]}
+              />
+            </Pressable>
+          </View>
         </View>
       )}
 
@@ -667,17 +738,6 @@ export function EmployeesScreen() {
         }}
         onSave={handleSaveEmployee}
         initialEmployee={editingEmployee}
-      />
-
-      <EmployeeDetailModal
-        visible={isDetailModalOpen}
-        employee={viewingEmployee}
-        onClose={() => {
-          setIsDetailModalOpen(false);
-          setViewingEmployee(null);
-        }}
-        onEdit={handleOpenEditModal}
-        onDelete={handleOpenDeleteModal}
       />
 
       <DeleteConfirmModal
@@ -702,7 +762,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
     right: 0,
-    zIndex: 999,
+    zIndex: 9999,
     backgroundColor: COLORS.neutral.white,
     borderLeftWidth: 4,
     borderLeftColor: COLORS.semantic.success,
@@ -719,6 +779,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: TYPOGRAPHY.weights.semibold,
     color: COLORS.neutral[900],
+  },
+  topSection: {
+    width: '100%',
+    zIndex: 50,
   },
   breadcrumb: {
     flexDirection: 'row',
@@ -743,7 +807,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: SPACING[24],
+    marginBottom: SPACING[20],
     flexWrap: 'wrap',
     gap: SPACING[16],
   },
@@ -821,7 +885,7 @@ const styles = StyleSheet.create({
   statsStrip: {
     flexDirection: 'row',
     gap: SPACING[16],
-    marginBottom: SPACING[24],
+    marginBottom: SPACING[20],
     flexWrap: 'wrap',
   },
   statsStripMobile: {
@@ -864,8 +928,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.neutral[200],
     padding: SPACING[16],
-    marginBottom: SPACING[20],
-    zIndex: 20,
+    marginBottom: SPACING[16],
+    zIndex: 60,
   },
   toolbarRow: {
     flexDirection: 'row',
@@ -913,7 +977,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     position: 'relative',
     gap: 8,
-    zIndex: 40,
+    zIndex: 80,
   },
   dropdownLabel: {
     fontFamily: TYPOGRAPHY.fonts.primary,
@@ -1005,9 +1069,12 @@ const styles = StyleSheet.create({
     fontWeight: TYPOGRAPHY.weights.semibold,
     color: COLORS.brand[700],
   },
-  cardsGrid: {
+  listArea: {
     width: '100%',
     zIndex: 10,
+  },
+  cardsGrid: {
+    width: '100%',
   },
   emptyState: {
     backgroundColor: COLORS.neutral.white,
@@ -1047,7 +1114,7 @@ const styles = StyleSheet.create({
     fontWeight: TYPOGRAPHY.weights.semibold,
     color: COLORS.brand[700],
   },
-  paginationBar: {
+  bottomPagination: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -1057,9 +1124,11 @@ const styles = StyleSheet.create({
     borderColor: COLORS.neutral[200],
     paddingHorizontal: SPACING[20],
     paddingVertical: SPACING[12],
-    marginTop: SPACING[12],
+    marginTop: SPACING[8],
+    marginBottom: SPACING[8],
     flexWrap: 'wrap',
     gap: SPACING[12],
+    zIndex: 50,
   },
   paginationText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
