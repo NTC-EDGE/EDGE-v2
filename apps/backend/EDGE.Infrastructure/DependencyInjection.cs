@@ -53,6 +53,7 @@ public static class DependencyInjection
         services.AddScoped<INoteRepository, NoteRepository>();
         services.AddScoped<IFeeRepository, FeeRepository>();
         services.AddScoped<IServiceFeeRepository, ServiceFeeRepository>();
+        services.AddScoped<IFieldOfficeRepository, FieldOfficeRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         services.AddScoped<IUserActivityService, UserActivityService>();

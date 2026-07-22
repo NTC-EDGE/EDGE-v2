@@ -4,6 +4,7 @@ namespace EDGE.Domain.Entities;
 
 public class FieldOffice : AuditableEntity
 {
+    public Guid TenantId { get; set; }
     public string Name { get; set; } = string.Empty;
     public string Code { get; set; } = string.Empty;
     public string? Description { get; set; }
@@ -19,6 +20,7 @@ public class FieldOffice : AuditableEntity
     public bool AllowComplaintReception { get; set; } = true;
 
     // Navigation properties
+    public virtual Tenant Tenant { get; set; } = null!;
     public virtual Region Region { get; set; } = null!;
     public virtual Province? Province { get; set; }
     public virtual ICollection<TenantMember> AssignedMembers { get; set; } = new List<TenantMember>();

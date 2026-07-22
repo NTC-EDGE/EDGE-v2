@@ -283,14 +283,17 @@ namespace EDGE.Infrastructure.Migrations
                     b.Property<Guid>("RegionId")
                         .HasColumnType("uuid");
 
-                    b.HasKey("Id");
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
 
-                    b.HasIndex("Code")
-                        .IsUnique();
+                    b.HasKey("Id");
 
                     b.HasIndex("ProvinceId");
 
                     b.HasIndex("RegionId");
+
+                    b.HasIndex("TenantId", "Code")
+                        .IsUnique();
 
                     b.ToTable("FieldOffices", "public");
                 });
@@ -884,9 +887,17 @@ namespace EDGE.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("EDGE.Domain.Entities.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.Navigation("Province");
 
                     b.Navigation("Region");
+
+                    b.Navigation("Tenant");
                 });
 
             modelBuilder.Entity("EDGE.Domain.Entities.Municipality", b =>

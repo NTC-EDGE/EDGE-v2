@@ -90,7 +90,11 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Name).IsRequired().HasMaxLength(150);
             entity.Property(e => e.Code).IsRequired().HasMaxLength(50);
-            entity.HasIndex(e => e.Code).IsUnique();
+            entity.HasIndex(e => new { e.TenantId, e.Code }).IsUnique();
+            entity.HasOne(e => e.Tenant)
+                  .WithMany()
+                  .HasForeignKey(e => e.TenantId)
+                  .OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(e => e.Region)
                   .WithMany(r => r.FieldOffices)
                   .HasForeignKey(e => e.RegionId)
