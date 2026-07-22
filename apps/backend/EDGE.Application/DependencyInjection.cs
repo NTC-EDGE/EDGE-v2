@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using FluentValidation;
 using System.Reflection;
 using EDGE.Application.Common.Behaviors;
+using EDGE.Application.Forms.Services;
 
 namespace EDGE.Application;
 
@@ -19,6 +20,7 @@ public static class DependencyInjection
         });
         
         services.AddValidatorsFromAssembly(assembly);
+        services.AddScoped<ContractFormValidator>();
 
         return services;
     }

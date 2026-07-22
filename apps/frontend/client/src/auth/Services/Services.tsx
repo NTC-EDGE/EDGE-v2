@@ -15,8 +15,18 @@ import { servicesData, NTCService } from "./data/servicesData";
 import { CategoryGrid } from "./components/CategoryGrid";
 import { ServiceList } from "./components/ServiceList";
 import { ServiceDetails } from "./components/ServiceDetails";
-import { CPEAccreditationWizard, ApplicantData, initialApplicant, BulkApplicantsPanel } from "./accreditation/customer-premises";
-import { RadioOperatorExamWizard, ExamApplicantData, initialExamApplicant, ExamBulkApplicantsPanel } from "./exams/radio-operator";
+import {
+  CPEAccreditationWizard,
+  ApplicantData,
+  initialApplicant,
+  BulkApplicantsPanel,
+} from "./accreditation/customer-premises";
+import {
+  RadioOperatorExamWizard,
+  ExamApplicantData,
+  initialExamApplicant,
+  ExamBulkApplicantsPanel,
+} from "./exams/radio-operator";
 import { styles } from "./Services.styles";
 
 type AuthParamList = {
@@ -35,11 +45,17 @@ export function Services() {
 
   // Search & Navigation States
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
-  const [selectedService, setSelectedService] = useState<NTCService | null>(null);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
+    null,
+  );
+  const [selectedService, setSelectedService] = useState<NTCService | null>(
+    null,
+  );
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [activeWizardService, setActiveWizardService] = useState<string | null>(null);
+  const [activeWizardService, setActiveWizardService] = useState<string | null>(
+    null,
+  );
   const [isDetailsExpanded, setIsDetailsExpanded] = useState(false);
 
   // Shared Wizard States
@@ -50,10 +66,14 @@ export function Services() {
   const [bulkMethod, setBulkMethod] = useState<"MANUAL" | "EXCEL">("MANUAL");
   const [isFileUploaded, setIsFileUploaded] = useState(false);
   const [uploadedFileName, setUploadedFileName] = useState("");
-  const [applicants, setApplicants] = useState<ApplicantData[]>([initialApplicant(1)]);
+  const [applicants, setApplicants] = useState<ApplicantData[]>([
+    initialApplicant(1),
+  ]);
   const [currentApplicantIndex, setCurrentApplicantIndex] = useState(0);
   const [examWizardStep, setExamWizardStep] = useState(1);
-  const [examApplicants, setExamApplicants] = useState<ExamApplicantData[]>([initialExamApplicant(1)]);
+  const [examApplicants, setExamApplicants] = useState<ExamApplicantData[]>([
+    initialExamApplicant(1),
+  ]);
   const [currentExamApplicantIndex, setCurrentExamApplicantIndex] = useState(0);
   const [isBulkSubmitOpen, setIsBulkSubmitOpen] = useState(false);
 
@@ -88,7 +108,9 @@ export function Services() {
         setCurrentExamApplicantIndex(0);
         return [initialExamApplicant(1)];
       }
-      setCurrentExamApplicantIndex((prevIdx) => Math.max(0, Math.min(prevIdx, updated.length - 1)));
+      setCurrentExamApplicantIndex((prevIdx) =>
+        Math.max(0, Math.min(prevIdx, updated.length - 1)),
+      );
       return updated;
     });
   };
@@ -100,25 +122,34 @@ export function Services() {
         setCurrentApplicantIndex(0);
         return [initialApplicant(1)];
       }
-      setCurrentApplicantIndex((prevIdx) => Math.max(0, Math.min(prevIdx, updated.length - 1)));
+      setCurrentApplicantIndex((prevIdx) =>
+        Math.max(0, Math.min(prevIdx, updated.length - 1)),
+      );
       return updated;
     });
   };
 
   // Check if we should display the left-side list view (standard grid or sub-items list)
   // On mobile, if a detail card or wizard is active, we hide the left main grid column
-  const isLeftColumnHiddenOnMobile = isMobile && (selectedService !== null || activeWizardService !== null);
+  const isLeftColumnHiddenOnMobile =
+    isMobile && (selectedService !== null || activeWizardService !== null);
 
   // Hide navigation/categories if wizard is active on smaller screens
   const isWizardActive = activeWizardService !== null;
   const hideSidebar = isMobile || (isWizardActive && width < 1024);
-  const hideCategories = (isWizardActive && isDetailsExpanded) || (isWizardActive && width < 1024) || isLeftColumnHiddenOnMobile;
+  const hideCategories =
+    (isWizardActive && isDetailsExpanded) ||
+    (isWizardActive && width < 1024) ||
+    isLeftColumnHiddenOnMobile;
 
   // User Profile Memo
   const userProfile = useMemo(() => {
     if (clerkUser !== null && clerkUser !== undefined) {
       return {
-        name: clerkUser.fullName || clerkUser.primaryEmailAddress?.emailAddress?.split("@")[0] || "Client User",
+        name:
+          clerkUser.fullName ||
+          clerkUser.primaryEmailAddress?.emailAddress?.split("@")[0] ||
+          "Client User",
         email: clerkUser.primaryEmailAddress?.emailAddress ?? "",
       };
     }
@@ -175,12 +206,17 @@ export function Services() {
     setSelectedService(null);
   };
 
-  const handleFormSubmit = async (formData: { applicantName: string; email: string; notes: string }) => {
+  const handleFormSubmit = async (formData: {
+    applicantName: string;
+    email: string;
+    notes: string;
+  }) => {
     if (selectedService === null) return;
     setSubmitting(true);
     try {
       const token = await getToken();
-      const headers = token !== null ? { Authorization: `Bearer ${token}` } : {};
+      const headers =
+        token !== null ? { Authorization: `Bearer ${token}` } : {};
 
       await apiClient.post(
         "/api/v2/applications",
@@ -190,16 +226,23 @@ export function Services() {
           email: formData.email,
           notes: formData.notes,
         },
-        { headers }
+        { headers },
       );
       setIsModalOpen(false);
-      Alert.alert("Success", "Your application has been submitted successfully.");
+      Alert.alert(
+        "Success",
+        "Your application has been submitted successfully.",
+      );
     } catch (err: unknown) {
       console.error(err);
       let errMsg = "Failed to submit application.";
       if (axios.isAxiosError(err)) {
         const responseData = err.response?.data;
-        if (responseData && typeof responseData === "object" && "message" in responseData) {
+        if (
+          responseData &&
+          typeof responseData === "object" &&
+          "message" in responseData
+        ) {
           errMsg = String(responseData.message);
         }
       } else if (err instanceof Error) {
@@ -224,7 +267,12 @@ export function Services() {
         </View>
         {userProfile !== null && (
           <TouchableOpacity onPress={handleSignOut} style={styles.topLogoutBtn}>
-            <Icon name="log-out" size={14} color="#ffffff" style={{ marginRight: 6 }} />
+            <Icon
+              name="log-out"
+              size={14}
+              color="#ffffff"
+              style={{ marginRight: 6 }}
+            />
             {!isMobile && <Text style={styles.topLogoutText}>Sign Out</Text>}
           </TouchableOpacity>
         )}
@@ -236,12 +284,17 @@ export function Services() {
         {!hideSidebar && (
           <View style={styles.sidebar}>
             <View style={styles.sidebarItems}>
-              <TouchableOpacity style={[styles.sidebarItem, styles.sidebarItemActive]}>
+              <TouchableOpacity
+                style={[styles.sidebarItem, styles.sidebarItemActive]}
+              >
                 <Icon name="radio" size={20} color="#1d4ed8" />
                 <Text style={styles.sidebarItemTextActive}>Services</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity onPress={() => navigation.navigate("MyApplications")} style={styles.sidebarItem}>
+              <TouchableOpacity
+                onPress={() => navigation.navigate("MyApplications")}
+                style={styles.sidebarItem}
+              >
                 <Icon name="credit-card" size={20} color="#9ca3af" />
                 <Text style={styles.sidebarItemText}>My Applications</Text>
               </TouchableOpacity>
@@ -251,8 +304,15 @@ export function Services() {
 
         {/* Content Column (Category Grid OR Sub-items List / Bulk Drafts List) */}
         {!hideCategories && (
-          <View style={[styles.contentColumn, isLeftColumnHiddenOnMobile && styles.hiddenColumn]}>
-            {activeWizardService === "cpe-accreditation" && appMode === "BULK" && wizardStep >= 4 ? (
+          <View
+            style={[
+              styles.contentColumn,
+              isLeftColumnHiddenOnMobile && styles.hiddenColumn,
+            ]}
+          >
+            {activeWizardService === "cpe-accreditation" &&
+            appMode === "BULK" &&
+            wizardStep >= 4 ? (
               <BulkApplicantsPanel
                 applicants={applicants}
                 currentApplicantIndex={currentApplicantIndex}
@@ -261,7 +321,9 @@ export function Services() {
                 resetWizardState={resetWizardState}
                 onRemoveApplicant={handleRemoveApplicant}
               />
-            ) : activeWizardService === "radio-operator-exam" && appMode === "BULK" && examWizardStep >= 3 ? (
+            ) : activeWizardService === "radio-operator-exam" &&
+              appMode === "BULK" &&
+              examWizardStep >= 3 ? (
               <ExamBulkApplicantsPanel
                 applicants={examApplicants}
                 currentApplicantIndex={currentExamApplicantIndex}
@@ -322,9 +384,16 @@ export function Services() {
 
         {/* Details / Interactive Panel Column (Tablet / Web View) */}
         {/* On mobile, this column takes full screen if category or service is selected */}
-        {(!isMobile || activeWizardService !== null || selectedService !== null) && (
-          <View style={[styles.detailsColumn, (isMobile || (isWizardActive && width < 1024)) && styles.mobileDetailsColumn]}>
-
+        {(!isMobile ||
+          activeWizardService !== null ||
+          selectedService !== null) && (
+          <View
+            style={[
+              styles.detailsColumn,
+              (isMobile || (isWizardActive && width < 1024)) &&
+                styles.mobileDetailsColumn,
+            ]}
+          >
             {/* Interactive Panel Content */}
             <View style={{ flex: 1 }}>
               {activeWizardService === "cpe-accreditation" ? (
@@ -408,7 +477,9 @@ export function Services() {
                   onApplyPress={() => {
                     if (selectedService.title.includes("Premises")) {
                       setActiveWizardService("cpe-accreditation");
-                    } else if (selectedService.title.includes("Radio Operator")) {
+                    } else if (
+                      selectedService.title.includes("Radio Operator")
+                    ) {
                       setActiveWizardService("radio-operator-exam");
                     } else {
                       setIsModalOpen(true);
@@ -422,11 +493,19 @@ export function Services() {
                   <View style={styles.emptyPlaceholder}>
                     <View style={styles.placeholderIllustration}>
                       <Icon name="file" size={48} color="#d1d5db" />
-                      <Icon name="mouse-pointer" size={24} color="#1d4ed8" style={styles.pointerOverlay} />
+                      <Icon
+                        name="mouse-pointer"
+                        size={24}
+                        color="#1d4ed8"
+                        style={styles.pointerOverlay}
+                      />
                     </View>
-                    <Text style={styles.placeholderTitleText}>Select a service</Text>
+                    <Text style={styles.placeholderTitleText}>
+                      Select a service
+                    </Text>
                     <Text style={styles.placeholderSubtitleText}>
-                      Please choose a specific service from the list on the left to view the required documents and submit an application.
+                      Please choose a specific service from the list on the left
+                      to view the required documents and submit an application.
                     </Text>
                   </View>
                 )
@@ -436,11 +515,19 @@ export function Services() {
                   <View style={styles.emptyPlaceholder}>
                     <View style={styles.placeholderIllustration}>
                       <Icon name="file" size={48} color="#d1d5db" />
-                      <Icon name="mouse-pointer" size={24} color="#1d4ed8" style={styles.pointerOverlay} />
+                      <Icon
+                        name="mouse-pointer"
+                        size={24}
+                        color="#1d4ed8"
+                        style={styles.pointerOverlay}
+                      />
                     </View>
-                    <Text style={styles.placeholderTitleText}>No service selected</Text>
+                    <Text style={styles.placeholderTitleText}>
+                      No service selected
+                    </Text>
                     <Text style={styles.placeholderSubtitleText}>
-                      Choose a category on the left, then select a service to view its application details and requirements.
+                      Choose a category on the left, then select a service to
+                      view its application details and requirements.
                     </Text>
                   </View>
                 )
@@ -448,18 +535,22 @@ export function Services() {
             </View>
 
             {/* Web Help Button overlay */}
-            {!isMobile && selectedService === null && activeWizardService === null && (
-              <TouchableOpacity style={styles.helpButton}>
-                <Text style={styles.helpButtonText}>Help Center</Text>
-              </TouchableOpacity>
-            )}
+            {!isMobile &&
+              selectedService === null &&
+              activeWizardService === null && (
+                <TouchableOpacity style={styles.helpButton}>
+                  <Text style={styles.helpButtonText}>Help Center</Text>
+                </TouchableOpacity>
+              )}
           </View>
         )}
       </View>
 
       {/* Footer Banner */}
       <View style={styles.footerBanner}>
-        <Text style={styles.footerText}>National Telecommunications Commission</Text>
+        <Text style={styles.footerText}>
+          National Telecommunications Commission
+        </Text>
         <TouchableOpacity onPress={handleSignOut} style={styles.footerDoneBtn}>
           <Text style={styles.footerButtonText}>I'm done!</Text>
         </TouchableOpacity>
