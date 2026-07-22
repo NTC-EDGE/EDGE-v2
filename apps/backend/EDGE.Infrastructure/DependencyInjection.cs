@@ -51,6 +51,8 @@ public static class DependencyInjection
         services.AddScoped<IApplicationFullRepository, ApplicationFullRepository>();
         services.AddScoped<IServiceRepository, ServiceRepository>();
         services.AddScoped<IFormRepository, FormRepository>();
+        services.AddScoped<IServiceCategoryRepository, ServiceCategoryRepository>();
+        services.AddScoped<IFieldOfficeRepository, FieldOfficeRepository>();
         services.AddScoped<ICsvSchemaParserService, CsvSchemaParserService>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IUserActivityService, UserActivityService>();
