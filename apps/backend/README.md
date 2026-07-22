@@ -51,7 +51,7 @@ By default, the application runs on:
 ## Features & Endpoints
 
 ### Authentication
-Endpoints like `POST /api/applications` are protected by Clerk JWT token authentication. You must supply a valid token in the headers:
+Endpoints like `POST /api/v2/applications` are protected by Clerk JWT token authentication. You must supply a valid token in the headers:
 ```http
 Authorization: Bearer <your_clerk_jwt_token>
 ```

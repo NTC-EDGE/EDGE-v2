@@ -4,6 +4,8 @@ import { useState } from "react";
 import { Plus, Edit2, Trash2, MapPin, Loader2, Search, CheckCircle, XCircle } from "lucide-react";
 import { useRegionService } from "@/services/regionService";
 import { Button } from "@/components/ui/button";
+import { ActionMenu } from "@/components/ui/action-menu";
+import { Pagination } from "@/components/ui/pagination";
 import { 
   Dialog, 
   DialogContent, 
@@ -47,6 +49,14 @@ export default function RegionsPage() {
     if (activeFilter === "inactive") return matchesSearch && !region.isActive;
     return matchesSearch;
   });
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  const paginatedRegions = filteredRegions.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
 
   // Handlers
   const handleOpenCreate = () => {
@@ -228,7 +238,7 @@ export default function RegionsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/80 text-sm">
-                {filteredRegions.map((region) => (
+                {paginatedRegions.map((region) => (
                   <tr key={region.id} className="hover:bg-slate-800/20 transition-colors">
                     <td className="px-6 py-4 font-mono font-bold text-white text-xs">{region.code}</td>
                     <td className="px-6 py-4 text-slate-200">{region.name}</td>
@@ -243,19 +253,41 @@ export default function RegionsPage() {
                         </span>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-right space-x-1">
-                      <Button onClick={() => handleOpenEdit(region)} size="icon" variant="ghost">
-                        <Edit2 className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button onClick={() => handleOpenDelete(region)} size="icon" variant="ghost" className="hover:text-red-400">
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                    <td className="px-6 py-4 text-right">
+                      <ActionMenu
+                        items={[
+                          {
+                            label: "Edit Region",
+                            icon: Edit2,
+                            onClick: () => handleOpenEdit(region),
+                          },
+                          {
+                            label: "Delete Region",
+                            icon: Trash2,
+                            onClick: () => handleOpenDelete(region),
+                            variant: "destructive",
+                          },
+                        ]}
+                      />
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+        )}
+
+        {filteredRegions.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalItems={filteredRegions.length}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={(newSize) => {
+              setPageSize(newSize);
+              setCurrentPage(1);
+            }}
+          />
         )}
       </div>
 

@@ -5,6 +5,8 @@ import { Plus, Edit2, Trash2, Building, Loader2, Search, CheckCircle, XCircle } 
 import { useProvinceService } from "@/services/provinceService";
 import { useRegionService } from "@/services/regionService";
 import { Button } from "@/components/ui/button";
+import { ActionMenu } from "@/components/ui/action-menu";
+import { Pagination } from "@/components/ui/pagination";
 import { 
   Dialog, 
   DialogContent, 
@@ -57,6 +59,14 @@ export default function ProvincesPage() {
     if (activeFilter === "inactive") return matchesSearch && !province.isActive;
     return matchesSearch;
   });
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  const paginatedProvinces = filteredProvinces.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
 
   // Handlers
   const handleOpenCreate = () => {
@@ -267,7 +277,7 @@ export default function ProvincesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/80 text-sm">
-                {filteredProvinces.map((province) => (
+                {paginatedProvinces.map((province) => (
                   <tr key={province.id} className="hover:bg-slate-800/20 transition-colors">
                     <td className="px-6 py-4 font-mono font-bold text-white text-xs">{province.code}</td>
                     <td className="px-6 py-4 text-slate-200">{province.name}</td>
@@ -285,19 +295,41 @@ export default function ProvincesPage() {
                         </span>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-right space-x-1">
-                      <Button onClick={() => handleOpenEdit(province)} size="icon" variant="ghost">
-                        <Edit2 className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button onClick={() => handleOpenDelete(province)} size="icon" variant="ghost" className="hover:text-red-400">
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                    <td className="px-6 py-4 text-right">
+                      <ActionMenu
+                        items={[
+                          {
+                            label: "Edit Province",
+                            icon: Edit2,
+                            onClick: () => handleOpenEdit(province),
+                          },
+                          {
+                            label: "Delete Province",
+                            icon: Trash2,
+                            onClick: () => handleOpenDelete(province),
+                            variant: "destructive",
+                          },
+                        ]}
+                      />
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+        )}
+
+        {filteredProvinces.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalItems={filteredProvinces.length}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={(newSize) => {
+              setPageSize(newSize);
+              setCurrentPage(1);
+            }}
+          />
         )}
       </div>
 

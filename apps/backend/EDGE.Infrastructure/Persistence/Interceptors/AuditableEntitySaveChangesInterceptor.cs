@@ -55,6 +55,14 @@ public class AuditableEntitySaveChangesInterceptor : SaveChangesInterceptor
                     auditable.LastModifiedAt = DateTime.UtcNow;
                     auditable.LastModifiedBy = userId;
                 }
+                else if (entry.State == EntityState.Deleted)
+                {
+                    entry.State = EntityState.Modified;
+                    auditable.IsDeleted = true;
+                    auditable.IsDeletedBy = userId;
+                    auditable.LastModifiedAt = DateTime.UtcNow;
+                    auditable.LastModifiedBy = userId;
+                }
             }
 
             // 2. Generate Audit Logs
