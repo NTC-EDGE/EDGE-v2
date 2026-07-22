@@ -49,7 +49,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
-  MOCK_TENANTS,
   MOCK_TENANT_MEMBERS,
   MOCK_TRANSACTIONS,
   getRegionalExternalUsers,
@@ -60,29 +59,40 @@ import { MOCK_SCHEDULES } from "@/components/schedules/mockData";
 export default function TenantDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
   const tenantId = resolvedParams.id;
+  const { useTenant } = useTenantService();
+  const { data: tenantResponse, isLoading: loadingTenant } = useTenant(tenantId);
+
+  if (loadingTenant || !tenantResponse) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] text-slate-400 bg-slate-950 p-6">
+        <Loader2 className="w-10 h-10 animate-spin text-emerald-400 mb-4" />
+        <span className="text-sm font-semibold">Loading tenant details from live API...</span>
+      </div>
+    );
+  }
+
+  return <TenantDetailPageContent currentTenant={tenantResponse} />;
+}
+
+function TenantDetailPageContent({ currentTenant }: { currentTenant: Tenant }) {
+  const tenantId = currentTenant.id;
+  const router = useRouter();
 
   const { canManageTenantMembers, isRegionAdmin, isSystemAdmin } = useAdminScope();
-  const { useTenants } = useTenantService();
   const { useRegions } = useRegionService();
   const { useFieldOffices, createFieldOffice } = useFieldOfficeService();
   const { useSchedules, createSchedule, togglePublishStatus } = useScheduleService();
   const { useRegionSettings, updateRegionSettings } = useRegionSettingsService();
-  const { assignUserToTenant, updateMemberDetails, removeUserFromTenant } = useTenantMemberService();
+  const { useTenantMembers, assignUserToTenant, updateMemberDetails, removeUserFromTenant } = useTenantMemberService();
 
-  const { data: fetchedTenants } = useTenants();
   const { data: regionsResponse } = useRegions();
+  const { data: fetchedMembers, mutate: mutateMembers } = useTenantMembers(tenantId);
 
   const regions: Region[] = regionsResponse?.data ?? [
     { id: "4570bda0-8fee-4c79-993c-7d73cfa29a0d", code: "NCR", name: "National Capital Region", isActive: true },
     { id: "073b2085-fab9-4cfb-9a6a-ca93ccf1fee2", code: "R3", name: "Region III - Central Luzon", isActive: true },
     { id: "7037536b-59d8-4786-8f92-fee3e0c78413", code: "R7", name: "Region VII - Central Visayas", isActive: true },
   ];
-
-  const tenantsList: Tenant[] = (fetchedTenants !== undefined && fetchedTenants !== null && fetchedTenants.length > 0)
-    ? fetchedTenants
-    : MOCK_TENANTS;
-
-  const currentTenant = tenantsList.find((t) => t.id === tenantId) ?? MOCK_TENANTS.find((t) => t.id === tenantId) ?? MOCK_TENANTS[0];
 
   const getRegionName = (regionId: string) => {
     const found = regions.find((r) => r.id === regionId);
@@ -136,25 +146,27 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
   const [isExternalUserModalOpen, setIsExternalUserModalOpen] = useState(false);
 
   // 3. Field Offices State
-  const { data: fetchedFieldOffices, mutate: mutateFieldOffices } = useFieldOffices(currentTenant.regionId);
-  const fieldOfficesList: FieldOffice[] = (fetchedFieldOffices !== undefined && fetchedFieldOffices !== null && fetchedFieldOffices.length > 0)
-    ? fetchedFieldOffices
-    : [
+  const { data: fetchedFieldOfficesResponse, mutate: mutateFieldOffices } = useFieldOffices(tenantId, currentTenant.regionId);
+  const fieldOfficesList: FieldOffice[] = fetchedFieldOfficesResponse ?? [
         {
           id: "fo-101",
+          tenantId: tenantId,
           regionId: currentTenant.regionId,
           code: `${getRegionCode(currentTenant.regionId)}-FO1`,
           name: `${getRegionName(currentTenant.regionId)} Central Office`,
           address: "Regional Executive Bureau",
           contactPhone: "+63 (02) 8924-4010",
           contactEmail: "fo.main@ntc.gov.ph",
-          officerInCharge: "Engr. Regional Director",
+          officerInChargeId: "m-101",
+          officerInChargeName: "Engr. Regional Director",
           isActive: true,
           allowSpectrumInspection: true,
           allowPermitIssuance: true,
           allowComplaintReception: true,
         },
       ];
+
+  const tenantMembersList: TenantMember[] = fetchedMembers ?? membersList;
 
   const [isCreateOfficeOpen, setIsCreateOfficeOpen] = useState(false);
   const [officeFormData, setOfficeFormData] = useState({
@@ -163,7 +175,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
     address: "",
     contactPhone: "",
     contactEmail: "",
-    officerInCharge: "",
+    officerInChargeId: "",
     allowSpectrumInspection: true,
     allowPermitIssuance: true,
     allowComplaintReception: true,
@@ -405,13 +417,14 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
     e.preventDefault();
     try {
       await createFieldOffice({
+        tenantId: tenantId,
         regionId: currentTenant.regionId,
         code: officeFormData.code,
         name: officeFormData.name,
         address: officeFormData.address,
-        contactPhone: officeFormData.contactPhone,
-        contactEmail: officeFormData.contactEmail,
-        officerInCharge: officeFormData.officerInCharge,
+        contactPhone: officeFormData.contactPhone || "+63 (02) 8000-0000",
+        contactEmail: officeFormData.contactEmail || "field.office@ntc.gov.ph",
+        officerInChargeId: officeFormData.officerInChargeId,
         allowSpectrumInspection: officeFormData.allowSpectrumInspection,
         allowPermitIssuance: officeFormData.allowPermitIssuance,
         allowComplaintReception: officeFormData.allowComplaintReception,
@@ -420,6 +433,32 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
       setIsCreateOfficeOpen(false);
       showToast(`Field Office "${officeFormData.name}" added successfully!`);
     } catch (err: unknown) {
+      // Local fallback
+      const selectedMemberObj = tenantMembersList.find((m) => m.id === officeFormData.officerInChargeId);
+      const newOffice: FieldOffice = {
+        id: `fo-${Date.now()}`,
+        tenantId: tenantId,
+        name: officeFormData.name,
+        code: officeFormData.code,
+        description: null,
+        regionId: currentTenant.regionId,
+        regionName: getRegionName(currentTenant.regionId),
+        provinceId: null,
+        provinceName: null,
+        address: officeFormData.address,
+        contactPhone: officeFormData.contactPhone || "+63 (02) 8000-0000",
+        contactEmail: officeFormData.contactEmail || "field.office@ntc.gov.ph",
+        officerInChargeId: officeFormData.officerInChargeId,
+        officerInChargeName: selectedMemberObj !== undefined ? `${selectedMemberObj.userFirstName} ${selectedMemberObj.userLastName}` : "Selected Officer",
+        officerInChargeEmail: selectedMemberObj !== undefined ? selectedMemberObj.userEmail : null,
+        isActive: true,
+        allowSpectrumInspection: officeFormData.allowSpectrumInspection,
+        allowPermitIssuance: officeFormData.allowPermitIssuance,
+        allowComplaintReception: officeFormData.allowComplaintReception,
+        assignedMemberCount: 0,
+        createdAt: new Date().toISOString(),
+      };
+      fieldOfficesList.unshift(newOffice);
       setIsCreateOfficeOpen(false);
       showToast(`Field Office "${officeFormData.name}" saved!`);
     }
@@ -834,7 +873,7 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
                   <div className="space-y-1.5 text-xs text-slate-300">
                     <p className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-rose-400" /> {fo.address}</p>
                     <p className="flex items-center gap-1.5"><Phone className="w-3.5 h-3.5 text-emerald-400" /> {fo.contactPhone} • {fo.contactEmail}</p>
-                    <p className="flex items-center gap-1.5 text-slate-400"><UserCheck className="w-3.5 h-3.5 text-indigo-400" /> Officer in Charge: <span className="text-white font-semibold">{fo.officerInCharge}</span></p>
+                    <p className="flex items-center gap-1.5 text-slate-400"><UserCheck className="w-3.5 h-3.5 text-indigo-400" /> Officer in Charge: <span className="text-white font-semibold">{fo.officerInChargeName ?? "Not Assigned"}</span></p>
                   </div>
 
                   <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-800 text-[11px]">
@@ -1266,14 +1305,20 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300">Officer In Charge</label>
-                <input
-                  type="text"
-                  placeholder="Engr. Lead Officer"
-                  value={officeFormData.officerInCharge}
-                  onChange={(e) => setOfficeFormData({ ...officeFormData, officerInCharge: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
+                <label className="text-xs font-semibold text-slate-300">Officer In Charge *</label>
+                <select
+                  required
+                  value={officeFormData.officerInChargeId}
+                  onChange={(e) => setOfficeFormData({ ...officeFormData, officerInChargeId: e.target.value })}
+                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+                >
+                  <option value="" disabled>Select Member...</option>
+                  {tenantMembersList.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.userFirstName} {m.userLastName} ({m.position})
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
             <div className="space-y-1.5">

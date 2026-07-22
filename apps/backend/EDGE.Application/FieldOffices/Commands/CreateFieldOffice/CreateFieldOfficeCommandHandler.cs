@@ -9,15 +9,18 @@ public class CreateFieldOfficeCommandHandler : IRequestHandler<CreateFieldOffice
 {
     private readonly IFieldOfficeRepository _repository;
     private readonly IGeographicRepository _geographicRepository;
+    private readonly ITenantMemberRepository _tenantMemberRepository;
     private readonly IUnitOfWork _unitOfWork;
 
     public CreateFieldOfficeCommandHandler(
         IFieldOfficeRepository repository, 
         IGeographicRepository geographicRepository,
+        ITenantMemberRepository tenantMemberRepository,
         IUnitOfWork unitOfWork)
     {
         _repository = repository;
         _geographicRepository = geographicRepository;
+        _tenantMemberRepository = tenantMemberRepository;
         _unitOfWork = unitOfWork;
     }
 
@@ -34,7 +37,7 @@ public class CreateFieldOfficeCommandHandler : IRequestHandler<CreateFieldOffice
             Address = request.Address.Trim(),
             ContactPhone = request.ContactPhone.Trim(),
             ContactEmail = request.ContactEmail.Trim(),
-            OfficerInCharge = request.OfficerInCharge.Trim(),
+            OfficerInChargeId = request.OfficerInChargeId,
             IsActive = request.IsActive,
             AllowSpectrumInspection = request.AllowSpectrumInspection,
             AllowPermitIssuance = request.AllowPermitIssuance,
@@ -47,6 +50,8 @@ public class CreateFieldOfficeCommandHandler : IRequestHandler<CreateFieldOffice
         // Fetch names for DTO mapping
         var regionName = "";
         var provinceName = (string?)null;
+        var officerName = "";
+        var officerEmail = "";
 
         var region = await _geographicRepository.GetRegionByIdAsync(request.RegionId, cancellationToken);
         if (region != null)
@@ -63,6 +68,13 @@ public class CreateFieldOfficeCommandHandler : IRequestHandler<CreateFieldOffice
             }
         }
 
+        var officer = await _tenantMemberRepository.GetByIdAsync(request.OfficerInChargeId, cancellationToken);
+        if (officer != null && officer.User != null)
+        {
+            officerName = $"{officer.User.FirstName} {officer.User.LastName}".Trim();
+            officerEmail = officer.User.Email;
+        }
+
         return new FieldOfficeDto(
             fieldOffice.Id,
             fieldOffice.TenantId,
@@ -74,7 +86,9 @@ public class CreateFieldOfficeCommandHandler : IRequestHandler<CreateFieldOffice
             fieldOffice.Address,
             fieldOffice.ContactPhone,
             fieldOffice.ContactEmail,
-            fieldOffice.OfficerInCharge,
+            fieldOffice.OfficerInChargeId,
+            officerName,
+            officerEmail,
             fieldOffice.IsActive,
             fieldOffice.AllowSpectrumInspection,
             fieldOffice.AllowPermitIssuance,

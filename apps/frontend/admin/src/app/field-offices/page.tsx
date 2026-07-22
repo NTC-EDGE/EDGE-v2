@@ -29,8 +29,10 @@ import { useRouter } from "next/navigation";
 import { useFieldOfficeService } from "@/services/fieldOfficeService";
 import { useRegionService } from "@/services/regionService";
 import { useProvinceService } from "@/services/provinceService";
+import { useTenantMemberService } from "@/services/tenantMemberService";
+import { useTenantService } from "@/services/tenantService";
 import { useAdminScope } from "@/lib/admin-scope-context";
-import { FieldOffice, Region, Province } from "@edge/api";
+import { FieldOffice, Region, Province, TenantMember } from "@edge/api";
 import { Button } from "@/components/ui/button";
 import { ActionMenu, ActionMenuItem } from "@/components/ui/action-menu";
 import { Pagination } from "@/components/ui/pagination";
@@ -47,6 +49,7 @@ import {
 const MOCK_FIELD_OFFICES: FieldOffice[] = [
   {
     id: "fo-1",
+    tenantId: "t-101",
     name: "NTC Pampanga Extension Office",
     code: "NTC-FO-PAM",
     description: "Extension office serving Pampanga, Bataan, and Tarlac spectrum inspection and amateur licensing.",
@@ -57,7 +60,9 @@ const MOCK_FIELD_OFFICES: FieldOffice[] = [
     address: "Government Center, Maimpis, City of San Fernando, Pampanga",
     contactPhone: "+63 (045) 455-2144",
     contactEmail: "fo.pampanga@ntc.gov.ph",
-    officerInCharge: "Engr. Manuel L. Santos",
+    officerInChargeId: "m-101",
+    officerInChargeName: "Engr. Manuel L. Santos",
+    officerInChargeEmail: "manuel.santos@ntc.gov.ph",
     isActive: true,
     allowSpectrumInspection: true,
     allowPermitIssuance: true,
@@ -67,6 +72,7 @@ const MOCK_FIELD_OFFICES: FieldOffice[] = [
   },
   {
     id: "fo-2",
+    tenantId: "t-101",
     name: "NTC Bulacan Field Sub-Office",
     code: "NTC-FO-BUL",
     description: "Local field office handling frequency monitoring and public complaint reception for Bulacan province.",
@@ -77,7 +83,9 @@ const MOCK_FIELD_OFFICES: FieldOffice[] = [
     address: "Capitol Compound, City of Malolos, Bulacan",
     contactPhone: "+63 (044) 791-0022",
     contactEmail: "fo.bulacan@ntc.gov.ph",
-    officerInCharge: "Engr. Teresa M. Ramos",
+    officerInChargeId: "m-102",
+    officerInChargeName: "Engr. Teresa M. Ramos",
+    officerInChargeEmail: "teresa.ramos@ntc.gov.ph",
     isActive: true,
     allowSpectrumInspection: true,
     allowPermitIssuance: false,
@@ -87,6 +95,7 @@ const MOCK_FIELD_OFFICES: FieldOffice[] = [
   },
   {
     id: "fo-3",
+    tenantId: "t-102",
     name: "NTC Cebu Extension Office",
     code: "NTC-FO-CEB",
     description: "Primary regional extension office for Central Visayas field spectrum audits and maritime radio licensing.",
@@ -97,7 +106,9 @@ const MOCK_FIELD_OFFICES: FieldOffice[] = [
     address: "Subangdaku, Mandaue City, Cebu",
     contactPhone: "+63 (032) 346-0123",
     contactEmail: "fo.cebu@ntc.gov.ph",
-    officerInCharge: "Engr. Gabriel S. Mendoza",
+    officerInChargeId: "m-103",
+    officerInChargeName: "Engr. Gabriel S. Mendoza",
+    officerInChargeEmail: "gabriel.mendoza@ntc.gov.ph",
     isActive: true,
     allowSpectrumInspection: true,
     allowPermitIssuance: true,
@@ -112,10 +123,12 @@ function FieldOfficesContent() {
   const searchParams = useSearchParams();
   const initialRegionId = searchParams.get("regionId");
 
-  const { isRegionAdmin, canManageTenants } = useAdminScope();
+  const { isRegionAdmin, canManageTenants, selectedTenantId } = useAdminScope();
   const { useFieldOffices, createFieldOffice, updateFieldOffice, deleteFieldOffice } = useFieldOfficeService();
   const { useRegions } = useRegionService();
   const { useProvinces } = useProvinceService();
+  const { useTenantMembers } = useTenantMemberService();
+  const { useTenants } = useTenantService();
 
   const [selectedRegionFilter, setSelectedRegionFilter] = useState<string>(
     initialRegionId !== null && initialRegionId.length > 0 ? initialRegionId : "ALL"
@@ -124,9 +137,17 @@ function FieldOfficesContent() {
 
   const { data: regionsResponse } = useRegions();
   const { data: provincesResponse } = useProvinces();
-  const { data: fetchedFieldOffices, isLoading: loadingFieldOffices, mutate } = useFieldOffices(
+  const { data: tenantsResponse } = useTenants();
+
+  const activeTenantId = selectedTenantId || tenantsResponse?.[0]?.id || "t-101";
+
+  const { data: fetchedFieldOfficesResponse, isLoading: loadingFieldOffices, mutate } = useFieldOffices(
+    activeTenantId,
     selectedRegionFilter !== "ALL" ? selectedRegionFilter : null
   );
+
+  const { data: membersResponse } = useTenantMembers(activeTenantId);
+  const tenantMembers: TenantMember[] = membersResponse ?? [];
 
   const regions: Region[] = regionsResponse?.data ?? [
     { id: "4570bda0-8fee-4c79-993c-7d73cfa29a0d", code: "NCR", name: "National Capital Region", isActive: true },
@@ -140,16 +161,14 @@ function FieldOfficesContent() {
     { id: "p-ceb", regionId: "7037536b-59d8-4786-8f92-fee3e0c78413", code: "CEB", name: "Cebu", isActive: true },
   ];
 
-  const fieldOffices: FieldOffice[] = (fetchedFieldOffices !== undefined && fetchedFieldOffices !== null && fetchedFieldOffices.length > 0)
-    ? fetchedFieldOffices
-    : MOCK_FIELD_OFFICES;
+  const fieldOffices: FieldOffice[] = fetchedFieldOfficesResponse ?? MOCK_FIELD_OFFICES;
 
   // Filtered list
   const filteredOffices = fieldOffices.filter((fo) => {
     const matchesSearch =
       fo.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       fo.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      fo.officerInCharge.toLowerCase().includes(searchTerm.toLowerCase());
+      (fo.officerInChargeName?.toLowerCase() || "").includes(searchTerm.toLowerCase());
     const matchesRegion = selectedRegionFilter === "ALL" || fo.regionId === selectedRegionFilter;
     return matchesSearch && matchesRegion;
   });
@@ -178,7 +197,7 @@ function FieldOfficesContent() {
     address: "",
     contactPhone: "",
     contactEmail: "",
-    officerInCharge: "",
+    officerInChargeId: "",
     isActive: true,
     allowSpectrumInspection: true,
     allowPermitIssuance: true,
@@ -203,7 +222,7 @@ function FieldOfficesContent() {
       address: "",
       contactPhone: "+63 (02) ",
       contactEmail: "field.office@ntc.gov.ph",
-      officerInCharge: "Engr. ",
+      officerInChargeId: tenantMembers.length > 0 ? tenantMembers[0].id : "",
       isActive: true,
       allowSpectrumInspection: true,
       allowPermitIssuance: true,
@@ -224,7 +243,7 @@ function FieldOfficesContent() {
       address: office.address,
       contactPhone: office.contactPhone,
       contactEmail: office.contactEmail,
-      officerInCharge: office.officerInCharge,
+      officerInChargeId: office.officerInChargeId,
       isActive: office.isActive,
       allowSpectrumInspection: office.allowSpectrumInspection,
       allowPermitIssuance: office.allowPermitIssuance,
@@ -242,8 +261,8 @@ function FieldOfficesContent() {
 
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.code || !formData.regionId) {
-      setErrorMsg("Please fill in required fields (Name, Code, Region).");
+    if (!formData.name || !formData.code || !formData.regionId || !formData.officerInChargeId) {
+      setErrorMsg("Please fill in required fields (Name, Code, Region, Officer in Charge).");
       return;
     }
 
@@ -252,6 +271,7 @@ function FieldOfficesContent() {
 
     try {
       await createFieldOffice({
+        tenantId: activeTenantId,
         name: formData.name,
         code: formData.code,
         description: formData.description || null,
@@ -260,7 +280,7 @@ function FieldOfficesContent() {
         address: formData.address,
         contactPhone: formData.contactPhone,
         contactEmail: formData.contactEmail,
-        officerInCharge: formData.officerInCharge,
+        officerInChargeId: formData.officerInChargeId,
         allowSpectrumInspection: formData.allowSpectrumInspection,
         allowPermitIssuance: formData.allowPermitIssuance,
         allowComplaintReception: formData.allowComplaintReception,
@@ -271,8 +291,10 @@ function FieldOfficesContent() {
       // Local demo fallback
       const provObj = provinces.find((p) => p.id === formData.provinceId);
       const regObj = regions.find((r) => r.id === formData.regionId);
+      const selectedMemberObj = tenantMembers.find((m) => m.id === formData.officerInChargeId);
       const newOffice: FieldOffice = {
         id: `fo-${Date.now()}`,
+        tenantId: activeTenantId,
         name: formData.name,
         code: formData.code,
         description: formData.description,
@@ -283,7 +305,9 @@ function FieldOfficesContent() {
         address: formData.address,
         contactPhone: formData.contactPhone,
         contactEmail: formData.contactEmail,
-        officerInCharge: formData.officerInCharge,
+        officerInChargeId: formData.officerInChargeId,
+        officerInChargeName: selectedMemberObj !== undefined ? `${selectedMemberObj.userFirstName} ${selectedMemberObj.userLastName}` : "Selected Officer",
+        officerInChargeEmail: selectedMemberObj !== undefined ? selectedMemberObj.userEmail : null,
         isActive: formData.isActive,
         allowSpectrumInspection: formData.allowSpectrumInspection,
         allowPermitIssuance: formData.allowPermitIssuance,
@@ -301,6 +325,10 @@ function FieldOfficesContent() {
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedOffice === null) return;
+    if (!formData.officerInChargeId) {
+      setErrorMsg("Officer in Charge is required.");
+      return;
+    }
 
     setSubmitting(true);
     setErrorMsg(null);
@@ -308,6 +336,7 @@ function FieldOfficesContent() {
     try {
       await updateFieldOffice(selectedOffice.id, {
         id: selectedOffice.id,
+        tenantId: activeTenantId,
         name: formData.name,
         code: formData.code,
         description: formData.description || null,
@@ -316,7 +345,7 @@ function FieldOfficesContent() {
         address: formData.address,
         contactPhone: formData.contactPhone,
         contactEmail: formData.contactEmail,
-        officerInCharge: formData.officerInCharge,
+        officerInChargeId: formData.officerInChargeId,
         isActive: formData.isActive,
         allowSpectrumInspection: formData.allowSpectrumInspection,
         allowPermitIssuance: formData.allowPermitIssuance,
@@ -325,6 +354,7 @@ function FieldOfficesContent() {
       setIsEditOpen(false);
       mutate();
     } catch (err: unknown) {
+      const selectedMemberObj = tenantMembers.find((m) => m.id === formData.officerInChargeId);
       selectedOffice.name = formData.name;
       selectedOffice.code = formData.code;
       selectedOffice.description = formData.description;
@@ -333,7 +363,9 @@ function FieldOfficesContent() {
       selectedOffice.address = formData.address;
       selectedOffice.contactPhone = formData.contactPhone;
       selectedOffice.contactEmail = formData.contactEmail;
-      selectedOffice.officerInCharge = formData.officerInCharge;
+      selectedOffice.officerInChargeId = formData.officerInChargeId;
+      selectedOffice.officerInChargeName = selectedMemberObj !== undefined ? `${selectedMemberObj.userFirstName} ${selectedMemberObj.userLastName}` : "Selected Officer";
+      selectedOffice.officerInChargeEmail = selectedMemberObj !== undefined ? selectedMemberObj.userEmail : null;
       selectedOffice.isActive = formData.isActive;
       selectedOffice.allowSpectrumInspection = formData.allowSpectrumInspection;
       selectedOffice.allowPermitIssuance = formData.allowPermitIssuance;
@@ -349,7 +381,7 @@ function FieldOfficesContent() {
     setSubmitting(true);
 
     try {
-      await deleteFieldOffice(selectedOffice.id);
+      await deleteFieldOffice(selectedOffice.id, activeTenantId);
       setIsDeleteOpen(false);
       mutate();
     } catch (err: unknown) {
@@ -431,7 +463,7 @@ function FieldOfficesContent() {
 
       {/* Field Offices Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {loadingFieldOffices && (fetchedFieldOffices === undefined || fetchedFieldOffices === null) ? (
+        {loadingFieldOffices && (fetchedFieldOfficesResponse === undefined || fetchedFieldOfficesResponse === null) ? (
           <div className="col-span-full py-12 text-center text-slate-400">
             <Loader2 className="w-6 h-6 animate-spin mx-auto text-emerald-400 mb-2" />
             <span>Loading field offices & extension units...</span>
@@ -478,7 +510,7 @@ function FieldOfficesContent() {
                 <div className="space-y-2 pt-2 border-t border-slate-800/80">
                   <div className="text-xs text-slate-300 font-medium flex items-center gap-1.5">
                     <UserCheck className="w-3.5 h-3.5 text-indigo-400" />
-                    <span>OIC: {office.officerInCharge}</span>
+                    <span>OIC: {office.officerInChargeName ?? "Not Assigned"}</span>
                   </div>
 
                   <div className="text-[11px] text-slate-400 flex items-center gap-1.5">
@@ -655,14 +687,19 @@ function FieldOfficesContent() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-slate-300">Officer-in-Charge (OIC) *</label>
-                <input
-                  type="text"
+                <select
                   required
-                  placeholder="e.g. Engr. Manuel Santos"
-                  value={formData.officerInCharge}
-                  onChange={(e) => setFormData({ ...formData, officerInCharge: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
+                  value={formData.officerInChargeId}
+                  onChange={(e) => setFormData({ ...formData, officerInChargeId: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+                >
+                  <option value="" disabled>Select Tenant Member...</option>
+                  {tenantMembers.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.userFirstName} {m.userLastName} ({m.position})
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="space-y-1.5">
@@ -790,13 +827,19 @@ function FieldOfficesContent() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-slate-300">Officer-in-Charge (OIC) *</label>
-                <input
-                  type="text"
+                <select
                   required
-                  value={formData.officerInCharge}
-                  onChange={(e) => setFormData({ ...formData, officerInCharge: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
+                  value={formData.officerInChargeId}
+                  onChange={(e) => setFormData({ ...formData, officerInChargeId: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+                >
+                  <option value="" disabled>Select Tenant Member...</option>
+                  {tenantMembers.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.userFirstName} {m.userLastName} ({m.position})
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="space-y-1.5">

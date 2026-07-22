@@ -273,9 +273,8 @@ namespace EDGE.Infrastructure.Migrations
                         .HasMaxLength(150)
                         .HasColumnType("character varying(150)");
 
-                    b.Property<string>("OfficerInCharge")
-                        .IsRequired()
-                        .HasColumnType("text");
+                    b.Property<Guid>("OfficerInChargeId")
+                        .HasColumnType("uuid");
 
                     b.Property<Guid?>("ProvinceId")
                         .HasColumnType("uuid");
@@ -287,6 +286,8 @@ namespace EDGE.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("OfficerInChargeId");
 
                     b.HasIndex("ProvinceId");
 
@@ -877,6 +878,12 @@ namespace EDGE.Infrastructure.Migrations
 
             modelBuilder.Entity("EDGE.Domain.Entities.FieldOffice", b =>
                 {
+                    b.HasOne("EDGE.Domain.Entities.TenantMember", "OfficerInCharge")
+                        .WithMany()
+                        .HasForeignKey("OfficerInChargeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("EDGE.Domain.Entities.Province", "Province")
                         .WithMany()
                         .HasForeignKey("ProvinceId");
@@ -892,6 +899,8 @@ namespace EDGE.Infrastructure.Migrations
                         .HasForeignKey("TenantId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("OfficerInCharge");
 
                     b.Navigation("Province");
 

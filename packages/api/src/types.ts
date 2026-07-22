@@ -232,6 +232,7 @@ export interface UpdateMemberDetailsCommand {
 
 export interface FieldOffice {
   id: string;
+  tenantId: string;
   name: string;
   code: string;
   description?: string | null;
@@ -242,7 +243,9 @@ export interface FieldOffice {
   address: string;
   contactPhone: string;
   contactEmail: string;
-  officerInCharge: string;
+  officerInChargeId: string;
+  officerInChargeName?: string | null;
+  officerInChargeEmail?: string | null;
   isActive: boolean;
   allowSpectrumInspection: boolean;
   allowPermitIssuance: boolean;
@@ -252,6 +255,7 @@ export interface FieldOffice {
 }
 
 export interface CreateFieldOfficeCommand {
+  tenantId: string;
   name: string;
   code: string;
   description?: string | null;
@@ -260,7 +264,7 @@ export interface CreateFieldOfficeCommand {
   address: string;
   contactPhone: string;
   contactEmail: string;
-  officerInCharge: string;
+  officerInChargeId: string;
   allowSpectrumInspection: boolean;
   allowPermitIssuance: boolean;
   allowComplaintReception: boolean;
@@ -268,6 +272,7 @@ export interface CreateFieldOfficeCommand {
 
 export interface UpdateFieldOfficeCommand {
   id: string;
+  tenantId: string;
   name: string;
   code: string;
   description?: string | null;
@@ -276,7 +281,7 @@ export interface UpdateFieldOfficeCommand {
   address: string;
   contactPhone: string;
   contactEmail: string;
-  officerInCharge: string;
+  officerInChargeId: string;
   isActive: boolean;
   allowSpectrumInspection: boolean;
   allowPermitIssuance: boolean;

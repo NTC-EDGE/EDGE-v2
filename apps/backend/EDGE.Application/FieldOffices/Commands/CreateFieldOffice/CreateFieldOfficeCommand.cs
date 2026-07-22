@@ -13,7 +13,7 @@ public record CreateFieldOfficeCommand(
     string Address,
     string ContactPhone,
     string ContactEmail,
-    string OfficerInCharge,
+    Guid OfficerInChargeId,
     bool IsActive = true,
     bool AllowSpectrumInspection = true,
     bool AllowPermitIssuance = true,

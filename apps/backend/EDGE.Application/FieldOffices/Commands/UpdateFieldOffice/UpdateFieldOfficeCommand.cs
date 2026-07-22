@@ -14,7 +14,7 @@ public record UpdateFieldOfficeCommand(
     string Address,
     string ContactPhone,
     string ContactEmail,
-    string OfficerInCharge,
+    Guid OfficerInChargeId,
     bool IsActive,
     bool AllowSpectrumInspection,
     bool AllowPermitIssuance,

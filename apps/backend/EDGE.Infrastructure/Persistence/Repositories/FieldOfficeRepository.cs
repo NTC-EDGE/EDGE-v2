@@ -24,6 +24,8 @@ public class FieldOfficeRepository : IFieldOfficeRepository
             .Include(f => f.Tenant)
             .Include(f => f.Region)
             .Include(f => f.Province)
+            .Include(f => f.OfficerInCharge)
+                .ThenInclude(o => o.User)
             .FirstOrDefaultAsync(f => f.Id == id, cancellationToken);
     }
 
@@ -33,6 +35,8 @@ public class FieldOfficeRepository : IFieldOfficeRepository
             .Include(f => f.Tenant)
             .Include(f => f.Region)
             .Include(f => f.Province)
+            .Include(f => f.OfficerInCharge)
+                .ThenInclude(o => o.User)
             .Where(f => f.TenantId == tenantId)
             .OrderBy(f => f.Name)
             .ToListAsync(cancellationToken);
@@ -44,6 +48,8 @@ public class FieldOfficeRepository : IFieldOfficeRepository
             .Include(f => f.Tenant)
             .Include(f => f.Region)
             .Include(f => f.Province)
+            .Include(f => f.OfficerInCharge)
+                .ThenInclude(o => o.User)
             .OrderBy(f => f.Name)
             .ToListAsync(cancellationToken);
     }

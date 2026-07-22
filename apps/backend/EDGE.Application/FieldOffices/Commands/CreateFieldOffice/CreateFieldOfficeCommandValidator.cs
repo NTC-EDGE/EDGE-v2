@@ -34,7 +34,7 @@ public class CreateFieldOfficeCommandValidator : AbstractValidator<CreateFieldOf
             .NotEmpty().WithMessage("Contact email is required.")
             .EmailAddress().WithMessage("A valid email address is required.");
 
-        RuleFor(v => v.OfficerInCharge)
-            .NotEmpty().WithMessage("Officer in charge name is required.");
+        RuleFor(v => v.OfficerInChargeId)
+            .NotEmpty().WithMessage("Officer in charge ID is required.");
     }
 }

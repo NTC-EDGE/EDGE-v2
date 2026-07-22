@@ -95,6 +95,10 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
                   .WithMany()
                   .HasForeignKey(e => e.TenantId)
                   .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.OfficerInCharge)
+                  .WithMany()
+                  .HasForeignKey(e => e.OfficerInChargeId)
+                  .OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(e => e.Region)
                   .WithMany(r => r.FieldOffices)
                   .HasForeignKey(e => e.RegionId)

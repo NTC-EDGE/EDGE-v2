@@ -4,13 +4,17 @@ import { FieldOffice, CreateFieldOfficeCommand, UpdateFieldOfficeCommand } from 
 export function useFieldOfficeService() {
   const { useQuery, post, put, del } = useApi();
 
-  const useFieldOffices = (regionId?: string | null) => {
-    const queryStr = regionId !== undefined && regionId !== null && regionId.length > 0 ? `?regionId=${regionId}` : '';
+  const useFieldOffices = (tenantId: string | null, regionId?: string | null) => {
+    if (tenantId === null || tenantId.length === 0) return useQuery<FieldOffice[]>(null);
+    const queryStr = regionId !== undefined && regionId !== null && regionId.length > 0 
+      ? `?tenantId=${tenantId}&regionId=${regionId}` 
+      : `?tenantId=${tenantId}`;
     return useQuery<FieldOffice[]>(`/api/v2/field-offices${queryStr}`);
   };
 
-  const useFieldOffice = (id: string | null) => {
-    return useQuery<FieldOffice>(id !== null && id.length > 0 ? `/api/v2/field-offices/${id}` : null);
+  const useFieldOffice = (id: string | null, tenantId: string | null) => {
+    const isValid = id !== null && id.length > 0 && tenantId !== null && tenantId.length > 0;
+    return useQuery<FieldOffice>(isValid ? `/api/v2/field-offices/${id}?tenantId=${tenantId}` : null);
   };
 
   const createFieldOffice = async (command: CreateFieldOfficeCommand): Promise<FieldOffice> => {
@@ -21,8 +25,8 @@ export function useFieldOfficeService() {
     return put<FieldOffice, UpdateFieldOfficeCommand>(`/api/v2/field-offices/${id}`, command);
   };
 
-  const deleteFieldOffice = async (id: string): Promise<void> => {
-    return del<void>(`/api/v2/field-offices/${id}`);
+  const deleteFieldOffice = async (id: string, tenantId: string): Promise<void> => {
+    return del<void>(`/api/v2/field-offices/${id}?tenantId=${tenantId}`);
   };
 
   return {
