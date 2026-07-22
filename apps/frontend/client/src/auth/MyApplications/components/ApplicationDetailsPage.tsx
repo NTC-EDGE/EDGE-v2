@@ -21,6 +21,7 @@ import {
   ApplicationDocument,
   BulkApplicant,
   getEnrichedApplicant,
+  getApplicantDocuments,
 } from '../data/applicationsData';
 
 interface ApplicationDetailsPageProps {
@@ -28,6 +29,26 @@ interface ApplicationDetailsPageProps {
   onBack: () => void;
   onDownloadDoc?: (doc: ApplicationDocument) => void;
 }
+
+const getApplicantStepProgress = (status: string) => {
+  switch (status) {
+    case 'PENDING':
+      return 1;
+    case 'FOR_EVALUATION':
+      return 2;
+    case 'FOR_APPROVAL':
+      return 3;
+    case 'APPROVED':
+    case 'READY_FOR_PAYMENT':
+      return 4;
+    case 'DECLINED':
+      return 4;
+    case 'EXPIRING_SOON':
+      return 2;
+    default:
+      return 3;
+  }
+};
 
 export function ApplicationDetailsPage({
   app,
@@ -43,11 +64,12 @@ export function ApplicationDetailsPage({
 
   const isBulk = app.mode === 'BULK';
   
-  // Bulk application table search, pagination & modal states
+  // Bulk application table search, pagination & sub-page states
   const TABLE_PAGE_SIZE = 6;
   const [tableSearch, setTableSearch] = useState('');
   const [tablePage, setTablePage] = useState(1);
   const [selectedApplicant, setSelectedApplicant] = useState<BulkApplicant | null>(null);
+  const [subActiveTab, setSubActiveTab] = useState<'DETAILS' | 'DOCUMENTS'>('DETAILS');
 
   // Bulk stats and calculations
   const totalSubmitted = isBulk ? app.applicants.length : 0;
@@ -101,6 +123,558 @@ export function ApplicationDetailsPage({
   };
 
   const currentStepIndex = getStepProgress();
+
+  if (isBulk && selectedApplicant !== null) {
+    const currApplicant = selectedApplicant;
+    const enriched = getEnrichedApplicant(currApplicant, app.serviceName);
+    const applicantDocs = getApplicantDocuments(currApplicant);
+    const stepProgress = getApplicantStepProgress(enriched.status);
+    const isDeclined = enriched.status === 'DECLINED';
+
+    return (
+      <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+        <View style={[styles.mainWrapper, { maxWidth: isMobile ? '100%' : 900 }]}>
+          {/* Back button to Bulk Application details */}
+          <TouchableOpacity
+            onPress={() => setSelectedApplicant(null)}
+            style={styles.backBtn}
+            activeOpacity={0.7}
+          >
+            <Icon name="arrow-left" size={18} color="#1D4ED8" />
+            <Text style={styles.backBtnText}>Back to Bulk Application Roster</Text>
+          </TouchableOpacity>
+
+          {/* Sub-page Header Card */}
+          <View style={styles.headerCard}>
+            <View style={styles.badgeRow}>
+              <View style={[styles.modeBadge, styles.singleBadge]}>
+                <View style={[styles.modeDot, { backgroundColor: '#1D4ED8' }]} />
+                <Text style={[styles.modeBadgeText, { color: '#1D4ED8' }]}>
+                  INDIVIDUAL APPLICATION
+                </Text>
+              </View>
+
+              <View style={[styles.statusBadge, { backgroundColor: getStatusBgColor(enriched.status) }]}>
+                <View style={[styles.statusDot, { backgroundColor: getStatusColor(enriched.status) }]} />
+                <Text style={[styles.statusBadgeText, { color: getStatusColor(enriched.status) }]}>
+                  {getStatusLabel(enriched.status)}
+                </Text>
+              </View>
+            </View>
+
+            <Text style={styles.appRefId}>
+              Applicant Ref ID: #{currApplicant.id}
+            </Text>
+            <Text style={styles.appTitle}>{enriched.name}</Text>
+            <Text style={styles.appSubtitleCompany}>
+              {currApplicant.applicationType} • Part of bulk batch #{app.referenceNumber}
+            </Text>
+
+            {/* Navigation Tabs */}
+            <View style={styles.tabsContainer}>
+              <TouchableOpacity
+                onPress={() => setSubActiveTab('DETAILS')}
+                style={[styles.tabItem, subActiveTab === 'DETAILS' && styles.tabItemActive]}
+                activeOpacity={0.8}
+              >
+                <Icon
+                  name="user"
+                  size={16}
+                  color={subActiveTab === 'DETAILS' ? '#1D4ED8' : '#64748B'}
+                />
+                <Text style={[styles.tabText, subActiveTab === 'DETAILS' && styles.tabTextActive]}>
+                  Applicant Details
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => setSubActiveTab('DOCUMENTS')}
+                style={[styles.tabItem, subActiveTab === 'DOCUMENTS' && styles.tabItemActive]}
+                activeOpacity={0.8}
+              >
+                <Icon
+                  name="file-text"
+                  size={16}
+                  color={subActiveTab === 'DOCUMENTS' ? '#1D4ED8' : '#64748B'}
+                />
+                <Text style={[styles.tabText, subActiveTab === 'DOCUMENTS' && styles.tabTextActive]}>
+                  Documents ({applicantDocs.length})
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Sub-page Tab Content: Details */}
+          {subActiveTab === 'DETAILS' && (
+            <View style={styles.tabContentList}>
+              {/* Stepper Card */}
+              <View style={styles.sectionCard}>
+                <Text style={styles.progressHeaderTitle}>APPLICATION PROGRESS</Text>
+                <View style={styles.stepperRow}>
+                  {/* Step 1: Submitted */}
+                  <View style={styles.stepNode}>
+                    <View
+                      style={[
+                        styles.stepCircle,
+                        stepProgress >= 1 ? styles.stepCircleDone : styles.stepCirclePending,
+                      ]}
+                    >
+                      {stepProgress >= 1 ? (
+                        <Icon name="check" size={14} color="#FFFFFF" />
+                      ) : (
+                        <Text style={styles.stepNumber}>1</Text>
+                      )}
+                    </View>
+                    <Text style={styles.stepLabel}>Submitted</Text>
+                  </View>
+
+                  <View
+                    style={[
+                      styles.stepLine,
+                      stepProgress >= 2 ? styles.stepLineDone : styles.stepLinePending,
+                    ]}
+                  />
+
+                  {/* Step 2: Evaluation */}
+                  <View style={styles.stepNode}>
+                    <View
+                      style={[
+                        styles.stepCircle,
+                        stepProgress >= 2 ? styles.stepCircleDone : styles.stepCirclePending,
+                      ]}
+                    >
+                      {stepProgress >= 2 ? (
+                        <Icon name="check" size={14} color="#FFFFFF" />
+                      ) : (
+                        <Text style={styles.stepNumber}>2</Text>
+                      )}
+                    </View>
+                    <Text style={styles.stepLabel}>Evaluation</Text>
+                  </View>
+
+                  <View
+                    style={[
+                      styles.stepLine,
+                      stepProgress >= 3 ? styles.stepLineDone : styles.stepLinePending,
+                    ]}
+                  />
+
+                  {/* Step 3: For Approval */}
+                  <View style={styles.stepNode}>
+                    <View
+                      style={[
+                        styles.stepCircle,
+                        stepProgress >= 3 
+                          ? (isDeclined ? styles.stepCircleDeclined : styles.stepCircleDone) 
+                          : styles.stepCirclePending,
+                      ]}
+                    >
+                      {isDeclined ? (
+                        <Icon name="x" size={14} color="#FFFFFF" />
+                      ) : stepProgress >= 3 ? (
+                        <Icon name="check" size={14} color="#FFFFFF" />
+                      ) : (
+                        <Text style={styles.stepNumber}>3</Text>
+                      )}
+                    </View>
+                    <Text style={styles.stepLabel}>For Approval</Text>
+                  </View>
+
+                  <View
+                    style={[
+                      styles.stepLine,
+                      stepProgress >= 4 ? (isDeclined ? styles.stepLineDeclined : styles.stepLineDone) : styles.stepLinePending,
+                    ]}
+                  />
+
+                  {/* Step 4: Approved & Issued / Declined */}
+                  <View style={styles.stepNode}>
+                    <View
+                      style={[
+                        styles.stepCircle,
+                        stepProgress >= 4 
+                          ? (isDeclined ? styles.stepCircleDeclined : styles.stepCircleDone) 
+                          : styles.stepCirclePending,
+                      ]}
+                    >
+                      {isDeclined ? (
+                        <Icon name="x" size={14} color="#FFFFFF" />
+                      ) : stepProgress >= 4 ? (
+                        <Icon name="check" size={14} color="#FFFFFF" />
+                      ) : (
+                        <Text style={styles.stepNumber}>4</Text>
+                      )}
+                    </View>
+                    <Text style={[styles.stepLabel, isDeclined && { color: '#DC2626' }]}>
+                      {isDeclined ? 'Declined' : 'Approved & Issued'}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Profile Details */}
+              <View style={styles.sectionCard}>
+                <View style={styles.sectionCardHeader}>
+                  <Icon name="user" size={18} color="#1D4ED8" />
+                  <Text style={styles.sectionCardTitle}>1. Applicant Profile</Text>
+                </View>
+
+                <View style={styles.sectionCardBody}>
+                  <DetailRow label="Full Name" value={enriched.name} />
+                  <DetailRow label="Sex" value={enriched.sex} />
+                  <DetailRow label="Nationality" value={enriched.nationality} />
+                  <DetailRow label="Element / Application Type" value={enriched.applicationType} isLast />
+                </View>
+              </View>
+
+              {/* Contacts Details */}
+              <View style={styles.sectionCard}>
+                <View style={styles.sectionCardHeader}>
+                  <Icon name="mail" size={18} color="#1D4ED8" />
+                  <Text style={styles.sectionCardTitle}>2. Contact Details</Text>
+                </View>
+
+                <View style={styles.sectionCardBody}>
+                  <DetailRow label="Mobile Number" value={enriched.mobileNumber} />
+                  <DetailRow label="Email Address" value={enriched.email} isLast />
+                </View>
+              </View>
+
+              {/* Address Details */}
+              <View style={styles.sectionCard}>
+                <View style={styles.sectionCardHeader}>
+                  <Icon name="map-pin" size={18} color="#1D4ED8" />
+                  <Text style={styles.sectionCardTitle}>3. Permanent Address</Text>
+                </View>
+
+                <View style={styles.sectionCardBody}>
+                  <DetailRow label="Street Address" value={enriched.streetAddress} />
+                  <DetailRow label="Barangay" value={enriched.barangay ?? 'Brgy 4'} />
+                  <DetailRow label="City / Municipality" value={enriched.cityMunicipality} />
+                  <DetailRow label="Province" value={enriched.province} />
+                  <DetailRow label="Region" value={enriched.region} />
+                  <DetailRow label="Zip Code" value={enriched.zipCode ?? '9506'} isLast />
+                </View>
+              </View>
+
+              {/* Schedule Details */}
+              <View style={styles.sectionCard}>
+                <View style={styles.sectionCardHeader}>
+                  <Icon name="calendar" size={18} color="#1D4ED8" />
+                  <Text style={styles.sectionCardTitle}>4. Examination Schedule</Text>
+                </View>
+
+                <View style={styles.sectionCardBody}>
+                  <DetailRow label="Scheduled Date" value={enriched.schedule.date} />
+                  <DetailRow label="Scheduled Time" value={enriched.schedule.time} />
+                  <DetailRow label="Venue Location" value={enriched.schedule.venue} isLast />
+                </View>
+              </View>
+            </View>
+          )}
+
+          {/* Sub-page Tab Content: Documents */}
+          {subActiveTab === 'DOCUMENTS' && (
+            <View style={styles.tabContentList}>
+              <View style={styles.docHeaderContainer}>
+                <Text style={styles.docHeaderTitle}>Attached & Issued Documents</Text>
+                <Text style={styles.docHeaderSubtitle}>
+                  Preview official application documents and permits generated for this individual applicant.
+                </Text>
+              </View>
+
+              {applicantDocs.map((doc) => (
+                <View key={doc.id} style={styles.docRowCard}>
+                  <View style={styles.docIconBox}>
+                    <Icon name="file-text" size={20} color="#1D4ED8" />
+                  </View>
+
+                  <View style={styles.docInfoCol}>
+                    <Text style={styles.docNameText} numberOfLines={1}>
+                      {doc.name}
+                    </Text>
+                    <Text style={styles.docSubtext}>
+                      {doc.category.replace('_', ' ')} · {doc.size} · {doc.type}
+                    </Text>
+                  </View>
+
+                  <View style={styles.docActionsRowGroup}>
+                    <TouchableOpacity
+                      onPress={() => setPreviewDoc(doc)}
+                      style={styles.docPreviewPillBtn}
+                      activeOpacity={0.8}
+                    >
+                      <Icon name="eye" size={14} color="#1D4ED8" />
+                      <Text style={styles.docPreviewPillBtnText}>Preview</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={() => {
+                        if (onDownloadDoc !== undefined) onDownloadDoc(doc);
+                      }}
+                      style={styles.docDownloadBtn}
+                      activeOpacity={0.8}
+                    >
+                      <Icon name="download" size={14} color="#475569" />
+                      <Text style={styles.docDownloadBtnText}>Download</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+
+        {/* ── Document Preview Modal (within sub-page as well) ────────────────── */}
+        <Modal
+          visible={previewDoc !== null}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setPreviewDoc(null)}
+        >
+          {previewDoc !== null && (
+            <View style={styles.modalOverlay}>
+              <View style={[styles.modalContent, { maxWidth: isMobile ? '95%' : 600 }]}>
+                <View style={styles.modalHeader}>
+                  <View style={styles.modalHeaderTitleGroup}>
+                    <Icon name="file-text" size={20} color="#1D4ED8" />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.modalTitle} numberOfLines={1}>
+                        {previewDoc.name}
+                      </Text>
+                      <Text style={styles.modalSubtitle}>
+                        {previewDoc.category.replace('_', ' ')} · {previewDoc.size} · {previewDoc.type}
+                      </Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => setPreviewDoc(null)}
+                    style={styles.modalCloseBtn}
+                  >
+                    <Icon name="x" size={18} color="#64748B" />
+                  </TouchableOpacity>
+                </View>
+
+                <ScrollView style={styles.modalBodyScroll} contentContainerStyle={styles.modalBodyContent}>
+                  <View style={styles.docSheetHeader}>
+                    <Text style={styles.docSheetGovText}>REPUBLIC OF THE PHILIPPINES</Text>
+                    <Text style={styles.docSheetAgencyText}>NATIONAL TELECOMMUNICATIONS COMMISSION</Text>
+                    <Text style={styles.docSheetSubAgency}>NTC Building, BIR Road, East Triangle, Diliman, Quezon City</Text>
+                  </View>
+                  <View style={styles.docSheetMockup}>
+                    <View style={{ borderBottomWidth: 2, borderBottomColor: '#1E3A8A', paddingBottom: 8, marginBottom: 12 }}>
+                      <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 16, fontWeight: '700', color: '#1E3A8A', textAlign: 'center' }}>
+                        OFFICIAL DOCUMENT PREVIEW
+                      </Text>
+                    </View>
+                    <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, color: '#334155', lineHeight: 18, marginBottom: 12 }}>
+                      Document ID: <Text style={{ fontWeight: '700' }}>{previewDoc.id}</Text>{"\n"}
+                      Category: <Text style={{ fontWeight: '700' }}>{previewDoc.category}</Text>{"\n"}
+                      File Name: <Text style={{ fontWeight: '700' }}>{previewDoc.name}</Text>{"\n"}
+                      Size: <Text style={{ fontWeight: '700' }}>{previewDoc.size}</Text>{"\n"}
+                      Type: <Text style={{ fontWeight: '700' }}>{previewDoc.type}</Text>{"\n"}
+                      Date: <Text style={{ fontWeight: '700' }}>{previewDoc.uploadedAt}</Text>
+                    </Text>
+                    <View style={{ backgroundColor: '#F8FAFC', padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#E2E8F0', marginTop: 8 }}>
+                      <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 10, color: '#64748B', fontStyle: 'italic', textAlign: 'center' }}>
+                        This is a secure electronic copy generated by NTC Edge.
+                      </Text>
+                    </View>
+                  </View>
+                </ScrollView>
+
+                <View style={styles.modalFooter}>
+                  <TouchableOpacity
+                    onPress={() => {
+                      if (onDownloadDoc !== undefined) onDownloadDoc(previewDoc);
+                    }}
+                    style={styles.modalDownloadBtn}
+                    activeOpacity={0.85}
+                  >
+                    <Icon name="download" size={15} color="#FFFFFF" />
+                    <Text style={styles.modalDownloadBtnText}>Download File</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={() => setPreviewDoc(null)}
+                    style={styles.modalCloseFooterBtn}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.modalCloseFooterBtnText}>Close</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          )}
+        </Modal>
+      </ScrollView>
+    );
+  }
+
+  if (isBulk && selectedApplicant === null) {
+    return (
+      <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+        <View style={[styles.mainWrapper, { maxWidth: isMobile ? '100%' : 900 }]}>
+          {/* ── Top Back Button Bar ────────────────────────────────────────── */}
+          <TouchableOpacity onPress={onBack} style={styles.backBtn} activeOpacity={0.7}>
+            <Icon name="arrow-left" size={18} color="#1D4ED8" />
+            <Text style={styles.backBtnText}>Back to My Applications</Text>
+          </TouchableOpacity>
+
+          {/* ── Header Card ───────────────────────────────────────────────── */}
+          <View style={styles.headerCard}>
+            <View style={styles.badgeRow}>
+              <View style={[styles.modeBadge, styles.bulkBadge]}>
+                <View style={[styles.modeDot, { backgroundColor: '#D97706' }]} />
+                <Text style={[styles.modeBadgeText, { color: '#D97706' }]}>
+                  BULK APPLICATION ({app.applicants.length})
+                </Text>
+              </View>
+
+              <View style={[styles.statusBadge, { backgroundColor: statusBg }]}>
+                <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
+                <Text style={[styles.statusBadgeText, { color: statusColor }]}>
+                  {getStatusLabel(app.status)}
+                </Text>
+              </View>
+            </View>
+
+            <Text style={styles.appRefId}>
+              Bulk Application #{app.referenceNumber}
+            </Text>
+            <Text style={styles.appTitle}>{app.serviceName}</Text>
+            <Text style={styles.appSubtitleCompany}>
+              {app.companyName} [BULK] Submitted {formatRelativeTime(app.submittedAt)}
+            </Text>
+          </View>
+
+          {/* ── Approved Applicants Table Card ───────────────────────────────── */}
+          <View style={styles.tableSectionCard}>
+            <View style={styles.tableSectionHeader}>
+              <View style={styles.tableHeaderTitleRow}>
+                <Text style={styles.tableSectionTitle}>Approved Applicants</Text>
+                <View style={styles.tableCountBadge}>
+                  <Text style={styles.tableCountBadgeText}>{filteredApplicants.length}</Text>
+                </View>
+              </View>
+
+              <View style={styles.tableSearchBox}>
+                <Icon name="search" size={14} color="#94A3B8" />
+                <TextInput
+                  style={styles.tableSearchInput}
+                  placeholder="Search approved..."
+                  placeholderTextColor="#94A3B8"
+                  value={tableSearch}
+                  onChangeText={(text) => {
+                    setTableSearch(text);
+                    setTablePage(1);
+                  }}
+                />
+                {tableSearch.length > 0 && (
+                  <TouchableOpacity onPress={() => setTableSearch('')}>
+                    <Icon name="x" size={14} color="#94A3B8" />
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+
+            {/* Responsive Grid/Table layout */}
+            <View style={styles.tableWrapper}>
+              <View style={styles.tableThRow}>
+                <Text style={[styles.thCol, { flex: 0.5 }]}>#</Text>
+                <Text style={[styles.thCol, { flex: 2.5 }]}>APPLICANT NAME</Text>
+                <Text style={[styles.thCol, { flex: 1.5 }]}>APPLICATION TYPE</Text>
+                <Text style={[styles.thCol, { flex: 1.5 }]}>STATUS</Text>
+                <Text style={[styles.thCol, { flex: 1.5 }]}>INCLUDED IN SOA</Text>
+                <Text style={[styles.thCol, { flex: 1.5, textAlign: 'right' }]}>ACTION</Text>
+              </View>
+
+              {pagedApplicants.length === 0 ? (
+                <View style={styles.emptyTableState}>
+                  <Text style={styles.emptyTableText}>No applicants found matching "{tableSearch}"</Text>
+                </View>
+              ) : (
+                pagedApplicants.map((applicant, idx) => {
+                  const absoluteIndex = (tablePage - 1) * TABLE_PAGE_SIZE + idx + 1;
+                  return (
+                    <View key={applicant.id} style={[styles.tableTdRow, idx % 2 === 1 && styles.tableTdRowAlt]}>
+                      <Text style={[styles.tdCol, { flex: 0.5, color: '#64748B' }]}>{absoluteIndex}</Text>
+                      <Text style={[styles.tdCol, { flex: 2.5, fontWeight: '600', color: '#0F172A' }]} numberOfLines={1}>
+                        {applicant.name}
+                      </Text>
+                      <Text style={[styles.tdCol, { flex: 1.5 }]}>{applicant.applicationType}</Text>
+                      <View style={{ flex: 1.5, alignItems: 'flex-start' }}>
+                        <View style={[styles.tableStatusChip, { backgroundColor: getStatusBgColor(applicant.status) }]}>
+                          <Text style={[styles.tableStatusChipText, { color: getStatusColor(applicant.status) }]}>
+                            {getStatusLabel(applicant.status)}
+                          </Text>
+                        </View>
+                      </View>
+                      <Text style={[styles.tdCol, { flex: 1.5, fontWeight: '500', color: '#334155' }]}>
+                        {applicant.includedInSOA ? 'Yes' : 'No'}
+                      </Text>
+                      <TouchableOpacity
+                        onPress={() => {
+                          setSelectedApplicant(applicant);
+                          setSubActiveTab('DETAILS');
+                        }}
+                        style={{ flex: 1.5, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.viewDetailsLinkText}>View Details</Text>
+                        <Icon name="external-link" size={11} color="#1D4ED8" />
+                      </TouchableOpacity>
+                    </View>
+                  );
+                })
+              )}
+            </View>
+
+            {/* Table Pagination */}
+            {totalPages > 1 && (
+              <View style={styles.tablePaginationBar}>
+                <Text style={styles.tablePaginationSummary}>
+                  Showing {(tablePage - 1) * TABLE_PAGE_SIZE + 1} to{' '}
+                  {Math.min(tablePage * TABLE_PAGE_SIZE, filteredApplicants.length)} of{' '}
+                  {filteredApplicants.length} applicants
+                </Text>
+
+                <View style={styles.tablePaginationBtns}>
+                  <TouchableOpacity
+                    onPress={() => setTablePage((p) => Math.max(1, p - 1))}
+                    disabled={tablePage === 1}
+                    style={[styles.tablePageNavBtn, tablePage === 1 && styles.tablePageNavBtnDisabled]}
+                  >
+                    <Icon name="chevron-left" size={14} color={tablePage === 1 ? '#CBD5E1' : '#334155'} />
+                  </TouchableOpacity>
+
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((pg) => (
+                    <TouchableOpacity
+                      key={pg}
+                      onPress={() => setTablePage(pg)}
+                      style={[styles.tablePageNumberBtn, pg === tablePage && styles.tablePageNumberBtnActive]}
+                    >
+                      <Text style={[styles.tablePageNumberText, pg === tablePage && styles.tablePageNumberTextActive]}>
+                        {pg}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+
+                  <TouchableOpacity
+                    onPress={() => setTablePage((p) => Math.min(totalPages, p + 1))}
+                    disabled={tablePage === totalPages}
+                    style={[styles.tablePageNavBtn, tablePage === totalPages && styles.tablePageNavBtnDisabled]}
+                  >
+                    <Icon name="chevron-right" size={14} color={tablePage === totalPages ? '#CBD5E1' : '#334155'} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+          </View>
+        </View>
+      </ScrollView>
+    );
+  }
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
@@ -399,7 +973,10 @@ export function ApplicationDetailsPage({
                               {applicant.includedInSOA ? 'Yes' : 'No'}
                             </Text>
                             <TouchableOpacity
-                              onPress={() => setSelectedApplicant(applicant)}
+                              onPress={() => {
+                                setSelectedApplicant(applicant);
+                                setSubActiveTab('DETAILS');
+                              }}
                               style={{ flex: 1.5, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}
                               activeOpacity={0.7}
                             >
@@ -657,119 +1234,7 @@ export function ApplicationDetailsPage({
         )}
       </Modal>
 
-      {/* ── Applicant Details Modal (for Bulk Applicants) ────────────────── */}
-      <Modal
-        visible={selectedApplicant !== null}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setSelectedApplicant(null)}
-      >
-        {selectedApplicant !== null && (() => {
-          const enriched = getEnrichedApplicant(selectedApplicant, app.serviceName);
-          return (
-            <View style={styles.modalOverlay}>
-              <View style={[styles.modalContent, { maxWidth: isMobile ? '95%' : 600 }]}>
-                <View style={styles.modalHeader}>
-                  <View style={styles.modalHeaderTitleGroup}>
-                    <Icon name="user" size={20} color="#1D4ED8" />
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.modalTitle} numberOfLines={1}>
-                        Applicant Application Details
-                      </Text>
-                      <Text style={styles.modalSubtitle}>
-                        Details for applicant: {enriched.name}
-                      </Text>
-                    </View>
-                  </View>
-                  <TouchableOpacity
-                    onPress={() => setSelectedApplicant(null)}
-                    style={styles.modalCloseBtn}
-                  >
-                    <Icon name="x" size={18} color="#64748B" />
-                  </TouchableOpacity>
-                </View>
 
-                <ScrollView style={styles.modalBodyScroll} contentContainerStyle={styles.modalBodyContent}>
-                  {/* Status Banner */}
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, backgroundColor: '#F8FAFC', padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#E2E8F0' }}>
-                    <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: '700', color: '#475569' }}>APPLICATION STATUS</Text>
-                    <View style={{ backgroundColor: getStatusBgColor(enriched.status), paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}>
-                      <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: '700', color: getStatusColor(enriched.status) }}>
-                        {getStatusLabel(enriched.status)}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* Section 1: Profile */}
-                  <View style={styles.subModalSection}>
-                    <View style={styles.subModalSectionHeader}>
-                      <Icon name="user" size={14} color="#1D4ED8" />
-                      <Text style={styles.subModalSectionTitle}>1. Applicant Profile</Text>
-                    </View>
-                    <View style={styles.subModalSectionBody}>
-                      <DetailRow label="Full Name" value={enriched.name} />
-                      <DetailRow label="Sex" value={enriched.sex} />
-                      <DetailRow label="Nationality" value={enriched.nationality} />
-                      <DetailRow label="Element / Application Type" value={enriched.applicationType} isLast />
-                    </View>
-                  </View>
-
-                  {/* Section 2: Contacts */}
-                  <View style={styles.subModalSection}>
-                    <View style={styles.subModalSectionHeader}>
-                      <Icon name="mail" size={14} color="#1D4ED8" />
-                      <Text style={styles.subModalSectionTitle}>2. Contact Details</Text>
-                    </View>
-                    <View style={styles.subModalSectionBody}>
-                      <DetailRow label="Mobile Number" value={enriched.mobileNumber} />
-                      <DetailRow label="Email Address" value={enriched.email} isLast />
-                    </View>
-                  </View>
-
-                  {/* Section 3: Address */}
-                  <View style={styles.subModalSection}>
-                    <View style={styles.subModalSectionHeader}>
-                      <Icon name="map-pin" size={14} color="#1D4ED8" />
-                      <Text style={styles.subModalSectionTitle}>3. Permanent Address</Text>
-                    </View>
-                    <View style={styles.subModalSectionBody}>
-                      <DetailRow label="Street Address" value={enriched.streetAddress} />
-                      <DetailRow label="Barangay" value={enriched.barangay} />
-                      <DetailRow label="City / Municipality" value={enriched.cityMunicipality} />
-                      <DetailRow label="Province" value={enriched.province} />
-                      <DetailRow label="Region" value={enriched.region} />
-                      <DetailRow label="Zip Code" value={enriched.zipCode} isLast />
-                    </View>
-                  </View>
-
-                  {/* Section 4: Schedule */}
-                  <View style={styles.subModalSection}>
-                    <View style={styles.subModalSectionHeader}>
-                      <Icon name="calendar" size={14} color="#1D4ED8" />
-                      <Text style={styles.subModalSectionTitle}>4. Examination Schedule</Text>
-                    </View>
-                    <View style={styles.subModalSectionBody}>
-                      <DetailRow label="Scheduled Date" value={enriched.schedule.date} />
-                      <DetailRow label="Scheduled Time" value={enriched.schedule.time} />
-                      <DetailRow label="Venue Location" value={enriched.schedule.venue} isLast />
-                    </View>
-                  </View>
-                </ScrollView>
-
-                <View style={styles.modalFooter}>
-                  <TouchableOpacity
-                    onPress={() => setSelectedApplicant(null)}
-                    style={styles.modalCloseFooterBtn}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={styles.modalCloseFooterBtnText}>Close Details</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </View>
-          );
-        })()}
-      </Modal>
     </ScrollView>
   );
 }
@@ -989,6 +1454,9 @@ const styles = StyleSheet.create({
   stepCirclePending: {
     backgroundColor: '#E2E8F0',
   },
+  stepCircleDeclined: {
+    backgroundColor: '#DC2626',
+  },
   stepNumber: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 12,
@@ -1011,6 +1479,9 @@ const styles = StyleSheet.create({
   },
   stepLinePending: {
     backgroundColor: '#E2E8F0',
+  },
+  stepLineDeclined: {
+    backgroundColor: '#DC2626',
   },
 
   sectionCardHeader: {

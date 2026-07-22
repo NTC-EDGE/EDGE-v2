@@ -708,3 +708,51 @@ export function getEnrichedApplicant(applicant: BulkApplicant, serviceName: stri
     }
   };
 }
+
+export function getApplicantDocuments(applicant: BulkApplicant): ApplicationDocument[] {
+  const docs: ApplicationDocument[] = [];
+  const refId = applicant.id;
+  const safeName = applicant.name.replace(/[^a-zA-Z0-9]/g, '_');
+  const dateStr = '2026-07-21T09:30:00.000Z';
+
+  docs.push({
+    id: `${refId}-doc-1`,
+    name: `${safeName}_Application_Form.pdf`,
+    type: 'PDF',
+    size: '1.2 MB',
+    category: 'ATTACHMENT',
+    uploadedAt: dateStr,
+  });
+
+  docs.push({
+    id: `${refId}-doc-2`,
+    name: `${safeName}_Government_ID.pdf`,
+    type: 'PDF',
+    size: '720 KB',
+    category: 'ATTACHMENT',
+    uploadedAt: dateStr,
+  });
+
+  if (applicant.status === 'APPROVED') {
+    docs.push({
+      id: `${refId}-doc-3`,
+      name: `${safeName}_Approved_Permit.pdf`,
+      type: 'PDF',
+      size: '480 KB',
+      category: 'ISSUED_PERMIT',
+      uploadedAt: dateStr,
+    });
+  } else if (applicant.status === 'READY_FOR_PAYMENT') {
+    docs.push({
+      id: `${refId}-doc-3`,
+      name: `${safeName}_Statement_of_Account.pdf`,
+      type: 'PDF',
+      size: '210 KB',
+      category: 'SOA',
+      uploadedAt: dateStr,
+    });
+  }
+
+  return docs;
+}
+
