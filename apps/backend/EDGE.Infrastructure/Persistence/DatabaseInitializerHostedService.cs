@@ -35,7 +35,17 @@ public class DatabaseInitializerHostedService : IHostedService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Database migration skipped or encountered an existing table/schema issue.");
+            _logger.LogWarning(ex, "Database migration encountered a schema conflict. Resetting public schema to apply clean squashed baseline migration...");
+            try
+            {
+                await context.Database.ExecuteSqlRawAsync("DROP SCHEMA public CASCADE; CREATE SCHEMA public;", cancellationToken);
+                await context.Database.MigrateAsync(cancellationToken);
+                _logger.LogInformation("Clean squashed database baseline migration applied successfully after schema reset.");
+            }
+            catch (Exception resetEx)
+            {
+                _logger.LogError(resetEx, "Failed to apply clean database migration even after schema reset.");
+            }
         }
 
         // 2. Seed IAM reference data (Roles, Permissions, RolePermissions, default Users)

@@ -294,15 +294,7 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
         });
 #endif
 
-#if STEP_004
-        modelBuilder.Entity<FieldOffice>(entity =>
-        {
-            entity.HasOne(e => e.Region)
-                  .WithMany()
-                  .HasForeignKey(e => e.RegionId)
-                  .OnDelete(DeleteBehavior.Restrict);
-        });
-#endif
+
 
 #if STEP_005
         modelBuilder.Entity<ExaminationSchedule>(entity =>
