@@ -129,15 +129,21 @@ public static class FastTrackSeeder
         // 4. Seed Field Offices
         var ncrRegion = await context.Regions.FirstOrDefaultAsync(r => r.Code == "13" || r.Name.Contains("NCR") || r.Name.Contains("National Capital Region"));
         var region1 = await context.Regions.FirstOrDefaultAsync(r => r.Code == "01" || r.Name.Contains("Region I"));
+        var defaultOfficerId = Guid.Parse("40000000-0000-0000-0000-000000000006");
 
         if (ncrRegion != null)
         {
             await context.FieldOffices.AddAsync(new FieldOffice
             {
                 Id = Guid.Parse("f0000000-0000-0000-0000-000000000001"),
+                TenantId = tenant.Id,
                 Name = "NTC NCR Field Office",
                 RegionId = ncrRegion.Id,
-                Code = "NTC-NCR"
+                Code = "NTC-NCR",
+                OfficerInChargeId = defaultOfficerId,
+                Address = "NTC Building, BIR Road, East Triangle, Diliman, Quezon City",
+                ContactPhone = "+63 2 8924 4008",
+                ContactEmail = "ncr@ntc.gov.ph"
             });
         }
 
@@ -146,9 +152,14 @@ public static class FastTrackSeeder
             await context.FieldOffices.AddAsync(new FieldOffice
             {
                 Id = Guid.Parse("f0000000-0000-0000-0000-000000000002"),
+                TenantId = tenant.Id,
                 Name = "NTC Regional Office I",
                 RegionId = region1.Id,
-                Code = "NTC-R1"
+                Code = "NTC-R1",
+                OfficerInChargeId = defaultOfficerId,
+                Address = "NTC Bldg., Quezon Ave., San Fernando, La Union",
+                ContactPhone = "+63 72 700 2222",
+                ContactEmail = "r1@ntc.gov.ph"
             });
         }
 
