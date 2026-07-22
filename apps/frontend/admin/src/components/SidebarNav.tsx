@@ -18,7 +18,8 @@ import {
   X,
   LifeBuoy,
   Calendar,
-  CircleDollarSign
+  CircleDollarSign,
+  Users
 } from "lucide-react";
 import { useAdminScope, AdminRoleType } from "@/lib/admin-scope-context";
 
@@ -185,7 +186,6 @@ export function SidebarNav() {
                 <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-800 text-slate-400 font-mono">System</span>
               </Link>
             )}
-
 
           </div>
 

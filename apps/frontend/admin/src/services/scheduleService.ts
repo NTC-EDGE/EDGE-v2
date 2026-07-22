@@ -21,28 +21,28 @@ export function useScheduleService() {
     }
 
     const queryString = params.toString();
-    const endpoint = `/schedules${queryString.length > 0 ? `?${queryString}` : ''}`;
+    const endpoint = `/api/v2/schedules${queryString.length > 0 ? `?${queryString}` : ''}`;
     return useQuery<ExamSchedule[]>(endpoint);
   };
 
   const useSchedule = (id: string | null) => {
-    return useQuery<ExamSchedule>(id !== null && id.length > 0 ? `/schedules/${id}` : null);
+    return useQuery<ExamSchedule>(id !== null && id.length > 0 ? `/api/v2/schedules/${id}` : null);
   };
 
   const createSchedule = async (data: CreateExamScheduleCommand): Promise<ExamSchedule> => {
-    return post<ExamSchedule, CreateExamScheduleCommand>('/schedules', data);
+    return post<ExamSchedule, CreateExamScheduleCommand>('/api/v2/schedules', data);
   };
 
   const updateSchedule = async (id: string, data: UpdateExamScheduleCommand): Promise<ExamSchedule> => {
-    return put<ExamSchedule, UpdateExamScheduleCommand>(`/schedules/${id}`, data);
+    return put<ExamSchedule, UpdateExamScheduleCommand>(`/api/v2/schedules/${id}`, data);
   };
 
   const togglePublishStatus = async (id: string, isPublished: boolean): Promise<ExamSchedule> => {
-    return put<ExamSchedule, { isPublished: boolean }>(`/schedules/${id}/publish`, { isPublished });
+    return put<ExamSchedule, { isPublished: boolean }>(`/api/v2/schedules/${id}/publish`, { isPublished });
   };
 
   const deleteSchedule = async (id: string): Promise<void> => {
-    return del<void>(`/schedules/${id}`);
+    return del<void>(`/api/v2/schedules/${id}`);
   };
 
   return {

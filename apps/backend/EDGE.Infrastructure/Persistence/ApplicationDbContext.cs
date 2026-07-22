@@ -179,15 +179,6 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
             // Unique constraint to prevent registering the same user to the same tenant twice
             entity.HasIndex(e => new { e.TenantId, e.UserId }).IsUnique();
         });
-    }
-
-    private static System.Linq.Expressions.LambdaExpression ConvertFilterExpression(Type type)
-    {
-        var parameter = System.Linq.Expressions.Expression.Parameter(type, "e");
-        var property = System.Linq.Expressions.Expression.Property(parameter, nameof(AuditableEntity.IsDeleted));
-        var falseConstant = System.Linq.Expressions.Expression.Constant(false);
-        var equal = System.Linq.Expressions.Expression.Equal(property, falseConstant);
-        return System.Linq.Expressions.Expression.Lambda(equal, parameter);
 
         // Fee entity configuration
         modelBuilder.Entity<Fee>(entity =>
@@ -207,5 +198,14 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
                   .HasForeignKey(d => d.FeeId)
                   .OnDelete(DeleteBehavior.Restrict);
         });
+    }
+
+    private static System.Linq.Expressions.LambdaExpression ConvertFilterExpression(Type type)
+    {
+        var parameter = System.Linq.Expressions.Expression.Parameter(type, "e");
+        var property = System.Linq.Expressions.Expression.Property(parameter, nameof(AuditableEntity.IsDeleted));
+        var falseConstant = System.Linq.Expressions.Expression.Constant(false);
+        var equal = System.Linq.Expressions.Expression.Equal(property, falseConstant);
+        return System.Linq.Expressions.Expression.Lambda(equal, parameter);
     }
 }

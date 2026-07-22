@@ -11,6 +11,16 @@ export interface ServiceCategoryItem {
   name: string;
 }
 
+export interface PaginatedApiResponse<T> {
+  succeeded: boolean;
+  message: string | null;
+  data: T[];
+  pageNumber: number;
+  pageSize: number;
+  totalPages: number;
+  totalCount: number;
+}
+
 export const MOCK_SERVICES: ServiceCatalogItem[] = [
   { id: "srv-1", name: "Amateur Radio Operator License" },
   { id: "srv-2", name: "Commercial Radio Station Permit" },
@@ -76,8 +86,7 @@ export function useFeesNotesService() {
 
   // --- FEES CRUD ---
   const useFees = () => {
-    const query = useQuery<Fee[]>('/fees');
-    // Wrap to provide mock/local storage if API is not yet running
+    const query = useQuery<Fee[]>('/api/v2/fees');
     const localData = getLocalStorageData<Fee>('edge_admin_fees', INITIAL_FEES);
     return {
       ...query,
@@ -87,7 +96,7 @@ export function useFeesNotesService() {
 
   const createFee = async (data: Omit<Fee, 'id'>): Promise<Fee> => {
     try {
-      return await post<Fee, Omit<Fee, 'id'>>('/fees', data);
+      return await post<Fee, Omit<Fee, 'id'>>('/api/v2/fees', data);
     } catch {
       const local = getLocalStorageData<Fee>('edge_admin_fees', INITIAL_FEES);
       const newFee: Fee = {
@@ -102,7 +111,7 @@ export function useFeesNotesService() {
 
   const updateFee = async (id: string, data: Omit<Fee, 'id'>): Promise<Fee> => {
     try {
-      return await put<Fee, Omit<Fee, 'id'>>(`/fees/${id}`, data);
+      return await put<Fee, Omit<Fee, 'id'>>(`/api/v2/fees/${id}`, data);
     } catch {
       const local = getLocalStorageData<Fee>('edge_admin_fees', INITIAL_FEES);
       const idx = local.findIndex(f => f.id === id);
@@ -116,7 +125,7 @@ export function useFeesNotesService() {
 
   const deleteFee = async (id: string): Promise<void> => {
     try {
-      await del<void>(`/fees/${id}`);
+      await del<void>(`/api/v2/fees/${id}`);
     } catch {
       const local = getLocalStorageData<Fee>('edge_admin_fees', INITIAL_FEES);
       const filtered = local.filter(f => f.id !== id);
@@ -131,7 +140,7 @@ export function useFeesNotesService() {
 
   // --- SERVICE FEES CRUD ---
   const useServiceFees = () => {
-    const query = useQuery<ServiceFee[]>('/service-fees');
+    const query = useQuery<ServiceFee[]>('/api/v2/service-fees');
     const localData = getLocalStorageData<ServiceFee>('edge_admin_service_fees', INITIAL_SERVICE_FEES);
     return {
       ...query,
@@ -141,7 +150,7 @@ export function useFeesNotesService() {
 
   const createServiceFee = async (data: Omit<ServiceFee, 'id'>): Promise<ServiceFee> => {
     try {
-      return await post<ServiceFee, Omit<ServiceFee, 'id'>>('/service-fees', data);
+      return await post<ServiceFee, Omit<ServiceFee, 'id'>>('/api/v2/service-fees', data);
     } catch {
       const local = getLocalStorageData<ServiceFee>('edge_admin_service_fees', INITIAL_SERVICE_FEES);
       const newServiceFee: ServiceFee = {
@@ -156,7 +165,7 @@ export function useFeesNotesService() {
 
   const updateServiceFee = async (id: string, data: Omit<ServiceFee, 'id'>): Promise<ServiceFee> => {
     try {
-      return await put<ServiceFee, Omit<ServiceFee, 'id'>>(`/service-fees/${id}`, data);
+      return await put<ServiceFee, Omit<ServiceFee, 'id'>>(`/api/v2/service-fees/${id}`, data);
     } catch {
       const local = getLocalStorageData<ServiceFee>('edge_admin_service_fees', INITIAL_SERVICE_FEES);
       const idx = local.findIndex(sf => sf.id === id);
@@ -170,7 +179,7 @@ export function useFeesNotesService() {
 
   const deleteServiceFee = async (id: string): Promise<void> => {
     try {
-      await del<void>(`/service-fees/${id}`);
+      await del<void>(`/api/v2/service-fees/${id}`);
     } catch {
       const local = getLocalStorageData<ServiceFee>('edge_admin_service_fees', INITIAL_SERVICE_FEES);
       const filtered = local.filter(sf => sf.id !== id);
@@ -179,18 +188,19 @@ export function useFeesNotesService() {
   };
 
   // --- NOTES CRUD ---
-  const useNotes = () => {
-    const query = useQuery<Note[]>('/notes');
+  const useNotes = (pageNumber = 1, pageSize = 10) => {
+    const query = useQuery<PaginatedApiResponse<Note>>(`/api/v2/notes?pageNumber=${pageNumber}&pageSize=${pageSize}`);
     const localData = getLocalStorageData<Note>('edge_admin_notes', INITIAL_NOTES);
     return {
       ...query,
-      data: query.data !== undefined && query.data !== null && query.data.length > 0 ? query.data : localData
+      data: query.data?.data !== undefined && query.data?.data !== null ? query.data.data : localData,
+      totalCount: query.data?.totalCount ?? localData.length
     };
   };
 
   const createNote = async (data: Omit<Note, 'id'>): Promise<Note> => {
     try {
-      return await post<Note, Omit<Note, 'id'>>('/notes', data);
+      return await post<Note, Omit<Note, 'id'>>('/api/v2/notes', data);
     } catch {
       const local = getLocalStorageData<Note>('edge_admin_notes', INITIAL_NOTES);
       const newNote: Note = {
@@ -205,7 +215,7 @@ export function useFeesNotesService() {
 
   const updateNote = async (id: string, data: Omit<Note, 'id'>): Promise<Note> => {
     try {
-      return await put<Note, Omit<Note, 'id'>>(`/notes/${id}`, data);
+      return await put<Note, Omit<Note, 'id'>>(`/api/v2/notes/${id}`, data);
     } catch {
       const local = getLocalStorageData<Note>('edge_admin_notes', INITIAL_NOTES);
       const idx = local.findIndex(n => n.id === id);
@@ -219,7 +229,7 @@ export function useFeesNotesService() {
 
   const deleteNote = async (id: string): Promise<void> => {
     try {
-      await del<void>(`/notes/${id}`);
+      await del<void>(`/api/v2/notes/${id}`);
     } catch {
       const local = getLocalStorageData<Note>('edge_admin_notes', INITIAL_NOTES);
       const filtered = local.filter(n => n.id !== id);
