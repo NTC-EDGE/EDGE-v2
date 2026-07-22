@@ -186,9 +186,11 @@ export function SinglePreview({ app, onClose, onDownloadDocument }: SinglePrevie
               {/* Location & Address */}
               <SectionCard title="3. Permanent Address" icon="map-pin">
                 <InfoRow label="Street Address" value={app.streetAddress} />
+                <InfoRow label="Barangay" value={app.barangay ?? 'Brgy 4'} />
                 <InfoRow label="City / Municipality" value={app.cityMunicipality} />
                 <InfoRow label="Province" value={app.province} />
                 <InfoRow label="Region" value={app.region} />
+                <InfoRow label="Zip Code" value={app.zipCode ?? '9506'} />
               </SectionCard>
 
               {/* Examination Schedule */}
