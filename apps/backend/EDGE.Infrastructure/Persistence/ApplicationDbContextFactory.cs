@@ -63,47 +63,73 @@ public class ApplicationDbContextFactory : IDesignTimeDbContextFactory<Applicati
                 );
             ");
 
+            // Check which key tables/columns exist to determine what has already been applied
             var activityLogsExist = context.Database.SqlQueryRaw<bool>(@"
                 SELECT EXISTS (
-                    SELECT 1 FROM information_schema.tables 
+                    SELECT 1 FROM information_schema.tables
                     WHERE table_schema = 'public' AND table_name = 'ActivityLogs'
                 );
             ").AsEnumerable().FirstOrDefault();
 
-            if (activityLogsExist)
-            {
-                context.Database.ExecuteSqlRaw(@"
-                    INSERT INTO public.""__EFMigrationsHistory"" (""MigrationId"", ""ProductVersion"")
-                    VALUES 
-                        ('20260717045851_AddUserAndSeed', '10.0.3')
-                    ON CONFLICT (""MigrationId"") DO NOTHING;
-                ");
-            }
+            var usersExist = context.Database.SqlQueryRaw<bool>(@"
+                SELECT EXISTS (
+                    SELECT 1 FROM information_schema.tables
+                    WHERE table_schema = 'public' AND table_name = 'Users'
+                );
+            ").AsEnumerable().FirstOrDefault();
+
+            var usersHasAuthUserId = context.Database.SqlQueryRaw<bool>(@"
+                SELECT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_schema = 'public'
+                      AND table_name = 'Users'
+                      AND column_name = 'AuthUserId'
+                );
+            ").AsEnumerable().FirstOrDefault();
 
             var provincesExist = context.Database.SqlQueryRaw<bool>(@"
                 SELECT EXISTS (
-                    SELECT 1 FROM information_schema.tables 
+                    SELECT 1 FROM information_schema.tables
                     WHERE table_schema = 'public' AND table_name = 'Provinces'
                 );
             ").AsEnumerable().FirstOrDefault();
 
+            var tenantsExist = context.Database.SqlQueryRaw<bool>(@"
+                SELECT EXISTS (
+                    SELECT 1 FROM information_schema.tables
+                    WHERE table_schema = 'public' AND table_name = 'Tenants'
+                );
+            ").AsEnumerable().FirstOrDefault();
+
+            // --- AddUserAndSeed (creates ActivityLogs, AuditLogs, Applications, Users) ---
+            // Mark as applied if ActivityLogs already exists (it was created by this migration
+            // or by the old schema). Either way the migration must not re-run.
+            if (activityLogsExist)
+            {
+                context.Database.ExecuteSqlRaw(@"
+                    INSERT INTO public.""__EFMigrationsHistory"" (""MigrationId"", ""ProductVersion"")
+                    VALUES ('20260717045851_AddUserAndSeed', '10.0.3')
+                    ON CONFLICT (""MigrationId"") DO NOTHING;
+                ");
+            }
+
+            // --- InitialCreate (creates Regions, Provinces, etc.) ---
+            // If Provinces is missing, remove it from history so it re-runs.
             if (!provincesExist)
             {
                 context.Database.ExecuteSqlRaw(@"
-                    DELETE FROM public.""__EFMigrationsHistory"" 
+                    DELETE FROM public.""__EFMigrationsHistory""
                     WHERE ""MigrationId"" = '20260717070258_InitialCreate';
                 ");
             }
 
-
-            var permissionsExist = context.Database.SqlQueryRaw<bool>(@"
-                SELECT EXISTS (
-                    SELECT 1 FROM information_schema.tables 
-                    WHERE table_schema = 'public' AND table_name = 'Permissions'
-                );
-            ").AsEnumerable().FirstOrDefault();
-
-            if (permissionsExist)
+            // --- AddUserExpandedProperties (ALTERs Users table: drops PasswordHash, adds AuthUserId etc.) ---
+            // This migration REQUIRES Users table. If Users doesn't exist, skip it entirely by marking
+            // it as applied — the subsequent MultiTenantRbacRefactor migration creates the proper Users
+            // table structure from scratch via a full schema rebuild.
+            // Only mark as applied if: Users table exists with AuthUserId (ran correctly),
+            // OR ActivityLogs exists but Users does NOT (old-schema DB where Users was never in this form).
+            if (usersHasAuthUserId || (activityLogsExist && !usersExist))
             {
                 context.Database.ExecuteSqlRaw(@"
                     INSERT INTO public.""__EFMigrationsHistory"" (""MigrationId"", ""ProductVersion"")
@@ -112,13 +138,8 @@ public class ApplicationDbContextFactory : IDesignTimeDbContextFactory<Applicati
                 ");
             }
 
-            var tenantsExist = context.Database.SqlQueryRaw<bool>(@"
-                SELECT EXISTS (
-                    SELECT 1 FROM information_schema.tables 
-                    WHERE table_schema = 'public' AND table_name = 'Tenants'
-                );
-            ").AsEnumerable().FirstOrDefault();
-
+            // --- MultiTenantRbacRefactor (creates Tenants, rebuilds Users/Roles/Permissions) ---
+            // Only mark as applied if Tenants table already exists.
             if (tenantsExist)
             {
                 context.Database.ExecuteSqlRaw(@"
