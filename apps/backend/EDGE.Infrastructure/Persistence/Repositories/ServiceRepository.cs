@@ -50,4 +50,33 @@ public class ServiceRepository : IServiceRepository
             .Where(v => v.ServiceId == serviceId)
             .ToListAsync(cancellationToken);
     }
+
+    public async Task AddAsync(Service service, CancellationToken cancellationToken = default)
+    {
+        await _context.Services.AddAsync(service, cancellationToken);
+    }
+
+    public void Delete(Service service)
+    {
+        _context.Services.Remove(service);
+    }
+
+    public async Task<bool> IsCodeUniqueAsync(string code, Guid? excludeId = null, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+            return true;
+
+        var query = _context.Services.AsQueryable();
+        if (excludeId.HasValue)
+        {
+            query = query.Where(s => s.Id != excludeId.Value);
+        }
+
+        return !await query.AnyAsync(s => s.Code != null && s.Code.ToLower() == code.ToLower(), cancellationToken);
+    }
+
+    public async Task<bool> HasApplicationsAsync(Guid serviceId, CancellationToken cancellationToken = default)
+    {
+        return await _context.ApplicationServices.AnyAsync(aps => aps.ServiceId == serviceId, cancellationToken);
+    }
 }
