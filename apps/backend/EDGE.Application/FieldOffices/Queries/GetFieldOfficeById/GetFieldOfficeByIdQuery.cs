@@ -1,5 +1,6 @@
 using MediatR;
 using EDGE.Application.FieldOffices.DTOs;
+using EDGE.Application.FieldOffices.Dtos;
 
 namespace EDGE.Application.FieldOffices.Queries.GetFieldOfficeById;
 

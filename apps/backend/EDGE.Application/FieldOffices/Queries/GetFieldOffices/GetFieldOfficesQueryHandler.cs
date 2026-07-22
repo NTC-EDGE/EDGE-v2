@@ -1,6 +1,7 @@
 using MediatR;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.FieldOffices.DTOs;
+using EDGE.Application.FieldOffices.Dtos;
 
 namespace EDGE.Application.FieldOffices.Queries.GetFieldOffices;
 

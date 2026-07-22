@@ -21,6 +21,10 @@ public static class EndpointConfiguration
         apiV2Group.MapPermissionEndpoints();
         apiV2Group.MapRolePermissionEndpoints();
         apiV2Group.MapScheduleEndpoints();
+        apiV2Group.MapServiceEndpoints();
+        apiV2Group.MapServiceCategoryEndpoints();
+        apiV2Group.MapFieldOfficeEndpoints();
+        apiV2Group.MapApplicantEndpoints();
         apiV2Group.MapNoteEndpoints();
         apiV2Group.MapFeeEndpoints();
         apiV2Group.MapServiceFeeEndpoints();

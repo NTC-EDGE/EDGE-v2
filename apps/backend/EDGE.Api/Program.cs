@@ -111,6 +111,12 @@ try
 
     app.MapGet("/", () => "NTC-EDGE Clean Architecture API (.NET 10)");
 
+    // Map Minimal API Endpoint Groups (Geographic CRUD: Regions, Provinces, Municipalities, Barangays)
+    app.MapRegionEndpoints();
+    app.MapProvinceEndpoints();
+    app.MapMunicipalityEndpoints();
+    app.MapBarangayEndpoints();
+
     // Map SignalR Hub
     app.MapHub<NotificationHub>("/hubs/notifications");
 
