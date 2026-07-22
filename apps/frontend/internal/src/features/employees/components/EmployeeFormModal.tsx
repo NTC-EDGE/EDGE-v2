@@ -11,7 +11,14 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide } from '@edge/ui';
-import { Employee, EmployeeRole, EmployeeStatus, DEPARTMENTS, ROLES_LIST } from '../data/mockEmployees';
+import {
+  Employee,
+  EmployeeRole,
+  EmployeeStatus,
+  ROLES_LIST,
+  REGIONS_LIST,
+  DEPARTMENTS,
+} from '../data/mockEmployees';
 
 interface EmployeeFormModalProps {
   visible: boolean;
@@ -29,63 +36,134 @@ export function EmployeeFormModal({
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
 
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
+  // Form State
   const [role, setRole] = useState<EmployeeRole>('Evaluator');
-  const [department, setDepartment] = useState(DEPARTMENTS[0] || 'Licensing & Registration Division');
-  const [status, setStatus] = useState<EmployeeStatus>('Active');
-  const [location, setLocation] = useState('Central Office - Quezon City');
+  const [lastName, setLastName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [middleName, setMiddleName] = useState('');
+  const [suffix, setSuffix] = useState('');
+  const [email, setEmail] = useState('');
 
-  // Form errors
+  const [region, setRegion] = useState(REGIONS_LIST[0] || 'Central Office (Headquarters)');
+  const [level, setLevel] = useState('');
+  const [title, setTitle] = useState('');
+  const [division, setDivision] = useState(DEPARTMENTS[0] || 'Licensing & Registration Division');
+  const [position, setPosition] = useState('');
+  const [designation, setDesignation] = useState('');
+
+  const [signatureDisplay, setSignatureDisplay] = useState<'beside' | 'above'>('beside');
+  const [signatureFileName, setSignatureFileName] = useState<string | null>(null);
+
+  // Dropdown open states inside modal
+  const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
+  const [isRegionDropdownOpen, setIsRegionDropdownOpen] = useState(false);
+
+  // Form validation errors
   const [errors, setErrors] = useState<{
-    firstName?: string;
     lastName?: string;
+    firstName?: string;
     email?: string;
+    region?: string;
+    level?: string;
+    title?: string;
+    division?: string;
+    position?: string;
   }>({});
 
   useEffect(() => {
     if (initialEmployee !== null && initialEmployee !== undefined) {
-      setFirstName(initialEmployee.firstName);
-      setLastName(initialEmployee.lastName);
-      setEmail(initialEmployee.email);
-      setPhone(initialEmployee.phone);
       setRole(initialEmployee.role);
-      setDepartment(initialEmployee.department);
-      setStatus(initialEmployee.status);
-      setLocation(initialEmployee.location);
+      setLastName(initialEmployee.lastName);
+      setFirstName(initialEmployee.firstName);
+      setMiddleName(initialEmployee.middleName ?? '');
+      setSuffix(initialEmployee.suffix ?? '');
+      setEmail(initialEmployee.email);
+
+      setRegion(initialEmployee.region ?? REGIONS_LIST[0]);
+      setLevel(initialEmployee.level ?? 'Level II');
+      setTitle(initialEmployee.title ?? 'Evaluator II');
+      setDivision(initialEmployee.division ?? initialEmployee.department ?? DEPARTMENTS[0]);
+      setPosition(initialEmployee.position ?? 'Technical Evaluator');
+      setDesignation(initialEmployee.designation ?? '');
+
+      setSignatureDisplay(initialEmployee.signatureDisplay ?? 'beside');
+      setSignatureFileName(initialEmployee.signatureUri ? 'Uploaded_Signature.png' : null);
     } else {
-      setFirstName('');
-      setLastName('');
-      setEmail('');
-      setPhone('');
       setRole('Evaluator');
-      setDepartment(DEPARTMENTS[0] || 'Licensing & Registration Division');
-      setStatus('Active');
-      setLocation('Central Office - Quezon City');
+      setLastName('');
+      setFirstName('');
+      setMiddleName('');
+      setSuffix('');
+      setEmail('');
+
+      setRegion(REGIONS_LIST[0]);
+      setLevel('');
+      setTitle('');
+      setDivision(DEPARTMENTS[0]);
+      setPosition('');
+      setDesignation('');
+
+      setSignatureDisplay('beside');
+      setSignatureFileName(null);
     }
     setErrors({});
+    setIsRoleDropdownOpen(false);
+    setIsRegionDropdownOpen(false);
   }, [initialEmployee, visible]);
 
   const validate = (): boolean => {
-    const newErrors: { firstName?: string; lastName?: string; email?: string } = {};
+    const newErrors: {
+      lastName?: string;
+      firstName?: string;
+      email?: string;
+      region?: string;
+      level?: string;
+      title?: string;
+      division?: string;
+      position?: string;
+    } = {};
 
-    if (firstName.trim().length === 0) {
-      newErrors.firstName = 'First name is required';
-    }
     if (lastName.trim().length === 0) {
-      newErrors.lastName = 'Last name is required';
+      newErrors.lastName = 'Last Name is required';
+    }
+    if (firstName.trim().length === 0) {
+      newErrors.firstName = 'First Name is required';
     }
     if (email.trim().length === 0) {
       newErrors.email = 'Email address is required';
     } else if (!email.includes('@') || !email.includes('.')) {
       newErrors.email = 'Enter a valid email address';
     }
+    if (region.trim().length === 0) {
+      newErrors.region = 'Region is required';
+    }
+    if (level.trim().length === 0) {
+      newErrors.level = 'Level is required';
+    }
+    if (title.trim().length === 0) {
+      newErrors.title = 'Title is required';
+    }
+    if (division.trim().length === 0) {
+      newErrors.division = 'Division is required';
+    }
+    if (position.trim().length === 0) {
+      newErrors.position = 'Position is required';
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
+
+  const isFormValid =
+    lastName.trim().length > 0 &&
+    firstName.trim().length > 0 &&
+    email.trim().length > 0 &&
+    email.includes('@') &&
+    region.trim().length > 0 &&
+    level.trim().length > 0 &&
+    title.trim().length > 0 &&
+    division.trim().length > 0 &&
+    position.trim().length > 0;
 
   const handleSave = () => {
     if (!validate()) {
@@ -93,15 +171,26 @@ export function EmployeeFormModal({
     }
 
     onSave({
-      firstName: firstName.trim(),
-      lastName: lastName.trim(),
-      email: email.trim().toLowerCase(),
-      phone: phone.trim().length > 0 ? phone.trim() : '+63 900 000 0000',
       role,
-      department,
-      status,
-      location,
+      lastName: lastName.trim(),
+      firstName: firstName.trim(),
+      middleName: middleName.trim(),
+      suffix: suffix.trim(),
+      email: email.trim().toLowerCase(),
+      region: region.trim(),
+      level: level.trim(),
+      title: title.trim(),
+      division: division.trim(),
+      department: division.trim(),
+      position: position.trim(),
+      designation: designation.trim(),
+      signatureDisplay,
+      signatureUri: signatureFileName !== null ? 'mock_signature.png' : undefined,
     });
+  };
+
+  const handleSimulateUpload = () => {
+    setSignatureFileName('Employee_Signature_Signed.png');
   };
 
   if (!visible) {
@@ -111,194 +200,329 @@ export function EmployeeFormModal({
   const isEditing = initialEmployee !== null && initialEmployee !== undefined;
 
   return (
-    <Modal
-      visible={visible}
-      transparent={true}
-      animationType="fade"
-      onRequestClose={onClose}
-    >
+    <Modal visible={visible} transparent={true} animationType="fade" onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
         <View style={[styles.modalCard, isMobile && styles.modalCardMobile, SHADOWS.modal]}>
-          {/* Header */}
+          {/* Modal Header */}
           <View style={styles.modalHeader}>
-            <View style={styles.titleWrapper}>
-              <View style={styles.headerIconContainer}>
-                <Lucide
-                  name={isEditing ? 'edit' : 'user-plus'}
-                  size={18}
-                  color={COLORS.brand[700]}
-                />
-              </View>
-              <View>
-                <Text style={styles.modalTitle}>
-                  {isEditing ? 'Edit Employee Account' : 'Add New Employee'}
-                </Text>
-                <Text style={styles.modalSubtitle}>
-                  {isEditing
-                    ? 'Update staff profile, assignment details, and access control.'
-                    : 'Create a new employee record and assign system permissions.'}
-                </Text>
-              </View>
+            <View style={styles.headerTitleGroup}>
+              <Text style={styles.modalTitle}>
+                {isEditing ? 'Edit Employee Account' : 'Add New Employee'}
+              </Text>
+              <Text style={styles.modalSubtitle}>
+                Create a new employee record and assign system permissions.
+              </Text>
             </View>
-            <Pressable style={styles.closeBtn} onPress={onClose}>
-              <Lucide name="x" size={18} color={COLORS.neutral[500]} />
+
+            <Pressable style={styles.closeBtn} onPress={onClose} accessibilityLabel="Close Modal">
+              <Lucide name="x-circle" size={24} color={COLORS.neutral[800]} />
             </Pressable>
           </View>
 
-          {/* Form Content */}
-          <ScrollView style={styles.scrollBody} contentContainerStyle={styles.formContainer}>
-            {/* Row: First Name & Last Name */}
-            <View style={[styles.formRow, isMobile && styles.formRowColumn]}>
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>
-                  First Name <Text style={styles.requiredStar}>*</Text>
-                </Text>
-                <TextInput
-                  style={[styles.input, errors.firstName !== undefined && styles.inputError]}
-                  placeholder="e.g. John"
-                  placeholderTextColor={COLORS.neutral[400]}
-                  value={firstName}
-                  onChangeText={setFirstName}
+          {/* Form Scrollable Body */}
+          <ScrollView
+            style={styles.scrollBody}
+            contentContainerStyle={styles.formContent}
+            keyboardShouldPersistTaps="handled"
+          >
+            {/* Section 1: Role Dropdown Field */}
+            <View style={[styles.inputGroup, { zIndex: 50 }]}>
+              <Text style={styles.label}>Role</Text>
+              <Pressable
+                style={[styles.dropdownTrigger, isRoleDropdownOpen && styles.dropdownTriggerActive]}
+                onPress={() => {
+                  setIsRoleDropdownOpen((prev) => !prev);
+                  setIsRegionDropdownOpen(false);
+                }}
+              >
+                <Text style={styles.dropdownTriggerText}>{role}</Text>
+                <Lucide
+                  name={isRoleDropdownOpen ? 'chevron-up' : 'chevron-down'}
+                  size={16}
+                  color={COLORS.neutral[600]}
                 />
-                {errors.firstName !== undefined && (
-                  <Text style={styles.errorText}>{errors.firstName}</Text>
-                )}
-              </View>
+              </Pressable>
 
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>
-                  Last Name <Text style={styles.requiredStar}>*</Text>
-                </Text>
-                <TextInput
-                  style={[styles.input, errors.lastName !== undefined && styles.inputError]}
-                  placeholder="e.g. Doe"
-                  placeholderTextColor={COLORS.neutral[400]}
-                  value={lastName}
-                  onChangeText={setLastName}
-                />
-                {errors.lastName !== undefined && (
-                  <Text style={styles.errorText}>{errors.lastName}</Text>
-                )}
-              </View>
-            </View>
-
-            {/* Row: Email & Phone */}
-            <View style={[styles.formRow, isMobile && styles.formRowColumn]}>
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>
-                  Email Address <Text style={styles.requiredStar}>*</Text>
-                </Text>
-                <TextInput
-                  style={[styles.input, errors.email !== undefined && styles.inputError]}
-                  placeholder="e.g. john.doe@example.com"
-                  placeholderTextColor={COLORS.neutral[400]}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  value={email}
-                  onChangeText={setEmail}
-                />
-                {errors.email !== undefined && (
-                  <Text style={styles.errorText}>{errors.email}</Text>
-                )}
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Phone Number</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="e.g. +63 917 123 4567"
-                  placeholderTextColor={COLORS.neutral[400]}
-                  keyboardType="phone-pad"
-                  value={phone}
-                  onChangeText={setPhone}
-                />
-              </View>
-            </View>
-
-            {/* Row: Role Selection & Status */}
-            <View style={[styles.formRow, isMobile && styles.formRowColumn]}>
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>System Role</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
+              {isRoleDropdownOpen && (
+                <View style={[styles.dropdownMenu, SHADOWS.modal]}>
                   {ROLES_LIST.map((r) => (
                     <Pressable
                       key={r}
-                      onPress={() => setRole(r)}
-                      style={[styles.chip, role === r && styles.chipActive]}
-                    >
-                      <Text style={[styles.chipText, role === r && styles.chipTextActive]}>{r}</Text>
-                    </Pressable>
-                  ))}
-                </ScrollView>
-              </View>
-            </View>
-
-            {/* Row: Department */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Department / Division</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
-                {DEPARTMENTS.map((dept) => (
-                  <Pressable
-                    key={dept}
-                    onPress={() => setDepartment(dept)}
-                    style={[styles.chip, department === dept && styles.chipActive]}
-                  >
-                    <Text style={[styles.chipText, department === dept && styles.chipTextActive]}>
-                      {dept}
-                    </Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
-            </View>
-
-            {/* Row: Status & Location */}
-            <View style={[styles.formRow, isMobile && styles.formRowColumn]}>
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Account Status</Text>
-                <View style={styles.statusButtonGroup}>
-                  {(['Active', 'On Leave', 'Inactive'] as EmployeeStatus[]).map((st) => (
-                    <Pressable
-                      key={st}
-                      onPress={() => setStatus(st)}
-                      style={[
-                        styles.statusBtn,
-                        status === st && styles.statusBtnActive,
-                      ]}
+                      style={[styles.dropdownOption, role === r && styles.dropdownOptionActive]}
+                      onPress={() => {
+                        setRole(r);
+                        setIsRoleDropdownOpen(false);
+                      }}
                     >
                       <Text
                         style={[
-                          styles.statusBtnText,
-                          status === st && styles.statusBtnTextActive,
+                          styles.dropdownOptionText,
+                          role === r && styles.dropdownOptionTextActive,
                         ]}
                       >
-                        {st}
+                        {r}
                       </Text>
                     </Pressable>
                   ))}
                 </View>
-              </View>
+              )}
+            </View>
 
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Station Location</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="e.g. Central Office - QC"
-                  placeholderTextColor={COLORS.neutral[400]}
-                  value={location}
-                  onChangeText={setLocation}
+            {/* Section 2: Basic Information */}
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Basic Information</Text>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>
+                Last Name <Text style={styles.requiredStar}>*</Text>
+              </Text>
+              <TextInput
+                style={[styles.input, errors.lastName !== undefined && styles.inputError]}
+                placeholder="Last Name"
+                placeholderTextColor={COLORS.neutral[400]}
+                value={lastName}
+                onChangeText={setLastName}
+              />
+              {errors.lastName !== undefined && <Text style={styles.errorText}>{errors.lastName}</Text>}
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>
+                First Name <Text style={styles.requiredStar}>*</Text>
+              </Text>
+              <TextInput
+                style={[styles.input, errors.firstName !== undefined && styles.inputError]}
+                placeholder="First Name"
+                placeholderTextColor={COLORS.neutral[400]}
+                value={firstName}
+                onChangeText={setFirstName}
+              />
+              {errors.firstName !== undefined && <Text style={styles.errorText}>{errors.firstName}</Text>}
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Middle Name</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Middle Name"
+                placeholderTextColor={COLORS.neutral[400]}
+                value={middleName}
+                onChangeText={setMiddleName}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Suffix</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Suffix"
+                placeholderTextColor={COLORS.neutral[400]}
+                value={suffix}
+                onChangeText={setSuffix}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>
+                Email <Text style={styles.requiredStar}>*</Text>
+              </Text>
+              <TextInput
+                style={[styles.input, errors.email !== undefined && styles.inputError]}
+                placeholder="Email"
+                placeholderTextColor={COLORS.neutral[400]}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                value={email}
+                onChangeText={setEmail}
+              />
+              {errors.email !== undefined && <Text style={styles.errorText}>{errors.email}</Text>}
+            </View>
+
+            {/* Section 3: Employee Details */}
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Employee Details</Text>
+            </View>
+
+            <View style={[styles.inputGroup, { zIndex: 40 }]}>
+              <Text style={styles.label}>
+                Region <Text style={styles.requiredStar}>*</Text>
+              </Text>
+              <Pressable
+                style={[styles.dropdownTrigger, isRegionDropdownOpen && styles.dropdownTriggerActive]}
+                onPress={() => {
+                  setIsRegionDropdownOpen((prev) => !prev);
+                  setIsRoleDropdownOpen(false);
+                }}
+              >
+                <Text style={styles.dropdownTriggerText}>{region}</Text>
+                <Lucide
+                  name={isRegionDropdownOpen ? 'chevron-up' : 'chevron-down'}
+                  size={16}
+                  color={COLORS.neutral[600]}
                 />
-              </View>
+              </Pressable>
+
+              {isRegionDropdownOpen && (
+                <View style={[styles.dropdownMenu, SHADOWS.modal]}>
+                  <ScrollView style={{ maxHeight: 180 }}>
+                    {REGIONS_LIST.map((reg) => (
+                      <Pressable
+                        key={reg}
+                        style={[styles.dropdownOption, region === reg && styles.dropdownOptionActive]}
+                        onPress={() => {
+                          setRegion(reg);
+                          setIsRegionDropdownOpen(false);
+                        }}
+                      >
+                        <Text
+                          style={[
+                            styles.dropdownOptionText,
+                            region === reg && styles.dropdownOptionTextActive,
+                          ]}
+                        >
+                          {reg}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+              {errors.region !== undefined && <Text style={styles.errorText}>{errors.region}</Text>}
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>
+                Level <Text style={styles.requiredStar}>*</Text>
+              </Text>
+              <TextInput
+                style={[styles.input, errors.level !== undefined && styles.inputError]}
+                placeholder="Level"
+                placeholderTextColor={COLORS.neutral[400]}
+                value={level}
+                onChangeText={setLevel}
+              />
+              {errors.level !== undefined && <Text style={styles.errorText}>{errors.level}</Text>}
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>
+                Title <Text style={styles.requiredStar}>*</Text>
+              </Text>
+              <TextInput
+                style={[styles.input, errors.title !== undefined && styles.inputError]}
+                placeholder="Title"
+                placeholderTextColor={COLORS.neutral[400]}
+                value={title}
+                onChangeText={setTitle}
+              />
+              {errors.title !== undefined && <Text style={styles.errorText}>{errors.title}</Text>}
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>
+                Division <Text style={styles.requiredStar}>*</Text>
+              </Text>
+              <TextInput
+                style={[styles.input, errors.division !== undefined && styles.inputError]}
+                placeholder="Division"
+                placeholderTextColor={COLORS.neutral[400]}
+                value={division}
+                onChangeText={setDivision}
+              />
+              {errors.division !== undefined && <Text style={styles.errorText}>{errors.division}</Text>}
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>
+                Position <Text style={styles.requiredStar}>*</Text>
+              </Text>
+              <TextInput
+                style={[styles.input, errors.position !== undefined && styles.inputError]}
+                placeholder="Position"
+                placeholderTextColor={COLORS.neutral[400]}
+                value={position}
+                onChangeText={setPosition}
+              />
+              {errors.position !== undefined && <Text style={styles.errorText}>{errors.position}</Text>}
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Designation</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Designation"
+                placeholderTextColor={COLORS.neutral[400]}
+                value={designation}
+                onChangeText={setDesignation}
+              />
+            </View>
+
+            {/* Section 4: Signature Display */}
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Signature Display</Text>
+            </View>
+
+            <View style={styles.signatureRadioGroup}>
+              <Pressable
+                style={styles.radioRow}
+                onPress={() => setSignatureDisplay('beside')}
+              >
+                <View
+                  style={[
+                    styles.radioOuterCircle,
+                    signatureDisplay === 'beside' && styles.radioOuterCircleActive,
+                  ]}
+                >
+                  {signatureDisplay === 'beside' && <View style={styles.radioInnerCircle} />}
+                </View>
+                <Text style={styles.radioText}>SGD beside employee name</Text>
+              </Pressable>
+
+              <Pressable
+                style={styles.radioRow}
+                onPress={() => setSignatureDisplay('above')}
+              >
+                <View
+                  style={[
+                    styles.radioOuterCircle,
+                    signatureDisplay === 'above' && styles.radioOuterCircleActive,
+                  ]}
+                >
+                  {signatureDisplay === 'above' && <View style={styles.radioInnerCircle} />}
+                </View>
+                <Text style={styles.radioText}>Signature above employee name</Text>
+              </Pressable>
+            </View>
+
+            {/* Upload Signature Button */}
+            <View style={styles.uploadContainer}>
+              <Pressable style={styles.uploadBtn} onPress={handleSimulateUpload}>
+                <Lucide name="upload" size={16} color={COLORS.neutral.white} style={{ marginRight: 6 }} />
+                <Text style={styles.uploadBtnText}>Upload Signature</Text>
+              </Pressable>
+
+              {signatureFileName !== null && (
+                <View style={styles.uploadedBadge}>
+                  <Lucide name="file-text" size={14} color={COLORS.semantic.success} style={{ marginRight: 4 }} />
+                  <Text style={styles.uploadedBadgeText}>{signatureFileName}</Text>
+                </View>
+              )}
             </View>
           </ScrollView>
 
-          {/* Footer Actions */}
+          {/* Sticky Full-Width Footer Action Button */}
           <View style={styles.modalFooter}>
-            <Pressable style={styles.cancelBtn} onPress={onClose}>
-              <Text style={styles.cancelBtnText}>Cancel</Text>
-            </Pressable>
-            <Pressable style={styles.saveBtn} onPress={handleSave}>
-              <Lucide name="check" size={16} color={COLORS.neutral.white} style={{ marginRight: 6 }} />
-              <Text style={styles.saveBtnText}>{isEditing ? 'Save Changes' : 'Create Employee'}</Text>
+            <Pressable
+              style={[
+                styles.submitBtn,
+                !isFormValid && styles.submitBtnDisabled,
+              ]}
+              onPress={handleSave}
+            >
+              <Text style={[styles.submitBtnText, !isFormValid && styles.submitBtnTextDisabled]}>
+                {isEditing ? 'Save Employee' : 'Add Employee'}
+              </Text>
             </Pressable>
           </View>
         </View>
@@ -310,7 +534,7 @@ export function EmployeeFormModal({
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.55)',
+    backgroundColor: 'rgba(15, 23, 42, 0.65)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: SPACING[16],
@@ -319,42 +543,32 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.neutral.white,
     borderRadius: RADIUS.card,
     width: '100%',
-    maxWidth: 680,
-    maxHeight: '90%',
+    maxWidth: 740,
+    maxHeight: '92%',
     alignSelf: 'center',
     overflow: 'hidden',
   },
   modalCardMobile: {
     maxWidth: '100%',
-    maxHeight: '95%',
+    maxHeight: '96%',
   },
   modalHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING[24],
-    paddingVertical: SPACING[20],
+    paddingTop: SPACING[20],
+    paddingBottom: SPACING[16],
     borderBottomWidth: 1,
     borderBottomColor: COLORS.neutral[200],
-    backgroundColor: COLORS.neutral[50],
+    backgroundColor: COLORS.neutral.white,
   },
-  titleWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING[12],
+  headerTitleGroup: {
     flex: 1,
-  },
-  headerIconContainer: {
-    width: 38,
-    height: 38,
-    borderRadius: 8,
-    backgroundColor: COLORS.neutral[100],
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   modalTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: TYPOGRAPHY.weights.bold,
     color: COLORS.neutral[900],
   },
@@ -365,51 +579,56 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   closeBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: COLORS.neutral[200],
+    padding: 2,
+    ...Platform.select({
+      web: {
+        cursor: 'pointer',
+      },
+    }),
   },
   scrollBody: {
     maxHeight: 520,
   },
-  formContainer: {
+  formContent: {
     padding: SPACING[24],
     gap: SPACING[16],
   },
-  formRow: {
-    flexDirection: 'row',
-    gap: SPACING[16],
+  sectionHeader: {
+    marginTop: SPACING[8],
+    marginBottom: SPACING[4],
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.neutral[200],
+    paddingBottom: SPACING[8],
   },
-  formRowColumn: {
-    flexDirection: 'column',
-    gap: SPACING[16],
+  sectionTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 15,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: COLORS.neutral[900],
   },
   inputGroup: {
-    flex: 1,
+    position: 'relative',
     gap: 6,
   },
   label: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 13,
     fontWeight: TYPOGRAPHY.weights.semibold,
-    color: COLORS.neutral[700],
+    color: COLORS.neutral[800],
   },
   requiredStar: {
     color: COLORS.semantic.error,
   },
   input: {
-    height: 42,
+    height: 44,
     borderWidth: 1,
-    borderColor: COLORS.neutral[300],
+    borderColor: COLORS.neutral[200],
     borderRadius: RADIUS.input,
-    paddingHorizontal: SPACING[12],
+    paddingHorizontal: SPACING[16],
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 14,
     color: COLORS.neutral[900],
-    backgroundColor: COLORS.neutral.white,
+    backgroundColor: COLORS.neutral[50],
     ...Platform.select({
       web: {
         outlineWidth: 0,
@@ -425,100 +644,175 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: COLORS.semantic.error,
   },
-  chipRow: {
+  dropdownTrigger: {
     flexDirection: 'row',
-    marginTop: 4,
-    paddingBottom: 4,
-  },
-  chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: COLORS.neutral[50],
     borderWidth: 1,
     borderColor: COLORS.neutral[200],
-    backgroundColor: COLORS.neutral[50],
-    marginRight: 8,
+    borderRadius: RADIUS.input,
+    height: 44,
+    paddingHorizontal: SPACING[16],
+    ...Platform.select({
+      web: {
+        cursor: 'pointer',
+      },
+    }),
   },
-  chipActive: {
-    backgroundColor: COLORS.brand[800],
-    borderColor: COLORS.brand[800],
+  dropdownTriggerActive: {
+    borderColor: COLORS.brand[700],
+    backgroundColor: COLORS.neutral.white,
   },
-  chipText: {
+  dropdownTriggerText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
-    fontWeight: TYPOGRAPHY.weights.medium,
-    color: COLORS.neutral[600],
+    fontSize: 14,
+    color: COLORS.neutral[900],
   },
-  chipTextActive: {
-    color: COLORS.neutral.white,
-    fontWeight: TYPOGRAPHY.weights.bold,
-  },
-  statusButtonGroup: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 4,
-  },
-  statusBtn: {
-    flex: 1,
-    height: 36,
+  dropdownMenu: {
+    position: 'absolute',
+    top: 72,
+    left: 0,
+    right: 0,
+    backgroundColor: COLORS.neutral.white,
     borderRadius: RADIUS.button,
     borderWidth: 1,
     borderColor: COLORS.neutral[200],
-    backgroundColor: COLORS.neutral[50],
+    maxHeight: 220,
+    overflow: 'hidden',
+    zIndex: 999,
+  },
+  dropdownOption: {
+    paddingHorizontal: SPACING[16],
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.neutral[100],
+    ...Platform.select({
+      web: {
+        cursor: 'pointer',
+      },
+    }),
+  },
+  dropdownOptionActive: {
+    backgroundColor: COLORS.brand[500],
+  },
+  dropdownOptionText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    color: COLORS.neutral[800],
+  },
+  dropdownOptionTextActive: {
+    color: COLORS.neutral.white,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  signatureRadioGroup: {
+    gap: SPACING[12],
+    marginVertical: SPACING[4],
+  },
+  radioRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING[12],
+    ...Platform.select({
+      web: {
+        cursor: 'pointer',
+      },
+    }),
+  },
+  radioOuterCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: COLORS.neutral[400],
     justifyContent: 'center',
     alignItems: 'center',
   },
-  statusBtnActive: {
-    backgroundColor: COLORS.neutral[100],
-    borderColor: COLORS.brand[600],
+  radioOuterCircleActive: {
+    borderColor: COLORS.brand[700],
   },
-  statusBtnText: {
+  radioInnerCircle: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: COLORS.brand[700],
+  },
+  radioText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    color: COLORS.neutral[800],
+  },
+  uploadContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING[12],
+    marginTop: SPACING[4],
+  },
+  uploadBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.brand[700],
+    paddingHorizontal: SPACING[16],
+    paddingVertical: 10,
+    borderRadius: RADIUS.button,
+    ...Platform.select({
+      web: {
+        cursor: 'pointer',
+      },
+    }),
+  },
+  uploadBtnText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 13,
-    fontWeight: TYPOGRAPHY.weights.medium,
-    color: COLORS.neutral[600],
-  },
-  statusBtnTextActive: {
-    color: COLORS.brand[800],
     fontWeight: TYPOGRAPHY.weights.bold,
+    color: COLORS.neutral.white,
+  },
+  uploadedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.semantic.successBg,
+    borderWidth: 1,
+    borderColor: COLORS.semantic.successBorder,
+    paddingHorizontal: SPACING[12],
+    paddingVertical: 6,
+    borderRadius: RADIUS.button,
+  },
+  uploadedBadgeText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: COLORS.semantic.success,
   },
   modalFooter: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
     paddingHorizontal: SPACING[24],
     paddingVertical: SPACING[16],
     borderTopWidth: 1,
     borderTopColor: COLORS.neutral[200],
-    backgroundColor: COLORS.neutral[50],
-    gap: SPACING[12],
-  },
-  cancelBtn: {
-    paddingHorizontal: SPACING[16],
-    paddingVertical: 10,
-    borderRadius: RADIUS.button,
-    borderWidth: 1,
-    borderColor: COLORS.neutral[300],
     backgroundColor: COLORS.neutral.white,
   },
-  cancelBtnText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-    color: COLORS.neutral[700],
-  },
-  saveBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: SPACING[20],
-    paddingVertical: 10,
+  submitBtn: {
+    width: '100%',
+    height: 48,
     borderRadius: RADIUS.button,
-    backgroundColor: COLORS.brand[800],
+    backgroundColor: COLORS.brand[700],
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...Platform.select({
+      web: {
+        cursor: 'pointer',
+      },
+    }),
   },
-  saveBtnText: {
+  submitBtnDisabled: {
+    backgroundColor: COLORS.neutral[300],
+  },
+  submitBtnText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: TYPOGRAPHY.weights.bold,
     color: COLORS.neutral.white,
+  },
+  submitBtnTextDisabled: {
+    color: COLORS.neutral[500],
   },
 });

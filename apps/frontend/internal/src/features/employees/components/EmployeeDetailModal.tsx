@@ -41,6 +41,14 @@ export function EmployeeDetailModal({
   };
 
   const initials = getInitials(employee.firstName, employee.lastName);
+  const fullName = [
+    employee.firstName,
+    employee.middleName,
+    employee.lastName,
+    employee.suffix,
+  ]
+    .filter((s) => s !== undefined && s !== null && s.trim().length > 0)
+    .join(' ');
 
   return (
     <Modal visible={visible} transparent={true} animationType="fade" onRequestClose={onClose}>
@@ -59,9 +67,7 @@ export function EmployeeDetailModal({
 
               <View style={styles.profileHeaderInfo}>
                 <View style={styles.nameHeaderRow}>
-                  <Text style={styles.fullName}>
-                    {employee.firstName} {employee.lastName}
-                  </Text>
+                  <Text style={styles.fullName}>{fullName}</Text>
                   <StatusBadge status={employee.status} />
                 </View>
                 <Text style={styles.employeeId}>{employee.id}</Text>
@@ -75,30 +81,52 @@ export function EmployeeDetailModal({
 
           {/* Modal Body */}
           <ScrollView style={styles.modalBody} contentContainerStyle={styles.bodyContent}>
-            {/* Section 1: Organization & Role */}
+            {/* Section 1: Organizational Assignment & Region */}
             <View style={styles.sectionCard}>
               <Text style={styles.sectionTitle}>Organizational Assignment</Text>
 
               <View style={styles.detailGrid}>
                 <View style={styles.detailItem}>
-                  <Lucide name="briefcase" size={16} color={COLORS.brand[700]} style={styles.detailIcon} />
+                  <Lucide name="map" size={16} color={COLORS.brand[700]} style={styles.detailIcon} />
                   <View>
-                    <Text style={styles.detailLabel}>Department / Division</Text>
-                    <Text style={styles.detailValue}>{employee.department}</Text>
+                    <Text style={styles.detailLabel}>Region</Text>
+                    <Text style={styles.detailValue}>{employee.region}</Text>
                   </View>
                 </View>
 
                 <View style={styles.detailItem}>
-                  <Lucide name="map-pin" size={16} color={COLORS.brand[700]} style={styles.detailIcon} />
+                  <Lucide name="briefcase" size={16} color={COLORS.brand[700]} style={styles.detailIcon} />
                   <View>
-                    <Text style={styles.detailLabel}>Station Location</Text>
-                    <Text style={styles.detailValue}>{employee.location}</Text>
+                    <Text style={styles.detailLabel}>Division / Department</Text>
+                    <Text style={styles.detailValue}>
+                      {employee.division ?? employee.department}
+                    </Text>
                   </View>
                 </View>
+
+                <View style={styles.detailItem}>
+                  <Lucide name="award" size={16} color={COLORS.brand[700]} style={styles.detailIcon} />
+                  <View>
+                    <Text style={styles.detailLabel}>Position & Level</Text>
+                    <Text style={styles.detailValue}>
+                      {employee.position ?? 'Evaluator'} ({employee.level ?? 'Level II'})
+                    </Text>
+                  </View>
+                </View>
+
+                {employee.title !== undefined && employee.title.length > 0 && (
+                  <View style={styles.detailItem}>
+                    <Lucide name="user-check" size={16} color={COLORS.brand[700]} style={styles.detailIcon} />
+                    <View>
+                      <Text style={styles.detailLabel}>Official Title</Text>
+                      <Text style={styles.detailValue}>{employee.title}</Text>
+                    </View>
+                  </View>
+                )}
               </View>
             </View>
 
-            {/* Section 2: Contact Information */}
+            {/* Section 2: Contact & Personal Credentials */}
             <View style={styles.sectionCard}>
               <Text style={styles.sectionTitle}>Contact & Credentials</Text>
 
@@ -118,10 +146,22 @@ export function EmployeeDetailModal({
                     <Text style={styles.detailValue}>{employee.phone}</Text>
                   </View>
                 </View>
+
+                <View style={styles.detailItem}>
+                  <Lucide name="file-text" size={16} color={COLORS.brand[700]} style={styles.detailIcon} />
+                  <View>
+                    <Text style={styles.detailLabel}>Signature Display Setting</Text>
+                    <Text style={styles.detailValue}>
+                      {employee.signatureDisplay === 'above'
+                        ? 'Signature above employee name'
+                        : 'SGD beside employee name'}
+                    </Text>
+                  </View>
+                </View>
               </View>
             </View>
 
-            {/* Section 3: System Access & Meta */}
+            {/* Section 3: System Access & Audit */}
             <View style={styles.sectionCard}>
               <Text style={styles.sectionTitle}>System Info & Status</Text>
 
@@ -192,14 +232,14 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.neutral.white,
     borderRadius: RADIUS.card,
     width: '100%',
-    maxWidth: 620,
-    maxHeight: '90%',
+    maxWidth: 640,
+    maxHeight: '92%',
     alignSelf: 'center',
     overflow: 'hidden',
   },
   modalCardMobile: {
     maxWidth: '100%',
-    maxHeight: '95%',
+    maxHeight: '96%',
   },
   headerBanner: {
     backgroundColor: COLORS.brand[900],
