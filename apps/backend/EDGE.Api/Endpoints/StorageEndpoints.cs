@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.Common.Models;
+using EDGE.Api.Filters;
 using EDGE.Application.Storage.Commands.DeleteFile;
 using EDGE.Application.Storage.Commands.UploadFile;
 using EDGE.Application.Storage.Queries.GetFileDownload;
@@ -26,7 +27,8 @@ public static class StorageEndpoints
 
         // Tenant-scoped storage endpoints: /api/v2/tenants/{tenantId}/storage/...
         var tenantStorageGroup = authorizedStorageGroup.MapGroup("tenants/{tenantId:guid}/storage")
-            .WithTags("Tenant Storage");
+            .WithTags("Tenant Storage")
+            .RequireTenantMembership();
 
         tenantStorageGroup.MapPost("/upload", async (
             Guid tenantId,
@@ -66,7 +68,8 @@ public static class StorageEndpoints
         .WithDescription("Encrypts the file payload on the backend using AES-256-GCM authenticated encryption and streams the ciphertext to Cloudflare R2 under the target tenant directory.")
         .Produces<ApiResponse<StoredFileDto>>(StatusCodes.Status201Created)
         .Produces<ApiResponse<object>>(StatusCodes.Status400BadRequest)
-        .Produces(StatusCodes.Status401Unauthorized);
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status403Forbidden);
 
         tenantStorageGroup.MapGet("/files", async (
             Guid tenantId,
@@ -81,7 +84,8 @@ public static class StorageEndpoints
         .WithSummary("Get all stored files metadata for a specific tenant")
         .WithDescription("Retrieves file metadata records for all files belonging to the target tenant.")
         .Produces<ApiResponse<List<StoredFileDto>>>(StatusCodes.Status200OK)
-        .Produces(StatusCodes.Status401Unauthorized);
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status403Forbidden);
 
         tenantStorageGroup.MapGet("/files/{fileId:guid}/metadata", async (
             Guid tenantId,
@@ -98,7 +102,8 @@ public static class StorageEndpoints
         .WithDescription("Retrieves metadata details of a specific stored file without decrypting or streaming binary content.")
         .Produces<ApiResponse<StoredFileDto>>(StatusCodes.Status200OK)
         .Produces<ApiResponse<object>>(StatusCodes.Status404NotFound)
-        .Produces(StatusCodes.Status401Unauthorized);
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status403Forbidden);
 
         tenantStorageGroup.MapGet("/files/{fileId:guid}", async (
             Guid tenantId,
@@ -127,7 +132,8 @@ public static class StorageEndpoints
         .WithDescription("Fetches ciphertext from Cloudflare R2, verifies tenant authorization, decrypts with AES-256-GCM, and streams plaintext back to the client.")
         .Produces(StatusCodes.Status200OK, contentType: "application/octet-stream")
         .Produces<ApiResponse<object>>(StatusCodes.Status404NotFound)
-        .Produces(StatusCodes.Status401Unauthorized);
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status403Forbidden);
 
         tenantStorageGroup.MapDelete("/files/{fileId:guid}", async (
             Guid tenantId,
@@ -150,7 +156,8 @@ public static class StorageEndpoints
         .WithDescription("Deletes the encrypted object from Cloudflare R2 and removes file metadata from PostgreSQL within the target tenant context.")
         .Produces<ApiResponse<bool>>(StatusCodes.Status200OK)
         .Produces<ApiResponse<object>>(StatusCodes.Status400BadRequest)
-        .Produces(StatusCodes.Status401Unauthorized);
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status403Forbidden);
 
         return group;
     }

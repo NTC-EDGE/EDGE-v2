@@ -90,7 +90,7 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
             mockUserService.Setup(u => u.TenantId).Returns(TestTenantId);
             services.AddSingleton<ICurrentUserService>(mockUserService.Object);
 
-            // Seed Test Tenant and Region
+            // Seed Test Region, Tenant, User, Role, and Active TenantMember
             var sp = services.BuildServiceProvider();
             using var scope = sp.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -110,9 +110,36 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
                 IsActive = true,
                 RegionId = region.Id
             };
+            var user = new User
+            {
+                Id = Guid.NewGuid(),
+                AuthUserId = TestUserId,
+                Email = "testuser@ntc.gov.ph",
+                FirstName = "IntegrationTest",
+                LastName = "User"
+            };
+            var role = new Role
+            {
+                Id = Guid.NewGuid(),
+                Name = "Admin",
+                NormalizedName = "ADMIN",
+                Key = "admin"
+            };
+            var tenantMember = new TenantMember
+            {
+                Id = Guid.NewGuid(),
+                TenantId = TestTenantId,
+                UserId = user.Id,
+                RoleId = role.Id,
+                Division = "IT",
+                Position = "System Admin"
+            };
 
             db.Regions.Add(region);
             db.Tenants.Add(tenant);
+            db.Users.Add(user);
+            db.Roles.Add(role);
+            db.TenantMembers.Add(tenantMember);
             db.SaveChanges();
         });
     }

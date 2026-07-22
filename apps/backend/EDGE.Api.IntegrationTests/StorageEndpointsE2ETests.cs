@@ -79,4 +79,17 @@ public class StorageEndpointsE2ETests : IClassFixture<CustomWebApplicationFactor
         // Verify file is removed from storage
         _factory.TestStorage.Storage.Count.Should().Be(0);
     }
+
+    [Fact]
+    public async Task NonMember_AccessingTenantStorage_ShouldReturnForbidden()
+    {
+        // Arrange - Generate random tenantId where current user is NOT a member
+        var unattachedTenantId = Guid.NewGuid();
+
+        // Act - Attempt GET /api/v2/tenants/{unattachedTenantId}/storage/files
+        var response = await _client.GetAsync($"/api/v2/tenants/{unattachedTenantId}/storage/files");
+
+        // Assert - Expect 403 Forbidden
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
 }
