@@ -21,6 +21,8 @@ interface ExamBulkApplicantsPanelProps {
   resetWizardState: () => void;
   onSubmitPress: () => void;
   onRemoveApplicant: (idx: number) => void;
+  bulkMethod?: "MANUAL" | "EXCEL";
+  onAddApplicant?: () => void;
 }
 
 export const isExamApplicantComplete = (app: ExamApplicantData): boolean => {
@@ -69,6 +71,8 @@ export function ExamBulkApplicantsPanel({
   setStep,
   onSubmitPress,
   onRemoveApplicant,
+  bulkMethod,
+  onAddApplicant,
 }: ExamBulkApplicantsPanelProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<"ALL" | "COMPLETE" | "DRAFTS">("ALL");
@@ -107,6 +111,28 @@ export function ExamBulkApplicantsPanel({
           placeholderTextColor={COLORS.neutral[400]}
           style={styles.searchInput}
         />
+      </View>
+
+      {/* Add Applicant Action Button */}
+      <View style={{ paddingHorizontal: 12, paddingTop: 4, paddingBottom: 8 }}>
+        <TouchableOpacity
+          onPress={onAddApplicant}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: COLORS.brand[600],
+            paddingVertical: 9,
+            paddingHorizontal: 14,
+            borderRadius: 8,
+            gap: 6,
+          }}
+        >
+          <Icon name="plus" size={15} color="#ffffff" />
+          <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "600", color: "#ffffff" }}>
+            Add Applicant
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Tabs Row */}
@@ -167,7 +193,12 @@ export function ExamBulkApplicantsPanel({
                 ]}
               >
                 <TouchableOpacity
-                  onPress={() => onSelectApplicant(originalIdx)}
+                  onPress={() => {
+                    onSelectApplicant(originalIdx);
+                    if (bulkMethod === "EXCEL") {
+                      setStep(5);
+                    }
+                  }}
                   style={{ flex: 1, padding: 14 }}
                 >
                   <View style={styles.itemHeader}>

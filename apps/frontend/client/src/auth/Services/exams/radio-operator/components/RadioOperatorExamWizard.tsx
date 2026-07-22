@@ -174,6 +174,8 @@ export function RadioOperatorExamWizard({
         return "Upload Requirements";
       case 6:
         return "Review & Submit";
+      case 7:
+        return "Application Confirmed";
       default:
         return "Exam Filing Wizard";
     }
@@ -182,8 +184,8 @@ export function RadioOperatorExamWizard({
   const getNextBtnText = (): string => {
     if (step === 5) return "Review";
     if (step === 6) {
-      if (appMode === "BULK" && bulkMethod === "MANUAL") {
-        return "Save as Applicant";
+      if (appMode === "BULK") {
+        return "Confirm";
       }
       return "Submit";
     }
@@ -278,21 +280,90 @@ export function RadioOperatorExamWizard({
 
   const handleConfirmCSVImport = () => {
     setIsFileUploaded(true);
-    setUploadedFileName("Radio_Operator_Applicants_List_2026.csv");
+    setUploadedFileName("NTC_Bulk_Template.csv");
     setApplicants([
       {
         ...initialExamApplicant(1),
-        firstName: "Ricardo",
-        lastName: "Dalisay",
-        email: "ricardo.dalisay@exam.ph",
-        contactNo: "09187654321",
+        examType: "Amateur",
+        examineeType: "First Taker",
+        selectedOption: "Class A - Elements 8, 9, 10 & Code",
+        lastName: "Doe",
+        firstName: "John",
+        middleName: "Smith",
+        suffix: "Jr.",
+        birthMonth: "January",
+        birthDay: "1",
+        birthYear: "1990",
+        sex: "Male",
+        nationality: "Filipino",
+        regionName: "National Capital Region (NCR)",
+        province: "Metro Manila",
+        city: "Quezon City",
+        barangay: "Barangay 1",
+        street: "Main Street",
+        zipCode: "1100",
         schoolName: "University of the Philippines",
-        courseDegree: "BS ECE",
-        yearGraduated: "2024",
+        courseDegree: "BS Computer Science",
+        yearGraduated: "2012",
+        contactNo: "09123456789",
+        email: "john.doe@example.com",
+      },
+      {
+        ...initialExamApplicant(2),
+        examType: "Amateur",
+        examineeType: "First Taker",
+        selectedOption: "Class B - Elements 5, 6, 7",
+        lastName: "Reyes",
+        firstName: "Maria",
+        middleName: "Santos",
+        suffix: "",
+        birthMonth: "May",
+        birthDay: "15",
+        birthYear: "1992",
+        sex: "Female",
+        nationality: "Filipino",
+        regionName: "National Capital Region (NCR)",
+        province: "Metro Manila",
+        city: "Makati City",
+        barangay: "Barangay 2",
+        street: "Second Street",
+        zipCode: "1200",
+        schoolName: "Ateneo de Manila University",
+        courseDegree: "BS Management",
+        yearGraduated: "2014",
+        contactNo: "09198765432",
+        email: "maria.reyes@example.com",
+      },
+      {
+        ...initialExamApplicant(3),
+        examType: "Amateur",
+        examineeType: "First Taker",
+        selectedOption: "Class C - Elements 2, 3, 4",
+        lastName: "Cruz",
+        firstName: "Juan",
+        middleName: "Dela",
+        suffix: "",
+        birthMonth: "October",
+        birthDay: "20",
+        birthYear: "1988",
+        sex: "Male",
+        nationality: "Filipino",
+        regionName: "National Capital Region (NCR)",
+        province: "Metro Manila",
+        city: "Pasig City",
+        barangay: "Barangay 3",
+        street: "Third Street",
+        zipCode: "1600",
+        schoolName: "De La Salle University",
+        courseDegree: "BS Engineering",
+        yearGraduated: "2010",
+        contactNo: "09176543210",
+        email: "juan.cruz@example.com",
       },
     ]);
     setCurrentApplicantIndex(0);
     setIsPreviewModalOpen(false);
+    setStep(5);
   };
 
   const validateForm = (app: ExamApplicantData): boolean => {
@@ -484,12 +555,37 @@ export function RadioOperatorExamWizard({
       }
       setStep(6);
     } else if (step === 6) {
-      if (appMode === "BULK" && bulkMethod === "MANUAL") {
-        setIsBulkSubmitOpen(true);
-      } else {
-        setIsConfirmModalOpen(true);
-      }
+      setIsConfirmModalOpen(true);
+    } else if (step === 7) {
+      handleAddAnotherApplicant();
     }
+  };
+
+  const handleConfirmApplicantInBulk = () => {
+    setShowToast(true);
+    setTimeout(() => {
+      setShowToast(false);
+    }, 3000);
+
+    if (currentApplicantIndex < applicants.length - 1) {
+      const nextIdx = currentApplicantIndex + 1;
+      setCurrentApplicantIndex(nextIdx);
+      if (bulkMethod === "EXCEL") {
+        setStep(5);
+      } else {
+        setStep(3);
+      }
+    } else {
+      setStep(7);
+    }
+  };
+
+  const handleAddAnotherApplicant = () => {
+    const nextId = applicants.length + 1;
+    const newApp = initialExamApplicant(nextId);
+    setApplicants((prev) => [...prev, newApp]);
+    setCurrentApplicantIndex(applicants.length);
+    setStep(3);
   };
 
   const handleBack = () => {
@@ -513,6 +609,8 @@ export function RadioOperatorExamWizard({
       } else {
         setStep(5);
       }
+    } else if (step === 7) {
+      setStep(6);
     }
   };
 
@@ -1293,14 +1391,6 @@ export function RadioOperatorExamWizard({
               );
             })}
 
-            {appMode === "BULK" && bulkMethod === "MANUAL" && (
-              <View style={{ marginTop: 24, paddingVertical: 12, borderTopWidth: 1, borderTopColor: COLORS.neutral[200] }}>
-                <TouchableOpacity onPress={handleSaveAndAddAnother} style={styles.downloadBtn}>
-                  <Icon name="plus" size={16} color="#ffffff" style={{ marginRight: 8 }} />
-                  <Text style={styles.downloadBtnText}>Save & Add Another Applicant</Text>
-                </TouchableOpacity>
-              </View>
-            )}
           </View>
         )}
 
@@ -1373,6 +1463,66 @@ export function RadioOperatorExamWizard({
             </View>
           </View>
         )}
+
+        {/* STEP 7: Application Confirmed & Add Another Applicant Prompt */}
+        {step === 7 && (
+          <View style={{ alignItems: "center", paddingVertical: 40, paddingHorizontal: 20 }}>
+            <View
+              style={{
+                width: 64,
+                height: 64,
+                borderRadius: 32,
+                backgroundColor: "#dcfce7",
+                justifyContent: "center",
+                alignItems: "center",
+                marginBottom: 16,
+              }}
+            >
+              <Icon name="check-circle" size={36} color="#166534" />
+            </View>
+
+            <Text
+              style={{
+                fontFamily: TYPOGRAPHY.fonts.primary,
+                fontSize: 20,
+                fontWeight: "700",
+                color: COLORS.neutral[900],
+                marginBottom: 8,
+                textAlign: "center",
+              }}
+            >
+              Applicant Details Confirmed!
+            </Text>
+
+            <Text
+              style={{
+                fontFamily: TYPOGRAPHY.fonts.primary,
+                fontSize: 14,
+                color: COLORS.neutral[600],
+                textAlign: "center",
+                maxWidth: 480,
+                lineHeight: 22,
+                marginBottom: 28,
+              }}
+            >
+              The applicant details have been saved to your batch list. You can click below to encode another applicant or click <Text style={{ fontWeight: "700" }}>SUBMIT</Text> on the left sidebar to submit the batch.
+            </Text>
+
+            <TouchableOpacity
+              onPress={handleAddAnotherApplicant}
+              style={[
+                styles.btnPrimary,
+                styles.btnPrimaryActive,
+                { paddingHorizontal: 24, paddingVertical: 12, flexDirection: "row", alignItems: "center" },
+              ]}
+            >
+              <Icon name="plus" size={16} color="#ffffff" style={{ marginRight: 8 }} />
+              <Text style={[styles.btnPrimaryText, styles.btnPrimaryTextActive, { fontSize: 14 }]}>
+                Add Another Applicant
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </ScrollView>
 
       {/* Footer Navigation */}
@@ -1381,27 +1531,17 @@ export function RadioOperatorExamWizard({
           <Text style={styles.btnSecondaryText}>Back</Text>
         </TouchableOpacity>
 
-        <View style={{ flexDirection: "row", alignItems: "center" }}>
-          {step === 6 && appMode === "BULK" && bulkMethod === "MANUAL" && (
-            <TouchableOpacity
-              onPress={handleSaveAndAddAnother}
-              style={[styles.btnSecondary, { marginRight: 12 }]}
-            >
-              <Icon name="plus" size={14} color={COLORS.neutral[700]} style={{ marginRight: 6 }} />
-              <Text style={styles.btnSecondaryText}>Save & Add Another</Text>
-            </TouchableOpacity>
-          )}
-
+        {step <= 6 && (
           <TouchableOpacity
             disabled={
               isNextDisabled() ||
-              (step === 6 && !(appMode === "BULK" && bulkMethod === "MANUAL") && !isAgreedToTerms)
+              (step === 6 && appMode === "SINGLE" && !isAgreedToTerms)
             }
             onPress={handleNext}
             style={[
               styles.btnPrimary,
               (!isNextDisabled() &&
-                (step < 6 || (appMode === "BULK" && bulkMethod === "MANUAL") || isAgreedToTerms)) &&
+                (step < 6 || appMode === "BULK" || isAgreedToTerms)) &&
                 styles.btnPrimaryActive,
             ]}
           >
@@ -1409,14 +1549,14 @@ export function RadioOperatorExamWizard({
               style={[
                 styles.btnPrimaryText,
                 (!isNextDisabled() &&
-                  (step < 6 || (appMode === "BULK" && bulkMethod === "MANUAL") || isAgreedToTerms)) &&
+                  (step < 6 || appMode === "BULK" || isAgreedToTerms)) &&
                   styles.btnPrimaryTextActive,
               ]}
             >
               {getNextBtnText()}
             </Text>
           </TouchableOpacity>
-        </View>
+        )}
       </View>
 
       {/* CSV Import Preview Modal */}
@@ -1437,9 +1577,19 @@ export function RadioOperatorExamWizard({
                 <Text style={{ flex: 1, fontSize: 11, fontWeight: "700" }}>Status</Text>
               </View>
               <View style={{ flexDirection: "row", padding: 8, borderTopWidth: 1, borderTopColor: COLORS.neutral[200] }}>
-                <Text style={{ flex: 1, fontSize: 11 }}>Ricardo Dalisay</Text>
-                <Text style={{ flex: 1, fontSize: 11 }}>Radiotelegraphy</Text>
-                <Text style={{ flex: 1, fontSize: 11, color: "green" }}>Valid</Text>
+                <Text style={{ flex: 1, fontSize: 11, fontWeight: "600" }}>John Smith Doe Jr.</Text>
+                <Text style={{ flex: 1, fontSize: 11 }}>Amateur (Class A)</Text>
+                <Text style={{ flex: 1, fontSize: 11, color: "green", fontWeight: "600" }}>Valid</Text>
+              </View>
+              <View style={{ flexDirection: "row", padding: 8, borderTopWidth: 1, borderTopColor: COLORS.neutral[200] }}>
+                <Text style={{ flex: 1, fontSize: 11, fontWeight: "600" }}>Maria Santos Reyes</Text>
+                <Text style={{ flex: 1, fontSize: 11 }}>Amateur (Class B)</Text>
+                <Text style={{ flex: 1, fontSize: 11, color: "green", fontWeight: "600" }}>Valid</Text>
+              </View>
+              <View style={{ flexDirection: "row", padding: 8, borderTopWidth: 1, borderTopColor: COLORS.neutral[200] }}>
+                <Text style={{ flex: 1, fontSize: 11, fontWeight: "600" }}>Juan Dela Cruz</Text>
+                <Text style={{ flex: 1, fontSize: 11 }}>Amateur (Class C)</Text>
+                <Text style={{ flex: 1, fontSize: 11, color: "green", fontWeight: "600" }}>Valid</Text>
               </View>
             </View>
 
@@ -1510,24 +1660,37 @@ export function RadioOperatorExamWizard({
         </View>
       </Modal>
 
-      {/* Confirmation Submit Modal */}
+      {/* Confirmation Modal */}
       <Modal visible={isConfirmModalOpen} transparent animationType="fade">
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center" }}>
           <View style={{ backgroundColor: "#ffffff", borderRadius: 12, padding: 24, width: "100%", maxWidth: 440 }}>
             <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 18, fontWeight: "700", color: COLORS.neutral[900], marginBottom: 12 }}>
-              Confirm Application Submission?
+              {appMode === "BULK" ? "Confirm Applicant Details?" : "Confirm Application Submission?"}
             </Text>
             <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 14, color: COLORS.neutral[600], lineHeight: 20, marginBottom: 24 }}>
-              Are you sure you want to submit this examination application to the NTC? Once submitted, you cannot modify the details.
+              {appMode === "BULK"
+                ? "Are you sure you want to confirm this applicant's details?"
+                : "Are you sure you want to submit this examination application to the NTC? Once submitted, you cannot modify the details."}
             </Text>
 
             <View style={{ flexDirection: "row", justifyContent: "flex-end", gap: 12 }}>
               <TouchableOpacity disabled={isSubmitting} onPress={() => setIsConfirmModalOpen(false)} style={styles.btnSecondary}>
                 <Text style={styles.btnSecondaryText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity disabled={isSubmitting} onPress={handleFinalSubmit} style={[styles.btnPrimary, styles.btnPrimaryActive]}>
+              <TouchableOpacity
+                disabled={isSubmitting}
+                onPress={() => {
+                  setIsConfirmModalOpen(false);
+                  if (appMode === "BULK") {
+                    handleConfirmApplicantInBulk();
+                  } else {
+                    handleFinalSubmit();
+                  }
+                }}
+                style={[styles.btnPrimary, styles.btnPrimaryActive]}
+              >
                 <Text style={[styles.btnPrimaryText, styles.btnPrimaryTextActive]}>
-                  {isSubmitting ? "Submitting..." : "Yes, Submit"}
+                  {appMode === "BULK" ? "Confirm" : isSubmitting ? "Submitting..." : "Yes, Submit"}
                 </Text>
               </TouchableOpacity>
             </View>

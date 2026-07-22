@@ -73,6 +73,14 @@ export function Services() {
     setIsBulkSubmitOpen(false);
   };
 
+  const handleAddExamApplicant = () => {
+    const nextId = examApplicants.length + 1;
+    const newApp = initialExamApplicant(nextId);
+    setExamApplicants((prev) => [...prev, newApp]);
+    setCurrentExamApplicantIndex(examApplicants.length);
+    setExamWizardStep(3);
+  };
+
   const handleRemoveExamApplicant = (idx: number) => {
     setExamApplicants((prev) => {
       const updated = prev.filter((_, i) => i !== idx);
@@ -262,6 +270,8 @@ export function Services() {
                 resetWizardState={resetWizardState}
                 onSubmitPress={() => setIsBulkSubmitOpen(true)}
                 onRemoveApplicant={handleRemoveExamApplicant}
+                bulkMethod={bulkMethod}
+                onAddApplicant={handleAddExamApplicant}
               />
             ) : searchQuery.trim() !== "" ? (
               <ServiceList
