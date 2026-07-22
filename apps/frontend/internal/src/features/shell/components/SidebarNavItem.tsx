@@ -23,9 +23,6 @@ export function SidebarNavItem({ link, isActive, onPress }: SidebarNavItemProps)
         !isActive && isHovered && styles.navItemHover,
       ]}
     >
-      {/* Left active border indicator */}
-      {isActive ? <View style={styles.activeBar} /> : null}
-
       <View
         style={[
           styles.contentWrapper,
@@ -38,7 +35,7 @@ export function SidebarNavItem({ link, isActive, onPress }: SidebarNavItemProps)
             size={18}
             color={
               isActive
-                ? COLORS.brand[700]
+                ? COLORS.neutral.white
                 : isHovered
                   ? COLORS.brand[800]
                   : COLORS.neutral[500]
@@ -73,23 +70,13 @@ const styles = StyleSheet.create({
     }),
   },
   navItemActive: {
-    backgroundColor: 'rgba(37, 99, 235, 0.08)', // Soft blue wash background
+    backgroundColor: COLORS.brand[700], // Solid blue active background
   },
   navItemInactive: {
     backgroundColor: 'transparent',
   },
   navItemHover: {
     backgroundColor: COLORS.neutral[100], // Soft gray hover
-  },
-  activeBar: {
-    position: 'absolute',
-    left: 0,
-    top: 8,
-    bottom: 8,
-    width: 3,
-    backgroundColor: COLORS.brand[700],
-    borderRadius: 9999,
-    zIndex: 2,
   },
   contentWrapper: {
     flexDirection: 'row',
@@ -116,7 +103,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   navTextActive: {
-    color: COLORS.brand[700],
+    color: COLORS.neutral.white,
     fontWeight: TYPOGRAPHY.weights.semibold,
   },
   navTextInactive: {
