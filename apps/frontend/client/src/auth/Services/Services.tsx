@@ -55,6 +55,7 @@ export function Services() {
   const [examWizardStep, setExamWizardStep] = useState(1);
   const [examApplicants, setExamApplicants] = useState<ExamApplicantData[]>([initialExamApplicant(1)]);
   const [currentExamApplicantIndex, setCurrentExamApplicantIndex] = useState(0);
+  const [isBulkSubmitOpen, setIsBulkSubmitOpen] = useState(false);
 
   const resetWizardState = () => {
     setWizardStep(1);
@@ -69,6 +70,31 @@ export function Services() {
     setExamApplicants([initialExamApplicant(1)]);
     setCurrentApplicantIndex(0);
     setCurrentExamApplicantIndex(0);
+    setIsBulkSubmitOpen(false);
+  };
+
+  const handleRemoveExamApplicant = (idx: number) => {
+    setExamApplicants((prev) => {
+      const updated = prev.filter((_, i) => i !== idx);
+      if (updated.length === 0) {
+        setCurrentExamApplicantIndex(0);
+        return [initialExamApplicant(1)];
+      }
+      setCurrentExamApplicantIndex((prevIdx) => Math.max(0, Math.min(prevIdx, updated.length - 1)));
+      return updated;
+    });
+  };
+
+  const handleRemoveApplicant = (idx: number) => {
+    setApplicants((prev) => {
+      const updated = prev.filter((_, i) => i !== idx);
+      if (updated.length === 0) {
+        setCurrentApplicantIndex(0);
+        return [initialApplicant(1)];
+      }
+      setCurrentApplicantIndex((prevIdx) => Math.max(0, Math.min(prevIdx, updated.length - 1)));
+      return updated;
+    });
   };
 
   // Check if we should display the left-side list view (standard grid or sub-items list)
@@ -225,6 +251,7 @@ export function Services() {
                 onSelectApplicant={setCurrentApplicantIndex}
                 setStep={setWizardStep}
                 resetWizardState={resetWizardState}
+                onRemoveApplicant={handleRemoveApplicant}
               />
             ) : activeWizardService === "radio-operator-exam" && appMode === "BULK" && examWizardStep >= 3 ? (
               <ExamBulkApplicantsPanel
@@ -233,6 +260,8 @@ export function Services() {
                 onSelectApplicant={setCurrentExamApplicantIndex}
                 setStep={setExamWizardStep}
                 resetWizardState={resetWizardState}
+                onSubmitPress={() => setIsBulkSubmitOpen(true)}
+                onRemoveApplicant={handleRemoveExamApplicant}
               />
             ) : searchQuery.trim() !== "" ? (
               <ServiceList
@@ -359,6 +388,8 @@ export function Services() {
                   setApplicants={setExamApplicants}
                   currentApplicantIndex={currentExamApplicantIndex}
                   setCurrentApplicantIndex={setCurrentExamApplicantIndex}
+                  isBulkSubmitOpen={isBulkSubmitOpen}
+                  setIsBulkSubmitOpen={setIsBulkSubmitOpen}
                 />
               ) : selectedService !== null ? (
                 <ServiceDetails

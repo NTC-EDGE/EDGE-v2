@@ -7,6 +7,8 @@ import {
   TextInput,
   StyleSheet,
   Platform,
+  Alert,
+  Modal,
 } from "react-native";
 import { Icon, COLORS, TYPOGRAPHY, SPACING } from "@edge/ui";
 import { ExamApplicantData } from "../index";
@@ -17,13 +19,19 @@ interface ExamBulkApplicantsPanelProps {
   onSelectApplicant: (idx: number) => void;
   setStep: (step: number) => void;
   resetWizardState: () => void;
+  onSubmitPress: () => void;
+  onRemoveApplicant: (idx: number) => void;
 }
 
 export const isExamApplicantComplete = (app: ExamApplicantData): boolean => {
   const emailVal = app.email;
   const contactNoVal = app.contactNo;
 
-  return !!(
+  // 1. Check Application Type Selection
+  if (!app.selectedOption) return false;
+
+  // 2. Check Form Details
+  const formComplete = !!(
     app.lastName &&
     app.firstName &&
     app.birthMonth &&
@@ -44,6 +52,14 @@ export const isExamApplicantComplete = (app: ExamApplicantData): boolean => {
     contactNoVal &&
     /^\d+$/.test(contactNoVal)
   );
+  if (!formComplete) return false;
+
+  // 3. Check Uploads Complete
+  const totalRequired = app.examineeType === "Upgrader" ? 4 : 3;
+  const uploadedCount = Object.keys(app.uploads).length;
+  if (uploadedCount < totalRequired) return false;
+
+  return true;
 };
 
 export function ExamBulkApplicantsPanel({
@@ -51,9 +67,12 @@ export function ExamBulkApplicantsPanel({
   currentApplicantIndex,
   onSelectApplicant,
   setStep,
+  onSubmitPress,
+  onRemoveApplicant,
 }: ExamBulkApplicantsPanelProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<"ALL" | "COMPLETE" | "DRAFTS">("ALL");
+  const [applicantToDelete, setApplicantToDelete] = useState<{ idx: number; name: string } | null>(null);
 
   const completeCount = applicants.filter(isExamApplicantComplete).length;
   const draftCount = applicants.length - completeCount;
@@ -139,33 +158,50 @@ export function ExamBulkApplicantsPanel({
             const totalRequired = app.examineeType === "Upgrader" ? 4 : 3;
 
             return (
-              <TouchableOpacity
+              <View
                 key={app.id}
-                onPress={() => onSelectApplicant(originalIdx)}
                 style={[
                   styles.itemCard,
                   isSelected && styles.itemCardSelected,
+                  { flexDirection: "row", alignItems: "center" }
                 ]}
               >
-                <View style={styles.itemHeader}>
-                  <Text style={[styles.itemTitle, isSelected && styles.itemTitleSelected]} numberOfLines={1}>
-                    {fullName || `Draft Applicant ${app.id}`}
-                  </Text>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                    <Text style={{ fontSize: 11, color: COLORS.neutral[400], fontWeight: "600" }}>
-                      {uploadedCount}/{totalRequired}
+                <TouchableOpacity
+                  onPress={() => onSelectApplicant(originalIdx)}
+                  style={{ flex: 1, padding: 14 }}
+                >
+                  <View style={styles.itemHeader}>
+                    <Text style={[styles.itemTitle, isSelected && styles.itemTitleSelected]} numberOfLines={1}>
+                      {fullName || `Draft Applicant ${app.id}`}
                     </Text>
-                    <Icon
-                      name={complete ? "check-circle" : "check-circle"}
-                      size={14}
-                      color={complete ? "#10b981" : COLORS.neutral[300]}
-                    />
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                      <Text style={{ fontSize: 11, color: COLORS.neutral[400], fontWeight: "600" }}>
+                        {uploadedCount}/{totalRequired}
+                      </Text>
+                      <Icon
+                        name="check-circle"
+                        size={14}
+                        color={complete ? "#10b981" : COLORS.neutral[300]}
+                      />
+                    </View>
                   </View>
-                </View>
-                <Text style={styles.itemSubtitle} numberOfLines={1}>
-                  {app.examineeType} • {app.examType}-{app.selectedOption}
-                </Text>
-              </TouchableOpacity>
+                  <Text style={styles.itemSubtitle} numberOfLines={1}>
+                    {app.examineeType} • {app.examType}-{app.selectedOption}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => {
+                    setApplicantToDelete({
+                      idx: originalIdx,
+                      name: fullName || `Draft Applicant ${app.id}`,
+                    });
+                  }}
+                  style={{ padding: 14, justifyContent: "center", alignItems: "center" }}
+                >
+                  <Icon name="trash" size={16} color={COLORS.semantic.error} />
+                </TouchableOpacity>
+              </View>
             );
           })
         )}
@@ -175,7 +211,7 @@ export function ExamBulkApplicantsPanel({
       <View style={styles.footer}>
         <TouchableOpacity
           disabled={!isAllComplete}
-          onPress={() => setStep(6)} // Go to step 6 (Review & Submit)
+          onPress={onSubmitPress}
           style={[
             styles.submitBtn,
             isAllComplete ? styles.submitBtnActive : styles.submitBtnDisabled,
@@ -197,6 +233,45 @@ export function ExamBulkApplicantsPanel({
           </Text>
         </TouchableOpacity>
       </View>
+
+      {/* Delete Confirmation Modal */}
+      <Modal visible={applicantToDelete !== null} transparent animationType="fade">
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", padding: 20 }}>
+          <View style={{ backgroundColor: "#ffffff", borderRadius: 12, padding: 24, width: "100%", maxWidth: 400 }}>
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 18, fontWeight: "700", color: COLORS.neutral[900], marginBottom: 8 }}>
+              Remove Applicant
+            </Text>
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13.5, color: COLORS.neutral[600], marginBottom: 24, lineHeight: 20 }}>
+              Are you sure you want to remove <Text style={{ fontWeight: "700" }}>{applicantToDelete?.name}</Text> from the bulk list? This action cannot be undone.
+            </Text>
+
+            <View style={{ flexDirection: "row", justifyContent: "flex-end", gap: 12 }}>
+              <TouchableOpacity
+                onPress={() => setApplicantToDelete(null)}
+                style={{ paddingVertical: 10, paddingHorizontal: 16, borderRadius: 8, borderWidth: 1, borderColor: COLORS.neutral[300] }}
+              >
+                <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "600", color: COLORS.neutral[700] }}>
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => {
+                  if (applicantToDelete) {
+                    onRemoveApplicant(applicantToDelete.idx);
+                    setApplicantToDelete(null);
+                  }
+                }}
+                style={{ paddingVertical: 10, paddingHorizontal: 16, borderRadius: 8, backgroundColor: COLORS.semantic.error }}
+              >
+                <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "600", color: "#ffffff" }}>
+                  Remove
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -286,7 +361,6 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   itemCard: {
-    padding: 14,
     borderRadius: 10,
     backgroundColor: COLORS.neutral[50],
     borderColor: COLORS.neutral[200],

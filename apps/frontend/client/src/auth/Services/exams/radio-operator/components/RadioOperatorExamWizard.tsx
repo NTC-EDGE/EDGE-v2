@@ -96,6 +96,8 @@ interface RadioOperatorExamWizardProps {
   setApplicants: React.Dispatch<React.SetStateAction<ExamApplicantData[]>>;
   currentApplicantIndex: number;
   setCurrentApplicantIndex: (idx: number) => void;
+  isBulkSubmitOpen: boolean;
+  setIsBulkSubmitOpen: (val: boolean) => void;
 }
 
 export function RadioOperatorExamWizard({
@@ -121,6 +123,8 @@ export function RadioOperatorExamWizard({
   setApplicants,
   currentApplicantIndex,
   setCurrentApplicantIndex,
+  isBulkSubmitOpen,
+  setIsBulkSubmitOpen,
 }: RadioOperatorExamWizardProps) {
   // Local UI and validation states
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
@@ -132,7 +136,6 @@ export function RadioOperatorExamWizard({
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   // Bulk Manual Submission Dialog States
-  const [isBulkSubmitModalOpen, setIsBulkSubmitModalOpen] = useState(false);
   const [bulkCompanyName, setBulkCompanyName] = useState("");
   const [bulkEmail, setBulkEmail] = useState("");
   const [bulkPhone, setBulkPhone] = useState("");
@@ -178,7 +181,12 @@ export function RadioOperatorExamWizard({
 
   const getNextBtnText = (): string => {
     if (step === 5) return "Review";
-    if (step === 6) return "Submit";
+    if (step === 6) {
+      if (appMode === "BULK" && bulkMethod === "MANUAL") {
+        return "Save as Applicant";
+      }
+      return "Submit";
+    }
     return "Next";
   };
 
@@ -474,16 +482,10 @@ export function RadioOperatorExamWizard({
         Alert.alert("Error", "Please upload all mandatory supporting documents.");
         return;
       }
-
-      if (appMode === "BULK" && bulkMethod === "MANUAL" && currentApplicantIndex < applicants.length - 1) {
-        setCurrentApplicantIndex((prev) => prev + 1);
-        setStep(3);
-      } else {
-        setStep(6);
-      }
+      setStep(6);
     } else if (step === 6) {
       if (appMode === "BULK" && bulkMethod === "MANUAL") {
-        setIsBulkSubmitModalOpen(true);
+        setIsBulkSubmitOpen(true);
       } else {
         setIsConfirmModalOpen(true);
       }
@@ -629,7 +631,7 @@ export function RadioOperatorExamWizard({
     setIsSubmitting(true);
     try {
       await new Promise((resolve) => setTimeout(resolve, 1500));
-      setIsBulkSubmitModalOpen(false);
+      setIsBulkSubmitOpen(false);
       onSuccess();
     } catch (err) {
       console.error(err);
@@ -1379,23 +1381,42 @@ export function RadioOperatorExamWizard({
           <Text style={styles.btnSecondaryText}>Back</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          disabled={isNextDisabled() || (step === 6 && !isAgreedToTerms)}
-          onPress={handleNext}
-          style={[
-            styles.btnPrimary,
-            (!isNextDisabled() && (step < 6 || isAgreedToTerms)) && styles.btnPrimaryActive,
-          ]}
-        >
-          <Text
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          {step === 6 && appMode === "BULK" && bulkMethod === "MANUAL" && (
+            <TouchableOpacity
+              onPress={handleSaveAndAddAnother}
+              style={[styles.btnSecondary, { marginRight: 12 }]}
+            >
+              <Icon name="plus" size={14} color={COLORS.neutral[700]} style={{ marginRight: 6 }} />
+              <Text style={styles.btnSecondaryText}>Save & Add Another</Text>
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity
+            disabled={
+              isNextDisabled() ||
+              (step === 6 && !(appMode === "BULK" && bulkMethod === "MANUAL") && !isAgreedToTerms)
+            }
+            onPress={handleNext}
             style={[
-              styles.btnPrimaryText,
-              (!isNextDisabled() && (step < 6 || isAgreedToTerms)) && styles.btnPrimaryTextActive,
+              styles.btnPrimary,
+              (!isNextDisabled() &&
+                (step < 6 || (appMode === "BULK" && bulkMethod === "MANUAL") || isAgreedToTerms)) &&
+                styles.btnPrimaryActive,
             ]}
           >
-            {getNextBtnText()}
-          </Text>
-        </TouchableOpacity>
+            <Text
+              style={[
+                styles.btnPrimaryText,
+                (!isNextDisabled() &&
+                  (step < 6 || (appMode === "BULK" && bulkMethod === "MANUAL") || isAgreedToTerms)) &&
+                  styles.btnPrimaryTextActive,
+              ]}
+            >
+              {getNextBtnText()}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* CSV Import Preview Modal */}
@@ -1435,7 +1456,7 @@ export function RadioOperatorExamWizard({
       </Modal>
 
       {/* Submit Applications Bulk Modal */}
-      <Modal visible={isBulkSubmitModalOpen} transparent animationType="fade">
+      <Modal visible={isBulkSubmitOpen} transparent animationType="fade">
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", padding: 20 }}>
           <View style={{ backgroundColor: "#ffffff", borderRadius: 12, padding: 24, width: "100%", maxWidth: 440 }}>
             <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 18, fontWeight: "700", color: COLORS.neutral[900], marginBottom: 8 }}>
@@ -1476,7 +1497,7 @@ export function RadioOperatorExamWizard({
             />
 
             <View style={{ flexDirection: "row", justifyContent: "flex-end", gap: 12, marginTop: 16 }}>
-              <TouchableOpacity disabled={isSubmitting} onPress={() => setIsBulkSubmitModalOpen(false)} style={styles.btnSecondary}>
+              <TouchableOpacity disabled={isSubmitting} onPress={() => setIsBulkSubmitOpen(false)} style={styles.btnSecondary}>
                 <Text style={styles.btnSecondaryText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity disabled={isSubmitting} onPress={handleBulkFinalSubmit} style={[styles.btnPrimary, styles.btnPrimaryActive]}>

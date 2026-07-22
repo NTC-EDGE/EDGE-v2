@@ -7,6 +7,8 @@ import {
   TextInput,
   StyleSheet,
   Platform,
+  Alert,
+  Modal,
 } from "react-native";
 import { Icon, COLORS, TYPOGRAPHY, SPACING } from "@edge/ui";
 import { ApplicantData } from "../index";
@@ -17,6 +19,7 @@ interface BulkApplicantsPanelProps {
   onSelectApplicant: (idx: number) => void;
   setStep: (step: number) => void;
   resetWizardState: () => void;
+  onRemoveApplicant?: (idx: number) => void;
 }
 
 export function BulkApplicantsPanel({
@@ -25,9 +28,11 @@ export function BulkApplicantsPanel({
   onSelectApplicant,
   setStep,
   resetWizardState,
+  onRemoveApplicant,
 }: BulkApplicantsPanelProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<"ALL" | "COMPLETE" | "DRAFTS">("ALL");
+  const [applicantToDelete, setApplicantToDelete] = useState<{ idx: number; name: string } | null>(null);
 
   // Local helper to determine if applicant form is complete
   const isApplicantComplete = (app: ApplicantData) => {
@@ -131,33 +136,52 @@ export function BulkApplicantsPanel({
             const complete = isApplicantComplete(app);
 
             return (
-              <TouchableOpacity
+              <View
                 key={app.id}
-                onPress={() => onSelectApplicant(originalIdx)}
                 style={[
                   styles.itemCard,
                   isSelected && styles.itemCardSelected,
+                  { flexDirection: "row", alignItems: "center" }
                 ]}
               >
-                <View style={styles.itemHeader}>
-                  <Text style={[styles.itemTitle, isSelected && styles.itemTitleSelected]} numberOfLines={1}>
-                    {app.businessName || `Draft Applicant ${app.id}`}
-                  </Text>
-                  <View
-                    style={[
-                      styles.statusBadge,
-                      complete ? styles.badgeComplete : styles.badgeDraft,
-                    ]}
-                  >
-                    <Text style={[styles.badgeText, complete ? styles.badgeTextComplete : styles.badgeTextDraft]}>
-                      {complete ? "Complete" : "Draft"}
+                <TouchableOpacity
+                  onPress={() => onSelectApplicant(originalIdx)}
+                  style={{ flex: 1, padding: 14 }}
+                >
+                  <View style={styles.itemHeader}>
+                    <Text style={[styles.itemTitle, isSelected && styles.itemTitleSelected]} numberOfLines={1}>
+                      {app.businessName || `Draft Applicant ${app.id}`}
                     </Text>
+                    <View
+                      style={[
+                        styles.statusBadge,
+                        complete ? styles.badgeComplete : styles.badgeDraft,
+                      ]}
+                    >
+                      <Text style={[styles.badgeText, complete ? styles.badgeTextComplete : styles.badgeTextDraft]}>
+                        {complete ? "Complete" : "Draft"}
+                      </Text>
+                    </View>
                   </View>
-                </View>
-                <Text style={styles.itemSubtitle}>
-                  {app.appType} • {app.entityType}
-                </Text>
-              </TouchableOpacity>
+                  <Text style={styles.itemSubtitle}>
+                    {app.appType} • {app.entityType}
+                  </Text>
+                </TouchableOpacity>
+
+                {onRemoveApplicant && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      setApplicantToDelete({
+                        idx: originalIdx,
+                        name: app.businessName || `Draft Applicant ${app.id}`,
+                      });
+                    }}
+                    style={{ padding: 14, justifyContent: "center", alignItems: "center" }}
+                  >
+                    <Icon name="trash" size={16} color={COLORS.semantic.error} />
+                  </TouchableOpacity>
+                )}
+              </View>
             );
           })
         )}
@@ -189,6 +213,45 @@ export function BulkApplicantsPanel({
           </Text>
         </TouchableOpacity>
       </View>
+
+      {/* Delete Confirmation Modal */}
+      <Modal visible={applicantToDelete !== null} transparent animationType="fade">
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", padding: 20 }}>
+          <View style={{ backgroundColor: "#ffffff", borderRadius: 12, padding: 24, width: "100%", maxWidth: 400 }}>
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 18, fontWeight: "700", color: COLORS.neutral[900], marginBottom: 8 }}>
+              Remove Applicant
+            </Text>
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13.5, color: COLORS.neutral[600], marginBottom: 24, lineHeight: 20 }}>
+              Are you sure you want to remove <Text style={{ fontWeight: "700" }}>{applicantToDelete?.name}</Text> from the bulk list? This action cannot be undone.
+            </Text>
+
+            <View style={{ flexDirection: "row", justifyContent: "flex-end", gap: 12 }}>
+              <TouchableOpacity
+                onPress={() => setApplicantToDelete(null)}
+                style={{ paddingVertical: 10, paddingHorizontal: 16, borderRadius: 8, borderWidth: 1, borderColor: COLORS.neutral[300] }}
+              >
+                <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "600", color: COLORS.neutral[700] }}>
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => {
+                  if (applicantToDelete && onRemoveApplicant) {
+                    onRemoveApplicant(applicantToDelete.idx);
+                    setApplicantToDelete(null);
+                  }
+                }}
+                style={{ paddingVertical: 10, paddingHorizontal: 16, borderRadius: 8, backgroundColor: COLORS.semantic.error }}
+              >
+                <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "600", color: "#ffffff" }}>
+                  Remove
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -278,7 +341,6 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   itemCard: {
-    padding: 14,
     borderRadius: 10,
     backgroundColor: COLORS.neutral[50],
     borderColor: COLORS.neutral[200],
