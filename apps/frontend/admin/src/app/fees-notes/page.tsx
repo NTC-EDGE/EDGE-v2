@@ -68,11 +68,9 @@ export default function FeesNotesPage() {
         await mutateFees();
       } else if (tab === "service-fees") {
         if (data.serviceFees && data.serviceFees.length > 0) {
-          for (const item of data.serviceFees) {
-            await createServiceFee({ serviceId: data.serviceId, feeId: item.feeId, amount: item.amount });
-          }
+          await createServiceFee({ serviceId: data.serviceId, fees: data.serviceFees });
         } else {
-          await createServiceFee({ serviceId: data.serviceId, feeId: data.feeId, amount: data.amount });
+          await createServiceFee({ serviceId: data.serviceId, fees: [{ feeId: data.feeId, amount: data.amount }] });
         }
         await mutateServiceFees();
       } else {

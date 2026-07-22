@@ -74,8 +74,8 @@ export function useFeesNotesService() {
     };
   };
 
-  const createServiceFee = async (data: Omit<ServiceFee, 'id'>): Promise<ServiceFee> => {
-    return await post<ServiceFee, Omit<ServiceFee, 'id'>>('/api/v2/service-fees', data);
+  const createServiceFee = async (data: { serviceId: string; fees: { feeId: string; amount: number }[] }): Promise<ServiceFee[]> => {
+    return await post<ServiceFee[], { serviceId: string; fees: { feeId: string; amount: number }[] }>('/api/v2/service-fees', data);
   };
 
   const updateServiceFee = async (id: string, data: Omit<ServiceFee, 'id'>): Promise<ServiceFee> => {

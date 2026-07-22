@@ -2,10 +2,14 @@ using MediatR;
 using EDGE.Application.ServiceFees.DTOs;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Domain.Entities;
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace EDGE.Application.ServiceFees.Commands.CreateServiceFee;
 
-public class CreateServiceFeeCommandHandler : IRequestHandler<CreateServiceFeeCommand, ServiceFeeDto>
+public class CreateServiceFeeCommandHandler : IRequestHandler<CreateServiceFeeCommand, List<ServiceFeeDto>>
 {
     private readonly IServiceFeeRepository _serviceFeeRepository;
     private readonly IFeeRepository _feeRepository;
@@ -21,34 +25,41 @@ public class CreateServiceFeeCommandHandler : IRequestHandler<CreateServiceFeeCo
         _unitOfWork = unitOfWork;
     }
 
-    public async Task<ServiceFeeDto> Handle(CreateServiceFeeCommand request, CancellationToken cancellationToken)
+    public async Task<List<ServiceFeeDto>> Handle(CreateServiceFeeCommand request, CancellationToken cancellationToken)
     {
-        var fee = await _feeRepository.GetByIdAsync(request.FeeId, cancellationToken);
-        if (fee == null)
+        var resultList = new List<ServiceFeeDto>();
+
+        foreach (var entry in request.Fees)
         {
-            throw new InvalidOperationException($"Fee with ID '{request.FeeId}' does not exist.");
+            var fee = await _feeRepository.GetByIdAsync(entry.FeeId, cancellationToken);
+            if (fee == null)
+            {
+                throw new InvalidOperationException($"Fee with ID '{entry.FeeId}' does not exist.");
+            }
+
+            var serviceFee = new ServiceFee
+            {
+                ServiceId = request.ServiceId,
+                FeeId = entry.FeeId,
+                Amount = entry.Amount,
+                IsActive = true
+            };
+
+            await _serviceFeeRepository.AddAsync(serviceFee, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            resultList.Add(new ServiceFeeDto(
+                serviceFee.Id,
+                serviceFee.ServiceId,
+                serviceFee.FeeId,
+                fee.Code,
+                fee.Name,
+                serviceFee.Amount,
+                serviceFee.IsActive,
+                serviceFee.CreatedAt
+            ));
         }
 
-        var serviceFee = new ServiceFee
-        {
-            ServiceId = request.ServiceId,
-            FeeId = request.FeeId,
-            Amount = request.Amount,
-            IsActive = true
-        };
-
-        await _serviceFeeRepository.AddAsync(serviceFee, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-        return new ServiceFeeDto(
-            serviceFee.Id,
-            serviceFee.ServiceId,
-            serviceFee.FeeId,
-            fee.Code,
-            fee.Name,
-            serviceFee.Amount,
-            serviceFee.IsActive,
-            serviceFee.CreatedAt
-        );
+        return resultList;
     }
 }

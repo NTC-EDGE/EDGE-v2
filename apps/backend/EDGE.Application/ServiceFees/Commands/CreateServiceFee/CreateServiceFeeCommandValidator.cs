@@ -9,10 +9,16 @@ public class CreateServiceFeeCommandValidator : AbstractValidator<CreateServiceF
         RuleFor(x => x.ServiceId)
             .NotEmpty().WithMessage("Service ID is required.");
 
-        RuleFor(x => x.FeeId)
-            .NotEmpty().WithMessage("Fee ID is required.");
+        RuleFor(x => x.Fees)
+            .NotEmpty().WithMessage("Fees list is required and cannot be empty.");
 
-        RuleFor(x => x.Amount)
-            .GreaterThanOrEqualTo(0).WithMessage("Amount must be greater than or equal to 0.");
+        RuleForEach(x => x.Fees).ChildRules(fee =>
+        {
+            fee.RuleFor(f => f.FeeId)
+                .NotEmpty().WithMessage("Fee ID is required.");
+
+            fee.RuleFor(f => f.Amount)
+                .GreaterThanOrEqualTo(0).WithMessage("Amount must be greater than or equal to 0.");
+        });
     }
 }

@@ -68,7 +68,7 @@ public static class ServiceFeeEndpoints
             }
 
             var result = await mediator.Send(command);
-            return Results.Created($"/service-fees/{result.Id}", result);
+            return Results.Created("/service-fees", result);
         })
         .WithName("CreateServiceFee")
         .WithSummary("Create a service fee")
