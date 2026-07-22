@@ -60,10 +60,9 @@ export const ROLE_NAVIGATION_LINKS = {
   ],
   Legal: [
     { name: 'Dashboard', screen: 'Dashboard', icon: 'grid' },
+    { name: 'Activities', screen: 'Activities', icon: 'bell' },
     { name: 'Chat', screen: 'Chat', icon: 'message-square' },
     { name: 'Meet', screen: 'Meet', icon: 'video' },
-    { name: 'Schedule', screen: 'Schedule', icon: 'calendar' },
-    { name: 'Users', screen: 'Users', icon: 'user' },
   ],
   Account: [
     { name: 'Dashboard', screen: 'Dashboard', icon: 'grid' },

@@ -187,7 +187,7 @@ export function DashboardScreen() {
     });
   };
 
-  const isEvaluator = currentRole === 'Evaluator' || currentRole === 'Chief of EOD' || currentRole === 'Regional Director';
+  const isEvaluator = currentRole === 'Evaluator' || currentRole === 'Chief of EOD' || currentRole === 'Regional Director' || currentRole === 'Legal';
 
   // Helper values for line chart scaling
   const scaleY = (val: number, maxVal: number) => {
