@@ -50,7 +50,9 @@ public static class DependencyInjection
         services.AddScoped<ITenantRepository, TenantRepository>();
         services.AddScoped<ITenantMemberRepository, TenantMemberRepository>();
         services.AddScoped<IScheduleRepository, ScheduleRepository>();
+        services.AddScoped<INoteRepository, NoteRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
+
         services.AddScoped<IUserActivityService, UserActivityService>();
 
         // Register Clerk Client

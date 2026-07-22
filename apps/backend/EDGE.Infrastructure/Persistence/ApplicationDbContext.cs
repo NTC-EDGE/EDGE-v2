@@ -23,6 +23,8 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
     public DbSet<Barangay> Barangays => Set<Barangay>();
     public DbSet<Schedule> Schedules => Set<Schedule>();
     public DbSet<FieldOffice> FieldOffices => Set<FieldOffice>();
+    public DbSet<Note> Notes => Set<Note>();
+
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

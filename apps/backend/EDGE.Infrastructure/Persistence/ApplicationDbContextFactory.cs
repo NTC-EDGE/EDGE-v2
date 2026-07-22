@@ -75,11 +75,26 @@ public class ApplicationDbContextFactory : IDesignTimeDbContextFactory<Applicati
                 context.Database.ExecuteSqlRaw(@"
                     INSERT INTO public.""__EFMigrationsHistory"" (""MigrationId"", ""ProductVersion"")
                     VALUES 
-                        ('20260717045851_AddUserAndSeed', '10.0.3'),
-                        ('20260717070258_InitialCreate', '10.0.3')
+                        ('20260717045851_AddUserAndSeed', '10.0.3')
                     ON CONFLICT (""MigrationId"") DO NOTHING;
                 ");
             }
+
+            var provincesExist = context.Database.SqlQueryRaw<bool>(@"
+                SELECT EXISTS (
+                    SELECT 1 FROM information_schema.tables 
+                    WHERE table_schema = 'public' AND table_name = 'Provinces'
+                );
+            ").AsEnumerable().FirstOrDefault();
+
+            if (!provincesExist)
+            {
+                context.Database.ExecuteSqlRaw(@"
+                    DELETE FROM public.""__EFMigrationsHistory"" 
+                    WHERE ""MigrationId"" = '20260717070258_InitialCreate';
+                ");
+            }
+
 
             var permissionsExist = context.Database.SqlQueryRaw<bool>(@"
                 SELECT EXISTS (
