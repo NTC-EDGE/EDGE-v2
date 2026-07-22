@@ -59,6 +59,7 @@ export default function FeesNotesPage() {
   const handleCreateSubmit = async (tab: TabType, data: {
     code: string; name: string; description: string;
     serviceId: string; feeId: string; amount: number;
+    serviceFees?: { feeId: string; amount: number }[];
     notes: string; serviceCategoryId: string;
   }): Promise<void> => {
     try {
@@ -66,7 +67,13 @@ export default function FeesNotesPage() {
         await createFee({ code: data.code.toUpperCase(), name: data.name, description: data.description || null });
         await mutateFees();
       } else if (tab === "service-fees") {
-        await createServiceFee({ serviceId: data.serviceId, feeId: data.feeId, amount: data.amount });
+        if (data.serviceFees && data.serviceFees.length > 0) {
+          for (const item of data.serviceFees) {
+            await createServiceFee({ serviceId: data.serviceId, feeId: item.feeId, amount: item.amount });
+          }
+        } else {
+          await createServiceFee({ serviceId: data.serviceId, feeId: data.feeId, amount: data.amount });
+        }
         await mutateServiceFees();
       } else {
         await createNote({ notes: data.notes, serviceCategoryId: data.serviceCategoryId });
@@ -83,6 +90,7 @@ export default function FeesNotesPage() {
   const handleEditSubmit = async (tab: TabType, data: {
     code: string; name: string; description: string;
     serviceId: string; feeId: string; amount: number;
+    serviceFees?: { feeId: string; amount: number }[];
     notes: string; serviceCategoryId: string;
   }): Promise<void> => {
     try {

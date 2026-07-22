@@ -31,6 +31,7 @@ export interface EditRecordDialogProps {
       serviceId: string;
       feeId: string;
       amount: number;
+      serviceFees?: { feeId: string; amount: number }[];
       notes: string;
       serviceCategoryId: string;
     }

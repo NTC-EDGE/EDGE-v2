@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Plus, Trash2 } from "lucide-react";
 import { Fee } from "@edge/api";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,6 +28,7 @@ export interface CreateRecordDialogProps {
       serviceId: string;
       feeId: string;
       amount: number;
+      serviceFees?: { feeId: string; amount: number }[];
       notes: string;
       serviceCategoryId: string;
     }
@@ -52,6 +53,7 @@ export function CreateRecordDialog({
   const [serviceId, setServiceId] = useState("");
   const [feeId, setFeeId] = useState("");
   const [amount, setAmount] = useState(0);
+  const [feeEntries, setFeeEntries] = useState<{ feeId: string; amount: number }[]>([]);
 
   const [notes, setNotes] = useState("");
   const [serviceCategoryId, setServiceCategoryId] = useState("");
@@ -67,21 +69,42 @@ export function CreateRecordDialog({
       setServiceId(MOCK_SERVICES[0]?.id ?? "");
       setFeeId(fees[0]?.id ?? "");
       setAmount(0);
+      setFeeEntries([{ feeId: fees[0]?.id ?? "", amount: 0 }]);
       
       setNotes("");
       setServiceCategoryId(MOCK_CATEGORIES[0]?.id ?? "");
     }
   }, [open, activeTab, fees]);
 
+  const handleAddFeeEntry = () => {
+    setFeeEntries([...feeEntries, { feeId: fees[0]?.id ?? "", amount: 0 }]);
+  };
+
+  const handleRemoveFeeEntry = (index: number) => {
+    if (feeEntries.length <= 1) return;
+    setFeeEntries(feeEntries.filter((_, i) => i !== index));
+  };
+
+  const handleUpdateFeeEntry = (index: number, field: "feeId" | "amount", value: any) => {
+    setFeeEntries(
+      feeEntries.map((entry, i) =>
+        i === index ? { ...entry, [field]: value } : entry
+      )
+    );
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     setErrorMsg(null);
 
-    if (activeTab === "service-fees" && !feeId) {
-      setErrorMsg("Please select a Fee to map.");
-      setSubmitting(false);
-      return;
+    if (activeTab === "service-fees") {
+      const invalidEntry = feeEntries.find((entry) => !entry.feeId);
+      if (invalidEntry) {
+        setErrorMsg("Please select a Fee Code for all entries.");
+        setSubmitting(false);
+        return;
+      }
     }
 
     try {
@@ -90,8 +113,9 @@ export function CreateRecordDialog({
         name,
         description,
         serviceId,
-        feeId,
-        amount,
+        feeId: feeEntries[0]?.feeId ?? "",
+        amount: feeEntries[0]?.amount ?? 0,
+        serviceFees: feeEntries,
         notes,
         serviceCategoryId,
       });
@@ -168,7 +192,7 @@ export function CreateRecordDialog({
                 <select
                   value={serviceId}
                   onChange={(e) => setServiceId(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                 >
                   {MOCK_SERVICES.map((s) => (
                     <option key={s.id} value={s.id}>
@@ -177,35 +201,67 @@ export function CreateRecordDialog({
                   ))}
                 </select>
               </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300">Mapped Fee Code *</label>
-                <select
-                  value={feeId}
-                  onChange={(e) => setFeeId(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="">-- Select Fee Code --</option>
-                  {fees.map((f) => (
-                    <option key={f.id} value={f.id}>
-                      [{f.code}] {f.name}
-                    </option>
+
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block">Service Fees & Amounts *</label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleAddFeeEntry}
+                    className="h-7 px-2.5 border-dashed border-slate-700 bg-slate-900 text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg text-[11px] flex items-center gap-1 shrink-0"
+                  >
+                    <Plus className="w-3 h-3" /> Add Fee Code
+                  </Button>
+                </div>
+                <div className="space-y-3 max-h-[260px] overflow-y-auto pr-1">
+                  {feeEntries.map((entry, index) => (
+                    <div key={index} className="flex gap-2 items-center bg-slate-950 p-3.5 rounded-xl border border-slate-800/80">
+                      <div className="flex-1 space-y-1.5 min-w-0">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase">Fee Code</label>
+                        <select
+                          value={entry.feeId}
+                          onChange={(e) => handleUpdateFeeEntry(index, "feeId", e.target.value)}
+                          className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                        >
+                          <option value="" disabled>Select Fee Code...</option>
+                          {fees.map((f) => (
+                            <option key={f.id} value={f.id}>
+                              [{f.code}] {f.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="w-28 space-y-1.5 shrink-0">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase">Amount</label>
+                        <div className="relative">
+                          <span className="absolute left-2.5 top-1.5 text-slate-400 text-xs font-semibold pointer-events-none">₱</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            required
+                            placeholder="0.00"
+                            value={entry.amount}
+                            onChange={(e) => handleUpdateFeeEntry(index, "amount", Number(e.target.value))}
+                            className="w-full pl-6 pr-2 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
+                          />
+                        </div>
+                      </div>
+
+                      {feeEntries.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={() => handleRemoveFeeEntry(index)}
+                          className="h-8 w-8 p-0 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg shrink-0 self-end mb-0.5"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
                   ))}
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300">Amount *</label>
-                <div className="relative">
-                  <span className="absolute left-3.5 top-2.5 text-slate-400 text-sm font-semibold pointer-events-none">₱</span>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    required
-                    placeholder="0.00"
-                    value={amount}
-                    onChange={(e) => setAmount(Number(e.target.value))}
-                    className="w-full pl-8 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
                 </div>
               </div>
             </>
