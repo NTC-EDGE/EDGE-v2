@@ -34,6 +34,7 @@ import { QueueScreen } from "./src/features/queue/screens/QueueScreen";
 import { InternalLoginPage } from "./src/features/login/components/InternalLoginPage";
 
 import { EmployeesScreen } from "./src/features/employees/screens/EmployeesScreen";
+import { UsersScreen } from "./src/features/users/screens/UsersScreen";
 
 const getClerkKey = (): string => {
   const key = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
@@ -115,7 +116,7 @@ const AuthStack = createNativeStackNavigator({
     RolesPermission: { screen: PlaceholderScreen, path: "roles-permissions" },
     Schedule: { screen: PlaceholderScreen, path: "schedule" },
     Employees: { screen: EmployeesScreen, path: "employees" },
-    Users: { screen: PlaceholderScreen, path: "users" },
+    Users: { screen: UsersScreen, path: "users" },
     Settings: { screen: PlaceholderScreen, path: "settings" },
   },
 });
