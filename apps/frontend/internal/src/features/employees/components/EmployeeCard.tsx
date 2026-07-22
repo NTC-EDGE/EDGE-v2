@@ -39,6 +39,7 @@ export function EmployeeCard({ employee, onView, onEdit, onDelete }: EmployeeCar
         styles.cardContainer,
         SHADOWS.card,
         isHovered && styles.cardHovered,
+        showPopover && styles.cardActivePopover,
       ]}
       {...(Platform.OS === 'web'
         ? {
@@ -112,7 +113,7 @@ export function EmployeeCard({ employee, onView, onEdit, onDelete }: EmployeeCar
             <Lucide name="more-vertical" size={18} color={COLORS.neutral[600]} />
           </Pressable>
 
-          {/* Popover Dropdown */}
+          {/* Popover Dropdown (Always rendered on top of card stack) */}
           {showPopover && (
             <View style={[styles.popoverMenu, SHADOWS.modal]}>
               <Pressable
@@ -159,6 +160,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING[12],
     width: '100%',
     position: 'relative',
+    zIndex: 1,
     ...Platform.select({
       web: {
         transition: 'all 200ms ease-in-out',
@@ -174,6 +176,9 @@ const styles = StyleSheet.create({
       },
     }),
   },
+  cardActivePopover: {
+    zIndex: 999,
+  },
   popoverBackdrop: {
     ...StyleSheet.absoluteFill,
     zIndex: 90,
@@ -183,6 +188,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: SPACING[16],
+    position: 'relative',
     zIndex: 95,
   },
   avatarWrapper: {
@@ -313,7 +319,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.neutral[200],
     paddingVertical: 6,
-    zIndex: 200,
+    zIndex: 9999,
+    ...Platform.select({
+      web: {
+        boxShadow: '0 10px 25px -5px rgba(15, 23, 42, 0.18), 0 8px 10px -6px rgba(15, 23, 42, 0.1)',
+      },
+    }),
   },
   popoverItem: {
     flexDirection: 'row',

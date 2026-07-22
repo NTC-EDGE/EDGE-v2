@@ -1,11 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   StyleSheet,
   View,
   Text,
   TextInput,
   Pressable,
-  ScrollView,
   Platform,
   useWindowDimensions,
 } from 'react-native';
@@ -24,6 +23,7 @@ import { EmployeeDetailModal } from '../components/EmployeeDetailModal';
 import { DeleteConfirmModal } from '../components/DeleteConfirmModal';
 
 type ViewMode = 'cards' | 'table';
+const ITEMS_PER_PAGE = 10;
 
 // Helper Table Action Menu Cell
 function TableActionCell({
@@ -100,6 +100,9 @@ export function EmployeesScreen() {
   const [selectedStatus, setSelectedStatus] = useState<string>('All');
   const [viewMode, setViewMode] = useState<ViewMode>('cards');
 
+  // Pagination state (10 items per page)
+  const [currentPage, setCurrentPage] = useState<number>(1);
+
   // Dropdown open states
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
   const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
@@ -123,6 +126,11 @@ export function EmployeesScreen() {
       setToastMessage(null);
     }, 3500);
   };
+
+  // Reset pagination to page 1 on filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedRole, selectedStatus]);
 
   // Filtered employees logic
   const filteredEmployees = useMemo(() => {
@@ -149,6 +157,15 @@ export function EmployeesScreen() {
       return true;
     });
   }, [employees, searchQuery, selectedRole, selectedStatus]);
+
+  // Pagination calculations (10 entries per page)
+  const totalPages = Math.max(1, Math.ceil(filteredEmployees.length / ITEMS_PER_PAGE));
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, filteredEmployees.length);
+
+  const paginatedEmployees = useMemo(() => {
+    return filteredEmployees.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredEmployees, startIndex]);
 
   // Executive KPI summary metrics
   const stats = useMemo(() => {
@@ -415,28 +432,27 @@ export function EmployeesScreen() {
         </View>
       </View>
 
-      {/* Toolbar: Search and Dropdown Filter Row */}
+      {/* Toolbar: Search and Dropdown Filter Row (HORIZONTALLY ALIGNED ON SAME ROW) */}
       <View style={[styles.toolbarCard, SHADOWS.card]}>
-        {/* Search Bar */}
-        <View style={styles.searchBox}>
-          <Lucide name="search" size={16} color={COLORS.neutral[400]} style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search employees by name, email, or department..."
-            placeholderTextColor={COLORS.neutral[400]}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-          {searchQuery.length > 0 && (
-            <Pressable onPress={() => setSearchQuery('')} style={styles.clearSearchBtn}>
-              <Lucide name="x" size={14} color={COLORS.neutral[500]} />
-            </Pressable>
-          )}
-        </View>
+        <View style={[styles.toolbarRow, isMobile && styles.toolbarRowMobile]}>
+          {/* Horizontally Aligned Search Bar */}
+          <View style={styles.searchBox}>
+            <Lucide name="search" size={16} color={COLORS.neutral[400]} style={styles.searchIcon} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search employees by name, email, or department..."
+              placeholderTextColor={COLORS.neutral[400]}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+            {searchQuery.length > 0 && (
+              <Pressable onPress={() => setSearchQuery('')} style={styles.clearSearchBtn}>
+                <Lucide name="x" size={14} color={COLORS.neutral[500]} />
+              </Pressable>
+            )}
+          </View>
 
-        {/* Dropdown Filters Row */}
-        <View style={[styles.dropdownFiltersRow, isMobile && styles.dropdownFiltersRowMobile]}>
-          {/* Role Dropdown */}
+          {/* Horizontally Aligned Role Dropdown */}
           <View style={styles.dropdownContainer}>
             <Text style={styles.dropdownLabel}>Role:</Text>
             <Pressable
@@ -446,7 +462,7 @@ export function EmployeesScreen() {
                 setIsStatusDropdownOpen(false);
               }}
             >
-              <Text style={styles.dropdownTriggerText}>
+              <Text style={styles.dropdownTriggerText} numberOfLines={1}>
                 {selectedRole === 'All' ? 'All Roles' : selectedRole}
               </Text>
               <Lucide
@@ -487,7 +503,7 @@ export function EmployeesScreen() {
             )}
           </View>
 
-          {/* Status Dropdown */}
+          {/* Horizontally Aligned Status Dropdown */}
           <View style={styles.dropdownContainer}>
             <Text style={styles.dropdownLabel}>Status:</Text>
             <Pressable
@@ -497,7 +513,7 @@ export function EmployeesScreen() {
                 setIsRoleDropdownOpen(false);
               }}
             >
-              <Text style={styles.dropdownTriggerText}>
+              <Text style={styles.dropdownTriggerText} numberOfLines={1}>
                 {selectedStatus === 'All' ? 'All Statuses' : selectedStatus}
               </Text>
               <Lucide
@@ -527,7 +543,7 @@ export function EmployeesScreen() {
             )}
           </View>
 
-          {/* Reset Filters Option if any filter is active */}
+          {/* Reset Filters Option */}
           {(selectedRole !== 'All' || selectedStatus !== 'All' || searchQuery.length > 0) && (
             <Pressable
               style={styles.resetFiltersBtn}
@@ -540,7 +556,7 @@ export function EmployeesScreen() {
               }}
             >
               <Lucide name="rotate-ccw" size={13} color={COLORS.brand[700]} style={{ marginRight: 4 }} />
-              <Text style={styles.resetFiltersText}>Reset Filters</Text>
+              <Text style={styles.resetFiltersText}>Reset</Text>
             </Pressable>
           )}
         </View>
@@ -549,8 +565,8 @@ export function EmployeesScreen() {
       {/* Main Content Area: Cards or Table */}
       {viewMode === 'cards' ? (
         <View style={styles.cardsGrid}>
-          {filteredEmployees.length > 0 ? (
-            filteredEmployees.map((employee) => (
+          {paginatedEmployees.length > 0 ? (
+            paginatedEmployees.map((employee) => (
               <EmployeeCard
                 key={employee.id}
                 employee={employee}
@@ -576,6 +592,50 @@ export function EmployeesScreen() {
               >
                 <Text style={styles.resetFilterText}>Reset Filters</Text>
               </Pressable>
+            </View>
+          )}
+
+          {/* Pagination Controls Bar (10 entries per page) */}
+          {filteredEmployees.length > 0 && (
+            <View style={[styles.paginationBar, SHADOWS.card]}>
+              <Text style={styles.paginationText}>
+                Showing <Text style={styles.boldText}>{startIndex + 1}</Text> to{' '}
+                <Text style={styles.boldText}>{endIndex}</Text> of{' '}
+                <Text style={styles.boldText}>{filteredEmployees.length}</Text> employees (Page{' '}
+                {currentPage} of {totalPages})
+              </Text>
+
+              <View style={styles.paginationActions}>
+                <Pressable
+                  disabled={currentPage <= 1}
+                  onPress={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                  style={[styles.pageBtn, currentPage <= 1 && styles.pageBtnDisabled]}
+                >
+                  <Lucide
+                    name="chevron-left"
+                    size={16}
+                    color={currentPage > 1 ? COLORS.neutral[700] : COLORS.neutral[300]}
+                  />
+                  <Text style={[styles.pageBtnText, currentPage <= 1 && styles.pageBtnTextDisabled]}>
+                    Previous
+                  </Text>
+                </Pressable>
+
+                <Pressable
+                  disabled={currentPage >= totalPages}
+                  onPress={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                  style={[styles.pageBtn, currentPage >= totalPages && styles.pageBtnDisabled]}
+                >
+                  <Text style={[styles.pageBtnText, currentPage >= totalPages && styles.pageBtnTextDisabled]}>
+                    Next
+                  </Text>
+                  <Lucide
+                    name="chevron-right"
+                    size={16}
+                    color={currentPage < totalPages ? COLORS.neutral[700] : COLORS.neutral[300]}
+                  />
+                </Pressable>
+              </View>
             </View>
           )}
         </View>
@@ -796,17 +856,28 @@ const styles = StyleSheet.create({
     borderColor: COLORS.neutral[200],
     padding: SPACING[16],
     marginBottom: SPACING[20],
-    gap: SPACING[12],
     zIndex: 20,
   },
+  toolbarRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING[16],
+    flexWrap: 'wrap',
+  },
+  toolbarRowMobile: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
+  },
   searchBox: {
+    flex: 1,
+    minWidth: 260,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.neutral[50],
     borderWidth: 1,
     borderColor: COLORS.neutral[200],
     borderRadius: RADIUS.input,
-    height: 42,
+    height: 40,
     paddingHorizontal: SPACING[12],
   },
   searchIcon: {
@@ -828,17 +899,6 @@ const styles = StyleSheet.create({
   clearSearchBtn: {
     padding: 4,
   },
-  dropdownFiltersRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING[16],
-    flexWrap: 'wrap',
-    zIndex: 30,
-  },
-  dropdownFiltersRowMobile: {
-    flexDirection: 'column',
-    alignItems: 'stretch',
-  },
   dropdownContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -848,7 +908,7 @@ const styles = StyleSheet.create({
   },
   dropdownLabel: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: TYPOGRAPHY.weights.bold,
     color: COLORS.neutral[500],
     textTransform: 'uppercase',
@@ -862,8 +922,8 @@ const styles = StyleSheet.create({
     borderColor: COLORS.neutral[200],
     borderRadius: RADIUS.button,
     paddingHorizontal: SPACING[12],
-    height: 38,
-    minWidth: 160,
+    height: 40,
+    minWidth: 150,
     gap: 8,
     ...Platform.select({
       web: {
@@ -883,16 +943,16 @@ const styles = StyleSheet.create({
   },
   dropdownMenu: {
     position: 'absolute',
-    top: 44,
+    top: 46,
     left: 45,
-    width: 200,
+    width: 190,
     backgroundColor: COLORS.neutral.white,
     borderRadius: RADIUS.button,
     borderWidth: 1,
     borderColor: COLORS.neutral[200],
     maxHeight: 240,
     overflow: 'hidden',
-    zIndex: 100,
+    zIndex: 999,
   },
   dropdownOption: {
     paddingHorizontal: SPACING[16],
@@ -919,7 +979,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: SPACING[12],
-    paddingVertical: 8,
+    height: 40,
     borderRadius: RADIUS.button,
     backgroundColor: COLORS.neutral[100],
     borderWidth: 1,
@@ -977,6 +1037,63 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: TYPOGRAPHY.weights.semibold,
     color: COLORS.brand[700],
+  },
+  paginationBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: COLORS.neutral.white,
+    borderRadius: RADIUS.card,
+    borderWidth: 1,
+    borderColor: COLORS.neutral[200],
+    paddingHorizontal: SPACING[20],
+    paddingVertical: SPACING[12],
+    marginTop: SPACING[12],
+    flexWrap: 'wrap',
+    gap: SPACING[12],
+  },
+  paginationText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    color: COLORS.neutral[600],
+  },
+  boldText: {
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: COLORS.neutral[900],
+  },
+  paginationActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING[8],
+  },
+  pageBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING[12],
+    paddingVertical: 7,
+    borderRadius: RADIUS.button,
+    borderWidth: 1,
+    borderColor: COLORS.neutral[200],
+    backgroundColor: COLORS.neutral.white,
+    gap: 4,
+    ...Platform.select({
+      web: {
+        cursor: 'pointer',
+      },
+    }),
+  },
+  pageBtnDisabled: {
+    opacity: 0.5,
+    backgroundColor: COLORS.neutral[50],
+  },
+  pageBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.medium,
+    color: COLORS.neutral[700],
+  },
+  pageBtnTextDisabled: {
+    color: COLORS.neutral[400],
   },
   tableSection: {
     width: '100%',
