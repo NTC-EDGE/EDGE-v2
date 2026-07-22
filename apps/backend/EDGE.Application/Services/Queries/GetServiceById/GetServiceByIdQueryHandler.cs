@@ -1,5 +1,3 @@
-using System;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
@@ -36,13 +34,7 @@ public class GetServiceByIdQueryHandler : IRequestHandler<GetServiceByIdQuery, A
             Group = service.Group,
             Code = service.Code,
             Description = service.Description,
-            Contract = service.Contract,
-            Variants = service.ServiceVariants.Select(v => new ServiceVariantDto
-            {
-                Id = v.Id,
-                Type = v.Type.ToString(),
-                Description = v.Description
-            }).ToList()
+            TenantId = service.TenantId
         };
 
         return ApiResponse<ServiceDto>.Success(dto);

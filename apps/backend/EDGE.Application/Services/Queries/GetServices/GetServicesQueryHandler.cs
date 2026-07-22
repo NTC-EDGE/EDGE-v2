@@ -20,8 +20,11 @@ public class GetServicesQueryHandler : IRequestHandler<GetServicesQuery, ApiResp
 
     public async Task<ApiResponse<List<ServiceDto>>> Handle(GetServicesQuery request, CancellationToken cancellationToken)
     {
-        var services = await _serviceRepository.GetServicesAsync(cancellationToken);
-        
+        var services = await _serviceRepository.GetServicesAsync(
+            request.ServiceCategoryId,
+            request.TenantId,
+            cancellationToken);
+
         var dtos = services.Select(s => new ServiceDto
         {
             Id = s.Id,
@@ -32,13 +35,7 @@ public class GetServicesQueryHandler : IRequestHandler<GetServicesQuery, ApiResp
             Group = s.Group,
             Code = s.Code,
             Description = s.Description,
-            Contract = s.Contract,
-            Variants = s.ServiceVariants.Select(v => new ServiceVariantDto
-            {
-                Id = v.Id,
-                Type = v.Type.ToString(),
-                Description = v.Description
-            }).ToList()
+            TenantId = s.TenantId
         }).ToList();
 
         return ApiResponse<List<ServiceDto>>.Success(dtos);

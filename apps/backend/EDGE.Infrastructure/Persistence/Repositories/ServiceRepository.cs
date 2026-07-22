@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
@@ -17,12 +18,22 @@ public class ServiceRepository : IServiceRepository
         _context = context;
     }
 
-    public async Task<List<Service>> GetServicesAsync(CancellationToken cancellationToken = default)
+    public async Task<List<Service>> GetServicesAsync(
+        Guid? serviceCategoryId = null,
+        Guid? tenantId = null,
+        CancellationToken cancellationToken = default)
     {
-        return await _context.Services
+        var query = _context.Services
             .Include(s => s.ServiceCategory)
-            .Include(s => s.ServiceVariants)
-            .ToListAsync(cancellationToken);
+            .AsQueryable();
+
+        if (serviceCategoryId.HasValue)
+            query = query.Where(s => s.ServiceCategoryId == serviceCategoryId.Value);
+
+        if (tenantId.HasValue)
+            query = query.Where(s => s.TenantId == tenantId.Value);
+
+        return await query.ToListAsync(cancellationToken);
     }
 
     public async Task<Service?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
@@ -31,5 +42,12 @@ public class ServiceRepository : IServiceRepository
             .Include(s => s.ServiceCategory)
             .Include(s => s.ServiceVariants)
             .FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
+    }
+
+    public async Task<List<ServiceVariant>> GetVariantsByServiceIdAsync(Guid serviceId, CancellationToken cancellationToken = default)
+    {
+        return await _context.ServiceVariants
+            .Where(v => v.ServiceId == serviceId)
+            .ToListAsync(cancellationToken);
     }
 }

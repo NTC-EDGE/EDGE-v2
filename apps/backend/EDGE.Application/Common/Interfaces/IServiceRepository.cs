@@ -8,6 +8,7 @@ namespace EDGE.Application.Common.Interfaces;
 
 public interface IServiceRepository
 {
-    Task<List<Service>> GetServicesAsync(CancellationToken cancellationToken = default);
+    Task<List<Service>> GetServicesAsync(Guid? serviceCategoryId = null, Guid? tenantId = null, CancellationToken cancellationToken = default);
     Task<Service?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<List<ServiceVariant>> GetVariantsByServiceIdAsync(Guid serviceId, CancellationToken cancellationToken = default);
 }

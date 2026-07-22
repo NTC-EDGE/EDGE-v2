@@ -5,6 +5,7 @@ namespace EDGE.Application.Common.Interfaces;
 public interface IApplicantRepository
 {
     Task<List<Applicant>> GetApplicantsAsync(string? applicantType = null, bool? isGuest = null, CancellationToken cancellationToken = default);
+    Task<Applicant?> GetApplicantByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<Applicant?> GetApplicantWithDetailsByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task AddApplicantAsync(Applicant applicant, CancellationToken cancellationToken = default);
     Task AddApplicantDetailAsync(ApplicantDetail detail, CancellationToken cancellationToken = default);

@@ -38,6 +38,12 @@ public class ApplicantRepository : IApplicantRepository
         return await query.OrderByDescending(a => a.CreatedAt).ToListAsync(cancellationToken);
     }
 
+    public async Task<Applicant?> GetApplicantByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return await _context.Applicants
+            .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
+    }
+
     public async Task<Applicant?> GetApplicantWithDetailsByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         return await _context.Applicants

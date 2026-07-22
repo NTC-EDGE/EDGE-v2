@@ -98,7 +98,7 @@ public class SubmitApplicationCommandHandler : IRequestHandler<SubmitApplication
         {
             return ApiResponse<Guid>.Fail($"Validation Error: Service with ID '{request.ServiceId}' does not exist.");
         }
-
+    
         // 3. Guard against missing Schedule for Exam category services
         if (service.ServiceCategory?.Type == ServiceCategoryType.Exam)
         {
@@ -115,8 +115,10 @@ public class SubmitApplicationCommandHandler : IRequestHandler<SubmitApplication
         }
 
         // 4. Validate that applicant exists, belongs to tenant, and is Complete
+        // Using the lean overload — we only need TenantId and Status; the full
+        // applicant details were already persisted in the prior POST+PATCH steps.
         var applicantId = request.ApplicantIds[0];
-        var applicant = await _applicantRepository.GetApplicantWithDetailsByIdAsync(applicantId, cancellationToken);
+        var applicant = await _applicantRepository.GetApplicantByIdAsync(applicantId, cancellationToken);
         if (applicant == null)
         {
             return ApiResponse<Guid>.Fail($"Validation Error: Applicant '{applicantId}' does not exist.");
@@ -271,14 +273,16 @@ public class SubmitApplicationCommandHandler : IRequestHandler<SubmitApplication
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             // Link Application to Service
+            // DynamicDataJson is intentionally omitted here: the normalized answers
+            // are stored in FormFieldValue rows (see below). Keeping both would be
+            // redundant storage not called for by the plan's ApplicationService schema.
             var appService = new ApplicationService
             {
                 ApplicationId = application.Id,
                 ServiceCategoryId = service.ServiceCategoryId,
                 ServiceId = service.Id,
                 ServiceVariantId = request.ServiceVariantId,
-                ApplicationTypeKey = request.ApplicationTypeKey,
-                DynamicDataJson = request.DynamicDataJson ?? "{}"
+                ApplicationTypeKey = request.ApplicationTypeKey
             };
             await _applicationRepository.AddApplicationServiceAsync(appService, cancellationToken);
 
