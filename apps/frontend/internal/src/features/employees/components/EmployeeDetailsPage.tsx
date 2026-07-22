@@ -67,8 +67,6 @@ export function EmployeeDetailsPage({
       <ScrollView style={styles.scrollBody} contentContainerStyle={styles.scrollContent}>
         {/* Profile Header Hero Card */}
         <View style={[styles.heroCard, SHADOWS.card]}>
-          <View style={styles.heroBannerBackground} />
-
           <View style={[styles.heroContent, isMobile && styles.heroContentMobile]}>
             {/* Avatar */}
             <View style={[styles.heroAvatar, { backgroundColor: employee.avatarColor }]}>
@@ -86,7 +84,7 @@ export function EmployeeDetailsPage({
 
               <View style={styles.heroBadgesRow}>
                 <View style={styles.heroRoleBadge}>
-                  <Lucide name="shield" size={12} color={COLORS.brand[700]} style={{ marginRight: 4 }} />
+                  <Lucide name="shield" size={12} color={COLORS.brand[500]} style={{ marginRight: 4 }} />
                   <Text style={styles.heroRoleBadgeText}>{employee.role}</Text>
                 </View>
 
@@ -104,16 +102,16 @@ export function EmployeeDetailsPage({
               </Pressable>
 
               <Pressable style={styles.deleteBtn} onPress={() => onDelete(employee)}>
-                <Lucide name="trash-2" size={15} color={COLORS.semantic.error} style={{ marginRight: 6 }} />
+                <Lucide name="trash-2" size={15} color="#EF4444" style={{ marginRight: 6 }} />
                 <Text style={styles.deleteBtnText}>Delete</Text>
               </Pressable>
             </View>
           </View>
         </View>
 
-        {/* Detailed Sections Grid */}
-        <View style={[styles.detailsGrid, isMobile && styles.detailsGridMobile]}>
-          {/* Card 1: Basic Information */}
+        {/* Vertical Stack of Full-Width Section Cards */}
+        <View style={styles.detailsStack}>
+          {/* Section 1: Basic & Personal Information */}
           <View style={[styles.detailSectionCard, SHADOWS.card]}>
             <View style={styles.sectionTitleRow}>
               <View style={styles.sectionIconBadge}>
@@ -122,49 +120,53 @@ export function EmployeeDetailsPage({
               <Text style={styles.sectionTitle}>Basic & Personal Information</Text>
             </View>
 
-            <View style={styles.infoFieldsList}>
-              <View style={styles.infoFieldRow}>
-                <Text style={styles.fieldLabel}>First Name:</Text>
-                <Text style={styles.fieldValue}>{employee.firstName}</Text>
+            <View style={[styles.fieldsGrid, isMobile && styles.fieldsGridMobile]}>
+              <View style={styles.gridColumn}>
+                <View style={styles.infoFieldRow}>
+                  <Text style={styles.fieldLabel}>First Name:</Text>
+                  <Text style={styles.fieldValue}>{employee.firstName}</Text>
+                </View>
+
+                <View style={styles.infoFieldRow}>
+                  <Text style={styles.fieldLabel}>Middle Name:</Text>
+                  <Text style={styles.fieldValue}>
+                    {employee.middleName.length > 0 ? employee.middleName : 'N/A'}
+                  </Text>
+                </View>
+
+                <View style={styles.infoFieldRow}>
+                  <Text style={styles.fieldLabel}>Last Name:</Text>
+                  <Text style={styles.fieldValue}>{employee.lastName}</Text>
+                </View>
+
+                <View style={styles.infoFieldRow}>
+                  <Text style={styles.fieldLabel}>Suffix:</Text>
+                  <Text style={styles.fieldValue}>
+                    {employee.suffix.length > 0 ? employee.suffix : 'None'}
+                  </Text>
+                </View>
               </View>
 
-              <View style={styles.infoFieldRow}>
-                <Text style={styles.fieldLabel}>Middle Name:</Text>
-                <Text style={styles.fieldValue}>
-                  {employee.middleName.length > 0 ? employee.middleName : 'N/A'}
-                </Text>
-              </View>
+              <View style={styles.gridColumn}>
+                <View style={styles.infoFieldRow}>
+                  <Text style={styles.fieldLabel}>Email Address:</Text>
+                  <Text style={styles.fieldValueAccent}>{employee.email}</Text>
+                </View>
 
-              <View style={styles.infoFieldRow}>
-                <Text style={styles.fieldLabel}>Last Name:</Text>
-                <Text style={styles.fieldValue}>{employee.lastName}</Text>
-              </View>
+                <View style={styles.infoFieldRow}>
+                  <Text style={styles.fieldLabel}>Phone Number:</Text>
+                  <Text style={styles.fieldValue}>{employee.phone}</Text>
+                </View>
 
-              <View style={styles.infoFieldRow}>
-                <Text style={styles.fieldLabel}>Suffix:</Text>
-                <Text style={styles.fieldValue}>
-                  {employee.suffix.length > 0 ? employee.suffix : 'None'}
-                </Text>
-              </View>
-
-              <View style={styles.infoFieldRow}>
-                <Text style={styles.fieldLabel}>Email Address:</Text>
-                <Text style={styles.fieldValueAccent}>{employee.email}</Text>
-              </View>
-
-              <View style={styles.infoFieldRow}>
-                <Text style={styles.fieldLabel}>Phone Number:</Text>
-                <Text style={styles.fieldValue}>{employee.phone}</Text>
-              </View>
-
-              <View style={styles.infoFieldRow}>
-                <Text style={styles.fieldLabel}>Date Onboarded:</Text>
-                <Text style={styles.fieldValue}>{employee.dateJoined}</Text>
+                <View style={styles.infoFieldRow}>
+                  <Text style={styles.fieldLabel}>Date Onboarded:</Text>
+                  <Text style={styles.fieldValue}>{employee.dateJoined}</Text>
+                </View>
               </View>
             </View>
           </View>
 
-          {/* Card 2: Organizational Assignment */}
+          {/* Section 2: Organizational Assignment (Below Basic Information) */}
           <View style={[styles.detailSectionCard, SHADOWS.card]}>
             <View style={styles.sectionTitleRow}>
               <View style={styles.sectionIconBadge}>
@@ -173,52 +175,56 @@ export function EmployeeDetailsPage({
               <Text style={styles.sectionTitle}>Organizational Assignment</Text>
             </View>
 
-            <View style={styles.infoFieldsList}>
-              <View style={styles.infoFieldRow}>
-                <Text style={styles.fieldLabel}>Region:</Text>
-                <Text style={styles.fieldValue}>{employee.region}</Text>
+            <View style={[styles.fieldsGrid, isMobile && styles.fieldsGridMobile]}>
+              <View style={styles.gridColumn}>
+                <View style={styles.infoFieldRow}>
+                  <Text style={styles.fieldLabel}>Region:</Text>
+                  <Text style={styles.fieldValue}>{employee.region}</Text>
+                </View>
+
+                <View style={styles.infoFieldRow}>
+                  <Text style={styles.fieldLabel}>Division / Dept:</Text>
+                  <Text style={styles.fieldValue}>{employee.division}</Text>
+                </View>
+
+                <View style={styles.infoFieldRow}>
+                  <Text style={styles.fieldLabel}>System Role:</Text>
+                  <Text style={styles.fieldValueAccent}>{employee.role}</Text>
+                </View>
+
+                <View style={styles.infoFieldRow}>
+                  <Text style={styles.fieldLabel}>Position Level:</Text>
+                  <Text style={styles.fieldValue}>{employee.level}</Text>
+                </View>
               </View>
 
-              <View style={styles.infoFieldRow}>
-                <Text style={styles.fieldLabel}>Division / Dept:</Text>
-                <Text style={styles.fieldValue}>{employee.division}</Text>
-              </View>
+              <View style={styles.gridColumn}>
+                <View style={styles.infoFieldRow}>
+                  <Text style={styles.fieldLabel}>Official Title:</Text>
+                  <Text style={styles.fieldValue}>{employee.title}</Text>
+                </View>
 
-              <View style={styles.infoFieldRow}>
-                <Text style={styles.fieldLabel}>System Role:</Text>
-                <Text style={styles.fieldValueAccent}>{employee.role}</Text>
-              </View>
+                <View style={styles.infoFieldRow}>
+                  <Text style={styles.fieldLabel}>Position Rank:</Text>
+                  <Text style={styles.fieldValue}>{employee.position}</Text>
+                </View>
 
-              <View style={styles.infoFieldRow}>
-                <Text style={styles.fieldLabel}>Position Level:</Text>
-                <Text style={styles.fieldValue}>{employee.level}</Text>
-              </View>
+                <View style={styles.infoFieldRow}>
+                  <Text style={styles.fieldLabel}>Designation:</Text>
+                  <Text style={styles.fieldValue}>
+                    {employee.designation.length > 0 ? employee.designation : 'N/A'}
+                  </Text>
+                </View>
 
-              <View style={styles.infoFieldRow}>
-                <Text style={styles.fieldLabel}>Official Title:</Text>
-                <Text style={styles.fieldValue}>{employee.title}</Text>
-              </View>
-
-              <View style={styles.infoFieldRow}>
-                <Text style={styles.fieldLabel}>Position Rank:</Text>
-                <Text style={styles.fieldValue}>{employee.position}</Text>
-              </View>
-
-              <View style={styles.infoFieldRow}>
-                <Text style={styles.fieldLabel}>Designation:</Text>
-                <Text style={styles.fieldValue}>
-                  {employee.designation.length > 0 ? employee.designation : 'N/A'}
-                </Text>
-              </View>
-
-              <View style={styles.infoFieldRow}>
-                <Text style={styles.fieldLabel}>Station Location:</Text>
-                <Text style={styles.fieldValue}>{employee.location}</Text>
+                <View style={styles.infoFieldRow}>
+                  <Text style={styles.fieldLabel}>Station Location:</Text>
+                  <Text style={styles.fieldValue}>{employee.location}</Text>
+                </View>
               </View>
             </View>
           </View>
 
-          {/* Card 3: Signature & Authentication */}
+          {/* Section 3: Signature & Security Settings (Below Organizational Assignment) */}
           <View style={[styles.detailSectionCard, SHADOWS.card]}>
             <View style={styles.sectionTitleRow}>
               <View style={styles.sectionIconBadge}>
@@ -227,29 +233,33 @@ export function EmployeeDetailsPage({
               <Text style={styles.sectionTitle}>Signature & Security Settings</Text>
             </View>
 
-            <View style={styles.infoFieldsList}>
-              <View style={styles.infoFieldRow}>
-                <Text style={styles.fieldLabel}>Signature Placement:</Text>
-                <Text style={styles.fieldValue}>
-                  {employee.signatureDisplay === 'above'
-                    ? 'Signature above employee name'
-                    : 'SGD beside employee name'}
-                </Text>
+            <View style={[styles.fieldsGrid, isMobile && styles.fieldsGridMobile]}>
+              <View style={styles.gridColumn}>
+                <View style={styles.infoFieldRow}>
+                  <Text style={styles.fieldLabel}>Signature Placement:</Text>
+                  <Text style={styles.fieldValue}>
+                    {employee.signatureDisplay === 'above'
+                      ? 'Signature above employee name'
+                      : 'SGD beside employee name'}
+                  </Text>
+                </View>
               </View>
 
-              <View style={styles.signaturePreviewBox}>
-                <Lucide name="file-text" size={24} color={COLORS.brand[700]} style={{ marginBottom: 6 }} />
-                <Text style={styles.signaturePreviewTitle}>Digital Signature File</Text>
-                <Text style={styles.signaturePreviewSub}>
-                  {employee.signatureUri.length > 0
-                    ? `Verified Signature: ${employee.signatureUri}`
-                    : 'No signature file uploaded'}
-                </Text>
+              <View style={styles.gridColumn}>
+                <View style={styles.signaturePreviewBox}>
+                  <Lucide name="file-text" size={24} color={COLORS.brand[700]} style={{ marginBottom: 6 }} />
+                  <Text style={styles.signaturePreviewTitle}>Digital Signature File</Text>
+                  <Text style={styles.signaturePreviewSub}>
+                    {employee.signatureUri.length > 0
+                      ? `Verified Signature: ${employee.signatureUri}`
+                      : 'No signature file uploaded'}
+                  </Text>
+                </View>
               </View>
             </View>
           </View>
 
-          {/* Card 4: Audit & Security Credentials */}
+          {/* Section 4: Security & Access Log (Below Signature Settings) */}
           <View style={[styles.detailSectionCard, SHADOWS.card]}>
             <View style={styles.sectionTitleRow}>
               <View style={styles.sectionIconBadge}>
@@ -258,20 +268,24 @@ export function EmployeeDetailsPage({
               <Text style={styles.sectionTitle}>Security & Access Log</Text>
             </View>
 
-            <View style={styles.infoFieldsList}>
-              <View style={styles.infoFieldRow}>
-                <Text style={styles.fieldLabel}>Account Status:</Text>
-                <StatusBadge status={employee.status} />
+            <View style={[styles.fieldsGrid, isMobile && styles.fieldsGridMobile]}>
+              <View style={styles.gridColumn}>
+                <View style={styles.infoFieldRow}>
+                  <Text style={styles.fieldLabel}>Account Status:</Text>
+                  <StatusBadge status={employee.status} />
+                </View>
+
+                <View style={styles.infoFieldRow}>
+                  <Text style={styles.fieldLabel}>Access Credentials:</Text>
+                  <Text style={styles.fieldValue}>Internal SSO Verified</Text>
+                </View>
               </View>
 
-              <View style={styles.infoFieldRow}>
-                <Text style={styles.fieldLabel}>Access Credentials:</Text>
-                <Text style={styles.fieldValue}>Internal SSO Verified</Text>
-              </View>
-
-              <View style={styles.infoFieldRow}>
-                <Text style={styles.fieldLabel}>Last Audit Verification:</Text>
-                <Text style={styles.fieldValue}>Verified Today (Compliant)</Text>
+              <View style={styles.gridColumn}>
+                <View style={styles.infoFieldRow}>
+                  <Text style={styles.fieldLabel}>Last Audit Verification:</Text>
+                  <Text style={styles.fieldValue}>Verified Today (Compliant)</Text>
+                </View>
               </View>
             </View>
           </View>
@@ -341,41 +355,33 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING[40],
   },
   heroCard: {
-    backgroundColor: COLORS.neutral.white,
+    backgroundColor: COLORS.brand[900],
     borderRadius: RADIUS.card,
     borderWidth: 1,
-    borderColor: COLORS.neutral[200],
-    overflow: 'hidden',
-  },
-  heroBannerBackground: {
-    height: 72,
-    backgroundColor: COLORS.brand[900],
+    borderColor: COLORS.brand[800],
+    padding: SPACING[24],
   },
   heroContent: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    paddingHorizontal: SPACING[24],
-    paddingBottom: SPACING[24],
-    marginTop: -32,
+    alignItems: 'center',
     gap: SPACING[20],
   },
   heroContentMobile: {
     flexDirection: 'column',
     alignItems: 'flex-start',
-    marginTop: -24,
   },
   heroAvatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 4,
+    borderWidth: 3,
     borderColor: COLORS.neutral.white,
   },
   heroAvatarText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: TYPOGRAPHY.weights.bold,
     color: COLORS.neutral.white,
   },
@@ -393,13 +399,13 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 24,
     fontWeight: TYPOGRAPHY.weights.bold,
-    color: COLORS.neutral[900],
+    color: COLORS.neutral.white,
   },
   heroId: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 14,
     fontWeight: TYPOGRAPHY.weights.semibold,
-    color: COLORS.brand[700],
+    color: COLORS.brand[500],
   },
   heroBadgesRow: {
     flexDirection: 'row',
@@ -411,7 +417,7 @@ const styles = StyleSheet.create({
   heroRoleBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.neutral[100],
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 4,
@@ -420,16 +426,16 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 12,
     fontWeight: TYPOGRAPHY.weights.semibold,
-    color: COLORS.brand[700],
+    color: COLORS.neutral.white,
   },
   heroBadgeDivider: {
-    color: COLORS.neutral[400],
+    color: 'rgba(255, 255, 255, 0.4)',
     fontSize: 12,
   },
   heroDeptText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 13,
-    color: COLORS.neutral[500],
+    color: COLORS.neutral[200],
   },
   heroActions: {
     flexDirection: 'row',
@@ -443,7 +449,7 @@ const styles = StyleSheet.create({
   editBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.brand[800],
+    backgroundColor: COLORS.brand[700],
     paddingHorizontal: SPACING[16],
     paddingVertical: 10,
     borderRadius: RADIUS.button,
@@ -462,9 +468,9 @@ const styles = StyleSheet.create({
   deleteBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.semantic.errorBg,
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
     borderWidth: 1,
-    borderColor: COLORS.semantic.errorBorder,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
     paddingHorizontal: SPACING[16],
     paddingVertical: 10,
     borderRadius: RADIUS.button,
@@ -478,19 +484,15 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 14,
     fontWeight: TYPOGRAPHY.weights.semibold,
-    color: COLORS.semantic.error,
+    color: '#EF4444',
   },
-  detailsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: SPACING[20],
-  },
-  detailsGridMobile: {
+  detailsStack: {
     flexDirection: 'column',
+    gap: SPACING[20],
+    width: '100%',
   },
   detailSectionCard: {
-    flex: 1,
-    minWidth: 340,
+    width: '100%',
     backgroundColor: COLORS.neutral.white,
     borderRadius: RADIUS.card,
     borderWidth: 1,
@@ -520,14 +522,24 @@ const styles = StyleSheet.create({
     fontWeight: TYPOGRAPHY.weights.bold,
     color: COLORS.neutral[900],
   },
-  infoFieldsList: {
+  fieldsGrid: {
+    flexDirection: 'row',
+    gap: SPACING[24],
+    width: '100%',
+  },
+  fieldsGridMobile: {
+    flexDirection: 'column',
+    gap: SPACING[12],
+  },
+  gridColumn: {
+    flex: 1,
     gap: SPACING[12],
   },
   infoFieldRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 4,
+    paddingVertical: 6,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.neutral[100],
   },
@@ -556,7 +568,6 @@ const styles = StyleSheet.create({
     padding: SPACING[16],
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: SPACING[8],
   },
   signaturePreviewTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
