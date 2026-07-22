@@ -21,5 +21,7 @@ public static class EndpointConfiguration
         apiV2Group.MapPermissionEndpoints();
         apiV2Group.MapRolePermissionEndpoints();
         apiV2Group.MapScheduleEndpoints();
+        apiV2Group.MapNoteEndpoints();
     }
+
 }

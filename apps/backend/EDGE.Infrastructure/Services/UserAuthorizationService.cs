@@ -112,7 +112,7 @@ public class UserAuthorizationService : IUserAuthorizationService
             // Fallback to default tenant if only one membership exists
             var memberships = await _dbContext.TenantMembers
                 .Include(m => m.Role)
-                .Where(m => m.UserId == user.Id && m.IsActive)
+                .Where(m => m.UserId == user.Id)
                 .ToListAsync(cancellationToken);
 
             if (memberships.Count == 1)
@@ -124,7 +124,7 @@ public class UserAuthorizationService : IUserAuthorizationService
 
         var member = await _dbContext.TenantMembers
             .Include(m => m.Role)
-            .FirstOrDefaultAsync(m => m.UserId == user.Id && m.TenantId == tenantId.Value && m.IsActive, cancellationToken);
+            .FirstOrDefaultAsync(m => m.UserId == user.Id && m.TenantId == tenantId.Value, cancellationToken);
 
         return member?.Role?.Key?.Equals(role, StringComparison.OrdinalIgnoreCase) == true;
     }
@@ -160,7 +160,7 @@ public class UserAuthorizationService : IUserAuthorizationService
             {
                 query = from tm in _dbContext.Set<TenantMember>()
                         join rp in _dbContext.Set<RolePermission>() on tm.RoleId equals rp.RoleId
-                        where tm.UserId == user.Id && tm.TenantId == tenantId.Value && tm.IsActive
+                        where tm.UserId == user.Id && tm.TenantId == tenantId.Value
                         select rp.PermissionKey;
             }
             else
@@ -168,7 +168,7 @@ public class UserAuthorizationService : IUserAuthorizationService
                 // Fallback: if no active tenant in request, load permissions across active memberships
                 query = from tm in _dbContext.Set<TenantMember>()
                         join rp in _dbContext.Set<RolePermission>() on tm.RoleId equals rp.RoleId
-                        where tm.UserId == user.Id && tm.IsActive
+                        where tm.UserId == user.Id
                         select rp.PermissionKey;
             }
 

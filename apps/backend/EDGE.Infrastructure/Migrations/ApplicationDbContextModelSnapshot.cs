@@ -69,6 +69,13 @@ namespace EDGE.Infrastructure.Migrations
                     b.Property<string>("CreatedBy")
                         .HasColumnType("text");
 
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("IsDeletedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<DateTime?>("LastModifiedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -154,6 +161,90 @@ namespace EDGE.Infrastructure.Migrations
                     b.ToTable("Barangays", "public");
                 });
 
+            modelBuilder.Entity("EDGE.Domain.Entities.FieldOffice", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Address")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("AllowComplaintReception")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("AllowPermitIssuance")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("AllowSpectrumInspection")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("ContactEmail")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ContactPhone")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("IsDeletedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<string>("OfficerInCharge")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("ProvinceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("RegionId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.HasIndex("ProvinceId");
+
+                    b.HasIndex("RegionId");
+
+                    b.ToTable("FieldOffices", "public");
+                });
+
             modelBuilder.Entity("EDGE.Domain.Entities.Municipality", b =>
                 {
                     b.Property<Guid>("Id")
@@ -184,6 +275,43 @@ namespace EDGE.Infrastructure.Migrations
                     b.HasIndex("ProvinceId");
 
                     b.ToTable("Municipalities", "public");
+                });
+
+            modelBuilder.Entity("EDGE.Domain.Entities.Note", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("IsDeletedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Notes")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ServiceCategoryId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Notes", "public");
                 });
 
             modelBuilder.Entity("EDGE.Domain.Entities.Province", b =>
@@ -260,6 +388,13 @@ namespace EDGE.Infrastructure.Migrations
                     b.Property<string>("Description")
                         .HasColumnType("text");
 
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("IsDeletedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<bool>("IsSystemRole")
                         .HasColumnType("boolean");
 
@@ -297,6 +432,13 @@ namespace EDGE.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("IsDeletedBy")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<DateTime?>("LastModifiedAt")
@@ -340,6 +482,13 @@ namespace EDGE.Infrastructure.Migrations
 
                     b.Property<DateTime>("EndDate")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("IsDeletedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<bool>("IsPublished")
                         .ValueGeneratedOnAdd()
@@ -393,6 +542,11 @@ namespace EDGE.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -400,10 +554,18 @@ namespace EDGE.Infrastructure.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("Description")
-                        .HasColumnType("text");
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("IsDeletedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<DateTime?>("LastModifiedAt")
                         .HasColumnType("timestamp with time zone");
@@ -416,15 +578,15 @@ namespace EDGE.Infrastructure.Migrations
                         .HasMaxLength(150)
                         .HasColumnType("character varying(150)");
 
-                    b.Property<string>("Slug")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
+                    b.Property<Guid>("RegionId")
+                        .HasColumnType("uuid");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Slug")
+                    b.HasIndex("Code")
                         .IsUnique();
+
+                    b.HasIndex("RegionId");
 
                     b.ToTable("Tenants", "public");
                 });
@@ -441,17 +603,43 @@ namespace EDGE.Infrastructure.Migrations
                     b.Property<string>("CreatedBy")
                         .HasColumnType("text");
 
-                    b.Property<bool>("IsActive")
+                    b.Property<string>("Designation")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Division")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid?>("FieldOfficeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
-                    b.Property<DateTime>("JoinedAt")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<string>("IsDeletedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("JobTitle")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
                     b.Property<DateTime?>("LastModifiedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("LastModifiedBy")
                         .HasColumnType("text");
+
+                    b.Property<string>("Level")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Position")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
                     b.Property<Guid>("RoleId")
                         .HasColumnType("uuid");
@@ -463,6 +651,8 @@ namespace EDGE.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("FieldOfficeId");
 
                     b.HasIndex("RoleId");
 
@@ -515,6 +705,13 @@ namespace EDGE.Infrastructure.Migrations
 
                     b.Property<float?>("Height")
                         .HasColumnType("real");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("IsDeletedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<bool?>("IsOnline")
                         .HasColumnType("boolean");
@@ -581,6 +778,23 @@ namespace EDGE.Infrastructure.Migrations
                     b.Navigation("Municipality");
                 });
 
+            modelBuilder.Entity("EDGE.Domain.Entities.FieldOffice", b =>
+                {
+                    b.HasOne("EDGE.Domain.Entities.Province", "Province")
+                        .WithMany()
+                        .HasForeignKey("ProvinceId");
+
+                    b.HasOne("EDGE.Domain.Entities.Region", "Region")
+                        .WithMany("FieldOffices")
+                        .HasForeignKey("RegionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Province");
+
+                    b.Navigation("Region");
+                });
+
             modelBuilder.Entity("EDGE.Domain.Entities.Municipality", b =>
                 {
                     b.HasOne("EDGE.Domain.Entities.Province", "Province")
@@ -606,7 +820,7 @@ namespace EDGE.Infrastructure.Migrations
             modelBuilder.Entity("EDGE.Domain.Entities.Role", b =>
                 {
                     b.HasOne("EDGE.Domain.Entities.Tenant", "Tenant")
-                        .WithMany("Roles")
+                        .WithMany()
                         .HasForeignKey("TenantId")
                         .OnDelete(DeleteBehavior.Cascade);
 
@@ -635,8 +849,24 @@ namespace EDGE.Infrastructure.Migrations
                     b.Navigation("Tenant");
                 });
 
+            modelBuilder.Entity("EDGE.Domain.Entities.Tenant", b =>
+                {
+                    b.HasOne("EDGE.Domain.Entities.Region", "Region")
+                        .WithMany()
+                        .HasForeignKey("RegionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Region");
+                });
+
             modelBuilder.Entity("EDGE.Domain.Entities.TenantMember", b =>
                 {
+                    b.HasOne("EDGE.Domain.Entities.FieldOffice", "FieldOffice")
+                        .WithMany("AssignedMembers")
+                        .HasForeignKey("FieldOfficeId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("EDGE.Domain.Entities.Role", "Role")
                         .WithMany("Members")
                         .HasForeignKey("RoleId")
@@ -655,11 +885,18 @@ namespace EDGE.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.Navigation("FieldOffice");
+
                     b.Navigation("Role");
 
                     b.Navigation("Tenant");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("EDGE.Domain.Entities.FieldOffice", b =>
+                {
+                    b.Navigation("AssignedMembers");
                 });
 
             modelBuilder.Entity("EDGE.Domain.Entities.Municipality", b =>
@@ -674,6 +911,8 @@ namespace EDGE.Infrastructure.Migrations
 
             modelBuilder.Entity("EDGE.Domain.Entities.Region", b =>
                 {
+                    b.Navigation("FieldOffices");
+
                     b.Navigation("Provinces");
                 });
 
@@ -687,8 +926,6 @@ namespace EDGE.Infrastructure.Migrations
             modelBuilder.Entity("EDGE.Domain.Entities.Tenant", b =>
                 {
                     b.Navigation("Members");
-
-                    b.Navigation("Roles");
                 });
 
             modelBuilder.Entity("EDGE.Domain.Entities.User", b =>
