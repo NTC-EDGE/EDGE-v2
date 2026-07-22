@@ -160,7 +160,6 @@ public static class StorageEndpoints
         globalStorageGroup.MapPost("/upload", async (
             [FromForm] IFormFile file,
             [FromForm] string category,
-            [FromForm] Guid? tenantId,
             IMediator mediator,
             ICurrentUserService currentUserService,
             ITenantContextService tenantContextService) =>
@@ -170,7 +169,7 @@ public static class StorageEndpoints
                 return Results.Unauthorized();
             }
 
-            var effectiveTenantId = tenantId ?? tenantContextService.TenantId ?? Guid.Empty;
+            var effectiveTenantId = tenantContextService.TenantId ?? Guid.Empty;
 
             using var stream = file?.OpenReadStream() ?? Stream.Null;
             var command = new UploadFileCommand(
@@ -195,18 +194,17 @@ public static class StorageEndpoints
         .WithName("UploadFile")
         .WithTags("Storage")
         .WithSummary("Upload and encrypt a file using context tenant")
-        .WithDescription("Encrypts the uploaded file with AES-256-GCM and streams to Cloudflare R2, automatically deriving RegionId from tenant context.")
+        .WithDescription("Encrypts the uploaded file with AES-256-GCM and streams to Cloudflare R2, resolving tenant ID automatically from context.")
         .Produces<ApiResponse<StoredFileDto>>(StatusCodes.Status201Created)
         .Produces<ApiResponse<object>>(StatusCodes.Status400BadRequest)
         .Produces(StatusCodes.Status401Unauthorized);
 
         globalStorageGroup.MapGet("/files/{fileId:guid}", async (
             Guid fileId,
-            Guid? tenantId,
             IMediator mediator,
             ITenantContextService tenantContextService) =>
         {
-            var effectiveTenantId = tenantId ?? tenantContextService.TenantId ?? Guid.Empty;
+            var effectiveTenantId = tenantContextService.TenantId ?? Guid.Empty;
             var query = new GetFileDownloadQuery(fileId, effectiveTenantId);
             var result = await mediator.Send(query);
 
@@ -226,18 +224,17 @@ public static class StorageEndpoints
         .WithName("GetFileDownload")
         .WithTags("Storage")
         .WithSummary("Decrypt and download a file using context tenant")
-        .WithDescription("Retrieves ciphertext from Cloudflare R2 and decrypts using AES-256-GCM, streaming the file back to authorized clients.")
+        .WithDescription("Retrieves ciphertext from Cloudflare R2 and decrypts using AES-256-GCM, resolving tenant ID automatically from context.")
         .Produces(StatusCodes.Status200OK, contentType: "application/octet-stream")
         .Produces<ApiResponse<object>>(StatusCodes.Status404NotFound)
         .Produces(StatusCodes.Status401Unauthorized);
 
         globalStorageGroup.MapDelete("/files/{fileId:guid}", async (
             Guid fileId,
-            Guid? tenantId,
             IMediator mediator,
             ITenantContextService tenantContextService) =>
         {
-            var effectiveTenantId = tenantId ?? tenantContextService.TenantId ?? Guid.Empty;
+            var effectiveTenantId = tenantContextService.TenantId ?? Guid.Empty;
             var command = new DeleteFileCommand(fileId, effectiveTenantId);
             var result = await mediator.Send(command);
 
