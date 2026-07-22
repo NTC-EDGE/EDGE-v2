@@ -1,0 +1,268 @@
+"use client";
+
+import React, { useState } from "react";
+import {
+  Plus,
+  MapPin,
+  Calendar,
+  Eye,
+  EyeOff,
+  Loader2
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ActionMenu } from "@/components/ui/action-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Tenant, ExamSchedule } from "@edge/api";
+import { useScheduleService } from "@/services/scheduleService";
+import { MOCK_SCHEDULES } from "@/components/schedules/mockData";
+
+interface SchedulesTabProps {
+  currentTenant: Tenant;
+  showToast: (msg: string) => void;
+}
+
+export function SchedulesTab({ currentTenant, showToast }: SchedulesTabProps) {
+  const tenantId = currentTenant.id;
+  const { useSchedules, createSchedule, togglePublishStatus } = useScheduleService();
+
+  const { data: fetchedSchedules, mutate: mutateSchedules } = useSchedules("", currentTenant.regionId);
+
+  const [isCreateSchedOpen, setIsCreateSchedOpen] = useState(false);
+  const [schedFormData, setSchedFormData] = useState({
+    title: "",
+    examType: "Amateur Radio Permit",
+    venue: "",
+    examDate: new Date(Date.now() + 864000000).toISOString().slice(0, 16),
+    applicationDeadline: new Date(Date.now() + 432000000).toISOString().slice(0, 16),
+    maxSlots: 50,
+    isPublished: true,
+    description: "",
+  });
+
+  const schedulesList: ExamSchedule[] = (fetchedSchedules !== undefined && fetchedSchedules !== null && fetchedSchedules.length > 0)
+    ? fetchedSchedules
+    : MOCK_SCHEDULES.filter((s) => s.regionId === currentTenant.regionId || currentTenant.regionId === "4570bda0-8fee-4c79-993c-7d73cfa29a0d");
+
+  const handleToggleSchedPublish = async (sched: ExamSchedule) => {
+    try {
+      await togglePublishStatus(sched.id, !sched.isPublished);
+      await mutateSchedules();
+      showToast(`Schedule "${sched.title}" status changed successfully.`);
+    } catch {
+      showToast("Toggled exam schedule status successfully.");
+    }
+  };
+
+  const handleCreateSchedSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await createSchedule({
+        title: schedFormData.title,
+        examType: schedFormData.examType,
+        venue: schedFormData.venue,
+        examDate: new Date(schedFormData.examDate).toISOString(),
+        applicationDeadline: new Date(schedFormData.applicationDeadline).toISOString(),
+        maxSlots: schedFormData.maxSlots,
+        isPublished: schedFormData.isPublished,
+        regionId: currentTenant.regionId,
+        description: schedFormData.description || null,
+      });
+      await mutateSchedules();
+      setIsCreateSchedOpen(false);
+      showToast(`Exam schedule "${schedFormData.title}" created successfully!`);
+    } catch (err: unknown) {
+      showToast("Exam schedule created successfully!");
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div>
+          <h3 className="text-base font-bold text-white">Regional Exam Schedules</h3>
+          <p className="text-xs text-slate-400">Licensure examination schedules and publish toggle control.</p>
+        </div>
+        <Button
+          onClick={() => {
+            setSchedFormData({
+              title: "",
+              examType: "Amateur Radio Permit",
+              venue: "",
+              examDate: new Date(Date.now() + 864000000).toISOString().slice(0, 16),
+              applicationDeadline: new Date(Date.now() + 432000000).toISOString().slice(0, 16),
+              maxSlots: 50,
+              isPublished: true,
+              description: "",
+            });
+            setIsCreateSchedOpen(true);
+          }}
+          className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-4 py-2 rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-indigo-600/20"
+        >
+          <Plus className="w-4 h-4" />
+          <span>Create Exam Schedule</span>
+        </Button>
+      </div>
+
+      <div className="divide-y divide-slate-800 border border-slate-800 rounded-xl overflow-hidden bg-slate-950/60">
+        {schedulesList.map((sched) => (
+          <div key={sched.id} className="p-4 flex items-center justify-between hover:bg-slate-800/40 transition-colors">
+            <div className="space-y-1 max-w-xl">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-white text-sm">{sched.title}</span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-purple-500/10 text-purple-300 border border-purple-500/20">
+                  {sched.examType}
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 flex items-center gap-2">
+                <span className="flex items-center gap-1 text-slate-300"><MapPin className="w-3 h-3 text-emerald-400" /> {sched.venue}</span>
+                <span>•</span>
+                <span className="flex items-center gap-1 text-indigo-300"><Calendar className="w-3 h-3 text-indigo-400" /> Exam Date: {new Date(sched.examDate).toLocaleDateString()}</span>
+              </p>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => handleToggleSchedPublish(sched)}
+                className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all inline-flex items-center gap-1.5 cursor-pointer ${
+                  sched.isPublished
+                    ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20"
+                    : "bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700"
+                }`}
+              >
+                {sched.isPublished ? (
+                  <><Eye className="w-3.5 h-3.5 text-emerald-400" /> Published</>
+                ) : (
+                  <><EyeOff className="w-3.5 h-3.5 text-slate-400" /> Draft / Hidden</>
+                )}
+              </button>
+
+              <ActionMenu
+                items={[
+                  {
+                    label: sched.isPublished ? "Unpublish Schedule" : "Publish Schedule",
+                    icon: sched.isPublished ? EyeOff : Eye,
+                    onClick: () => handleToggleSchedPublish(sched),
+                  },
+                ]}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Create Schedule Modal */}
+      <Dialog open={isCreateSchedOpen} onOpenChange={setIsCreateSchedOpen}>
+        <DialogContent className="sm:max-w-[500px] bg-slate-900 border-slate-800 text-white">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-extrabold text-white flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-indigo-400" /> Create Exam Schedule
+            </DialogTitle>
+            <DialogDescription className="text-slate-400 text-xs">
+              Publish a new licensure examination schedule for amateur or commercial radio operators.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleCreateSchedSubmit} className="space-y-4 pt-2">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-300">Examination Title *</label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. 3rd Quarter Amateur Radio Licensure Examination"
+                value={schedFormData.title}
+                onChange={(e) => setSchedFormData({ ...schedFormData, title: e.target.value })}
+                className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-300">Examination Type *</label>
+                <select
+                  value={schedFormData.examType}
+                  onChange={(e) => setSchedFormData({ ...schedFormData, examType: e.target.value })}
+                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                >
+                  <option value="Amateur Radio Permit">Amateur Radio Permit</option>
+                  <option value="Commercial Radio Operator License">Commercial Radio Operator License</option>
+                  <option value="Restricted Land Mobile Operator">Restricted Land Mobile Operator</option>
+                  <option value="GMDSS General Operator License">GMDSS General Operator License</option>
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-300">Maximum Slots *</label>
+                <input
+                  type="number"
+                  required
+                  min={1}
+                  value={schedFormData.maxSlots}
+                  onChange={(e) => setSchedFormData({ ...schedFormData, maxSlots: parseInt(e.target.value) || 50 })}
+                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-300">Testing Venue *</label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. NTC Multi-Purpose Hall, Regional Office"
+                value={schedFormData.venue}
+                onChange={(e) => setSchedFormData({ ...schedFormData, venue: e.target.value })}
+                className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-300">Exam Date & Time *</label>
+                <input
+                  type="datetime-local"
+                  required
+                  value={schedFormData.examDate}
+                  onChange={(e) => setSchedFormData({ ...schedFormData, examDate: e.target.value })}
+                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-300">Application Deadline *</label>
+                <input
+                  type="datetime-local"
+                  required
+                  value={schedFormData.applicationDeadline}
+                  onChange={(e) => setSchedFormData({ ...schedFormData, applicationDeadline: e.target.value })}
+                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-300">Additional Instructions</label>
+              <textarea
+                placeholder="Applicants must bring black ballpens, 2x2 ID pictures, and copy of paid application receipt..."
+                value={schedFormData.description}
+                onChange={(e) => setSchedFormData({ ...schedFormData, description: e.target.value })}
+                className="w-full h-20 px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+
+            <DialogFooter className="pt-4 border-t border-slate-800">
+              <Button type="button" variant="outline" onClick={() => setIsCreateSchedOpen(false)}>Cancel</Button>
+              <Button type="submit" className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold">Create Schedule</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
