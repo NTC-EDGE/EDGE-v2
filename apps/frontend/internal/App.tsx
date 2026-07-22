@@ -208,8 +208,9 @@ function AppContent() {
         document.title = `${formattedTitle} | EDGE`;
       }
     }
-    if (!isAuthenticated && Platform.OS === "web" && typeof window !== "undefined") {
-      if (window.location.pathname === "/" || window.location.pathname === "") {
+    if (!isAuthenticated && Platform.OS === "web" && typeof window !== "undefined" && window.location !== undefined) {
+      const hasClerkParam = window.location.search.includes("__clerk");
+      if (!hasClerkParam && (window.location.pathname === "/" || window.location.pathname === "")) {
         window.history.replaceState(null, "", "/internal/login");
       }
     }
