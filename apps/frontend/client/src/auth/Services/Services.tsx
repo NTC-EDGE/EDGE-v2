@@ -25,7 +25,7 @@ type AuthParamList = {
 export function Services() {
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp<AuthParamList>>();
 
   // Clerk Contexts
   const { user: clerkUser } = useUser();
