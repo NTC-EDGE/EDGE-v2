@@ -60,7 +60,7 @@ const styles = StyleSheet.create({
   navItem: {
     position: 'relative',
     borderRadius: 8,
-    marginBottom: SPACING[4],
+    marginBottom: SPACING[12],
     overflow: 'hidden',
     ...Platform.select({
       web: {
