@@ -1,16 +1,17 @@
-import { createContext, useContext, ReactNode } from "react";
-import { useAuth, useUser, useSignIn, useSignUp } from "@edge/ui";
+import { createContext, useContext, ReactNode, useState } from "react";
+import { useAuth, useUser, useSignIn, useSignUp } from "@clerk/expo";
 
 export interface UserProfile {
   name: string;
   email: string;
   avatarUrl?: string;
+  region?: string;
 }
 
 interface AuthContextType {
   isAuthenticated: boolean;
   user: UserProfile | null;
-  loginWithClerk: (email: string, password: string) => Promise<void>;
+  loginWithClerk: (email: string, password: string, region?: string) => Promise<void>;
   signUpWithClerk: (email: string, password: string) => Promise<boolean>;
   verifySignUp: (code: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -27,13 +28,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     typeof CLERK_PUBLISHABLE_KEY === "string" &&
     CLERK_PUBLISHABLE_KEY.length > 0;
 
+  const [selectedRegionState, setSelectedRegionState] = useState<string | undefined>(undefined);
+
   // Clerk hooks (safe to call even if key is empty, but they won't trigger authenticated states)
   const clerkAuth = useAuth();
   const clerkUser = useUser();
   const signInResult = useSignIn();
   const signUpResult = useSignUp();
 
-  const loginWithClerk = async (email: string, password: string) => {
+  const loginWithClerk = async (email: string, password: string, region?: string) => {
     if (!isClerkEnabled) {
       throw new Error("Clerk publishable key is not configured.");
     }
@@ -149,7 +152,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const email =
       clerkUser.user.primaryEmailAddress?.emailAddress ?? "staff@edge.gov";
     const avatarUrl = clerkUser.user.imageUrl;
-    activeUser = { name, email, avatarUrl };
+    activeUser = { name, email, avatarUrl, region: selectedRegionState };
   }
 
   return (
