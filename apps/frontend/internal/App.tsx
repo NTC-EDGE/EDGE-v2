@@ -139,27 +139,12 @@ const getPrefixes = (): string[] => {
 const unauthLinking = {
   prefixes: getPrefixes(),
   getStateFromPath(path: string, options?: Parameters<typeof getStateFromPath>[1]) {
-    const cleanPath = path.split("?")[0].replace(/\/$/, "");
-    if (
-      cleanPath === "" ||
-      cleanPath === "/" ||
-      cleanPath === "internal/login" ||
-      cleanPath === "/internal/login" ||
-      cleanPath === "internal/landing" ||
-      cleanPath === "/internal/landing"
-    ) {
-      return {
-        routes: [{ name: "InternalLogin" }],
-      };
-    }
-    return getStateFromPath(path, options);
+    return {
+      routes: [{ name: "InternalLogin" }],
+    };
   },
   getPathFromState(state: Parameters<typeof getPathFromState>[0], options?: Parameters<typeof getPathFromState>[1]) {
-    const generatedPath = getPathFromState(state, options);
-    if (generatedPath === "" || generatedPath === "/") {
-      return "/internal/login";
-    }
-    return generatedPath;
+    return "/internal/login";
   },
 };
 

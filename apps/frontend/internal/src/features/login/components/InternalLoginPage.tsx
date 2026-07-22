@@ -219,8 +219,8 @@ export function InternalLoginPage() {
         : domain;
       
       const currentOrigin = Platform.OS === "web" && typeof window !== "undefined" && window.location !== undefined && typeof window.location.origin === "string"
-        ? window.location.origin 
-        : "http://localhost:8081";
+        ? window.location.origin + window.location.pathname
+        : "http://localhost:8081/internal/login";
         
       const signInUrl = `https://${portalDomain}/sign-in?redirect_url=${encodeURIComponent(currentOrigin)}`;
       
