@@ -31,6 +31,8 @@ public class GetServiceFeesQueryHandler : IRequestHandler<GetServiceFeesQuery, L
         return serviceFees.Select(sf => new ServiceFeeDto(
             sf.Id,
             sf.ServiceId,
+            sf.Service?.Name,
+            sf.Service?.Code,
             sf.FeeId,
             sf.Fee?.Code,
             sf.Fee?.Name,

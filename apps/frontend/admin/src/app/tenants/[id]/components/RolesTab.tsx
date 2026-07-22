@@ -38,7 +38,7 @@ export function RolesTab({ currentTenant, showToast }: RolesTabProps) {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {rolesList.map((role) => (
           <div key={role.id} className="p-4 rounded-xl bg-slate-950/70 border border-slate-800 space-y-2">
             <div className="flex items-center justify-between">

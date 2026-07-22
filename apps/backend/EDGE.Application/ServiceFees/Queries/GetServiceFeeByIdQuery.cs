@@ -26,6 +26,8 @@ public class GetServiceFeeByIdQueryHandler : IRequestHandler<GetServiceFeeByIdQu
         return new ServiceFeeDto(
             sf.Id,
             sf.ServiceId,
+            sf.Service?.Name,
+            sf.Service?.Code,
             sf.FeeId,
             sf.Fee?.Code,
             sf.Fee?.Name,

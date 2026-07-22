@@ -120,6 +120,15 @@ export interface ExamSchedule {
   remarks?: string | null;
   seatNumber?: string | null;
   createdAt?: string;
+  // Connected Service Fields
+  serviceId?: string | null;
+  serviceName?: string | null;
+  serviceCode?: string | null;
+  tenantId?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  startApplication?: string | null;
+  endApplication?: string | null;
 }
 
 export interface CreateExamScheduleCommand {
@@ -135,6 +144,13 @@ export interface CreateExamScheduleCommand {
   description?: string | null;
   remarks?: string | null;
   seatNumber?: string | null;
+  // Connected Service Fields
+  serviceId?: string | null;
+  tenantId?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  startApplication?: string | null;
+  endApplication?: string | null;
 }
 
 export interface UpdateExamScheduleCommand {

@@ -268,6 +268,11 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
             entity.Property(e => e.Remarks).HasMaxLength(500);
             entity.Property(e => e.IsPublished).HasDefaultValue(false);
             entity.Property(e => e.MaximumSlots).IsRequired(false);
+
+            entity.HasOne(e => e.Service)
+                  .WithMany(s => s.Schedules)
+                  .HasForeignKey(e => e.ServiceId)
+                  .OnDelete(DeleteBehavior.Restrict);
         });
 
 #if STEP_001
@@ -590,6 +595,11 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
                   .WithMany(p => p.ServiceFees)
                   .HasForeignKey(d => d.FeeId)
                   .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(d => d.Service)
+                  .WithMany(p => p.ServiceFees)
+                  .HasForeignKey(d => d.ServiceId)
+                  .OnDelete(DeleteBehavior.Cascade);
         });
 #endif
     }

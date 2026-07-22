@@ -50,24 +50,7 @@ export function FieldOfficesTab({ currentTenant, getRegionName, getRegionCode, s
     allowComplaintReception: true,
   });
 
-  const fieldOfficesList: FieldOffice[] = fetchedFieldOfficesResponse ?? [
-    {
-      id: "fo-101",
-      tenantId: tenantId,
-      regionId: currentTenant.regionId,
-      code: `${getRegionCode(currentTenant.regionId)}-FO1`,
-      name: `${getRegionName(currentTenant.regionId)} Central Office`,
-      address: "Regional Executive Bureau",
-      contactPhone: "+63 (02) 8924-4010",
-      contactEmail: "fo.main@ntc.gov.ph",
-      officerInChargeId: "m-101",
-      officerInChargeName: "Engr. Regional Director",
-      isActive: true,
-      allowSpectrumInspection: true,
-      allowPermitIssuance: true,
-      allowComplaintReception: true,
-    },
-  ];
+  const fieldOfficesList: FieldOffice[] = fetchedFieldOfficesResponse ?? [];
 
   const handleCreateOfficeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -127,7 +110,7 @@ export function FieldOfficesTab({ currentTenant, getRegionName, getRegionCode, s
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {fieldOfficesList.map((fo) => (
           <div key={fo.id} className="p-4 rounded-xl bg-slate-950/70 border border-slate-800 space-y-3">
             <div className="flex items-start justify-between">

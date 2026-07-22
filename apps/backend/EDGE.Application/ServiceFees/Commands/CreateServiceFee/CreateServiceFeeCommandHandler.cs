@@ -13,20 +13,29 @@ public class CreateServiceFeeCommandHandler : IRequestHandler<CreateServiceFeeCo
 {
     private readonly IServiceFeeRepository _serviceFeeRepository;
     private readonly IFeeRepository _feeRepository;
+    private readonly IServiceRepository _serviceRepository;
     private readonly IUnitOfWork _unitOfWork;
 
     public CreateServiceFeeCommandHandler(
         IServiceFeeRepository serviceFeeRepository,
         IFeeRepository feeRepository,
+        IServiceRepository serviceRepository,
         IUnitOfWork unitOfWork)
     {
         _serviceFeeRepository = serviceFeeRepository;
         _feeRepository = feeRepository;
+        _serviceRepository = serviceRepository;
         _unitOfWork = unitOfWork;
     }
 
     public async Task<List<ServiceFeeDto>> Handle(CreateServiceFeeCommand request, CancellationToken cancellationToken)
     {
+        var service = await _serviceRepository.GetByIdAsync(request.ServiceId, cancellationToken);
+        if (service == null)
+        {
+            throw new InvalidOperationException($"Service with ID '{request.ServiceId}' does not exist.");
+        }
+
         var resultList = new List<ServiceFeeDto>();
 
         foreach (var entry in request.Fees)
@@ -51,6 +60,8 @@ public class CreateServiceFeeCommandHandler : IRequestHandler<CreateServiceFeeCo
             resultList.Add(new ServiceFeeDto(
                 serviceFee.Id,
                 serviceFee.ServiceId,
+                service.Name,
+                service.Code,
                 serviceFee.FeeId,
                 fee.Code,
                 fee.Name,

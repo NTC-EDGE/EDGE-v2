@@ -1,7 +1,7 @@
 using MediatR;
 using EDGE.Domain.Entities;
 using EDGE.Application.Common.Interfaces;
-using EDGE.Application.FieldOffices.Dtos;
+using EDGE.Application.FieldOffices.DTOs;
 
 namespace EDGE.Application.FieldOffices.Commands.CreateFieldOffice;
 

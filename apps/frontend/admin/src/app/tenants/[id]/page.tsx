@@ -71,7 +71,7 @@ function TenantDetailPageContent({ currentTenant }: { currentTenant: Tenant }) {
   const externalUsers = getRegionalExternalUsers(currentTenant.regionId, getRegionCode(currentTenant.regionId));
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto p-4 md:p-6 bg-slate-950 text-white min-h-screen">
+    <div className="space-y-6">
       {toastMsg && (
         <div className="fixed bottom-5 right-5 bg-slate-900 border-l-4 border-indigo-500 text-white px-5 py-3.5 rounded-xl shadow-2xl z-50 flex items-center gap-3">
           <span className="text-xs font-bold">{toastMsg}</span>

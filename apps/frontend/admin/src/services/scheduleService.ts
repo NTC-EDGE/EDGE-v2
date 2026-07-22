@@ -8,6 +8,14 @@ import {
 export function useScheduleService() {
   const { useQuery, post, put, del } = useApi();
 
+  const useServices = () => {
+    const query = useQuery<{ succeeded: boolean; data: { id: string; name: string; code: string }[] }>('/api/v2/services');
+    return {
+      ...query,
+      data: query.data?.data !== undefined && query.data?.data !== null ? query.data.data : []
+    };
+  };
+
   const useSchedules = (search?: string, regionId?: string, isPublished?: string) => {
     const params = new URLSearchParams();
     if (search !== undefined && search !== null && search.trim().length > 0) {
@@ -46,6 +54,7 @@ export function useScheduleService() {
   };
 
   return {
+    useServices,
     useSchedules,
     useSchedule,
     createSchedule,

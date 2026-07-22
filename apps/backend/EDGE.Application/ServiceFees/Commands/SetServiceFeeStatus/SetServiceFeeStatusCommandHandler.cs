@@ -29,6 +29,8 @@ public class SetServiceFeeStatusCommandHandler : IRequestHandler<SetServiceFeeSt
         return new ServiceFeeDto(
             serviceFee.Id,
             serviceFee.ServiceId,
+            serviceFee.Service?.Name,
+            serviceFee.Service?.Code,
             serviceFee.FeeId,
             serviceFee.Fee?.Code,
             serviceFee.Fee?.Name,

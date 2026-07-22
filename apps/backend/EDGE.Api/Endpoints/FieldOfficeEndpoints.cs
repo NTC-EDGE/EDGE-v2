@@ -16,11 +16,11 @@ public static class FieldOfficeEndpoints
             .WithTags("FieldOffices");
 
         offices.MapGet("/", async (
-            Guid tenantId,
+            Guid? tenantId,
             IValidator<GetFieldOfficesQuery> validator,
             IMediator mediator) =>
         {
-            var query = new GetFieldOfficesQuery(tenantId);
+            var query = new GetFieldOfficesQuery(tenantId.GetValueOrDefault());
             var validationResult = await validator.ValidateAsync(query);
             if (!validationResult.IsValid)
             {
@@ -38,11 +38,11 @@ public static class FieldOfficeEndpoints
 
         offices.MapGet("/{id:guid}", async (
             Guid id,
-            Guid tenantId,
+            Guid? tenantId,
             IValidator<GetFieldOfficeByIdQuery> validator,
             IMediator mediator) =>
         {
-            var query = new GetFieldOfficeByIdQuery(id, tenantId);
+            var query = new GetFieldOfficeByIdQuery(id, tenantId.GetValueOrDefault());
             var validationResult = await validator.ValidateAsync(query);
             if (!validationResult.IsValid)
             {
@@ -110,11 +110,11 @@ public static class FieldOfficeEndpoints
 
         offices.MapDelete("/{id:guid}", async (
             Guid id,
-            Guid tenantId,
+            Guid? tenantId,
             IValidator<DeleteFieldOfficeCommand> validator,
             IMediator mediator) =>
         {
-            var command = new DeleteFieldOfficeCommand(id, tenantId);
+            var command = new DeleteFieldOfficeCommand(id, tenantId.GetValueOrDefault());
             var validationResult = await validator.ValidateAsync(command);
             if (!validationResult.IsValid)
             {

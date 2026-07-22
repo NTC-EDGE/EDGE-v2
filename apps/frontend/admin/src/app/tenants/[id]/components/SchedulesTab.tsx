@@ -30,14 +30,17 @@ interface SchedulesTabProps {
 
 export function SchedulesTab({ currentTenant, showToast }: SchedulesTabProps) {
   const tenantId = currentTenant.id;
-  const { useSchedules, createSchedule, togglePublishStatus } = useScheduleService();
+  const { useSchedules, createSchedule, togglePublishStatus, useServices } = useScheduleService();
 
   const { data: fetchedSchedules, mutate: mutateSchedules } = useSchedules("", currentTenant.regionId);
+  const { data: servicesResponse } = useServices();
+  const services = servicesResponse ?? [];
 
   const [isCreateSchedOpen, setIsCreateSchedOpen] = useState(false);
   const [schedFormData, setSchedFormData] = useState({
     title: "",
-    examType: "Amateur Radio Permit",
+    examType: "",
+    serviceId: "",
     venue: "",
     examDate: new Date(Date.now() + 864000000).toISOString().slice(0, 16),
     applicationDeadline: new Date(Date.now() + 432000000).toISOString().slice(0, 16),
@@ -62,6 +65,10 @@ export function SchedulesTab({ currentTenant, showToast }: SchedulesTabProps) {
 
   const handleCreateSchedSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!schedFormData.serviceId) {
+      showToast("Please select a service for the schedule.");
+      return;
+    }
     try {
       await createSchedule({
         title: schedFormData.title,
@@ -73,6 +80,13 @@ export function SchedulesTab({ currentTenant, showToast }: SchedulesTabProps) {
         isPublished: schedFormData.isPublished,
         regionId: currentTenant.regionId,
         description: schedFormData.description || null,
+        // Connected Service properties:
+        serviceId: schedFormData.serviceId,
+        tenantId: tenantId,
+        startDate: new Date(schedFormData.examDate).toISOString(),
+        endDate: new Date(new Date(schedFormData.examDate).getTime() + 7200000).toISOString(), // 2 hrs duration default
+        startApplication: new Date(Date.now()).toISOString(),
+        endApplication: new Date(schedFormData.applicationDeadline).toISOString()
       });
       await mutateSchedules();
       setIsCreateSchedOpen(false);
@@ -93,7 +107,8 @@ export function SchedulesTab({ currentTenant, showToast }: SchedulesTabProps) {
           onClick={() => {
             setSchedFormData({
               title: "",
-              examType: "Amateur Radio Permit",
+              examType: "",
+              serviceId: "",
               venue: "",
               examDate: new Date(Date.now() + 864000000).toISOString().slice(0, 16),
               applicationDeadline: new Date(Date.now() + 432000000).toISOString().slice(0, 16),
@@ -111,50 +126,56 @@ export function SchedulesTab({ currentTenant, showToast }: SchedulesTabProps) {
       </div>
 
       <div className="divide-y divide-slate-800 border border-slate-800 rounded-xl overflow-hidden bg-slate-950/60">
-        {schedulesList.map((sched) => (
-          <div key={sched.id} className="p-4 flex items-center justify-between hover:bg-slate-800/40 transition-colors">
-            <div className="space-y-1 max-w-xl">
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-white text-sm">{sched.title}</span>
-                <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-purple-500/10 text-purple-300 border border-purple-500/20">
-                  {sched.examType}
-                </span>
+        {schedulesList.map((sched) => {
+          const displayTitle = sched.serviceName || sched.title || "Schedule Slot";
+          const displayType = sched.serviceCode || sched.examType || "Service";
+          const displayDate = sched.startDate || sched.examDate;
+
+          return (
+            <div key={sched.id} className="p-4 flex items-center justify-between hover:bg-slate-800/40 transition-colors">
+              <div className="space-y-1 max-w-xl">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-white text-sm">{displayTitle}</span>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-purple-500/10 text-purple-300 border border-purple-500/20">
+                    {displayType}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 flex items-center gap-2">
+                  <span className="flex items-center gap-1 text-slate-300"><MapPin className="w-3 h-3 text-emerald-400" /> {sched.venue}</span>
+                  <span>•</span>
+                  <span className="flex items-center gap-1 text-indigo-300"><Calendar className="w-3 h-3 text-indigo-400" /> Exam Date: {displayDate ? new Date(displayDate).toLocaleDateString() : "N/A"}</span>
+                </p>
               </div>
-              <p className="text-xs text-slate-400 flex items-center gap-2">
-                <span className="flex items-center gap-1 text-slate-300"><MapPin className="w-3 h-3 text-emerald-400" /> {sched.venue}</span>
-                <span>•</span>
-                <span className="flex items-center gap-1 text-indigo-300"><Calendar className="w-3 h-3 text-indigo-400" /> Exam Date: {new Date(sched.examDate).toLocaleDateString()}</span>
-              </p>
-            </div>
 
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => handleToggleSchedPublish(sched)}
-                className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all inline-flex items-center gap-1.5 cursor-pointer ${
-                  sched.isPublished
-                    ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20"
-                    : "bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700"
-                }`}
-              >
-                {sched.isPublished ? (
-                  <><Eye className="w-3.5 h-3.5 text-emerald-400" /> Published</>
-                ) : (
-                  <><EyeOff className="w-3.5 h-3.5 text-slate-400" /> Draft / Hidden</>
-                )}
-              </button>
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => handleToggleSchedPublish(sched)}
+                  className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all inline-flex items-center gap-1.5 cursor-pointer ${
+                    sched.isPublished
+                      ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20"
+                      : "bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700"
+                  }`}
+                >
+                  {sched.isPublished ? (
+                    <><Eye className="w-3.5 h-3.5 text-emerald-400" /> Published</>
+                  ) : (
+                    <><EyeOff className="w-3.5 h-3.5 text-slate-400" /> Draft / Hidden</>
+                  )}
+                </button>
 
-              <ActionMenu
-                items={[
-                  {
-                    label: sched.isPublished ? "Unpublish Schedule" : "Publish Schedule",
-                    icon: sched.isPublished ? EyeOff : Eye,
-                    onClick: () => handleToggleSchedPublish(sched),
-                  },
-                ]}
-              />
+                <ActionMenu
+                  items={[
+                    {
+                      label: sched.isPublished ? "Unpublish Schedule" : "Publish Schedule",
+                      icon: sched.isPublished ? EyeOff : Eye,
+                      onClick: () => handleToggleSchedPublish(sched),
+                    },
+                  ]}
+                />
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Create Schedule Modal */}
@@ -171,30 +192,41 @@ export function SchedulesTab({ currentTenant, showToast }: SchedulesTabProps) {
 
           <form onSubmit={handleCreateSchedSubmit} className="space-y-4 pt-2">
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300">Examination Title *</label>
-              <input
-                type="text"
+              <label className="text-xs font-semibold text-slate-300">Catalog Service *</label>
+              <select
                 required
-                placeholder="e.g. 3rd Quarter Amateur Radio Licensure Examination"
-                value={schedFormData.title}
-                onChange={(e) => setSchedFormData({ ...schedFormData, title: e.target.value })}
-                className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
+                value={schedFormData.serviceId}
+                onChange={(e) => {
+                  const selectedService = services.find((s: { id: string; name: string; code: string }) => s.id === e.target.value);
+                  setSchedFormData({
+                    ...schedFormData,
+                    serviceId: e.target.value,
+                    examType: selectedService?.code || "",
+                    title: `${selectedService?.name} Examination`
+                  });
+                }}
+                className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+              >
+                <option value="" disabled>Select Service...</option>
+                {services.map((s: { id: string; name: string; code: string }) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name} ({s.code})
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300">Examination Type *</label>
-                <select
-                  value={schedFormData.examType}
-                  onChange={(e) => setSchedFormData({ ...schedFormData, examType: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-                >
-                  <option value="Amateur Radio Permit">Amateur Radio Permit</option>
-                  <option value="Commercial Radio Operator License">Commercial Radio Operator License</option>
-                  <option value="Restricted Land Mobile Operator">Restricted Land Mobile Operator</option>
-                  <option value="GMDSS General Operator License">GMDSS General Operator License</option>
-                </select>
+                <label className="text-xs font-semibold text-slate-300">Examination Title *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. 3rd Quarter Amateur Radio Licensure Examination"
+                  value={schedFormData.title}
+                  onChange={(e) => setSchedFormData({ ...schedFormData, title: e.target.value })}
+                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
               </div>
 
               <div className="space-y-1.5">

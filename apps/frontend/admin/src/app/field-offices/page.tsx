@@ -130,16 +130,17 @@ function FieldOfficesContent() {
   const { useTenantMembers } = useTenantMemberService();
   const { useTenants } = useTenantService();
 
+  const { data: regionsResponse } = useRegions();
+  const { data: provincesResponse } = useProvinces();
+  const { data: tenantsResponse } = useTenants();
+
+  const [selectedTenantFilter, setSelectedTenantFilter] = useState<string>("");
   const [selectedRegionFilter, setSelectedRegionFilter] = useState<string>(
     initialRegionId !== null && initialRegionId.length > 0 ? initialRegionId : "ALL"
   );
   const [searchTerm, setSearchTerm] = useState("");
 
-  const { data: regionsResponse } = useRegions();
-  const { data: provincesResponse } = useProvinces();
-  const { data: tenantsResponse } = useTenants();
-
-  const activeTenantId = selectedTenantId || tenantsResponse?.[0]?.id || "t-101";
+  const activeTenantId = selectedTenantFilter || selectedTenantId || tenantsResponse?.[0]?.id || "";
 
   const { data: fetchedFieldOfficesResponse, isLoading: loadingFieldOffices, mutate } = useFieldOffices(
     activeTenantId,
@@ -161,7 +162,7 @@ function FieldOfficesContent() {
     { id: "p-ceb", regionId: "7037536b-59d8-4786-8f92-fee3e0c78413", code: "CEB", name: "Cebu", isActive: true },
   ];
 
-  const fieldOffices: FieldOffice[] = fetchedFieldOfficesResponse ?? MOCK_FIELD_OFFICES;
+  const fieldOffices: FieldOffice[] = fetchedFieldOfficesResponse ?? [];
 
   // Filtered list
   const filteredOffices = fieldOffices.filter((fo) => {
@@ -441,23 +442,46 @@ function FieldOfficesContent() {
           />
         </div>
 
-        <div className="flex items-center gap-3 w-full sm:w-auto">
-          <div className="flex items-center gap-2 text-xs text-slate-400 shrink-0">
-            <Filter className="w-3.5 h-3.5" />
-            <span>Filter Region:</span>
+        <div className="flex flex-wrap items-center gap-4 w-full sm:w-auto">
+          {canManageTenants && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-400 shrink-0 flex items-center gap-1.5">
+                <Building className="w-3.5 h-3.5 text-indigo-400" /> Tenant:
+              </span>
+              <select
+                value={activeTenantId}
+                onChange={(e) => {
+                  setSelectedTenantFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer max-w-[200px] truncate"
+              >
+                {tenantsResponse?.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-400 shrink-0 flex items-center gap-1.5">
+              <Filter className="w-3.5 h-3.5 text-emerald-400" /> Filter Region:
+            </span>
+            <select
+              value={selectedRegionFilter}
+              onChange={(e) => setSelectedRegionFilter(e.target.value)}
+              className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer max-w-[200px] truncate"
+            >
+              <option value="ALL">All Regions ({regions.length})</option>
+              {regions.map((reg) => (
+                <option key={reg.id} value={reg.id}>
+                  {reg.name} ({reg.code})
+                </option>
+              ))}
+            </select>
           </div>
-          <select
-            value={selectedRegionFilter}
-            onChange={(e) => setSelectedRegionFilter(e.target.value)}
-            className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer max-w-xs truncate"
-          >
-            <option value="ALL">All Regions ({regions.length})</option>
-            {regions.map((reg) => (
-              <option key={reg.id} value={reg.id}>
-                {reg.name} ({reg.code})
-              </option>
-            ))}
-          </select>
         </div>
       </div>
 

@@ -17,6 +17,7 @@ public class ServiceFeeRepository : IServiceFeeRepository
     {
         return await _context.ServiceFees
             .Include(sf => sf.Fee)
+            .Include(sf => sf.Service)
             .FirstOrDefaultAsync(sf => sf.Id == id, cancellationToken);
     }
 
@@ -28,6 +29,7 @@ public class ServiceFeeRepository : IServiceFeeRepository
     {
         var query = _context.ServiceFees
             .Include(sf => sf.Fee)
+            .Include(sf => sf.Service)
             .AsQueryable();
 
         if (serviceId.HasValue)

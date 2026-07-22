@@ -1,6 +1,6 @@
 using System;
 
-namespace EDGE.Application.FieldOffices.Dtos;
+namespace EDGE.Application.FieldOffices.DTOs;
 
 public record FieldOfficeDto(
     Guid Id,
