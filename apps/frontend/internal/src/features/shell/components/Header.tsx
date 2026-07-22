@@ -120,6 +120,7 @@ export function Header({
                   closeRoleDropdown={closeRoleDropdown}
                   isSwitcherHovered={isSwitcherHovered}
                   setIsSwitcherHovered={setIsSwitcherHovered}
+                  variant="dropdown"
                 />
 
                 <View style={styles.dropdownDivider} />
