@@ -187,7 +187,7 @@ export function DashboardScreen() {
     });
   };
 
-  const isEvaluator = currentRole === 'Reviewer';
+  const isEvaluator = currentRole === 'Evaluator';
 
   // Helper values for line chart scaling
   const scaleY = (val: number, maxVal: number) => {

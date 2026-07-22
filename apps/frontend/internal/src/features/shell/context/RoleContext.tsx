@@ -2,13 +2,13 @@ import { createContext, useContext, useState, ReactNode, ComponentProps } from '
 import { Icon } from '@edge/ui';
 
 export type UserRole =
-  | 'Administrator'
-  | 'Reviewer'
-  | 'Approver'
-  | 'Auditor'
-  | 'Support Agent'
-  | 'Staff Manager'
-  | 'Viewer';
+  | 'Admin'
+  | 'Evaluator'
+  | 'Chief of EOD'
+  | 'Regional Director'
+  | 'Legal'
+  | 'Account'
+  | 'Cashier';
 
 export interface NavigationLink {
   name: string;
@@ -17,17 +17,17 @@ export interface NavigationLink {
 }
 
 export const ROLES: readonly UserRole[] = [
-  'Administrator',
-  'Reviewer',
-  'Approver',
-  'Auditor',
-  'Support Agent',
-  'Staff Manager',
-  'Viewer',
+  'Admin',
+  'Evaluator',
+  'Chief of EOD',
+  'Regional Director',
+  'Legal',
+  'Account',
+  'Cashier',
 ] as const;
 
 export const ROLE_NAVIGATION_LINKS = {
-  Administrator: [
+  Admin: [
     { name: 'Dashboard', screen: 'Dashboard', icon: 'grid' },
     { name: 'Activities', screen: 'Activities', icon: 'bell' },
     { name: 'Chat', screen: 'Chat', icon: 'message-square' },
@@ -40,39 +40,39 @@ export const ROLE_NAVIGATION_LINKS = {
     { name: 'Users', screen: 'Users', icon: 'user' },
     { name: 'Settings', screen: 'Settings', icon: 'settings' },
   ],
-  Reviewer: [
+  Evaluator: [
     { name: 'Dashboard', screen: 'Dashboard', icon: 'grid' },
     { name: 'Activities', screen: 'Activities', icon: 'bell' },
     { name: 'Chat', screen: 'Chat', icon: 'message-square' },
     { name: 'Meet', screen: 'Meet', icon: 'video' },
   ],
-  Approver: [
+  'Chief of EOD': [
     { name: 'Dashboard', screen: 'Dashboard', icon: 'grid' },
     { name: 'Activities', screen: 'Activities', icon: 'bell' },
     { name: 'Receipt Management', screen: 'ReceiptManagement', icon: 'file' },
     { name: 'Schedule', screen: 'Schedule', icon: 'calendar' },
   ],
-  Auditor: [
+  'Regional Director': [
     { name: 'Dashboard', screen: 'Dashboard', icon: 'grid' },
     { name: 'Activities', screen: 'Activities', icon: 'bell' },
     { name: 'Reports', screen: 'Reports', icon: 'file-text' },
     { name: 'Roles & Permission', screen: 'RolesPermission', icon: 'shield' },
   ],
-  'Support Agent': [
+  Legal: [
     { name: 'Dashboard', screen: 'Dashboard', icon: 'grid' },
     { name: 'Chat', screen: 'Chat', icon: 'message-square' },
     { name: 'Meet', screen: 'Meet', icon: 'video' },
     { name: 'Schedule', screen: 'Schedule', icon: 'calendar' },
     { name: 'Users', screen: 'Users', icon: 'user' },
   ],
-  'Staff Manager': [
+  Account: [
     { name: 'Dashboard', screen: 'Dashboard', icon: 'grid' },
     { name: 'Activities', screen: 'Activities', icon: 'bell' },
     { name: 'Schedule', screen: 'Schedule', icon: 'calendar' },
     { name: 'Employees', screen: 'Employees', icon: 'users' },
     { name: 'Settings', screen: 'Settings', icon: 'settings' },
   ],
-  Viewer: [
+  Cashier: [
     { name: 'Dashboard', screen: 'Dashboard', icon: 'grid' },
     { name: 'Chat', screen: 'Chat', icon: 'message-square' },
     { name: 'Meet', screen: 'Meet', icon: 'video' },
@@ -88,7 +88,7 @@ interface RoleContextType {
 const RoleContext = createContext<RoleContextType | undefined>(undefined);
 
 export function RoleProvider({ children }: { children: ReactNode }) {
-  const [currentRole, setCurrentRole] = useState<UserRole>('Administrator');
+  const [currentRole, setCurrentRole] = useState<UserRole>('Admin');
 
   return (
     <RoleContext.Provider value={{ currentRole, setCurrentRole }}>
