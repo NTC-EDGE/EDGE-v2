@@ -2,7 +2,8 @@ name: Update Internal OTA
 on:
   push:
     branches:
-      - '**'
+      - main
+      - develop
 jobs:
   update_production:
     if: ${{ github.ref_type == 'tag' }}
@@ -21,7 +22,7 @@ jobs:
       message: ${{ github.event.head_commit.message || 'Auto OTA Update' }}
 
   update_preview:
-    if: ${{ github.ref == 'refs/heads/main' || (github.ref_type != 'tag' && github.ref != 'refs/heads/develop' && github.ref != 'refs/heads/main') }}
+    if: ${{ github.ref == 'refs/heads/main' }}
     type: update
     params:
       platform: all

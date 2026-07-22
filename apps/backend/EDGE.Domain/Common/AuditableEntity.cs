@@ -6,4 +6,6 @@ public abstract class AuditableEntity : BaseEntity
     public string? CreatedBy { get; set; }
     public DateTime? LastModifiedAt { get; set; }
     public string? LastModifiedBy { get; set; }
+    public bool IsDeleted { get; set; }
+    public string IsDeletedBy { get; set; } = string.Empty;
 }

@@ -183,7 +183,7 @@ export function Services() {
       const headers = token !== null ? { Authorization: `Bearer ${token}` } : {};
 
       await apiClient.post(
-        "/api/applications",
+        "/api/v2/applications",
         {
           title: selectedService.title,
           applicantName: formData.applicantName,

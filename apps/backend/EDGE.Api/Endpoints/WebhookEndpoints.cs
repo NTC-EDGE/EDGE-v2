@@ -1,7 +1,4 @@
 using MediatR;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Routing;
 using EDGE.Domain.Models;
 using EDGE.Application.Users.Commands.CreateUser;
 using EDGE.Application.Users.Commands.UpdateUser;

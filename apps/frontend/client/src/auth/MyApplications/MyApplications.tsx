@@ -69,7 +69,7 @@ export function MyApplications() {
       const token = await getToken();
       const headers = token !== null ? { Authorization: `Bearer ${token}` } : {};
 
-      const response = await apiClient.get<Application[]>("/api/applications", { headers });
+      const response = await apiClient.get<Application[]>("/api/v2/applications", { headers });
       setApplications(response.data);
     } catch (err) {
       console.error("Error fetching applications:", err);
