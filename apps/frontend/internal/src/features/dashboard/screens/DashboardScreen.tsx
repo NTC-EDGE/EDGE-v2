@@ -187,7 +187,7 @@ export function DashboardScreen() {
     });
   };
 
-  const isEvaluator = currentRole === 'Evaluator';
+  const isEvaluator = currentRole === 'Evaluator' || currentRole === 'Chief of EOD';
 
   // Helper values for line chart scaling
   const scaleY = (val: number, maxVal: number) => {
@@ -428,8 +428,8 @@ export function DashboardScreen() {
         <View style={styles.welcomeRow}>
           <View>
             <Text style={styles.welcomeLabel}>WELCOME BACK</Text>
-            <Text style={styles.welcomeTitle}>Good morning, EVALUATORS EDGE</Text>
-            <Text style={styles.welcomeSubtitle}>Your Evaluator metrics are ready for review.</Text>
+            <Text style={styles.welcomeTitle}>Good morning, {currentRole === 'Evaluator' ? 'EVALUATORS' : currentRole.toUpperCase()} EDGE</Text>
+            <Text style={styles.welcomeSubtitle}>Your {currentRole} metrics are ready for review.</Text>
           </View>
           <View style={[styles.dateCard, SHADOWS.card]}>
             <Lucide name="calendar" size={16} color={COLORS.neutral[500]} />
