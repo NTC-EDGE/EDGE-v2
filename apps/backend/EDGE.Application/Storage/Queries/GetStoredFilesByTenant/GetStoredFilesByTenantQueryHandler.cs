@@ -13,14 +13,24 @@ namespace EDGE.Application.Storage.Queries.GetStoredFilesByTenant;
 public class GetStoredFilesByTenantQueryHandler : IRequestHandler<GetStoredFilesByTenantQuery, ApiResponse<List<StoredFileDto>>>
 {
     private readonly IStoredFileRepository _fileRepository;
+    private readonly ITenantRepository _tenantRepository;
 
-    public GetStoredFilesByTenantQueryHandler(IStoredFileRepository fileRepository)
+    public GetStoredFilesByTenantQueryHandler(
+        IStoredFileRepository fileRepository,
+        ITenantRepository tenantRepository)
     {
         _fileRepository = fileRepository;
+        _tenantRepository = tenantRepository;
     }
 
     public async Task<ApiResponse<List<StoredFileDto>>> Handle(GetStoredFilesByTenantQuery request, CancellationToken cancellationToken)
     {
+        var tenant = await _tenantRepository.GetByIdAsync(request.TenantId, cancellationToken);
+        if (tenant == null)
+        {
+            return ApiResponse<List<StoredFileDto>>.Fail($"Tenant with ID '{request.TenantId}' was not found.");
+        }
+
         var files = await _fileRepository.GetByTenantIdAsync(request.TenantId, cancellationToken);
         var dtos = files.Select(f => new StoredFileDto(
             f.Id,

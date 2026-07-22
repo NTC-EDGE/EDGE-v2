@@ -11,20 +11,32 @@ public class DeleteFileCommandHandler : IRequestHandler<DeleteFileCommand, ApiRe
 {
     private readonly IStoredFileRepository _fileRepository;
     private readonly IStorageService _storageService;
+    private readonly ITenantRepository _tenantRepository;
     private readonly IUnitOfWork _unitOfWork;
 
     public DeleteFileCommandHandler(
         IStoredFileRepository fileRepository,
         IStorageService storageService,
+        ITenantRepository tenantRepository,
         IUnitOfWork unitOfWork)
     {
         _fileRepository = fileRepository;
         _storageService = storageService;
+        _tenantRepository = tenantRepository;
         _unitOfWork = unitOfWork;
     }
 
     public async Task<ApiResponse<bool>> Handle(DeleteFileCommand request, CancellationToken cancellationToken)
     {
+        if (request.TenantId != Guid.Empty)
+        {
+            var tenant = await _tenantRepository.GetByIdAsync(request.TenantId, cancellationToken);
+            if (tenant == null)
+            {
+                return ApiResponse<bool>.Fail($"Tenant with ID '{request.TenantId}' was not found.");
+            }
+        }
+
         var storedFile = await _fileRepository.GetByIdAsync(request.FileId, cancellationToken);
         if (storedFile == null)
         {

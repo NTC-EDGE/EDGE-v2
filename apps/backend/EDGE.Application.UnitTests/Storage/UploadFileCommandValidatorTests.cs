@@ -1,7 +1,11 @@
 using System;
 using System.IO;
 using System.Text;
+using System.Threading;
 using FluentValidation.TestHelper;
+using Moq;
+using EDGE.Domain.Entities;
+using EDGE.Application.Common.Interfaces;
 using EDGE.Application.Storage.Commands.UploadFile;
 using Xunit;
 
@@ -9,15 +13,21 @@ namespace EDGE.Application.UnitTests.Storage;
 
 public class UploadFileCommandValidatorTests
 {
+    private readonly Mock<ITenantRepository> _mockTenantRepository;
     private readonly UploadFileCommandValidator _validator;
 
     public UploadFileCommandValidatorTests()
     {
-        _validator = new UploadFileCommandValidator();
+        _mockTenantRepository = new Mock<ITenantRepository>();
+        _mockTenantRepository
+            .Setup(t => t.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Tenant { Id = Guid.NewGuid(), Name = "Sample Tenant", Code = "SAMPLE" });
+
+        _validator = new UploadFileCommandValidator(_mockTenantRepository.Object);
     }
 
     [Fact]
-    public void Validate_WithValidCommand_ShouldNotHaveAnyValidationErrors()
+    public async Task Validate_WithValidCommand_ShouldNotHaveAnyValidationErrors()
     {
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes("Test bytes"));
         var command = new UploadFileCommand(
@@ -30,12 +40,12 @@ public class UploadFileCommandValidatorTests
             UploadedByUserId: "user_1"
         );
 
-        var result = _validator.TestValidate(command);
+        var result = await _validator.TestValidateAsync(command);
         result.ShouldNotHaveAnyValidationErrors();
     }
 
     [Fact]
-    public void Validate_WithEmptyFileStream_ShouldHaveValidationError()
+    public async Task Validate_WithEmptyFileStream_ShouldHaveValidationError()
     {
         using var emptyStream = new MemoryStream();
         var command = new UploadFileCommand(
@@ -48,12 +58,12 @@ public class UploadFileCommandValidatorTests
             UploadedByUserId: "user_1"
         );
 
-        var result = _validator.TestValidate(command);
+        var result = await _validator.TestValidateAsync(command);
         result.ShouldHaveValidationErrorFor(c => c.FileStream);
     }
 
     [Fact]
-    public void Validate_WithMissingFields_ShouldHaveValidationErrors()
+    public async Task Validate_WithMissingFields_ShouldHaveValidationErrors()
     {
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes("Test bytes"));
         var command = new UploadFileCommand(
@@ -66,7 +76,7 @@ public class UploadFileCommandValidatorTests
             UploadedByUserId: ""
         );
 
-        var result = _validator.TestValidate(command);
+        var result = await _validator.TestValidateAsync(command);
         result.ShouldHaveValidationErrorFor(c => c.FileName);
         result.ShouldHaveValidationErrorFor(c => c.ContentType);
         result.ShouldHaveValidationErrorFor(c => c.FileSizeBytes);

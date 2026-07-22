@@ -14,19 +14,31 @@ public class GetFileDownloadQueryHandler : IRequestHandler<GetFileDownloadQuery,
     private readonly IStoredFileRepository _fileRepository;
     private readonly IStorageService _storageService;
     private readonly IFileEncryptionService _encryptionService;
+    private readonly ITenantRepository _tenantRepository;
 
     public GetFileDownloadQueryHandler(
         IStoredFileRepository fileRepository,
         IStorageService storageService,
-        IFileEncryptionService encryptionService)
+        IFileEncryptionService encryptionService,
+        ITenantRepository tenantRepository)
     {
         _fileRepository = fileRepository;
         _storageService = storageService;
         _encryptionService = encryptionService;
+        _tenantRepository = tenantRepository;
     }
 
     public async Task<ApiResponse<FileDownloadDto>> Handle(GetFileDownloadQuery request, CancellationToken cancellationToken)
     {
+        if (request.TenantId != Guid.Empty)
+        {
+            var tenant = await _tenantRepository.GetByIdAsync(request.TenantId, cancellationToken);
+            if (tenant == null)
+            {
+                return ApiResponse<FileDownloadDto>.Fail($"Tenant with ID '{request.TenantId}' was not found.");
+            }
+        }
+
         var storedFile = await _fileRepository.GetByIdAsync(request.FileId, cancellationToken);
         if (storedFile == null)
         {

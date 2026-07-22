@@ -1,11 +1,12 @@
 using System;
 using FluentValidation;
+using EDGE.Application.Common.Interfaces;
 
 namespace EDGE.Application.Storage.Commands.UploadFile;
 
 public class UploadFileCommandValidator : AbstractValidator<UploadFileCommand>
 {
-    public UploadFileCommandValidator()
+    public UploadFileCommandValidator(ITenantRepository tenantRepository)
     {
         RuleFor(x => x.FileStream)
             .NotNull().WithMessage("FileStream is required.")
@@ -29,7 +30,9 @@ public class UploadFileCommandValidator : AbstractValidator<UploadFileCommand>
 
         RuleFor(x => x.TenantId)
             .NotEmpty().WithMessage("TenantId is required.")
-            .Must(id => id != Guid.Empty).WithMessage("TenantId cannot be empty.");
+            .Must(id => id != Guid.Empty).WithMessage("TenantId cannot be empty.")
+            .MustAsync(async (tenantId, ct) => await tenantRepository.GetByIdAsync(tenantId, ct) != null)
+            .WithMessage(x => $"Tenant with ID '{x.TenantId}' was not found.");
 
         RuleFor(x => x.UploadedByUserId)
             .NotEmpty().WithMessage("UploadedByUserId is required (anonymous uploads are strictly forbidden).");

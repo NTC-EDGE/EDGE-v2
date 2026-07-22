@@ -19,6 +19,7 @@ public class UploadFileCommandHandlerTests
     private readonly Mock<IStorageService> _mockStorageService;
     private readonly Mock<IFileEncryptionService> _mockEncryptionService;
     private readonly Mock<IStoredFileRepository> _mockFileRepository;
+    private readonly Mock<ITenantRepository> _mockTenantRepository;
     private readonly Mock<IUnitOfWork> _mockUnitOfWork;
     private readonly UploadFileCommandHandler _handler;
 
@@ -27,12 +28,14 @@ public class UploadFileCommandHandlerTests
         _mockStorageService = new Mock<IStorageService>();
         _mockEncryptionService = new Mock<IFileEncryptionService>();
         _mockFileRepository = new Mock<IStoredFileRepository>();
+        _mockTenantRepository = new Mock<ITenantRepository>();
         _mockUnitOfWork = new Mock<IUnitOfWork>();
 
         _handler = new UploadFileCommandHandler(
             _mockStorageService.Object,
             _mockEncryptionService.Object,
             _mockFileRepository.Object,
+            _mockTenantRepository.Object,
             _mockUnitOfWork.Object
         );
     }
@@ -42,6 +45,10 @@ public class UploadFileCommandHandlerTests
     {
         // Arrange
         var tenantId = Guid.NewGuid();
+        _mockTenantRepository
+            .Setup(t => t.GetByIdAsync(tenantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Tenant { Id = tenantId, Name = "Test Tenant", Code = "TEST" });
+
         var fileContent = "Applicant e-Signature Payload";
         var fileBytes = Encoding.UTF8.GetBytes(fileContent);
         using var stream = new MemoryStream(fileBytes);
@@ -87,17 +94,22 @@ public class UploadFileCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_WithEmptyStream_ShouldReturnFailure()
+    public async Task Handle_WithNonExistentTenant_ShouldReturnFailure()
     {
         // Arrange
-        using var emptyStream = new MemoryStream();
+        var tenantId = Guid.NewGuid();
+        _mockTenantRepository
+            .Setup(t => t.GetByIdAsync(tenantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Tenant?)null);
+
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes("Data"));
         var command = new UploadFileCommand(
-            FileStream: emptyStream,
-            FileName: "test.txt",
-            ContentType: "text/plain",
-            FileSizeBytes: 0,
-            Category: "Document",
-            TenantId: Guid.NewGuid(),
+            FileStream: stream,
+            FileName: "test.png",
+            ContentType: "image/png",
+            FileSizeBytes: 4,
+            Category: "Test",
+            TenantId: tenantId,
             UploadedByUserId: "user_123"
         );
 
@@ -106,7 +118,7 @@ public class UploadFileCommandHandlerTests
 
         // Assert
         result.Succeeded.Should().BeFalse();
-        result.Message.Should().Contain("empty");
+        result.Message.Should().Contain("was not found");
         _mockStorageService.Verify(s => s.UploadFileAsync(It.IsAny<string>(), It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 }

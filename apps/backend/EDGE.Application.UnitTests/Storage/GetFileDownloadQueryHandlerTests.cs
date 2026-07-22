@@ -18,6 +18,7 @@ public class GetFileDownloadQueryHandlerTests
     private readonly Mock<IStoredFileRepository> _mockFileRepository;
     private readonly Mock<IStorageService> _mockStorageService;
     private readonly Mock<IFileEncryptionService> _mockEncryptionService;
+    private readonly Mock<ITenantRepository> _mockTenantRepository;
     private readonly GetFileDownloadQueryHandler _handler;
 
     public GetFileDownloadQueryHandlerTests()
@@ -25,11 +26,13 @@ public class GetFileDownloadQueryHandlerTests
         _mockFileRepository = new Mock<IStoredFileRepository>();
         _mockStorageService = new Mock<IStorageService>();
         _mockEncryptionService = new Mock<IFileEncryptionService>();
+        _mockTenantRepository = new Mock<ITenantRepository>();
 
         _handler = new GetFileDownloadQueryHandler(
             _mockFileRepository.Object,
             _mockStorageService.Object,
-            _mockEncryptionService.Object
+            _mockEncryptionService.Object,
+            _mockTenantRepository.Object
         );
     }
 
@@ -39,6 +42,10 @@ public class GetFileDownloadQueryHandlerTests
         // Arrange
         var fileId = Guid.NewGuid();
         var tenantId = Guid.NewGuid();
+        _mockTenantRepository
+            .Setup(t => t.GetByIdAsync(tenantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Tenant { Id = tenantId, Name = "Test Tenant", Code = "TEST" });
+
         var fakeIv = RandomNumberGenerator.GetBytes(12);
         var fakeTag = RandomNumberGenerator.GetBytes(16);
 
@@ -90,6 +97,10 @@ public class GetFileDownloadQueryHandlerTests
         var ownerTenantId = Guid.NewGuid();
         var wrongTenantId = Guid.NewGuid();
 
+        _mockTenantRepository
+            .Setup(t => t.GetByIdAsync(wrongTenantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Tenant { Id = wrongTenantId, Name = "Wrong Tenant", Code = "WRONG" });
+
         var storedFile = new StoredFile
         {
             Id = fileId,
@@ -116,12 +127,17 @@ public class GetFileDownloadQueryHandlerTests
     {
         // Arrange
         var fileId = Guid.NewGuid();
+        var tenantId = Guid.NewGuid();
+        _mockTenantRepository
+            .Setup(t => t.GetByIdAsync(tenantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Tenant { Id = tenantId, Name = "Test Tenant", Code = "TEST" });
+
         _mockFileRepository
             .Setup(r => r.GetByIdAsync(fileId, It.IsAny<CancellationToken>()))
             .ReturnsAsync((StoredFile?)null);
 
         // Act
-        var query = new GetFileDownloadQuery(fileId, Guid.NewGuid());
+        var query = new GetFileDownloadQuery(fileId, tenantId);
         var result = await _handler.Handle(query, CancellationToken.None);
 
         // Assert

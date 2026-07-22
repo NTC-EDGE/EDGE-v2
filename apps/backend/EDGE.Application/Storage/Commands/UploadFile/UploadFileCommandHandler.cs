@@ -15,22 +15,31 @@ public class UploadFileCommandHandler : IRequestHandler<UploadFileCommand, ApiRe
     private readonly IStorageService _storageService;
     private readonly IFileEncryptionService _encryptionService;
     private readonly IStoredFileRepository _fileRepository;
+    private readonly ITenantRepository _tenantRepository;
     private readonly IUnitOfWork _unitOfWork;
 
     public UploadFileCommandHandler(
         IStorageService storageService,
         IFileEncryptionService encryptionService,
         IStoredFileRepository fileRepository,
+        ITenantRepository tenantRepository,
         IUnitOfWork unitOfWork)
     {
         _storageService = storageService;
         _encryptionService = encryptionService;
         _fileRepository = fileRepository;
+        _tenantRepository = tenantRepository;
         _unitOfWork = unitOfWork;
     }
 
     public async Task<ApiResponse<StoredFileDto>> Handle(UploadFileCommand request, CancellationToken cancellationToken)
     {
+        var tenant = await _tenantRepository.GetByIdAsync(request.TenantId, cancellationToken);
+        if (tenant == null)
+        {
+            return ApiResponse<StoredFileDto>.Fail($"Tenant with ID '{request.TenantId}' was not found.");
+        }
+
         if (request.FileStream == null || request.FileStream.Length == 0)
         {
             return ApiResponse<StoredFileDto>.Fail("File stream is empty.");
