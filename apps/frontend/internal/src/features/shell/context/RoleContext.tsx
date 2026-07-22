@@ -55,8 +55,8 @@ export const ROLE_NAVIGATION_LINKS = {
   'Regional Director': [
     { name: 'Dashboard', screen: 'Dashboard', icon: 'grid' },
     { name: 'Activities', screen: 'Activities', icon: 'bell' },
-    { name: 'Reports', screen: 'Reports', icon: 'file-text' },
-    { name: 'Roles & Permission', screen: 'RolesPermission', icon: 'shield' },
+    { name: 'Chat', screen: 'Chat', icon: 'message-square' },
+    { name: 'Meet', screen: 'Meet', icon: 'video' },
   ],
   Legal: [
     { name: 'Dashboard', screen: 'Dashboard', icon: 'grid' },
