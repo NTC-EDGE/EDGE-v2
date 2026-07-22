@@ -108,13 +108,13 @@ export interface ExamSchedule {
   title: string;
   examType: string;
   regionId: string;
-  regionName?: string;
+  regionName: string;
   venue: string;
   examDate: string;
   applicationDeadline: string;
-  maxSlots?: number | null;
+  maxSlots: number;
   maximumSlots?: number | null;
-  registeredSlots?: number;
+  registeredSlots: number;
   isPublished: boolean;
   description?: string | null;
   remarks?: string | null;
@@ -129,12 +129,12 @@ export interface CreateExamScheduleCommand {
   venue: string;
   examDate: string;
   applicationDeadline: string;
-  maxSlots?: number | null;
+  maxSlots: number;
   maximumSlots?: number | null;
-  isPublished?: boolean;
-  description?: string;
-  remarks?: string;
-  seatNumber?: string;
+  isPublished: boolean;
+  description?: string | null;
+  remarks?: string | null;
+  seatNumber?: string | null;
 }
 
 export interface UpdateExamScheduleCommand {
@@ -145,12 +145,12 @@ export interface UpdateExamScheduleCommand {
   venue: string;
   examDate: string;
   applicationDeadline: string;
-  maxSlots?: number | null;
+  maxSlots: number;
   maximumSlots?: number | null;
-  isPublished?: boolean;
-  description?: string;
-  remarks?: string;
-  seatNumber?: string;
+  isPublished: boolean;
+  description?: string | null;
+  remarks?: string | null;
+  seatNumber?: string | null;
 }
 
 // Tenant and Member Management Types
@@ -439,46 +439,28 @@ export interface RegionSettings {
   fees: RegionFeeSchedule;
 }
 
-export interface ExamSchedule {
-  id: string;
-  title: string;
-  examType: string;
-  regionId: string;
-  regionName: string;
-  venue: string;
-  examDate: string;
-  applicationDeadline: string;
-  maxSlots: number;
-  registeredSlots: number;
-  isPublished: boolean;
-  description?: string | null;
-  createdAt?: string;
-}
 
-export interface CreateExamScheduleCommand {
-  title: string;
-  examType: string;
-  regionId: string;
-  venue: string;
-  examDate: string;
-  applicationDeadline: string;
-  maxSlots: number;
-  isPublished: boolean;
+
+export interface Fee {
+  id: string;
+  code: string;
+  name: string;
   description?: string | null;
 }
 
-export interface UpdateExamScheduleCommand {
+export interface ServiceFee {
   id: string;
-  title: string;
-  examType: string;
-  regionId: string;
-  venue: string;
-  examDate: string;
-  applicationDeadline: string;
-  maxSlots: number;
-  isPublished: boolean;
-  description?: string | null;
+  serviceId: string;
+  feeId: string;
+  amount: number;
 }
+
+export interface Note {
+  id: string;
+  notes: string;
+  serviceCategoryId: string;
+}
+
 
 
 

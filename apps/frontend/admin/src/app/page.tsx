@@ -99,6 +99,17 @@ export default function Dashboard() {
       bgGradient: "from-purple-500/10 to-transparent",
       href: "/roles-permissions",
     },
+    {
+      name: "Fees & Notes",
+      count: "System-wide",
+      loading: false,
+      subtitle: "Regulatory Fees & Notes",
+      icon: CircleDollarSign,
+      textColor: "text-amber-400",
+      borderColor: "border-amber-500/30",
+      bgGradient: "from-amber-500/10 to-transparent",
+      href: "/fees-notes",
+    },
   ];
 
   const geoStats = [

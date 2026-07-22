@@ -17,7 +17,8 @@ import {
   Menu,
   X,
   LifeBuoy,
-  Calendar
+  Calendar,
+  CircleDollarSign
 } from "lucide-react";
 import { useAdminScope, AdminRoleType } from "@/lib/admin-scope-context";
 
@@ -164,6 +165,24 @@ export function SidebarNav() {
                   <span>Tenants & Branches</span>
                 </div>
                 <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-800 text-slate-400 font-mono">System/Region</span>
+              </Link>
+            )}
+
+            {isSystemAdmin && (
+              <Link
+                href="/fees-notes"
+                onClick={() => setMobileOpen(false)}
+                className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                  isActive("/fees-notes")
+                    ? "bg-gradient-to-r from-indigo-600/30 to-slate-800 text-white border border-indigo-500/30 shadow-sm"
+                    : "text-slate-300 hover:text-white hover:bg-slate-800/60"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <CircleDollarSign className="h-4 w-4 text-amber-400" />
+                  <span>Fees & Notes</span>
+                </div>
+                <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-800 text-slate-400 font-mono">System</span>
               </Link>
             )}
 
