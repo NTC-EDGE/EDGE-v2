@@ -49,8 +49,8 @@ export const ROLE_NAVIGATION_LINKS = {
   'Chief of EOD': [
     { name: 'Dashboard', screen: 'Dashboard', icon: 'grid' },
     { name: 'Activities', screen: 'Activities', icon: 'bell' },
-    { name: 'Receipt Management', screen: 'ReceiptManagement', icon: 'file' },
-    { name: 'Schedule', screen: 'Schedule', icon: 'calendar' },
+    { name: 'Chat', screen: 'Chat', icon: 'message-square' },
+    { name: 'Meet', screen: 'Meet', icon: 'video' },
   ],
   'Regional Director': [
     { name: 'Dashboard', screen: 'Dashboard', icon: 'grid' },
