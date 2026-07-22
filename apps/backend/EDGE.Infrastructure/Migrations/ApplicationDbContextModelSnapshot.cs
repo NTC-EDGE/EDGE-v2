@@ -53,21 +53,15 @@ namespace EDGE.Infrastructure.Migrations
                     b.ToTable("ActivityLogs", "public");
                 });
 
-            modelBuilder.Entity("EDGE.Domain.Entities.Applicant", b =>
+            modelBuilder.Entity("EDGE.Domain.Entities.ApplicationRecord", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("ApplicantDetailId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("ApplicantType")
+                    b.Property<string>("ApplicantName")
                         .IsRequired()
                         .HasColumnType("text");
-
-                    b.Property<Guid?>("CompanyDetailId")
-                        .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -75,8 +69,12 @@ namespace EDGE.Infrastructure.Migrations
                     b.Property<string>("CreatedBy")
                         .HasColumnType("text");
 
-                    b.Property<bool>("IsGuest")
+                    b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
+
+                    b.Property<string>("IsDeletedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<DateTime?>("LastModifiedAt")
                         .HasColumnType("timestamp with time zone");
@@ -88,324 +86,13 @@ namespace EDGE.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ApplicantDetailId");
-
-                    b.HasIndex("CompanyDetailId");
-
-                    b.HasIndex("TenantId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("Applicants", "public");
-                });
-
-            modelBuilder.Entity("EDGE.Domain.Entities.ApplicantDetail", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Address")
+                    b.Property<string>("Title")
                         .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("BarangayId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateOnly>("BirthDate")
-                        .HasColumnType("date");
-
-                    b.Property<Guid?>("CompanyDetailId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("ContactNumber")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("CourseTaken")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<string>("ESignature")
-                        .HasColumnType("text");
-
-                    b.Property<string>("FirstName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<double?>("Height")
-                        .HasColumnType("double precision");
-
-                    b.Property<DateTime?>("LastModifiedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("LastModifiedBy")
-                        .HasColumnType("text");
-
-                    b.Property<string>("LastName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<string>("MiddleName")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Nationality")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("SchoolAttended")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Sex")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Suffix")
-                        .HasColumnType("text");
-
-                    b.Property<double?>("Weight")
-                        .HasColumnType("double precision");
-
-                    b.Property<string>("YearGraduated")
-                        .HasColumnType("text");
-
-                    b.Property<string>("ZipCode")
                         .HasColumnType("text");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("BarangayId");
-
-                    b.HasIndex("CompanyDetailId");
-
-                    b.ToTable("ApplicantDetails", "public");
-                });
-
-            modelBuilder.Entity("EDGE.Domain.Entities.Application", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("ApplicationNumber")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<string>("DataEntryMethod")
-                        .HasColumnType("text");
-
-                    b.Property<bool>("IsGuest")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTime?>("LastModifiedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("LastModifiedBy")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Office")
-                        .HasColumnType("text");
-
-                    b.Property<string>("ReferenceNumber")
-                        .HasColumnType("text");
-
-                    b.Property<Guid?>("RegionId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Remarks")
-                        .HasColumnType("text");
-
-                    b.Property<Guid?>("ScheduleId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("SubmissionMode")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("RegionId");
-
-                    b.HasIndex("ScheduleId");
-
-                    b.HasIndex("TenantId");
-
-                    b.HasIndex("UserId");
 
                     b.ToTable("Applications", "public");
-                });
-
-            modelBuilder.Entity("EDGE.Domain.Entities.ApplicationApplicant", b =>
-                {
-                    b.Property<Guid>("ApplicationId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("ApplicantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid");
-
-                    b.Property<int>("SequenceOrder")
-                        .HasColumnType("integer");
-
-                    b.HasKey("ApplicationId", "ApplicantId");
-
-                    b.HasIndex("ApplicantId");
-
-                    b.ToTable("ApplicationApplicants", "public");
-                });
-
-            modelBuilder.Entity("EDGE.Domain.Entities.ApplicationRequirement", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("ApplicantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("ApplicationId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("ApprovedBy")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<bool>("IsApproved")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTime?>("LastModifiedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("LastModifiedBy")
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("RequirementId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("ServiceVariantRequirementId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Url")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ApplicantId");
-
-                    b.HasIndex("ApplicationId");
-
-                    b.HasIndex("TenantId");
-
-                    b.ToTable("ApplicationRequirements", "public");
-                });
-
-            modelBuilder.Entity("EDGE.Domain.Entities.ApplicationService", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("ApplicationId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("ApplicationTypeKey")
-                        .HasColumnType("text");
-
-                    b.Property<string>("DynamicDataJson")
-                        .HasColumnType("text");
-
-                    b.Property<Guid?>("ServiceCategoryId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("ServiceId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("ServiceVariantId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ApplicationId");
-
-                    b.HasIndex("ServiceCategoryId");
-
-                    b.HasIndex("ServiceId");
-
-                    b.HasIndex("ServiceVariantId");
-
-                    b.ToTable("ApplicationServices", "public");
-                });
-
-            modelBuilder.Entity("EDGE.Domain.Entities.ApplicationStatusHistory", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("ApplicationId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Remarks")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("Timestamp")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ApplicationId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("ApplicationStatusHistories", "public");
                 });
 
             modelBuilder.Entity("EDGE.Domain.Entities.AuditLog", b =>
@@ -474,7 +161,7 @@ namespace EDGE.Infrastructure.Migrations
                     b.ToTable("Barangays", "public");
                 });
 
-            modelBuilder.Entity("EDGE.Domain.Entities.CompanyDetail", b =>
+            modelBuilder.Entity("EDGE.Domain.Entities.FieldOffice", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -484,10 +171,25 @@ namespace EDGE.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<Guid>("BarangayId")
-                        .HasColumnType("uuid");
+                    b.Property<bool>("AllowComplaintReception")
+                        .HasColumnType("boolean");
 
-                    b.Property<string>("ContactNumber")
+                    b.Property<bool>("AllowPermitIssuance")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("AllowSpectrumInspection")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("ContactEmail")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ContactPhone")
                         .IsRequired()
                         .HasColumnType("text");
 
@@ -497,10 +199,17 @@ namespace EDGE.Infrastructure.Migrations
                     b.Property<string>("CreatedBy")
                         .HasColumnType("text");
 
-                    b.Property<string>("Email")
+                    b.Property<string>("Description")
                         .HasColumnType("text");
 
-                    b.Property<string>("EntityType")
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("IsDeletedBy")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<DateTime?>("LastModifiedAt")
@@ -514,267 +223,26 @@ namespace EDGE.Infrastructure.Migrations
                         .HasMaxLength(150)
                         .HasColumnType("character varying(150)");
 
-                    b.Property<string>("RegistrationNumber")
+                    b.Property<string>("OfficerInCharge")
                         .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
+                        .HasColumnType("text");
 
-                    b.HasKey("Id");
-
-                    b.HasIndex("BarangayId");
-
-                    b.ToTable("CompanyDetails", "public");
-                });
-
-            modelBuilder.Entity("EDGE.Domain.Entities.ExaminationSchedule", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
+                    b.Property<Guid?>("ProvinceId")
                         .HasColumnType("uuid");
-
-                    b.Property<int>("AvailableSlots")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("ExamDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("LastModifiedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("LastModifiedBy")
-                        .HasColumnType("text");
-
-                    b.Property<int>("MaxSlots")
-                        .HasColumnType("integer");
-
-                    b.Property<Guid>("ServiceId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Venue")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ServiceId");
-
-                    b.ToTable("ExaminationSchedules", "public");
-                });
-
-            modelBuilder.Entity("EDGE.Domain.Entities.Field", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<string>("FieldType")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<bool>("IsOtherEnabled")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("Label")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("LastModifiedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("LastModifiedBy")
-                        .HasColumnType("text");
-
-                    b.Property<bool>("SyncBackOnSubmit")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("ValidationRules")
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Fields", "public");
-                });
-
-            modelBuilder.Entity("EDGE.Domain.Entities.FieldOffice", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Code")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("LastModifiedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("LastModifiedBy")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("text");
 
                     b.Property<Guid>("RegionId")
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
 
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.HasIndex("ProvinceId");
+
                     b.HasIndex("RegionId");
 
                     b.ToTable("FieldOffices", "public");
-                });
-
-            modelBuilder.Entity("EDGE.Domain.Entities.Form", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<bool>("CategorySelectionRequired")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("LastModifiedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("LastModifiedBy")
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("ServiceId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Version")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ServiceId");
-
-                    b.ToTable("Forms", "public");
-                });
-
-            modelBuilder.Entity("EDGE.Domain.Entities.FormFieldValue", b =>
-                {
-                    b.Property<Guid>("FormSubmissionId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("FieldId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Value")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("FormSubmissionId", "FieldId");
-
-                    b.HasIndex("FieldId");
-
-                    b.ToTable("FormFieldValues", "public");
-                });
-
-            modelBuilder.Entity("EDGE.Domain.Entities.FormSection", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("FormId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Key")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("LastModifiedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("LastModifiedBy")
-                        .HasColumnType("text");
-
-                    b.Property<int>("OrderIndex")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("FormId", "Key")
-                        .IsUnique();
-
-                    b.ToTable("FormSections", "public");
-                });
-
-            modelBuilder.Entity("EDGE.Domain.Entities.FormSubmission", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("ApplicantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("ApplicationId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("FormId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("LastModifiedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("LastModifiedBy")
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ApplicantId");
-
-                    b.HasIndex("ApplicationId");
-
-                    b.HasIndex("FormId");
-
-                    b.ToTable("FormSubmissions", "public");
                 });
 
             modelBuilder.Entity("EDGE.Domain.Entities.Municipality", b =>
@@ -807,6 +275,43 @@ namespace EDGE.Infrastructure.Migrations
                     b.HasIndex("ProvinceId");
 
                     b.ToTable("Municipalities", "public");
+                });
+
+            modelBuilder.Entity("EDGE.Domain.Entities.Note", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("IsDeletedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Notes")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ServiceCategoryId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Notes", "public");
                 });
 
             modelBuilder.Entity("EDGE.Domain.Entities.Province", b =>
@@ -883,6 +388,13 @@ namespace EDGE.Infrastructure.Migrations
                     b.Property<string>("Description")
                         .HasColumnType("text");
 
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("IsDeletedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<bool>("IsSystemRole")
                         .HasColumnType("boolean");
 
@@ -920,6 +432,13 @@ namespace EDGE.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("IsDeletedBy")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<DateTime?>("LastModifiedAt")
@@ -963,6 +482,13 @@ namespace EDGE.Infrastructure.Migrations
 
                     b.Property<DateTime>("EndDate")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("IsDeletedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<bool>("IsPublished")
                         .ValueGeneratedOnAdd()
@@ -1010,164 +536,17 @@ namespace EDGE.Infrastructure.Migrations
                     b.ToTable("Schedules", "public");
                 });
 
-            modelBuilder.Entity("EDGE.Domain.Entities.SectionField", b =>
-                {
-                    b.Property<Guid>("FormSectionId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("FieldId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid");
-
-                    b.Property<bool>("IsRequired")
-                        .HasColumnType("boolean");
-
-                    b.Property<int>("OrderIndex")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("VisibilityCondition")
-                        .HasColumnType("text");
-
-                    b.HasKey("FormSectionId", "FieldId");
-
-                    b.HasIndex("FieldId");
-
-                    b.ToTable("SectionFields", "public");
-                });
-
-            modelBuilder.Entity("EDGE.Domain.Entities.Service", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Code")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Contract")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Group")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("LastModifiedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("LastModifiedBy")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("ServiceCategoryId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Code")
-                        .IsUnique();
-
-                    b.HasIndex("ServiceCategoryId");
-
-                    b.HasIndex("TenantId");
-
-                    b.ToTable("Services", "public");
-                });
-
-            modelBuilder.Entity("EDGE.Domain.Entities.ServiceCategory", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Code")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("LastModifiedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("LastModifiedBy")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Code")
-                        .IsUnique();
-
-                    b.ToTable("ServiceCategories", "public");
-                });
-
-            modelBuilder.Entity("EDGE.Domain.Entities.ServiceVariant", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("LastModifiedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("LastModifiedBy")
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("ServiceId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ServiceId");
-
-                    b.ToTable("ServiceVariants", "public");
-                });
-
             modelBuilder.Entity("EDGE.Domain.Entities.Tenant", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -1175,10 +554,18 @@ namespace EDGE.Infrastructure.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("Description")
-                        .HasColumnType("text");
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("IsDeletedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<DateTime?>("LastModifiedAt")
                         .HasColumnType("timestamp with time zone");
@@ -1191,15 +578,15 @@ namespace EDGE.Infrastructure.Migrations
                         .HasMaxLength(150)
                         .HasColumnType("character varying(150)");
 
-                    b.Property<string>("Slug")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
+                    b.Property<Guid>("RegionId")
+                        .HasColumnType("uuid");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Slug")
+                    b.HasIndex("Code")
                         .IsUnique();
+
+                    b.HasIndex("RegionId");
 
                     b.ToTable("Tenants", "public");
                 });
@@ -1216,17 +603,43 @@ namespace EDGE.Infrastructure.Migrations
                     b.Property<string>("CreatedBy")
                         .HasColumnType("text");
 
-                    b.Property<bool>("IsActive")
+                    b.Property<string>("Designation")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Division")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid?>("FieldOfficeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
-                    b.Property<DateTime>("JoinedAt")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<string>("IsDeletedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("JobTitle")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
                     b.Property<DateTime?>("LastModifiedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("LastModifiedBy")
                         .HasColumnType("text");
+
+                    b.Property<string>("Level")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Position")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
                     b.Property<Guid>("RoleId")
                         .HasColumnType("uuid");
@@ -1238,6 +651,8 @@ namespace EDGE.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("FieldOfficeId");
 
                     b.HasIndex("RoleId");
 
@@ -1290,6 +705,13 @@ namespace EDGE.Infrastructure.Migrations
 
                     b.Property<float?>("Height")
                         .HasColumnType("real");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("IsDeletedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<bool?>("IsOnline")
                         .HasColumnType("boolean");
@@ -1345,183 +767,6 @@ namespace EDGE.Infrastructure.Migrations
                     b.ToTable("Users", "public");
                 });
 
-            modelBuilder.Entity("EDGE.Domain.Entities.Applicant", b =>
-                {
-                    b.HasOne("EDGE.Domain.Entities.ApplicantDetail", "ApplicantDetail")
-                        .WithMany()
-                        .HasForeignKey("ApplicantDetailId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("EDGE.Domain.Entities.CompanyDetail", "CompanyDetail")
-                        .WithMany()
-                        .HasForeignKey("CompanyDetailId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("EDGE.Domain.Entities.Tenant", "Tenant")
-                        .WithMany()
-                        .HasForeignKey("TenantId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("EDGE.Domain.Entities.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("ApplicantDetail");
-
-                    b.Navigation("CompanyDetail");
-
-                    b.Navigation("Tenant");
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("EDGE.Domain.Entities.ApplicantDetail", b =>
-                {
-                    b.HasOne("EDGE.Domain.Entities.Barangay", "Barangay")
-                        .WithMany()
-                        .HasForeignKey("BarangayId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("EDGE.Domain.Entities.CompanyDetail", "CompanyDetail")
-                        .WithMany()
-                        .HasForeignKey("CompanyDetailId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("Barangay");
-
-                    b.Navigation("CompanyDetail");
-                });
-
-            modelBuilder.Entity("EDGE.Domain.Entities.Application", b =>
-                {
-                    b.HasOne("EDGE.Domain.Entities.Region", "Region")
-                        .WithMany()
-                        .HasForeignKey("RegionId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("EDGE.Domain.Entities.Schedule", "Schedule")
-                        .WithMany()
-                        .HasForeignKey("ScheduleId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("EDGE.Domain.Entities.Tenant", "Tenant")
-                        .WithMany()
-                        .HasForeignKey("TenantId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("EDGE.Domain.Entities.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("Region");
-
-                    b.Navigation("Schedule");
-
-                    b.Navigation("Tenant");
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("EDGE.Domain.Entities.ApplicationApplicant", b =>
-                {
-                    b.HasOne("EDGE.Domain.Entities.Applicant", "Applicant")
-                        .WithMany()
-                        .HasForeignKey("ApplicantId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("EDGE.Domain.Entities.Application", "Application")
-                        .WithMany("ApplicationApplicants")
-                        .HasForeignKey("ApplicationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Applicant");
-
-                    b.Navigation("Application");
-                });
-
-            modelBuilder.Entity("EDGE.Domain.Entities.ApplicationRequirement", b =>
-                {
-                    b.HasOne("EDGE.Domain.Entities.Applicant", "Applicant")
-                        .WithMany()
-                        .HasForeignKey("ApplicantId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("EDGE.Domain.Entities.Application", "Application")
-                        .WithMany("ApplicationRequirements")
-                        .HasForeignKey("ApplicationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("EDGE.Domain.Entities.Tenant", "Tenant")
-                        .WithMany()
-                        .HasForeignKey("TenantId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Applicant");
-
-                    b.Navigation("Application");
-
-                    b.Navigation("Tenant");
-                });
-
-            modelBuilder.Entity("EDGE.Domain.Entities.ApplicationService", b =>
-                {
-                    b.HasOne("EDGE.Domain.Entities.Application", "Application")
-                        .WithMany("ApplicationServices")
-                        .HasForeignKey("ApplicationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("EDGE.Domain.Entities.ServiceCategory", "ServiceCategory")
-                        .WithMany()
-                        .HasForeignKey("ServiceCategoryId");
-
-                    b.HasOne("EDGE.Domain.Entities.Service", "Service")
-                        .WithMany()
-                        .HasForeignKey("ServiceId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("EDGE.Domain.Entities.ServiceVariant", "ServiceVariant")
-                        .WithMany()
-                        .HasForeignKey("ServiceVariantId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("Application");
-
-                    b.Navigation("Service");
-
-                    b.Navigation("ServiceCategory");
-
-                    b.Navigation("ServiceVariant");
-                });
-
-            modelBuilder.Entity("EDGE.Domain.Entities.ApplicationStatusHistory", b =>
-                {
-                    b.HasOne("EDGE.Domain.Entities.Application", "Application")
-                        .WithMany()
-                        .HasForeignKey("ApplicationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("EDGE.Domain.Entities.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("Application");
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("EDGE.Domain.Entities.Barangay", b =>
                 {
                     b.HasOne("EDGE.Domain.Entities.Municipality", "Municipality")
@@ -1533,105 +778,21 @@ namespace EDGE.Infrastructure.Migrations
                     b.Navigation("Municipality");
                 });
 
-            modelBuilder.Entity("EDGE.Domain.Entities.CompanyDetail", b =>
-                {
-                    b.HasOne("EDGE.Domain.Entities.Barangay", "Barangay")
-                        .WithMany()
-                        .HasForeignKey("BarangayId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Barangay");
-                });
-
-            modelBuilder.Entity("EDGE.Domain.Entities.ExaminationSchedule", b =>
-                {
-                    b.HasOne("EDGE.Domain.Entities.Service", "Service")
-                        .WithMany()
-                        .HasForeignKey("ServiceId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Service");
-                });
-
             modelBuilder.Entity("EDGE.Domain.Entities.FieldOffice", b =>
                 {
-                    b.HasOne("EDGE.Domain.Entities.Region", "Region")
+                    b.HasOne("EDGE.Domain.Entities.Province", "Province")
                         .WithMany()
+                        .HasForeignKey("ProvinceId");
+
+                    b.HasOne("EDGE.Domain.Entities.Region", "Region")
+                        .WithMany("FieldOffices")
                         .HasForeignKey("RegionId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Province");
 
                     b.Navigation("Region");
-                });
-
-            modelBuilder.Entity("EDGE.Domain.Entities.Form", b =>
-                {
-                    b.HasOne("EDGE.Domain.Entities.Service", "Service")
-                        .WithMany()
-                        .HasForeignKey("ServiceId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Service");
-                });
-
-            modelBuilder.Entity("EDGE.Domain.Entities.FormFieldValue", b =>
-                {
-                    b.HasOne("EDGE.Domain.Entities.Field", "Field")
-                        .WithMany()
-                        .HasForeignKey("FieldId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("EDGE.Domain.Entities.FormSubmission", "FormSubmission")
-                        .WithMany("FieldValues")
-                        .HasForeignKey("FormSubmissionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Field");
-
-                    b.Navigation("FormSubmission");
-                });
-
-            modelBuilder.Entity("EDGE.Domain.Entities.FormSection", b =>
-                {
-                    b.HasOne("EDGE.Domain.Entities.Form", "Form")
-                        .WithMany("Sections")
-                        .HasForeignKey("FormId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Form");
-                });
-
-            modelBuilder.Entity("EDGE.Domain.Entities.FormSubmission", b =>
-                {
-                    b.HasOne("EDGE.Domain.Entities.Applicant", "Applicant")
-                        .WithMany()
-                        .HasForeignKey("ApplicantId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("EDGE.Domain.Entities.Application", "Application")
-                        .WithMany()
-                        .HasForeignKey("ApplicationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("EDGE.Domain.Entities.Form", "Form")
-                        .WithMany()
-                        .HasForeignKey("FormId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Applicant");
-
-                    b.Navigation("Application");
-
-                    b.Navigation("Form");
                 });
 
             modelBuilder.Entity("EDGE.Domain.Entities.Municipality", b =>
@@ -1659,7 +820,7 @@ namespace EDGE.Infrastructure.Migrations
             modelBuilder.Entity("EDGE.Domain.Entities.Role", b =>
                 {
                     b.HasOne("EDGE.Domain.Entities.Tenant", "Tenant")
-                        .WithMany("Roles")
+                        .WithMany()
                         .HasForeignKey("TenantId")
                         .OnDelete(DeleteBehavior.Cascade);
 
@@ -1688,57 +849,24 @@ namespace EDGE.Infrastructure.Migrations
                     b.Navigation("Tenant");
                 });
 
-            modelBuilder.Entity("EDGE.Domain.Entities.SectionField", b =>
+            modelBuilder.Entity("EDGE.Domain.Entities.Tenant", b =>
                 {
-                    b.HasOne("EDGE.Domain.Entities.Field", "Field")
+                    b.HasOne("EDGE.Domain.Entities.Region", "Region")
                         .WithMany()
-                        .HasForeignKey("FieldId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("EDGE.Domain.Entities.FormSection", "FormSection")
-                        .WithMany("SectionFields")
-                        .HasForeignKey("FormSectionId")
+                        .HasForeignKey("RegionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Field");
-
-                    b.Navigation("FormSection");
-                });
-
-            modelBuilder.Entity("EDGE.Domain.Entities.Service", b =>
-                {
-                    b.HasOne("EDGE.Domain.Entities.ServiceCategory", "ServiceCategory")
-                        .WithMany()
-                        .HasForeignKey("ServiceCategoryId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("EDGE.Domain.Entities.Tenant", "Tenant")
-                        .WithMany()
-                        .HasForeignKey("TenantId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("ServiceCategory");
-
-                    b.Navigation("Tenant");
-                });
-
-            modelBuilder.Entity("EDGE.Domain.Entities.ServiceVariant", b =>
-                {
-                    b.HasOne("EDGE.Domain.Entities.Service", "Service")
-                        .WithMany()
-                        .HasForeignKey("ServiceId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Service");
+                    b.Navigation("Region");
                 });
 
             modelBuilder.Entity("EDGE.Domain.Entities.TenantMember", b =>
                 {
+                    b.HasOne("EDGE.Domain.Entities.FieldOffice", "FieldOffice")
+                        .WithMany("AssignedMembers")
+                        .HasForeignKey("FieldOfficeId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("EDGE.Domain.Entities.Role", "Role")
                         .WithMany("Members")
                         .HasForeignKey("RoleId")
@@ -1757,6 +885,8 @@ namespace EDGE.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.Navigation("FieldOffice");
+
                     b.Navigation("Role");
 
                     b.Navigation("Tenant");
@@ -1764,28 +894,9 @@ namespace EDGE.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("EDGE.Domain.Entities.Application", b =>
+            modelBuilder.Entity("EDGE.Domain.Entities.FieldOffice", b =>
                 {
-                    b.Navigation("ApplicationApplicants");
-
-                    b.Navigation("ApplicationRequirements");
-
-                    b.Navigation("ApplicationServices");
-                });
-
-            modelBuilder.Entity("EDGE.Domain.Entities.Form", b =>
-                {
-                    b.Navigation("Sections");
-                });
-
-            modelBuilder.Entity("EDGE.Domain.Entities.FormSection", b =>
-                {
-                    b.Navigation("SectionFields");
-                });
-
-            modelBuilder.Entity("EDGE.Domain.Entities.FormSubmission", b =>
-                {
-                    b.Navigation("FieldValues");
+                    b.Navigation("AssignedMembers");
                 });
 
             modelBuilder.Entity("EDGE.Domain.Entities.Municipality", b =>
@@ -1800,6 +911,8 @@ namespace EDGE.Infrastructure.Migrations
 
             modelBuilder.Entity("EDGE.Domain.Entities.Region", b =>
                 {
+                    b.Navigation("FieldOffices");
+
                     b.Navigation("Provinces");
                 });
 
@@ -1813,8 +926,6 @@ namespace EDGE.Infrastructure.Migrations
             modelBuilder.Entity("EDGE.Domain.Entities.Tenant", b =>
                 {
                     b.Navigation("Members");
-
-                    b.Navigation("Roles");
                 });
 
             modelBuilder.Entity("EDGE.Domain.Entities.User", b =>

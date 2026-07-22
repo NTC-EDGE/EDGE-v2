@@ -1,0 +1,56 @@
+import { useApi } from './api';
+import {
+  ExamSchedule,
+  CreateExamScheduleCommand,
+  UpdateExamScheduleCommand
+} from '@edge/api';
+
+export function useScheduleService() {
+  const { useQuery, post, put, del } = useApi();
+
+  const useSchedules = (search?: string, regionId?: string, isPublished?: string) => {
+    const params = new URLSearchParams();
+    if (search !== undefined && search !== null && search.trim().length > 0) {
+      params.append('search', search.trim());
+    }
+    if (regionId !== undefined && regionId !== null && regionId !== 'ALL' && regionId.trim().length > 0) {
+      params.append('regionId', regionId.trim());
+    }
+    if (isPublished !== undefined && isPublished !== null && isPublished !== 'ALL') {
+      params.append('isPublished', isPublished);
+    }
+
+    const queryString = params.toString();
+    const endpoint = `/schedules${queryString.length > 0 ? `?${queryString}` : ''}`;
+    return useQuery<ExamSchedule[]>(endpoint);
+  };
+
+  const useSchedule = (id: string | null) => {
+    return useQuery<ExamSchedule>(id !== null && id.length > 0 ? `/schedules/${id}` : null);
+  };
+
+  const createSchedule = async (data: CreateExamScheduleCommand): Promise<ExamSchedule> => {
+    return post<ExamSchedule, CreateExamScheduleCommand>('/schedules', data);
+  };
+
+  const updateSchedule = async (id: string, data: UpdateExamScheduleCommand): Promise<ExamSchedule> => {
+    return put<ExamSchedule, UpdateExamScheduleCommand>(`/schedules/${id}`, data);
+  };
+
+  const togglePublishStatus = async (id: string, isPublished: boolean): Promise<ExamSchedule> => {
+    return put<ExamSchedule, { isPublished: boolean }>(`/schedules/${id}/publish`, { isPublished });
+  };
+
+  const deleteSchedule = async (id: string): Promise<void> => {
+    return del<void>(`/schedules/${id}`);
+  };
+
+  return {
+    useSchedules,
+    useSchedule,
+    createSchedule,
+    updateSchedule,
+    togglePublishStatus,
+    deleteSchedule,
+  };
+}

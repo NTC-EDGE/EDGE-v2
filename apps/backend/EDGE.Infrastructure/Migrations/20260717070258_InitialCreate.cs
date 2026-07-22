@@ -15,6 +15,7 @@ namespace EDGE.Infrastructure.Migrations
                 name: "public");
 
 
+
             migrationBuilder.CreateTable(
                 name: "Regions",
                 schema: "public",
@@ -149,6 +150,7 @@ namespace EDGE.Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+
             migrationBuilder.DropTable(
                 name: "Barangays",
                 schema: "public");

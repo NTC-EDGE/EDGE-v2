@@ -19,6 +19,7 @@
 #define STEP_019
 using Microsoft.EntityFrameworkCore;
 using EDGE.Domain.Entities;
+using EDGE.Domain.Common;
 using EDGE.Application.Common.Interfaces;
 
 namespace EDGE.Infrastructure.Persistence;
@@ -60,6 +61,9 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
     public DbSet<Municipality> Municipalities => Set<Municipality>();
     public DbSet<Barangay> Barangays => Set<Barangay>();
     public DbSet<Schedule> Schedules => Set<Schedule>();
+    public DbSet<FieldOffice> FieldOffices => Set<FieldOffice>();
+    public DbSet<Note> Notes => Set<Note>();
+
 
 #if STEP_001
     public DbSet<ServiceCategory> ServiceCategories => Set<ServiceCategory>();
@@ -70,9 +74,7 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
 #if STEP_003
     public DbSet<ServiceVariant> ServiceVariants => Set<ServiceVariant>();
 #endif
-#if STEP_004
-    public DbSet<FieldOffice> FieldOffices => Set<FieldOffice>();
-#endif
+
 #if STEP_005
     public DbSet<ExaminationSchedule> ExaminationSchedules => Set<ExaminationSchedule>();
 #endif
@@ -124,19 +126,63 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
         base.OnModelCreating(modelBuilder);
         modelBuilder.HasDefaultSchema("public");
 
+        // Global query filter for soft delete
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+        {
+            if (typeof(AuditableEntity).IsAssignableFrom(entityType.ClrType))
+            {
+                modelBuilder.Entity(entityType.ClrType).HasQueryFilter(ConvertFilterExpression(entityType.ClrType));
+            }
+        }
+
         // Tenant Configuration
         modelBuilder.Entity<Tenant>(entity =>
         {
-            entity.HasIndex(e => e.Slug).IsUnique();
+            entity.HasKey(e => e.Id);
             entity.Property(e => e.Name).IsRequired().HasMaxLength(150);
-            entity.Property(e => e.Slug).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Code).HasMaxLength(50);
+            entity.Property(e => e.Description).HasMaxLength(500);
+        });
+
+        // TenantMember Configuration
+        modelBuilder.Entity<TenantMember>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.RoleId).IsRequired();
+            entity.Property(e => e.JobTitle).HasMaxLength(100);
+            entity.Property(e => e.Level).HasMaxLength(100);
+            entity.Property(e => e.Division).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Position).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Designation).HasMaxLength(100);
+
+            entity.HasOne(e => e.Tenant)
+                  .WithMany(t => t.Members)
+                  .HasForeignKey(e => e.TenantId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.User)
+                  .WithMany(u => u.TenantMemberships)
+                  .HasForeignKey(e => e.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Role)
+                  .WithMany(r => r.Members)
+                  .HasForeignKey(e => e.RoleId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.FieldOffice)
+                  .WithMany(fo => fo.AssignedMembers)
+                  .HasForeignKey(e => e.FieldOfficeId)
+                  .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasIndex(e => new { e.TenantId, e.UserId }).IsUnique();
         });
 
         // Role Configuration
         modelBuilder.Entity<Role>(entity =>
         {
             entity.HasOne(r => r.Tenant)
-                  .WithMany(t => t.Roles)
+                  .WithMany()
                   .HasForeignKey(r => r.TenantId)
                   .OnDelete(DeleteBehavior.Cascade);
         });
@@ -149,27 +195,6 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
                   .WithMany(r => r.RolePermissions)
                   .HasForeignKey(rp => rp.RoleId)
                   .OnDelete(DeleteBehavior.Cascade);
-        });
-
-        // TenantMember Configuration
-        modelBuilder.Entity<TenantMember>(entity =>
-        {
-            entity.HasIndex(tm => new { tm.TenantId, tm.UserId }).IsUnique();
-
-            entity.HasOne(tm => tm.Tenant)
-                  .WithMany(t => t.Members)
-                  .HasForeignKey(tm => tm.TenantId)
-                  .OnDelete(DeleteBehavior.Cascade);
-
-            entity.HasOne(tm => tm.User)
-                  .WithMany(u => u.TenantMemberships)
-                  .HasForeignKey(tm => tm.UserId)
-                  .OnDelete(DeleteBehavior.Cascade);
-
-            entity.HasOne(tm => tm.Role)
-                  .WithMany(r => r.Members)
-                  .HasForeignKey(tm => tm.RoleId)
-                  .OnDelete(DeleteBehavior.Restrict);
         });
 
         // Geographic entity configurations
@@ -189,6 +214,18 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
                   .WithMany(p => p.Provinces)
                   .HasForeignKey(d => d.RegionId)
                   .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<FieldOffice>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(150);
+            entity.Property(e => e.Code).IsRequired().HasMaxLength(50);
+            entity.HasIndex(e => e.Code).IsUnique();
+            entity.HasOne(e => e.Region)
+                  .WithMany(r => r.FieldOffices)
+                  .HasForeignKey(e => e.RegionId)
+                  .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<Municipality>(entity =>
@@ -526,5 +563,14 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
                   .OnDelete(DeleteBehavior.SetNull);
         });
 #endif
+    }
+
+    private static System.Linq.Expressions.LambdaExpression ConvertFilterExpression(Type type)
+    {
+        var parameter = System.Linq.Expressions.Expression.Parameter(type, "e");
+        var property = System.Linq.Expressions.Expression.Property(parameter, nameof(AuditableEntity.IsDeleted));
+        var falseConstant = System.Linq.Expressions.Expression.Constant(false);
+        var equal = System.Linq.Expressions.Expression.Equal(property, falseConstant);
+        return System.Linq.Expressions.Expression.Lambda(equal, parameter);
     }
 }

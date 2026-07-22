@@ -1,6 +1,3 @@
-using FluentValidation;
-using MediatR;
-using Microsoft.AspNetCore.SignalR;
 using Hangfire;
 using Scalar.AspNetCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -89,10 +86,15 @@ try
     // Configure OpenAPI
     builder.Services.AddOpenApi();
 
+    // Configure CORS
+    builder.Services.AddApiCors();
+
     var app = builder.Build();
 
     // Use global exception handling middleware
     app.UseMiddleware<ExceptionHandlingMiddleware>();
+
+    app.UseApiCors();
 
     app.UseAuthentication();
     app.UseAuthorization();
@@ -101,7 +103,7 @@ try
     if (app.Environment.IsDevelopment())
     {
         app.MapOpenApi();
-        app.MapScalarApiReference();
+        app.MapScalarApiReference("/scalar/v2");
         app.UseHangfireDashboard("/hangfire");
     }
 

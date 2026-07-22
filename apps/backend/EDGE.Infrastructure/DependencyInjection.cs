@@ -54,7 +54,9 @@ public static class DependencyInjection
         services.AddScoped<IServiceCategoryRepository, ServiceCategoryRepository>();
         services.AddScoped<IFieldOfficeRepository, FieldOfficeRepository>();
         services.AddScoped<ICsvSchemaParserService, CsvSchemaParserService>();
+        services.AddScoped<INoteRepository, NoteRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
+
         services.AddScoped<IUserActivityService, UserActivityService>();
 
         // Register Clerk Client

@@ -36,7 +36,16 @@ export function useAuthenticatedSWR<Data = unknown, Error = unknown>(
     return response.data;
   };
 
-  return useSWR<Data, Error>(key, customFetcher, config);
+  const defaultConfig: SWRConfiguration<Data, Error> = {
+    revalidateOnFocus: false,
+    revalidateIfStale: false,
+    keepPreviousData: true,
+    dedupingInterval: 10000,
+    ...config,
+  };
+
+  return useSWR<Data, Error>(key, customFetcher, defaultConfig);
 }
+
 
 export * from './types';
