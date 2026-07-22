@@ -33,6 +33,8 @@ import { DashboardScreen } from "./src/features/dashboard/screens/DashboardScree
 import { QueueScreen } from "./src/features/queue/screens/QueueScreen";
 import { InternalLoginPage } from "./src/features/login/components/InternalLoginPage";
 
+import { EmployeesScreen } from "./src/features/employees/screens/EmployeesScreen";
+
 const getClerkKey = (): string => {
   const key = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
   if (typeof key === "string" && key.length > 0) {
@@ -112,7 +114,7 @@ const AuthStack = createNativeStackNavigator({
     ReceiptManagement: { screen: PlaceholderScreen, path: "receipt-management" },
     RolesPermission: { screen: PlaceholderScreen, path: "roles-permissions" },
     Schedule: { screen: PlaceholderScreen, path: "schedule" },
-    Employees: { screen: PlaceholderScreen, path: "employees" },
+    Employees: { screen: EmployeesScreen, path: "employees" },
     Users: { screen: PlaceholderScreen, path: "users" },
     Settings: { screen: PlaceholderScreen, path: "settings" },
   },
