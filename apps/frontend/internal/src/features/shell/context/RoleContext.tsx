@@ -7,7 +7,7 @@ export type UserRole =
   | 'Chief of EOD'
   | 'Regional Director'
   | 'Legal'
-  | 'Account'
+  | 'Accountant'
   | 'Cashier';
 
 export interface NavigationLink {
@@ -22,7 +22,7 @@ export const ROLES: readonly UserRole[] = [
   'Chief of EOD',
   'Regional Director',
   'Legal',
-  'Account',
+  'Accountant',
   'Cashier',
 ] as const;
 
@@ -64,12 +64,11 @@ export const ROLE_NAVIGATION_LINKS = {
     { name: 'Chat', screen: 'Chat', icon: 'message-square' },
     { name: 'Meet', screen: 'Meet', icon: 'video' },
   ],
-  Account: [
+  Accountant: [
     { name: 'Dashboard', screen: 'Dashboard', icon: 'grid' },
     { name: 'Activities', screen: 'Activities', icon: 'bell' },
-    { name: 'Schedule', screen: 'Schedule', icon: 'calendar' },
-    { name: 'Employees', screen: 'Employees', icon: 'users' },
-    { name: 'Settings', screen: 'Settings', icon: 'settings' },
+    { name: 'Chat', screen: 'Chat', icon: 'message-square' },
+    { name: 'Meet', screen: 'Meet', icon: 'video' },
   ],
   Cashier: [
     { name: 'Dashboard', screen: 'Dashboard', icon: 'grid' },
