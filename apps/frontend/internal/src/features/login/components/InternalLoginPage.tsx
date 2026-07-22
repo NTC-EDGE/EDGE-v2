@@ -285,7 +285,7 @@ export function InternalLoginPage() {
                 </View>
 
                 <View style={[styles.mockupWindowBody, isMobile && { padding: 20 }]}>
-                  <Text style={styles.cardTitle}>Login</Text>
+                  <Text style={styles.cardTitle}>Get Started</Text>
 
                   {error.length > 0 ? (
                     <Text style={styles.errorText}>{error}</Text>
@@ -305,7 +305,7 @@ export function InternalLoginPage() {
                     ) : (
                       <View style={styles.loginButtonInner}>
                         <Lucide
-                          name="log-in"
+                          name="arrow-right"
                           size={18}
                           color={COLORS.neutral.white}
                         />
@@ -315,7 +315,7 @@ export function InternalLoginPage() {
                             styles.loginButtonTextActive,
                           ]}
                         >
-                          Login
+                          Get Started
                         </Text>
                       </View>
                     )}
