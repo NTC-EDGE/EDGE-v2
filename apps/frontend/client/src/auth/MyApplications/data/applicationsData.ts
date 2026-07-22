@@ -66,6 +66,19 @@ export interface BulkApplicant {
   applicationType: string;
   status: ApplicationStatus;
   includedInSOA: boolean;
+
+  // Optional profile details for the applicant details view
+  sex?: 'Male' | 'Female';
+  nationality?: string;
+  streetAddress?: string;
+  barangay?: string;
+  cityMunicipality?: string;
+  province?: string;
+  region?: string;
+  zipCode?: string;
+  mobileNumber?: string;
+  email?: string;
+  schedule?: Schedule;
 }
 
 export interface BulkApplication {
@@ -652,3 +665,46 @@ export const mockApplications: Application[] = [
     ],
   },
 ];
+
+// Helper to deterministically generate applicant details for bulk applications
+export function getEnrichedApplicant(applicant: BulkApplicant, serviceName: string): Required<BulkApplicant> {
+  const hash = (applicant.id + applicant.name).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const isFemale = hash % 2 === 0;
+  const sex = isFemale ? 'Female' : 'Male';
+  const nationality = 'Filipino';
+
+  const cities = ['Manila', 'Quezon City', 'Cebu City', 'Davao City', 'San Fernando'];
+  const provinces = ['Metro Manila', 'Metro Manila', 'Cebu', 'Davao del Sur', 'Pampanga'];
+  const regions = [
+    'NCR – National Capital Region',
+    'NCR – National Capital Region',
+    'Region VII – Central Visayas',
+    'Region XI – Davao Region',
+    'Region III – Central Luzon'
+  ];
+  const index = hash % cities.length;
+
+  // Use applicant's own details if already provided, otherwise fallback to deterministic mock values
+  return {
+    id: applicant.id,
+    name: applicant.name,
+    applicationType: applicant.applicationType,
+    status: applicant.status,
+    includedInSOA: applicant.includedInSOA,
+    sex: applicant.sex ?? sex,
+    nationality: applicant.nationality ?? nationality,
+    streetAddress: applicant.streetAddress ?? `${100 + (hash % 900)} Rizal Avenue`,
+    barangay: applicant.barangay ?? `Barangay ${100 + (hash % 800)}`,
+    cityMunicipality: applicant.cityMunicipality ?? cities[index],
+    province: applicant.province ?? provinces[index],
+    region: applicant.region ?? regions[index],
+    zipCode: applicant.zipCode ?? `${1000 + (hash % 8999)}`,
+    mobileNumber: applicant.mobileNumber ?? `+63 917 ${100 + (hash % 900)} ${1000 + (hash % 8999)}`,
+    email: applicant.email ?? `${applicant.name.toLowerCase().replace(/[^a-z0-9]/g, '')}@email.com`,
+    schedule: applicant.schedule ?? {
+      date: 'August 28, 2026',
+      time: '09:00 AM',
+      venue: `NTC Region ${index + 1} Office, ${cities[index]}`,
+    }
+  };
+}
