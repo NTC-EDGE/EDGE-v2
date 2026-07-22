@@ -373,11 +373,6 @@ export function UsersScreen() {
             Manage client accounts, view account types, regions, and application status across regional offices.
           </Text>
         </View>
-
-        <Pressable style={styles.addUserBtn} onPress={handleOpenAddModal}>
-          <Lucide name="plus" size={18} color={COLORS.neutral.white} style={styles.addIcon} />
-          <Text style={styles.addUserBtnText}>Add User</Text>
-        </Pressable>
       </View>
 
       {/* Executive KPI Stats Cards */}
@@ -662,11 +657,8 @@ export function UsersScreen() {
 
 const styles = StyleSheet.create({
   screenContainer: {
-    flex: 1,
-    padding: SPACING[20],
-    maxWidth: 1400,
     width: '100%',
-    alignSelf: 'center',
+    position: 'relative',
   },
 
   toastContainer: {
