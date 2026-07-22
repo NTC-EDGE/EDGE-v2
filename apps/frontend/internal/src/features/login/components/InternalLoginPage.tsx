@@ -3,7 +3,6 @@ import {
   StyleSheet,
   Text,
   View,
-  TextInput,
   TouchableOpacity,
   ActivityIndicator,
   Platform,
@@ -21,20 +20,7 @@ import {
   TYPOGRAPHY,
   Icon as Lucide,
 } from "@edge/ui";
-import { useAuthContext } from "../../auth/context/AuthContext";
 import { NtcLogo } from "./NtcLogo";
-
-interface ClerkErrorItem {
-  message: string;
-}
-
-interface ClerkErrorResponse {
-  errors: ClerkErrorItem[];
-}
-
-function isObject(val: unknown): val is Record<string, unknown> {
-  return typeof val === "object" && val !== null;
-}
 
 interface FooterPolicySection {
   title: string;
@@ -145,7 +131,7 @@ const FOOTER_POLICIES: Record<string, FooterPolicyContent> = {
     sections: [
       {
         title: "1. Self-Service Resources",
-        body: "Before contacting support, please check our extensive FAQ section and step-by-step guides available within the portal's main Help Center link (this will lead to a dedicated website).",
+        body: "Before contacting support, please check our extensive FAQ section and step-by-step guides available within the portal's Help Center link (this will lead to a dedicated website).",
       },
       {
         title: "2. Contact Information",
@@ -160,148 +146,100 @@ const FOOTER_POLICIES: Record<string, FooterPolicyContent> = {
   },
 };
 
-function isClerkError(err: unknown): err is ClerkErrorResponse {
-  if (!isObject(err)) {
-    return false;
-  }
-  const errors = err.errors;
-  if (!Array.isArray(errors)) {
-    return false;
-  }
-  return errors.every((item): boolean => {
-    if (!isObject(item)) {
-      return false;
-    }
-    return typeof item.message === "string";
-  });
-}
-
-const REGION_OPTIONS: readonly string[] = [
-  "Region X - Northern Mindanao",
-  "Central Office - NCR",
-  "Region I - Ilocos Region",
-  "Region II - Cagayan Valley",
-  "Region III - Central Luzon",
-  "Region IV-A - CALABARZON",
-  "Region IV-B - MIMAROPA",
-  "Region V - Bicol Region",
-  "Region VI - Western Visayas",
-  "Region VII - Central Visayas",
-  "Region VIII - Eastern Visayas",
-  "Region IX - Zamboanga Peninsula",
-  "Region XI - Davao Region",
-  "Region XII - SOCCSKSARGEN",
-  "Region XIII - Caraga",
-  "BARMM - Bangsamoro Region",
-  "CAR - Cordillera Administrative Region",
-] as const;
-
 export function InternalLoginPage() {
   const { width } = useWindowDimensions();
   const isMobile = width < 640;
   const isTablet = width >= 640 && width < 1024;
 
-  const { loginWithClerk, verifySignUp } = useAuthContext();
-
-  const [mode, setMode] = useState<"signin" | "verify" | "forgot">("signin");
-  const [selectedRegion, setSelectedRegion] = useState("Region X - Northern Mindanao");
-  const [showRegionDropdown, setShowRegionDropdown] = useState(false);
-  const [identifier, setIdentifier] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [code, setCode] = useState("");
   const [error, setError] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
   const [activeFooterModal, setActiveFooterModal] = useState<FooterPolicyContent | null>(null);
-  const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
-  const [resetIdentifier, setResetIdentifier] = useState("");
-  const [resetError, setResetError] = useState("");
-  const [resetSuccess, setResetSuccess] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleOpenForgotPassword = () => {
-    setResetIdentifier(identifier);
-    setResetError("");
-    setResetSuccess("");
-    setShowForgotPasswordModal(true);
-  };
-
-  const handleSendResetLink = () => {
-    if (resetIdentifier.trim() === "") {
-      setResetError("Please enter your registered phone number or email address.");
-      setResetSuccess("");
+  const handleClerkRedirect = () => {
+    const key = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
+    if (key === undefined || key === null || key === "") {
+      setError("Clerk publishable key is not configured.");
       return;
     }
-    setResetSuccess("");
-    setResetError("Password reset functionality is currently not available. Please contact support or your administrator.");
-  };
-
-  const handleAuthError = (err: unknown, defaultMsg: string) => {
-    if (err instanceof Error) {
-      setError(err.message);
-    } else if (isClerkError(err)) {
-      if (err.errors.length > 0) {
-        setError(err.errors[0].message);
-      } else {
-        setError(defaultMsg);
-      }
-    } else {
-      setError(defaultMsg);
-    }
-  };
-
-  const handleSignIn = async () => {
-    if (identifier.trim() === "" || password.trim() === "") {
-      setError("Please enter your phone number/email address and password.");
-      return;
-    }
+    
     setError("");
-    setSuccessMessage("");
     setIsSubmitting(true);
     try {
-      await loginWithClerk(identifier, password, selectedRegion);
-    } catch (err: unknown) {
-      if (
-        err instanceof Error &&
-        (err.message.toLowerCase().includes("verify") ||
-          err.message.toLowerCase().includes("verification") ||
-          err.message.toLowerCase().includes("status is"))
-      ) {
-        switchMode("verify");
-        setError("Verification code required to complete login.");
-      } else {
-        handleAuthError(err, "Invalid credentials. Please check your login details and try again.");
+      const parts = key.split("_");
+      const base64Part = parts[2];
+      if (base64Part === undefined || base64Part === null || base64Part === "") {
+        setError("Invalid Clerk publishable key format.");
+        setIsSubmitting(false);
+        return;
       }
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleVerify = async () => {
-    if (code.trim() === "") {
-      setError("Please enter the verification code.");
-      return;
-    }
-    setError("");
-    setSuccessMessage("");
-    setIsSubmitting(true);
-    try {
-      await verifySignUp(code);
+      
+      let decoded = "";
+      if (typeof atob === "function") {
+        decoded = atob(base64Part);
+      } else {
+        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        const lookup = new Uint8Array(256);
+        for (let i = 0; i < chars.length; i++) {
+          lookup[chars.charCodeAt(i)] = i;
+        }
+        const buffer = new Uint8Array(base64Part.length * 0.75);
+        let bytesCount = 0;
+        for (let i = 0; i < base64Part.length; i += 4) {
+          const charCode0 = base64Part.charCodeAt(i);
+          const charCode1 = base64Part.charCodeAt(i + 1);
+          const charCode2 = base64Part.charCodeAt(i + 2);
+          const charCode3 = base64Part.charCodeAt(i + 3);
+          
+          const val0 = lookup[charCode0];
+          const val1 = lookup[charCode1];
+          const val2 = lookup[charCode2];
+          const val3 = lookup[charCode3];
+          
+          if (val0 === undefined || val1 === undefined || val2 === undefined || val3 === undefined) {
+             continue;
+          }
+          
+          const chunk = (val0 << 18) | (val1 << 12) | (val2 << 6) | val3;
+          buffer[bytesCount++] = (chunk >> 16) & 255;
+          buffer[bytesCount++] = (chunk >> 8) & 255;
+          buffer[bytesCount++] = chunk & 255;
+        }
+        decoded = String.fromCharCode.apply(null, Array.from(buffer.subarray(0, bytesCount)));
+      }
+      
+      const domain = decoded.replace(/\$$/, "");
+      if (domain === "") {
+        setError("Failed to resolve Clerk domain.");
+        setIsSubmitting(false);
+        return;
+      }
+      
+      const portalDomain = domain.includes(".clerk.accounts.dev")
+        ? domain.replace(".clerk.accounts.dev", ".accounts.dev")
+        : domain;
+      
+      const currentOrigin = Platform.OS === "web" && typeof window !== "undefined" && window.location !== undefined && typeof window.location.origin === "string"
+        ? window.location.origin 
+        : "http://localhost:8081";
+        
+      const signInUrl = `https://${portalDomain}/sign-in?redirect_url=${encodeURIComponent(currentOrigin)}`;
+      
+      if (Platform.OS === "web" && typeof window !== "undefined" && window.location !== undefined) {
+        window.location.href = signInUrl;
+      } else {
+        import("react-native").then(({ Linking }) => {
+          Linking.openURL(signInUrl).catch((err: unknown) => {
+            console.error("Failed to open URL on native:", err);
+            setIsSubmitting(false);
+          });
+        });
+      }
     } catch (err: unknown) {
-      handleAuthError(err, "Incorrect verification code. Please check and try again.");
-    } finally {
+      setError("Failed to redirect to Clerk sign-in.");
       setIsSubmitting(false);
+      console.error(err);
     }
   };
-
-  const switchMode = (newMode: "signin" | "verify" | "forgot") => {
-    setMode(newMode);
-    setError("");
-    setSuccessMessage("");
-    setCode("");
-  };
-
-  const isFormFilled = identifier.trim().length > 0 && password.trim().length > 0;
 
   return (
     <KeyboardAvoidingView
@@ -312,14 +250,11 @@ export function InternalLoginPage() {
         contentContainerStyle={styles.scrollContainer}
         showsVerticalScrollIndicator={false}
       >
-        {/* Decorative Soft Background Blobs */}
         <View style={styles.backgroundBlobLeft} pointerEvents="none" />
         <View style={styles.backgroundBlobRight} pointerEvents="none" />
 
-        {/* Main Hero Section */}
         <View style={styles.heroSection}>
           <View style={[styles.heroContentWrapper, isMobile && styles.heroContentWrapperMobile]}>
-            {/* Left Hero Column */}
             <View style={[styles.heroLeftCol, isMobile && styles.heroLeftColMobile]}>
               <View style={[styles.heroPillBadge, isMobile && { alignSelf: "center" }]}>
                 <View style={styles.heroBadgeDot} />
@@ -336,13 +271,11 @@ export function InternalLoginPage() {
               </Text>
             </View>
 
-            {/* Right Hero Column: Browser Mockup Card enclosing the Login Form */}
             <View style={styles.heroRightCol}>
               <View style={styles.loginCardLogoWrapper}>
                 <NtcLogo size={isMobile ? "medium" : "large"} variant="light" showSubtext={false} />
               </View>
               <View style={[styles.mockupWindowCard, SHADOWS.modal]}>
-                {/* Mockup Window Top Header */}
                 <View style={styles.mockupWindowHeader}>
                   <View style={styles.windowDotsRow}>
                     <View style={styles.windowDotRed} />
@@ -351,226 +284,48 @@ export function InternalLoginPage() {
                   </View>
                 </View>
 
-                {/* Login Form Body */}
                 <View style={[styles.mockupWindowBody, isMobile && { padding: 20 }]}>
-                  <Text style={styles.cardTitle}>
-                    {mode === "signin"
-                      ? "Login"
-                      : mode === "verify"
-                      ? "Verify Account"
-                      : "Reset Password"}
-                  </Text>
+                  <Text style={styles.cardTitle}>Login</Text>
 
-                  {mode === "signin" && (
-                    <>
-                      {/* Region Selector */}
-                      <View style={[styles.fieldGroup, { zIndex: 100 }]}>
-                        <Text style={styles.fieldLabelSmall}>
-                          Region <Text style={styles.requiredStar}>*</Text>
-                        </Text>
-                        <TouchableOpacity
-                          style={styles.regionSelectorBox}
-                          onPress={() => setShowRegionDropdown((prev) => !prev)}
-                          activeOpacity={0.8}
+                  {error.length > 0 ? (
+                    <Text style={styles.errorText}>{error}</Text>
+                  ) : null}
+
+                  <TouchableOpacity
+                    style={[
+                      styles.loginButton,
+                      styles.loginButtonActive,
+                      isSubmitting && styles.buttonDisabled,
+                    ]}
+                    onPress={handleClerkRedirect}
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? (
+                      <ActivityIndicator size="small" color={COLORS.neutral.white} />
+                    ) : (
+                      <View style={styles.loginButtonInner}>
+                        <Lucide
+                          name="log-in"
+                          size={18}
+                          color={COLORS.neutral.white}
+                        />
+                        <Text
+                          style={[
+                            styles.loginButtonText,
+                            styles.loginButtonTextActive,
+                          ]}
                         >
-                          <View style={styles.regionSelectorInner}>
-                            <Lucide name="map-pin" size={16} color={COLORS.neutral[500]} />
-                            <Text style={styles.regionSelectorValue} numberOfLines={1}>
-                              {selectedRegion}
-                            </Text>
-                          </View>
-                          <Lucide
-                            name={showRegionDropdown ? "chevron-up" : "chevron-down"}
-                            size={18}
-                            color={COLORS.neutral[600]}
-                          />
-                        </TouchableOpacity>
-
-                        {showRegionDropdown && (
-                          <>
-                            <Pressable
-                              style={styles.dropdownBackdrop}
-                              onPress={() => setShowRegionDropdown(false)}
-                            />
-                            <View style={styles.regionPopoverMenu}>
-                              <ScrollView style={{ maxHeight: 220 }} nestedScrollEnabled={true}>
-                                {REGION_OPTIONS.map((region) => {
-                                  const isSelected = region === selectedRegion;
-                                  return (
-                                    <TouchableOpacity
-                                      key={region}
-                                      style={[
-                                        styles.regionOptionItem,
-                                        isSelected && styles.regionOptionItemSelected,
-                                      ]}
-                                      onPress={() => {
-                                        setSelectedRegion(region);
-                                        setShowRegionDropdown(false);
-                                      }}
-                                    >
-                                      <Text
-                                        style={[
-                                          styles.regionOptionText,
-                                          isSelected && styles.regionOptionTextSelected,
-                                        ]}
-                                      >
-                                        {region}
-                                      </Text>
-                                      {isSelected && (
-                                        <Lucide name="check" size={16} color={COLORS.brand[800]} />
-                                      )}
-                                    </TouchableOpacity>
-                                  );
-                                })}
-                              </ScrollView>
-                            </View>
-                          </>
-                        )}
-                      </View>
-
-                      {/* Phone / Email Input */}
-                      <View style={styles.fieldGroup}>
-                        <Text style={styles.fieldLabelSmall}>
-                          Phone no./Email address <Text style={styles.requiredStar}>*</Text>
+                          Login
                         </Text>
-                        <TextInput
-                          autoCapitalize="none"
-                          placeholder="Phone no./Email address"
-                          placeholderTextColor={COLORS.neutral[400]}
-                          value={identifier}
-                          onChangeText={setIdentifier}
-                          style={styles.greyInput}
-                          editable={!isSubmitting}
-                        />
                       </View>
-
-                      {/* Password Input with Eye Toggle */}
-                      <View style={styles.fieldGroup}>
-                        <Text style={styles.fieldLabelSmall}>
-                          Password <Text style={styles.requiredStar}>*</Text>
-                        </Text>
-                        <View style={styles.inputWithIconWrapper}>
-                          <TextInput
-                            placeholder="Password"
-                            placeholderTextColor={COLORS.neutral[400]}
-                            secureTextEntry={!showPassword}
-                            value={password}
-                            onChangeText={setPassword}
-                            style={[styles.greyInput, { paddingRight: 42 }]}
-                            editable={!isSubmitting}
-                          />
-                          <TouchableOpacity
-                            style={styles.eyeIconButton}
-                            onPress={() => setShowPassword((prev) => !prev)}
-                          >
-                            <Lucide
-                              name={showPassword ? "eye-off" : "eye"}
-                              size={18}
-                              color={COLORS.neutral[500]}
-                            />
-                          </TouchableOpacity>
-                        </View>
-                      </View>
-
-                      {error.length > 0 ? (
-                        <Text style={styles.errorText}>{error}</Text>
-                      ) : null}
-
-                      {successMessage.length > 0 ? (
-                        <Text style={styles.successText}>{successMessage}</Text>
-                      ) : null}
-
-                      {/* Submit Login Button */}
-                      <TouchableOpacity
-                        style={[
-                          styles.loginButton,
-                          isFormFilled ? styles.loginButtonActive : styles.loginButtonDefault,
-                          isSubmitting && styles.buttonDisabled,
-                        ]}
-                        onPress={handleSignIn}
-                        disabled={isSubmitting}
-                      >
-                        {isSubmitting ? (
-                          <ActivityIndicator size="small" color={COLORS.neutral.white} />
-                        ) : (
-                          <View style={styles.loginButtonInner}>
-                            <Lucide
-                              name="log-in"
-                              size={18}
-                              color={isFormFilled ? COLORS.neutral.white : "#475569"}
-                            />
-                            <Text
-                              style={[
-                                styles.loginButtonText,
-                                isFormFilled ? styles.loginButtonTextActive : styles.loginButtonTextDefault,
-                              ]}
-                            >
-                              Login
-                            </Text>
-                          </View>
-                        )}
-                      </TouchableOpacity>
-
-                      {/* Forgot Password Link */}
-                      <TouchableOpacity
-                        onPress={handleOpenForgotPassword}
-                        style={styles.forgotPasswordLinkWrapper}
-                        disabled={isSubmitting}
-                      >
-                        <Text style={styles.forgotPasswordLinkText}>Forgot your password?</Text>
-                      </TouchableOpacity>
-                    </>
-                  )}
-
-                  {mode === "verify" && (
-                    <>
-                      <Text style={styles.verifyDescriptionText}>
-                        Enter the verification code sent to {identifier}.
-                      </Text>
-
-                      <View style={styles.fieldGroup}>
-                        <TextInput
-                          autoCapitalize="none"
-                          placeholder="Verification Code *"
-                          placeholderTextColor={COLORS.neutral[400]}
-                          value={code}
-                          onChangeText={setCode}
-                          style={styles.greyInput}
-                          editable={!isSubmitting}
-                        />
-                      </View>
-
-                      {error.length > 0 ? (
-                        <Text style={styles.errorText}>{error}</Text>
-                      ) : null}
-
-                      <TouchableOpacity
-                        style={[styles.loginButton, styles.loginButtonActive, isSubmitting && styles.buttonDisabled]}
-                        onPress={handleVerify}
-                        disabled={isSubmitting}
-                      >
-                        {isSubmitting ? (
-                          <ActivityIndicator size="small" color={COLORS.neutral.white} />
-                        ) : (
-                          <Text style={[styles.loginButtonText, styles.loginButtonTextActive]}>Verify & Login</Text>
-                        )}
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        onPress={() => switchMode("signin")}
-                        style={styles.forgotPasswordLinkWrapper}
-                      >
-                        <Text style={styles.forgotPasswordLinkText}>Back to Login</Text>
-                      </TouchableOpacity>
-                    </>
-                  )}
+                    )}
+                  </TouchableOpacity>
                 </View>
               </View>
             </View>
           </View>
         </View>
 
-        {/* Dark Navy Footer */}
         <View style={styles.footerBar}>
           <View style={styles.footerContentContainer}>
             <View style={styles.footerLeftBrand}>
@@ -620,84 +375,6 @@ export function InternalLoginPage() {
         </View>
       </ScrollView>
 
-      {/* Forgot Password Dialog Modal */}
-      <Modal
-        visible={showForgotPasswordModal}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowForgotPasswordModal(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setShowForgotPasswordModal(false)}
-        >
-          <TouchableOpacity
-            style={[styles.modalCard, SHADOWS.modal, { maxWidth: 460 }]}
-            activeOpacity={1}
-            onPress={() => {}}
-          >
-            {/* Close X Button */}
-            <Pressable
-              style={styles.modalCloseBtn}
-              onPress={() => setShowForgotPasswordModal(false)}
-            >
-              <Lucide name="x" size={20} color={COLORS.neutral[500]} />
-            </Pressable>
-
-            <View style={{ padding: 4 }}>
-              <View style={styles.policyModalHeader}>
-                <View style={styles.policyHeaderIconCircle}>
-                  <Lucide name="key" size={20} color="#1E3A8A" />
-                </View>
-                <Text style={styles.policyModalTitle}>Reset Password</Text>
-              </View>
-
-              <Text style={[styles.policyIntroText, { marginBottom: 20 }]}>
-                Enter your registered phone number or email address below to receive password reset instructions.
-              </Text>
-
-              <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabelSmall}>Phone no. / Email address</Text>
-                <TextInput
-                  autoCapitalize="none"
-                  placeholder="Enter your phone or email *"
-                  placeholderTextColor={COLORS.neutral[400]}
-                  value={resetIdentifier}
-                  onChangeText={setResetIdentifier}
-                  style={styles.greyInput}
-                />
-              </View>
-
-              {resetError.length > 0 ? (
-                <Text style={styles.errorText}>{resetError}</Text>
-              ) : null}
-
-              {resetSuccess.length > 0 ? (
-                <Text style={styles.successText}>{resetSuccess}</Text>
-              ) : null}
-
-              <TouchableOpacity
-                style={[
-                  styles.loginButton,
-                  resetIdentifier.trim().length > 0 ? styles.loginButtonActive : styles.loginButtonDefault,
-                  { marginTop: 12 }
-                ]}
-                onPress={handleSendResetLink}
-              >
-                <Text
-                  style={[
-                    styles.loginButtonText,
-                    resetIdentifier.trim().length > 0 ? styles.loginButtonTextActive : styles.loginButtonTextDefault,
-                  ]}
-                >
-                  Send Reset Instructions
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </TouchableOpacity>
-        </TouchableOpacity>
-      </Modal>
 
       {/* Policy & Support Dialog Modal */}
       <Modal
