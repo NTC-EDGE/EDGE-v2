@@ -72,9 +72,10 @@ export const ROLE_NAVIGATION_LINKS = {
   ],
   Cashier: [
     { name: 'Dashboard', screen: 'Dashboard', icon: 'grid' },
+    { name: 'Activities', screen: 'Activities', icon: 'bell' },
     { name: 'Chat', screen: 'Chat', icon: 'message-square' },
     { name: 'Meet', screen: 'Meet', icon: 'video' },
-    { name: 'Schedule', screen: 'Schedule', icon: 'calendar' },
+    { name: 'Receipt Management', screen: 'ReceiptManagement', icon: 'file' },
   ],
 } as const satisfies Record<UserRole, readonly NavigationLink[]>;
 
