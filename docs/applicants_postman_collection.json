@@ -1,0 +1,188 @@
+{
+  "info": {
+    "name": "NTC-EDGE Application & Applicant API v2",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Applications",
+      "item": [
+        {
+          "name": "Preview CSV Import",
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v2/applications/csv-preview",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v2", "applications", "csv-preview"]
+            },
+            "description": "Pre-validate bulk CSV upload and get row-by-row validation remarks before importing."
+          }
+        },
+        {
+          "name": "Submit Application - Single Individual (Draft)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tenantId\": \"11111111-1111-1111-1111-111111111111\",\n  \"submissionMode\": \"Single\",\n  \"dataEntryMethod\": \"Manual\",\n  \"status\": \"Draft\",\n  \"accountType\": \"Individual\",\n  \"serviceCategoryId\": \"00000000-0000-0000-0000-000000000000\",\n  \"serviceId\": \"00000000-0000-0000-0000-000000000000\",\n  \"regionId\": \"00000000-0000-0000-0000-000000000000\",\n  \"office\": \"Regional Office\",\n  \"applicationTypeKey\": \"Radiotelegraphy\",\n  \"dynamicDataJson\": \"{\\\"examineeType\\\":\\\"First Taker\\\"}\",\n  \"applicants\": [\n    {\n      \"applicantType\": \"Individual\",\n      \"details\": {\n        \"barangayId\": \"00000000-0000-0000-0000-000000000000\",\n        \"address\": \"123 Mabini St\",\n        \"firstName\": \"Juan\",\n        \"lastName\": \"Dela Cruz\",\n        \"nationality\": \"Filipino\",\n        \"sex\": \"Male\",\n        \"birthDate\": \"1995-04-12\",\n        \"contactNumber\": \"09171234567\"\n      }\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v2/applications",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v2", "applications"]
+            },
+            "description": "Create a single application draft for an individual applicant."
+          }
+        },
+        {
+          "name": "Submit Application - Bulk Company (Manual Array)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tenantId\": \"11111111-1111-1111-1111-111111111111\",\n  \"submissionMode\": \"Bulk\",\n  \"dataEntryMethod\": \"Manual\",\n  \"status\": \"Draft\",\n  \"accountType\": \"Company\",\n  \"regionId\": \"00000000-0000-0000-0000-000000000000\",\n  \"office\": \"Central Office\",\n  \"applicants\": [\n    {\n      \"applicantType\": \"Individual\",\n      \"details\": {\n        \"firstName\": \"Jane\",\n        \"lastName\": \"Labrador\",\n        \"contactNumber\": \"09178881111\"\n      }\n    },\n    {\n      \"applicantType\": \"Individual\",\n      \"details\": {\n        \"firstName\": \"Vincent\",\n        \"lastName\": \"Bunjan\",\n        \"contactNumber\": \"09178882222\"\n      }\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v2/applications",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v2", "applications"]
+            },
+            "description": "Create a bulk application draft for a Company account. Returns 403 Forbidden if attempted by Guest or Individual account."
+          }
+        },
+        {
+          "name": "Get User Drafts",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v2/applications/drafts",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v2", "applications", "drafts"]
+            },
+            "description": "Fetch all saved draft applications for the active authenticated user."
+          }
+        },
+        {
+          "name": "Get Application Details",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v2/applications/{{application_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v2", "applications", "{{application_id}}"]
+            },
+            "description": "Retrieve an application record with linked applicants, services, and requirements."
+          }
+        },
+        {
+          "name": "Update Application Draft",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"office\": \"Central Office Updated\",\n  \"dynamicDataJson\": \"{\\\"examineeType\\\":\\\"Re-taker\\\"}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v2/applications/{{application_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v2", "applications", "{{application_id}}"]
+            },
+            "description": "Update incomplete draft details."
+          }
+        },
+        {
+          "name": "Upload Applicant Requirement",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"requirementId\": \"00000000-0000-0000-0000-000000000000\",\n  \"tenantId\": \"11111111-1111-1111-1111-111111111111\",\n  \"url\": \"https://storage.ntc.gov.ph/uploads/1x1-photo-jane.png\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v2/applications/{{application_id}}/applicants/{{applicant_id}}/requirements",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v2", "applications", "{{application_id}}", "applicants", "{{applicant_id}}", "requirements"]
+            },
+            "description": "Upload a document attachment for a specific applicant in an application."
+          }
+        },
+        {
+          "name": "Finalize Application Submission",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/v2/applications/{{application_id}}/submit",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v2", "applications", "{{application_id}}", "submit"]
+            },
+            "description": "Transition draft to Submitted state. Enforces strict validation across all applicants and requirement uploads."
+          }
+        },
+        {
+          "name": "Discard Draft Application",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/api/v2/applications/{{application_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v2", "applications", "{{application_id}}"]
+            },
+            "description": "Permanently discard a draft. Enforces 403 Forbidden if Status != 'Draft'."
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "application_id",
+      "value": "00000000-0000-0000-0000-000000000000",
+      "type": "string"
+    },
+    {
+      "key": "applicant_id",
+      "value": "00000000-0000-0000-0000-000000000000",
+      "type": "string"
+    }
+  ]
+}

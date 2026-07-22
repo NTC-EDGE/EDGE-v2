@@ -1,106 +1,134 @@
+using System;
+using System.IO;
 using MediatR;
-using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Routing;
-using FluentValidation;
-using EDGE.Domain.Authorization;
-using EDGE.Application.Applications.Commands;
-using EDGE.Application.Applications.Queries;
-using Hangfire;
-using Microsoft.AspNetCore.SignalR;
-using EDGE.Infrastructure.Hubs;
+using EDGE.Application.Applications.Commands.DeleteDraftApplication;
+using EDGE.Application.Applications.Commands.FinalizeApplicationSubmission;
+using EDGE.Application.Applications.Commands.PreviewCsvImport;
+using EDGE.Application.Applications.Commands.SubmitApplication;
+using EDGE.Application.Applications.Commands.UpdateApplication;
+using EDGE.Application.Applications.Commands.UploadApplicantRequirement;
+using EDGE.Application.Applications.Queries.GetApplicationById;
+using EDGE.Application.Applications.Queries.GetDraftApplications;
+using EDGE.Application.Common.Models;
 
 namespace EDGE.Api.Endpoints;
 
 public static class ApplicationEndpoints
 {
-    public static void MapApplicationEndpoints(this IEndpointRouteBuilder app)
+    public static IEndpointRouteBuilder MapApplicationEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/applications").WithTags("Applications");
+        var group = app.MapGroup("/applications").WithTags("Application");
 
-        group.MapPost("/", async (
-            CreateApplicationCommand command,
-            IValidator<CreateApplicationCommand> validator,
-            IMediator mediator,
-            IBackgroundJobClient backgroundJobs,
-            IHubContext<NotificationHub> hubContext) =>
+        group.MapPost("/csv-preview", async (IFormFile file, IMediator mediator) =>
         {
-            var validationResult = await validator.ValidateAsync(command);
-            if (!validationResult.IsValid)
+            if (file == null || file.Length == 0)
             {
-                return Results.ValidationProblem(validationResult.ToDictionary());
+                return Results.BadRequest(ApiResponse<object>.Fail("No CSV file uploaded."));
             }
 
-            var result = await mediator.Send(command);
-
-            backgroundJobs.Enqueue(() => Console.WriteLine($"[Hangfire Job] Processed application: {result.Title} by {result.ApplicantName}"));
-            await hubContext.Clients.All.SendAsync("ReceiveNotification", $"New application submitted: '{result.Title}'");
-
-            return Results.Created($"/applications/{result.Id}", result);
+            using var stream = file.OpenReadStream();
+            var result = await mediator.Send(new PreviewCsvImportCommand(stream));
+            return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
         })
-        .WithName("CreateApplication")
-        .WithTags("Applications")
-        .WithSummary("Submit a new application")
-        .WithDescription("Submits a new permit or spectrum license application, enqueues background processing, and broadcasts SignalR notification.")
-        .RequireAuthorization(Policies.CanSubmitApplication);
+        .DisableAntiforgery()
+        .WithName("PreviewCsvImport");
 
-        group.MapGet("/", async (IMediator mediator) =>
+        group.MapPost("/", async (SubmitApplicationCommand command, IMediator mediator) =>
         {
-            var result = await mediator.Send(new GetApplicationsQuery());
+            var result = await mediator.Send(command);
+            if (!result.Succeeded)
+            {
+                if (result.Message != null && result.Message.StartsWith("403"))
+                {
+                    return Results.Json(result, statusCode: StatusCodes.Status403Forbidden);
+                }
+                return Results.BadRequest(result);
+            }
+
+            return Results.Created($"/api/v2/applications/{result.Data}", result);
+        })
+        .WithName("SubmitApplication");
+
+        group.MapGet("/drafts", async (IMediator mediator) =>
+        {
+            var result = await mediator.Send(new GetDraftApplicationsQuery());
+            if (!result.Succeeded && result.Message != null && result.Message.StartsWith("401"))
+            {
+                return Results.Unauthorized();
+            }
+
             return Results.Ok(result);
         })
-        .WithName("GetApplications")
-        .WithTags("Applications")
-        .WithSummary("Retrieve all applications")
-        .WithDescription("Fetches a list of all permit and license applications across the platform.")
-        .RequireAuthorization(Policies.CanViewAllApplications);
+        .WithName("GetDraftApplications");
 
         group.MapGet("/{id:guid}", async (Guid id, IMediator mediator) =>
         {
-            var result = await mediator.Send(new GetApplicationQuery(id));
-            return result is not null ? Results.Ok(result) : Results.NotFound();
+            var result = await mediator.Send(new GetApplicationByIdQuery(id));
+            return result.Succeeded ? Results.Ok(result) : Results.NotFound(result);
         })
-        .WithName("GetApplicationById")
-        .WithTags("Applications")
-        .WithSummary("Retrieve application by ID")
-        .WithDescription("Retrieves detailed application record by its unique identifier.")
-        .RequireAuthorization(Policies.CanViewAllApplications);
+        .WithName("GetApplicationById");
 
-        group.MapPut("/{id:guid}", async (
-            Guid id,
-            UpdateApplicationCommand command,
-            IValidator<UpdateApplicationCommand> validator,
-            IMediator mediator) =>
+        group.MapPut("/{id:guid}", async (Guid id, UpdateApplicationCommand command, IMediator mediator) =>
         {
-            if (id != command.Id)
-            {
-                return Results.BadRequest("Route ID does not match request body ID.");
-            }
-
-            var validationResult = await validator.ValidateAsync(command);
-            if (!validationResult.IsValid)
-            {
-                return Results.ValidationProblem(validationResult.ToDictionary());
-            }
-
-            var result = await mediator.Send(command);
-            return result is not null ? Results.Ok(result) : Results.NotFound();
+            var result = await mediator.Send(command with { Id = id });
+            return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
         })
-        .WithName("UpdateApplication")
-        .WithTags("Applications")
-        .WithSummary("Update existing application")
-        .WithDescription("Updates application status, details, or evaluation findings.")
-        .RequireAuthorization(Policies.CanEvaluateApplication);
+        .WithName("UpdateApplicationDraft");
 
         group.MapDelete("/{id:guid}", async (Guid id, IMediator mediator) =>
         {
-            var success = await mediator.Send(new DeleteApplicationCommand(id));
-            return success ? Results.NoContent() : Results.NotFound();
+            var result = await mediator.Send(new DeleteDraftApplicationCommand(id));
+            if (!result.Succeeded)
+            {
+                if (result.Message != null && result.Message.StartsWith("403"))
+                {
+                    return Results.Json(result, statusCode: StatusCodes.Status403Forbidden);
+                }
+                return Results.BadRequest(result);
+            }
+
+            return Results.Ok(result);
         })
-        .WithName("DeleteApplication")
-        .WithTags("Applications")
-        .WithSummary("Delete application")
-        .WithDescription("Permanently removes an application record from the system.")
-        .RequireAuthorization(Policies.AdminOnly);
+        .WithName("DeleteDraftApplication");
+
+        group.MapPost("/{id:guid}/submit", async (Guid id, IMediator mediator) =>
+        {
+            var result = await mediator.Send(new FinalizeApplicationSubmissionCommand(id));
+            return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
+        })
+        .WithName("FinalizeApplicationSubmission");
+
+        group.MapPost("/{id:guid}/applicants/{applicantId:guid}/requirements", async (Guid id, Guid applicantId, UploadApplicantRequirementCommand command, IMediator mediator) =>
+        {
+            var result = await mediator.Send(command with { ApplicationId = id, ApplicantId = applicantId });
+            return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
+        })
+        .WithName("UploadApplicantRequirement");
+
+        // V2 tenant-specific mappings
+        app.MapPost("/tenants/{id:guid}/applications", async (Guid id, SubmitApplicationCommand command, IMediator mediator) =>
+        {
+            var updatedCommand = command with { TenantId = id };
+            var result = await mediator.Send(updatedCommand);
+            return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
+        })
+        .WithName("SubmitTenantApplication")
+        .WithTags("Application")
+        .WithSummary("Submit tenant-scoped application")
+        .WithDescription("Creates and validates a single application submission linked to a tenant.");
+
+        app.MapPatch("/tenants/{id:guid}/applications/{appId:guid}", async (Guid id, Guid appId, UploadApplicantRequirementCommand command, IMediator mediator) =>
+        {
+            var updatedCommand = command with { TenantId = id, ApplicationId = appId };
+            var result = await mediator.Send(updatedCommand);
+            return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
+        })
+        .WithName("UploadTenantApplicationRequirement")
+        .WithTags("Application")
+        .WithSummary("Upload requirement document for application")
+        .WithDescription("Updates or uploads a requirement file for a tenant-scoped application.");
+
+        return app;
     }
 }

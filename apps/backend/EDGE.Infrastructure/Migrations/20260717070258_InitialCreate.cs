@@ -151,7 +151,6 @@ namespace EDGE.Infrastructure.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
 
-
             migrationBuilder.DropTable(
                 name: "Barangays",
                 schema: "public");
