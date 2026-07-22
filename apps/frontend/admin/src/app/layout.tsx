@@ -4,6 +4,7 @@ import "./globals.css";
 import { ClerkProvider, UserButton } from "@clerk/nextjs";
 import { AdminScopeProvider } from "@/lib/admin-scope-context";
 import { SidebarNav } from "@/components/SidebarNav";
+import { BackendStatusIndicator } from "@/components/BackendStatusIndicator";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -41,10 +42,7 @@ export default function RootLayout({
             <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
               {/* Top Header */}
               <header className="h-16 border-b border-slate-800 flex items-center justify-between px-4 md:px-6 bg-slate-900/40 backdrop-blur-md flex-shrink-0">
-                <div className="flex items-center gap-3">
-                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                  <span className="text-xs text-slate-300 font-medium">System Configuration Service Connected</span>
-                </div>
+                <BackendStatusIndicator />
                 <div className="flex items-center gap-4">
                   <UserButton />
                 </div>
