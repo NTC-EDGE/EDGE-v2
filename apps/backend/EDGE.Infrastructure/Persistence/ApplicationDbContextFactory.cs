@@ -55,6 +55,7 @@ public class ApplicationDbContextFactory : IDesignTimeDbContextFactory<Applicati
     {
         try
         {
+            // 1. Create migration history table if it doesn't exist
             context.Database.ExecuteSqlRaw(@"
                 CREATE TABLE IF NOT EXISTS public.""__EFMigrationsHistory"" (
                     ""MigrationId"" character varying(150) NOT NULL,
@@ -62,10 +63,61 @@ public class ApplicationDbContextFactory : IDesignTimeDbContextFactory<Applicati
                     CONSTRAINT ""PK___EFMigrationsHistory"" PRIMARY KEY (""MigrationId"")
                 );
             ");
+
+            // 2. Check if the initial migration tables already exist (e.g., ActivityLogs)
+            var tableExists = false;
+            try
+            {
+                using var command = context.Database.GetDbConnection().CreateCommand();
+                command.CommandText = @"
+                    SELECT EXISTS (
+                        SELECT 1 FROM information_schema.tables 
+                        WHERE table_schema = 'public' 
+                        AND table_name = 'ActivityLogs'
+                    );";
+                context.Database.OpenConnection();
+                var result = command.ExecuteScalar();
+                context.Database.CloseConnection();
+                tableExists = result is bool b && b;
+            }
+            catch
+            {
+                // If query fails, assume table does not exist or db is uninitialized
+            }
+
+            // 3. If tables exist, seed history entries so EF does not attempt to recreate existing tables
+            if (tableExists)
+            {
+                context.Database.ExecuteSqlRaw(@"
+                    INSERT INTO public.""__EFMigrationsHistory"" (""MigrationId"", ""ProductVersion"") 
+                    VALUES 
+                    ('20260722053305_AddFeesAndServiceFees', '10.0.5'),
+                    ('20260722070017_InitialCreate', '10.0.5'),
+                    ('20260722073100_AddTenantIdToFieldOffice', '10.0.5'),
+                    ('20260722074148_ChangeOfficerInChargeToGuid', '10.0.5')
+                    ON CONFLICT (""MigrationId"") DO NOTHING;
+                ");
+            }
         }
         catch
         {
             // Ignore errors if DB is uninitialized or unreachable
+        }
+    }
+
+    public static void ResetDatabaseSchema(DbContext context)
+    {
+        try
+        {
+            context.Database.ExecuteSqlRaw(@"
+                DROP SCHEMA IF EXISTS public CASCADE;
+                CREATE SCHEMA public;
+                GRANT ALL ON SCHEMA public TO public;
+            ");
+        }
+        catch
+        {
+            // Ignore
         }
     }
 }
