@@ -10,6 +10,7 @@ using EDGE.Infrastructure.Persistence;
 using EDGE.Infrastructure.Persistence.Interceptors;
 using EDGE.Infrastructure.Persistence.Repositories;
 using EDGE.Infrastructure.Services;
+using EDGE.Infrastructure.Printing.Services;
 
 namespace EDGE.Infrastructure;
 
@@ -58,6 +59,10 @@ public static class DependencyInjection
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         services.AddScoped<IUserActivityService, UserActivityService>();
+
+        // Register Printing & Form Filler Services
+        services.AddSingleton<IFormPrintingService, FormPrintingService>();
+        services.AddSingleton<IPdfFormFillerService, PdfFormFillerService>();
 
         // Register Clerk Client
         services.AddHttpClient<IClerkUserService, ClerkUserService>((sp, client) =>
