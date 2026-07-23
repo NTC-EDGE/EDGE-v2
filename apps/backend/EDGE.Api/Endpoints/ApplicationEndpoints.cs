@@ -3,11 +3,14 @@ using System.IO;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using FluentValidation;
+using EDGE.Application.Applications.Commands.AddApplicantToApplication;
 using EDGE.Application.Applications.Commands.DeleteDraftApplication;
 using EDGE.Application.Applications.Commands.FinalizeApplicationSubmission;
 using EDGE.Application.Applications.Commands.PreviewCsvImport;
+using EDGE.Application.Applications.Commands.RemoveApplicantFromApplication;
 using EDGE.Application.Applications.Commands.SubmitApplication;
 using EDGE.Application.Applications.Commands.UpdateApplication;
+using EDGE.Application.Applications.Commands.UpdateApplicationApplicant;
 using EDGE.Application.Applications.Commands.UpdateApplicationStatus;
 using EDGE.Application.Applications.Commands.UploadApplicantRequirement;
 using EDGE.Application.Applications.Queries.GetApplicationById;
@@ -158,9 +161,34 @@ public static class ApplicationEndpoints
             return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
         })
         .WithName("UploadTenantApplicationRequirement")
-        .WithTags("Application")
-        .WithSummary("Upload requirement document for application")
-        .WithDescription("Updates or uploads a requirement file for a tenant-scoped application.");
+        .WithTags("Application");
+
+        group.MapPatch("/{id:guid}/applicants/{applicantId:guid}", async (Guid id, Guid applicantId, UpdateApplicationApplicantCommand command, IMediator mediator) =>
+        {
+            var result = await mediator.Send(command with { ApplicationId = id, ApplicantId = applicantId });
+            return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
+        })
+        .WithName("UpdateApplicationApplicant")
+        .WithSummary("Update individual applicant details")
+        .WithDescription("Updates personal details and form values for a single applicant within an application.");
+
+        group.MapDelete("/{id:guid}/applicants/{applicantId:guid}", async (Guid id, Guid applicantId, IMediator mediator) =>
+        {
+            var result = await mediator.Send(new RemoveApplicantFromApplicationCommand { ApplicationId = id, ApplicantId = applicantId });
+            return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
+        })
+        .WithName("RemoveApplicationApplicant")
+        .WithSummary("Remove applicant from draft application")
+        .WithDescription("Removes a single applicant from an existing draft bulk application.");
+
+        group.MapPost("/{id:guid}/applicants", async (Guid id, AddApplicantToApplicationCommand command, IMediator mediator) =>
+        {
+            var result = await mediator.Send(command with { ApplicationId = id });
+            return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
+        })
+        .WithName("AddApplicationApplicant")
+        .WithSummary("Add applicant to draft application")
+        .WithDescription("Adds a new applicant to an existing draft bulk application.");
 
         return app;
     }
