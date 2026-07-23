@@ -15,7 +15,7 @@ public class UpdateApplicationStatusCommandValidator : AbstractValidator<UpdateA
         RuleFor(x => x.Status)
             .NotEmpty()
             .Must(status => Enum.TryParse<ApplicationStatus>(status, true, out _))
-            .WithMessage("Status must be a valid value: Draft, Submitted, UnderReview, Approved, or Rejected.");
+            .WithMessage($"Status must be one of: {string.Join(", ", Enum.GetNames<ApplicationStatus>())}.");
 
         RuleFor(x => x.Remarks)
             .MaximumLength(500)

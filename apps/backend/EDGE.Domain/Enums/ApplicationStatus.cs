@@ -4,7 +4,10 @@ public enum ApplicationStatus
 {
     Draft,
     Submitted,
-    UnderReview,
+    ForApproval,
     Approved,
-    Rejected
+    Endorsed,
+    Declined,
+    ForVerification,
+    Completed
 }
