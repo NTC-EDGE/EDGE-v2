@@ -4,181 +4,182 @@ using EDGE.Infrastructure.Printing.Models;
 namespace EDGE.Infrastructure.Printing.Services;
 
 /// <summary>
-/// Maps Ntc101Application onto coordinate positions (X, Y in points)
-/// for non-fillable (flat) NTC 1-01 PDF templates using PdfSharp XGraphics overlay.
+/// Maps Ntc101Application onto coordinate positions (X, Y in points) for the flat NTC 1-01
+/// PDF template using PdfSharp XGraphics overlay.
 ///
-/// Coordinates below were re-derived from the actual template geometry (PyMuPDF
-/// get_text("words") for label boxes, get_drawings() for the real cell grid, and
-/// pixel-histogram analysis of the flattened OR-receipt image), per
-/// Flat_PDF_Overlay_Mapping_Principles.md. They were NOT eyeballed.
-///
-/// Previous version bugs found by this pass:
-///  - Applicant's Details block used a uniform 15pt row step, but the form's real
-///    row height is 11.88pt and has 7 rows (Last/First/Middle Name, Unit-Room,
-///    Barangay, Province, Contact Number), not 5. The old code silently skipped the
-///    "First Name / Sex" and "Middle Name / Nationality" rows, so every field from
-///    UnitRoomBldgNo onward rendered two rows too high (visibly overlapping First/
-///    Middle Name in the sample output).
-///  - Right-hand column used a guessed X=370; the real column divider (from
-///    get_drawings) is at x=411.96.
-///  - The "Particulars of Equipment" loop targeted a table that does not exist on
-///    this form at all (NTC 1-01 is an exam application, not an equipment/station
-///    registration form) - get_text("words") returns zero hits for "quantity",
-///    "serial", or "model" anywhere on the page. That loop was overlaying stray
-///    equipment text on top of the DECLARATION paragraph. It has been removed;
-///    see the note at the bottom of this file if equipment data ever needs to be
-///    added to a form that actually has such a table.
-///  - Signature/Date Accomplished/OR receipt/Collecting Officer were all placed at
-///    Y=710-780, which lands inside the EXAMINATION ADMISSION SLIP's "Authorized
-///    Officer" area near the bottom of the page - nowhere near the real Declaration
-///    signature box (y ~524-559) or the real OR receipt box (y ~510-565, a
-///    flattened image at x:392.4-569.16 / y:497.88-582.48 per get_image_rects).
+/// All coordinates below were measured from the template's own geometry (label word positions
+/// + vector table/checkbox rects extracted via PyMuPDF), not guessed or reused from another
+/// form's mapper — see Flat_PDF_Overlay_Mapping_Principles.md for the methodology. Page size:
+/// 595.3 x 841.9 pt (A4). Y is top-down, matching PdfSharp XGraphics' default convention.
 /// </summary>
 public static class Ntc101FlatPdfOverlayMapper
 {
-    // Approximate average glyph-width-to-fontsize ratio for this form's font, used only
-    // to center text within a cell when we don't have real glyph metrics available
-    // (e.g. XGraphics.MeasureString). Calibrated the same way as the NTC 1-19 mapper:
-    // ~0.52 for regular weight, ~0.62 for bold. Swap for real string measurement if
-    // perfect centering on unusual text lengths ever matters.
     private const double RegularCharWidthFactor = 0.52;
     private const double BoldCharWidthFactor = 0.62;
 
     private static double EstimateTextWidth(string text, double fontSize, bool isBold)
     {
-        var factor = isBold ? BoldCharWidthFactor : RegularCharWidthFactor;
-        return (text?.Length ?? 0) * fontSize * factor;
+        if (string.IsNullOrEmpty(text)) return 0;
+        return text.Length * fontSize * (isBold ? BoldCharWidthFactor : RegularCharWidthFactor);
     }
 
-    /// <summary>Centers text horizontally within [cellLeft, cellRight] using an estimated glyph width.</summary>
-    private static double CenterX(double cellLeft, double cellRight, string text, double fontSize, bool isBold)
+    private static double CenterX(double boxLeft, double boxRight, string text, double fontSize, bool isBold)
     {
-        var center = (cellLeft + cellRight) / 2.0;
-        var width = EstimateTextWidth(text, fontSize, isBold);
-        return center - (width / 2.0);
+        double width = EstimateTextWidth(text, fontSize, isBold);
+        double boxCenter = (boxLeft + boxRight) / 2.0;
+        return boxCenter - (width / 2.0);
     }
 
     public static List<TextOverlayItem> MapToOverlayItems(Ntc101Application app)
     {
         var items = new List<TextOverlayItem>();
 
-        // ---------------------------------------------------------------
-        // 1. Applicant Details
-        //
-        // Grid extracted from get_drawings() cell rects for the "APPLICANT'S
-        // DETAILS" table (7 rows, row height 11.88pt, baseline = row_bottom - 3):
-        //   Row "Last Name / Date of Birth"        : bottom y=327.36
-        //   Row "First Name / Sex"                 : bottom y=339.24  (not used - no field)
-        //   Row "Middle Name / Nationality"        : bottom y=351.12  (not used - no field)
-        //   Row "Unit/Rm/House/Bldg No. / Street"  : bottom y=362.99
-        //   Row "Barangay / City/Municipality"     : bottom y=374.88
-        //   Row "Province / Zip Code"              : bottom y=386.76
-        //   Row "Contact Number / Email Address"   : bottom y=398.64
-        //
-        // Left-column value cell starts at x=93.72 for the Name row but x=142.68
-        // for every row below it (the Name row's divider sits further left than
-        // the rest of the block - same "per-row divider" pattern called out in the
-        // mapping principles doc). Right-column value cell starts at x=411.96 for
-        // every row. +4pt padding applied after each divider.
-        // ---------------------------------------------------------------
-        var a = app.Applicant;
+        // 1. Exam category/code checkboxes.
+        // Two checkbox columns, both 24.6pt wide: RTG/PHN column at x 44.76-69.36 (center
+        // 57.06), AMATEUR/RESTRICTED column at x 338.52-363.12 (center 350.82). Row Y values
+        // are each option's own label vertical center — confirmed against the template's
+        // checkbox border rects, which matched these centers within 0.1pt for every row checked.
+        const double rtgPhnColX = 57.06;
+        const double amateurRestrictedColX = 350.82;
 
-        // Last Name row, bottom=327.36, baseline=324.36, left col starts x=93.72
-        items.Add(new TextOverlayItem { X = 97.7, Y = 324.4, Text = a.Name, FontSize = 8, IsBold = true });
+        (double x, double y) checkboxPos = app.ExamCode switch
+        {
+            ExamCode.Rtg1_Elements1_2_5_6_Code2520Wpm => (rtgPhnColX, 186.5),
+            ExamCode.Rtg1_Code2520Wpm => (rtgPhnColX, 197.7),
+            ExamCode.Rtg2_Elements1_2_5_6_Code16Wpm => (rtgPhnColX, 209.0),
+            ExamCode.Rtg2_Code16Wpm => (rtgPhnColX, 220.3),
+            ExamCode.Rtg3_Elements1_2_5_Code16Wpm => (rtgPhnColX, 231.6),
+            ExamCode.Rtg3_Code16Wpm => (rtgPhnColX, 242.85),
+            ExamCode.Phn1_Elements1_2_3_4 => (rtgPhnColX, 271.05),
+            ExamCode.Phn2_Elements1_2_3 => (rtgPhnColX, 282.3),
+            ExamCode.Phn3_Elements1_2 => (rtgPhnColX, 293.6),
+            ExamCode.ClassA_Elements8_9_10_Code5Wpm => (amateurRestrictedColX, 186.5),
+            ExamCode.ClassA_Code5WpmOnly => (amateurRestrictedColX, 197.7),
+            ExamCode.ClassB_Elements5_6_7 => (amateurRestrictedColX, 209.0),
+            ExamCode.ClassB_Element2 => (amateurRestrictedColX, 220.3),
+            ExamCode.ClassC_Elements2_3_4 => (amateurRestrictedColX, 231.6),
+            ExamCode.ClassD_Element2 => (amateurRestrictedColX, 242.85),
+            ExamCode.RrocAircraft_Element1 => (amateurRestrictedColX, 271.05),
+            _ => (rtgPhnColX, 186.5)
+        };
+        // Checkbox cells are 24.6pt wide; center the "X" glyph using CenterX so it lands
+        // at true visual center, not just the midpoint where the glyph's left edge would start.
+        const double checkboxHalfWidth = 12.3; // 24.6pt / 2
+        double examCheckX = CenterX(checkboxPos.x - checkboxHalfWidth, checkboxPos.x + checkboxHalfWidth, "X", 9, true);
+        items.Add(new TextOverlayItem { X = examCheckX, Y = checkboxPos.y, Text = "X", FontSize = 9, IsBold = true });
 
-        // Unit/Rm/House/Bldg No. / Street row, bottom=362.99, baseline=360.0
-        items.Add(new TextOverlayItem { X = 146.7, Y = 360.0, Text = a.Address.UnitRoomBldgNo, FontSize = 8 });
-        items.Add(new TextOverlayItem { X = 416.0, Y = 360.0, Text = a.Address.Street, FontSize = 8 });
+        // Date of Exam (top-right of the checkbox grid): value cell x 436.44-546.24, y 288-299.4.
+        items.Add(new TextOverlayItem { X = 440, Y = 298.4, Text = app.DateOfExam.ToString("MM/dd/yy"), FontSize = 8 });
 
-        // Barangay / City-Municipality row, bottom=374.88, baseline=371.9
-        items.Add(new TextOverlayItem { X = 146.7, Y = 371.9, Text = a.Address.Barangay, FontSize = 8 });
-        items.Add(new TextOverlayItem { X = 416.0, Y = 371.9, Text = a.Address.CityMunicipality, FontSize = 8 });
+        // 2. Applicant's Details.
+        // Row grid is 11.88pt tall, running y 314.88-421.8 (Last Name through Course Taken).
+        // Baseline = row_bottom - 0.9 (calibrated against every row's own label y1, which sits
+        // consistently ~0.86-0.9pt above its row's bottom border).
+        var p = app.ApplicantPerson;
+        items.Add(new TextOverlayItem { X = 97, Y = 325.9, Text = p.LastName, FontSize = 8, IsBold = true });
+        items.Add(new TextOverlayItem { X = 464, Y = 325.9, Text = p.DateOfBirth.ToString("MM/dd/yy"), FontSize = 8 });
 
-        // Province / Zip Code row, bottom=386.76, baseline=383.8
-        items.Add(new TextOverlayItem { X = 146.7, Y = 383.8, Text = a.Address.Province, FontSize = 8 });
-        items.Add(new TextOverlayItem { X = 416.0, Y = 383.8, Text = a.Address.ZipCode, FontSize = 8 });
+        items.Add(new TextOverlayItem { X = 97, Y = 337.7, Text = p.FirstName, FontSize = 8, IsBold = true });
+        // Sex: two checkbox cells (Male 411.96-461.04, Female 506.04-546.24), both y-center 333.24.
+        var sexBox = p.Sex == Sex.Male ? (left: 411.96, right: 461.04) : (left: 506.04, right: 546.24);
+        double sexCheckX = CenterX(sexBox.left, sexBox.right, "X", 9, true);
+        items.Add(new TextOverlayItem { X = sexCheckX, Y = 333.24, Text = "X", FontSize = 9, IsBold = true });
 
-        // Contact Number / Email Address row, bottom=398.64, baseline=395.6
-        items.Add(new TextOverlayItem { X = 146.7, Y = 395.6, Text = a.ContactNumber, FontSize = 8 });
-        items.Add(new TextOverlayItem { X = 416.0, Y = 395.6, Text = a.Email, FontSize = 8 });
+        items.Add(new TextOverlayItem { X = 97, Y = 349.6, Text = p.MiddleName, FontSize = 8, IsBold = true });
+        items.Add(new TextOverlayItem { X = 415, Y = 349.6, Text = p.Nationality, FontSize = 8 });
 
-        // ---------------------------------------------------------------
-        // 2. Signature & Declaration
-        //
-        // Cell rects from get_drawings():
-        //   Signature/printed-name box: x:[44.76, 314.16], y:[523.80, 535.80]
-        //   Date Accomplished box:      x:[118.20, 240.72], y:[547.08, 559.08]
-        // Both sit directly above their printed labels ("Signature over Printed
-        // Name of Applicant" at y=535.93-545.98, "Date Accomplished" at
-        // y=559.45-569.50), confirming these are the correct target rows.
-        // Baseline = box_bottom - 3. Centered horizontally in the box since these
-        // read as a signature/printed-name line rather than a left-aligned field.
-        // ---------------------------------------------------------------
+        items.Add(new TextOverlayItem { X = 146, Y = 361.5, Text = p.Address.UnitRoomBldgNo, FontSize = 8 });
+        items.Add(new TextOverlayItem { X = 415, Y = 361.5, Text = p.Address.Street, FontSize = 8 });
+
+        items.Add(new TextOverlayItem { X = 146, Y = 373.4, Text = p.Address.Barangay, FontSize = 8 });
+        items.Add(new TextOverlayItem { X = 415, Y = 373.4, Text = p.Address.CityMunicipality, FontSize = 8 });
+
+        items.Add(new TextOverlayItem { X = 146, Y = 385.3, Text = p.Address.Province, FontSize = 8 });
+        items.Add(new TextOverlayItem { X = 415, Y = 385.3, Text = p.Address.ZipCode, FontSize = 8 });
+
+        items.Add(new TextOverlayItem { X = 146, Y = 397.1, Text = p.ContactNumber, FontSize = 8 });
+        items.Add(new TextOverlayItem { X = 415, Y = 397.1, Text = p.Email, FontSize = 8 });
+
+        // School Attended is a single full-width field (no right-column pair), value cell
+        // x 118.2-580.68.
+        items.Add(new TextOverlayItem { X = 122, Y = 409.0, Text = p.SchoolAttended, FontSize = 8 });
+
+        items.Add(new TextOverlayItem { X = 122, Y = 420.9, Text = p.CourseTaken, FontSize = 8 });
+        if (p.YearGraduated.HasValue)
+        {
+            items.Add(new TextOverlayItem { X = 415, Y = 420.9, Text = p.YearGraduated.Value.ToString(), FontSize = 8 });
+        }
+
+        // 3. Applicant's Request for Assistance.
+        // Yes box x 314.04-338.64, No box x 363.0-387.6, both y-center 440.16.
+        var assistanceBox = app.AssistanceRequest.NeedsAssistance ? (left: 314.04, right: 338.64) : (left: 363.0, right: 387.6);
+        double assistanceCheckX = CenterX(assistanceBox.left, assistanceBox.right, "X", 9, true);
+        items.Add(new TextOverlayItem { X = assistanceCheckX, Y = 440.16, Text = "X", FontSize = 9, IsBold = true });
+
+        if (app.AssistanceRequest.NeedsAssistance && !string.IsNullOrWhiteSpace(app.AssistanceRequest.Details))
+        {
+            // "If yes, please indicate..." blank: value cell x 240.6-580.68, y 446.04-458.04.
+            items.Add(new TextOverlayItem { X = 244, Y = 457.0, Text = app.AssistanceRequest.Details, FontSize = 8 });
+        }
+
+        // 4. Declaration — signature and OR box.
+        // Both boxes share center x ~179.5: signature box x 44.76-314.16, y 523.32-536.16;
+        // date-accomplished box x 118.2-240.72, y 547.08-559.08.
+        const double signatureBoxLeft = 44.76, signatureBoxRight = 314.16;
+        const double dateBoxLeft = 118.2, dateBoxRight = 240.72;
+
         if (!string.IsNullOrWhiteSpace(app.Declaration.SignatoryName))
         {
-            const double sigCellLeft = 44.76, sigCellRight = 314.16, sigBaselineY = 532.8;
-            var x = CenterX(sigCellLeft, sigCellRight, app.Declaration.SignatoryName, 8, isBold: true);
-            items.Add(new TextOverlayItem { X = x, Y = sigBaselineY, Text = app.Declaration.SignatoryName, FontSize = 8, IsBold = true });
+            double sigX = CenterX(signatureBoxLeft, signatureBoxRight, app.Declaration.SignatoryName, 8, true);
+            items.Add(new TextOverlayItem { X = sigX, Y = 534, Text = app.Declaration.SignatoryName, FontSize = 8, IsBold = true });
         }
-
         if (app.Declaration.DateAccomplished != default)
         {
-            var dateText = app.Declaration.DateAccomplished.ToString("MM/dd/yyyy");
-            const double dateCellLeft = 118.20, dateCellRight = 240.72, dateBaselineY = 556.1;
-            var x = CenterX(dateCellLeft, dateCellRight, dateText, 8, isBold: false);
-            items.Add(new TextOverlayItem { X = x, Y = dateBaselineY, Text = dateText, FontSize = 8 });
+            string dateAccomplishedText = app.Declaration.DateAccomplished.ToString("MM/dd/yyyy");
+            double dateX = CenterX(dateBoxLeft, dateBoxRight, dateAccomplishedText, 8, false);
+            items.Add(new TextOverlayItem { X = dateX, Y = 557, Text = dateAccomplishedText, FontSize = 8 });
         }
 
-        // ---------------------------------------------------------------
-        // 3. Official Receipt (OR) box
-        //
-        // This box is a flattened image (get_images()/get_image_rects() locates it
-        // at x:[392.40, 569.16], y:[497.88, 582.48]; get_text("words") returns no
-        // labels for it), so the writable blanks were found by rendering at high
-        // zoom (Matrix(8,8)) and taking row/column darkness histograms to locate
-        // the printed rule lines rather than guessing:
-        //   "OR NO.:" blank      -> rule line at y=519.9-520.1, spans x=475.2-557.2
-        //   "DATE:____,20____"   -> rule line at y=532.5-532.75, TWO blanks:
-        //                           day/month at x=475.2-519.0, year at x=535.8-557.2
-        //   "AMOUNT:" blank      -> rule line at y=544.4-544.75, spans x=446.4-556.9
-        //   Collecting Officer signature line -> rule at y=564.5-564.75,
-        //                           spans x=429.9-535.6 (label "Collecting Officer"
-        //                           printed underneath at y=568-575, confirming this
-        //                           is the signature line, not a separate field)
-        // Values are placed ~1.5pt above each rule so text sits on the line; +3pt
-        // left padding after each rule's start for non-centered fields.
-        // ---------------------------------------------------------------
+        // OR box is a flattened image at x 392.4-569.16, y 497.88-582.48 (different position than
+        // NTC 1-19's OR box, but same internal layout). MM/DD and 2-digit year are split into
+        // their own blanks, matching the fix already validated on NTC 1-19.
         if (app.Payment != null)
         {
-            if (!string.IsNullOrWhiteSpace(app.Payment.OrNo))
-            {
-                items.Add(new TextOverlayItem { X = 478.2, Y = 518.4, Text = app.Payment.OrNo, FontSize = 8 });
-            }
-
+            items.Add(new TextOverlayItem { X = 478, Y = 519, Text = app.Payment.OrNo, FontSize = 8 });
             if (app.Payment.OrDate != default)
             {
-                // Template pre-prints ", 20" between the two date blanks, so split
-                // "MM/dd" into the first blank and the 2-digit year into the second.
-                items.Add(new TextOverlayItem { X = 478.2, Y = 531.0, Text = app.Payment.OrDate.ToString("MM/dd"), FontSize = 8 });
-                items.Add(new TextOverlayItem { X = 538.8, Y = 531.0, Text = app.Payment.OrDate.ToString("yy"), FontSize = 8 });
+                items.Add(new TextOverlayItem { X = 478, Y = 532, Text = app.Payment.OrDate.ToString("MM/dd"), FontSize = 8 });
+                items.Add(new TextOverlayItem { X = 539, Y = 532, Text = app.Payment.OrDate.ToString("yy"), FontSize = 8 });
             }
-
-            items.Add(new TextOverlayItem { X = 449.4, Y = 542.9, Text = $"PHP {app.Payment.Amount:N2}", FontSize = 8 });
-
-            if (!string.IsNullOrWhiteSpace(app.Payment.CollectingOfficer))
-            {
-                const double officerCellLeft = 429.9, officerCellRight = 535.6, officerBaselineY = 562.9;
-                var x = CenterX(officerCellLeft, officerCellRight, app.Payment.CollectingOfficer, 8, isBold: false);
-                items.Add(new TextOverlayItem { X = x, Y = officerBaselineY, Text = app.Payment.CollectingOfficer, FontSize = 8 });
-            }
+            items.Add(new TextOverlayItem { X = 449, Y = 544, Text = $"PHP {app.Payment.Amount:N2}", FontSize = 8 });
+            items.Add(new TextOverlayItem { X = 464, Y = 564, Text = app.Payment.CollectingOfficer, FontSize = 8 });
         }
 
-        // NOTE: NTC 1-01 has no "Particulars of Equipment" table (confirmed via
-        // get_text("words") - no "Quantity"/"Serial"/"Model" labels anywhere on the
-        // page). If a future revision of this form adds one, do NOT reuse the
-        // NTC 1-19 device-table coordinates - re-run the full extraction (get_text
-        // for labels, get_drawings for the real row/column grid, a filled test
-        // render to verify) against this form's own template first.
+        // 5. Examination Admission Slip.
+        // "Admit / mailing address" block: value cell x 167.16-461.04, 4 rows of 11.88pt
+        // (y 623.04-671.16). Baseline = row_bottom - 1.0.
+        var slip = app.AdmissionSlip;
+        items.Add(new TextOverlayItem { X = 171, Y = 633.9, Text = slip.ExamineeName, FontSize = 8 });
+        items.Add(new TextOverlayItem { X = 171, Y = 645.8, Text = slip.MailingAddressLine1, FontSize = 8 });
+        if (!string.IsNullOrWhiteSpace(slip.MailingAddressLine2))
+        {
+            items.Add(new TextOverlayItem { X = 171, Y = 657.7, Text = slip.MailingAddressLine2, FontSize = 8 });
+        }
+        items.Add(new TextOverlayItem { X = 171, Y = 669.6, Text = slip.ExaminationFor, FontSize = 8 });
+
+        // "Place/Date/Time of Exam" block: narrower value cell x 167.16-338.64 (the ID picture
+        // box occupies the space to the right), 3 rows of 11.88pt (y 674.76-710.4).
+        items.Add(new TextOverlayItem { X = 171, Y = 685.6, Text = slip.PlaceOfExam, FontSize = 8 });
+        items.Add(new TextOverlayItem { X = 171, Y = 697.5, Text = slip.DateOfExam.ToString("MM/dd/yy"), FontSize = 8 });
+        items.Add(new TextOverlayItem { X = 171, Y = 709.4, Text = slip.TimeOfExam, FontSize = 8 });
+
+        // Authorized Officer signature: box x 387.48-546.24, y 713.52-724.92 — normally left
+        // blank at submission time (filled in by NTC staff), so only rendered if present.
+        if (!string.IsNullOrWhiteSpace(slip.AuthorizedOfficer))
+        {
+            double officerX = CenterX(387.48, 546.24, slip.AuthorizedOfficer, 8, false);
+            items.Add(new TextOverlayItem { X = officerX, Y = 723.9, Text = slip.AuthorizedOfficer, FontSize = 8 });
+        }
 
         return items;
     }

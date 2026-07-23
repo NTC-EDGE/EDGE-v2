@@ -89,13 +89,7 @@ public class FormPrintingService : IFormPrintingService
             }
         }
 
-        // Fallback: Default PDF generation
-        return new CertificateOfRegistrationReport(new CertificateOfRegistrationApplication
-        {
-            FormNo = "NTC 1-01",
-            Applicant = application.Applicant,
-            Payment = application.Payment,
-            Declaration = application.Declaration
-        }).GeneratePdf();
+        // Fallback: Use dedicated NTC 1-01 report
+        return new Ntc101Report(application).GeneratePdf();
     }
 }

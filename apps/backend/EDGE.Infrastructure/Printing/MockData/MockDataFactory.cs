@@ -9,7 +9,7 @@ namespace EDGE.Infrastructure.Printing.MockData;
 /// shape returned here matches exactly what that call should eventually return, so
 /// FormDocument / ConstructionPermitReport never need to change.
 /// </summary>
-public static class MockDataFactory
+public static partial class MockDataFactory
 {
     public static ConstructionPermitApplication GetConstructionPermitApplication()
     {
@@ -329,75 +329,6 @@ public static class MockDataFactory
             CpcnPaRslNo = "N/A",
             Validity = new DateOnly(2029, 7, 8),
             Devices = devices
-        };
-    }
-
-    public static Ntc101Application GetNtc101Application()
-    {
-        var applicationId = Guid.NewGuid();
-
-        var applicant = new Applicant
-        {
-            ApplicantId = Guid.NewGuid(),
-            Name = "Juan D. dela Cruz",
-            TypeOfEntity = EntityType.SingleProprietorship,
-            Address = new Address
-            {
-                UnitRoomBldgNo = "Block 12, Lot 5",
-                Street = "Sampaguita Street",
-                Barangay = "Central",
-                CityMunicipality = "Quezon City",
-                Province = "Metro Manila",
-                ZipCode = "1100"
-            },
-            ContactNumber = "+63 918 123 4567",
-            Email = "juan.delacruz@email.ph"
-        };
-
-        var equipment = new List<Equipment>
-        {
-            new Equipment
-            {
-                EquipmentId = Guid.NewGuid(),
-                ApplicationId = applicationId,
-                RadioEquipment = "Handheld VHF Transceiver",
-                Make = "Motorola Solutions",
-                TypeModel = "XiR P8668i",
-                SerialNumber = "P8668-BATCH-991",
-                PowerOutput = "5W",
-                FrequencyRange = "136-174 MHz",
-                Quantity = 2
-            }
-        };
-
-        var payment = new Payment
-        {
-            PaymentId = Guid.NewGuid(),
-            ApplicationId = applicationId,
-            OrNo = "OR-2026-0041120",
-            OrDate = new DateOnly(2026, 7, 20),
-            Amount = 1800.00m,
-            CollectingOfficer = "E. Santos"
-        };
-
-        var declaration = new Declaration
-        {
-            SignatoryName = "Juan D. dela Cruz",
-            DateAccomplished = new DateOnly(2026, 7, 20)
-        };
-
-        return new Ntc101Application
-        {
-            ApplicationId = applicationId,
-            RevisionNo = "Rev. 2",
-            RevisionDate = new DateOnly(2025, 1, 10),
-            TypeOfApplication = TypeOfApplication.New,
-            Applicant = applicant,
-            Equipment = equipment,
-            Payment = payment,
-            Declaration = declaration,
-            PermitNo = "ROC-2026-00122",
-            Particulars = "New Commercial Radio Operator Examination & Licensing"
         };
     }
 }
