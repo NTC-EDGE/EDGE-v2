@@ -1,4 +1,5 @@
 import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 
 export interface TokenCache {
   getToken: (key: string) => Promise<string | null | undefined>;
@@ -6,7 +7,7 @@ export interface TokenCache {
   clearToken?: (key: string) => Promise<void>;
 }
 
-export const tokenCache: TokenCache = {
+export const tokenCache: TokenCache | undefined = Platform.OS !== 'web' ? {
   async getToken(key: string) {
     try {
       const item = await SecureStore.getItemAsync(key);
@@ -24,4 +25,5 @@ export const tokenCache: TokenCache = {
       console.error('SecureStore set item error: ', err);
     }
   },
-};
+} : undefined;
+
