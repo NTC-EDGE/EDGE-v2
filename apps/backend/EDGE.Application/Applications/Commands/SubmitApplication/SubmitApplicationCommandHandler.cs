@@ -241,7 +241,9 @@ public class SubmitApplicationCommandHandler
                 {
                     Id = Guid.NewGuid(),
                     TenantId = request.TenantId,
-                    ApplicantType = ApplicantType.Individual,
+                    UserId = submitterUserId,
+                    IsGuest = isGuest,
+                    ApplicantType = isBulk ? ApplicantType.Company : ApplicantType.Individual,
                     ApplicantDetailId = detail.Id,
                     Status = ApplicantStatus.Complete
                 };
