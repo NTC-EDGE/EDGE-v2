@@ -15,7 +15,6 @@ public record SubmitApplicationCommand : IRequest<ApiResponse<Guid>>
 
     public Guid? ServiceCategoryId { get; init; }
     public Guid? ServiceId { get; init; }
-    public Guid? ServiceVariantId { get; init; }
     public ServiceVariantType? ApplicationTypeKey { get; init; }
 
     public Guid? RegionId { get; init; }
@@ -28,6 +27,8 @@ public record SubmitApplicationCommand : IRequest<ApiResponse<Guid>>
 
 public record ApplicantSubmissionDto
 {
+    public ServiceVariantType? ApplicationTypeKey { get; init; }
+    public Guid? ScheduleId { get; init; }
     public string FirstName { get; init; } = "";
     public string LastName { get; init; } = "";
     public string Email { get; init; } = "";

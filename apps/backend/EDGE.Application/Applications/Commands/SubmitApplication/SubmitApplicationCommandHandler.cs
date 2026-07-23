@@ -92,11 +92,12 @@ public class SubmitApplicationCommandHandler
             }
         }
 
-        // 2c. ScheduleId belongs to the selected ServiceId
-        if (request.ScheduleId.HasValue)
+        // 2c. Resolve effective scheduleId (from command or first applicant)
+        Guid? effectiveScheduleId = request.ScheduleId ?? request.Applicants.FirstOrDefault(a => a.ScheduleId.HasValue)?.ScheduleId;
+        if (effectiveScheduleId.HasValue)
         {
             var schedule = await _scheduleRepository.GetByIdAsync(
-                request.ScheduleId.Value, cancellationToken);
+                effectiveScheduleId.Value, cancellationToken);
             if (schedule == null || schedule.ServiceId != service.Id)
             {
                 return ApiResponse<Guid>.Fail(
@@ -123,15 +124,15 @@ public class SubmitApplicationCommandHandler
         // 4. Validate schedule for Exam category services
         if (service.ServiceCategory?.Type == ServiceCategoryType.Exam)
         {
-            if (!request.ScheduleId.HasValue || request.ScheduleId == Guid.Empty)
+            if (!effectiveScheduleId.HasValue || effectiveScheduleId == Guid.Empty)
                 return ApiResponse<Guid>.Fail(
                     "Validation Error: ScheduleId is required for exam services.");
 
             var schedule = await _scheduleRepository.GetByIdAsync(
-                request.ScheduleId.Value, cancellationToken);
+                effectiveScheduleId.Value, cancellationToken);
             if (schedule == null)
                 return ApiResponse<Guid>.Fail(
-                    $"Validation Error: Examination schedule '{request.ScheduleId}' does not exist.");
+                    $"Validation Error: Examination schedule '{effectiveScheduleId}' does not exist.");
         }
 
         // 5. Validate all submitted FieldIds exist in the form
@@ -169,11 +170,15 @@ public class SubmitApplicationCommandHandler
                 ? $"APP-{DateTime.UtcNow:yyyyMMdd}-{Random.Shared.Next(1000, 9999)}"
                 : null;
 
+            // Resolve effective applicationTypeKey
+            var firstApplicantTypeKey = request.Applicants.FirstOrDefault(a => a.ApplicationTypeKey.HasValue)?.ApplicationTypeKey;
+            var effectiveAppTypeKey = firstApplicantTypeKey?.ToString() ?? request.ApplicationTypeKey?.ToString();
+
             // Create Application
             var application = new Domain.Entities.Application
             {
                 TenantId = request.TenantId,
-                ScheduleId = request.ScheduleId,
+                ScheduleId = effectiveScheduleId,
                 RegionId = request.RegionId,
                 Office = request.Office,
                 ApplicationNumber = appNumber,
@@ -187,14 +192,18 @@ public class SubmitApplicationCommandHandler
             await _applicationRepository.AddAsync(application, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
+            // Resolve ServiceVariantId from service variants matching effectiveAppTypeKey
+            Guid? resolvedVariantId = service.ServiceVariants?
+                .FirstOrDefault(v => v.Type.ToString().Equals(effectiveAppTypeKey, StringComparison.OrdinalIgnoreCase))?.Id;
+
             // Create ApplicationService
             var appService = new ApplicationService
             {
                 ApplicationId = application.Id,
                 ServiceCategoryId = service.ServiceCategoryId,
                 ServiceId = service.Id,
-                ServiceVariantId = request.ServiceVariantId,
-                ApplicationTypeKey = request.ApplicationTypeKey?.ToString()
+                ServiceVariantId = resolvedVariantId,
+                ApplicationTypeKey = effectiveAppTypeKey
             };
             await _applicationRepository.AddApplicationServiceAsync(appService, cancellationToken);
 
