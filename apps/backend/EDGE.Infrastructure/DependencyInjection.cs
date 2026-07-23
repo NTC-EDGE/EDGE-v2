@@ -63,6 +63,7 @@ public static class DependencyInjection
         services.AddScoped<ICsvSchemaParserService, CsvSchemaParserService>();
         services.AddScoped<INoteRepository, NoteRepository>();
         services.AddScoped<IStoredFileRepository, StoredFileRepository>();
+        services.AddScoped<IRequirementRepository, RequirementRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         // Register Encryption & Cloudflare R2 Storage Services

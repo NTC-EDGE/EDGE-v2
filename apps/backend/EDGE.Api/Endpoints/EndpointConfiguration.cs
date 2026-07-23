@@ -31,5 +31,6 @@ public static class EndpointConfiguration
         apiV2Group.MapProvinceEndpoints();
         apiV2Group.MapMunicipalityEndpoints();
         apiV2Group.MapBarangayEndpoints();
+        app.MapRequirementEndpoints();
     }
 }

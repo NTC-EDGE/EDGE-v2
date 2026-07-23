@@ -73,6 +73,8 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
 #endif
 #if STEP_003
     public DbSet<ServiceVariant> ServiceVariants => Set<ServiceVariant>();
+    public DbSet<Requirement> Requirements => Set<Requirement>();
+    public DbSet<ServiceVariantRequirement> ServiceVariantRequirements => Set<ServiceVariantRequirement>();
 #endif
 
 #if STEP_005

@@ -353,6 +353,9 @@ namespace EDGE.Infrastructure.Migrations
                     b.Property<Guid?>("ServiceVariantRequirementId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("StoredFileId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid");
 
@@ -365,6 +368,12 @@ namespace EDGE.Infrastructure.Migrations
                     b.HasIndex("ApplicantId");
 
                     b.HasIndex("ApplicationId");
+
+                    b.HasIndex("RequirementId");
+
+                    b.HasIndex("ServiceVariantRequirementId");
+
+                    b.HasIndex("StoredFileId");
 
                     b.HasIndex("TenantId");
 
@@ -1032,6 +1041,43 @@ namespace EDGE.Infrastructure.Migrations
                     b.ToTable("Regions", "public");
                 });
 
+            modelBuilder.Entity("EDGE.Domain.Entities.Requirement", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("IsDeletedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Requirements", "public");
+                });
+
             modelBuilder.Entity("EDGE.Domain.Entities.Role", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1366,6 +1412,52 @@ namespace EDGE.Infrastructure.Migrations
                     b.HasIndex("ServiceId");
 
                     b.ToTable("ServiceVariants", "public");
+                });
+
+            modelBuilder.Entity("EDGE.Domain.Entities.ServiceVariantRequirement", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ApplicationTypeKey")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("IsDeletedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsRequired")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("RequirementId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ServiceVariantId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RequirementId");
+
+                    b.HasIndex("ServiceVariantId");
+
+                    b.ToTable("ServiceVariantRequirements", "public");
                 });
 
             modelBuilder.Entity("EDGE.Domain.Entities.StoredFile", b =>
@@ -1781,6 +1873,20 @@ namespace EDGE.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("EDGE.Domain.Entities.Requirement", "Requirement")
+                        .WithMany()
+                        .HasForeignKey("RequirementId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("EDGE.Domain.Entities.ServiceVariantRequirement", "ServiceVariantRequirement")
+                        .WithMany()
+                        .HasForeignKey("ServiceVariantRequirementId");
+
+                    b.HasOne("EDGE.Domain.Entities.StoredFile", "StoredFile")
+                        .WithMany()
+                        .HasForeignKey("StoredFileId");
+
                     b.HasOne("EDGE.Domain.Entities.Tenant", "Tenant")
                         .WithMany()
                         .HasForeignKey("TenantId")
@@ -1790,6 +1896,12 @@ namespace EDGE.Infrastructure.Migrations
                     b.Navigation("Applicant");
 
                     b.Navigation("Application");
+
+                    b.Navigation("Requirement");
+
+                    b.Navigation("ServiceVariantRequirement");
+
+                    b.Navigation("StoredFile");
 
                     b.Navigation("Tenant");
                 });
@@ -1947,7 +2059,7 @@ namespace EDGE.Infrastructure.Migrations
                         .IsRequired();
 
                     b.HasOne("EDGE.Domain.Entities.Application", "Application")
-                        .WithMany()
+                        .WithMany("FormSubmissions")
                         .HasForeignKey("ApplicationId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -2068,6 +2180,25 @@ namespace EDGE.Infrastructure.Migrations
                     b.Navigation("Service");
                 });
 
+            modelBuilder.Entity("EDGE.Domain.Entities.ServiceVariantRequirement", b =>
+                {
+                    b.HasOne("EDGE.Domain.Entities.Requirement", "Requirement")
+                        .WithMany("ServiceVariantRequirements")
+                        .HasForeignKey("RequirementId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("EDGE.Domain.Entities.ServiceVariant", "ServiceVariant")
+                        .WithMany()
+                        .HasForeignKey("ServiceVariantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Requirement");
+
+                    b.Navigation("ServiceVariant");
+                });
+
             modelBuilder.Entity("EDGE.Domain.Entities.StoredFile", b =>
                 {
                     b.HasOne("EDGE.Domain.Entities.Tenant", "Tenant")
@@ -2131,6 +2262,8 @@ namespace EDGE.Infrastructure.Migrations
                     b.Navigation("ApplicationRequirements");
 
                     b.Navigation("ApplicationServices");
+
+                    b.Navigation("FormSubmissions");
                 });
 
             modelBuilder.Entity("EDGE.Domain.Entities.FieldOffice", b =>
@@ -2168,6 +2301,11 @@ namespace EDGE.Infrastructure.Migrations
                     b.Navigation("FieldOffices");
 
                     b.Navigation("Provinces");
+                });
+
+            modelBuilder.Entity("EDGE.Domain.Entities.Requirement", b =>
+                {
+                    b.Navigation("ServiceVariantRequirements");
                 });
 
             modelBuilder.Entity("EDGE.Domain.Entities.Role", b =>

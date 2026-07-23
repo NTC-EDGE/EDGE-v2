@@ -1,0 +1,80 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
+using EDGE.Domain.Entities;
+using EDGE.Application.Common.Interfaces;
+
+namespace EDGE.Infrastructure.Persistence.Repositories;
+
+public class RequirementRepository : IRequirementRepository
+{
+    private readonly ApplicationDbContext _context;
+
+    public RequirementRepository(ApplicationDbContext context)
+    {
+        _context = context;
+    }
+
+    public async Task AddRequirementAsync(Requirement requirement, CancellationToken cancellationToken = default)
+    {
+        await _context.Requirements.AddAsync(requirement, cancellationToken);
+    }
+
+    public async Task<Requirement?> GetRequirementByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return await _context.Requirements.FirstOrDefaultAsync(r => r.Id == id, cancellationToken);
+    }
+
+    public async Task<List<Requirement>> GetRequirementsAsync(CancellationToken cancellationToken = default)
+    {
+        return await _context.Requirements.OrderBy(r => r.Name).ToListAsync(cancellationToken);
+    }
+
+    public async Task AddServiceVariantRequirementAsync(ServiceVariantRequirement svr, CancellationToken cancellationToken = default)
+    {
+        await _context.ServiceVariantRequirements.AddAsync(svr, cancellationToken);
+    }
+
+    public async Task RemoveServiceVariantRequirementAsync(ServiceVariantRequirement svr, CancellationToken cancellationToken = default)
+    {
+        _context.ServiceVariantRequirements.Remove(svr);
+        await Task.CompletedTask;
+    }
+
+    public async Task<ServiceVariantRequirement?> GetServiceVariantRequirementByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return await _context.ServiceVariantRequirements.FirstOrDefaultAsync(r => r.Id == id, cancellationToken);
+    }
+
+    public async Task<List<ServiceVariantRequirement>> GetServiceVariantRequirementsAsync(Guid? serviceId, Guid? variantId, string? examineeType, CancellationToken cancellationToken = default)
+    {
+        var query = _context.ServiceVariantRequirements
+            .Include(svr => svr.Requirement)
+            .Include(svr => svr.ServiceVariant)
+            .AsNoTracking();
+
+        if (variantId.HasValue && variantId.Value != Guid.Empty)
+        {
+            query = query.Where(svr => svr.ServiceVariantId == variantId.Value);
+        }
+        else if (serviceId.HasValue && serviceId.Value != Guid.Empty)
+        {
+            query = query.Where(svr => svr.ServiceVariant != null && svr.ServiceVariant.ServiceId == serviceId.Value);
+        }
+
+        var list = await query.ToListAsync(cancellationToken);
+
+        if (!string.IsNullOrWhiteSpace(examineeType))
+        {
+            var cleanType = examineeType.Trim();
+            list = list.Where(svr => string.IsNullOrEmpty(svr.ApplicationTypeKey) ||
+                                     svr.ApplicationTypeKey.Equals(cleanType, StringComparison.OrdinalIgnoreCase))
+                       .ToList();
+        }
+
+        return list;
+    }
+}
