@@ -122,7 +122,6 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
             {
                 Id = Guid.NewGuid(),
                 Name = "Admin",
-                NormalizedName = "ADMIN",
                 Key = "admin"
             };
             var tenantMember = new TenantMember

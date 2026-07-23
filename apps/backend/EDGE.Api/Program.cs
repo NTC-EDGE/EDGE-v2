@@ -1,3 +1,4 @@
+using System.Linq;
 using Hangfire;
 using Scalar.AspNetCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -37,45 +38,11 @@ try
     builder.Services.AddApplication();
     builder.Services.AddInfrastructure();
 
+    // Register all IExceptionStrategy implementations automatically from the executing assembly
+    builder.Services.AddExceptionStrategies();
+
     // Configure Clerk JWT Authentication (with Mock Bypass Fallback in Dev)
-    var clerkAuthority = builder.Configuration["Clerk:Authority"] ?? "https://easy-snipe-36.clerk.accounts.dev";
-    builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-        .AddJwtBearer(options =>
-        {
-            options.Authority = clerkAuthority;
-            options.TokenValidationParameters = new TokenValidationParameters
-            {
-                ValidateIssuer = true,
-                ValidIssuer = clerkAuthority,
-                ValidateAudience = false,
-                ValidateLifetime = true,
-                NameClaimType = System.Security.Claims.ClaimTypes.NameIdentifier
-            };
-            options.Events = new JwtBearerEvents
-            {
-                OnMessageReceived = context =>
-                {
-                    var authHeader = context.Request.Headers["Authorization"].ToString();
-                    if (authHeader.StartsWith("Bearer mock_", StringComparison.OrdinalIgnoreCase))
-                    {
-                        var tokenValue = authHeader.Substring("Bearer ".Length);
-                        var roleKey = tokenValue.Substring("mock_".Length); // e.g. "admin", "evaluator", "client"
-
-                        // Map mock token directly to seeded AuthUserIds
-                        var authUserId = $"user_{roleKey}123";
-
-                        var claims = new System.Security.Claims.Claim[]
-                        {
-                            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, authUserId)
-                        };
-                        var identity = new System.Security.Claims.ClaimsIdentity(claims, "MockAuth");
-                        context.Principal = new System.Security.Claims.ClaimsPrincipal(identity);
-                        context.Success();
-                    }
-                    return Task.CompletedTask;
-                }
-            };
-        });
+    builder.Services.AddClerkAuthentication(builder.Configuration);
 
     builder.Services.AddDynamicAuthorization();
     builder.Services.ConfigureHttpJsonOptions(options =>
@@ -87,7 +54,7 @@ try
     builder.Services.AddOpenApi();
 
     // Configure CORS
-    builder.Services.AddApiCors();
+    builder.Services.AddApiCors(builder.Configuration);
 
     var app = builder.Build();
 
@@ -110,12 +77,6 @@ try
     app.MapApiEndpoints();
 
     app.MapGet("/", () => "NTC-EDGE Clean Architecture API (.NET 10)");
-
-    // Map Minimal API Endpoint Groups (Geographic CRUD: Regions, Provinces, Municipalities, Barangays)
-    app.MapRegionEndpoints();
-    app.MapProvinceEndpoints();
-    app.MapMunicipalityEndpoints();
-    app.MapBarangayEndpoints();
 
     // Map SignalR Hub
     app.MapHub<NotificationHub>("/hubs/notifications");

@@ -6,7 +6,9 @@ using Amazon.Runtime;
 using Amazon.S3;
 using Amazon.S3.Model;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Logging;
 using EDGE.Application.Common.Interfaces;
+using EDGE.Application.Common.Exceptions;
 using EDGE.Infrastructure.Options;
 
 namespace EDGE.Infrastructure.Services;
@@ -15,10 +17,14 @@ public class CloudflareR2StorageService : IStorageService
 {
     private readonly CloudflareR2Options _options;
     private readonly IAmazonS3 _s3Client;
+    private readonly ILogger<CloudflareR2StorageService> _logger;
 
-    public CloudflareR2StorageService(IOptions<CloudflareR2Options> options)
+    public CloudflareR2StorageService(
+        IOptions<CloudflareR2Options> options,
+        ILogger<CloudflareR2StorageService> logger)
     {
         _options = options.Value;
+        _logger = logger;
 
         if (string.IsNullOrWhiteSpace(_options.AccountId) ||
             string.IsNullOrWhiteSpace(_options.AccessKeyId) ||
@@ -41,47 +47,86 @@ public class CloudflareR2StorageService : IStorageService
 
     public async Task<string> UploadFileAsync(string storageKey, Stream contentStream, string contentType, CancellationToken cancellationToken = default)
     {
-        if (contentStream.CanSeek)
+        try
         {
-            contentStream.Position = 0;
+            if (contentStream.CanSeek)
+            {
+                contentStream.Position = 0;
+            }
+
+            var putRequest = new PutObjectRequest
+            {
+                BucketName = _options.BucketName,
+                Key = storageKey,
+                InputStream = contentStream,
+                ContentType = string.IsNullOrWhiteSpace(contentType) ? "application/octet-stream" : contentType,
+                DisablePayloadSigning = true
+            };
+
+            await _s3Client.PutObjectAsync(putRequest, cancellationToken);
+            return storageKey;
         }
-
-        var putRequest = new PutObjectRequest
+        catch (AmazonS3Exception s3Ex)
         {
-            BucketName = _options.BucketName,
-            Key = storageKey,
-            InputStream = contentStream,
-            ContentType = string.IsNullOrWhiteSpace(contentType) ? "application/octet-stream" : contentType,
-            DisablePayloadSigning = true
-        };
-
-        await _s3Client.PutObjectAsync(putRequest, cancellationToken);
-        return storageKey;
+            _logger.LogError(s3Ex, "Amazon S3 upload failed for storage key {StorageKey}.", storageKey);
+            throw new StorageException("Failed to upload the file to cloud storage.", s3Ex);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected storage service error occurred during file upload for key {StorageKey}.", storageKey);
+            throw new StorageException("The storage service is currently unreachable. Please try again later.", ex);
+        }
     }
 
     public async Task<Stream> DownloadFileAsync(string storageKey, CancellationToken cancellationToken = default)
     {
-        var getRequest = new GetObjectRequest
+        try
         {
-            BucketName = _options.BucketName,
-            Key = storageKey
-        };
+            var getRequest = new GetObjectRequest
+            {
+                BucketName = _options.BucketName,
+                Key = storageKey
+            };
 
-        var response = await _s3Client.GetObjectAsync(getRequest, cancellationToken);
-        var memoryStream = new MemoryStream();
-        await response.ResponseStream.CopyToAsync(memoryStream, cancellationToken);
-        memoryStream.Position = 0;
-        return memoryStream;
+            var response = await _s3Client.GetObjectAsync(getRequest, cancellationToken);
+            var memoryStream = new MemoryStream();
+            await response.ResponseStream.CopyToAsync(memoryStream, cancellationToken);
+            memoryStream.Position = 0;
+            return memoryStream;
+        }
+        catch (AmazonS3Exception s3Ex)
+        {
+            _logger.LogError(s3Ex, "Amazon S3 download failed for storage key {StorageKey}.", storageKey);
+            throw new StorageException("Failed to retrieve the file from cloud storage.", s3Ex);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected storage service error occurred during file download for key {StorageKey}.", storageKey);
+            throw new StorageException("The storage service is currently unreachable. Please try again later.", ex);
+        }
     }
 
     public async Task DeleteFileAsync(string storageKey, CancellationToken cancellationToken = default)
     {
-        var deleteRequest = new DeleteObjectRequest
+        try
         {
-            BucketName = _options.BucketName,
-            Key = storageKey
-        };
+            var deleteRequest = new DeleteObjectRequest
+            {
+                BucketName = _options.BucketName,
+                Key = storageKey
+            };
 
-        await _s3Client.DeleteObjectAsync(deleteRequest, cancellationToken);
+            await _s3Client.DeleteObjectAsync(deleteRequest, cancellationToken);
+        }
+        catch (AmazonS3Exception s3Ex)
+        {
+            _logger.LogError(s3Ex, "Amazon S3 delete failed for storage key {StorageKey}.", storageKey);
+            throw new StorageException("Failed to delete the file from cloud storage.", s3Ex);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected storage service error occurred during file deletion for key {StorageKey}.", storageKey);
+            throw new StorageException("The storage service is currently unreachable. Please try again later.", ex);
+        }
     }
 }

@@ -6,13 +6,16 @@ using EDGE.Application.Municipalities.Queries.GetMunicipalities;
 using EDGE.Application.Municipalities.Queries.GetMunicipalityById;
 using EDGE.Application.Common.Models;
 
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Routing;
+
 namespace EDGE.Api.Endpoints;
 
 public static class MunicipalityEndpoints
 {
-    public static IEndpointRouteBuilder MapMunicipalityEndpoints(this IEndpointRouteBuilder app)
+    public static RouteGroupBuilder MapMunicipalityEndpoints(this RouteGroupBuilder apiGroup)
     {
-        var group = app.MapGroup("/api/v2/municipalities").WithTags("Municipality");
+        var group = apiGroup.MapGroup("municipalities").WithTags("Municipality");
 
         group.MapGet("/", async (Guid? provinceId, bool? activeOnly, IMediator mediator) =>
         {
@@ -77,6 +80,6 @@ public static class MunicipalityEndpoints
         .WithSummary("Delete municipality reference")
         .WithDescription("Deletes a municipality entity.");
 
-        return app;
+        return apiGroup;
     }
 }
