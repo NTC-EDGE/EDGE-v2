@@ -162,17 +162,21 @@ public static class Ntc102FlatPdfOverlayMapper
             items.Add(new TextOverlayItem { X = dateX, Y = 722.0, Text = dateAccomplishedText, FontSize = 8 });
         }
 
-        // 6. OFFICIAL RECEIPT BOX (y: 648.5 - 729.1, x: 386.8 - 550.3)
+        // 6. OFFICIAL RECEIPT BOX (x: 386.8 - 550.3, y: 648.5 - 729.1)
         if (app.Payment != null)
         {
-            items.Add(new TextOverlayItem { X = 450, Y = 666, Text = app.Payment.OrNo, FontSize = 8 });
+            items.Add(new TextOverlayItem { X = 455, Y = 667.5, Text = app.Payment.OrNo, FontSize = 8 });
             if (app.Payment.OrDate != default)
             {
-                items.Add(new TextOverlayItem { X = 458, Y = 676, Text = app.Payment.OrDate.ToString("MM/dd"), FontSize = 8 });
-                items.Add(new TextOverlayItem { X = 502, Y = 676, Text = app.Payment.OrDate.ToString("yy"), FontSize = 8 });
+                items.Add(new TextOverlayItem { X = 459, Y = 678.5, Text = app.Payment.OrDate.ToString("MM/dd"), FontSize = 8 });
+                items.Add(new TextOverlayItem { X = 528, Y = 678.5, Text = app.Payment.OrDate.ToString("yy"), FontSize = 8 });
             }
-            items.Add(new TextOverlayItem { X = 438, Y = 688, Text = $"PHP {app.Payment.Amount:N2}", FontSize = 8 });
-            items.Add(new TextOverlayItem { X = 434, Y = 708, Text = app.Payment.CollectingOfficer, FontSize = 8 });
+            items.Add(new TextOverlayItem { X = 445, Y = 689.5, Text = $"PHP {app.Payment.Amount:N2}", FontSize = 8 });
+            if (!string.IsNullOrWhiteSpace(app.Payment.CollectingOfficer))
+            {
+                double officerX = CenterX(420.0, 530.0, app.Payment.CollectingOfficer, 8, false);
+                items.Add(new TextOverlayItem { X = officerX, Y = 709.5, Text = app.Payment.CollectingOfficer, FontSize = 8 });
+            }
         }
 
         return items;
