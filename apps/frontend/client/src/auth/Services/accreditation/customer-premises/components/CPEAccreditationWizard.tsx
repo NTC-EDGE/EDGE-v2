@@ -29,8 +29,8 @@ interface CPEAccreditationWizardProps {
   setSelectedRegionId: (id: string) => void;
   selectedOfficeId: string;
   setSelectedOfficeId: (id: string) => void;
-  appMode: "SINGLE" | "BULK";
-  setAppMode: (mode: "SINGLE" | "BULK") => void;
+  appMode: "SINGLE" | "BULK" | "";
+  setAppMode: (mode: "SINGLE" | "BULK" | "") => void;
   bulkMethod: "MANUAL" | "EXCEL";
   setBulkMethod: (method: "MANUAL" | "EXCEL") => void;
   isFileUploaded: boolean;

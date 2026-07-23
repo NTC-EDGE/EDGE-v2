@@ -36,9 +36,9 @@ export function LoginScreen() {
   const navigation = useNavigation();
   const signInResult = useSignIn();
   const { signIn } = signInResult;
-  const [region, setRegion] = useState("");
-  const [phoneOrEmail, setPhoneOrEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [region, setRegion] = useState("National Capital Region (NCR)");
+  const [phoneOrEmail, setPhoneOrEmail] = useState("test@example.com");
+  const [password, setPassword] = useState("password123");
 
   // Validation errors
   const [regionError, setRegionError] = useState("");

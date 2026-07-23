@@ -14,6 +14,8 @@ import { styles } from "./RadioOperatorExamWizard.styles";
 import { PHILIPPINE_REGIONS_WITH_OFFICES } from "../../../accreditation/customer-premises/data/mockRegionData";
 import { Select } from "../../../../../shared/components/Select";
 import { ValidatedInput } from "../../../../../shared/components/ValidatedInput";
+import { apiClient } from "@edge/api";
+import { useAuth, useUser } from "@clerk/expo";
 
 export interface ExamApplicantData {
   id: number;
@@ -84,8 +86,8 @@ interface RadioOperatorExamWizardProps {
   setSelectedRegionId: (id: string) => void;
   selectedOfficeId: string;
   setSelectedOfficeId: (id: string) => void;
-  appMode: "SINGLE" | "BULK";
-  setAppMode: (mode: "SINGLE" | "BULK") => void;
+  appMode: "SINGLE" | "BULK" | "";
+  setAppMode: (mode: "SINGLE" | "BULK" | "") => void;
   bulkMethod: "MANUAL" | "EXCEL";
   setBulkMethod: (method: "MANUAL" | "EXCEL") => void;
   isFileUploaded: boolean;
@@ -153,12 +155,170 @@ export function RadioOperatorExamWizard({
   const isManualScrolling = useRef(false);
   const sectionOffsets = useRef<Record<string, number>>({});
 
-  // Schedule selection state for Single mode
-  const [isScheduleSelected, setIsScheduleSelected] = useState(true); // default selected for convenience
+  const { getToken } = useAuth();
+  const { user: clerkUser } = useUser();
+  // Toggle this constant to switch between live API integration and mock logic
+  const USE_MOCKS = true;
 
-  // Dynamic values mapped based on chosen region
-  const activeRegionObj = PHILIPPINE_REGIONS_WITH_OFFICES.find((r) => r.id === selectedRegionId);
-  const officesList = activeRegionObj ? activeRegionObj.offices : [];
+  // Auto-fill first applicant with logged-in user details
+  React.useEffect(() => {
+    if (clerkUser && applicants.length === 1) {
+      const firstApp = applicants[0];
+      if (firstApp && firstApp.firstName === "" && firstApp.lastName === "" && firstApp.email === "") {
+        const firstName = clerkUser.firstName || "";
+        const lastName = clerkUser.lastName || "";
+        const email = clerkUser.primaryEmailAddress?.emailAddress || "";
+        const phone = clerkUser.primaryPhoneNumber?.phoneNumber || "";
+
+        setApplicants(prev => prev.map((app, idx) => idx === 0 ? {
+          ...app,
+          firstName,
+          lastName,
+          email,
+          contactNo: phone,
+        } : app));
+      }
+    }
+  }, [clerkUser, applicants, setApplicants]);
+
+  const [tenants, setTenants] = useState<any[]>([]);
+  const [loadingTenants, setLoadingTenants] = useState(false);
+
+  React.useEffect(() => {
+    async function fetchTenants() {
+      setLoadingTenants(true);
+      try {
+        if (USE_MOCKS) {
+          // Map mock regions as tenants
+          const mockTenants = PHILIPPINE_REGIONS_WITH_OFFICES.map((r) => ({
+            id: r.id,
+            name: r.name,
+          }));
+          setTenants(mockTenants);
+          return;
+        }
+
+        const token = await getToken();
+        const headers = token !== null ? { Authorization: `Bearer ${token}` } : {};
+        const response = await apiClient.get('/api/v2/tenants', { headers });
+        const data = response.data;
+        setTenants(Array.isArray(data) ? data : (data.items || []));
+      } catch (err) {
+        console.error("Failed to fetch tenants:", err);
+        setTenants([]);
+      } finally {
+        setLoadingTenants(false);
+      }
+    }
+    fetchTenants();
+  }, []);
+
+  // Dynamic values mapped based on chosen region (which is now a tenant ID)
+  const selectedTenant = tenants.find((t) => t.id === selectedRegionId);
+  const activeRegionObj = selectedTenant 
+    ? (PHILIPPINE_REGIONS_WITH_OFFICES.find((r) => 
+        selectedTenant.name.toLowerCase().includes(r.id.toLowerCase()) || 
+        r.name.toLowerCase().includes(selectedTenant.name.toLowerCase())
+      ) || {
+        id: selectedTenant.id,
+        name: selectedTenant.name,
+        offices: []
+      })
+    : undefined;
+
+  const [offices, setOffices] = useState<any[]>([]);
+  const [loadingOffices, setLoadingOffices] = useState(false);
+
+  React.useEffect(() => {
+    async function fetchOffices() {
+      if (!selectedRegionId) {
+        setOffices([]);
+        return;
+      }
+      setLoadingOffices(true);
+      try {
+        if (USE_MOCKS) {
+          // Retrieve offices from active region mapping
+          const region = PHILIPPINE_REGIONS_WITH_OFFICES.find((r) => r.id === selectedRegionId);
+          setOffices(region ? region.offices : []);
+          return;
+        }
+
+        const token = await getToken();
+        const headers = token !== null ? { Authorization: `Bearer ${token}` } : {};
+        const response = await apiClient.get('/api/v2/field-offices', {
+          params: { regionId: selectedRegionId },
+          headers,
+        });
+        const data = response.data;
+        setOffices(Array.isArray(data) ? data : (data.items || []));
+      } catch (err) {
+        console.error("Failed to fetch offices:", err);
+        setOffices([]);
+      } finally {
+        setLoadingOffices(false);
+      }
+    }
+    fetchOffices();
+  }, [selectedRegionId]);
+
+  const officesList = offices;
+
+  const [schedules, setSchedules] = useState<any[]>([]);
+  const [loadingSchedules, setLoadingSchedules] = useState(false);
+  const [selectedScheduleId, setSelectedScheduleId] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    async function fetchSchedules() {
+      if (!selectedRegionId) {
+        setSchedules([]);
+        return;
+      }
+      setLoadingSchedules(true);
+      try {
+        if (USE_MOCKS) {
+          // Generate mock schedules using the chosen office name (or fallback)
+          const officeObj = offices.find((o) => o.id === selectedOfficeId) || { name: "NTC Office" };
+          const mockSchedules = [
+            {
+              id: "mock-sched-1",
+              scheduledDate: "2026-08-07",
+              startTime: "1:00 PM",
+              endTime: "5:00 PM",
+              venue: officeObj.name,
+            },
+            {
+              id: "mock-sched-2",
+              scheduledDate: "2026-08-14",
+              startTime: "9:00 AM",
+              endTime: "12:00 PM",
+              venue: officeObj.name,
+            },
+          ];
+          setSchedules(mockSchedules);
+          return;
+        }
+
+        const token = await getToken();
+        const headers = token !== null ? { Authorization: `Bearer ${token}` } : {};
+        const response = await apiClient.get('/api/v2/schedules/client-view', {
+          params: {
+            serviceId: '',
+            tenantId: selectedRegionId,
+          },
+          headers,
+        });
+        const data = response.data;
+        setSchedules(Array.isArray(data) ? data : (data.items || []));
+      } catch (err) {
+        console.error("Failed to fetch schedules:", err);
+        setSchedules([]);
+      } finally {
+        setLoadingSchedules(false);
+      }
+    }
+    fetchSchedules();
+  }, [selectedRegionId, selectedOfficeId, offices]);
 
   const getStepTitle = (): string => {
     switch (step) {
@@ -507,8 +667,12 @@ export function RadioOperatorExamWizard({
         Alert.alert("Error", "Please select region and office.");
         return;
       }
+      if (!appMode) {
+        Alert.alert("Error", "Please select an application mode.");
+        return;
+      }
       if (appMode === "SINGLE") {
-        if (!isScheduleSelected) {
+        if (!selectedScheduleId) {
           Alert.alert("Error", "Please select an exam schedule date.");
           return;
         }
@@ -720,6 +884,65 @@ export function RadioOperatorExamWizard({
     setBulkErrors(errs);
   };
 
+  const submitApplicationPayload = async () => {
+    const months: Record<string, string> = {
+      January: "01", February: "02", March: "03", April: "04", May: "05", June: "06",
+      July: "07", August: "08", September: "09", October: "10", November: "11", December: "12"
+    };
+
+    const mappedApplicants = applicants.map((app) => {
+      const monthNum = months[app.birthMonth] || "01";
+      const day = app.birthDay.padStart(2, '0');
+      // Format: MM/DD/YYYY
+      const birthDate = `${monthNum}/${day}/${app.birthYear}`;
+
+      let examCat = "radio";
+      if (app.examType === "RROC-Aircraft") examCat = "rroc";
+      if (app.examType === "Amateur") examCat = "amateur";
+
+      let examTaker = "first taker";
+      if (app.examineeType === "Repeater") examTaker = "retaker";
+      if (app.examineeType === "Upgrader") examTaker = "upgrade";
+
+      const address = `${app.street}, ${app.barangay}, ${app.city}, ${app.province}, ${app.zipCode}`;
+
+      const formFieldValues = [
+        { fieldId: "f0100000-0000-0000-0000-000000000001", value: examCat },
+        { fieldId: "f0100000-0000-0000-0000-000000000002", value: examTaker },
+      ];
+
+      return {
+        firstName: app.firstName,
+        lastName: app.lastName,
+        email: app.email,
+        contactNumber: app.contactNo,
+        address: address,
+        birthDate: birthDate,
+        formFieldValues,
+      };
+    });
+
+    const payload = {
+      tenantId: selectedRegionId,
+      submissionMode: appMode === "SINGLE" ? "Single" : "Bulk",
+      serviceId: "f0100000-0000-0000-0000-000000000021",
+      scheduleId: selectedScheduleId,
+      fieldOfficeId: selectedOfficeId,
+      applicants: mappedApplicants,
+    };
+
+    if (USE_MOCKS) {
+      console.log("Mock Submission Payload:", JSON.stringify(payload, null, 2));
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      return;
+    }
+
+    const token = await getToken();
+    const headers = token !== null ? { Authorization: `Bearer ${token}` } : {};
+
+    await apiClient.post(`/api/v2/tenants/${selectedRegionId}/applications`, payload, { headers });
+  };
+
   const handleBulkFinalSubmit = async () => {
     const isValid = validateBulkSubmit();
     if (!isValid) {
@@ -728,7 +951,7 @@ export function RadioOperatorExamWizard({
     }
     setIsSubmitting(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await submitApplicationPayload();
       setIsBulkSubmitOpen(false);
       onSuccess();
     } catch (err) {
@@ -760,8 +983,7 @@ export function RadioOperatorExamWizard({
   const handleFinalSubmit = async () => {
     setIsSubmitting(true);
     try {
-      // Simulate submission network call
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await submitApplicationPayload();
       setIsConfirmModalOpen(false);
       onSuccess();
     } catch (err) {
@@ -820,18 +1042,28 @@ export function RadioOperatorExamWizard({
 
             <Text style={styles.selectLabel}>Region</Text>
             <Select
-              placeholder="Region"
+              placeholder={loadingTenants ? "Loading Regions..." : "Region"}
               value={selectedRegionId}
               onValueChange={(val) => {
                 setSelectedRegionId(val);
                 setSelectedOfficeId("");
               }}
-              options={PHILIPPINE_REGIONS_WITH_OFFICES.map((r) => ({
-                label: r.name,
-                value: r.id,
+              options={tenants.map((t) => ({
+                label: t.name,
+                value: t.id,
               }))}
             />
 
+            <Text style={styles.selectLabel}>Select Office:</Text>
+            <Select
+              placeholder={loadingOffices ? "Loading Offices..." : "Offices*"}
+              value={selectedOfficeId}
+              onValueChange={setSelectedOfficeId}
+              options={officesList.map((o) => ({
+                label: o.name,
+                value: o.id,
+              }))}
+            />
             <Text style={styles.selectLabel}>Select how you would like to process your application:</Text>
             <Select
               placeholder="Application Mode"
@@ -845,16 +1077,6 @@ export function RadioOperatorExamWizard({
               ]}
             />
 
-            <Text style={styles.selectLabel}>Select Office:</Text>
-            <Select
-              placeholder="Offices*"
-              value={selectedOfficeId}
-              onValueChange={setSelectedOfficeId}
-              options={officesList.map((o) => ({
-                label: o.name,
-                value: o.id,
-              }))}
-            />
 
             {appMode === "BULK" && (
               <View style={[styles.alertContainer, { marginTop: 20 }]}>
@@ -868,23 +1090,42 @@ export function RadioOperatorExamWizard({
 
             {/* Scheduled Dates Container */}
             <Text style={styles.scheduleTitle}>Scheduled Dates</Text>
-            <TouchableOpacity
-              onPress={() => setIsScheduleSelected((prev) => !prev)}
-              style={[styles.dateCard, isScheduleSelected && styles.dateCardSelected]}
-            >
-              <View style={styles.dateItem}>
-                <Icon name="calendar" size={16} color={COLORS.brand[600]} />
-                <Text style={styles.dateText}>DATE: Thu, 07 August 2025</Text>
-              </View>
-              <View style={styles.dateItem}>
-                <Icon name="clock" size={16} color={COLORS.brand[600]} />
-                <Text style={styles.dateText}>TIME: 1:00 PM - 1:00 PM</Text>
-              </View>
-              <View style={styles.dateItem}>
-                <Icon name="map-pin" size={16} color={COLORS.brand[600]} />
-                <Text style={styles.dateText}>VENUE: NTC III Office</Text>
-              </View>
-            </TouchableOpacity>
+            {loadingSchedules ? (
+              <Text style={{ marginVertical: 10, color: COLORS.neutral[500] }}>Loading schedules...</Text>
+            ) : schedules.length === 0 ? (
+              <Text style={{ marginVertical: 10, color: COLORS.neutral[500] }}>No schedules available for the selected region.</Text>
+            ) : (
+              schedules.map((sched: any, index: number) => {
+                const isSelected = selectedScheduleId === sched.id;
+                const d = new Date(sched.scheduledDate);
+                const dateStr = !isNaN(d.getTime()) 
+                  ? d.toLocaleDateString('en-US', { weekday: 'short', day: '2-digit', month: 'long', year: 'numeric' })
+                  : sched.scheduledDate;
+                
+                return (
+                  <TouchableOpacity
+                    key={sched.id || index}
+                    onPress={() => {
+                      setSelectedScheduleId(sched.id);
+                    }}
+                    style={[styles.dateCard, isSelected && styles.dateCardSelected]}
+                  >
+                    <View style={styles.dateItem}>
+                      <Icon name="calendar" size={16} color={COLORS.brand[600]} />
+                      <Text style={styles.dateText}>DATE: {dateStr}</Text>
+                    </View>
+                    <View style={styles.dateItem}>
+                      <Icon name="clock" size={16} color={COLORS.brand[600]} />
+                      <Text style={styles.dateText}>TIME: {sched.startTime || 'TBA'} - {sched.endTime || 'TBA'}</Text>
+                    </View>
+                    <View style={styles.dateItem}>
+                      <Icon name="map-pin" size={16} color={COLORS.brand[600]} />
+                      <Text style={styles.dateText}>VENUE: {sched.venue || "NTC Office"}</Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })
+            )}
           </View>
         )}
 

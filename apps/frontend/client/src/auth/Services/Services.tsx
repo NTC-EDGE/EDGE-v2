@@ -28,6 +28,7 @@ import {
   ExamBulkApplicantsPanel,
 } from "./exams/radio-operator";
 import { styles } from "./Services.styles";
+import { ConfirmationDialog } from "../../shared/components/ConfirmationDialog";
 
 type AuthParamList = {
   Services: undefined;
@@ -37,7 +38,7 @@ type AuthParamList = {
 export function Services() {
   const { width } = useWindowDimensions();
   const isMobile = width < 640;
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>() as any;
 
   // Clerk Contexts
   const { user: clerkUser } = useUser();
@@ -62,7 +63,11 @@ export function Services() {
   const [wizardStep, setWizardStep] = useState(1);
   const [selectedRegionId, setSelectedRegionId] = useState("");
   const [selectedOfficeId, setSelectedOfficeId] = useState("");
-  const [appMode, setAppMode] = useState<"SINGLE" | "BULK">("BULK");
+  const [appMode, setAppMode] = useState<"SINGLE" | "BULK" | "">("");
+
+  // Navigation Guard confirmation states
+  const [confirmModalVisible, setConfirmModalVisible] = useState(false);
+  const [pendingConfirmAction, setPendingConfirmAction] = useState<(() => void) | null>(null);
   const [bulkMethod, setBulkMethod] = useState<"MANUAL" | "EXCEL">("MANUAL");
   const [isFileUploaded, setIsFileUploaded] = useState(false);
   const [uploadedFileName, setUploadedFileName] = useState("");
@@ -82,7 +87,7 @@ export function Services() {
     setExamWizardStep(1);
     setSelectedRegionId("");
     setSelectedOfficeId("");
-    setAppMode("BULK");
+    setAppMode("");
     setBulkMethod("MANUAL");
     setIsFileUploaded(false);
     setUploadedFileName("");
@@ -206,6 +211,15 @@ export function Services() {
     setSelectedService(null);
   };
 
+  const confirmSwitchService = (onConfirm: () => void) => {
+    if (activeWizardService !== null) {
+      setPendingConfirmAction(() => onConfirm);
+      setConfirmModalVisible(true);
+    } else {
+      onConfirm();
+    }
+  };
+
   const handleFormSubmit = async (formData: {
     applicantName: string;
     email: string;
@@ -278,6 +292,14 @@ export function Services() {
         )}
       </View>
 
+      {/* Reminder Notice */}
+      <View style={[styles.noticeAlert, { marginHorizontal: 0, marginTop: 0, borderRadius: 0, borderLeftWidth: 0, borderRightWidth: 0 }]}>
+        <Icon name="info" size={16} color="#ca8a04" style={styles.noticeIcon} />
+        <Text style={styles.noticeText}>
+          Note: Applications are processed on weekdays, 8:00 AM–5:00 PM. Submissions outside these hours will be processed on the next business day.
+        </Text>
+      </View>
+
       {/* Main Body Area */}
       <View style={styles.mainLayout}>
         {/* Left Sidebar - hidden on mobile / smaller tablet screens during wizard */}
@@ -292,7 +314,9 @@ export function Services() {
               </TouchableOpacity>
 
               <TouchableOpacity
-                onPress={() => navigation.navigate("MyApplications")}
+                onPress={() => {
+                  confirmSwitchService(() => navigation.navigate("MyApplications"));
+                }}
                 style={styles.sidebarItem}
               >
                 <Icon name="credit-card" size={20} color="#9ca3af" />
@@ -341,15 +365,12 @@ export function Services() {
                 activeCategory={null}
                 searchResults={searchResults}
                 onServiceSelect={(service) => {
-                  setSelectedService(service);
-                  if (service.title.includes("Premises")) {
-                    setActiveWizardService("cpe-accreditation");
-                  } else if (service.title.includes("Radio Operator")) {
-                    setActiveWizardService("radio-operator-exam");
-                  }
-                  if (isMobile) {
-                    setSelectedCategoryId("search-active");
-                  }
+                  confirmSwitchService(() => {
+                    setSelectedService(service);
+                    if (isMobile) {
+                      setSelectedCategoryId("search-active");
+                    }
+                  });
                 }}
                 onBack={handleClearSearch}
                 isMobile={isMobile}
@@ -360,12 +381,9 @@ export function Services() {
                 activeCategory={activeCategory}
                 searchResults={null}
                 onServiceSelect={(service) => {
-                  setSelectedService(service);
-                  if (service.title.includes("Premises")) {
-                    setActiveWizardService("cpe-accreditation");
-                  } else if (service.title.includes("Radio Operator")) {
-                    setActiveWizardService("radio-operator-exam");
-                  }
+                  confirmSwitchService(() => {
+                    setSelectedService(service);
+                  });
                 }}
                 onBack={handleBackToCategories}
                 isMobile={isMobile}
@@ -376,7 +394,9 @@ export function Services() {
                 searchQuery={searchQuery}
                 onSearchQueryChange={setSearchQuery}
                 selectedCategoryId={selectedCategoryId}
-                onCategorySelect={setSelectedCategoryId}
+                onCategorySelect={(catId) => {
+                  confirmSwitchService(() => setSelectedCategoryId(catId));
+                }}
               />
             )}
           </View>
@@ -566,6 +586,44 @@ export function Services() {
           isSubmitting={submitting}
         />
       )}
+
+      {/* Navigation Confirm Modal */}
+      <ConfirmationDialog
+        visible={confirmModalVisible}
+        title="Ongoing Application"
+        message="You have an ongoing application. What would you like to do with your changes?"
+        onClose={() => setConfirmModalVisible(false)}
+        actions={[
+          {
+            text: "Save & Continue Later",
+            style: "default",
+            onPress: () => {
+              console.log("Saving changes as draft for:", activeWizardService);
+              resetWizardState();
+              setActiveWizardService(null);
+              setSelectedService(null);
+              setConfirmModalVisible(false);
+              if (pendingConfirmAction) pendingConfirmAction();
+            }
+          },
+          {
+            text: "Discard Changes",
+            style: "destructive",
+            onPress: () => {
+              resetWizardState();
+              setActiveWizardService(null);
+              setSelectedService(null);
+              setConfirmModalVisible(false);
+              if (pendingConfirmAction) pendingConfirmAction();
+            }
+          },
+          {
+            text: "Cancel",
+            style: "cancel",
+            onPress: () => setConfirmModalVisible(false)
+          }
+        ]}
+      />
     </View>
   );
 }
