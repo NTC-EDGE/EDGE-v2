@@ -17,6 +17,8 @@ using EDGE.Application.Applications.Queries.GetApplicationById;
 using EDGE.Application.Applications.Queries.GetDraftApplications;
 using EDGE.Application.Common.Models;
 
+using EDGE.Application.Services.Queries.GetServiceCsvTemplate;
+
 namespace EDGE.Api.Endpoints;
 
 public static class ApplicationEndpoints
@@ -25,7 +27,7 @@ public static class ApplicationEndpoints
     {
         var group = app.MapGroup("/applications").WithTags("Application");
 
-        group.MapPost("/csv-preview", async (IFormFile file, IMediator mediator) =>
+        group.MapPost("/csv-preview", async (IFormFile file, Guid? serviceId, IMediator mediator) =>
         {
             if (file == null || file.Length == 0)
             {
@@ -33,7 +35,7 @@ public static class ApplicationEndpoints
             }
 
             using var stream = file.OpenReadStream();
-            var result = await mediator.Send(new PreviewCsvImportCommand(stream));
+            var result = await mediator.Send(new PreviewCsvImportCommand(stream, serviceId));
             return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
         })
         .DisableAntiforgery()
@@ -189,6 +191,20 @@ public static class ApplicationEndpoints
         .WithName("AddApplicationApplicant")
         .WithSummary("Add applicant to draft application")
         .WithDescription("Adds a new applicant to an existing draft bulk application.");
+
+        app.MapGet("/services/{id:guid}/csv-template", async (Guid id, IMediator mediator) =>
+        {
+            var result = await mediator.Send(new GetServiceCsvTemplateQuery(id));
+            if (!result.Succeeded || result.Data == null)
+            {
+                return Results.BadRequest(result);
+            }
+            byte[] bytes = System.Text.Encoding.UTF8.GetBytes(result.Data.CsvContent);
+            return Results.File(bytes, "text/csv", result.Data.FileName);
+        })
+        .WithTags("Services")
+        .WithName("GetServiceCsvTemplate")
+        .WithSummary("Download CSV template for service bulk upload");
 
         return app;
     }
