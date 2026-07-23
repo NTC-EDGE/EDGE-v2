@@ -194,7 +194,7 @@ public class SubmitApplicationCommandHandler
                 ServiceCategoryId = service.ServiceCategoryId,
                 ServiceId = service.Id,
                 ServiceVariantId = request.ServiceVariantId,
-                ApplicationTypeKey = request.ApplicationTypeKey
+                ApplicationTypeKey = request.ApplicationTypeKey?.ToString()
             };
             await _applicationRepository.AddApplicationServiceAsync(appService, cancellationToken);
 

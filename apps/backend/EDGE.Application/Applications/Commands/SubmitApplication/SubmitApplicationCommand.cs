@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using MediatR;
 using EDGE.Application.Common.Models;
+using EDGE.Domain.Enums;
 
 namespace EDGE.Application.Applications.Commands.SubmitApplication;
 
@@ -15,7 +16,7 @@ public record SubmitApplicationCommand : IRequest<ApiResponse<Guid>>
     public Guid? ServiceCategoryId { get; init; }
     public Guid? ServiceId { get; init; }
     public Guid? ServiceVariantId { get; init; }
-    public string? ApplicationTypeKey { get; init; }
+    public ServiceVariantType? ApplicationTypeKey { get; init; }
 
     public Guid? RegionId { get; init; }
     public Guid? ScheduleId { get; init; }
