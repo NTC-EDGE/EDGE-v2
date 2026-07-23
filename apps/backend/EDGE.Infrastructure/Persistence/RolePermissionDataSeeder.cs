@@ -30,13 +30,13 @@ public static class RolePermissionDataSeeder
         await context.Tenants.AddAsync(defaultTenant);
 
         // ── Role IDs ─────────────────────────────────────────────────────────
-        var superAdminRoleId  = Guid.Parse("10000000-0000-0000-0000-000000000000");
-        var clientRoleId      = Guid.Parse("10000000-0000-0000-0000-000000000001");
-        var evaluatorRoleId   = Guid.Parse("10000000-0000-0000-0000-000000000002");
-        var higherUpsRoleId   = Guid.Parse("10000000-0000-0000-0000-000000000003");
-        var accountantRoleId  = Guid.Parse("10000000-0000-0000-0000-000000000004");
-        var cashierRoleId     = Guid.Parse("10000000-0000-0000-0000-000000000005");
-        var adminRoleId       = Guid.Parse("10000000-0000-0000-0000-000000000006");
+        var superAdminRoleId = Guid.Parse("10000000-0000-0000-0000-000000000000");
+        var clientRoleId = Guid.Parse("10000000-0000-0000-0000-000000000001");
+        var evaluatorRoleId = Guid.Parse("10000000-0000-0000-0000-000000000002");
+        var higherUpsRoleId = Guid.Parse("10000000-0000-0000-0000-000000000003");
+        var accountantRoleId = Guid.Parse("10000000-0000-0000-0000-000000000004");
+        var cashierRoleId = Guid.Parse("10000000-0000-0000-0000-000000000005");
+        var adminRoleId = Guid.Parse("10000000-0000-0000-0000-000000000006");
 
         // ── Seed Roles ────────────────────────────────────────────────────────
         var roles = new List<Role>
@@ -87,11 +87,11 @@ public static class RolePermissionDataSeeder
 
         // ── Seed Users ────────────────────────────────────────────────────────
         var userClient = new User { Id = Guid.Parse("11111111-1111-1111-1111-111111111111"), AuthUserId = "user_client123", Email = "client@ntcedge.com", FirstName = "John", LastName = "Client", IsSuperAdmin = false, CreatedAt = staticDate };
-        var userEval   = new User { Id = Guid.Parse("22222222-2222-2222-2222-222222222222"), AuthUserId = "user_evaluator123", Email = "evaluator@ntcedge.com", FirstName = "Jane", LastName = "Evaluator", IsSuperAdmin = false, CreatedAt = staticDate };
+        var userEval = new User { Id = Guid.Parse("22222222-2222-2222-2222-222222222222"), AuthUserId = "user_evaluator123", Email = "evaluator@ntcedge.com", FirstName = "Jane", LastName = "Evaluator", IsSuperAdmin = false, CreatedAt = staticDate };
         var userHigher = new User { Id = Guid.Parse("33333333-3333-3333-3333-333333333333"), AuthUserId = "user_higherups123", Email = "higherups@ntcedge.com", FirstName = "Chief", LastName = "Officer", IsSuperAdmin = false, CreatedAt = staticDate };
-        var userAcct   = new User { Id = Guid.Parse("44444444-4444-4444-4444-444444444444"), AuthUserId = "user_accountant123", Email = "accountant@ntcedge.com", FirstName = "Alice", LastName = "Accountant", IsSuperAdmin = false, CreatedAt = staticDate };
-        var userCash   = new User { Id = Guid.Parse("55555555-5555-5555-5555-555555555555"), AuthUserId = "user_cashier123", Email = "cashier@ntcedge.com", FirstName = "Bob", LastName = "Cashier", IsSuperAdmin = false, CreatedAt = staticDate };
-        var userAdmin  = new User { Id = Guid.Parse("66666666-6666-6666-6666-666666666666"), AuthUserId = "user_admin123", Email = "admin@ntcedge.com", FirstName = "Super", LastName = "Admin", IsSuperAdmin = true, CreatedAt = staticDate };
+        var userAcct = new User { Id = Guid.Parse("44444444-4444-4444-4444-444444444444"), AuthUserId = "user_accountant123", Email = "accountant@ntcedge.com", FirstName = "Alice", LastName = "Accountant", IsSuperAdmin = false, CreatedAt = staticDate };
+        var userCash = new User { Id = Guid.Parse("55555555-5555-5555-5555-555555555555"), AuthUserId = "user_cashier123", Email = "cashier@ntcedge.com", FirstName = "Bob", LastName = "Cashier", IsSuperAdmin = false, CreatedAt = staticDate };
+        var userAdmin = new User { Id = Guid.Parse("66666666-6666-6666-6666-666666666666"), AuthUserId = "user_admin123", Email = "admin@ntcedge.com", FirstName = "Super", LastName = "Admin", IsSuperAdmin = true, CreatedAt = staticDate };
 
         var users = new List<User> { userClient, userEval, userHigher, userAcct, userCash, userAdmin };
         await context.Users.AddRangeAsync(users);

@@ -17,7 +17,7 @@ public static class FastTrackSeeder
             return;
         }
 
-        var tenant = await context.Tenants.FirstOrDefaultAsync() 
+        var tenant = await context.Tenants.FirstOrDefaultAsync()
             ?? throw new InvalidOperationException("Tenant not seeded. Run RolePermissionDataSeeder first.");
 
         // 1. Seed Service Categories (exactly matching 2.1 in spec)
@@ -215,10 +215,10 @@ public static class FastTrackSeeder
             OrderIndex = 5
         };
         await context.FormSections.AddRangeAsync(
-            section101ApplicantPerson, 
-            section101ExamSelection, 
-            section101Assistance, 
-            section101Admission, 
+            section101ApplicantPerson,
+            section101ExamSelection,
+            section101Assistance,
+            section101Admission,
             section101Declaration
         );
 
@@ -261,14 +261,14 @@ public static class FastTrackSeeder
             ["contactNo"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000004"), FieldType = "text", Label = "Contact No", SyncBackOnSubmit = true },
             ["email"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000005"), FieldType = "text", Label = "Email Address", SyncBackOnSubmit = true },
             ["education"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000006"), FieldType = "text", Label = "Education", SyncBackOnSubmit = false },
-            
+
             ["examCategory"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000007"), FieldType = "dropdown", Label = "Exam Category", SyncBackOnSubmit = false, ValidationRules = @"[""Amateur"",""Commercial"",""GMDSS""]" },
             ["examineeType"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000008"), FieldType = "text", Label = "Examinee Type", SyncBackOnSubmit = false },
             ["elements"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000009"), FieldType = "text", Label = "Elements", SyncBackOnSubmit = false },
-            
+
             ["specialNeeds"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000010"), FieldType = "text", Label = "Special Needs", SyncBackOnSubmit = false },
             ["admissionNumber"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000011"), FieldType = "text", Label = "Admission Number", SyncBackOnSubmit = false },
-            
+
             ["signatureField"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000012"), FieldType = "signature", Label = "Signature", SyncBackOnSubmit = false },
             ["declarationCheckbox"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000013"), FieldType = "checkbox", Label = "I declare the info is true", SyncBackOnSubmit = false },
 
@@ -276,7 +276,7 @@ public static class FastTrackSeeder
             ["companyName"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000014"), FieldType = "text", Label = "Company Name", SyncBackOnSubmit = true },
             ["registrationNumber"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000015"), FieldType = "text", Label = "SEC/DTI Registration Number", SyncBackOnSubmit = true },
             ["tin"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000016"), FieldType = "text", Label = "TIN", SyncBackOnSubmit = false },
-            
+
             ["stationType"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000017"), FieldType = "dropdown", Label = "Station Type", SyncBackOnSubmit = false, ValidationRules = @"[""Fixed"",""Mobile"",""Base""]" },
             ["frequency"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000018"), FieldType = "text", Label = "Assigned Frequency (MHz)", SyncBackOnSubmit = false },
             ["powerOutput"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000019"), FieldType = "text", Label = "Transmitter Power Output (W)", SyncBackOnSubmit = false },

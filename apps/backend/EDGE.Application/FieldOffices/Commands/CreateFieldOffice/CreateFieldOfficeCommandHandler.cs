@@ -13,7 +13,7 @@ public class CreateFieldOfficeCommandHandler : IRequestHandler<CreateFieldOffice
     private readonly IUnitOfWork _unitOfWork;
 
     public CreateFieldOfficeCommandHandler(
-        IFieldOfficeRepository repository, 
+        IFieldOfficeRepository repository,
         IGeographicRepository geographicRepository,
         ITenantMemberRepository tenantMemberRepository,
         IUnitOfWork unitOfWork)

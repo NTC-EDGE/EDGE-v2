@@ -11,12 +11,12 @@ public record SubmitApplicationCommand : IRequest<ApiResponse<Guid>>
     public string SubmissionMode { get; init; } = "Single"; // Single, Bulk
     public string? DataEntryMethod { get; init; } // Manual, CSV
     public string Status { get; init; } = "Draft"; // Draft, Submitted
-    
+
     public Guid? ServiceCategoryId { get; init; }
     public Guid? ServiceId { get; init; }
     public Guid? ServiceVariantId { get; init; }
     public string? ApplicationTypeKey { get; init; }
-    
+
     public Guid? RegionId { get; init; }
     public Guid? ScheduleId { get; init; }
     public string? Office { get; init; }

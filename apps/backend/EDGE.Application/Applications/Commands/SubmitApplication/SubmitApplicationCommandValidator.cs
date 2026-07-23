@@ -21,7 +21,7 @@ public class SubmitApplicationCommandValidator : AbstractValidator<SubmitApplica
 
         RuleFor(x => x.AccountType)
             .NotEmpty()
-            .Must(type => string.Equals(type, "Individual", System.StringComparison.OrdinalIgnoreCase) || 
+            .Must(type => string.Equals(type, "Individual", System.StringComparison.OrdinalIgnoreCase) ||
                           string.Equals(type, "Company", System.StringComparison.OrdinalIgnoreCase))
             .WithMessage("Account type must be either 'Individual' or 'Company'.");
 

@@ -12,7 +12,7 @@ public class UpdateFieldOfficeCommandHandler : IRequestHandler<UpdateFieldOffice
     private readonly IUnitOfWork _unitOfWork;
 
     public UpdateFieldOfficeCommandHandler(
-        IFieldOfficeRepository repository, 
+        IFieldOfficeRepository repository,
         IGeographicRepository geographicRepository,
         ITenantMemberRepository tenantMemberRepository,
         IUnitOfWork unitOfWork)

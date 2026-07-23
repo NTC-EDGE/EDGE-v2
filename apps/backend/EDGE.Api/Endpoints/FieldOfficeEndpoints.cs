@@ -50,8 +50,8 @@ public static class FieldOfficeEndpoints
             }
 
             var result = await mediator.Send(query);
-            return result is not null 
-                ? Results.Ok(result) 
+            return result is not null
+                ? Results.Ok(result)
                 : Results.NotFound(new { message = $"Field office with ID '{id}' was not found for this tenant." });
         })
         .WithName("GetFieldOfficeById")
@@ -98,8 +98,8 @@ public static class FieldOfficeEndpoints
             }
 
             var result = await mediator.Send(command);
-            return result is not null 
-                ? Results.Ok(result) 
+            return result is not null
+                ? Results.Ok(result)
                 : Results.NotFound(new { message = $"Field office with ID '{id}' was not found for this tenant." });
         })
         .WithName("UpdateFieldOffice")
@@ -122,8 +122,8 @@ public static class FieldOfficeEndpoints
             }
 
             var success = await mediator.Send(command);
-            return success 
-                ? Results.NoContent() 
+            return success
+                ? Results.NoContent()
                 : Results.NotFound(new { message = $"Field office with ID '{id}' was not found or could not be deleted." });
         })
         .WithName("DeleteFieldOffice")

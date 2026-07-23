@@ -98,7 +98,7 @@ public class SubmitApplicationCommandHandler : IRequestHandler<SubmitApplication
         {
             return ApiResponse<Guid>.Fail($"Validation Error: Service with ID '{request.ServiceId}' does not exist.");
         }
-    
+
         // 3. Guard against missing Schedule for Exam category services
         if (service.ServiceCategory?.Type == ServiceCategoryType.Exam)
         {
@@ -364,7 +364,7 @@ public class SubmitApplicationCommandHandler : IRequestHandler<SubmitApplication
             }
             else if (char.IsWhiteSpace(c))
             {
-                makeNextLower = false; 
+                makeNextLower = false;
             }
         }
         return sb.ToString().ToLowerInvariant();

@@ -26,7 +26,7 @@ namespace EDGE.Infrastructure.Persistence;
 
 public class ApplicationDbContext : DbContext, IUnitOfWork
 {
-    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) {}
+    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) { }
 
     public async Task BeginTransactionAsync(CancellationToken cancellationToken = default)
     {
@@ -122,6 +122,9 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
 #if STEP_019
     public DbSet<ApplicationStatusHistory> ApplicationStatusHistories => Set<ApplicationStatusHistory>();
 #endif
+
+    public DbSet<Requirement> Requirements => Set<Requirement>();
+    public DbSet<ServiceVariantRequirement> ServiceVariantRequirements => Set<ServiceVariantRequirement>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -602,6 +605,31 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
                   .OnDelete(DeleteBehavior.Cascade);
         });
 #endif
+
+        // Requirement entity configuration
+        modelBuilder.Entity<Requirement>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(150);
+            entity.Property(e => e.Description).HasMaxLength(500);
+        });
+
+        // ServiceVariantRequirement entity configuration
+        modelBuilder.Entity<ServiceVariantRequirement>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ApplicationTypeKey).HasMaxLength(100);
+
+            entity.HasOne(e => e.Requirement)
+                  .WithMany()
+                  .HasForeignKey(e => e.RequirementId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.ServiceVariant)
+                  .WithMany(sv => sv.ServiceVariantRequirements)
+                  .HasForeignKey(e => e.ServiceVariantId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
     }
 
     private static System.Linq.Expressions.LambdaExpression ConvertFilterExpression(Type type)

@@ -58,6 +58,8 @@ public static class DependencyInjection
         services.AddScoped<IFeeRepository, FeeRepository>();
         services.AddScoped<IServiceFeeRepository, ServiceFeeRepository>();
         services.AddScoped<IFieldOfficeRepository, FieldOfficeRepository>();
+        services.AddScoped<IRequirementRepository, RequirementRepository>();
+        services.AddScoped<IServiceVariantRequirementRepository, ServiceVariantRequirementRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         services.AddScoped<IUserActivityService, UserActivityService>();
@@ -75,7 +77,7 @@ public static class DependencyInjection
         services.AddHangfire((sp, config) =>
         {
             var configuration = sp.GetRequiredService<IConfiguration>();
-            var connectionString = configuration.GetConnectionString("DefaultConnection") 
+            var connectionString = configuration.GetConnectionString("DefaultConnection")
                 ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 
             config
