@@ -73,6 +73,15 @@ public static class FormPrintingEndpoints
         })
         .WithName("PrintNtc103Demo");
 
+        /// <summary>GET /api/forms/demo/ntc-1-04 — Application Form 1-04 (Maritime / Ship Radio Station License).</summary>
+        group.MapGet("/ntc-1-04", (IFormPrintingService printingService) =>
+        {
+            var application = MockDataFactory.GetNtc104Application();
+            var pdfBytes = printingService.PrintNtc104(application);
+            return Results.File(pdfBytes, "application/pdf", $"NTC-1-04_{application.ApplicationId}.pdf");
+        })
+        .WithName("PrintNtc104Demo");
+
         return app;
     }
 }

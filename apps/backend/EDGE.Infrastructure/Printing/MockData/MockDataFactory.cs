@@ -575,4 +575,117 @@ public static partial class MockDataFactory
             Declaration = declaration
         };
     }
+
+    public static Ntc104Application GetNtc104Application()
+    {
+        var applicationId = Guid.NewGuid();
+
+        var applicant = new Applicant
+        {
+            Name = "Supercat Fast Ferry Corporation",
+            TypeOfEntity = EntityType.Corporation,
+            Address = new Address
+            {
+                UnitRoomBldgNo = "Pier 4, North Harbor",
+                Street = "Marcos Road",
+                Barangay = "Barangay 120",
+                CityMunicipality = "Tondo, Manila",
+                Province = "Metro Manila",
+                ZipCode = "1013"
+            },
+            ContactNumber = "+63 2 8527 7000",
+            Email = "maritime.licensing@supercat.ph"
+        };
+
+        var shipDetails = new ShipDetails
+        {
+            NameOfShipVessel = "M/V St. Nuriel",
+            CallSign = "DU2341",
+            MmsiNo = "548011223",
+            StationLicenseNo = "SSL-2026-00412",
+            ImoNo = "IMO 9123456",
+            Validity = new DateOnly(2029, 8, 10)
+        };
+
+        var equipment = new List<Equipment>
+        {
+            new Equipment
+            {
+                EquipmentId = Guid.NewGuid(),
+                RadioEquipment = "VHF Marine Transceiver",
+                Make = "Furuno",
+                TypeModel = "FM-8900S",
+                SerialNumber = "FUR-8900S-9912",
+                PowerOutput = "25 Watts"
+            },
+            new Equipment
+            {
+                EquipmentId = Guid.NewGuid(),
+                RadioEquipment = "Class A AIS Transponder",
+                Make = "Furuno",
+                TypeModel = "FA-170",
+                SerialNumber = "FUR-FA170-4421",
+                PowerOutput = "12.5 Watts"
+            },
+            new Equipment
+            {
+                EquipmentId = Guid.NewGuid(),
+                RadioEquipment = "Marine Radar",
+                Make = "JRC",
+                TypeModel = "JMA-5312",
+                SerialNumber = "JRC-5312-7718",
+                PowerOutput = "10 kW"
+            }
+        };
+
+        var operators = new List<RadioOperatorDetails>
+        {
+            new RadioOperatorDetails
+            {
+                Name = "Capt. Fernando A. Magallanes",
+                CertificateNumber = "1PHN-2024-00129",
+                Validity = new DateOnly(2027, 5, 15)
+            },
+            new RadioOperatorDetails
+            {
+                Name = "Radio Offr. Juan S. Elcano",
+                CertificateNumber = "1RTG-2023-00994",
+                Validity = new DateOnly(2028, 11, 30)
+            }
+        };
+
+        var payment = new Payment
+        {
+            PaymentId = Guid.NewGuid(),
+            ApplicationId = applicationId,
+            OrNo = "OR-2026-0077812",
+            OrDate = new DateOnly(2026, 7, 21),
+            Amount = 5600.00m,
+            CollectingOfficer = "M. Villaester"
+        };
+
+        var declaration = new Declaration
+        {
+            SignatoryName = "Capt. Fernando A. Magallanes",
+            DateAccomplished = new DateOnly(2026, 7, 21)
+        };
+
+        return new Ntc104Application
+        {
+            ApplicationId = applicationId,
+            RevisionNo = "02",
+            RevisionDate = new DateOnly(2023, 3, 31),
+            TypeOfApplication = TypeOfApplication.New,
+            NoOfYears = 3,
+            TypeOfPermitLicenseCert = TypeOfPermitLicenseCert104.ShipStationLicense,
+            VesselCategory = VesselCategory.Ship,
+            TradingRoute = TradingRoute.Domestic,
+            Applicant = applicant,
+            ShipDetails = shipDetails,
+            Equipment = equipment,
+            Operators = operators,
+            Payment = payment,
+            Declaration = declaration
+        };
+    }
 }

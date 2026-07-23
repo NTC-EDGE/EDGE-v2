@@ -18,6 +18,7 @@ public interface IFormPrintingService
     byte[] PrintNtc101(Ntc101Application application);
     byte[] PrintNtc102(Ntc102Application application);
     byte[] PrintNtc103(Ntc103Application application);
+    byte[] PrintNtc104(Ntc104Application application);
 }
 
 public class FormPrintingService : IFormPrintingService
@@ -128,6 +129,28 @@ public class FormPrintingService : IFormPrintingService
             if (template != null)
             {
                 var overlayItems = Ntc103FlatPdfOverlayMapper.MapToOverlayItems(application);
+                return _fillerService.OverlayText(template, overlayItems);
+            }
+        }
+
+        // Fallback: Use NTC 1-01 report structure or basic generator
+        return new Ntc101Report(new Ntc101Application
+        {
+            ApplicationId = application.ApplicationId,
+            Declaration = application.Declaration,
+            Payment = application.Payment
+        }).GeneratePdf();
+    }
+
+    public byte[] PrintNtc104(Ntc104Application application)
+    {
+        const string templateName = "ntc-1-04.pdf";
+        if (_fillerService != null && _fillerService.TemplateExists(templateName))
+        {
+            var template = _fillerService.GetTemplate(templateName);
+            if (template != null)
+            {
+                var overlayItems = Ntc104FlatPdfOverlayMapper.MapToOverlayItems(application);
                 return _fillerService.OverlayText(template, overlayItems);
             }
         }
