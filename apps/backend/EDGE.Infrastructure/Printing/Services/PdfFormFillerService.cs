@@ -125,10 +125,29 @@ public class PdfFormFillerService : IPdfFormFillerService
                 var page = document.Pages[item.PageIndex];
                 using var gfx = XGraphics.FromPdfPage(page);
 
-                var fontStyle = item.IsBold ? XFontStyleEx.Bold : XFontStyleEx.Regular;
-                var font = new XFont("Arial", item.FontSize, fontStyle);
+                if (item.Text == "✔" || item.Text == "✓")
+                {
+                    // Render native vector checkmark to prevent font missing glyph (□) rendering issues in PDF viewers
+                    double estimatedWidth = item.FontSize * 0.62;
+                    double cx = item.X + (estimatedWidth / 2.0);
+                    double cy = item.Y - 1.5;
+                    double size = 3.5;
 
-                gfx.DrawString(item.Text, font, XBrushes.Black, new XPoint(item.X, item.Y));
+                    var pen = new XPen(XColors.Black, 1.5);
+                    var p1 = new XPoint(cx - (size * 0.75), cy - (size * 0.1));
+                    var p2 = new XPoint(cx - (size * 0.2), cy + (size * 0.75));
+                    var p3 = new XPoint(cx + (size * 0.85), cy - (size * 0.75));
+
+                    gfx.DrawLine(pen, p1, p2);
+                    gfx.DrawLine(pen, p2, p3);
+                }
+                else
+                {
+                    var fontStyle = item.IsBold ? XFontStyleEx.Bold : XFontStyleEx.Regular;
+                    var font = new XFont("Arial", item.FontSize, fontStyle);
+
+                    gfx.DrawString(item.Text, font, XBrushes.Black, new XPoint(item.X, item.Y));
+                }
             }
         }
 

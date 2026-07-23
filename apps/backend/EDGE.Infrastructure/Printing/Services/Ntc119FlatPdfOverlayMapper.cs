@@ -42,7 +42,7 @@ public static class Ntc119FlatPdfOverlayMapper
         // starting at y=227.25 (row 0 top). Horizontally centered via CenterX; Y is the
         // vertical center of the row.
         const double checkboxCellLeft = 74.9, checkboxCellRight = 96.9;
-        double checkX = CenterX(checkboxCellLeft, checkboxCellRight, "X", 9, true);
+        double checkX = CenterX(checkboxCellLeft, checkboxCellRight, "✔", 9, true);
         double checkY = app.EquipmentDeviceType switch
         {
             EquipmentDeviceType.WdnIndoor => 234.9,
@@ -52,7 +52,7 @@ public static class Ntc119FlatPdfOverlayMapper
             EquipmentDeviceType.PublicTrunkedRadioMobilePortable => 294.9,
             _ => 234.9
         };
-        items.Add(new TextOverlayItem { X = checkX, Y = checkY, Text = "X", FontSize = 9, IsBold = true });
+        items.Add(new TextOverlayItem { X = checkX, Y = checkY, Text = "✔", FontSize = 9, IsBold = true });
 
         // 2. Applicant Details
         // Row baselines = row_bottom - 3 (matches label text baselines exactly against the

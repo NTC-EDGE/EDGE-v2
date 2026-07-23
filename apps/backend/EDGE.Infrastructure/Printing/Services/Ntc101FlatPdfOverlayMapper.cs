@@ -65,8 +65,8 @@ public static class Ntc101FlatPdfOverlayMapper
         // Checkbox cells are 24.6pt wide; center the "X" glyph using CenterX so it lands
         // at true visual center, not just the midpoint where the glyph's left edge would start.
         const double checkboxHalfWidth = 12.3; // 24.6pt / 2
-        double examCheckX = CenterX(checkboxPos.x - checkboxHalfWidth, checkboxPos.x + checkboxHalfWidth, "X", 9, true);
-        items.Add(new TextOverlayItem { X = examCheckX, Y = checkboxPos.y, Text = "X", FontSize = 9, IsBold = true });
+        double examCheckX = CenterX(checkboxPos.x - checkboxHalfWidth, checkboxPos.x + checkboxHalfWidth, "✔", 9, true);
+        items.Add(new TextOverlayItem { X = examCheckX, Y = checkboxPos.y, Text = "✔", FontSize = 9, IsBold = true });
 
         // Date of Exam (top-right of the checkbox grid): value cell x 436.44-546.24, y 288-299.4.
         items.Add(new TextOverlayItem { X = 440, Y = 298.4, Text = app.DateOfExam.ToString("MM/dd/yy"), FontSize = 8 });
@@ -82,8 +82,8 @@ public static class Ntc101FlatPdfOverlayMapper
         items.Add(new TextOverlayItem { X = 97, Y = 337.7, Text = p.FirstName, FontSize = 8, IsBold = true });
         // Sex: two checkbox cells (Male 411.96-461.04, Female 506.04-546.24), both y-center 333.24.
         var sexBox = p.Sex == Sex.Male ? (left: 411.96, right: 461.04) : (left: 506.04, right: 546.24);
-        double sexCheckX = CenterX(sexBox.left, sexBox.right, "X", 9, true);
-        items.Add(new TextOverlayItem { X = sexCheckX, Y = 333.24, Text = "X", FontSize = 9, IsBold = true });
+        double sexCheckX = CenterX(sexBox.left, sexBox.right, "✔", 9, true);
+        items.Add(new TextOverlayItem { X = sexCheckX, Y = 333.24, Text = "✔", FontSize = 9, IsBold = true });
 
         items.Add(new TextOverlayItem { X = 97, Y = 349.6, Text = p.MiddleName, FontSize = 8, IsBold = true });
         items.Add(new TextOverlayItem { X = 415, Y = 349.6, Text = p.Nationality, FontSize = 8 });
@@ -113,8 +113,8 @@ public static class Ntc101FlatPdfOverlayMapper
         // 3. Applicant's Request for Assistance.
         // Yes box x 314.04-338.64, No box x 363.0-387.6, both y-center 440.16.
         var assistanceBox = app.AssistanceRequest.NeedsAssistance ? (left: 314.04, right: 338.64) : (left: 363.0, right: 387.6);
-        double assistanceCheckX = CenterX(assistanceBox.left, assistanceBox.right, "X", 9, true);
-        items.Add(new TextOverlayItem { X = assistanceCheckX, Y = 440.16, Text = "X", FontSize = 9, IsBold = true });
+        double assistanceCheckX = CenterX(assistanceBox.left, assistanceBox.right, "✔", 9, true);
+        items.Add(new TextOverlayItem { X = assistanceCheckX, Y = 440.16, Text = "✔", FontSize = 9, IsBold = true });
 
         if (app.AssistanceRequest.NeedsAssistance && !string.IsNullOrWhiteSpace(app.AssistanceRequest.Details))
         {

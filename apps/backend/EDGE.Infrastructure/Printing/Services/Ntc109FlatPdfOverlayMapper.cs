@@ -42,9 +42,9 @@ public static class Ntc109FlatPdfOverlayMapper
             TypeOfApplicationSpecific.SellTransfer => (246.65, 261.85),
             _ => (216.65, 231.85)
         };
-        double appTypeCheckX = CenterX(80.82, 104.02, "X", 9, true);
+        double appTypeCheckX = CenterX(80.82, 104.02, "✔", 9, true);
         double appTypeCheckY = (appTypeBox.top + appTypeBox.bottom) / 2.0;
-        items.Add(new TextOverlayItem { X = appTypeCheckX, Y = appTypeCheckY, Text = "X", FontSize = 9, IsBold = true });
+        items.Add(new TextOverlayItem { X = appTypeCheckX, Y = appTypeCheckY, Text = "✔", FontSize = 9, IsBold = true });
 
         // 2. TYPE OF RADIO SERVICE
         // Column 1: x 264.90 - 288.10; Column 2: x 425.95 - 454.75
@@ -58,9 +58,9 @@ public static class Ntc109FlatPdfOverlayMapper
             TypeOfRadioService.Other => (425.95, 454.75, 246.65, 261.85),
             _ => (264.90, 288.10, 216.65, 231.85)
         };
-        double radioServiceCheckX = CenterX(radioServiceBox.left, radioServiceBox.right, "X", 9, true);
+        double radioServiceCheckX = CenterX(radioServiceBox.left, radioServiceBox.right, "✔", 9, true);
         double radioServiceCheckY = (radioServiceBox.top + radioServiceBox.bottom) / 2.0;
-        items.Add(new TextOverlayItem { X = radioServiceCheckX, Y = radioServiceCheckY, Text = "X", FontSize = 9, IsBold = true });
+        items.Add(new TextOverlayItem { X = radioServiceCheckX, Y = radioServiceCheckY, Text = "✔", FontSize = 9, IsBold = true });
 
         // 3. NATURE OF SERVICE
         // Checkbox column x: 80.82 - 104.02
@@ -71,9 +71,9 @@ public static class Ntc109FlatPdfOverlayMapper
             NatureOfService.CpPublicCorrespondence => (329.08, 344.28),
             _ => (299.07, 314.27)
         };
-        double natureCheckX = CenterX(80.82, 104.02, "X", 9, true);
+        double natureCheckX = CenterX(80.82, 104.02, "✔", 9, true);
         double natureCheckY = (natureBox.top + natureBox.bottom) / 2.0;
-        items.Add(new TextOverlayItem { X = natureCheckX, Y = natureCheckY, Text = "X", FontSize = 9, IsBold = true });
+        items.Add(new TextOverlayItem { X = natureCheckX, Y = natureCheckY, Text = "✔", FontSize = 9, IsBold = true });
 
         // 4. CLASS OF STATION (Quantity or X)
         var classMap = new Dictionary<string, (double left, double right, double top, double bottom)>
@@ -180,9 +180,9 @@ public static class Ntc109FlatPdfOverlayMapper
             IntendedUse.Other => (241.88, 265.11, 637.55, 652.75),
             _ => (57.83, 81.03, 607.55, 622.75)
         };
-        double intendedCheckX = CenterX(intendedBox.left, intendedBox.right, "X", 9, true);
+        double intendedCheckX = CenterX(intendedBox.left, intendedBox.right, "✔", 9, true);
         double intendedCheckY = (intendedBox.top + intendedBox.bottom) / 2.0;
-        items.Add(new TextOverlayItem { X = intendedCheckX, Y = intendedCheckY, Text = "X", FontSize = 9, IsBold = true });
+        items.Add(new TextOverlayItem { X = intendedCheckX, Y = intendedCheckY, Text = "✔", FontSize = 9, IsBold = true });
 
         if (app.IntendedUse == IntendedUse.Storage && !string.IsNullOrWhiteSpace(st.ExactLocation))
         {

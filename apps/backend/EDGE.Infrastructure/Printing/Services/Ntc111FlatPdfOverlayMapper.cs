@@ -41,9 +41,9 @@ public static class Ntc111FlatPdfOverlayMapper
             PermitSubtype.RadioStationLicense => (283.07, 298.27),
             _ => (268.04, 283.27)
         };
-        double subtypeCheckX = CenterX(76.62, 99.82, "X", 9, true);
+        double subtypeCheckX = CenterX(76.62, 99.82, "✔", 9, true);
         double subtypeCheckY = (subtypeBox.top + subtypeBox.bottom) / 2.0;
-        items.Add(new TextOverlayItem { X = subtypeCheckX, Y = subtypeCheckY, Text = "X", FontSize = 9, IsBold = true });
+        items.Add(new TextOverlayItem { X = subtypeCheckX, Y = subtypeCheckY, Text = "✔", FontSize = 9, IsBold = true });
 
         // Application Action: New / Renewal / Modification
         (double top, double bottom) actionBox = app.TypeOfApplication switch
@@ -53,9 +53,9 @@ public static class Ntc111FlatPdfOverlayMapper
             TypeOfApplication.Modification => (230.85, 246.05),
             _ => (200.85, 216.05)
         };
-        double actionCheckX = CenterX(76.62, 99.82, "X", 9, true);
+        double actionCheckX = CenterX(76.62, 99.82, "✔", 9, true);
         double actionCheckY = (actionBox.top + actionBox.bottom) / 2.0;
-        items.Add(new TextOverlayItem { X = actionCheckX, Y = actionCheckY, Text = "X", FontSize = 9, IsBold = true });
+        items.Add(new TextOverlayItem { X = actionCheckX, Y = actionCheckY, Text = "✔", FontSize = 9, IsBold = true });
 
         if (app.TypeOfApplication == TypeOfApplication.Modification && !string.IsNullOrWhiteSpace(app.ModificationReason))
         {
@@ -73,9 +73,9 @@ public static class Ntc111FlatPdfOverlayMapper
             TypeOfRadioService.Other => (432.35, 455.55, 215.85, 231.05),
             _ => (271.30, 294.50, 200.85, 216.05)
         };
-        double radioServiceCheckX = CenterX(radioServiceBox.left, radioServiceBox.right, "X", 9, true);
+        double radioServiceCheckX = CenterX(radioServiceBox.left, radioServiceBox.right, "✔", 9, true);
         double radioServiceCheckY = (radioServiceBox.top + radioServiceBox.bottom) / 2.0;
-        items.Add(new TextOverlayItem { X = radioServiceCheckX, Y = radioServiceCheckY, Text = "X", FontSize = 9, IsBold = true });
+        items.Add(new TextOverlayItem { X = radioServiceCheckX, Y = radioServiceCheckY, Text = "✔", FontSize = 9, IsBold = true });
 
         // 3. NATURE OF SERVICE & NO. OF YEARS
         // No. of Years box: x 145.65 - 168.85, y 298.07 - 313.27
@@ -94,9 +94,9 @@ public static class Ntc111FlatPdfOverlayMapper
             NatureOfService.CpPublicCorrespondence => (358.07, 373.30),
             _ => (328.08, 343.28)
         };
-        double natureCheckX = CenterX(76.62, 99.82, "X", 9, true);
+        double natureCheckX = CenterX(76.62, 99.82, "✔", 9, true);
         double natureCheckY = (natureBox.top + natureBox.bottom) / 2.0;
-        items.Add(new TextOverlayItem { X = natureCheckX, Y = natureCheckY, Text = "X", FontSize = 9, IsBold = true });
+        items.Add(new TextOverlayItem { X = natureCheckX, Y = natureCheckY, Text = "✔", FontSize = 9, IsBold = true });
 
         // 4. CLASS OF STATION (Quantity or X)
         var classMap = new Dictionary<string, (double left, double right, double top, double bottom)>
