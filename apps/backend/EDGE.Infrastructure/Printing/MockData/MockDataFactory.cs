@@ -192,6 +192,18 @@ public static partial class MockDataFactory
                 PowerOutput = "25W",
                 FrequencyRange = "156-162 MHz",
                 Quantity = 2
+            },
+            new Equipment
+            {
+                EquipmentId = Guid.NewGuid(),
+                ApplicationId = applicationId,
+                RadioEquipment = "Class B AIS Transponder",
+                Make = "Garmin",
+                TypeModel = "AIS 800",
+                SerialNumber = "GAR-AIS-99410",
+                PowerOutput = "5W",
+                FrequencyRange = "161.975-162.025 MHz",
+                Quantity = 1
             }
         };
 
@@ -243,7 +255,7 @@ public static partial class MockDataFactory
             TypeOfApplicationSpecific = TypeOfApplicationSpecific.Purchase,
             TypeOfRadioService = TypeOfRadioService.MaritimePublicPrivateCoastal,
             NatureOfService = NatureOfService.CvPrivate,
-            ClassOfStation = new ClassOfStation { Other = "Marine Mobile" },
+            ClassOfStation = new ClassOfStation { MA = 2 },
             CpcCpcnPaRslNo = "N/A - New Application",
             Validity = new DateOnly(2028, 2, 28),
             ProposedStation = proposedStation,

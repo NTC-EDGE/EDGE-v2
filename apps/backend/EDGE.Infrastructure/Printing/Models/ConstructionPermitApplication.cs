@@ -12,6 +12,7 @@ public enum TypeOfRadioService
     Aeronautical,
     MaritimePublicPrivateCoastal,
     Broadcast,
+    Amateur,
     Other
 }
 
