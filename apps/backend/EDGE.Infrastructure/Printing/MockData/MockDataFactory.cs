@@ -487,4 +487,92 @@ public static partial class MockDataFactory
             Declaration = declaration
         };
     }
+
+    public static Ntc103Application GetNtc103Application()
+    {
+        var applicationId = Guid.NewGuid();
+
+        var applicantPerson = new ApplicantPerson
+        {
+            LastName = "Rizal",
+            FirstName = "Jose",
+            MiddleName = "Mercado",
+            DateOfBirth = new DateOnly(1992, 6, 19),
+            Sex = Sex.Male,
+            Nationality = "Filipino",
+            Address = new Address
+            {
+                UnitRoomBldgNo = "House No. 125, Real Street",
+                Street = "Poblacion",
+                Barangay = "Calamba Central",
+                CityMunicipality = "Calamba City",
+                Province = "Laguna",
+                ZipCode = "4027"
+            },
+            ContactNumber = "+63 919 555 7788",
+            Email = "jose.rizal@amateur-radio.ph"
+        };
+
+        var examSeminar = new ExamSeminarDetails
+        {
+            PlaceOfExamSeminar = "NTC Regional Office IV-A, Lipa City",
+            Date = new DateOnly(2026, 4, 15),
+            Rating = "92.0%"
+        };
+
+        var equipment = new List<Equipment>
+        {
+            new Equipment
+            {
+                EquipmentId = Guid.NewGuid(),
+                Make = "Yaesu",
+                TypeModel = "FT-991A",
+                SerialNumber = "YAE-991A-88412",
+                FrequencyRange = "1.8 - 54 MHz / 144 - 440 MHz"
+            },
+            new Equipment
+            {
+                EquipmentId = Guid.NewGuid(),
+                Make = "Icom",
+                TypeModel = "IC-7300",
+                SerialNumber = "IC-7300-33019",
+                FrequencyRange = "0.030 - 74.800 MHz"
+            }
+        };
+
+        var payment = new Payment
+        {
+            PaymentId = Guid.NewGuid(),
+            ApplicationId = applicationId,
+            OrNo = "OR-2026-0099410",
+            OrDate = new DateOnly(2026, 7, 22),
+            Amount = 2450.00m,
+            CollectingOfficer = "E. Santos"
+        };
+
+        var declaration = new Declaration
+        {
+            SignatoryName = "Jose M. Rizal",
+            DateAccomplished = new DateOnly(2026, 7, 22)
+        };
+
+        return new Ntc103Application
+        {
+            ApplicationId = applicationId,
+            RevisionNo = "02",
+            RevisionDate = new DateOnly(2023, 3, 31),
+            TypeOfApplication = TypeOfApplication.New,
+            NoOfYears = 3,
+            TypeOfPermitLicenseCert = TypeOfPermitLicenseCert103.AmateurRadioStationLicense,
+            ClassOfStation = ClassOfStationAmateur.ClassA,
+            CallSign = "DU1JR",
+            AtrocArslNo = "ARSL-2026-00341",
+            Validity = new DateOnly(2029, 7, 22),
+            ApplicantPerson = applicantPerson,
+            ExamSeminarDetails = examSeminar,
+            Equipment = equipment,
+            Payment = payment,
+            Declaration = declaration
+        };
+    }
 }

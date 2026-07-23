@@ -64,6 +64,15 @@ public static class FormPrintingEndpoints
         })
         .WithName("PrintNtc102Demo");
 
+        /// <summary>GET /api/forms/demo/ntc-1-03 — Application Form 1-03 (Amateur Radio Certificate / License).</summary>
+        group.MapGet("/ntc-1-03", (IFormPrintingService printingService) =>
+        {
+            var application = MockDataFactory.GetNtc103Application();
+            var pdfBytes = printingService.PrintNtc103(application);
+            return Results.File(pdfBytes, "application/pdf", $"NTC-1-03_{application.ApplicationId}.pdf");
+        })
+        .WithName("PrintNtc103Demo");
+
         return app;
     }
 }
