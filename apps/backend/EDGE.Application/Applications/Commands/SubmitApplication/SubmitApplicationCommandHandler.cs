@@ -56,14 +56,8 @@ public class SubmitApplicationCommandHandler
 
         // 1. Resolve current user
         var currentUserIdStr = _currentUserService.UserId;
-        bool isGuest = string.IsNullOrEmpty(currentUserIdStr);
-        Guid? submitterUserId = null;
-        if (!isGuest)
-        {
-            submitterUserId = Guid.TryParse(currentUserIdStr, out var parsed)
-                ? parsed
-                : CreateGuidFromString(currentUserIdStr!);
-        }
+        Guid? submitterUserId = Guid.TryParse(currentUserIdStr, out var parsed) ? parsed : null;
+        bool isGuest = submitterUserId == null;
 
         // 2. Validate service exists
         var service = await _serviceRepository.GetByIdAsync(
@@ -79,21 +73,28 @@ public class SubmitApplicationCommandHandler
                 "Validation Error: The selected service is not available for this tenant.");
         }
 
-        // 2b. Office belongs to the tenant's region
-        if (request.OfficeId != null)
+        // 2b. Validate FieldOfficeId if provided and inherit RegionId from tenant
+        var tenant = await _tenantRepository.GetByIdAsync(request.TenantId, cancellationToken);
+        if (tenant == null)
         {
-            var office = await _fieldOfficeRepository.GetByIdAsync(request.OfficeId.Value, cancellationToken);
-            var tenant = await _tenantRepository.GetByIdAsync(request.TenantId, cancellationToken);
-            
-            if (office == null || tenant == null || office.RegionId != tenant.RegionId)
-            {
-                return ApiResponse<Guid>.Fail(
-                    "Validation Error: The selected office does not belong to the tenant's region.");
-            }
+            return ApiResponse<Guid>.Fail(
+                "Validation Error: The specified tenant does not exist.");
         }
 
-        // 2c. Resolve effective scheduleId (from command or first applicant)
-        Guid? effectiveScheduleId = request.ScheduleId ?? request.Applicants.FirstOrDefault(a => a.ScheduleId.HasValue)?.ScheduleId;
+        string? officeName = null;
+        if (request.FieldOfficeId != null)
+        {
+            var office = await _fieldOfficeRepository.GetByIdAsync(request.FieldOfficeId.Value, cancellationToken);
+            if (office == null || office.RegionId != tenant.RegionId)
+            {
+                return ApiResponse<Guid>.Fail(
+                    "Validation Error: The selected field office does not belong to the tenant's region.");
+            }
+            officeName = office.Name;
+        }
+
+        // 2c. Resolve effective scheduleId
+        Guid? effectiveScheduleId = request.ScheduleId;
         if (effectiveScheduleId.HasValue)
         {
             var schedule = await _scheduleRepository.GetByIdAsync(
@@ -157,6 +158,21 @@ public class SubmitApplicationCommandHandler
             }
         }
 
+        // Derive ApplicationTypeKey from submitted formFieldValues or fallback to "New"
+        string effectiveAppTypeKey = "New";
+        var firstFormValues = request.Applicants.FirstOrDefault()?.FormFieldValues;
+        if (firstFormValues != null)
+        {
+            var matchedValue = firstFormValues
+                .Select(fv => fv.Value)
+                .FirstOrDefault(v => Enum.GetNames<ServiceVariantType>()
+                    .Any(n => n.Equals(v, StringComparison.OrdinalIgnoreCase)));
+            if (!string.IsNullOrEmpty(matchedValue))
+            {
+                effectiveAppTypeKey = matchedValue;
+            }
+        }
+
         // 6. Begin transaction
         await _unitOfWork.BeginTransactionAsync(cancellationToken);
         try
@@ -170,17 +186,13 @@ public class SubmitApplicationCommandHandler
                 ? $"APP-{DateTime.UtcNow:yyyyMMdd}-{Random.Shared.Next(1000, 9999)}"
                 : null;
 
-            // Resolve effective applicationTypeKey
-            var firstApplicantTypeKey = request.Applicants.FirstOrDefault(a => a.ApplicationTypeKey.HasValue)?.ApplicationTypeKey;
-            var effectiveAppTypeKey = firstApplicantTypeKey?.ToString() ?? request.ApplicationTypeKey?.ToString();
-
-            // Create Application
+            // Create Application (inheriting RegionId from Tenant)
             var application = new Domain.Entities.Application
             {
                 TenantId = request.TenantId,
                 ScheduleId = effectiveScheduleId,
-                RegionId = request.RegionId,
-                Office = request.Office,
+                RegionId = tenant.RegionId,
+                Office = officeName,
                 ApplicationNumber = appNumber,
                 ReferenceNumber = $"REF-{Guid.NewGuid().ToString("N")[..8].ToUpper()}",
                 Status = status,
@@ -229,10 +241,7 @@ public class SubmitApplicationCommandHandler
                 {
                     Id = Guid.NewGuid(),
                     TenantId = request.TenantId,
-                    ApplicantType = request.AccountType.Equals(
-                        "Company", StringComparison.OrdinalIgnoreCase)
-                        ? ApplicantType.Company
-                        : ApplicantType.Individual,
+                    ApplicantType = ApplicantType.Individual,
                     ApplicantDetailId = detail.Id,
                     Status = ApplicantStatus.Complete
                 };

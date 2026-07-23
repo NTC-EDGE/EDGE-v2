@@ -20,12 +20,6 @@ public class SubmitApplicationCommandValidator : AbstractValidator<SubmitApplica
                           string.Equals(mode, "Bulk", StringComparison.OrdinalIgnoreCase))
             .WithMessage("Submission mode must be either 'Single' or 'Bulk'.");
 
-        RuleFor(x => x.AccountType)
-            .NotEmpty()
-            .Must(type => string.Equals(type, "Individual", StringComparison.OrdinalIgnoreCase) ||
-                          string.Equals(type, "Company", StringComparison.OrdinalIgnoreCase))
-            .WithMessage("Account type must be either 'Individual' or 'Company'.");
-
         // Applicants list must not be empty
         RuleFor(x => x.Applicants)
             .NotEmpty()
@@ -37,16 +31,11 @@ public class SubmitApplicationCommandValidator : AbstractValidator<SubmitApplica
             .When(x => string.Equals(x.SubmissionMode, "Single", StringComparison.OrdinalIgnoreCase))
             .WithMessage("Single submission must have exactly one applicant.");
 
-        // Bulk — at least 2, must be Company
+        // Bulk — at least 2
         RuleFor(x => x.Applicants)
             .Must(a => a.Count >= 2)
             .When(x => string.Equals(x.SubmissionMode, "Bulk", StringComparison.OrdinalIgnoreCase))
             .WithMessage("Bulk submission requires at least two applicants.");
-
-        RuleFor(x => x.AccountType)
-            .Must(t => string.Equals(t, "Company", StringComparison.OrdinalIgnoreCase))
-            .When(x => string.Equals(x.SubmissionMode, "Bulk", StringComparison.OrdinalIgnoreCase))
-            .WithMessage("Bulk submission is only allowed for Company account type.");
 
         // Each applicant must have a first and last name at minimum
         RuleForEach(x => x.Applicants).ChildRules(applicant =>
