@@ -84,7 +84,7 @@ public static class DependencyInjection
             client.BaseAddress = new Uri("https://api.clerk.com/v1/");
             client.DefaultRequestHeaders.Add("Authorization", $"Bearer {clerkSecret}");
         });
-
+    
         // Configure Hangfire storage (PostgreSQL in Production/Dev, InMemory in Test)
         services.AddHangfire((sp, config) =>
         {
@@ -104,9 +104,6 @@ public static class DependencyInjection
             }
             else
             {
-                var connectionString = configuration.GetConnectionString("DefaultConnection") 
-                    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
-
                 config.UsePostgreSqlStorage(options => options.UseNpgsqlConnection(connectionString), new PostgreSqlStorageOptions
                 {
                     SchemaName = "hangfire",

@@ -36,10 +36,5 @@ public static class EndpointConfiguration
         apiV2Group.MapRequirementEndpoints();
         apiV2Group.MapServiceVariantRequirementEndpoints();
 
-        // Geographic CRUD endpoints (Regions, Provinces, Municipalities, Barangays)
-        app.MapRegionEndpoints();
-        app.MapProvinceEndpoints();
-        app.MapMunicipalityEndpoints();
-        app.MapBarangayEndpoints();
     }
 }
