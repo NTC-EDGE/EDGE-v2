@@ -34,6 +34,8 @@ interface CategoryGridProps {
   onSearchQueryChange: (query: string) => void;
   selectedCategoryId: string | null;
   onCategorySelect: (categoryId: string) => void;
+  drafts: any[];
+  onViewDrafts: (categoryId: string) => void;
 }
 
 export function CategoryGrid({
@@ -42,6 +44,8 @@ export function CategoryGrid({
   onSearchQueryChange,
   selectedCategoryId,
   onCategorySelect,
+  drafts,
+  onViewDrafts,
 }: CategoryGridProps) {
   // Derive time of day greeting
   const greeting = useMemo(() => {
@@ -110,6 +114,10 @@ export function CategoryGrid({
         {servicesData.map((category) => {
           const theme = getCategoryTheme(category.id);
           const isActive = selectedCategoryId === category.id;
+          const categoryDraftsCount = drafts.filter((d) =>
+            category.services.some((s) => s.title === d.service?.title)
+          ).length;
+
           return (
             <TouchableOpacity
               key={category.id}
@@ -134,6 +142,32 @@ export function CategoryGrid({
               <Text style={styles.categoryCardCount}>
                 {category.services.length} {category.services.length === 1 ? "Service" : "Services"}
               </Text>
+
+              {categoryDraftsCount > 0 && (
+                <TouchableOpacity
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    onViewDrafts(category.id);
+                  }}
+                  style={{
+                    marginTop: 8,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    backgroundColor: "#eff6ff",
+                    borderColor: "#bfdbfe",
+                    borderWidth: 1,
+                    borderRadius: 12,
+                    paddingVertical: 4,
+                    paddingHorizontal: 8,
+                    gap: 4,
+                  }}
+                >
+                  <Icon name="file-text" size={12} color="#1d4ed8" />
+                  <Text style={{ fontFamily: "Outfit-Medium", fontSize: 11, color: "#1d4ed8", fontWeight: "600" }}>
+                    {categoryDraftsCount} {categoryDraftsCount === 1 ? "Draft" : "Drafts"}
+                  </Text>
+                </TouchableOpacity>
+              )}
             </TouchableOpacity>
           );
         })}

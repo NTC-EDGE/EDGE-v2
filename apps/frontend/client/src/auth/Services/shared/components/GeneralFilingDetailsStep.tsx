@@ -1,9 +1,9 @@
 import React from "react";
 import { View, Text, TextInput } from "react-native";
 import { COLORS, TYPOGRAPHY } from "@edge/ui";
-import { Select } from "../../../shared/components/Select";
-import { ValidatedInput } from "../../../shared/components/ValidatedInput";
 import { GeneralApplicantData } from "../hooks/useGeneralServiceWizard";
+import { ValidatedInput } from "../../../../shared/components/ValidatedInput";
+import { Select } from "../../../../shared/components/Select";
 
 interface GeneralFilingDetailsStepProps {
   activeApplicant: GeneralApplicantData;
