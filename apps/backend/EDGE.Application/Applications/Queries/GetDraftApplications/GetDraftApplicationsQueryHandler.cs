@@ -78,7 +78,7 @@ public class GetDraftApplicationsQueryHandler : IRequestHandler<GetDraftApplicat
                     dto.Details = new ApplicantDetailDto
                     {
                         Id = ad.Id,
-                        BarangayId = ad.BarangayId,
+                        BarangayId = ad.BarangayId ?? Guid.Empty,
                         Address = ad.Address,
                         FirstName = ad.FirstName,
                         MiddleName = ad.MiddleName,

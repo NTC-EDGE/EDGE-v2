@@ -16,22 +16,66 @@ public class SubmitApplicationCommandValidator : AbstractValidator<SubmitApplica
 
         RuleFor(x => x.SubmissionMode)
             .NotEmpty()
-            .Must(mode => string.Equals(mode, "Single", System.StringComparison.OrdinalIgnoreCase))
-            .WithMessage("Bulk submission mode is not supported in this version.");
+            .Must(mode => string.Equals(mode, "Single", StringComparison.OrdinalIgnoreCase) ||
+                          string.Equals(mode, "Bulk", StringComparison.OrdinalIgnoreCase))
+            .WithMessage("Submission mode must be either 'Single' or 'Bulk'.");
 
         RuleFor(x => x.AccountType)
             .NotEmpty()
-            .Must(type => string.Equals(type, "Individual", System.StringComparison.OrdinalIgnoreCase) || 
-                          string.Equals(type, "Company", System.StringComparison.OrdinalIgnoreCase))
+            .Must(type => string.Equals(type, "Individual", StringComparison.OrdinalIgnoreCase) ||
+                          string.Equals(type, "Company", StringComparison.OrdinalIgnoreCase))
             .WithMessage("Account type must be either 'Individual' or 'Company'.");
 
-        RuleFor(x => x.ApplicantIds)
-            .NotEmpty()
-            .WithMessage("At least one applicant ID is required.");
+        RuleFor(x => x.Status)
+            .Must(s => string.Equals(s, "Draft", StringComparison.OrdinalIgnoreCase) ||
+                       string.Equals(s, "Submitted", StringComparison.OrdinalIgnoreCase))
+            .WithMessage("Status must be either 'Draft' or 'Submitted'.");
 
-        RuleFor(x => x.ApplicantIds)
-            .Must(ids => ids.Count == 1)
-            .When(x => string.Equals(x.SubmissionMode, "Single", System.StringComparison.OrdinalIgnoreCase))
-            .WithMessage("Single submission mode must have exactly one applicant.");
+        // Applicants list must not be empty
+        RuleFor(x => x.Applicants)
+            .NotEmpty()
+            .WithMessage("At least one applicant is required.");
+
+        // Single — exactly 1
+        RuleFor(x => x.Applicants)
+            .Must(a => a.Count == 1)
+            .When(x => string.Equals(x.SubmissionMode, "Single", StringComparison.OrdinalIgnoreCase))
+            .WithMessage("Single submission must have exactly one applicant.");
+
+        // Bulk — at least 2, must be Company
+        RuleFor(x => x.Applicants)
+            .Must(a => a.Count >= 2)
+            .When(x => string.Equals(x.SubmissionMode, "Bulk", StringComparison.OrdinalIgnoreCase))
+            .WithMessage("Bulk submission requires at least two applicants.");
+
+        RuleFor(x => x.AccountType)
+            .Must(t => string.Equals(t, "Company", StringComparison.OrdinalIgnoreCase))
+            .When(x => string.Equals(x.SubmissionMode, "Bulk", StringComparison.OrdinalIgnoreCase))
+            .WithMessage("Bulk submission is only allowed for Company account type.");
+
+        // Each applicant must have a first and last name at minimum
+        RuleForEach(x => x.Applicants).ChildRules(applicant =>
+        {
+            applicant.RuleFor(a => a.FirstName)
+                .NotEmpty()
+                .WithMessage("Applicant first name is required.");
+
+            applicant.RuleFor(a => a.LastName)
+                .NotEmpty()
+                .WithMessage("Applicant last name is required.");
+
+            applicant.RuleFor(a => a.Email)
+                .NotEmpty()
+                .EmailAddress()
+                .WithMessage("A valid applicant email address is required.");
+
+            // Each FormFieldValue must have a non-empty FieldId
+            applicant.RuleForEach(a => a.FormFieldValues).ChildRules(fv =>
+            {
+                fv.RuleFor(f => f.FieldId)
+                    .NotEmpty()
+                    .WithMessage("FieldId is required for each form field value.");
+            });
+        });
     }
 }

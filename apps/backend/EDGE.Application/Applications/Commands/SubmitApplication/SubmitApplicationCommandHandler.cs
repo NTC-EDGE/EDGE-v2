@@ -14,41 +14,26 @@ using EDGE.Application.Common.Models;
 
 namespace EDGE.Application.Applications.Commands.SubmitApplication;
 
-public class SubmitApplicationCommandHandler : IRequestHandler<SubmitApplicationCommand, ApiResponse<Guid>>
+public class SubmitApplicationCommandHandler
+    : IRequestHandler<SubmitApplicationCommand, ApiResponse<Guid>>
 {
     private readonly IApplicationFullRepository _applicationRepository;
     private readonly IApplicantRepository _applicantRepository;
     private readonly IServiceRepository _serviceRepository;
     private readonly IFormRepository _formRepository;
+    private readonly IFieldOfficeRepository _fieldOfficeRepository;
+    private readonly ITenantRepository _tenantRepository;
     private readonly IScheduleRepository _scheduleRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUserService _currentUserService;
-
-    private static readonly Dictionary<string, string> LabelToKeyMap = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["First Name"] = "firstName",
-        ["Last Name"] = "lastName",
-        ["Email Address"] = "email",
-        ["Contact Number"] = "contactNumber",
-        ["Operator Class"] = "operatorClass",
-        ["License Number"] = "licenseNumber",
-        ["Expiry Date"] = "expiryDate",
-        ["Company Name"] = "companyName",
-        ["SEC/DTI Registration Number"] = "registrationNumber",
-        ["TIN"] = "tin",
-        ["Station Type"] = "stationType",
-        ["Assigned Frequency (MHz)"] = "frequency",
-        ["Transmitter Power Output (W)"] = "powerOutput",
-        ["Station Location"] = "location",
-        ["Signature"] = "signatureField",
-        ["I declare the info is true"] = "declarationCheckbox"
-    };
 
     public SubmitApplicationCommandHandler(
         IApplicationFullRepository applicationRepository,
         IApplicantRepository applicantRepository,
         IServiceRepository serviceRepository,
         IFormRepository formRepository,
+        IFieldOfficeRepository fieldOfficeRepository,
+        ITenantRepository tenantRepository,
         IScheduleRepository scheduleRepository,
         IUnitOfWork unitOfWork,
         ICurrentUserService currentUserService)
@@ -57,203 +42,134 @@ public class SubmitApplicationCommandHandler : IRequestHandler<SubmitApplication
         _applicantRepository = applicantRepository;
         _serviceRepository = serviceRepository;
         _formRepository = formRepository;
+        _fieldOfficeRepository = fieldOfficeRepository;
+        _tenantRepository = tenantRepository;
         _scheduleRepository = scheduleRepository;
         _unitOfWork = unitOfWork;
         _currentUserService = currentUserService;
     }
 
-    public async Task<ApiResponse<Guid>> Handle(SubmitApplicationCommand request, CancellationToken cancellationToken)
+    public async Task<ApiResponse<Guid>> Handle(
+        SubmitApplicationCommand request, CancellationToken cancellationToken)
     {
-        // 1. Validate Single/Bulk submission constraints
-        bool isBulkMode = request.SubmissionMode.Equals("Bulk", StringComparison.OrdinalIgnoreCase);
-        if (isBulkMode)
-        {
-            return ApiResponse<Guid>.Fail("Validation Error: Bulk submission mode is not supported in this version.");
-        }
+        bool isBulk = request.SubmissionMode.Equals("Bulk", StringComparison.OrdinalIgnoreCase);
 
+        // 1. Resolve current user
         var currentUserIdStr = _currentUserService.UserId;
         bool isGuest = string.IsNullOrEmpty(currentUserIdStr);
         Guid? submitterUserId = null;
-
         if (!isGuest)
         {
-            if (Guid.TryParse(currentUserIdStr, out var parsedGuid))
-            {
-                submitterUserId = parsedGuid;
-            }
-            else
-            {
-                submitterUserId = CreateGuidFromString(currentUserIdStr!);
-            }
+            submitterUserId = Guid.TryParse(currentUserIdStr, out var parsed)
+                ? parsed
+                : CreateGuidFromString(currentUserIdStr!);
         }
 
-        if (request.ApplicantIds.Count != 1)
-        {
-            return ApiResponse<Guid>.Fail("Validation Error: Single submission mode must have exactly one applicant.");
-        }
-
-        // 2. Fetch Service Catalog and Validate Category conformance
-        var service = await _serviceRepository.GetByIdAsync(request.ServiceId ?? Guid.Empty, cancellationToken);
+        // 2. Validate service exists
+        var service = await _serviceRepository.GetByIdAsync(
+            request.ServiceId ?? Guid.Empty, cancellationToken);
         if (service == null)
+            return ApiResponse<Guid>.Fail(
+                $"Validation Error: Service '{request.ServiceId}' does not exist.");
+
+        // 2a. Service belongs to the requesting tenant
+        if (service.TenantId != request.TenantId)
         {
-            return ApiResponse<Guid>.Fail($"Validation Error: Service with ID '{request.ServiceId}' does not exist.");
+            return ApiResponse<Guid>.Fail(
+                "Validation Error: The selected service is not available for this tenant.");
         }
-    
-        // 3. Guard against missing Schedule for Exam category services
+
+        // 2b. Office belongs to the tenant's region
+        if (request.OfficeId != null)
+        {
+            var office = await _fieldOfficeRepository.GetByIdAsync(request.OfficeId.Value, cancellationToken);
+            var tenant = await _tenantRepository.GetByIdAsync(request.TenantId, cancellationToken);
+            
+            if (office == null || tenant == null || office.RegionId != tenant.RegionId)
+            {
+                return ApiResponse<Guid>.Fail(
+                    "Validation Error: The selected office does not belong to the tenant's region.");
+            }
+        }
+
+        // 2c. ScheduleId belongs to the selected ServiceId
+        if (request.ScheduleId.HasValue)
+        {
+            var schedule = await _scheduleRepository.GetByIdAsync(
+                request.ScheduleId.Value, cancellationToken);
+            if (schedule == null || schedule.ServiceId != service.Id)
+            {
+                return ApiResponse<Guid>.Fail(
+                    "Validation Error: The selected schedule does not belong to the specified service.");
+            }
+        }
+
+        // 3. Validate bulk is permitted by contract
+        if (isBulk)
+        {
+            bool allowsBulk = false;
+            if (!string.IsNullOrWhiteSpace(service.Contract))
+            {
+                using var doc = JsonDocument.Parse(service.Contract);
+                if (doc.RootElement.TryGetProperty("allowsBulkSubmission", out var bulkProp))
+                    allowsBulk = bulkProp.GetBoolean();
+            }
+
+            if (!allowsBulk)
+                return ApiResponse<Guid>.Fail(
+                    "Validation Error: This service does not allow bulk submission.");
+        }
+
+        // 4. Validate schedule for Exam category services
         if (service.ServiceCategory?.Type == ServiceCategoryType.Exam)
         {
             if (!request.ScheduleId.HasValue || request.ScheduleId == Guid.Empty)
-            {
-                return ApiResponse<Guid>.Fail("Validation Error: ScheduleId is mandatory for exam services.");
-            }
+                return ApiResponse<Guid>.Fail(
+                    "Validation Error: ScheduleId is required for exam services.");
 
-            var schedule = await _scheduleRepository.GetByIdAsync(request.ScheduleId.Value, cancellationToken);
+            var schedule = await _scheduleRepository.GetByIdAsync(
+                request.ScheduleId.Value, cancellationToken);
             if (schedule == null)
-            {
-                return ApiResponse<Guid>.Fail($"Validation Error: The selected examination schedule '{request.ScheduleId}' does not exist.");
-            }
+                return ApiResponse<Guid>.Fail(
+                    $"Validation Error: Examination schedule '{request.ScheduleId}' does not exist.");
         }
 
-        // 4. Validate that applicant exists, belongs to tenant, and is Complete
-        // Using the lean overload — we only need TenantId and Status; the full
-        // applicant details were already persisted in the prior POST+PATCH steps.
-        var applicantId = request.ApplicantIds[0];
-        var applicant = await _applicantRepository.GetApplicantByIdAsync(applicantId, cancellationToken);
-        if (applicant == null)
-        {
-            return ApiResponse<Guid>.Fail($"Validation Error: Applicant '{applicantId}' does not exist.");
-        }
-
-        if (applicant.TenantId != request.TenantId)
-        {
-            return ApiResponse<Guid>.Fail($"Validation Error: Applicant '{applicantId}' does not belong to the requested tenant.");
-        }
-
-        if (applicant.Status != ApplicantStatus.Complete)
-        {
-            return ApiResponse<Guid>.Fail($"Validation Error: The applicant details must be fully filled out and complete before submission.");
-        }
-
-        // 5. Validate dynamic contract and unknown fields mapping
-        if (string.IsNullOrWhiteSpace(service.Contract))
-        {
-            return ApiResponse<Guid>.Fail("Validation Error: Service contract is missing or malformed.");
-        }
-
-        HashSet<string> requiredSectionKeys = new();
-        try
-        {
-            using var contractDoc = JsonDocument.Parse(service.Contract);
-            if (contractDoc.RootElement.TryGetProperty("requiredSections", out var sectionsElem))
-            {
-                foreach (var sec in sectionsElem.EnumerateArray())
-                {
-                    if (sec.TryGetProperty("key", out var keyElem))
-                    {
-                        requiredSectionKeys.Add(keyElem.GetString() ?? "");
-                    }
-                }
-            }
-        }
-        catch (Exception)
-        {
-            return ApiResponse<Guid>.Fail("Validation Error: Failed to parse service contract schema.");
-        }
-
+        // 5. Validate all submitted FieldIds exist in the form
         var form = await _formRepository.GetFormByServiceIdAsync(service.Id, cancellationToken);
-        var fieldValuesToInsert = new List<FormFieldValue>();
-
-        if (requiredSectionKeys.Count > 0)
+        if (form != null)
         {
-            if (string.IsNullOrWhiteSpace(request.DynamicDataJson))
+            var validFieldIds = form.Sections
+                .SelectMany(s => s.SectionFields)
+                .Select(sf => sf.FieldId)
+                .ToHashSet();
+
+            foreach (var applicantDto in request.Applicants)
             {
-                return ApiResponse<Guid>.Fail("Validation Error: Dynamic data JSON is required for this service.");
-            }
+                var unknownFields = applicantDto.FormFieldValues
+                    .Where(fv => !validFieldIds.Contains(fv.FieldId))
+                    .Select(fv => fv.FieldId)
+                    .ToList();
 
-            try
-            {
-                using var dataDoc = JsonDocument.Parse(request.DynamicDataJson);
-                var root = dataDoc.RootElement;
-
-                // Ensure all contract-required sections are present
-                foreach (var reqKey in requiredSectionKeys)
-                {
-                    if (!root.TryGetProperty(reqKey, out _))
-                    {
-                        return ApiResponse<Guid>.Fail($"Validation Error: Missing required section '{reqKey}' in submitted form data.");
-                    }
-                }
-
-                if (form != null)
-                {
-                    // Map key to Section and its fields
-                    var sectionMap = form.Sections.ToDictionary(s => s.Key, s => s, StringComparer.OrdinalIgnoreCase);
-
-                    foreach (var sectionProp in root.EnumerateObject())
-                    {
-                        var sectionKey = sectionProp.Name;
-                        if (!sectionMap.TryGetValue(sectionKey, out var formSection))
-                        {
-                            return ApiResponse<Guid>.Fail($"Validation Error: Unknown section '{sectionKey}' is not defined in the service form layout.");
-                        }
-
-                        // Map field key (normalized label or LabelToKeyMap) to Field ID
-                        var fieldKeyMap = formSection.SectionFields
-                            .Where(sf => sf.Field != null)
-                            .ToDictionary(
-                                sf => LabelToKeyMap.TryGetValue(sf.Field!.Label, out var keyVal) ? keyVal : NormalizeLabel(sf.Field.Label),
-                                sf => sf.Field!.Id,
-                                StringComparer.OrdinalIgnoreCase
-                            );
-
-                        if (sectionProp.Value.ValueKind == JsonValueKind.Object)
-                        {
-                            foreach (var fieldProp in sectionProp.Value.EnumerateObject())
-                            {
-                                if (!fieldKeyMap.TryGetValue(fieldProp.Name, out var fieldId))
-                                {
-                                    return ApiResponse<Guid>.Fail($"Validation Error: Unknown field '{fieldProp.Name}' under section '{sectionKey}' is not defined in the service form layout.");
-                                }
-
-                                string strValue = fieldProp.Value.ValueKind == JsonValueKind.String
-                                    ? fieldProp.Value.GetString() ?? ""
-                                    : fieldProp.Value.GetRawText();
-
-                                fieldValuesToInsert.Add(new FormFieldValue
-                                {
-                                    Id = Guid.NewGuid(),
-                                    FieldId = fieldId,
-                                    Value = strValue
-                                });
-                            }
-                        }
-                    }
-                }
-            }
-            catch (JsonException)
-            {
-                return ApiResponse<Guid>.Fail("Validation Error: Dynamic data is not a valid JSON string.");
+                if (unknownFields.Any())
+                    return ApiResponse<Guid>.Fail(
+                        $"Validation Error: Unknown FieldId(s): {string.Join(", ", unknownFields)}");
             }
         }
 
-        // 6. Begin Database Transaction
+        // 6. Begin transaction
         await _unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
-            var submissionMode = SubmissionMode.Single;
-            var dataEntryMethod = string.Equals(request.DataEntryMethod, "CSV", StringComparison.OrdinalIgnoreCase)
-                ? DataEntryMethod.CSV
-                : DataEntryMethod.Manual;
-            var status = string.Equals(request.Status, "Submitted", StringComparison.OrdinalIgnoreCase)
+            var submissionMode = isBulk ? SubmissionMode.Bulk : SubmissionMode.Single;
+            var status = request.Status.Equals("Submitted", StringComparison.OrdinalIgnoreCase)
                 ? ApplicationStatus.Submitted
                 : ApplicationStatus.Draft;
 
-            string? appNumber = null;
-            if (status == ApplicationStatus.Submitted)
-            {
-                appNumber = $"APP-{DateTime.UtcNow:yyyyMMdd}-{Random.Shared.Next(1000, 9999)}";
-            }
+            string? appNumber = status == ApplicationStatus.Submitted
+                ? $"APP-{DateTime.UtcNow:yyyyMMdd}-{Random.Shared.Next(1000, 9999)}"
+                : null;
 
+            // Create Application
             var application = new Domain.Entities.Application
             {
                 TenantId = request.TenantId,
@@ -264,18 +180,14 @@ public class SubmitApplicationCommandHandler : IRequestHandler<SubmitApplication
                 ReferenceNumber = $"REF-{Guid.NewGuid().ToString("N")[..8].ToUpper()}",
                 Status = status,
                 SubmissionMode = submissionMode,
-                DataEntryMethod = dataEntryMethod,
+                DataEntryMethod = DataEntryMethod.Manual, // CSV deferred
                 UserId = submitterUserId,
                 IsGuest = isGuest
             };
-
             await _applicationRepository.AddAsync(application, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            // Link Application to Service
-            // DynamicDataJson is intentionally omitted here: the normalized answers
-            // are stored in FormFieldValue rows (see below). Keeping both would be
-            // redundant storage not called for by the plan's ApplicationService schema.
+            // Create ApplicationService
             var appService = new ApplicationService
             {
                 ApplicationId = application.Id,
@@ -286,55 +198,97 @@ public class SubmitApplicationCommandHandler : IRequestHandler<SubmitApplication
             };
             await _applicationRepository.AddApplicationServiceAsync(appService, cancellationToken);
 
-            // Link Applicant to Application
-            var appApplicant = new ApplicationApplicant
+            // Loop over applicants — runs once for Single, N times for Bulk
+            int sequenceOrder = 1;
+            foreach (var dto in request.Applicants)
             {
-                ApplicationId = application.Id,
-                ApplicantId = applicantId,
-                SequenceOrder = 1
-            };
-            await _applicationRepository.AddApplicationApplicantAsync(appApplicant, cancellationToken);
-
-            // Create FormSubmission and FormFieldValue rows
-            if (form != null)
-            {
-                var formSubmission = new FormSubmission
+                // Create ApplicantDetail
+                var detail = new ApplicantDetail
                 {
                     Id = Guid.NewGuid(),
-                    ApplicationId = application.Id,
-                    FormId = form.Id,
-                    ApplicantId = applicantId
+                    FirstName = dto.FirstName,
+                    LastName = dto.LastName,
+                    EmailAddress = dto.Email,
+                    ContactNumber = dto.ContactNumber,
+                    Address = dto.Address,
+                    BirthDate = dto.BirthDate
                 };
-                await _applicationRepository.AddFormSubmissionAsync(formSubmission, cancellationToken);
+                await _applicantRepository.AddApplicantDetailAsync(detail, cancellationToken);
+
+                // Create Applicant
+                var applicant = new Applicant
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = request.TenantId,
+                    ApplicantType = request.AccountType.Equals(
+                        "Company", StringComparison.OrdinalIgnoreCase)
+                        ? ApplicantType.Company
+                        : ApplicantType.Individual,
+                    ApplicantDetailId = detail.Id,
+                    Status = ApplicantStatus.Complete
+                };
+                await _applicantRepository.AddApplicantAsync(applicant, cancellationToken);
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-                foreach (var fieldValue in fieldValuesToInsert)
+                // Link Applicant to Application
+                var appApplicant = new ApplicationApplicant
                 {
-                    fieldValue.FormSubmissionId = formSubmission.Id;
-                    await _applicationRepository.AddFormFieldValueAsync(fieldValue, cancellationToken);
+                    ApplicationId = application.Id,
+                    ApplicantId = applicant.Id,
+                    SequenceOrder = sequenceOrder++
+                };
+                await _applicationRepository.AddApplicationApplicantAsync(
+                    appApplicant, cancellationToken);
+
+                // Create FormSubmission + FormFieldValue rows
+                if (form != null)
+                {
+                    var formSubmission = new FormSubmission
+                    {
+                        Id = Guid.NewGuid(),
+                        ApplicationId = application.Id,
+                        FormId = form.Id,
+                        ApplicantId = applicant.Id
+                    };
+                    await _applicationRepository.AddFormSubmissionAsync(
+                        formSubmission, cancellationToken);
+                    await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+                    foreach (var fv in dto.FormFieldValues)
+                    {
+                        await _applicationRepository.AddFormFieldValueAsync(new FormFieldValue
+                        {
+                            Id = Guid.NewGuid(),
+                            FormSubmissionId = formSubmission.Id,
+                            FieldId = fv.FieldId,
+                            Value = fv.Value
+                        }, cancellationToken);
+                    }
                 }
             }
 
-            // Create ApplicationStatusHistory row
-            var statusHistory = new ApplicationStatusHistory
-            {
-                Id = Guid.NewGuid(),
-                ApplicationId = application.Id,
-                Status = status,
-                Remarks = status == ApplicationStatus.Submitted ? "Initial submission" : "Draft created",
-                Timestamp = DateTime.UtcNow,
-                UserId = submitterUserId
-            };
-            await _applicationRepository.AddApplicationStatusHistoryAsync(statusHistory, cancellationToken);
+            // Create ApplicationStatusHistory
+            await _applicationRepository.AddApplicationStatusHistoryAsync(
+                new ApplicationStatusHistory
+                {
+                    Id = Guid.NewGuid(),
+                    ApplicationId = application.Id,
+                    Status = status,
+                    Remarks = status == ApplicationStatus.Submitted
+                        ? "Initial submission"
+                        : "Draft created",
+                    Timestamp = DateTime.UtcNow,
+                    UserId = submitterUserId
+                }, cancellationToken);
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             await _unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            string successMessage = status == ApplicationStatus.Draft
-                ? "Application draft saved successfully."
-                : "Application submitted successfully.";
-
-            return ApiResponse<Guid>.Success(application.Id, successMessage);
+            return ApiResponse<Guid>.Success(
+                application.Id,
+                status == ApplicationStatus.Draft
+                    ? "Application draft saved successfully."
+                    : "Application submitted successfully.");
         }
         catch (Exception ex)
         {
@@ -348,25 +302,5 @@ public class SubmitApplicationCommandHandler : IRequestHandler<SubmitApplication
         using var md5 = MD5.Create();
         byte[] hash = md5.ComputeHash(Encoding.UTF8.GetBytes(input));
         return new Guid(hash);
-    }
-
-    private static string NormalizeLabel(string label)
-    {
-        if (string.IsNullOrEmpty(label)) return string.Empty;
-        var sb = new StringBuilder();
-        bool makeNextLower = true;
-        foreach (char c in label)
-        {
-            if (char.IsLetterOrDigit(c))
-            {
-                sb.Append(makeNextLower ? char.ToLowerInvariant(c) : c);
-                makeNextLower = false;
-            }
-            else if (char.IsWhiteSpace(c))
-            {
-                makeNextLower = false; 
-            }
-        }
-        return sb.ToString().ToLowerInvariant();
     }
 }

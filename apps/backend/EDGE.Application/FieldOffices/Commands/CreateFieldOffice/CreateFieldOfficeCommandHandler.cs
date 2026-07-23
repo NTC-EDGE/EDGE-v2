@@ -17,7 +17,7 @@ public class CreateFieldOfficeCommandHandler(IFieldOfficeRepository repository, 
             Id = Guid.NewGuid(),
             Name = request.Name,
             RegionId = request.RegionId,
-            Code = request.Code,
+            Code = request.Code ?? string.Empty,
             CreatedAt = DateTime.UtcNow
         };
 

@@ -79,7 +79,7 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                     applicantDto.Details = new ApplicantDetailDto
                     {
                         Id = ad.Id,
-                        BarangayId = ad.BarangayId,
+                        BarangayId = ad.BarangayId ?? Guid.Empty,
                         Address = ad.Address,
                         FirstName = ad.FirstName,
                         MiddleName = ad.MiddleName,
