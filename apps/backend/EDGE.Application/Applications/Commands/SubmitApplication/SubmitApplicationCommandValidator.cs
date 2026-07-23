@@ -26,11 +26,6 @@ public class SubmitApplicationCommandValidator : AbstractValidator<SubmitApplica
                           string.Equals(type, "Company", StringComparison.OrdinalIgnoreCase))
             .WithMessage("Account type must be either 'Individual' or 'Company'.");
 
-        RuleFor(x => x.Status)
-            .Must(s => string.Equals(s, "Draft", StringComparison.OrdinalIgnoreCase) ||
-                       string.Equals(s, "Submitted", StringComparison.OrdinalIgnoreCase))
-            .WithMessage("Status must be either 'Draft' or 'Submitted'.");
-
         // Applicants list must not be empty
         RuleFor(x => x.Applicants)
             .NotEmpty()

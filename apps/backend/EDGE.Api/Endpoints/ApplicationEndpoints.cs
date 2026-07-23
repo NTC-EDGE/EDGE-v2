@@ -2,11 +2,13 @@ using System;
 using System.IO;
 using MediatR;
 using Microsoft.AspNetCore.Http;
+using FluentValidation;
 using EDGE.Application.Applications.Commands.DeleteDraftApplication;
 using EDGE.Application.Applications.Commands.FinalizeApplicationSubmission;
 using EDGE.Application.Applications.Commands.PreviewCsvImport;
 using EDGE.Application.Applications.Commands.SubmitApplication;
 using EDGE.Application.Applications.Commands.UpdateApplication;
+using EDGE.Application.Applications.Commands.UpdateApplicationStatus;
 using EDGE.Application.Applications.Commands.UploadApplicantRequirement;
 using EDGE.Application.Applications.Queries.GetApplicationById;
 using EDGE.Application.Applications.Queries.GetDraftApplications;
@@ -76,6 +78,20 @@ public static class ApplicationEndpoints
         })
         .WithName("UpdateApplicationDraft");
 
+        group.MapPatch("/{id:guid}/status", async (Guid id, UpdateApplicationStatusCommand command, IValidator<UpdateApplicationStatusCommand> validator, IMediator mediator) =>
+        {
+            var fullCommand = command with { Id = id };
+            var validationResult = await validator.ValidateAsync(fullCommand);
+            if (!validationResult.IsValid)
+            {
+                return Results.ValidationProblem(validationResult.ToDictionary());
+            }
+
+            var result = await mediator.Send(fullCommand);
+            return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
+        })
+        .WithName("UpdateApplicationStatus");
+
         group.MapDelete("/{id:guid}", async (Guid id, IMediator mediator) =>
         {
             var result = await mediator.Send(new DeleteDraftApplicationCommand(id));
@@ -117,6 +133,23 @@ public static class ApplicationEndpoints
         .WithTags("Application")
         .WithSummary("Submit tenant-scoped application")
         .WithDescription("Creates and validates a single application submission linked to a tenant.");
+
+        app.MapPatch("/tenants/{id:guid}/applications/{appId:guid}/status", async (Guid id, Guid appId, UpdateApplicationStatusCommand command, IValidator<UpdateApplicationStatusCommand> validator, IMediator mediator) =>
+        {
+            var fullCommand = command with { TenantId = id, Id = appId };
+            var validationResult = await validator.ValidateAsync(fullCommand);
+            if (!validationResult.IsValid)
+            {
+                return Results.ValidationProblem(validationResult.ToDictionary());
+            }
+
+            var result = await mediator.Send(fullCommand);
+            return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
+        })
+        .WithName("UpdateTenantApplicationStatus")
+        .WithTags("Application")
+        .WithSummary("Update tenant application status")
+        .WithDescription("Updates application status and logs status history for a tenant application.");
 
         app.MapPatch("/tenants/{id:guid}/applications/{appId:guid}", async (Guid id, Guid appId, UploadApplicantRequirementCommand command, IMediator mediator) =>
         {

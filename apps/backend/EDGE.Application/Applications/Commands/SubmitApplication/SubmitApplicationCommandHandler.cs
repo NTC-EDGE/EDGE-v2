@@ -161,9 +161,9 @@ public class SubmitApplicationCommandHandler
         try
         {
             var submissionMode = isBulk ? SubmissionMode.Bulk : SubmissionMode.Single;
-            var status = request.Status.Equals("Submitted", StringComparison.OrdinalIgnoreCase)
-                ? ApplicationStatus.Submitted
-                : ApplicationStatus.Draft;
+            var status = request.IsDraft
+                ? ApplicationStatus.Draft
+                : ApplicationStatus.Submitted;
 
             string? appNumber = status == ApplicationStatus.Submitted
                 ? $"APP-{DateTime.UtcNow:yyyyMMdd}-{Random.Shared.Next(1000, 9999)}"

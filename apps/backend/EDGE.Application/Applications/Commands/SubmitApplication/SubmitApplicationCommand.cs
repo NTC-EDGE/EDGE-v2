@@ -9,7 +9,7 @@ public record SubmitApplicationCommand : IRequest<ApiResponse<Guid>>
 {
     public Guid TenantId { get; init; }
     public string SubmissionMode { get; init; } = "Single";   // Single | Bulk
-    public string Status { get; init; } = "Draft";            // Draft | Submitted
+    public bool IsDraft { get; init; } = false;
     public string AccountType { get; init; } = "Individual";  // Individual | Company
 
     public Guid? ServiceCategoryId { get; init; }
