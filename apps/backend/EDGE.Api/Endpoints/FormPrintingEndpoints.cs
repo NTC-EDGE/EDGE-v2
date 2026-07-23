@@ -1,4 +1,5 @@
 using EDGE.Infrastructure.Printing.MockData;
+using EDGE.Infrastructure.Printing.Models;
 using EDGE.Infrastructure.Printing.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -21,10 +22,7 @@ public static class FormPrintingEndpoints
         /// <summary>GET /api/forms/demo/ntc-1-11 — Construction Permit / Radio Station License.</summary>
         group.MapGet("/ntc-1-11", (IFormPrintingService printingService) =>
         {
-            // TODO: replace with a real lookup, e.g.
-            // var application = await applicationRepository.GetConstructionPermitAsync(applicationId);
             var application = MockDataFactory.GetConstructionPermitApplication();
-
             var pdfBytes = printingService.PrintConstructionPermit(application);
             return Results.File(pdfBytes, "application/pdf", $"NTC-1-11_{application.ApplicationId}.pdf");
         })
@@ -33,10 +31,7 @@ public static class FormPrintingEndpoints
         /// <summary>GET /api/forms/demo/ntc-1-09 — Permit to Purchase/Possess/Sell/Transfer.</summary>
         group.MapGet("/ntc-1-09", (IFormPrintingService printingService) =>
         {
-            // TODO: replace with a real lookup, e.g.
-            // var application = await applicationRepository.GetPurchasePossessSellTransferAsync(applicationId);
             var application = MockDataFactory.GetPurchasePossessSellTransferApplication();
-
             var pdfBytes = printingService.PrintPurchasePossessSellTransfer(application);
             return Results.File(pdfBytes, "application/pdf", $"NTC-1-09_{application.ApplicationId}.pdf");
         })
@@ -45,14 +40,20 @@ public static class FormPrintingEndpoints
         /// <summary>GET /api/forms/demo/ntc-1-19 — Certificate of Registration.</summary>
         group.MapGet("/ntc-1-19", (IFormPrintingService printingService) =>
         {
-            // TODO: replace with a real lookup, e.g.
-            // var application = await applicationRepository.GetCertificateOfRegistrationAsync(applicationId);
             var application = MockDataFactory.GetCertificateOfRegistrationApplication();
-
             var pdfBytes = printingService.PrintCertificateOfRegistration(application);
             return Results.File(pdfBytes, "application/pdf", $"NTC-1-19_{application.ApplicationId}.pdf");
         })
         .WithName("PrintCertificateOfRegistrationDemo");
+
+        /// <summary>GET /api/forms/demo/ntc-1-01 — Application Form 1-01 (Radio Operator Certificate).</summary>
+        group.MapGet("/ntc-1-01", (IFormPrintingService printingService) =>
+        {
+            var application = MockDataFactory.GetNtc101Application();
+            var pdfBytes = printingService.PrintNtc101(application);
+            return Results.File(pdfBytes, "application/pdf", $"NTC-1-01_{application.ApplicationId}.pdf");
+        })
+        .WithName("PrintNtc101Demo");
 
         return app;
     }

@@ -15,6 +15,7 @@ public interface IFormPrintingService
     byte[] PrintConstructionPermit(ConstructionPermitApplication application);
     byte[] PrintPurchasePossessSellTransfer(PurchasePossessSellTransferApplication application);
     byte[] PrintCertificateOfRegistration(CertificateOfRegistrationApplication application);
+    byte[] PrintNtc101(Ntc101Application application);
 }
 
 public class FormPrintingService : IFormPrintingService
@@ -37,7 +38,6 @@ public class FormPrintingService : IFormPrintingService
             var template = _fillerService.GetTemplate(templateName);
             if (template != null)
             {
-                // Can overlay text or fill template fields if available
                 return template;
             }
         }
@@ -74,5 +74,28 @@ public class FormPrintingService : IFormPrintingService
         }
 
         return new CertificateOfRegistrationReport(application).GeneratePdf();
+    }
+
+    public byte[] PrintNtc101(Ntc101Application application)
+    {
+        const string templateName = "ntc-1-01.pdf";
+        if (_fillerService != null && _fillerService.TemplateExists(templateName))
+        {
+            var template = _fillerService.GetTemplate(templateName);
+            if (template != null)
+            {
+                var overlayItems = Ntc101FlatPdfOverlayMapper.MapToOverlayItems(application);
+                return _fillerService.OverlayText(template, overlayItems);
+            }
+        }
+
+        // Fallback: Default PDF generation
+        return new CertificateOfRegistrationReport(new CertificateOfRegistrationApplication
+        {
+            FormNo = "NTC 1-01",
+            Applicant = application.Applicant,
+            Payment = application.Payment,
+            Declaration = application.Declaration
+        }).GeneratePdf();
     }
 }
