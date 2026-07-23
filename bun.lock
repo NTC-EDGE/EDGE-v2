@@ -71,6 +71,7 @@
       "name": "ntc-edge-internal",
       "version": "1.0.0",
       "dependencies": {
+        "@clerk/expo": "^3.2.0",
         "@edge/api": "workspace:*",
         "@edge/ui": "workspace:*",
         "@expo/vector-icons": "^15.0.2",

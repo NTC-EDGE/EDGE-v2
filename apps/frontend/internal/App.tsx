@@ -4,27 +4,24 @@ import {
   StyleSheet,
   Text,
   View,
-  TextInput,
-  TouchableOpacity,
   ActivityIndicator,
   Platform,
-  KeyboardAvoidingView,
-  ScrollView,
 } from "react-native";
 import { tokenCache } from "./tokenCache";
+import { ClerkProvider } from "@clerk/expo";
 import {
   COLORS,
   SPACING,
   RADIUS,
   SHADOWS,
   TYPOGRAPHY,
-  Icon as Lucide,
-  ClerkProvider,
   createStaticNavigation,
   useNavigationContainerRef,
   ParamListBase,
   RouteProp,
   createNativeStackNavigator,
+  getStateFromPath,
+  getPathFromState,
 } from "@edge/ui";
 import {
   AuthProvider,
@@ -34,6 +31,7 @@ import { RoleProvider } from "./src/features/shell/context/RoleContext";
 import { DashboardShell } from "./src/features/shell/components/DashboardShell";
 import { DashboardScreen } from "./src/features/dashboard/screens/DashboardScreen";
 import { QueueScreen } from "./src/features/queue/screens/QueueScreen";
+import { InternalLoginPage } from "./src/features/login/components/InternalLoginPage";
 
 const getClerkKey = (): string => {
   const key = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
@@ -80,7 +78,25 @@ function PlaceholderScreen({
 }
 
 // React Navigation 8 Static configuration
-const RootStack = createNativeStackNavigator({
+const UnauthStack = createNativeStackNavigator({
+  initialRouteName: "InternalLogin",
+  screenOptions: {
+    headerShown: false,
+    contentStyle: { backgroundColor: "transparent" },
+    animation: "fade",
+  },
+  screens: {
+    InternalLogin: {
+      screen: InternalLoginPage,
+      path: "internal/login",
+      options: {
+        title: "Login",
+      },
+    },
+  },
+});
+
+const AuthStack = createNativeStackNavigator({
   initialRouteName: "Dashboard",
   screenOptions: {
     headerShown: false,
@@ -88,20 +104,76 @@ const RootStack = createNativeStackNavigator({
     animation: "fade",
   },
   screens: {
-    Dashboard: { screen: DashboardScreen },
-    Activities: { screen: QueueScreen },
-    Chat: { screen: PlaceholderScreen },
-    Meet: { screen: PlaceholderScreen },
-    Reports: { screen: PlaceholderScreen },
-    ReceiptManagement: { screen: PlaceholderScreen },
-    RolesPermission: { screen: PlaceholderScreen },
-    Schedule: { screen: PlaceholderScreen },
-    Employees: { screen: PlaceholderScreen },
-    Users: { screen: PlaceholderScreen },
-    Settings: { screen: PlaceholderScreen },
+    Dashboard: { screen: DashboardScreen, path: "dashboard" },
+    Activities: { screen: QueueScreen, path: "activities" },
+    Chat: { screen: PlaceholderScreen, path: "chat" },
+    Meet: { screen: PlaceholderScreen, path: "meet" },
+    Reports: { screen: PlaceholderScreen, path: "reports" },
+    ReceiptManagement: { screen: PlaceholderScreen, path: "receipt-management" },
+    RolesPermission: { screen: PlaceholderScreen, path: "roles-permissions" },
+    Schedule: { screen: PlaceholderScreen, path: "schedule" },
+    Employees: { screen: PlaceholderScreen, path: "employees" },
+    Users: { screen: PlaceholderScreen, path: "users" },
+    Settings: { screen: PlaceholderScreen, path: "settings" },
   },
 });
 
+const UnauthNavigation = createStaticNavigation(UnauthStack);
+const AuthNavigation = createStaticNavigation(AuthStack);
+
+const getPrefixes = (): string[] => {
+  const prefixes = [
+    "http://localhost:8081",
+    "http://localhost:8082",
+    "http://localhost:8083",
+    "edge://",
+  ];
+  if (typeof window !== "undefined" && window.location !== undefined && typeof window.location.origin === "string") {
+    if (!prefixes.includes(window.location.origin)) {
+      prefixes.push(window.location.origin);
+    }
+  }
+  return prefixes;
+};
+
+const unauthLinking = {
+  prefixes: getPrefixes(),
+  getStateFromPath(path: string, options?: Parameters<typeof getStateFromPath>[1]) {
+    return {
+      routes: [{ name: "InternalLogin" }],
+    };
+  },
+  getPathFromState(state: Parameters<typeof getPathFromState>[0], options?: Parameters<typeof getPathFromState>[1]) {
+    return "/internal/login";
+  },
+};
+
+const authLinking = {
+  prefixes: getPrefixes(),
+  getStateFromPath(path: string, options?: Parameters<typeof getStateFromPath>[1]) {
+    const cleanPath = path.split("?")[0].replace(/\/$/, "");
+    if (
+      cleanPath === "" ||
+      cleanPath === "/" ||
+      cleanPath === "internal/login" ||
+      cleanPath === "/internal/login" ||
+      cleanPath === "internal/landing" ||
+      cleanPath === "/internal/landing"
+    ) {
+      return {
+        routes: [{ name: "Dashboard" }],
+      };
+    }
+    return getStateFromPath(path, options);
+  },
+  getPathFromState(state: Parameters<typeof getPathFromState>[0], options?: Parameters<typeof getPathFromState>[1]) {
+    const generatedPath = getPathFromState(state, options);
+    if (generatedPath === "" || generatedPath === "/") {
+      return "/dashboard";
+    }
+    return generatedPath;
+  },
+};
 const Navigation = createStaticNavigation(RootStack);
 
 interface ClerkErrorItem {
@@ -410,15 +482,44 @@ function AppContent() {
   const navigationRef = useNavigationContainerRef<ParamListBase>();
   const [activeScreen, setActiveScreen] = useState("Dashboard");
 
+  // Sync root URL '/' to '/internal/login' in browser address bar when unauthenticated and update document title based on auth state and active screen
+  useEffect(() => {
+    if (Platform.OS === "web" && typeof document !== "undefined") {
+      if (!isAuthenticated) {
+        document.title = "Login";
+      } else {
+        const formattedTitle = activeScreen
+          .replace(/([A-Z])/g, " $1")
+          .replace(/^./, (str: string) => str.toUpperCase())
+          .trim();
+        document.title = `${formattedTitle} | EDGE`;
+      }
+    }
+    if (!isAuthenticated && Platform.OS === "web" && typeof window !== "undefined" && window.location !== undefined) {
+      const hasClerkParam = window.location.search.includes("__clerk");
+      if (!hasClerkParam && (window.location.pathname === "/" || window.location.pathname === "")) {
+        window.history.replaceState(null, "", "/internal/login");
+      }
+    }
+  }, [isAuthenticated, activeScreen]);
+
   // Track the current route inside the stack to sync the Sidebar highlights
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    const unsubscribe = navigationRef.addListener("state", () => {
-      const route = navigationRef.getCurrentRoute();
-      if (route !== null && route !== undefined) {
-        setActiveScreen(route.name);
+    const syncActiveScreen = () => {
+      if (navigationRef.isReady()) {
+        const route = navigationRef.getCurrentRoute();
+        if (route !== null && route !== undefined) {
+          setActiveScreen(route.name);
+        }
       }
+    };
+
+    syncActiveScreen();
+
+    const unsubscribe = navigationRef.addListener("state", () => {
+      syncActiveScreen();
     });
 
     return unsubscribe;
@@ -433,7 +534,7 @@ function AppContent() {
   }
 
   if (!isAuthenticated) {
-    return <AuthScreen />;
+    return <UnauthNavigation linking={unauthLinking} />;
   }
 
   return (
@@ -445,7 +546,7 @@ function AppContent() {
         }
       }}
     >
-      <Navigation ref={navigationRef} />
+      <AuthNavigation ref={navigationRef} linking={authLinking} />
     </DashboardShell>
   );
 }
@@ -470,6 +571,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+
   keyboardAvoid: {
     flex: 1,
     backgroundColor: COLORS.bg,

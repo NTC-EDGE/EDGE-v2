@@ -56,16 +56,22 @@ jobs:
           SSH_PASSPHRASE: ${{ secrets.SSH_PASSPHRASE }}
           DB_CONNECTION_STRING: ${{ secrets.DB_CONNECTION_STRING }}
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          CLERK_WEBHOOK_SECRET: ${{ secrets.CLERK_WEBHOOK_SECRET }}
+          CLOUDFLARE_R2_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_R2_ACCOUNT_ID }}
+          CLOUDFLARE_R2_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_R2_ACCESS_KEY_ID }}
+          CLOUDFLARE_R2_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_R2_BUCKET_NAME: ${{ secrets.CLOUDFLARE_R2_BUCKET_NAME }}
+          STORAGE_ENCRYPTION_MASTER_KEY: ${{ secrets.STORAGE_ENCRYPTION_MASTER_KEY }}
           TARGET_PORT: ${{ vars.PORT }}
         run: |
           # Write SSH Private Key to file
           mkdir -p ~/.ssh
           echo "$SSH_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-
+ 
           # Start SSH Agent
           eval $(ssh-agent -s)
-
+ 
           # Add Key to Agent depending on passphrase presence
           if [ -n "$SSH_PASSPHRASE" ]; then
             echo "SSH passphrase provided. Adding key via expect..."
@@ -80,19 +86,37 @@ jobs:
             echo "No SSH passphrase provided. Adding key directly..."
             ssh-add ~/.ssh/id_rsa
           fi
-
+ 
           # Secure Copy Compressed Archive to Remote Host
           scp -o StrictHostKeyChecking=no backend-image-prod.tar.gz $SSH_USER@$SSH_HOST:/tmp/backend-image-prod.tar.gz
-
+ 
           # Execute Deployment Commands on Remote Host
           ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST << EOF
+            # Export environment variables safely using bash @Q quoting
+            export ConnectionStrings__DefaultConnection=${DB_CONNECTION_STRING@Q}
+            export Clerk__SecretKey=${CLERK_SECRET_KEY@Q}
+            export Clerk__WebhookSecret=${CLERK_WEBHOOK_SECRET@Q}
+            export CloudflareR2__AccountId=${CLOUDFLARE_R2_ACCOUNT_ID@Q}
+            export CloudflareR2__AccessKeyId=${CLOUDFLARE_R2_ACCESS_KEY_ID@Q}
+            export CloudflareR2__SecretAccessKey=${CLOUDFLARE_R2_SECRET_ACCESS_KEY@Q}
+            export CloudflareR2__BucketName=${CLOUDFLARE_R2_BUCKET_NAME@Q}
+            export StorageEncryption__MasterEncryptionKey=${STORAGE_ENCRYPTION_MASTER_KEY@Q}
+            export TARGET_PORT=${TARGET_PORT@Q}
+
             # Unzip and load image in stream
             gunzip -c /tmp/backend-image-prod.tar.gz | docker load
             docker stop edge-backend-production || true
             docker rm edge-backend-production || true
-            docker run -d --name edge-backend-production -p $TARGET_PORT:8080 \
-              -e ConnectionStrings__DefaultConnection="$DB_CONNECTION_STRING" \
-              -e Clerk__SecretKey="$CLERK_SECRET_KEY" \
+            docker run -d --name edge-backend-production -p "\$TARGET_PORT":8080 \
+              -e ConnectionStrings__DefaultConnection \
+              -e Clerk__SecretKey \
+              -e Clerk__WebhookSecret \
+              -e CloudflareR2__AccountId \
+              -e CloudflareR2__AccessKeyId \
+              -e CloudflareR2__SecretAccessKey \
+              -e CloudflareR2__BucketName \
+              -e StorageEncryption__MasterEncryptionKey \
+              -e ASPNETCORE_ENVIRONMENT="Production" \
               edge-backend-prod:${{ github.sha }}
             rm /tmp/backend-image-prod.tar.gz
           EOF

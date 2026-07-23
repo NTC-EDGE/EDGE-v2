@@ -1,6 +1,8 @@
 <Solution>
+  <Project Path="EDGE.Application.UnitTests/EDGE.Application.UnitTests.csproj" />
   <Project Path="EDGE.Application/EDGE.Application.csproj" />
   <Project Path="EDGE.Domain/EDGE.Domain.csproj" />
   <Project Path="EDGE.Infrastructure/EDGE.Infrastructure.csproj" />
+  <Project Path="EDGE.Api.IntegrationTests/EDGE.Api.IntegrationTests.csproj" />
   <Project Path="EDGE.Api/EDGE.Api.csproj" />
 </Solution>

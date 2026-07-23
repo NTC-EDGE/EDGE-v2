@@ -6,13 +6,16 @@ using EDGE.Application.Barangays.Queries.GetBarangays;
 using EDGE.Application.Barangays.Queries.GetBarangayById;
 using EDGE.Application.Common.Models;
 
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Routing;
+
 namespace EDGE.Api.Endpoints;
 
 public static class BarangayEndpoints
 {
-    public static IEndpointRouteBuilder MapBarangayEndpoints(this IEndpointRouteBuilder app)
+    public static RouteGroupBuilder MapBarangayEndpoints(this RouteGroupBuilder apiGroup)
     {
-        var group = app.MapGroup("/api/v2/barangays").WithTags("Barangay");
+        var group = apiGroup.MapGroup("barangays").WithTags("Barangay");
 
         group.MapGet("/", async (Guid? municipalityId, bool? activeOnly, IMediator mediator) =>
         {
@@ -77,6 +80,6 @@ public static class BarangayEndpoints
         .WithSummary("Delete barangay reference")
         .WithDescription("Deletes a barangay reference record if no dependent records exist.");
 
-        return app;
+        return apiGroup;
     }
 }

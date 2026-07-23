@@ -26,5 +26,10 @@ public static class EndpointConfiguration
         apiV2Group.MapFieldOfficeEndpoints();
         apiV2Group.MapApplicantEndpoints();
         apiV2Group.MapNoteEndpoints();
+        apiV2Group.MapStorageEndpoints();
+        apiV2Group.MapRegionEndpoints();
+        apiV2Group.MapProvinceEndpoints();
+        apiV2Group.MapMunicipalityEndpoints();
+        apiV2Group.MapBarangayEndpoints();
     }
 }
