@@ -688,4 +688,35 @@ public static partial class MockDataFactory
             Declaration = declaration
         };
     }
+
+    public static Ntc105Application GetNtc105Application()
+    {
+        var applicationId = Guid.NewGuid();
+
+        var equipment = new List<Equipment>
+        {
+            new Equipment { RadioEquipment = "VHF Marine Transceiver", Make = "Icom", TypeModel = "IC-M330", SerialNumber = "M330-88102", PowerOutput = "25W" },
+            new Equipment { RadioEquipment = "VHF Marine Transceiver", Make = "Icom", TypeModel = "IC-M330", SerialNumber = "M330-88103", PowerOutput = "25W" },
+            new Equipment { RadioEquipment = "VHF Handheld Transceiver", Make = "Uniden", TypeModel = "MHS126", SerialNumber = "UNI-126-0041", PowerOutput = "6W" },
+            new Equipment { RadioEquipment = "VHF Handheld Transceiver", Make = "Uniden", TypeModel = "MHS126", SerialNumber = "UNI-126-0042", PowerOutput = "6W" },
+            new Equipment { RadioEquipment = "AIS Class B Transponder", Make = "Garmin", TypeModel = "AIS 800", SerialNumber = "GAR-800-9941", PowerOutput = "5W" },
+            new Equipment { RadioEquipment = "Marine Radar", Make = "Furuno", TypeModel = "1815", SerialNumber = "FUR-1815-3312", PowerOutput = "4kW" }
+        };
+
+        var declaration = new Declaration
+        {
+            SignatoryName = "Capt. Fernando A. Magallanes",
+            DateAccomplished = new DateOnly(2026, 7, 21)
+        };
+
+        return new Ntc105Application
+        {
+            ApplicationId = applicationId,
+            RevisionNo = "02",
+            RevisionDate = new DateOnly(2025, 3, 31),
+            ApplicantName = "Supercat Fast Ferry Corporation",
+            Equipment = equipment,
+            Declaration = declaration
+        };
+    }
 }
