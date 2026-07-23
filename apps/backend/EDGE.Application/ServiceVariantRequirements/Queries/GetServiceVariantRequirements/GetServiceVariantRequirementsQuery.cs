@@ -6,4 +6,4 @@ using EDGE.Application.ServiceVariantRequirements.Dtos;
 
 namespace EDGE.Application.ServiceVariantRequirements.Queries.GetServiceVariantRequirements;
 
-public record GetServiceVariantRequirementsQuery(Guid ServiceVariantId) : IRequest<ApiResponse<List<ServiceVariantRequirementDto>>>;
+public record GetServiceVariantRequirementsQuery(Guid? ServiceVariantId = null) : IRequest<ApiResponse<List<ServiceVariantRequirementDto>>>;

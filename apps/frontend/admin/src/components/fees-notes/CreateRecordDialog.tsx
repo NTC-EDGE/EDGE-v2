@@ -214,7 +214,7 @@ export function CreateRecordDialog({
                     <Plus className="w-3 h-3" /> Add Fee Code
                   </Button>
                 </div>
-                <div className="space-y-3 max-h-[260px] overflow-y-auto pr-1">
+                <div className="space-y-3 h-[260px] overflow-y-auto pr-1">
                   {feeEntries.map((entry, index) => (
                     <div key={index} className="flex gap-2 items-center bg-slate-950 p-3.5 rounded-xl border border-slate-800/80">
                       <div className="flex-1 space-y-1.5 min-w-0">

@@ -61,7 +61,7 @@ public static class ServiceVariantRequirementEndpoints
         .WithSummary("Get a service variant requirement by ID")
         .WithDescription("Retrieves the details of a specific service variant requirement.");
 
-        svr.MapGet("/", async (Guid serviceVariantId, IMediator mediator) =>
+        svr.MapGet("/", async (Guid? serviceVariantId, IMediator mediator) =>
         {
             var result = await mediator.Send(new GetServiceVariantRequirementsQuery(serviceVariantId));
             return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);

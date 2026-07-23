@@ -21,12 +21,20 @@ public class ServiceVariantRequirementRepository : IServiceVariantRequirementRep
             .FirstOrDefaultAsync(svr => svr.Id == id, cancellationToken);
     }
 
-    public async Task<List<ServiceVariantRequirement>> GetByServiceVariantIdAsync(Guid serviceVariantId, CancellationToken cancellationToken = default)
+    public async Task<List<ServiceVariantRequirement>> GetByServiceVariantIdAsync(Guid? serviceVariantId = null, CancellationToken cancellationToken = default)
     {
-        return await _context.ServiceVariantRequirements
+        var query = _context.ServiceVariantRequirements
             .Include(svr => svr.Requirement)
-            .Where(svr => svr.ServiceVariantId == serviceVariantId)
-            .ToListAsync(cancellationToken);
+            .Include(svr => svr.ServiceVariant)
+                .ThenInclude(sv => sv!.Service)
+            .AsQueryable();
+
+        if (serviceVariantId.HasValue && serviceVariantId.Value != Guid.Empty)
+        {
+            query = query.Where(svr => svr.ServiceVariantId == serviceVariantId.Value);
+        }
+
+        return await query.ToListAsync(cancellationToken);
     }
 
     public async Task AddAsync(ServiceVariantRequirement serviceVariantRequirement, CancellationToken cancellationToken = default)

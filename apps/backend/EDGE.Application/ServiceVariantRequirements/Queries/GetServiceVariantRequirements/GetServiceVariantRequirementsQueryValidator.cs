@@ -6,7 +6,5 @@ public class GetServiceVariantRequirementsQueryValidator : AbstractValidator<Get
 {
     public GetServiceVariantRequirementsQueryValidator()
     {
-        RuleFor(x => x.ServiceVariantId)
-            .NotEmpty().WithMessage("Service Variant ID is required.");
     }
 }

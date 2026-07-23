@@ -484,6 +484,31 @@ export interface Note {
   serviceCategoryId: string;
 }
 
+export interface Requirement {
+  id: string;
+  name: string;
+  description?: string | null;
+}
+
+export interface ServiceVariant {
+  id: string;
+  serviceId: string;
+  type: string;
+  description?: string | null;
+}
+
+export interface ServiceVariantRequirement {
+  id: string;
+  requirementId: string;
+  requirement?: Requirement;
+  serviceVariantId: string;
+  serviceVariantType?: string;
+  serviceName?: string;
+  serviceCode?: string;
+  applicationTypeKey?: string | null;
+  isRequired: boolean;
+}
+
 export interface StoredFileDto {
   id: string;
   fileName: string;
