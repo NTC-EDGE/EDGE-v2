@@ -482,63 +482,9 @@ public static class FastTrackSeeder
             }
         }
 
-        // 5. Examination & General Schedules
-        if (!await context.ExaminationSchedules.AnyAsync(x => x.ServiceId == services["NTC_1_01"].Id))
-        {
-            await context.ExaminationSchedules.AddAsync(new ExaminationSchedule
-            {
-                Id = Guid.Parse("e0000000-0000-0000-0000-000000000001"),
-                ServiceId = services["NTC_1_01"].Id,
-                ExamDate = DateTime.UtcNow.AddDays(30),
-                Venue = "NTC Central Office Examination Room",
-                MaxSlots = 50,
-                AvailableSlots = 50
-            });
-        }
 
-        if (!await context.Schedules.AnyAsync(x => x.ServiceId == services["NTC_1_01"].Id))
-        {
-            await context.Schedules.AddAsync(new Schedule
-            {
-                Id = Guid.Parse("e0000000-0000-0000-0000-000000000001"),
-                ServiceId = services["NTC_1_01"].Id,
-                TenantId = tenant.Id,
-                Venue = "NTC Central Office Examination Room",
-                StartDate = DateTime.UtcNow.AddDays(30),
-                EndDate = DateTime.UtcNow.AddDays(30).AddHours(2),
-                IsPublished = true,
-                MaximumSlots = 50
-            });
-        }
 
-        // 6. Field Offices
-        if (!await context.FieldOffices.AnyAsync())
-        {
-            var ncrRegion = await context.Regions.FirstOrDefaultAsync(r => r.Code == "13" || r.Name.Contains("NCR") || r.Name.Contains("National Capital Region"));
-            var region1 = await context.Regions.FirstOrDefaultAsync(r => r.Code == "01" || r.Name.Contains("Region I"));
 
-            if (ncrRegion != null)
-            {
-                await context.FieldOffices.AddAsync(new FieldOffice
-                {
-                    Id = Guid.Parse("f0000000-0000-0000-0000-000000000001"),
-                    Name = "NTC NCR Field Office",
-                    RegionId = ncrRegion.Id,
-                    Code = "NTC-NCR"
-                });
-            }
-
-            if (region1 != null)
-            {
-                await context.FieldOffices.AddAsync(new FieldOffice
-                {
-                    Id = Guid.Parse("f0000000-0000-0000-0000-000000000002"),
-                    Name = "NTC Regional Office I",
-                    RegionId = region1.Id,
-                    Code = "NTC-R1"
-                });
-            }
-        }
 
         await context.SaveChangesAsync();
 
