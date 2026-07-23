@@ -29,6 +29,8 @@ import {
 } from "./exams/radio-operator";
 import { styles } from "./Services.styles";
 import { ConfirmationDialog } from "../../shared/components/ConfirmationDialog";
+import { GeneralServiceWizard, GeneralApplicantData, initialGeneralApplicant } from "./shared/GeneralServiceWizard";
+import { GeneralBulkApplicantsPanel } from "./shared/GeneralBulkApplicantsPanel";
 
 type AuthParamList = {
   Services: undefined;
@@ -82,6 +84,11 @@ export function Services() {
   const [currentExamApplicantIndex, setCurrentExamApplicantIndex] = useState(0);
   const [isBulkSubmitOpen, setIsBulkSubmitOpen] = useState(false);
 
+  const [generalApplicants, setGeneralApplicants] = useState<GeneralApplicantData[]>([
+    initialGeneralApplicant(1),
+  ]);
+  const [currentGeneralApplicantIndex, setCurrentGeneralApplicantIndex] = useState(0);
+
   const resetWizardState = () => {
     setWizardStep(1);
     setExamWizardStep(1);
@@ -93,9 +100,33 @@ export function Services() {
     setUploadedFileName("");
     setApplicants([initialApplicant(1)]);
     setExamApplicants([initialExamApplicant(1)]);
+    setGeneralApplicants([initialGeneralApplicant(1)]);
     setCurrentApplicantIndex(0);
     setCurrentExamApplicantIndex(0);
+    setCurrentGeneralApplicantIndex(0);
     setIsBulkSubmitOpen(false);
+  };
+
+  const handleAddGeneralApplicant = () => {
+    const nextId = generalApplicants.length + 1;
+    const newApp = initialGeneralApplicant(nextId);
+    setGeneralApplicants((prev) => [...prev, newApp]);
+    setCurrentGeneralApplicantIndex(generalApplicants.length);
+    setWizardStep(4);
+  };
+
+  const handleRemoveGeneralApplicant = (idx: number) => {
+    setGeneralApplicants((prev) => {
+      const updated = prev.filter((_, i) => i !== idx);
+      if (updated.length === 0) {
+        setCurrentGeneralApplicantIndex(0);
+        return [initialGeneralApplicant(1)];
+      }
+      setCurrentGeneralApplicantIndex((prevIdx) =>
+        Math.max(0, Math.min(prevIdx, updated.length - 1)),
+      );
+      return updated;
+    });
   };
 
   const handleAddExamApplicant = () => {
@@ -354,10 +385,37 @@ export function Services() {
                 onSelectApplicant={setCurrentExamApplicantIndex}
                 setStep={setExamWizardStep}
                 resetWizardState={resetWizardState}
-                onSubmitPress={() => setIsBulkSubmitOpen(true)}
+                onCancel={() => {
+                  confirmSwitchService(() => {
+                    setActiveWizardService(null);
+                    setSelectedService(null);
+                    resetWizardState();
+                  });
+                }}
                 onRemoveApplicant={handleRemoveExamApplicant}
                 bulkMethod={bulkMethod}
                 onAddApplicant={handleAddExamApplicant}
+              />
+            ) : activeWizardService === "general-service" &&
+              appMode === "BULK" &&
+              wizardStep >= 4 &&
+              selectedService !== null ? (
+              <GeneralBulkApplicantsPanel
+                applicants={generalApplicants}
+                currentApplicantIndex={currentGeneralApplicantIndex}
+                onSelectApplicant={setCurrentGeneralApplicantIndex}
+                setStep={setWizardStep}
+                resetWizardState={resetWizardState}
+                onCancel={() => {
+                  confirmSwitchService(() => {
+                    setActiveWizardService(null);
+                    setSelectedService(null);
+                    resetWizardState();
+                  });
+                }}
+                onRemoveApplicant={handleRemoveGeneralApplicant}
+                onAddApplicant={handleAddGeneralApplicant}
+                service={selectedService}
               />
             ) : searchQuery.trim() !== "" ? (
               <ServiceList
@@ -490,6 +548,37 @@ export function Services() {
                   isBulkSubmitOpen={isBulkSubmitOpen}
                   setIsBulkSubmitOpen={setIsBulkSubmitOpen}
                 />
+              ) : activeWizardService === "general-service" && selectedService !== null ? (
+                <GeneralServiceWizard
+                  service={selectedService}
+                  onClose={() => {
+                    setActiveWizardService(null);
+                    setIsDetailsExpanded(false);
+                    setSelectedService(null);
+                    resetWizardState();
+                  }}
+                  onSuccess={() => {
+                    setActiveWizardService(null);
+                    setIsDetailsExpanded(false);
+                    setSelectedService(null);
+                    resetWizardState();
+                    navigation.navigate("MyApplications");
+                  }}
+                  isDetailsExpanded={isDetailsExpanded}
+                  onToggleExpand={() => setIsDetailsExpanded((prev) => !prev)}
+                  step={wizardStep}
+                  setStep={setWizardStep}
+                  selectedRegionId={selectedRegionId}
+                  setSelectedRegionId={setSelectedRegionId}
+                  selectedOfficeId={selectedOfficeId}
+                  setSelectedOfficeId={setSelectedOfficeId}
+                  appMode={appMode}
+                  setAppMode={setAppMode}
+                  applicants={generalApplicants}
+                  setApplicants={setGeneralApplicants}
+                  currentApplicantIndex={currentGeneralApplicantIndex}
+                  setCurrentApplicantIndex={setCurrentGeneralApplicantIndex}
+                />
               ) : selectedService !== null ? (
                 <ServiceDetails
                   selectedService={selectedService}
@@ -502,7 +591,7 @@ export function Services() {
                     ) {
                       setActiveWizardService("radio-operator-exam");
                     } else {
-                      setIsModalOpen(true);
+                      setActiveWizardService("general-service");
                     }
                   }}
                   isMobile={isMobile}

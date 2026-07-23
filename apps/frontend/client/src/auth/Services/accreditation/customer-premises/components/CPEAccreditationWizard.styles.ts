@@ -44,6 +44,9 @@ export const styles = StyleSheet.create({
   progressDashActive: {
     backgroundColor: COLORS.brand[700],
   },
+  progressDashCompleted: {
+    backgroundColor: COLORS.brand[500] || COLORS.brand[700],
+  },
   scrollContent: {
     flexGrow: 1,
     padding: SPACING[24],

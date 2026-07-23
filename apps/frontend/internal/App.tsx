@@ -6,6 +6,10 @@ import {
   View,
   ActivityIndicator,
   Platform,
+  KeyboardAvoidingView,
+  ScrollView,
+  TextInput,
+  TouchableOpacity,
 } from "react-native";
 import { tokenCache } from "./tokenCache";
 import { ClerkProvider } from "@clerk/expo";
@@ -22,6 +26,7 @@ import {
   createNativeStackNavigator,
   getStateFromPath,
   getPathFromState,
+  Icon,
 } from "@edge/ui";
 import {
   AuthProvider,
@@ -174,7 +179,7 @@ const authLinking = {
     return generatedPath;
   },
 };
-const Navigation = createStaticNavigation(RootStack);
+
 
 interface ClerkErrorItem {
   message: string;
@@ -304,7 +309,7 @@ function AuthScreen() {
         <View style={styles.authBg}>
           <View style={[styles.authCard, SHADOWS.modal]}>
             <View style={styles.authLogo}>
-              <Lucide name="shield" size={24} color={COLORS.brand[700]} />
+              <Icon name="shield" size={24} color={COLORS.brand[700]} />
             </View>
             <Text style={styles.authTitle}>NTC-EDGE Staff Portal</Text>
 

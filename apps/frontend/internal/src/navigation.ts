@@ -1,4 +1,4 @@
-import '@react-navigation/native';
+export {};
 
 declare global {
   namespace ReactNavigation {

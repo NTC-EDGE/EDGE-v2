@@ -11,7 +11,7 @@ import {
   Modal,
 } from "react-native";
 import { Icon, COLORS, TYPOGRAPHY, SPACING } from "@edge/ui";
-import { ApplicantData } from "../index";
+import { ApplicantData } from "../types/cpeTypes";
 
 interface BulkApplicantsPanelProps {
   applicants: ApplicantData[];
