@@ -77,6 +77,7 @@ public class Station
     public string BwEmission { get; set; } = "";
     public string Configuration { get; set; } = "";
     public string DataRate { get; set; } = "";
+    public string ServiceArea { get; set; } = "";
     public string CallSign { get; set; } = "";
     public string RslNo { get; set; } = "";
     public DateOnly Validity { get; set; }

@@ -20,6 +20,7 @@ public interface IFormPrintingService
     byte[] PrintNtc103(Ntc103Application application);
     byte[] PrintNtc104(Ntc104Application application);
     byte[] PrintNtc105(Ntc105Application application);
+    byte[] PrintNtc110(Ntc110Application application);
 }
 
 public class FormPrintingService : IFormPrintingService
@@ -184,5 +185,25 @@ public class FormPrintingService : IFormPrintingService
             ApplicationId = application.ApplicationId,
             Declaration = application.Declaration
         }).GeneratePdf();
+    }
+
+    public byte[] PrintNtc110(Ntc110Application application)
+    {
+        const string templateName = "ntc-1-10.pdf";
+
+        // Use flat PDF overlay when entries fit within the template's 4-column layout (<= 4 entries).
+        // For larger entry lists (> 4 entries), switch to dynamic multi-page QuestPDF document generation.
+        if (application.Entries.Count <= 4 && _fillerService != null && _fillerService.TemplateExists(templateName))
+        {
+            var template = _fillerService.GetTemplate(templateName);
+            if (template != null)
+            {
+                var overlayItems = Ntc110FlatPdfOverlayMapper.MapToOverlayItems(application);
+                return _fillerService.OverlayText(template, overlayItems);
+            }
+        }
+
+        // Code-driven QuestPDF generator for flexible multi-page output
+        return new Ntc110Report(application).GeneratePdf();
     }
 }

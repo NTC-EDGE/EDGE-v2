@@ -719,4 +719,177 @@ public static partial class MockDataFactory
             Declaration = declaration
         };
     }
+
+    public static Ntc110Application GetNtc110Application()
+    {
+        var applicationId = Guid.NewGuid();
+
+        var entries = new List<Ntc110StationEntry>
+        {
+            new Ntc110StationEntry
+            {
+                ProposedStation = new Station
+                {
+                    ExactLocation = "Mt. Apo, Davao Sur",
+                    Longitude = "125 16 10 E",
+                    Latitude = "07 00 30 N",
+                    PointsOfCommServiceArea = "Davao Region",
+                    ServiceArea = "Davao del Sur",
+                    AssignedFreq = "146.520 MHz",
+                    BwEmission = "16K0F3E",
+                    Configuration = "Fixed Base",
+                    DataRate = "N/A",
+                    CallSign = "DX9NTC-A",
+                    RslNo = "RSL-26-00101",
+                    Validity = new DateOnly(2029, 9, 30),
+                    Others = "Primary Base"
+                },
+                Equipment = new Equipment
+                {
+                    Make = "Motorola",
+                    TypeModel = "SLR 5500",
+                    SerialNumber = "MOT-5500-001",
+                    PowerOutput = "50 W",
+                    FrequencyRange = "136-174 MHz"
+                },
+                Antenna = new Antenna
+                {
+                    Type = "Omni Dipole",
+                    HeightM = 35.0,
+                    GainDbi = 6.0,
+                    DirectivityDegrees = 360.0,
+                    Diameter = "N/A",
+                    Polarization = "Vertical",
+                    BeamwidthDegrees = 360.0
+                }
+            },
+            new Ntc110StationEntry
+            {
+                ProposedStation = new Station
+                {
+                    ExactLocation = "Mt. Kitanglad, BK",
+                    Longitude = "124 53 42 E",
+                    Latitude = "08 08 15 N",
+                    PointsOfCommServiceArea = "Northern Min.",
+                    ServiceArea = "Bukidnon",
+                    AssignedFreq = "147.120 MHz",
+                    BwEmission = "16K0F3E",
+                    Configuration = "Repeater",
+                    DataRate = "N/A",
+                    CallSign = "DX9NTC-B",
+                    RslNo = "RSL-26-00102",
+                    Validity = new DateOnly(2029, 9, 30),
+                    Others = "Solar Backup"
+                },
+                Equipment = new Equipment
+                {
+                    Make = "Icom",
+                    TypeModel = "IC-FR5000",
+                    SerialNumber = "ICO-5000-002",
+                    PowerOutput = "50 W",
+                    FrequencyRange = "136-174 MHz"
+                },
+                Antenna = new Antenna
+                {
+                    Type = "Yagi 5-Element",
+                    HeightM = 40.0,
+                    GainDbi = 9.5,
+                    DirectivityDegrees = 180.0,
+                    Diameter = "N/A",
+                    Polarization = "Vertical",
+                    BeamwidthDegrees = 65.0
+                }
+            },
+            new Ntc110StationEntry
+            {
+                ProposedStation = new Station
+                {
+                    ExactLocation = "Gen. Santos, SK",
+                    Longitude = "125 10 05 E",
+                    Latitude = "06 07 00 N",
+                    PointsOfCommServiceArea = "SOCCSKSARGEN",
+                    ServiceArea = "South Cotabato",
+                    AssignedFreq = "145.000 MHz",
+                    BwEmission = "16K0F3E",
+                    Configuration = "Relay",
+                    DataRate = "N/A",
+                    CallSign = "DX9NTC-C",
+                    RslNo = "RSL-26-00103",
+                    Validity = new DateOnly(2029, 9, 30),
+                    Others = "Grid Backup"
+                },
+                Equipment = new Equipment
+                {
+                    Make = "Kenwood",
+                    TypeModel = "TKR-750",
+                    SerialNumber = "KEN-750-003",
+                    PowerOutput = "45 W",
+                    FrequencyRange = "144-174 MHz"
+                },
+                Antenna = new Antenna
+                {
+                    Type = "Collinear Array",
+                    HeightM = 30.0,
+                    GainDbi = 7.2,
+                    DirectivityDegrees = 360.0,
+                    Diameter = "N/A",
+                    Polarization = "Vertical",
+                    BeamwidthDegrees = 360.0
+                }
+            },
+            new Ntc110StationEntry
+            {
+                ProposedStation = new Station
+                {
+                    ExactLocation = "Malindang, Mis. Occ.",
+                    Longitude = "123 38 00 E",
+                    Latitude = "08 13 00 N",
+                    PointsOfCommServiceArea = "Western Min.",
+                    ServiceArea = "Misamis Occ.",
+                    AssignedFreq = "147.520 MHz",
+                    BwEmission = "16K0F3E",
+                    Configuration = "Repeater",
+                    DataRate = "N/A",
+                    CallSign = "DX9NTC-D",
+                    RslNo = "RSL-26-00104",
+                    Validity = new DateOnly(2029, 9, 30),
+                    Others = "Hybrid Power"
+                },
+                Equipment = new Equipment
+                {
+                    Make = "Motorola",
+                    TypeModel = "SLR 8000",
+                    SerialNumber = "MOT-8000-004",
+                    PowerOutput = "50 W",
+                    FrequencyRange = "136-174 MHz"
+                },
+                Antenna = new Antenna
+                {
+                    Type = "Yagi 7-Element",
+                    HeightM = 45.0,
+                    GainDbi = 11.0,
+                    DirectivityDegrees = 90.0,
+                    Diameter = "N/A",
+                    Polarization = "Vertical",
+                    BeamwidthDegrees = 30.0
+                }
+            }
+        };
+
+        var declaration = new Declaration
+        {
+            SignatoryName = "Engr. Roberto M. Dizon",
+            DateAccomplished = new DateOnly(2026, 7, 23)
+        };
+
+        return new Ntc110Application
+        {
+            ApplicationId = applicationId,
+            RevisionNo = "01",
+            RevisionDate = new DateOnly(2021, 3, 31),
+            ApplicantName = "Mindanao Telecommunications Network Inc.",
+            Entries = entries,
+            Declaration = declaration
+        };
+    }
 }

@@ -91,6 +91,15 @@ public static class FormPrintingEndpoints
         })
         .WithName("PrintNtc105Demo");
 
+        /// <summary>GET /api/forms/demo/ntc-1-10 — Application Form 1-10 (Form E - Multiple Stations/Equipment).</summary>
+        group.MapGet("/ntc-1-10", (IFormPrintingService printingService) =>
+        {
+            var application = MockDataFactory.GetNtc110Application();
+            var pdfBytes = printingService.PrintNtc110(application);
+            return Results.File(pdfBytes, "application/pdf", $"NTC-1-10_{application.ApplicationId}.pdf");
+        })
+        .WithName("PrintNtc110Demo");
+
         return app;
     }
 }
