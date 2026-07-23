@@ -16,6 +16,7 @@ public interface IFormPrintingService
     byte[] PrintPurchasePossessSellTransfer(PurchasePossessSellTransferApplication application);
     byte[] PrintCertificateOfRegistration(CertificateOfRegistrationApplication application);
     byte[] PrintNtc101(Ntc101Application application);
+    byte[] PrintNtc102(Ntc102Application application);
 }
 
 public class FormPrintingService : IFormPrintingService
@@ -93,5 +94,27 @@ public class FormPrintingService : IFormPrintingService
 
         // Fallback: Use dedicated NTC 1-01 report
         return new Ntc101Report(application).GeneratePdf();
+    }
+
+    public byte[] PrintNtc102(Ntc102Application application)
+    {
+        const string templateName = "ntc-1-02.pdf";
+        if (_fillerService != null && _fillerService.TemplateExists(templateName))
+        {
+            var template = _fillerService.GetTemplate(templateName);
+            if (template != null)
+            {
+                var overlayItems = Ntc102FlatPdfOverlayMapper.MapToOverlayItems(application);
+                return _fillerService.OverlayText(template, overlayItems);
+            }
+        }
+
+        // Fallback: Use NTC 1-01 report structure or basic generator
+        return new Ntc101Report(new Ntc101Application
+        {
+            ApplicationId = application.ApplicationId,
+            Declaration = application.Declaration,
+            Payment = application.Payment
+        }).GeneratePdf();
     }
 }

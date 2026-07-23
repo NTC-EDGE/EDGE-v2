@@ -343,4 +343,148 @@ public static partial class MockDataFactory
             Devices = devices
         };
     }
+
+    public static Ntc101Application GetNtc101Application()
+    {
+        var applicationId = Guid.NewGuid();
+
+        var applicantPerson = new ApplicantPerson
+        {
+            LastName = "dela Cruz",
+            FirstName = "Juan",
+            MiddleName = "Dimalanta",
+            DateOfBirth = new DateOnly(1998, 3, 14),
+            Sex = Sex.Male,
+            Nationality = "Filipino",
+            Address = new Address
+            {
+                UnitRoomBldgNo = "Block 12, Lot 5",
+                Street = "Sampaguita Street",
+                Barangay = "Central",
+                CityMunicipality = "Quezon City",
+                Province = "Metro Manila",
+                ZipCode = "1100"
+            },
+            ContactNumber = "+63 918 123 4567",
+            Email = "juan.delacruz@email.ph",
+            SchoolAttended = "University of the Philippines Diliman",
+            CourseTaken = "BS Electrical Engineering",
+            YearGraduated = 2020
+        };
+
+        var assistanceRequest = new AssistanceRequest
+        {
+            NeedsAssistance = false,
+            Details = null
+        };
+
+        var admissionSlip = new AdmissionSlip
+        {
+            ExamineeName = "Juan D. dela Cruz",
+            MailingAddressLine1 = "Block 12, Lot 5, Sampaguita Street, Central",
+            MailingAddressLine2 = "Quezon City, Metro Manila 1100",
+            ExaminationFor = "Restricted Radiotelephone Operator Certificate (RROC Aircraft)",
+            PlaceOfExam = "NTC Central Office Examination Room",
+            DateOfExam = new DateOnly(2026, 8, 15),
+            TimeOfExam = "08:00 AM - 12:00 PM",
+            AuthorizedOfficer = "E. Santos"
+        };
+
+        var payment = new Payment
+        {
+            PaymentId = Guid.NewGuid(),
+            ApplicationId = applicationId,
+            OrNo = "OR-2026-0041120",
+            OrDate = new DateOnly(2026, 7, 20),
+            Amount = 1800.00m,
+            CollectingOfficer = "E. Santos"
+        };
+
+        var declaration = new Declaration
+        {
+            SignatoryName = "Juan D. dela Cruz",
+            DateAccomplished = new DateOnly(2026, 7, 20)
+        };
+
+        return new Ntc101Application
+        {
+            ApplicationId = applicationId,
+            RevisionNo = "Rev. 2",
+            RevisionDate = new DateOnly(2025, 1, 10),
+            TypeOfApplication = TypeOfApplication.New,
+            ExamCode = ExamCode.RrocAircraft_Element1,
+            DateOfExam = new DateOnly(2026, 8, 15),
+            ApplicantPerson = applicantPerson,
+            AssistanceRequest = assistanceRequest,
+            AdmissionSlip = admissionSlip,
+            Payment = payment,
+            Declaration = declaration
+        };
+    }
+
+    public static Ntc102Application GetNtc102Application()
+    {
+        var applicationId = Guid.NewGuid();
+
+        var applicantPerson = new ApplicantPerson102
+        {
+            LastName = "Santos",
+            FirstName = "Maria Clara",
+            MiddleName = "Rizal",
+            DateOfBirth = new DateOnly(1996, 5, 20),
+            Sex = Sex.Female,
+            HeightCm = 162,
+            WeightKg = 54,
+            Nationality = "Filipino",
+            Address = new Address
+            {
+                UnitRoomBldgNo = "Apt 4B, Emerald Tower",
+                Street = "F. Ortigas Jr. Road",
+                Barangay = "San Antonio",
+                CityMunicipality = "Pasig City",
+                Province = "Metro Manila",
+                ZipCode = "1605"
+            },
+            ContactNumber = "+63 917 888 3321",
+            Email = "maria.santos@aviation.ph",
+            EmploymentStatus = EmploymentStatus.EmployedLocal
+        };
+
+        var examSeminar = new ExamSeminarDetails
+        {
+            PlaceOfExamSeminar = "NTC Central Office Examination Center",
+            Date = new DateOnly(2026, 6, 12),
+            Rating = "88.5%"
+        };
+
+        var payment = new Payment
+        {
+            PaymentId = Guid.NewGuid(),
+            ApplicationId = applicationId,
+            OrNo = "OR-2026-0087712",
+            OrDate = new DateOnly(2026, 7, 18),
+            Amount = 1950.00m,
+            CollectingOfficer = "M. Villaester"
+        };
+
+        var declaration = new Declaration
+        {
+            SignatoryName = "Maria Clara R. Santos",
+            DateAccomplished = new DateOnly(2026, 7, 18)
+        };
+
+        return new Ntc102Application
+        {
+            ApplicationId = applicationId,
+            RevisionNo = "02",
+            RevisionDate = new DateOnly(2023, 3, 31),
+            TypeOfApplication = TypeOfApplication.New,
+            NoOfYears = 3,
+            TypeOfCertificate = TypeOfCertificate.RrocAircraft,
+            ApplicantPerson = applicantPerson,
+            ExamSeminarDetails = examSeminar,
+            Payment = payment,
+            Declaration = declaration
+        };
+    }
 }

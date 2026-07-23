@@ -46,7 +46,7 @@ public static class FormPrintingEndpoints
         })
         .WithName("PrintCertificateOfRegistrationDemo");
 
-        /// <summary>GET /api/forms/demo/ntc-1-01 — Application Form 1-01 (Radio Operator Certificate).</summary>
+        /// <summary>GET /api/forms/demo/ntc-1-01 — Application Form 1-01 (Radio Operator Examination).</summary>
         group.MapGet("/ntc-1-01", (IFormPrintingService printingService) =>
         {
             var application = MockDataFactory.GetNtc101Application();
@@ -54,6 +54,15 @@ public static class FormPrintingEndpoints
             return Results.File(pdfBytes, "application/pdf", $"NTC-1-01_{application.ApplicationId}.pdf");
         })
         .WithName("PrintNtc101Demo");
+
+        /// <summary>GET /api/forms/demo/ntc-1-02 — Application Form 1-02 (Radio Operator Certificate).</summary>
+        group.MapGet("/ntc-1-02", (IFormPrintingService printingService) =>
+        {
+            var application = MockDataFactory.GetNtc102Application();
+            var pdfBytes = printingService.PrintNtc102(application);
+            return Results.File(pdfBytes, "application/pdf", $"NTC-1-02_{application.ApplicationId}.pdf");
+        })
+        .WithName("PrintNtc102Demo");
 
         return app;
     }
