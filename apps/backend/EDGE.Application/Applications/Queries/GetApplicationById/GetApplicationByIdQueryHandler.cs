@@ -115,6 +115,23 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                     }
                 }
 
+                if (a != null)
+                {
+                    var formSubmissionsForApplicant = app.FormSubmissions
+                        .Where(fs => fs.ApplicantId == a.Id)
+                        .ToList();
+
+                    applicantDto.FormFieldValues = formSubmissionsForApplicant
+                        .SelectMany(fs => fs.FieldValues)
+                        .Select(fv => new FormFieldValueDto
+                        {
+                            FieldId = fv.FieldId,
+                            FieldLabel = fv.Field?.Label ?? string.Empty,
+                            Value = fv.Value
+                        })
+                        .ToList();
+                }
+
                 return applicantDto;
             }).ToList()
         };
