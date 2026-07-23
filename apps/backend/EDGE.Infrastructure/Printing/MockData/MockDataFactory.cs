@@ -892,4 +892,83 @@ public static partial class MockDataFactory
             Declaration = declaration
         };
     }
+
+    public static Ntc114Application GetNtc114Application()
+    {
+        var applicationId = Guid.NewGuid();
+
+        var applicant = new Applicant
+        {
+            ApplicantId = Guid.NewGuid(),
+            Name = "Makati Broadcasting Company Inc.",
+            Address = new Address
+            {
+                UnitRoomBldgNo = "2F Globe Telecom Plaza",
+                Street = "Makati Avenue",
+                Barangay = "Bel-Air",
+                CityMunicipality = "Makati City",
+                Province = "Metro Manila",
+                ZipCode = "1209"
+            },
+            ContactNumber = "+63-2-8787-0000",
+            Email = "info@mbci.com.ph"
+        };
+
+        var station = new Station
+        {
+            StationId = Guid.NewGuid(),
+            ApplicationId = applicationId,
+            ExactLocation = "Makati City, Metro Manila",
+            Longitude = "121 01 48 E",
+            Latitude = "14 33 22 N",
+            PointsOfCommServiceArea = "Metro Manila Grid",
+            AssignedFreq = "145.000 MHz",
+            BwEmission = "16K0F3E",
+            DataRate = "N/A",
+            Others = "Demo/Exhibition"
+        };
+
+        var equipment = new Equipment
+        {
+            EquipmentId = Guid.NewGuid(),
+            ApplicationId = applicationId,
+            Make = "Kenwood",
+            TypeModel = "TH-D74A",
+            SerialNumber = "B4140001",
+            PowerOutput = "5 W",
+            FrequencyRange = "144-148 MHz"
+        };
+
+        var payment = new Payment
+        {
+            PaymentId = Guid.NewGuid(),
+            ApplicationId = applicationId,
+            OrNo = "OR-2026-99014",
+            OrDate = new DateOnly(2026, 7, 23),
+            Amount = 1500.00m,
+            CollectingOfficer = "Engr. Maria Santos"
+        };
+
+        var declaration = new Declaration
+        {
+            SignatoryName = "Engr. Maria Santos",
+            DateAccomplished = new DateOnly(2026, 7, 23)
+        };
+
+        return new Ntc114Application
+        {
+            ApplicationId = applicationId,
+            RevisionNo = "02",
+            RevisionDate = new DateOnly(2023, 3, 31),
+            NatureOfService = NatureOfService114.CV,
+            TypeOfRadioService = TypeOfRadioService114.FixedAndLandMobile,
+            ClassOfStation = new ClassOfStation { RT = 1 },
+            Applicant = applicant,
+            ProposedStation = station,
+            Equipment = equipment,
+            Payment = payment,
+            Declaration = declaration
+        };
+    }
 }
+

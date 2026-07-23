@@ -21,6 +21,7 @@ public interface IFormPrintingService
     byte[] PrintNtc104(Ntc104Application application);
     byte[] PrintNtc105(Ntc105Application application);
     byte[] PrintNtc110(Ntc110Application application);
+    byte[] PrintNtc114(Ntc114Application application);
 }
 
 public class FormPrintingService : IFormPrintingService
@@ -206,4 +207,21 @@ public class FormPrintingService : IFormPrintingService
         // Code-driven QuestPDF generator for flexible multi-page output
         return new Ntc110Report(application).GeneratePdf();
     }
+
+    public byte[] PrintNtc114(Ntc114Application application)
+    {
+        const string templateName = "ntc-1-14.pdf";
+        if (_fillerService != null && _fillerService.TemplateExists(templateName))
+        {
+            var template = _fillerService.GetTemplate(templateName);
+            if (template != null)
+            {
+                var overlayItems = Ntc114FlatPdfOverlayMapper.MapToOverlayItems(application);
+                return _fillerService.OverlayText(template, overlayItems);
+            }
+        }
+
+        return new Ntc114Report(application).GeneratePdf();
+    }
 }
+

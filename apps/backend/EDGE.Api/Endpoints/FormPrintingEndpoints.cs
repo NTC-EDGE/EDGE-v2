@@ -100,6 +100,16 @@ public static class FormPrintingEndpoints
         })
         .WithName("PrintNtc110Demo");
 
+        /// <summary>GET /api/forms/demo/ntc-1-14 — Application Form 1-14 (Temporary Permit to Propagate/Demonstrate).</summary>
+        group.MapGet("/ntc-1-14", (IFormPrintingService printingService) =>
+        {
+            var application = MockDataFactory.GetNtc114Application();
+            var pdfBytes = printingService.PrintNtc114(application);
+            return Results.File(pdfBytes, "application/pdf", $"NTC-1-14_{application.ApplicationId}.pdf");
+        })
+        .WithName("PrintNtc114Demo");
+
         return app;
     }
 }
+
