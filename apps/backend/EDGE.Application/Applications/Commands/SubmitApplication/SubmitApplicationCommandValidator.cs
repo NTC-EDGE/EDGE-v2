@@ -37,7 +37,7 @@ public class SubmitApplicationCommandValidator : AbstractValidator<SubmitApplica
             .When(x => string.Equals(x.SubmissionMode, "Bulk", StringComparison.OrdinalIgnoreCase))
             .WithMessage("Bulk submission requires at least two applicants.");
 
-        // Each applicant must have a first and last name at minimum
+        // Each applicant validation rules (enforced strictly when NOT a draft)
         RuleForEach(x => x.Applicants).ChildRules(applicant =>
         {
             applicant.RuleFor(a => a.FirstName)
@@ -60,6 +60,6 @@ public class SubmitApplicationCommandValidator : AbstractValidator<SubmitApplica
                     .NotEmpty()
                     .WithMessage("FieldId is required for each form field value.");
             });
-        });
+        }).When(x => !x.IsDraft);
     }
 }
