@@ -46,9 +46,6 @@ export function CPEAccreditationWizard({
   const scrollViewRef = useRef<ScrollView | null>(null);
 
   const {
-    isUploadSheetOpen,
-    setIsUploadSheetOpen,
-    activeUploadSlot,
     isConfirmModalOpen,
     setIsConfirmModalOpen,
     isAgreedToTerms,
@@ -200,11 +197,6 @@ export function CPEAccreditationWizard({
         feedbackComment={feedbackComment}
         setFeedbackComment={setFeedbackComment}
         setStep={setStep}
-        isUploadSheetOpen={isUploadSheetOpen}
-        setIsUploadSheetOpen={setIsUploadSheetOpen}
-        activeUploadSlot={activeUploadSlot}
-        activeApplicant={activeApplicant}
-        updateActiveApplicant={updateActiveApplicant}
         isPreviewModalOpen={isPreviewModalOpen}
         setIsPreviewModalOpen={setIsPreviewModalOpen}
         csvRows={csvRows}

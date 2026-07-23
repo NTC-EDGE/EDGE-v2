@@ -24,8 +24,6 @@ interface GeneralWizardStepsProps {
   activeApplicant: GeneralApplicantData;
   updateActiveApplicant: (fields: Partial<GeneralApplicantData>) => void;
   isWeb: boolean;
-  selectedReqIndex: number;
-  setSelectedReqIndex: (idx: number) => void;
   onUploadPress: (req: string) => void;
   onRemoveUpload: (req: string) => void;
 }
@@ -46,8 +44,6 @@ export function GeneralWizardSteps({
   activeApplicant,
   updateActiveApplicant,
   isWeb,
-  selectedReqIndex,
-  setSelectedReqIndex,
   onUploadPress,
   onRemoveUpload,
 }: GeneralWizardStepsProps) {
@@ -89,8 +85,6 @@ export function GeneralWizardSteps({
           service={service}
           activeApplicant={activeApplicant}
           isWeb={isWeb}
-          selectedReqIndex={selectedReqIndex}
-          setSelectedReqIndex={setSelectedReqIndex}
           onUploadPress={onUploadPress}
           onRemoveUpload={onRemoveUpload}
         />

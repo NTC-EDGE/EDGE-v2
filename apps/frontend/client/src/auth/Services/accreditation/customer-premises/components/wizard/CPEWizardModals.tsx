@@ -17,11 +17,6 @@ interface CPEWizardModalsProps {
   feedbackComment: string;
   setFeedbackComment: (comment: string) => void;
   setStep: (step: number) => void;
-  isUploadSheetOpen: boolean;
-  setIsUploadSheetOpen: (open: boolean) => void;
-  activeUploadSlot: string | null;
-  activeApplicant: ApplicantData;
-  updateActiveApplicant: (fields: Partial<ApplicantData>) => void;
   isPreviewModalOpen: boolean;
   setIsPreviewModalOpen: (open: boolean) => void;
   csvRows: Array<{
@@ -49,11 +44,6 @@ export function CPEWizardModals({
   feedbackComment,
   setFeedbackComment,
   setStep,
-  isUploadSheetOpen,
-  setIsUploadSheetOpen,
-  activeUploadSlot,
-  activeApplicant,
-  updateActiveApplicant,
   isPreviewModalOpen,
   setIsPreviewModalOpen,
   csvRows,
@@ -62,62 +52,6 @@ export function CPEWizardModals({
 }: CPEWizardModalsProps) {
   return (
     <>
-      {/* Upload Choice Mock Bottom Sheet */}
-      <Modal
-        visible={isUploadSheetOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setIsUploadSheetOpen(false)}
-      >
-        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "center", alignItems: "center" }}>
-          <View style={{ backgroundColor: COLORS.neutral.white, width: "90%", maxWidth: 360, borderRadius: 16, overflow: "hidden", padding: 20 }}>
-            <View style={{ alignItems: "center", marginBottom: 20 }}>
-              <Icon name="upload-cloud" size={32} color={COLORS.brand[700]} />
-            </View>
-
-            <TouchableOpacity
-              onPress={() => {
-                if (activeUploadSlot !== null) {
-                  const nextUploads = { ...activeApplicant.uploads };
-                  nextUploads[activeUploadSlot] = `Attachment_Photo_${parseInt(activeUploadSlot) + 1}.png`;
-                  updateActiveApplicant({ uploads: nextUploads });
-                }
-                setIsUploadSheetOpen(false);
-              }}
-              style={{ paddingVertical: 14, alignItems: "center", borderBottomWidth: 1, borderBottomColor: COLORS.neutral[100] }}
-            >
-              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 15, fontWeight: "600", color: COLORS.neutral[800] }}>
-                Upload a photo
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => {
-                if (activeUploadSlot !== null) {
-                  const nextUploads = { ...activeApplicant.uploads };
-                  nextUploads[activeUploadSlot] = `Attachment_Doc_${parseInt(activeUploadSlot) + 1}.pdf`;
-                  updateActiveApplicant({ uploads: nextUploads });
-                }
-                setIsUploadSheetOpen(false);
-              }}
-              style={{ paddingVertical: 14, alignItems: "center", borderBottomWidth: 1, borderBottomColor: COLORS.neutral[100] }}
-            >
-              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 15, fontWeight: "600", color: COLORS.neutral[800] }}>
-                Upload a file
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => setIsUploadSheetOpen(false)}
-              style={{ paddingVertical: 14, alignItems: "center", marginTop: 8 }}
-            >
-              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 15, fontWeight: "700", color: COLORS.semantic.error }}>
-                Cancel
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
 
       {/* CSV Import Preview Modal */}
       <Modal

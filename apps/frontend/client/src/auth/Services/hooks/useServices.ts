@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import axios from "axios";
-import { Alert, useWindowDimensions } from "react-native";
+import { Alert, useWindowDimensions, Platform } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useUser, useAuth } from "@clerk/expo";
 import { apiClient } from "@edge/api";
@@ -148,25 +148,32 @@ export function useServices() {
   };
 
   const loadDraft = (draft: DraftApplication) => {
-    confirmSwitchService(() => {
-      setActiveWizardService(draft.wizardService);
-      setSelectedService(draft.service);
-      setWizardStep(draft.step);
-      setExamWizardStep(draft.step);
-      setSelectedRegionId(draft.selectedRegionId);
-      setSelectedOfficeId(draft.selectedOfficeId);
-      setAppMode(draft.appMode);
-      setBulkMethod(draft.bulkMethod);
-      setIsFileUploaded(draft.isFileUploaded);
-      setUploadedFileName(draft.uploadedFileName);
-      setApplicants(draft.applicants.length > 0 ? draft.applicants : [initialApplicant(1)]);
-      setExamApplicants(draft.examApplicants.length > 0 ? draft.examApplicants : [initialExamApplicant(1)]);
-      setGeneralApplicants(draft.generalApplicants.length > 0 ? draft.generalApplicants : [initialGeneralApplicant(1)]);
-      setCurrentApplicantIndex(draft.currentApplicantIndex);
-      setCurrentExamApplicantIndex(draft.currentExamApplicantIndex);
-      setCurrentGeneralApplicantIndex(draft.currentGeneralApplicantIndex);
-      setViewingDraftsCategory(null);
-    });
+    // Close the drafts modal immediately to avoid native modal collision
+    setViewingDraftsCategory(null);
+
+    // Slightly delay the confirmation dialog to allow drafts modal to finish transition
+    setTimeout(() => {
+      confirmSwitchService(() => {
+        setActiveWizardService(draft.wizardService);
+        setSelectedService(draft.service);
+        
+        // Start draft from Step 1 so the user can verify or change the initial settings (region, office, appMode)
+        setWizardStep(1);
+        setExamWizardStep(1);
+        setSelectedRegionId(draft.selectedRegionId);
+        setSelectedOfficeId(draft.selectedOfficeId);
+        setAppMode(draft.appMode);
+        setBulkMethod(draft.bulkMethod);
+        setIsFileUploaded(draft.isFileUploaded);
+        setUploadedFileName(draft.uploadedFileName);
+        setApplicants(draft.applicants.length > 0 ? draft.applicants : [initialApplicant(1)]);
+        setExamApplicants(draft.examApplicants.length > 0 ? draft.examApplicants : [initialExamApplicant(1)]);
+        setGeneralApplicants(draft.generalApplicants.length > 0 ? draft.generalApplicants : [initialGeneralApplicant(1)]);
+        setCurrentApplicantIndex(draft.currentApplicantIndex);
+        setCurrentExamApplicantIndex(draft.currentExamApplicantIndex);
+        setCurrentGeneralApplicantIndex(draft.currentGeneralApplicantIndex);
+      });
+    }, Platform.OS === "web" ? 0 : 300);
   };
 
   const handleAddGeneralApplicant = () => {
@@ -296,8 +303,59 @@ export function useServices() {
     setSelectedService(null);
   };
 
+  const hasUnsavedChanges = () => {
+    if (activeWizardService === null) return false;
+
+    // Check if the wizard is on the success/completed screen
+    if (activeWizardService === "cpe-accreditation" && wizardStep >= 8) return false;
+    if (activeWizardService === "radio-operator-exam" && examWizardStep >= 7) return false;
+    if (activeWizardService === "general-service" && wizardStep >= 6) return false;
+
+    // Check if CPE Accreditation has actual changes
+    if (activeWizardService === "cpe-accreditation") {
+      if (wizardStep <= 2) return false;
+      const app = applicants[0];
+      if (!app) return false;
+      return (
+        applicants.length > 1 ||
+        app.businessName.trim() !== "" ||
+        app.dtiNo.trim() !== "" ||
+        app.engineerName.trim() !== "" ||
+        app.technicianName.trim() !== ""
+      );
+    }
+
+    // Check if Radio Operator Exam has actual changes
+    if (activeWizardService === "radio-operator-exam") {
+      if (examWizardStep <= 2) return false;
+      const app = examApplicants[0];
+      if (!app) return false;
+      return (
+        examApplicants.length > 1 ||
+        app.lastName.trim() !== "" ||
+        app.firstName.trim() !== "" ||
+        app.email.trim() !== ""
+      );
+    }
+
+    // Check if General Service has actual changes
+    if (activeWizardService === "general-service") {
+      if (wizardStep <= 3) return false;
+      const app = generalApplicants[0];
+      if (!app) return false;
+      return (
+        generalApplicants.length > 1 ||
+        app.firstName.trim() !== "" ||
+        app.lastName.trim() !== "" ||
+        app.email.trim() !== ""
+      );
+    }
+
+    return false;
+  };
+
   const confirmSwitchService = (onConfirm: () => void) => {
-    if (activeWizardService !== null) {
+    if (hasUnsavedChanges()) {
       setPendingConfirmAction(() => onConfirm);
       setConfirmModalVisible(true);
     } else {

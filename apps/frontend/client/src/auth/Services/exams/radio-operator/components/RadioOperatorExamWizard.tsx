@@ -7,6 +7,7 @@ import {
   ScrollView,
   Alert,
   Modal,
+  useWindowDimensions,
 } from "react-native";
 import { Icon, SPACING, TYPOGRAPHY } from "@edge/ui";
 import { COLORS } from "@edge/ui";
@@ -14,6 +15,7 @@ import { styles } from "./RadioOperatorExamWizard.styles";
 import { PHILIPPINE_REGIONS_WITH_OFFICES } from "../../../accreditation/customer-premises/data/mockRegionData";
 import { Select } from "../../../../../shared/components/Select";
 import { ValidatedInput } from "../../../../../shared/components/ValidatedInput";
+import { SharedDocumentUpload } from "../../../../../shared/components/SharedDocumentUpload";
 import { apiClient } from "@edge/api";
 import { useAuth, useUser } from "@clerk/expo";
 
@@ -128,6 +130,9 @@ export function RadioOperatorExamWizard({
   isBulkSubmitOpen,
   setIsBulkSubmitOpen,
 }: RadioOperatorExamWizardProps) {
+  const { width } = useWindowDimensions();
+  const isWeb = width > 768;
+
   // Local UI and validation states
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [isAgreedToTerms, setIsAgreedToTerms] = useState(false);
@@ -1582,57 +1587,21 @@ export function RadioOperatorExamWizard({
 
         {/* STEP 5: Upload Requirements */}
         {step === 5 && (
-          <View>
-            <Text style={styles.stepSubtitle}>Upload the mandatory supporting documents below:</Text>
-            {getRequirementsList(activeApplicant.examType, activeApplicant.examineeType).map((req, idx) => {
-              const fileKey = idx.toString();
-              const hasFile = activeApplicant.uploads[fileKey] !== undefined;
-              const fileName = activeApplicant.uploads[fileKey];
-
-              return (
-                <View key={idx} style={{ marginBottom: 24 }}>
-                  <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontWeight: "700", fontSize: 14, color: COLORS.neutral[800], marginBottom: 12 }}>
-                    {idx + 1}. {req}
-                    <Text style={{ color: COLORS.semantic.error }}>*</Text>
-                  </Text>
-
-                  <View style={{
-                    backgroundColor: COLORS.neutral.white,
-                    borderColor: COLORS.neutral[200],
-                    borderWidth: 1,
-                    borderRadius: 12,
-                    padding: 16,
-                    minHeight: 72,
-                    justifyContent: "center",
-                  }}>
-                    {hasFile && fileName ? (
-                      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                        <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: COLORS.semantic.success, fontWeight: "600" }}>
-                          {fileName} ✔
-                        </Text>
-                        <TouchableOpacity onPress={() => {
-                          const nextUploads = { ...activeApplicant.uploads };
-                          delete nextUploads[fileKey];
-                          updateActiveApplicant({ uploads: nextUploads });
-                        }}>
-                          <Icon name="trash" size={16} color={COLORS.semantic.error} />
-                        </TouchableOpacity>
-                      </View>
-                    ) : (
-                      <TouchableOpacity
-                        onPress={() => handleDocumentPick(fileKey)}
-                        style={styles.uploadButton}
-                      >
-                        <Icon name="upload" size={14} color={COLORS.neutral[700]} style={{ marginRight: 8 }} />
-                        <Text style={styles.uploadButtonText}>Upload a file..</Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                </View>
-              );
-            })}
-
-          </View>
+          <SharedDocumentUpload
+            requirements={getRequirementsList(activeApplicant.examType, activeApplicant.examineeType).map((req, idx) => ({
+              key: idx.toString(),
+              label: req,
+              required: true,
+            }))}
+            uploads={activeApplicant.uploads}
+            onUpload={handleDocumentPick}
+            onRemove={(key) => {
+              const nextUploads = { ...activeApplicant.uploads };
+              delete nextUploads[key];
+              updateActiveApplicant({ uploads: nextUploads });
+            }}
+            isWeb={isWeb}
+          />
         )}
 
         {/* STEP 6: Review & Submit */}
@@ -1675,7 +1644,7 @@ export function RadioOperatorExamWizard({
                 <View key={key} style={{ flexDirection: "row", paddingVertical: 6, paddingHorizontal: 12 }}>
                   <Icon name="file" size={14} color={COLORS.semantic.success} style={{ marginRight: 6 }} />
                   <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12.5, color: COLORS.neutral[700] }}>
-                    {activeApplicant.uploads[key]}
+                    {typeof activeApplicant.uploads[key] === "string" ? activeApplicant.uploads[key] : activeApplicant.uploads[key]?.name || ""}
                   </Text>
                 </View>
               ))}

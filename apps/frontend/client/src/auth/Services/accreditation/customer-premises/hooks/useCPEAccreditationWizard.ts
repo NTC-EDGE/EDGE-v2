@@ -259,7 +259,7 @@ export function useCPEAccreditationWizard({
       expiryYear: parseInt(activeApplicant.expiryYear),
       attachments: Object.keys(activeApplicant.uploads).map((key) => ({
         requirementIndex: parseInt(key),
-        fileName: activeApplicant.uploads[key],
+        fileName: typeof activeApplicant.uploads[key] === "string" ? activeApplicant.uploads[key] : activeApplicant.uploads[key]?.name || "",
       })),
     };
 

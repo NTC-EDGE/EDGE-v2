@@ -60,7 +60,7 @@ export function GeneralServiceWizard({
 }: GeneralServiceWizardProps) {
   const { width } = useWindowDimensions();
   const isWeb = width > 768;
-  const [selectedReqIndex, setSelectedReqIndex] = useState(0);
+
 
   const {
     activeApplicant,
@@ -151,8 +151,7 @@ export function GeneralServiceWizard({
           activeApplicant={activeApplicant}
           updateActiveApplicant={updateActiveApplicant}
           isWeb={isWeb}
-          selectedReqIndex={selectedReqIndex}
-          setSelectedReqIndex={setSelectedReqIndex}
+
           onUploadPress={(req) => {
             setActiveUploadSlot(req);
             setIsUploadSheetOpen(true);
