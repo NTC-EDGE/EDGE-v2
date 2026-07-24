@@ -36,6 +36,95 @@ import { InternalLoginPage } from "./src/features/login/components/InternalLogin
 import { EmployeesScreen } from "./src/features/employees/screens/EmployeesScreen";
 import { UsersScreen } from "./src/features/users/screens/UsersScreen";
 import { SettingsScreen } from "./src/features/settings/screens/SettingsScreen";
+import { StandardPageWrapper } from "./src/features/shell/components/StandardPageWrapper";
+
+function DashboardScreenWrapped() {
+  return (
+    <StandardPageWrapper activeScreen="Dashboard">
+      <DashboardScreen />
+    </StandardPageWrapper>
+  );
+}
+
+function ActivitiesScreenWrapped() {
+  return (
+    <StandardPageWrapper activeScreen="Activities">
+      <QueueScreen />
+    </StandardPageWrapper>
+  );
+}
+
+function ChatScreenWrapped(props: { route: RouteProp<ParamListBase, string> }) {
+  return (
+    <StandardPageWrapper activeScreen="Chat">
+      <PlaceholderScreen {...props} />
+    </StandardPageWrapper>
+  );
+}
+
+function MeetScreenWrapped(props: { route: RouteProp<ParamListBase, string> }) {
+  return (
+    <StandardPageWrapper activeScreen="Meet">
+      <PlaceholderScreen {...props} />
+    </StandardPageWrapper>
+  );
+}
+
+function ReportsScreenWrapped(props: { route: RouteProp<ParamListBase, string> }) {
+  return (
+    <StandardPageWrapper activeScreen="Reports">
+      <PlaceholderScreen {...props} />
+    </StandardPageWrapper>
+  );
+}
+
+function ReceiptManagementScreenWrapped(props: { route: RouteProp<ParamListBase, string> }) {
+  return (
+    <StandardPageWrapper activeScreen="ReceiptManagement">
+      <PlaceholderScreen {...props} />
+    </StandardPageWrapper>
+  );
+}
+
+function RolesPermissionScreenWrapped(props: { route: RouteProp<ParamListBase, string> }) {
+  return (
+    <StandardPageWrapper activeScreen="RolesPermission">
+      <PlaceholderScreen {...props} />
+    </StandardPageWrapper>
+  );
+}
+
+function ScheduleScreenWrapped(props: { route: RouteProp<ParamListBase, string> }) {
+  return (
+    <StandardPageWrapper activeScreen="Schedule">
+      <PlaceholderScreen {...props} />
+    </StandardPageWrapper>
+  );
+}
+
+function EmployeesScreenWrapped() {
+  return (
+    <StandardPageWrapper activeScreen="Employees">
+      <EmployeesScreen />
+    </StandardPageWrapper>
+  );
+}
+
+function UsersScreenWrapped() {
+  return (
+    <StandardPageWrapper activeScreen="Users">
+      <UsersScreen />
+    </StandardPageWrapper>
+  );
+}
+
+function SettingsScreenWrapped(props: { route: RouteProp<ParamListBase, string> }) {
+  return (
+    <StandardPageWrapper activeScreen="Settings">
+      <PlaceholderScreen {...props} />
+    </StandardPageWrapper>
+  );
+}
 
 const getClerkKey = (): string => {
   const key = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
@@ -108,17 +197,17 @@ const AuthStack = createNativeStackNavigator({
     animation: "fade",
   },
   screens: {
-    Dashboard: { screen: DashboardScreen, path: "dashboard" },
-    Activities: { screen: QueueScreen, path: "activities" },
-    Chat: { screen: PlaceholderScreen, path: "chat" },
-    Meet: { screen: PlaceholderScreen, path: "meet" },
-    Reports: { screen: PlaceholderScreen, path: "reports" },
-    ReceiptManagement: { screen: PlaceholderScreen, path: "receipt-management" },
-    RolesPermission: { screen: PlaceholderScreen, path: "roles-permissions" },
-    Schedule: { screen: PlaceholderScreen, path: "schedule" },
-    Employees: { screen: EmployeesScreen, path: "employees" },
-    Users: { screen: UsersScreen, path: "users" },
-    Settings: { screen: PlaceholderScreen, path: "settings" },
+    Dashboard: { screen: DashboardScreenWrapped, path: "dashboard" },
+    Activities: { screen: ActivitiesScreenWrapped, path: "activities" },
+    Chat: { screen: ChatScreenWrapped, path: "chat" },
+    Meet: { screen: MeetScreenWrapped, path: "meet" },
+    Reports: { screen: ReportsScreenWrapped, path: "reports" },
+    ReceiptManagement: { screen: ReceiptManagementScreenWrapped, path: "receipt-management" },
+    RolesPermission: { screen: RolesPermissionScreenWrapped, path: "roles-permissions" },
+    Schedule: { screen: ScheduleScreenWrapped, path: "schedule" },
+    Employees: { screen: EmployeesScreenWrapped, path: "employees" },
+    Users: { screen: UsersScreenWrapped, path: "users" },
+    Settings: { screen: SettingsScreenWrapped, path: "settings" },
     AccountSettings: { screen: SettingsScreen, path: "account-settings" },
   },
 });
