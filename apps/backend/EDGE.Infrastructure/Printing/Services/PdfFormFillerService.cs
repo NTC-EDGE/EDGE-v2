@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using EDGE.Infrastructure.Printing.Models;
+using Microsoft.Extensions.Configuration;
 using PdfSharp.Drawing;
 using PdfSharp.Pdf;
 using PdfSharp.Pdf.AcroForms;
@@ -19,6 +21,11 @@ public interface IPdfFormFillerService
     /// Overlays text onto an existing PDF template page at specified (X, Y) coordinates.
     /// </summary>
     byte[] OverlayText(byte[] templateBytes, IEnumerable<TextOverlayItem> textItems);
+
+    /// <summary>
+    /// Overlays declarative field bindings onto a PDF template with optional debug rendering.
+    /// </summary>
+    byte[] OverlayFields(byte[] templateBytes, IReadOnlyList<FieldOverlay> fieldOverlays, OverlayDebugOptions? debugOptions = null);
 
     /// <summary>
     /// Checks if a template file exists on disk in any of the template search locations.
@@ -48,6 +55,15 @@ public class TextOverlayItem
 
 public class PdfFormFillerService : IPdfFormFillerService
 {
+    private readonly IConfiguration? _configuration;
+    private readonly PdfFieldRenderer _fieldRenderer;
+
+    public PdfFormFillerService(IConfiguration? configuration = null)
+    {
+        _configuration = configuration;
+        _fieldRenderer = new PdfFieldRenderer();
+    }
+
     public string? ResolveTemplatePath(string templateName)
     {
         var candidatePaths = new[]
@@ -77,8 +93,8 @@ public class PdfFormFillerService : IPdfFormFillerService
 
     public byte[]? GetTemplate(string templateName)
     {
-        var resolvedPath = ResolveTemplatePath(templateName);
-        return resolvedPath != null ? File.ReadAllBytes(resolvedPath) : null;
+        var path = ResolveTemplatePath(templateName);
+        return path != null ? File.ReadAllBytes(path) : null;
     }
 
     public byte[] FillAcroForm(byte[] templateBytes, IDictionary<string, string> fieldValues)
@@ -86,17 +102,16 @@ public class PdfFormFillerService : IPdfFormFillerService
         using var inputStream = new MemoryStream(templateBytes);
         using var document = PdfReader.Open(inputStream, PdfDocumentOpenMode.Modify);
 
-        var acroForm = document.AcroForm;
-        if (acroForm != null)
+        if (document.AcroForm != null)
         {
             foreach (var kvp in fieldValues)
             {
-                if (acroForm.Fields.Names.Contains(kvp.Key))
+                if (document.AcroForm.Fields.Names.Contains(kvp.Key))
                 {
-                    var field = acroForm.Fields[kvp.Key];
+                    var field = document.AcroForm.Fields[kvp.Key];
                     if (field is PdfTextField textField)
                     {
-                        textField.Text = kvp.Value;
+                        textField.Value = new PdfString(kvp.Value);
                     }
                     else if (field is PdfCheckBoxField checkBoxField)
                     {
@@ -127,7 +142,6 @@ public class PdfFormFillerService : IPdfFormFillerService
 
                 if (item.Text == "✔" || item.Text == "✓")
                 {
-                    // Render native vector checkmark to prevent font missing glyph (□) rendering issues in PDF viewers
                     double estimatedWidth = item.FontSize * 0.62;
                     double cx = item.X + (estimatedWidth / 2.0);
                     double cy = item.Y - 1.5;
@@ -154,5 +168,50 @@ public class PdfFormFillerService : IPdfFormFillerService
         using var outputStream = new MemoryStream();
         document.Save(outputStream);
         return outputStream.ToArray();
+    }
+
+    public byte[] OverlayFields(byte[] templateBytes, IReadOnlyList<FieldOverlay> fieldOverlays, OverlayDebugOptions? debugOptions = null)
+    {
+        using var inputStream = new MemoryStream(templateBytes);
+        using var document = PdfReader.Open(inputStream, PdfDocumentOpenMode.Modify);
+
+        var resolvedDebugOptions = ResolveDebugOptions(debugOptions);
+
+        for (int i = 0; i < document.Pages.Count; i++)
+        {
+            var page = document.Pages[i];
+            using var gfx = XGraphics.FromPdfPage(page);
+
+            var context = new PdfRenderingContext(gfx, resolvedDebugOptions);
+
+            PdfOverlayDebugRenderer.RenderGrid(gfx, page.Width.Point, page.Height.Point, resolvedDebugOptions);
+
+            _fieldRenderer.RenderOverlays(context, fieldOverlays);
+        }
+
+        using var outputStream = new MemoryStream();
+        document.Save(outputStream);
+        return outputStream.ToArray();
+    }
+
+    private OverlayDebugOptions ResolveDebugOptions(OverlayDebugOptions? debugOptions)
+    {
+        if (debugOptions != null)
+        {
+            return debugOptions;
+        }
+
+        if (_configuration != null)
+        {
+            var configSection = _configuration.GetSection("Printing:DebugOverlay");
+            if (configSection.Exists())
+            {
+                var options = new OverlayDebugOptions();
+                configSection.Bind(options);
+                return options;
+            }
+        }
+
+        return new OverlayDebugOptions { Enabled = false };
     }
 }

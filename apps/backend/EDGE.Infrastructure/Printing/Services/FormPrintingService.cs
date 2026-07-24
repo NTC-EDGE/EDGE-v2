@@ -250,8 +250,8 @@ public class FormPrintingService : IFormPrintingService
             var template = _fillerService.GetTemplate(templateName);
             if (template != null)
             {
-                var overlayItems = Ntc120FlatPdfOverlayMapper.MapToOverlayItems(application);
-                return _fillerService.OverlayText(template, overlayItems);
+                var overlays = Ntc120FlatPdfOverlayMapper.MapToFieldOverlays(application);
+                return _fillerService.OverlayFields(template, overlays);
             }
         }
 
