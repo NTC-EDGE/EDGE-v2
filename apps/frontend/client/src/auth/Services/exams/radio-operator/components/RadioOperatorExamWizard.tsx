@@ -16,8 +16,8 @@ import { PHILIPPINE_REGIONS_WITH_OFFICES } from "../../../accreditation/customer
 import { Select } from "../../../../../shared/components/Select";
 import { ValidatedInput } from "../../../../../shared/components/ValidatedInput";
 import { SharedDocumentUpload } from "../../../../../shared/components/SharedDocumentUpload";
-import { apiClient } from "@edge/api";
-import { useAuth, useUser } from "@clerk/expo";
+import { useUser } from "@clerk/expo";
+import { useApi } from "../../../../../shared/hooks/useApi";
 
 export interface ExamApplicantData {
   id: number;
@@ -160,7 +160,7 @@ export function RadioOperatorExamWizard({
   const isManualScrolling = useRef(false);
   const sectionOffsets = useRef<Record<string, number>>({});
 
-  const { getToken } = useAuth();
+  const api = useApi();
   const { user: clerkUser } = useUser();
   // Toggle this constant to switch between live API integration and mock logic
   const USE_MOCKS = false;
@@ -186,17 +186,14 @@ export function RadioOperatorExamWizard({
     }
   }, [clerkUser, applicants, setApplicants]);
 
-  const [tenants, setTenants] = useState<any[]>([]);
+  const [tenants, setTenants] = useState<Array<{ id: string; name: string }>>([]);
   const [loadingTenants, setLoadingTenants] = useState(false);
 
   React.useEffect(() => {
     async function fetchTenants() {
       setLoadingTenants(true);
       try {
-        const token = await getToken();
-        const headers = token !== null ? { Authorization: `Bearer ${token}` } : {};
-        const response = await apiClient.get('/api/v2/tenants', { headers });
-        const data = response.data;
+        const data = await api.get<{ items?: Array<{ id: string; name: string }> } | Array<{ id: string; name: string }>>('/api/v2/tenants');
         setTenants(Array.isArray(data) ? data : (data.items || []));
       } catch (err) {
         console.error("Failed to fetch tenants from API:", err);
@@ -218,7 +215,7 @@ export function RadioOperatorExamWizard({
       }
     : undefined;
 
-  const [offices, setOffices] = useState<any[]>([]);
+  const [offices, setOffices] = useState<Array<{ id: string; name: string }>>([]);
   const [loadingOffices, setLoadingOffices] = useState(false);
 
   React.useEffect(() => {
@@ -229,10 +226,7 @@ export function RadioOperatorExamWizard({
       }
       setLoadingOffices(true);
       try {
-        const token = await getToken();
-        const headers = token !== null ? { Authorization: `Bearer ${token}` } : {};
-        const response = await apiClient.get(`/api/v2/tenants/${selectedRegionId}/field-offices`, { headers });
-        const data = response.data;
+        const data = await api.get<{ items?: Array<{ id: string; name: string }> } | Array<{ id: string; name: string }>>(`/api/v2/tenants/${selectedRegionId}/field-offices`);
         setOffices(Array.isArray(data) ? data : (data.items || []));
       } catch (err) {
         console.error("Failed to fetch offices from API:", err);
@@ -246,7 +240,15 @@ export function RadioOperatorExamWizard({
 
   const officesList = offices;
 
-  const [schedules, setSchedules] = useState<any[]>([]);
+  interface ScheduleItem {
+    id: string;
+    scheduledDate: string;
+    startTime: string;
+    endTime: string;
+    venue: string;
+  }
+
+  const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
   const [loadingSchedules, setLoadingSchedules] = useState(false);
   const [selectedScheduleId, setSelectedScheduleId] = useState<string | null>(null);
 
@@ -281,16 +283,9 @@ export function RadioOperatorExamWizard({
           return;
         }
 
-        const token = await getToken();
-        const headers = token !== null ? { Authorization: `Bearer ${token}` } : {};
-        const response = await apiClient.get('/api/v2/schedules/client-view', {
-          params: {
-            serviceId: '',
-            tenantId: selectedRegionId,
-          },
-          headers,
-        });
-        const data = response.data;
+        const data = await api.get<{ items?: ScheduleItem[] } | ScheduleItem[]>(
+          `/api/v2/schedules/client-view?serviceId=&tenantId=${selectedRegionId}`
+        );
         setSchedules(Array.isArray(data) ? data : (data.items || []));
       } catch (err) {
         console.error("Failed to fetch schedules:", err);
@@ -898,10 +893,7 @@ export function RadioOperatorExamWizard({
       applicants: mappedApplicants,
     };
 
-    const token = await getToken();
-    const headers = token !== null ? { Authorization: `Bearer ${token}` } : {};
-
-    await apiClient.post(`/api/v2/tenants/${selectedRegionId}/applications`, payload, { headers });
+    await api.post(`/api/v2/tenants/${selectedRegionId}/applications`, payload);
   };
 
   const handleBulkFinalSubmit = async () => {

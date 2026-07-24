@@ -113,4 +113,16 @@ export const styles = StyleSheet.create({
     width: "100%",
     marginTop: SPACING[12],
   },
+  generalError: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    color: COLORS.semantic?.error || "#ef4444",
+    backgroundColor: COLORS.semantic?.errorBg || "#fef2f2",
+    borderColor: COLORS.semantic?.errorBorder || "#fca5a5",
+    borderWidth: 1,
+    borderRadius: RADIUS.input,
+    padding: SPACING[12],
+    textAlign: "center",
+    marginBottom: SPACING[16],
+  },
 });

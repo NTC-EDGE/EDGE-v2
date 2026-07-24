@@ -1,9 +1,9 @@
 import { useState, useMemo } from "react";
 import axios from "axios";
 import { Alert, useWindowDimensions, Platform } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useAppNavigation } from "../../../navigation";
 import { useUser, useAuth } from "@clerk/expo";
-import { apiClient } from "@edge/api";
+import { useApi } from "../../../shared/hooks/useApi";
 import { servicesData, NTCService } from "../data/servicesData";
 import { initialDrafts } from "../data/initialDrafts";
 import {
@@ -42,11 +42,12 @@ export interface DraftApplication {
 export function useServices() {
   const { width } = useWindowDimensions();
   const isMobile = width < 640;
-  const navigation = useNavigation<any>() as any;
+  const navigation = useAppNavigation();
+  const api = useApi();
 
   // Clerk Contexts
   const { user: clerkUser } = useUser();
-  const { signOut, getToken } = useAuth();
+  const { signOut } = useAuth();
 
   // Search & Navigation States
   const [searchQuery, setSearchQuery] = useState("");
@@ -371,19 +372,14 @@ export function useServices() {
     if (selectedService === null) return;
     setSubmitting(true);
     try {
-      const token = await getToken();
-      const headers =
-        token !== null ? { Authorization: `Bearer ${token}` } : {};
-
-      await apiClient.post(
+      await api.post(
         "/api/v2/applications",
         {
           title: selectedService.title,
           applicantName: formData.applicantName,
           email: formData.email,
           notes: formData.notes,
-        },
-        { headers },
+        }
       );
       setIsModalOpen(false);
       Alert.alert(

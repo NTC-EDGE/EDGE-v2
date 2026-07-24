@@ -2,8 +2,8 @@ import React, { useState } from "react";
 import { Alert } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
-import { useAuth, useUser } from "@clerk/expo";
-import { apiClient } from "@edge/api";
+import { useUser } from "@clerk/expo";
+import { useApi } from "../../../../shared/hooks/useApi";
 import { NTCService } from "../../data/servicesData";
 
 export interface TenantInfo {
@@ -61,7 +61,7 @@ export function useGeneralServiceWizard({
   setApplicants,
   currentApplicantIndex,
 }: UseGeneralServiceWizardProps) {
-  const { getToken } = useAuth();
+  const api = useApi();
   const { user: clerkUser } = useUser();
   const USE_MOCKS = false;
 
@@ -99,15 +99,11 @@ export function useGeneralServiceWizard({
     }
   }, [clerkUser, applicants, setApplicants]);
 
-  // Fetch tenants
   React.useEffect(() => {
     async function fetchTenants() {
       setLoadingTenants(true);
       try {
-        const token = await getToken();
-        const headers = token !== null ? { Authorization: `Bearer ${token}` } : {};
-        const response = await apiClient.get("/api/v2/tenants", { headers });
-        const data = response.data;
+        const data = await api.get<{ items?: TenantInfo[] } | TenantInfo[]>("/api/v2/tenants");
         setTenants(Array.isArray(data) ? data : (data.items || []));
       } catch (err) {
         console.error("Failed to fetch tenants from API:", err);
@@ -119,7 +115,6 @@ export function useGeneralServiceWizard({
     fetchTenants();
   }, []);
 
-  // Fetch offices
   React.useEffect(() => {
     async function fetchOffices() {
       if (!selectedRegionId) {
@@ -128,10 +123,7 @@ export function useGeneralServiceWizard({
       }
       setLoadingOffices(true);
       try {
-        const token = await getToken();
-        const headers = token !== null ? { Authorization: `Bearer ${token}` } : {};
-        const response = await apiClient.get(`/api/v2/tenants/${selectedRegionId}/field-offices`, { headers });
-        const data = response.data;
+        const data = await api.get<{ items?: OfficeInfo[] } | OfficeInfo[]>(`/api/v2/tenants/${selectedRegionId}/field-offices`);
         setOffices(Array.isArray(data) ? data : (data.items || []));
       } catch (err) {
         console.error("Failed to fetch offices from API:", err);
@@ -196,9 +188,7 @@ export function useGeneralServiceWizard({
       applicants: mappedApplicants,
     };
 
-    const token = await getToken();
-    const headers = token !== null ? { Authorization: `Bearer ${token}` } : {};
-    await apiClient.post(`/api/v2/tenants/${selectedRegionId}/applications`, payload, { headers });
+    await api.post(`/api/v2/tenants/${selectedRegionId}/applications`, payload);
   };
 
   return {

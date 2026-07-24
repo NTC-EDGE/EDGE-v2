@@ -8,9 +8,10 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { Icon } from "@edge/ui";
-import { useNavigation, NavigationProp } from "@react-navigation/native";
+import { useAppNavigation } from "../../navigation";
 import { useUser, useAuth } from "@clerk/expo";
-import { AuthParamList } from "../../routes/auth";
+import { Modal } from "react-native";
+import { ConfirmationDialog } from "../../shared/components/ConfirmationDialog";
 import {
   mockApplications,
   Application,
@@ -30,7 +31,7 @@ const LIST_PAGE_SIZE = 6;
 export function MyApplications() {
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
-  const navigation = useNavigation<NavigationProp<AuthParamList>>();
+  const navigation = useAppNavigation();
 
   // Clerk auth
   const { user: clerkUser } = useUser();
@@ -75,7 +76,15 @@ export function MyApplications() {
     return null;
   }, [clerkUser]);
 
-  const handleSignOut = async () => {
+  const [isLogoutConfirmVisible, setIsLogoutConfirmVisible] = useState(false);
+  const [isProfileVisible, setIsProfileVisible] = useState(false);
+
+  const handleSignOutPress = () => {
+    setIsLogoutConfirmVisible(true);
+  };
+
+  const handleConfirmSignOut = async () => {
+    setIsLogoutConfirmVisible(false);
     await signOut();
   };
 
@@ -175,11 +184,22 @@ export function MyApplications() {
 
         {userProfile !== null && (
           <View style={styles.headerRight}>
-            {!isMobile && (
-              <Text style={styles.headerUserName}>{userProfile.name}</Text>
-            )}
             <TouchableOpacity
-              onPress={handleSignOut}
+              onPress={() => setIsProfileVisible(true)}
+              style={styles.profileAvatarBtn}
+              activeOpacity={0.7}
+            >
+              <View style={styles.avatarCircle}>
+                <Text style={styles.avatarText}>
+                  {userProfile.name.charAt(0).toUpperCase()}
+                </Text>
+              </View>
+              {!isMobile && (
+                <Text style={styles.headerUserName}>{userProfile.name}</Text>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleSignOutPress}
               style={styles.topLogoutBtn}
               activeOpacity={0.8}
             >
@@ -676,6 +696,69 @@ export function MyApplications() {
           <Text style={styles.toastText}>{toastMessage}</Text>
         </View>
       )}
+
+      {/* View Profile Modal */}
+      <Modal
+        visible={isProfileVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setIsProfileVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.profileCard}>
+            <View style={styles.profileAccentLine} />
+            <View style={styles.profileHeader}>
+              <View style={styles.profileIconContainer}>
+                <Icon name="user" size={28} color="#2563EB" />
+              </View>
+              <Text style={styles.profileTitle}>User Profile</Text>
+            </View>
+
+            <View style={styles.profileDetails}>
+              <View style={styles.profileDetailRow}>
+                <Text style={styles.profileDetailLabel}>Full Name</Text>
+                <Text style={styles.profileDetailValue}>{userProfile?.name || "N/A"}</Text>
+              </View>
+              <View style={styles.profileDetailRow}>
+                <Text style={styles.profileDetailLabel}>Email Address</Text>
+                <Text style={styles.profileDetailValue}>{userProfile?.email || "N/A"}</Text>
+              </View>
+              <View style={styles.profileDetailRow}>
+                <Text style={styles.profileDetailLabel}>Clerk ID</Text>
+                <Text style={styles.profileDetailValue} numberOfLines={1} ellipsizeMode="middle">{clerkUser?.id || "N/A"}</Text>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              onPress={() => setIsProfileVisible(false)}
+              style={styles.profileCloseButton}
+            >
+              <Text style={styles.profileCloseButtonText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Sign Out Confirmation Dialog */}
+      <ConfirmationDialog
+        visible={isLogoutConfirmVisible}
+        title="Sign Out"
+        message="Are you sure you want to sign out of your account?"
+        iconName="log-out"
+        onClose={() => setIsLogoutConfirmVisible(false)}
+        actions={[
+          {
+            text: "Cancel",
+            style: "cancel",
+            onPress: () => setIsLogoutConfirmVisible(false),
+          },
+          {
+            text: "Yes, Sign Out",
+            style: "destructive",
+            onPress: handleConfirmSignOut,
+          },
+        ]}
+      />
     </View>
   );
 }

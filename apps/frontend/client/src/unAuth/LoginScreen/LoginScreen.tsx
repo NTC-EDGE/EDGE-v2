@@ -3,46 +3,29 @@ import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
   Animated,
 } from "react-native";
 import { Icon as Lucide } from "@edge/ui";
-import {
-  COLORS,
-  SHADOWS,
-  SPACING,
-  RADIUS,
-  TYPOGRAPHY,
-} from "../../shared/theme/tokens";
+import { COLORS, SHADOWS } from "../../shared/theme/tokens";
 import { Input } from "../../shared/components/Input";
 import { Button } from "../../shared/components/Button";
 import { Logo } from "../../shared/components/Logo";
-import { useNavigation, NavigationProp } from "@react-navigation/native";
-import { useSignIn, isClerkAPIResponseError } from "@clerk/expo";
-import { Select } from "../../shared/components/Select";
-import { PHILIPPINE_REGIONS } from "../../shared/constants/regions";
-
-type UnauthParamList = {
-  Landing: undefined;
-  Login: undefined;
-  SignUp: undefined;
-  ForgotPassword: undefined;
-};
+import { useAppNavigation } from "../../navigation";
+import { isClerkAPIResponseError, useSSO } from "@clerk/expo";
+import { useSignIn } from "@clerk/expo/legacy";
 
 export function LoginScreen() {
-  const navigation = useNavigation();
-  const signInResult = useSignIn();
-  const { signIn } = signInResult;
-  const [region, setRegion] = useState("National Capital Region (NCR)");
-  const [phoneOrEmail, setPhoneOrEmail] = useState("test@example.com");
-  const [password, setPassword] = useState("password123");
+  const navigation = useAppNavigation();
+  const { signIn, setActive, isLoaded } = useSignIn();
+  const { startSSOFlow } = useSSO();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   // Validation errors
-  const [regionError, setRegionError] = useState("");
-  const [phoneOrEmailError, setPhoneOrEmailError] = useState("");
+  const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [generalError, setGeneralError] = useState("");
 
@@ -85,18 +68,15 @@ export function LoginScreen() {
 
   const validate = () => {
     let valid = true;
-    if (!region) {
-      setRegionError("Please select your region.");
-      valid = false;
-    } else {
-      setRegionError("");
-    }
 
-    if (!phoneOrEmail) {
-      setPhoneOrEmailError("Email or phone number is required.");
+    if (!email) {
+      setEmailError("Email address is required.");
+      valid = false;
+    } else if (!/\S+@\S+\.\S+/.test(email)) {
+      setEmailError("Please enter a valid email address.");
       valid = false;
     } else {
-      setPhoneOrEmailError("");
+      setEmailError("");
     }
 
     if (!password) {
@@ -115,7 +95,7 @@ export function LoginScreen() {
     setLoading(true);
     setGeneralError("");
 
-    if (signIn === null) {
+    if (!signIn || !setActive) {
       setGeneralError(
         "Authentication service is not loaded yet. Please try again.",
       );
@@ -125,31 +105,49 @@ export function LoginScreen() {
 
     try {
       const result = await signIn.create({
-        identifier: phoneOrEmail,
+        identifier: email,
         password,
       });
 
-      if (result.error) {
-        setGeneralError(result.error.message || "Invalid email/phone or password.");
-        return;
-      }
-
       if (signIn.status === "complete") {
-        const finalizeResult = await signIn.finalize();
-        if (finalizeResult.error) {
-          setGeneralError(finalizeResult.error.message || "Sign-in finalization failed.");
-        } else {
-          setSuccess(true);
-        }
+        await setActive({ session: signIn.createdSessionId });
+        setSuccess(true);
       } else {
         setGeneralError(
           `Unable to complete sign-in. Status is: ${signIn.status}. Please complete verification.`,
         );
       }
     } catch (err: unknown) {
-      let errMsg = "Invalid email/phone or password.";
+      let errMsg = "Invalid email or password.";
       if (isClerkAPIResponseError(err)) {
         errMsg = err.errors[0]?.message || errMsg;
+      } else if (err instanceof Error) {
+        errMsg = err.message;
+      }
+      setGeneralError(errMsg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    if (loading) return;
+    setLoading(true);
+    setGeneralError("");
+    try {
+      const { createdSessionId, setActive: ssoSetActive } = await startSSOFlow({
+        strategy: "oauth_google",
+      });
+      if (createdSessionId !== null && ssoSetActive !== undefined) {
+        await ssoSetActive({ session: createdSessionId });
+        setSuccess(true);
+      } else {
+        setGeneralError("Google sign-in did not complete. Please try again.");
+      }
+    } catch (err: unknown) {
+      let errMsg = "Google sign-in failed. Please try again.";
+      if (isClerkAPIResponseError(err)) {
+        errMsg = err.errors[0]?.message ?? errMsg;
       } else if (err instanceof Error) {
         errMsg = err.message;
       }
@@ -240,28 +238,15 @@ export function LoginScreen() {
               </View>
             ) : (
               <View style={styles.form}>
-                <Select
-                  label="Philippine Region"
-                  placeholder="Select administrative region..."
-                  value={region}
-                  onValueChange={setRegion}
-                  options={PHILIPPINE_REGIONS.map((reg) => ({
-                    label: reg,
-                    value: reg,
-                  }))}
-                  error={regionError}
-                  iconName="map-pin"
-                />
-
                 <Input
-                  label="Phone No. / Email Address"
-                  placeholder="e.g. 09171234567 or email@domain.com"
-                  value={phoneOrEmail}
-                  onChangeText={setPhoneOrEmail}
-                  error={phoneOrEmailError}
-                  keyboardType="default"
+                  label="Email Address"
+                  placeholder="e.g. email@domain.com"
+                  value={email}
+                  onChangeText={setEmail}
+                  error={emailError}
+                  keyboardType="email-address"
                   autoCapitalize="none"
-                  iconName="user"
+                  iconName="mail"
                 />
 
                 <Input
@@ -296,6 +281,28 @@ export function LoginScreen() {
                         size={16}
                         color={COLORS.neutral.white}
                       />
+                    ) : undefined
+                  }
+                />
+
+                {/* Divider */}
+                <View style={styles.dividerContainer}>
+                  <View style={styles.dividerLine} />
+                  <Text style={styles.dividerText}>or</Text>
+                  <View style={styles.dividerLine} />
+                </View>
+
+                {/* Google Sign-In */}
+                <Button
+                  title="Continue with Google"
+                  variant="outline"
+                  onPress={handleGoogleSignIn}
+                  loading={loading}
+                  disabled={loading || success}
+                  style={styles.guestButton}
+                  icon={
+                    !loading ? (
+                      <Lucide name="chrome" size={16} color={COLORS.neutral[700]} />
                     ) : undefined
                   }
                 />

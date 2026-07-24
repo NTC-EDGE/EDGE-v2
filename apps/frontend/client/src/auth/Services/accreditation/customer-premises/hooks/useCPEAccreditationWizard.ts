@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Alert } from "react-native";
-import { useAuth, useUser } from "@clerk/expo";
-import { apiClient } from "@edge/api";
+import { useUser } from "@clerk/expo";
+import { useApi } from "../../../../../shared/hooks/useApi";
 import { NTCOffice } from "../data/mockRegionData";
 import { ApplicantData } from "../types/cpeTypes";
 
@@ -53,7 +53,7 @@ export function useCPEAccreditationWizard({
     { id: 3, status: "Invalid", name: "Juan Cruz", type: "RENEWAL", reason: "Expired mayor's permit date" },
   ]);
 
-  const { getToken } = useAuth();
+  const api = useApi();
   const { user: clerkUser } = useUser();
   const USE_MOCKS = false;
 
@@ -81,10 +81,7 @@ export function useCPEAccreditationWizard({
     async function fetchTenants() {
       setLoadingTenants(true);
       try {
-        const token = await getToken();
-        const headers = token !== null ? { Authorization: `Bearer ${token}` } : {};
-        const response = await apiClient.get("/api/v2/tenants", { headers });
-        const data = response.data;
+        const data = await api.get<{ items?: Array<{ id: string; name: string }> } | Array<{ id: string; name: string }>>("/api/v2/tenants");
         setTenants(Array.isArray(data) ? data : (data.items || []));
       } catch (err) {
         console.error("Failed to fetch tenants from API:", err);
@@ -116,10 +113,7 @@ export function useCPEAccreditationWizard({
       }
       setLoadingOffices(true);
       try {
-        const token = await getToken();
-        const headers = token !== null ? { Authorization: `Bearer ${token}` } : {};
-        const response = await apiClient.get(`/api/v2/tenants/${selectedRegionId}/field-offices`, { headers });
-        const data = response.data;
+        const data = await api.get<{ items?: NTCOffice[] } | NTCOffice[]>(`/api/v2/tenants/${selectedRegionId}/field-offices`);
         setOffices(Array.isArray(data) ? data : (data.items || []));
       } catch (err) {
         console.error("Failed to fetch offices from API:", err);
@@ -208,9 +202,6 @@ export function useCPEAccreditationWizard({
   };
 
   const submitApplicationPayload = async () => {
-    const token = await getToken();
-    const headers = token !== null ? { Authorization: `Bearer ${token}` } : {};
-
     const payload = {
       applicationType: "CPE_SUPPLIER_ACCREDITATION",
       appType: activeApplicant.appType,
@@ -236,13 +227,21 @@ export function useCPEAccreditationWizard({
       expiryMonth: activeApplicant.expiryMonth,
       expiryDate: parseInt(activeApplicant.expiryDate),
       expiryYear: parseInt(activeApplicant.expiryYear),
-      attachments: Object.keys(activeApplicant.uploads).map((key) => ({
-        requirementIndex: parseInt(key),
-        fileName: typeof activeApplicant.uploads[key] === "string" ? activeApplicant.uploads[key] : activeApplicant.uploads[key]?.name || "",
-      })),
+      attachments: Object.keys(activeApplicant.uploads).map((key) => {
+        const uploadObj = activeApplicant.uploads[key];
+        const fileName = typeof uploadObj === "string"
+          ? uploadObj
+          : uploadObj !== null && uploadObj !== undefined
+          ? uploadObj.name
+          : "";
+        return {
+          requirementIndex: parseInt(key),
+          fileName,
+        };
+      }),
     };
 
-    await apiClient.post(`/api/v2/tenants/${selectedRegionId}/applications`, payload, { headers });
+    await api.post(`/api/v2/tenants/${selectedRegionId}/applications`, payload);
   };
 
   const [errors, setErrors] = useState<Record<string, string>>({});

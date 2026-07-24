@@ -3,7 +3,6 @@ import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
@@ -14,28 +13,32 @@ import {
   COLORS,
   SHADOWS,
   SPACING,
-  RADIUS,
-  TYPOGRAPHY,
 } from "../../shared/theme/tokens";
 import { Input } from "../../shared/components/Input";
 import { Button } from "../../shared/components/Button";
 import { Logo } from "../../shared/components/Logo";
 
-import { useNavigation, NavigationProp, ParamListBase } from "@react-navigation/native";
-
-type UnauthParamList = {
-  Landing: undefined;
-  Login: undefined;
-  SignUp: undefined;
-  ForgotPassword: undefined;
-};
+import { useAppNavigation } from "../../navigation";
+import { isClerkAPIResponseError } from "@clerk/expo";
+import { useSignIn } from "@clerk/expo/legacy";
 
 export function ForgotPasswordScreen() {
-  const navigation = useNavigation();
+  const navigation = useAppNavigation();
+  const { signIn, setActive, isLoaded } = useSignIn();
   const [email, setEmail] = useState("");
   const [emailError, setEmailError] = useState("");
+  const [generalError, setGeneralError] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+
+  // Verification and new password states
+  const [pendingVerification, setPendingVerification] = useState(false);
+  const [code, setCode] = useState("");
+  const [codeError, setCodeError] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [newPasswordError, setNewPasswordError] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [confirmPasswordError, setConfirmPasswordError] = useState("");
 
   // Animations
   const cardFade = useRef(new Animated.Value(0)).current;
@@ -54,46 +57,127 @@ export function ForgotPasswordScreen() {
         duration: 650,
         useNativeDriver: true,
       }),
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(glowAnim, {
+            toValue: 1,
+            duration: 4000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(glowAnim, {
+            toValue: 0,
+            duration: 4000,
+            useNativeDriver: true,
+          }),
+        ]),
+      ),
     ]).start();
-
-    // Breathing background glow
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(glowAnim, {
-          toValue: 1,
-          duration: 4000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(glowAnim, {
-          toValue: 0,
-          duration: 4000,
-          useNativeDriver: true,
-        }),
-      ]),
-    ).start();
   }, [cardFade, cardSlide, glowAnim]);
 
-  const validate = (): boolean => {
-    setEmailError("");
+  const validate = () => {
     if (email.trim().length === 0) {
       setEmailError("Email address is required");
       return false;
-    } else if (!email.includes("@")) {
+    }
+    if (!email.includes("@")) {
       setEmailError('Please enter a valid email containing "@"');
       return false;
     }
     return true;
   };
 
-  const handlePasswordReset = () => {
+  const handlePasswordReset = async () => {
     if (!validate()) return;
 
     setLoading(true);
-    // Simulate recovery request
-    setTimeout(() => {
+    setGeneralError("");
+
+    if (!signIn || !isLoaded) {
+      setGeneralError("Authentication service is not loaded yet. Please try again.");
       setLoading(false);
-      setSuccess(true);
-    }, 1500);
+      return;
+    }
+
+    try {
+      await signIn.create({
+        strategy: "reset_password_email_code",
+        identifier: email,
+      });
+
+      setPendingVerification(true);
+    } catch (err: unknown) {
+      let errMsg = "Failed to send reset instructions.";
+      if (isClerkAPIResponseError(err)) {
+        errMsg = err.errors[0]?.message || errMsg;
+      } else if (err instanceof Error) {
+        errMsg = err.message;
+      }
+      setGeneralError(errMsg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyCodeAndResetPassword = async () => {
+    let isValid = true;
+    setCodeError("");
+    setNewPasswordError("");
+    setConfirmPasswordError("");
+    setGeneralError("");
+
+    if (code.trim().length === 0) {
+      setCodeError("Verification code is required.");
+      isValid = false;
+    }
+    if (newPassword.length === 0) {
+      setNewPasswordError("New password is required.");
+      isValid = false;
+    } else if (newPassword.length < 8) {
+      setNewPasswordError("Password must be at least 8 characters.");
+      isValid = false;
+    }
+    if (confirmPassword.length === 0) {
+      setConfirmPasswordError("Please confirm your password.");
+      isValid = false;
+    } else if (newPassword !== confirmPassword) {
+      setConfirmPasswordError("Passwords do not match.");
+      isValid = false;
+    }
+
+    if (!isValid) return;
+
+    setLoading(true);
+
+    if (!signIn || !setActive) {
+      setGeneralError("Authentication service is not loaded yet. Please try again.");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const result = await signIn.attemptFirstFactor({
+        strategy: "reset_password_email_code",
+        code,
+        password: newPassword,
+      });
+
+      if (result.status === "complete") {
+        await setActive({ session: result.createdSessionId });
+        setSuccess(true);
+      } else {
+        setGeneralError("Failed to complete password reset. Status: " + result.status);
+      }
+    } catch (err: unknown) {
+      let errMsg = "Failed to reset password. Please check the code and try again.";
+      if (isClerkAPIResponseError(err)) {
+        errMsg = err.errors[0]?.message || errMsg;
+      } else if (err instanceof Error) {
+        errMsg = err.message;
+      }
+      setGeneralError(errMsg);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const glowScale = glowAnim.interpolate({
@@ -139,6 +223,7 @@ export function ForgotPasswordScreen() {
             icon={
               <Lucide name="arrow-left" size={14} color={COLORS.neutral[600]} />
             }
+            disabled={loading || success}
           />
 
           <Animated.View
@@ -154,36 +239,88 @@ export function ForgotPasswordScreen() {
             </View>
 
             <Text style={styles.title}>Forgot Password?</Text>
-            <Text style={styles.subtitle}>
-              Enter your email and we'll send you instructions to reset your
-              password.
+            <Text style={[styles.subtitle, { marginBottom: 16 }]}>
+              {pendingVerification
+                ? "Enter the code sent to your email and your new password."
+                : "Enter your email and we'll send you instructions to reset your password."}
             </Text>
+
+            {generalError.length > 0 ? (
+              <Text style={styles.generalError}>{generalError}</Text>
+            ) : null}
 
             {success ? (
               <View style={styles.successWrapper}>
                 <View style={styles.successBox}>
                   <Lucide
-                    name="mail"
+                    name="check-circle"
                     size={24}
                     color={COLORS.semantic.success}
                     style={styles.successIcon}
                   />
                   <Text style={styles.successText}>
-                    Reset instructions have been sent to: {"\n"}
-                    <Text style={styles.boldText}>{email}</Text>
+                    Password reset successfully! Redirecting...
                   </Text>
                 </View>
+              </View>
+            ) : pendingVerification ? (
+              <View style={styles.form}>
+                <Input
+                  label="Verification Code"
+                  placeholder="123456"
+                  value={code}
+                  onChangeText={setCode}
+                  error={codeError}
+                  keyboardType="numeric"
+                  autoCapitalize="none"
+                  iconName="lock"
+                />
+
+                <Input
+                  label="New Password"
+                  placeholder="Min. 8 characters"
+                  value={newPassword}
+                  onChangeText={setNewPassword}
+                  error={newPasswordError}
+                  secureTextEntry={true}
+                  autoCapitalize="none"
+                  iconName="lock"
+                />
+
+                <Input
+                  label="Confirm New Password"
+                  placeholder="Re-type new password"
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  error={confirmPasswordError}
+                  secureTextEntry={true}
+                  autoCapitalize="none"
+                  iconName="lock"
+                />
+
                 <Button
-                  title="Return to Sign In"
-                  onPress={() => navigation.navigate("Login")}
-                  style={styles.returnButton}
+                  title={loading ? "Resetting Password..." : "Reset Password"}
+                  onPress={handleVerifyCodeAndResetPassword}
+                  loading={loading}
+                  style={styles.submitButton}
                   icon={
-                    <Lucide
-                      name="arrow-left"
-                      size={16}
-                      color={COLORS.neutral.white}
-                    />
+                    !loading ? (
+                      <Lucide
+                        name="check-circle"
+                        size={16}
+                        color={COLORS.neutral.white}
+                      />
+                    ) : undefined
                   }
+                />
+
+                <Button
+                  title="Back to Email Entry"
+                  variant="text"
+                  size="sm"
+                  onPress={() => setPendingVerification(false)}
+                  style={styles.backToLoginBtn}
+                  textStyle={styles.backToLoginText}
                 />
               </View>
             ) : (

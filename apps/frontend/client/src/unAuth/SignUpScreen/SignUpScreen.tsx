@@ -14,20 +14,13 @@ import { COLORS, SHADOWS, SPACING, RADIUS, TYPOGRAPHY } from '../../shared/theme
 import { Input } from '../../shared/components/Input';
 import { Button } from '../../shared/components/Button';
 import { Logo } from '../../shared/components/Logo';
-import { useNavigation, NavigationProp } from '@react-navigation/native';
-import { useSignUp, isClerkAPIResponseError } from '@clerk/expo';
-
-type UnauthParamList = {
-  Landing: undefined;
-  Login: undefined;
-  SignUp: undefined;
-  ForgotPassword: undefined;
-};
+import { useAppNavigation } from '../../navigation';
+import { isClerkAPIResponseError } from '@clerk/expo';
+import { useSignUp } from '@clerk/expo/legacy';
 
 export function SignUpScreen() {
-  const navigation = useNavigation();
-  const signUpResult = useSignUp();
-  const { signUp } = signUpResult;
+  const navigation = useAppNavigation();
+  const { signUp, setActive, isLoaded } = useSignUp();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -42,6 +35,11 @@ export function SignUpScreen() {
 
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  
+  // Verification states
+  const [pendingVerification, setPendingVerification] = useState(false);
+  const [code, setCode] = useState('');
+  const [codeError, setCodeError] = useState('');
 
   // Animations
   const cardFade = useRef(new Animated.Value(0)).current;
@@ -127,35 +125,73 @@ export function SignUpScreen() {
     setLoading(true);
     setGeneralError('');
 
-    if (signUp === null) {
+    if (!signUp || !setActive) {
       setGeneralError('Sign up service is not loaded yet. Please try again.');
       setLoading(false);
       return;
     }
 
     try {
-      const result = await signUp.create({
+      const parts = name.trim().split(" ");
+      const firstName = parts[0] || "";
+      const lastName = parts.slice(1).join(" ") || "";
+
+      await signUp.create({
         emailAddress: email,
         password,
+        firstName,
+        lastName,
       });
 
-      if (result.error) {
-        setGeneralError(result.error.message || 'Sign up failed.');
-        return;
-      }
-
       if (signUp.status === 'complete') {
-        const finalizeResult = await signUp.finalize();
-        if (finalizeResult.error) {
-          setGeneralError(finalizeResult.error.message || 'Sign up finalization failed.');
-        } else {
-          setSuccess(true);
-        }
+        await setActive({ session: signUp.createdSessionId });
+        setSuccess(true);
       } else {
-        setGeneralError('Verification required. Please check your Clerk verification setup.');
+        await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
+        setPendingVerification(true);
       }
     } catch (err: unknown) {
       let errMsg = 'Sign up failed. Please check your inputs.';
+      if (isClerkAPIResponseError(err)) {
+        errMsg = err.errors[0]?.message || errMsg;
+      } else if (err instanceof Error) {
+        errMsg = err.message;
+      }
+      setGeneralError(errMsg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyCode = async () => {
+    if (code.trim().length === 0) {
+      setCodeError("Verification code is required");
+      return;
+    }
+
+    setLoading(true);
+    setGeneralError('');
+    setCodeError('');
+
+    if (!signUp || !setActive) {
+      setGeneralError('Sign up service is not loaded yet. Please try again.');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const completeSignUp = await signUp.attemptEmailAddressVerification({
+        code,
+      });
+
+      if (completeSignUp.status === 'complete') {
+        await setActive({ session: completeSignUp.createdSessionId });
+        setSuccess(true);
+      } else {
+        setGeneralError('Verification failed. Verification status is: ' + completeSignUp.status);
+      }
+    } catch (err: unknown) {
+      let errMsg = 'Verification failed. Please check the code.';
       if (isClerkAPIResponseError(err)) {
         errMsg = err.errors[0]?.message || errMsg;
       } else if (err instanceof Error) {
@@ -230,8 +266,55 @@ export function SignUpScreen() {
               <View style={styles.successBox}>
                 <Lucide name="check-circle" size={24} color={COLORS.semantic.success} style={styles.successIcon} />
                 <Text style={styles.successText}>
-                  Account created successfully! Redirecting to login...
+                  Account created successfully! Redirecting...
                 </Text>
+              </View>
+            ) : pendingVerification ? (
+              <View style={styles.form}>
+                <Text style={[styles.subtitle, { marginBottom: 16 }]}>
+                  We sent a 6-digit verification code to{" "}
+                  <Text style={{ fontWeight: "600", color: COLORS.brand[700] }}>
+                    {email}
+                  </Text>
+                  . Please enter it below.
+                </Text>
+
+                <Input
+                  label="Verification Code"
+                  placeholder="123456"
+                  value={code}
+                  onChangeText={setCode}
+                  error={codeError}
+                  keyboardType="numeric"
+                  autoCapitalize="none"
+                  iconName="lock"
+                />
+
+                <Button
+                  title={loading ? "Verifying..." : "Verify Email"}
+                  onPress={handleVerifyCode}
+                  loading={loading}
+                  style={styles.submitButton}
+                  icon={
+                    !loading ? (
+                      <Lucide
+                        name="check-circle"
+                        size={16}
+                        color={COLORS.neutral.white}
+                      />
+                    ) : undefined
+                  }
+                />
+
+                <View style={styles.footerContainer}>
+                  <Button
+                    title="Back to Sign Up"
+                    variant="text"
+                    size="sm"
+                    onPress={() => setPendingVerification(false)}
+                    textStyle={styles.footerLink}
+                  />
+                </View>
               </View>
             ) : (
               <View style={styles.form}>

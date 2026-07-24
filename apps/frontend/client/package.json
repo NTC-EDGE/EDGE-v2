@@ -10,6 +10,7 @@
     "@react-navigation/native": "8.0.0-alpha.35",
     "@react-navigation/native-stack": "8.0.0-alpha.35",
     "axios": "^1.18.1",
+    "swr": "^2.3.0",
     "expo": "~57.0.7",
     "expo-dev-client": "~57.0.7",
     "expo-document-picker": "^57.0.1",

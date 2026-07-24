@@ -1,5 +1,5 @@
 import "./src/navigation";
-import { createStaticNavigation } from "@react-navigation/native";
+import { createStaticNavigation, InitialState } from "@react-navigation/native";
 import { ClerkProvider, useAuth } from "@clerk/expo";
 import { tokenCache } from "@clerk/expo/token-cache";
 import {
@@ -45,11 +45,11 @@ function AppContent() {
   const { isSignedIn } = useAuth();
 
   // Temporary bypass to proceed to the authenticated section without Clerk
-  const FORCE_AUTH_BYPASS = true;
+  const FORCE_AUTH_BYPASS = false;
   const activeIsSignedIn = isSignedIn || FORCE_AUTH_BYPASS;
 
   const [isReady, setIsReady] = React.useState(false);
-  const [initialState, setInitialState] = React.useState<any>(undefined);
+  const [initialState, setInitialState] = React.useState<InitialState | undefined>(undefined);
 
   React.useEffect(() => {
     const restoreState = async () => {
