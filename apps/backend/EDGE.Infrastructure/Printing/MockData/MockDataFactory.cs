@@ -970,5 +970,75 @@ public static partial class MockDataFactory
             Declaration = declaration
         };
     }
+
+    public static Ntc118Application GetNtc118Application()
+    {
+        var applicationId = Guid.NewGuid();
+
+        var applicant = new Applicant
+        {
+            ApplicantId = Guid.NewGuid(),
+            Name = "Apex Communications & Electronics Corp.",
+            Address = new Address
+            {
+                UnitRoomBldgNo = "Suite 502, Apex Tower",
+                Street = "Roxas Boulevard",
+                Barangay = "Barangay 76",
+                CityMunicipality = "Pasay City",
+                Province = "Metro Manila",
+                ZipCode = "1300"
+            },
+            ContactNumber = "+63-2-8822-9900",
+            Email = "regulatory@apexcomms.ph"
+        };
+
+        var payment = new Payment
+        {
+            PaymentId = Guid.NewGuid(),
+            ApplicationId = applicationId,
+            OrNo = "OR-2026-99018",
+            OrDate = new DateOnly(2026, 7, 24),
+            Amount = 4800.00m,
+            CollectingOfficer = "Engr. Roberto Dizon"
+        };
+
+        var declaration = new Declaration
+        {
+            SignatoryName = "Engr. Roberto Dizon",
+            DateAccomplished = new DateOnly(2026, 7, 24)
+        };
+
+        return new Ntc118Application
+        {
+            ApplicationId = applicationId,
+            RevisionNo = "02",
+            RevisionDate = new DateOnly(2023, 3, 31),
+            TypeOfApplication = TypeOfApplication118.New,
+            PermitCategory = new PermitCategorySelection
+            {
+                RceCategory = true,
+                RceDealer = true,
+                RceDealerTransceiver = true
+            },
+            EntityType = EntityType118.Corporation,
+            ExistingPermitNo = "DLR-2024-00892",
+            ExistingPermitValidity = new DateOnly(2026, 12, 31),
+            Applicant = applicant,
+            SupervisingEngineer = new RequiredPersonnel
+            {
+                Name = "Engr. Alex V. Mendoza",
+                LicenseNo = "PECE-0014829",
+                ValidityDate = new DateOnly(2028, 5, 20)
+            },
+            Technician = new RequiredPersonnel
+            {
+                Name = "Reynaldo T. Cruz",
+                LicenseNo = "ECT-0084920",
+                ValidityDate = new DateOnly(2027, 9, 15)
+            },
+            Payment = payment,
+            Declaration = declaration
+        };
+    }
 }
 

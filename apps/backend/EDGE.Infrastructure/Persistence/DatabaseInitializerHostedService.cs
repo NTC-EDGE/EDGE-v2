@@ -39,20 +39,7 @@ public class DatabaseInitializerHostedService : IHostedService
             throw new InvalidOperationException("Database migration failed. Please check the logs for details.", ex);
         }
 
-        // 2. Seed IAM reference data (Roles, Permissions, RolePermissions, default Users)
-        try
-        {
-            _logger.LogInformation("Seeding database IAM reference data...");
-            await RolePermissionDataSeeder.SeedAsync(context);
-            _logger.LogInformation("IAM seed data completed.");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "IAM seed data encountered an issue.");
-            throw new InvalidOperationException("IAM seed data failed. Please check the logs for details.", ex);
-        }
-
-        // 3. Seed geographic reference data
+        // 2. Seed geographic reference data first (Regions are required by Tenants in IAM seeder)
         try
         {
             _logger.LogInformation("Seeding database geographic reference data...");
@@ -63,6 +50,19 @@ public class DatabaseInitializerHostedService : IHostedService
         {
             _logger.LogWarning(ex, "Geographic seed data encountered an issue.");
             throw new InvalidOperationException("Geographic seed data failed. Please check the logs for details.", ex);
+        }
+
+        // 3. Seed IAM reference data (Roles, Permissions, RolePermissions, Tenants, default Users)
+        try
+        {
+            _logger.LogInformation("Seeding database IAM reference data...");
+            await RolePermissionDataSeeder.SeedAsync(context);
+            _logger.LogInformation("IAM seed data completed.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "IAM seed data encountered an issue.");
+            throw new InvalidOperationException("IAM seed data failed. Please check the logs for details.", ex);
         }
 
         // 4. Seed Fast-Track catalog data (ServiceCategory, Service, ServiceVariant, Form templates, etc.)
