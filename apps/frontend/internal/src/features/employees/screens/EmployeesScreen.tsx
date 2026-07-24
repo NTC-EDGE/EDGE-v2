@@ -9,7 +9,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { ColumnDef } from '@tanstack/react-table';
-import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, DataTable, StatusBadge, Icon as Lucide } from '@edge/ui';
+import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, DataTable, Icon as Lucide } from '@edge/ui';
 import {
   Employee,
   EmployeeRole,
@@ -107,7 +107,6 @@ export function EmployeesScreen() {
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRole, setSelectedRole] = useState<string>('All');
-  const [selectedStatus, setSelectedStatus] = useState<string>('All');
   const [viewMode, setViewMode] = useState<ViewMode>('cards');
 
   // Pagination state (10 items per page)
@@ -115,7 +114,6 @@ export function EmployeesScreen() {
 
   // Dropdown open states
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
-  const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
 
   // Modal states
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
@@ -140,17 +138,13 @@ export function EmployeesScreen() {
   // Reset pagination to page 1 on filter changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, selectedRole, selectedStatus]);
+  }, [searchQuery, selectedRole]);
 
   // Filtered employees logic
   const filteredEmployees = useMemo(() => {
     return employees.filter((emp) => {
       // Role Filter
       if (selectedRole !== 'All' && emp.role !== selectedRole) {
-        return false;
-      }
-      // Status Filter
-      if (selectedStatus !== 'All' && emp.status !== selectedStatus) {
         return false;
       }
       // Search Query
@@ -166,7 +160,7 @@ export function EmployeesScreen() {
       }
       return true;
     });
-  }, [employees, searchQuery, selectedRole, selectedStatus]);
+  }, [employees, searchQuery, selectedRole]);
 
   // Pagination calculations (10 entries per page)
   const totalPages = Math.max(1, Math.ceil(filteredEmployees.length / ITEMS_PER_PAGE));
@@ -179,13 +173,13 @@ export function EmployeesScreen() {
 
   // Executive KPI summary metrics
   const stats = useMemo(() => {
-    const total = employees.length;
-    const active = employees.filter((e) => e.status === 'Active').length;
-    const evaluators = employees.filter((e) => e.role === 'Evaluator').length;
-    const admins = employees.filter((e) => e.role === 'Admin' || e.role === 'Manager').length;
+    const total = filteredEmployees.length;
+    const departments = new Set(filteredEmployees.map((e) => e.department)).size;
+    const evaluators = filteredEmployees.filter((e) => e.role === 'Evaluator').length;
+    const admins = filteredEmployees.filter((e) => e.role === 'Admin' || e.role === 'Manager').length;
 
-    return { total, active, evaluators, admins };
-  }, [employees]);
+    return { total, departments, evaluators, admins };
+  }, [filteredEmployees]);
 
   // Handlers for CRUD
   const handleOpenAddModal = () => {
@@ -340,12 +334,6 @@ export function EmployeesScreen() {
         meta: { flex: 2.2 },
       },
       {
-        accessorKey: 'status',
-        header: 'Status',
-        cell: (info) => <StatusBadge status={String(info.getValue())} />,
-        meta: { flex: 1.2 },
-      },
-      {
         id: 'actions',
         header: 'Actions',
         cell: (info) => {
@@ -488,12 +476,12 @@ export function EmployeesScreen() {
           </View>
 
           <View style={[styles.statCard, SHADOWS.card]}>
-            <View style={[styles.statIconBadge, { backgroundColor: COLORS.semantic.successBg }]}>
-              <Lucide name="check-circle" size={18} color={COLORS.semantic.success} />
+            <View style={[styles.statIconBadge, { backgroundColor: COLORS.neutral[100] }]}>
+              <Lucide name="briefcase" size={18} color={COLORS.brand[700]} />
             </View>
             <View>
-              <Text style={styles.statValue}>{stats.active}</Text>
-              <Text style={styles.statLabel}>Active Employees</Text>
+              <Text style={styles.statValue}>{stats.departments}</Text>
+              <Text style={styles.statLabel}>Departments</Text>
             </View>
           </View>
 
@@ -545,7 +533,6 @@ export function EmployeesScreen() {
                 style={[styles.dropdownTrigger, isRoleDropdownOpen && styles.dropdownTriggerActive]}
                 onPress={() => {
                   setIsRoleDropdownOpen((prev) => !prev);
-                  setIsStatusDropdownOpen(false);
                 }}
               >
                 <Text style={styles.dropdownTriggerText} numberOfLines={1}>
@@ -589,56 +576,14 @@ export function EmployeesScreen() {
               )}
             </View>
 
-            {/* Status Dropdown */}
-            <View style={styles.dropdownContainer}>
-              <Text style={styles.dropdownLabel}>Status:</Text>
-              <Pressable
-                style={[styles.dropdownTrigger, isStatusDropdownOpen && styles.dropdownTriggerActive]}
-                onPress={() => {
-                  setIsStatusDropdownOpen((prev) => !prev);
-                  setIsRoleDropdownOpen(false);
-                }}
-              >
-                <Text style={styles.dropdownTriggerText} numberOfLines={1}>
-                  {selectedStatus === 'All' ? 'All Statuses' : selectedStatus}
-                </Text>
-                <Lucide
-                  name={isStatusDropdownOpen ? 'chevron-up' : 'chevron-down'}
-                  size={14}
-                  color={COLORS.neutral[600]}
-                />
-              </Pressable>
-
-              {isStatusDropdownOpen && (
-                <View style={[styles.dropdownMenu, SHADOWS.modal]}>
-                  {['All', 'Active', 'On Leave', 'Inactive'].map((st) => (
-                    <Pressable
-                      key={st}
-                      style={[styles.dropdownOption, selectedStatus === st && styles.dropdownOptionActive]}
-                      onPress={() => {
-                        setSelectedStatus(st);
-                        setIsStatusDropdownOpen(false);
-                      }}
-                    >
-                      <Text style={[styles.dropdownOptionText, selectedStatus === st && styles.dropdownOptionTextActive]}>
-                        {st === 'All' ? 'All Statuses' : st}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-              )}
-            </View>
-
             {/* Reset Filters Option */}
-            {(selectedRole !== 'All' || selectedStatus !== 'All' || searchQuery.length > 0) && (
+            {(selectedRole !== 'All' || searchQuery.length > 0) && (
               <Pressable
                 style={styles.resetFiltersBtn}
                 onPress={() => {
                   setSelectedRole('All');
-                  setSelectedStatus('All');
                   setSearchQuery('');
                   setIsRoleDropdownOpen(false);
-                  setIsStatusDropdownOpen(false);
                 }}
               >
                 <Lucide name="rotate-ccw" size={13} color={COLORS.brand[700]} style={{ marginRight: 4 }} />
@@ -675,7 +620,6 @@ export function EmployeesScreen() {
                   onPress={() => {
                     setSearchQuery('');
                     setSelectedRole('All');
-                    setSelectedStatus('All');
                   }}
                 >
                   <Text style={styles.resetFilterText}>Reset Filters</Text>
