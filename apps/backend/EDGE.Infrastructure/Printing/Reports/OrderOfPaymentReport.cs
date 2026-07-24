@@ -10,6 +10,7 @@ namespace EDGE.Infrastructure.Printing.Reports;
 /// Printable Order of Payment document for National Telecommunications Commission.
 /// Renders a 2-up page (Top Half and Bottom Half duplicate copies) on standard A4 paper.
 /// Supports both blank templates and populated sample/production data.
+/// Features a thick outer border around each copy and enlarged O.R. amount formatting matching official physical forms.
 /// </summary>
 public class OrderOfPaymentReport : IDocument
 {
@@ -27,26 +28,28 @@ public class OrderOfPaymentReport : IDocument
         container.Page(page =>
         {
             page.Size(PageSizes.A4);
-            page.MarginHorizontal(18);
-            page.MarginVertical(12);
+            page.MarginHorizontal(14);
+            page.MarginVertical(10);
             page.DefaultTextStyle(x => x.FontSize(9).FontFamily(Fonts.Arial));
 
             page.Content().Column(col =>
             {
-                // Top Copy (1-up)
-                col.Item().Height(383).Element(ComposeSingleOrderOfPayment);
+                // Top Copy (1-up) with Thick Outer Border
+                col.Item().Element(ComposeSingleOrderOfPayment);
 
-                // Compact divider matching the source form
-                col.Item().Height(12).LineHorizontal(0.5f).LineColor(Colors.Grey.Lighten1);
+                // Compact divider spacing between Top and Bottom copies
+                col.Item().PaddingVertical(6);
 
-                col.Item().Height(383).Element(ComposeSingleOrderOfPayment);
+                // Bottom Copy (Duplicate 1-up) with Thick Outer Border
+                col.Item().Element(ComposeSingleOrderOfPayment);
             });
         });
     }
 
     private void ComposeSingleOrderOfPayment(IContainer container)
     {
-        container.Column(col =>
+        // Enclose each Order of Payment copy in a thick outer border
+        container.Border(1.8f).BorderColor(Colors.Black).Padding(8).Column(col =>
         {
             // 1. Header (Agency, Serial No, Date)
             col.Item().Row(row =>
@@ -59,10 +62,10 @@ public class OrderOfPaymentReport : IDocument
                     c.Item().Text($"Regional Office No.   {_model.RegionalOffice ?? string.Empty}")
                         .FontSize(9).Bold();
 
-                    c.Item().PaddingTop(4).Text(_model.Fund ?? "General Fund")
+                    c.Item().PaddingTop(3).Text(_model.Fund ?? "General Fund")
                         .FontSize(9).Bold();
 
-                    c.Item().PaddingTop(4).Text("The Collecting Officer")
+                    c.Item().PaddingTop(3).Text("The Collecting Officer")
                         .FontSize(9).Bold();
                 });
 
@@ -87,7 +90,7 @@ public class OrderOfPaymentReport : IDocument
                 .FontSize(11).Bold();
 
             // 3. Payor Section
-            col.Item().PaddingTop(4).Column(c =>
+            col.Item().PaddingTop(3).Column(c =>
             {
                 c.Item().Row(r =>
                 {
@@ -103,7 +106,7 @@ public class OrderOfPaymentReport : IDocument
             });
 
             // 4. Amount and Purpose Section
-            col.Item().PaddingTop(4).Column(c =>
+            col.Item().PaddingTop(3).Column(c =>
             {
                 c.Item().Row(r =>
                 {
@@ -122,7 +125,7 @@ public class OrderOfPaymentReport : IDocument
             });
 
             // 5. Statement of Account Section
-            col.Item().PaddingTop(4).Row(r =>
+            col.Item().PaddingTop(3).Row(r =>
             {
                 r.AutoItem().Text("per ").FontSize(8.5f);
                 r.AutoItem().Text("Statement of Account No. ").Bold().FontSize(8.5f);
@@ -132,11 +135,11 @@ public class OrderOfPaymentReport : IDocument
             });
 
             // 6. Bank Accounts Deposit Breakdown
-            col.Item().PaddingTop(5).Column(c =>
+            col.Item().PaddingTop(4).Column(c =>
             {
                 c.Item().Text("Please deposit the collections under Bank Account/s:").FontSize(8.5f);
 
-                c.Item().PaddingTop(2).Row(r =>
+                c.Item().PaddingTop(1).Row(r =>
                 {
                     // Left spacer / account no column
                     r.ConstantItem(125).Text("No.").FontSize(8.5f).Underline().Bold();
@@ -154,7 +157,7 @@ public class OrderOfPaymentReport : IDocument
                 {
                     var bank = i < banks.Count ? banks[i] : null;
 
-                    c.Item().PaddingTop(2).Row(r =>
+                    c.Item().PaddingTop(1).Row(r =>
                     {
                         r.ConstantItem(125).UnderlineText(bank?.No);
                         r.RelativeItem().UnderlineTextCenter(bank?.BankName);
@@ -183,45 +186,55 @@ public class OrderOfPaymentReport : IDocument
                 });
             });
 
-            // 7. Footer: O.R. Box (Bottom Left) & Signatures (Bottom Right)
+            // 7. Footer: O.R. Stamp Box (Bottom Left with Enlarged Amount) & Signatures (Bottom Right)
             col.Item().PaddingTop(4).Row(r =>
             {
-                // Bottom Left O.R. Stamp Box
-                r.ConstantItem(130).Border(1).BorderColor(Colors.Black).Padding(3).Column(orCol =>
+                // Bottom Left O.R. Stamp Box (Thick 1.2pt border with internal grid lines and enlarged amount)
+                r.ConstantItem(155).Border(1.2f).BorderColor(Colors.Black).Table(orTable =>
                 {
-                    orCol.Item().Row(orRow =>
+                    orTable.ColumnsDefinition(cd =>
                     {
-                        orRow.ConstantItem(35).Text("O.R.").Bold().FontSize(10);
-                        orRow.RelativeItem().Column(orDetails =>
-                        {
-                            orDetails.Item().Row(dr =>
-                            {
-                                dr.ConstantItem(35).Text("No.").FontSize(7.5f);
-                                dr.RelativeItem().Text(_model.OrNo ?? string.Empty).FontSize(7.5f);
-                            });
-                            orDetails.Item().Row(dr =>
-                            {
-                                dr.ConstantItem(35).Text("AMOUNT:").FontSize(7.5f);
-                                dr.RelativeItem().Text(_model.OrAmount ?? string.Empty).Bold().FontSize(8.5f);
-                            });
-                            orDetails.Item().Row(dr =>
-                            {
-                                dr.ConstantItem(35).Text("Date:").FontSize(7.5f);
-                                dr.RelativeItem().Text(_model.OrDate ?? string.Empty).FontSize(7.5f);
-                            });
-                            orDetails.Item().Row(dr =>
-                            {
-                                dr.ConstantItem(35).Text("By:").FontSize(7.5f);
-                                dr.RelativeItem().Text(_model.OrBy ?? string.Empty).FontSize(7.5f);
-                            });
-                        });
+                        cd.ConstantColumn(30); // O.R. label column
+                        cd.RelativeColumn();   // Details column
+                    });
+
+                    // Left cell: "O.R." centered vertically & horizontally
+                    orTable.Cell().RowSpan(4).BorderRight(0.8f).BorderColor(Colors.Black).AlignCenter().AlignMiddle()
+                        .Text("O.R.").Bold().FontSize(11);
+
+                    // Row 1: No.
+                    orTable.Cell().BorderBottom(0.5f).BorderColor(Colors.Black).Padding(1.5f).Row(dr =>
+                    {
+                        dr.ConstantItem(38).Text("No.").FontSize(7f);
+                        dr.RelativeItem().Text(_model.OrNo ?? string.Empty).FontSize(7.5f);
+                    });
+
+                    // Row 2: AMOUNT (Large prominent font size matching official form!)
+                    orTable.Cell().BorderBottom(0.5f).BorderColor(Colors.Black).Padding(1.5f).Row(dr =>
+                    {
+                        dr.ConstantItem(38).AlignMiddle().Text("AMOUNT:").FontSize(6.5f);
+                        dr.RelativeItem().AlignMiddle().Text(_model.OrAmount ?? string.Empty).Bold().FontSize(15);
+                    });
+
+                    // Row 3: Date
+                    orTable.Cell().BorderBottom(0.5f).BorderColor(Colors.Black).Padding(1.5f).Row(dr =>
+                    {
+                        dr.ConstantItem(38).Text("Date:").FontSize(7f);
+                        dr.RelativeItem().Text(_model.OrDate ?? string.Empty).FontSize(7.5f);
+                    });
+
+                    // Row 4: By
+                    orTable.Cell().Padding(1.5f).Row(dr =>
+                    {
+                        dr.ConstantItem(38).Text("By:").FontSize(7f);
+                        dr.RelativeItem().Text(_model.OrBy ?? string.Empty).FontSize(7.5f);
                     });
                 });
 
                 r.RelativeItem();
 
                 // Bottom Right Collecting Officer Signature Line
-                r.ConstantItem(285).AlignBottom().Column(sigCol =>
+                r.ConstantItem(270).AlignBottom().Column(sigCol =>
                 {
                     sigCol.Item().LineHorizontal(0.8f).LineColor(Colors.Black);
                     if (!string.IsNullOrWhiteSpace(_model.CollectingOfficer))
@@ -234,7 +247,7 @@ public class OrderOfPaymentReport : IDocument
     }
 }
 
-internal static class QuestPdfHelpers
+internal static class OrderOfPaymentQuestPdfHelpers
 {
     public static void UnderlineText(this IContainer container, string? text, bool bold = false)
     {
@@ -256,3 +269,4 @@ internal static class QuestPdfHelpers
         return bold ? descriptor.Bold() : descriptor;
     }
 }
+

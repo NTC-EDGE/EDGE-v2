@@ -310,37 +310,48 @@ public class StatementOfAccountReport : IDocument
     {
         container.Row(row =>
         {
-            // 1. Bottom-Left O.R. Stamp Box (Width ~140pt)
-            row.ConstantItem(140).Border(1f).BorderColor(Colors.Black).Padding(3).Column(orCol =>
+            // 1. Bottom-Left O.R. Stamp Box (Width ~155pt, thick border, enlarged amount font)
+            row.ConstantItem(155).Border(1.2f).BorderColor(Colors.Black).Table(orTable =>
             {
-                orCol.Item().Row(r =>
+                orTable.ColumnsDefinition(cd =>
                 {
-                    r.ConstantItem(32).AlignMiddle().Text("O.R.").Bold().FontSize(9.5f);
-                    r.RelativeItem().Column(details =>
-                    {
-                        details.Item().Row(dr =>
-                        {
-                            dr.ConstantItem(40).Text("No.").FontSize(7.5f);
-                            dr.RelativeItem().Text(_model.OrNo ?? string.Empty).FontSize(7.5f);
-                        });
-                        details.Item().Row(dr =>
-                        {
-                            dr.ConstantItem(40).Text("AMOUNT:").FontSize(7f);
-                            dr.RelativeItem().Text(_model.OrAmount ?? string.Empty).Bold().FontSize(8f);
-                        });
-                        details.Item().Row(dr =>
-                        {
-                            dr.ConstantItem(40).Text("Date:").FontSize(7.5f);
-                            dr.RelativeItem().Text(_model.OrDate ?? string.Empty).FontSize(7.5f);
-                        });
-                        details.Item().Row(dr =>
-                        {
-                            dr.ConstantItem(40).Text("By:").FontSize(7.5f);
-                            dr.RelativeItem().Text(_model.OrBy ?? string.Empty).FontSize(7.5f);
-                        });
-                    });
+                    cd.ConstantColumn(30); // O.R. label column
+                    cd.RelativeColumn();   // Details column
+                });
+
+                // Left cell: "O.R." centered vertically & horizontally
+                orTable.Cell().RowSpan(4).BorderRight(0.8f).BorderColor(Colors.Black).AlignCenter().AlignMiddle()
+                    .Text("O.R.").Bold().FontSize(11);
+
+                // Row 1: No.
+                orTable.Cell().BorderBottom(0.5f).BorderColor(Colors.Black).Padding(1.5f).Row(dr =>
+                {
+                    dr.ConstantItem(38).Text("No.").FontSize(7f);
+                    dr.RelativeItem().Text(_model.OrNo ?? string.Empty).FontSize(7.5f);
+                });
+
+                // Row 2: AMOUNT (Large prominent font size matching official form!)
+                orTable.Cell().BorderBottom(0.5f).BorderColor(Colors.Black).Padding(1.5f).Row(dr =>
+                {
+                    dr.ConstantItem(38).AlignMiddle().Text("AMOUNT:").FontSize(6.5f);
+                    dr.RelativeItem().AlignMiddle().Text(_model.OrAmount ?? string.Empty).Bold().FontSize(15);
+                });
+
+                // Row 3: Date
+                orTable.Cell().BorderBottom(0.5f).BorderColor(Colors.Black).Padding(1.5f).Row(dr =>
+                {
+                    dr.ConstantItem(38).Text("Date:").FontSize(7f);
+                    dr.RelativeItem().Text(_model.OrDate ?? string.Empty).FontSize(7.5f);
+                });
+
+                // Row 4: By
+                orTable.Cell().Padding(1.5f).Row(dr =>
+                {
+                    dr.ConstantItem(38).Text("By:").FontSize(7f);
+                    dr.RelativeItem().Text(_model.OrBy ?? string.Empty).FontSize(7.5f);
                 });
             });
+
 
             row.ConstantItem(15); // Spacer
 
