@@ -11,11 +11,17 @@ import {
   Switch,
   ActivityIndicator,
 } from 'react-native';
-import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide } from '@edge/ui';
+import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide, useNavigation, NavigationProp } from '@edge/ui';
 import { useAuthContext } from '../../auth/context/AuthContext';
 import { REGIONS_LIST } from '../../employees/data/mockEmployees';
+import { useRole, ROLES, UserRole } from '../../shell/context/RoleContext';
 
 type TabType = 'profile' | 'security' | 'appearance' | 'support';
+
+type AuthParamList = {
+  Dashboard: undefined;
+  AccountSettings: undefined;
+};
 
 type UserResourceType = NonNullable<ReturnType<typeof useAuthContext>['clerkUser']>;
 type EmailAddressResourceType = ReturnType<UserResourceType['createEmailAddress']> extends Promise<infer T> ? T : never;
@@ -45,8 +51,28 @@ export function SettingsScreen() {
   const isMobile = width < 768;
 
   const { clerkUser, user } = useAuthContext();
+  const { currentRole, setCurrentRole } = useRole();
+  const navigation = useNavigation();
 
   const [activeTab, setActiveTab] = useState<TabType>('profile');
+  const [selectedRole, setSelectedRole] = useState<UserRole>(currentRole);
+  const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+
+  useEffect(() => {
+    if (!isEditingProfile) {
+      setSelectedRole(currentRole);
+    }
+  }, [currentRole, isEditingProfile]);
+
+  const handleBackToDashboard = () => {
+    if (typeof navigation === 'object' && navigation !== null) {
+      const navigateFunc = Reflect.get(navigation, 'navigate');
+      if (typeof navigateFunc === 'function') {
+        Reflect.apply(navigateFunc, navigation, ['Dashboard']);
+      }
+    }
+  };
 
   // Profile Inputs
   const [firstName, setFirstName] = useState('');
@@ -61,7 +87,6 @@ export function SettingsScreen() {
   const [phone, setPhone] = useState('09123456789');
 
   // Profile state flags
-  const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileError, setProfileError] = useState('');
   const [profileSuccess, setProfileSuccess] = useState('');
@@ -92,9 +117,6 @@ export function SettingsScreen() {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [reduceMotion, setReduceMotion] = useState(false);
 
-  // General navigation
-  const [navigationRef, setNavigationRef] = useState<unknown | null>(null);
-
   // Initialize profile values from Clerk context
   useEffect(() => {
     if (clerkUser !== null && clerkUser !== undefined) {
@@ -121,34 +143,6 @@ export function SettingsScreen() {
       }
     }
   }, [clerkUser]);
-
-  // Load custom global navigation if available
-  useEffect(() => {
-    try {
-      const parentNav = require('@react-navigation/native');
-      if (parentNav && typeof parentNav.useNavigation === 'function') {
-        const nav = parentNav.useNavigation();
-        if (nav !== null && nav !== undefined) {
-          setNavigationRef(nav);
-        }
-      }
-    } catch {
-      // safe fallback
-    }
-  }, []);
-
-  const handleBackToDashboard = () => {
-    if (navigationRef !== null && typeof navigationRef === 'object') {
-      const navigateFunc = Reflect.get(navigationRef, 'navigate');
-      if (typeof navigateFunc === 'function') {
-        navigateFunc.call(navigationRef, 'Dashboard');
-        return;
-      }
-    }
-    if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location !== undefined) {
-      window.location.hash = '#/dashboard';
-    }
-  };
 
   // Password checklist calculations
   const pChecklist = useMemo(() => {
@@ -228,6 +222,8 @@ export function SettingsScreen() {
         return;
       }
 
+      setCurrentRole(selectedRole);
+      setIsRoleDropdownOpen(false);
       setProfileSuccess('Profile details updated successfully.');
       setIsEditingProfile(false);
     } catch (err: unknown) {
@@ -349,7 +345,7 @@ export function SettingsScreen() {
   };
 
   const profileName = user?.name ?? 'Staff User';
-  const activeRoleName = clerkUser?.publicMetadata?.role as string ?? 'Admin';
+  const activeRoleName = selectedRole;
 
   return (
     <View style={styles.container}>
@@ -504,6 +500,8 @@ export function SettingsScreen() {
                       onPress={() => {
                         if (isEditingProfile) {
                           setIsEditingProfile(false);
+                          setSelectedRole(currentRole);
+                          setIsRoleDropdownOpen(false);
                           setFirstName(clerkUser?.firstName ?? '');
                           setLastName(clerkUser?.lastName ?? '');
                           setUsername(clerkUser?.username ?? '');
@@ -541,15 +539,69 @@ export function SettingsScreen() {
                     {/* Account Details */}
                     <View style={styles.innerCard}>
                       <Text style={styles.innerCardHeading}>Account Details</Text>
-                      <View style={styles.formRow}>
-                        <View style={styles.inputWrapperFull}>
-                          <Text style={styles.fieldLabel}>User Role</Text>
-                          <TextInput
-                            value={activeRoleName}
-                            editable={false}
-                            style={[styles.inputField, styles.disabledInput]}
+                      <View style={styles.dropdownContainer}>
+                        <Text style={styles.fieldLabel}>User Role</Text>
+                        <Pressable
+                          style={[
+                            styles.dropdownSelector,
+                            !isEditingProfile && styles.disabledInput,
+                          ]}
+                          onPress={() => {
+                            if (isEditingProfile) {
+                              setIsRoleDropdownOpen(!isRoleDropdownOpen);
+                            }
+                          }}
+                          disabled={!isEditingProfile}
+                        >
+                          <Text
+                            style={[
+                              styles.dropdownSelectorText,
+                              !isEditingProfile && styles.disabledInputText,
+                            ]}
+                          >
+                            {selectedRole}
+                          </Text>
+                          <Lucide
+                            name={isRoleDropdownOpen ? 'chevron-up' : 'chevron-down'}
+                            size={16}
+                            color={isEditingProfile ? COLORS.neutral[600] : COLORS.neutral[400]}
                           />
-                        </View>
+                        </Pressable>
+
+                        {isEditingProfile && isRoleDropdownOpen && (
+                          <View style={[styles.dropdownList, SHADOWS.card]}>
+                            <ScrollView style={{ maxHeight: 200 }} nestedScrollEnabled>
+                              {ROLES.map((roleOption) => {
+                                const isSelected = selectedRole === roleOption;
+                                return (
+                                  <Pressable
+                                    key={roleOption}
+                                    style={[
+                                      styles.dropdownItem,
+                                      isSelected && styles.dropdownItemActive,
+                                    ]}
+                                    onPress={() => {
+                                      setSelectedRole(roleOption);
+                                      setIsRoleDropdownOpen(false);
+                                    }}
+                                  >
+                                    <Text
+                                      style={[
+                                        styles.dropdownItemText,
+                                        isSelected && styles.dropdownItemTextActive,
+                                      ]}
+                                    >
+                                      {roleOption}
+                                    </Text>
+                                    {isSelected && (
+                                      <Lucide name="check" size={14} color="#1E3A8A" />
+                                    )}
+                                  </Pressable>
+                                );
+                              })}
+                            </ScrollView>
+                          </View>
+                        )}
                       </View>
                     </View>
 
@@ -1316,6 +1368,9 @@ const styles = StyleSheet.create({
   disabledInput: {
     backgroundColor: '#F8FAFC',
     borderColor: '#E2E8F0',
+    color: COLORS.neutral[500],
+  },
+  disabledInputText: {
     color: COLORS.neutral[500],
   },
   inputWithIcon: {
