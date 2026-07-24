@@ -394,10 +394,10 @@ export function ActivitiesFeedPane() {
       {/* ── Date Range Picker ── */}
       {showDatePicker && (
         <View style={styles.inlinePanel}>
-          <Text style={styles.panelSectionTitle}>Date Range Filter</Text>
+          <Text style={styles.datePickerTitle}>DATE RANGE FILTER</Text>
           <View style={styles.dateRow}>
             <View style={styles.dateField}>
-              <Text style={styles.dateLabel}>From</Text>
+              <Text style={styles.dateLabel}>FROM</Text>
               <TextInput
                 style={styles.dateInput}
                 placeholder="YYYY-MM-DD"
@@ -405,11 +405,19 @@ export function ActivitiesFeedPane() {
                 value={dateFrom}
                 onChangeText={setDateFrom}
                 maxLength={10}
+                // @ts-ignore
+                type="date"
               />
             </View>
-            <Lucide name="arrow-right" size={16} color={COLORS.neutral[400]} />
+            <View style={styles.dateDivider}>
+              <Lucide
+                name="arrow-right"
+                size={16}
+                color={COLORS.neutral[400]}
+              />
+            </View>
             <View style={styles.dateField}>
-              <Text style={styles.dateLabel}>To</Text>
+              <Text style={styles.dateLabel}>TO</Text>
               <TextInput
                 style={styles.dateInput}
                 placeholder="YYYY-MM-DD"
@@ -417,6 +425,8 @@ export function ActivitiesFeedPane() {
                 value={dateTo}
                 onChangeText={setDateTo}
                 maxLength={10}
+                // @ts-ignore
+                type="date"
               />
             </View>
           </View>
@@ -707,11 +717,22 @@ const styles = StyleSheet.create({
   },
 
   // Date picker
+  datePickerTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: COLORS.brand[800],
+    marginBottom: SPACING[12],
+    letterSpacing: 0.5,
+  },
   dateRow: {
     flexDirection: "row",
     alignItems: "flex-end",
     gap: SPACING[8],
     marginBottom: SPACING[12],
+  },
+  dateDivider: {
+    paddingBottom: SPACING[10],
   },
   dateField: {
     flex: 1,
@@ -809,8 +830,7 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 14,
     color: COLORS.neutral[800],
-    outline: "none",
-  } as unknown as object,
+  },
 
   // Tab bar
   tabBar: {

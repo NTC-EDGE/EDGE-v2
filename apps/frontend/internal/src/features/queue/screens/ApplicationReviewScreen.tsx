@@ -245,8 +245,7 @@ const infoStyles = StyleSheet.create({
     borderRadius: RADIUS.input,
     paddingHorizontal: SPACING[8],
     paddingVertical: SPACING[4],
-    outline: "none",
-  } as unknown as object,
+  },
   saveBtn: {
     backgroundColor: COLORS.brand[700],
     paddingHorizontal: SPACING[8],
@@ -1738,8 +1737,7 @@ const styles = StyleSheet.create({
     padding: SPACING[8],
     minHeight: 100,
     lineHeight: 22,
-    outline: "none",
-  } as unknown as object,
+  },
   saveNoteBtn: {
     alignSelf: "flex-end",
     backgroundColor: COLORS.brand[700],
@@ -2081,8 +2079,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING[8],
     paddingVertical: SPACING[4],
     minWidth: 120,
-    outline: "none",
-  } as unknown as object,
+  },
   inlineEditSave: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 13,
