@@ -9,7 +9,7 @@ import {
   Platform,
   useWindowDimensions,
 } from 'react-native';
-import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide, StatusBadge } from '@edge/ui';
+import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide } from '@edge/ui';
 import { Employee } from '../data/mockEmployees';
 
 interface EmployeeDetailModalProps {
@@ -68,7 +68,6 @@ export function EmployeeDetailModal({
               <View style={styles.profileHeaderInfo}>
                 <View style={styles.nameHeaderRow}>
                   <Text style={styles.fullName}>{fullName}</Text>
-                  <StatusBadge status={employee.status} />
                 </View>
                 <Text style={styles.employeeId}>{employee.id}</Text>
                 <View style={styles.roleTagBanner}>
@@ -163,7 +162,7 @@ export function EmployeeDetailModal({
 
             {/* Section 3: System Access & Audit */}
             <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>System Info & Status</Text>
+              <Text style={styles.sectionTitle}>System Info & Access</Text>
 
               <View style={styles.detailGrid}>
                 <View style={styles.detailItem}>
