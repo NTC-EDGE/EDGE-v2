@@ -25,13 +25,14 @@ import {
   useAuthContext,
 } from "./src/features/auth/context/AuthContext";
 import { RoleProvider } from "./src/features/shell/context/RoleContext";
+import { PermissionProvider } from "./src/features/shell/context/PermissionContext";
 import { DashboardShell } from "./src/features/shell/components/DashboardShell";
 
 import { EmployeesScreen } from "./src/features/employees/screens/EmployeesScreen";
 import { UsersScreen } from "./src/features/users/screens/UsersScreen";
 import { InternalLoginPage } from "./src/features/login/components/InternalLoginPage";
 import { DashboardScreen } from "./src/features/dashboard/screens/DashboardScreen";
-import { QueueScreen } from "./src/features/queue/screens/QueueScreen";
+import { ActivitiesScreen } from "./src/features/queue/screens/ActivitiesScreen";
 
 const getClerkKey = (): string => {
   const key = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
@@ -105,7 +106,7 @@ const AuthStack = createNativeStackNavigator({
   },
   screens: {
     Dashboard: { screen: DashboardScreen, path: "dashboard" },
-    Activities: { screen: QueueScreen, path: "activities" },
+    Activities: { screen: ActivitiesScreen, path: "activities" },
     Chat: { screen: PlaceholderScreen, path: "chat" },
     Meet: { screen: PlaceholderScreen, path: "meet" },
     Reports: { screen: PlaceholderScreen, path: "reports" },
@@ -281,8 +282,10 @@ export default function App() {
     <ClerkProvider tokenCache={tokenCache} publishableKey={publishableKey}>
       <AuthProvider>
         <RoleProvider>
-          <AppContent />
-          <StatusBar style="dark" />
+          <PermissionProvider>
+            <AppContent />
+            <StatusBar style="dark" />
+          </PermissionProvider>
         </RoleProvider>
       </AuthProvider>
     </ClerkProvider>

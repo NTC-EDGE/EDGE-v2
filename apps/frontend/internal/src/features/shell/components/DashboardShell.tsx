@@ -1,11 +1,19 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { StyleSheet, View, ScrollView, useWindowDimensions, Animated, Easing, Pressable } from 'react-native';
-import { COLORS, SPACING } from '@edge/ui';
-import { useShellState } from '../hooks/useShellState';
-import { ROLE_NAVIGATION_LINKS } from '../context/RoleContext';
-import { Sidebar } from './Sidebar';
-import { Header } from './Header';
-import { TransitionWrapper } from './TransitionWrapper';
+import React, { useEffect, useRef, useState } from "react";
+import {
+  StyleSheet,
+  View,
+  ScrollView,
+  useWindowDimensions,
+  Animated,
+  Easing,
+  Pressable,
+} from "react-native";
+import { COLORS, SPACING } from "@edge/ui";
+import { useShellState } from "../hooks/useShellState";
+import { ROLE_NAVIGATION_LINKS } from "../context/RoleContext";
+import { Sidebar } from "./Sidebar";
+import { Header } from "./Header";
+import { TransitionWrapper } from "./TransitionWrapper";
 
 interface DashboardShellProps {
   children: React.ReactNode;
@@ -15,7 +23,7 @@ interface DashboardShellProps {
 
 export function DashboardShell({
   children,
-  activeScreen = 'Dashboard',
+  activeScreen = "Dashboard",
   onNavigate,
 }: DashboardShellProps) {
   const {
@@ -125,12 +133,12 @@ export function DashboardShell({
         {isMobile && shouldRenderSidebar && (
           <>
             <Animated.View
-              style={[
-                styles.backdrop,
-                { opacity: backdropOpacity },
-              ]}
+              style={[styles.backdrop, { opacity: backdropOpacity }]}
             >
-              <Pressable style={styles.backdropPressable} onPress={closeSidebar} />
+              <Pressable
+                style={styles.backdropPressable}
+                onPress={closeSidebar}
+              />
             </Animated.View>
             <Animated.View
               style={[
@@ -153,19 +161,13 @@ export function DashboardShell({
         )}
 
         {/* Main Scrolling Body */}
-        <ScrollView
-          style={styles.contentScrollView}
-          contentContainerStyle={[
-            styles.contentContainer,
-            isMobile && styles.mobileContentContainer,
-          ]}
-        >
+        <View style={styles.contentView}>
           <View style={styles.maxContainer}>
             <TransitionWrapper trigger={activeScreen}>
               {children}
             </TransitionWrapper>
           </View>
-        </ScrollView>
+        </View>
       </View>
     </View>
   );
@@ -174,51 +176,43 @@ export function DashboardShell({
 const styles = StyleSheet.create({
   shell: {
     flex: 1,
-    flexDirection: 'column',
+    flexDirection: "column",
     backgroundColor: COLORS.bg,
-    height: '100%',
+    height: "100%",
   },
   bodyWrapper: {
     flex: 1,
-    flexDirection: 'row',
-    width: '100%',
-    overflow: 'hidden',
+    flexDirection: "row",
+    width: "100%",
+    overflow: "hidden",
   },
-  contentScrollView: {
+  contentView: {
     flex: 1,
-  },
-  contentContainer: {
-    paddingHorizontal: SPACING[32],
-    paddingVertical: SPACING[32],
-    alignItems: 'center',
-  },
-  mobileContentContainer: {
-    paddingHorizontal: SPACING[16],
-    paddingVertical: SPACING[16],
+    backgroundColor: COLORS.bg,
   },
   maxContainer: {
-    width: '100%',
+    flex: 1,
+    width: "100%",
     maxWidth: 1600,
-    alignSelf: 'center',
+    alignSelf: "center",
   },
   backdrop: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: '#000000',
+    backgroundColor: "#000000",
     zIndex: 90,
   },
   backdropPressable: {
     flex: 1,
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
   },
   mobileSidebarContainer: {
-    position: 'absolute',
+    position: "absolute",
     left: 0,
     top: 0,
     bottom: 0,
     width: 280,
-    height: '100%',
+    height: "100%",
     zIndex: 95,
   },
 });
-

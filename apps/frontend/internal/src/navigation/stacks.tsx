@@ -11,7 +11,7 @@ import {
   type RouteProp,
 } from "@edge/ui";
 import { DashboardScreen } from "../features/dashboard/screens/DashboardScreen";
-import { QueueScreen } from "../features/queue/screens/QueueScreen";
+import { ActivitiesScreen } from "../features/queue/screens/ActivitiesScreen";
 import { InternalLoginPage } from "../features/login/components/InternalLoginPage";
 
 // Fallback Placeholder screen for role specific navigation links
@@ -68,7 +68,7 @@ export const AuthStack = createNativeStackNavigator({
   },
   screens: {
     Dashboard: { screen: DashboardScreen, path: "dashboard" },
-    Activities: { screen: QueueScreen, path: "activities" },
+    Activities: { screen: ActivitiesScreen, path: "activities" },
     Chat: { screen: PlaceholderScreen, path: "chat" },
     Meet: { screen: PlaceholderScreen, path: "meet" },
     Reports: { screen: PlaceholderScreen, path: "reports" },
