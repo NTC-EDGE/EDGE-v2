@@ -284,7 +284,7 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     ...Platform.select({
       web: {
-        outlineStyle: "none",
+        outlineStyle: "none" as any,
       },
     }),
   },

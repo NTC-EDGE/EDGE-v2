@@ -242,7 +242,8 @@ export function CPEStep7Review({
           {renderReviewSectionHeader("DOCUMENTS UPLOADED")}
           {getRequirementsList(app.appType).map((req, reqIdx) => {
             const fileKey = reqIdx.toString();
-            const filename = app.uploads[fileKey];
+            const upload = app.uploads[fileKey];
+            const filename = typeof upload === "string" ? upload : upload?.name || "";
 
             return (
               <View key={reqIdx} style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", borderBottomWidth: 1, borderBottomColor: "#f1f5f9", paddingVertical: 12, paddingHorizontal: 12 }}>

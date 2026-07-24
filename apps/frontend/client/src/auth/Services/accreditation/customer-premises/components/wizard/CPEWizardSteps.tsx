@@ -31,7 +31,7 @@ interface CPEWizardStepsProps {
   errors: Record<string, string>;
   touched: Record<string, boolean>;
   handleScrollToSection: (offset: number) => void;
-  handleDocumentPick: (key: string) => void;
+  handleDocumentPick: (key: string, file: { name: string; uri: string }) => void;
   activeRegionObj: any;
   styles: any;
 }
@@ -119,7 +119,6 @@ export function CPEWizardSteps({
         activeApplicant={activeApplicant}
         updateActiveApplicant={updateActiveApplicant}
         handleDocumentPick={handleDocumentPick}
-        styles={styles}
       />
     );
   }

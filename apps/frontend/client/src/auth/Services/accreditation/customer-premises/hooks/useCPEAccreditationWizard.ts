@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Alert } from "react-native";
 import { useAuth, useUser } from "@clerk/expo";
 import { apiClient } from "@edge/api";
-import { PHILIPPINE_REGIONS_WITH_OFFICES, NTCOffice } from "../data/mockRegionData";
+import { NTCOffice } from "../data/mockRegionData";
 import { ApplicantData } from "../types/cpeTypes";
 
 interface UseCPEAccreditationWizardProps {
@@ -55,7 +55,7 @@ export function useCPEAccreditationWizard({
 
   const { getToken } = useAuth();
   const { user: clerkUser } = useUser();
-  const USE_MOCKS = true;
+  const USE_MOCKS = false;
 
   // Auto-fill applicant with Clerk user details
   React.useEffect(() => {
@@ -81,22 +81,13 @@ export function useCPEAccreditationWizard({
     async function fetchTenants() {
       setLoadingTenants(true);
       try {
-        if (USE_MOCKS) {
-          const mockTenants = PHILIPPINE_REGIONS_WITH_OFFICES.map((r) => ({
-            id: r.id,
-            name: r.name,
-          }));
-          setTenants(mockTenants);
-          return;
-        }
-
         const token = await getToken();
         const headers = token !== null ? { Authorization: `Bearer ${token}` } : {};
         const response = await apiClient.get("/api/v2/tenants", { headers });
         const data = response.data;
         setTenants(Array.isArray(data) ? data : (data.items || []));
       } catch (err) {
-        console.error("Failed to fetch tenants:", err);
+        console.error("Failed to fetch tenants from API:", err);
         setTenants([]);
       } finally {
         setLoadingTenants(false);
@@ -107,14 +98,11 @@ export function useCPEAccreditationWizard({
 
   const selectedTenant = tenants.find((t) => t.id === selectedRegionId);
   const activeRegionObj = selectedTenant 
-    ? (PHILIPPINE_REGIONS_WITH_OFFICES.find((r) => 
-        selectedTenant.name.toLowerCase().includes(r.id.toLowerCase()) || 
-        r.name.toLowerCase().includes(selectedTenant.name.toLowerCase())
-      ) || {
+    ? {
         id: selectedTenant.id,
         name: selectedTenant.name,
         offices: []
-      })
+      }
     : undefined;
 
   const [offices, setOffices] = useState<NTCOffice[]>([]);
@@ -128,22 +116,13 @@ export function useCPEAccreditationWizard({
       }
       setLoadingOffices(true);
       try {
-        if (USE_MOCKS) {
-          const region = PHILIPPINE_REGIONS_WITH_OFFICES.find((r) => r.id === selectedRegionId);
-          setOffices(region ? region.offices : []);
-          return;
-        }
-
         const token = await getToken();
         const headers = token !== null ? { Authorization: `Bearer ${token}` } : {};
-        const response = await apiClient.get("/api/v2/field-offices", {
-          params: { regionId: selectedRegionId },
-          headers,
-        });
+        const response = await apiClient.get(`/api/v2/tenants/${selectedRegionId}/field-offices`, { headers });
         const data = response.data;
         setOffices(Array.isArray(data) ? data : (data.items || []));
       } catch (err) {
-        console.error("Failed to fetch offices:", err);
+        console.error("Failed to fetch offices from API:", err);
         setOffices([]);
       } finally {
         setLoadingOffices(false);
@@ -262,11 +241,6 @@ export function useCPEAccreditationWizard({
         fileName: typeof activeApplicant.uploads[key] === "string" ? activeApplicant.uploads[key] : activeApplicant.uploads[key]?.name || "",
       })),
     };
-
-    if (USE_MOCKS) {
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      return;
-    }
 
     await apiClient.post(`/api/v2/tenants/${selectedRegionId}/applications`, payload, { headers });
   };
@@ -544,9 +518,10 @@ export function useCPEAccreditationWizard({
     setTouched((prev) => ({ ...prev, [field]: true }));
   };
 
-  const handleDocumentPick = (fileKey: string) => {
-    setActiveUploadSlot(fileKey);
-    setIsUploadSheetOpen(true);
+  const handleDocumentPick = (fileKey: string, file: { name: string; uri: string }) => {
+    const nextUploads = { ...activeApplicant.uploads };
+    nextUploads[fileKey] = file;
+    updateActiveApplicant({ uploads: nextUploads });
   };
 
   return {

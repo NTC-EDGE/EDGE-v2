@@ -1,15 +1,10 @@
 import React from "react";
 import { Alert } from "react-native";
-import { UploadChoiceDialog } from "./UploadChoiceDialog";
 import { DeclarationModal } from "./DeclarationModal";
 import { FeedbackModal } from "./FeedbackModal";
 import { GeneralLoadingOverlay } from "./GeneralLoadingOverlay";
 
 interface GeneralWizardModalsProps {
-  isUploadSheetOpen: boolean;
-  setIsUploadSheetOpen: (open: boolean) => void;
-  handleDocumentPick: () => void;
-  handleCameraLaunch: () => void;
   isConfirmModalOpen: boolean;
   setIsConfirmModalOpen: (open: boolean) => void;
   isAgreedToTerms: boolean;
@@ -27,10 +22,6 @@ interface GeneralWizardModalsProps {
 }
 
 export function GeneralWizardModals({
-  isUploadSheetOpen,
-  setIsUploadSheetOpen,
-  handleDocumentPick,
-  handleCameraLaunch,
   isConfirmModalOpen,
   setIsConfirmModalOpen,
   isAgreedToTerms,
@@ -48,12 +39,6 @@ export function GeneralWizardModals({
 }: GeneralWizardModalsProps) {
   return (
     <>
-      <UploadChoiceDialog
-        visible={isUploadSheetOpen}
-        onClose={() => setIsUploadSheetOpen(false)}
-        onDocumentPick={handleDocumentPick}
-        onCameraLaunch={handleCameraLaunch}
-      />
 
       <DeclarationModal
         visible={isConfirmModalOpen}

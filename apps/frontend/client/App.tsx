@@ -9,7 +9,7 @@ import {
 } from "./src/routes";
 
 const getClerkKey = (): string => {
-  const key = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
+  const key = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
   if (typeof key === "string" && key.length > 0) {
     return key;
   }
@@ -20,7 +20,7 @@ const publishableKey = getClerkKey();
 
 if (publishableKey.length === 0) {
   console.warn(
-    "Missing EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY environment variable. Clerk will not initialize properly.",
+    "Missing EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY or NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY environment variable. Clerk will not initialize properly.",
   );
 }
 

@@ -9,7 +9,7 @@ export const styles = StyleSheet.create({
     borderRightColor: COLORS.neutral[200],
     ...Platform.select({
       web: {
-        height: "100vh",
+        height: "100vh" as any,
       },
     }),
   },
@@ -89,7 +89,7 @@ export const styles = StyleSheet.create({
     marginBottom: 8,
   },
   itemCardSelected: {
-    backgroundColor: COLORS.brand[100] + "22",
+    backgroundColor: COLORS.brand[600] + "22",
     borderColor: COLORS.brand[700],
   },
   itemName: {

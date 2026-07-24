@@ -45,7 +45,7 @@ export interface ExamApplicantData {
   specialOrderNo: string;
   email: string;
   contactNo: string;
-  uploads: Record<string, string>; // Maps requirement index/key to filename
+  uploads: Record<string, string | { name: string; uri: string }>; // Maps requirement index/key to filename or file object
 }
 
 export const initialExamApplicant = (id: number): ExamApplicantData => ({
@@ -163,7 +163,7 @@ export function RadioOperatorExamWizard({
   const { getToken } = useAuth();
   const { user: clerkUser } = useUser();
   // Toggle this constant to switch between live API integration and mock logic
-  const USE_MOCKS = true;
+  const USE_MOCKS = false;
 
   // Auto-fill first applicant with logged-in user details
   React.useEffect(() => {
@@ -193,23 +193,13 @@ export function RadioOperatorExamWizard({
     async function fetchTenants() {
       setLoadingTenants(true);
       try {
-        if (USE_MOCKS) {
-          // Map mock regions as tenants
-          const mockTenants = PHILIPPINE_REGIONS_WITH_OFFICES.map((r) => ({
-            id: r.id,
-            name: r.name,
-          }));
-          setTenants(mockTenants);
-          return;
-        }
-
         const token = await getToken();
         const headers = token !== null ? { Authorization: `Bearer ${token}` } : {};
         const response = await apiClient.get('/api/v2/tenants', { headers });
         const data = response.data;
         setTenants(Array.isArray(data) ? data : (data.items || []));
       } catch (err) {
-        console.error("Failed to fetch tenants:", err);
+        console.error("Failed to fetch tenants from API:", err);
         setTenants([]);
       } finally {
         setLoadingTenants(false);
@@ -221,14 +211,11 @@ export function RadioOperatorExamWizard({
   // Dynamic values mapped based on chosen region (which is now a tenant ID)
   const selectedTenant = tenants.find((t) => t.id === selectedRegionId);
   const activeRegionObj = selectedTenant 
-    ? (PHILIPPINE_REGIONS_WITH_OFFICES.find((r) => 
-        selectedTenant.name.toLowerCase().includes(r.id.toLowerCase()) || 
-        r.name.toLowerCase().includes(selectedTenant.name.toLowerCase())
-      ) || {
+    ? {
         id: selectedTenant.id,
         name: selectedTenant.name,
         offices: []
-      })
+      }
     : undefined;
 
   const [offices, setOffices] = useState<any[]>([]);
@@ -242,23 +229,13 @@ export function RadioOperatorExamWizard({
       }
       setLoadingOffices(true);
       try {
-        if (USE_MOCKS) {
-          // Retrieve offices from active region mapping
-          const region = PHILIPPINE_REGIONS_WITH_OFFICES.find((r) => r.id === selectedRegionId);
-          setOffices(region ? region.offices : []);
-          return;
-        }
-
         const token = await getToken();
         const headers = token !== null ? { Authorization: `Bearer ${token}` } : {};
-        const response = await apiClient.get('/api/v2/field-offices', {
-          params: { regionId: selectedRegionId },
-          headers,
-        });
+        const response = await apiClient.get(`/api/v2/tenants/${selectedRegionId}/field-offices`, { headers });
         const data = response.data;
         setOffices(Array.isArray(data) ? data : (data.items || []));
       } catch (err) {
-        console.error("Failed to fetch offices:", err);
+        console.error("Failed to fetch offices from API:", err);
         setOffices([]);
       } finally {
         setLoadingOffices(false);
@@ -408,25 +385,10 @@ export function RadioOperatorExamWizard({
   };
 
   // Document picker trigger
-  const handleDocumentPick = async (slotKey: string) => {
-    try {
-      const res = await DocumentPicker.getDocumentAsync({
-        type: "*/*",
-        copyToCacheDirectory: true,
-      });
-      if (res.canceled === false && res.assets && res.assets.length > 0) {
-        const file = res.assets[0];
-        const nextUploads = { ...activeApplicant.uploads };
-        nextUploads[slotKey] = file.name;
-        updateActiveApplicant({ uploads: nextUploads });
-      }
-    } catch (err) {
-      console.error("Document picker error: ", err);
-      // Fallback
-      const nextUploads = { ...activeApplicant.uploads };
-      nextUploads[slotKey] = `Document_${slotKey}.pdf`;
-      updateActiveApplicant({ uploads: nextUploads });
-    }
+  const handleDocumentPick = (slotKey: string, file: { name: string; uri: string }) => {
+    const nextUploads = { ...activeApplicant.uploads };
+    nextUploads[slotKey] = file;
+    updateActiveApplicant({ uploads: nextUploads });
   };
 
   const handleMockCSVUpload = async () => {
@@ -935,12 +897,6 @@ export function RadioOperatorExamWizard({
       fieldOfficeId: selectedOfficeId,
       applicants: mappedApplicants,
     };
-
-    if (USE_MOCKS) {
-      console.log("Mock Submission Payload:", JSON.stringify(payload, null, 2));
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      return;
-    }
 
     const token = await getToken();
     const headers = token !== null ? { Authorization: `Bearer ${token}` } : {};

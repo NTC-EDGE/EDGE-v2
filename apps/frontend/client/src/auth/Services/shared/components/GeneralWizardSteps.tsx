@@ -24,7 +24,7 @@ interface GeneralWizardStepsProps {
   activeApplicant: GeneralApplicantData;
   updateActiveApplicant: (fields: Partial<GeneralApplicantData>) => void;
   isWeb: boolean;
-  onUploadPress: (req: string) => void;
+  onUploadPress: (req: string, file: { name: string; uri: string }) => void;
   onRemoveUpload: (req: string) => void;
 }
 

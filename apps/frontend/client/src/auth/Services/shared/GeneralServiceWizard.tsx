@@ -69,10 +69,6 @@ export function GeneralServiceWizard({
     loadingTenants,
     offices,
     loadingOffices,
-    isUploadSheetOpen,
-    setIsUploadSheetOpen,
-    activeUploadSlot,
-    setActiveUploadSlot,
     isConfirmModalOpen,
     setIsConfirmModalOpen,
     isAgreedToTerms,
@@ -85,8 +81,6 @@ export function GeneralServiceWizard({
     setFeedbackRating,
     feedbackComment,
     setFeedbackComment,
-    handleDocumentPick,
-    handleCameraLaunch,
     submitApplicationPayload,
   } = useGeneralServiceWizard({
     service,
@@ -152,9 +146,10 @@ export function GeneralServiceWizard({
           updateActiveApplicant={updateActiveApplicant}
           isWeb={isWeb}
 
-          onUploadPress={(req) => {
-            setActiveUploadSlot(req);
-            setIsUploadSheetOpen(true);
+          onUploadPress={(req: string, file: { name: string; uri: string }) => {
+            const cur = { ...activeApplicant.uploads };
+            cur[req] = file;
+            updateActiveApplicant({ uploads: cur });
           }}
           onRemoveUpload={(req) => {
             const cur = { ...activeApplicant.uploads };
@@ -171,10 +166,6 @@ export function GeneralServiceWizard({
       </ScrollView>
 
       <GeneralWizardModals
-        isUploadSheetOpen={isUploadSheetOpen}
-        setIsUploadSheetOpen={setIsUploadSheetOpen}
-        handleDocumentPick={handleDocumentPick}
-        handleCameraLaunch={handleCameraLaunch}
         isConfirmModalOpen={isConfirmModalOpen}
         setIsConfirmModalOpen={setIsConfirmModalOpen}
         isAgreedToTerms={isAgreedToTerms}

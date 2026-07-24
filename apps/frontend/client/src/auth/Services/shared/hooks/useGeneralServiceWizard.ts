@@ -5,7 +5,6 @@ import * as ImagePicker from "expo-image-picker";
 import { useAuth, useUser } from "@clerk/expo";
 import { apiClient } from "@edge/api";
 import { NTCService } from "../../data/servicesData";
-import { PHILIPPINE_REGIONS_WITH_OFFICES } from "../../accreditation/customer-premises/data/mockRegionData";
 
 export interface TenantInfo {
   id: string;
@@ -64,10 +63,8 @@ export function useGeneralServiceWizard({
 }: UseGeneralServiceWizardProps) {
   const { getToken } = useAuth();
   const { user: clerkUser } = useUser();
-  const USE_MOCKS = true;
+  const USE_MOCKS = false;
 
-  const [isUploadSheetOpen, setIsUploadSheetOpen] = useState(false);
-  const [activeUploadSlot, setActiveUploadSlot] = useState<string | null>(null);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [isAgreedToTerms, setIsAgreedToTerms] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -107,21 +104,13 @@ export function useGeneralServiceWizard({
     async function fetchTenants() {
       setLoadingTenants(true);
       try {
-        if (USE_MOCKS) {
-          const mockTenants = PHILIPPINE_REGIONS_WITH_OFFICES.map((r) => ({
-            id: r.id,
-            name: r.name,
-          }));
-          setTenants(mockTenants);
-          return;
-        }
         const token = await getToken();
         const headers = token !== null ? { Authorization: `Bearer ${token}` } : {};
         const response = await apiClient.get("/api/v2/tenants", { headers });
         const data = response.data;
-        setTenants(Array.isArray(data) ? data : data.items || []);
+        setTenants(Array.isArray(data) ? data : (data.items || []));
       } catch (err) {
-        console.error("Failed to fetch tenants:", err);
+        console.error("Failed to fetch tenants from API:", err);
         setTenants([]);
       } finally {
         setLoadingTenants(false);
@@ -139,21 +128,13 @@ export function useGeneralServiceWizard({
       }
       setLoadingOffices(true);
       try {
-        if (USE_MOCKS) {
-          const region = PHILIPPINE_REGIONS_WITH_OFFICES.find((r) => r.id === selectedRegionId);
-          setOffices(region ? region.offices : []);
-          return;
-        }
         const token = await getToken();
         const headers = token !== null ? { Authorization: `Bearer ${token}` } : {};
-        const response = await apiClient.get("/api/v2/field-offices", {
-          params: { regionId: selectedRegionId },
-          headers,
-        });
+        const response = await apiClient.get(`/api/v2/tenants/${selectedRegionId}/field-offices`, { headers });
         const data = response.data;
-        setOffices(Array.isArray(data) ? data : data.items || []);
+        setOffices(Array.isArray(data) ? data : (data.items || []));
       } catch (err) {
-        console.error("Failed to fetch offices:", err);
+        console.error("Failed to fetch offices from API:", err);
         setOffices([]);
       } finally {
         setLoadingOffices(false);
@@ -170,51 +151,7 @@ export function useGeneralServiceWizard({
     );
   };
 
-  const handleDocumentPick = async () => {
-    if (!activeUploadSlot) return;
-    try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: ["application/pdf", "image/*"],
-        copyToCacheDirectory: true,
-      });
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        const file = result.assets[0];
-        const currentUploads = { ...activeApplicant.uploads };
-        currentUploads[activeUploadSlot] = { name: file.name, uri: file.uri };
-        updateActiveApplicant({ uploads: currentUploads });
-        setIsUploadSheetOpen(false);
-      }
-    } catch (err) {
-      console.error(err);
-      Alert.alert("Error", "Failed to select document.");
-    }
-  };
 
-  const handleCameraLaunch = async () => {
-    if (!activeUploadSlot) return;
-    try {
-      const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
-      if (!permissionResult.granted) {
-        Alert.alert("Permission Required", "Camera access is required to scan documents.");
-        return;
-      }
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ["images"],
-        quality: 0.8,
-      });
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        const file = result.assets[0];
-        const currentUploads = { ...activeApplicant.uploads };
-        const fileName = file.fileName || `scanned_doc_${Date.now()}.jpg`;
-        currentUploads[activeUploadSlot] = { name: fileName, uri: file.uri };
-        updateActiveApplicant({ uploads: currentUploads });
-        setIsUploadSheetOpen(false);
-      }
-    } catch (err) {
-      console.error(err);
-      Alert.alert("Error", "Failed to launch camera.");
-    }
-  };
 
   const submitApplicationPayload = async () => {
     const monthMap: Record<string, string> = {
@@ -271,10 +208,6 @@ export function useGeneralServiceWizard({
     loadingTenants,
     offices,
     loadingOffices,
-    isUploadSheetOpen,
-    setIsUploadSheetOpen,
-    activeUploadSlot,
-    setActiveUploadSlot,
     isConfirmModalOpen,
     setIsConfirmModalOpen,
     isAgreedToTerms,
@@ -287,8 +220,6 @@ export function useGeneralServiceWizard({
     setFeedbackRating,
     feedbackComment,
     setFeedbackComment,
-    handleDocumentPick,
-    handleCameraLaunch,
     submitApplicationPayload,
   };
 }

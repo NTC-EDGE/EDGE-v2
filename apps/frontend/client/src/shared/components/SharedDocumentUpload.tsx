@@ -42,6 +42,7 @@ export function SharedDocumentUpload({
 
   const handleDocumentPick = async () => {
     if (!activeSlotKey) return;
+    setIsSheetOpen(false);
     try {
       const result = await DocumentPicker.getDocumentAsync({
         type: ["application/pdf", "image/*"],
@@ -50,7 +51,6 @@ export function SharedDocumentUpload({
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const file = result.assets[0];
         onUpload(activeSlotKey, { name: file.name, uri: file.uri });
-        setIsSheetOpen(false);
       }
     } catch (err) {
       console.error("Document picking error:", err);
@@ -60,6 +60,7 @@ export function SharedDocumentUpload({
 
   const handleCameraLaunch = async () => {
     if (!activeSlotKey) return;
+    setIsSheetOpen(false);
     try {
       const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
       if (!permissionResult.granted) {
@@ -74,7 +75,6 @@ export function SharedDocumentUpload({
         const file = result.assets[0];
         const fileName = file.fileName || `scanned_doc_${Date.now()}.jpg`;
         onUpload(activeSlotKey, { name: fileName, uri: file.uri });
-        setIsSheetOpen(false);
       }
     } catch (err) {
       console.error("Camera error:", err);

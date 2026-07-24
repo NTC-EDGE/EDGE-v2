@@ -1,14 +1,11 @@
-using System;
 using MediatR;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Routing;
 using EDGE.Application.FieldOffices.Commands.CreateFieldOffice;
 using EDGE.Application.FieldOffices.Commands.UpdateFieldOffice;
 using EDGE.Application.FieldOffices.Commands.DeleteFieldOffice;
 using EDGE.Application.FieldOffices.Queries.GetFieldOffices;
 using EDGE.Application.FieldOffices.Queries.GetFieldOfficeById;
 using EDGE.Application.Common.Models;
+using EDGE.Application.FieldOffices.Queries.GetFieldOfficesByTenant;
 
 namespace EDGE.Api.Endpoints;
 
@@ -16,6 +13,16 @@ public static class FieldOfficeEndpoints
 {
     public static IEndpointRouteBuilder MapFieldOfficeEndpoints(this IEndpointRouteBuilder app)
     {
+        app.MapGet("/tenants/{tenantId:guid}/field-offices", async (Guid tenantId, IMediator mediator) =>
+        {
+            var result = await mediator.Send(new GetFieldOfficesByTenantQuery(tenantId));
+            return result.Succeeded ? Results.Ok(result) : Results.NotFound(result);
+        })
+        .WithName("GetFieldOfficesByTenant")
+        .WithTags("FieldOffices")
+        .WithSummary("Get field offices by tenant organization")
+        .WithDescription("Returns all field offices associated with the tenant organization's region.");
+
         var group = app.MapGroup("/field-offices").WithTags("FieldOffices");
 
         group.MapGet("/", async (Guid? regionId, IMediator mediator) =>

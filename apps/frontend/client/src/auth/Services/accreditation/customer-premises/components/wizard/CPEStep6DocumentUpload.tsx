@@ -5,7 +5,7 @@ import { SharedDocumentUpload } from "../../../../../../shared/components/Shared
 interface CPEStep6DocumentUploadProps {
   activeApplicant: ApplicantData;
   updateActiveApplicant: (fields: Partial<ApplicantData>) => void;
-  handleDocumentPick: (key: string) => void;
+  handleDocumentPick: (key: string, file: { name: string; uri: string }) => void;
 }
 
 export const getRequirementsList = (type: "NEW" | "RENEWAL" | "MODIFICATION"): string[] => {

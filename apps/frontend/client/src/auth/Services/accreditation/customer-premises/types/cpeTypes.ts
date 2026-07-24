@@ -49,7 +49,7 @@ export interface ApplicantData {
   expiryMonth: string;
   expiryDate: string;
   expiryYear: string;
-  uploads: Record<string, string>;
+  uploads: Record<string, string | { name: string; uri: string }>;
 }
 
 export const initialApplicant = (id: number): ApplicantData => ({
