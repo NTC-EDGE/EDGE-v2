@@ -16,10 +16,10 @@ interface RegionalConfigTabProps {
   branchOffices: BranchOffice[];
   stats: BranchOfficeStats;
   onEditConfig: (config: RegionalConfigCard) => void;
-  onDeleteConfig: (id: string) => void;
+  onDeleteConfig: (id: string, name: string) => void;
   onAddBranchOffice: () => void;
   onEditBranchOffice: (branch: BranchOffice) => void;
-  onDeleteBranchOffice: (id: string) => void;
+  onDeleteBranchOffice: (id: string, name: string) => void;
 }
 
 export function RegionalConfigTab({
@@ -119,7 +119,7 @@ export function RegionalConfigTab({
                 </Pressable>
                 <Pressable
                   style={[styles.iconActionBtn, styles.iconDeleteBtn]}
-                  onPress={() => onDeleteConfig(card.id)}
+                  onPress={() => onDeleteConfig(card.id, card.category)}
                   accessibilityLabel={`Delete ${card.category}`}
                 >
                   <Lucide name="trash-2" size={15} color="#EF4444" />
@@ -303,7 +303,7 @@ export function RegionalConfigTab({
                 </Pressable>
                 <Pressable
                   style={[styles.iconActionBtn, styles.iconDeleteBtn]}
-                  onPress={() => onDeleteBranchOffice(branch.id)}
+                  onPress={() => onDeleteBranchOffice(branch.id, branch.name)}
                   accessibilityLabel={`Delete ${branch.name}`}
                 >
                   <Lucide name="trash-2" size={15} color="#EF4444" />
@@ -378,7 +378,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   statusActive: {
-    color: '#10B981',
+    color: '#4F46E5',
   },
   statusInactive: {
     color: '#EF4444',

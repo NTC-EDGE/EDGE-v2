@@ -14,7 +14,7 @@ interface NotesTabProps {
   notes: NoteItem[];
   onAddNotes: () => void;
   onEditNote: (item: NoteItem) => void;
-  onDeleteNote: (id: string) => void;
+  onDeleteNote: (id: string, name: string) => void;
 }
 
 export function NotesTab({
@@ -118,7 +118,7 @@ export function NotesTab({
 
                     <Pressable
                       style={[styles.actionBtn, styles.deleteBtn]}
-                      onPress={() => onDeleteNote(item.id)}
+                      onPress={() => onDeleteNote(item.id, item.title)}
                       accessibilityLabel="Delete Note"
                     >
                       <Lucide name="trash-2" size={15} color="#EF4444" />

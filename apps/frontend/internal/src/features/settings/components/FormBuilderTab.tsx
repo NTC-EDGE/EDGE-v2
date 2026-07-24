@@ -14,7 +14,7 @@ interface FormBuilderTabProps {
   forms: FormBuilderItem[];
   onCreateForm: () => void;
   onEditForm: (item: FormBuilderItem) => void;
-  onDeleteForm: (id: string) => void;
+  onDeleteForm: (id: string, name: string) => void;
 }
 
 export function FormBuilderTab({
@@ -108,7 +108,7 @@ export function FormBuilderTab({
                   </Pressable>
                   <Pressable
                     style={[styles.actionBtn, styles.deleteBtn]}
-                    onPress={() => onDeleteForm(item.id)}
+                    onPress={() => onDeleteForm(item.id, item.title)}
                   >
                     <Lucide name="trash-2" size={15} color="#EF4444" />
                   </Pressable>

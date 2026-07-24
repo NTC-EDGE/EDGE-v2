@@ -14,7 +14,7 @@ interface AppRequirementsTabProps {
   requirements: ApplicationRequirementItem[];
   onAddRequirement: () => void;
   onEditRequirement: (item: ApplicationRequirementItem) => void;
-  onDeleteRequirement: (id: string) => void;
+  onDeleteRequirement: (id: string, name: string) => void;
 }
 
 export function AppRequirementsTab({
@@ -123,7 +123,7 @@ export function AppRequirementsTab({
 
                     <Pressable
                       style={[styles.actionBtn, styles.deleteBtn]}
-                      onPress={() => onDeleteRequirement(item.id)}
+                      onPress={() => onDeleteRequirement(item.id, item.title)}
                       accessibilityLabel="Delete Requirement"
                     >
                       <Lucide name="trash-2" size={15} color="#EF4444" />

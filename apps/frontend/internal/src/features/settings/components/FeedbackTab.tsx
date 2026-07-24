@@ -12,7 +12,7 @@ import { FeedbackItem } from '../data/mockAdminSettings';
 
 interface FeedbackTabProps {
   feedback: FeedbackItem[];
-  onDeleteFeedback: (id: string) => void;
+  onDeleteFeedback: (id: string, subject: string) => void;
 }
 
 export function FeedbackTab({ feedback, onDeleteFeedback }: FeedbackTabProps) {
@@ -88,7 +88,7 @@ export function FeedbackTab({ feedback, onDeleteFeedback }: FeedbackTabProps) {
                   </View>
                   <Pressable
                     style={[styles.actionBtn, styles.deleteBtn]}
-                    onPress={() => onDeleteFeedback(item.id)}
+                    onPress={() => onDeleteFeedback(item.id, item.subject)}
                   >
                     <Lucide name="trash-2" size={15} color="#EF4444" />
                   </Pressable>

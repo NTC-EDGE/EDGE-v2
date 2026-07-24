@@ -31,6 +31,7 @@ import { NotesTab } from '../components/NotesTab';
 import { FormBuilderTab } from '../components/FormBuilderTab';
 import { FeedbackTab } from '../components/FeedbackTab';
 import { AdminSettingsModal, ModalType, ModalInitialData } from '../components/AdminSettingsModal';
+import { DeleteAdminItemModal } from '../components/DeleteAdminItemModal';
 
 export type AdminTabType =
   | 'regional'
@@ -71,9 +72,22 @@ export function AdminSettingsScreen() {
   const [formBuilders, setFormBuilders] = useState<FormBuilderItem[]>(INITIAL_FORM_BUILDERS);
   const [feedbacks, setFeedbacks] = useState<FeedbackItem[]>(INITIAL_FEEDBACK);
 
-  // Modal State
+  // Edit Modal State
   const [modalType, setModalType] = useState<ModalType>('none');
   const [selectedItem, setSelectedItem] = useState<ModalInitialData | undefined>(undefined);
+
+  // Delete Permission Dialog State
+  const [deleteModal, setDeleteModal] = useState<{
+    visible: boolean;
+    itemTitle: string;
+    itemType: string;
+    onConfirm: () => void;
+  }>({
+    visible: false,
+    itemTitle: '',
+    itemType: 'Item',
+    onConfirm: () => {},
+  });
 
   // Derived Branch Stats
   const stats = {
@@ -94,8 +108,13 @@ export function AdminSettingsScreen() {
     setModalType('edit-config');
   };
 
-  const handleDeleteConfig = (id: string) => {
-    setRegionalConfigs((prev) => prev.filter((c) => c.id !== id));
+  const handleDeleteConfig = (id: string, name: string) => {
+    setDeleteModal({
+      visible: true,
+      itemTitle: name,
+      itemType: 'Configuration',
+      onConfirm: () => setRegionalConfigs((prev) => prev.filter((c) => c.id !== id)),
+    });
   };
 
   const handleAddBranchOffice = () => {
@@ -114,8 +133,13 @@ export function AdminSettingsScreen() {
     setModalType('add-branch');
   };
 
-  const handleDeleteBranchOffice = (id: string) => {
-    setBranchOffices((prev) => prev.filter((b) => b.id !== id));
+  const handleDeleteBranchOffice = (id: string, name: string) => {
+    setDeleteModal({
+      visible: true,
+      itemTitle: name,
+      itemType: 'Branch Office',
+      onConfirm: () => setBranchOffices((prev) => prev.filter((b) => b.id !== id)),
+    });
   };
 
   // Handlers for App Requirements
@@ -132,8 +156,13 @@ export function AdminSettingsScreen() {
     setModalType('edit-requirement');
   };
 
-  const handleDeleteRequirement = (id: string) => {
-    setAppRequirements((prev) => prev.filter((item) => item.id !== id));
+  const handleDeleteRequirement = (id: string, title: string) => {
+    setDeleteModal({
+      visible: true,
+      itemTitle: title,
+      itemType: 'Requirement',
+      onConfirm: () => setAppRequirements((prev) => prev.filter((item) => item.id !== id)),
+    });
   };
 
   // Handlers for Fees & Payments
@@ -151,8 +180,13 @@ export function AdminSettingsScreen() {
     setModalType('edit-fee');
   };
 
-  const handleDeleteFee = (id: string) => {
-    setFeesPayments((prev) => prev.filter((item) => item.id !== id));
+  const handleDeleteFee = (id: string, title: string) => {
+    setDeleteModal({
+      visible: true,
+      itemTitle: title,
+      itemType: 'Fee Configuration',
+      onConfirm: () => setFeesPayments((prev) => prev.filter((item) => item.id !== id)),
+    });
   };
 
   // Handlers for Notes
@@ -170,8 +204,13 @@ export function AdminSettingsScreen() {
     setModalType('edit-note');
   };
 
-  const handleDeleteNote = (id: string) => {
-    setNotes((prev) => prev.filter((item) => item.id !== id));
+  const handleDeleteNote = (id: string, title: string) => {
+    setDeleteModal({
+      visible: true,
+      itemTitle: title,
+      itemType: 'Guidance Note',
+      onConfirm: () => setNotes((prev) => prev.filter((item) => item.id !== id)),
+    });
   };
 
   // Form Builder & Feedback handlers
@@ -185,12 +224,22 @@ export function AdminSettingsScreen() {
     setModalType('add-form');
   };
 
-  const handleDeleteForm = (id: string) => {
-    setFormBuilders((prev) => prev.filter((item) => item.id !== id));
+  const handleDeleteForm = (id: string, title: string) => {
+    setDeleteModal({
+      visible: true,
+      itemTitle: title,
+      itemType: 'Form Template',
+      onConfirm: () => setFormBuilders((prev) => prev.filter((item) => item.id !== id)),
+    });
   };
 
-  const handleDeleteFeedback = (id: string) => {
-    setFeedbacks((prev) => prev.filter((item) => item.id !== id));
+  const handleDeleteFeedback = (id: string, subject: string) => {
+    setDeleteModal({
+      visible: true,
+      itemTitle: subject,
+      itemType: 'Feedback Submission',
+      onConfirm: () => setFeedbacks((prev) => prev.filter((item) => item.id !== id)),
+    });
   };
 
   // Save Modal Action
@@ -414,13 +463,22 @@ export function AdminSettingsScreen() {
         )}
       </View>
 
-      {/* Shared Interactive Modal */}
+      {/* Shared Interactive Add/Edit Modal */}
       <AdminSettingsModal
         visible={modalType !== 'none'}
         type={modalType}
         initialData={selectedItem}
         onClose={() => setModalType('none')}
         onSave={handleSaveModal}
+      />
+
+      {/* Delete Permission Dialog Modal */}
+      <DeleteAdminItemModal
+        visible={deleteModal.visible}
+        itemTitle={deleteModal.itemTitle}
+        itemType={deleteModal.itemType}
+        onClose={() => setDeleteModal((prev) => ({ ...prev, visible: false }))}
+        onConfirm={deleteModal.onConfirm}
       />
     </View>
   );

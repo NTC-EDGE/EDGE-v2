@@ -14,7 +14,7 @@ interface FeesPaymentsTabProps {
   fees: FeePaymentItem[];
   onConfigureFees: () => void;
   onEditFee: (item: FeePaymentItem) => void;
-  onDeleteFee: (id: string) => void;
+  onDeleteFee: (id: string, name: string) => void;
 }
 
 export function FeesPaymentsTab({
@@ -130,7 +130,7 @@ export function FeesPaymentsTab({
 
                     <Pressable
                       style={[styles.actionBtn, styles.deleteBtn]}
-                      onPress={() => onDeleteFee(item.id)}
+                      onPress={() => onDeleteFee(item.id, item.title)}
                       accessibilityLabel="Delete Fee Configuration"
                     >
                       <Lucide name="trash-2" size={15} color="#EF4444" />
