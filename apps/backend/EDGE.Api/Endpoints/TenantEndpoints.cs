@@ -1,5 +1,9 @@
+using System;
+using System.Collections.Generic;
 using FluentValidation;
 using MediatR;
+using EDGE.Domain.Authorization;
+using EDGE.Infrastructure.Authorization;
 using EDGE.Application.Tenants.Commands;
 using EDGE.Application.Tenants.Queries;
 
@@ -12,117 +16,127 @@ public static class TenantEndpoints
         var tenants = group.MapGroup("tenants")
             .WithTags("Tenants");
 
-        tenants.MapPost("/", async (
-            CreateTenantCommand command,
-            IValidator<CreateTenantCommand> validator,
-            IMediator mediator) =>
-        {
-            var validationResult = await validator.ValidateAsync(command);
-            if (!validationResult.IsValid)
-            {
-                return Results.ValidationProblem(validationResult.ToDictionary());
-            }
+        tenants.MapPost("/", CreateTenant)
+            .WithName("CreateTenant")
+            .WithTags("Tenants")
+            .WithSummary("Create new tenant organization")
+            .WithDescription("Creates a new Tenant organization, company, or regional branch.");
 
-            try
-            {
-                var result = await mediator.Send(command);
-                return Results.Created($"/api/v2/tenants/{result.Id}", result);
-            }
-            catch (InvalidOperationException ex)
-            {
-                return Results.Conflict(new { message = ex.Message });
-            }
-        })
-        .WithName("CreateTenant")
-        .WithTags("Tenants")
-        .WithSummary("Create new tenant organization")
-        .WithDescription("Creates a new Tenant organization, company, or regional branch.")
-        .RequireAuthorization();
+        tenants.MapGet("/", GetAllTenants)
+            .WithName("GetAllTenants")
+            .WithTags("Tenants")
+            .WithSummary("Retrieve all tenants")
+            .WithDescription("Retrieves all Tenant organizations registered across regions.");
 
-        tenants.MapGet("/", async (IMediator mediator) =>
-        {
-            var result = await mediator.Send(new GetAllTenantsQuery());
-            return Results.Ok(result);
-        })
-        .WithName("GetAllTenants")
-        .WithTags("Tenants")
-        .WithSummary("Retrieve all tenants")
-        .WithDescription("Retrieves all Tenant organizations registered across regions.")
-        .RequireAuthorization();
+        tenants.MapGet("/{id:guid}", GetTenantById)
+            .WithName("GetTenantById")
+            .WithTags("Tenants")
+            .WithSummary("Retrieve tenant by ID")
+            .WithDescription("Retrieves detailed profile information for a specific Tenant by its unique identifier.");
 
-        tenants.MapGet("/{id:guid}", async (Guid id, IMediator mediator) =>
-        {
-            try
-            {
-                var result = await mediator.Send(new GetTenantByIdQuery(id));
-                return Results.Ok(result);
-            }
-            catch (KeyNotFoundException)
-            {
-                return Results.NotFound(new { message = $"Tenant with ID '{id}' was not found." });
-            }
-        })
-        .WithName("GetTenantById")
-        .WithTags("Tenants")
-        .WithSummary("Retrieve tenant by ID")
-        .WithDescription("Retrieves detailed profile information for a specific Tenant by its unique identifier.")
-        .RequireAuthorization();
+        tenants.MapPut("/{id:guid}", UpdateTenant)
+            .WithName("UpdateTenant")
+            .WithTags("Tenants")
+            .WithSummary("Update tenant details")
+            .WithDescription("Updates an existing Tenant's name, code, description, or active status.");
 
-        tenants.MapPut("/{id:guid}", async (
-            Guid id,
-            UpdateTenantCommand command,
-            IValidator<UpdateTenantCommand> validator,
-            IMediator mediator) =>
-        {
-            if (id != command.Id)
-            {
-                return Results.BadRequest(new { message = "The path ID does not match the request body ID." });
-            }
-
-            var validationResult = await validator.ValidateAsync(command);
-            if (!validationResult.IsValid)
-            {
-                return Results.ValidationProblem(validationResult.ToDictionary());
-            }
-
-            try
-            {
-                var result = await mediator.Send(command);
-                return Results.Ok(result);
-            }
-            catch (KeyNotFoundException)
-            {
-                return Results.NotFound(new { message = $"Tenant with ID '{id}' was not found." });
-            }
-            catch (InvalidOperationException ex)
-            {
-                return Results.Conflict(new { message = ex.Message });
-            }
-        })
-        .WithName("UpdateTenant")
-        .WithTags("Tenants")
-        .WithSummary("Update tenant details")
-        .WithDescription("Updates an existing Tenant's name, code, description, or active status.")
-        .RequireAuthorization();
-
-        tenants.MapDelete("/{id:guid}", async (Guid id, IMediator mediator) =>
-        {
-            try
-            {
-                await mediator.Send(new DeleteTenantCommand(id));
-                return Results.NoContent();
-            }
-            catch (KeyNotFoundException)
-            {
-                return Results.NotFound(new { message = $"Tenant with ID '{id}' was not found." });
-            }
-        })
-        .WithName("DeleteTenant")
-        .WithTags("Tenants")
-        .WithSummary("Delete tenant organization")
-        .WithDescription("Deletes a Tenant organization by its unique ID.")
-        .RequireAuthorization();
+        tenants.MapDelete("/{id:guid}", DeleteTenant)
+            .WithName("DeleteTenant")
+            .WithTags("Tenants")
+            .WithSummary("Delete tenant organization")
+            .WithDescription("Deletes a Tenant organization by its unique ID.");
 
         return group;
+    }
+
+    [HasPermission(Permissions.CreateTenants)]
+    public static async Task<IResult> CreateTenant(
+        CreateTenantCommand command,
+        IValidator<CreateTenantCommand> validator,
+        IMediator mediator)
+    {
+        var validationResult = await validator.ValidateAsync(command);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
+
+        try
+        {
+            var result = await mediator.Send(command);
+            return Results.Created($"/api/v2/tenants/{result.Id}", result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.Conflict(new { message = ex.Message });
+        }
+    }
+
+    [HasPermission(Permissions.ReadTenants)]
+    public static async Task<IResult> GetAllTenants(IMediator mediator)
+    {
+        var result = await mediator.Send(new GetAllTenantsQuery());
+        return Results.Ok(result);
+    }
+
+    [HasPermission(Permissions.ReadTenants)]
+    public static async Task<IResult> GetTenantById(Guid id, IMediator mediator)
+    {
+        try
+        {
+            var result = await mediator.Send(new GetTenantByIdQuery(id));
+            return Results.Ok(result);
+        }
+        catch (KeyNotFoundException)
+        {
+            return Results.NotFound(new { message = $"Tenant with ID '{id}' was not found." });
+        }
+    }
+
+    [HasPermission(Permissions.UpdateTenants)]
+    public static async Task<IResult> UpdateTenant(
+        Guid id,
+        UpdateTenantCommand command,
+        IValidator<UpdateTenantCommand> validator,
+        IMediator mediator)
+    {
+        if (id != command.Id)
+        {
+            return Results.BadRequest(new { message = "The path ID does not match the request body ID." });
+        }
+
+        var validationResult = await validator.ValidateAsync(command);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
+
+        try
+        {
+            var result = await mediator.Send(command);
+            return Results.Ok(result);
+        }
+        catch (KeyNotFoundException)
+        {
+            return Results.NotFound(new { message = $"Tenant with ID '{id}' was not found." });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.Conflict(new { message = ex.Message });
+        }
+    }
+
+    [HasPermission(Permissions.DeleteTenants)]
+    public static async Task<IResult> DeleteTenant(Guid id, IMediator mediator)
+    {
+        try
+        {
+            await mediator.Send(new DeleteTenantCommand(id));
+            return Results.NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
+            return Results.NotFound(new { message = $"Tenant with ID '{id}' was not found." });
+        }
     }
 }

@@ -90,6 +90,9 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
             mockUserService.Setup(u => u.TenantId).Returns(TestTenantId);
             services.AddSingleton<ICurrentUserService>(mockUserService.Object);
 
+            // Add Test Authorization Handler for Integration Testing
+            services.AddSingleton<Microsoft.AspNetCore.Authorization.IAuthorizationHandler, TestAllowAllAuthorizationHandler>();
+
             // Seed Test Region, Tenant, User, Role, and Active TenantMember
             var sp = services.BuildServiceProvider();
             using var scope = sp.CreateScope();
@@ -168,6 +171,18 @@ public class InMemoryTestStorageService : IStorageService
     public Task DeleteFileAsync(string storageKey, CancellationToken cancellationToken = default)
     {
         Storage.TryRemove(storageKey, out _);
+        return Task.CompletedTask;
+    }
+}
+
+public class TestAllowAllAuthorizationHandler : Microsoft.AspNetCore.Authorization.IAuthorizationHandler
+{
+    public Task HandleAsync(Microsoft.AspNetCore.Authorization.AuthorizationHandlerContext context)
+    {
+        foreach (var requirement in context.PendingRequirements.ToList())
+        {
+            context.Succeed(requirement);
+        }
         return Task.CompletedTask;
     }
 }

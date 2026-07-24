@@ -1,11 +1,12 @@
-
 import "./src/navigation";
 import { createStaticNavigation } from "@react-navigation/native";
 import { ClerkProvider, useAuth } from "@clerk/expo";
 import { tokenCache } from "@clerk/expo/token-cache";
-import { UnauthenticatedStack, type UnauthParamList } from "./src/routes/public";
-import { AuthenticatedStack, type AuthParamList } from "./src/routes/auth";
-
+import {
+  UnauthenticatedStack,
+  AuthenticatedStack,
+  clientLinking,
+} from "./src/routes";
 
 const getClerkKey = (): string => {
   const key = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
@@ -26,31 +27,20 @@ if (publishableKey.length === 0) {
 const UnauthNavigation = createStaticNavigation(UnauthenticatedStack);
 const AuthNavigation = createStaticNavigation(AuthenticatedStack);
 
-const unauthLinking = {
-  prefixes: ["http://localhost:8082", "http://localhost:8081", "edge://"],
-};
-
-const authLinking = {
-  prefixes: ["http://localhost:8082", "http://localhost:8081", "edge://"],
-};
-
 function AppContent() {
   const { isSignedIn } = useAuth();
 
   if (isSignedIn) {
-    return <AuthNavigation linking={authLinking} />;
+    return <AuthNavigation linking={clientLinking} />;
   }
 
-  return <UnauthNavigation linking={unauthLinking} />;
+  return <UnauthNavigation linking={clientLinking} />;
 }
 
 export default function App() {
-
   return (
     <ClerkProvider tokenCache={tokenCache} publishableKey={publishableKey}>
       <AppContent />
     </ClerkProvider>
   );
 }
-
-

@@ -70,6 +70,7 @@ public class DatabaseInitializerHostedService : IHostedService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "IAM seed data encountered an issue.");
+            throw new InvalidOperationException("IAM seed data failed. Please check the logs for details.", ex);
         }
 
         // 3. Seed geographic reference data
@@ -82,6 +83,7 @@ public class DatabaseInitializerHostedService : IHostedService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Geographic seed data encountered an issue.");
+            throw new InvalidOperationException("Geographic seed data failed. Please check the logs for details.", ex);
         }
 
         // 4. Seed Fast-Track catalog data (ServiceCategory, Service, ServiceVariant, Form templates, etc.)
@@ -94,6 +96,7 @@ public class DatabaseInitializerHostedService : IHostedService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Fast-Track seed data encountered an issue.");
+            throw new InvalidOperationException("Fast-Track seed data failed. Please check the logs for details.", ex);
         }
     }
 
