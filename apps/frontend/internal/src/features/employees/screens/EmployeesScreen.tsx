@@ -30,19 +30,23 @@ const ITEMS_PER_PAGE = 10;
 // Helper Table Action Menu Cell
 function TableActionCell({
   employee,
+  activePopoverId,
+  setActivePopoverId,
   onView,
   onEdit,
   onDelete,
 }: {
   employee: Employee;
+  activePopoverId: string | null;
+  setActivePopoverId: (id: string | null) => void;
   onView: (emp: Employee) => void;
   onEdit: (emp: Employee) => void;
   onDelete: (emp: Employee) => void;
 }) {
-  const [showPopover, setShowPopover] = useState(false);
+  const isPopoverOpen = activePopoverId === employee.id;
 
   const handleAction = (action: 'view' | 'edit' | 'delete') => {
-    setShowPopover(false);
+    setActivePopoverId(null);
     if (action === 'view') {
       onView(employee);
     } else if (action === 'edit') {
@@ -54,18 +58,18 @@ function TableActionCell({
 
   return (
     <View style={styles.tableActionWrapper}>
-      {showPopover && (
-        <Pressable style={styles.popoverBackdrop} onPress={() => setShowPopover(false)} />
+      {isPopoverOpen && (
+        <Pressable style={styles.popoverBackdrop} onPress={() => setActivePopoverId(null)} />
       )}
       <Pressable
-        style={[styles.tableThreeDotsBtn, showPopover && styles.tableThreeDotsBtnActive]}
-        onPress={() => setShowPopover((prev) => !prev)}
+        style={[styles.tableThreeDotsBtn, isPopoverOpen && styles.tableThreeDotsBtnActive]}
+        onPress={() => setActivePopoverId(isPopoverOpen ? null : employee.id)}
         accessibilityLabel="Actions Menu"
       >
         <Lucide name="more-vertical" size={16} color={COLORS.neutral[700]} />
       </Pressable>
 
-      {showPopover && (
+      {isPopoverOpen && (
         <View style={[styles.tablePopoverMenu, SHADOWS.modal]}>
           <Pressable style={styles.popoverItem} onPress={() => handleAction('view')}>
             <Lucide name="eye" size={14} color={COLORS.brand[700]} style={styles.popoverIcon} />
@@ -119,6 +123,9 @@ export function EmployeesScreen() {
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deletingEmployee, setDeletingEmployee] = useState<Employee | null>(null);
+
+  // Active popover row id (to close others when one is open)
+  const [activePopoverId, setActivePopoverId] = useState<string | null>(null);
 
   // Notification Toast message
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -346,6 +353,8 @@ export function EmployeesScreen() {
           return (
             <TableActionCell
               employee={emp}
+              activePopoverId={activePopoverId}
+              setActivePopoverId={setActivePopoverId}
               onView={handleOpenDetailsPage}
               onEdit={handleOpenEditModal}
               onDelete={handleOpenDeleteModal}
@@ -355,7 +364,7 @@ export function EmployeesScreen() {
         meta: { flex: 1.0 },
       },
     ],
-    []
+    [activePopoverId]
   );
 
   // If in 'details' subView mode, render EmployeeDetailsPage
