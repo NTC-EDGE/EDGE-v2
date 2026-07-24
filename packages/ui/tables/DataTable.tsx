@@ -248,8 +248,14 @@ export function DataTable<TData, TValue>({
 
           {/* Table Body */}
           {table.getRowModel().rows.length > 0 ? (
-            table.getRowModel().rows.map((row) => (
-              <View key={row.id} style={styles.tableRowContainer}>
+            table.getRowModel().rows.map((row, index) => (
+              <View
+                key={row.id}
+                style={[
+                  styles.tableRowContainer,
+                  { zIndex: table.getRowModel().rows.length - index },
+                ]}
+              >
                 <DataTableRow row={row} />
               </View>
             ))
@@ -398,6 +404,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   tableRowContainer: {
+    position: 'relative',
     borderBottomWidth: 1,
     borderBottomColor: COLORS.neutral[200],
   },
