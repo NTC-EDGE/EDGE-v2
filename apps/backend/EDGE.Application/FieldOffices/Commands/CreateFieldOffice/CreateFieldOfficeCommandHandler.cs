@@ -33,6 +33,8 @@ public class CreateFieldOfficeCommandHandler : IRequestHandler<CreateFieldOffice
             Code = request.Code.Trim().ToUpper(),
             Description = request.Description?.Trim(),
             RegionId = request.RegionId,
+            Code = request.Code ?? string.Empty,
+            CreatedAt = DateTime.UtcNow
             ProvinceId = request.ProvinceId,
             Address = request.Address.Trim(),
             ContactPhone = request.ContactPhone.Trim(),

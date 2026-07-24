@@ -35,6 +35,9 @@ public class UpdateFieldOfficeCommandHandler : IRequestHandler<UpdateFieldOffice
         fieldOffice.Code = request.Code.Trim().ToUpper();
         fieldOffice.Description = request.Description?.Trim();
         fieldOffice.RegionId = request.RegionId;
+        fieldOffice.Code = request.Code ?? fieldOffice.Code; // Retain existing code if not provided
+
+        await unitOfWork.SaveChangesAsync(cancellationToken);
         fieldOffice.ProvinceId = request.ProvinceId;
         fieldOffice.Address = request.Address.Trim();
         fieldOffice.ContactPhone = request.ContactPhone.Trim();

@@ -5,4 +5,4 @@ using EDGE.Application.Common.Models;
 
 namespace EDGE.Application.Applications.Commands.PreviewCsvImport;
 
-public record PreviewCsvImportCommand(Stream CsvStream) : IRequest<ApiResponse<CsvValidationResultDto>>;
+public record PreviewCsvImportCommand(Stream CsvStream, Guid? ServiceId = null) : IRequest<ApiResponse<CsvValidationResultDto>>;

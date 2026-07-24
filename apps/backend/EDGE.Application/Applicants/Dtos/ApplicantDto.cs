@@ -10,6 +10,14 @@ public class ApplicantDto
     public bool IsGuest { get; set; }
     public string ApplicantType { get; set; } = string.Empty;
     public ApplicantDetailDto? Details { get; set; }
+    public List<FormFieldValueDto> FormFieldValues { get; set; } = new();
+}
+
+public class FormFieldValueDto
+{
+    public Guid FieldId { get; set; }
+    public string FieldLabel { get; set; } = string.Empty;
+    public string Value { get; set; } = string.Empty;
 }
 
 public class ApplicantDetailDto

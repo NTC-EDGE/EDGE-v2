@@ -506,7 +506,7 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
         {
 #if STEP_013
             entity.HasOne(e => e.Application)
-                  .WithMany()
+                  .WithMany(a => a.FormSubmissions)
                   .HasForeignKey(e => e.ApplicationId)
                   .OnDelete(DeleteBehavior.Cascade);
 #endif
