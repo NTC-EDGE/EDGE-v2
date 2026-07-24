@@ -24,6 +24,7 @@ public interface IFormPrintingService
     byte[] PrintNtc114(Ntc114Application application);
     byte[] PrintNtc118(Ntc118Application application);
     byte[] PrintNtc120(Ntc120Application application);
+    byte[] PrintOfficialReceipt(OfficialReceiptModel? model = null);
 }
 
 public class FormPrintingService : IFormPrintingService
@@ -304,5 +305,10 @@ public class FormPrintingService : IFormPrintingService
         }
 
         throw new InvalidOperationException("Template ntc-1-24.pdf not found.");
+    }
+
+    public byte[] PrintOfficialReceipt(OfficialReceiptModel? model = null)
+    {
+        return new OfficialReceiptReport(model).GeneratePdf();
     }
 }

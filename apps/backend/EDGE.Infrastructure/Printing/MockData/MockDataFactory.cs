@@ -1110,5 +1110,55 @@ public static partial class MockDataFactory
             Declaration = declaration
         };
     }
+
+    public static OfficialReceiptModel GetOfficialReceiptModel()
+    {
+        return new OfficialReceiptModel
+        {
+            AccountableFormNo = "Accountable Form No. 51",
+            RevisionInfo = "Revised January, 1992",
+            CopyType = "DUPLICATE",
+            Date = "July 23, 2026",
+            ReceiptNo = "1521324",
+            Payor = "MARK VINCENT DE CASTRO",
+            Items = new List<OfficialReceiptItem>
+            {
+                new OfficialReceiptItem { NatureOfCollection = "Certificate Fee", Amount = 420.00m },
+                new OfficialReceiptItem { NatureOfCollection = "Documentary Stamp Tax", Amount = 30.00m },
+                new OfficialReceiptItem { NatureOfCollection = "Surcharge", Amount = 240.00m }
+            },
+            TotalAmount = 690.00m,
+            AmountInWords = "SIX HUNDRED NINETY PESOS AND ZERO CENTS",
+            SelectedPaymentType = PaymentType.Cash,
+            CollectingOfficer = "RICCI ANGELA CANTOS"
+        };
+    }
+
+    public static OfficialReceiptModel GetOfficialReceiptLandscapeModel()
+    {
+        return new OfficialReceiptModel
+        {
+            Orientation = ReceiptOrientation.Landscape,
+            AccountableFormNo = "Accountable Form No. 51",
+            RevisionInfo = "Revised January, 1992",
+            CopyType = "ORIGINAL",
+            Date = "February 18, 2026",
+            ReceiptNo = "1497771",
+            ReceiptNumberColor = "#D32F2F",
+            Payor = "JOHN RABBI BUEN SALEM",
+            Items = new List<OfficialReceiptItem>
+            {
+                new OfficialReceiptItem { NatureOfCollection = "Certificate Fee", Amount = 180.00m },
+                new OfficialReceiptItem { NatureOfCollection = "Documentary Stamp Tax", Amount = 30.00m },
+                new OfficialReceiptItem { NatureOfCollection = "Surcharge", Amount = 0.00m }
+            },
+            TotalAmount = 210.00m,
+            AmountInWords = "TWO HUNDRED AND TEN PESOS AND ZERO CENTS",
+            SelectedPaymentType = PaymentType.Cash,
+            TreasuryWarrantCheckMoneyOrderInfo = "-",
+            DateOfTreasuryWarrantCheckMoneyOrder = "February 18, 2026",
+            CollectingOfficer = "RICCI ANGELA CANTOS"
+        };
+    }
 }
 

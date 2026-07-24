@@ -12,6 +12,9 @@
     <None Update="Printing\Templates\**\*.*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Update="Printing\Assets\**\*.*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
   <ItemGroup>
@@ -34,6 +37,7 @@
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.19.2" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="QuestPDF" Version="2025.5.0" />
+    <PackageReference Include="SkiaSharp" Version="2.88.9" />
     <PackageReference Include="PdfSharp" Version="6.1.1" />
   </ItemGroup>
 

@@ -127,6 +127,41 @@ public static class FormPrintingEndpoints
         })
         .WithName("PrintNtc120Demo");
 
+        /// <summary>GET /api/forms/demo/official-receipt/blank — Blank Official Receipt Template (Portrait).</summary>
+        group.MapGet("/official-receipt/blank", (IFormPrintingService printingService) =>
+        {
+            var pdfBytes = printingService.PrintOfficialReceipt();
+            return Results.File(pdfBytes, "application/pdf", "OfficialReceipt_Portrait_BlankTemplate.pdf");
+        })
+        .WithName("PrintOfficialReceiptBlankDemo");
+
+        /// <summary>GET /api/forms/demo/official-receipt/sample — Populated Sample Official Receipt (Portrait #1521324).</summary>
+        group.MapGet("/official-receipt/sample", (IFormPrintingService printingService) =>
+        {
+            var model = MockDataFactory.GetOfficialReceiptModel();
+            var pdfBytes = printingService.PrintOfficialReceipt(model);
+            return Results.File(pdfBytes, "application/pdf", $"OfficialReceipt_Portrait_{model.ReceiptNo}.pdf");
+        })
+        .WithName("PrintOfficialReceiptSampleDemo");
+
+        /// <summary>GET /api/forms/demo/official-receipt/landscape/blank — Blank Official Receipt Template (Landscape).</summary>
+        group.MapGet("/official-receipt/landscape/blank", (IFormPrintingService printingService) =>
+        {
+            var model = new OfficialReceiptModel { Orientation = ReceiptOrientation.Landscape };
+            var pdfBytes = printingService.PrintOfficialReceipt(model);
+            return Results.File(pdfBytes, "application/pdf", "OfficialReceipt_Landscape_BlankTemplate.pdf");
+        })
+        .WithName("PrintOfficialReceiptLandscapeBlankDemo");
+
+        /// <summary>GET /api/forms/demo/official-receipt/landscape/sample — Populated Sample Official Receipt (Landscape #1497771).</summary>
+        group.MapGet("/official-receipt/landscape/sample", (IFormPrintingService printingService) =>
+        {
+            var model = MockDataFactory.GetOfficialReceiptLandscapeModel();
+            var pdfBytes = printingService.PrintOfficialReceipt(model);
+            return Results.File(pdfBytes, "application/pdf", $"OfficialReceipt_Landscape_{model.ReceiptNo}.pdf");
+        })
+        .WithName("PrintOfficialReceiptLandscapeSampleDemo");
+
         return app;
     }
 }
