@@ -1,7 +1,10 @@
 import axios from 'axios';
 import useSWR, { SWRConfiguration, SWRResponse } from 'swr';
 
+declare const process: { env: Record<string, string | undefined> };
+
 const getApiUrl = (): string => {
+
   const envUrl = process.env.EXPO_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_URL;
   if (typeof envUrl === 'string' && envUrl.length > 0) {
     return envUrl;
@@ -49,3 +52,5 @@ export function useAuthenticatedSWR<Data = unknown, Error = unknown>(
 
 
 export * from './types';
+export * from './feature/applications';
+

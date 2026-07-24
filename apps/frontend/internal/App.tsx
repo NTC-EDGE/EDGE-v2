@@ -126,12 +126,7 @@ const UnauthNavigation = createStaticNavigation(UnauthStack);
 const AuthNavigation = createStaticNavigation(AuthStack);
 
 const getPrefixes = (): string[] => {
-  const prefixes = [
-    "http://localhost:8081",
-    "http://localhost:8082",
-    "http://localhost:8083",
-    "edge://",
-  ];
+  const prefixes = ["edge://"];
   if (
     typeof window !== "undefined" &&
     window.location !== undefined &&

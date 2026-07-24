@@ -218,9 +218,13 @@ export function InternalLoginPage() {
         ? domain.replace(".clerk.accounts.dev", ".accounts.dev")
         : domain;
       
-      const currentOrigin = Platform.OS === "web" && typeof window !== "undefined" && window.location !== undefined && typeof window.location.origin === "string"
-        ? window.location.origin + window.location.pathname
-        : "http://localhost:8081/internal/login";
+      const currentOrigin =
+        Platform.OS === "web" &&
+        typeof window !== "undefined" &&
+        window.location !== undefined &&
+        typeof window.location.origin === "string"
+          ? window.location.origin + window.location.pathname
+          : "edge://internal/login";
         
       const signInUrl = `https://${portalDomain}/sign-in?redirect_url=${encodeURIComponent(currentOrigin)}`;
       
