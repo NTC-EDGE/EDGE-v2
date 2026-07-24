@@ -1,187 +1,199 @@
 using System.Collections.Generic;
 using EDGE.Infrastructure.Printing.Models;
+using EDGE.Infrastructure.Printing.Services.Fields;
 
 namespace EDGE.Infrastructure.Printing.Services;
 
 /// <summary>
-/// Maps Ntc104Application (NTC 1-04) onto coordinate positions (X, Y in points)
-/// for flat PDF templates using PdfSharp XGraphics overlay.
-///
-/// Page size: 595.2 x 841.8 pt (A4). Y is top-down, matching PdfSharp XGraphics' default convention.
-/// Coordinates measured directly from ntc-1-04.pdf template vector geometry.
+/// Declarative field overlay mapper for NTC Form 1-04 (Application for Ship Radio Station License).
 /// </summary>
 public static class Ntc104FlatPdfOverlayMapper
 {
-    private const double RegularCharWidthFactor = 0.52;
-    private const double BoldCharWidthFactor = 0.62;
-
-    private static double EstimateTextWidth(string text, double fontSize, bool isBold)
+    public static IReadOnlyList<FieldOverlay> MapToFieldOverlays(Ntc104Application app)
     {
-        if (string.IsNullOrEmpty(text)) return 0;
-        return text.Length * fontSize * (isBold ? BoldCharWidthFactor : RegularCharWidthFactor);
-    }
-
-    private static double CenterX(double boxLeft, double boxRight, string text, double fontSize, bool isBold)
-    {
-        double width = EstimateTextWidth(text, fontSize, isBold);
-        double boxCenter = (boxLeft + boxRight) / 2.0;
-        return boxCenter - (width / 2.0);
-    }
-
-    public static List<TextOverlayItem> MapToOverlayItems(Ntc104Application app)
-    {
-        var items = new List<TextOverlayItem>();
+        var items = new List<FieldOverlay>();
 
         // 1. TYPE OF APPLICATION
-        // Checkbox column x: 61.22 - 85.62
-        (double top, double bottom) actionBox = app.TypeOfApplication switch
+        var actionField = app.TypeOfApplication switch
         {
-            TypeOfApplication.New => (210.25, 225.45),
-            TypeOfApplication.Renewal => (225.25, 240.45),
-            TypeOfApplication.Modification => (240.25, 255.45),
-            _ => (210.25, 225.45)
+            TypeOfApplication.New => Ntc104Fields.TypeOfApplication.New,
+            TypeOfApplication.Renewal => Ntc104Fields.TypeOfApplication.Renewal,
+            TypeOfApplication.Modification => Ntc104Fields.TypeOfApplication.Modification,
+            _ => Ntc104Fields.TypeOfApplication.New
         };
-        double actionCheckX = CenterX(61.22, 85.62, "✔", 9, true);
-        double actionCheckY = (actionBox.top + actionBox.bottom) / 2.0;
-        items.Add(new TextOverlayItem { X = actionCheckX, Y = actionCheckY, Text = "✔", FontSize = 9, IsBold = true });
+        items.Add(new CheckboxFieldOverlay(actionField, true));
 
         if (app.TypeOfApplication == TypeOfApplication.Modification && !string.IsNullOrWhiteSpace(app.ModificationReason))
         {
-            items.Add(new TextOverlayItem { X = 89, Y = 266.0, Text = app.ModificationReason, FontSize = 8 });
+            items.Add(new TextFieldOverlay(Ntc104Fields.TypeOfApplication.ModificationReason, app.ModificationReason));
         }
 
         if (app.NoOfYears.HasValue)
         {
-            string yearsTxt = app.NoOfYears.Value.ToString();
-            double yearsX = CenterX(109.62, 134.04, yearsTxt, 8, true);
-            items.Add(new TextOverlayItem { X = yearsX, Y = 292.87, Text = yearsTxt, FontSize = 8, IsBold = true });
+            items.Add(new TextFieldOverlay(Ntc104Fields.TypeOfApplication.NoOfYears, app.NoOfYears.Value.ToString()));
         }
 
         // 2. TYPE OF PERMIT / LICENSE / CERTIFICATE
-        // Checkbox column x: 327.50 - 351.92
-        (double top, double bottom) permitCertBox = app.TypeOfPermitLicenseCert switch
+        var permitCertField = app.TypeOfPermitLicenseCert switch
         {
-            TypeOfPermitLicenseCert104.ShipStationLicense => (210.25, 225.45),
-            TypeOfPermitLicenseCert104.ShipEarthStationLicense => (225.25, 240.45),
-            TypeOfPermitLicenseCert104.CargoShipSafetyRadioCertificate => (240.25, 255.45),
-            TypeOfPermitLicenseCert104.TemporaryPermit => (255.25, 270.45),
-            TypeOfPermitLicenseCert104.FerryingPermit => (270.26, 285.48),
-            _ => (210.25, 225.45)
+            TypeOfPermitLicenseCert104.ShipStationLicense => Ntc104Fields.TypeOfPermitLicenseCert.ShipStationLicense,
+            TypeOfPermitLicenseCert104.ShipEarthStationLicense => Ntc104Fields.TypeOfPermitLicenseCert.ShipEarthStationLicense,
+            TypeOfPermitLicenseCert104.CargoShipSafetyRadioCertificate => Ntc104Fields.TypeOfPermitLicenseCert.CargoShipSafetyRadioCertificate,
+            TypeOfPermitLicenseCert104.TemporaryPermit => Ntc104Fields.TypeOfPermitLicenseCert.TemporaryPermit,
+            TypeOfPermitLicenseCert104.FerryingPermit => Ntc104Fields.TypeOfPermitLicenseCert.FerryingPermit,
+            _ => Ntc104Fields.TypeOfPermitLicenseCert.ShipStationLicense
         };
-        double permitCertCheckX = CenterX(327.50, 351.92, "✔", 9, true);
-        double permitCertCheckY = (permitCertBox.top + permitCertBox.bottom) / 2.0;
-        items.Add(new TextOverlayItem { X = permitCertCheckX, Y = permitCertCheckY, Text = "✔", FontSize = 9, IsBold = true });
+        items.Add(new CheckboxFieldOverlay(permitCertField, true));
 
-        // Vessel Category (Ship 351.73-376.13, Aircraft 466.75-491.17, Others 327.50-351.92 y=300.27)
-        (double left, double right, double top, double bottom) vesselBox = app.VesselCategory switch
+        // Vessel Category
+        var vesselField = app.VesselCategory switch
         {
-            VesselCategory.Ship => (351.73, 376.13, 285.27, 300.47),
-            VesselCategory.Aircraft => (466.75, 491.17, 285.27, 300.47),
-            VesselCategory.Others => (327.50, 351.92, 300.27, 315.47),
-            _ => (351.73, 376.13, 285.27, 300.47)
+            VesselCategory.Ship => Ntc104Fields.TypeOfPermitLicenseCert.VesselShip,
+            VesselCategory.Aircraft => Ntc104Fields.TypeOfPermitLicenseCert.VesselAircraft,
+            VesselCategory.Others => Ntc104Fields.TypeOfPermitLicenseCert.VesselOthers,
+            _ => Ntc104Fields.TypeOfPermitLicenseCert.VesselShip
         };
-        double vesselCheckX = CenterX(vesselBox.left, vesselBox.right, "✔", 9, true);
-        double vesselCheckY = (vesselBox.top + vesselBox.bottom) / 2.0;
-        items.Add(new TextOverlayItem { X = vesselCheckX, Y = vesselCheckY, Text = "✔", FontSize = 9, IsBold = true });
+        items.Add(new CheckboxFieldOverlay(vesselField, true));
 
         if (app.VesselCategory == VesselCategory.Others && !string.IsNullOrWhiteSpace(app.OtherVesselCategoryDetails))
         {
-            items.Add(new TextOverlayItem { X = 356, Y = 326.0, Text = app.OtherVesselCategoryDetails, FontSize = 8 });
+            items.Add(new TextFieldOverlay(Ntc104Fields.TypeOfPermitLicenseCert.OtherVesselCategoryDetails, app.OtherVesselCategoryDetails));
         }
 
-        // Trading Route (Domestic 206.48-230.88 y=300.27, International 206.48-230.88 y=315.27)
-        (double top, double bottom) routeBox = app.TradingRoute == TradingRoute.Domestic ? (300.27, 315.47) : (315.27, 330.47);
-        double routeCheckX = CenterX(206.48, 230.88, "✔", 9, true);
-        double routeCheckY = (routeBox.top + routeBox.bottom) / 2.0;
-        items.Add(new TextOverlayItem { X = routeCheckX, Y = routeCheckY, Text = "✔", FontSize = 9, IsBold = true });
+        // Trading Route
+        var routeField = app.TradingRoute == TradingRoute.Domestic ? Ntc104Fields.TypeOfPermitLicenseCert.RouteDomestic : Ntc104Fields.TypeOfPermitLicenseCert.RouteInternational;
+        items.Add(new CheckboxFieldOverlay(routeField, true));
 
         // 3. APPLICANT'S DETAILS
         var a = app.Applicant;
-        items.Add(new TextOverlayItem { X = 114, Y = 359.0, Text = a.Name, FontSize = 8, IsBold = true });
+        items.Add(new TextFieldOverlay(Ntc104Fields.Applicant.Name, a.Name));
 
-        items.Add(new TextOverlayItem { X = 114, Y = 374.0, Text = a.Address.UnitRoomBldgNo, FontSize = 8 });
-        items.Add(new TextOverlayItem { X = 380, Y = 374.0, Text = a.Address.Street, FontSize = 8 });
+        items.Add(new TextFieldOverlay(Ntc104Fields.Applicant.UnitRoomBldgNo, a.Address.UnitRoomBldgNo));
+        items.Add(new TextFieldOverlay(Ntc104Fields.Applicant.Street, a.Address.Street));
 
-        items.Add(new TextOverlayItem { X = 114, Y = 389.0, Text = a.Address.Barangay, FontSize = 8 });
-        items.Add(new TextOverlayItem { X = 380, Y = 388.0, Text = a.Address.CityMunicipality, FontSize = 8 });
+        items.Add(new TextFieldOverlay(Ntc104Fields.Applicant.Barangay, a.Address.Barangay));
+        items.Add(new TextFieldOverlay(Ntc104Fields.Applicant.CityMunicipality, a.Address.CityMunicipality));
 
-        items.Add(new TextOverlayItem { X = 114, Y = 404.0, Text = a.Address.Province, FontSize = 8 });
-        items.Add(new TextOverlayItem { X = 380, Y = 404.0, Text = a.Address.ZipCode, FontSize = 8 });
+        items.Add(new TextFieldOverlay(Ntc104Fields.Applicant.Province, a.Address.Province));
+        items.Add(new TextFieldOverlay(Ntc104Fields.Applicant.ZipCode, a.Address.ZipCode));
 
-        items.Add(new TextOverlayItem { X = 114, Y = 419.0, Text = a.ContactNumber, FontSize = 8 });
-        items.Add(new TextOverlayItem { X = 380, Y = 419.0, Text = a.Email, FontSize = 8 });
+        items.Add(new TextFieldOverlay(Ntc104Fields.Applicant.ContactNumber, a.ContactNumber));
+        items.Add(new TextFieldOverlay(Ntc104Fields.Applicant.Email, a.Email));
 
         // 4. SHIP DETAILS
         var sh = app.ShipDetails;
-        items.Add(new TextOverlayItem { X = 114, Y = 449.0, Text = sh.NameOfShipVessel, FontSize = 8, IsBold = true });
-        items.Add(new TextOverlayItem { X = 447, Y = 449.0, Text = sh.CallSign, FontSize = 8, IsBold = true });
+        items.Add(new TextFieldOverlay(Ntc104Fields.ShipDetails.NameOfShipVessel, sh.NameOfShipVessel));
+        items.Add(new TextFieldOverlay(Ntc104Fields.ShipDetails.CallSign, sh.CallSign));
 
-        items.Add(new TextOverlayItem { X = 114, Y = 464.0, Text = sh.MmsiNo, FontSize = 8 });
-        items.Add(new TextOverlayItem { X = 447, Y = 464.0, Text = sh.StationLicenseNo, FontSize = 8 });
+        items.Add(new TextFieldOverlay(Ntc104Fields.ShipDetails.MmsiNo, sh.MmsiNo));
+        items.Add(new TextFieldOverlay(Ntc104Fields.ShipDetails.StationLicenseNo, sh.StationLicenseNo));
 
-        items.Add(new TextOverlayItem { X = 114, Y = 479.0, Text = sh.ImoNo, FontSize = 8 });
-        items.Add(new TextOverlayItem { X = 447, Y = 479.0, Text = sh.Validity != default ? sh.Validity.ToString("MM/dd/yy") : "", FontSize = 8 });
+        items.Add(new TextFieldOverlay(Ntc104Fields.ShipDetails.ImoNo, sh.ImoNo));
+        if (sh.Validity != default)
+        {
+            items.Add(new TextFieldOverlay(Ntc104Fields.ShipDetails.Validity, sh.Validity.ToString("MM/dd/yy")));
+        }
 
-        // 5. PARTICULARS OF EQUIPMENT (Up to 5 rows)
-        double[] eqRowY = { 527.0, 542.0, 557.0, 572.0, 587.0 };
+        // 5. PARTICULARS OF EQUIPMENT
         for (int i = 0; i < app.Equipment.Count && i < 5; i++)
         {
             var eq = app.Equipment[i];
-            double y = eqRowY[i];
+            var (radioField, makeField, typeField, serialField, powerField) = i switch
+            {
+                0 => (Ntc104Fields.Equipment.RadioEquipmentRow1, Ntc104Fields.Equipment.MakeRow1, Ntc104Fields.Equipment.TypeModelRow1, Ntc104Fields.Equipment.SerialNumberRow1, Ntc104Fields.Equipment.PowerOutputRow1),
+                1 => (Ntc104Fields.Equipment.RadioEquipmentRow2, Ntc104Fields.Equipment.MakeRow2, Ntc104Fields.Equipment.TypeModelRow2, Ntc104Fields.Equipment.SerialNumberRow2, Ntc104Fields.Equipment.PowerOutputRow2),
+                2 => (Ntc104Fields.Equipment.RadioEquipmentRow3, Ntc104Fields.Equipment.MakeRow3, Ntc104Fields.Equipment.TypeModelRow3, Ntc104Fields.Equipment.SerialNumberRow3, Ntc104Fields.Equipment.PowerOutputRow3),
+                3 => (Ntc104Fields.Equipment.RadioEquipmentRow4, Ntc104Fields.Equipment.MakeRow4, Ntc104Fields.Equipment.TypeModelRow4, Ntc104Fields.Equipment.SerialNumberRow4, Ntc104Fields.Equipment.PowerOutputRow4),
+                _ => (Ntc104Fields.Equipment.RadioEquipmentRow5, Ntc104Fields.Equipment.MakeRow5, Ntc104Fields.Equipment.TypeModelRow5, Ntc104Fields.Equipment.SerialNumberRow5, Ntc104Fields.Equipment.PowerOutputRow5)
+            };
 
-            items.Add(new TextOverlayItem { X = 16, Y = y, Text = eq.RadioEquipment, FontSize = 8 });
-            items.Add(new TextOverlayItem { X = 114, Y = y, Text = eq.Make, FontSize = 8 });
-            items.Add(new TextOverlayItem { X = 235, Y = y, Text = eq.TypeModel, FontSize = 8 });
-            items.Add(new TextOverlayItem { X = 356, Y = y, Text = eq.SerialNumber, FontSize = 8 });
-            items.Add(new TextOverlayItem { X = 495, Y = y, Text = eq.PowerOutput, FontSize = 8 });
+            items.Add(new TextFieldOverlay(radioField, eq.RadioEquipment));
+            items.Add(new TextFieldOverlay(makeField, eq.Make));
+            items.Add(new TextFieldOverlay(typeField, eq.TypeModel));
+            items.Add(new TextFieldOverlay(serialField, eq.SerialNumber));
+            items.Add(new TextFieldOverlay(powerField, eq.PowerOutput));
         }
 
-        // 6. PARTICULARS OF OPERATORS (Up to 2 operators side by side)
+        // 6. PARTICULARS OF OPERATORS
         if (app.Operators.Count > 0)
         {
             var op1 = app.Operators[0];
-            items.Add(new TextOverlayItem { X = 138, Y = 617.0, Text = op1.Name, FontSize = 8 });
-            items.Add(new TextOverlayItem { X = 138, Y = 632.0, Text = op1.CertificateNumber, FontSize = 8 });
-            items.Add(new TextOverlayItem { X = 138, Y = 646.0, Text = op1.Validity != default ? op1.Validity.ToString("MM/dd/yy") : "", FontSize = 8 });
+            items.Add(new TextFieldOverlay(Ntc104Fields.Operators.Op1Name, op1.Name));
+            items.Add(new TextFieldOverlay(Ntc104Fields.Operators.Op1CertNo, op1.CertificateNumber));
+            if (op1.Validity != default)
+            {
+                items.Add(new TextFieldOverlay(Ntc104Fields.Operators.Op1Validity, op1.Validity.ToString("MM/dd/yy")));
+            }
         }
         if (app.Operators.Count > 1)
         {
             var op2 = app.Operators[1];
-            items.Add(new TextOverlayItem { X = 356, Y = 617.0, Text = op2.Name, FontSize = 8 });
-            items.Add(new TextOverlayItem { X = 356, Y = 632.0, Text = op2.CertificateNumber, FontSize = 8 });
-            items.Add(new TextOverlayItem { X = 356, Y = 646.0, Text = op2.Validity != default ? op2.Validity.ToString("MM/dd/yy") : "", FontSize = 8 });
+            items.Add(new TextFieldOverlay(Ntc104Fields.Operators.Op2Name, op2.Name));
+            items.Add(new TextFieldOverlay(Ntc104Fields.Operators.Op2CertNo, op2.CertificateNumber));
+            if (op2.Validity != default)
+            {
+                items.Add(new TextFieldOverlay(Ntc104Fields.Operators.Op2Validity, op2.Validity.ToString("MM/dd/yy")));
+            }
         }
 
         // 7. DECLARATION & SIGNATURE
         if (!string.IsNullOrWhiteSpace(app.Declaration.SignatoryName))
         {
-            double sigX = CenterX(61.6, 302.8, app.Declaration.SignatoryName, 8, true);
-            items.Add(new TextOverlayItem { X = sigX, Y = 737.0, Text = app.Declaration.SignatoryName, FontSize = 8, IsBold = true });
+            items.Add(new TextFieldOverlay(Ntc104Fields.Declaration.SignatoryName, app.Declaration.SignatoryName));
         }
         if (app.Declaration.DateAccomplished != default)
         {
-            string dateAccomplishedText = app.Declaration.DateAccomplished.ToString("MM/dd/yyyy");
-            double dateX = CenterX(110.1, 254.4, dateAccomplishedText, 8, false);
-            items.Add(new TextOverlayItem { X = dateX, Y = 776.0, Text = dateAccomplishedText, FontSize = 8 });
+            items.Add(new TextFieldOverlay(Ntc104Fields.Declaration.DateAccomplished, app.Declaration.DateAccomplished.ToString("MM/dd/yyyy")));
         }
 
-        // 8. OFFICIAL RECEIPT BOX (x: 375.1 - 544.5, y: 710.0 - 791.7)
+        // 8. OFFICIAL RECEIPT BOX
         if (app.Payment != null)
         {
-            items.Add(new TextOverlayItem { X = 455, Y = 729.0, Text = app.Payment.OrNo, FontSize = 8 });
+            items.Add(new TextFieldOverlay(Ntc104Fields.Payment.OrNo, app.Payment.OrNo));
             if (app.Payment.OrDate != default)
             {
-                items.Add(new TextOverlayItem { X = 459, Y = 740.0, Text = app.Payment.OrDate.ToString("MM/dd"), FontSize = 8 });
-                items.Add(new TextOverlayItem { X = 528, Y = 740.0, Text = app.Payment.OrDate.ToString("yy"), FontSize = 8 });
+                items.Add(new TextFieldOverlay(Ntc104Fields.Payment.OrDateMonthDay, app.Payment.OrDate.ToString("MM/dd")));
+                items.Add(new TextFieldOverlay(Ntc104Fields.Payment.OrDateYear, app.Payment.OrDate.ToString("yy")));
             }
-            items.Add(new TextOverlayItem { X = 445, Y = 751.0, Text = $"PHP {app.Payment.Amount:N2}", FontSize = 8 });
+            items.Add(new TextFieldOverlay(Ntc104Fields.Payment.Amount, $"PHP {app.Payment.Amount:N2}"));
             if (!string.IsNullOrWhiteSpace(app.Payment.CollectingOfficer))
             {
-                double officerX = CenterX(420.0, 530.0, app.Payment.CollectingOfficer, 8, false);
-                items.Add(new TextOverlayItem { X = officerX, Y = 771.0, Text = app.Payment.CollectingOfficer, FontSize = 8 });
+                items.Add(new TextFieldOverlay(Ntc104Fields.Payment.CollectingOfficer, app.Payment.CollectingOfficer));
             }
         }
 
+        return items;
+    }
+
+    // Backward-compatible adapter method
+    public static List<TextOverlayItem> MapToOverlayItems(Ntc104Application app)
+    {
+        var items = new List<TextOverlayItem>();
+        foreach (var fieldOverlay in MapToFieldOverlays(app))
+        {
+            if (fieldOverlay is TextFieldOverlay text)
+            {
+                items.Add(new TextOverlayItem
+                {
+                    X = text.Field.X,
+                    Y = text.Field.Y,
+                    Text = text.Text,
+                    FontSize = text.Field.FontSize,
+                    IsBold = text.Field.IsBold
+                });
+            }
+            else if (fieldOverlay is CheckboxFieldOverlay check && check.IsChecked)
+            {
+                items.Add(new TextOverlayItem
+                {
+                    X = check.Field.X,
+                    Y = check.Field.Y,
+                    Text = "✔",
+                    FontSize = check.Field.FontSize,
+                    IsBold = check.Field.IsBold
+                });
+            }
+        }
         return items;
     }
 }

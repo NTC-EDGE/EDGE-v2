@@ -46,8 +46,8 @@ public class FormPrintingService : IFormPrintingService
             var template = _fillerService.GetTemplate(templateName);
             if (template != null)
             {
-                var overlayItems = Ntc111FlatPdfOverlayMapper.MapToOverlayItems(application);
-                return _fillerService.OverlayText(template, overlayItems);
+                var overlays = Ntc111FlatPdfOverlayMapper.MapToFieldOverlays(application);
+                return _fillerService.OverlayFields(template, overlays);
             }
         }
 
@@ -62,8 +62,8 @@ public class FormPrintingService : IFormPrintingService
             var template = _fillerService.GetTemplate(templateName);
             if (template != null)
             {
-                var overlayItems = Ntc109FlatPdfOverlayMapper.MapToOverlayItems(application);
-                return _fillerService.OverlayText(template, overlayItems);
+                var overlays = Ntc109FlatPdfOverlayMapper.MapToFieldOverlays(application);
+                return _fillerService.OverlayFields(template, overlays);
             }
         }
 
@@ -78,8 +78,8 @@ public class FormPrintingService : IFormPrintingService
             var template = _fillerService.GetTemplate(templateName);
             if (template != null)
             {
-                var overlayItems = Ntc119FlatPdfOverlayMapper.MapToOverlayItems(application);
-                return _fillerService.OverlayText(template, overlayItems);
+                var overlays = Ntc119FlatPdfOverlayMapper.MapToFieldOverlays(application);
+                return _fillerService.OverlayFields(template, overlays);
             }
         }
 
@@ -94,8 +94,8 @@ public class FormPrintingService : IFormPrintingService
             var template = _fillerService.GetTemplate(templateName);
             if (template != null)
             {
-                var overlayItems = Ntc101FlatPdfOverlayMapper.MapToOverlayItems(application);
-                return _fillerService.OverlayText(template, overlayItems);
+                var overlays = Ntc101FlatPdfOverlayMapper.MapToFieldOverlays(application);
+                return _fillerService.OverlayFields(template, overlays);
             }
         }
 
@@ -111,8 +111,8 @@ public class FormPrintingService : IFormPrintingService
             var template = _fillerService.GetTemplate(templateName);
             if (template != null)
             {
-                var overlayItems = Ntc102FlatPdfOverlayMapper.MapToOverlayItems(application);
-                return _fillerService.OverlayText(template, overlayItems);
+                var overlays = Ntc102FlatPdfOverlayMapper.MapToFieldOverlays(application);
+                return _fillerService.OverlayFields(template, overlays);
             }
         }
 
@@ -133,8 +133,8 @@ public class FormPrintingService : IFormPrintingService
             var template = _fillerService.GetTemplate(templateName);
             if (template != null)
             {
-                var overlayItems = Ntc103FlatPdfOverlayMapper.MapToOverlayItems(application);
-                return _fillerService.OverlayText(template, overlayItems);
+                var overlays = Ntc103FlatPdfOverlayMapper.MapToFieldOverlays(application);
+                return _fillerService.OverlayFields(template, overlays);
             }
         }
 
@@ -155,8 +155,8 @@ public class FormPrintingService : IFormPrintingService
             var template = _fillerService.GetTemplate(templateName);
             if (template != null)
             {
-                var overlayItems = Ntc104FlatPdfOverlayMapper.MapToOverlayItems(application);
-                return _fillerService.OverlayText(template, overlayItems);
+                var overlays = Ntc104FlatPdfOverlayMapper.MapToFieldOverlays(application);
+                return _fillerService.OverlayFields(template, overlays);
             }
         }
 
@@ -177,8 +177,8 @@ public class FormPrintingService : IFormPrintingService
             var template = _fillerService.GetTemplate(templateName);
             if (template != null)
             {
-                var overlayItems = Ntc105FlatPdfOverlayMapper.MapToOverlayItems(application);
-                return _fillerService.OverlayText(template, overlayItems);
+                var overlays = Ntc105FlatPdfOverlayMapper.MapToFieldOverlays(application);
+                return _fillerService.OverlayFields(template, overlays);
             }
         }
 
@@ -201,8 +201,8 @@ public class FormPrintingService : IFormPrintingService
             var template = _fillerService.GetTemplate(templateName);
             if (template != null)
             {
-                var overlayItems = Ntc110FlatPdfOverlayMapper.MapToOverlayItems(application);
-                return _fillerService.OverlayText(template, overlayItems);
+                var overlays = Ntc110FlatPdfOverlayMapper.MapToFieldOverlays(application);
+                return _fillerService.OverlayFields(template, overlays);
             }
         }
 
@@ -218,8 +218,8 @@ public class FormPrintingService : IFormPrintingService
             var template = _fillerService.GetTemplate(templateName);
             if (template != null)
             {
-                var overlayItems = Ntc114FlatPdfOverlayMapper.MapToOverlayItems(application);
-                return _fillerService.OverlayText(template, overlayItems);
+                var overlays = Ntc114FlatPdfOverlayMapper.MapToFieldOverlays(application);
+                return _fillerService.OverlayFields(template, overlays);
             }
         }
 
@@ -234,8 +234,8 @@ public class FormPrintingService : IFormPrintingService
             var template = _fillerService.GetTemplate(templateName);
             if (template != null)
             {
-                var overlayItems = Ntc118FlatPdfOverlayMapper.MapToOverlayItems(application);
-                return _fillerService.OverlayText(template, overlayItems);
+                var overlays = Ntc118FlatPdfOverlayMapper.MapToFieldOverlays(application);
+                return _fillerService.OverlayFields(template, overlays);
             }
         }
 

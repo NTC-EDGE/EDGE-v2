@@ -1,54 +1,31 @@
-using System;
 using System.Collections.Generic;
 using EDGE.Infrastructure.Printing.Models;
+using EDGE.Infrastructure.Printing.Services.Fields;
 
 namespace EDGE.Infrastructure.Printing.Services;
 
+/// <summary>
+/// Declarative field overlay mapper for NTC Form 1-18 (Commercial RCE & Mobile Phone Permits).
+/// </summary>
 public static class Ntc118FlatPdfOverlayMapper
 {
-    private const string CheckmarkChar = "\u2714";
-
-    // Calibrated against actual glyph widths measured from a rendered sample
-    // overlay (see Declaration.SignatoryName / Payment.CollectingOfficer /
-    // Declaration.DateAccomplished). The previous bold factor (0.62)
-    // overestimated bold text width by ~20%, which pushed centered fields
-    // like the signatory name ~8.5pt left of the true box center.
-    private const double RegularCharWidthFactor = 0.50;
-    private const double BoldCharWidthFactor = 0.515;
-
-    private static double EstimateTextWidth(string text, double fontSize, bool isBold)
+    public static IReadOnlyList<FieldOverlay> MapToFieldOverlays(Ntc118Application app)
     {
-        if (string.IsNullOrEmpty(text)) return 0;
-        return text.Length * fontSize * (isBold ? BoldCharWidthFactor : RegularCharWidthFactor);
-    }
-
-    private static double CenterX(double boxLeft, double boxRight, string text, double fontSize, bool isBold)
-    {
-        double width = EstimateTextWidth(text, fontSize, isBold);
-        double boxCenter = (boxLeft + boxRight) / 2.0;
-        return boxCenter - (width / 2.0);
-    }
-
-    public static List<TextOverlayItem> MapToOverlayItems(Ntc118Application app)
-    {
-        var items = new List<TextOverlayItem>();
+        var items = new List<FieldOverlay>();
 
         // 1. TYPE OF APPLICATION
-        switch (app.TypeOfApplication)
+        var actionField = app.TypeOfApplication switch
         {
-            case TypeOfApplication.New:
-                items.Add(new TextOverlayItem { X = 87.3, Y = 249.4, Text = CheckmarkChar, FontSize = 10, IsBold = true });
-                break;
-            case TypeOfApplication.Renewal:
-                items.Add(new TextOverlayItem { X = 87.3, Y = 264.4, Text = CheckmarkChar, FontSize = 10, IsBold = true });
-                break;
-            case TypeOfApplication.Modification:
-                items.Add(new TextOverlayItem { X = 87.3, Y = 279.4, Text = CheckmarkChar, FontSize = 10, IsBold = true });
-                if (!string.IsNullOrWhiteSpace(app.ModificationReason))
-                {
-                    items.Add(new TextOverlayItem { X = 101.0, Y = 299.8, Text = app.ModificationReason, FontSize = 7.5 });
-                }
-                break;
+            TypeOfApplication.New => Ntc118Fields.TypeOfApplication.New,
+            TypeOfApplication.Renewal => Ntc118Fields.TypeOfApplication.Renewal,
+            TypeOfApplication.Modification => Ntc118Fields.TypeOfApplication.Modification,
+            _ => Ntc118Fields.TypeOfApplication.New
+        };
+        items.Add(new CheckboxFieldOverlay(actionField, true));
+
+        if (app.TypeOfApplication == TypeOfApplication.Modification && !string.IsNullOrWhiteSpace(app.ModificationReason))
+        {
+            items.Add(new TextFieldOverlay(Ntc118Fields.TypeOfApplication.ModificationReason, app.ModificationReason));
         }
 
         // PERMIT CATEGORY SELECTION
@@ -56,125 +33,96 @@ public static class Ntc118FlatPdfOverlayMapper
         if (pc != null)
         {
             // Radio Communications Equipment (RCE)
-            if (pc.RceCategory) items.Add(new TextOverlayItem { X = 295.4, Y = 249.4, Text = CheckmarkChar, FontSize = 10, IsBold = true });
-            if (pc.RceDealer) items.Add(new TextOverlayItem { X = 318.4, Y = 264.4, Text = CheckmarkChar, FontSize = 10, IsBold = true });
-            if (pc.RceDealerTransceiver) items.Add(new TextOverlayItem { X = 341.4, Y = 279.4, Text = CheckmarkChar, FontSize = 10, IsBold = true });
-            if (pc.RceDealerWdnIndoorSrdRfid) items.Add(new TextOverlayItem { X = 341.4, Y = 294.4, Text = CheckmarkChar, FontSize = 10, IsBold = true });
-            if (pc.RceManufacturer) items.Add(new TextOverlayItem { X = 318.4, Y = 309.4, Text = CheckmarkChar, FontSize = 10, IsBold = true });
-            if (pc.RceServiceCenter) items.Add(new TextOverlayItem { X = 318.4, Y = 324.4, Text = CheckmarkChar, FontSize = 10, IsBold = true });
+            if (pc.RceCategory) items.Add(new CheckboxFieldOverlay(Ntc118Fields.PermitCategory.RceCategory, true));
+            if (pc.RceDealer) items.Add(new CheckboxFieldOverlay(Ntc118Fields.PermitCategory.RceDealer, true));
+            if (pc.RceDealerTransceiver) items.Add(new CheckboxFieldOverlay(Ntc118Fields.PermitCategory.RceDealerTransceiver, true));
+            if (pc.RceDealerWdnIndoorSrdRfid) items.Add(new CheckboxFieldOverlay(Ntc118Fields.PermitCategory.RceDealerWdnIndoorSrdRfid, true));
+            if (pc.RceManufacturer) items.Add(new CheckboxFieldOverlay(Ntc118Fields.PermitCategory.RceManufacturer, true));
+            if (pc.RceServiceCenter) items.Add(new CheckboxFieldOverlay(Ntc118Fields.PermitCategory.RceServiceCenter, true));
 
             // Mobile Phone
-            if (pc.MobilePhoneCategory) items.Add(new TextOverlayItem { X = 295.4, Y = 339.4, Text = CheckmarkChar, FontSize = 10, IsBold = true });
-            if (pc.MpDealer) items.Add(new TextOverlayItem { X = 318.4, Y = 354.4, Text = CheckmarkChar, FontSize = 10, IsBold = true });
-            if (pc.MpRetailerReseller) items.Add(new TextOverlayItem { X = 318.4, Y = 369.4, Text = CheckmarkChar, FontSize = 10, IsBold = true });
-            if (pc.MpServiceCenter) items.Add(new TextOverlayItem { X = 318.4, Y = 384.4, Text = CheckmarkChar, FontSize = 10, IsBold = true });
+            if (pc.MobilePhoneCategory) items.Add(new CheckboxFieldOverlay(Ntc118Fields.PermitCategory.MobilePhoneCategory, true));
+            if (pc.MpDealer) items.Add(new CheckboxFieldOverlay(Ntc118Fields.PermitCategory.MpDealer, true));
+            if (pc.MpRetailerReseller) items.Add(new CheckboxFieldOverlay(Ntc118Fields.PermitCategory.MpRetailerReseller, true));
+            if (pc.MpServiceCenter) items.Add(new CheckboxFieldOverlay(Ntc118Fields.PermitCategory.MpServiceCenter, true));
 
             // CPE Supplier Accreditation
-            if (pc.CpeSupplierAccreditation) items.Add(new TextOverlayItem { X = 295.4, Y = 399.4, Text = CheckmarkChar, FontSize = 10, IsBold = true });
+            if (pc.CpeSupplierAccreditation) items.Add(new CheckboxFieldOverlay(Ntc118Fields.PermitCategory.CpeSupplierAccreditation, true));
         }
 
         // 2. APPLICANT'S DETAILS
         if (!string.IsNullOrWhiteSpace(app.Applicant.Name))
-            items.Add(new TextOverlayItem { X = 123.0, Y = 440.0, Text = app.Applicant.Name, FontSize = 8, IsBold = true });
+            items.Add(new TextFieldOverlay(Ntc118Fields.Applicant.Name, app.Applicant.Name));
 
-        // Shared EntityType
-        switch (app.Applicant.TypeOfEntity)
+        var entityField = app.Applicant.TypeOfEntity switch
         {
-            case EntityType.Corporation:
-                items.Add(new TextOverlayItem { X = 185.0, Y = 467.2, Text = CheckmarkChar, FontSize = 10, IsBold = true });
-                break;
-            case EntityType.SingleProprietorship:
-                items.Add(new TextOverlayItem { X = 185.0, Y = 482.2, Text = CheckmarkChar, FontSize = 10, IsBold = true });
-                break;
-            case EntityType.Partnership:
-                items.Add(new TextOverlayItem { X = 392.0, Y = 467.2, Text = CheckmarkChar, FontSize = 10, IsBold = true });
-                break;
-            case EntityType.Other:
-                items.Add(new TextOverlayItem { X = 392.0, Y = 482.2, Text = CheckmarkChar, FontSize = 10, IsBold = true });
-                if (!string.IsNullOrWhiteSpace(app.EntityTypeOther))
-                {
-                    items.Add(new TextOverlayItem { X = 402.0, Y = 485.0, Text = app.EntityTypeOther, FontSize = 7.5 });
-                }
-                break;
+            EntityType.Corporation => Ntc118Fields.Applicant.Corporation,
+            EntityType.SingleProprietorship => Ntc118Fields.Applicant.SingleProprietorship,
+            EntityType.Partnership => Ntc118Fields.Applicant.Partnership,
+            EntityType.Other => Ntc118Fields.Applicant.OtherEntity,
+            _ => Ntc118Fields.Applicant.Corporation
+        };
+        items.Add(new CheckboxFieldOverlay(entityField, true));
+
+        if (app.Applicant.TypeOfEntity == EntityType.Other && !string.IsNullOrWhiteSpace(app.EntityTypeOther))
+        {
+            items.Add(new TextFieldOverlay(Ntc118Fields.Applicant.EntityTypeOther, app.EntityTypeOther));
         }
 
         if (!string.IsNullOrWhiteSpace(app.ExistingPermitNo))
-            items.Add(new TextOverlayItem { X = 123.0, Y = 500.0, Text = app.ExistingPermitNo, FontSize = 7.5 });
+            items.Add(new TextFieldOverlay(Ntc118Fields.Applicant.ExistingPermitNo, app.ExistingPermitNo));
 
         if (app.ExistingPermitValidity != default)
-            items.Add(new TextOverlayItem { X = 402.0, Y = 500.0, Text = app.ExistingPermitValidity.ToString("MM/dd/yy"), FontSize = 7.5 });
+            items.Add(new TextFieldOverlay(Ntc118Fields.Applicant.ExistingPermitValidity, app.ExistingPermitValidity.ToString("MM/dd/yy")));
 
         var addr = app.Applicant.Address;
         if (addr != null)
         {
-            if (!string.IsNullOrWhiteSpace(addr.UnitRoomBldgNo))
-                items.Add(new TextOverlayItem { X = 123.0, Y = 515.0, Text = addr.UnitRoomBldgNo, FontSize = 7.5 });
+            items.Add(new TextFieldOverlay(Ntc118Fields.Applicant.UnitRoomBldgNo, addr.UnitRoomBldgNo));
+            items.Add(new TextFieldOverlay(Ntc118Fields.Applicant.Street, addr.Street));
 
-            if (!string.IsNullOrWhiteSpace(addr.Street))
-                items.Add(new TextOverlayItem { X = 380.0, Y = 515.0, Text = addr.Street, FontSize = 7.5 });
+            items.Add(new TextFieldOverlay(Ntc118Fields.Applicant.Barangay, addr.Barangay));
+            items.Add(new TextFieldOverlay(Ntc118Fields.Applicant.CityMunicipality, addr.CityMunicipality));
 
-            if (!string.IsNullOrWhiteSpace(addr.Barangay))
-                items.Add(new TextOverlayItem { X = 123.0, Y = 530.0, Text = addr.Barangay, FontSize = 7.5 });
-
-            if (!string.IsNullOrWhiteSpace(addr.CityMunicipality))
-                items.Add(new TextOverlayItem { X = 380.0, Y = 530.0, Text = addr.CityMunicipality, FontSize = 7.5 });
-
-            if (!string.IsNullOrWhiteSpace(addr.Province))
-                items.Add(new TextOverlayItem { X = 123.0, Y = 545.0, Text = addr.Province, FontSize = 7.5 });
-
-            if (!string.IsNullOrWhiteSpace(addr.ZipCode))
-                items.Add(new TextOverlayItem { X = 380.0, Y = 545.0, Text = addr.ZipCode, FontSize = 7.5 });
+            items.Add(new TextFieldOverlay(Ntc118Fields.Applicant.Province, addr.Province));
+            items.Add(new TextFieldOverlay(Ntc118Fields.Applicant.ZipCode, addr.ZipCode));
         }
 
-        if (!string.IsNullOrWhiteSpace(app.Applicant.ContactNumber))
-            items.Add(new TextOverlayItem { X = 123.0, Y = 560.0, Text = app.Applicant.ContactNumber, FontSize = 7.5 });
-
-        if (!string.IsNullOrWhiteSpace(app.Applicant.Email))
-            items.Add(new TextOverlayItem { X = 380.0, Y = 560.0, Text = app.Applicant.Email, FontSize = 7.5 });
+        items.Add(new TextFieldOverlay(Ntc118Fields.Applicant.ContactNumber, app.Applicant.ContactNumber));
+        items.Add(new TextFieldOverlay(Ntc118Fields.Applicant.Email, app.Applicant.Email));
 
         // 3. PERSONNEL REQUIRED
         if (app.SupervisingEngineer != null)
         {
-            if (!string.IsNullOrWhiteSpace(app.SupervisingEngineer.Name))
-                items.Add(new TextOverlayItem { X = 123.0, Y = 605.0, Text = app.SupervisingEngineer.Name, FontSize = 7.5 });
-            if (!string.IsNullOrWhiteSpace(app.SupervisingEngineer.LicenseNo))
-                items.Add(new TextOverlayItem { X = 123.0, Y = 620.0, Text = app.SupervisingEngineer.LicenseNo, FontSize = 7.5 });
+            items.Add(new TextFieldOverlay(Ntc118Fields.Personnel.EngineerName, app.SupervisingEngineer.Name));
+            items.Add(new TextFieldOverlay(Ntc118Fields.Personnel.EngineerLicenseNo, app.SupervisingEngineer.LicenseNo));
             if (app.SupervisingEngineer.ValidityDate != default)
-                items.Add(new TextOverlayItem { X = 123.0, Y = 636.0, Text = app.SupervisingEngineer.ValidityDate.ToString("MM/dd/yy"), FontSize = 7.5 });
+                items.Add(new TextFieldOverlay(Ntc118Fields.Personnel.EngineerValidity, app.SupervisingEngineer.ValidityDate.ToString("MM/dd/yy")));
         }
 
         if (app.Technician != null)
         {
-            if (!string.IsNullOrWhiteSpace(app.Technician.Name))
-                items.Add(new TextOverlayItem { X = 423.0, Y = 605.0, Text = app.Technician.Name, FontSize = 7.5 });
-            if (!string.IsNullOrWhiteSpace(app.Technician.LicenseNo))
-                items.Add(new TextOverlayItem { X = 423.0, Y = 620.0, Text = app.Technician.LicenseNo, FontSize = 7.5 });
+            items.Add(new TextFieldOverlay(Ntc118Fields.Personnel.TechName, app.Technician.Name));
+            items.Add(new TextFieldOverlay(Ntc118Fields.Personnel.TechLicenseNo, app.Technician.LicenseNo));
             if (app.Technician.ValidityDate != default)
-                items.Add(new TextOverlayItem { X = 423.0, Y = 636.0, Text = app.Technician.ValidityDate.ToString("MM/dd/yy"), FontSize = 7.5 });
+                items.Add(new TextFieldOverlay(Ntc118Fields.Personnel.TechValidity, app.Technician.ValidityDate.ToString("MM/dd/yy")));
         }
 
         // 4. DECLARATION & SIGNATURE
-        // Box spans x=76.8..306.9 (verified against the "Signature over Printed
-        // Name..." / "Date Accomplished" caption centers in the rendered sample,
-        // both of which center at ~191.6-191.85, matching this box's midpoint).
         if (!string.IsNullOrWhiteSpace(app.Declaration.SignatoryName))
         {
-            double sigX = CenterX(76.8, 306.9, app.Declaration.SignatoryName, 8, true);
-            items.Add(new TextOverlayItem { X = sigX, Y = 723.8, Text = app.Declaration.SignatoryName, FontSize = 8, IsBold = true });
+            items.Add(new TextFieldOverlay(Ntc118Fields.Declaration.SignatoryName, app.Declaration.SignatoryName));
         }
 
         if (app.Declaration.DateAccomplished != default)
         {
-            string dateStr = app.Declaration.DateAccomplished.ToString("MM/dd/yyyy");
-            double dateX = CenterX(76.8, 306.9, dateStr, 8, false);
-            items.Add(new TextOverlayItem { X = dateX, Y = 737.8, Text = dateStr, FontSize = 8 });
+            items.Add(new TextFieldOverlay(Ntc118Fields.Declaration.DateAccomplished, app.Declaration.DateAccomplished.ToString("MM/dd/yyyy")));
         }
 
         // 5. PAYMENT / OR BOX
         if (app.Payment != null)
         {
-            if (!string.IsNullOrWhiteSpace(app.Payment.OrNo))
-                items.Add(new TextOverlayItem { X = 432.0, Y = 723.5, Text = app.Payment.OrNo, FontSize = 7.5 });
+            items.Add(new TextFieldOverlay(Ntc118Fields.Payment.OrNo, app.Payment.OrNo));
 
             if (app.Payment.OrDate != default)
             {
@@ -182,25 +130,56 @@ public static class Ntc118FlatPdfOverlayMapper
                 string[] parts = dateStr.Split('/');
                 if (parts.Length == 3)
                 {
-                    items.Add(new TextOverlayItem { X = 432.0, Y = 738.5, Text = $"{parts[0]}/{parts[1]}", FontSize = 7.5 });
-                    items.Add(new TextOverlayItem { X = 530.0, Y = 738.5, Text = parts[2].Length == 4 ? parts[2].Substring(2) : parts[2], FontSize = 7.5 });
+                    items.Add(new TextFieldOverlay(Ntc118Fields.Payment.OrDateMonthDay, $"{parts[0]}/{parts[1]}"));
+                    items.Add(new TextFieldOverlay(Ntc118Fields.Payment.OrDateYear, parts[2].Length == 4 ? parts[2].Substring(2) : parts[2]));
                 }
                 else
                 {
-                    items.Add(new TextOverlayItem { X = 432.0, Y = 738.5, Text = dateStr, FontSize = 7.5 });
+                    items.Add(new TextFieldOverlay(Ntc118Fields.Payment.OrDateMonthDay, dateStr));
                 }
             }
 
             if (app.Payment.Amount > 0)
-                items.Add(new TextOverlayItem { X = 432.0, Y = 753.5, Text = app.Payment.Amount.ToString("N2"), FontSize = 7.5 });
+                items.Add(new TextFieldOverlay(Ntc118Fields.Payment.Amount, app.Payment.Amount.ToString("N2")));
 
             if (!string.IsNullOrWhiteSpace(app.Payment.CollectingOfficer))
             {
-                double officerX = CenterX(405.0, 535.0, app.Payment.CollectingOfficer, 7.5, false);
-                items.Add(new TextOverlayItem { X = officerX, Y = 763.5, Text = app.Payment.CollectingOfficer, FontSize = 7.5 });
+                items.Add(new TextFieldOverlay(Ntc118Fields.Payment.CollectingOfficer, app.Payment.CollectingOfficer));
             }
         }
 
+        return items;
+    }
+
+    // Backward-compatible adapter method
+    public static List<TextOverlayItem> MapToOverlayItems(Ntc118Application app)
+    {
+        var items = new List<TextOverlayItem>();
+        foreach (var fieldOverlay in MapToFieldOverlays(app))
+        {
+            if (fieldOverlay is TextFieldOverlay text)
+            {
+                items.Add(new TextOverlayItem
+                {
+                    X = text.Field.X,
+                    Y = text.Field.Y,
+                    Text = text.Text,
+                    FontSize = text.Field.FontSize,
+                    IsBold = text.Field.IsBold
+                });
+            }
+            else if (fieldOverlay is CheckboxFieldOverlay check && check.IsChecked)
+            {
+                items.Add(new TextOverlayItem
+                {
+                    X = check.Field.X,
+                    Y = check.Field.Y,
+                    Text = "✔",
+                    FontSize = check.Field.FontSize,
+                    IsBold = check.Field.IsBold
+                });
+            }
+        }
         return items;
     }
 }

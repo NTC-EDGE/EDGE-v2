@@ -1,184 +1,181 @@
 using System.Collections.Generic;
 using EDGE.Infrastructure.Printing.Models;
+using EDGE.Infrastructure.Printing.Services.Fields;
 
 namespace EDGE.Infrastructure.Printing.Services;
 
 /// <summary>
-/// Maps Ntc102Application (NTC 1-02) onto coordinate positions (X, Y in points)
-/// for non-fillable or flat PDF templates using PdfSharp XGraphics overlay.
-///
-/// Page size: 595.2 x 841.8 pt (A4). Y is top-down, matching PdfSharp XGraphics' default convention.
-/// Coordinates measured directly from ntc-1-02.pdf template vector geometry.
+/// Declarative field overlay mapper for NTC Form 1-02 (Application for Radio Operator License).
 /// </summary>
 public static class Ntc102FlatPdfOverlayMapper
 {
-    private const double RegularCharWidthFactor = 0.52;
-    private const double BoldCharWidthFactor = 0.62;
-
-    private static double EstimateTextWidth(string text, double fontSize, bool isBold)
+    public static IReadOnlyList<FieldOverlay> MapToFieldOverlays(Ntc102Application app)
     {
-        if (string.IsNullOrEmpty(text)) return 0;
-        return text.Length * fontSize * (isBold ? BoldCharWidthFactor : RegularCharWidthFactor);
-    }
-
-    private static double CenterX(double boxLeft, double boxRight, string text, double fontSize, bool isBold)
-    {
-        double width = EstimateTextWidth(text, fontSize, isBold);
-        double boxCenter = (boxLeft + boxRight) / 2.0;
-        return boxCenter - (width / 2.0);
-    }
-
-    public static List<TextOverlayItem> MapToOverlayItems(Ntc102Application app)
-    {
-        var items = new List<TextOverlayItem>();
+        var items = new List<FieldOverlay>();
 
         // 1. TYPE OF APPLICATION
-        // Checkbox column x: 59.42 - 84.43
-        (double top, double bottom) actionBox = app.TypeOfApplication switch
+        var actionField = app.TypeOfApplication switch
         {
-            TypeOfApplication.New => (275.67, 290.87),
-            TypeOfApplication.Renewal => (290.67, 305.87),
-            TypeOfApplication.Modification => (305.67, 320.87),
-            _ => (275.67, 290.87)
+            TypeOfApplication.New => Ntc102Fields.TypeOfApplication.New,
+            TypeOfApplication.Renewal => Ntc102Fields.TypeOfApplication.Renewal,
+            TypeOfApplication.Modification => Ntc102Fields.TypeOfApplication.Modification,
+            _ => Ntc102Fields.TypeOfApplication.New
         };
-        double actionCheckX = CenterX(59.42, 84.43, "✔", 9, true);
-        double actionCheckY = (actionBox.top + actionBox.bottom) / 2.0;
-        items.Add(new TextOverlayItem { X = actionCheckX, Y = actionCheckY, Text = "✔", FontSize = 9, IsBold = true });
+        items.Add(new CheckboxFieldOverlay(actionField, true));
 
         if (app.TypeOfApplication == TypeOfApplication.Modification && !string.IsNullOrWhiteSpace(app.ModificationReason))
         {
-            items.Add(new TextOverlayItem { X = 88, Y = 332.0, Text = app.ModificationReason, FontSize = 8 });
+            items.Add(new TextFieldOverlay(Ntc102Fields.TypeOfApplication.ModificationReason, app.ModificationReason));
         }
 
         if (app.NoOfYears.HasValue)
         {
-            string yearsTxt = app.NoOfYears.Value.ToString();
-            double yearsX = CenterX(109.02, 134.04, yearsTxt, 8, true);
-            items.Add(new TextOverlayItem { X = yearsX, Y = 358.28, Text = yearsTxt, FontSize = 8, IsBold = true });
+            items.Add(new TextFieldOverlay(Ntc102Fields.TypeOfApplication.NoOfYears, app.NoOfYears.Value.ToString()));
         }
 
         // 2. TYPE OF CERTIFICATE
-        // Column 1 (RTG/PHN): x 282.70 - 307.70; Column 2 (Amateur/RROC/Govt): x 381.93 - 406.95
-        (double left, double right, double top, double bottom) certBox = app.TypeOfCertificate switch
+        var certField = app.TypeOfCertificate switch
         {
-            TypeOfCertificate.Rtg1 => (282.70, 307.70, 275.67, 290.87),
-            TypeOfCertificate.Rtg2 => (282.70, 307.70, 290.67, 305.87),
-            TypeOfCertificate.Rtg3 => (282.70, 307.70, 305.67, 320.87),
-            TypeOfCertificate.Phn1 => (282.70, 307.70, 320.67, 335.87),
-            TypeOfCertificate.Phn2 => (282.70, 307.70, 335.68, 350.88),
-            TypeOfCertificate.Phn3 => (282.70, 307.70, 350.68, 365.88),
-            TypeOfCertificate.Srop => (381.93, 406.95, 275.67, 290.87),
-            TypeOfCertificate.Rlm => (381.93, 406.95, 290.67, 305.87),
-            TypeOfCertificate.RrocAircraft => (381.93, 406.95, 305.67, 320.87),
-            TypeOfCertificate.Groc => (381.93, 406.95, 320.67, 335.87),
-            TypeOfCertificate.TpRrocAircraft => (381.93, 406.95, 335.68, 350.88),
-            TypeOfCertificate.Others => (381.93, 406.95, 350.68, 365.88),
-            _ => (282.70, 307.70, 275.67, 290.87)
+            TypeOfCertificate.Rtg1 => Ntc102Fields.TypeOfCertificate.Rtg1,
+            TypeOfCertificate.Rtg2 => Ntc102Fields.TypeOfCertificate.Rtg2,
+            TypeOfCertificate.Rtg3 => Ntc102Fields.TypeOfCertificate.Rtg3,
+            TypeOfCertificate.Phn1 => Ntc102Fields.TypeOfCertificate.Phn1,
+            TypeOfCertificate.Phn2 => Ntc102Fields.TypeOfCertificate.Phn2,
+            TypeOfCertificate.Phn3 => Ntc102Fields.TypeOfCertificate.Phn3,
+            TypeOfCertificate.Srop => Ntc102Fields.TypeOfCertificate.Srop,
+            TypeOfCertificate.Rlm => Ntc102Fields.TypeOfCertificate.Rlm,
+            TypeOfCertificate.RrocAircraft => Ntc102Fields.TypeOfCertificate.RrocAircraft,
+            TypeOfCertificate.Groc => Ntc102Fields.TypeOfCertificate.Groc,
+            TypeOfCertificate.TpRrocAircraft => Ntc102Fields.TypeOfCertificate.TpRrocAircraft,
+            TypeOfCertificate.Others => Ntc102Fields.TypeOfCertificate.Others,
+            _ => Ntc102Fields.TypeOfCertificate.Rtg1
         };
-        double certCheckX = CenterX(certBox.left, certBox.right, "✔", 9, true);
-        double certCheckY = (certBox.top + certBox.bottom) / 2.0;
-        items.Add(new TextOverlayItem { X = certCheckX, Y = certCheckY, Text = "✔", FontSize = 9, IsBold = true });
+        items.Add(new CheckboxFieldOverlay(certField, true));
 
         if (app.TypeOfCertificate == TypeOfCertificate.Others && !string.IsNullOrWhiteSpace(app.OtherCertificateDetails))
         {
-            items.Add(new TextOverlayItem { X = 410, Y = 377.0, Text = app.OtherCertificateDetails, FontSize = 8 });
+            items.Add(new TextFieldOverlay(Ntc102Fields.TypeOfCertificate.OtherCertificateDetails, app.OtherCertificateDetails));
         }
 
         // 3. APPLICANT'S DETAILS
         var p = app.ApplicantPerson;
-        items.Add(new TextOverlayItem { X = 88, Y = 422.0, Text = p.LastName, FontSize = 8, IsBold = true });
-        items.Add(new TextOverlayItem { X = 460, Y = 422.0, Text = p.DateOfBirth.ToString("MM/dd/yy"), FontSize = 8 });
+        items.Add(new TextFieldOverlay(Ntc102Fields.Applicant.LastName, p.LastName));
+        items.Add(new TextFieldOverlay(Ntc102Fields.Applicant.DateOfBirth, p.DateOfBirth.ToString("MM/dd/yy")));
 
-        items.Add(new TextOverlayItem { X = 88, Y = 437.0, Text = p.FirstName, FontSize = 8, IsBold = true });
+        items.Add(new TextFieldOverlay(Ntc102Fields.Applicant.FirstName, p.FirstName));
         if (p.HeightCm.HasValue)
         {
-            items.Add(new TextOverlayItem { X = 410, Y = 437.0, Text = p.HeightCm.Value.ToString("F0"), FontSize = 8 });
+            items.Add(new TextFieldOverlay(Ntc102Fields.Applicant.HeightCm, p.HeightCm.Value.ToString("F0")));
         }
         if (p.WeightKg.HasValue)
         {
-            items.Add(new TextOverlayItem { X = 534, Y = 437.0, Text = p.WeightKg.Value.ToString("F0"), FontSize = 8 });
+            items.Add(new TextFieldOverlay(Ntc102Fields.Applicant.WeightKg, p.WeightKg.Value.ToString("F0")));
         }
 
-        items.Add(new TextOverlayItem { X = 88, Y = 452.0, Text = p.MiddleName, FontSize = 8, IsBold = true });
+        items.Add(new TextFieldOverlay(Ntc102Fields.Applicant.MiddleName, p.MiddleName));
 
-        // Sex checkbox (Male 84.22-134.05, Female 183.45-233.27)
-        var sexBox = p.Sex == Sex.Male ? (left: 84.22, right: 134.05) : (left: 183.45, right: 233.27);
-        double sexCheckX = CenterX(sexBox.left, sexBox.right, "✔", 9, true);
-        items.Add(new TextOverlayItem { X = sexCheckX, Y = 463.31, Text = "✔", FontSize = 9, IsBold = true });
+        var sexField = p.Sex == Sex.Male ? Ntc102Fields.Applicant.SexMale : Ntc102Fields.Applicant.SexFemale;
+        items.Add(new CheckboxFieldOverlay(sexField, true));
 
-        // Status of Employment
+        // Employment Status
         if (p.EmploymentStatus == EmploymentStatus.Unemployed)
         {
-            double unCheckX = CenterX(381.93, 406.95, "✔", 9, true);
-            items.Add(new TextOverlayItem { X = unCheckX, Y = 448.30, Text = "✔", FontSize = 9, IsBold = true });
+            items.Add(new CheckboxFieldOverlay(Ntc102Fields.Applicant.Unemployed, true));
         }
         else
         {
-            double empCheckX = CenterX(481.18, 506.18, "✔", 9, true);
-            items.Add(new TextOverlayItem { X = empCheckX, Y = 448.30, Text = "✔", FontSize = 9, IsBold = true });
-
+            items.Add(new CheckboxFieldOverlay(Ntc102Fields.Applicant.Employed, true));
             if (p.EmploymentStatus == EmploymentStatus.EmployedLocal)
             {
-                double locCheckX = CenterX(406.75, 431.75, "✔", 9, true);
-                items.Add(new TextOverlayItem { X = locCheckX, Y = 463.31, Text = "✔", FontSize = 9, IsBold = true });
+                items.Add(new CheckboxFieldOverlay(Ntc102Fields.Applicant.EmployedLocal, true));
             }
             else if (p.EmploymentStatus == EmploymentStatus.EmployedForeign)
             {
-                double forCheckX = CenterX(406.75, 431.75, "✔", 9, true);
-                items.Add(new TextOverlayItem { X = forCheckX, Y = 478.33, Text = "✔", FontSize = 9, IsBold = true });
+                items.Add(new CheckboxFieldOverlay(Ntc102Fields.Applicant.EmployedForeign, true));
             }
         }
 
-        items.Add(new TextOverlayItem { X = 88, Y = 482.0, Text = p.Nationality, FontSize = 8 });
+        items.Add(new TextFieldOverlay(Ntc102Fields.Applicant.Nationality, p.Nationality));
 
-        items.Add(new TextOverlayItem { X = 138, Y = 497.0, Text = p.Address.UnitRoomBldgNo, FontSize = 8 });
-        items.Add(new TextOverlayItem { X = 386, Y = 497.0, Text = p.Address.Street, FontSize = 8 });
+        items.Add(new TextFieldOverlay(Ntc102Fields.Applicant.UnitRoomBldgNo, p.Address.UnitRoomBldgNo));
+        items.Add(new TextFieldOverlay(Ntc102Fields.Applicant.Street, p.Address.Street));
 
-        items.Add(new TextOverlayItem { X = 138, Y = 512.0, Text = p.Address.Barangay, FontSize = 8 });
-        items.Add(new TextOverlayItem { X = 386, Y = 512.0, Text = p.Address.CityMunicipality, FontSize = 8 });
+        items.Add(new TextFieldOverlay(Ntc102Fields.Applicant.Barangay, p.Address.Barangay));
+        items.Add(new TextFieldOverlay(Ntc102Fields.Applicant.CityMunicipality, p.Address.CityMunicipality));
 
-        items.Add(new TextOverlayItem { X = 138, Y = 527.0, Text = p.Address.Province, FontSize = 8 });
-        items.Add(new TextOverlayItem { X = 386, Y = 527.0, Text = p.Address.ZipCode, FontSize = 8 });
+        items.Add(new TextFieldOverlay(Ntc102Fields.Applicant.Province, p.Address.Province));
+        items.Add(new TextFieldOverlay(Ntc102Fields.Applicant.ZipCode, p.Address.ZipCode));
 
-        items.Add(new TextOverlayItem { X = 138, Y = 542.0, Text = p.ContactNumber, FontSize = 8 });
-        items.Add(new TextOverlayItem { X = 386, Y = 542.0, Text = p.Email, FontSize = 8 });
+        items.Add(new TextFieldOverlay(Ntc102Fields.Applicant.ContactNumber, p.ContactNumber));
+        items.Add(new TextFieldOverlay(Ntc102Fields.Applicant.Email, p.Email));
 
         // 4. EXAM / SEMINAR DETAILS
         var ex = app.ExamSeminarDetails;
-        items.Add(new TextOverlayItem { X = 138, Y = 572.0, Text = ex.PlaceOfExamSeminar, FontSize = 8 });
-        items.Add(new TextOverlayItem { X = 386, Y = 572.0, Text = ex.Date != default ? ex.Date.ToString("MM/dd/yy") : "", FontSize = 8 });
-        items.Add(new TextOverlayItem { X = 535, Y = 572.0, Text = ex.Rating, FontSize = 8 });
+        items.Add(new TextFieldOverlay(Ntc102Fields.ExamSeminarDetails.PlaceOfExamSeminar, ex.PlaceOfExamSeminar));
+        if (ex.Date != default)
+        {
+            items.Add(new TextFieldOverlay(Ntc102Fields.ExamSeminarDetails.Date, ex.Date.ToString("MM/dd/yy")));
+        }
+        items.Add(new TextFieldOverlay(Ntc102Fields.ExamSeminarDetails.Rating, ex.Rating));
 
         // 5. DECLARATION & SIGNATURE
         if (!string.IsNullOrWhiteSpace(app.Declaration.SignatoryName))
         {
-            double sigX = CenterX(34.60, 357.33, app.Declaration.SignatoryName, 8, true);
-            items.Add(new TextOverlayItem { X = sigX, Y = 693.0, Text = app.Declaration.SignatoryName, FontSize = 8, IsBold = true });
+            items.Add(new TextFieldOverlay(Ntc102Fields.Declaration.SignatoryName, app.Declaration.SignatoryName));
         }
         if (app.Declaration.DateAccomplished != default)
         {
-            string dateAccomplishedText = app.Declaration.DateAccomplished.ToString("MM/dd/yyyy");
-            double dateX = CenterX(134.90, 257.40, dateAccomplishedText, 8, false);
-            items.Add(new TextOverlayItem { X = dateX, Y = 722.0, Text = dateAccomplishedText, FontSize = 8 });
+            items.Add(new TextFieldOverlay(Ntc102Fields.Declaration.DateAccomplished, app.Declaration.DateAccomplished.ToString("MM/dd/yyyy")));
         }
 
-        // 6. OFFICIAL RECEIPT BOX (x: 386.8 - 550.3, y: 648.5 - 729.1)
+        // 6. OFFICIAL RECEIPT BOX
         if (app.Payment != null)
         {
-            items.Add(new TextOverlayItem { X = 455, Y = 667.5, Text = app.Payment.OrNo, FontSize = 8 });
+            items.Add(new TextFieldOverlay(Ntc102Fields.Payment.OrNo, app.Payment.OrNo));
             if (app.Payment.OrDate != default)
             {
-                items.Add(new TextOverlayItem { X = 459, Y = 678.5, Text = app.Payment.OrDate.ToString("MM/dd"), FontSize = 8 });
-                items.Add(new TextOverlayItem { X = 528, Y = 678.5, Text = app.Payment.OrDate.ToString("yy"), FontSize = 8 });
+                items.Add(new TextFieldOverlay(Ntc102Fields.Payment.OrDateMonthDay, app.Payment.OrDate.ToString("MM/dd")));
+                items.Add(new TextFieldOverlay(Ntc102Fields.Payment.OrDateYear, app.Payment.OrDate.ToString("yy")));
             }
-            items.Add(new TextOverlayItem { X = 445, Y = 689.5, Text = $"PHP {app.Payment.Amount:N2}", FontSize = 8 });
+            items.Add(new TextFieldOverlay(Ntc102Fields.Payment.Amount, $"PHP {app.Payment.Amount:N2}"));
             if (!string.IsNullOrWhiteSpace(app.Payment.CollectingOfficer))
             {
-                double officerX = CenterX(420.0, 530.0, app.Payment.CollectingOfficer, 8, false);
-                items.Add(new TextOverlayItem { X = officerX, Y = 709.5, Text = app.Payment.CollectingOfficer, FontSize = 8 });
+                items.Add(new TextFieldOverlay(Ntc102Fields.Payment.CollectingOfficer, app.Payment.CollectingOfficer));
             }
         }
 
+        return items;
+    }
+
+    // Backward-compatible adapter method
+    public static List<TextOverlayItem> MapToOverlayItems(Ntc102Application app)
+    {
+        var items = new List<TextOverlayItem>();
+        foreach (var fieldOverlay in MapToFieldOverlays(app))
+        {
+            if (fieldOverlay is TextFieldOverlay text)
+            {
+                items.Add(new TextOverlayItem
+                {
+                    X = text.Field.X,
+                    Y = text.Field.Y,
+                    Text = text.Text,
+                    FontSize = text.Field.FontSize,
+                    IsBold = text.Field.IsBold
+                });
+            }
+            else if (fieldOverlay is CheckboxFieldOverlay check && check.IsChecked)
+            {
+                items.Add(new TextOverlayItem
+                {
+                    X = check.Field.X,
+                    Y = check.Field.Y,
+                    Text = "✔",
+                    FontSize = check.Field.FontSize,
+                    IsBold = check.Field.IsBold
+                });
+            }
+        }
         return items;
     }
 }
