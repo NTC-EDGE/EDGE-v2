@@ -376,25 +376,62 @@ export const INITIAL_FORM_BUILDERS: FormBuilderItem[] = [
   },
 ];
 
+export interface FeedbackItem {
+  id: string;
+  sender: string;
+  email: string;
+  subject: string;
+  date: string;
+  rating: number;
+  status: 'Reviewed' | 'Pending';
+  message: string;
+  officeAgency?: string;
+  contactNumber?: string;
+  submittedBy?: string;
+  region?: string;
+}
+
 export const INITIAL_FEEDBACK: FeedbackItem[] = [
   {
-    id: 'feed-1',
-    sender: 'Engr. Manuel Santos',
-    email: 'm.santos@telecom.ph',
-    subject: 'Smooth online requirement submission',
-    date: '2026-07-20',
-    rating: 5,
+    id: 'fb-1',
+    sender: 'Dezza Collection',
+    email: 'ejamante0607@gmail.com',
+    subject: 'Feedback',
+    date: 'Jul 21, 2026',
+    rating: 4,
     status: 'Reviewed',
-    message: 'The online document mapping for Amateur Radio license renewal was fast and accurate. Very clear requirements.',
+    message: 'No comment provided.',
+    officeAgency: 'Dezza Collection',
+    contactNumber: 'N/A',
+    submittedBy: 'ejamante0607@gmail.com',
+    region: 'XIV',
   },
   {
-    id: 'feed-2',
-    sender: 'Capt. Juan Dela Cruz',
-    email: 'j.delacruz@maritime-ph.com',
-    subject: 'Clarification on Ship Station Permit fees',
-    date: '2026-07-22',
-    rating: 4,
-    status: 'Pending',
-    message: 'Requesting updated guidelines regarding multi-vessel station license fee calculations.',
+    id: 'fb-2',
+    sender: 'Dezza Collection',
+    email: 'ejamante0607@gmail.com',
+    subject: 'Feedback',
+    date: 'Jul 16, 2026',
+    rating: 5,
+    status: 'Reviewed',
+    message: 'Very fast processing and seamless experience on the portal.',
+    officeAgency: 'Dezza Collection',
+    contactNumber: '0917-123-4567',
+    submittedBy: 'ejamante0607@gmail.com',
+    region: 'XIV',
+  },
+  {
+    id: 'fb-3',
+    sender: 'Dezza Collection',
+    email: 'ejamante0607@gmail.com',
+    subject: 'Feedback',
+    date: 'Jul 14, 2026',
+    rating: 3,
+    status: 'Reviewed',
+    message: 'The portal is good but mobile responsiveness can be improved.',
+    officeAgency: 'Dezza Collection',
+    contactNumber: 'N/A',
+    submittedBy: 'ejamante0607@gmail.com',
+    region: 'XIV',
   },
 ];
