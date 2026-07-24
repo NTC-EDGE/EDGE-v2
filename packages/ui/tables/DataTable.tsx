@@ -49,9 +49,10 @@ function TabButton({ tab, isActive, onPress }: TabButtonProps) {
 // 2. Modular Data Table Row with local hover state
 interface DataTableRowProps<TData> {
   row: Row<TData>;
+  isLastRow?: boolean;
 }
 
-function DataTableRow<TData>({ row }: DataTableRowProps<TData>) {
+function DataTableRow<TData>({ row, isLastRow }: DataTableRowProps<TData>) {
   const [isHovered, setIsHovered] = useState(false);
 
   return (
@@ -61,6 +62,10 @@ function DataTableRow<TData>({ row }: DataTableRowProps<TData>) {
       style={[
         styles.tableRow,
         isHovered && styles.tableRowHover,
+        isLastRow && {
+          borderBottomLeftRadius: 7,
+          borderBottomRightRadius: 7,
+        },
       ]}
     >
       {row.getVisibleCells().map((cell) => {
@@ -218,55 +223,69 @@ export function DataTable<TData, TValue>({
       </View>
 
       {/* Main Table Grid - scrollable horizontally on mobile to prevent squishing */}
-      <ScrollView
-        horizontal={isMobile}
-        showsHorizontalScrollIndicator={isMobile}
-        scrollEnabled={isMobile}
-        style={isMobile ? styles.mobileTableScroll : undefined}
-      >
-        <View style={[styles.tableWrapper, isMobile && { width: 680 }]}>
-          {/* Table Header */}
-          <View style={styles.tableHeaderRow}>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <React.Fragment key={headerGroup.id}>
-                {headerGroup.headers.map((header) => {
-                  const colFlex = header.column.columnDef.meta?.flex ?? 1;
+      {(() => {
+        const TableContent = (
+          <View style={[styles.tableWrapper, isMobile && { width: 680 }]}>
+            {/* Table Header */}
+            <View style={styles.tableHeaderRow}>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <React.Fragment key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => {
+                    const colFlex = header.column.columnDef.meta?.flex ?? 1;
 
-                  return (
-                    <View key={header.id} style={[styles.tableHeaderCell, { flex: colFlex }]}>
-                      <Text style={styles.headerText}>
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(header.column.columnDef.header, header.getContext())}
-                      </Text>
-                    </View>
-                  );
-                })}
-              </React.Fragment>
-            ))}
-          </View>
-
-          {/* Table Body */}
-          {table.getRowModel().rows.length > 0 ? (
-            table.getRowModel().rows.map((row, index) => (
-              <View
-                key={row.id}
-                style={[
-                  styles.tableRowContainer,
-                  { zIndex: table.getRowModel().rows.length - index },
-                ]}
-              >
-                <DataTableRow row={row} />
-              </View>
-            ))
-          ) : (
-            <View style={styles.emptyState}>
-              <Lucide name="folder" size={32} color={COLORS.neutral[300]} style={{ marginBottom: 12 }} />
-              <Text style={styles.emptyText}>No records found matching your selection.</Text>
+                    return (
+                      <View key={header.id} style={[styles.tableHeaderCell, { flex: colFlex }]}>
+                        <Text style={styles.headerText}>
+                          {header.isPlaceholder
+                            ? null
+                            : flexRender(header.column.columnDef.header, header.getContext())}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </React.Fragment>
+              ))}
             </View>
-          )}
-        </View>
-      </ScrollView>
+
+            {/* Table Body */}
+            {table.getRowModel().rows.length > 0 ? (
+              table.getRowModel().rows.map((row, index) => {
+                const isLastRow = index === table.getRowModel().rows.length - 1;
+                return (
+                  <View
+                    key={row.id}
+                    style={[
+                      styles.tableRowContainer,
+                      { zIndex: table.getRowModel().rows.length - index },
+                      isLastRow && styles.tableRowContainerLast,
+                    ]}
+                  >
+                    <DataTableRow row={row} isLastRow={isLastRow} />
+                  </View>
+                );
+              })
+            ) : (
+              <View style={styles.emptyState}>
+                <Lucide name="folder" size={32} color={COLORS.neutral[300]} style={{ marginBottom: 12 }} />
+                <Text style={styles.emptyText}>No records found matching your selection.</Text>
+              </View>
+            )}
+          </View>
+        );
+
+        return isMobile ? (
+          <ScrollView
+            horizontal={true}
+            showsHorizontalScrollIndicator={true}
+            scrollEnabled={true}
+            style={styles.mobileTableScroll}
+          >
+            {TableContent}
+          </ScrollView>
+        ) : (
+          TableContent
+        );
+      })()}
 
       {/* Table Pagination */}
       <View style={styles.pagination}>
@@ -381,7 +400,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.neutral[200],
     borderRadius: 8,
-    overflow: 'hidden',
+    ...Platform.select({
+      web: {
+        overflow: 'visible',
+      },
+      default: {
+        overflow: 'hidden',
+      },
+    }),
   },
   tableHeaderRow: {
     flexDirection: 'row',
@@ -391,6 +417,8 @@ const styles = StyleSheet.create({
     height: 44,
     alignItems: 'center',
     paddingHorizontal: SPACING[16],
+    borderTopLeftRadius: 7,
+    borderTopRightRadius: 7,
   },
   tableHeaderCell: {
     justifyContent: 'center',
@@ -407,6 +435,11 @@ const styles = StyleSheet.create({
     position: 'relative',
     borderBottomWidth: 1,
     borderBottomColor: COLORS.neutral[200],
+  },
+  tableRowContainerLast: {
+    borderBottomWidth: 0,
+    borderBottomLeftRadius: 7,
+    borderBottomRightRadius: 7,
   },
   tableRow: {
     flexDirection: 'row',
