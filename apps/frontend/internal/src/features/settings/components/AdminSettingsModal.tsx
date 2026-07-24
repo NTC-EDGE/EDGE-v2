@@ -48,6 +48,8 @@ export interface ModalInitialData {
   isActive?: boolean;
   mappedDocuments?: MappedDocInput[];
   feeBreakdown?: FeeBreakdownItemInput[];
+  status?: 'Published' | 'Draft';
+  serviceType?: string;
 }
 
 interface AdminSettingsModalProps {
@@ -66,6 +68,8 @@ interface AdminSettingsModalProps {
     isActive: boolean;
     mappedDocuments?: MappedDocInput[];
     feeBreakdown?: FeeBreakdownItemInput[];
+    status?: 'Published' | 'Draft';
+    serviceType?: string;
   }) => void;
 }
 
@@ -106,11 +110,15 @@ export function AdminSettingsModal({
   const [subLabelInput, setSubLabelInput] = useState('');
   const [codeInput, setCodeInput] = useState('');
   const [branchType, setBranchType] = useState<'Main Office' | 'Field Office'>('Main Office');
+  const [formStatus, setFormStatus] = useState<'Published' | 'Draft'>('Draft');
   const [amountInput, setAmountInput] = useState('');
   const [instructionsInput, setInstructionsInput] = useState('');
   const [isActiveToggle, setIsActiveToggle] = useState(true);
+
+  // Dropdown visibility states
   const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
   const [isServiceTypeDropdownOpen, setIsServiceTypeDropdownOpen] = useState(false);
+  const [isFormStatusDropdownOpen, setIsFormStatusDropdownOpen] = useState(false);
   const [activeFeeDropdownId, setActiveFeeDropdownId] = useState<string | null>(null);
 
   // Mapped Documents State
@@ -121,11 +129,12 @@ export function AdminSettingsModal({
 
   useEffect(() => {
     if (visible && initialData !== undefined && initialData !== null) {
-      setTitleInput(initialData.title ?? 'Aeronautical Station Permit to POSSESS');
-      setNameInput(initialData.name ?? '');
+      setTitleInput(initialData.serviceType ?? initialData.title ?? 'Aeronautical Station Permit to POSSESS');
+      setNameInput(initialData.name ?? initialData.title ?? '');
       setSubLabelInput(initialData.subLabel ?? '');
-      setCodeInput(initialData.code ?? 'ZC-001');
+      setCodeInput(initialData.code ?? 'RSL-CERT-001');
       setBranchType(initialData.branchType === 'Field Office' ? 'Field Office' : 'Main Office');
+      setFormStatus(initialData.status === 'Published' ? 'Published' : 'Draft');
       setAmountInput(initialData.amount !== undefined ? String(initialData.amount) : '');
       setInstructionsInput(initialData.instructions ?? '1.\n2.\n3.');
       setIsActiveToggle(initialData.isActive ?? true);
@@ -150,6 +159,7 @@ export function AdminSettingsModal({
       setSubLabelInput('');
       setCodeInput('');
       setBranchType('Main Office');
+      setFormStatus('Draft');
       setAmountInput('');
       setInstructionsInput('1.\n2.\n3.');
       setIsActiveToggle(true);
@@ -163,6 +173,7 @@ export function AdminSettingsModal({
     }
     setIsCategoryDropdownOpen(false);
     setIsServiceTypeDropdownOpen(false);
+    setIsFormStatusDropdownOpen(false);
     setActiveFeeDropdownId(null);
   }, [visible, initialData]);
 
@@ -172,6 +183,7 @@ export function AdminSettingsModal({
   const isRequirementModal = type === 'add-requirement' || type === 'edit-requirement';
   const isFeeModal = type === 'add-fee' || type === 'edit-fee';
   const isNoteModal = type === 'add-note' || type === 'edit-note';
+  const isFormModal = type === 'add-form';
 
   const getModalTitle = () => {
     switch (type) {
@@ -196,7 +208,7 @@ export function AdminSettingsModal({
       case 'edit-note':
         return 'Edit Service Instruction Notes';
       case 'add-form':
-        return 'Build New Form';
+        return initialData?.id ? 'Edit Form Template' : 'Add New Form Template';
       default:
         return 'Admin Settings';
     }
@@ -205,6 +217,7 @@ export function AdminSettingsModal({
   const getSaveButtonText = () => {
     if (isRequirementModal || isFeeModal) return 'Save Configuration';
     if (isNoteModal) return 'Save Notes';
+    if (isFormModal) return 'Save Form';
     return 'Save Changes';
   };
 
@@ -267,7 +280,7 @@ export function AdminSettingsModal({
     const finalAmount = totalFromBreakdowns > 0 ? totalFromBreakdowns : (isNaN(parsedAmount) ? 0 : parsedAmount);
 
     onSave({
-      title: titleInput,
+      title: nameInput || titleInput,
       name: nameInput,
       subLabel: subLabelInput,
       code: codeInput,
@@ -277,6 +290,8 @@ export function AdminSettingsModal({
       isActive: isActiveToggle,
       mappedDocuments: mappedDocs,
       feeBreakdown: feeBreakdowns,
+      status: formStatus,
+      serviceType: titleInput,
     });
     onClose();
   };
@@ -287,7 +302,7 @@ export function AdminSettingsModal({
         <View
           style={[
             styles.modalCard,
-            (isRequirementModal || isFeeModal || isNoteModal) && styles.modalCardWide,
+            (isRequirementModal || isFeeModal || isNoteModal || isFormModal) && styles.modalCardWide,
             SHADOWS.modal,
           ]}
         >
@@ -315,6 +330,11 @@ export function AdminSettingsModal({
                     : 'EDIT NOTES CONFIGURATION'}
                 </Text>
               )}
+              {isFormModal && (
+                <Text style={styles.topBadgeText}>
+                  {initialData?.id ? 'EDIT FORM TEMPLATE' : 'CREATE FORM TEMPLATE'}
+                </Text>
+              )}
 
               <Text style={styles.modalTitle}>{getModalTitle()}</Text>
 
@@ -331,6 +351,11 @@ export function AdminSettingsModal({
               {isNoteModal && (
                 <Text style={styles.modalSubtitle}>
                   Input guidelines, penalties, and reminders directly. You can manually format the list using prefix counters such as 1., 2., 3.
+                </Text>
+              )}
+              {isFormModal && (
+                <Text style={styles.modalSubtitle}>
+                  Set the service type, form title, form code, status, and short description.
                 </Text>
               )}
             </View>
@@ -811,7 +836,7 @@ export function AdminSettingsModal({
               </>
             )}
 
-            {/* 5. Guidance Notes Modal (Matching User Screenshot) */}
+            {/* 5. Guidance Notes Modal */}
             {isNoteModal && (
               <>
                 {/* Application / Service Type Dropdown */}
@@ -874,17 +899,149 @@ export function AdminSettingsModal({
               </>
             )}
 
-            {type === 'add-form' && (
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>SERVICE / APPLICATION TITLE</Text>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="Amateur Application Form v2.1"
-                  placeholderTextColor={COLORS.neutral[400]}
-                  value={titleInput}
-                  onChangeText={setTitleInput}
-                />
-              </View>
+            {/* 6. Form Builder Modal (Matching Screenshot 2) */}
+            {isFormModal && (
+              <>
+                {/* Application / Service Type Dropdown */}
+                <View style={[styles.inputGroup, isServiceTypeDropdownOpen && { zIndex: 10000 }]}>
+                  <Text style={styles.inputLabel}>APPLICATION / SERVICE TYPE</Text>
+                  <Pressable
+                    style={styles.dropdownTrigger}
+                    onPress={() => setIsServiceTypeDropdownOpen(!isServiceTypeDropdownOpen)}
+                  >
+                    <Text style={styles.dropdownTriggerText}>
+                      {titleInput || 'Aeronautical Station Permit to POSSESS'}
+                    </Text>
+                    <Lucide
+                      name={isServiceTypeDropdownOpen ? 'chevron-up' : 'chevron-down'}
+                      size={18}
+                      color="#94A3B8"
+                    />
+                  </Pressable>
+
+                  {isServiceTypeDropdownOpen && (
+                    <View style={styles.dropdownMenu}>
+                      {SERVICE_TYPE_OPTIONS.map((option) => (
+                        <Pressable
+                          key={option}
+                          style={[
+                            styles.dropdownOption,
+                            titleInput === option && styles.dropdownOptionActive,
+                          ]}
+                          onPress={() => {
+                            setTitleInput(option);
+                            setIsServiceTypeDropdownOpen(false);
+                          }}
+                        >
+                          <Text style={styles.dropdownOptionText}>{option}</Text>
+                          {titleInput === option && (
+                            <Lucide name="check" size={16} color="#4F46E5" />
+                          )}
+                        </Pressable>
+                      ))}
+                    </View>
+                  )}
+                </View>
+
+                {/* Form Title */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>FORM TITLE</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="Example: Radio Station License Certificate"
+                    placeholderTextColor={COLORS.neutral[400]}
+                    value={nameInput}
+                    onChangeText={setNameInput}
+                  />
+                </View>
+
+                {/* Form Code & Status 2-Column Row */}
+                <View style={styles.twoColumnRow}>
+                  {/* Form Code Column */}
+                  <View style={[styles.inputGroup, styles.flexColumn]}>
+                    <Text style={styles.inputLabel}>FORM CODE</Text>
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="Example: RSL-CERT-001"
+                      placeholderTextColor={COLORS.neutral[400]}
+                      value={codeInput}
+                      onChangeText={setCodeInput}
+                    />
+                  </View>
+
+                  {/* Status Dropdown Column */}
+                  <View
+                    style={[
+                      styles.inputGroup,
+                      styles.flexColumn,
+                      isFormStatusDropdownOpen && { zIndex: 10000 },
+                    ]}
+                  >
+                    <Text style={styles.inputLabel}>STATUS</Text>
+                    <Pressable
+                      style={styles.dropdownTrigger}
+                      onPress={() => setIsFormStatusDropdownOpen(!isFormStatusDropdownOpen)}
+                    >
+                      <Text style={styles.dropdownTriggerText}>{formStatus}</Text>
+                      <Lucide
+                        name={isFormStatusDropdownOpen ? 'chevron-up' : 'chevron-down'}
+                        size={18}
+                        color="#94A3B8"
+                      />
+                    </Pressable>
+
+                    {isFormStatusDropdownOpen && (
+                      <View style={styles.dropdownMenu}>
+                        <Pressable
+                          style={[
+                            styles.dropdownOption,
+                            formStatus === 'Draft' && styles.dropdownOptionActive,
+                          ]}
+                          onPress={() => {
+                            setFormStatus('Draft');
+                            setIsFormStatusDropdownOpen(false);
+                          }}
+                        >
+                          <Text style={styles.dropdownOptionText}>Draft</Text>
+                          {formStatus === 'Draft' && (
+                            <Lucide name="check" size={16} color="#4F46E5" />
+                          )}
+                        </Pressable>
+
+                        <Pressable
+                          style={[
+                            styles.dropdownOption,
+                            formStatus === 'Published' && styles.dropdownOptionActive,
+                          ]}
+                          onPress={() => {
+                            setFormStatus('Published');
+                            setIsFormStatusDropdownOpen(false);
+                          }}
+                        >
+                          <Text style={styles.dropdownOptionText}>Published</Text>
+                          {formStatus === 'Published' && (
+                            <Lucide name="check" size={16} color="#4F46E5" />
+                          )}
+                        </Pressable>
+                      </View>
+                    )}
+                  </View>
+                </View>
+
+                {/* Short Description */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>DESCRIPTION</Text>
+                  <TextInput
+                    style={[styles.textInput, styles.textArea]}
+                    placeholder="Short purpose of this form template"
+                    placeholderTextColor={COLORS.neutral[400]}
+                    multiline
+                    numberOfLines={4}
+                    value={subLabelInput}
+                    onChangeText={setSubLabelInput}
+                  />
+                </View>
+              </>
             )}
           </ScrollView>
 
@@ -965,6 +1122,13 @@ const styles = StyleSheet.create({
   formContainer: {
     gap: SPACING[16],
     overflow: 'visible',
+  },
+  twoColumnRow: {
+    flexDirection: 'row',
+    gap: SPACING[12],
+  },
+  flexColumn: {
+    flex: 1,
   },
   inputGroup: {
     gap: 6,

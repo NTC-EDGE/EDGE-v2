@@ -67,10 +67,13 @@ export interface BranchOffice {
 export interface FormBuilderItem {
   id: string;
   title: string;
+  serviceType?: string;
   code: string;
   version: string;
   status: 'Published' | 'Draft';
   fieldsCount: number;
+  lastUpdated?: string;
+  description?: string;
 }
 
 export interface FeedbackItem {
@@ -340,27 +343,36 @@ export const INITIAL_NOTES: NoteItem[] = [
 export const INITIAL_FORM_BUILDERS: FormBuilderItem[] = [
   {
     id: 'fb-1',
-    title: 'Amateur Application Form v2.1',
-    code: 'NTC-FORM-A1',
+    title: 'sample',
+    serviceType: 'Amateur Radio Station License',
+    code: 'test',
     version: 'v2.1',
-    status: 'Published',
-    fieldsCount: 18,
+    status: 'Draft',
+    fieldsCount: 3,
+    lastUpdated: '2026-06-15T13:06:14',
+    description: 'No description added.',
   },
   {
     id: 'fb-2',
     title: 'Radiotelegraphy Inspection Checklist',
+    serviceType: 'Radiotelegraphy(NEW)',
     code: 'NTC-FORM-R4',
     version: 'v1.4',
     status: 'Published',
     fieldsCount: 24,
+    lastUpdated: '2026-07-01T09:12:00',
+    description: 'Standard field inspection checklist for radiotelegraphy equipment.',
   },
   {
     id: 'fb-3',
     title: 'Maritime Station Permit Draft',
+    serviceType: 'Ship Station License (NEW)',
     code: 'NTC-FORM-M2',
     version: 'v0.9',
     status: 'Draft',
     fieldsCount: 12,
+    lastUpdated: '2026-07-10T15:30:00',
+    description: 'Initial draft template for maritime station permits.',
   },
 ];
 
