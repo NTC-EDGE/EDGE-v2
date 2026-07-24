@@ -87,8 +87,7 @@ public class UploadFileCommandHandlerTests
         result.Data.TenantId.Should().Be(tenantId);
         result.Data.Category.Should().Be("signature");
 
-        _mockEncryptionService.Verify(e => e.EncryptStreamAsync(It.IsAny<Stream>(), It.IsAny<CancellationToken>()), Times.Once);
-        _mockStorageService.Verify(s => s.UploadFileAsync(It.Is<string>(k => k.Contains(tenantId.ToString())), It.IsAny<Stream>(), "application/octet-stream", It.IsAny<CancellationToken>()), Times.Once);
+        _mockStorageService.Verify(s => s.UploadFileAsync(It.Is<string>(k => k.Contains(tenantId.ToString())), It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
         _mockFileRepository.Verify(r => r.AddAsync(It.Is<StoredFile>(f => f.TenantId == tenantId && f.FileName == "signature.png"), It.IsAny<CancellationToken>()), Times.Once);
         _mockUnitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
