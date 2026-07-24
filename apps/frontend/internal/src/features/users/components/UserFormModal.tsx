@@ -7,6 +7,8 @@ import {
   Pressable,
   Modal,
   ScrollView,
+  Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide } from '@edge/ui';
 import { User, AccountType, UserStatus } from '../data/mockUsers';
@@ -18,10 +20,49 @@ interface UserFormModalProps {
   userToEdit?: User | null;
 }
 
+const PHILIPPINE_REGIONS = [
+  'NCR',
+  'CAR',
+  'Region I',
+  'Region II',
+  'Region III',
+  'Region IV-A',
+  'MIMAROPA',
+  'Region V',
+  'Region VI',
+  'Region VII',
+  'Region VIII',
+  'Region IX',
+  'Region X',
+  'Region XI',
+  'Region XII',
+  'Region XIII',
+  'BARMM',
+];
+
+const parseName = (fullName: string) => {
+  const parts = fullName.trim().split(/\s+/);
+  if (parts.length === 1) {
+    return { firstName: parts[0], middleName: '', lastName: '' };
+  } else if (parts.length === 2) {
+    return { firstName: parts[0], middleName: '', lastName: parts[1] };
+  } else {
+    const firstName = parts[0];
+    const middleName = parts.slice(1, parts.length - 1).join(' ');
+    const lastName = parts[parts.length - 1];
+    return { firstName, middleName, lastName };
+  }
+};
+
 export function UserFormModal({ isOpen, onClose, onSubmit, userToEdit }: UserFormModalProps) {
   const isEditing = userToEdit !== null && userToEdit !== undefined;
+  const { width } = useWindowDimensions();
+  const isMobileSize = width < 540;
 
-  const [name, setName] = useState('');
+  const [companyName, setCompanyName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [middleName, setMiddleName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [accountType, setAccountType] = useState<AccountType>('Individual');
   const [region, setRegion] = useState('Region X');
@@ -30,12 +71,26 @@ export function UserFormModal({ isOpen, onClose, onSubmit, userToEdit }: UserFor
   const [applicationsCount, setApplicationsCount] = useState('1');
   const [status, setStatus] = useState<UserStatus>('Active');
   const [description, setDescription] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [isRegionDropdownOpen, setIsRegionDropdownOpen] = useState(false);
 
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   useEffect(() => {
     if (userToEdit !== null && userToEdit !== undefined) {
-      setName(userToEdit.name);
+      if (userToEdit.accountType === 'Company') {
+        setCompanyName(userToEdit.name);
+        setFirstName('');
+        setMiddleName('');
+        setLastName('');
+      } else {
+        const parsed = parseName(userToEdit.name);
+        setFirstName(parsed.firstName);
+        setMiddleName(parsed.middleName);
+        setLastName(parsed.lastName);
+        setCompanyName('');
+      }
       setEmail(userToEdit.email);
       setAccountType(userToEdit.accountType);
       setRegion(userToEdit.region);
@@ -44,8 +99,12 @@ export function UserFormModal({ isOpen, onClose, onSubmit, userToEdit }: UserFor
       setApplicationsCount(userToEdit.applicationsCount.toString());
       setStatus(userToEdit.status);
       setDescription(userToEdit.description || '');
+      setPassword(userToEdit.password || '');
     } else {
-      setName('');
+      setFirstName('');
+      setMiddleName('');
+      setLastName('');
+      setCompanyName('');
       setEmail('');
       setAccountType('Individual');
       setRegion('Region X');
@@ -54,16 +113,29 @@ export function UserFormModal({ isOpen, onClose, onSubmit, userToEdit }: UserFor
       setApplicationsCount('1');
       setStatus('Active');
       setDescription('');
+      setPassword('');
     }
     setErrors({});
+    setIsRegionDropdownOpen(false);
+    setShowPassword(false);
   }, [userToEdit, isOpen]);
 
   const validate = (): boolean => {
     const newErrors: { [key: string]: string } = {};
 
-    if (name.trim().length === 0) {
-      newErrors.name = 'Client name is required.';
+    if (accountType === 'Company') {
+      if (companyName.trim().length === 0) {
+        newErrors.companyName = 'Company name is required.';
+      }
+    } else {
+      if (firstName.trim().length === 0) {
+        newErrors.firstName = 'First name is required.';
+      }
+      if (lastName.trim().length === 0) {
+        newErrors.lastName = 'Last name is required.';
+      }
     }
+
     if (email.trim().length === 0) {
       newErrors.email = 'Email address is required.';
     } else if (!email.includes('@')) {
@@ -83,11 +155,18 @@ export function UserFormModal({ isOpen, onClose, onSubmit, userToEdit }: UserFor
     const parsedApps = parseInt(applicationsCount, 10);
     const validApps = !isNaN(parsedApps) && parsedApps >= 0 ? parsedApps : 0;
 
-    const avatarInitials = accountType === 'Company' ? name.slice(0, 2).toUpperCase() : undefined;
+    const resolvedName =
+      accountType === 'Company'
+        ? companyName.trim()
+        : [firstName.trim(), middleName.trim(), lastName.trim()]
+            .filter(Boolean)
+            .join(' ');
+
+    const avatarInitials = accountType === 'Company' ? resolvedName.slice(0, 2).toUpperCase() : undefined;
 
     onSubmit({
       ...(isEditing && userToEdit !== null && userToEdit !== undefined ? { id: userToEdit.id } : {}),
-      name: name.trim(),
+      name: resolvedName,
       email: email.trim(),
       accountType,
       avatarType: accountType === 'Individual' ? 'icon' : 'initials',
@@ -100,6 +179,7 @@ export function UserFormModal({ isOpen, onClose, onSubmit, userToEdit }: UserFor
       status,
       createdDate: isEditing && userToEdit ? userToEdit.createdDate : new Date().toISOString().split('T')[0],
       description: description.trim(),
+      ...(password.trim().length > 0 ? { password: password.trim() } : {}),
     });
     onClose();
   };
@@ -162,19 +242,58 @@ export function UserFormModal({ isOpen, onClose, onSubmit, userToEdit }: UserFor
             </View>
 
             {/* Client Name Input */}
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>
-                {accountType === 'Company' ? 'Company Name *' : 'Full Name *'}
-              </Text>
-              <TextInput
-                style={[styles.input, errors.name !== undefined && styles.inputError]}
-                value={name}
-                onChangeText={setName}
-                placeholder={accountType === 'Company' ? "e.g. Ching's Collection" : 'e.g. Edward Lance Lorilla'}
-                placeholderTextColor={COLORS.neutral[400]}
-              />
-              {errors.name !== undefined && <Text style={styles.errorText}>{errors.name}</Text>}
-            </View>
+            {accountType === 'Company' ? (
+              <View style={styles.formGroup}>
+                <Text style={styles.label}>Company Name *</Text>
+                <TextInput
+                  style={[styles.input, errors.companyName !== undefined && styles.inputError]}
+                  value={companyName}
+                  onChangeText={setCompanyName}
+                  placeholder="e.g. Ching's Collection"
+                  placeholderTextColor={COLORS.neutral[400]}
+                />
+                {errors.companyName !== undefined && <Text style={styles.errorText}>{errors.companyName}</Text>}
+              </View>
+            ) : (
+              <View style={styles.formGroup}>
+                <View style={[styles.formRow, isMobileSize && { flexDirection: 'column', gap: 0 }]}>
+                  <View style={[styles.formGroup, !isMobileSize && styles.flex2]}>
+                    <Text style={styles.label}>First Name *</Text>
+                    <TextInput
+                      style={[styles.input, errors.firstName !== undefined && styles.inputError]}
+                      value={firstName}
+                      onChangeText={setFirstName}
+                      placeholder="e.g. Edward"
+                      placeholderTextColor={COLORS.neutral[400]}
+                    />
+                    {errors.firstName !== undefined && <Text style={styles.errorText}>{errors.firstName}</Text>}
+                  </View>
+
+                  <View style={[styles.formGroup, !isMobileSize && styles.flex1]}>
+                    <Text style={styles.label}>Middle Name</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={middleName}
+                      onChangeText={setMiddleName}
+                      placeholder="e.g. Lance"
+                      placeholderTextColor={COLORS.neutral[400]}
+                    />
+                  </View>
+
+                  <View style={[styles.formGroup, !isMobileSize && styles.flex2]}>
+                    <Text style={styles.label}>Last Name *</Text>
+                    <TextInput
+                      style={[styles.input, errors.lastName !== undefined && styles.inputError]}
+                      value={lastName}
+                      onChangeText={setLastName}
+                      placeholder="e.g. Lorilla"
+                      placeholderTextColor={COLORS.neutral[400]}
+                    />
+                    {errors.lastName !== undefined && <Text style={styles.errorText}>{errors.lastName}</Text>}
+                  </View>
+                </View>
+              </View>
+            )}
 
             {/* Email Input */}
             <View style={styles.formGroup}>
@@ -192,63 +311,82 @@ export function UserFormModal({ isOpen, onClose, onSubmit, userToEdit }: UserFor
             </View>
 
             {/* Region Input */}
-            <View style={styles.formGroup}>
+            <View style={[styles.formGroup, { zIndex: isRegionDropdownOpen ? 100 : 1 }]}>
               <Text style={styles.label}>Region *</Text>
-              <View style={styles.regionSelectorRow}>
-                {['NCR', 'Region I', 'Region III', 'Region VII', 'Region X'].map((r) => (
-                  <Pressable
-                    key={r}
-                    style={[styles.regionChip, region === r && styles.regionChipSelected]}
-                    onPress={() => setRegion(r)}
-                  >
-                    <Text style={[styles.regionChipText, region === r && styles.regionChipTextSelected]}>{r}</Text>
-                  </Pressable>
-                ))}
-              </View>
+              <Pressable
+                style={[styles.dropdownTrigger, isRegionDropdownOpen && styles.dropdownTriggerActive]}
+                onPress={() => setIsRegionDropdownOpen((prev) => !prev)}
+              >
+                <Text style={styles.dropdownTriggerText}>{region || 'Select Region'}</Text>
+                <Lucide
+                  name={isRegionDropdownOpen ? 'chevron-up' : 'chevron-down'}
+                  size={16}
+                  color={COLORS.neutral[600]}
+                />
+              </Pressable>
+
+              {isRegionDropdownOpen && (
+                <View style={[styles.dropdownMenu, SHADOWS.modal]}>
+                  <ScrollView style={{ maxHeight: 200 }} nestedScrollEnabled>
+                    {PHILIPPINE_REGIONS.map((r) => (
+                      <Pressable
+                        key={r}
+                        style={[
+                          styles.dropdownOption,
+                          region === r && styles.dropdownOptionActive,
+                        ]}
+                        onPress={() => {
+                          setRegion(r);
+                          setIsRegionDropdownOpen(false);
+                        }}
+                      >
+                        <Text
+                          style={[
+                            styles.dropdownOptionText,
+                            region === r && styles.dropdownOptionTextActive,
+                          ]}
+                        >
+                          {r}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
             </View>
 
-            {/* Phone & Applications Count */}
-            <View style={styles.formRow}>
-              <View style={[styles.formGroup, styles.halfCol]}>
-                <Text style={styles.label}>Phone Number</Text>
-                <TextInput
-                  style={styles.input}
-                  value={phone}
-                  onChangeText={setPhone}
-                  placeholder="+63 917 000 0000"
-                  placeholderTextColor={COLORS.neutral[400]}
-                />
-              </View>
-
-              <View style={[styles.formGroup, styles.halfCol]}>
-                <Text style={styles.label}>Applications Count</Text>
-                <TextInput
-                  style={styles.input}
-                  value={applicationsCount}
-                  onChangeText={setApplicationsCount}
-                  keyboardType="numeric"
-                  placeholder="2"
-                  placeholderTextColor={COLORS.neutral[400]}
-                />
-              </View>
-            </View>
-
-            {/* Status Radio Buttons */}
+            {/* Phone Number Input */}
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Account Status</Text>
-              <View style={styles.statusRow}>
-                {(['Active', 'Pending', 'Inactive'] as UserStatus[]).map((st) => (
-                  <Pressable
-                    key={st}
-                    style={[styles.statusOption, status === st && styles.statusOptionSelected]}
-                    onPress={() => setStatus(st)}
-                  >
-                    <View style={[styles.statusRadioCircle, status === st && styles.statusRadioCircleSelected]}>
-                      {status === st && <View style={styles.statusRadioInner} />}
-                    </View>
-                    <Text style={styles.statusOptionText}>{st}</Text>
-                  </Pressable>
-                ))}
+              <Text style={styles.label}>Phone Number</Text>
+              <TextInput
+                style={styles.input}
+                value={phone}
+                onChangeText={setPhone}
+                placeholder="+63 917 000 0000"
+                placeholderTextColor={COLORS.neutral[400]}
+              />
+            </View>
+
+            {/* Password Input */}
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Password</Text>
+              <View style={styles.inputWithIconWrapper}>
+                <TextInput
+                  style={[styles.input, { paddingRight: 45 }]}
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder="••••••••"
+                  secureTextEntry={!showPassword}
+                  placeholderTextColor={COLORS.neutral[400]}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                <Pressable
+                  style={styles.eyeIconButton}
+                  onPress={() => setShowPassword((prev) => !prev)}
+                >
+                  <Lucide name={showPassword ? 'eye-off' : 'eye'} size={18} color={COLORS.neutral[500]} />
+                </Pressable>
               </View>
             </View>
 
@@ -408,65 +546,64 @@ const styles = StyleSheet.create({
     fontWeight: TYPOGRAPHY.weights.bold,
   },
 
-  regionSelectorRow: {
+  dropdownTrigger: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: SPACING[8],
-  },
-  regionChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    height: 40,
+    backgroundColor: COLORS.neutral[50],
     borderWidth: 1,
     borderColor: COLORS.neutral[300],
-    backgroundColor: COLORS.neutral[50],
+    borderRadius: RADIUS.input,
+    paddingHorizontal: SPACING[12],
+    ...Platform.select({
+      web: {
+        cursor: 'pointer',
+      },
+    }),
   },
-  regionChipSelected: {
-    borderColor: COLORS.brand[600],
+  dropdownTriggerActive: {
+    borderColor: COLORS.brand[700],
+    backgroundColor: COLORS.neutral.white,
+  },
+  dropdownTriggerText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    color: COLORS.neutral[900],
+  },
+  dropdownMenu: {
+    position: 'absolute',
+    top: 68,
+    left: 0,
+    right: 0,
+    backgroundColor: COLORS.neutral.white,
+    borderRadius: RADIUS.input,
+    borderWidth: 1,
+    borderColor: COLORS.neutral[300],
+    overflow: 'hidden',
+    zIndex: 1000,
+  },
+  dropdownOption: {
+    paddingHorizontal: SPACING[12],
+    paddingVertical: 10,
+    backgroundColor: COLORS.neutral.white,
+    ...Platform.select({
+      web: {
+        cursor: 'pointer',
+      },
+    }),
+  },
+  dropdownOptionActive: {
     backgroundColor: '#EFF6FF',
   },
-  regionChipText: {
+  dropdownOptionText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
-    color: COLORS.neutral[700],
-  },
-  regionChipTextSelected: {
-    color: COLORS.brand[700],
-    fontWeight: TYPOGRAPHY.weights.bold,
-  },
-
-  statusRow: {
-    flexDirection: 'row',
-    gap: SPACING[16],
-  },
-  statusOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  statusOptionSelected: {},
-  statusRadioCircle: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    borderWidth: 2,
-    borderColor: COLORS.neutral[400],
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 6,
-  },
-  statusRadioCircleSelected: {
-    borderColor: COLORS.brand[700],
-  },
-  statusRadioInner: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: COLORS.brand[700],
-  },
-  statusOptionText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
+    fontSize: 14,
     color: COLORS.neutral[800],
+  },
+  dropdownOptionTextActive: {
+    color: COLORS.brand[700],
+    fontWeight: TYPOGRAPHY.weights.semibold,
   },
 
   modalFooter: {
@@ -504,5 +641,25 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: TYPOGRAPHY.weights.semibold,
     color: COLORS.neutral.white,
+  },
+  flex1: {
+    flex: 1,
+  },
+  flex2: {
+    flex: 2,
+  },
+  inputWithIconWrapper: {
+    position: 'relative',
+    justifyContent: 'center',
+  },
+  eyeIconButton: {
+    position: 'absolute',
+    right: 14,
+    padding: 6,
+    ...Platform.select({
+      web: {
+        cursor: 'pointer',
+      },
+    }),
   },
 });
