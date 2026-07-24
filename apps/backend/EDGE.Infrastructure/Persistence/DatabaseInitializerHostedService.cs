@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Configuration;
 
 namespace EDGE.Infrastructure.Persistence;
 
@@ -24,7 +25,7 @@ public class DatabaseInitializerHostedService : IHostedService
 
         using var scope = _serviceProvider.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-
+        var configuration = scope.ServiceProvider.GetService<IConfiguration>();
         // 1. Run migrations first
         try
         {
@@ -35,7 +36,8 @@ public class DatabaseInitializerHostedService : IHostedService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Database migration skipped or encountered an existing table/schema issue.");
+            _logger.LogError(ex, "Database migration failed.");
+            throw;
         }
 
         // 2. Seed IAM reference data (Roles, Permissions, RolePermissions, default Users)
@@ -48,6 +50,7 @@ public class DatabaseInitializerHostedService : IHostedService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "IAM seed data encountered an issue.");
+            throw new InvalidOperationException("IAM seed data failed. Please check the logs for details.", ex);
         }
 
         // 3. Seed geographic reference data
@@ -60,6 +63,7 @@ public class DatabaseInitializerHostedService : IHostedService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Geographic seed data encountered an issue.");
+            throw new InvalidOperationException("Geographic seed data failed. Please check the logs for details.", ex);
         }
 
         // 4. Seed Fast-Track catalog data (ServiceCategory, Service, ServiceVariant, Form templates, etc.)
@@ -72,6 +76,7 @@ public class DatabaseInitializerHostedService : IHostedService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Fast-Track seed data encountered an issue.");
+            throw new InvalidOperationException("Fast-Track seed data failed. Please check the logs for details.", ex);
         }
     }
 

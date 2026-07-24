@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using EDGE.Application.Applications.Commands.SubmitApplication;
 
 namespace EDGE.Application.Applications.Dtos;
 
@@ -18,5 +19,6 @@ public class CsvRowPreviewDto
     public string ApplicationType { get; set; } = string.Empty;
     public string ExamineeType { get; set; } = string.Empty;
     public string ValidationRemarks { get; set; } = "Ready for import";
+    public ApplicantSubmissionDto? Applicant { get; set; }
     public Dictionary<string, string> RawRowData { get; set; } = new();
 }

@@ -27,4 +27,5 @@ public class Application : AuditableEntity
     public ICollection<ApplicationService> ApplicationServices { get; set; } = new List<ApplicationService>();
     public ICollection<ApplicationApplicant> ApplicationApplicants { get; set; } = new List<ApplicationApplicant>();
     public ICollection<ApplicationRequirement> ApplicationRequirements { get; set; } = new List<ApplicationRequirement>();
+    public ICollection<FormSubmission> FormSubmissions { get; set; } = new List<FormSubmission>();
 }

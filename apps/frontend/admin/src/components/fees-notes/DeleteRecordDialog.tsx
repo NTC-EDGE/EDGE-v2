@@ -12,12 +12,15 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { MOCK_SERVICES, MOCK_CATEGORIES } from "@/services/feesNotesService";
+import { ServiceCatalogItem, ServiceCategoryItem } from "@/services/feesNotesService";
 
 export interface DeleteRecordDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   activeTab: "fees" | "service-fees" | "notes";
+  fees: Fee[];
+  services: ServiceCatalogItem[];
+  categories: ServiceCategoryItem[];
   selectedFee: Fee | null;
   selectedServiceFee: ServiceFee | null;
   selectedNote: Note | null;
@@ -31,6 +34,8 @@ export function DeleteRecordDialog({
   selectedFee,
   selectedServiceFee,
   selectedNote,
+  services,
+  categories,
   onConfirm,
 }: DeleteRecordDialogProps) {
   const [submitting, setSubmitting] = useState(false);
@@ -82,7 +87,7 @@ export function DeleteRecordDialog({
               Are you sure you want to delete the mapping fee rule for:
               <br />
               <strong className="text-white">
-                {MOCK_SERVICES.find((s) => s.id === selectedServiceFee.serviceId)?.name}
+                {services.find((s) => s.id === selectedServiceFee.serviceId)?.name}
               </strong>
               ?
             </p>
@@ -95,7 +100,7 @@ export function DeleteRecordDialog({
               Are you sure you want to delete the regulatory guideline for category:
               <br />
               <strong className="text-indigo-300">
-                {MOCK_CATEGORIES.find((c) => c.id === selectedNote.serviceCategoryId)?.name}
+                {categories.find((c) => c.id === selectedNote.serviceCategoryId)?.name}
               </strong>
               ?
             </p>

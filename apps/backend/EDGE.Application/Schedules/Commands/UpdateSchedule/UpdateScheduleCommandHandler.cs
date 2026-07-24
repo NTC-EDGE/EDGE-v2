@@ -7,11 +7,16 @@ namespace EDGE.Application.Schedules.Commands.UpdateSchedule;
 public class UpdateScheduleCommandHandler : IRequestHandler<UpdateScheduleCommand, ScheduleDto?>
 {
     private readonly IScheduleRepository _scheduleRepository;
+    private readonly IServiceRepository _serviceRepository;
     private readonly IUnitOfWork _unitOfWork;
 
-    public UpdateScheduleCommandHandler(IScheduleRepository scheduleRepository, IUnitOfWork unitOfWork)
+    public UpdateScheduleCommandHandler(
+        IScheduleRepository scheduleRepository,
+        IServiceRepository serviceRepository,
+        IUnitOfWork unitOfWork)
     {
         _scheduleRepository = scheduleRepository;
+        _serviceRepository = serviceRepository;
         _unitOfWork = unitOfWork;
     }
 
@@ -21,6 +26,12 @@ public class UpdateScheduleCommandHandler : IRequestHandler<UpdateScheduleComman
         if (schedule is null)
         {
             return null;
+        }
+
+        var service = await _serviceRepository.GetByIdAsync(request.ServiceId, cancellationToken);
+        if (service == null)
+        {
+            throw new InvalidOperationException($"Service with ID '{request.ServiceId}' does not exist.");
         }
 
         schedule.ServiceId = request.ServiceId;
@@ -42,6 +53,8 @@ public class UpdateScheduleCommandHandler : IRequestHandler<UpdateScheduleComman
         return new ScheduleDto(
             schedule.Id,
             schedule.ServiceId,
+            service.Name,
+            service.Code,
             schedule.TenantId,
             schedule.ApplicationId,
             schedule.SeatNumber,

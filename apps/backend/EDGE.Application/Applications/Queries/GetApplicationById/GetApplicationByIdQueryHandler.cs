@@ -79,7 +79,7 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                     applicantDto.Details = new ApplicantDetailDto
                     {
                         Id = ad.Id,
-                        BarangayId = ad.BarangayId,
+                        BarangayId = ad.BarangayId ?? Guid.Empty,
                         Address = ad.Address,
                         FirstName = ad.FirstName,
                         MiddleName = ad.MiddleName,
@@ -113,6 +113,23 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                             EntityType = cd.EntityType?.ToString()
                         };
                     }
+                }
+
+                if (a != null)
+                {
+                    var formSubmissionsForApplicant = app.FormSubmissions
+                        .Where(fs => fs.ApplicantId == a.Id)
+                        .ToList();
+
+                    applicantDto.FormFieldValues = formSubmissionsForApplicant
+                        .SelectMany(fs => fs.FieldValues)
+                        .Select(fv => new FormFieldValueDto
+                        {
+                            FieldId = fv.FieldId,
+                            FieldLabel = fv.Field?.Label ?? string.Empty,
+                            Value = fv.Value
+                        })
+                        .ToList();
                 }
 
                 return applicantDto;

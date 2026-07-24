@@ -39,6 +39,13 @@ public static class DependencyInjection
                    .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
         });
 
+        // Register Storage & Encryption Options
+        services.AddOptions<EDGE.Infrastructure.Options.CloudflareR2Options>()
+            .BindConfiguration(EDGE.Infrastructure.Options.CloudflareR2Options.SectionName);
+
+        services.AddOptions<EDGE.Infrastructure.Options.StorageEncryptionOptions>()
+            .BindConfiguration(EDGE.Infrastructure.Options.StorageEncryptionOptions.SectionName);
+
         // Register Repositories and Unit of Work
         services.AddScoped<ITenantRepository, TenantRepository>();
         services.AddScoped<ITenantMemberRepository, TenantMemberRepository>();
@@ -55,7 +62,17 @@ public static class DependencyInjection
         services.AddScoped<IFieldOfficeRepository, FieldOfficeRepository>();
         services.AddScoped<ICsvSchemaParserService, CsvSchemaParserService>();
         services.AddScoped<INoteRepository, NoteRepository>();
+        services.AddScoped<IStoredFileRepository, StoredFileRepository>();
+        services.AddScoped<IFeeRepository, FeeRepository>();
+        services.AddScoped<IServiceFeeRepository, ServiceFeeRepository>();
+        services.AddScoped<IFieldOfficeRepository, FieldOfficeRepository>();
+        services.AddScoped<IRequirementRepository, RequirementRepository>();
+        services.AddScoped<IServiceVariantRequirementRepository, ServiceVariantRequirementRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+        // Register Encryption & Cloudflare R2 Storage Services
+        services.AddSingleton<IFileEncryptionService, AesGcmFileEncryptionService>();
+        services.AddScoped<IStorageService, CloudflareR2StorageService>();
 
         services.AddScoped<IUserActivityService, UserActivityService>();
 
@@ -67,23 +84,32 @@ public static class DependencyInjection
             client.BaseAddress = new Uri("https://api.clerk.com/v1/");
             client.DefaultRequestHeaders.Add("Authorization", $"Bearer {clerkSecret}");
         });
-
-        // Configure Hangfire storage to use PostgreSQL with a dedicated schema
+    
+        // Configure Hangfire storage (PostgreSQL in Production/Dev, InMemory in Test)
         services.AddHangfire((sp, config) =>
         {
             var configuration = sp.GetRequiredService<IConfiguration>();
-            var connectionString = configuration.GetConnectionString("DefaultConnection") 
+            var useInMemory = configuration.GetValue<bool>("Hangfire:UseInMemory");
+            var connectionString = configuration.GetConnectionString("DefaultConnection")
                 ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 
             config
                 .SetDataCompatibilityLevel(CompatibilityLevel.Version_170)
                 .UseSimpleAssemblyNameTypeSerializer()
-                .UseRecommendedSerializerSettings()
-                .UsePostgreSqlStorage(options => options.UseNpgsqlConnection(connectionString), new PostgreSqlStorageOptions
+                .UseRecommendedSerializerSettings();
+
+            if (useInMemory)
+            {
+                config.UseInMemoryStorage();
+            }
+            else
+            {
+                config.UsePostgreSqlStorage(options => options.UseNpgsqlConnection(connectionString), new PostgreSqlStorageOptions
                 {
                     SchemaName = "hangfire",
                     PrepareSchemaIfNecessary = true
                 });
+            }
         });
 
         services.AddHangfireServer();

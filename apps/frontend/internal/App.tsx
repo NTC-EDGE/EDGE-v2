@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { StatusBar } from "expo-status-bar";
 import {
   StyleSheet,
-  Text,
   View,
   ActivityIndicator,
   Platform,
@@ -22,6 +21,12 @@ import {
   createNativeStackNavigator,
   getStateFromPath,
   getPathFromState,
+import { ClerkProvider } from "@clerk/expo";
+import { tokenCache } from "@clerk/expo/token-cache";
+import {
+  COLORS,
+  useNavigationContainerRef,
+  type ParamListBase,
 } from "@edge/ui";
 import {
   AuthProvider,
@@ -128,6 +133,12 @@ function UsersScreenWrapped() {
 }
 
 
+import {
+  UnauthNavigation,
+  AuthNavigation,
+  unauthLinking,
+  authLinking,
+} from "./src/navigation";
 
 const getClerkKey = (): string => {
   const key = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
@@ -276,6 +287,31 @@ function AppContent() {
   const { isAuthenticated, isLoading } = useAuthContext();
   const navigationRef = useNavigationContainerRef<ParamListBase>();
   const [activeScreen, setActiveScreen] = useState("Dashboard");
+function AppContent() {
+  const { isAuthenticated, isLoading } = useAuthContext();
+  const navigationRef = useNavigationContainerRef<ParamListBase>();
+  const [activeScreen, setActiveScreen] = useState("Dashboard");
+
+  // Sync root URL '/' to '/internal/login' in browser address bar when unauthenticated and update document title based on auth state and active screen
+  useEffect(() => {
+    if (Platform.OS === "web" && typeof document !== "undefined") {
+      if (!isAuthenticated) {
+        document.title = "Login";
+      } else {
+        const formattedTitle = activeScreen
+          .replace(/([A-Z])/g, " $1")
+          .replace(/^./, (str: string) => str.toUpperCase())
+          .trim();
+        document.title = `${formattedTitle} | EDGE`;
+      }
+    }
+    if (!isAuthenticated && Platform.OS === "web" && typeof window !== "undefined" && window.location !== undefined) {
+      const hasClerkParam = window.location.search.includes("__clerk");
+      if (!hasClerkParam && (window.location.pathname === "/" || window.location.pathname === "")) {
+        window.history.replaceState(null, "", "/internal/login");
+      }
+    }
+  }, [isAuthenticated, activeScreen]);
 
   // Sync root URL '/' to '/internal/login' in browser address bar when unauthenticated and update document title based on auth state and active screen
   useEffect(() => {
