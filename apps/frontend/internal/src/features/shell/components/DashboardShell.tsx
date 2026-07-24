@@ -153,26 +153,10 @@ export function DashboardShell({
           </>
         )}
 
-        {/* Main Scrolling Body */}
-        {activeScreen === 'AccountSettings' ? (
-          <View style={{ flex: 1, height: '100%' }}>
-            {children}
-          </View>
-        ) : (
-          <ScrollView
-            style={styles.contentScrollView}
-            contentContainerStyle={[
-              styles.contentContainer,
-              isMobile && styles.mobileContentContainer,
-            ]}
-          >
-            <View style={styles.maxContainer}>
-              <TransitionWrapper trigger={activeScreen}>
-                {children}
-              </TransitionWrapper>
-            </View>
-          </ScrollView>
-        )}
+        {/* Main Body */}
+        <View style={styles.mainContentArea}>
+          {children}
+        </View>
       </View>
     </View>
   );
@@ -191,22 +175,9 @@ const styles = StyleSheet.create({
     width: '100%',
     overflow: 'hidden',
   },
-  contentScrollView: {
+  mainContentArea: {
     flex: 1,
-  },
-  contentContainer: {
-    paddingHorizontal: SPACING[32],
-    paddingVertical: SPACING[32],
-    alignItems: 'center',
-  },
-  mobileContentContainer: {
-    paddingHorizontal: SPACING[16],
-    paddingVertical: SPACING[16],
-  },
-  maxContainer: {
-    width: '100%',
-    maxWidth: 1600,
-    alignSelf: 'center',
+    height: '100%',
   },
   backdrop: {
     ...StyleSheet.absoluteFill,
