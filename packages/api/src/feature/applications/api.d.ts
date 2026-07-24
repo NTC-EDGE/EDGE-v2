@@ -1,0 +1,13 @@
+import { ApiResponse, PaginatedApiResponse } from '../../types';
+import { ApplicationDto, SubmitApplicationCommand, UpdateApplicationCommand, UploadApplicantRequirementCommand, GetApplicationsParams, PreviewCsvImportResultDto } from './types';
+export declare function submitApplication(command: SubmitApplicationCommand): Promise<ApiResponse<string>>;
+export declare function submitTenantApplication(tenantId: string, command: SubmitApplicationCommand): Promise<ApiResponse<string>>;
+export declare function getApplicationById(id: string): Promise<ApiResponse<ApplicationDto>>;
+export declare function getDraftApplications(): Promise<ApiResponse<ApplicationDto[]>>;
+export declare function getApplications(params?: GetApplicationsParams): Promise<PaginatedApiResponse<ApplicationDto>>;
+export declare function updateApplicationDraft(id: string, command: UpdateApplicationCommand): Promise<ApiResponse<void>>;
+export declare function deleteDraftApplication(id: string): Promise<ApiResponse<void>>;
+export declare function finalizeApplicationSubmission(id: string): Promise<ApiResponse<void>>;
+export declare function uploadApplicantRequirement(id: string, applicantId: string, command: UploadApplicantRequirementCommand): Promise<ApiResponse<void>>;
+export declare function uploadTenantApplicationRequirement(tenantId: string, appId: string, command: UploadApplicantRequirementCommand): Promise<ApiResponse<void>>;
+export declare function previewCsvImport(file: File | Blob): Promise<ApiResponse<PreviewCsvImportResultDto>>;

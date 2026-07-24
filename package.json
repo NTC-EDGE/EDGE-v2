@@ -8,6 +8,8 @@
     "packages/*"
   ],
   "scripts": {
+    "api:build": "bun --filter @edge/api build",
+    "api:check-types": "bun --filter @edge/api check-types",
     "client:start": "bun --filter ntc-edge-app start",
     "client:android": "bun --filter ntc-edge-app android",
     "client:ios": "bun --filter ntc-edge-app ios",
@@ -24,7 +26,7 @@
     "client:check-types": "bun --filter ntc-edge-app check-types",
     "internal:check-types": "bun --filter ntc-edge-internal check-types",
     "admin:check-types": "bun --filter @edge/admin check-types",
-    "check-types": "bun --filter ntc-edge-app --filter ntc-edge-internal --filter @edge/admin check-types"
+    "check-types": "bun --filter @edge/api --filter ntc-edge-app --filter ntc-edge-internal --filter @edge/admin check-types"
   },
   "overrides": {
     "lru-cache": "^7.18.3",

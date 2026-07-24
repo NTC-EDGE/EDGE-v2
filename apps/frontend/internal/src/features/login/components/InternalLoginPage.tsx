@@ -37,7 +37,8 @@ interface FooterPolicyContent {
 const FOOTER_POLICIES: Record<string, FooterPolicyContent> = {
   "user-agreement": {
     title: "User Agreement",
-    intro: "Welcome to the EDGE Portal. This User Agreement governs your access to and use of all services provided by the National Telecommunications Commission (NTC) via this platform.",
+    intro:
+      "Welcome to the EDGE Portal. This User Agreement governs your access to and use of all services provided by the National Telecommunications Commission (NTC) via this platform.",
     sections: [
       {
         title: "1. Acceptance of Terms",
@@ -55,7 +56,8 @@ const FOOTER_POLICIES: Record<string, FooterPolicyContent> = {
   },
   "privacy-policy": {
     title: "Privacy Policy",
-    intro: "Your privacy is important to us. This policy outlines how the NTC collects, uses, and protects the personal and application data you provide through the EDGE Portal.",
+    intro:
+      "Your privacy is important to us. This policy outlines how the NTC collects, uses, and protects the personal and application data you provide through the EDGE Portal.",
     sections: [
       {
         title: "1. Data Collection",
@@ -73,7 +75,8 @@ const FOOTER_POLICIES: Record<string, FooterPolicyContent> = {
   },
   "community-guidelines": {
     title: "Community Guidelines",
-    intro: "These guidelines promote a safe and productive environment for all users of the EDGE Portal, especially when utilizing public-facing features like feedback forums or communication channels.",
+    intro:
+      "These guidelines promote a safe and productive environment for all users of the EDGE Portal, especially when utilizing public-facing features like feedback forums or communication channels.",
     sections: [
       {
         title: "1. Respectful Conduct",
@@ -91,7 +94,8 @@ const FOOTER_POLICIES: Record<string, FooterPolicyContent> = {
   },
   "cookie-policy": {
     title: "Cookie Policy",
-    intro: "This portal uses cookies to ensure optimal performance and user experience. By continuing to use the EDGE Portal, you consent to the use of cookies.",
+    intro:
+      "This portal uses cookies to ensure optimal performance and user experience. By continuing to use the EDGE Portal, you consent to the use of cookies.",
     sections: [
       {
         title: "1. What are Cookies?",
@@ -109,7 +113,8 @@ const FOOTER_POLICIES: Record<string, FooterPolicyContent> = {
   },
   "send-feedback": {
     title: "Send Feedback",
-    intro: "Your feedback is crucial for the continuous improvement of the EDGE Portal. Please use this channel to submit suggestions, bug reports, or compliments.",
+    intro:
+      "Your feedback is crucial for the continuous improvement of the EDGE Portal. Please use this channel to submit suggestions, bug reports, or compliments.",
     sections: [
       {
         title: "1. Focus on Specifics",
@@ -127,7 +132,8 @@ const FOOTER_POLICIES: Record<string, FooterPolicyContent> = {
   },
   "help-center": {
     title: "Help Center & Support",
-    intro: "Find comprehensive guides, video tutorials, and technical support for all NTC EDGE Portal services.",
+    intro:
+      "Find comprehensive guides, video tutorials, and technical support for all NTC EDGE Portal services.",
     sections: [
       {
         title: "1. Self-Service Resources",
@@ -152,7 +158,8 @@ export function InternalLoginPage() {
   const isTablet = width >= 640 && width < 1024;
 
   const [error, setError] = useState("");
-  const [activeFooterModal, setActiveFooterModal] = useState<FooterPolicyContent | null>(null);
+  const [activeFooterModal, setActiveFooterModal] =
+    useState<FooterPolicyContent | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleClerkRedirect = () => {
@@ -161,23 +168,28 @@ export function InternalLoginPage() {
       setError("Clerk publishable key is not configured.");
       return;
     }
-    
+
     setError("");
     setIsSubmitting(true);
     try {
       const parts = key.split("_");
       const base64Part = parts[2];
-      if (base64Part === undefined || base64Part === null || base64Part === "") {
+      if (
+        base64Part === undefined ||
+        base64Part === null ||
+        base64Part === ""
+      ) {
         setError("Invalid Clerk publishable key format.");
         setIsSubmitting(false);
         return;
       }
-      
+
       let decoded = "";
       if (typeof atob === "function") {
         decoded = atob(base64Part);
       } else {
-        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        const chars =
+          "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
         const lookup = new Uint8Array(256);
         for (let i = 0; i < chars.length; i++) {
           lookup[chars.charCodeAt(i)] = i;
@@ -189,35 +201,43 @@ export function InternalLoginPage() {
           const charCode1 = base64Part.charCodeAt(i + 1);
           const charCode2 = base64Part.charCodeAt(i + 2);
           const charCode3 = base64Part.charCodeAt(i + 3);
-          
+
           const val0 = lookup[charCode0];
           const val1 = lookup[charCode1];
           const val2 = lookup[charCode2];
           const val3 = lookup[charCode3];
-          
-          if (val0 === undefined || val1 === undefined || val2 === undefined || val3 === undefined) {
-             continue;
+
+          if (
+            val0 === undefined ||
+            val1 === undefined ||
+            val2 === undefined ||
+            val3 === undefined
+          ) {
+            continue;
           }
-          
+
           const chunk = (val0 << 18) | (val1 << 12) | (val2 << 6) | val3;
           buffer[bytesCount++] = (chunk >> 16) & 255;
           buffer[bytesCount++] = (chunk >> 8) & 255;
           buffer[bytesCount++] = chunk & 255;
         }
-        decoded = String.fromCharCode.apply(null, Array.from(buffer.subarray(0, bytesCount)));
+        decoded = String.fromCharCode.apply(
+          null,
+          Array.from(buffer.subarray(0, bytesCount)),
+        );
       }
-      
+
       const domain = decoded.replace(/\$$/, "");
       if (domain === "") {
         setError("Failed to resolve Clerk domain.");
         setIsSubmitting(false);
         return;
       }
-      
+
       const portalDomain = domain.includes(".clerk.accounts.dev")
         ? domain.replace(".clerk.accounts.dev", ".accounts.dev")
         : domain;
-      
+
       const currentOrigin =
         Platform.OS === "web" &&
         typeof window !== "undefined" &&
@@ -225,10 +245,14 @@ export function InternalLoginPage() {
         typeof window.location.origin === "string"
           ? window.location.origin + window.location.pathname
           : "edge://internal/login";
-        
+
       const signInUrl = `https://${portalDomain}/sign-in?redirect_url=${encodeURIComponent(currentOrigin)}`;
-      
-      if (Platform.OS === "web" && typeof window !== "undefined" && window.location !== undefined) {
+
+      if (
+        Platform.OS === "web" &&
+        typeof window !== "undefined" &&
+        window.location !== undefined
+      ) {
         window.location.href = signInUrl;
       } else {
         import("react-native").then(({ Linking }) => {
@@ -258,26 +282,60 @@ export function InternalLoginPage() {
         <View style={styles.backgroundBlobRight} pointerEvents="none" />
 
         <View style={styles.heroSection}>
-          <View style={[styles.heroContentWrapper, isMobile && styles.heroContentWrapperMobile]}>
-            <View style={[styles.heroLeftCol, isMobile && styles.heroLeftColMobile]}>
-              <View style={[styles.heroPillBadge, isMobile && { alignSelf: "center" }]}>
+          <View
+            style={[
+              styles.heroContentWrapper,
+              isMobile && styles.heroContentWrapperMobile,
+            ]}
+          >
+            <View
+              style={[styles.heroLeftCol, isMobile && styles.heroLeftColMobile]}
+            >
+              <View
+                style={[
+                  styles.heroPillBadge,
+                  isMobile && { alignSelf: "center" },
+                ]}
+              >
                 <View style={styles.heroBadgeDot} />
-                <Text style={styles.heroBadgeText}>Official NTC-EDGE Portal</Text>
+                <Text style={styles.heroBadgeText}>
+                  Official NTC-EDGE Portal
+                </Text>
               </View>
 
-              <Text style={[styles.heroTitle, isMobile ? styles.heroTitleMobile : isTablet ? styles.heroTitleTablet : null]}>
+              <Text
+                style={[
+                  styles.heroTitle,
+                  isMobile
+                    ? styles.heroTitleMobile
+                    : isTablet
+                      ? styles.heroTitleTablet
+                      : null,
+                ]}
+              >
                 Empowering <Text style={styles.heroTitleHighlight}>NTC's</Text>
                 {isMobile ? " " : "\n"}Data Governance
               </Text>
 
-              <Text style={[styles.heroSubtitle, isMobile && styles.heroSubtitleMobile]}>
-                Streamline your government services experience. Apply for permits, licenses, and certificates with secure, efficient, and transparent processes powered by EDGE.
+              <Text
+                style={[
+                  styles.heroSubtitle,
+                  isMobile && styles.heroSubtitleMobile,
+                ]}
+              >
+                Streamline your government services experience. Apply for
+                permits, licenses, and certificates with secure, efficient, and
+                transparent processes powered by EDGE.
               </Text>
             </View>
 
             <View style={styles.heroRightCol}>
               <View style={styles.loginCardLogoWrapper}>
-                <NtcLogo size={isMobile ? "medium" : "large"} variant="light" showSubtext={false} />
+                <NtcLogo
+                  size={isMobile ? "medium" : "large"}
+                  variant="light"
+                  showSubtext={false}
+                />
               </View>
               <View style={[styles.mockupWindowCard, SHADOWS.modal]}>
                 <View style={styles.mockupWindowHeader}>
@@ -288,7 +346,9 @@ export function InternalLoginPage() {
                   </View>
                 </View>
 
-                <View style={[styles.mockupWindowBody, isMobile && { padding: 20 }]}>
+                <View
+                  style={[styles.mockupWindowBody, isMobile && { padding: 20 }]}
+                >
                   <Text style={styles.cardTitle}>Get Started</Text>
 
                   {error.length > 0 ? (
@@ -305,7 +365,10 @@ export function InternalLoginPage() {
                     disabled={isSubmitting}
                   >
                     {isSubmitting ? (
-                      <ActivityIndicator size="small" color={COLORS.neutral.white} />
+                      <ActivityIndicator
+                        size="small"
+                        color={COLORS.neutral.white}
+                      />
                     ) : (
                       <View style={styles.loginButtonInner}>
                         <Lucide
@@ -337,40 +400,57 @@ export function InternalLoginPage() {
               <Text style={styles.footerCopyrightText}>© 2026</Text>
             </View>
 
-            <View style={[styles.footerRightLinks, isMobile && styles.footerRightLinksMobile]}>
+            <View
+              style={[
+                styles.footerRightLinks,
+                isMobile && styles.footerRightLinksMobile,
+              ]}
+            >
               <Pressable
                 style={styles.footerLinkPressable}
-                onPress={() => setActiveFooterModal(FOOTER_POLICIES["user-agreement"])}
+                onPress={() =>
+                  setActiveFooterModal(FOOTER_POLICIES["user-agreement"])
+                }
               >
                 <Text style={styles.footerLinkText}>User Agreement</Text>
               </Pressable>
               <Pressable
                 style={styles.footerLinkPressable}
-                onPress={() => setActiveFooterModal(FOOTER_POLICIES["privacy-policy"])}
+                onPress={() =>
+                  setActiveFooterModal(FOOTER_POLICIES["privacy-policy"])
+                }
               >
                 <Text style={styles.footerLinkText}>Privacy Policy</Text>
               </Pressable>
               <Pressable
                 style={styles.footerLinkPressable}
-                onPress={() => setActiveFooterModal(FOOTER_POLICIES["community-guidelines"])}
+                onPress={() =>
+                  setActiveFooterModal(FOOTER_POLICIES["community-guidelines"])
+                }
               >
                 <Text style={styles.footerLinkText}>Community Guidelines</Text>
               </Pressable>
               <Pressable
                 style={styles.footerLinkPressable}
-                onPress={() => setActiveFooterModal(FOOTER_POLICIES["cookie-policy"])}
+                onPress={() =>
+                  setActiveFooterModal(FOOTER_POLICIES["cookie-policy"])
+                }
               >
                 <Text style={styles.footerLinkText}>Cookie Policy</Text>
               </Pressable>
               <Pressable
                 style={styles.footerLinkPressable}
-                onPress={() => setActiveFooterModal(FOOTER_POLICIES["send-feedback"])}
+                onPress={() =>
+                  setActiveFooterModal(FOOTER_POLICIES["send-feedback"])
+                }
               >
                 <Text style={styles.footerLinkText}>Send Feedback</Text>
               </Pressable>
               <Pressable
                 style={styles.footerLinkPressable}
-                onPress={() => setActiveFooterModal(FOOTER_POLICIES["help-center"])}
+                onPress={() =>
+                  setActiveFooterModal(FOOTER_POLICIES["help-center"])
+                }
               >
                 <Text style={styles.footerLinkText}>Help Center</Text>
               </Pressable>
@@ -378,7 +458,6 @@ export function InternalLoginPage() {
           </View>
         </View>
       </ScrollView>
-
 
       {/* Policy & Support Dialog Modal */}
       <Modal
@@ -406,31 +485,53 @@ export function InternalLoginPage() {
             </Pressable>
 
             {activeFooterModal !== null ? (
-              <ScrollView style={{ maxHeight: 560 }} showsVerticalScrollIndicator={true}>
+              <ScrollView
+                style={{ maxHeight: 560 }}
+                showsVerticalScrollIndicator={true}
+              >
                 {/* Header */}
                 <View style={styles.policyModalHeader}>
                   <View style={styles.policyHeaderIconCircle}>
                     <Lucide name="file-text" size={20} color="#1E3A8A" />
                   </View>
-                  <Text style={styles.policyModalTitle}>{activeFooterModal.title}</Text>
+                  <Text style={styles.policyModalTitle}>
+                    {activeFooterModal.title}
+                  </Text>
                 </View>
                 <View style={styles.policyTitleDivider} />
 
                 {/* Intro Box */}
                 <View style={styles.policyIntroBox}>
-                  <Lucide name="info" size={18} color="#1E3A8A" style={styles.policyIntroIcon} />
-                  <Text style={styles.policyIntroText}>{activeFooterModal.intro}</Text>
+                  <Lucide
+                    name="info"
+                    size={18}
+                    color="#1E3A8A"
+                    style={styles.policyIntroIcon}
+                  />
+                  <Text style={styles.policyIntroText}>
+                    {activeFooterModal.intro}
+                  </Text>
                 </View>
 
                 {/* Section Cards */}
                 {activeFooterModal.sections.map((sec, i) => (
-                  <View key={i} style={[styles.policySectionCard, SHADOWS.card]}>
+                  <View
+                    key={i}
+                    style={[styles.policySectionCard, SHADOWS.card]}
+                  >
                     <Text style={styles.policySecTitle}>{sec.title}</Text>
                     <Text style={styles.policySecBody}>{sec.body}</Text>
                     {sec.highlight !== undefined ? (
                       <View style={styles.policyHighlightBadge}>
-                        <Lucide name="mail" size={14} color="#1E3A8A" style={styles.policyMailIcon} />
-                        <Text style={styles.policyHighlightText}>{sec.highlight}</Text>
+                        <Lucide
+                          name="mail"
+                          size={14}
+                          color="#1E3A8A"
+                          style={styles.policyMailIcon}
+                        />
+                        <Text style={styles.policyHighlightText}>
+                          {sec.highlight}
+                        </Text>
                       </View>
                     ) : null}
                   </View>

@@ -1,15 +1,15 @@
-import axios from 'axios';
-import useSWR, { SWRConfiguration, SWRResponse } from 'swr';
+import axios from "axios";
+import useSWR, { SWRConfiguration, SWRResponse } from "swr";
 
 declare const process: { env: Record<string, string | undefined> };
 
 const getApiUrl = (): string => {
-
-  const envUrl = process.env.EXPO_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_URL;
-  if (typeof envUrl === 'string' && envUrl.length > 0) {
-    return envUrl;
+  const envUrl =
+    process.env.EXPO_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_URL;
+  if (typeof envUrl === "string" && envUrl.trim().length > 0) {
+    return envUrl.trim();
   }
-  return 'http://localhost:5038';
+  return "http://localhost:5038";
 };
 
 export const apiClient = axios.create({
@@ -18,24 +18,33 @@ export const apiClient = axios.create({
 
 export const setAuthToken = (token: string | null): void => {
   if (token !== null) {
-    apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    apiClient.defaults.headers.common["Authorization"] = `Bearer ${token}`;
   } else {
-    delete apiClient.defaults.headers.common['Authorization'];
+    delete apiClient.defaults.headers.common["Authorization"];
   }
 };
 
+export const formatEndpointUrl = (url: string): string => {
+  let cleanedUrl = url;
+  if (cleanedUrl.includes("pg.dev.nextstep-software.com")) {
+    cleanedUrl = cleanedUrl.replace(/.*pg\.dev\.nextstep-software\.com/, "");
+  }
+  return cleanedUrl;
+};
+
 export const fetcher = <T>(url: string): Promise<T> =>
-  apiClient.get<T>(url).then((res) => res.data);
+  apiClient.get<T>(formatEndpointUrl(url)).then((res) => res.data);
 
 export function useAuthenticatedSWR<Data = unknown, Error = unknown>(
   key: string | null,
   clerkGetToken: () => Promise<string | null>,
-  config?: SWRConfiguration<Data, Error>
+  config?: SWRConfiguration<Data, Error>,
 ): SWRResponse<Data, Error> {
-  const customFetcher = async (url: string): Promise<Data> => {
+  const customFetcher = async (rawUrl: string): Promise<Data> => {
+    const sanitizedUrl = formatEndpointUrl(rawUrl);
     const token = await clerkGetToken();
     const headers = token !== null ? { Authorization: `Bearer ${token}` } : {};
-    const response = await apiClient.get<Data>(url, { headers });
+    const response = await apiClient.get<Data>(sanitizedUrl, { headers });
     return response.data;
   };
 
@@ -50,7 +59,5 @@ export function useAuthenticatedSWR<Data = unknown, Error = unknown>(
   return useSWR<Data, Error>(key, customFetcher, defaultConfig);
 }
 
-
-export * from './types';
-export * from './feature/applications';
-
+export * from "./types";
+export * from "./feature/applications";
