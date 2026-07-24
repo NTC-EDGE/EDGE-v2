@@ -93,65 +93,64 @@ export function DashboardShell({
 
   return (
     <View style={styles.shell}>
-      {/* Left Sidebar (Desktop Only) */}
-      {!isMobile && (
-        <Sidebar
-          currentRole={currentRole}
-          links={links}
-          activeScreen={activeScreen}
-          onNavigate={handleLinkPress}
-        />
-      )}
+      {/* Top Navigation Header */}
+      <Header
+        currentRole={currentRole}
+        onRoleSelect={handleRoleSelect}
+        showRoleDropdown={showRoleDropdown}
+        toggleRoleDropdown={toggleRoleDropdown}
+        closeRoleDropdown={closeRoleDropdown}
+        isSwitcherHovered={isSwitcherHovered}
+        setIsSwitcherHovered={setIsSwitcherHovered}
+        isLogoutHovered={isLogoutHovered}
+        setIsLogoutHovered={setIsLogoutHovered}
+        user={user}
+        onLogout={logout}
+        isMobile={isMobile}
+        onMenuPress={toggleSidebar}
+      />
 
-      {/* Mobile Drawer (Backdrop & Sliding Sidebar) */}
-      {isMobile && shouldRenderSidebar && (
-        <>
-          <Animated.View
-            style={[
-              styles.backdrop,
-              { opacity: backdropOpacity },
-            ]}
-          >
-            <Pressable style={styles.backdropPressable} onPress={closeSidebar} />
-          </Animated.View>
-          <Animated.View
-            style={[
-              styles.mobileSidebarContainer,
-              { transform: [{ translateX }] },
-            ]}
-          >
-            <Sidebar
-              currentRole={currentRole}
-              links={links}
-              activeScreen={activeScreen}
-              onNavigate={handleLinkPress}
-              isMobile={true}
-              onClose={closeSidebar}
-              onLogout={logout}
-              onRoleSelect={handleRoleSelect}
-            />
-          </Animated.View>
-        </>
-      )}
+      <View style={styles.bodyWrapper}>
+        {/* Left Sidebar (Desktop Only) */}
+        {!isMobile && (
+          <Sidebar
+            currentRole={currentRole}
+            links={links}
+            activeScreen={activeScreen}
+            onNavigate={handleLinkPress}
+          />
+        )}
 
-      {/* Right Content Area */}
-      <View style={styles.mainWrapper}>
-        {/* Top Navigation Header */}
-        <Header
-          currentRole={currentRole}
-          onRoleSelect={handleRoleSelect}
-          showRoleDropdown={showRoleDropdown}
-          toggleRoleDropdown={toggleRoleDropdown}
-          closeRoleDropdown={closeRoleDropdown}
-          isSwitcherHovered={isSwitcherHovered}
-          setIsSwitcherHovered={setIsSwitcherHovered}
-          isLogoutHovered={isLogoutHovered}
-          setIsLogoutHovered={setIsLogoutHovered}
-          user={user}
-          onLogout={logout}
-          isMobile={isMobile}
-          onMenuPress={toggleSidebar}
-        />
+        {/* Mobile Drawer (Backdrop & Sliding Sidebar) */}
+        {isMobile && shouldRenderSidebar && (
+          <>
+            <Animated.View
+              style={[
+                styles.backdrop,
+                { opacity: backdropOpacity },
+              ]}
+            >
+              <Pressable style={styles.backdropPressable} onPress={closeSidebar} />
+            </Animated.View>
+            <Animated.View
+              style={[
+                styles.mobileSidebarContainer,
+                { transform: [{ translateX }] },
+              ]}
+            >
+              <Sidebar
+                currentRole={currentRole}
+                links={links}
+                activeScreen={activeScreen}
+                onNavigate={handleLinkPress}
+                isMobile={true}
+                onClose={closeSidebar}
+                onLogout={logout}
+                onRoleSelect={handleRoleSelect}
+              />
+            </Animated.View>
+          </>
+        )}
 
         {/* Main Scrolling Body */}
         <ScrollView
@@ -175,13 +174,15 @@ export function DashboardShell({
 const styles = StyleSheet.create({
   shell: {
     flex: 1,
-    flexDirection: 'row',
-    backgroundColor: COLORS.bg,
-  },
-  mainWrapper: {
-    flex: 1,
     flexDirection: 'column',
+    backgroundColor: COLORS.bg,
     height: '100%',
+  },
+  bodyWrapper: {
+    flex: 1,
+    flexDirection: 'row',
+    width: '100%',
+    overflow: 'hidden',
   },
   contentScrollView: {
     flex: 1,

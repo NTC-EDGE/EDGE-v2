@@ -39,24 +39,24 @@ export function Sidebar({
 
   return (
     <View style={[styles.sidebar, isMobile && styles.sidebarMobile]}>
-      {/* Sidebar Header */}
-      <View style={styles.sidebarHeader}>
-        <View style={styles.logoWrapper}>
-          <View style={styles.logoIcon}>
-            <Lucide name="shield" size={20} color={COLORS.brand[800]} />
+      {/* Sidebar Header (Mobile drawer only) */}
+      {isMobile && (
+        <View style={styles.sidebarHeader}>
+          <View style={styles.logoWrapper}>
+            <View style={styles.logoIcon}>
+              <Lucide name="shield" size={20} color={COLORS.brand[800]} />
+            </View>
+            <View>
+              <Text style={styles.logoTitle}>EDGE</Text>
+              <Text style={styles.logoSubtitle}>INTERNAL PORTAL</Text>
+            </View>
           </View>
-          <View>
-            <Text style={styles.logoTitle}>EDGE</Text>
-            <Text style={styles.logoSubtitle}>INTERNAL PORTAL</Text>
-          </View>
-        </View>
 
-        {isMobile && (
           <Pressable onPress={onClose} style={styles.closeBtn}>
             <Lucide name="x" size={18} color={COLORS.neutral[500]} />
           </Pressable>
-        )}
-      </View>
+        </View>
+      )}
 
       {/* Sidebar Navigation Links */}
       <ScrollView
