@@ -6,8 +6,8 @@ import {
   ActivityIndicator,
   Platform,
 } from "react-native";
-import { tokenCache } from "./tokenCache";
 import { ClerkProvider } from "@clerk/expo";
+import { tokenCache } from "@clerk/expo/token-cache";
 import {
   COLORS,
   useNavigationContainerRef,
