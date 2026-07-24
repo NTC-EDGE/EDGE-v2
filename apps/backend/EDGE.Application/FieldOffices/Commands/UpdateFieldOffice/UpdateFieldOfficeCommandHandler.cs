@@ -18,7 +18,7 @@ public class UpdateFieldOfficeCommandHandler(IFieldOfficeRepository repository, 
 
         fieldOffice.Name = request.Name;
         fieldOffice.RegionId = request.RegionId;
-        fieldOffice.Code = request.Code;
+        fieldOffice.Code = request.Code ?? fieldOffice.Code; // Retain existing code if not provided
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
 

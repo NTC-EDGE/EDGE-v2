@@ -124,7 +124,7 @@ namespace EDGE.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<Guid>("BarangayId")
+                    b.Property<Guid?>("BarangayId")
                         .HasColumnType("uuid");
 
                     b.Property<DateOnly>("BirthDate")
@@ -147,6 +147,9 @@ namespace EDGE.Infrastructure.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("ESignature")
+                        .HasColumnType("text");
+
+                    b.Property<string>("EmailAddress")
                         .HasColumnType("text");
 
                     b.Property<string>("FirstName")
@@ -1701,8 +1704,7 @@ namespace EDGE.Infrastructure.Migrations
                     b.HasOne("EDGE.Domain.Entities.Barangay", "Barangay")
                         .WithMany()
                         .HasForeignKey("BarangayId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("EDGE.Domain.Entities.CompanyDetail", "CompanyDetail")
                         .WithMany()
