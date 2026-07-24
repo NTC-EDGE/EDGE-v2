@@ -30,7 +30,7 @@ import { FeesPaymentsTab } from '../components/FeesPaymentsTab';
 import { NotesTab } from '../components/NotesTab';
 import { FormBuilderTab } from '../components/FormBuilderTab';
 import { FeedbackTab } from '../components/FeedbackTab';
-import { AdminSettingsModal, ModalType } from '../components/AdminSettingsModal';
+import { AdminSettingsModal, ModalType, ModalInitialData } from '../components/AdminSettingsModal';
 
 export type AdminTabType =
   | 'regional'
@@ -73,14 +73,7 @@ export function AdminSettingsScreen() {
 
   // Modal State
   const [modalType, setModalType] = useState<ModalType>('none');
-  const [selectedItem, setSelectedItem] = useState<{
-    id?: string;
-    title?: string;
-    name?: string;
-    subLabel?: string;
-    amount?: number;
-    instructions?: string;
-  } | undefined>(undefined);
+  const [selectedItem, setSelectedItem] = useState<ModalInitialData | undefined>(undefined);
 
   // Derived Branch Stats
   const stats = {
@@ -93,8 +86,10 @@ export function AdminSettingsScreen() {
   const handleEditConfig = (config: RegionalConfigCard) => {
     setSelectedItem({
       id: config.id,
+      category: config.category,
       name: config.name,
       subLabel: config.subLabel,
+      isActive: true,
     });
     setModalType('edit-config');
   };
@@ -112,6 +107,8 @@ export function AdminSettingsScreen() {
     setSelectedItem({
       id: branch.id,
       name: branch.name,
+      code: branch.code,
+      branchType: branch.type,
       subLabel: branch.address,
     });
     setModalType('add-branch');
@@ -201,8 +198,11 @@ export function AdminSettingsScreen() {
     title: string;
     name: string;
     subLabel: string;
+    code: string;
+    branchType: 'Main Office' | 'Field Office';
     amount: number;
     instructions: string;
+    isActive: boolean;
   }) => {
     if (modalType === 'edit-config' && selectedItem?.id !== undefined) {
       setRegionalConfigs((prev) =>
@@ -217,7 +217,13 @@ export function AdminSettingsScreen() {
         setBranchOffices((prev) =>
           prev.map((b) =>
             b.id === selectedItem.id
-              ? { ...b, name: data.name || b.name, address: data.subLabel || b.address }
+              ? {
+                  ...b,
+                  name: data.name || b.name,
+                  code: data.code || b.code,
+                  type: data.branchType,
+                  address: data.subLabel || b.address,
+                }
               : b
           )
         );
@@ -225,8 +231,8 @@ export function AdminSettingsScreen() {
         const newBranch: BranchOffice = {
           id: `bo-${Date.now()}`,
           name: data.name || 'New Regional Field Office',
-          code: `B5099-FO${branchOffices.length + 1}`,
-          type: 'Field Office',
+          code: data.code || `B5099-FO${branchOffices.length + 1}`,
+          type: data.branchType || 'Field Office',
           address: data.subLabel || 'Regional Address',
           contactNumber: '(088) 123-4567',
         };
