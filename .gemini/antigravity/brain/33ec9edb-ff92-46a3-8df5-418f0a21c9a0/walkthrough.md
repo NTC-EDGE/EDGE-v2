@@ -23,7 +23,7 @@ We have designed, implemented, and fully refactored the entire PDF printing subs
 - Implemented `PdfOverlayDebugRenderer`: Draws major/minor coordinate grid lines, crosshairs, coordinate labels, field names, and measured text bounding boxes.
 
 ### 3. Integrated Form Overlay Mappers (`EDGE.Infrastructure.Printing.Services.Fields`)
-Refactored all 12 flat PDF overlay mappers to emit structured `IReadOnlyList<FieldOverlay>` lists:
+Refactored all 15 flat PDF overlay mappers to emit structured `IReadOnlyList<FieldOverlay>` lists:
 - `Ntc101Fields.cs` & `Ntc101FlatPdfOverlayMapper.cs` (Commercial Radio Operator Exam Application)
 - `Ntc102Fields.cs` & `Ntc102FlatPdfOverlayMapper.cs` (Radio Operator License Application)
 - `Ntc103Fields.cs` & `Ntc103FlatPdfOverlayMapper.cs` (Amateur Radio Station License Application)
@@ -36,9 +36,12 @@ Refactored all 12 flat PDF overlay mappers to emit structured `IReadOnlyList<Fie
 - `Ntc118Fields.cs` & `Ntc118FlatPdfOverlayMapper.cs` (Commercial RCE & Mobile Phone Permits)
 - `Ntc119Fields.cs` & `Ntc119FlatPdfOverlayMapper.cs` (Certificate of Registration Application)
 - `Ntc120Fields.cs` & `Ntc120FlatPdfOverlayMapper.cs` (NTC 1-20 Application)
+- `Ntc121Fields.cs` & `Ntc121FlatPdfOverlayMapper.cs` (Duplicate Permit/License/Certificate Application)
+- `Ntc122Fields.cs` & `Ntc122FlatPdfOverlayMapper.cs` (TVRO / CATV Station License & Registration Application)
+- `Ntc124Fields.cs` & `Ntc124FlatPdfOverlayMapper.cs` (Affidavit of Ownership & Loss for Mobile/SIM Handset Blocking)
 
 ### 4. Comprehensive Unit Test PDF Generation
-Updated [PdfFieldRendererTests.cs](file:///c:/Users/almau/EDGE-v2/apps/backend/EDGE.Application.UnitTests/Printing/PdfFieldRendererTests.cs) so that running `dotnet test` maps and renders production (`_clean_output.pdf`) and debug (`_debug_output.pdf`) PDFs for **all 12 form types**:
+Updated [PdfFieldRendererTests.cs](file:///c:/Users/almau/EDGE-v2/apps/backend/EDGE.Application.UnitTests/Printing/PdfFieldRendererTests.cs) so that running `dotnet test` maps and renders production (`_clean_output.pdf`) and debug (`_debug_output.pdf`) PDFs for **all 15 form types**:
 - `ntc101_clean_output.pdf` / `ntc101_debug_output.pdf`
 - `ntc102_clean_output.pdf` / `ntc102_debug_output.pdf`
 - `ntc103_clean_output.pdf` / `ntc103_debug_output.pdf`
@@ -51,9 +54,12 @@ Updated [PdfFieldRendererTests.cs](file:///c:/Users/almau/EDGE-v2/apps/backend/E
 - `ntc118_clean_output.pdf` / `ntc118_debug_output.pdf`
 - `ntc119_clean_output.pdf` / `ntc119_debug_output.pdf`
 - `ntc120_clean_output.pdf` / `ntc120_debug_output.pdf`
+- `ntc121_clean_output.pdf` / `ntc121_debug_output.pdf`
+- `ntc122_clean_output.pdf` / `ntc122_debug_output.pdf`
+- `ntc124_clean_output.pdf` / `ntc124_debug_output.pdf`
 
 ---
 
 ## Verification & Test Results
 - Ran `dotnet test apps/backend/EDGE.Application.UnitTests/EDGE.Application.UnitTests.csproj`.
-- **25 / 25 unit tests passed** cleanly (0 failures).
+- **28 / 28 unit tests passed** cleanly (0 failures).

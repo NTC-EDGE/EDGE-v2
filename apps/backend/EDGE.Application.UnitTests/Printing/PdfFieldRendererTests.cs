@@ -98,6 +98,9 @@ public class PdfFieldRendererTests
     [InlineData("ntc-1-18.pdf", "ntc118")]
     [InlineData("ntc-1-19.pdf", "ntc119")]
     [InlineData("ntc-1-20.pdf", "ntc120")]
+    [InlineData("ntc-1-21.pdf", "ntc121")]
+    [InlineData("ntc-1-22.pdf", "ntc122")]
+    [InlineData("ntc-1-24.pdf", "ntc124")]
     public void GenerateSamplePdfs_ForAllApplications(string templateName, string formKey)
     {
         // Arrange
@@ -400,6 +403,87 @@ public class PdfFieldRendererTests
                 },
                 Declaration = new Declaration { SignatoryName = "TECHTRONICS SYSTEMS PHILIPPINES INC.", DateAccomplished = new DateOnly(2026, 7, 24) },
                 Payment = new Payment { OrNo = "OR-119-001", OrDate = new DateOnly(2026, 7, 24), Amount = 2200.00m, CollectingOfficer = "MARIA SANTOS" }
+            }),
+
+            "ntc121" => Ntc121FlatPdfOverlayMapper.MapToFieldOverlays(new Ntc121Application
+            {
+                ApplicantPerson = new ApplicantPerson
+                {
+                    LastName = "DELA CRUZ",
+                    FirstName = "JUAN",
+                    MiddleName = "SANTOS",
+                    Address = new Address { UnitRoomBldgNo = "123", Street = "Main St", Barangay = "Central", CityMunicipality = "Quezon City", Province = "Metro Manila", ZipCode = "1100" },
+                    ContactNumber = "09171112233",
+                    Email = "juan.delacruz@example.com"
+                },
+                CircumstancesOfLossMutilation = "Lost wallet containing original license card while travelling.",
+                PermitLicenseCertType = "RSL",
+                PermitLicenseCertNo = "RSL-2025-9988",
+                PermitLicenseCertValidity = new DateOnly(2028, 5, 20),
+                Declaration = new Declaration { SignatoryName = "JUAN DELA CRUZ", DateAccomplished = new DateOnly(2026, 7, 24) },
+                Payment = new Payment { OrNo = "OR-121-001", OrDate = new DateOnly(2026, 7, 24), Amount = 300.00m, CollectingOfficer = "MARIA SANTOS" }
+            }),
+
+            "ntc122" => Ntc122FlatPdfOverlayMapper.MapToFieldOverlays(new Ntc122Application
+            {
+                TypeOfApplication = TypeOfApplication.New,
+                TypeOfLicenseCert = TypeOfLicenseCert122.TvroRegistrationCert,
+                ClassificationOfApplicant = ClassificationOfApplicant122.CommercialBroadcasting,
+                NoOfYears = 3,
+                Applicant = new Applicant
+                {
+                    Name = "SKY NETWORK BROADCASTING INC.",
+                    ContactNumber = "02-8333-4444",
+                    Email = "engineering@skynet.ph",
+                    Address = new Address { UnitRoomBldgNo = "Sky Tower", Street = "EDSA", Barangay = "Philam", CityMunicipality = "Quezon City", Province = "Metro Manila", ZipCode = "1104" }
+                },
+                PaCaNo = "PA-2026-12",
+                Validity = new DateOnly(2029, 7, 24),
+                ServiceArea = "Metro Manila & Nearby Provinces",
+                ProposedStation = new Station { ExactLocation = "QC Earth Station", Longitude = "121.03", Latitude = "14.65" },
+                Equipment = new TvroEquipmentDetails { MakeTypeModel = "General Instrument DSR-4530", SerialNumber = "SN-GI-8899", FrequencyRange = "3.7 - 4.2 GHz" },
+                AntennaSystem = new AntennaSystemDetails { DishDiameter = "3.8m", Polarization = "Dual Circular", Azimuth = "128.5°" },
+                SignalToBeReceived = new SignalToBeReceivedDetails { Satellite = "Agila-2 / ABS-2", Polarization = "Vertical", ReceivedFrequency = "3880 MHz", NameOfPrograms = "News & Entertainment Feeds" },
+                Declaration = new Declaration { SignatoryName = "SKY NETWORK BROADCASTING INC.", DateAccomplished = new DateOnly(2026, 7, 24) },
+                Payment = new Payment { OrNo = "OR-122-001", OrDate = new DateOnly(2026, 7, 24), Amount = 2500.00m, CollectingOfficer = "MARIA SANTOS" }
+            }),
+
+            "ntc124" => Ntc124FlatPdfOverlayMapper.MapToFieldOverlays(new Ntc124Application
+            {
+                ActionRequested = ActionRequested124.Block,
+                AffiantName = "JUAN DELA CRUZ",
+                Age = 28,
+                Citizenship = "Filipino",
+                ResidentialAddress = new Address { UnitRoomBldgNo = "Block 5 Lot 12", Street = "Sampaguita St", Barangay = "San Jose", CityMunicipality = "Pasig City", Province = "Metro Manila", ZipCode = "1600" },
+                TelephoneNumber = "09170001122",
+                OfficeAddress = new Address { UnitRoomBldgNo = "10th Floor", Street = "F. Ortigas Jr. Road", Barangay = "San Antonio", CityMunicipality = "Pasig City", Province = "Metro Manila", ZipCode = "1605" },
+                OfficeTelephoneNumber = "02-8631-0000",
+                ImeiNo = "358912345678901",
+                MakeModelType = "Apple iPhone 14 Pro 256GB Space Black",
+                SimMobileNumber = "09170001122",
+                ProofOfOwnership = new ProofOfOwnershipSelection { CopyGovernmentId = true, ProofOfOwnershipReceipt = true, BoxWithImei = true },
+                Incident = new IncidentDetails
+                {
+                    IncidentType = IncidentType124.Stolen,
+                    Sex = Sex.Male,
+                    AgeGroup = AgeGroup124.Age18_29,
+                    TimeOfDay = TimeOfDay124.Nighttime,
+                    PlaceOfIncident = "Ortigas Center, Pasig City",
+                    DateOfIncident = new DateOnly(2026, 7, 20)
+                },
+                Declaration = new Declaration { SignatoryName = "JUAN DELA CRUZ" },
+                NotaryPublic = new NotaryPublicDetails
+                {
+                    SubscribedDay = "24th",
+                    SubscribedMonthYear = "July 2026",
+                    ResidenceCertNo = "CCI-2026-00112233",
+                    IssuedAt = "Pasig City",
+                    IssuedDate = "01/15/2026",
+                    DocNo = "142",
+                    PageNo = "29",
+                    BookNo = "XII",
+                    SeriesOf = "2026"
+                }
             }),
 
             _ => Ntc120FlatPdfOverlayMapper.MapToFieldOverlays(new Ntc120Application

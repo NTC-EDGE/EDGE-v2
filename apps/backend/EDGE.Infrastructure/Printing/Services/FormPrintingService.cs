@@ -257,4 +257,52 @@ public class FormPrintingService : IFormPrintingService
 
         return new Ntc120Report(application).GeneratePdf();
     }
+
+    public byte[] PrintNtc121(Ntc121Application application)
+    {
+        const string templateName = "ntc-1-21.pdf";
+        if (_fillerService != null && _fillerService.TemplateExists(templateName))
+        {
+            var template = _fillerService.GetTemplate(templateName);
+            if (template != null)
+            {
+                var overlays = Ntc121FlatPdfOverlayMapper.MapToFieldOverlays(application);
+                return _fillerService.OverlayFields(template, overlays);
+            }
+        }
+
+        throw new InvalidOperationException("Template ntc-1-21.pdf not found.");
+    }
+
+    public byte[] PrintNtc122(Ntc122Application application)
+    {
+        const string templateName = "ntc-1-22.pdf";
+        if (_fillerService != null && _fillerService.TemplateExists(templateName))
+        {
+            var template = _fillerService.GetTemplate(templateName);
+            if (template != null)
+            {
+                var overlays = Ntc122FlatPdfOverlayMapper.MapToFieldOverlays(application);
+                return _fillerService.OverlayFields(template, overlays);
+            }
+        }
+
+        throw new InvalidOperationException("Template ntc-1-22.pdf not found.");
+    }
+
+    public byte[] PrintNtc124(Ntc124Application application)
+    {
+        const string templateName = "ntc-1-24.pdf";
+        if (_fillerService != null && _fillerService.TemplateExists(templateName))
+        {
+            var template = _fillerService.GetTemplate(templateName);
+            if (template != null)
+            {
+                var overlays = Ntc124FlatPdfOverlayMapper.MapToFieldOverlays(application);
+                return _fillerService.OverlayFields(template, overlays);
+            }
+        }
+
+        throw new InvalidOperationException("Template ntc-1-24.pdf not found.");
+    }
 }
