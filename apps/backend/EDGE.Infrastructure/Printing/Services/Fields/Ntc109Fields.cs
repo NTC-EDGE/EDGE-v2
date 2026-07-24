@@ -132,14 +132,14 @@ public static class Ntc109Fields
 
     public static class Payment
     {
-        public static readonly PdfField OrNo = new("Payment.OrNo", 450.0, 728.0, FontSize: 8.0);
-        public static readonly PdfField OrDateMonthDay = new("Payment.OrDateMonthDay", 460.0, 739.0, FontSize: 8.0);
-        public static readonly PdfField OrDateYear = new("Payment.OrDateYear", 514.0, 739.0, FontSize: 8.0);
-        public static readonly PdfField Amount = new("Payment.Amount", 435.0, 751.0, FontSize: 8.0);
+        public static readonly PdfField OrNo = new("Payment.OrNo", 460.0, 730.0, FontSize: 8.0);
+        public static readonly PdfField OrDateMonthDay = new("Payment.OrDateMonthDay", 460.0, 741, FontSize: 8.0);
+        public static readonly PdfField OrDateYear = new("Payment.OrDateYear", 514.0, 741.0, FontSize: 8.0);
+        public static readonly PdfField Amount = new("Payment.Amount", 435.0, 755.0, FontSize: 8.0);
         public static readonly PdfField CollectingOfficer = new(
             "Payment.CollectingOfficer",
             X: 458.6,
-            Y: 769.0,
+            Y: 774.0,
             Width: 120.0,
             HorizontalAlignment: HorizontalAlignment.Center,
             Anchor: PdfAnchor.BaselineCenter,
