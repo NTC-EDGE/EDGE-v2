@@ -9,7 +9,7 @@ using EDGE.Domain.Enums;
 
 namespace EDGE.Application.ServiceCategories.Commands.CreateServiceCategory;
 
-public class CreateServiceCategoryCommandHandler(IServiceCategoryRepository repository, IUnitOfWork unitOfWork) 
+public class CreateServiceCategoryCommandHandler(IServiceCategoryRepository repository, IUnitOfWork unitOfWork)
     : IRequestHandler<CreateServiceCategoryCommand, ApiResponse<Guid>>
 {
     public async Task<ApiResponse<Guid>> Handle(CreateServiceCategoryCommand request, CancellationToken cancellationToken)
@@ -18,17 +18,17 @@ public class CreateServiceCategoryCommandHandler(IServiceCategoryRepository repo
         {
             return ApiResponse<Guid>.Fail("Invalid Type value.");
         }
-        
+
         var category = new ServiceCategory
         {
             Name = request.Name,
             Code = request.Code,
             Type = type
         };
-        
+
         await repository.AddAsync(category, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
-        
+
         return ApiResponse<Guid>.Success(category.Id, "Service category created successfully.");
     }
 }

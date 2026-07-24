@@ -8,7 +8,7 @@ using EDGE.Application.Regions.Dtos;
 
 namespace EDGE.Application.Municipalities.Queries.GetMunicipalityById;
 
-public class GetMunicipalityByIdQueryHandler(IGeographicRepository repository) 
+public class GetMunicipalityByIdQueryHandler(IGeographicRepository repository)
     : IRequestHandler<GetMunicipalityByIdQuery, ApiResponse<MunicipalityDto>>
 {
     public async Task<ApiResponse<MunicipalityDto>> Handle(GetMunicipalityByIdQuery request, CancellationToken cancellationToken)
@@ -17,10 +17,10 @@ public class GetMunicipalityByIdQueryHandler(IGeographicRepository repository)
             ?? throw new NotFoundException("Municipality not found.");
 
         var dto = new MunicipalityDto(
-            municipality.Id, 
-            municipality.ProvinceId, 
-            municipality.Code, 
-            municipality.Name, 
+            municipality.Id,
+            municipality.ProvinceId,
+            municipality.Code,
+            municipality.Name,
             municipality.IsActive,
             municipality.Province != null ? new ProvinceDto(
                 municipality.Province.Id,

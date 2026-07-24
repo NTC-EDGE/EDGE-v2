@@ -18,7 +18,7 @@ public static class DependencyInjection
             cfg.AddOpenBehavior(typeof(ValidationBehavior<,>));
             cfg.AddOpenBehavior(typeof(UserActivityLoggingBehavior<,>));
         });
-        
+
         services.AddValidatorsFromAssembly(assembly);
         services.AddScoped<ContractFormValidator>();
 

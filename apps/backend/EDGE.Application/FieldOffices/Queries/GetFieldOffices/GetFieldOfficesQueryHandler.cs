@@ -1,20 +1,41 @@
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using MediatR;
-using EDGE.Application.Common.Models;
 using EDGE.Application.Common.Interfaces;
-using EDGE.Application.FieldOffices.Dtos;
+using EDGE.Application.FieldOffices.DTOs;
 
 namespace EDGE.Application.FieldOffices.Queries.GetFieldOffices;
 
-public class GetFieldOfficesQueryHandler(IFieldOfficeRepository repository) : IRequestHandler<GetFieldOfficesQuery, ApiResponse<List<FieldOfficeDto>>>
+public class GetFieldOfficesQueryHandler : IRequestHandler<GetFieldOfficesQuery, List<FieldOfficeDto>>
 {
-    public async Task<ApiResponse<List<FieldOfficeDto>>> Handle(GetFieldOfficesQuery request, CancellationToken cancellationToken)
+    private readonly IFieldOfficeRepository _repository;
+
+    public GetFieldOfficesQueryHandler(IFieldOfficeRepository repository)
     {
-        var fieldOffices = await repository.GetAllAsync(request.RegionId, cancellationToken);
-        var dtos = fieldOffices.Select(f => new FieldOfficeDto(f.Id, f.Name, f.Code, f.RegionId, f.Region?.Name)).ToList();
-        return ApiResponse<List<FieldOfficeDto>>.Success(dtos);
+        _repository = repository;
+    }
+
+    public async Task<List<FieldOfficeDto>> Handle(GetFieldOfficesQuery request, CancellationToken cancellationToken)
+    {
+        var offices = await _repository.GetByTenantIdAsync(request.TenantId, cancellationToken);
+        return offices.Select(f => new FieldOfficeDto(
+            f.Id,
+            f.TenantId,
+            f.Name,
+            f.Code,
+            f.Description,
+            f.RegionId,
+            f.ProvinceId,
+            f.Address,
+            f.ContactPhone,
+            f.ContactEmail,
+            f.OfficerInChargeId,
+            f.OfficerInCharge != null && f.OfficerInCharge.User != null ? $"{f.OfficerInCharge.User.FirstName} {f.OfficerInCharge.User.LastName}".Trim() : null,
+            f.OfficerInCharge?.User?.Email,
+            f.IsActive,
+            f.AllowSpectrumInspection,
+            f.AllowPermitIssuance,
+            f.AllowComplaintReception,
+            f.Region?.Name,
+            f.Province?.Name
+        )).ToList();
     }
 }

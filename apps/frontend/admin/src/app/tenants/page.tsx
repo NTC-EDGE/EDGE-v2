@@ -34,7 +34,6 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { MOCK_TENANTS } from "@/components/tenants/mockData";
 
 export default function TenantsPage() {
   const router = useRouter();
@@ -51,9 +50,7 @@ export default function TenantsPage() {
     { id: "7037536b-59d8-4786-8f92-fee3e0c78413", code: "R7", name: "Region VII - Central Visayas", isActive: true },
   ];
 
-  const tenants: Tenant[] = (fetchedTenants !== undefined && fetchedTenants !== null && fetchedTenants.length > 0)
-    ? fetchedTenants
-    : MOCK_TENANTS;
+  const tenants: Tenant[] = fetchedTenants ?? [];
 
   // Search, Filter, Pagination
   const [searchTerm, setSearchTerm] = useState("");
@@ -149,18 +146,7 @@ export default function TenantsPage() {
       await mutate();
       setIsCreateOpen(false);
     } catch (err: unknown) {
-      // Local demo fallback addition
-      const newTenant: Tenant = {
-        id: `t-${Date.now()}`,
-        name: formData.name,
-        code: formData.code,
-        description: formData.description,
-        regionId: formData.regionId,
-        isActive: formData.isActive,
-        createdAt: new Date().toISOString(),
-      };
-      MOCK_TENANTS.unshift(newTenant);
-      setIsCreateOpen(false);
+      setErrorMsg(err instanceof Error ? err.message : "Failed to create tenant. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -185,16 +171,7 @@ export default function TenantsPage() {
       await mutate();
       setIsEditOpen(false);
     } catch (err: unknown) {
-      // Local fallback edit
-      const target = MOCK_TENANTS.find((t) => t.id === selectedTenant.id);
-      if (target !== undefined) {
-        target.name = formData.name;
-        target.code = formData.code;
-        target.description = formData.description;
-        target.regionId = formData.regionId;
-        target.isActive = formData.isActive;
-      }
-      setIsEditOpen(false);
+      setErrorMsg(err instanceof Error ? err.message : "Failed to update tenant. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -209,11 +186,7 @@ export default function TenantsPage() {
       await mutate();
       setIsDeleteOpen(false);
     } catch (err: unknown) {
-      const idx = MOCK_TENANTS.findIndex((t) => t.id === selectedTenant.id);
-      if (idx !== -1) {
-        MOCK_TENANTS.splice(idx, 1);
-      }
-      setIsDeleteOpen(false);
+      setErrorMsg(err instanceof Error ? err.message : "Failed to delete tenant. Please try again.");
     } finally {
       setSubmitting(false);
     }
