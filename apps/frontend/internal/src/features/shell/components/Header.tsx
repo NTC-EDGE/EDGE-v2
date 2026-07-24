@@ -22,6 +22,7 @@ interface HeaderProps {
   onLogout: () => void | Promise<void>;
   isMobile?: boolean;
   onMenuPress?: () => void;
+  onNavigate?: (screenName: string) => void;
 }
 
 export function Header({
@@ -38,6 +39,7 @@ export function Header({
   onLogout,
   isMobile = false,
   onMenuPress,
+  onNavigate,
 }: HeaderProps) {
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
@@ -59,7 +61,7 @@ export function Header({
     <View style={[styles.header, isMobile && styles.headerMobile]}>
       {/* Left side: Hamburger (Mobile) and Title */}
       <View style={styles.leftContainer}>
-        {isMobile && (
+        {isMobile && onMenuPress !== undefined && (
           <Pressable onPress={onMenuPress} style={styles.menuBtn}>
             <Lucide name="menu" size={20} color={COLORS.neutral.white} />
           </Pressable>
@@ -107,7 +109,11 @@ export function Header({
                 <Pressable
                   onPress={() => {
                     setIsProfileDropdownOpen(false);
-                    setIsSettingsModalOpen(true);
+                    if (onNavigate !== undefined) {
+                      onNavigate('AccountSettings');
+                    } else {
+                      setIsSettingsModalOpen(true);
+                    }
                   }}
                   style={styles.dropdownItemBtn}
                 >
