@@ -5,7 +5,7 @@ using EDGE.Application.Regions.Dtos;
 
 namespace EDGE.Application.Regions.Queries.GetRegions;
 
-public class GetRegionsQueryHandler(IGeographicRepository repository) 
+public class GetRegionsQueryHandler(IGeographicRepository repository)
     : IRequestHandler<GetRegionsQuery, ApiResponse<List<RegionDto>>>
 {
     public async Task<ApiResponse<List<RegionDto>>> Handle(GetRegionsQuery request, CancellationToken cancellationToken)

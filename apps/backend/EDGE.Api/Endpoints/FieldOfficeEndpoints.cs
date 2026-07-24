@@ -1,83 +1,162 @@
 using MediatR;
+using FluentValidation;
 using EDGE.Application.FieldOffices.Commands.CreateFieldOffice;
 using EDGE.Application.FieldOffices.Commands.UpdateFieldOffice;
 using EDGE.Application.FieldOffices.Commands.DeleteFieldOffice;
 using EDGE.Application.FieldOffices.Queries.GetFieldOffices;
 using EDGE.Application.FieldOffices.Queries.GetFieldOfficeById;
-using EDGE.Application.Common.Models;
 using EDGE.Application.FieldOffices.Queries.GetFieldOfficesByTenant;
 
 namespace EDGE.Api.Endpoints;
 
 public static class FieldOfficeEndpoints
 {
-    public static IEndpointRouteBuilder MapFieldOfficeEndpoints(this IEndpointRouteBuilder app)
+    public static RouteGroupBuilder MapFieldOfficeEndpoints(this RouteGroupBuilder group)
     {
-        app.MapGet("/tenants/{tenantId:guid}/field-offices", async (Guid tenantId, IMediator mediator) =>
+        group.MapGet("/tenants/{tenantId:guid}/field-offices", GetFieldOfficesByTenant)
+            .WithName("GetFieldOfficesByTenant")
+            .WithTags("FieldOffices")
+            .WithSummary("Get field offices by tenant organization")
+            .WithDescription("Returns all field offices associated with the tenant organization's region.");
+
+        var offices = group.MapGroup("field-offices")
+            .WithTags("FieldOffices");
+
+        offices.MapGet("/", GetFieldOffices)
+            .WithName("GetFieldOffices")
+            .WithTags("FieldOffices")
+            .WithSummary("Retrieve all field offices")
+            .WithDescription("Retrieves a list of all field offices for a specific tenant.")
+            .RequireAuthorization();
+
+        offices.MapGet("/{id:guid}", GetFieldOfficeById)
+            .WithName("GetFieldOfficeById")
+            .WithTags("FieldOffices")
+            .WithSummary("Retrieve field office by ID")
+            .WithDescription("Retrieves the details of a specific field office by its unique ID and tenant ID.")
+            .RequireAuthorization();
+
+        offices.MapPost("/", CreateFieldOffice)
+            .WithName("CreateFieldOffice")
+            .WithTags("FieldOffices")
+            .WithSummary("Create new field office")
+            .WithDescription("Creates a new field office record associated with a tenant and region.")
+            .RequireAuthorization();
+
+        offices.MapPut("/{id:guid}", UpdateFieldOffice)
+            .WithName("UpdateFieldOffice")
+            .WithTags("FieldOffices")
+            .WithSummary("Update field office details")
+            .WithDescription("Updates the details of a specific field office.")
+            .RequireAuthorization();
+
+        offices.MapDelete("/{id:guid}", DeleteFieldOffice)
+            .WithName("DeleteFieldOffice")
+            .WithTags("FieldOffices")
+            .WithSummary("Delete a field office")
+            .WithDescription("Deletes a field office record by its unique ID and tenant ID.")
+            .RequireAuthorization();
+
+        return group;
+    }
+
+    public static async Task<IResult> GetFieldOfficesByTenant(
+        Guid tenantId,
+        IMediator mediator)
+    {
+        var result = await mediator.Send(new GetFieldOfficesByTenantQuery(tenantId));
+        return result.Succeeded ? Results.Ok(result) : Results.NotFound(result);
+    }
+
+    public static async Task<IResult> GetFieldOffices(
+        Guid? tenantId,
+        IValidator<GetFieldOfficesQuery> validator,
+        IMediator mediator)
+    {
+        var query = new GetFieldOfficesQuery(tenantId.GetValueOrDefault());
+        var validationResult = await validator.ValidateAsync(query);
+        if (!validationResult.IsValid)
         {
-            var result = await mediator.Send(new GetFieldOfficesByTenantQuery(tenantId));
-            return result.Succeeded ? Results.Ok(result) : Results.NotFound(result);
-        })
-        .WithName("GetFieldOfficesByTenant")
-        .WithTags("FieldOffices")
-        .WithSummary("Get field offices by tenant organization")
-        .WithDescription("Returns all field offices associated with the tenant organization's region.");
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
 
-        var group = app.MapGroup("/field-offices").WithTags("FieldOffices");
+        var result = await mediator.Send(query);
+        return Results.Ok(result);
+    }
 
-        group.MapGet("/", async (Guid? regionId, IMediator mediator) =>
+    public static async Task<IResult> GetFieldOfficeById(
+        Guid id,
+        Guid? tenantId,
+        IValidator<GetFieldOfficeByIdQuery> validator,
+        IMediator mediator)
+    {
+        var query = new GetFieldOfficeByIdQuery(id, tenantId.GetValueOrDefault());
+        var validationResult = await validator.ValidateAsync(query);
+        if (!validationResult.IsValid)
         {
-            var result = await mediator.Send(new GetFieldOfficesQuery(regionId));
-            return Results.Ok(result);
-        })
-        .WithName("GetFieldOffices")
-        .WithSummary("Get all field offices")
-        .WithDescription("Returns all field offices, optionally filtered by RegionId.");
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
 
-        group.MapGet("/{id:guid}", async (Guid id, IMediator mediator) =>
+        var result = await mediator.Send(query);
+        return result is not null
+            ? Results.Ok(result)
+            : Results.NotFound(new { message = $"Field office with ID '{id}' was not found for this tenant." });
+    }
+
+    public static async Task<IResult> CreateFieldOffice(
+        CreateFieldOfficeCommand command,
+        IValidator<CreateFieldOfficeCommand> validator,
+        IMediator mediator)
+    {
+        var validationResult = await validator.ValidateAsync(command);
+        if (!validationResult.IsValid)
         {
-            var result = await mediator.Send(new GetFieldOfficeByIdQuery(id));
-            return result.Succeeded ? Results.Ok(result) : Results.NotFound(result);
-        })
-        .WithName("GetFieldOfficeById")
-        .WithSummary("Get field office by ID");
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
 
-        group.MapPost("/", async (CreateFieldOfficeCommand command, IMediator mediator) =>
+        var result = await mediator.Send(command);
+        return Results.Created($"/api/v2/field-offices/{result.Id}", result);
+    }
+
+    public static async Task<IResult> UpdateFieldOffice(
+        Guid id,
+        UpdateFieldOfficeCommand command,
+        IValidator<UpdateFieldOfficeCommand> validator,
+        IMediator mediator)
+    {
+        if (id != command.Id)
         {
-            var result = await mediator.Send(command);
-            return result.Succeeded
-                ? Results.Created($"/api/v2/field-offices/{result.Data}", result)
-                : Results.BadRequest(result);
-        })
-        .WithName("CreateFieldOffice")
-        .WithSummary("Create a new field office");
+            return Results.BadRequest(new { message = "The path ID does not match the request body ID." });
+        }
 
-        group.MapPut("/{id:guid}", async (Guid id, UpdateFieldOfficeCommand command, IMediator mediator) =>
+        var validationResult = await validator.ValidateAsync(command);
+        if (!validationResult.IsValid)
         {
-            if (id != command.Id)
-                return Results.BadRequest(ApiResponse<Guid>.Fail("ID path parameter does not match command body ID."));
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
 
-            var result = await mediator.Send(command);
-            return result.Succeeded ? Results.Ok(result) : Results.NotFound(result);
-        })
-        .WithName("UpdateFieldOffice")
-        .WithSummary("Update field office");
+        var result = await mediator.Send(command);
+        return result is not null
+            ? Results.Ok(result)
+            : Results.NotFound(new { message = $"Field office with ID '{id}' was not found for this tenant." });
+    }
 
-        group.MapDelete("/{id:guid}", async (Guid id, IMediator mediator) =>
+    public static async Task<IResult> DeleteFieldOffice(
+        Guid id,
+        Guid? tenantId,
+        IValidator<DeleteFieldOfficeCommand> validator,
+        IMediator mediator)
+    {
+        var command = new DeleteFieldOfficeCommand(id, tenantId.GetValueOrDefault());
+        var validationResult = await validator.ValidateAsync(command);
+        if (!validationResult.IsValid)
         {
-            var result = await mediator.Send(new DeleteFieldOfficeCommand(id));
-            if (!result.Succeeded)
-            {
-                return result.Message != null && result.Message.Contains("not found")
-                    ? Results.NotFound(result)
-                    : Results.Conflict(result);
-            }
-            return Results.Ok(result);
-        })
-        .WithName("DeleteFieldOffice")
-        .WithSummary("Delete a field office")
-        .WithDescription("Fails with 409 Conflict if the office has associated applications.");
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
 
-        return app;
+        var success = await mediator.Send(command);
+        return success
+            ? Results.NoContent()
+            : Results.NotFound(new { message = $"Field office with ID '{id}' was not found or could not be deleted." });
     }
 }

@@ -9,17 +9,17 @@ using EDGE.Application.ServiceCategories.Dtos;
 
 namespace EDGE.Application.ServiceCategories.Queries.GetServiceCategories;
 
-public class GetServiceCategoriesQueryHandler(IServiceCategoryRepository repository) 
+public class GetServiceCategoriesQueryHandler(IServiceCategoryRepository repository)
     : IRequestHandler<GetServiceCategoriesQuery, ApiResponse<List<ServiceCategoryDto>>>
 {
     public async Task<ApiResponse<List<ServiceCategoryDto>>> Handle(GetServiceCategoriesQuery request, CancellationToken cancellationToken)
     {
         var categories = await repository.GetAllAsync(cancellationToken);
-        
+
         var dtos = categories.Select(r => new ServiceCategoryDto(
-            r.Id, 
-            r.Name, 
-            r.Code, 
+            r.Id,
+            r.Name,
+            r.Code,
             r.Type.ToString()
         )).ToList();
 

@@ -5,11 +5,12 @@ import { Tag, Edit2, Trash2 } from "lucide-react";
 import { ServiceFee, Fee } from "@edge/api";
 import { ActionMenu, ActionMenuItem } from "@/components/ui/action-menu";
 import { Pagination } from "@/components/ui/pagination";
-import { MOCK_SERVICES } from "@/services/feesNotesService";
+import { ServiceCatalogItem } from "@/services/feesNotesService";
 
 export interface ServiceFeesTableProps {
   serviceFees: ServiceFee[];
   fees: Fee[];
+  services: ServiceCatalogItem[];
   loading: boolean;
   canManage: boolean;
   searchTerm: string;
@@ -20,6 +21,7 @@ export interface ServiceFeesTableProps {
 export function ServiceFeesTable({
   serviceFees,
   fees,
+  services,
   loading,
   canManage,
   searchTerm,
@@ -35,7 +37,7 @@ export function ServiceFeesTable({
   }, [searchTerm]);
 
   const filteredServiceFees = serviceFees.filter((sf) => {
-    const serviceName = MOCK_SERVICES.find((s) => s.id === sf.serviceId)?.name ?? "";
+    const serviceName = services.find((s) => s.id === sf.serviceId)?.name ?? "";
     const fee = fees.find((f) => f.id === sf.feeId);
     const feeName = fee?.name ?? "";
     const feeCode = fee?.code ?? "";
@@ -82,7 +84,7 @@ export function ServiceFeesTable({
               </tr>
             ) : (
               paginatedServiceFees.map((item) => {
-                const serviceName = MOCK_SERVICES.find((s) => s.id === item.serviceId)?.name ?? "Unknown Service";
+                const serviceName = services.find((s) => s.id === item.serviceId)?.name ?? "Unknown Service";
                 const fee = fees.find((f) => f.id === item.feeId);
                 const menuItems: ActionMenuItem[] = [
                   {

@@ -20,6 +20,8 @@ public class GetSchedulesQueryHandler : IRequestHandler<GetSchedulesQuery, List<
         return schedules.Select(s => new ScheduleDto(
             s.Id,
             s.ServiceId,
+            s.Service?.Name,
+            s.Service?.Code,
             s.TenantId,
             s.ApplicationId,
             s.SeatNumber,

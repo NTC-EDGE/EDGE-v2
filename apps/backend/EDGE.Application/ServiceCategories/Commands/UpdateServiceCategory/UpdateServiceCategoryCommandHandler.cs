@@ -8,7 +8,7 @@ using EDGE.Domain.Enums;
 
 namespace EDGE.Application.ServiceCategories.Commands.UpdateServiceCategory;
 
-public class UpdateServiceCategoryCommandHandler(IServiceCategoryRepository repository, IUnitOfWork unitOfWork) 
+public class UpdateServiceCategoryCommandHandler(IServiceCategoryRepository repository, IUnitOfWork unitOfWork)
     : IRequestHandler<UpdateServiceCategoryCommand, ApiResponse<string>>
 {
     public async Task<ApiResponse<string>> Handle(UpdateServiceCategoryCommand request, CancellationToken cancellationToken)
@@ -18,18 +18,18 @@ public class UpdateServiceCategoryCommandHandler(IServiceCategoryRepository repo
         {
             return ApiResponse<string>.Fail("Service category not found.");
         }
-        
+
         if (!Enum.TryParse<ServiceCategoryType>(request.Type, true, out var type))
         {
             return ApiResponse<string>.Fail("Invalid Type value.");
         }
-        
+
         category.Name = request.Name;
         category.Code = request.Code;
         category.Type = type;
-        
+
         await unitOfWork.SaveChangesAsync(cancellationToken);
-        
+
         return ApiResponse<string>.Success(category.Name, "Service category updated successfully.");
     }
 }
