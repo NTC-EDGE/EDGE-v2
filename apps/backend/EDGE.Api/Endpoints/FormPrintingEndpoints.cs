@@ -118,6 +118,15 @@ public static class FormPrintingEndpoints
         })
         .WithName("PrintNtc118Demo");
 
+        /// <summary>GET /api/forms/demo/ntc-1-20 — Application Form 1-20 (Certificate of Registration - VAS / VOIP / PCSOTSP).</summary>
+        group.MapGet("/ntc-1-20", (IFormPrintingService printingService) =>
+        {
+            var application = MockDataFactory.GetNtc120Application();
+            var pdfBytes = printingService.PrintNtc120(application);
+            return Results.File(pdfBytes, "application/pdf", $"NTC-1-20_{application.ApplicationId}.pdf");
+        })
+        .WithName("PrintNtc120Demo");
+
         return app;
     }
 }

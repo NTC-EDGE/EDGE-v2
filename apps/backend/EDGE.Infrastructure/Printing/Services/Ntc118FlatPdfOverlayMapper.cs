@@ -30,13 +30,13 @@ public static class Ntc118FlatPdfOverlayMapper
         // 1. TYPE OF APPLICATION
         switch (app.TypeOfApplication)
         {
-            case TypeOfApplication118.New:
+            case TypeOfApplication.New:
                 items.Add(new TextOverlayItem { X = 87.3, Y = 249.4, Text = CheckmarkChar, FontSize = 10, IsBold = true });
                 break;
-            case TypeOfApplication118.Renewal:
+            case TypeOfApplication.Renewal:
                 items.Add(new TextOverlayItem { X = 87.3, Y = 264.4, Text = CheckmarkChar, FontSize = 10, IsBold = true });
                 break;
-            case TypeOfApplication118.Modification:
+            case TypeOfApplication.Modification:
                 items.Add(new TextOverlayItem { X = 87.3, Y = 279.4, Text = CheckmarkChar, FontSize = 10, IsBold = true });
                 if (!string.IsNullOrWhiteSpace(app.ModificationReason))
                 {
@@ -71,19 +71,19 @@ public static class Ntc118FlatPdfOverlayMapper
         if (!string.IsNullOrWhiteSpace(app.Applicant.Name))
             items.Add(new TextOverlayItem { X = 123.0, Y = 440.0, Text = app.Applicant.Name, FontSize = 8, IsBold = true });
 
-        // Entity Type
-        switch (app.EntityType)
+        // Shared EntityType
+        switch (app.Applicant.TypeOfEntity)
         {
-            case EntityType118.Corporation:
+            case EntityType.Corporation:
                 items.Add(new TextOverlayItem { X = 185.0, Y = 467.2, Text = CheckmarkChar, FontSize = 10, IsBold = true });
                 break;
-            case EntityType118.SingleProprietorship:
+            case EntityType.SingleProprietorship:
                 items.Add(new TextOverlayItem { X = 185.0, Y = 482.2, Text = CheckmarkChar, FontSize = 10, IsBold = true });
                 break;
-            case EntityType118.Partnership:
+            case EntityType.Partnership:
                 items.Add(new TextOverlayItem { X = 392.0, Y = 467.2, Text = CheckmarkChar, FontSize = 10, IsBold = true });
                 break;
-            case EntityType118.Others:
+            case EntityType.Other:
                 items.Add(new TextOverlayItem { X = 392.0, Y = 482.2, Text = CheckmarkChar, FontSize = 10, IsBold = true });
                 if (!string.IsNullOrWhiteSpace(app.EntityTypeOther))
                 {

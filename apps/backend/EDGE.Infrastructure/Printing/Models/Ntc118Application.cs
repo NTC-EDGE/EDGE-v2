@@ -2,21 +2,6 @@ using System;
 
 namespace EDGE.Infrastructure.Printing.Models;
 
-public enum TypeOfApplication118
-{
-    New,
-    Renewal,
-    Modification
-}
-
-public enum EntityType118
-{
-    Corporation,
-    SingleProprietorship,
-    Partnership,
-    Others
-}
-
 public class PermitCategorySelection
 {
     // Radio Communications Equipment (RCE)
@@ -46,7 +31,7 @@ public class RequiredPersonnel
 
 /// <summary>
 /// NTC 1-18 — Application for Dealer/Manufacturer/Service Center/Retailer/Reseller Permit / CPE Supplier Accreditation.
-/// Revision No. 02 (03/31/2023).
+/// Revision No. 02 (03/31/2023). Reuses shared models (Applicant, Payment, Declaration, TypeOfApplication, EntityType) from Shared.cs.
 /// </summary>
 public class Ntc118Application
 {
@@ -54,13 +39,12 @@ public class Ntc118Application
     public string RevisionNo { get; set; } = "02";
     public DateOnly RevisionDate { get; set; } = new DateOnly(2023, 3, 31);
 
-    public TypeOfApplication118 TypeOfApplication { get; set; } = TypeOfApplication118.New;
+    public TypeOfApplication TypeOfApplication { get; set; } = TypeOfApplication.New;
     public string? ModificationReason { get; set; }
 
     public PermitCategorySelection PermitCategory { get; set; } = new();
 
     public Applicant Applicant { get; set; } = new();
-    public EntityType118 EntityType { get; set; } = EntityType118.Corporation;
     public string? EntityTypeOther { get; set; }
 
     public string? ExistingPermitNo { get; set; }

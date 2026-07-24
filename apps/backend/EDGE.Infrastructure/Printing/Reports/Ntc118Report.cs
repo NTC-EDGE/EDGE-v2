@@ -8,6 +8,7 @@ namespace EDGE.Infrastructure.Printing.Reports;
 /// <summary>
 /// Printable NTC 1-18 (Application for Dealer/Manufacturer/Service Center/Retailer/Reseller Permit/CPE Supplier Accreditation).
 /// QuestPDF code-driven generator providing fallback document generation.
+/// Reuses shared models (Applicant, Payment, Declaration, TypeOfApplication, EntityType) from Shared.cs.
 /// </summary>
 public class Ntc118Report : FormDocument
 {
@@ -19,7 +20,7 @@ public class Ntc118Report : FormDocument
         FormNo = "NTC 1-18",
         RevisionNo = app.RevisionNo,
         RevisionDate = app.RevisionDate,
-        TypeOfApplication = TypeOfApplication.New,
+        TypeOfApplication = app.TypeOfApplication,
         Applicant = app.Applicant,
         Declaration = app.Declaration,
         Payment = app.Payment
@@ -91,7 +92,7 @@ public class Ntc118Report : FormDocument
         col.Item().Column(c =>
         {
             c.Item().Text(t => { t.Span("Applicant Name: ").SemiBold(); t.Span(_app.Applicant.Name); });
-            c.Item().Text(t => { t.Span("Entity Type: ").SemiBold(); t.Span(_app.EntityType == EntityType118.Others ? _app.EntityTypeOther ?? "Others" : _app.EntityType.ToString()); });
+            c.Item().Text(t => { t.Span("Entity Type: ").SemiBold(); t.Span(_app.Applicant.TypeOfEntity == EntityType.Other ? _app.EntityTypeOther ?? "Other" : _app.Applicant.TypeOfEntity.ToString()); });
             if (!string.IsNullOrWhiteSpace(_app.ExistingPermitNo))
             {
                 c.Item().Text(t => { t.Span("Permit No: ").SemiBold(); t.Span($"{_app.ExistingPermitNo} (Valid: {_app.ExistingPermitValidity:MM/dd/yy})"); });

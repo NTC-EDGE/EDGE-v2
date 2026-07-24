@@ -979,6 +979,7 @@ public static partial class MockDataFactory
         {
             ApplicantId = Guid.NewGuid(),
             Name = "Apex Communications & Electronics Corp.",
+            TypeOfEntity = EntityType.Corporation,
             Address = new Address
             {
                 UnitRoomBldgNo = "Suite 502, Apex Tower",
@@ -1013,14 +1014,13 @@ public static partial class MockDataFactory
             ApplicationId = applicationId,
             RevisionNo = "02",
             RevisionDate = new DateOnly(2023, 3, 31),
-            TypeOfApplication = TypeOfApplication118.New,
+            TypeOfApplication = TypeOfApplication.New,
             PermitCategory = new PermitCategorySelection
             {
                 RceCategory = true,
                 RceDealer = true,
                 RceDealerTransceiver = true
             },
-            EntityType = EntityType118.Corporation,
             ExistingPermitNo = "DLR-2024-00892",
             ExistingPermitValidity = new DateOnly(2026, 12, 31),
             Applicant = applicant,
@@ -1035,6 +1035,76 @@ public static partial class MockDataFactory
                 Name = "Reynaldo T. Cruz",
                 LicenseNo = "ECT-0084920",
                 ValidityDate = new DateOnly(2027, 9, 15)
+            },
+            Payment = payment,
+            Declaration = declaration
+        };
+    }
+
+    public static Ntc120Application GetNtc120Application()
+    {
+        var applicationId = Guid.NewGuid();
+
+        var applicant = new Applicant
+        {
+            ApplicantId = Guid.NewGuid(),
+            Name = "CloudTech Telecom Systems Inc.",
+            TypeOfEntity = EntityType.Corporation,
+            Address = new Address
+            {
+                UnitRoomBldgNo = "Unit 1204, One Corporate Center",
+                Street = "Julia Vargas Avenue",
+                Barangay = "San Antonio",
+                CityMunicipality = "Pasig City",
+                Province = "Metro Manila",
+                ZipCode = "1605"
+            },
+            ContactNumber = "+63-2-8631-9988",
+            Email = "info@cloudtechtelecom.ph"
+        };
+
+        var payment = new Payment
+        {
+            PaymentId = Guid.NewGuid(),
+            ApplicationId = applicationId,
+            OrNo = "OR-2026-99020",
+            OrDate = new DateOnly(2026, 7, 24),
+            Amount = 5200.00m,
+            CollectingOfficer = "Engr. Gabriel M. Santos"
+        };
+
+        var declaration = new Declaration
+        {
+            SignatoryName = "Engr. Gabriel M. Santos",
+            DateAccomplished = new DateOnly(2026, 7, 24)
+        };
+
+        return new Ntc120Application
+        {
+            ApplicationId = applicationId,
+            RevisionNo = "02",
+            RevisionDate = new DateOnly(2023, 3, 31),
+            TypeOfApplication = TypeOfApplication.New,
+            RegistrationCategory = new RegistrationCategory120
+            {
+                VasProvider = true
+            },
+            Applicant = applicant,
+            CpcnPaCaNo = "PA-2025-00142",
+            CpcnPaCaValidity = new DateOnly(2028, 6, 30),
+            CorNo = "COR-2024-00891",
+            CorValidity = new DateOnly(2026, 12, 31),
+            FormerNameInfo = new FormerNameInfo
+            {
+                IsKnownByFormerName = false
+            },
+            VasServices = new VasServicesSelection
+            {
+                MessagingService = true,
+                AudioAndVideoConferencing = true,
+                ElectronicMailService = true,
+                VirtualPrivateNetworkService = true,
+                HostingService = true
             },
             Payment = payment,
             Declaration = declaration

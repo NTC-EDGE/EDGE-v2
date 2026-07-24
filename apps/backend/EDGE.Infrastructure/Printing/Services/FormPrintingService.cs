@@ -23,6 +23,7 @@ public interface IFormPrintingService
     byte[] PrintNtc110(Ntc110Application application);
     byte[] PrintNtc114(Ntc114Application application);
     byte[] PrintNtc118(Ntc118Application application);
+    byte[] PrintNtc120(Ntc120Application application);
 }
 
 public class FormPrintingService : IFormPrintingService
@@ -239,5 +240,21 @@ public class FormPrintingService : IFormPrintingService
         }
 
         return new Ntc118Report(application).GeneratePdf();
+    }
+
+    public byte[] PrintNtc120(Ntc120Application application)
+    {
+        const string templateName = "ntc-1-20.pdf";
+        if (_fillerService != null && _fillerService.TemplateExists(templateName))
+        {
+            var template = _fillerService.GetTemplate(templateName);
+            if (template != null)
+            {
+                var overlayItems = Ntc120FlatPdfOverlayMapper.MapToOverlayItems(application);
+                return _fillerService.OverlayText(template, overlayItems);
+            }
+        }
+
+        return new Ntc120Report(application).GeneratePdf();
     }
 }
