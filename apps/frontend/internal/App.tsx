@@ -7,7 +7,7 @@ import {
   Platform,
 } from "react-native";
 import { tokenCache } from "./tokenCache";
-import { ClerkProvider } from "@clerk/clerk-expo";
+import { ClerkProvider } from "@clerk/expo";
 import {
   COLORS,
   useNavigationContainerRef,
