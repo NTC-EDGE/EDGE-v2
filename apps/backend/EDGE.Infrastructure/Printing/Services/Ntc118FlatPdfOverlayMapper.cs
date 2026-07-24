@@ -7,8 +7,14 @@ namespace EDGE.Infrastructure.Printing.Services;
 public static class Ntc118FlatPdfOverlayMapper
 {
     private const string CheckmarkChar = "\u2714";
-    private const double RegularCharWidthFactor = 0.52;
-    private const double BoldCharWidthFactor = 0.62;
+
+    // Calibrated against actual glyph widths measured from a rendered sample
+    // overlay (see Declaration.SignatoryName / Payment.CollectingOfficer /
+    // Declaration.DateAccomplished). The previous bold factor (0.62)
+    // overestimated bold text width by ~20%, which pushed centered fields
+    // like the signatory name ~8.5pt left of the true box center.
+    private const double RegularCharWidthFactor = 0.50;
+    private const double BoldCharWidthFactor = 0.515;
 
     private static double EstimateTextWidth(string text, double fontSize, bool isBold)
     {
@@ -148,6 +154,9 @@ public static class Ntc118FlatPdfOverlayMapper
         }
 
         // 4. DECLARATION & SIGNATURE
+        // Box spans x=76.8..306.9 (verified against the "Signature over Printed
+        // Name..." / "Date Accomplished" caption centers in the rendered sample,
+        // both of which center at ~191.6-191.85, matching this box's midpoint).
         if (!string.IsNullOrWhiteSpace(app.Declaration.SignatoryName))
         {
             double sigX = CenterX(76.8, 306.9, app.Declaration.SignatoryName, 8, true);
