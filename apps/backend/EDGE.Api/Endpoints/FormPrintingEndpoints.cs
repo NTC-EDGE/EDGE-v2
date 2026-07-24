@@ -162,7 +162,43 @@ public static class FormPrintingEndpoints
         })
         .WithName("PrintOfficialReceiptLandscapeSampleDemo");
 
+        /// <summary>GET /api/forms/demo/order-of-payment/blank — Blank Order of Payment Template.</summary>
+        group.MapGet("/order-of-payment/blank", (IFormPrintingService printingService) =>
+        {
+            var pdfBytes = printingService.PrintOrderOfPayment();
+            return Results.File(pdfBytes, "application/pdf", "OrderOfPayment_BlankTemplate.pdf");
+        })
+        .WithName("PrintOrderOfPaymentBlankDemo");
+
+        /// <summary>GET /api/forms/demo/order-of-payment/sample — Populated Sample Order of Payment (Florito Avenido Amistad).</summary>
+        group.MapGet("/order-of-payment/sample", (IFormPrintingService printingService) =>
+        {
+            var model = MockDataFactory.GetOrderOfPaymentModel();
+            var pdfBytes = printingService.PrintOrderOfPayment(model);
+            return Results.File(pdfBytes, "application/pdf", "OrderOfPayment_Sample_FloritoAmistad.pdf");
+        })
+        .WithName("PrintOrderOfPaymentSampleDemo");
+
+        /// <summary>GET /api/forms/demo/statement-of-account/blank — Blank Statement of Account Template.</summary>
+        group.MapGet("/statement-of-account/blank", (IFormPrintingService printingService) =>
+        {
+            var pdfBytes = printingService.PrintStatementOfAccount();
+            return Results.File(pdfBytes, "application/pdf", "StatementOfAccount_BlankTemplate.pdf");
+        })
+        .WithName("PrintStatementOfAccountBlankDemo");
+
+        /// <summary>GET /api/forms/demo/statement-of-account/sample — Populated Sample Statement of Account (Dezza Collection / TEMP-ROXIV-14148-26).</summary>
+        group.MapGet("/statement-of-account/sample", (IFormPrintingService printingService) =>
+        {
+            var model = MockDataFactory.GetStatementOfAccountModel();
+            var pdfBytes = printingService.PrintStatementOfAccount(model);
+            return Results.File(pdfBytes, "application/pdf", $"StatementOfAccount_Sample_{model.AccountNo}.pdf");
+        })
+        .WithName("PrintStatementOfAccountSampleDemo");
+
         return app;
     }
 }
+
+
 

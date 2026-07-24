@@ -1160,5 +1160,115 @@ public static partial class MockDataFactory
             CollectingOfficer = "RICCI ANGELA CANTOS"
         };
     }
+
+    public static OrderOfPaymentModel GetOrderOfPaymentModel()
+    {
+        return new OrderOfPaymentModel
+        {
+            AgencyName = "NATIONAL TELECOMMUNICATIONS COMMISSION",
+            RegionalOffice = "VII",
+            Fund = "General Fund",
+            Title = "ORDER OF PAYMENT",
+            SerialNo = string.Empty,
+            Date = "July 23, 2026",
+            PayorName = "FLORITO AVENIDO AMISTAD",
+            PayorAddress = "SAN VICENTE, LILOAN, CEBU, REGION VII - CENTRAL VISAYAS, 6002",
+            AmountInWords = "TWO HUNDRED FORTY PESOS AND ZERO CENTS",
+            Amount = 240.00m,
+            Purpose = "RROCFLMS (R) - Certificate Fee, Documentary Stamp Tax, Surcharge",
+            StatementOfAccountNo = "61-2026-07-1952",
+            StatementOfAccountDate = "23/07/2026",
+            BankAccounts = new List<OrderOfPaymentBankAccount>
+            {
+                new OrderOfPaymentBankAccount { BankName = "Land Bank of the Philippines", Amount = 210.00m },
+                new OrderOfPaymentBankAccount { BankName = "Land Bank of the Philippines", Amount = 30.00m }
+            },
+            TotalAmount = 240.00m,
+            OrAmount = "P240.00"
+        };
+    }
+
+    public static StatementOfAccountModel GetStatementOfAccountModel()
+    {
+        var model = new StatementOfAccountModel
+        {
+            AgencyName = "NATIONAL TELECOMMUNICATIONS COMMISSION",
+            Title = "Statement of Account",
+            PayorName = "Dezza Collection",
+            AccountNo = "TEMP-ROXIV-14148-26",
+            Date = "Jul 23 2026",
+            IsOthersRroca = true,
+            IsRen = true,
+            Particular1Header = "TEMP-ROXIV-14148-26",
+            Particular1PeriodCovered = "JULY 18, 2026 to JULY 18, 2027",
+            Particular2Header = "Ren RSL 04262026",
+            Particular2PeriodCovered = "04/26/2026 to 05/25/2027",
+            PaymentDueDate = "01/18/2027",
+            IsEndorsedForPayment = true,
+            OrNo = "OR-2026-009812",
+            OrAmount = "P6,970.00",
+            OrDate = "Jul 23 2026",
+            OrBy = "R. Maquiling",
+            PreparedByName = "EVALUATORS EDGE",
+            PreparedByTitle = "EVALUATOR, NTC XIV",
+            ApprovedByName = "CEOD EDGE",
+            ApprovedByTitle = "CEOD, NTC XIV",
+            Remarks = "1. Payment should be made in CASH, MANAGER'S/CASHIER'S CHECK. DEMAND DRAFT Payable to NTC-14 FAO BUREAU OF TREASURY."
+        };
+
+        // Default all item fees to 0.00 first
+        foreach (var item in model.Items)
+        {
+            item.Particular1.Fees = 0.00m;
+        }
+
+        // Helper to update specific item
+        void SetParticular1(string code, string desc, decimal fees, string? yrs = null, string? percent = null, string? units = null)
+        {
+            var match = model.Items.Find(i => i.Code == code && i.Description.StartsWith(desc, StringComparison.OrdinalIgnoreCase));
+            if (match != null)
+            {
+                match.Particular1.Fees = fees;
+                match.Particular1.NoOfYrs = yrs;
+                match.Particular1.Percent = percent;
+                match.Particular1.NoOfUnits = units;
+            }
+        }
+
+        void SetParticular2(string code, string desc, decimal fees, string? yrs = null, string? percent = null, string? units = null)
+        {
+            var match = model.Items.Find(i => i.Code == code && i.Description.StartsWith(desc, StringComparison.OrdinalIgnoreCase));
+            if (match != null)
+            {
+                match.Particular2.Fees = fees;
+                match.Particular2.NoOfYrs = yrs;
+                match.Particular2.Percent = percent;
+                match.Particular2.NoOfUnits = units;
+            }
+        }
+
+        // Populate sample fee line items matching realistic NTC SOA assessment
+        SetParticular1("4-02-01-010", "Permit to Purchase", 500.00m);
+        SetParticular1("4-02-01-130", "Filling Fee", 180.00m);
+        SetParticular1("4-02-01-060", "Radio Station License", 1200.00m, yrs: "1", units: "2");
+        SetParticular2("4-02-01-060", "Radio Station License", 1200.00m, yrs: "1", units: "2");
+        SetParticular1("4-02-01-100", "Inspection Fee", 600.00m, units: "2");
+        SetParticular1("4-02-01-080", "Spectrum User's Fee", 2400.00m, percent: "100%");
+
+        SetParticular1("4-02-01-010", "Permit Fees", 360.00m);
+
+        SetParticular1("4-02-01-060", "Radio Operator's Cert.", 180.00m);
+        SetParticular1("4-02-01-130", "Application Fee", 100.00m);
+
+        SetParticular1("4-02-01-030", "Examination Fee", 50.00m);
+        SetParticular1("4-02-01-020", "Registration Fee", 150.00m);
+        SetParticular1("4-02-01-040", "Clearance/Certification Fee", 100.00m);
+        SetParticular1("4-01-04-010", "Documentary Stamp Tax", 30.00m);
+
+        return model;
+    }
 }
+
+
+
 

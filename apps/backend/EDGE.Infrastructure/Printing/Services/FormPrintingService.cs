@@ -25,6 +25,8 @@ public interface IFormPrintingService
     byte[] PrintNtc118(Ntc118Application application);
     byte[] PrintNtc120(Ntc120Application application);
     byte[] PrintOfficialReceipt(OfficialReceiptModel? model = null);
+    byte[] PrintOrderOfPayment(OrderOfPaymentModel? model = null);
+    byte[] PrintStatementOfAccount(StatementOfAccountModel? model = null);
 }
 
 public class FormPrintingService : IFormPrintingService
@@ -311,4 +313,16 @@ public class FormPrintingService : IFormPrintingService
     {
         return new OfficialReceiptReport(model).GeneratePdf();
     }
+
+    public byte[] PrintOrderOfPayment(OrderOfPaymentModel? model = null)
+    {
+        return new OrderOfPaymentReport(model).GeneratePdf();
+    }
+
+    public byte[] PrintStatementOfAccount(StatementOfAccountModel? model = null)
+    {
+        return new StatementOfAccountReport(model).GeneratePdf();
+    }
 }
+
+
