@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -6,6 +6,7 @@ import {
   Pressable,
   Modal,
   Animated,
+  Dimensions,
 } from 'react-native';
 import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, StatusBadge, Icon as Lucide } from '@edge/ui';
 import { ApplicationData } from '../data/mockApplications';
@@ -64,9 +65,36 @@ function formatTimestamp(isoDate: string): string {
 
 export function ActivityCard({ application, isActive, onPress, onMenuAction }: ActivityCardProps) {
   const [menuVisible, setMenuVisible] = useState(false);
+  const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
+  const kebabRef = useRef<View>(null);
+
   const initials = getAvatarInitials(application.applicant);
   const statusStyle = getStatusStyle(application.status);
   const timestamp = formatTimestamp(application.createdAt);
+
+  const handleOpenMenu = () => {
+    kebabRef.current?.measure((x, y, width, height, pageX, pageY) => {
+      const menuWidth = 180;
+      const windowWidth = Dimensions.get('window').width;
+      
+      // Calculate left position to align menu's right edge with button's right edge
+      let leftPos = pageX + width - menuWidth;
+      
+      // Ensure it doesn't go off-screen left
+      if (leftPos < 10) leftPos = 10;
+      
+      // Ensure it doesn't go off-screen right
+      if (leftPos + menuWidth > windowWidth - 10) {
+        leftPos = windowWidth - menuWidth - 10;
+      }
+
+      setMenuPos({
+        top: pageY + height + 5,
+        left: leftPos,
+      });
+      setMenuVisible(true);
+    });
+  };
 
   return (
     <Pressable
@@ -124,15 +152,17 @@ export function ActivityCard({ application, isActive, onPress, onMenuAction }: A
                 {application.status.toUpperCase()}
               </Text>
             </View>
-            <Pressable
-              style={styles.kebabBtn}
-              onPress={(e) => {
-                e.stopPropagation?.();
-                setMenuVisible(true);
-              }}
-            >
-              <Lucide name="more-vertical" size={16} color={COLORS.neutral[500]} />
-            </Pressable>
+            <View ref={kebabRef}>
+              <Pressable
+                style={styles.kebabBtn}
+                onPress={(e) => {
+                  e.stopPropagation?.();
+                  handleOpenMenu();
+                }}
+              >
+                <Lucide name="more-vertical" size={16} color={COLORS.neutral[500]} />
+              </Pressable>
+            </View>
           </View>
         </View>
 
@@ -168,7 +198,7 @@ export function ActivityCard({ application, isActive, onPress, onMenuAction }: A
         onRequestClose={() => setMenuVisible(false)}
       >
         <Pressable style={styles.menuOverlay} onPress={() => setMenuVisible(false)}>
-          <View style={styles.menuContainer}>
+          <View style={[styles.menuContainer, { top: menuPos.top, left: menuPos.left }]}>
             <Pressable
               style={styles.menuItem}
               onPress={() => {
@@ -404,14 +434,12 @@ const styles = StyleSheet.create({
   },
   menuContainer: {
     position: 'absolute',
-    right: 16,
-    top: '40%',
     backgroundColor: COLORS.neutral.white,
     borderRadius: RADIUS.card,
     borderWidth: 1,
     borderColor: COLORS.neutral[200],
     paddingVertical: SPACING[4],
-    minWidth: 160,
+    width: 180,
     ...SHADOWS.modal,
   },
   menuItem: {

@@ -271,9 +271,18 @@ function BasicInfoTab({
   const [editingRef, setEditingRef] = useState(false);
   const [editingPermit, setEditingPermit] = useState(false);
   const [editingNote, setEditingNote] = useState(false);
+  const [editingLastName, setEditingLastName] = useState(false);
+  const [editingFirstName, setEditingFirstName] = useState(false);
+  const [editingMiddleName, setEditingMiddleName] = useState(false);
+  const [editingDob, setEditingDob] = useState(false);
   const [refDraft, setRefDraft] = useState(app.referenceNumber);
   const [permitDraft, setPermitDraft] = useState(app.permitNumber);
   const [noteDraft, setNoteDraft] = useState(app.note);
+  const [lnDraft, setLnDraft] = useState(app.basicInfo.lastName);
+  const [fnDraft, setFnDraft] = useState(app.basicInfo.firstName);
+  const [mnDraft, setMnDraft] = useState(app.basicInfo.middleName);
+  const [dobDraft, setDobDraft] = useState(app.basicInfo.dob);
+
   const statusStyle = getStatusStyle(app.status);
 
   return (
@@ -365,10 +374,92 @@ function BasicInfoTab({
 
       <SectionHeader title="BASIC INFORMATION" />
       <View style={styles.infoBlock}>
-        <InfoRow label="Last Name:" value={app.basicInfo.lastName} />
-        <InfoRow label="First Name:" value={app.basicInfo.firstName} />
-        <InfoRow label="Middle Name:" value={app.basicInfo.middleName} />
-        <InfoRow label="Date Of Birth:" value={app.basicInfo.dob} />
+        <InfoRow
+          label="Last Name:"
+          value={app.basicInfo.lastName}
+          onEdit={
+            isEditable
+              ? () => {
+                  setLnDraft(app.basicInfo.lastName);
+                  setEditingLastName(true);
+                }
+              : undefined
+          }
+          isEditing={editingLastName}
+          editValue={lnDraft}
+          onEditChange={setLnDraft}
+          onEditDone={() => {
+            setEditingLastName(false);
+            updateApplication(app.id, {
+              basicInfo: { ...app.basicInfo, lastName: lnDraft },
+            });
+          }}
+        />
+        <InfoRow
+          label="First Name:"
+          value={app.basicInfo.firstName}
+          onEdit={
+            isEditable
+              ? () => {
+                  setFnDraft(app.basicInfo.firstName);
+                  setEditingFirstName(true);
+                }
+              : undefined
+          }
+          isEditing={editingFirstName}
+          editValue={fnDraft}
+          onEditChange={setFnDraft}
+          onEditDone={() => {
+            setEditingFirstName(false);
+            updateApplication(app.id, {
+              basicInfo: { ...app.basicInfo, firstName: fnDraft },
+            });
+          }}
+        />
+        <InfoRow
+          label="Middle Name:"
+          value={app.basicInfo.middleName}
+          onEdit={
+            isEditable
+              ? () => {
+                  setMnDraft(app.basicInfo.middleName);
+                  setEditingMiddleName(true);
+                }
+              : undefined
+          }
+          isEditing={editingMiddleName}
+          editValue={mnDraft}
+          onEditChange={setMnDraft}
+          onEditDone={() => {
+            setEditingMiddleName(false);
+            updateApplication(app.id, {
+              basicInfo: { ...app.basicInfo, middleName: mnDraft },
+            });
+          }}
+        />
+        <InfoRow label="Extension Name:" value={app.basicInfo.extensionName} />
+        <InfoRow label="Place Of Birth:" value={app.basicInfo.placeOfBirth} />
+        <InfoRow
+          label="Date Of Birth:"
+          value={app.basicInfo.dob}
+          onEdit={
+            isEditable
+              ? () => {
+                  setDobDraft(app.basicInfo.dob);
+                  setEditingDob(true);
+                }
+              : undefined
+          }
+          isEditing={editingDob}
+          editValue={dobDraft}
+          onEditChange={setDobDraft}
+          onEditDone={() => {
+            setEditingDob(false);
+            updateApplication(app.id, {
+              basicInfo: { ...app.basicInfo, dob: dobDraft },
+            });
+          }}
+        />
         <InfoRow label="Sex:" value={app.basicInfo.sex} />
         <InfoRow label="Weight:" value={String(app.basicInfo.weight)} />
         <InfoRow label="Height:" value={String(app.basicInfo.height)} />
@@ -552,6 +643,38 @@ function ApplicationDetailsTab({ app }: { app: ApplicationData }) {
           </View>
         </>
       )}
+
+      {/* Application History section */}
+      {app.history && app.history.length > 0 && (
+        <>
+          <SectionHeader title="APPLICATION HISTORY" />
+          <View style={styles.infoBlock}>
+            <View style={styles.historyList}>
+              {app.history.map((entry, idx) => (
+                <View key={entry.id} style={styles.historyItem}>
+                  <View style={styles.historyLeft}>
+                    <View
+                      style={[
+                        styles.historyCircle,
+                        idx === 0 && styles.historyCircleActive,
+                      ]}
+                    />
+                    {idx !== app.history.length - 1 && (
+                      <View style={styles.historyLine} />
+                    )}
+                  </View>
+                  <View style={styles.historyRight}>
+                    <Text style={styles.historyAction}>{entry.action}</Text>
+                    <Text style={styles.historyStaff}>by {entry.staff}</Text>
+                    <Text style={styles.historyDate}>{entry.timestamp}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </View>
+        </>
+      )}
+
       <View style={{ height: 80 }} />
     </ScrollView>
   );
@@ -797,6 +920,19 @@ function SoaPaymentTab({
                 )}
               </View>
             )}
+
+            {/* Additional Payment Info for Checks */}
+            {app.payment.method === "check" && (
+              <View style={{ marginTop: SPACING[16] }}>
+                <Text style={styles.orLabel}>CHECK DETAILS</Text>
+                <Text style={styles.checkInfoText}>
+                  No: {app.payment.checkNumber || "—"}
+                </Text>
+                <Text style={styles.checkInfoText}>
+                  Bank: {app.payment.checkName || "—"}
+                </Text>
+              </View>
+            )}
           </View>
         </View>
       </View>
@@ -826,9 +962,9 @@ function SoaPaymentTab({
           ) : (
             app.correctionAuditTrail.map((entry) => (
               <View key={entry.id} style={styles.auditEntry}>
-                <Text style={styles.auditDesc}>{entry.description}</Text>
+                <Text style={styles.auditDesc}>{entry.action}</Text>
                 <Text style={styles.auditMeta}>
-                  By {entry.changedBy} • {entry.timestamp}
+                  By {entry.staff} • {entry.timestamp}
                 </Text>
               </View>
             ))
@@ -951,6 +1087,7 @@ export function ApplicationReviewScreen({
     "Returned",
   ] as const;
   const isEditable =
+    currentRole === "Admin" &&
     activeQueueTab === "pending" &&
     (EDITABLE_STATUSES as readonly string[]).includes(app.status);
 
@@ -1807,56 +1944,55 @@ const styles = StyleSheet.create({
     gap: SPACING[16],
   },
   amountReceivedCard: {
-    flex: 1,
-    backgroundColor: "#DBEAFE",
+    padding: SPACING[24],
+    backgroundColor: COLORS.brand[800],
     borderRadius: RADIUS.card,
-    padding: SPACING[16],
-    gap: SPACING[4],
+    width: 220,
+    gap: SPACING[12],
   },
   amountReceivedLabel: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 10,
     fontWeight: TYPOGRAPHY.weights.bold,
-    color: "#1E40AF",
+    color: "rgba(255,255,255,0.7)",
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
   amountReceivedValue: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: TYPOGRAPHY.weights.bold,
-    color: "#1E3A8A",
+    color: COLORS.neutral.white,
   },
   excessBadge: {
+    backgroundColor: "rgba(255,255,255,0.2)",
     alignSelf: "flex-start",
-    backgroundColor: "#BFDBFE",
     paddingHorizontal: SPACING[8],
-    paddingVertical: 2,
+    paddingVertical: SPACING[4],
     borderRadius: RADIUS.circle,
   },
   excessBadgeText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 11,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-    color: "#1E40AF",
+    color: COLORS.neutral.white,
+    fontWeight: TYPOGRAPHY.weights.bold,
   },
   paymentMethodBlock: {
-    marginTop: SPACING[8],
+    marginTop: SPACING[4],
   },
   paymentMethodLabel: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: TYPOGRAPHY.weights.bold,
-    color: "#1E40AF",
+    color: "rgba(255,255,255,0.6)",
     textTransform: "uppercase",
-    letterSpacing: 0.5,
   },
   paymentMethodValue: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 14,
+    color: COLORS.neutral.white,
     fontWeight: TYPOGRAPHY.weights.bold,
-    color: "#1E3A8A",
-    textTransform: "lowercase",
+    textTransform: "capitalize",
   },
   orColumn: {
     flex: 1,
@@ -1901,7 +2037,81 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
 
-  // Audit trail
+  checkInfoText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    color: COLORS.neutral[600],
+    marginTop: 2,
+  },
+
+  // History / Audit trail
+  historyList: {
+    marginHorizontal: SPACING[16],
+    marginBottom: SPACING[24],
+    paddingTop: SPACING[8],
+  },
+  historyItem: {
+    flexDirection: "row",
+    minHeight: 60,
+  },
+  historyLeft: {
+    width: 24,
+    alignItems: "center",
+  },
+  historyLine: {
+    position: "absolute",
+    top: 20,
+    bottom: 0,
+    width: 2,
+    backgroundColor: COLORS.neutral[200],
+  },
+  historyCircle: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: COLORS.neutral[300],
+    marginTop: 6,
+    zIndex: 1,
+  },
+  historyCircleActive: {
+    backgroundColor: COLORS.brand[600],
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginLeft: -1,
+  },
+  historyRight: {
+    flex: 1,
+    paddingLeft: SPACING[16],
+    paddingBottom: SPACING[20],
+  },
+  historyAction: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: COLORS.neutral[800],
+  },
+  historyStaff: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    color: COLORS.neutral[400],
+    marginTop: 2,
+  },
+  historyDate: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    color: COLORS.neutral[400],
+    marginTop: 2,
+  },
+  historyEmpty: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    color: COLORS.neutral[400],
+    paddingVertical: SPACING[12],
+    textAlign: "center",
+  },
+
+  // Audit trail (Legacy - for reference, keeping it for now if needed elsewhere)
   auditHeader: {
     flexDirection: "row",
     alignItems: "center",
