@@ -35,6 +35,7 @@ import { InternalLoginPage } from "./src/features/login/components/InternalLogin
 
 import { EmployeesScreen } from "./src/features/employees/screens/EmployeesScreen";
 import { UsersScreen } from "./src/features/users/screens/UsersScreen";
+import { SettingsScreen } from "./src/features/settings/screens/SettingsScreen";
 
 const getClerkKey = (): string => {
   const key = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
@@ -118,6 +119,7 @@ const AuthStack = createNativeStackNavigator({
     Employees: { screen: EmployeesScreen, path: "employees" },
     Users: { screen: UsersScreen, path: "users" },
     Settings: { screen: PlaceholderScreen, path: "settings" },
+    AccountSettings: { screen: SettingsScreen, path: "account-settings" },
   },
 });
 
