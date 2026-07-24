@@ -405,8 +405,6 @@ export function ActivitiesFeedPane() {
                 value={dateFrom}
                 onChangeText={setDateFrom}
                 maxLength={10}
-                // @ts-ignore
-                type="date"
               />
             </View>
             <View style={styles.dateDivider}>
@@ -425,8 +423,6 @@ export function ActivitiesFeedPane() {
                 value={dateTo}
                 onChangeText={setDateTo}
                 maxLength={10}
-                // @ts-ignore
-                type="date"
               />
             </View>
           </View>
@@ -732,7 +728,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING[12],
   },
   dateDivider: {
-    paddingBottom: SPACING[10],
+    paddingBottom: SPACING[12],
   },
   dateField: {
     flex: 1,
