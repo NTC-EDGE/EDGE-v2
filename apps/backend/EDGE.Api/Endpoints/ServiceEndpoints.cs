@@ -20,64 +20,61 @@ namespace EDGE.Api.Endpoints;
 
 public static class ServiceEndpoints
 {
-    public static RouteGroupBuilder MapServiceEndpoints(this RouteGroupBuilder group)
+    public static IEndpointRouteBuilder MapServiceEndpoints(this IEndpointRouteBuilder app)
     {
-        var globalServices = group.MapGroup("services")
-            .WithTags("Services");
-
-        var tenantServices = group.MapGroup("tenants/{tenantId:guid}/services")
-            .WithTags("Services");
+        var globalGroup = app.MapGroup("/services").WithTags("Services");
+        var tenantGroup = app.MapGroup("/tenants/{tenantId:guid}/services").WithTags("Services");
 
         // --- Tenant-Scoped Endpoints (/tenants/{tenantId}/services) ---
 
-        tenantServices.MapGet("/", GetTenantServices)
+        tenantGroup.MapGet("/", GetTenantServices)
             .WithName("GetTenantServices")
             .WithSummary("Get services for a specific tenant")
             .WithDescription("Retrieves catalog services scoped to tenant {tenantId}, with optional serviceCategoryId filter.");
 
-        tenantServices.MapPost("/", CreateTenantService)
+        tenantGroup.MapPost("/", CreateTenantService)
             .WithName("CreateTenantService")
             .WithSummary("Create a new service under a tenant")
             .WithDescription("Creates a new catalog service associated with a category and tenant.");
 
-        tenantServices.MapPut("/{id:guid}", UpdateTenantService)
+        tenantGroup.MapPut("/{id:guid}", UpdateTenantService)
             .WithName("UpdateTenantService")
             .WithSummary("Update service details")
             .WithDescription("Updates catalog service information under a tenant.");
 
-        tenantServices.MapDelete("/{id:guid}", DeleteTenantService)
+        tenantGroup.MapDelete("/{id:guid}", DeleteTenantService)
             .WithName("DeleteTenantService")
             .WithSummary("Delete a service under a tenant")
             .WithDescription("Deletes a service. Returns 409 Conflict if the service has associated applications.");
 
         // --- Global / Catalog Detail Endpoints (/services) ---
 
-        globalServices.MapGet("/", GetServices)
+        globalGroup.MapGet("/", GetServices)
             .WithName("GetServices")
             .WithSummary("Get catalog services")
             .WithDescription("Retrieves all catalog services, with optional serviceCategoryId filter.");
 
-        globalServices.MapGet("/{id:guid}", GetServiceById)
+        globalGroup.MapGet("/{id:guid}", GetServiceById)
             .WithName("GetServiceById")
             .WithSummary("Get service details by ID")
             .WithDescription("Fetches a single service by its unique identifier.");
 
-        globalServices.MapGet("/{id:guid}/variants", GetServiceVariants)
+        globalGroup.MapGet("/{id:guid}/variants", GetServiceVariants)
             .WithName("GetServiceVariants")
             .WithSummary("Get service variants")
             .WithDescription("Fetches active variants for a service.");
 
-        globalServices.MapGet("/{id:guid}/contract", GetServiceContract)
+        globalGroup.MapGet("/{id:guid}/contract", GetServiceContract)
             .WithName("GetServiceContract")
             .WithSummary("Get service contract schema")
             .WithDescription("Fetches the service contract schema.");
 
-        globalServices.MapGet("/{id:guid}/form", GetServiceFormLayout)
+        globalGroup.MapGet("/{id:guid}/form", GetServiceFormLayout)
             .WithName("GetServiceFormLayout")
             .WithSummary("Get form builder layout for service")
             .WithDescription("Fetches dynamic sections, fields, and options configured in the form builder for a service.");
 
-        return group;
+        return app;
     }
 
     [HasPermission(Permissions.ReadTenants)]

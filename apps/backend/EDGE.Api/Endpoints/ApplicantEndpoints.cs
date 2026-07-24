@@ -13,26 +13,24 @@ namespace EDGE.Api.Endpoints;
 
 public static class ApplicantEndpoints
 {
-    public static RouteGroupBuilder MapApplicantEndpoints(this RouteGroupBuilder group)
+    public static IEndpointRouteBuilder MapApplicantEndpoints(this IEndpointRouteBuilder app)
     {
-        var applicants = group.MapGroup("applicants")
-            .WithTags("Applicants");
+        var group = app.MapGroup("/applicants").WithTags("Applicants");
 
         // 1. Create Draft Applicant Shell
-        group.MapPost("/tenants/{id:guid}/applicants", CreateDraftApplicantShell)
+        app.MapPost("/tenants/{id:guid}/applicants", CreateDraftApplicantShell)
             .WithName("CreateDraftApplicantShell")
             .WithTags("Applicants")
             .WithSummary("Create a draft applicant shell")
             .WithDescription("Creates a new draft applicant record associated with a tenant.");
 
         // 2. Update Applicant Details (Upsert detail/company)
-        applicants.MapPatch("/{id:guid}/detail", UpdateApplicantDetail)
+        group.MapPatch("/{id:guid}/detail", UpdateApplicantDetail)
             .WithName("UpdateApplicantDetail")
-            .WithTags("Applicants")
             .WithSummary("Update applicant profile details")
             .WithDescription("Upserts detailed profile or corporate details for an applicant and checks completion status.");
 
-        return group;
+        return app;
     }
 
     [HasPermission(Permissions.SubmitApplication)]

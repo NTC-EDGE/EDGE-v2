@@ -28,99 +28,78 @@ namespace EDGE.Api.Endpoints;
 
 public static class ApplicationEndpoints
 {
-    public static RouteGroupBuilder MapApplicationEndpoints(this RouteGroupBuilder group)
+    public static IEndpointRouteBuilder MapApplicationEndpoints(this IEndpointRouteBuilder app)
     {
-        var applications = group.MapGroup("applications")
-            .WithTags("Application");
+        var group = app.MapGroup("/applications").WithTags("Application");
 
-        applications.MapPost("/csv-preview", PreviewCsvImport)
+        group.MapPost("/csv-preview", PreviewCsvImport)
             .DisableAntiforgery()
-            .WithName("PreviewCsvImport")
-            .WithSummary("Preview & validate application CSV file")
-            .WithDescription("Parses and validates a CSV spreadsheet of applicant data row-by-row.");
+            .WithName("PreviewCsvImport");
 
-        applications.MapPost("/", SubmitApplication)
-            .WithName("SubmitApplication")
-            .WithSummary("Submit application")
-            .WithDescription("Creates a new single or bulk application submission.");
+        group.MapPost("/", SubmitApplication)
+            .WithName("SubmitApplication");
 
-        applications.MapGet("/drafts", GetDraftApplications)
-            .WithName("GetDraftApplications")
-            .WithSummary("Get user draft applications")
-            .WithDescription("Retrieves draft applications belonging to the authenticated user.");
+        group.MapGet("/drafts", GetDraftApplications)
+            .WithName("GetDraftApplications");
 
-        applications.MapGet("/{id:guid}", GetApplicationById)
-            .WithName("GetApplicationById")
-            .WithSummary("Get application by ID")
-            .WithDescription("Fetches full details, header metadata, and applicant list for an application.");
+        group.MapGet("/{id:guid}", GetApplicationById)
+            .WithName("GetApplicationById");
 
-        applications.MapPut("/{id:guid}", UpdateApplicationDraft)
-            .WithName("UpdateApplicationDraft")
-            .WithSummary("Update draft application")
-            .WithDescription("Updates header information for a draft application.");
+        group.MapPut("/{id:guid}", UpdateApplicationDraft)
+            .WithName("UpdateApplicationDraft");
 
-        applications.MapDelete("/{id:guid}", DeleteDraftApplication)
-            .WithName("DeleteDraftApplication")
-            .WithSummary("Delete draft application")
-            .WithDescription("Deletes an un-submitted draft application.");
+        group.MapPatch("/{id:guid}/status", UpdateApplicationStatus)
+            .WithName("UpdateApplicationStatus");
 
-        applications.MapPost("/{id:guid}/submit", FinalizeApplicationSubmission)
-            .WithName("FinalizeApplicationSubmission")
-            .WithSummary("Finalize application submission")
-            .WithDescription("Finalizes and transitions a draft application into Submitted state.");
+        group.MapDelete("/{id:guid}", DeleteDraftApplication)
+            .WithName("DeleteDraftApplication");
 
-        applications.MapPatch("/{id:guid}/status", UpdateApplicationStatus)
-            .WithName("UpdateApplicationStatus")
-            .WithSummary("Update application status")
-            .WithDescription("Updates the status of an application and records status history.");
+        group.MapPost("/{id:guid}/submit", FinalizeApplicationSubmission)
+            .WithName("FinalizeApplicationSubmission");
 
-        applications.MapPost("/{id:guid}/applicants/{applicantId:guid}/requirements", UploadApplicantRequirement)
-            .WithName("UploadApplicantRequirement")
-            .WithSummary("Upload applicant requirement")
-            .WithDescription("Links an uploaded requirement document to a specific applicant.");
+        group.MapPost("/{id:guid}/applicants/{applicantId:guid}/requirements", UploadApplicantRequirement)
+            .WithName("UploadApplicantRequirement");
 
-        applications.MapPatch("/{id:guid}/applicants/{applicantId:guid}", UpdateApplicationApplicant)
+        group.MapPatch("/{id:guid}/applicants/{applicantId:guid}", UpdateApplicationApplicant)
             .WithName("UpdateApplicationApplicant")
             .WithSummary("Update individual applicant details")
             .WithDescription("Updates personal details and form values for a single applicant within an application.");
 
-        applications.MapDelete("/{id:guid}/applicants/{applicantId:guid}", RemoveApplicationApplicant)
+        group.MapDelete("/{id:guid}/applicants/{applicantId:guid}", RemoveApplicationApplicant)
             .WithName("RemoveApplicationApplicant")
             .WithSummary("Remove applicant from draft application")
             .WithDescription("Removes a single applicant from an existing draft bulk application.");
 
-        applications.MapPost("/{id:guid}/applicants", AddApplicationApplicant)
+        group.MapPost("/{id:guid}/applicants", AddApplicationApplicant)
             .WithName("AddApplicationApplicant")
             .WithSummary("Add applicant to draft application")
             .WithDescription("Adds a new applicant to an existing draft bulk application.");
 
-        // Tenant-scoped mappings
-        group.MapPost("/tenants/{id:guid}/applications", SubmitTenantApplication)
+        // V2 tenant-specific mappings
+        app.MapPost("/tenants/{id:guid}/applications", SubmitTenantApplication)
             .WithName("SubmitTenantApplication")
             .WithTags("Application")
             .WithSummary("Submit tenant-scoped application")
             .WithDescription("Creates and validates a single application submission linked to a tenant.");
 
-        group.MapPatch("/tenants/{id:guid}/applications/{appId:guid}/status", UpdateTenantApplicationStatus)
+        app.MapPatch("/tenants/{id:guid}/applications/{appId:guid}/status", UpdateTenantApplicationStatus)
             .WithName("UpdateTenantApplicationStatus")
             .WithTags("Application")
             .WithSummary("Update tenant application status")
             .WithDescription("Updates application status and logs status history for a tenant application.");
 
-        group.MapPatch("/tenants/{id:guid}/applications/{appId:guid}", UploadTenantApplicationRequirement)
+        app.MapPatch("/tenants/{id:guid}/applications/{appId:guid}", UploadTenantApplicationRequirement)
             .WithName("UploadTenantApplicationRequirement")
             .WithTags("Application")
             .WithSummary("Upload requirement document for application")
             .WithDescription("Updates or uploads a requirement file for a tenant-scoped application.");
 
-        // Services CSV template endpoint
-        group.MapGet("/services/{id:guid}/csv-template", GetServiceCsvTemplate)
+        app.MapGet("/services/{id:guid}/csv-template", GetServiceCsvTemplate)
             .WithTags("Services")
             .WithName("GetServiceCsvTemplate")
-            .WithSummary("Download CSV template for service bulk upload")
-            .WithDescription("Generates and downloads a CSV template file matching the form builder fields for a service.");
+            .WithSummary("Download CSV template for service bulk upload");
 
-        return group;
+        return app;
     }
 
     [HasPermission(Permissions.ImportCsvApplications)]
@@ -178,6 +157,20 @@ public static class ApplicationEndpoints
         return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
     }
 
+    [HasPermission(Permissions.UpdateApplication)]
+    public static async Task<IResult> UpdateApplicationStatus(Guid id, UpdateApplicationStatusCommand command, IValidator<UpdateApplicationStatusCommand> validator, IMediator mediator)
+    {
+        var fullCommand = command with { Id = id };
+        var validationResult = await validator.ValidateAsync(fullCommand);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
+
+        var result = await mediator.Send(fullCommand);
+        return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
+    }
+
     [HasPermission(Permissions.DeleteApplication)]
     public static async Task<IResult> DeleteDraftApplication(Guid id, IMediator mediator)
     {
@@ -198,24 +191,6 @@ public static class ApplicationEndpoints
     public static async Task<IResult> FinalizeApplicationSubmission(Guid id, IMediator mediator)
     {
         var result = await mediator.Send(new FinalizeApplicationSubmissionCommand(id));
-        return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
-    }
-
-    [HasPermission(Permissions.UpdateApplication)]
-    public static async Task<IResult> UpdateApplicationStatus(
-        Guid id,
-        UpdateApplicationStatusCommand command,
-        IValidator<UpdateApplicationStatusCommand> validator,
-        IMediator mediator)
-    {
-        var fullCommand = command with { Id = id };
-        var validationResult = await validator.ValidateAsync(fullCommand);
-        if (!validationResult.IsValid)
-        {
-            return Results.ValidationProblem(validationResult.ToDictionary());
-        }
-
-        var result = await mediator.Send(fullCommand);
         return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
     }
 
@@ -256,12 +231,7 @@ public static class ApplicationEndpoints
     }
 
     [HasPermission(Permissions.UpdateApplication)]
-    public static async Task<IResult> UpdateTenantApplicationStatus(
-        Guid id,
-        Guid appId,
-        UpdateApplicationStatusCommand command,
-        IValidator<UpdateApplicationStatusCommand> validator,
-        IMediator mediator)
+    public static async Task<IResult> UpdateTenantApplicationStatus(Guid id, Guid appId, UpdateApplicationStatusCommand command, IValidator<UpdateApplicationStatusCommand> validator, IMediator mediator)
     {
         var fullCommand = command with { TenantId = id, Id = appId };
         var validationResult = await validator.ValidateAsync(fullCommand);
@@ -282,7 +252,7 @@ public static class ApplicationEndpoints
         return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
     }
 
-    [HasPermission(Permissions.ReadApplication)]
+    [HasPermission(Permissions.ImportCsvApplications)]
     public static async Task<IResult> GetServiceCsvTemplate(Guid id, IMediator mediator)
     {
         var result = await mediator.Send(new GetServiceCsvTemplateQuery(id));

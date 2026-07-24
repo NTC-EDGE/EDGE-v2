@@ -18,37 +18,36 @@ namespace EDGE.Api.Endpoints;
 
 public static class ServiceCategoryEndpoints
 {
-    public static RouteGroupBuilder MapServiceCategoryEndpoints(this RouteGroupBuilder group)
+    public static IEndpointRouteBuilder MapServiceCategoryEndpoints(this IEndpointRouteBuilder app)
     {
-        var serviceCategories = group.MapGroup("service-categories")
-            .WithTags("ServiceCategories");
+        var group = app.MapGroup("/service-categories").WithTags("ServiceCategories");
 
-        serviceCategories.MapGet("/", GetServiceCategories)
+        group.MapGet("/", GetServiceCategories)
             .WithName("GetServiceCategories")
             .WithSummary("Get all service categories")
             .WithDescription("Returns all service categories (Certificate, Accreditation, Exam, License, Permit, RequestsAndComplaints).");
 
-        serviceCategories.MapGet("/{id:guid}", GetServiceCategoryById)
+        group.MapGet("/{id:guid}", GetServiceCategoryById)
             .WithName("GetServiceCategoryById")
             .WithSummary("Get service category by ID")
             .WithDescription("Fetches a single service category by its unique identifier.");
 
-        serviceCategories.MapPost("/", CreateServiceCategory)
+        group.MapPost("/", CreateServiceCategory)
             .WithName("CreateServiceCategory")
             .WithSummary("Create a new service category")
             .WithDescription("Creates a new service category.");
 
-        serviceCategories.MapPut("/{id:guid}", UpdateServiceCategory)
+        group.MapPut("/{id:guid}", UpdateServiceCategory)
             .WithName("UpdateServiceCategory")
             .WithSummary("Update service category")
             .WithDescription("Updates the name, description, or code of a service category.");
 
-        serviceCategories.MapDelete("/{id:guid}", DeleteServiceCategory)
+        group.MapDelete("/{id:guid}", DeleteServiceCategory)
             .WithName("DeleteServiceCategory")
             .WithSummary("Delete a service category")
             .WithDescription("Fails with 409 Conflict if the category has associated services.");
 
-        return group;
+        return app;
     }
 
     [HasPermission(Permissions.ReadTenants)]
