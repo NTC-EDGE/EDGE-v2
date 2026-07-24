@@ -107,12 +107,13 @@ export function DashboardShell({
         user={user}
         onLogout={logout}
         isMobile={isMobile}
-        onMenuPress={toggleSidebar}
+        onMenuPress={activeScreen === 'AccountSettings' ? undefined : toggleSidebar}
+        onNavigate={handleLinkPress}
       />
 
       <View style={styles.bodyWrapper}>
         {/* Left Sidebar (Desktop Only) */}
-        {!isMobile && (
+        {!isMobile && activeScreen !== 'AccountSettings' && (
           <Sidebar
             currentRole={currentRole}
             links={links}
@@ -122,7 +123,7 @@ export function DashboardShell({
         )}
 
         {/* Mobile Drawer (Backdrop & Sliding Sidebar) */}
-        {isMobile && shouldRenderSidebar && (
+        {isMobile && activeScreen !== 'AccountSettings' && shouldRenderSidebar && (
           <>
             <Animated.View
               style={[
@@ -153,19 +154,25 @@ export function DashboardShell({
         )}
 
         {/* Main Scrolling Body */}
-        <ScrollView
-          style={styles.contentScrollView}
-          contentContainerStyle={[
-            styles.contentContainer,
-            isMobile && styles.mobileContentContainer,
-          ]}
-        >
-          <View style={styles.maxContainer}>
-            <TransitionWrapper trigger={activeScreen}>
-              {children}
-            </TransitionWrapper>
+        {activeScreen === 'AccountSettings' ? (
+          <View style={{ flex: 1, height: '100%' }}>
+            {children}
           </View>
-        </ScrollView>
+        ) : (
+          <ScrollView
+            style={styles.contentScrollView}
+            contentContainerStyle={[
+              styles.contentContainer,
+              isMobile && styles.mobileContentContainer,
+            ]}
+          >
+            <View style={styles.maxContainer}>
+              <TransitionWrapper trigger={activeScreen}>
+                {children}
+              </TransitionWrapper>
+            </View>
+          </ScrollView>
+        )}
       </View>
     </View>
   );
