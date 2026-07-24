@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { AlertCircle, Plus, Trash2 } from "lucide-react";
 import { Fee } from "@edge/api";
 import { Button } from "@/components/ui/button";
@@ -58,21 +58,40 @@ export function CreateRecordDialog({
   const [notes, setNotes] = useState("");
   const [serviceCategoryId, setServiceCategoryId] = useState("");
 
+  const hasInitialized = useRef(false);
+
   // Initialize values when tab changes or dialog opens
   useEffect(() => {
     if (open) {
-      setErrorMsg(null);
-      setCode("");
-      setName("");
-      setDescription("");
-      
-      setServiceId(MOCK_SERVICES[0]?.id ?? "");
-      setFeeId(fees[0]?.id ?? "");
-      setAmount(0);
-      setFeeEntries([{ feeId: fees[0]?.id ?? "", amount: 0 }]);
-      
-      setNotes("");
-      setServiceCategoryId(MOCK_CATEGORIES[0]?.id ?? "");
+      if (!hasInitialized.current) {
+        setErrorMsg(null);
+        setCode("");
+        setName("");
+        setDescription("");
+        
+        setServiceId(MOCK_SERVICES[0]?.id ?? "");
+        setFeeId(fees[0]?.id ?? "");
+        setAmount(0);
+        setFeeEntries([{ feeId: fees[0]?.id ?? "", amount: 0 }]);
+        
+        setNotes("");
+        setServiceCategoryId(MOCK_CATEGORIES[0]?.id ?? "");
+        hasInitialized.current = true;
+      } else {
+        // If we are already open but fees catalog finished loading/updating
+        // and we haven't selected a fee yet, initialize the selection.
+        if (fees.length > 0) {
+          setFeeId((prev) => prev || (fees[0]?.id ?? ""));
+          setFeeEntries((prev) => {
+            if (prev.length === 0 || (prev.length === 1 && prev[0].feeId === "")) {
+              return [{ feeId: fees[0]?.id ?? "", amount: 0 }];
+            }
+            return prev;
+          });
+        }
+      }
+    } else {
+      hasInitialized.current = false;
     }
   }, [open, activeTab, fees]);
 

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { AlertCircle } from "lucide-react";
 import { Fee, ServiceFee, Note } from "@edge/api";
 import { Button } from "@/components/ui/button";
@@ -63,22 +63,29 @@ export function EditRecordDialog({
   const [notes, setNotes] = useState("");
   const [serviceCategoryId, setServiceCategoryId] = useState("");
 
+  const hasInitialized = useRef(false);
+
   // Load existing data when open or selections change
   useEffect(() => {
     if (open) {
-      setErrorMsg(null);
-      if (activeTab === "fees" && selectedFee !== null) {
-        setCode(selectedFee.code);
-        setName(selectedFee.name);
-        setDescription(selectedFee.description ?? "");
-      } else if (activeTab === "service-fees" && selectedServiceFee !== null) {
-        setServiceId(selectedServiceFee.serviceId);
-        setFeeId(selectedServiceFee.feeId);
-        setAmount(selectedServiceFee.amount);
-      } else if (activeTab === "notes" && selectedNote !== null) {
-        setNotes(selectedNote.notes);
-        setServiceCategoryId(selectedNote.serviceCategoryId);
+      if (!hasInitialized.current) {
+        setErrorMsg(null);
+        if (activeTab === "fees" && selectedFee !== null) {
+          setCode(selectedFee.code);
+          setName(selectedFee.name);
+          setDescription(selectedFee.description ?? "");
+        } else if (activeTab === "service-fees" && selectedServiceFee !== null) {
+          setServiceId(selectedServiceFee.serviceId);
+          setFeeId(selectedServiceFee.feeId);
+          setAmount(selectedServiceFee.amount);
+        } else if (activeTab === "notes" && selectedNote !== null) {
+          setNotes(selectedNote.notes);
+          setServiceCategoryId(selectedNote.serviceCategoryId);
+        }
+        hasInitialized.current = true;
       }
+    } else {
+      hasInitialized.current = false;
     }
   }, [open, activeTab, selectedFee, selectedServiceFee, selectedNote]);
 
