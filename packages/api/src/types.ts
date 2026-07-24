@@ -283,7 +283,6 @@ export interface UpdateFieldOfficeCommand {
   allowComplaintReception: boolean;
 }
 
-
 export interface User {
   id: string;
   email: string;
@@ -293,7 +292,11 @@ export interface User {
   createdAt?: string;
 }
 
-export type AccountStatus = "active" | "locked" | "suspended" | "pending_verification";
+export type AccountStatus =
+  | "active"
+  | "locked"
+  | "suspended"
+  | "pending_verification";
 
 export interface GlobalSupportUser {
   id: string;
@@ -346,7 +349,12 @@ export interface SupportTicketSummary {
   id: string;
   ticketNumber: string;
   subject: string;
-  category: "Login Issue" | "Access Rights" | "MFA Problem" | "Region Scope" | "General Troubleshooting";
+  category:
+    | "Login Issue"
+    | "Access Rights"
+    | "MFA Problem"
+    | "Region Scope"
+    | "General Troubleshooting";
   status: "Open" | "In Progress" | "Resolved" | "Closed";
   priority: "Low" | "Medium" | "High" | "Urgent";
   createdAt: string;
@@ -439,8 +447,6 @@ export interface RegionSettings {
   fees: RegionFeeSchedule;
 }
 
-
-
 export interface Fee {
   id: string;
   code: string;
@@ -471,8 +477,3 @@ export interface StoredFileDto {
   uploadedByUserId: string;
   createdAt: string;
 }
-
-
-
-
-

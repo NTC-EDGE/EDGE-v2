@@ -1,14 +1,10 @@
-import '@react-navigation/native';
+import "@react-navigation/native";
+import type { UnauthParamList } from "./routes/public";
+import type { AuthParamList } from "./routes/auth";
 
 declare global {
   namespace ReactNavigation {
-    interface RootParamList {
-      Landing: undefined;
-      Login: undefined;
-      SignUp: undefined;
-      ForgotPassword: undefined;
-      Services: undefined;
-      MyApplications: undefined;
-    }
+    interface RootParamList extends UnauthParamList, AuthParamList {}
   }
 }
+

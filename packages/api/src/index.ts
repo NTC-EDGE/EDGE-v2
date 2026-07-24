@@ -49,3 +49,4 @@ export function useAuthenticatedSWR<Data = unknown, Error = unknown>(
 
 
 export * from './types';
+export * from './features/services';
