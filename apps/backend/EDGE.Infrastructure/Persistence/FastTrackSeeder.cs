@@ -12,11 +12,6 @@ public static class FastTrackSeeder
 {
     public static async Task SeedAsync(ApplicationDbContext context)
     {
-        if (await context.Services.CountAsync() >= 12)
-        {
-            return;
-        }
-
         var tenant = await context.Tenants.FirstOrDefaultAsync() 
             ?? throw new InvalidOperationException("Tenant not seeded. Run RolePermissionDataSeeder first.");
 
@@ -502,7 +497,7 @@ public static class FastTrackSeeder
             // NTC 1-01 Exam Specific
             ["examCategory"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000007"), FieldType = "dropdown", Label = "Exam Category", SyncBackOnSubmit = false, ValidationRules = @"[""Radiotelegraphy"",""Radiotelephony"",""Amateur"",""Restricted Radiotelephone""]" },
             ["examineeType"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000008"), FieldType = "dropdown", Label = "Examinee Type", SyncBackOnSubmit = false, ValidationRules = @"[""FirstTaker"",""Retaker"",""Upgrade""]" },
-            ["elements"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000009"), FieldType = "text", Label = "Selected Exam Elements", SyncBackOnSubmit = false },
+            ["elements"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000009"), FieldType = "dropdown", Label = "Selected Exam Elements", SyncBackOnSubmit = false, ValidationRules = @"[""1RTG"",""2RTG"",""3RTG"",""1PHN"",""2PHN"",""3PHN"",""Class A"",""Class B"",""Class C"",""Class D"",""RROC-Aircraft""]" },
             ["specialNeeds"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000010"), FieldType = "text", Label = "Special Assistance Details", SyncBackOnSubmit = false },
             ["admissionNumber"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000011"), FieldType = "text", Label = "Admission Slip Number", SyncBackOnSubmit = false },
 
@@ -546,9 +541,17 @@ public static class FastTrackSeeder
         var existingFields = await context.Fields.ToListAsync();
         foreach (var f in fieldsPool.Values)
         {
-            if (!existingFields.Any(x => x.Id == f.Id))
+            var existing = existingFields.FirstOrDefault(x => x.Id == f.Id);
+            if (existing == null)
             {
                 context.Fields.Add(f);
+            }
+            else
+            {
+                // Ensure existing fields in database sync with updated FieldType and ValidationRules
+                existing.FieldType = f.FieldType;
+                existing.ValidationRules = f.ValidationRules;
+                existing.Label = f.Label;
             }
         }
         await context.SaveChangesAsync();
