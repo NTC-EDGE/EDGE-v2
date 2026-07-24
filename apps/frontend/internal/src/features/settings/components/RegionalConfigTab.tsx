@@ -1,34 +1,60 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   StyleSheet,
   View,
   Text,
+  TextInput,
   Pressable,
   Switch,
   useWindowDimensions,
 } from 'react-native';
 import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide } from '@edge/ui';
-import { RegionalConfigCard, BranchOfficeStats } from '../data/mockAdminSettings';
+import { RegionalConfigCard, BranchOffice, BranchOfficeStats } from '../data/mockAdminSettings';
 
 interface RegionalConfigTabProps {
   configs: RegionalConfigCard[];
+  branchOffices: BranchOffice[];
   stats: BranchOfficeStats;
   onEditConfig: (config: RegionalConfigCard) => void;
   onDeleteConfig: (id: string) => void;
   onAddBranchOffice: () => void;
+  onEditBranchOffice: (branch: BranchOffice) => void;
+  onDeleteBranchOffice: (id: string) => void;
 }
 
 export function RegionalConfigTab({
   configs,
+  branchOffices,
   stats,
   onEditConfig,
   onDeleteConfig,
   onAddBranchOffice,
+  onEditBranchOffice,
+  onDeleteBranchOffice,
 }: RegionalConfigTabProps) {
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
 
   const [isEmailNotificationActive, setIsEmailNotificationActive] = useState(false);
+  const [branchSearchQuery, setBranchSearchQuery] = useState('');
+  const [selectedBranchFilter, setSelectedBranchFilter] = useState<'All' | 'Main Office' | 'Field Office'>('All');
+
+  // Filter branch offices
+  const filteredBranchOffices = useMemo(() => {
+    return branchOffices.filter((b) => {
+      if (selectedBranchFilter !== 'All' && b.type !== selectedBranchFilter) {
+        return false;
+      }
+      if (branchSearchQuery.trim().length > 0) {
+        const q = branchSearchQuery.toLowerCase().trim();
+        const matchesName = b.name.toLowerCase().includes(q);
+        const matchesCode = b.code.toLowerCase().includes(q);
+        const matchesType = b.type.toLowerCase().includes(q);
+        return matchesName || matchesCode || matchesType;
+      }
+      return true;
+    });
+  }, [branchOffices, branchSearchQuery, selectedBranchFilter]);
 
   return (
     <View style={styles.container}>
@@ -181,6 +207,111 @@ export function RegionalConfigTab({
             <Text style={[styles.badgeText, styles.badgeTextBlue]}>Field Office</Text>
           </View>
         </View>
+      </View>
+
+      {/* 5. Branch Offices Search & Filter Bar (Matching Screenshot) */}
+      <View style={[styles.branchFilterBar, isMobile && styles.branchFilterBarMobile]}>
+        <View style={styles.branchSearchBox}>
+          <Lucide name="search" size={18} color={COLORS.neutral[400]} />
+          <TextInput
+            style={styles.branchSearchInput}
+            placeholder="Search branch name, code, or type..."
+            placeholderTextColor={COLORS.neutral[400]}
+            value={branchSearchQuery}
+            onChangeText={setBranchSearchQuery}
+          />
+          {branchSearchQuery.length > 0 && (
+            <Pressable onPress={() => setBranchSearchQuery('')}>
+              <Lucide name="x" size={16} color={COLORS.neutral[400]} />
+            </Pressable>
+          )}
+        </View>
+
+        {/* Category Filter Pills */}
+        <View style={styles.branchFilterGroup}>
+          {(['All', 'Main Office', 'Field Office'] as const).map((filter) => {
+            const isActive = selectedBranchFilter === filter;
+            return (
+              <Pressable
+                key={filter}
+                style={[
+                  styles.filterPillBtn,
+                  isActive ? styles.filterPillActive : styles.filterPillInactive,
+                ]}
+                onPress={() => setSelectedBranchFilter(filter)}
+              >
+                <Text
+                  style={[
+                    styles.filterPillText,
+                    isActive ? styles.filterPillTextActive : styles.filterPillTextInactive,
+                  ]}
+                >
+                  {filter}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+
+      {/* 6. Branch Offices List Rows (Matching Screenshot) */}
+      <View style={styles.branchListContainer}>
+        {filteredBranchOffices.length === 0 ? (
+          <View style={[styles.emptyBranchCard, SHADOWS.card]}>
+            <Lucide name="map-pin" size={32} color={COLORS.neutral[400]} />
+            <Text style={styles.emptyBranchTitle}>No matching branch offices</Text>
+            <Text style={styles.emptyBranchSubtitle}>Try searching with a different office code or name.</Text>
+          </View>
+        ) : (
+          filteredBranchOffices.map((branch) => (
+            <View key={branch.id} style={[styles.branchCardRow, SHADOWS.card]}>
+              <View style={styles.branchRowLeft}>
+                <View style={styles.branchPinBox}>
+                  <Lucide name="map-pin" size={18} color="#6366F1" />
+                </View>
+                <View style={styles.branchInfo}>
+                  <Text style={styles.branchName}>{branch.name}</Text>
+                  <View style={styles.branchDetailsRow}>
+                    <Text style={styles.branchCodeText}>CODE: {branch.code}</Text>
+                    <View
+                      style={[
+                        styles.badge,
+                        branch.type === 'Main Office' ? styles.badgeGreenPill : styles.badgeBluePill,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.badgeText,
+                          branch.type === 'Main Office' ? styles.badgeTextGreen : styles.badgeTextBlue,
+                        ]}
+                      >
+                        {branch.type}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              </View>
+
+              {/* Action Buttons */}
+              <View style={styles.actionButtonsRow}>
+                <Pressable
+                  style={styles.iconActionBtn}
+                  onPress={() => onEditBranchOffice(branch)}
+                  accessibilityLabel={`Edit ${branch.name}`}
+                >
+                  <Lucide name="edit-2" size={15} color={COLORS.neutral[600]} />
+                </Pressable>
+                <Pressable
+                  style={[styles.iconActionBtn, styles.iconDeleteBtn]}
+                  onPress={() => onDeleteBranchOffice(branch.id)}
+                  accessibilityLabel={`Delete ${branch.name}`}
+                >
+                  <Lucide name="trash-2" size={15} color="#EF4444" />
+                </Pressable>
+              </View>
+            </View>
+          ))
+        )}
       </View>
     </View>
   );
@@ -469,5 +600,136 @@ const styles = StyleSheet.create({
   },
   badgeTextBlue: {
     color: '#2563EB',
+  },
+
+  // Branch Offices Search & Filter Bar
+  branchFilterBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: SPACING[12],
+    marginTop: SPACING[8],
+  },
+  branchFilterBarMobile: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
+  },
+  branchSearchBox: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING[8],
+    backgroundColor: COLORS.neutral.white,
+    borderColor: COLORS.neutral[200],
+    borderWidth: 1,
+    borderRadius: RADIUS.input,
+    paddingHorizontal: SPACING[12],
+    height: 44,
+  },
+  branchSearchInput: {
+    flex: 1,
+    fontSize: TYPOGRAPHY.sizes.body,
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    color: COLORS.neutral[900],
+  },
+  branchFilterGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING[8],
+  },
+  filterPillBtn: {
+    paddingHorizontal: SPACING[16],
+    paddingVertical: 10,
+    borderRadius: RADIUS.button,
+  },
+  filterPillActive: {
+    backgroundColor: COLORS.brand[600],
+  },
+  filterPillInactive: {
+    backgroundColor: COLORS.neutral.white,
+    borderColor: COLORS.neutral[200],
+    borderWidth: 1,
+  },
+  filterPillText: {
+    fontSize: TYPOGRAPHY.sizes.body,
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontWeight: '600',
+  },
+  filterPillTextActive: {
+    color: COLORS.neutral.white,
+  },
+  filterPillTextInactive: {
+    color: COLORS.neutral[700],
+  },
+
+  // Branch Offices List Rows
+  branchListContainer: {
+    gap: SPACING[12],
+  },
+  branchCardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: COLORS.neutral.white,
+    borderRadius: RADIUS.card,
+    padding: SPACING[16],
+    borderColor: COLORS.neutral[200],
+    borderWidth: 1,
+  },
+  branchRowLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING[12],
+    flex: 1,
+  },
+  branchPinBox: {
+    width: 38,
+    height: 38,
+    borderRadius: RADIUS.input,
+    backgroundColor: '#EEF2FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  branchInfo: {
+    flex: 1,
+  },
+  branchName: {
+    fontSize: TYPOGRAPHY.sizes.cardTitle,
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontWeight: '700',
+    color: COLORS.neutral[900],
+  },
+  branchDetailsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING[8],
+    marginTop: 2,
+  },
+  branchCodeText: {
+    fontSize: TYPOGRAPHY.sizes.caption,
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    color: COLORS.neutral[500],
+    fontWeight: '600',
+  },
+
+  // Empty state
+  emptyBranchCard: {
+    backgroundColor: COLORS.neutral.white,
+    borderRadius: RADIUS.card,
+    padding: SPACING[24],
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING[4],
+  },
+  emptyBranchTitle: {
+    fontSize: TYPOGRAPHY.sizes.cardTitle,
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontWeight: '700',
+    color: COLORS.neutral[700],
+  },
+  emptyBranchSubtitle: {
+    fontSize: TYPOGRAPHY.sizes.caption,
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    color: COLORS.neutral[500],
   },
 });

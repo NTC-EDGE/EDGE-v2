@@ -113,7 +113,7 @@ export const INITIAL_REGIONAL_CONFIGS: RegionalConfigCard[] = [
     name: 'NTC Region X',
     subLabel: 'B5099 · 43A',
     badge: { text: 'Primary', type: 'primary' },
-    icon: 'building-2',
+    icon: 'building',
     iconBg: '#FEF3C7',
     iconColor: '#D97706',
   },
@@ -127,6 +127,33 @@ export const INITIAL_REGIONAL_CONFIGS: RegionalConfigCard[] = [
     icon: 'info',
     iconBg: '#DCFCE7',
     iconColor: '#16A34A',
+  },
+];
+
+export const INITIAL_BRANCH_OFFICES: BranchOffice[] = [
+  {
+    id: 'bo-1',
+    name: 'Zamboanga City Main Office',
+    code: 'ZC-001',
+    type: 'Main Office',
+    address: 'Zamboanga City, Zamboanga del Sur',
+    contactNumber: '(062) 991-1234',
+  },
+  {
+    id: 'bo-2',
+    name: 'Pagadian Field Office',
+    code: 'PD-002',
+    type: 'Field Office',
+    address: 'Pagadian City, Zamboanga del Sur',
+    contactNumber: '(062) 214-5678',
+  },
+  {
+    id: 'bo-3',
+    name: 'Dipolog Branch',
+    code: 'DP-003',
+    type: 'Field Office',
+    address: 'Dipolog City, Zamboanga del Norte',
+    contactNumber: '(065) 212-9012',
   },
 ];
 
@@ -304,33 +331,6 @@ export const INITIAL_NOTES: NoteItem[] = [
     typeText: 'Single Instructions Block',
     targetView: 'Client View',
     instructions: 'Applicants must be at least 12 years of age or possess an accredited radio club endorsement.',
-  },
-];
-
-export const INITIAL_BRANCH_OFFICES: BranchOffice[] = [
-  {
-    id: 'bo-1',
-    name: 'Cagayan de Oro Main Office',
-    code: 'B5099-CO',
-    type: 'Main Office',
-    address: 'Kauswagan Highway, Cagayan de Oro City, Misamis Oriental',
-    contactNumber: '(088) 856-1234',
-  },
-  {
-    id: 'bo-2',
-    name: 'Bukidnon Field Office',
-    code: 'B5099-FO1',
-    type: 'Field Office',
-    address: 'Malaybalay City, Bukidnon',
-    contactNumber: '(088) 221-5678',
-  },
-  {
-    id: 'bo-3',
-    name: 'Iligan Field Office',
-    code: 'B5099-FO2',
-    type: 'Field Office',
-    address: 'Pala-o, Iligan City, Lanao del Norte',
-    contactNumber: '(063) 223-9012',
   },
 ];
 

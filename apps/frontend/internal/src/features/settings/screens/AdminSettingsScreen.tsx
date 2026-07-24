@@ -108,6 +108,19 @@ export function AdminSettingsScreen() {
     setModalType('add-branch');
   };
 
+  const handleEditBranchOffice = (branch: BranchOffice) => {
+    setSelectedItem({
+      id: branch.id,
+      name: branch.name,
+      subLabel: branch.address,
+    });
+    setModalType('add-branch');
+  };
+
+  const handleDeleteBranchOffice = (id: string) => {
+    setBranchOffices((prev) => prev.filter((b) => b.id !== id));
+  };
+
   // Handlers for App Requirements
   const handleAddRequirement = () => {
     setSelectedItem(undefined);
@@ -200,15 +213,25 @@ export function AdminSettingsScreen() {
         )
       );
     } else if (modalType === 'add-branch') {
-      const newBranch: BranchOffice = {
-        id: `bo-${Date.now()}`,
-        name: data.name || 'New Regional Field Office',
-        code: `B5099-FO${branchOffices.length + 1}`,
-        type: 'Field Office',
-        address: data.subLabel || 'Regional Address',
-        contactNumber: '(088) 123-4567',
-      };
-      setBranchOffices((prev) => [...prev, newBranch]);
+      if (selectedItem?.id !== undefined) {
+        setBranchOffices((prev) =>
+          prev.map((b) =>
+            b.id === selectedItem.id
+              ? { ...b, name: data.name || b.name, address: data.subLabel || b.address }
+              : b
+          )
+        );
+      } else {
+        const newBranch: BranchOffice = {
+          id: `bo-${Date.now()}`,
+          name: data.name || 'New Regional Field Office',
+          code: `B5099-FO${branchOffices.length + 1}`,
+          type: 'Field Office',
+          address: data.subLabel || 'Regional Address',
+          contactNumber: '(088) 123-4567',
+        };
+        setBranchOffices((prev) => [...prev, newBranch]);
+      }
     } else if (modalType === 'add-requirement') {
       const newReq: ApplicationRequirementItem = {
         id: `req-${Date.now()}`,
@@ -280,114 +303,110 @@ export function AdminSettingsScreen() {
   };
 
   return (
-    <View style={styles.outerWrapper}>
+    <View style={styles.container}>
+      {/* Header Title Section */}
+      <View style={styles.headerSection}>
+        <Text style={styles.pageTitle}>Admin Settings</Text>
+        <Text style={styles.pageSubtitle}>
+          Manage regional configuration, service requirements, notes, fees and build forms.
+        </Text>
+      </View>
+
+      {/* Horizontal Tab Navigation Bar */}
       <ScrollView
-        contentContainerStyle={styles.scrollContainer}
-        showsVerticalScrollIndicator={false}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.tabsRow}
       >
-        <View style={styles.innerContainer}>
-          {/* Header Title Section */}
-          <View style={styles.headerSection}>
-            <Text style={styles.pageTitle}>Admin Settings</Text>
-            <Text style={styles.pageSubtitle}>
-              Manage regional configuration, service requirements, notes, fees and build forms.
-            </Text>
-          </View>
+        {TABS.map((tab) => {
+          const isActive = activeTab === tab.id;
 
-          {/* Horizontal Tab Navigation Bar */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.tabsRow}
-          >
-            {TABS.map((tab) => {
-              const isActive = activeTab === tab.id;
-
-              return (
-                <Pressable
-                  key={tab.id}
-                  style={[
-                    styles.tabButton,
-                    isActive ? styles.tabButtonActive : styles.tabButtonInactive,
-                  ]}
-                  onPress={() => setActiveTab(tab.id)}
-                  accessibilityLabel={`Switch to ${tab.label}`}
-                >
-                  <Lucide
-                    name={tab.icon}
-                    size={16}
-                    color={isActive ? COLORS.neutral.white : COLORS.neutral[600]}
-                  />
-                  <Text
-                    style={[
-                      styles.tabLabel,
-                      isActive ? styles.tabLabelActive : styles.tabLabelInactive,
-                    ]}
-                  >
-                    {tab.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-
-          {/* Active Tab View Body */}
-          <View style={styles.tabContentArea}>
-            {activeTab === 'regional' && (
-              <RegionalConfigTab
-                configs={regionalConfigs}
-                stats={stats}
-                onEditConfig={handleEditConfig}
-                onDeleteConfig={handleDeleteConfig}
-                onAddBranchOffice={handleAddBranchOffice}
+          return (
+            <Pressable
+              key={tab.id}
+              style={[
+                styles.tabButton,
+                isActive ? styles.tabButtonActive : styles.tabButtonInactive,
+              ]}
+              onPress={() => setActiveTab(tab.id)}
+              accessibilityLabel={`Switch to ${tab.label}`}
+            >
+              <Lucide
+                name={tab.icon}
+                size={16}
+                color={isActive ? COLORS.neutral.white : COLORS.neutral[600]}
               />
-            )}
-
-            {activeTab === 'requirements' && (
-              <AppRequirementsTab
-                requirements={appRequirements}
-                onAddRequirement={handleAddRequirement}
-                onEditRequirement={handleEditRequirement}
-                onDeleteRequirement={handleDeleteRequirement}
-              />
-            )}
-
-            {activeTab === 'fees' && (
-              <FeesPaymentsTab
-                fees={feesPayments}
-                onConfigureFees={handleConfigureFees}
-                onEditFee={handleEditFee}
-                onDeleteFee={handleDeleteFee}
-              />
-            )}
-
-            {activeTab === 'notes' && (
-              <NotesTab
-                notes={notes}
-                onAddNotes={handleAddNotes}
-                onEditNote={handleEditNote}
-                onDeleteNote={handleDeleteNote}
-              />
-            )}
-
-            {activeTab === 'form-builder' && (
-              <FormBuilderTab
-                forms={formBuilders}
-                onCreateForm={handleCreateForm}
-                onEditForm={handleEditForm}
-                onDeleteForm={handleDeleteForm}
-              />
-            )}
-
-            {activeTab === 'feedback' && (
-              <FeedbackTab
-                feedback={feedbacks}
-                onDeleteFeedback={handleDeleteFeedback}
-              />
-            )}
-          </View>
-        </View>
+              <Text
+                style={[
+                  styles.tabLabel,
+                  isActive ? styles.tabLabelActive : styles.tabLabelInactive,
+                ]}
+              >
+                {tab.label}
+              </Text>
+            </Pressable>
+          );
+        })}
       </ScrollView>
+
+      {/* Active Tab View Body */}
+      <View style={styles.tabContentArea}>
+        {activeTab === 'regional' && (
+          <RegionalConfigTab
+            configs={regionalConfigs}
+            branchOffices={branchOffices}
+            stats={stats}
+            onEditConfig={handleEditConfig}
+            onDeleteConfig={handleDeleteConfig}
+            onAddBranchOffice={handleAddBranchOffice}
+            onEditBranchOffice={handleEditBranchOffice}
+            onDeleteBranchOffice={handleDeleteBranchOffice}
+          />
+        )}
+
+        {activeTab === 'requirements' && (
+          <AppRequirementsTab
+            requirements={appRequirements}
+            onAddRequirement={handleAddRequirement}
+            onEditRequirement={handleEditRequirement}
+            onDeleteRequirement={handleDeleteRequirement}
+          />
+        )}
+
+        {activeTab === 'fees' && (
+          <FeesPaymentsTab
+            fees={feesPayments}
+            onConfigureFees={handleConfigureFees}
+            onEditFee={handleEditFee}
+            onDeleteFee={handleDeleteFee}
+          />
+        )}
+
+        {activeTab === 'notes' && (
+          <NotesTab
+            notes={notes}
+            onAddNotes={handleAddNotes}
+            onEditNote={handleEditNote}
+            onDeleteNote={handleDeleteNote}
+          />
+        )}
+
+        {activeTab === 'form-builder' && (
+          <FormBuilderTab
+            forms={formBuilders}
+            onCreateForm={handleCreateForm}
+            onEditForm={handleEditForm}
+            onDeleteForm={handleDeleteForm}
+          />
+        )}
+
+        {activeTab === 'feedback' && (
+          <FeedbackTab
+            feedback={feedbacks}
+            onDeleteFeedback={handleDeleteFeedback}
+          />
+        )}
+      </View>
 
       {/* Shared Interactive Modal */}
       <AdminSettingsModal
@@ -402,21 +421,9 @@ export function AdminSettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  outerWrapper: {
-    flex: 1,
-    backgroundColor: COLORS.bg,
-  },
-  scrollContainer: {
-    flexGrow: 1,
-    paddingHorizontal: SPACING[24],
-    paddingVertical: SPACING[24],
-    alignItems: 'center',
-  },
-  innerContainer: {
+  container: {
     width: '100%',
-    maxWidth: 1320,
-    alignSelf: 'center',
-    gap: SPACING[24],
+    gap: SPACING[20],
   },
 
   // Header
@@ -424,14 +431,14 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   pageTitle: {
-    fontSize: TYPOGRAPHY.sizes.heading,
+    fontSize: 32,
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontWeight: '800',
+    fontWeight: '700',
     color: COLORS.neutral[900],
     letterSpacing: -0.5,
   },
   pageSubtitle: {
-    fontSize: TYPOGRAPHY.sizes.body,
+    fontSize: 15,
     fontFamily: TYPOGRAPHY.fonts.primary,
     color: COLORS.neutral[500],
   },
