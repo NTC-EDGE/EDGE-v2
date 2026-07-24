@@ -15,6 +15,7 @@ interface FormBuilderTabProps {
   onCreateForm: () => void;
   onEditForm: (item: FormBuilderItem) => void;
   onDeleteForm: (id: string, name: string) => void;
+  onOpenVisualBuilder?: (item?: FormBuilderItem) => void;
 }
 
 export function FormBuilderTab({
@@ -22,6 +23,7 @@ export function FormBuilderTab({
   onCreateForm,
   onEditForm,
   onDeleteForm,
+  onOpenVisualBuilder,
 }: FormBuilderTabProps) {
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
@@ -129,7 +131,10 @@ export function FormBuilderTab({
                   </View>
 
                   <View style={styles.actionsRow}>
-                    <Pressable style={styles.builderBtn} onPress={() => onEditForm(item)}>
+                    <Pressable
+                      style={styles.builderBtn}
+                      onPress={() => (onOpenVisualBuilder ? onOpenVisualBuilder(item) : onEditForm(item))}
+                    >
                       <Lucide name="layout" size={15} color="#4F46E5" />
                     </Pressable>
 

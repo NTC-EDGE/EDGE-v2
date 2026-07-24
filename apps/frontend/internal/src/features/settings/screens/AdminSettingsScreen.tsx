@@ -38,6 +38,7 @@ import {
   FeeBreakdownItemInput,
 } from '../components/AdminSettingsModal';
 import { DeleteAdminItemModal } from '../components/DeleteAdminItemModal';
+import { VisualFormBuilderModal } from '../components/VisualFormBuilderModal';
 
 export type AdminTabType =
   | 'regional'
@@ -77,6 +78,15 @@ export function AdminSettingsScreen() {
   const [branchOffices, setBranchOffices] = useState<BranchOffice[]>(INITIAL_BRANCH_OFFICES);
   const [formBuilders, setFormBuilders] = useState<FormBuilderItem[]>(INITIAL_FORM_BUILDERS);
   const [feedbacks, setFeedbacks] = useState<FeedbackItem[]>(INITIAL_FEEDBACK);
+
+  // Visual Form Builder Modal State
+  const [isVisualBuilderVisible, setIsVisualBuilderVisible] = useState(false);
+  const [visualBuilderFormTitle, setVisualBuilderFormTitle] = useState('sample');
+
+  const handleOpenVisualBuilder = (item?: FormBuilderItem) => {
+    setVisualBuilderFormTitle(item?.title || 'sample');
+    setIsVisualBuilderVisible(true);
+  };
 
   // Edit Modal State
   const [modalType, setModalType] = useState<ModalType>('none');
@@ -486,6 +496,7 @@ export function AdminSettingsScreen() {
             onCreateForm={handleCreateForm}
             onEditForm={handleEditForm}
             onDeleteForm={handleDeleteForm}
+            onOpenVisualBuilder={handleOpenVisualBuilder}
           />
         )}
 
@@ -513,6 +524,14 @@ export function AdminSettingsScreen() {
         itemType={deleteModal.itemType}
         onClose={() => setDeleteModal((prev) => ({ ...prev, visible: false }))}
         onConfirm={deleteModal.onConfirm}
+      />
+
+      {/* Interactive Visual Form Builder Modal */}
+      <VisualFormBuilderModal
+        visible={isVisualBuilderVisible}
+        formTitle={visualBuilderFormTitle}
+        onClose={() => setIsVisualBuilderVisible(false)}
+        onSaveLayout={() => setIsVisualBuilderVisible(false)}
       />
     </View>
   );
