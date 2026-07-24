@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.ts",
   "dependencies": {
-    "@clerk/expo": "^3.2.0",
+    "@clerk/clerk-expo": "^2.6.2",
     "@edge/api": "workspace:*",
     "@edge/ui": "workspace:*",
     "@expo/vector-icons": "^15.0.2",
