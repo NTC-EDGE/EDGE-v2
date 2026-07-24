@@ -8,7 +8,7 @@ import {
   Platform,
   useWindowDimensions,
 } from 'react-native';
-import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide, StatusBadge } from '@edge/ui';
+import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide } from '@edge/ui';
 import { Employee } from '../data/mockEmployees';
 
 interface EmployeeDetailsPageProps {
@@ -77,7 +77,6 @@ export function EmployeeDetailsPage({
             <View style={styles.heroInfoSection}>
               <View style={styles.heroTitleRow}>
                 <Text style={styles.heroName}>{fullName}</Text>
-                <StatusBadge status={employee.status} />
               </View>
 
               <Text style={styles.heroId}>{employee.id}</Text>
@@ -270,11 +269,6 @@ export function EmployeeDetailsPage({
 
             <View style={[styles.fieldsGrid, isMobile && styles.fieldsGridMobile]}>
               <View style={styles.gridColumn}>
-                <View style={styles.infoFieldRow}>
-                  <Text style={styles.fieldLabel}>Account Status:</Text>
-                  <StatusBadge status={employee.status} />
-                </View>
-
                 <View style={styles.infoFieldRow}>
                   <Text style={styles.fieldLabel}>Access Credentials:</Text>
                   <Text style={styles.fieldValue}>Internal SSO Verified</Text>
