@@ -16,6 +16,7 @@ export interface User {
   address: string;
   createdDate: string;
   description?: string;
+  password?: string;
 }
 
 export const ACCOUNT_TYPES: AccountType[] = ['Individual', 'Company'];
