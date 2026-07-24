@@ -34,39 +34,44 @@ public static class Ntc118Fields
 
     public static class Applicant
     {
-        public static readonly PdfField Name = new("Applicant.Name", 123.0, 440.0, FontSize: 8.0, IsBold: true);
+        public const double ApplicantCol1X = 108;
+        public const double ApplicantCol2X = 125;
+        public const double ApplicantCol3X = 380;
+        public static readonly PdfField Name = new("Applicant.Name", ApplicantCol1X, 440.0, FontSize: 8.0, IsBold: true);
 
-        public static readonly PdfField Corporation = new("Applicant.Corporation", 185.0, 467.2);
-        public static readonly PdfField SingleProprietorship = new("Applicant.SingleProprietorship", 185.0, 482.2);
-        public static readonly PdfField Partnership = new("Applicant.Partnership", 392.0, 467.2);
-        public static readonly PdfField OtherEntity = new("Applicant.OtherEntity", 392.0, 482.2);
+        public static readonly PdfField Corporation = new("Applicant.Corporation", ApplicantCol1X, 470.0);
+        public static readonly PdfField SingleProprietorship = new("Applicant.SingleProprietorship", ApplicantCol1X, 485.0);
+        public static readonly PdfField Partnership = new("Applicant.Partnership", 315.0, 470.0);
+        public static readonly PdfField OtherEntity = new("Applicant.OtherEntity", 315.0, 485.0);
         public static readonly PdfField EntityTypeOther = new("Applicant.EntityTypeOther", 402.0, 485.0, FontSize: 7.5);
 
-        public static readonly PdfField ExistingPermitNo = new("Applicant.ExistingPermitNo", 123.0, 500.0, FontSize: 7.5);
-        public static readonly PdfField ExistingPermitValidity = new("Applicant.ExistingPermitValidity", 402.0, 500.0, FontSize: 7.5);
+        public static readonly PdfField ExistingPermitNo = new("Applicant.ExistingPermitNo", ApplicantCol1X, 500.0, FontSize: 7.5);
+        public static readonly PdfField ExistingPermitValidity = new("Applicant.ExistingPermitValidity", ApplicantCol3X, 500.0, FontSize: 7.5);
 
-        public static readonly PdfField UnitRoomBldgNo = new("Applicant.UnitRoomBldgNo", 123.0, 515.0, FontSize: 7.5);
-        public static readonly PdfField Street = new("Applicant.Street", 380.0, 515.0, FontSize: 7.5);
+        public static readonly PdfField UnitRoomBldgNo = new("Applicant.UnitRoomBldgNo", ApplicantCol2X, 515.0, FontSize: 7.5);
+        public static readonly PdfField Street = new("Applicant.Street", ApplicantCol3X, 515.0, FontSize: 7.5);
 
-        public static readonly PdfField Barangay = new("Applicant.Barangay", 123.0, 530.0, FontSize: 7.5);
-        public static readonly PdfField CityMunicipality = new("Applicant.CityMunicipality", 380.0, 530.0, FontSize: 7.5);
+        public static readonly PdfField Barangay = new("Applicant.Barangay", ApplicantCol2X, 530.0, FontSize: 7.5);
+        public static readonly PdfField CityMunicipality = new("Applicant.CityMunicipality", ApplicantCol3X, 530.0, FontSize: 7.5);
 
-        public static readonly PdfField Province = new("Applicant.Province", 123.0, 545.0, FontSize: 7.5);
-        public static readonly PdfField ZipCode = new("Applicant.ZipCode", 380.0, 545.0, FontSize: 7.5);
+        public static readonly PdfField Province = new("Applicant.Province", ApplicantCol2X, 545.0, FontSize: 7.5);
+        public static readonly PdfField ZipCode = new("Applicant.ZipCode", ApplicantCol3X, 545.0, FontSize: 7.5);
 
-        public static readonly PdfField ContactNumber = new("Applicant.ContactNumber", 123.0, 560.0, FontSize: 7.5);
-        public static readonly PdfField Email = new("Applicant.Email", 380.0, 560.0, FontSize: 7.5);
+        public static readonly PdfField ContactNumber = new("Applicant.ContactNumber", ApplicantCol2X, 560.0, FontSize: 7.5);
+        public static readonly PdfField Email = new("Applicant.Email", ApplicantCol3X, 560.0, FontSize: 7.5);
     }
 
     public static class Personnel
     {
-        public static readonly PdfField EngineerName = new("Personnel.EngineerName", 123.0, 605.0, FontSize: 7.5);
-        public static readonly PdfField EngineerLicenseNo = new("Personnel.EngineerLicenseNo", 123.0, 620.0, FontSize: 7.5);
-        public static readonly PdfField EngineerValidity = new("Personnel.EngineerValidity", 123.0, 636.0, FontSize: 7.5);
+        public const double PersonnelCol1X = 125;
+        public const double PersonnelCol2X = 425;
+        public static readonly PdfField EngineerName = new("Personnel.EngineerName", PersonnelCol1X, 605.0, FontSize: 7.5);
+        public static readonly PdfField EngineerLicenseNo = new("Personnel.EngineerLicenseNo", PersonnelCol1X, 620.0, FontSize: 7.5);
+        public static readonly PdfField EngineerValidity = new("Personnel.EngineerValidity", PersonnelCol1X, 636.0, FontSize: 7.5);
 
-        public static readonly PdfField TechName = new("Personnel.TechName", 423.0, 605.0, FontSize: 7.5);
-        public static readonly PdfField TechLicenseNo = new("Personnel.TechLicenseNo", 423.0, 620.0, FontSize: 7.5);
-        public static readonly PdfField TechValidity = new("Personnel.TechValidity", 423.0, 636.0, FontSize: 7.5);
+        public static readonly PdfField TechName = new("Personnel.TechName", PersonnelCol2X, 605.0, FontSize: 7.5);
+        public static readonly PdfField TechLicenseNo = new("Personnel.TechLicenseNo", PersonnelCol2X, 620.0, FontSize: 7.5);
+        public static readonly PdfField TechValidity = new("Personnel.TechValidity", PersonnelCol2X, 636.0, FontSize: 7.5);
     }
 
     public static class Declaration
@@ -74,7 +79,7 @@ public static class Ntc118Fields
         public static readonly PdfField SignatoryName = new(
             "Declaration.SignatoryName",
             X: 191.85,
-            Y: 723.8,
+            Y: 738.0,
             Width: 230.1,
             HorizontalAlignment: HorizontalAlignment.Center,
             Anchor: PdfAnchor.BaselineCenter,
@@ -84,7 +89,7 @@ public static class Ntc118Fields
         public static readonly PdfField DateAccomplished = new(
             "Declaration.DateAccomplished",
             X: 191.85,
-            Y: 737.8,
+            Y: 780.0,
             Width: 230.1,
             HorizontalAlignment: HorizontalAlignment.Center,
             Anchor: PdfAnchor.BaselineCenter,
@@ -93,14 +98,14 @@ public static class Ntc118Fields
 
     public static class Payment
     {
-        public static readonly PdfField OrNo = new("Payment.OrNo", 432.0, 723.5, FontSize: 7.5);
-        public static readonly PdfField OrDateMonthDay = new("Payment.OrDateMonthDay", 432.0, 738.5, FontSize: 7.5);
-        public static readonly PdfField OrDateYear = new("Payment.OrDateYear", 530.0, 738.5, FontSize: 7.5);
-        public static readonly PdfField Amount = new("Payment.Amount", 432.0, 753.5, FontSize: 7.5);
+        public static readonly PdfField OrNo = new("Payment.OrNo", 460.0, 718.0, FontSize: 7.5);
+        public static readonly PdfField OrDateMonthDay = new("Payment.OrDateMonthDay", 460.0, 728.0, FontSize: 7.5);
+        public static readonly PdfField OrDateYear = new("Payment.OrDateYear", 515.0, 728.0, FontSize: 7.5);
+        public static readonly PdfField Amount = new("Payment.Amount", 432.0, 738.0, FontSize: 7.5);
         public static readonly PdfField CollectingOfficer = new(
             "Payment.CollectingOfficer",
             X: 470.0,
-            Y: 763.5,
+            Y: 758.0,
             Width: 130.0,
             HorizontalAlignment: HorizontalAlignment.Center,
             Anchor: PdfAnchor.BaselineCenter,

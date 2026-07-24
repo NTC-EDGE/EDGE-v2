@@ -30,7 +30,7 @@ public static class Ntc110Fields
         public static readonly PdfField SignatoryName = new(
             "Declaration.SignatoryName",
             X: 190.05,
-            Y: 664.0,
+            Y: 667.0,
             Width: 308.1,
             HorizontalAlignment: HorizontalAlignment.Center,
             Anchor: PdfAnchor.BaselineCenter,
@@ -40,7 +40,7 @@ public static class Ntc110Fields
         public static readonly PdfField DateAccomplished = new(
             "Declaration.DateAccomplished",
             X: 193.2,
-            Y: 709.0,
+            Y: 712.0,
             Width: 172.56,
             HorizontalAlignment: HorizontalAlignment.Center,
             Anchor: PdfAnchor.BaselineCenter,
