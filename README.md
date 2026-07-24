@@ -14,7 +14,7 @@ EDGE-v2/
 ├── packages/
 │   └── api/             <-- Shared API package
 ├── package.json         <-- Workspace settings
-└── bun.lockb            <-- Workspace lockfile
+└── bun.lock             <-- Workspace lockfile
 ```
 
 ## Getting Started
@@ -102,7 +102,7 @@ npm error code EUNSUPPORTEDPROTOCOL
 npm error Unsupported URL Type "workspace:": workspace:*
 ```
 **Reason**: Standard `npm` and Yarn v1 do not support the `workspace:` protocol notation used to link local packages inside this monorepo.
-**Solution**: Use **`bun install`** (or Yarn Berry v2+ / pnpm) which natively support monorepos.
+**Solution**: Use **`bun install`** which natively supports monorepos.
 
 ### 2. `bun: command not found` in Git Bash (Windows)
 If you installed Bun but get a command not found error in Git Bash:

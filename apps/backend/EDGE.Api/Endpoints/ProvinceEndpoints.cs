@@ -6,13 +6,16 @@ using EDGE.Application.Provinces.Queries.GetProvinces;
 using EDGE.Application.Provinces.Queries.GetProvinceById;
 using EDGE.Application.Common.Models;
 
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Routing;
+
 namespace EDGE.Api.Endpoints;
 
 public static class ProvinceEndpoints
 {
-    public static IEndpointRouteBuilder MapProvinceEndpoints(this IEndpointRouteBuilder app)
+    public static RouteGroupBuilder MapProvinceEndpoints(this RouteGroupBuilder apiGroup)
     {
-        var group = app.MapGroup("/api/v2/provinces").WithTags("Province");
+        var group = apiGroup.MapGroup("provinces").WithTags("Province");
 
         group.MapGet("/", async (Guid? regionId, bool? activeOnly, IMediator mediator) =>
         {
@@ -77,6 +80,6 @@ public static class ProvinceEndpoints
         .WithSummary("Delete province reference")
         .WithDescription("Deletes a province record.");
 
-        return app;
+        return apiGroup;
     }
 }

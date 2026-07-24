@@ -117,6 +117,7 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
 #if STEP_018
     public DbSet<ApplicationRequirement> ApplicationRequirements => Set<ApplicationRequirement>();
 #endif
+    public DbSet<StoredFile> StoredFiles => Set<StoredFile>();
 #if STEP_019
     public DbSet<ApplicationStatusHistory> ApplicationStatusHistories => Set<ApplicationStatusHistory>();
 #endif
@@ -563,6 +564,17 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
                   .OnDelete(DeleteBehavior.SetNull);
         });
 #endif
+
+        modelBuilder.Entity<StoredFile>(entity =>
+        {
+            entity.HasIndex(e => e.StorageKey).IsUnique();
+            entity.HasIndex(e => e.TenantId);
+            entity.HasIndex(e => e.Category);
+            entity.HasOne(e => e.Tenant)
+                  .WithMany()
+                  .HasForeignKey(e => e.TenantId)
+                  .OnDelete(DeleteBehavior.Restrict);
+        });
     }
 
     private static System.Linq.Expressions.LambdaExpression ConvertFilterExpression(Type type)
