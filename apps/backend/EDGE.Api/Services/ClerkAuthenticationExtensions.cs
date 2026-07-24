@@ -11,7 +11,7 @@ namespace EDGE.Api.Services;
 public static class ClerkAuthenticationExtensions
 {
     /// <summary>
-    /// Configures Clerk JWT Authentication with support for dev mock tokens.
+    /// Configures Clerk JWT Authentication.
     /// Throws an <see cref="InvalidOperationException"/> if Clerk:Authority is not configured.
     /// </summary>
     public static IServiceCollection AddClerkAuthentication(this IServiceCollection services, IConfiguration configuration)
@@ -34,30 +34,6 @@ public static class ClerkAuthenticationExtensions
                     ValidateAudience = false,
                     ValidateLifetime = true,
                     NameClaimType = ClaimTypes.NameIdentifier
-                };
-                options.Events = new JwtBearerEvents
-                {
-                    OnMessageReceived = context =>
-                    {
-                        var authHeader = context.Request.Headers["Authorization"].ToString();
-                        if (authHeader.StartsWith("Bearer mock_", StringComparison.OrdinalIgnoreCase))
-                        {
-                            var tokenValue = authHeader.Substring("Bearer ".Length);
-                            var roleKey = tokenValue.Substring("mock_".Length); // e.g. "admin", "evaluator", "client"
-
-                            // Map mock token directly to seeded AuthUserIds
-                            var authUserId = $"user_{roleKey}123";
-
-                            var claims = new Claim[]
-                            {
-                                new Claim(ClaimTypes.NameIdentifier, authUserId)
-                            };
-                            var identity = new ClaimsIdentity(claims, "MockAuth");
-                            context.Principal = new ClaimsPrincipal(identity);
-                            context.Success();
-                        }
-                        return Task.CompletedTask;
-                    }
                 };
             });
 
