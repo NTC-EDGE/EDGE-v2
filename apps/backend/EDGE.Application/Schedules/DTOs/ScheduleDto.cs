@@ -3,6 +3,8 @@ namespace EDGE.Application.Schedules.DTOs;
 public record ScheduleDto(
     Guid Id,
     Guid ServiceId,
+    string? ServiceName,
+    string? ServiceCode,
     Guid TenantId,
     Guid? ApplicationId,
     string? SeatNumber,

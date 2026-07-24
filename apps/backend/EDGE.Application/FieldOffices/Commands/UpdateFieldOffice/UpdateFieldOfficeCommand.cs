@@ -1,13 +1,22 @@
-using System;
 using MediatR;
-using EDGE.Application.Common.Models;
+using EDGE.Application.FieldOffices.DTOs;
 
 namespace EDGE.Application.FieldOffices.Commands.UpdateFieldOffice;
 
-public record UpdateFieldOfficeCommand : IRequest<ApiResponse<string>>
-{
-    public required Guid Id { get; init; }
-    public required string Name { get; init; }
-    public required Guid RegionId { get; init; }
-    public string? Code { get; init; }
-}
+public record UpdateFieldOfficeCommand(
+    Guid Id,
+    Guid TenantId,
+    string Name,
+    string Code,
+    string? Description,
+    Guid RegionId,
+    Guid? ProvinceId,
+    string Address,
+    string ContactPhone,
+    string ContactEmail,
+    Guid OfficerInChargeId,
+    bool IsActive,
+    bool AllowSpectrumInspection,
+    bool AllowPermitIssuance,
+    bool AllowComplaintReception
+) : IRequest<FieldOfficeDto?>;

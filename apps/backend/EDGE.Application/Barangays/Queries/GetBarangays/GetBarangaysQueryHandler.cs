@@ -8,17 +8,17 @@ using EDGE.Application.Regions.Dtos;
 
 namespace EDGE.Application.Barangays.Queries.GetBarangays;
 
-public class GetBarangaysQueryHandler(IGeographicRepository repository) 
+public class GetBarangaysQueryHandler(IGeographicRepository repository)
     : IRequestHandler<GetBarangaysQuery, ApiResponse<List<BarangayDto>>>
 {
     public async Task<ApiResponse<List<BarangayDto>>> Handle(GetBarangaysQuery request, CancellationToken cancellationToken)
     {
         var barangays = await repository.GetBarangaysAsync(request.MunicipalityId, request.ActiveOnly, cancellationToken);
         var dtos = barangays.Select(b => new BarangayDto(
-            b.Id, 
-            b.MunicipalityId, 
-            b.Code, 
-            b.Name, 
+            b.Id,
+            b.MunicipalityId,
+            b.Code,
+            b.Name,
             b.IsActive,
             b.Municipality != null ? new MunicipalityDto(
                 b.Municipality.Id,

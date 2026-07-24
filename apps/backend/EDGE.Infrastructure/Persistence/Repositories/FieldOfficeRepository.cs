@@ -1,11 +1,6 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
-using EDGE.Application.Common.Interfaces;
 using EDGE.Domain.Entities;
+using EDGE.Application.Common.Interfaces;
 
 namespace EDGE.Infrastructure.Persistence.Repositories;
 
@@ -18,53 +13,59 @@ public class FieldOfficeRepository : IFieldOfficeRepository
         _context = context;
     }
 
-    public async Task<List<FieldOffice>> GetAllAsync(Guid? regionId = null, CancellationToken cancellationToken = default)
+    public async Task AddAsync(FieldOffice fieldOffice, CancellationToken cancellationToken = default)
     {
-        var query = _context.FieldOffices.Include(f => f.Region).AsQueryable();
-
-        if (regionId.HasValue)
-        {
-            query = query.Where(f => f.RegionId == regionId.Value);
-        }
-
-        return await query.ToListAsync(cancellationToken);
+        await _context.FieldOffices.AddAsync(fieldOffice, cancellationToken);
     }
 
     public async Task<FieldOffice?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         return await _context.FieldOffices
+            .Include(f => f.Tenant)
             .Include(f => f.Region)
-            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+            .Include(f => f.Province)
+            .Include(f => f.OfficerInCharge)
+                .ThenInclude(o => o.User)
+            .FirstOrDefaultAsync(f => f.Id == id, cancellationToken);
     }
 
-    public async Task AddAsync(FieldOffice office, CancellationToken cancellationToken = default)
+    public async Task<List<FieldOffice>> GetByTenantIdAsync(Guid tenantId, CancellationToken cancellationToken = default)
     {
-        await _context.FieldOffices.AddAsync(office, cancellationToken);
+        return await _context.FieldOffices
+            .Include(f => f.Tenant)
+            .Include(f => f.Region)
+            .Include(f => f.Province)
+            .Include(f => f.OfficerInCharge)
+                .ThenInclude(o => o.User)
+            .Where(f => f.TenantId == tenantId)
+            .OrderBy(f => f.Name)
+            .ToListAsync(cancellationToken);
     }
 
-    public void Delete(FieldOffice office)
+    public async Task<List<FieldOffice>> GetAllAsync(CancellationToken cancellationToken = default)
     {
-        _context.FieldOffices.Remove(office);
+        return await _context.FieldOffices
+            .Include(f => f.Tenant)
+            .Include(f => f.Region)
+            .Include(f => f.Province)
+            .Include(f => f.OfficerInCharge)
+                .ThenInclude(o => o.User)
+            .OrderBy(f => f.Name)
+            .ToListAsync(cancellationToken);
     }
 
-    public async Task<bool> IsCodeUniqueAsync(string code, Guid? excludeId = null, CancellationToken cancellationToken = default)
+    public void Delete(FieldOffice fieldOffice)
     {
-        if (string.IsNullOrWhiteSpace(code))
-            return true;
+        _context.FieldOffices.Remove(fieldOffice);
+    }
 
-        var query = _context.FieldOffices.Where(f => f.Code != null && f.Code.ToLower() == code.ToLower());
-
+    public async Task<bool> IsCodeUniqueAsync(Guid tenantId, string code, Guid? excludeId = null, CancellationToken cancellationToken = default)
+    {
+        var query = _context.FieldOffices.Where(f => f.TenantId == tenantId);
         if (excludeId.HasValue)
         {
             query = query.Where(f => f.Id != excludeId.Value);
         }
-
-        return !await query.AnyAsync(cancellationToken);
-    }
-
-    public Task<bool> HasApplicationsAsync(Guid officeId, CancellationToken cancellationToken = default)
-    {
-        // Application entity does not currently have a direct FieldOfficeId FK. Placeholder for future constraint.
-        return Task.FromResult(false);
+        return !await query.AnyAsync(f => f.Code.ToLower() == code.ToLower(), cancellationToken);
     }
 }

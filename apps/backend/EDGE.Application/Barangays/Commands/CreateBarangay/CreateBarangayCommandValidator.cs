@@ -14,7 +14,8 @@ public class CreateBarangayCommandValidator : AbstractValidator<CreateBarangayCo
 
         RuleFor(x => x.MunicipalityId)
             .NotEmpty().WithMessage("Municipality ID is required.")
-            .MustAsync(async (municipalityId, token) => {
+            .MustAsync(async (municipalityId, token) =>
+            {
                 var municipality = await _repository.GetMunicipalityByIdAsync(municipalityId, token);
                 return municipality != null;
             }).WithMessage("The associated Municipality does not exist.");

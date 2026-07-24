@@ -26,7 +26,7 @@ public class CsvSchemaParserService : ICsvSchemaParserService
     {
         using var reader = new StreamReader(csvStream);
         var content = await reader.ReadToEndAsync(cancellationToken);
-        
+
         var lines = content.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries);
         var result = new CsvValidationResultDto();
 

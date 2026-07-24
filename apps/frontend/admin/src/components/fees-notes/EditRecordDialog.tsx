@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { AlertCircle } from "lucide-react";
 import { Fee, ServiceFee, Note } from "@edge/api";
 import { Button } from "@/components/ui/button";
@@ -12,13 +12,15 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { MOCK_SERVICES, MOCK_CATEGORIES } from "@/services/feesNotesService";
+import { ServiceCatalogItem, ServiceCategoryItem } from "@/services/feesNotesService";
 
 export interface EditRecordDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   activeTab: "fees" | "service-fees" | "notes";
   fees: Fee[];
+  services: ServiceCatalogItem[];
+  categories: ServiceCategoryItem[];
   selectedFee: Fee | null;
   selectedServiceFee: ServiceFee | null;
   selectedNote: Note | null;
@@ -31,6 +33,7 @@ export interface EditRecordDialogProps {
       serviceId: string;
       feeId: string;
       amount: number;
+      serviceFees?: { feeId: string; amount: number }[];
       notes: string;
       serviceCategoryId: string;
     }
@@ -42,6 +45,8 @@ export function EditRecordDialog({
   onOpenChange,
   activeTab,
   fees,
+  services,
+  categories,
   selectedFee,
   selectedServiceFee,
   selectedNote,
@@ -62,22 +67,29 @@ export function EditRecordDialog({
   const [notes, setNotes] = useState("");
   const [serviceCategoryId, setServiceCategoryId] = useState("");
 
+  const hasInitialized = useRef(false);
+
   // Load existing data when open or selections change
   useEffect(() => {
     if (open) {
-      setErrorMsg(null);
-      if (activeTab === "fees" && selectedFee !== null) {
-        setCode(selectedFee.code);
-        setName(selectedFee.name);
-        setDescription(selectedFee.description ?? "");
-      } else if (activeTab === "service-fees" && selectedServiceFee !== null) {
-        setServiceId(selectedServiceFee.serviceId);
-        setFeeId(selectedServiceFee.feeId);
-        setAmount(selectedServiceFee.amount);
-      } else if (activeTab === "notes" && selectedNote !== null) {
-        setNotes(selectedNote.notes);
-        setServiceCategoryId(selectedNote.serviceCategoryId);
+      if (!hasInitialized.current) {
+        setErrorMsg(null);
+        if (activeTab === "fees" && selectedFee !== null) {
+          setCode(selectedFee.code);
+          setName(selectedFee.name);
+          setDescription(selectedFee.description ?? "");
+        } else if (activeTab === "service-fees" && selectedServiceFee !== null) {
+          setServiceId(selectedServiceFee.serviceId);
+          setFeeId(selectedServiceFee.feeId);
+          setAmount(selectedServiceFee.amount);
+        } else if (activeTab === "notes" && selectedNote !== null) {
+          setNotes(selectedNote.notes);
+          setServiceCategoryId(selectedNote.serviceCategoryId);
+        }
+        hasInitialized.current = true;
       }
+    } else {
+      hasInitialized.current = false;
     }
   }, [open, activeTab, selectedFee, selectedServiceFee, selectedNote]);
 
@@ -172,7 +184,7 @@ export function EditRecordDialog({
                   onChange={(e) => setServiceId(e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
-                  {MOCK_SERVICES.map((s) => (
+                  {services.map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.name}
                     </option>
@@ -222,7 +234,7 @@ export function EditRecordDialog({
                   onChange={(e) => setServiceCategoryId(e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
-                  {MOCK_CATEGORIES.map((c) => (
+                  {categories.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name}
                     </option>

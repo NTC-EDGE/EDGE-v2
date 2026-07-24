@@ -13,7 +13,8 @@ public class UpdateProvinceCommandValidator : AbstractValidator<UpdateProvinceCo
 
         RuleFor(x => x.RegionId)
             .NotEmpty().WithMessage("Region ID is required.")
-            .MustAsync(async (regionId, token) => {
+            .MustAsync(async (regionId, token) =>
+            {
                 var region = await _repository.GetRegionByIdAsync(regionId, token);
                 return region != null;
             }).WithMessage("The associated Region does not exist.");

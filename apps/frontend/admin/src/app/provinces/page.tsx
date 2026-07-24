@@ -1,24 +1,29 @@
-"use client"
+"use client";
 
 import { useState } from "react";
-import { Plus, Edit2, Trash2, Building, Loader2, Search, CheckCircle, XCircle } from "lucide-react";
+import { Plus, Building, Search, CheckCircle2 } from "lucide-react";
 import { useProvinceService } from "@/services/provinceService";
 import { useRegionService } from "@/services/regionService";
+import { useMunicipalityService } from "@/services/municipalityService";
 import { Button } from "@/components/ui/button";
-import { ActionMenu } from "@/components/ui/action-menu";
-import { Pagination } from "@/components/ui/pagination";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogDescription,
-  DialogFooter
-} from "@/components/ui/dialog";
+import { ProvincesTable } from "@/components/geographics/ProvincesTable";
+import { CreateProvinceDialog, EditProvinceDialog } from "@/components/geographics/ProvinceDialogs";
+import { ConfirmActionDialog } from "@/components/ui/confirm-action-dialog";
+import { Province } from "@edge/api";
+
+type FilterType = "all" | "active" | "inactive";
+
+interface ConfirmConfig {
+  title: string;
+  description: string;
+  actionType: "delete" | "toggle-status";
+  payload: any;
+}
 
 export default function ProvincesPage() {
   const { useProvinces, createProvince, updateProvince, deleteProvince } = useProvinceService();
   const { useRegions } = useRegionService();
+  const { useMunicipalities } = useMunicipalityService();
 
   // Load Regions for Dropdowns & Filters
   const { data: regionsResponse } = useRegions(true);
@@ -27,456 +32,231 @@ export default function ProvincesPage() {
   // Filter State
   const [selectedRegionFilter, setSelectedRegionFilter] = useState<string>("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeFilter, setActiveFilter] = useState<"all" | "active" | "inactive">("all");
+  const [activeFilter, setActiveFilter] = useState<FilterType>("all");
 
   // Load Provinces
   const { data: provincesResponse, isLoading, mutate, error } = useProvinces(selectedRegionFilter || null);
   const provinces = provincesResponse?.data ?? [];
 
-  // Modal State
+  // Load municipalities to check references for deletion prevention
+  const { data: municipalitiesResponse } = useMunicipalities();
+  const municipalities = municipalitiesResponse?.data ?? [];
+
+  // Modal Dialog states
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
-  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [selectedProvince, setSelectedProvince] = useState<Province | null>(null);
 
-  // Form State
-  const [selectedProvinceId, setSelectedProvinceId] = useState<string | null>(null);
-  const [regionId, setRegionId] = useState("");
-  const [code, setCode] = useState("");
-  const [name, setName] = useState("");
-  const [isActive, setIsActive] = useState(true);
+  // Confirmation States
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmConfig, setConfirmConfig] = useState<ConfirmConfig | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
 
-  // Submission State
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
+  const showToast = (msg: string) => {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(null), 4000);
+  };
+
+  const hasMunicipalities = (provinceId: string) => {
+    return municipalities.some((m) => m.provinceId === provinceId);
+  };
 
   // Filtered Provinces
   const filteredProvinces = provinces.filter((province) => {
-    const matchesSearch = 
+    const matchesSearch =
       province.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       province.code.toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     if (activeFilter === "active") return matchesSearch && province.isActive;
     if (activeFilter === "inactive") return matchesSearch && !province.isActive;
     return matchesSearch;
   });
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-
-  const paginatedProvinces = filteredProvinces.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize
-  );
-
-  // Handlers
-  const handleOpenCreate = () => {
-    setRegionId(regions[0]?.id ?? "");
-    setCode("");
-    setName("");
-    setFormError(null);
-    setIsCreateOpen(true);
-  };
-
-  const handleOpenEdit = (province: typeof provinces[number]) => {
-    setSelectedProvinceId(province.id);
-    setRegionId(province.regionId);
-    setCode(province.code);
-    setName(province.name);
-    setIsActive(province.isActive);
-    setFormError(null);
-    setIsEditOpen(true);
-  };
-
-  const handleOpenDelete = (province: typeof provinces[number]) => {
-    setSelectedProvinceId(province.id);
-    setName(province.name);
-    setFormError(null);
-    setIsDeleteOpen(true);
-  };
-
-  const handleCreateSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!regionId) {
-      setFormError("Selecting a Region is required.");
-      return;
+  const handleCreateSubmit = async (data: { regionId: string; code: string; name: string }): Promise<void> => {
+    const res = await createProvince({
+      regionId: data.regionId,
+      code: data.code.toUpperCase(),
+      name: data.name,
+    });
+    if (res.succeeded) {
+      setIsCreateOpen(false);
+      mutate();
+      showToast("Province registered successfully!");
+    } else {
+      throw new Error(res.message || "Failed to register province.");
     }
-    if (!code.trim() || !name.trim()) {
-      setFormError("Both Code and Name are required.");
-      return;
-    }
+  };
 
-    setIsSubmitting(true);
-    setFormError(null);
+  const handleEditSubmit = async (id: string, data: { regionId: string; code: string; name: string }): Promise<void> => {
+    const current = provinces.find((p) => p.id === id);
+    const res = await updateProvince(id, {
+      id,
+      regionId: data.regionId,
+      code: data.code.toUpperCase(),
+      name: data.name,
+      isActive: current?.isActive ?? true,
+    });
+    if (res.succeeded) {
+      setIsEditOpen(false);
+      mutate();
+      showToast("Province details updated successfully!");
+    } else {
+      throw new Error(res.message || "Failed to update province.");
+    }
+  };
+
+  const handleDeleteRequest = (item: Province) => {
+    setConfirmConfig({
+      title: "Confirm Deletion",
+      description: `Are you sure you want to permanently delete province '${item.name}'? This action cannot be undone.`,
+      actionType: "delete",
+      payload: { item },
+    });
+    setConfirmOpen(true);
+  };
+
+  const handleToggleStatusRequest = (item: Province) => {
+    const newStatus = item.isActive !== false ? false : true;
+    setConfirmConfig({
+      title: "Confirm Status Change",
+      description: `Are you sure you want to set the status of province '${item.name}' to ${newStatus ? "ACTIVE" : "INACTIVE"}?`,
+      actionType: "toggle-status",
+      payload: { item, newStatus },
+    });
+    setConfirmOpen(true);
+  };
+
+  const handleConfirmAction = async () => {
+    if (confirmConfig === null) return;
+    setIsProcessing(true);
+    const { actionType, payload } = confirmConfig;
+
     try {
-      const response = await createProvince({ regionId, code, name });
-      if (response.succeeded) {
-        setIsCreateOpen(false);
-        mutate();
-      } else {
-        setFormError(response.message || "Failed to create province.");
+      if (actionType === "delete") {
+        const { item } = payload;
+        const res = await deleteProvince(item.id);
+        if (res.succeeded) {
+          mutate();
+          showToast(`Province '${item.name}' has been deleted.`);
+        } else {
+          showToast(res.message || "Failed to delete province.");
+        }
+      } 
+      else if (actionType === "toggle-status") {
+        const { item, newStatus } = payload;
+        const res = await updateProvince(item.id, {
+          id: item.id,
+          regionId: item.regionId,
+          code: item.code,
+          name: item.name,
+          isActive: newStatus,
+        });
+        if (res.succeeded) {
+          mutate();
+          showToast(`Province '${item.code}' status updated to ${newStatus ? "Active" : "Inactive"}.`);
+        } else {
+          showToast(res.message || "Failed to toggle status.");
+        }
       }
-    } catch (err: unknown) {
-      setFormError("An unexpected error occurred.");
+    } catch (err) {
+      console.error(err);
+      showToast("An error occurred executing this operation.");
     } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleEditSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedProvinceId) return;
-    if (!regionId) {
-      setFormError("Selecting a Region is required.");
-      return;
-    }
-    if (!code.trim() || !name.trim()) {
-      setFormError("Both Code and Name are required.");
-      return;
-    }
-
-    setIsSubmitting(true);
-    setFormError(null);
-    try {
-      const response = await updateProvince(selectedProvinceId, { 
-        id: selectedProvinceId, 
-        regionId, 
-        code, 
-        name, 
-        isActive 
-      });
-      if (response.succeeded) {
-        setIsEditOpen(false);
-        mutate();
-      } else {
-        setFormError(response.message || "Failed to update province.");
-      }
-    } catch (err: unknown) {
-      setFormError("An unexpected error occurred.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleDeleteSubmit = async () => {
-    if (!selectedProvinceId) return;
-    setIsSubmitting(true);
-    setFormError(null);
-    try {
-      const response = await deleteProvince(selectedProvinceId);
-      if (response.succeeded) {
-        setIsDeleteOpen(false);
-        mutate();
-      } else {
-        setFormError(response.message || "Failed to delete province. Ensure no municipalities are linked to it.");
-      }
-    } catch (err: unknown) {
-      setFormError("An unexpected error occurred.");
-    } finally {
-      setIsSubmitting(false);
+      setIsProcessing(false);
+      setConfirmOpen(false);
+      setConfirmConfig(null);
     }
   };
 
   return (
     <div className="space-y-6">
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-            <Building className="h-6 w-6 text-primary" /> Provinces Directory
-          </h2>
-          <p className="text-xs text-slate-400 mt-0.5">Configure provincial administrative districts.</p>
+      {toastMsg !== null && (
+        <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-sm flex items-center justify-between shadow-xl animate-fade-in">
+          <div className="flex items-center gap-3">
+            <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+            <span>{toastMsg}</span>
+          </div>
+          <button onClick={() => setToastMsg(null)} className="text-emerald-400 hover:text-white text-xs">Dismiss</button>
         </div>
-        <Button onClick={handleOpenCreate} className="flex items-center gap-2 font-semibold">
-          <Plus className="h-4 w-4" /> Add Province
-        </Button>
+      )}
+
+      {/* Header section */}
+      <div className="p-5 md:p-6 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-900/90 to-indigo-950/60 border border-slate-800 shadow-xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none"><Building className="w-64 h-64 text-indigo-400" /></div>
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">Provinces Directory</h1>
+            <p className="text-sm text-slate-400 mt-1 max-w-2xl">Configure provinces mapped to regional administrative boundaries.</p>
+          </div>
+          <Button onClick={() => setIsCreateOpen(true)} className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-5 py-2.5 rounded-xl shadow-lg flex items-center gap-2 shrink-0">
+            <Plus className="w-4 h-4" />
+            <span>Add New Province</span>
+          </Button>
+        </div>
       </div>
 
-      {/* Filter Toolbar */}
-      <div className="flex flex-col md:flex-row items-center gap-4 bg-slate-900/40 p-4 rounded-xl border border-slate-800/80">
-        
-        {/* Search */}
-        <div className="relative w-full md:max-w-xs">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search provinces..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary text-sm"
-          />
-        </div>
-
-        {/* Region Selector Filter */}
-        <div className="w-full md:w-48">
+      {/* Search and Filters */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow-xl">
+        <div className="flex flex-wrap gap-2">
           <select
             value={selectedRegionFilter}
             onChange={(e) => setSelectedRegionFilter(e.target.value)}
-            className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-slate-300 focus:outline-none focus:ring-2 focus:ring-primary text-sm cursor-pointer"
+            className="px-4 py-2 text-xs font-semibold rounded-xl bg-slate-950 border border-slate-800 text-slate-350 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
-            <option value="">All Regions</option>
+            <option value="">Filter by Region (All)</option>
             {regions.map((r) => (
-              <option key={r.id} value={r.id}>{r.name} ({r.code})</option>
+              <option key={r.id} value={r.id}>
+                {r.code} - {r.name}
+              </option>
             ))}
           </select>
+          <button onClick={() => setActiveFilter("all")} className={`px-4 py-2 text-xs font-semibold rounded-xl transition-all ${activeFilter === "all" ? "bg-indigo-600 text-white" : "text-slate-400 hover:text-white"}`}>All Provinces</button>
+          <button onClick={() => setActiveFilter("active")} className={`px-4 py-2 text-xs font-semibold rounded-xl transition-all ${activeFilter === "active" ? "bg-indigo-600 text-white" : "text-slate-400 hover:text-white"}`}>Active Only</button>
+          <button onClick={() => setActiveFilter("inactive")} className={`px-4 py-2 text-xs font-semibold rounded-xl transition-all ${activeFilter === "inactive" ? "bg-indigo-600 text-white" : "text-slate-400 hover:text-white"}`}>Inactive Only</button>
         </div>
-        
-        {/* Active Toggle Filters */}
-        <div className="flex gap-2 w-full md:w-auto md:ml-auto">
-          <Button
-            variant={activeFilter === "all" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setActiveFilter("all")}
-          >
-            All
-          </Button>
-          <Button
-            variant={activeFilter === "active" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setActiveFilter("active")}
-          >
-            Active Only
-          </Button>
-          <Button
-            variant={activeFilter === "inactive" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setActiveFilter("inactive")}
-          >
-            Inactive Only
-          </Button>
+        <div className="relative w-full md:w-80">
+          <Search className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-500" />
+          <input type="text" placeholder="Search provinces..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none" />
         </div>
       </div>
 
-      {/* Main Content Pane */}
-      <div className="rounded-xl border border-slate-800 bg-slate-900/60 overflow-hidden shadow-lg">
-        {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <Loader2 className="h-8 w-8 text-primary animate-spin" />
-            <p className="text-xs text-slate-400">Loading provinces database...</p>
-          </div>
-        ) : error ? (
-          <div className="text-center py-16 px-4">
-            <p className="text-sm font-semibold text-red-500">Failed to load provinces.</p>
-            <p className="text-xs text-slate-400 mt-1">Please check your backend service connections.</p>
-            <Button onClick={() => mutate()} className="mt-4" size="sm" variant="outline">Retry</Button>
-          </div>
-        ) : filteredProvinces.length === 0 ? (
-          <div className="text-center py-16 px-4">
-            <p className="text-sm font-semibold text-slate-300">No provinces found.</p>
-            <p className="text-xs text-slate-400 mt-1">Try resetting your search query or filters.</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-slate-800 bg-slate-950/80 text-[10px] uppercase font-bold text-slate-400 tracking-wider">
-                  <th className="px-6 py-4">Code</th>
-                  <th className="px-6 py-4">Name</th>
-                  <th className="px-6 py-4">Parent Region</th>
-                  <th className="px-6 py-4">Status</th>
-                  <th className="px-6 py-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/80 text-sm">
-                {paginatedProvinces.map((province) => (
-                  <tr key={province.id} className="hover:bg-slate-800/20 transition-colors">
-                    <td className="px-6 py-4 font-mono font-bold text-white text-xs">{province.code}</td>
-                    <td className="px-6 py-4 text-slate-200">{province.name}</td>
-                    <td className="px-6 py-4 text-slate-400 text-xs">
-                      {province.region?.name || "Loading parent region..."}
-                    </td>
-                    <td className="px-6 py-4">
-                      {province.isActive ? (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-400 bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-800/40">
-                          <CheckCircle className="h-3 w-3" /> Active
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
-                          <XCircle className="h-3 w-3" /> Inactive
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <ActionMenu
-                        items={[
-                          {
-                            label: "Edit Province",
-                            icon: Edit2,
-                            onClick: () => handleOpenEdit(province),
-                          },
-                          {
-                            label: "Delete Province",
-                            icon: Trash2,
-                            onClick: () => handleOpenDelete(province),
-                            variant: "destructive",
-                          },
-                        ]}
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+      {/* Error state */}
+      {!!error && (
+        <div className="text-center py-16 px-4 bg-slate-900 border border-slate-800 rounded-2xl">
+          <p className="text-sm font-semibold text-red-500">Failed to load provinces database.</p>
+          <Button onClick={() => mutate()} className="mt-4" size="sm" variant="outline">Retry</Button>
+        </div>
+      )}
 
-        {filteredProvinces.length > 0 && (
-          <Pagination
-            currentPage={currentPage}
-            totalItems={filteredProvinces.length}
-            pageSize={pageSize}
-            onPageChange={setCurrentPage}
-            onPageSizeChange={(newSize) => {
-              setPageSize(newSize);
-              setCurrentPage(1);
-            }}
+      {/* Table grid */}
+      {!error && (
+        <div className="animate-fade-in">
+          <ProvincesTable
+            provinces={filteredProvinces}
+            regions={regions}
+            loading={isLoading}
+            canManage={true}
+            searchTerm={searchTerm}
+            hasMunicipalities={hasMunicipalities}
+            onEdit={(p) => { setSelectedProvince(p); setIsEditOpen(true); }}
+            onDelete={handleDeleteRequest}
+            onToggleStatus={handleToggleStatusRequest}
           />
-        )}
-      </div>
+        </div>
+      )}
 
-      {/* CREATE DIALOG */}
-      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add New Province</DialogTitle>
-            <DialogDescription>Define a new province linked to an active region.</DialogDescription>
-          </DialogHeader>
+      <CreateProvinceDialog open={isCreateOpen} onOpenChange={setIsCreateOpen} regions={regions} onSubmit={handleCreateSubmit} />
+      <EditProvinceDialog open={isEditOpen} onOpenChange={setIsEditOpen} regions={regions} selectedProvince={selectedProvince} onSubmit={handleEditSubmit} />
 
-          <form onSubmit={handleCreateSubmit} className="space-y-4 py-2">
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300">Parent Region</label>
-              <select
-                value={regionId}
-                onChange={(e) => setRegionId(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary text-sm cursor-pointer"
-              >
-                <option value="" disabled>Select a Region</option>
-                {regions.map((r) => (
-                  <option key={r.id} value={r.id}>{r.name} ({r.code})</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300">Province Code</label>
-              <input
-                type="text"
-                placeholder="e.g. MIS-OR"
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary text-sm"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300">Province Name</label>
-              <input
-                type="text"
-                placeholder="e.g. Misamis Oriental"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary text-sm"
-              />
-            </div>
-
-            {formError && <p className="text-xs font-semibold text-red-500">{formError}</p>}
-
-            <DialogFooter className="pt-2">
-              <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save Province"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* EDIT DIALOG */}
-      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Province</DialogTitle>
-            <DialogDescription>Modify parameters for province configuration.</DialogDescription>
-          </DialogHeader>
-
-          <form onSubmit={handleEditSubmit} className="space-y-4 py-2">
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300">Parent Region</label>
-              <select
-                value={regionId}
-                onChange={(e) => setRegionId(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary text-sm cursor-pointer"
-              >
-                {regions.map((r) => (
-                  <option key={r.id} value={r.id}>{r.name} ({r.code})</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300">Province Code</label>
-              <input
-                type="text"
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary text-sm"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300">Province Name</label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary text-sm"
-              />
-            </div>
-
-            <div className="flex items-center gap-2 py-1">
-              <input
-                type="checkbox"
-                id="isActive"
-                checked={isActive}
-                onChange={(e) => setIsActive(e.target.checked)}
-                className="rounded border-slate-800 bg-slate-900 text-primary focus:ring-primary focus:ring-offset-slate-950"
-              />
-              <label htmlFor="isActive" className="text-xs font-semibold text-slate-300 cursor-pointer">
-                Province is Active
-              </label>
-            </div>
-
-            {formError && <p className="text-xs font-semibold text-red-500">{formError}</p>}
-
-            <DialogFooter className="pt-2">
-              <Button type="button" variant="outline" onClick={() => setIsEditOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save Changes"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* DELETE DIALOG */}
-      <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="text-red-500">Delete Province</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete <span className="font-bold text-white">{name}</span>? This action is permanent.
-            </DialogDescription>
-          </DialogHeader>
-
-          {formError && <p className="text-xs font-semibold text-red-500 py-1">{formError}</p>}
-
-          <DialogFooter className="pt-2">
-            <Button type="button" variant="outline" onClick={() => setIsDeleteOpen(false)}>Cancel</Button>
-            <Button type="button" variant="destructive" disabled={isSubmitting} onClick={handleDeleteSubmit}>
-              {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmActionDialog
+        isOpen={confirmOpen}
+        onClose={() => { setConfirmOpen(false); setConfirmConfig(null); }}
+        onConfirm={handleConfirmAction}
+        title={confirmConfig?.title}
+        description={confirmConfig?.description}
+        loading={isProcessing}
+      />
     </div>
   );
 }

@@ -5,10 +5,11 @@ import { BookOpen, Edit2, Trash2 } from "lucide-react";
 import { Note } from "@edge/api";
 import { ActionMenu, ActionMenuItem } from "@/components/ui/action-menu";
 import { Pagination } from "@/components/ui/pagination";
-import { MOCK_CATEGORIES } from "@/services/feesNotesService";
+import { ServiceCategoryItem } from "@/services/feesNotesService";
 
 export interface NotesTableProps {
   notes: Note[];
+  categories: ServiceCategoryItem[];
   loading: boolean;
   canManage: boolean;
   searchTerm: string;
@@ -18,6 +19,7 @@ export interface NotesTableProps {
 
 export function NotesTable({
   notes,
+  categories,
   loading,
   canManage,
   searchTerm,
@@ -33,7 +35,7 @@ export function NotesTable({
   }, [searchTerm]);
 
   const filteredNotes = notes.filter((n) => {
-    const categoryName = MOCK_CATEGORIES.find((c) => c.id === n.serviceCategoryId)?.name ?? "";
+    const categoryName = categories.find((c) => c.id === n.serviceCategoryId)?.name ?? "";
     return (
       n.notes.toLowerCase().includes(searchTerm.toLowerCase()) ||
       categoryName.toLowerCase().includes(searchTerm.toLowerCase())
@@ -73,7 +75,7 @@ export function NotesTable({
               </tr>
             ) : (
               paginatedNotes.map((item) => {
-                const categoryName = MOCK_CATEGORIES.find((c) => c.id === item.serviceCategoryId)?.name ?? "Global";
+                const categoryName = categories.find((c) => c.id === item.serviceCategoryId)?.name ?? "Global";
                 const menuItems: ActionMenuItem[] = [
                   {
                     label: "Edit Guideline Note",

@@ -17,7 +17,7 @@ public static class FastTrackSeeder
             return;
         }
 
-        var tenant = await context.Tenants.FirstOrDefaultAsync() 
+        var tenant = await context.Tenants.FirstOrDefaultAsync()
             ?? throw new InvalidOperationException("Tenant not seeded. Run RolePermissionDataSeeder first.");
 
         // 1. Seed Service Categories (matching spec)

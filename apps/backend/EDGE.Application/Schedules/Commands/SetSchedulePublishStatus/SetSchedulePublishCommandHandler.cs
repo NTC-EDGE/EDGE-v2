@@ -31,6 +31,8 @@ public class SetSchedulePublishCommandHandler : IRequestHandler<SetSchedulePubli
         return new ScheduleDto(
             schedule.Id,
             schedule.ServiceId,
+            schedule.Service?.Name,
+            schedule.Service?.Code,
             schedule.TenantId,
             schedule.ApplicationId,
             schedule.SeatNumber,
