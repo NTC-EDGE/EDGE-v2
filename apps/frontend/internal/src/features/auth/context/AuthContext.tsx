@@ -4,6 +4,9 @@ import { useAuth, useUser, useSignIn, useSignUp } from "@clerk/expo";
 export interface UserProfile {
   name: string;
   email: string;
+  username?: string;
+  firstName?: string;
+  lastName?: string;
   avatarUrl?: string;
   region?: string;
 }
@@ -16,6 +19,7 @@ interface AuthContextType {
   verifySignUp: (code: string) => Promise<void>;
   logout: () => Promise<void>;
   isLoading: boolean;
+  clerkUser: ReturnType<typeof useUser>['user'];
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -147,12 +151,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clerkUser.user !== null &&
     clerkUser.user !== undefined
   ) {
+    const firstName = clerkUser.user.firstName ?? "";
+    const lastName = clerkUser.user.lastName ?? "";
+    const username = clerkUser.user.username ?? "";
     const name =
-      clerkUser.user.fullName ?? clerkUser.user.firstName ?? "Staff User";
+      clerkUser.user.fullName ?? (firstName || lastName ? `${firstName} ${lastName}`.trim() : "Staff User");
     const email =
       clerkUser.user.primaryEmailAddress?.emailAddress ?? "staff@edge.gov";
     const avatarUrl = clerkUser.user.imageUrl;
-    activeUser = { name, email, avatarUrl, region: selectedRegionState };
+    activeUser = { name, email, username, firstName, lastName, avatarUrl, region: selectedRegionState };
   }
 
   return (
@@ -165,6 +172,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         verifySignUp,
         logout,
         isLoading,
+        clerkUser: clerkUser.user,
       }}
     >
       {children}
