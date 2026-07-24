@@ -66,11 +66,6 @@ function TableActionCell({
 
       {showPopover && (
         <View style={[styles.tablePopoverMenu, SHADOWS.modal]}>
-          <Pressable style={styles.popoverItem} onPress={() => handleAction('view')}>
-            <Lucide name="eye" size={14} color={COLORS.brand[700]} style={styles.popoverIcon} />
-            <Text style={styles.popoverItemText}>View Details</Text>
-          </Pressable>
-
           <Pressable style={styles.popoverItem} onPress={() => handleAction('edit')}>
             <Lucide name="edit-2" size={14} color={COLORS.brand[700]} style={styles.popoverIcon} />
             <Text style={styles.popoverItemText}>Edit User</Text>
