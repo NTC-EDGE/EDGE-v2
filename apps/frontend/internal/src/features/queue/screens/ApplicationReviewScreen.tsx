@@ -7,6 +7,7 @@ import {
   ScrollView,
   TextInput,
   Image,
+  Alert,
 } from "react-native";
 import {
   COLORS,
@@ -16,7 +17,10 @@ import {
   TYPOGRAPHY,
   Icon as Lucide,
 } from "@edge/ui";
-import { ApplicationData } from "../data/mockApplications";
+import {
+  ApplicationData,
+  ApplicationFormAttachment,
+} from "../data/mockApplications";
 import { useRole } from "../../shell/context/RoleContext";
 import { usePermissions } from "../../shell/context/PermissionContext";
 import { ApproveModal } from "../components/modals/ApproveModal";
@@ -522,6 +526,14 @@ function ApplicationDetailsTab({ app }: { app: ApplicationData }) {
   );
   const downloadForms = app.forms.filter((f) => f.section === "DOWNLOAD FORM");
 
+  const handleAction = (form: ApplicationFormAttachment, action: string) => {
+    Alert.alert(
+      `${action} Form`,
+      `You are ${action.toLowerCase()}ing: ${form.name}`,
+      [{ text: "OK" }],
+    );
+  };
+
   return (
     <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
       {/* Application Form section */}
@@ -556,12 +568,12 @@ function ApplicationDetailsTab({ app }: { app: ApplicationData }) {
                     <Text style={styles.formDocName}>{form.name}</Text>
                     <View style={styles.formActions}>
                       {form.canView && (
-                        <Pressable>
+                        <Pressable onPress={() => handleAction(form, "View")}>
                           <Text style={styles.formActionLink}>View</Text>
                         </Pressable>
                       )}
                       {form.canPrint && (
-                        <Pressable>
+                        <Pressable onPress={() => handleAction(form, "Print")}>
                           <Text style={styles.formActionLink}>Print</Text>
                         </Pressable>
                       )}
@@ -569,7 +581,10 @@ function ApplicationDetailsTab({ app }: { app: ApplicationData }) {
                   </View>
                 </View>
                 {form.canDownload && (
-                  <Pressable style={styles.downloadBtn}>
+                  <Pressable
+                    style={styles.downloadBtn}
+                    onPress={() => handleAction(form, "Download")}
+                  >
                     <Lucide
                       name="download"
                       size={14}
@@ -604,12 +619,12 @@ function ApplicationDetailsTab({ app }: { app: ApplicationData }) {
                     <Text style={styles.formDocName}>{form.name}</Text>
                     <View style={styles.formActions}>
                       {form.canView && (
-                        <Pressable>
+                        <Pressable onPress={() => handleAction(form, "View")}>
                           <Text style={styles.formActionLink}>View</Text>
                         </Pressable>
                       )}
                       {form.canPrint && (
-                        <Pressable>
+                        <Pressable onPress={() => handleAction(form, "Print")}>
                           <Text style={styles.formActionLink}>Print</Text>
                         </Pressable>
                       )}
@@ -618,7 +633,10 @@ function ApplicationDetailsTab({ app }: { app: ApplicationData }) {
                 </View>
                 <View style={styles.formBtnGroup}>
                   {form.canDownload && (
-                    <Pressable style={styles.downloadBtn}>
+                    <Pressable
+                      style={styles.downloadBtn}
+                      onPress={() => handleAction(form, "Download")}
+                    >
                       <Lucide
                         name="download"
                         size={14}
@@ -628,7 +646,10 @@ function ApplicationDetailsTab({ app }: { app: ApplicationData }) {
                     </Pressable>
                   )}
                   {form.canRefresh && (
-                    <Pressable style={styles.refreshBtn}>
+                    <Pressable
+                      style={styles.refreshBtn}
+                      onPress={() => handleAction(form, "Refresh")}
+                    >
                       <Lucide
                         name="refresh-cw"
                         size={14}
@@ -681,6 +702,10 @@ function ApplicationDetailsTab({ app }: { app: ApplicationData }) {
 }
 
 function RequirementsTab({ app }: { app: ApplicationData }) {
+  const handleViewRequirement = (label: string) => {
+    Alert.alert("View Requirement", `Viewing document: ${label}`);
+  };
+
   return (
     <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
       {app.requirements.length === 0 ? (
@@ -700,7 +725,7 @@ function RequirementsTab({ app }: { app: ApplicationData }) {
               <Text style={styles.reqFilename} numberOfLines={1}>
                 {req.filename}
               </Text>
-              <Pressable>
+              <Pressable onPress={() => handleViewRequirement(req.label)}>
                 <Text style={styles.reqViewLink}>View</Text>
               </Pressable>
             </View>
@@ -995,6 +1020,7 @@ export function ApplicationReviewScreen({
     selectedApplication,
     activeQueueTab,
     updateApplication,
+    setSelectedId,
   } = useApplications();
   const { currentRole } = useRole();
   const { canApprove, canDecline, canEndorse, canVerifyCashier } =
@@ -1086,24 +1112,112 @@ export function ApplicationReviewScreen({
     "For Verification",
     "Returned",
   ] as const;
+
+  // Admin has Read access for the applications only.
+  // Action roles (Evaluator, Approving Personnel, Accountant, Cashier) use Pending tab for edits.
+  const isActionableRole = currentRole !== "Admin";
+
   const isEditable =
-    currentRole === "Admin" &&
+    isActionableRole &&
     activeQueueTab === "pending" &&
     (EDITABLE_STATUSES as readonly string[]).includes(app.status);
 
   const handleApprove = () => {
     setShowApprove(false);
-    updateApplication(app.id, { status: "Approved", queueTab: "history" });
+    const dateStr = new Date().toLocaleString("en-US", {
+      month: "short",
+      day: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+    updateApplication(app.id, {
+      status: "Approved",
+      queueTab: "history",
+      history: [
+        ...app.history,
+        {
+          id: `H${app.history.length + 1}`,
+          action: "Application Approved.",
+          staff: `${currentRole.toUpperCase()} EDGE`,
+          timestamp: dateStr,
+        },
+      ],
+    });
+    setSelectedId(null);
   };
 
-  const handleDecline = (_notice: string) => {
+  const handleDecline = (notice: string) => {
     setShowDecline(false);
-    updateApplication(app.id, { status: "Declined", queueTab: "history" });
+    const dateStr = new Date().toLocaleString("en-US", {
+      month: "short",
+      day: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+    updateApplication(app.id, {
+      status: "Declined",
+      queueTab: "history",
+      note: notice,
+      history: [
+        ...app.history,
+        {
+          id: `H${app.history.length + 1}`,
+          action: `Application Declined. Notice: ${notice}`,
+          staff: `${currentRole.toUpperCase()} EDGE`,
+          timestamp: dateStr,
+        },
+      ],
+    });
+    setSelectedId(null);
   };
 
-  const handleEndorse = (_targetRole: UserRole) => {
+  const handleEndorse = (targetRole: UserRole) => {
     setShowEndorse(false);
-    updateApplication(app.id, { queueTab: "history" });
+    const dateStr = new Date().toLocaleString("en-US", {
+      month: "short",
+      day: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+
+    // In a real app, this would route to the target role's queue.
+    // For the mock, we move it to history to indicate it's processed by current user.
+    updateApplication(app.id, {
+      assignedTo: `${targetRole.toUpperCase()} EDGE`,
+      queueTab: "history",
+      history: [
+        ...app.history,
+        {
+          id: `H${app.history.length + 1}`,
+          action: `Application endorsed to ${targetRole}.`,
+          staff: `${currentRole.toUpperCase()} EDGE`,
+          timestamp: dateStr,
+        },
+      ],
+    });
+
+    setSelectedId(null);
+    Alert.alert("Success", `Application endorsed to ${targetRole}`);
+  };
+
+  const handleTopAction = (action: "View" | "Print") => {
+    if (action === "Print") {
+      Alert.alert(
+        "Print Application",
+        `Generating printable form for ${app.referenceNumber}...`,
+      );
+    } else {
+      Alert.alert(
+        "View Application",
+        `Opening full view for ${app.applicant}...`,
+      );
+    }
   };
 
   const handleCashierVerify = (data: {
@@ -1112,11 +1226,32 @@ export function ApplicationReviewScreen({
     checkName: string;
   }) => {
     setShowCashier(false);
+    const dateStr = new Date().toLocaleString("en-US", {
+      month: "short",
+      day: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
     updateApplication(app.id, {
       payment: { ...app.payment, ...data },
-      status: "Completed",
+      status: "For Approval", // Usually goes for approval after payment
       queueTab: "history",
+      assignedTo: "ADMIN EDGE",
+      history: [
+        ...app.history,
+        {
+          id: `H${app.history.length + 1}`,
+          action: `Payment verified. OR: ${data.orNumber}. Moved for approval.`,
+          staff: `${currentRole.toUpperCase()} EDGE`,
+          timestamp: dateStr,
+        },
+      ],
     });
+
+    setSelectedId(null);
+    Alert.alert("Success", "Payment verified. Application moved for approval.");
   };
 
   return (
@@ -1149,6 +1284,28 @@ export function ApplicationReviewScreen({
           );
         })}
         <View style={styles.innerTabSpacer} />
+
+        {/* View / Print links */}
+        <View style={styles.headerActionRow}>
+          <Pressable
+            style={styles.headerActionLink}
+            onPress={() => handleTopAction("View")}
+          >
+            <Lucide name="eye" size={14} color={COLORS.brand[700]} />
+            <Text style={styles.headerActionLinkText}>View</Text>
+          </Pressable>
+          <View style={styles.headerActionDivider} />
+          <Pressable
+            style={styles.headerActionLink}
+            onPress={() => handleTopAction("Print")}
+          >
+            <Lucide name="printer" size={14} color={COLORS.brand[700]} />
+            <Text style={styles.headerActionLinkText}>Print</Text>
+          </Pressable>
+        </View>
+
+        <View style={styles.innerTabSpacerSmall} />
+
         {/* Collapse + Close */}
         {onCollapse !== undefined && (
           <Pressable style={styles.iconBtn} onPress={onCollapse}>
@@ -1442,6 +1599,31 @@ const styles = StyleSheet.create({
   },
   innerTabSpacer: {
     flex: 1,
+  },
+  innerTabSpacerSmall: {
+    width: SPACING[16],
+  },
+  headerActionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACING[12],
+    marginRight: SPACING[8],
+  },
+  headerActionLink: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACING[4],
+  },
+  headerActionLinkText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: COLORS.brand[700],
+  },
+  headerActionDivider: {
+    width: 1,
+    height: 14,
+    backgroundColor: COLORS.neutral[200],
   },
   iconBtn: {
     width: 32,
