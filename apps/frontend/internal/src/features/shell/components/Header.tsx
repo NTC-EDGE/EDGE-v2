@@ -4,6 +4,7 @@ import { COLORS, SPACING, RADIUS, TYPOGRAPHY, Icon as Lucide, SHADOWS } from '@e
 import { UserRole } from '../context/RoleContext';
 import { UserProfile as UserProfileType } from '../../auth/context/AuthContext';
 import { RoleSwitcher } from './RoleSwitcher';
+import { EditAccountModal } from '../../auth/components/EditAccountModal';
 
 interface HeaderProps {
   currentRole: UserRole;
@@ -37,6 +38,7 @@ export function Header({
   onMenuPress,
 }: HeaderProps) {
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
 
   const profileName = user?.name ?? 'ADMIN Lorilla';
   const profileEmail = user?.email ?? 'admin@edge.gov';
@@ -108,6 +110,19 @@ export function Header({
 
                 <View style={styles.dropdownDivider} />
 
+                <Pressable
+                  onPress={() => {
+                    setIsProfileDropdownOpen(false);
+                    setIsSettingsModalOpen(true);
+                  }}
+                  style={styles.dropdownItemBtn}
+                >
+                  <Lucide name="settings" size={14} color={COLORS.neutral[700]} />
+                  <Text style={styles.dropdownItemText}>Account Settings</Text>
+                </Pressable>
+
+                <View style={styles.dropdownDivider} />
+
                 <Text style={styles.dropdownSectionTitle}>Switch Active Role</Text>
                 <RoleSwitcher
                   currentRole={currentRole}
@@ -150,6 +165,10 @@ export function Header({
           </Pressable>
         )}
       </View>
+      <EditAccountModal
+        visible={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
+      />
     </View>
   );
 }
@@ -382,6 +401,23 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: TYPOGRAPHY.weights.semibold,
     color: COLORS.semantic.error,
+  },
+  dropdownItemBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: SPACING[8],
+    ...Platform.select({
+      web: {
+        cursor: 'pointer',
+      },
+    }),
+  },
+  dropdownItemText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: COLORS.neutral[700],
   },
 });
 
