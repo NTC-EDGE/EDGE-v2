@@ -314,7 +314,8 @@ export const INITIAL_NOTES: NoteItem[] = [
     statusText: 'Active Notes',
     typeText: 'Single Instructions Block',
     targetView: 'Client View',
-    instructions: 'Ensure all supporting documents are clearly scanned in PDF or High-Resolution JPEG format. Physical examination results must be authenticated by the regional testing officer prior to uploading.',
+    instructions:
+      '1. The registration of the above-stated radio equipment during the said period shall not be construed as an authority to possess, construct and/or operate the same without the corresponding permits/licenses. Any violation pertaining to the use of such registered equipment including its use by persons other than the registrant shall be ground for appropriate administrative sanctions and/or fines and penalties as be imposed by this Commission.\n2. All radio equipment registered under this Memorandum Order shall be at the accountability of the registrant\n3. The subsequent licensing of all radio equipment to be registered under and pursuant to this Memorandum Order shall be in accordance with existing rules and regulations and the usual licensing procedures.',
   },
   {
     id: 'note-2',
@@ -322,7 +323,8 @@ export const INITIAL_NOTES: NoteItem[] = [
     statusText: 'Active Notes',
     typeText: 'Single Instructions Block',
     targetView: 'Client View',
-    instructions: 'Station logs must be maintained for at least 2 years. Transceiver equipment specifications must match approved NTC type-acceptance list.',
+    instructions:
+      '1. Station logs must be maintained for at least 2 years.\n2. Transceiver equipment specifications must match approved NTC type-acceptance list.',
   },
   {
     id: 'note-3',
@@ -330,7 +332,8 @@ export const INITIAL_NOTES: NoteItem[] = [
     statusText: 'Active Notes',
     typeText: 'Single Instructions Block',
     targetView: 'Client View',
-    instructions: 'Applicants must be at least 12 years of age or possess an accredited radio club endorsement.',
+    instructions:
+      '1. Applicants must be at least 12 years of age or possess an accredited radio club endorsement.',
   },
 ];
 

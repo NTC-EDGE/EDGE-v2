@@ -27,7 +27,7 @@ export function NotesTab({
   const isMobile = width < 768;
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>('note-1');
 
   // Filter notes based on search
   const filteredNotes = useMemo(() => {
@@ -96,6 +96,7 @@ export function NotesTab({
                       <Text style={styles.statusText}>{item.statusText}</Text>
                       <Text style={styles.separatorDot}>·</Text>
                       <Text style={styles.typeText}>{item.typeText}</Text>
+                      <Text style={styles.separatorDot}>·</Text>
 
                       {/* Target View Badge */}
                       <View style={[styles.pillBadge, styles.badgePurple]}>
@@ -140,17 +141,25 @@ export function NotesTab({
                   </View>
                 </View>
 
-                {/* Expanded Content: Guidance & Instructions Block */}
+                {/* Expanded Content: Service Guidance Notes Shown to Clients End (Matching Screenshot) */}
                 {isExpanded && (
                   <View style={styles.expandedContent}>
-                    <View style={styles.expandedHeader}>
-                      <Text style={styles.expandedTitle}>Guidance Remarks & Client Instructions</Text>
-                      <Text style={styles.expandedSubtitle}>
-                        Visible to public applicants on the application portal entry interface.
-                      </Text>
+                    <View style={styles.expandedHeaderRow}>
+                      <View style={styles.expandedHeaderLeft}>
+                        <Lucide name="file-text" size={16} color="#6366F1" />
+                        <Text style={styles.expandedHeaderText}>
+                          SERVICE GUIDANCE NOTES SHOWN TO CLIENTS END
+                        </Text>
+                      </View>
+
+                      <View style={styles.badgeViewRight}>
+                        <Text style={styles.badgeViewRightText}>
+                          CLIENT INSTRUCTIONS VIEW
+                        </Text>
+                      </View>
                     </View>
+
                     <View style={styles.instructionBox}>
-                      <Lucide name="info" size={16} color="#6366F1" style={{ marginTop: 2 }} />
                       <Text style={styles.instructionText}>{item.instructions}</Text>
                     </View>
                   </View>
@@ -311,7 +320,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#EEF2FF',
   },
   badgeTextPurple: {
-    color: '#6366F1',
+    color: '#4F46E5',
   },
   badgeText: {
     fontSize: 11,
@@ -352,41 +361,58 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  // Expanded Content
+  // Expanded Content (Matching User Screenshot)
   expandedContent: {
     borderTopWidth: 1,
     borderTopColor: COLORS.neutral[200],
-    backgroundColor: '#F8FAFC',
+    backgroundColor: COLORS.neutral.white,
     padding: SPACING[16],
     gap: SPACING[12],
   },
-  expandedHeader: {},
-  expandedTitle: {
-    fontSize: TYPOGRAPHY.sizes.cardTitle,
+  expandedHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  expandedHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  expandedHeaderText: {
+    fontSize: 12,
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontWeight: '700',
-    color: COLORS.neutral[900],
+    color: '#94A3B8',
+    letterSpacing: 0.5,
   },
-  expandedSubtitle: {
-    fontSize: TYPOGRAPHY.sizes.caption,
+  badgeViewRight: {
+    backgroundColor: '#EEF2FF',
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: RADIUS.circle,
+  },
+  badgeViewRightText: {
+    fontSize: 11,
     fontFamily: TYPOGRAPHY.fonts.primary,
-    color: COLORS.neutral[500],
+    fontWeight: '700',
+    color: '#4F46E5',
+    letterSpacing: 0.5,
   },
   instructionBox: {
-    flexDirection: 'row',
-    gap: SPACING[8],
-    backgroundColor: COLORS.neutral.white,
-    padding: SPACING[12],
-    borderRadius: RADIUS.input,
+    backgroundColor: '#F8FAFC',
+    padding: SPACING[16],
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
   instructionText: {
-    flex: 1,
-    fontSize: TYPOGRAPHY.sizes.body,
+    fontSize: 14,
     fontFamily: TYPOGRAPHY.fonts.primary,
-    color: COLORS.neutral[800],
-    lineHeight: 20,
+    fontWeight: '600',
+    color: '#1E293B',
+    lineHeight: 22,
   },
 
   // Empty state

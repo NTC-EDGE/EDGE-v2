@@ -127,7 +127,7 @@ export function AdminSettingsModal({
       setCodeInput(initialData.code ?? 'ZC-001');
       setBranchType(initialData.branchType === 'Field Office' ? 'Field Office' : 'Main Office');
       setAmountInput(initialData.amount !== undefined ? String(initialData.amount) : '');
-      setInstructionsInput(initialData.instructions ?? '');
+      setInstructionsInput(initialData.instructions ?? '1.\n2.\n3.');
       setIsActiveToggle(initialData.isActive ?? true);
       setMappedDocs(
         initialData.mappedDocuments && initialData.mappedDocuments.length > 0
@@ -151,7 +151,7 @@ export function AdminSettingsModal({
       setCodeInput('');
       setBranchType('Main Office');
       setAmountInput('');
-      setInstructionsInput('');
+      setInstructionsInput('1.\n2.\n3.');
       setIsActiveToggle(true);
       setMappedDocs([
         { id: 'doc-1', name: 'Valid Government Issued ID', isRequired: true },
@@ -171,6 +171,7 @@ export function AdminSettingsModal({
   const categoryName = initialData?.category ?? '';
   const isRequirementModal = type === 'add-requirement' || type === 'edit-requirement';
   const isFeeModal = type === 'add-fee' || type === 'edit-fee';
+  const isNoteModal = type === 'add-note' || type === 'edit-note';
 
   const getModalTitle = () => {
     switch (type) {
@@ -191,14 +192,20 @@ export function AdminSettingsModal({
       case 'edit-fee':
         return 'Edit Mapped Surcharges / Fees';
       case 'add-note':
-        return 'Add Guidance Note';
+        return 'Add Service Instruction Notes';
       case 'edit-note':
-        return 'Edit Guidance Note';
+        return 'Edit Service Instruction Notes';
       case 'add-form':
         return 'Build New Form';
       default:
         return 'Admin Settings';
     }
+  };
+
+  const getSaveButtonText = () => {
+    if (isRequirementModal || isFeeModal) return 'Save Configuration';
+    if (isNoteModal) return 'Save Notes';
+    return 'Save Changes';
   };
 
   // Requirement Handlers
@@ -280,7 +287,7 @@ export function AdminSettingsModal({
         <View
           style={[
             styles.modalCard,
-            (isRequirementModal || isFeeModal) && styles.modalCardWide,
+            (isRequirementModal || isFeeModal || isNoteModal) && styles.modalCardWide,
             SHADOWS.modal,
           ]}
         >
@@ -301,7 +308,16 @@ export function AdminSettingsModal({
                     : 'EDIT APPLICATION FEES'}
                 </Text>
               )}
+              {isNoteModal && (
+                <Text style={styles.topBadgeText}>
+                  {type === 'add-note'
+                    ? 'CREATE NEW NOTES CONFIGURATION'
+                    : 'EDIT NOTES CONFIGURATION'}
+                </Text>
+              )}
+
               <Text style={styles.modalTitle}>{getModalTitle()}</Text>
+
               {isRequirementModal && (
                 <Text style={styles.modalSubtitle}>
                   Customize the precise set of files and document proofs clients will upload when applying.
@@ -310,6 +326,11 @@ export function AdminSettingsModal({
               {isFeeModal && (
                 <Text style={styles.modalSubtitle}>
                   Configure several processing fees and corresponding rates assigned to this specific application type.
+                </Text>
+              )}
+              {isNoteModal && (
+                <Text style={styles.modalSubtitle}>
+                  Input guidelines, penalties, and reminders directly. You can manually format the list using prefix counters such as 1., 2., 3.
                 </Text>
               )}
             </View>
@@ -541,7 +562,7 @@ export function AdminSettingsModal({
             {isRequirementModal && (
               <>
                 {/* Application / Service Type Dropdown */}
-                <View style={styles.inputGroup}>
+                <View style={[styles.inputGroup, isServiceTypeDropdownOpen && { zIndex: 10000 }]}>
                   <Text style={styles.inputLabel}>APPLICATION / SERVICE TYPE</Text>
                   <Pressable
                     style={styles.dropdownTrigger}
@@ -654,7 +675,7 @@ export function AdminSettingsModal({
               </>
             )}
 
-            {/* 4. Fees and Payments Modal (Matching User Screenshot) */}
+            {/* 4. Fees and Payments Modal */}
             {isFeeModal && (
               <>
                 {/* Application / Service Type Dropdown */}
@@ -762,57 +783,93 @@ export function AdminSettingsModal({
                             )}
                           </View>
 
-                        {/* Peso Currency Prefix & Amount Input */}
-                        <View style={styles.amountInputBox}>
-                          <Text style={styles.currencySymbol}>₱</Text>
-                          <TextInput
-                            style={styles.feeAmountInput}
-                            value={String(fb.amount)}
-                            onChangeText={(val) => handleUpdateFeeAmount(fb.id, val)}
-                            keyboardType="numeric"
-                            placeholder="0"
-                            placeholderTextColor={COLORS.neutral[400]}
-                          />
-                        </View>
+                          {/* Peso Currency Prefix & Amount Input */}
+                          <View style={styles.amountInputBox}>
+                            <Text style={styles.currencySymbol}>₱</Text>
+                            <TextInput
+                              style={styles.feeAmountInput}
+                              value={String(fb.amount)}
+                              onChangeText={(val) => handleUpdateFeeAmount(fb.id, val)}
+                              keyboardType="numeric"
+                              placeholder="0"
+                              placeholderTextColor={COLORS.neutral[400]}
+                            />
+                          </View>
 
-                        {/* Delete Row Trash Icon */}
-                        <Pressable
-                          style={styles.docDeleteBtn}
-                          onPress={() => handleDeleteFeeItem(fb.id)}
-                        >
-                          <Lucide name="trash-2" size={14} color="#EF4444" />
-                        </Pressable>
-                      </View>
-                    );
-                  })}
+                          {/* Delete Row Trash Icon */}
+                          <Pressable
+                            style={styles.docDeleteBtn}
+                            onPress={() => handleDeleteFeeItem(fb.id)}
+                          >
+                            <Lucide name="trash-2" size={14} color="#EF4444" />
+                          </Pressable>
+                        </View>
+                      );
+                    })}
                   </View>
                 </View>
               </>
             )}
 
-            {(type === 'add-note' || type === 'edit-note') && (
+            {/* 5. Guidance Notes Modal (Matching User Screenshot) */}
+            {isNoteModal && (
               <>
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>SERVICE / APPLICATION TITLE</Text>
-                  <TextInput
-                    style={styles.textInput}
-                    placeholder="Amateur Radio Operator Certificate (NEW)"
-                    placeholderTextColor={COLORS.neutral[400]}
-                    value={titleInput}
-                    onChangeText={setTitleInput}
-                  />
+                {/* Application / Service Type Dropdown */}
+                <View style={[styles.inputGroup, isServiceTypeDropdownOpen && { zIndex: 10000 }]}>
+                  <Text style={styles.inputLabel}>APPLICATION / SERVICE TYPE</Text>
+                  <Pressable
+                    style={styles.dropdownTrigger}
+                    onPress={() => setIsServiceTypeDropdownOpen(!isServiceTypeDropdownOpen)}
+                  >
+                    <Text style={styles.dropdownTriggerText}>
+                      {titleInput || 'Aeronautical Station Permit to POSSESS'}
+                    </Text>
+                    <Lucide
+                      name={isServiceTypeDropdownOpen ? 'chevron-up' : 'chevron-down'}
+                      size={18}
+                      color="#94A3B8"
+                    />
+                  </Pressable>
+
+                  {isServiceTypeDropdownOpen && (
+                    <View style={styles.dropdownMenu}>
+                      {SERVICE_TYPE_OPTIONS.map((option) => (
+                        <Pressable
+                          key={option}
+                          style={[
+                            styles.dropdownOption,
+                            titleInput === option && styles.dropdownOptionActive,
+                          ]}
+                          onPress={() => {
+                            setTitleInput(option);
+                            setIsServiceTypeDropdownOpen(false);
+                          }}
+                        >
+                          <Text style={styles.dropdownOptionText}>{option}</Text>
+                          {titleInput === option && (
+                            <Lucide name="check" size={16} color="#4F46E5" />
+                          )}
+                        </Pressable>
+                      ))}
+                    </View>
+                  )}
                 </View>
+
+                {/* Service Guideline Notes Content */}
                 <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>INSTRUCTION REMARKS / GUIDANCE TEXT</Text>
+                  <Text style={styles.inputLabel}>SERVICE GUIDELINE NOTES CONTENT</Text>
                   <TextInput
-                    style={[styles.textInput, styles.textArea]}
-                    placeholder="Enter detailed guidance remarks shown to clients..."
+                    style={[styles.textInput, styles.notesTextArea]}
+                    placeholder={`1.\n2.\n3.`}
                     placeholderTextColor={COLORS.neutral[400]}
                     multiline
-                    numberOfLines={4}
+                    numberOfLines={7}
                     value={instructionsInput}
                     onChangeText={setInstructionsInput}
                   />
+                  <Text style={styles.notesHelperText}>
+                    Preserves line-breaks exactly as written above.
+                  </Text>
                 </View>
               </>
             )}
@@ -837,9 +894,7 @@ export function AdminSettingsModal({
               <Text style={styles.cancelBtnText}>Cancel</Text>
             </Pressable>
             <Pressable style={styles.saveBtn} onPress={handleSave}>
-              <Text style={styles.saveBtnText}>
-                {(isRequirementModal || isFeeModal) ? 'Save Configuration' : 'Save Changes'}
-              </Text>
+              <Text style={styles.saveBtnText}>{getSaveButtonText()}</Text>
             </Pressable>
           </View>
         </View>
@@ -937,6 +992,24 @@ const styles = StyleSheet.create({
     height: 100,
     paddingTop: SPACING[12],
     textAlignVertical: 'top',
+  },
+  notesTextArea: {
+    height: 160,
+    paddingTop: SPACING[12],
+    paddingHorizontal: SPACING[16],
+    textAlignVertical: 'top',
+    fontSize: 15,
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontWeight: '700',
+    color: '#0F172A',
+    lineHeight: 22,
+  },
+  notesHelperText: {
+    fontSize: 12,
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontStyle: 'italic',
+    color: '#64748B',
+    marginTop: 2,
   },
   switchRow: {
     flexDirection: 'row',
