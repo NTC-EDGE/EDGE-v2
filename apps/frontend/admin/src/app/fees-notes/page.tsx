@@ -29,7 +29,8 @@ export default function FeesNotesPage() {
   const {
     useFees, createFee, updateFee, deleteFee, toggleFeeStatus,
     useServiceFees, createServiceFee, updateServiceFee, deleteServiceFee,
-    useNotes, createNote, updateNote, deleteNote
+    useNotes, createNote, updateNote, deleteNote,
+    useServices, useServiceCategories
   } = useFeesNotesService();
 
   const [activeTab, setActiveTab] = useState<TabType>("fees");
@@ -50,6 +51,8 @@ export default function FeesNotesPage() {
   const { data: fees = [], mutate: mutateFees, isLoading: loadingFees } = useFees();
   const { data: serviceFees = [], mutate: mutateServiceFees, isLoading: loadingSFees } = useServiceFees();
   const { data: notes = [], mutate: mutateNotes, isLoading: loadingNotes } = useNotes();
+  const { data: services = [] } = useServices();
+  const { data: categories = [] } = useServiceCategories();
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
@@ -229,6 +232,7 @@ export default function FeesNotesPage() {
           <ServiceFeesTable 
             serviceFees={serviceFees} 
             fees={fees} 
+            services={services}
             loading={loadingSFees} 
             canManage={canManage} 
             searchTerm={searchTerm} 
@@ -239,6 +243,7 @@ export default function FeesNotesPage() {
         {activeTab === "notes" && (
           <NotesTable 
             notes={notes} 
+            categories={categories}
             loading={loadingNotes} 
             canManage={canManage} 
             searchTerm={searchTerm} 
@@ -248,8 +253,27 @@ export default function FeesNotesPage() {
         )}
       </div>
 
-      <CreateRecordDialog open={isCreateOpen} onOpenChange={setIsCreateOpen} activeTab={activeTab} fees={fees} onSubmit={handleCreateSubmit} />
-      <EditRecordDialog open={isEditOpen} onOpenChange={setIsEditOpen} activeTab={activeTab} fees={fees} selectedFee={selectedFee} selectedServiceFee={selectedServiceFee} selectedNote={selectedNote} onSubmit={handleEditSubmit} />
+      <CreateRecordDialog 
+        open={isCreateOpen} 
+        onOpenChange={setIsCreateOpen} 
+        activeTab={activeTab} 
+        fees={fees} 
+        services={services}
+        categories={categories}
+        onSubmit={handleCreateSubmit} 
+      />
+      <EditRecordDialog 
+        open={isEditOpen} 
+        onOpenChange={setIsEditOpen} 
+        activeTab={activeTab} 
+        fees={fees} 
+        services={services}
+        categories={categories}
+        selectedFee={selectedFee} 
+        selectedServiceFee={selectedServiceFee} 
+        selectedNote={selectedNote} 
+        onSubmit={handleEditSubmit} 
+      />
       
       <ConfirmActionDialog
         isOpen={confirmOpen}

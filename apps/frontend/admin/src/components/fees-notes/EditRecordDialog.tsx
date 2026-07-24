@@ -12,13 +12,15 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { MOCK_SERVICES, MOCK_CATEGORIES } from "@/services/feesNotesService";
+import { ServiceCatalogItem, ServiceCategoryItem } from "@/services/feesNotesService";
 
 export interface EditRecordDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   activeTab: "fees" | "service-fees" | "notes";
   fees: Fee[];
+  services: ServiceCatalogItem[];
+  categories: ServiceCategoryItem[];
   selectedFee: Fee | null;
   selectedServiceFee: ServiceFee | null;
   selectedNote: Note | null;
@@ -43,6 +45,8 @@ export function EditRecordDialog({
   onOpenChange,
   activeTab,
   fees,
+  services,
+  categories,
   selectedFee,
   selectedServiceFee,
   selectedNote,
@@ -180,7 +184,7 @@ export function EditRecordDialog({
                   onChange={(e) => setServiceId(e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
-                  {MOCK_SERVICES.map((s) => (
+                  {services.map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.name}
                     </option>
@@ -230,7 +234,7 @@ export function EditRecordDialog({
                   onChange={(e) => setServiceCategoryId(e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
-                  {MOCK_CATEGORIES.map((c) => (
+                  {categories.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name}
                     </option>

@@ -12,13 +12,15 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { MOCK_SERVICES, MOCK_CATEGORIES } from "@/services/feesNotesService";
+import { ServiceCatalogItem, ServiceCategoryItem } from "@/services/feesNotesService";
 
 export interface CreateRecordDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   activeTab: "fees" | "service-fees" | "notes";
   fees: Fee[];
+  services: ServiceCatalogItem[];
+  categories: ServiceCategoryItem[];
   onSubmit: (
     tab: "fees" | "service-fees" | "notes",
     data: {
@@ -40,6 +42,8 @@ export function CreateRecordDialog({
   onOpenChange,
   activeTab,
   fees,
+  services,
+  categories,
   onSubmit,
 }: CreateRecordDialogProps) {
   const [submitting, setSubmitting] = useState(false);
@@ -69,13 +73,13 @@ export function CreateRecordDialog({
         setName("");
         setDescription("");
         
-        setServiceId(MOCK_SERVICES[0]?.id ?? "");
+        setServiceId(services[0]?.id ?? "");
         setFeeId(fees[0]?.id ?? "");
         setAmount(0);
         setFeeEntries([{ feeId: fees[0]?.id ?? "", amount: 0 }]);
         
         setNotes("");
-        setServiceCategoryId(MOCK_CATEGORIES[0]?.id ?? "");
+        setServiceCategoryId(categories[0]?.id ?? "");
         hasInitialized.current = true;
       } else {
         // If we are already open but fees catalog finished loading/updating
@@ -213,7 +217,7 @@ export function CreateRecordDialog({
                   onChange={(e) => setServiceId(e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                 >
-                  {MOCK_SERVICES.map((s) => (
+                  {services.map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.name}
                     </option>
@@ -295,7 +299,7 @@ export function CreateRecordDialog({
                   onChange={(e) => setServiceCategoryId(e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
-                  {MOCK_CATEGORIES.map((c) => (
+                  {categories.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name}
                     </option>

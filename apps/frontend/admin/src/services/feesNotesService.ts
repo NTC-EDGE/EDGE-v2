@@ -21,21 +21,6 @@ export interface PaginatedApiResponse<T> {
   totalCount: number;
 }
 
-export const MOCK_SERVICES: ServiceCatalogItem[] = [
-  { id: "srv-1", name: "Amateur Radio Operator License" },
-  { id: "srv-2", name: "Commercial Radio Station Permit" },
-  { id: "srv-3", name: "Ship Radio Station License" },
-  { id: "srv-4", name: "Aircraft Radio Station License" },
-  { id: "srv-5", name: "Dealer Representative Permit" }
-];
-
-export const MOCK_CATEGORIES: ServiceCategoryItem[] = [
-  { id: "cat-1", name: "Amateur Radio Services" },
-  { id: "cat-2", name: "Maritime Radio Services" },
-  { id: "cat-3", name: "Aeronautical Radio Services" },
-  { id: "cat-4", name: "Commercial Radio & Carrier Services" },
-  { id: "cat-5", name: "Dealer & Manufacturer Services" }
-];
 
 export function useFeesNotesService() {
   const { useQuery, post, put, patch, del } = useApi();
@@ -121,6 +106,20 @@ export function useFeesNotesService() {
     useNotes,
     createNote,
     updateNote,
-    deleteNote
+    deleteNote,
+    useServices: () => {
+      const query = useQuery<{ succeeded: boolean; data: ServiceCatalogItem[] }>('/api/v2/services');
+      return {
+        ...query,
+        data: query.data?.data !== undefined && query.data?.data !== null ? query.data.data : []
+      };
+    },
+    useServiceCategories: () => {
+      const query = useQuery<{ succeeded: boolean; data: ServiceCategoryItem[] }>('/api/v2/service-categories');
+      return {
+        ...query,
+        data: query.data?.data !== undefined && query.data?.data !== null ? query.data.data : []
+      };
+    }
   };
 }
