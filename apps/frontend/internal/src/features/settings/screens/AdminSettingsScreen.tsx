@@ -30,7 +30,7 @@ import { FeesPaymentsTab } from '../components/FeesPaymentsTab';
 import { NotesTab } from '../components/NotesTab';
 import { FormBuilderTab } from '../components/FormBuilderTab';
 import { FeedbackTab } from '../components/FeedbackTab';
-import { AdminSettingsModal, ModalType, ModalInitialData } from '../components/AdminSettingsModal';
+import { AdminSettingsModal, ModalType, ModalInitialData, MappedDocInput } from '../components/AdminSettingsModal';
 import { DeleteAdminItemModal } from '../components/DeleteAdminItemModal';
 
 export type AdminTabType =
@@ -152,6 +152,7 @@ export function AdminSettingsScreen() {
     setSelectedItem({
       id: item.id,
       title: item.title,
+      mappedDocuments: item.mappedDocuments,
     });
     setModalType('edit-requirement');
   };
@@ -252,6 +253,7 @@ export function AdminSettingsScreen() {
     amount: number;
     instructions: string;
     isActive: boolean;
+    mappedDocuments?: MappedDocInput[];
   }) => {
     if (modalType === 'edit-config' && selectedItem?.id !== undefined) {
       setRegionalConfigs((prev) =>
@@ -288,24 +290,41 @@ export function AdminSettingsScreen() {
         setBranchOffices((prev) => [...prev, newBranch]);
       }
     } else if (modalType === 'add-requirement') {
+      const docs = data.mappedDocuments && data.mappedDocuments.length > 0 ? data.mappedDocuments : [
+        { id: 'doc-1', name: 'Valid Government Issued ID', isRequired: true },
+        { id: 'doc-2', name: 'Barangay Clearance', isRequired: true },
+      ];
+      const reqCount = docs.filter((d) => d.isRequired).length;
+      const optCount = docs.filter((d) => !d.isRequired).length;
+
       const newReq: ApplicationRequirementItem = {
         id: `req-${Date.now()}`,
-        title: data.title || 'New Service Requirement',
+        title: data.title || 'Aeronautical Station Permit to POSSESS',
         statusText: 'Active Requirements',
-        mappedCount: 2,
-        requiredCount: 2,
-        optionalCount: 0,
-        mappedDocuments: [
-          { id: `doc-new-1`, name: 'Government Issued Identification Document', isRequired: true },
-          { id: `doc-new-2`, name: 'Official Examination Result Copy', isRequired: true },
-        ],
+        mappedCount: docs.length,
+        requiredCount: reqCount,
+        optionalCount: optCount,
+        mappedDocuments: docs,
       };
       setAppRequirements((prev) => [newReq, ...prev]);
     } else if (modalType === 'edit-requirement' && selectedItem?.id !== undefined) {
       setAppRequirements((prev) =>
-        prev.map((item) =>
-          item.id === selectedItem.id ? { ...item, title: data.title || item.title } : item
-        )
+        prev.map((item) => {
+          if (item.id === selectedItem.id) {
+            const docs = data.mappedDocuments && data.mappedDocuments.length > 0 ? data.mappedDocuments : item.mappedDocuments;
+            const reqCount = docs.filter((d) => d.isRequired).length;
+            const optCount = docs.filter((d) => !d.isRequired).length;
+            return {
+              ...item,
+              title: data.title || item.title,
+              mappedCount: docs.length,
+              requiredCount: reqCount,
+              optionalCount: optCount,
+              mappedDocuments: docs,
+            };
+          }
+          return item;
+        })
       );
     } else if (modalType === 'add-fee') {
       const newFee: FeePaymentItem = {

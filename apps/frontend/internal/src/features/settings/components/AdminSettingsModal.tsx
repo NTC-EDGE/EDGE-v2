@@ -23,6 +23,12 @@ export type ModalType =
   | 'add-form'
   | 'none';
 
+export interface MappedDocInput {
+  id: string;
+  name: string;
+  isRequired: boolean;
+}
+
 export interface ModalInitialData {
   id?: string;
   category?: string;
@@ -34,6 +40,7 @@ export interface ModalInitialData {
   amount?: number;
   instructions?: string;
   isActive?: boolean;
+  mappedDocuments?: MappedDocInput[];
 }
 
 interface AdminSettingsModalProps {
@@ -50,8 +57,21 @@ interface AdminSettingsModalProps {
     amount: number;
     instructions: string;
     isActive: boolean;
+    mappedDocuments?: MappedDocInput[];
   }) => void;
 }
+
+const SERVICE_TYPE_OPTIONS = [
+  'Aeronautical Station Permit to POSSESS',
+  'Amateur Radio Operator Certificate (NEW)',
+  'Amateur Radio Operator Certificate (RENEWAL)',
+  'Radiotelegraphy(NEW)',
+  'Radiotelegraphy(RENEWAL)',
+  'Aircraft Station License (MODIFICATION)',
+  'Amateur Club Radio Station License (MODIFICATION)',
+  'Amateur Radio Station License',
+  'Ship Station License (NEW)',
+];
 
 export function AdminSettingsModal({
   visible,
@@ -69,10 +89,14 @@ export function AdminSettingsModal({
   const [instructionsInput, setInstructionsInput] = useState('');
   const [isActiveToggle, setIsActiveToggle] = useState(true);
   const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
+  const [isServiceTypeDropdownOpen, setIsServiceTypeDropdownOpen] = useState(false);
+
+  // Mapped Documents State for Application Requirements Checklist Modal
+  const [mappedDocs, setMappedDocs] = useState<MappedDocInput[]>([]);
 
   useEffect(() => {
     if (visible && initialData !== undefined && initialData !== null) {
-      setTitleInput(initialData.title ?? '');
+      setTitleInput(initialData.title ?? 'Aeronautical Station Permit to POSSESS');
       setNameInput(initialData.name ?? '');
       setSubLabelInput(initialData.subLabel ?? '');
       setCodeInput(initialData.code ?? 'ZC-001');
@@ -80,8 +104,16 @@ export function AdminSettingsModal({
       setAmountInput(initialData.amount !== undefined ? String(initialData.amount) : '');
       setInstructionsInput(initialData.instructions ?? '');
       setIsActiveToggle(initialData.isActive ?? true);
+      setMappedDocs(
+        initialData.mappedDocuments && initialData.mappedDocuments.length > 0
+          ? initialData.mappedDocuments
+          : [
+              { id: 'doc-1', name: 'Valid Government Issued ID', isRequired: true },
+              { id: 'doc-2', name: 'Barangay Clearance', isRequired: true },
+            ]
+      );
     } else {
-      setTitleInput('');
+      setTitleInput('Aeronautical Station Permit to POSSESS');
       setNameInput('');
       setSubLabelInput('');
       setCodeInput('');
@@ -89,13 +121,19 @@ export function AdminSettingsModal({
       setAmountInput('');
       setInstructionsInput('');
       setIsActiveToggle(true);
+      setMappedDocs([
+        { id: 'doc-1', name: 'Valid Government Issued ID', isRequired: true },
+        { id: 'doc-2', name: 'Barangay Clearance', isRequired: true },
+      ]);
     }
     setIsCategoryDropdownOpen(false);
+    setIsServiceTypeDropdownOpen(false);
   }, [visible, initialData]);
 
   if (!visible || type === 'none') return null;
 
   const categoryName = initialData?.category ?? '';
+  const isRequirementModal = type === 'add-requirement' || type === 'edit-requirement';
 
   const getModalTitle = () => {
     switch (type) {
@@ -108,9 +146,9 @@ export function AdminSettingsModal({
       case 'add-branch':
         return initialData?.id ? 'Edit Regional Branch Office' : 'Add Regional Branch Office';
       case 'add-requirement':
-        return 'Add Application Requirement';
+        return 'Add Service Requirements Checklist';
       case 'edit-requirement':
-        return 'Edit Application Requirement';
+        return 'Edit Service Requirements Checklist';
       case 'add-fee':
         return 'Configure New Application Fee';
       case 'edit-fee':
@@ -126,6 +164,31 @@ export function AdminSettingsModal({
     }
   };
 
+  const handleAddDocumentItem = () => {
+    const newItem: MappedDocInput = {
+      id: `doc-${Date.now()}`,
+      name: `New Document Proof #${mappedDocs.length + 1}`,
+      isRequired: true,
+    };
+    setMappedDocs((prev) => [...prev, newItem]);
+  };
+
+  const handleToggleRequired = (id: string, isReq: boolean) => {
+    setMappedDocs((prev) =>
+      prev.map((doc) => (doc.id === id ? { ...doc, isRequired: isReq } : doc))
+    );
+  };
+
+  const handleUpdateDocName = (id: string, newName: string) => {
+    setMappedDocs((prev) =>
+      prev.map((doc) => (doc.id === id ? { ...doc, name: newName } : doc))
+    );
+  };
+
+  const handleDeleteDocItem = (id: string) => {
+    setMappedDocs((prev) => prev.filter((doc) => doc.id !== id));
+  };
+
   const handleSave = () => {
     const parsedAmount = parseFloat(amountInput);
     onSave({
@@ -137,6 +200,7 @@ export function AdminSettingsModal({
       amount: isNaN(parsedAmount) ? 0 : parsedAmount,
       instructions: instructionsInput,
       isActive: isActiveToggle,
+      mappedDocuments: mappedDocs,
     });
     onClose();
   };
@@ -144,10 +208,24 @@ export function AdminSettingsModal({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.backdrop}>
-        <View style={[styles.modalCard, SHADOWS.modal]}>
+        <View style={[styles.modalCard, isRequirementModal && styles.modalCardWide, SHADOWS.modal]}>
           {/* Header */}
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>{getModalTitle()}</Text>
+            <View style={styles.modalTitleContainer}>
+              {isRequirementModal && (
+                <Text style={styles.topBadgeText}>
+                  {type === 'add-requirement'
+                    ? 'CREATE NEW REQUIREMENT CONFIGURATION'
+                    : 'EDIT REQUIREMENT CONFIGURATION'}
+                </Text>
+              )}
+              <Text style={styles.modalTitle}>{getModalTitle()}</Text>
+              {isRequirementModal && (
+                <Text style={styles.modalSubtitle}>
+                  Customize the precise set of files and document proofs clients will upload when applying.
+                </Text>
+              )}
+            </View>
             <Pressable style={styles.closeBtn} onPress={onClose}>
               <Lucide name="x" size={18} color="#94A3B8" />
             </Pressable>
@@ -155,7 +233,7 @@ export function AdminSettingsModal({
 
           {/* Form Content */}
           <ScrollView contentContainerStyle={styles.formContainer} showsVerticalScrollIndicator={false}>
-            {/* 1. Regional Config Modal Fields (Screenshot 1) */}
+            {/* 1. Regional Config Modal Fields */}
             {type === 'edit-config' && (
               <>
                 {categoryName === 'Commissioner' && (
@@ -294,7 +372,7 @@ export function AdminSettingsModal({
               </>
             )}
 
-            {/* 2. Regional Branch Office Modal Fields (Screenshot 2) */}
+            {/* 2. Regional Branch Office Modal Fields */}
             {type === 'add-branch' && (
               <>
                 <View style={styles.inputGroup}>
@@ -372,63 +450,200 @@ export function AdminSettingsModal({
               </>
             )}
 
+            {/* 3. Application Requirements Checklist Modal (Matching Screenshot) */}
+            {isRequirementModal && (
+              <>
+                {/* Application / Service Type Dropdown */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>APPLICATION / SERVICE TYPE</Text>
+                  <Pressable
+                    style={styles.dropdownTrigger}
+                    onPress={() => setIsServiceTypeDropdownOpen(!isServiceTypeDropdownOpen)}
+                  >
+                    <Text style={styles.dropdownTriggerText}>
+                      {titleInput || 'Select Service Type'}
+                    </Text>
+                    <Lucide
+                      name={isServiceTypeDropdownOpen ? 'chevron-up' : 'chevron-down'}
+                      size={18}
+                      color="#94A3B8"
+                    />
+                  </Pressable>
+
+                  {isServiceTypeDropdownOpen && (
+                    <View style={styles.dropdownMenu}>
+                      {SERVICE_TYPE_OPTIONS.map((option) => (
+                        <Pressable
+                          key={option}
+                          style={[
+                            styles.dropdownOption,
+                            titleInput === option && styles.dropdownOptionActive,
+                          ]}
+                          onPress={() => {
+                            setTitleInput(option);
+                            setIsServiceTypeDropdownOpen(false);
+                          }}
+                        >
+                          <Text style={styles.dropdownOptionText}>{option}</Text>
+                          {titleInput === option && (
+                            <Lucide name="check" size={16} color="#4F46E5" />
+                          )}
+                        </Pressable>
+                      ))}
+                    </View>
+                  )}
+                </View>
+
+                {/* Required Checklist Documents Section */}
+                <View style={styles.checklistSection}>
+                  <View style={styles.checklistHeaderRow}>
+                    <Text style={styles.inputLabel}>REQUIRED CHECKLIST DOCUMENTS</Text>
+                    <Pressable style={styles.addItemBtn} onPress={handleAddDocumentItem}>
+                      <Lucide name="plus" size={14} color="#4F46E5" />
+                      <Text style={styles.addItemBtnText}>Add Item</Text>
+                    </Pressable>
+                  </View>
+
+                  <View style={styles.docListContainer}>
+                    {mappedDocs.map((doc, idx) => (
+                      <View key={doc.id} style={styles.docRowCard}>
+                        <Text style={styles.docIndexText}>#{idx + 1}</Text>
+                        <TextInput
+                          style={styles.docNameInput}
+                          value={doc.name}
+                          onChangeText={(val) => handleUpdateDocName(doc.id, val)}
+                          placeholder="Document Name"
+                          placeholderTextColor={COLORS.neutral[400]}
+                        />
+
+                        {/* Toggle Required / Optional Pill Buttons */}
+                        <View style={styles.pillToggleGroup}>
+                          <Pressable
+                            style={[
+                              styles.pillToggleBtn,
+                              doc.isRequired ? styles.pillRequiredActive : styles.pillInactive,
+                            ]}
+                            onPress={() => handleToggleRequired(doc.id, true)}
+                          >
+                            <Text
+                              style={[
+                                styles.pillToggleText,
+                                doc.isRequired ? styles.pillRequiredTextActive : styles.pillTextInactive,
+                              ]}
+                            >
+                              Required *
+                            </Text>
+                          </Pressable>
+
+                          <Pressable
+                            style={[
+                              styles.pillToggleBtn,
+                              !doc.isRequired ? styles.pillOptionalActive : styles.pillInactive,
+                            ]}
+                            onPress={() => handleToggleRequired(doc.id, false)}
+                          >
+                            <Text
+                              style={[
+                                styles.pillToggleText,
+                                !doc.isRequired ? styles.pillOptionalTextActive : styles.pillTextInactive,
+                              ]}
+                            >
+                              Optional
+                            </Text>
+                          </Pressable>
+                        </View>
+
+                        {/* Delete Row Trash Icon */}
+                        <Pressable
+                          style={styles.docDeleteBtn}
+                          onPress={() => handleDeleteDocItem(doc.id)}
+                        >
+                          <Lucide name="trash-2" size={14} color="#EF4444" />
+                        </Pressable>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              </>
+            )}
+
             {/* Other modal types */}
-            {(type === 'add-requirement' ||
-              type === 'edit-requirement' ||
-              type === 'add-fee' ||
-              type === 'edit-fee' ||
-              type === 'add-note' ||
-              type === 'edit-note' ||
-              type === 'add-form') && (
+            {(type === 'add-fee' || type === 'edit-fee') && (
+              <>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>SERVICE / APPLICATION TITLE</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="Amateur Radio Operator Certificate (NEW)"
+                    placeholderTextColor={COLORS.neutral[400]}
+                    value={titleInput}
+                    onChangeText={setTitleInput}
+                  />
+                </View>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>TOTAL FEE AMOUNT (₱)</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="250.00"
+                    placeholderTextColor={COLORS.neutral[400]}
+                    keyboardType="numeric"
+                    value={amountInput}
+                    onChangeText={setAmountInput}
+                  />
+                </View>
+              </>
+            )}
+
+            {(type === 'add-note' || type === 'edit-note') && (
+              <>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>SERVICE / APPLICATION TITLE</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="Amateur Radio Operator Certificate (NEW)"
+                    placeholderTextColor={COLORS.neutral[400]}
+                    value={titleInput}
+                    onChangeText={setTitleInput}
+                  />
+                </View>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>INSTRUCTION REMARKS / GUIDANCE TEXT</Text>
+                  <TextInput
+                    style={[styles.textInput, styles.textArea]}
+                    placeholder="Enter detailed guidance remarks shown to clients..."
+                    placeholderTextColor={COLORS.neutral[400]}
+                    multiline
+                    numberOfLines={4}
+                    value={instructionsInput}
+                    onChangeText={setInstructionsInput}
+                  />
+                </View>
+              </>
+            )}
+
+            {type === 'add-form' && (
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>SERVICE / APPLICATION TITLE</Text>
                 <TextInput
                   style={styles.textInput}
-                  placeholder="Amateur Radio Operator Certificate (NEW)"
+                  placeholder="Amateur Application Form v2.1"
                   placeholderTextColor={COLORS.neutral[400]}
                   value={titleInput}
                   onChangeText={setTitleInput}
                 />
               </View>
             )}
-
-            {(type === 'add-fee' || type === 'edit-fee') && (
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>TOTAL FEE AMOUNT (₱)</Text>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="250.00"
-                  placeholderTextColor={COLORS.neutral[400]}
-                  keyboardType="numeric"
-                  value={amountInput}
-                  onChangeText={setAmountInput}
-                />
-              </View>
-            )}
-
-            {(type === 'add-note' || type === 'edit-note') && (
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>INSTRUCTION REMARKS / GUIDANCE TEXT</Text>
-                <TextInput
-                  style={[styles.textInput, styles.textArea]}
-                  placeholder="Enter detailed guidance remarks shown to clients..."
-                  placeholderTextColor={COLORS.neutral[400]}
-                  multiline
-                  numberOfLines={4}
-                  value={instructionsInput}
-                  onChangeText={setInstructionsInput}
-                />
-              </View>
-            )}
           </ScrollView>
 
-          {/* Footer Buttons (Exact Match to Screenshots 1 & 2) */}
+          {/* Footer Buttons (Exact Match to Screenshot) */}
           <View style={styles.modalFooter}>
             <Pressable style={styles.cancelBtn} onPress={onClose}>
               <Text style={styles.cancelBtnText}>Cancel</Text>
             </Pressable>
             <Pressable style={styles.saveBtn} onPress={handleSave}>
-              <Text style={styles.saveBtnText}>Save Changes</Text>
+              <Text style={styles.saveBtnText}>
+                {isRequirementModal ? 'Save Configuration' : 'Save Changes'}
+              </Text>
             </Pressable>
           </View>
         </View>
@@ -453,17 +668,39 @@ const styles = StyleSheet.create({
     padding: SPACING[24],
     overflow: 'hidden',
   },
+  modalCardWide: {
+    maxWidth: 580,
+  },
   modalHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
     marginBottom: SPACING[16],
+  },
+  modalTitleContainer: {
+    flex: 1,
+    paddingRight: SPACING[12],
+  },
+  topBadgeText: {
+    fontSize: 11,
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontWeight: '700',
+    color: '#6366F1',
+    letterSpacing: 0.5,
+    marginBottom: 4,
   },
   modalTitle: {
     fontSize: 20,
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontWeight: '700',
     color: '#0F172A',
+  },
+  modalSubtitle: {
+    fontSize: 13,
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    color: '#64748B',
+    marginTop: 4,
+    lineHeight: 18,
   },
   closeBtn: {
     width: 32,
@@ -536,6 +773,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginTop: 4,
     overflow: 'hidden',
+    maxHeight: 220,
   },
   dropdownOption: {
     flexDirection: 'row',
@@ -555,6 +793,101 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#0F172A',
   },
+
+  // Checklist Documents Section
+  checklistSection: {
+    gap: 8,
+    marginTop: 4,
+  },
+  checklistHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  addItemBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  addItemBtnText: {
+    fontSize: 13,
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontWeight: '700',
+    color: '#4F46E5',
+  },
+  docListContainer: {
+    gap: 10,
+  },
+  docRowCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderColor: '#E2E8F0',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 10,
+  },
+  docIndexText: {
+    fontSize: 13,
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontWeight: '700',
+    color: '#94A3B8',
+  },
+  docNameInput: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  pillToggleGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  pillToggleBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  pillRequiredActive: {
+    backgroundColor: '#EF4444',
+  },
+  pillOptionalActive: {
+    backgroundColor: '#F1F5F9',
+    borderColor: '#CBD5E1',
+    borderWidth: 1,
+  },
+  pillInactive: {
+    backgroundColor: '#F1F5F9',
+  },
+  pillToggleText: {
+    fontSize: 12,
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontWeight: '700',
+  },
+  pillRequiredTextActive: {
+    color: COLORS.neutral.white,
+  },
+  pillOptionalTextActive: {
+    color: '#334155',
+  },
+  pillTextInactive: {
+    color: '#94A3B8',
+  },
+  docDeleteBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#FEF2F2',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderColor: '#FCA5A5',
+    borderWidth: 1,
+  },
+
   modalFooter: {
     flexDirection: 'row',
     alignItems: 'center',
