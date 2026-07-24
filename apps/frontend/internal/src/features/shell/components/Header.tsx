@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import { StyleSheet, View, Text, Pressable, Platform } from 'react-native';
+import { StyleSheet, View, Text, Pressable, Platform, Image } from 'react-native';
 import { COLORS, SPACING, RADIUS, TYPOGRAPHY, Icon as Lucide, SHADOWS } from '@edge/ui';
+
+const footerLogoAsset = require('../../../../assets/footer-logo.png');
 import { UserRole } from '../context/RoleContext';
 import { UserProfile as UserProfileType } from '../../auth/context/AuthContext';
 import { RoleSwitcher } from './RoleSwitcher';
@@ -52,14 +54,6 @@ export function Header({
     return name.slice(0, 2).toUpperCase();
   };
 
-  const LogoSeal = () => (
-    <View style={styles.sealCircle}>
-      <View style={styles.sealBlue} />
-      <View style={styles.sealRed} />
-      <View style={styles.sealTriangle} />
-      <View style={styles.sealSun} />
-    </View>
-  );
 
   return (
     <View style={[styles.header, isMobile && styles.headerMobile]}>
@@ -70,11 +64,11 @@ export function Header({
             <Lucide name="menu" size={20} color={COLORS.neutral.white} />
           </Pressable>
         )}
-        <LogoSeal />
-        <View style={styles.logoTextWrapper}>
-          <Text style={styles.logoTitle}>EDGE</Text>
-          <Text style={styles.logoSubtitle}>NATIONAL TELECOMMUNICATIONS COMMISSION</Text>
-        </View>
+        <Image
+          source={footerLogoAsset}
+          style={[styles.headerLogo, isMobile && styles.headerLogoMobile]}
+          resizeMode="contain"
+        />
       </View>
 
       {/* Header Controls */}
@@ -175,25 +169,25 @@ export function Header({
 
 const styles = StyleSheet.create({
   header: {
-    height: 72,
+    height: 88,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING[32],
     zIndex: 100,
-    backgroundColor: '#0F3C99',
+    backgroundColor: '#1839B3',
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.1)',
     ...Platform.select({
       web: {
-        backgroundImage: 'linear-gradient(135deg, #0A42BA 0%, #0F3C99 100%)',
+        backgroundImage: 'linear-gradient(to right, #0E1B61 0%, #1839B3 50%, #2B56F0 100%)',
         boxShadow: '0 4px 12px 0 rgba(0, 0, 0, 0.08)',
       },
     }),
   },
   headerMobile: {
     paddingHorizontal: SPACING[16],
-    height: 64,
+    height: 76,
   },
   leftContainer: {
     flexDirection: 'row',
@@ -211,75 +205,13 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
-  logoTextWrapper: {
-    flexDirection: 'column',
-    justifyContent: 'center',
+  headerLogo: {
+    height: 60,
+    width: 192,
   },
-  logoTitle: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 20,
-    fontWeight: '900',
-    color: COLORS.neutral.white,
-    letterSpacing: 0.8,
-    lineHeight: 22,
-  },
-  logoSubtitle: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 8,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-    color: 'rgba(255, 255, 255, 0.75)',
-    letterSpacing: 0.5,
-    marginTop: 1,
-  },
-  sealCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.9)',
-    overflow: 'hidden',
-    position: 'relative',
-    backgroundColor: '#FFFFFF',
-  },
-  sealBlue: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 18,
-    backgroundColor: '#0038A8',
-  },
-  sealRed: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 18,
-    backgroundColor: '#CE1126',
-  },
-  sealTriangle: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    width: 0,
-    height: 0,
-    borderStyle: 'solid',
-    borderTopWidth: 18,
-    borderBottomWidth: 18,
-    borderLeftWidth: 18,
-    borderTopColor: 'transparent',
-    borderBottomColor: 'transparent',
-    borderLeftColor: '#FFFFFF',
-    borderRightColor: 'transparent',
-  },
-  sealSun: {
-    position: 'absolute',
-    top: 15,
-    left: 4,
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#FCD116',
+  headerLogoMobile: {
+    height: 52,
+    width: 166.4,
   },
   headerControls: {
     flexDirection: 'row',
@@ -351,7 +283,7 @@ const styles = StyleSheet.create({
   },
   profileDropdownCard: {
     position: 'absolute',
-    top: 52,
+    top: 68,
     right: 0,
     width: 250,
     backgroundColor: COLORS.neutral.white,
