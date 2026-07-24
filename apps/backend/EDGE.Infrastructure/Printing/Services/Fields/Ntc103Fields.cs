@@ -9,14 +9,15 @@ public static class Ntc103Fields
 {
     public static class TypeOfApplication
     {
-        public static readonly PdfField New = new("TypeOfApplication.New", 98.42, 232.45);
-        public static readonly PdfField Renewal = new("TypeOfApplication.Renewal", 98.42, 247.45);
-        public static readonly PdfField Modification = new("TypeOfApplication.Modification", 98.42, 262.45);
-        public static readonly PdfField ModificationReason = new("TypeOfApplication.Reason", 114.0, 281.0, FontSize: 8.0);
+        public const double AppTypeColX = 96;
+        public static readonly PdfField New = new("TypeOfApplication.New", AppTypeColX, 232.45);
+        public static readonly PdfField Renewal = new("TypeOfApplication.Renewal", AppTypeColX, 247.45);
+        public static readonly PdfField Modification = new("TypeOfApplication.Modification", AppTypeColX, 262.45);
+        public static readonly PdfField ModificationReason = new("TypeOfApplication.Reason", 114.0, 282.0, FontSize: 8.0);
         public static readonly PdfField NoOfYears = new(
             "TypeOfApplication.NoOfYears",
-            X: 144.45,
-            Y: 352.48,
+            X: 140.0,
+            Y: 355.0,
             Width: 23.2,
             HorizontalAlignment: HorizontalAlignment.Center,
             Anchor: PdfAnchor.BaselineCenter,
@@ -26,23 +27,25 @@ public static class Ntc103Fields
 
     public static class TypeOfPermitLicenseCert
     {
-        public static readonly PdfField AmateurRadioOperatorCertificate = new("TypeOfPermit.AROC", 259.48, 247.45);
-        public static readonly PdfField AmateurRadioStationLicense = new("TypeOfPermit.ARSL", 259.48, 262.45);
-        public static readonly PdfField ClubRadioStationLicense = new("TypeOfPermit.ClubARSL", 259.48, 292.46);
-        public static readonly PdfField TemporaryPermitForeignVisitor = new("TypeOfPermit.ForeignVisitor", 259.48, 337.48);
-        public static readonly PdfField SpecialPermitVanityCallSign = new("TypeOfPermit.VanityCallSign", 259.48, 352.48);
+        public const double PermitTypeColX = 257;
+        public static readonly PdfField AmateurRadioOperatorCertificate = new("TypeOfPermit.AROC", PermitTypeColX, 250);
+        public static readonly PdfField AmateurRadioStationLicense = new("TypeOfPermit.ARSL", PermitTypeColX, 267.0);
+        public static readonly PdfField ClubRadioStationLicense = new("TypeOfPermit.ClubARSL", PermitTypeColX, 296.0);
+        public static readonly PdfField TemporaryPermitForeignVisitor = new("TypeOfPermit.ForeignVisitor", PermitTypeColX, 340.0);
+        public static readonly PdfField SpecialPermitVanityCallSign = new("TypeOfPermit.VanityCallSign", PermitTypeColX, 355.0);
 
         public static readonly PdfField NameOfClub = new("TypeOfPermit.NameOfClub", 344.0, 311.0, FontSize: 8.0);
         public static readonly PdfField AssignedFreq = new("TypeOfPermit.AssignedFreq", 344.0, 326.0, FontSize: 8.0);
-        public static readonly PdfField PreferredCallSigns = new("TypeOfPermit.PreferredCallSigns", 367.0, 371.0, FontSize: 8.0);
+        public static readonly PdfField PreferredCallSigns = new("TypeOfPermit.PreferredCallSigns", 370.0, 372.0, FontSize: 8.0);
     }
 
     public static class ClassOfStation
     {
-        public static readonly PdfField ClassA = new("ClassOfStation.ClassA", 466.55, 232.45);
-        public static readonly PdfField ClassB = new("ClassOfStation.ClassB", 466.55, 247.45);
-        public static readonly PdfField ClassC = new("ClassOfStation.ClassC", 466.55, 262.45);
-        public static readonly PdfField ClassD = new("ClassOfStation.ClassD", 466.55, 277.45);
+        public const double ClassOfStationColX = 465;
+        public static readonly PdfField ClassA = new("ClassOfStation.ClassA", ClassOfStationColX, 235.0);
+        public static readonly PdfField ClassB = new("ClassOfStation.ClassB", ClassOfStationColX, 250.0);
+        public static readonly PdfField ClassC = new("ClassOfStation.ClassC", ClassOfStationColX, 265.0);
+        public static readonly PdfField ClassD = new("ClassOfStation.ClassD", ClassOfStationColX, 280.0);
     }
 
     public static class Applicant
@@ -51,8 +54,8 @@ public static class Ntc103Fields
         public static readonly PdfField DateOfBirth = new("Applicant.DateOfBirth", 459.0, 410.0, FontSize: 8.0);
 
         public static readonly PdfField FirstName = new("Applicant.FirstName", 114.0, 425.0, FontSize: 8.0, IsBold: true);
-        public static readonly PdfField SexMale = new("Applicant.SexMale", 409.04, 421.50);
-        public static readonly PdfField SexFemale = new("Applicant.SexFemale", 501.06, 421.50);
+        public static readonly PdfField SexMale = new("Applicant.SexMale", 409.04, 425.0);
+        public static readonly PdfField SexFemale = new("Applicant.SexFemale", 501.06, 425.0);
 
         public static readonly PdfField MiddleName = new("Applicant.MiddleName", 114.0, 440.0, FontSize: 8.0, IsBold: true);
         public static readonly PdfField Nationality = new("Applicant.Nationality", 390.0, 440.0, FontSize: 8.0);
@@ -128,8 +131,8 @@ public static class Ntc103Fields
 
     public static class Payment
     {
-        public static readonly PdfField OrNo = new("Payment.OrNo", 455.0, 717.0, FontSize: 8.0);
-        public static readonly PdfField OrDateMonthDay = new("Payment.OrDateMonthDay", 459.0, 728.0, FontSize: 8.0);
+        public static readonly PdfField OrNo = new("Payment.OrNo", 465.0, 717.0, FontSize: 8.0);
+        public static readonly PdfField OrDateMonthDay = new("Payment.OrDateMonthDay", 465.0, 728.0, FontSize: 8.0);
         public static readonly PdfField OrDateYear = new("Payment.OrDateYear", 528.0, 728.0, FontSize: 8.0);
         public static readonly PdfField Amount = new("Payment.Amount", 445.0, 739.0, FontSize: 8.0);
         public static readonly PdfField CollectingOfficer = new(
