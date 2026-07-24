@@ -1,9 +1,10 @@
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity, Image, StyleSheet, Modal, Alert } from "react-native";
+import { View, Text, TouchableOpacity, Image, StyleSheet, Alert } from "react-native";
 import { Icon } from "@edge/ui";
 import { COLORS, TYPOGRAPHY } from "../theme/tokens";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
+import { UploadChoiceDialog } from "../../auth/Services/shared/components/UploadChoiceDialog";
 
 export interface DocumentRequirement {
   key: string;       // Unique lookup key in uploads object
@@ -251,43 +252,12 @@ export function SharedDocumentUpload({
       )}
 
       {/* Upload Choice Bottom Sheet dialog */}
-      <Modal
+      <UploadChoiceDialog
         visible={isSheetOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setIsSheetOpen(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <View style={styles.modalIconContainer}>
-              <Icon name="upload-cloud" size={32} color={COLORS.brand[700]} />
-            </View>
-
-            <TouchableOpacity
-              onPress={handleCameraLaunch}
-              style={styles.modalOptionBtn}
-            >
-              <Icon name="camera" size={18} color={COLORS.neutral[700]} style={{ marginRight: 10 }} />
-              <Text style={styles.modalOptionText}>Take a Photo (Camera)</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={handleDocumentPick}
-              style={styles.modalOptionBtn}
-            >
-              <Icon name="file" size={18} color={COLORS.neutral[700]} style={{ marginRight: 10 }} />
-              <Text style={styles.modalOptionText}>Upload a File (PDF or Image)</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => setIsSheetOpen(false)}
-              style={styles.modalCancelBtn}
-            >
-              <Text style={styles.modalCancelText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+        onClose={() => setIsSheetOpen(false)}
+        onDocumentPick={handleDocumentPick}
+        onCameraLaunch={handleCameraLaunch}
+      />
     </View>
   );
 }
@@ -521,52 +491,5 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: TYPOGRAPHY.weights.semibold,
     color: COLORS.brand[700],
-  },
-  /* Modal Overlay Sheet Styles */
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(15, 23, 42, 0.4)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  modalCard: {
-    backgroundColor: COLORS.neutral.white,
-    width: "90%",
-    maxWidth: 360,
-    borderRadius: 16,
-    padding: 24,
-    alignItems: "stretch",
-    borderWidth: 1,
-    borderColor: COLORS.neutral[200],
-  },
-  modalIconContainer: {
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  modalOptionBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 14,
-    paddingHorizontal: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.neutral[100],
-    justifyContent: "flex-start",
-  },
-  modalOptionText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14.5,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-    color: COLORS.neutral[800],
-  },
-  modalCancelBtn: {
-    paddingVertical: 14,
-    alignItems: "center",
-    marginTop: 12,
-  },
-  modalCancelText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14.5,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    color: COLORS.semantic.error,
   },
 });
