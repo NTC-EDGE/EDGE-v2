@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { StatusBar } from "expo-status-bar";
 import {
   StyleSheet,
-  Text,
   View,
   ActivityIndicator,
   Platform,
@@ -10,16 +9,12 @@ import {
   ScrollView,
   TextInput,
   TouchableOpacity,
+  Text,
 } from "react-native";
-import { tokenCache } from "./tokenCache";
 import { ClerkProvider } from "@clerk/expo";
+import { tokenCache } from "@clerk/expo/token-cache";
 import {
   COLORS,
-  SPACING,
-  RADIUS,
-  SHADOWS,
-  TYPOGRAPHY,
-  createStaticNavigation,
   useNavigationContainerRef,
   ParamListBase,
   RouteProp,
@@ -27,6 +22,9 @@ import {
   getStateFromPath,
   getPathFromState,
   Icon,
+  SHADOWS,
+  createStaticNavigation,
+  SPACING,
 } from "@edge/ui";
 import {
   AuthProvider,
@@ -34,9 +32,16 @@ import {
 } from "./src/features/auth/context/AuthContext";
 import { RoleProvider } from "./src/features/shell/context/RoleContext";
 import { DashboardShell } from "./src/features/shell/components/DashboardShell";
+import { InternalLoginPage } from "./src/features/login/components/InternalLoginPage";
 import { DashboardScreen } from "./src/features/dashboard/screens/DashboardScreen";
 import { QueueScreen } from "./src/features/queue/screens/QueueScreen";
-import { InternalLoginPage } from "./src/features/login/components/InternalLoginPage";
+import { RADIUS, TYPOGRAPHY } from "@edge/ui/theme/tokens";
+// import {
+//   UnauthNavigation,
+//   AuthNavigation,
+//   unauthLinking,
+//   authLinking,
+// } from "./src/navigation";
 
 const getClerkKey = (): string => {
   const key = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
@@ -114,7 +119,10 @@ const AuthStack = createNativeStackNavigator({
     Chat: { screen: PlaceholderScreen, path: "chat" },
     Meet: { screen: PlaceholderScreen, path: "meet" },
     Reports: { screen: PlaceholderScreen, path: "reports" },
-    ReceiptManagement: { screen: PlaceholderScreen, path: "receipt-management" },
+    ReceiptManagement: {
+      screen: PlaceholderScreen,
+      path: "receipt-management",
+    },
     RolesPermission: { screen: PlaceholderScreen, path: "roles-permissions" },
     Schedule: { screen: PlaceholderScreen, path: "schedule" },
     Employees: { screen: PlaceholderScreen, path: "employees" },
@@ -133,7 +141,11 @@ const getPrefixes = (): string[] => {
     "http://localhost:8083",
     "edge://",
   ];
-  if (typeof window !== "undefined" && window.location !== undefined && typeof window.location.origin === "string") {
+  if (
+    typeof window !== "undefined" &&
+    window.location !== undefined &&
+    typeof window.location.origin === "string"
+  ) {
     if (!prefixes.includes(window.location.origin)) {
       prefixes.push(window.location.origin);
     }
@@ -143,19 +155,28 @@ const getPrefixes = (): string[] => {
 
 const unauthLinking = {
   prefixes: getPrefixes(),
-  getStateFromPath(path: string, options?: Parameters<typeof getStateFromPath>[1]) {
+  getStateFromPath(
+    path: string,
+    options?: Parameters<typeof getStateFromPath>[1],
+  ) {
     return {
       routes: [{ name: "InternalLogin" }],
     };
   },
-  getPathFromState(state: Parameters<typeof getPathFromState>[0], options?: Parameters<typeof getPathFromState>[1]) {
+  getPathFromState(
+    state: Parameters<typeof getPathFromState>[0],
+    options?: Parameters<typeof getPathFromState>[1],
+  ) {
     return "/internal/login";
   },
 };
 
 const authLinking = {
   prefixes: getPrefixes(),
-  getStateFromPath(path: string, options?: Parameters<typeof getStateFromPath>[1]) {
+  getStateFromPath(
+    path: string,
+    options?: Parameters<typeof getStateFromPath>[1],
+  ) {
     const cleanPath = path.split("?")[0].replace(/\/$/, "");
     if (
       cleanPath === "" ||
@@ -171,7 +192,10 @@ const authLinking = {
     }
     return getStateFromPath(path, options);
   },
-  getPathFromState(state: Parameters<typeof getPathFromState>[0], options?: Parameters<typeof getPathFromState>[1]) {
+  getPathFromState(
+    state: Parameters<typeof getPathFromState>[0],
+    options?: Parameters<typeof getPathFromState>[1],
+  ) {
     const generatedPath = getPathFromState(state, options);
     if (generatedPath === "" || generatedPath === "/") {
       return "/dashboard";
@@ -179,7 +203,6 @@ const authLinking = {
     return generatedPath;
   },
 };
-
 
 interface ClerkErrorItem {
   message: string;
@@ -500,9 +523,17 @@ function AppContent() {
         document.title = `${formattedTitle} | EDGE`;
       }
     }
-    if (!isAuthenticated && Platform.OS === "web" && typeof window !== "undefined" && window.location !== undefined) {
+    if (
+      !isAuthenticated &&
+      Platform.OS === "web" &&
+      typeof window !== "undefined" &&
+      window.location !== undefined
+    ) {
       const hasClerkParam = window.location.search.includes("__clerk");
-      if (!hasClerkParam && (window.location.pathname === "/" || window.location.pathname === "")) {
+      if (
+        !hasClerkParam &&
+        (window.location.pathname === "/" || window.location.pathname === "")
+      ) {
         window.history.replaceState(null, "", "/internal/login");
       }
     }
