@@ -30,7 +30,13 @@ import { FeesPaymentsTab } from '../components/FeesPaymentsTab';
 import { NotesTab } from '../components/NotesTab';
 import { FormBuilderTab } from '../components/FormBuilderTab';
 import { FeedbackTab } from '../components/FeedbackTab';
-import { AdminSettingsModal, ModalType, ModalInitialData, MappedDocInput } from '../components/AdminSettingsModal';
+import {
+  AdminSettingsModal,
+  ModalType,
+  ModalInitialData,
+  MappedDocInput,
+  FeeBreakdownItemInput,
+} from '../components/AdminSettingsModal';
 import { DeleteAdminItemModal } from '../components/DeleteAdminItemModal';
 
 export type AdminTabType =
@@ -177,6 +183,7 @@ export function AdminSettingsScreen() {
       id: item.id,
       title: item.title,
       amount: item.totalAmount,
+      feeBreakdown: item.feeBreakdown,
     });
     setModalType('edit-fee');
   };
@@ -254,6 +261,7 @@ export function AdminSettingsScreen() {
     instructions: string;
     isActive: boolean;
     mappedDocuments?: MappedDocInput[];
+    feeBreakdown?: FeeBreakdownItemInput[];
   }) => {
     if (modalType === 'edit-config' && selectedItem?.id !== undefined) {
       setRegionalConfigs((prev) =>
@@ -327,29 +335,36 @@ export function AdminSettingsScreen() {
         })
       );
     } else if (modalType === 'add-fee') {
+      const breakdown = data.feeBreakdown && data.feeBreakdown.length > 0 ? data.feeBreakdown : [
+        { id: 'fb-1', name: 'Filing Fee', amount: data.amount || 160.0 },
+      ];
+      const total = breakdown.reduce((acc, curr) => acc + curr.amount, 0);
+
       const newFee: FeePaymentItem = {
         id: `fee-${Date.now()}`,
-        title: data.title || 'New License Application Fee',
+        title: data.title || 'Aeronautical Station Permit to POSSESS',
         statusText: 'Active Fees',
-        configuredCount: 2,
-        totalAmount: data.amount || 250.0,
-        feeBreakdown: [
-          { id: `fb-n1`, name: 'Filing & Processing Fee', amount: (data.amount || 250) * 0.4 },
-          { id: `fb-n2`, name: 'License Issuance Fee', amount: (data.amount || 250) * 0.6 },
-        ],
+        configuredCount: breakdown.length,
+        totalAmount: total > 0 ? total : (data.amount || 160.0),
+        feeBreakdown: breakdown,
       };
       setFeesPayments((prev) => [newFee, ...prev]);
     } else if (modalType === 'edit-fee' && selectedItem?.id !== undefined) {
       setFeesPayments((prev) =>
-        prev.map((item) =>
-          item.id === selectedItem.id
-            ? {
-                ...item,
-                title: data.title || item.title,
-                totalAmount: data.amount > 0 ? data.amount : item.totalAmount,
-              }
-            : item
-        )
+        prev.map((item) => {
+          if (item.id === selectedItem.id) {
+            const breakdown = data.feeBreakdown && data.feeBreakdown.length > 0 ? data.feeBreakdown : item.feeBreakdown;
+            const total = breakdown.reduce((acc, curr) => acc + curr.amount, 0);
+            return {
+              ...item,
+              title: data.title || item.title,
+              configuredCount: breakdown.length,
+              totalAmount: total > 0 ? total : (data.amount || item.totalAmount),
+              feeBreakdown: breakdown,
+            };
+          }
+          return item;
+        })
       );
     } else if (modalType === 'add-note') {
       const newNote: NoteItem = {

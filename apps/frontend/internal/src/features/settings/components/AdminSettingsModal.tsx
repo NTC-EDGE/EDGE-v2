@@ -29,6 +29,12 @@ export interface MappedDocInput {
   isRequired: boolean;
 }
 
+export interface FeeBreakdownItemInput {
+  id: string;
+  name: string;
+  amount: number;
+}
+
 export interface ModalInitialData {
   id?: string;
   category?: string;
@@ -41,6 +47,7 @@ export interface ModalInitialData {
   instructions?: string;
   isActive?: boolean;
   mappedDocuments?: MappedDocInput[];
+  feeBreakdown?: FeeBreakdownItemInput[];
 }
 
 interface AdminSettingsModalProps {
@@ -58,6 +65,7 @@ interface AdminSettingsModalProps {
     instructions: string;
     isActive: boolean;
     mappedDocuments?: MappedDocInput[];
+    feeBreakdown?: FeeBreakdownItemInput[];
   }) => void;
 }
 
@@ -71,6 +79,19 @@ const SERVICE_TYPE_OPTIONS = [
   'Amateur Club Radio Station License (MODIFICATION)',
   'Amateur Radio Station License',
   'Ship Station License (NEW)',
+];
+
+const FEE_TYPE_OPTIONS = [
+  'Filing Fee',
+  'Permit Fee',
+  'License Fee (3 Years)',
+  'Modification License Fee',
+  'Inspection Fee',
+  'Processing Fee',
+  'Documentary Stamp Tax',
+  'Safety Certificate Fee',
+  'Examination & Filing Fee',
+  'Permit to Possess Fee',
 ];
 
 export function AdminSettingsModal({
@@ -90,9 +111,13 @@ export function AdminSettingsModal({
   const [isActiveToggle, setIsActiveToggle] = useState(true);
   const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
   const [isServiceTypeDropdownOpen, setIsServiceTypeDropdownOpen] = useState(false);
+  const [activeFeeDropdownId, setActiveFeeDropdownId] = useState<string | null>(null);
 
-  // Mapped Documents State for Application Requirements Checklist Modal
+  // Mapped Documents State
   const [mappedDocs, setMappedDocs] = useState<MappedDocInput[]>([]);
+
+  // Fee Breakdown Items State
+  const [feeBreakdowns, setFeeBreakdowns] = useState<FeeBreakdownItemInput[]>([]);
 
   useEffect(() => {
     if (visible && initialData !== undefined && initialData !== null) {
@@ -112,6 +137,13 @@ export function AdminSettingsModal({
               { id: 'doc-2', name: 'Barangay Clearance', isRequired: true },
             ]
       );
+      setFeeBreakdowns(
+        initialData.feeBreakdown && initialData.feeBreakdown.length > 0
+          ? initialData.feeBreakdown
+          : [
+              { id: 'fb-1', name: 'Filing Fee', amount: 0 },
+            ]
+      );
     } else {
       setTitleInput('Aeronautical Station Permit to POSSESS');
       setNameInput('');
@@ -125,15 +157,20 @@ export function AdminSettingsModal({
         { id: 'doc-1', name: 'Valid Government Issued ID', isRequired: true },
         { id: 'doc-2', name: 'Barangay Clearance', isRequired: true },
       ]);
+      setFeeBreakdowns([
+        { id: 'fb-1', name: 'Filing Fee', amount: 0 },
+      ]);
     }
     setIsCategoryDropdownOpen(false);
     setIsServiceTypeDropdownOpen(false);
+    setActiveFeeDropdownId(null);
   }, [visible, initialData]);
 
   if (!visible || type === 'none') return null;
 
   const categoryName = initialData?.category ?? '';
   const isRequirementModal = type === 'add-requirement' || type === 'edit-requirement';
+  const isFeeModal = type === 'add-fee' || type === 'edit-fee';
 
   const getModalTitle = () => {
     switch (type) {
@@ -150,9 +187,9 @@ export function AdminSettingsModal({
       case 'edit-requirement':
         return 'Edit Service Requirements Checklist';
       case 'add-fee':
-        return 'Configure New Application Fee';
+        return 'Add Mapped Surcharges / Fees';
       case 'edit-fee':
-        return 'Edit Fee Configuration';
+        return 'Edit Mapped Surcharges / Fees';
       case 'add-note':
         return 'Add Guidance Note';
       case 'edit-note':
@@ -164,6 +201,7 @@ export function AdminSettingsModal({
     }
   };
 
+  // Requirement Handlers
   const handleAddDocumentItem = () => {
     const newItem: MappedDocInput = {
       id: `doc-${Date.now()}`,
@@ -189,18 +227,49 @@ export function AdminSettingsModal({
     setMappedDocs((prev) => prev.filter((doc) => doc.id !== id));
   };
 
+  // Fee Handlers
+  const handleAddFeeItem = () => {
+    const newFeeItem: FeeBreakdownItemInput = {
+      id: `fb-${Date.now()}`,
+      name: 'Filing Fee',
+      amount: 0,
+    };
+    setFeeBreakdowns((prev) => [...prev, newFeeItem]);
+  };
+
+  const handleUpdateFeeName = (id: string, name: string) => {
+    setFeeBreakdowns((prev) =>
+      prev.map((fb) => (fb.id === id ? { ...fb, name } : fb))
+    );
+  };
+
+  const handleUpdateFeeAmount = (id: string, val: string) => {
+    const parsed = parseFloat(val);
+    setFeeBreakdowns((prev) =>
+      prev.map((fb) => (fb.id === id ? { ...fb, amount: isNaN(parsed) ? 0 : parsed } : fb))
+    );
+  };
+
+  const handleDeleteFeeItem = (id: string) => {
+    setFeeBreakdowns((prev) => prev.filter((fb) => fb.id !== id));
+  };
+
   const handleSave = () => {
+    const totalFromBreakdowns = feeBreakdowns.reduce((acc, curr) => acc + curr.amount, 0);
     const parsedAmount = parseFloat(amountInput);
+    const finalAmount = totalFromBreakdowns > 0 ? totalFromBreakdowns : (isNaN(parsedAmount) ? 0 : parsedAmount);
+
     onSave({
       title: titleInput,
       name: nameInput,
       subLabel: subLabelInput,
       code: codeInput,
       branchType,
-      amount: isNaN(parsedAmount) ? 0 : parsedAmount,
+      amount: finalAmount,
       instructions: instructionsInput,
       isActive: isActiveToggle,
       mappedDocuments: mappedDocs,
+      feeBreakdown: feeBreakdowns,
     });
     onClose();
   };
@@ -208,7 +277,13 @@ export function AdminSettingsModal({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.backdrop}>
-        <View style={[styles.modalCard, isRequirementModal && styles.modalCardWide, SHADOWS.modal]}>
+        <View
+          style={[
+            styles.modalCard,
+            (isRequirementModal || isFeeModal) && styles.modalCardWide,
+            SHADOWS.modal,
+          ]}
+        >
           {/* Header */}
           <View style={styles.modalHeader}>
             <View style={styles.modalTitleContainer}>
@@ -219,10 +294,22 @@ export function AdminSettingsModal({
                     : 'EDIT REQUIREMENT CONFIGURATION'}
                 </Text>
               )}
+              {isFeeModal && (
+                <Text style={styles.topBadgeText}>
+                  {type === 'add-fee'
+                    ? 'CONFIGURE NEW APPLICATION FEES'
+                    : 'EDIT APPLICATION FEES'}
+                </Text>
+              )}
               <Text style={styles.modalTitle}>{getModalTitle()}</Text>
               {isRequirementModal && (
                 <Text style={styles.modalSubtitle}>
                   Customize the precise set of files and document proofs clients will upload when applying.
+                </Text>
+              )}
+              {isFeeModal && (
+                <Text style={styles.modalSubtitle}>
+                  Configure several processing fees and corresponding rates assigned to this specific application type.
                 </Text>
               )}
             </View>
@@ -450,7 +537,7 @@ export function AdminSettingsModal({
               </>
             )}
 
-            {/* 3. Application Requirements Checklist Modal (Matching Screenshot) */}
+            {/* 3. Application Requirements Checklist Modal */}
             {isRequirementModal && (
               <>
                 {/* Application / Service Type Dropdown */}
@@ -567,29 +654,138 @@ export function AdminSettingsModal({
               </>
             )}
 
-            {/* Other modal types */}
-            {(type === 'add-fee' || type === 'edit-fee') && (
+            {/* 4. Fees and Payments Modal (Matching User Screenshot) */}
+            {isFeeModal && (
               <>
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>SERVICE / APPLICATION TITLE</Text>
-                  <TextInput
-                    style={styles.textInput}
-                    placeholder="Amateur Radio Operator Certificate (NEW)"
-                    placeholderTextColor={COLORS.neutral[400]}
-                    value={titleInput}
-                    onChangeText={setTitleInput}
-                  />
+                {/* Application / Service Type Dropdown */}
+                <View style={[styles.inputGroup, isServiceTypeDropdownOpen && { zIndex: 10000 }]}>
+                  <Text style={styles.inputLabel}>APPLICATION / SERVICE TYPE</Text>
+                  <Pressable
+                    style={styles.dropdownTrigger}
+                    onPress={() => setIsServiceTypeDropdownOpen(!isServiceTypeDropdownOpen)}
+                  >
+                    <Text style={styles.dropdownTriggerText}>
+                      {titleInput || 'Aeronautical Station Permit to POSSESS'}
+                    </Text>
+                    <Lucide
+                      name={isServiceTypeDropdownOpen ? 'chevron-up' : 'chevron-down'}
+                      size={18}
+                      color="#94A3B8"
+                    />
+                  </Pressable>
+
+                  {isServiceTypeDropdownOpen && (
+                    <View style={styles.dropdownMenu}>
+                      {SERVICE_TYPE_OPTIONS.map((option) => (
+                        <Pressable
+                          key={option}
+                          style={[
+                            styles.dropdownOption,
+                            titleInput === option && styles.dropdownOptionActive,
+                          ]}
+                          onPress={() => {
+                            setTitleInput(option);
+                            setIsServiceTypeDropdownOpen(false);
+                          }}
+                        >
+                          <Text style={styles.dropdownOptionText}>{option}</Text>
+                          {titleInput === option && (
+                            <Lucide name="check" size={16} color="#4F46E5" />
+                          )}
+                        </Pressable>
+                      ))}
+                    </View>
+                  )}
                 </View>
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>TOTAL FEE AMOUNT (₱)</Text>
-                  <TextInput
-                    style={styles.textInput}
-                    placeholder="250.00"
-                    placeholderTextColor={COLORS.neutral[400]}
-                    keyboardType="numeric"
-                    value={amountInput}
-                    onChangeText={setAmountInput}
-                  />
+
+                {/* Allocated Costs Breakdown List Section */}
+                <View style={styles.checklistSection}>
+                  <View style={styles.checklistHeaderRow}>
+                    <Text style={styles.inputLabel}>ALLOCATED COSTS BREAKDOWN LIST</Text>
+                    <Pressable style={styles.addItemBtn} onPress={handleAddFeeItem}>
+                      <Lucide name="plus" size={14} color="#4F46E5" />
+                      <Text style={styles.addItemBtnText}>Add Fee Item</Text>
+                    </Pressable>
+                  </View>
+
+                  <View style={styles.docListContainer}>
+                    {feeBreakdowns.map((fb, idx) => {
+                      const isDropdownOpen = activeFeeDropdownId === fb.id;
+                      const rowZIndex = isDropdownOpen ? 9999 : (feeBreakdowns.length - idx) * 10;
+
+                      return (
+                        <View
+                          key={fb.id}
+                          style={[styles.feeRowCard, { zIndex: rowZIndex }]}
+                        >
+                          <Text style={styles.docIndexText}>#{idx + 1}</Text>
+
+                          {/* Fee Name Dropdown / Input */}
+                          <View style={styles.feeTypeBox}>
+                            <Pressable
+                              style={styles.feeTypeTrigger}
+                              onPress={() =>
+                                setActiveFeeDropdownId(
+                                  activeFeeDropdownId === fb.id ? null : fb.id
+                                )
+                              }
+                            >
+                              <Text style={styles.feeTypeTriggerText}>{fb.name}</Text>
+                              <Lucide
+                                name={activeFeeDropdownId === fb.id ? 'chevron-up' : 'chevron-down'}
+                                size={16}
+                                color="#94A3B8"
+                              />
+                            </Pressable>
+
+                            {activeFeeDropdownId === fb.id && (
+                              <View style={styles.feeDropdownMenu}>
+                                {FEE_TYPE_OPTIONS.map((opt) => (
+                                  <Pressable
+                                    key={opt}
+                                    style={[
+                                      styles.dropdownOption,
+                                      fb.name === opt && styles.dropdownOptionActive,
+                                    ]}
+                                    onPress={() => {
+                                      handleUpdateFeeName(fb.id, opt);
+                                      setActiveFeeDropdownId(null);
+                                    }}
+                                  >
+                                    <Text style={styles.dropdownOptionText}>{opt}</Text>
+                                    {fb.name === opt && (
+                                      <Lucide name="check" size={14} color="#4F46E5" />
+                                    )}
+                                  </Pressable>
+                                ))}
+                              </View>
+                            )}
+                          </View>
+
+                        {/* Peso Currency Prefix & Amount Input */}
+                        <View style={styles.amountInputBox}>
+                          <Text style={styles.currencySymbol}>₱</Text>
+                          <TextInput
+                            style={styles.feeAmountInput}
+                            value={String(fb.amount)}
+                            onChangeText={(val) => handleUpdateFeeAmount(fb.id, val)}
+                            keyboardType="numeric"
+                            placeholder="0"
+                            placeholderTextColor={COLORS.neutral[400]}
+                          />
+                        </View>
+
+                        {/* Delete Row Trash Icon */}
+                        <Pressable
+                          style={styles.docDeleteBtn}
+                          onPress={() => handleDeleteFeeItem(fb.id)}
+                        >
+                          <Lucide name="trash-2" size={14} color="#EF4444" />
+                        </Pressable>
+                      </View>
+                    );
+                  })}
+                  </View>
                 </View>
               </>
             )}
@@ -635,14 +831,14 @@ export function AdminSettingsModal({
             )}
           </ScrollView>
 
-          {/* Footer Buttons (Exact Match to Screenshot) */}
+          {/* Footer Buttons (Exact Match to Screenshots) */}
           <View style={styles.modalFooter}>
             <Pressable style={styles.cancelBtn} onPress={onClose}>
               <Text style={styles.cancelBtnText}>Cancel</Text>
             </Pressable>
             <Pressable style={styles.saveBtn} onPress={handleSave}>
               <Text style={styles.saveBtnText}>
-                {isRequirementModal ? 'Save Configuration' : 'Save Changes'}
+                {(isRequirementModal || isFeeModal) ? 'Save Configuration' : 'Save Changes'}
               </Text>
             </Pressable>
           </View>
@@ -666,7 +862,8 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.neutral.white,
     borderRadius: 20,
     padding: SPACING[24],
-    overflow: 'hidden',
+    overflow: 'visible',
+    zIndex: 1000,
   },
   modalCardWide: {
     maxWidth: 580,
@@ -676,6 +873,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     marginBottom: SPACING[16],
+    zIndex: 10,
   },
   modalTitleContainer: {
     flex: 1,
@@ -711,9 +909,11 @@ const styles = StyleSheet.create({
   },
   formContainer: {
     gap: SPACING[16],
+    overflow: 'visible',
   },
   inputGroup: {
     gap: 6,
+    position: 'relative',
   },
   inputLabel: {
     fontSize: 12,
@@ -767,13 +967,18 @@ const styles = StyleSheet.create({
     color: '#0F172A',
   },
   dropdownMenu: {
+    position: 'absolute',
+    top: 74,
+    left: 0,
+    right: 0,
     backgroundColor: COLORS.neutral.white,
     borderColor: '#E2E8F0',
     borderWidth: 1,
     borderRadius: 10,
     marginTop: 4,
-    overflow: 'hidden',
     maxHeight: 220,
+    zIndex: 99999,
+    ...SHADOWS.modal,
   },
   dropdownOption: {
     flexDirection: 'row',
@@ -794,7 +999,7 @@ const styles = StyleSheet.create({
     color: '#0F172A',
   },
 
-  // Checklist Documents Section
+  // Checklist & Fees Section
   checklistSection: {
     gap: 8,
     marginTop: 4,
@@ -829,6 +1034,18 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     gap: 10,
   },
+  feeRowCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderColor: '#E2E8F0',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 10,
+    position: 'relative',
+  },
   docIndexText: {
     fontSize: 13,
     fontFamily: TYPOGRAPHY.fonts.primary,
@@ -836,6 +1053,66 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
   },
   docNameInput: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  feeTypeBox: {
+    flex: 1,
+    position: 'relative',
+    zIndex: 999,
+  },
+  feeTypeTrigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: COLORS.neutral.white,
+    borderColor: '#E2E8F0',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    height: 38,
+  },
+  feeTypeTriggerText: {
+    fontSize: 13,
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  feeDropdownMenu: {
+    position: 'absolute',
+    top: 42,
+    left: 0,
+    right: 0,
+    backgroundColor: COLORS.neutral.white,
+    borderColor: '#E2E8F0',
+    borderWidth: 1,
+    borderRadius: 8,
+    zIndex: 99999,
+    maxHeight: 180,
+    ...SHADOWS.modal,
+  },
+  amountInputBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.neutral.white,
+    borderColor: '#E2E8F0',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    height: 38,
+    width: 90,
+  },
+  currencySymbol: {
+    fontSize: 13,
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontWeight: '700',
+    color: '#94A3B8',
+    marginRight: 4,
+  },
+  feeAmountInput: {
     flex: 1,
     fontSize: 14,
     fontFamily: TYPOGRAPHY.fonts.primary,
