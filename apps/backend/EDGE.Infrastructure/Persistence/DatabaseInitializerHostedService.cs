@@ -26,8 +26,6 @@ public class DatabaseInitializerHostedService : IHostedService
         using var scope = _serviceProvider.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         var configuration = scope.ServiceProvider.GetService<IConfiguration>();
-        var autoReset = configuration?.GetValue<bool>("DatabaseSettings:AutoResetOnConflict") ?? false;
-
         // 1. Run migrations first
         try
         {
@@ -38,26 +36,8 @@ public class DatabaseInitializerHostedService : IHostedService
         }
         catch (Exception ex)
         {
-            if (autoReset)
-            {
-                _logger.LogWarning(ex, "Database migration failed due to schema conflicts. AutoResetOnConflict is enabled. Attempting to drop and reset schema to retry...");
-                try
-                {
-                    ApplicationDbContextFactory.ResetDatabaseSchema(context);
-                    await context.Database.MigrateAsync(cancellationToken);
-                    _logger.LogInformation("Database migrations applied successfully after schema reset.");
-                }
-                catch (Exception retryEx)
-                {
-                    _logger.LogError(retryEx, "Database migration failed even after schema reset.");
-                    throw;
-                }
-            }
-            else
-            {
-                _logger.LogError(ex, "Database migration failed. To automatically resolve schema conflicts (wiping local database and starting fresh), enable 'DatabaseSettings:AutoResetOnConflict' in configuration.");
-                throw;
-            }
+            _logger.LogError(ex, "Database migration failed.");
+            throw;
         }
 
         // 2. Seed IAM reference data (Roles, Permissions, RolePermissions, default Users)

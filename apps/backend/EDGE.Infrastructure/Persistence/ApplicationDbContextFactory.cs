@@ -105,19 +105,4 @@ public class ApplicationDbContextFactory : IDesignTimeDbContextFactory<Applicati
         }
     }
 
-    public static void ResetDatabaseSchema(DbContext context)
-    {
-        try
-        {
-            context.Database.ExecuteSqlRaw(@"
-                DROP SCHEMA IF EXISTS public CASCADE;
-                CREATE SCHEMA public;
-                GRANT ALL ON SCHEMA public TO public;
-            ");
-        }
-        catch
-        {
-            // Ignore
-        }
-    }
 }
