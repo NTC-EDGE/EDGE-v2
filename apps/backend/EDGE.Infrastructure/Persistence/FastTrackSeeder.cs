@@ -20,6 +20,7 @@ public static class FastTrackSeeder
         if (skipInitialSeed)
         {
             await UpdateContractsAsync(context);
+            await UpdateVariantsAsync(context);   // ← always run so missing variants are backfilled
             return;
         }
 
@@ -485,29 +486,10 @@ public static class FastTrackSeeder
         await context.SaveChangesAsync();
 
         // 4. Seed Service Variants
-        var existingVariants = await context.ServiceVariants.ToListAsync();
-        var variantsToSeed = new List<ServiceVariant>
-        {
-            new() { Id = Guid.Parse("60000000-0000-0000-0000-000000000001"), ServiceId = services["NTC_1_01"].Id, Type = ServiceVariantType.New, Description = "New Radio Operator Exam Application" },
-            new() { Id = Guid.Parse("60000000-0000-0000-0000-000000000002"), ServiceId = services["NTC_1_02"].Id, Type = ServiceVariantType.New, Description = "New Radio Operator Certificate Application" },
-            new() { Id = Guid.Parse("60000000-0000-0000-0000-000000000003"), ServiceId = services["NTC_1_02"].Id, Type = ServiceVariantType.Renewal, Description = "Renew Radio Operator Certificate" },
-            new() { Id = Guid.Parse("60000000-0000-0000-0000-000000000004"), ServiceId = services["NTC_1_03"].Id, Type = ServiceVariantType.New, Description = "New Amateur Radio License Application" },
-            new() { Id = Guid.Parse("60000000-0000-0000-0000-000000000005"), ServiceId = services["NTC_1_04"].Id, Type = ServiceVariantType.New, Description = "New Ship Station License Application" },
-            new() { Id = Guid.Parse("60000000-0000-0000-0000-000000000006"), ServiceId = services["NTC_1_11"].Id, Type = ServiceVariantType.New, Description = "New Radio Station License Application" },
-            new() { Id = Guid.Parse("60000000-0000-0000-0000-000000000007"), ServiceId = services["NTC_1_11"].Id, Type = ServiceVariantType.Renewal, Description = "Renew Radio Station License" }
-        };
-
-        foreach (var v in variantsToSeed)
-        {
-            if (!existingVariants.Any(x => x.Id == v.Id || (x.ServiceId == v.ServiceId && x.Type == v.Type)))
-            {
-                context.ServiceVariants.Add(v);
-            }
-        }
-
-
-
-
+        // NOTE: UpdateVariantsAsync (called at the end) handles upsert for existing DBs.
+        // This block only runs on a fresh seed, but the IDs defined here are the
+        // canonical ones — UpdateVariantsAsync references the same BuildVariantDefs().
+        await UpdateVariantsAsync(context);
 
         await context.SaveChangesAsync();
 
@@ -927,6 +909,98 @@ public static class FastTrackSeeder
             ""requirementDiscriminatorFields"": [""Permit Type""],
             ""entityType"": ""Application""
         }"
+        };
+    }
+
+    /// <summary>
+    /// Upserts missing ServiceVariants for existing databases.
+    /// Called both during fresh seeding and during startup when skipInitialSeed is true.
+    /// </summary>
+    private static async Task UpdateVariantsAsync(ApplicationDbContext context)
+    {
+        var existingVariants = await context.ServiceVariants.ToListAsync();
+        var variantDefs = BuildVariantDefs();
+
+        bool anyChange = false;
+        foreach (var def in variantDefs)
+        {
+            if (!existingVariants.Any(v => v.Id == def.Id || (v.ServiceId == def.ServiceId && v.Type == def.Type)))
+            {
+                context.ServiceVariants.Add(new ServiceVariant
+                {
+                    Id = def.Id,
+                    ServiceId = def.ServiceId,
+                    Type = def.Type,
+                    Description = def.Description
+                });
+                anyChange = true;
+            }
+        }
+
+        if (anyChange)
+        {
+            await context.SaveChangesAsync();
+        }
+    }
+
+    /// <summary>
+    /// Returns the canonical list of all service variants to seed.
+    /// Called by both the fresh-seed path and UpdateVariantsAsync so that
+    /// existing deployments get new rows without a full re-seed.
+    ///
+    /// GUID allocation (60000000-0000-0000-0000-00000000000X):
+    ///   01 NTC 1-01 New          08 NTC 1-03 Renewal       15 NTC 1-18 Modification
+    ///   02 NTC 1-02 New          09 NTC 1-03 Modification  16 NTC 1-19 New
+    ///   03 NTC 1-02 Renewal      10 NTC 1-04 Renewal       17 NTC 1-20 New
+    ///   04 NTC 1-03 New          11 NTC 1-02 Modification  18 NTC 1-20 Renewal
+    ///   05 NTC 1-04 New          12 NTC 1-11 Modification  19 NTC 1-20 Modification
+    ///   06 NTC 1-11 New          13 NTC 1-18 New           20 NTC 1-22 New
+    ///   07 NTC 1-11 Renewal      14 NTC 1-18 Renewal       21 NTC 1-22 Renewal
+    ///
+    /// NTC 1-09 (Purchase / Possess / Sell/Transfer) is intentionally excluded here.
+    /// Its applicationTypes don't map to the standard ServiceVariantType enum.
+    /// TODO: Extend ServiceVariantType with Purchase, Possess, SellTransfer and add
+    ///       the three NTC 1-09 variants (use IDs 22-24 in the block above).
+    ///
+    /// NTC 1-05, 1-10, 1-14, 1-21 have a single "New" variant or no variants
+    /// required by their contracts — add them when the FE needs to select a variantId.
+    /// </summary>
+    private static List<(Guid Id, Guid ServiceId, ServiceVariantType Type, string Description)> BuildVariantDefs()
+    {
+        // Service IDs (seeded, deterministic)
+        var svc101 = Guid.Parse("50000000-0000-0000-0000-000000000001");
+        var svc102 = Guid.Parse("50000000-0000-0000-0000-000000000002");
+        var svc103 = Guid.Parse("50000000-0000-0000-0000-000000000003");
+        var svc104 = Guid.Parse("50000000-0000-0000-0000-000000000004");
+        var svc111 = Guid.Parse("50000000-0000-0000-0000-000000000011");
+        var svc118 = Guid.Parse("50000000-0000-0000-0000-000000000018");
+        var svc119 = Guid.Parse("50000000-0000-0000-0000-000000000019");
+        var svc120 = Guid.Parse("50000000-0000-0000-0000-000000000020");
+        var svc122 = Guid.Parse("50000000-0000-0000-0000-000000000022");
+
+        return new List<(Guid, Guid, ServiceVariantType, string)>
+        {
+            (Guid.Parse("60000000-0000-0000-0000-000000000001"), svc101, ServiceVariantType.New, "New Radio Operator Exam Application"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000002"), svc102, ServiceVariantType.New, "New Radio Operator Certificate Application"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000003"), svc102, ServiceVariantType.Renewal, "Renew Radio Operator Certificate"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000011"), svc102, ServiceVariantType.Modification, "Modify Radio Operator Certificate"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000004"), svc103, ServiceVariantType.New, "New Amateur Radio License Application"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000008"), svc103, ServiceVariantType.Renewal, "Renew Amateur Radio License"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000009"), svc103, ServiceVariantType.Modification, "Modify Amateur Radio License"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000005"), svc104, ServiceVariantType.New, "New Ship Station License Application"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000010"), svc104, ServiceVariantType.Renewal, "Renew Ship Station License"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000006"), svc111, ServiceVariantType.New, "New Radio Station License Application"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000007"), svc111, ServiceVariantType.Renewal, "Renew Radio Station License"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000012"), svc111, ServiceVariantType.Modification, "Modify Radio Station License"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000013"), svc118, ServiceVariantType.New, "New CPE Supplier Accreditation"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000014"), svc118, ServiceVariantType.Renewal, "Renew CPE Supplier Accreditation"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000015"), svc118, ServiceVariantType.Modification, "Modify CPE Supplier Accreditation"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000016"), svc119, ServiceVariantType.New, "New Certificate of Registration (WDN/SRD/RFID)"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000017"), svc120, ServiceVariantType.New, "New Certificate of Registration (VAS/VoIP)"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000018"), svc120, ServiceVariantType.Renewal, "Renew Certificate of Registration (VAS/VoIP)"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000019"), svc120, ServiceVariantType.Modification, "Modify Certificate of Registration (VAS/VoIP)"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000020"), svc122, ServiceVariantType.New, "New TVRO/CATV License"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000021"), svc122, ServiceVariantType.Renewal, "Renew TVRO/CATV License")
         };
     }
 }
