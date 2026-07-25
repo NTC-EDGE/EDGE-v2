@@ -176,6 +176,44 @@ public class CsvSchemaParserService : ICsvSchemaParserService
                 }
             }
 
+            // Guarantee that per-applicant context fields (examCategory, examineeType) are always
+            // present in FormFieldValues, even if the form field label alias lookup missed them.
+            // These are critical for ContextKey resolution during requirement validation.
+            if (form != null && !string.IsNullOrWhiteSpace(appType))
+            {
+                var examCategoryField = form.Sections
+                    .SelectMany(s => s.SectionFields)
+                    .FirstOrDefault(sf => sf.Field != null &&
+                        (sf.Field.Label.Contains("Exam Category", StringComparison.OrdinalIgnoreCase) ||
+                         sf.Field.Label.Contains("Application Type", StringComparison.OrdinalIgnoreCase)))?.Field;
+
+                if (examCategoryField != null && !formFieldValues.Any(f => f.FieldId == examCategoryField.Id))
+                {
+                    formFieldValues.Add(new FormFieldValueSubmissionDto
+                    {
+                        FieldId = examCategoryField.Id,
+                        Value = appType.Trim()
+                    });
+                }
+            }
+
+            if (form != null && !string.IsNullOrWhiteSpace(examineeType))
+            {
+                var examineeTypeField = form.Sections
+                    .SelectMany(s => s.SectionFields)
+                    .FirstOrDefault(sf => sf.Field != null &&
+                        sf.Field.Label.Contains("Examinee Type", StringComparison.OrdinalIgnoreCase))?.Field;
+
+                if (examineeTypeField != null && !formFieldValues.Any(f => f.FieldId == examineeTypeField.Id))
+                {
+                    formFieldValues.Add(new FormFieldValueSubmissionDto
+                    {
+                        FieldId = examineeTypeField.Id,
+                        Value = examineeType.Trim()
+                    });
+                }
+            }
+
             var mappedApplicant = new ApplicantSubmissionDto
             {
                 FirstName = firstName,
@@ -192,8 +230,8 @@ public class CsvSchemaParserService : ICsvSchemaParserService
                 RowNumber = i,
                 Status = isValid ? "Valid" : "Invalid",
                 ApplicantName = applicantName,
-                ApplicationType = string.IsNullOrWhiteSpace(appType) ? "Radiotelegraphy" : appType,
-                ExamineeType = string.IsNullOrWhiteSpace(examineeType) ? "FirstTaker" : examineeType,
+                ApplicationType = appType,
+                ExamineeType = examineeType,
                 ValidationRemarks = isValid ? "Ready for import" : string.Join("; ", remarks),
                 Applicant = mappedApplicant,
                 RawRowData = rowData

@@ -13,7 +13,7 @@ public record AttachServiceVariantRequirementCommand : IRequest<ApiResponse<Guid
     public Guid ServiceId { get; init; }
     public Guid ServiceVariantId { get; init; }
     public Guid RequirementId { get; init; }
-    public string? ApplicationTypeKey { get; init; }
+    public string? ContextKey { get; init; }
     public bool IsRequired { get; init; } = true;
 }
 
@@ -40,7 +40,7 @@ public class AttachServiceVariantRequirementCommandHandler : IRequestHandler<Att
         {
             ServiceVariantId = request.ServiceVariantId,
             RequirementId = request.RequirementId,
-            ApplicationTypeKey = string.IsNullOrWhiteSpace(request.ApplicationTypeKey) ? null : request.ApplicationTypeKey.Trim(),
+            ContextKey = string.IsNullOrWhiteSpace(request.ContextKey) ? null : request.ContextKey.Trim(),
             IsRequired = request.IsRequired
         };
 

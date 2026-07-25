@@ -69,14 +69,14 @@ public static class RequirementEndpoints
         serviceGroup.MapGet("/{serviceId:guid}/requirements", async (
             Guid serviceId,
             Guid? variantId,
-            string? examineeType,
+            string? contextKey,
             IMediator mediator) =>
         {
-            var query = new GetServiceRequirementsQuery(serviceId, variantId, examineeType);
+            var query = new GetServiceRequirementsQuery(serviceId, variantId, contextKey);
             var result = await mediator.Send(query);
             return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
         })
         .WithName("GetServiceRequirements")
-        .WithSummary("Fetch dynamic requirements required for a service/variant/examineeType");
+        .WithSummary("Fetch requirements for a service/variant filtered by applicant ContextKey (e.g. 'Radiotelegraphy|Re-taker')");
     }
 }

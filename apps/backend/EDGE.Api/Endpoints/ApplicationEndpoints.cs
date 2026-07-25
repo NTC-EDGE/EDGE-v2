@@ -244,7 +244,9 @@ public static class ApplicationEndpoints
     [HasPermission(Permissions.SubmitApplication)]
     public static async Task<IResult> UploadTenantApplicationRequirement(Guid id, Guid appId, UploadApplicantRequirementCommand command, IMediator mediator)
     {
-        var updatedCommand = command with { TenantId = id, ApplicationId = appId };
+        // TenantId is resolved securely from auth context inside the handler (ITenantContextService).
+        // ApplicationId is injected from the route param {appId}.
+        var updatedCommand = command with { ApplicationId = appId };
         var result = await mediator.Send(updatedCommand);
         return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
     }

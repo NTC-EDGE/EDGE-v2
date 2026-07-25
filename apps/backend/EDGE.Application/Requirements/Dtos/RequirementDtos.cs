@@ -16,6 +16,6 @@ public class ServiceRequirementItemDto
     public Guid? ServiceVariantRequirementId { get; set; }
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
-    public string? ApplicationTypeKey { get; set; }
+    public string? ContextKey { get; set; }
     public bool IsRequired { get; set; }
 }

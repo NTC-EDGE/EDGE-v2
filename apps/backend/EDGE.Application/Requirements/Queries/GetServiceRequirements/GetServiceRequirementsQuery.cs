@@ -13,7 +13,7 @@ namespace EDGE.Application.Requirements.Queries.GetServiceRequirements;
 public record GetServiceRequirementsQuery(
     Guid ServiceId,
     Guid? VariantId,
-    string? ExamineeType
+    string? ContextKey
 ) : IRequest<ApiResponse<List<ServiceRequirementItemDto>>>;
 
 public class GetServiceRequirementsQueryHandler : IRequestHandler<GetServiceRequirementsQuery, ApiResponse<List<ServiceRequirementItemDto>>>
@@ -27,7 +27,7 @@ public class GetServiceRequirementsQueryHandler : IRequestHandler<GetServiceRequ
 
     public async Task<ApiResponse<List<ServiceRequirementItemDto>>> Handle(GetServiceRequirementsQuery request, CancellationToken cancellationToken)
     {
-        var rules = await _repository.GetServiceVariantRequirementsAsync(request.ServiceId, request.VariantId, request.ExamineeType, cancellationToken);
+        var rules = await _repository.GetServiceVariantRequirementsAsync(request.ServiceId, request.VariantId, request.ContextKey, cancellationToken);
 
         var result = rules.Select(svr => new ServiceRequirementItemDto
         {
@@ -35,7 +35,7 @@ public class GetServiceRequirementsQueryHandler : IRequestHandler<GetServiceRequ
             ServiceVariantRequirementId = svr.Id,
             Name = svr.Requirement?.Name ?? string.Empty,
             Description = svr.Requirement?.Description,
-            ApplicationTypeKey = svr.ApplicationTypeKey,
+            ContextKey = svr.ContextKey,
             IsRequired = svr.IsRequired
         }).ToList();
 

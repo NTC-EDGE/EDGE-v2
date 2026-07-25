@@ -49,7 +49,7 @@ public class RequirementRepository : IRequirementRepository
         return await _context.ServiceVariantRequirements.FirstOrDefaultAsync(r => r.Id == id, cancellationToken);
     }
 
-    public async Task<List<ServiceVariantRequirement>> GetServiceVariantRequirementsAsync(Guid? serviceId, Guid? variantId, string? examineeType, CancellationToken cancellationToken = default)
+    public async Task<List<ServiceVariantRequirement>> GetServiceVariantRequirementsAsync(Guid? serviceId, Guid? variantId, string? contextKey, CancellationToken cancellationToken = default)
     {
         var query = _context.ServiceVariantRequirements
             .Include(svr => svr.Requirement)
@@ -67,12 +67,16 @@ public class RequirementRepository : IRequirementRepository
 
         var list = await query.ToListAsync(cancellationToken);
 
-        if (!string.IsNullOrWhiteSpace(examineeType))
+        // Filter by ContextKey if provided.
+        // Rows with ContextKey = null are catch-all rules (apply to any applicant of that variant).
+        // Rows with a specific ContextKey apply only when the applicant's composed key matches exactly.
+        if (!string.IsNullOrWhiteSpace(contextKey))
         {
-            var cleanType = examineeType.Trim();
-            list = list.Where(svr => string.IsNullOrEmpty(svr.ApplicationTypeKey) ||
-                                     svr.ApplicationTypeKey.Equals(cleanType, StringComparison.OrdinalIgnoreCase))
-                       .ToList();
+            var cleanKey = contextKey.Trim();
+            list = list.Where(svr =>
+                string.IsNullOrEmpty(svr.ContextKey) ||
+                svr.ContextKey.Equals(cleanKey, StringComparison.OrdinalIgnoreCase))
+                   .ToList();
         }
 
         return list;

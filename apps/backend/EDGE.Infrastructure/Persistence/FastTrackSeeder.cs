@@ -87,6 +87,7 @@ public static class FastTrackSeeder
             ""categorySpecific"": {
                 ""examCategories"": [""Radiotelegraphy"", ""Radiotelephony"", ""Amateur"", ""Restricted Radiotelephone""]
             },
+            ""requirementDiscriminatorFields"": [""Exam Category"", ""Examinee Type""],
             ""entityType"": ""Application""
         }";
 
@@ -110,6 +111,21 @@ public static class FastTrackSeeder
             ""categorySpecific"": {
                 ""typeOfCertificate"": [""1RTG"",""2RTG"",""3RTG"",""1PHN"",""2PHN"",""3PHN"",""SROP"",""RROC-Land Mobile"",""RROC-Aircraft"",""GROC"",""TP RROC-Aircraft"",""Other""],
                 ""applicantPersonExtension"": [""weight_kg"",""height_cm"",""employment_status"",""employment_location""]
+            },
+            ""requirementDiscriminatorFields"": [""Type of Certificate""],
+            ""requirementContextGroups"": {
+                ""1RTG"": ""CommercialROC"",
+                ""2RTG"": ""CommercialROC"",
+                ""3RTG"": ""CommercialROC"",
+                ""1PHN"": ""CommercialROC"",
+                ""2PHN"": ""CommercialROC"",
+                ""3PHN"": ""CommercialROC"",
+                ""SROP"": ""SROP"",
+                ""RROC-Land Mobile"": ""RROC-Land Mobile"",
+                ""RROC-Aircraft"": ""RROC-Aircraft"",
+                ""GROC"": ""GROC"",
+                ""TP RROC-Aircraft"": ""TP RROC-Aircraft"",
+                ""Other"": null
             },
             ""entityType"": ""Application""
         }";
@@ -144,6 +160,7 @@ public static class FastTrackSeeder
                 ""permitType"": [""Amateur Radio Operator Certificate"",""Amateur Radio Station License"",""Club Radio Station License"",""Temporary Permit for Foreign Visitor"",""Special Permit for Vanity/Special Call Sign""],
                 ""classOfStation"": [""A"",""B"",""C"",""D""]
             },
+            ""requirementDiscriminatorFields"": [""Permit Type""],
             ""entityType"": ""Application""
         }";
 
