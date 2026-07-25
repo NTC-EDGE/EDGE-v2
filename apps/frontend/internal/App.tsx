@@ -37,6 +37,7 @@ import { EmployeesScreen } from "./src/features/employees/screens/EmployeesScree
 import { UsersScreen } from "./src/features/users/screens/UsersScreen";
 import { SettingsScreen } from "./src/features/settings/screens/SettingsScreen";
 import { AdminSettingsScreen } from "./src/features/settings/screens/AdminSettingsScreen";
+import { RolesPermissionScreen } from "./src/features/roles-permission/screens/RolesPermissionScreen";
 import { StandardPageWrapper } from "./src/features/shell/components/StandardPageWrapper";
 
 function SettingsScreenWrapped() {
@@ -95,10 +96,10 @@ function ReceiptManagementScreenWrapped(props: { route: RouteProp<ParamListBase,
   );
 }
 
-function RolesPermissionScreenWrapped(props: { route: RouteProp<ParamListBase, string> }) {
+function RolesPermissionScreenWrapped() {
   return (
     <StandardPageWrapper activeScreen="RolesPermission">
-      <PlaceholderScreen {...props} />
+      <RolesPermissionScreen />
     </StandardPageWrapper>
   );
 }
