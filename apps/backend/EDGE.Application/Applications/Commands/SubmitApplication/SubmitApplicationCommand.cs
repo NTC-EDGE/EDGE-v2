@@ -34,5 +34,6 @@ public record ApplicantSubmissionDto
 public record FormFieldValueSubmissionDto
 {
     public Guid FieldId { get; init; }
+    public string? FieldLabel { get; init; }
     public string Value { get; init; } = "";
 }

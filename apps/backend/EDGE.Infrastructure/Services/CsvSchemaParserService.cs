@@ -170,6 +170,7 @@ public class CsvSchemaParserService : ICsvSchemaParserService
                         formFieldValues.Add(new FormFieldValueSubmissionDto
                         {
                             FieldId = f.Id,
+                            FieldLabel = f.Label,
                             Value = val
                         });
                     }
@@ -192,6 +193,7 @@ public class CsvSchemaParserService : ICsvSchemaParserService
                     formFieldValues.Add(new FormFieldValueSubmissionDto
                     {
                         FieldId = examCategoryField.Id,
+                        FieldLabel = examCategoryField.Label,
                         Value = appType.Trim()
                     });
                 }
@@ -209,6 +211,7 @@ public class CsvSchemaParserService : ICsvSchemaParserService
                     formFieldValues.Add(new FormFieldValueSubmissionDto
                     {
                         FieldId = examineeTypeField.Id,
+                        FieldLabel = examineeTypeField.Label,
                         Value = examineeType.Trim()
                     });
                 }

@@ -39,25 +39,24 @@ public class UploadApplicantRequirementCommandHandler
         UploadApplicantRequirementCommand request,
         CancellationToken cancellationToken)
     {
-        // 1. Resolve tenant securely from auth context — never from client payload
-        var tenantId = _tenantContext.TenantId;
-        if (tenantId == null)
-            return ApiResponse<Guid>.Fail(
-                "Tenant context could not be resolved for the current user.");
-
-        // 2. Load application with full details (includes FormSubmissions → FieldValues → Field)
+        // 1. Load application with full details (includes FormSubmissions → FieldValues → Field)
         var app = await _applicationRepository.GetByIdWithDetailsAsync(
             request.ApplicationId, cancellationToken);
         if (app == null)
             return ApiResponse<Guid>.Fail(
                 $"Application '{request.ApplicationId}' was not found.");
 
-        // 3. Verify this application belongs to the authenticated tenant
-        if (app.TenantId != tenantId.Value)
+        // 2. Verify the current user is an active member of this application's tenant.
+        //    We derive tenant from app.TenantId (the authoritative source) rather than
+        //    from a route parameter, so this works on both:
+        //      - /applications/{id}/applicants/{applicantId}/requirements
+        //      - /tenants/{tenantId}/applications/{appId}/applicants/{applicantId}/requirements
+        var isMember = await _tenantContext.IsUserActiveMemberAsync(app.TenantId, cancellationToken);
+        if (!isMember)
             return ApiResponse<Guid>.Fail(
                 "You do not have permission to upload requirements for this application.");
 
-        // 4. Verify the applicant is a member of this application
+        // 3. Verify the applicant is a member of this application
         var isApplicantMember = app.ApplicationApplicants
             .Any(a => a.ApplicantId == request.ApplicantId);
         if (!isApplicantMember)
@@ -129,7 +128,7 @@ public class UploadApplicantRequirementCommandHandler
         }
 
         // 8. Auto-generate storage URL — never accepted from client
-        var url = $"tenants/{tenantId.Value}/requirements/{request.StoredFileId}";
+        var url = $"tenants/{app.TenantId}/requirements/{request.StoredFileId}";
 
         var entity = new ApplicationRequirement
         {
@@ -137,7 +136,7 @@ public class UploadApplicantRequirementCommandHandler
             ApplicantId                 = request.ApplicantId,
             RequirementId               = resolvedRequirementId,
             ServiceVariantRequirementId = request.ServiceVariantRequirementId,
-            TenantId                    = tenantId.Value,
+            TenantId                    = app.TenantId,
             Url                         = url,
             IsApproved                  = false
         };

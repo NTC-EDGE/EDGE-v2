@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
@@ -10,9 +11,14 @@ namespace EDGE.Application.Requirements.Commands.AttachServiceVariantRequirement
 
 public record AttachServiceVariantRequirementCommand : IRequest<ApiResponse<Guid>>
 {
+    // Injected from route params by endpoint — not from request body
+    [JsonIgnore]
     public Guid ServiceId { get; init; }
+    [JsonIgnore]
     public Guid ServiceVariantId { get; init; }
-    public Guid RequirementId { get; init; }
+
+    // Public request body — only these fields
+    public required Guid RequirementId { get; init; }
     public string? ContextKey { get; init; }
     public bool IsRequired { get; init; } = true;
 }

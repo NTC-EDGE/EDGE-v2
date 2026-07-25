@@ -12,8 +12,14 @@ public static class FastTrackSeeder
 {
     public static async Task SeedAsync(ApplicationDbContext context)
     {
-        if (await context.Services.CountAsync() >= 12)
+        // Skip the full initial seed if services are already present.
+        // However, always run the contract-update pass below so that changes to
+        // requirementDiscriminatorFields / requirementContextGroups in the contract
+        // JSON strings are applied to existing rows without needing a full re-seed.
+        bool skipInitialSeed = await context.Services.CountAsync() >= 12;
+        if (skipInitialSeed)
         {
+            await UpdateContractsAsync(context);
             return;
         }
 
@@ -747,5 +753,180 @@ public static class FastTrackSeeder
             ("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
             ("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
         });
+    }
+
+    /// <summary>
+    /// Applies the current contract JSON definitions to existing Service rows.
+    /// Called on every startup so that changes to requirementDiscriminatorFields,
+    /// requirementContextGroups, or any other contract metadata are reflected in
+    /// the DB without requiring a full re-seed or manual SQL update.
+    /// </summary>
+    private static async Task UpdateContractsAsync(ApplicationDbContext context)
+    {
+        var services = await context.Services
+            .Where(s => s.Code != null)
+            .ToListAsync();
+
+        if (services.Count == 0)
+            return;
+
+        // Build a lookup of Code → current contract string.
+        // Only NTC 1-01, 1-02, 1-03 have requirementDiscriminatorFields;
+        // all others are included to keep contracts in sync with any future edits.
+        var contractMap = BuildContractMap();
+
+        bool anyChange = false;
+        foreach (var service in services)
+        {
+            if (service.Code == null)
+                continue;
+
+            // Normalize underscores vs hyphens (seeded as "NTC_1_01", code stored as "NTC_1_01")
+            var key = service.Code.Replace("-", "_").ToUpperInvariant();
+            if (!contractMap.TryGetValue(key, out var newContract))
+                continue;
+
+            var normalizedNew     = newContract.Trim();
+            var normalizedCurrent = (service.Contract ?? string.Empty).Trim();
+            if (normalizedCurrent == normalizedNew)
+                continue;
+
+            service.Contract = newContract;
+            anyChange = true;
+        }
+
+        if (anyChange)
+            await context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Returns the authoritative contract JSON string for each service code.
+    /// Keep this in sync with the contracts defined in SeedAsync above.
+    /// </summary>
+    private static Dictionary<string, string> BuildContractMap()
+    {
+        // These strings must stay in sync with the ntc10XContract variables in SeedAsync.
+        // The source of truth is the seeder — do not edit contracts here only.
+        return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["NTC_1_01"] = @"
+        {
+            ""formNo"": ""NTC 1-01"",
+            ""revisionNo"": ""03"",
+            ""revisionDate"": ""2023-03-31"",
+            ""serviceCategory"": ""Exams"",
+            ""group"": null,
+            ""applicationTypes"": [""New""],
+            ""examineeTypes"": [""FirstTaker"", ""Retaker""],
+            ""elements"": [
+                { ""code"": ""1RTG"", ""condition"": ""Standard"", ""description"": ""Elements 1, 2, 5, 6 & Code (25/20 wpm)"" },
+                { ""code"": ""1RTG"", ""condition"": ""For removal"", ""description"": ""Code (25/20 wpm)"" },
+                { ""code"": ""1RTG"", ""condition"": ""For upgrade (2RTG Holder)"", ""description"": ""& Code (25/20 wpm)"" },
+                { ""code"": ""2RTG"", ""condition"": ""Standard"", ""description"": ""Elements 1, 2, 5, 6 & Code (16 wpm)"" },
+                { ""code"": ""2RTG"", ""condition"": ""For removal"", ""description"": ""Code (16 wpm)"" },
+                { ""code"": ""3RTG"", ""condition"": ""Standard"", ""description"": ""Elements 1, 2, 5 & Code (16 wpm)"" },
+                { ""code"": ""3RTG"", ""condition"": ""For removal"", ""description"": ""Code (16 wpm)"" },
+                { ""code"": ""1PHN"", ""condition"": ""Standard"", ""description"": ""Elements 1, 2, 3 & 4"" },
+                { ""code"": ""1PHN"", ""condition"": ""For upgrade (2PHN Holder)"", ""description"": ""Element 4"" },
+                { ""code"": ""1PHN"", ""condition"": ""For upgrade (3PHN Holder)"", ""description"": ""Element 3 & 4"" },
+                { ""code"": ""2PHN"", ""condition"": ""Standard"", ""description"": ""Elements 1, 2 & 3"" },
+                { ""code"": ""3PHN"", ""condition"": ""Standard"", ""description"": ""Elements 1 & 2"" },
+                { ""code"": ""Class A"", ""condition"": ""Standard"", ""description"": ""Elements 8, 9, 10 & Code (5 wpm)"" },
+                { ""code"": ""Class A"", ""condition"": ""For removal"", ""description"": ""Code (5 wpm)"" },
+                { ""code"": ""Class B"", ""condition"": ""Standard"", ""description"": ""Elements 5, 6 & 7"" },
+                { ""code"": ""Class B"", ""condition"": ""For Registered ECE/1PHN/1RTG/2RTG Holder"", ""description"": ""Element 2"" },
+                { ""code"": ""Class C"", ""condition"": ""Standard"", ""description"": ""Elements 2, 3 & 4"" },
+                { ""code"": ""Class C"", ""condition"": ""For Class D Holder"", ""description"": ""Elements 3 & 4"" },
+                { ""code"": ""Class D"", ""condition"": ""Standard"", ""description"": ""Element 2"" },
+                { ""code"": ""RROC-Aircraft"", ""condition"": ""Standard"", ""description"": ""Element 1"" }
+            ],
+            ""requiredSections"": [
+                { ""key"": ""applicantPerson"", ""required"": true },
+                { ""key"": ""examSelection"", ""required"": true },
+                { ""key"": ""assistanceRequest"", ""required"": false },
+                { ""key"": ""admissionSlip"", ""required"": true },
+                { ""key"": ""declaration"", ""required"": true }
+            ],
+            ""allowsBulkSubmission"": true,
+            ""categorySpecific"": {
+                ""examCategories"": [""Radiotelegraphy"", ""Radiotelephony"", ""Amateur"", ""Restricted Radiotelephone""]
+            },
+            ""requirementDiscriminatorFields"": [""Exam Category"", ""Examinee Type""],
+            ""entityType"": ""Application""
+        }",
+
+            ["NTC_1_02"] = @"
+        {
+            ""formNo"": ""NTC 1-02"",
+            ""revisionNo"": ""02"",
+            ""revisionDate"": ""2023-03-31"",
+            ""serviceCategory"": ""Certificates"",
+            ""group"": ""Radio Operator Certificates (ROC) excluding Amateur ROC"",
+            ""applicationTypes"": [""New"", ""Renewal"", ""Modification""],
+            ""elements"": [],
+            ""requiredSections"": [
+                { ""key"": ""applicantPerson"", ""required"": true },
+                { ""key"": ""typeOfCertificate"", ""required"": true },
+                { ""key"": ""examSeminarDetails"", ""required"": false },
+                { ""key"": ""declaration"", ""required"": true },
+                { ""key"": ""payment"", ""required"": true }
+            ],
+            ""allowsBulkSubmission"": true,
+            ""categorySpecific"": {
+                ""typeOfCertificate"": [""1RTG"",""2RTG"",""3RTG"",""1PHN"",""2PHN"",""3PHN"",""SROP"",""RROC-Land Mobile"",""RROC-Aircraft"",""GROC"",""TP RROC-Aircraft"",""Other""],
+                ""applicantPersonExtension"": [""weight_kg"",""height_cm"",""employment_status"",""employment_location""]
+            },
+            ""requirementDiscriminatorFields"": [""Type of Certificate""],
+            ""requirementContextGroups"": {
+                ""1RTG"": ""CommercialROC"",
+                ""2RTG"": ""CommercialROC"",
+                ""3RTG"": ""CommercialROC"",
+                ""1PHN"": ""CommercialROC"",
+                ""2PHN"": ""CommercialROC"",
+                ""3PHN"": ""CommercialROC"",
+                ""SROP"": ""SROP"",
+                ""RROC-Land Mobile"": ""RROC-Land Mobile"",
+                ""RROC-Aircraft"": ""RROC-Aircraft"",
+                ""GROC"": ""GROC"",
+                ""TP RROC-Aircraft"": ""TP RROC-Aircraft"",
+                ""Other"": null
+            },
+            ""entityType"": ""Application""
+        }",
+
+            ["NTC_1_03"] = @"
+        {
+            ""formNo"": ""NTC 1-03"",
+            ""revisionNo"": ""02"",
+            ""revisionDate"": ""2023-03-31"",
+            ""serviceCategory"": ""Licenses"",
+            ""group"": ""License in the Amateur Service"",
+            ""applicationTypes"": [""New"", ""Renewal"", ""Modification""],
+            ""examineeTypes"": [""FirstTaker"", ""Retaker"", ""Upgrade""],
+            ""elements"": [
+                { ""code"": ""Class A"", ""condition"": ""Standard"", ""description"": ""Elements 8, 9, 10 & Code (5 wpm)"" },
+                { ""code"": ""Class B"", ""condition"": ""Standard"", ""description"": ""Elements 5, 6 & 7"" },
+                { ""code"": ""Class C"", ""condition"": ""Standard"", ""description"": ""Elements 2, 3 & 4"" },
+                { ""code"": ""Class D"", ""condition"": ""Standard"", ""description"": ""Element 2"" }
+            ],
+            ""requiredSections"": [
+                { ""key"": ""applicantPerson"", ""required"": true },
+                { ""key"": ""permitType"", ""required"": true },
+                { ""key"": ""classOfStation"", ""required"": true },
+                { ""key"": ""club"", ""required"": false },
+                { ""key"": ""examination"", ""required"": false },
+                { ""key"": ""equipment"", ""required"": false },
+                { ""key"": ""declaration"", ""required"": true },
+                { ""key"": ""payment"", ""required"": true }
+            ],
+            ""allowsBulkSubmission"": false,
+            ""categorySpecific"": {
+                ""permitType"": [""Amateur Radio Operator Certificate"",""Amateur Radio Station License"",""Club Radio Station License"",""Temporary Permit for Foreign Visitor"",""Special Permit for Vanity/Special Call Sign""],
+                ""classOfStation"": [""A"",""B"",""C"",""D""]
+            },
+            ""requirementDiscriminatorFields"": [""Permit Type""],
+            ""entityType"": ""Application""
+        }"
+        };
     }
 }
