@@ -6,6 +6,7 @@ import {
   TextInput,
   Pressable,
   ScrollView,
+  ActivityIndicator,
   useWindowDimensions,
 } from 'react-native';
 import { COLORS, SPACING, RADIUS, SHADOWS, Icon as Lucide } from '@edge/ui';
@@ -28,9 +29,17 @@ export function RolesPermissionScreen() {
   const [roles, setRoles] = useState<Role[]>(INITIAL_ROLES);
   const [selectedRoleId, setSelectedRoleId] = useState<string>(INITIAL_ROLES[0].id);
   const [searchQuery, setSearchQuery] = useState('');
-  const [rolePermissions, setRolePermissions] = useState<Record<string, string[]>>(
+
+  // Committed/Saved Permissions vs Working/Draft Permissions
+  const [savedRolePermissions, setSavedRolePermissions] = useState<Record<string, string[]>>(
     INITIAL_ROLE_PERMISSIONS
   );
+  const [draftRolePermissions, setDraftRolePermissions] = useState<Record<string, string[]>>(
+    INITIAL_ROLE_PERMISSIONS
+  );
+
+  // Submitting state
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Modals state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -51,13 +60,24 @@ export function RolesPermissionScreen() {
     return roles[0] || null;
   }, [roles, selectedRoleId]);
 
-  // Active permissions for selected role
+  // Working/Draft permissions for selected role
   const activePermissions = useMemo(() => {
-    if (selectedRole !== null && rolePermissions[selectedRole.id] !== undefined) {
-      return rolePermissions[selectedRole.id];
+    if (selectedRole !== null && draftRolePermissions[selectedRole.id] !== undefined) {
+      return draftRolePermissions[selectedRole.id];
     }
     return [];
-  }, [rolePermissions, selectedRole]);
+  }, [draftRolePermissions, selectedRole]);
+
+  // Check if currently selected role has unsaved permission changes
+  const hasUnsavedChanges = useMemo(() => {
+    if (selectedRole === null) return false;
+    const saved = savedRolePermissions[selectedRole.id] || [];
+    const draft = draftRolePermissions[selectedRole.id] || [];
+
+    if (saved.length !== draft.length) return true;
+    const savedSet = new Set(saved);
+    return !draft.every((id) => savedSet.has(id));
+  }, [selectedRole, savedRolePermissions, draftRolePermissions]);
 
   // Search filtered roles
   const filteredRoles = useMemo(() => {
@@ -79,7 +99,7 @@ export function RolesPermissionScreen() {
   const handleTogglePermission = (permissionId: string) => {
     if (selectedRole === null) return;
     const roleId = selectedRole.id;
-    setRolePermissions((prev) => {
+    setDraftRolePermissions((prev) => {
       const currentList = prev[roleId] || [];
       const exists = currentList.includes(permissionId);
       const updated = exists
@@ -94,8 +114,20 @@ export function RolesPermissionScreen() {
   };
 
   const handleUpdatePermissions = () => {
-    if (selectedRole === null) return;
-    showToast(`Permissions updated successfully for ${selectedRole.name}`);
+    if (selectedRole === null || !hasUnsavedChanges || isSubmitting) return;
+
+    setIsSubmitting(true);
+    const roleId = selectedRole.id;
+    const currentDraft = draftRolePermissions[roleId] || [];
+
+    setTimeout(() => {
+      setSavedRolePermissions((prev) => ({
+        ...prev,
+        [roleId]: [...currentDraft],
+      }));
+      setIsSubmitting(false);
+      showToast(`Permissions updated successfully for ${selectedRole.name}`);
+    }, 400);
   };
 
   const handleAddRole = (newRoleData: {
@@ -122,12 +154,19 @@ export function RolesPermissionScreen() {
     };
 
     setRoles((prev) => [createdRole, ...prev]);
-    setRolePermissions((prev) => ({
+
+    // Set initial permissions in both saved and draft state
+    setSavedRolePermissions((prev) => ({
       ...prev,
       [newId]: newRoleData.initialPermissionIds,
     }));
+    setDraftRolePermissions((prev) => ({
+      ...prev,
+      [newId]: newRoleData.initialPermissionIds,
+    }));
+
     setSelectedRoleId(newId);
-    showToast(`Role "${newRoleData.name}" created with ${newRoleData.initialPermissionIds.length} permissions.`);
+    showToast(`Role "${newRoleData.name}" created.`);
     if (isMobile) {
       setMobileView('config');
     }
@@ -135,7 +174,14 @@ export function RolesPermissionScreen() {
 
   const handleConfirmDeleteRole = (roleId: string) => {
     setRoles((prev) => prev.filter((r) => r.id !== roleId));
-    setRolePermissions((prev) => {
+
+    setSavedRolePermissions((prev) => {
+      const next = { ...prev };
+      delete next[roleId];
+      return next;
+    });
+
+    setDraftRolePermissions((prev) => {
       const next = { ...prev };
       delete next[roleId];
       return next;
@@ -242,9 +288,17 @@ export function RolesPermissionScreen() {
                     <Lucide name="arrow-left" size={20} color={COLORS.neutral[700]} />
                   </Pressable>
                 )}
-                <View>
-                  <Text style={styles.configSubheader}>ROLE CONFIGURATION</Text>
-                  <Text style={styles.configRoleName}>{selectedRole.name}</Text>
+                <View style={styles.configRoleTitleRow}>
+                  <View>
+                    <Text style={styles.configSubheader}>ROLE CONFIGURATION</Text>
+                    <Text style={styles.configRoleName}>{selectedRole.name}</Text>
+                  </View>
+                  {hasUnsavedChanges && (
+                    <View style={styles.unsavedBadge}>
+                      <View style={styles.unsavedDot} />
+                      <Text style={styles.unsavedBadgeText}>Unsaved Changes</Text>
+                    </View>
+                  )}
                 </View>
               </View>
 
@@ -287,15 +341,44 @@ export function RolesPermissionScreen() {
             {/* Sticky Action Footer */}
             <View style={[styles.actionFooter, SHADOWS.card]}>
               <Pressable
+                disabled={!hasUnsavedChanges || isSubmitting}
                 style={({ pressed }: { pressed: boolean }) => [
                   styles.updatePermissionsBtn,
-                  pressed && styles.updatePermissionsBtnPressed,
+                  hasUnsavedChanges
+                    ? styles.updatePermissionsBtnActive
+                    : styles.updatePermissionsBtnDisabled,
+                  pressed && hasUnsavedChanges && styles.updatePermissionsBtnPressed,
                 ]}
                 onPress={handleUpdatePermissions}
                 accessibilityRole="button"
+                accessibilityState={{ disabled: !hasUnsavedChanges || isSubmitting }}
                 accessibilityLabel="Update Permissions"
               >
-                <Text style={styles.updatePermissionsBtnText}>Update Permissions</Text>
+                {isSubmitting ? (
+                  <View style={styles.btnRow}>
+                    <ActivityIndicator size="small" color={COLORS.neutral.white} style={styles.spinner} />
+                    <Text style={styles.updatePermissionsBtnTextActive}>Saving...</Text>
+                  </View>
+                ) : (
+                  <View style={styles.btnRow}>
+                    <Lucide
+                      name="save"
+                      size={16}
+                      color={hasUnsavedChanges ? COLORS.neutral.white : COLORS.neutral[400]}
+                      style={styles.btnIcon}
+                    />
+                    <Text
+                      style={[
+                        styles.updatePermissionsBtnText,
+                        hasUnsavedChanges
+                          ? styles.updatePermissionsBtnTextActive
+                          : styles.updatePermissionsBtnTextDisabled,
+                      ]}
+                    >
+                      Update Permissions
+                    </Text>
+                  </View>
+                )}
               </Pressable>
             </View>
           </View>
@@ -308,7 +391,7 @@ export function RolesPermissionScreen() {
         onClose={() => setIsAddModalOpen(false)}
         onAddRole={handleAddRole}
         existingRoles={roles}
-        rolePermissionsMap={rolePermissions}
+        rolePermissionsMap={savedRolePermissions}
       />
 
       {/* Delete Confirmation Modal */}
@@ -462,6 +545,33 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
+  configRoleTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING[16],
+  },
+  unsavedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+    borderColor: '#FCD34D',
+    borderWidth: 1,
+    paddingHorizontal: SPACING[8],
+    paddingVertical: 4,
+    borderRadius: RADIUS.circle,
+  },
+  unsavedDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#D97706',
+    marginRight: 6,
+  },
+  unsavedBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#92400E',
+  },
   backBtn: {
     marginRight: SPACING[12],
     padding: SPACING[4],
@@ -477,11 +587,6 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '800',
     color: COLORS.neutral[900],
-  },
-  configRoleDescription: {
-    fontSize: 13,
-    color: COLORS.neutral[500],
-    marginTop: 2,
   },
   closeConfigBtn: {
     backgroundColor: COLORS.neutral[100],
@@ -536,20 +641,42 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   updatePermissionsBtn: {
-    backgroundColor: '#64748B',
     paddingHorizontal: SPACING[32],
     paddingVertical: SPACING[12],
     borderRadius: RADIUS.circle,
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 200,
+    minWidth: 220,
+  },
+  updatePermissionsBtnDisabled: {
+    backgroundColor: '#E2E8F0',
+  },
+  updatePermissionsBtnActive: {
+    backgroundColor: '#2563EB',
+    ...SHADOWS.card,
   },
   updatePermissionsBtnPressed: {
-    backgroundColor: '#475569',
+    backgroundColor: '#1D4ED8',
+  },
+  btnRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  btnIcon: {
+    marginRight: SPACING[8],
+  },
+  spinner: {
+    marginRight: SPACING[8],
   },
   updatePermissionsBtnText: {
-    color: COLORS.neutral.white,
     fontSize: 14,
     fontWeight: '700',
+  },
+  updatePermissionsBtnTextDisabled: {
+    color: COLORS.neutral[400],
+  },
+  updatePermissionsBtnTextActive: {
+    color: COLORS.neutral.white,
   },
 });
