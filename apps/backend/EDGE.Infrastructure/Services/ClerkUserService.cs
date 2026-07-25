@@ -68,7 +68,7 @@ public class ClerkUserService : IClerkUserService
             {
                 _logger.LogError("Clerk create user failed. Status: {Status} RawBody: {Body}", response.StatusCode, responseBody);
             }
-            
+
             throw new InvalidOperationException($"Clerk create user failed: {(int)response.StatusCode} {response.StatusCode}");
         }
 
@@ -103,7 +103,7 @@ public class ClerkUserService : IClerkUserService
             {
                 _logger.LogError("Clerk get users by email failed. Status: {Status} RawBody: {Body} Email: {Email}", response.StatusCode, responseBody, email);
             }
-            
+
             throw new InvalidOperationException($"Clerk get users by email failed: {(int)response.StatusCode} {response.StatusCode}");
         }
 
@@ -138,7 +138,7 @@ public class ClerkUserService : IClerkUserService
             {
                 _logger.LogError("Clerk get user by id failed. UserId: {UserId} Status: {Status} RawBody: {Body}", userId, response.StatusCode, responseBody);
             }
-            
+
             throw new InvalidOperationException($"Clerk get user by id failed: {(int)response.StatusCode} {response.StatusCode}");
         }
 

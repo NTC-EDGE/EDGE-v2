@@ -11,7 +11,7 @@ public class CreateApplicantCommandValidator : AbstractValidator<CreateApplicant
 
         RuleFor(x => x.ApplicantType)
             .NotEmpty().WithMessage("Applicant type is required.")
-            .Must(type => type.Equals("Individual", System.StringComparison.OrdinalIgnoreCase) || 
+            .Must(type => type.Equals("Individual", System.StringComparison.OrdinalIgnoreCase) ||
                           type.Equals("Company", System.StringComparison.OrdinalIgnoreCase))
             .WithMessage("Applicant type must be either 'Individual' or 'Company'.");
     }

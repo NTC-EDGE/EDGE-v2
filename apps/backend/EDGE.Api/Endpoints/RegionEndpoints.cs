@@ -6,13 +6,16 @@ using EDGE.Application.Regions.Queries.GetRegions;
 using EDGE.Application.Regions.Queries.GetRegionById;
 using EDGE.Application.Common.Models;
 
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Routing;
+
 namespace EDGE.Api.Endpoints;
 
 public static class RegionEndpoints
 {
-    public static IEndpointRouteBuilder MapRegionEndpoints(this IEndpointRouteBuilder app)
+    public static RouteGroupBuilder MapRegionEndpoints(this RouteGroupBuilder apiGroup)
     {
-        var group = app.MapGroup("/api/v2/regions").WithTags("Region");
+        var group = apiGroup.MapGroup("regions").WithTags("Region");
 
         group.MapGet("/", async (bool? activeOnly, IMediator mediator) =>
         {
@@ -77,6 +80,6 @@ public static class RegionEndpoints
         .WithSummary("Delete region reference")
         .WithDescription("Deletes a region record.");
 
-        return app;
+        return apiGroup;
     }
 }

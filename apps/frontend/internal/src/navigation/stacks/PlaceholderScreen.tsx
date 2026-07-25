@@ -1,0 +1,70 @@
+import { StyleSheet, Text, View } from "react-native";
+import {
+  COLORS,
+  SPACING,
+  RADIUS,
+  SHADOWS,
+  TYPOGRAPHY,
+  type ParamListBase,
+  type RouteProp,
+} from "@edge/ui";
+
+// Fallback Placeholder screen for role specific navigation links
+export function PlaceholderScreen({
+  route,
+}: {
+  route: RouteProp<ParamListBase, string>;
+}) {
+  const name = route.name;
+
+  const formattedName = name
+    .replace(/([A-Z])/g, " $1")
+    .replace(/^./, (str: string) => str.toUpperCase())
+    .trim();
+
+  return (
+    <View style={styles.placeholderContainer}>
+      <View style={[styles.placeholderCard, SHADOWS.card]}>
+        <Text style={styles.placeholderTitle}>{formattedName} Portal</Text>
+        <Text style={styles.placeholderText}>
+          This sub-module is currently undergoing staging and compliance
+          verification. All interactions are simulated under the active role
+          constraints.
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  placeholderContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: SPACING[20],
+  },
+  placeholderCard: {
+    backgroundColor: COLORS.neutral.white,
+    borderRadius: RADIUS.card,
+    borderWidth: 1,
+    borderColor: COLORS.neutral[200],
+    padding: SPACING[32],
+    maxWidth: 600,
+    alignItems: "center",
+    textAlign: "center",
+  },
+  placeholderTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 24,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: COLORS.neutral[900],
+    marginBottom: SPACING[12],
+  },
+  placeholderText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    color: COLORS.neutral[500],
+    textAlign: "center",
+    lineHeight: 22,
+  },
+});

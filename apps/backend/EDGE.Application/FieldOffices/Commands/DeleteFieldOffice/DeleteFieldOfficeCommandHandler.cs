@@ -1,30 +1,29 @@
-using System.Threading;
-using System.Threading.Tasks;
 using MediatR;
-using EDGE.Application.Common.Models;
 using EDGE.Application.Common.Interfaces;
 
 namespace EDGE.Application.FieldOffices.Commands.DeleteFieldOffice;
 
-public class DeleteFieldOfficeCommandHandler(IFieldOfficeRepository repository, IUnitOfWork unitOfWork) : IRequestHandler<DeleteFieldOfficeCommand, ApiResponse<string>>
+public class DeleteFieldOfficeCommandHandler : IRequestHandler<DeleteFieldOfficeCommand, bool>
 {
-    public async Task<ApiResponse<string>> Handle(DeleteFieldOfficeCommand request, CancellationToken cancellationToken)
+    private readonly IFieldOfficeRepository _repository;
+    private readonly IUnitOfWork _unitOfWork;
+
+    public DeleteFieldOfficeCommandHandler(IFieldOfficeRepository repository, IUnitOfWork unitOfWork)
     {
-        var fieldOffice = await repository.GetByIdAsync(request.Id, cancellationToken);
-        if (fieldOffice == null)
+        _repository = repository;
+        _unitOfWork = unitOfWork;
+    }
+
+    public async Task<bool> Handle(DeleteFieldOfficeCommand request, CancellationToken cancellationToken)
+    {
+        var fieldOffice = await _repository.GetByIdAsync(request.Id, cancellationToken);
+        if (fieldOffice == null || fieldOffice.TenantId != request.TenantId)
         {
-            return ApiResponse<string>.Fail("Field office not found.");
+            return false;
         }
 
-        var hasApplications = await repository.HasApplicationsAsync(request.Id, cancellationToken);
-        if (hasApplications)
-        {
-            return ApiResponse<string>.Fail("Cannot delete Field Office because it has associated applications.");
-        }
-
-        repository.Delete(fieldOffice);
-        await unitOfWork.SaveChangesAsync(cancellationToken);
-
-        return ApiResponse<string>.Success(fieldOffice.Id.ToString(), "Field office deleted successfully.");
+        _repository.Delete(fieldOffice);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        return true;
     }
 }

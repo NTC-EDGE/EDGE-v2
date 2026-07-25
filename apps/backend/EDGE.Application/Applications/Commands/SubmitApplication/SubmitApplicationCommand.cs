@@ -7,21 +7,31 @@ namespace EDGE.Application.Applications.Commands.SubmitApplication;
 
 public record SubmitApplicationCommand : IRequest<ApiResponse<Guid>>
 {
-    public required Guid TenantId { get; init; }
-    public string SubmissionMode { get; init; } = "Single"; // Single, Bulk
-    public string? DataEntryMethod { get; init; } // Manual, CSV
-    public string Status { get; init; } = "Draft"; // Draft, Submitted
-    
-    public Guid? ServiceCategoryId { get; init; }
-    public Guid? ServiceId { get; init; }
-    public Guid? ServiceVariantId { get; init; }
-    public string? ApplicationTypeKey { get; init; }
-    
-    public Guid? RegionId { get; init; }
-    public Guid? ScheduleId { get; init; }
-    public string? Office { get; init; }
-    public string? DynamicDataJson { get; init; }
-    public string AccountType { get; init; } = "Individual"; // Individual, Company
+    public Guid TenantId { get; init; }
+    public string SubmissionMode { get; init; } = "Single";   // Single | Bulk
+    public bool IsDraft { get; init; } = false;
 
-    public List<Guid> ApplicantIds { get; init; } = new();
+    public Guid? ServiceId { get; init; }
+    public Guid? ScheduleId { get; init; }
+    public Guid? FieldOfficeId { get; init; }
+
+    public List<ApplicantSubmissionDto> Applicants { get; init; } = new();
+}
+
+public record ApplicantSubmissionDto
+{
+    public string FirstName { get; init; } = "";
+    public string LastName { get; init; } = "";
+    public string Email { get; init; } = "";
+    public string ContactNumber { get; init; } = "";
+    public string Address { get; init; } = "";
+    public DateOnly BirthDate { get; init; }
+
+    public List<FormFieldValueSubmissionDto> FormFieldValues { get; init; } = new();
+}
+
+public record FormFieldValueSubmissionDto
+{
+    public Guid FieldId { get; init; }
+    public string Value { get; init; } = "";
 }

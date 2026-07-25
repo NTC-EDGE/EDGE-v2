@@ -39,6 +39,9 @@ public class ApplicationFullRepository : IApplicationFullRepository
                     .ThenInclude(app => app!.ApplicantDetail)
                         .ThenInclude(ad => ad!.CompanyDetail)
             .Include(a => a.ApplicationRequirements)
+            .Include(a => a.FormSubmissions)
+                .ThenInclude(fs => fs.FieldValues)
+                    .ThenInclude(fv => fv.Field)
             .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
     }
 
@@ -49,6 +52,9 @@ public class ApplicationFullRepository : IApplicationFullRepository
             .Include(a => a.ApplicationApplicants)
                 .ThenInclude(aa => aa.Applicant)
                     .ThenInclude(app => app!.ApplicantDetail)
+            .Include(a => a.FormSubmissions)
+                .ThenInclude(fs => fs.FieldValues)
+                    .ThenInclude(fv => fv.Field)
             .Where(a => a.UserId == userId && a.Status == ApplicationStatus.Draft)
             .OrderByDescending(a => a.CreatedAt)
             .ToListAsync(cancellationToken);

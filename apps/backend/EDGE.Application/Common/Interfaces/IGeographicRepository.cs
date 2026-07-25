@@ -27,7 +27,7 @@ public interface IGeographicRepository
     Task<Barangay?> GetBarangayByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task AddBarangayAsync(Barangay barangay, CancellationToken cancellationToken = default);
     void DeleteBarangay(Barangay barangay);
-    
+
     // Existence/Code checks
     Task<bool> IsRegionCodeUniqueAsync(string code, Guid? excludeId = null, CancellationToken cancellationToken = default);
     Task<bool> IsProvinceCodeUniqueAsync(string code, Guid? excludeId = null, CancellationToken cancellationToken = default);

@@ -1,9 +1,6 @@
-using System;
-using System.Collections.Generic;
 using MediatR;
-using EDGE.Application.Common.Models;
-using EDGE.Application.FieldOffices.Dtos;
+using EDGE.Application.FieldOffices.DTOs;
 
 namespace EDGE.Application.FieldOffices.Queries.GetFieldOffices;
 
-public record GetFieldOfficesQuery(Guid? RegionId = null) : IRequest<ApiResponse<List<FieldOfficeDto>>>;
+public record GetFieldOfficesQuery(Guid TenantId) : IRequest<List<FieldOfficeDto>>;
