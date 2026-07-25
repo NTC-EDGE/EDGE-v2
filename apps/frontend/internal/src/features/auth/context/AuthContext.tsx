@@ -34,17 +34,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const [selectedRegionState, setSelectedRegionState] = useState<string | undefined>(undefined);
 
-  // Clerk hooks (safe to call even if key is empty, but they won't trigger authenticated states)
+  // Clerk hooks
   const clerkAuth = useAuth();
   const clerkUser = useUser();
-  const { isLoaded: isSignInLoaded, signIn, setActive: setSignInActive } = useSignIn();
-  const { isLoaded: isSignUpLoaded, signUp, setActive: setSignUpActive } = useSignUp();
+  const signInHook = useSignIn();
+  const signUpHook = useSignUp();
+
+  const signInRecord = signInHook as unknown as Record<string, unknown>;
+  const signUpRecord = signUpHook as unknown as Record<string, unknown>;
+
+  const isSignInLoaded = Boolean(signInRecord.isLoaded);
+  const isSignUpLoaded = Boolean(signUpRecord.isLoaded);
 
   const loginWithClerk = async (email: string, password: string, region?: string) => {
     if (!isClerkEnabled) {
       throw new Error("Clerk publishable key is not configured.");
     }
-    if (!isSignInLoaded || signIn === null || signIn === undefined) {
+    const signInObj = signInRecord.signIn as {
+      create: (params: { identifier: string; password: string }) => Promise<{ status: string; createdSessionId: string }>;
+    } | undefined;
+
+    if (!isSignInLoaded || signInObj === null || signInObj === undefined) {
       throw new Error("Authentication service is not loaded yet. Please try again.");
     }
 
@@ -52,14 +62,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSelectedRegionState(region);
     }
 
-    const result = await signIn.create({
+    const result = await signInObj.create({
       identifier: email,
       password,
     });
 
+    const setActiveFn = signInRecord.setActive as ((params: { session: string }) => Promise<void>) | undefined;
+
     if (result.status === "complete") {
-      if (setSignInActive !== undefined) {
-        await setSignInActive({ session: result.createdSessionId });
+      if (setActiveFn !== undefined) {
+        await setActiveFn({ session: result.createdSessionId });
       }
     } else {
       throw new Error(`Authentication incomplete: status is ${result.status}`);
@@ -73,23 +85,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!isClerkEnabled) {
       throw new Error("Clerk publishable key is not configured.");
     }
-    if (!isSignUpLoaded || signUp === null || signUp === undefined) {
+    const signUpObj = signUpRecord.signUp as {
+      create: (params: { emailAddress: string; password: string }) => Promise<{ status: string; createdSessionId: string }>;
+      prepareEmailAddressVerification: (params: { strategy: string }) => Promise<void>;
+    } | undefined;
+
+    if (!isSignUpLoaded || signUpObj === null || signUpObj === undefined) {
       throw new Error("Sign up service is not loaded yet. Please try again.");
     }
 
-    const result = await signUp.create({
+    const result = await signUpObj.create({
       emailAddress: email,
       password,
     });
 
+    const setActiveFn = signUpRecord.setActive as ((params: { session: string }) => Promise<void>) | undefined;
+
     if (result.status === "complete") {
-      if (setSignUpActive !== undefined) {
-        await setSignUpActive({ session: result.createdSessionId });
+      if (setActiveFn !== undefined) {
+        await setActiveFn({ session: result.createdSessionId });
       }
       return true;
     }
 
-    await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
+    await signUpObj.prepareEmailAddressVerification({ strategy: "email_code" });
     return false;
   };
 
@@ -97,17 +116,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!isClerkEnabled) {
       throw new Error("Clerk publishable key is not configured.");
     }
-    if (!isSignUpLoaded || signUp === null || signUp === undefined) {
+    const signUpObj = signUpRecord.signUp as {
+      attemptEmailAddressVerification: (params: { code: string }) => Promise<{ status: string; createdSessionId: string }>;
+    } | undefined;
+
+    if (!isSignUpLoaded || signUpObj === null || signUpObj === undefined) {
       throw new Error("Sign up service is not loaded yet. Please try again.");
     }
 
-    const result = await signUp.attemptEmailAddressVerification({
+    const result = await signUpObj.attemptEmailAddressVerification({
       code,
     });
 
+    const setActiveFn = signUpRecord.setActive as ((params: { session: string }) => Promise<void>) | undefined;
+
     if (result.status === "complete") {
-      if (setSignUpActive !== undefined) {
-        await setSignUpActive({ session: result.createdSessionId });
+      if (setActiveFn !== undefined) {
+        await setActiveFn({ session: result.createdSessionId });
       }
     } else {
       throw new Error(`Sign up incomplete: status is ${result.status}`);
@@ -120,31 +145,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const isAuthenticated = isClerkEnabled && (clerkAuth.isSignedIn ?? false);
-  const isLoading = isClerkEnabled ? !clerkAuth.isLoaded : false;
+  // Derive User Profile from Clerk or Fallback
+  let user: UserProfile | null = null;
+  const isAuthenticated = isClerkEnabled ? Boolean(clerkAuth.isSignedIn) : true;
 
-  let activeUser: UserProfile | null = null;
-  if (
-    isClerkEnabled &&
-    clerkUser.user !== null &&
-    clerkUser.user !== undefined
-  ) {
-    const firstName = clerkUser.user.firstName ?? "";
-    const lastName = clerkUser.user.lastName ?? "";
-    const username = clerkUser.user.username ?? "";
-    const name =
-      clerkUser.user.fullName ?? (firstName || lastName ? `${firstName} ${lastName}`.trim() : "Staff User");
-    const email =
-      clerkUser.user.primaryEmailAddress?.emailAddress ?? "staff@edge.gov";
-    const avatarUrl = clerkUser.user.imageUrl;
-    activeUser = { name, email, username, firstName, lastName, avatarUrl, region: selectedRegionState };
+  if (isClerkEnabled && clerkUser.user !== null && clerkUser.user !== undefined) {
+    const cu = clerkUser.user;
+    const primaryEmail = cu.primaryEmailAddress?.emailAddress ?? cu.emailAddresses[0]?.emailAddress ?? "";
+
+    user = {
+      name: cu.fullName ?? cu.firstName ?? "User",
+      email: primaryEmail,
+      username: cu.username ?? undefined,
+      firstName: cu.firstName ?? undefined,
+      lastName: cu.lastName ?? undefined,
+      avatarUrl: cu.imageUrl ?? undefined,
+      region: selectedRegionState,
+    };
+  } else if (!isClerkEnabled) {
+    // Simulated User for Development when Clerk key is absent
+    user = {
+      name: "Staff User",
+      email: "staff@ntc.gov.ph",
+      region: selectedRegionState ?? "NCR",
+    };
   }
+
+  const isLoading = isClerkEnabled ? !clerkAuth.isLoaded : false;
 
   return (
     <AuthContext.Provider
       value={{
         isAuthenticated,
-        user: activeUser,
+        user,
         loginWithClerk,
         signUpWithClerk,
         verifySignUp,
@@ -158,7 +191,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
-export function useAuthContext(): AuthContextType {
+export function useAuthContext() {
   const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error("useAuthContext must be used within an AuthProvider");

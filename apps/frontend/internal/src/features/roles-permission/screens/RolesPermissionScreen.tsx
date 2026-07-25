@@ -324,16 +324,12 @@ export function RolesPermissionScreen() {
 
 const styles = StyleSheet.create({
   mainWrapper: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-    alignSelf: 'center',
     width: '100%',
-    maxWidth: 1400,
   },
   toastContainer: {
     position: 'absolute',
-    top: 16,
-    right: 24,
+    top: 0,
+    right: 0,
     zIndex: 100,
     backgroundColor: '#0F172A',
     paddingHorizontal: SPACING[16],
@@ -351,10 +347,9 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   container: {
-    flex: 1,
+    width: '100%',
     flexDirection: 'row',
-    padding: SPACING[20],
-    gap: SPACING[20],
+    gap: SPACING[24],
   },
   columnFullWidth: {
     flex: 1,
