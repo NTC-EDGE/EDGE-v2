@@ -32,32 +32,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const clerkAuth = useAuth();
   const clerkUser = useUser();
-  const { isLoaded: isSignInLoaded, signIn, setActive: setSignInActive } = useSignIn();
-  const { isLoaded: isSignUpLoaded, signUp, setActive: setSignUpActive } = useSignUp();
+  const signInResult = useSignIn();
+  const signUpResult = useSignUp();
 
-  const loginWithClerk = async (email: string, password: string, region?: string) => {
+  const { signIn } = signInResult;
+  const { signUp } = signUpResult;
+
+  const isSignInLoaded = (signInResult as any).isLoaded;
+  const isSignUpLoaded = (signUpResult as any).isLoaded;
+
+  const loginWithClerk = async (
+    email: string,
+    password: string,
+    region?: string,
+  ) => {
     if (!isClerkEnabled) {
       throw new Error("Clerk publishable key is not configured.");
     }
     if (!isSignInLoaded || signIn === null || signIn === undefined) {
-      throw new Error("Authentication service is not loaded yet. Please try again.");
+      throw new Error(
+        "Authentication service is not loaded yet. Please try again.",
+      );
     }
 
     if (region !== undefined) {
       setSelectedRegionState(region);
     }
 
-    const result = await signIn.create({
+    const result = await (signIn as any).create({
       identifier: email,
       password,
     });
 
-    if (result.status === "complete") {
-      if (setSignInActive !== undefined) {
-        await setSignInActive({ session: result.createdSessionId });
+    if (result.error) {
+      throw new Error(result.error.message || "Invalid email or password.");
+    }
+
+    if ((signIn as any).status === "complete") {
+      const finalizeRes = await (signIn as any).finalize();
+      if (finalizeRes.error) {
+        throw new Error(
+          finalizeRes.error.message || "Authentication finalization failed.",
+        );
       }
     } else {
-      throw new Error(`Authentication incomplete: status is ${result.status}`);
+      throw new Error(
+        `Authentication incomplete: status is ${(signIn as any).status}`,
+      );
     }
   };
 
@@ -72,19 +93,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error("Sign up service is not loaded yet. Please try again.");
     }
 
-    const result = await signUp.create({
+    const result = await (signUp as any).create({
       emailAddress: email,
       password,
     });
 
-    if (result.status === "complete") {
-      if (setSignUpActive !== undefined) {
-        await setSignUpActive({ session: result.createdSessionId });
+    if (result.error) {
+      throw new Error(result.error.message || "Sign up failed.");
+    }
+
+    if ((signUp as any).status === "complete") {
+      const finalizeRes = await (signUp as any).finalize();
+      if (finalizeRes.error) {
+        throw new Error(
+          finalizeRes.error.message || "Sign up finalization failed.",
+        );
       }
       return true;
     }
 
-    await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
+    await (signUp as any).prepareEmailAddressVerification({
+      strategy: "email_code",
+    });
     return false;
   };
 
@@ -96,16 +126,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error("Sign up service is not loaded yet. Please try again.");
     }
 
-    const result = await signUp.attemptEmailAddressVerification({
+    const result = await (signUp as any).attemptEmailAddressVerification({
       code,
     });
 
-    if (result.status === "complete") {
-      if (setSignUpActive !== undefined) {
-        await setSignUpActive({ session: result.createdSessionId });
+    if (result.error) {
+      throw new Error(result.error.message || "Verification failed.");
+    }
+
+    if ((signUp as any).status === "complete") {
+      const finalizeRes = await (signUp as any).finalize();
+      if (finalizeRes.error) {
+        throw new Error(
+          finalizeRes.error.message || "Sign up finalization failed.",
+        );
       }
     } else {
-      throw new Error(`Sign up incomplete: status is ${result.status}`);
+      throw new Error(`Sign up incomplete: status is ${(signUp as any).status}`);
     }
   };
 

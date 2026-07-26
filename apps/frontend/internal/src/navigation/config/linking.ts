@@ -1,10 +1,24 @@
 import { getStateFromPath, getPathFromState, type LinkingOptions } from "@edge/ui";
 
+const getPrefixes = (): string[] => {
+  const prefixes = ["edge://"];
+  if (
+    typeof window !== "undefined" &&
+    window.location !== undefined &&
+    typeof window.location.origin === "string"
+  ) {
+    if (!prefixes.includes(window.location.origin)) {
+      prefixes.push(window.location.origin);
+    }
+  }
+  return prefixes;
+};
+
 /**
  * Web & Native linking configuration for unauthenticated routes in Internal app.
  */
 export const unauthLinking: LinkingOptions<object> = {
-  prefixes: [],
+  prefixes: getPrefixes(),
   getStateFromPath(path: string, options?: Parameters<typeof getStateFromPath>[1]) {
     return {
       routes: [{ name: "InternalLogin" }],
@@ -20,7 +34,7 @@ export const unauthLinking: LinkingOptions<object> = {
  * Handles root redirects (/ -> /dashboard) and legacy route aliases.
  */
 export const authLinking: LinkingOptions<object> = {
-  prefixes: [],
+  prefixes: getPrefixes(),
   getStateFromPath(path: string, options?: Parameters<typeof getStateFromPath>[1]) {
     const cleanPath = path.split("?")[0].replace(/\/$/, "");
     if (
