@@ -43,14 +43,14 @@ function TenantMembersContent() {
   const { data: fetchedTenants } = useTenants();
   const { data: fetchedRoles } = useRoles();
   const { data: fetchedUsers } = useUsers();
-  const { data: fetchedFieldOffices } = useFieldOffices();
+  const { data: fetchedFieldOffices } = useFieldOffices(
+    selectedTenantFilter !== "ALL" ? selectedTenantFilter : null
+  );
   const { data: fetchedMembers, isLoading: loadingMembers, mutate } = useTenantMembers(
     selectedTenantFilter !== "ALL" ? selectedTenantFilter : null
   );
 
-  const tenants: Tenant[] = (fetchedTenants !== undefined && fetchedTenants !== null && fetchedTenants.length > 0)
-    ? fetchedTenants
-    : [
+  const tenants: Tenant[] = fetchedTenants ?? [
         { id: "t-101", name: "NTC National Capital Region Regional Office", code: "NTC-NCR-01", isActive: true, regionId: "reg-ncr" },
         { id: "t-102", name: "Central Luzon Field Operations Tenant", code: "NTC-R3-01", isActive: true, regionId: "reg-r3" },
         { id: "t-103", name: "Central Visayas Telecommunications Branch", code: "NTC-R7-01", isActive: true, regionId: "reg-r7" },
@@ -58,8 +58,8 @@ function TenantMembersContent() {
 
   const roles: Role[] = (fetchedRoles !== undefined && fetchedRoles !== null && fetchedRoles.length > 0) ? fetchedRoles : MOCK_ROLES;
   const users: User[] = (fetchedUsers !== undefined && fetchedUsers !== null && fetchedUsers.length > 0) ? fetchedUsers : MOCK_USERS;
-  const fieldOffices: FieldOffice[] = (fetchedFieldOffices !== undefined && fetchedFieldOffices !== null && fetchedFieldOffices.length > 0) ? fetchedFieldOffices : MOCK_FIELD_OFFICES;
-  const allMembers: TenantMember[] = (fetchedMembers !== undefined && fetchedMembers !== null && fetchedMembers.length > 0) ? fetchedMembers : MOCK_MEMBERS;
+  const fieldOffices: FieldOffice[] = fetchedFieldOffices ?? MOCK_FIELD_OFFICES;
+  const allMembers: TenantMember[] = fetchedMembers ?? MOCK_MEMBERS;
 
   const filteredMembers = allMembers.filter((m) => {
     const nameMatch =

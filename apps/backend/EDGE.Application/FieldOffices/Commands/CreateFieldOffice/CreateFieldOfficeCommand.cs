@@ -1,12 +1,22 @@
 using System;
 using MediatR;
-using EDGE.Application.Common.Models;
+using EDGE.Application.FieldOffices.DTOs;
 
 namespace EDGE.Application.FieldOffices.Commands.CreateFieldOffice;
 
-public record CreateFieldOfficeCommand : IRequest<ApiResponse<Guid>>
-{
-    public required string Name { get; init; }
-    public required Guid RegionId { get; init; }
-    public string? Code { get; init; }
-}
+public record CreateFieldOfficeCommand(
+    Guid TenantId,
+    string Name,
+    string Code,
+    string? Description,
+    Guid RegionId,
+    Guid? ProvinceId,
+    string Address,
+    string ContactPhone,
+    string ContactEmail,
+    Guid OfficerInChargeId,
+    bool IsActive = true,
+    bool AllowSpectrumInspection = true,
+    bool AllowPermitIssuance = true,
+    bool AllowComplaintReception = true
+) : IRequest<FieldOfficeDto>;

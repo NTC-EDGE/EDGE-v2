@@ -11,7 +11,6 @@ public record SubmitApplicationCommand : IRequest<ApiResponse<Guid>>
     public string SubmissionMode { get; init; } = "Single";   // Single | Bulk
     public bool IsDraft { get; init; } = false;
 
-    public Guid? ServiceCategoryId { get; init; }
     public Guid? ServiceId { get; init; }
     public Guid? ScheduleId { get; init; }
     public Guid? FieldOfficeId { get; init; }

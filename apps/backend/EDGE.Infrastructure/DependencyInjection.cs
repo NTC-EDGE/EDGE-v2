@@ -64,6 +64,9 @@ public static class DependencyInjection
         services.AddScoped<INoteRepository, NoteRepository>();
         services.AddScoped<IStoredFileRepository, StoredFileRepository>();
         services.AddScoped<IRequirementRepository, RequirementRepository>();
+        services.AddScoped<IFeeRepository, FeeRepository>();
+        services.AddScoped<IServiceFeeRepository, ServiceFeeRepository>();
+        services.AddScoped<IServiceVariantRequirementRepository, ServiceVariantRequirementRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         // Register Encryption & Cloudflare R2 Storage Services
@@ -80,12 +83,14 @@ public static class DependencyInjection
             client.BaseAddress = new Uri("https://api.clerk.com/v1/");
             client.DefaultRequestHeaders.Add("Authorization", $"Bearer {clerkSecret}");
         });
-
+    
         // Configure Hangfire storage (PostgreSQL in Production/Dev, InMemory in Test)
         services.AddHangfire((sp, config) =>
         {
             var configuration = sp.GetRequiredService<IConfiguration>();
             var useInMemory = configuration.GetValue<bool>("Hangfire:UseInMemory");
+            var connectionString = configuration.GetConnectionString("DefaultConnection")
+                ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 
             config
                 .SetDataCompatibilityLevel(CompatibilityLevel.Version_170)
@@ -98,9 +103,6 @@ public static class DependencyInjection
             }
             else
             {
-                var connectionString = configuration.GetConnectionString("DefaultConnection") 
-                    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
-
                 config.UsePostgreSqlStorage(options => options.UseNpgsqlConnection(connectionString), new PostgreSqlStorageOptions
                 {
                     SchemaName = "hangfire",

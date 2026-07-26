@@ -24,7 +24,7 @@ public class ApplicantRepository : IApplicantRepository
                 .ThenInclude(ad => ad!.Barangay)
             .AsQueryable();
 
-        if (!string.IsNullOrEmpty(applicantType) && 
+        if (!string.IsNullOrEmpty(applicantType) &&
             Enum.TryParse<ApplicantType>(applicantType, true, out var typeEnum))
         {
             query = query.Where(a => a.ApplicantType == typeEnum);

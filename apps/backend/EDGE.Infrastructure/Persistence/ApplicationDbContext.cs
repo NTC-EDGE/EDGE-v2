@@ -26,7 +26,7 @@ namespace EDGE.Infrastructure.Persistence;
 
 public class ApplicationDbContext : DbContext, IUnitOfWork
 {
-    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) {}
+    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) { }
 
     public async Task BeginTransactionAsync(CancellationToken cancellationToken = default)
     {
@@ -64,6 +64,8 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
     public DbSet<FieldOffice> FieldOffices => Set<FieldOffice>();
     public DbSet<Note> Notes => Set<Note>();
 
+    public DbSet<Fee> Fees => Set<Fee>();
+    public DbSet<ServiceFee> ServiceFees => Set<ServiceFee>();
 
 #if STEP_001
     public DbSet<ServiceCategory> ServiceCategories => Set<ServiceCategory>();
@@ -123,6 +125,7 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
 #if STEP_019
     public DbSet<ApplicationStatusHistory> ApplicationStatusHistories => Set<ApplicationStatusHistory>();
 #endif
+
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -224,7 +227,15 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Name).IsRequired().HasMaxLength(150);
             entity.Property(e => e.Code).IsRequired().HasMaxLength(50);
-            entity.HasIndex(e => e.Code).IsUnique();
+            entity.HasIndex(e => new { e.TenantId, e.Code }).IsUnique();
+            entity.HasOne(e => e.Tenant)
+                  .WithMany()
+                  .HasForeignKey(e => e.TenantId)
+                  .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.OfficerInCharge)
+                  .WithMany()
+                  .HasForeignKey(e => e.OfficerInChargeId)
+                  .OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(e => e.Region)
                   .WithMany(r => r.FieldOffices)
                   .HasForeignKey(e => e.RegionId)
@@ -261,6 +272,11 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
             entity.Property(e => e.Remarks).HasMaxLength(500);
             entity.Property(e => e.IsPublished).HasDefaultValue(false);
             entity.Property(e => e.MaximumSlots).IsRequired(false);
+
+            entity.HasOne(e => e.Service)
+                  .WithMany(s => s.Schedules)
+                  .HasForeignKey(e => e.ServiceId)
+                  .OnDelete(DeleteBehavior.Restrict);
         });
 
 #if STEP_001
@@ -565,6 +581,30 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
                   .HasForeignKey(e => e.UserId)
                   .OnDelete(DeleteBehavior.SetNull);
         });
+
+        // Fee entity configuration
+        modelBuilder.Entity<Fee>(entity =>
+        {
+            entity.HasIndex(e => e.Code).IsUnique();
+            entity.Property(e => e.Code).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(150);
+            entity.Property(e => e.Description).HasMaxLength(500);
+        });
+
+        // ServiceFee entity configuration
+        modelBuilder.Entity<ServiceFee>(entity =>
+        {
+            entity.Property(e => e.Amount).HasColumnType("decimal(18,2)");
+            entity.HasOne(d => d.Fee)
+                  .WithMany(p => p.ServiceFees)
+                  .HasForeignKey(d => d.FeeId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(d => d.Service)
+                  .WithMany(p => p.ServiceFees)
+                  .HasForeignKey(d => d.ServiceId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
 #endif
 
         modelBuilder.Entity<StoredFile>(entity =>
@@ -576,6 +616,32 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
                   .WithMany()
                   .HasForeignKey(e => e.TenantId)
                   .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Requirement entity configuration
+        modelBuilder.Entity<Requirement>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(150);
+            entity.Property(e => e.Description).HasMaxLength(500);
+        });
+
+        // ServiceVariantRequirement entity configuration
+        modelBuilder.Entity<ServiceVariantRequirement>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ContextKey);
+
+
+            entity.HasOne(e => e.Requirement)
+                  .WithMany()
+                  .HasForeignKey(e => e.RequirementId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.ServiceVariant)
+                  .WithMany(sv => sv.ServiceVariantRequirements)
+                  .HasForeignKey(e => e.ServiceVariantId)
+                  .OnDelete(DeleteBehavior.Cascade);
         });
     }
 
