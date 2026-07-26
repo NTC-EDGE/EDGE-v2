@@ -1,32 +1,51 @@
-import React, { useState } from 'react';
-import { StyleSheet, View, Text, Pressable, Modal, ScrollView } from 'react-native';
-import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide } from '@edge/ui';
-import { UserRole } from '../../../shell/context/RoleContext';
+import React, { useState } from "react";
+import {
+  StyleSheet,
+  View,
+  Text,
+  Pressable,
+  Modal,
+  ScrollView,
+} from "react-native";
+import {
+  COLORS,
+  SPACING,
+  RADIUS,
+  SHADOWS,
+  TYPOGRAPHY,
+  Icon as Lucide,
+} from "@edge/ui";
+import { UserRole } from "../../../shell/context/RoleContext";
 
-const ENDORSABLE_ROLES: { role: UserRole; label: string; description: string; icon: string }[] = [
+const ENDORSABLE_ROLES: {
+  role: UserRole;
+  label: string;
+  description: string;
+  icon: React.ComponentProps<typeof Lucide>["name"];
+}[] = [
   {
-    role: 'Chief of EOD',
-    label: 'Chief of EOD',
-    description: 'Engineering Operations Division',
-    icon: 'briefcase',
+    role: "Chief of EOD",
+    label: "Chief of EOD",
+    description: "Engineering Operations Division",
+    icon: "briefcase",
   },
   {
-    role: 'Regional Director',
-    label: 'Regional Director',
-    description: 'Regional Office Director',
-    icon: 'award',
+    role: "Regional Director",
+    label: "Regional Director",
+    description: "Regional Office Director",
+    icon: "award",
   },
   {
-    role: 'Accountant',
-    label: 'Accountant',
-    description: 'Accounting and Finance Department',
-    icon: 'dollar-sign',
+    role: "Accountant",
+    label: "Accountant",
+    description: "Accounting and Finance Department",
+    icon: "dollar-sign",
   },
   {
-    role: 'Legal',
-    label: 'Legal',
-    description: 'Legal Affairs Division',
-    icon: 'shield',
+    role: "Legal",
+    label: "Legal",
+    description: "Legal Affairs Division",
+    icon: "shield",
   },
 ];
 
@@ -38,7 +57,13 @@ interface EndorseModalProps {
   onCancel: () => void;
 }
 
-export function EndorseModal({ visible, applicantName, currentRole, onConfirm, onCancel }: EndorseModalProps) {
+export function EndorseModal({
+  visible,
+  applicantName,
+  currentRole,
+  onConfirm,
+  onCancel,
+}: EndorseModalProps) {
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
   const availableRoles = ENDORSABLE_ROLES.filter((r) => r.role !== currentRole);
   const canSubmit = selectedRole !== null;
@@ -56,7 +81,12 @@ export function EndorseModal({ visible, applicantName, currentRole, onConfirm, o
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleCancel}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={handleCancel}
+    >
       <View style={styles.overlay}>
         <View style={styles.container}>
           {/* Header */}
@@ -67,8 +97,9 @@ export function EndorseModal({ visible, applicantName, currentRole, onConfirm, o
             <View style={styles.headerText}>
               <Text style={styles.title}>Endorse Application</Text>
               <Text style={styles.subtitle}>
-                Select the role to endorse{' '}
-                <Text style={styles.highlightName}>{applicantName}</Text>&apos;s application to.
+                Select the role to endorse{" "}
+                <Text style={styles.highlightName}>{applicantName}</Text>&apos;s
+                application to.
               </Text>
             </View>
           </View>
@@ -80,24 +111,43 @@ export function EndorseModal({ visible, applicantName, currentRole, onConfirm, o
               return (
                 <Pressable
                   key={item.role}
-                  style={[styles.roleItem, isSelected && styles.roleItemSelected]}
+                  style={[
+                    styles.roleItem,
+                    isSelected && styles.roleItemSelected,
+                  ]}
                   onPress={() => setSelectedRole(item.role)}
                 >
-                  <View style={[styles.roleIcon, isSelected && styles.roleIconSelected]}>
+                  <View
+                    style={[
+                      styles.roleIcon,
+                      isSelected && styles.roleIconSelected,
+                    ]}
+                  >
                     <Lucide
-                      name={item.icon as 'briefcase'}
+                      name={item.icon}
                       size={18}
-                      color={isSelected ? COLORS.neutral.white : COLORS.neutral[500]}
+                      color={
+                        isSelected ? COLORS.neutral.white : COLORS.neutral[500]
+                      }
                     />
                   </View>
                   <View style={styles.roleInfo}>
-                    <Text style={[styles.roleLabel, isSelected && styles.roleLabelSelected]}>
+                    <Text
+                      style={[
+                        styles.roleLabel,
+                        isSelected && styles.roleLabelSelected,
+                      ]}
+                    >
                       {item.label}
                     </Text>
                     <Text style={styles.roleDesc}>{item.description}</Text>
                   </View>
                   {isSelected && (
-                    <Lucide name="check-circle" size={18} color={COLORS.brand[700]} />
+                    <Lucide
+                      name="check-circle"
+                      size={18}
+                      color={COLORS.brand[700]}
+                    />
                   )}
                 </Pressable>
               );
@@ -110,13 +160,16 @@ export function EndorseModal({ visible, applicantName, currentRole, onConfirm, o
               <Text style={styles.cancelText}>Cancel</Text>
             </Pressable>
             <Pressable
-              style={[styles.confirmBtn, !canSubmit && styles.confirmBtnDisabled]}
+              style={[
+                styles.confirmBtn,
+                !canSubmit && styles.confirmBtnDisabled,
+              ]}
               onPress={handleConfirm}
               disabled={!canSubmit}
             >
               <Lucide name="send" size={16} color={COLORS.neutral.white} />
               <Text style={styles.confirmText}>
-                Endorse to {selectedRole ?? 'Select Role'}
+                Endorse to {selectedRole ?? "Select Role"}
               </Text>
             </Pressable>
           </View>
@@ -129,22 +182,22 @@ export function EndorseModal({ visible, applicantName, currentRole, onConfirm, o
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.5)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "rgba(15, 23, 42, 0.5)",
+    alignItems: "center",
+    justifyContent: "center",
     padding: SPACING[24],
   },
   container: {
     backgroundColor: COLORS.neutral.white,
     borderRadius: RADIUS.dialog,
     padding: SPACING[24],
-    width: '100%',
+    width: "100%",
     maxWidth: 480,
     ...SHADOWS.modal,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+    flexDirection: "row",
+    alignItems: "flex-start",
     gap: SPACING[16],
     marginBottom: SPACING[20],
   },
@@ -152,9 +205,9 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: '#EFF6FF',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#EFF6FF",
+    alignItems: "center",
+    justifyContent: "center",
     flexShrink: 0,
   },
   headerText: {
@@ -182,8 +235,8 @@ const styles = StyleSheet.create({
     marginBottom: SPACING[24],
   },
   roleItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     padding: SPACING[12],
     borderRadius: RADIUS.card,
     borderWidth: 1.5,
@@ -193,15 +246,15 @@ const styles = StyleSheet.create({
   },
   roleItemSelected: {
     borderColor: COLORS.brand[600],
-    backgroundColor: '#EFF6FF',
+    backgroundColor: "#EFF6FF",
   },
   roleIcon: {
     width: 36,
     height: 36,
     borderRadius: 18,
     backgroundColor: COLORS.neutral[100],
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   roleIconSelected: {
     backgroundColor: COLORS.brand[700],
@@ -225,7 +278,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   actions: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: SPACING[12],
   },
   cancelBtn: {
@@ -234,8 +287,8 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.button,
     borderWidth: 1,
     borderColor: COLORS.neutral[300],
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   cancelText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
@@ -248,9 +301,9 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING[12],
     borderRadius: RADIUS.button,
     backgroundColor: COLORS.brand[700],
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: SPACING[8],
   },
   confirmBtnDisabled: {

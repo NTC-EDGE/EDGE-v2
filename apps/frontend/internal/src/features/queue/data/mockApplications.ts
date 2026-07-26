@@ -5,7 +5,8 @@ export type ApplicationStatus =
   | "Completed"
   | "In Process"
   | "Declined"
-  | "Approved";
+  | "Approved"
+  | "Draft";
 
 export type QueueTab = "activity" | "pending" | "history";
 export type ApplicantType = "Individual" | "Company";

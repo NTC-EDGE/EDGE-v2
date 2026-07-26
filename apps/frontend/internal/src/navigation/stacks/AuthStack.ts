@@ -1,6 +1,8 @@
 import { createNativeStackNavigator } from "@edge/ui";
 import { DashboardScreen } from "../../features/dashboard/screens/DashboardScreen";
 import { ActivitiesScreen } from "../../features/queue/screens/ActivitiesScreen";
+import { EmployeesScreen } from "../../features/employees/screens/EmployeesScreen";
+import { UsersScreen } from "../../features/users/screens/UsersScreen";
 import { PlaceholderScreen } from "./PlaceholderScreen";
 
 export const AuthStack = createNativeStackNavigator({
@@ -22,8 +24,8 @@ export const AuthStack = createNativeStackNavigator({
     },
     RolesPermission: { screen: PlaceholderScreen, path: "roles-permissions" },
     Schedule: { screen: PlaceholderScreen, path: "schedule" },
-    Employees: { screen: PlaceholderScreen, path: "employees" },
-    Users: { screen: PlaceholderScreen, path: "users" },
+    Employees: { screen: EmployeesScreen, path: "employees" },
+    Users: { screen: UsersScreen, path: "users" },
     Settings: { screen: PlaceholderScreen, path: "settings" },
   },
 });
