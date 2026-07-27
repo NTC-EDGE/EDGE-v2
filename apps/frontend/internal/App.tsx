@@ -2,26 +2,16 @@ import { useState, useEffect } from "react";
 import { StatusBar } from "expo-status-bar";
 import {
   StyleSheet,
-  Text,
   View,
   ActivityIndicator,
   Platform,
 } from "react-native";
-import { tokenCache } from "./tokenCache";
 import { ClerkProvider } from "@clerk/expo";
+import { tokenCache } from "./tokenCache";
 import {
   COLORS,
-  SPACING,
-  RADIUS,
-  SHADOWS,
-  TYPOGRAPHY,
-  createStaticNavigation,
   useNavigationContainerRef,
-  ParamListBase,
-  RouteProp,
-  createNativeStackNavigator,
-  getStateFromPath,
-  getPathFromState,
+  type ParamListBase,
 } from "@edge/ui";
 import {
   AuthProvider,
@@ -29,106 +19,12 @@ import {
 } from "./src/features/auth/context/AuthContext";
 import { RoleProvider } from "./src/features/shell/context/RoleContext";
 import { DashboardShell } from "./src/features/shell/components/DashboardShell";
-import { DashboardScreen } from "./src/features/dashboard/screens/DashboardScreen";
-import { QueueScreen } from "./src/features/queue/screens/QueueScreen";
-import { InternalLoginPage } from "./src/features/login/components/InternalLoginPage";
-
-import { EmployeesScreen } from "./src/features/employees/screens/EmployeesScreen";
-import { UsersScreen } from "./src/features/users/screens/UsersScreen";
-import { SettingsScreen } from "./src/features/settings/screens/SettingsScreen";
-import { AdminSettingsScreen } from "./src/features/settings/screens/AdminSettingsScreen";
-import { RolesPermissionScreen } from "./src/features/roles-permission/screens/RolesPermissionScreen";
-import { StandardPageWrapper } from "./src/features/shell/components/StandardPageWrapper";
-
-function SettingsScreenWrapped() {
-  return (
-    <StandardPageWrapper activeScreen="Settings">
-      <AdminSettingsScreen />
-    </StandardPageWrapper>
-  );
-}
-
-function DashboardScreenWrapped() {
-  return (
-    <StandardPageWrapper activeScreen="Dashboard">
-      <DashboardScreen />
-    </StandardPageWrapper>
-  );
-}
-
-function ActivitiesScreenWrapped() {
-  return (
-    <StandardPageWrapper activeScreen="Activities">
-      <QueueScreen />
-    </StandardPageWrapper>
-  );
-}
-
-function ChatScreenWrapped(props: { route: RouteProp<ParamListBase, string> }) {
-  return (
-    <StandardPageWrapper activeScreen="Chat">
-      <PlaceholderScreen {...props} />
-    </StandardPageWrapper>
-  );
-}
-
-function MeetScreenWrapped(props: { route: RouteProp<ParamListBase, string> }) {
-  return (
-    <StandardPageWrapper activeScreen="Meet">
-      <PlaceholderScreen {...props} />
-    </StandardPageWrapper>
-  );
-}
-
-function ReportsScreenWrapped(props: { route: RouteProp<ParamListBase, string> }) {
-  return (
-    <StandardPageWrapper activeScreen="Reports">
-      <PlaceholderScreen {...props} />
-    </StandardPageWrapper>
-  );
-}
-
-function ReceiptManagementScreenWrapped(props: { route: RouteProp<ParamListBase, string> }) {
-  return (
-    <StandardPageWrapper activeScreen="ReceiptManagement">
-      <PlaceholderScreen {...props} />
-    </StandardPageWrapper>
-  );
-}
-
-function RolesPermissionScreenWrapped() {
-  return (
-    <StandardPageWrapper activeScreen="RolesPermission">
-      <RolesPermissionScreen />
-    </StandardPageWrapper>
-  );
-}
-
-function ScheduleScreenWrapped(props: { route: RouteProp<ParamListBase, string> }) {
-  return (
-    <StandardPageWrapper activeScreen="Schedule">
-      <PlaceholderScreen {...props} />
-    </StandardPageWrapper>
-  );
-}
-
-function EmployeesScreenWrapped() {
-  return (
-    <StandardPageWrapper activeScreen="Employees">
-      <EmployeesScreen />
-    </StandardPageWrapper>
-  );
-}
-
-function UsersScreenWrapped() {
-  return (
-    <StandardPageWrapper activeScreen="Users">
-      <UsersScreen />
-    </StandardPageWrapper>
-  );
-}
-
-
+import {
+  UnauthNavigation,
+  AuthNavigation,
+  unauthLinking,
+  authLinking,
+} from "./src/navigation";
 
 const getClerkKey = (): string => {
   const key = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
@@ -146,139 +42,12 @@ if (publishableKey.length === 0) {
   );
 }
 
-// Fallback Placeholder screen for role specific navigation links
-function PlaceholderScreen({
-  route,
-}: {
-  route: RouteProp<ParamListBase, string>;
-}) {
-  const name = route.name;
-
-  // Format the camelCase name into a user friendly title (e.g. AuditLogs -> Audit Logs)
-  const formattedName = name
-    .replace(/([A-Z])/g, " $1")
-    .replace(/^./, (str: string) => str.toUpperCase())
-    .trim();
-
-  return (
-    <View style={styles.placeholderContainer}>
-      <View style={[styles.placeholderCard, SHADOWS.card]}>
-        <Text style={styles.placeholderTitle}>{formattedName} Portal</Text>
-        <Text style={styles.placeholderText}>
-          This sub-module is currently undergoing staging and compliance
-          verification. All interactions are simulated under the active role
-          constraints.
-        </Text>
-      </View>
-    </View>
-  );
-}
-
-// React Navigation 8 Static configuration
-const UnauthStack = createNativeStackNavigator({
-  initialRouteName: "InternalLogin",
-  screenOptions: {
-    headerShown: false,
-    contentStyle: { backgroundColor: "transparent" },
-    animation: "fade",
-  },
-  screens: {
-    InternalLogin: {
-      screen: InternalLoginPage,
-      path: "internal/login",
-      options: {
-        title: "Login",
-      },
-    },
-  },
-});
-
-const AuthStack = createNativeStackNavigator({
-  initialRouteName: "Dashboard",
-  screenOptions: {
-    headerShown: false,
-    contentStyle: { backgroundColor: "transparent" },
-    animation: "fade",
-  },
-  screens: {
-    Dashboard: { screen: DashboardScreenWrapped, path: "dashboard" },
-    Activities: { screen: ActivitiesScreenWrapped, path: "activities" },
-    Chat: { screen: ChatScreenWrapped, path: "chat" },
-    Meet: { screen: MeetScreenWrapped, path: "meet" },
-    Reports: { screen: ReportsScreenWrapped, path: "reports" },
-    ReceiptManagement: { screen: ReceiptManagementScreenWrapped, path: "receipt-management" },
-    RolesPermission: { screen: RolesPermissionScreenWrapped, path: "roles-permissions" },
-    Schedule: { screen: ScheduleScreenWrapped, path: "schedule" },
-    Employees: { screen: EmployeesScreenWrapped, path: "employees" },
-    Users: { screen: UsersScreenWrapped, path: "users" },
-    Settings: { screen: SettingsScreenWrapped, path: "settings" },
-    AccountSettings: { screen: SettingsScreen, path: "account-settings" },
-  },
-});
-
-const UnauthNavigation = createStaticNavigation(UnauthStack);
-const AuthNavigation = createStaticNavigation(AuthStack);
-
-const getPrefixes = (): string[] => {
-  const prefixes = [
-    "http://localhost:8081",
-    "http://localhost:8082",
-    "http://localhost:8083",
-    "edge://",
-  ];
-  if (typeof window !== "undefined" && window.location !== undefined && typeof window.location.origin === "string") {
-    if (!prefixes.includes(window.location.origin)) {
-      prefixes.push(window.location.origin);
-    }
-  }
-  return prefixes;
-};
-
-const unauthLinking = {
-  prefixes: getPrefixes(),
-  getStateFromPath(path: string, options?: Parameters<typeof getStateFromPath>[1]) {
-    return {
-      routes: [{ name: "InternalLogin" }],
-    };
-  },
-  getPathFromState(state: Parameters<typeof getPathFromState>[0], options?: Parameters<typeof getPathFromState>[1]) {
-    return "/internal/login";
-  },
-};
-
-const authLinking = {
-  prefixes: getPrefixes(),
-  getStateFromPath(path: string, options?: Parameters<typeof getStateFromPath>[1]) {
-    const cleanPath = path.split("?")[0].replace(/\/$/, "");
-    if (
-      cleanPath === "" ||
-      cleanPath === "/" ||
-      cleanPath === "internal/login" ||
-      cleanPath === "/internal/login" ||
-      cleanPath === "internal/landing" ||
-      cleanPath === "/internal/landing"
-    ) {
-      return {
-        routes: [{ name: "Dashboard" }],
-      };
-    }
-    return getStateFromPath(path, options);
-  },
-  getPathFromState(state: Parameters<typeof getPathFromState>[0], options?: Parameters<typeof getPathFromState>[1]) {
-    const generatedPath = getPathFromState(state, options);
-    if (generatedPath === "" || generatedPath === "/") {
-      return "/dashboard";
-    }
-    return generatedPath;
-  },
-};
-
 function AppContent() {
   const { isAuthenticated, isLoading } = useAuthContext();
   const navigationRef = useNavigationContainerRef<ParamListBase>();
   const [activeScreen, setActiveScreen] = useState("Dashboard");
 
-  // Sync root URL '/' to '/internal/login' in browser address bar when unauthenticated and update document title based on auth state and active screen
+  // Sync root URL and preserve target deep link when unauthenticated; update document title on state change
   useEffect(() => {
     if (Platform.OS === "web" && typeof document !== "undefined") {
       if (!isAuthenticated) {
@@ -293,8 +62,14 @@ function AppContent() {
     }
     if (!isAuthenticated && Platform.OS === "web" && typeof window !== "undefined" && window.location !== undefined) {
       const hasClerkParam = window.location.search.includes("__clerk");
-      if (!hasClerkParam && (window.location.pathname === "/" || window.location.pathname === "")) {
-        window.history.replaceState(null, "", "/internal/login");
+      if (!hasClerkParam) {
+        const currentPath = window.location.pathname;
+        if (currentPath === "/" || currentPath === "") {
+          window.history.replaceState(null, "", "/internal/login");
+        } else if (currentPath !== "/internal/login" && !currentPath.startsWith("/internal/login")) {
+          const redirectUrl = encodeURIComponent(currentPath + window.location.search);
+          window.history.replaceState(null, "", `/internal/login?redirect=${redirectUrl}`);
+        }
       }
     }
   }, [isAuthenticated, activeScreen]);
@@ -366,63 +141,5 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.bg,
     alignItems: "center",
     justifyContent: "center",
-  },
-
-  placeholderContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: SPACING[20],
-  },
-  placeholderCard: {
-    backgroundColor: COLORS.neutral.white,
-    borderRadius: RADIUS.card,
-    borderWidth: 1,
-    borderColor: COLORS.neutral[200],
-    padding: SPACING[32],
-    maxWidth: 600,
-    alignItems: "center",
-    textAlign: "center",
-  },
-  placeholderTitle: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 24,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    color: COLORS.neutral[900],
-    marginBottom: SPACING[12],
-  },
-  placeholderText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
-    color: COLORS.neutral[500],
-    textAlign: "center",
-    lineHeight: 22,
-  },
-  roleBadge: {
-    backgroundColor: '#273e29',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    marginBottom: 20,
-  },
-  roleBadgeText: {
-    color: '#a5bda6',
-    fontWeight: 'bold',
-    fontSize: 12,
-  },
-  panel: {
-    width: '100%',
-    backgroundColor: '#273e29',
-    borderRadius: 8,
-    padding: 15,
-    marginBottom: 15,
-    borderWidth: 1,
-    borderColor: '#3a583d',
-  },
-  panelTitle: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 10,
   },
 });
