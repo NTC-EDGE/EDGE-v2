@@ -60,6 +60,52 @@ public class ApplicationFullRepository : IApplicationFullRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<List<Domain.Entities.Application>> GetUserApplicationsAsync(Guid userId, ApplicationStatus? status = null, CancellationToken cancellationToken = default)
+    {
+        var query = _context.Applications
+            .Include(a => a.ApplicationServices)
+            .Include(a => a.ApplicationApplicants)
+                .ThenInclude(aa => aa.Applicant)
+                    .ThenInclude(app => app!.ApplicantDetail)
+            .Include(a => a.FormSubmissions)
+                .ThenInclude(fs => fs.FieldValues)
+                    .ThenInclude(fv => fv.Field)
+            .Where(a => a.UserId == userId);
+
+        if (status.HasValue)
+        {
+            query = query.Where(a => a.Status == status.Value);
+        }
+
+        return await query
+            .OrderByDescending(a => a.CreatedAt)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<Domain.Entities.Application>> GetAllApplicationsAsync(ApplicationStatus? status = null, CancellationToken cancellationToken = default)
+    {
+        var query = _context.Applications
+            .Include(a => a.ApplicationServices)
+            .Include(a => a.ApplicationApplicants)
+                .ThenInclude(aa => aa.Applicant)
+                    .ThenInclude(app => app!.ApplicantDetail)
+            .Include(a => a.FormSubmissions)
+                .ThenInclude(fs => fs.FieldValues)
+                    .ThenInclude(fv => fv.Field)
+            .AsQueryable();
+
+        if (status.HasValue)
+        {
+            query = query.Where(a => a.Status == status.Value);
+        }
+
+        return await query
+            .OrderByDescending(a => a.CreatedAt)
+            .ToListAsync(cancellationToken);
+    }
+
+
+
     public Task UpdateAsync(Domain.Entities.Application application, CancellationToken cancellationToken = default)
     {
         _context.Applications.Update(application);

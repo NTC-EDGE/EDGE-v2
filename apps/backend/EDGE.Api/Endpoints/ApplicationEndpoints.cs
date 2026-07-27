@@ -20,8 +20,12 @@ using EDGE.Application.Applications.Commands.UpdateApplication;
 using EDGE.Application.Applications.Commands.UpdateApplicationApplicant;
 using EDGE.Application.Applications.Commands.UpdateApplicationStatus;
 using EDGE.Application.Applications.Commands.UploadApplicantRequirement;
+using EDGE.Application.Applications.Queries.GetAllApplications;
 using EDGE.Application.Applications.Queries.GetApplicationById;
 using EDGE.Application.Applications.Queries.GetDraftApplications;
+using EDGE.Domain.Enums;
+using Microsoft.AspNetCore.Mvc;
+
 using EDGE.Application.Common.Models;
 using EDGE.Application.Services.Queries.GetServiceCsvTemplate;
 
@@ -40,8 +44,14 @@ public static class ApplicationEndpoints
         group.MapPost("/", SubmitApplication)
             .WithName("SubmitApplication");
 
+        group.MapGet("/", GetAllApplications)
+            .WithName("GetAllApplications")
+            .WithSummary("Get all applications regardless of status")
+            .WithDescription("Retrieves all applications for the current user, optionally filtered by status.");
+
         group.MapGet("/drafts", GetDraftApplications)
             .WithName("GetDraftApplications");
+
 
         group.MapGet("/{id:guid}", GetApplicationById)
             .WithName("GetApplicationById");
@@ -133,7 +143,20 @@ public static class ApplicationEndpoints
     }
 
     [HasPermission(Permissions.ViewOwnApplications)]
+    public static async Task<IResult> GetAllApplications([FromQuery] ApplicationStatus? status, IMediator mediator)
+    {
+        var result = await mediator.Send(new GetAllApplicationsQuery(status));
+        if (!result.Succeeded && result.Message != null && result.Message.StartsWith("401"))
+        {
+            return Results.Unauthorized();
+        }
+
+        return Results.Ok(result);
+    }
+
+    [HasPermission(Permissions.ViewOwnApplications)]
     public static async Task<IResult> GetDraftApplications(IMediator mediator)
+
     {
         var result = await mediator.Send(new GetDraftApplicationsQuery());
         if (!result.Succeeded && result.Message != null && result.Message.StartsWith("401"))
