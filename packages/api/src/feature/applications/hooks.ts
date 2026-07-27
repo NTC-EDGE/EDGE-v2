@@ -1,5 +1,5 @@
 import { SWRConfiguration, SWRResponse } from "swr";
-import { useAuthenticatedSWR } from "../../client";
+import { useAuthenticatedSWR } from "../../index";
 import { ApiResponse, PaginatedApiResponse } from "../../types";
 import { ApplicationDto, GetApplicationsParams } from "./types";
 

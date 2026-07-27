@@ -1,4 +1,4 @@
-import { apiClient } from "../../client";
+import { apiClient } from "../../index";
 import { ApiResponse, PaginatedApiResponse } from "../../types";
 import {
   ApplicationDto,
