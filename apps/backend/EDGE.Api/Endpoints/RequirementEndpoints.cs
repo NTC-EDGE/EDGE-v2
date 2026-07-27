@@ -5,6 +5,8 @@ using MediatR;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using EDGE.Domain.Authorization;
+using EDGE.Infrastructure.Authorization;
 using EDGE.Application.Requirements.Commands.AttachServiceVariantRequirement;
 using EDGE.Application.Requirements.Commands.CreateRequirement;
 using EDGE.Application.Requirements.Commands.DeleteRequirement;
@@ -53,47 +55,22 @@ public static class RequirementEndpoints
         var services = group.MapGroup("services")
             .WithTags("Service Requirements");
 
-        services.MapPost("/{serviceId:guid}/variants/{variantId:guid}/requirements", async (
-            Guid serviceId,
-            Guid variantId,
-            AttachServiceVariantRequirementCommand command,
-            IMediator mediator) =>
-        {
-            var updatedCommand = command with { ServiceId = serviceId, ServiceVariantId = variantId };
-            var result = await mediator.Send(updatedCommand);
-            return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
-        })
-        .WithName("AttachServiceVariantRequirement")
-        .WithSummary("Dynamically attach a requirement to a ServiceVariant");
+        services.MapPost("/{serviceId:guid}/variants/{variantId:guid}/requirements", AttachServiceVariantRequirement)
+            .WithName("AttachServiceVariantRequirement")
+            .WithSummary("Dynamically attach a requirement to a ServiceVariant");
 
-        services.MapDelete("/{serviceId:guid}/variants/{variantId:guid}/requirements/{id:guid}", async (
-            Guid serviceId,
-            Guid variantId,
-            Guid id,
-            IMediator mediator) =>
-        {
-            var result = await mediator.Send(new UnlinkServiceVariantRequirementCommand(id));
-            return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
-        })
-        .WithName("UnlinkServiceVariantRequirement")
-        .WithSummary("Unlink a requirement from a ServiceVariant");
+        services.MapDelete("/{serviceId:guid}/variants/{variantId:guid}/requirements/{id:guid}", UnlinkServiceVariantRequirement)
+            .WithName("UnlinkServiceVariantRequirement")
+            .WithSummary("Unlink a requirement from a ServiceVariant");
 
-        services.MapGet("/{serviceId:guid}/requirements", async (
-            Guid serviceId,
-            Guid? variantId,
-            string? contextKey,
-            IMediator mediator) =>
-        {
-            var query = new GetServiceRequirementsQuery(serviceId, variantId, contextKey);
-            var result = await mediator.Send(query);
-            return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
-        })
-        .WithName("GetServiceRequirements")
-        .WithSummary("Fetch requirements for a service/variant filtered by applicant ContextKey (e.g. 'Radiotelegraphy|Re-taker')");
+        services.MapGet("/{serviceId:guid}/requirements", GetServiceRequirements)
+            .WithName("GetServiceRequirements")
+            .WithSummary("Fetch requirements for a service/variant filtered by applicant ContextKey (e.g. 'Radiotelegraphy|Re-taker')");
 
         return group;
     }
 
+    [HasPermission(Permissions.CreateRequirements)]
     public static async Task<IResult> CreateRequirement(
         CreateRequirementCommand command,
         IValidator<CreateRequirementCommand> validator,
@@ -111,6 +88,7 @@ public static class RequirementEndpoints
             : Results.BadRequest(result);
     }
 
+    [HasPermission(Permissions.UpdateRequirements)]
     public static async Task<IResult> UpdateRequirement(
         Guid id,
         UpdateRequirementCommand command,
@@ -132,6 +110,7 @@ public static class RequirementEndpoints
         return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
     }
 
+    [HasPermission(Permissions.DeleteRequirements)]
     public static async Task<IResult> DeleteRequirement(
         Guid id,
         IValidator<DeleteRequirementCommand> validator,
@@ -148,6 +127,7 @@ public static class RequirementEndpoints
         return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
     }
 
+    [HasPermission(Permissions.ReadRequirements)]
     public static async Task<IResult> GetRequirementById(
         Guid id,
         IValidator<GetRequirementByIdQuery> validator,
@@ -164,6 +144,7 @@ public static class RequirementEndpoints
         return result.Succeeded ? Results.Ok(result) : Results.NotFound(result);
     }
 
+    [HasPermission(Permissions.ReadRequirements)]
     public static async Task<IResult> GetRequirements(
         IValidator<GetRequirementsQuery> validator,
         IMediator mediator)
@@ -175,6 +156,41 @@ public static class RequirementEndpoints
             return Results.ValidationProblem(validationResult.ToDictionary());
         }
 
+        var result = await mediator.Send(query);
+        return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
+    }
+
+    [HasPermission(Permissions.CreateRequirements)]
+    public static async Task<IResult> AttachServiceVariantRequirement(
+        Guid serviceId,
+        Guid variantId,
+        AttachServiceVariantRequirementCommand command,
+        IMediator mediator)
+    {
+        var updatedCommand = command with { ServiceId = serviceId, ServiceVariantId = variantId };
+        var result = await mediator.Send(updatedCommand);
+        return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
+    }
+
+    [HasPermission(Permissions.DeleteRequirements)]
+    public static async Task<IResult> UnlinkServiceVariantRequirement(
+        Guid serviceId,
+        Guid variantId,
+        Guid id,
+        IMediator mediator)
+    {
+        var result = await mediator.Send(new UnlinkServiceVariantRequirementCommand(id));
+        return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
+    }
+
+    [HasPermission(Permissions.ReadRequirements)]
+    public static async Task<IResult> GetServiceRequirements(
+        Guid serviceId,
+        Guid? variantId,
+        string? contextKey,
+        IMediator mediator)
+    {
+        var query = new GetServiceRequirementsQuery(serviceId, variantId, contextKey);
         var result = await mediator.Send(query);
         return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
     }
