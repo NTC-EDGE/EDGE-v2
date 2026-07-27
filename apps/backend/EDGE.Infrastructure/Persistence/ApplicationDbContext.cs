@@ -63,6 +63,8 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
     public DbSet<Schedule> Schedules => Set<Schedule>();
     public DbSet<FieldOffice> FieldOffices => Set<FieldOffice>();
     public DbSet<Note> Notes => Set<Note>();
+    public DbSet<Feedback> Feedbacks => Set<Feedback>();
+    public DbSet<SystemAnnouncement> SystemAnnouncements => Set<SystemAnnouncement>();
 
     public DbSet<Fee> Fees => Set<Fee>();
     public DbSet<ServiceFee> ServiceFees => Set<ServiceFee>();

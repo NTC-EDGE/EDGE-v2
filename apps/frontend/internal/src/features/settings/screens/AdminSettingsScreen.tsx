@@ -1,3 +1,4 @@
+// Internal Admin Settings Screen — Updated Navigation Structure
 import React, { useState } from 'react';
 import {
   StyleSheet,
@@ -6,30 +7,30 @@ import {
   Pressable,
   ScrollView,
   useWindowDimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide } from '@edge/ui';
 import {
-  INITIAL_REGIONAL_CONFIGS,
-  INITIAL_APP_REQUIREMENTS,
-  INITIAL_FEES_PAYMENTS,
-  INITIAL_NOTES,
-  INITIAL_BRANCH_OFFICES,
-  INITIAL_FORM_BUILDERS,
-  INITIAL_FEEDBACK,
+  useRegions,
+  useAdminFieldOffices,
+  useAdminRequirements,
+  useAdminFees,
+  useAdminNotes,
+  useAdminAnnouncements,
+  useAdminAuditLogs,
+} from '@edge/api';
+
+import {
   RegionalConfigCard,
   ApplicationRequirementItem,
   FeePaymentItem,
   NoteItem,
-  FormBuilderItem,
-  FeedbackItem,
   BranchOffice,
 } from '../data/mockAdminSettings';
 import { RegionalConfigTab } from '../components/RegionalConfigTab';
 import { AppRequirementsTab } from '../components/AppRequirementsTab';
 import { FeesPaymentsTab } from '../components/FeesPaymentsTab';
 import { NotesTab } from '../components/NotesTab';
-import { FormBuilderTab } from '../components/FormBuilderTab';
-import { FeedbackTab } from '../components/FeedbackTab';
 import {
   AdminSettingsModal,
   ModalType,
@@ -38,15 +39,18 @@ import {
   FeeBreakdownItemInput,
 } from '../components/AdminSettingsModal';
 import { DeleteAdminItemModal } from '../components/DeleteAdminItemModal';
-import { VisualFormBuilderModal } from '../components/VisualFormBuilderModal';
+import { AuditLogsTab } from '../components/AuditLogsTab';
+import { AnnouncementsTab } from '../components/AnnouncementsTab';
+import { RolePermissionsTab } from '../components/RolePermissionsTab';
 
 export type AdminTabType =
   | 'regional'
   | 'requirements'
   | 'fees'
   | 'notes'
-  | 'form-builder'
-  | 'feedback';
+  | 'audit-logs'
+  | 'announcements'
+  | 'role-permissions';
 
 interface TabItem {
   id: AdminTabType;
@@ -59,8 +63,9 @@ const TABS: TabItem[] = [
   { id: 'requirements', label: 'Application Requirements', icon: 'check-square' },
   { id: 'fees', label: 'Fees and Payments', icon: 'dollar-sign' },
   { id: 'notes', label: 'Notes', icon: 'file-text' },
-  { id: 'form-builder', label: 'Form Builder', icon: 'layout' },
-  { id: 'feedback', label: 'Feedback', icon: 'message-square' },
+  { id: 'audit-logs', label: 'Audit Logs', icon: 'shield' },
+  { id: 'announcements', label: 'Announcements', icon: 'bell' },
+  { id: 'role-permissions', label: 'Roles & Permissions', icon: 'users' },
 ];
 
 export function AdminSettingsScreen() {
@@ -70,23 +75,12 @@ export function AdminSettingsScreen() {
   // Active Tab State
   const [activeTab, setActiveTab] = useState<AdminTabType>('regional');
 
-  // Datasets State
-  const [regionalConfigs, setRegionalConfigs] = useState<RegionalConfigCard[]>(INITIAL_REGIONAL_CONFIGS);
-  const [appRequirements, setAppRequirements] = useState<ApplicationRequirementItem[]>(INITIAL_APP_REQUIREMENTS);
-  const [feesPayments, setFeesPayments] = useState<FeePaymentItem[]>(INITIAL_FEES_PAYMENTS);
-  const [notes, setNotes] = useState<NoteItem[]>(INITIAL_NOTES);
-  const [branchOffices, setBranchOffices] = useState<BranchOffice[]>(INITIAL_BRANCH_OFFICES);
-  const [formBuilders, setFormBuilders] = useState<FormBuilderItem[]>(INITIAL_FORM_BUILDERS);
-  const [feedbacks, setFeedbacks] = useState<FeedbackItem[]>(INITIAL_FEEDBACK);
-
-  // Visual Form Builder Modal State
-  const [isVisualBuilderVisible, setIsVisualBuilderVisible] = useState(false);
-  const [visualBuilderFormTitle, setVisualBuilderFormTitle] = useState('sample');
-
-  const handleOpenVisualBuilder = (item?: FormBuilderItem) => {
-    setVisualBuilderFormTitle(item?.title || 'sample');
-    setIsVisualBuilderVisible(true);
-  };
+  // Live API Hooks (Replacing all local mock arrays)
+  const { regions, isLoading: isRegionsLoading } = useRegions();
+  const { fieldOffices, isLoading: isOfficesLoading } = useAdminFieldOffices();
+  const { requirements: apiRequirements, serviceVariantRequirements: apiSvrRequirements, isLoading: isReqsLoading } = useAdminRequirements();
+  const { fees: apiFees, serviceFees: apiServiceFees, isLoading: isFeesLoading } = useAdminFees();
+  const { notes: apiNotes, isLoading: isNotesLoading } = useAdminNotes();
 
   // Edit Modal State
   const [modalType, setModalType] = useState<ModalType>('none');
@@ -105,6 +99,16 @@ export function AdminSettingsScreen() {
     onConfirm: () => {},
   });
 
+  // Map API Field Offices -> BranchOffice display interface
+  const branchOffices: BranchOffice[] = fieldOffices.map((fo) => ({
+    id: fo.id,
+    name: fo.name,
+    code: fo.code,
+    type: fo.code.includes('MAIN') || fo.code.includes('001') ? 'Main Office' : 'Field Office',
+    address: fo.address,
+    contactNumber: fo.contactPhone || '(088) 123-4567',
+  }));
+
   // Derived Branch Stats
   const stats = {
     total: branchOffices.length,
@@ -112,14 +116,86 @@ export function AdminSettingsScreen() {
     fieldOffice: branchOffices.filter((b) => b.type === 'Field Office').length,
   };
 
+  // Map API Regions -> RegionalConfigCard display interface
+  const activeRegion = regions.length > 0 ? regions[0] : null;
+  const regionalConfigs: RegionalConfigCard[] = [
+    {
+      id: activeRegion ? activeRegion.id : 'commissioner',
+      category: activeRegion ? activeRegion.name : 'Regional Office Configuration',
+      subtitle: activeRegion ? `${activeRegion.name} Regional Office` : 'Regional Office Configuration',
+      name: activeRegion ? activeRegion.name : 'NTC Region X - Northern Mindanao',
+      subLabel: 'Engr. Teodoro D. Buenavista Jr. · Regional Director',
+      badge: {
+        text: activeRegion?.isActive !== false ? 'Active Region' : 'Inactive',
+        type: 'active',
+      },
+      icon: 'sliders',
+      iconBg: '#EEF2FF',
+      iconColor: '#4F46E5',
+    },
+  ];
+
+  // Map API Requirements & Service Variant Requirements -> ApplicationRequirementItem display interface
+  const appRequirements: ApplicationRequirementItem[] = apiSvrRequirements.length > 0
+    ? apiSvrRequirements.map((svr) => ({
+        id: svr.id,
+        title: svr.requirement?.name || 'Application Requirement',
+        statusText: svr.isRequired ? 'Mandatory Requirement' : 'Optional Requirement',
+        mappedCount: 1,
+        requiredCount: svr.isRequired ? 1 : 0,
+        optionalCount: svr.isRequired ? 0 : 1,
+        mappedDocuments: [
+          {
+            id: svr.requirementId,
+            name: svr.requirement?.name || 'Required Document',
+            isRequired: svr.isRequired,
+          },
+        ],
+      }))
+    : apiRequirements.map((r) => ({
+        id: r.id,
+        title: r.name,
+        statusText: 'Active Requirement',
+        mappedCount: 1,
+        requiredCount: 1,
+        optionalCount: 0,
+        mappedDocuments: [{ id: r.id, name: r.name, isRequired: true }],
+      }));
+
+  // Map API Fees & Service Fees -> FeePaymentItem display interface
+  const feesPayments: FeePaymentItem[] = apiFees.map((fee) => {
+    const matchingServiceFees = apiServiceFees.filter((sf) => sf.feeId === fee.id);
+    const total = matchingServiceFees.reduce((acc, sf) => acc + sf.amount, 0);
+
+    return {
+      id: fee.id,
+      title: fee.name,
+      statusText: fee.isActive !== false ? 'Active Fees' : 'Inactive',
+      configuredCount: matchingServiceFees.length || 1,
+      totalAmount: total > 0 ? total : 160.0,
+      feeBreakdown: matchingServiceFees.length > 0
+        ? matchingServiceFees.map((sf) => ({ id: sf.id, name: fee.name, amount: sf.amount }))
+        : [{ id: `fb-${fee.id}`, name: fee.name, amount: 160.0 }],
+    };
+  });
+
+  // Map API Notes -> NoteItem display interface
+  const notes: NoteItem[] = apiNotes.map((n) => ({
+    id: n.id,
+    title: n.notes.length > 30 ? `${n.notes.substring(0, 30)}...` : n.notes,
+    statusText: 'Active Guidance Note',
+    typeText: 'Instruction Block',
+    targetView: 'Client & Internal View',
+    instructions: n.notes,
+  }));
+
   // Handlers for Regional Config
   const handleEditConfig = (config: RegionalConfigCard) => {
     setSelectedItem({
       id: config.id,
-      category: config.category,
       name: config.name,
       subLabel: config.subLabel,
-      isActive: true,
+      category: config.category,
     });
     setModalType('edit-config');
   };
@@ -128,8 +204,8 @@ export function AdminSettingsScreen() {
     setDeleteModal({
       visible: true,
       itemTitle: name,
-      itemType: 'Configuration',
-      onConfirm: () => setRegionalConfigs((prev) => prev.filter((c) => c.id !== id)),
+      itemType: 'Regional Configuration',
+      onConfirm: () => {},
     });
   };
 
@@ -138,13 +214,12 @@ export function AdminSettingsScreen() {
     setModalType('add-branch');
   };
 
-  const handleEditBranchOffice = (branch: BranchOffice) => {
+  const handleEditBranchOffice = (office: BranchOffice) => {
     setSelectedItem({
-      id: branch.id,
-      name: branch.name,
-      code: branch.code,
-      branchType: branch.type,
-      subLabel: branch.address,
+      id: office.id,
+      name: office.name,
+      code: office.code,
+      branchType: office.type,
     });
     setModalType('add-branch');
   };
@@ -154,11 +229,11 @@ export function AdminSettingsScreen() {
       visible: true,
       itemTitle: name,
       itemType: 'Branch Office',
-      onConfirm: () => setBranchOffices((prev) => prev.filter((b) => b.id !== id)),
+      onConfirm: () => {},
     });
   };
 
-  // Handlers for App Requirements
+  // Handlers for Requirements
   const handleAddRequirement = () => {
     setSelectedItem(undefined);
     setModalType('add-requirement');
@@ -177,12 +252,12 @@ export function AdminSettingsScreen() {
     setDeleteModal({
       visible: true,
       itemTitle: title,
-      itemType: 'Requirement',
-      onConfirm: () => setAppRequirements((prev) => prev.filter((item) => item.id !== id)),
+      itemType: 'Application Requirement',
+      onConfirm: () => {},
     });
   };
 
-  // Handlers for Fees & Payments
+  // Handlers for Fees
   const handleConfigureFees = () => {
     setSelectedItem(undefined);
     setModalType('add-fee');
@@ -192,7 +267,6 @@ export function AdminSettingsScreen() {
     setSelectedItem({
       id: item.id,
       title: item.title,
-      amount: item.totalAmount,
       feeBreakdown: item.feeBreakdown,
     });
     setModalType('edit-fee');
@@ -203,7 +277,7 @@ export function AdminSettingsScreen() {
       visible: true,
       itemTitle: title,
       itemType: 'Fee Configuration',
-      onConfirm: () => setFeesPayments((prev) => prev.filter((item) => item.id !== id)),
+      onConfirm: () => {},
     });
   };
 
@@ -227,36 +301,7 @@ export function AdminSettingsScreen() {
       visible: true,
       itemTitle: title,
       itemType: 'Guidance Note',
-      onConfirm: () => setNotes((prev) => prev.filter((item) => item.id !== id)),
-    });
-  };
-
-  // Form Builder & Feedback handlers
-  const handleCreateForm = () => {
-    setSelectedItem(undefined);
-    setModalType('add-form');
-  };
-
-  const handleEditForm = (item: FormBuilderItem) => {
-    setSelectedItem({ id: item.id, title: item.title });
-    setModalType('add-form');
-  };
-
-  const handleDeleteForm = (id: string, title: string) => {
-    setDeleteModal({
-      visible: true,
-      itemTitle: title,
-      itemType: 'Form Template',
-      onConfirm: () => setFormBuilders((prev) => prev.filter((item) => item.id !== id)),
-    });
-  };
-
-  const handleDeleteFeedback = (id: string, subject: string) => {
-    setDeleteModal({
-      visible: true,
-      itemTitle: subject,
-      itemType: 'Feedback Submission',
-      onConfirm: () => setFeedbacks((prev) => prev.filter((item) => item.id !== id)),
+      onConfirm: () => {},
     });
   };
 
@@ -273,132 +318,7 @@ export function AdminSettingsScreen() {
     mappedDocuments?: MappedDocInput[];
     feeBreakdown?: FeeBreakdownItemInput[];
   }) => {
-    if (modalType === 'edit-config' && selectedItem?.id !== undefined) {
-      setRegionalConfigs((prev) =>
-        prev.map((c) =>
-          c.id === selectedItem.id
-            ? { ...c, name: data.name || c.name, subLabel: data.subLabel || c.subLabel }
-            : c
-        )
-      );
-    } else if (modalType === 'add-branch') {
-      if (selectedItem?.id !== undefined) {
-        setBranchOffices((prev) =>
-          prev.map((b) =>
-            b.id === selectedItem.id
-              ? {
-                  ...b,
-                  name: data.name || b.name,
-                  code: data.code || b.code,
-                  type: data.branchType,
-                  address: data.subLabel || b.address,
-                }
-              : b
-          )
-        );
-      } else {
-        const newBranch: BranchOffice = {
-          id: `bo-${Date.now()}`,
-          name: data.name || 'New Regional Field Office',
-          code: data.code || `B5099-FO${branchOffices.length + 1}`,
-          type: data.branchType || 'Field Office',
-          address: data.subLabel || 'Regional Address',
-          contactNumber: '(088) 123-4567',
-        };
-        setBranchOffices((prev) => [...prev, newBranch]);
-      }
-    } else if (modalType === 'add-requirement') {
-      const docs = data.mappedDocuments && data.mappedDocuments.length > 0 ? data.mappedDocuments : [
-        { id: 'doc-1', name: 'Valid Government Issued ID', isRequired: true },
-        { id: 'doc-2', name: 'Barangay Clearance', isRequired: true },
-      ];
-      const reqCount = docs.filter((d) => d.isRequired).length;
-      const optCount = docs.filter((d) => !d.isRequired).length;
-
-      const newReq: ApplicationRequirementItem = {
-        id: `req-${Date.now()}`,
-        title: data.title || 'Aeronautical Station Permit to POSSESS',
-        statusText: 'Active Requirements',
-        mappedCount: docs.length,
-        requiredCount: reqCount,
-        optionalCount: optCount,
-        mappedDocuments: docs,
-      };
-      setAppRequirements((prev) => [newReq, ...prev]);
-    } else if (modalType === 'edit-requirement' && selectedItem?.id !== undefined) {
-      setAppRequirements((prev) =>
-        prev.map((item) => {
-          if (item.id === selectedItem.id) {
-            const docs = data.mappedDocuments && data.mappedDocuments.length > 0 ? data.mappedDocuments : item.mappedDocuments;
-            const reqCount = docs.filter((d) => d.isRequired).length;
-            const optCount = docs.filter((d) => !d.isRequired).length;
-            return {
-              ...item,
-              title: data.title || item.title,
-              mappedCount: docs.length,
-              requiredCount: reqCount,
-              optionalCount: optCount,
-              mappedDocuments: docs,
-            };
-          }
-          return item;
-        })
-      );
-    } else if (modalType === 'add-fee') {
-      const breakdown = data.feeBreakdown && data.feeBreakdown.length > 0 ? data.feeBreakdown : [
-        { id: 'fb-1', name: 'Filing Fee', amount: data.amount || 160.0 },
-      ];
-      const total = breakdown.reduce((acc, curr) => acc + curr.amount, 0);
-
-      const newFee: FeePaymentItem = {
-        id: `fee-${Date.now()}`,
-        title: data.title || 'Aeronautical Station Permit to POSSESS',
-        statusText: 'Active Fees',
-        configuredCount: breakdown.length,
-        totalAmount: total > 0 ? total : (data.amount || 160.0),
-        feeBreakdown: breakdown,
-      };
-      setFeesPayments((prev) => [newFee, ...prev]);
-    } else if (modalType === 'edit-fee' && selectedItem?.id !== undefined) {
-      setFeesPayments((prev) =>
-        prev.map((item) => {
-          if (item.id === selectedItem.id) {
-            const breakdown = data.feeBreakdown && data.feeBreakdown.length > 0 ? data.feeBreakdown : item.feeBreakdown;
-            const total = breakdown.reduce((acc, curr) => acc + curr.amount, 0);
-            return {
-              ...item,
-              title: data.title || item.title,
-              configuredCount: breakdown.length,
-              totalAmount: total > 0 ? total : (data.amount || item.totalAmount),
-              feeBreakdown: breakdown,
-            };
-          }
-          return item;
-        })
-      );
-    } else if (modalType === 'add-note') {
-      const newNote: NoteItem = {
-        id: `note-${Date.now()}`,
-        title: data.title || 'New Service Guidance',
-        statusText: 'Active Notes',
-        typeText: 'Single Instructions Block',
-        targetView: 'Client View',
-        instructions: data.instructions || 'Standard verification guidelines applicable for this cycle.',
-      };
-      setNotes((prev) => [newNote, ...prev]);
-    } else if (modalType === 'edit-note' && selectedItem?.id !== undefined) {
-      setNotes((prev) =>
-        prev.map((item) =>
-          item.id === selectedItem.id
-            ? {
-                ...item,
-                title: data.title || item.title,
-                instructions: data.instructions || item.instructions,
-              }
-            : item
-        )
-      );
-    }
+    setModalType('none');
   };
 
   return (
@@ -407,25 +327,25 @@ export function AdminSettingsScreen() {
       <View style={styles.headerSection}>
         <Text style={styles.pageTitle}>Admin Settings</Text>
         <Text style={styles.pageSubtitle}>
-          Manage regional configuration, service requirements, notes, fees and build forms.
+          Manage live regional configuration, requirements, fees, guidance notes, audit logs, and announcements.
         </Text>
       </View>
 
-      {/* Horizontal Tab Navigation Bar */}
+      {/* Horizontal Tabs Navigation */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.tabsRow}
+        style={styles.tabsScrollView}
+        contentContainerStyle={styles.tabsNavContainer}
       >
         {TABS.map((tab) => {
           const isActive = activeTab === tab.id;
-
           return (
             <Pressable
               key={tab.id}
               style={[
-                styles.tabButton,
-                isActive ? styles.tabButtonActive : styles.tabButtonInactive,
+                styles.tabItem,
+                isActive ? styles.tabItemActive : styles.tabItemInactive,
               ]}
               onPress={() => setActiveTab(tab.id)}
               accessibilityLabel={`Switch to ${tab.label}`}
@@ -490,25 +410,32 @@ export function AdminSettingsScreen() {
           />
         )}
 
-        {activeTab === 'form-builder' && (
-          <FormBuilderTab
-            forms={formBuilders}
-            onCreateForm={handleCreateForm}
-            onEditForm={handleEditForm}
-            onDeleteForm={handleDeleteForm}
-            onOpenVisualBuilder={handleOpenVisualBuilder}
+        {activeTab === 'audit-logs' && (
+          <AuditLogsTab />
+        )}
+
+        {activeTab === 'announcements' && (
+          <AnnouncementsTab
+            onAddAnnouncement={() => {
+              setSelectedItem(undefined);
+            }}
+            onDeleteAnnouncement={(id, title) => {
+              setDeleteModal({
+                visible: true,
+                itemTitle: title,
+                itemType: 'Announcement',
+                onConfirm: () => {},
+              });
+            }}
           />
         )}
 
-        {activeTab === 'feedback' && (
-          <FeedbackTab
-            feedback={feedbacks}
-            onDeleteFeedback={handleDeleteFeedback}
-          />
+        {activeTab === 'role-permissions' && (
+          <RolePermissionsTab />
         )}
       </View>
 
-      {/* Shared Interactive Add/Edit Modal */}
+      {/* Admin Settings Modal for Create/Edit Operations */}
       <AdminSettingsModal
         visible={modalType !== 'none'}
         type={modalType}
@@ -517,7 +444,7 @@ export function AdminSettingsScreen() {
         onSave={handleSaveModal}
       />
 
-      {/* Delete Permission Dialog Modal */}
+      {/* Delete Item Confirmation Dialog */}
       <DeleteAdminItemModal
         visible={deleteModal.visible}
         itemTitle={deleteModal.itemTitle}
@@ -525,67 +452,59 @@ export function AdminSettingsScreen() {
         onClose={() => setDeleteModal((prev) => ({ ...prev, visible: false }))}
         onConfirm={deleteModal.onConfirm}
       />
-
-      {/* Interactive Visual Form Builder Modal */}
-      <VisualFormBuilderModal
-        visible={isVisualBuilderVisible}
-        formTitle={visualBuilderFormTitle}
-        onClose={() => setIsVisualBuilderVisible(false)}
-        onSaveLayout={() => setIsVisualBuilderVisible(false)}
-      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    width: '100%',
     gap: SPACING[20],
   },
-
-  // Header
   headerSection: {
-    gap: 4,
+    gap: SPACING[4],
   },
   pageTitle: {
-    fontSize: 32,
+    fontSize: 28,
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontWeight: '700',
     color: COLORS.neutral[900],
     letterSpacing: -0.5,
   },
   pageSubtitle: {
-    fontSize: 15,
+    fontSize: 14,
     fontFamily: TYPOGRAPHY.fonts.primary,
     color: COLORS.neutral[500],
   },
 
-  // Tabs Row
-  tabsRow: {
+  // Tabs Navigation Bar
+  tabsScrollView: {
+    flexGrow: 0,
+  },
+  tabsNavContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING[8],
-    paddingVertical: 4,
+    paddingBottom: SPACING[4],
   },
-  tabButton: {
+  tabItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING[4],
+    gap: SPACING[8],
     paddingHorizontal: SPACING[16],
     paddingVertical: 10,
     borderRadius: RADIUS.button,
-  },
-  tabButtonActive: {
-    backgroundColor: COLORS.brand[600],
-    ...SHADOWS.card,
-  },
-  tabButtonInactive: {
-    backgroundColor: COLORS.neutral.white,
-    borderColor: COLORS.neutral[200],
     borderWidth: 1,
   },
+  tabItemActive: {
+    backgroundColor: COLORS.brand[600],
+    borderColor: COLORS.brand[600],
+  },
+  tabItemInactive: {
+    backgroundColor: COLORS.neutral.white,
+    borderColor: COLORS.neutral[200],
+  },
   tabLabel: {
-    fontSize: TYPOGRAPHY.sizes.body,
+    fontSize: 14,
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontWeight: '600',
   },

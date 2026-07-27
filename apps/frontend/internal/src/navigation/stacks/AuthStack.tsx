@@ -1,3 +1,4 @@
+// AuthStack Navigation Stack — Includes standalone Feedback and FormBuilder routes
 import {
   createNativeStackNavigator,
   type ParamListBase,
@@ -9,9 +10,27 @@ import { UsersScreen } from "../../features/users/screens/UsersScreen";
 import { SettingsScreen } from "../../features/settings/screens/SettingsScreen";
 import { AdminSettingsScreen } from "../../features/settings/screens/AdminSettingsScreen";
 import { RolesPermissionScreen } from "../../features/roles-permission/screens/RolesPermissionScreen";
+import { FeedbackScreen } from "../../features/feedback/screens/FeedbackScreen";
+import { FormBuilderScreen } from "../../features/form-builder/screens/FormBuilderScreen";
 import { StandardPageWrapper } from "../../features/shell/components/StandardPageWrapper";
 import { PlaceholderScreen } from "./PlaceholderScreen";
 import { ActivitiesScreen } from "../../features/queue/screens/ActivitiesScreen";
+
+function FeedbackScreenWrapped() {
+  return (
+    <StandardPageWrapper activeScreen="Feedback">
+      <FeedbackScreen />
+    </StandardPageWrapper>
+  );
+}
+
+function FormBuilderScreenWrapped() {
+  return (
+    <StandardPageWrapper activeScreen="FormBuilder">
+      <FormBuilderScreen />
+    </StandardPageWrapper>
+  );
+}
 
 function SettingsScreenWrapped() {
   return (
@@ -113,6 +132,16 @@ export const AuthStack = createNativeStackNavigator({
       screen: DashboardScreenWrapped,
       path: "dashboard",
       options: { title: "Dashboard" },
+    },
+    Feedback: {
+      screen: FeedbackScreenWrapped,
+      path: "feedback",
+      options: { title: "User Feedback" },
+    },
+    FormBuilder: {
+      screen: FormBuilderScreenWrapped,
+      path: "form-builder",
+      options: { title: "Form Builder" },
     },
     Activities: {
       screen: ActivitiesScreenWrapped,

@@ -1,4 +1,6 @@
-import { createContext, useContext, ReactNode, useState } from "react";
+import { createContext, useContext, ReactNode, useState, useEffect } from "react";
+import { Platform } from "react-native";
+import * as SecureStore from "expo-secure-store";
 import { useAuth, useUser, useSignIn, useSignUp } from "@clerk/expo";
 import { parseApiError, verifyStaffMembership } from "@edge/api";
 import { RegionSelectionModal } from "../../login/components/RegionSelectionModal";
@@ -7,6 +9,50 @@ import {
   MfaStrategy,
   SupportedFactor,
 } from "../../login/components/MfaOtpVerificationModal";
+
+const SELECTED_REGION_STORAGE_KEY = "ntc_edge_selected_region_code";
+
+async function getStoredRegionCode(): Promise<string | null> {
+  try {
+    if (Platform.OS === "web") {
+      if (typeof window !== "undefined" && window.localStorage) {
+        return window.localStorage.getItem(SELECTED_REGION_STORAGE_KEY);
+      }
+      return null;
+    }
+    return await SecureStore.getItemAsync(SELECTED_REGION_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+async function setStoredRegionCode(code: string): Promise<void> {
+  try {
+    if (Platform.OS === "web") {
+      if (typeof window !== "undefined" && window.localStorage) {
+        window.localStorage.setItem(SELECTED_REGION_STORAGE_KEY, code);
+      }
+      return;
+    }
+    await SecureStore.setItemAsync(SELECTED_REGION_STORAGE_KEY, code);
+  } catch {
+    // Ignore storage write errors
+  }
+}
+
+async function removeStoredRegionCode(): Promise<void> {
+  try {
+    if (Platform.OS === "web") {
+      if (typeof window !== "undefined" && window.localStorage) {
+        window.localStorage.removeItem(SELECTED_REGION_STORAGE_KEY);
+      }
+      return;
+    }
+    await SecureStore.deleteItemAsync(SELECTED_REGION_STORAGE_KEY);
+  } catch {
+    // Ignore storage delete errors
+  }
+}
 
 export interface UserProfile {
   name: string;
@@ -75,6 +121,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const clerkUser = useUser();
   const { signIn } = useSignIn();
   const { signUp } = useSignUp();
+
+  // Restore stored region code on page reload and verify membership in background
+  useEffect(() => {
+    let isMounted = true;
+
+    async function restoreAndVerifyRegion() {
+      if (!isClerkEnabled || !clerkAuth.isSignedIn) return;
+
+      const storedRegion = await getStoredRegionCode();
+      if (storedRegion !== null && storedRegion.length > 0) {
+        if (!isMounted) return;
+        setSelectedRegionState(storedRegion);
+        setIsMembershipVerified(true);
+
+        // Perform membership verification silently in the background
+        try {
+          const token = clerkAuth.getToken ? await clerkAuth.getToken() : null;
+          const verifiedClaims = await verifyStaffMembership(token, storedRegion);
+          if (isMounted) {
+            setBackendStaffClaims({
+              tenantId: verifiedClaims.tenantId,
+              tenantName: verifiedClaims.tenantName,
+              roles: verifiedClaims.assignedRoles,
+              permissions: verifiedClaims.effectivePermissions,
+            });
+          }
+        } catch {
+          // If background check fails (e.g. invalid membership), clear region and prompt modal
+          if (isMounted) {
+            await removeStoredRegionCode();
+            setIsMembershipVerified(false);
+            setSelectedRegionState(undefined);
+          }
+        }
+      }
+    }
+
+    restoreAndVerifyRegion();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isClerkEnabled, clerkAuth.isSignedIn]);
 
   const loginWithClerk = async (email: string, password: string) => {
     if (!isClerkEnabled) {
@@ -204,6 +293,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         permissions: verifiedClaims.effectivePermissions,
       });
 
+      await setStoredRegionCode(selectedRegionCode);
       setSelectedRegionState(selectedRegionCode);
       setIsMembershipVerified(true);
     } catch (err: unknown) {
@@ -269,6 +359,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
+    await removeStoredRegionCode();
     setIsMembershipVerified(false);
     setSelectedRegionState(undefined);
     setMfaFactors(null);

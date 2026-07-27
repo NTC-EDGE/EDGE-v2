@@ -36,6 +36,10 @@ public static class EndpointConfiguration
         apiV2Group.MapServiceFeeEndpoints();
         apiV2Group.MapRequirementEndpoints();
         apiV2Group.MapServiceVariantRequirementEndpoints();
+        apiV2Group.MapFormEndpoints();
+        apiV2Group.MapFeedbackEndpoints();
+        apiV2Group.MapSystemAnnouncementEndpoints();
+        apiV2Group.MapAuditLogEndpoints();
 
     }
 }

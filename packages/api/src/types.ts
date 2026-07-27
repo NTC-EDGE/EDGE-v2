@@ -520,6 +520,50 @@ export interface StoredFileDto {
   createdAt: string;
 }
 
+export interface FeedbackDto {
+  id: string;
+  senderName: string;
+  senderEmail: string;
+  subject: string;
+  message: string;
+  rating: number;
+  status: string;
+  isAnonymous?: boolean;
+  createdAt: string;
+}
+
+export interface SystemAnnouncementDto {
+  id: string;
+  title: string;
+  message: string;
+  type: 'Info' | 'Warning' | 'Maintenance' | 'Emergency';
+  isActive: boolean;
+  startDate?: string | null;
+  endDate?: string | null;
+  targetAudience: string;
+  createdAt: string;
+}
+
+export interface AuditLogDto {
+  id: string;
+  action: string;
+  entityName: string;
+  entityId: string;
+  userId: string;
+  changes: string;
+  timestamp: string;
+}
+
+export interface ActivityLogDto {
+  id: string;
+  activityType: string;
+  description: string;
+  userId: string;
+  ipAddress: string;
+  timestamp: string;
+}
+
+
 
 
 

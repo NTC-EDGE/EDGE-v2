@@ -29,6 +29,8 @@ export const ROLES: readonly UserRole[] = [
 export const ROLE_NAVIGATION_LINKS = {
   Admin: [
     { name: 'Dashboard', screen: 'Dashboard', icon: 'grid' },
+    { name: 'Feedback', screen: 'Feedback', icon: 'message-circle' },
+    { name: 'Form Builder', screen: 'FormBuilder', icon: 'layout' },
     { name: 'Activities', screen: 'Activities', icon: 'bell' },
     { name: 'Chat', screen: 'Chat', icon: 'message-square' },
     { name: 'Meet', screen: 'Meet', icon: 'video' },
