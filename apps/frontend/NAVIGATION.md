@@ -1,12 +1,13 @@
-# NTC-EDGE Frontend Navigation Architecture & Web Linking Guidelines
+# NTC-EDGE Frontend Navigation Architecture & Expo Web Linking Guidelines
 
-This document outlines the standard navigation architecture for all Expo applications in this monorepo (`apps/frontend/internal` and `apps/frontend/client`).
+This document outlines the standard navigation architecture for **Expo applications** in this monorepo (`apps/frontend/internal` and `apps/frontend/client`).
 
-All developers **must** adhere to this modular structure to maintain a clear **separation of concerns** and prevent `App.tsx` from becoming bloated.
+> [!NOTE]
+> **Expo-Exclusive Scope**: This navigation architecture and custom linking configuration (`createLinkingConfig`, `getPrefixes`) apply **exclusively to Expo apps** using React Navigation version 8. Next.js apps in this workspace (such as `apps/frontend/admin`) use Next.js native filesystem routing and `@clerk/nextjs` server/middleware redirections, which operate independently without React Navigation.
 
 ---
 
-## 1. Core Principles
+## 1. Core Principles (Expo Apps)
 
 1. **Separation of Concerns**: `App.tsx` serves strictly as the application root (initializing global providers like Clerk, Auth Context, and top-level shells). Navigation stacks, screen routing, and web linking configs MUST live in the dedicated `navigation` (or `routes`) directory.
 2. **React Navigation 8 Static Navigation**: Stacks are declared statically using `createNativeStackNavigator` and converted to static components via `createStaticNavigation`.
@@ -14,7 +15,7 @@ All developers **must** adhere to this modular structure to maintain a clear **s
 
 ---
 
-## 2. Shared Navigation Utilities (`packages/ui`)
+## 2. Shared Expo Navigation Utilities (`packages/ui`)
 
 Common navigation helpers and deep linking utilities shared across all Expo applications live in `@edge/ui`:
 
@@ -30,7 +31,8 @@ export const authLinking: LinkingOptions<object> = createLinkingConfig({
 
 `createLinkingConfig` automatically:
 - Manages web prefixes (`http://localhost:8081-8083`, `edge://`, `window.location.origin`).
-- Handles trailing/leading slashes, query parameters, and custom root route redirects cleanly without repetitive boilerplate code.
+- Handles trailing/leading slashes, query parameters, and custom root route redirects cleanly.
+- Applies OWASP Open Redirect security sanitization (`sanitizeRedirectPath`).
 
 ---
 
@@ -64,7 +66,7 @@ src/routes/
 
 ---
 
-## 5. `App.tsx` Integration Pattern
+## 5. `App.tsx` Integration Pattern (Expo Apps)
 
 `App.tsx` should only import navigation components and pass the linking configuration:
 
