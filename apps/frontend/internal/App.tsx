@@ -46,10 +46,14 @@ function AppContent() {
   const { isAuthenticated, isLoading } = useAuthContext();
   const navigationRef = useNavigationContainerRef<ParamListBase>();
   const [activeScreen, setActiveScreen] = useState("Dashboard");
+  const [screenTitle, setScreenTitle] = useState("Dashboard");
 
-  // Refactored Custom Hooks for Web Navigation, Tab Titles, Deep-Links & Sidebar Highlights
-  useWebMetadata(isAuthenticated, activeScreen);
-  useRouteTracker(isAuthenticated, navigationRef, setActiveScreen);
+  // Repurpose Navigator Screen Titles for Web Metadata and Tab Titles
+  useWebMetadata(isAuthenticated, screenTitle);
+  useRouteTracker(isAuthenticated, navigationRef, (routeName, title) => {
+    setActiveScreen(routeName);
+    setScreenTitle(title);
+  });
 
   if (isLoading) {
     return (

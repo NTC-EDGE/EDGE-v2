@@ -1,27 +1,23 @@
 import { useEffect } from "react";
 import { Platform } from "react-native";
 import { type NavigationContainerRef, type ParamListBase } from "@edge/ui";
-import { getScreenTitle } from "../navigation/titles";
 
 /**
- * Custom Hook: Syncs browser tab titles and handles deep-link preservation on Web when unauthenticated.
- * Uses the exact human-readable screen title defined for each screen.
+ * Custom Hook: Syncs browser tab titles directly using navigator screen titles on Web.
  */
-export function useWebMetadata(isAuthenticated: boolean, activeScreen: string): void {
+export function useWebMetadata(isAuthenticated: boolean, screenTitle: string): void {
   useEffect(() => {
     if (Platform.OS !== "web") return;
 
-    // 1. Sync Document Title reusing exact screen title
     if (typeof document !== "undefined") {
       if (!isAuthenticated) {
         document.title = "Login | EDGE";
       } else {
-        const title = getScreenTitle(activeScreen);
-        document.title = `${title} | EDGE`;
+        document.title = `${screenTitle} | EDGE`;
       }
     }
 
-    // 2. Preserve Target Deep Link when Unauthenticated
+    // Preserve Target Deep Link when Unauthenticated
     if (!isAuthenticated && typeof window !== "undefined" && window.location !== undefined) {
       const hasClerkParam = window.location.search.includes("__clerk");
       if (!hasClerkParam) {
@@ -34,16 +30,16 @@ export function useWebMetadata(isAuthenticated: boolean, activeScreen: string): 
         }
       }
     }
-  }, [isAuthenticated, activeScreen]);
+  }, [isAuthenticated, screenTitle]);
 }
 
 /**
- * Custom Hook: Tracks current React Navigation stack route to synchronize Sidebar menu highlights.
+ * Custom Hook: Tracks current React Navigation stack route and repurposes Navigator screen titles.
  */
 export function useRouteTracker(
   isAuthenticated: boolean,
   navigationRef: NavigationContainerRef<ParamListBase>,
-  onRouteChanged: (routeName: string) => void
+  onRouteChanged: (routeName: string, title: string) => void
 ): void {
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -52,7 +48,10 @@ export function useRouteTracker(
       if (navigationRef.isReady()) {
         const route = navigationRef.getCurrentRoute();
         if (route?.name !== undefined && route.name !== null) {
-          onRouteChanged(route.name);
+          const currentOptions = navigationRef.getCurrentOptions() as { title?: string } | undefined;
+          const paramTitle = (route.params as { title?: string } | undefined)?.title;
+          const title = currentOptions?.title ?? paramTitle ?? route.name;
+          onRouteChanged(route.name, title);
         }
       }
     };

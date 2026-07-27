@@ -109,17 +109,65 @@ export const AuthStack = createNativeStackNavigator({
     animation: "fade",
   },
   screens: {
-    Dashboard: { screen: DashboardScreenWrapped, path: "dashboard" },
-    Activities: { screen: ActivitiesScreenWrapped, path: "activities" },
-    Chat: { screen: ChatScreenWrapped, path: "chat" },
-    Meet: { screen: MeetScreenWrapped, path: "meet" },
-    Reports: { screen: ReportsScreenWrapped, path: "reports" },
-    ReceiptManagement: { screen: ReceiptManagementScreenWrapped, path: "receipt-management" },
-    RolesPermission: { screen: RolesPermissionScreenWrapped, path: "roles-permissions" },
-    Schedule: { screen: ScheduleScreenWrapped, path: "schedule" },
-    Employees: { screen: EmployeesScreenWrapped, path: "employees" },
-    Users: { screen: UsersScreenWrapped, path: "users" },
-    Settings: { screen: SettingsScreenWrapped, path: "settings" },
-    AccountSettings: { screen: SettingsScreen, path: "account-settings" },
+    Dashboard: {
+      screen: DashboardScreenWrapped,
+      path: "dashboard",
+      options: { title: "Dashboard" },
+    },
+    Activities: {
+      screen: ActivitiesScreenWrapped,
+      path: "activities",
+      options: { title: "Activities" },
+    },
+    Chat: {
+      screen: ChatScreenWrapped,
+      path: "chat",
+      options: { title: "Chat" },
+    },
+    Meet: {
+      screen: MeetScreenWrapped,
+      path: "meet",
+      options: { title: "Meet" },
+    },
+    Reports: {
+      screen: ReportsScreenWrapped,
+      path: "reports",
+      options: { title: "Reports" },
+    },
+    ReceiptManagement: {
+      screen: ReceiptManagementScreenWrapped,
+      path: "receipt-management",
+      options: { title: "Receipt Management" },
+    },
+    RolesPermission: {
+      screen: RolesPermissionScreenWrapped,
+      path: "roles-permissions",
+      options: { title: "Roles & Permission" },
+    },
+    Schedule: {
+      screen: ScheduleScreenWrapped,
+      path: "schedule",
+      options: { title: "Schedule" },
+    },
+    Employees: {
+      screen: EmployeesScreenWrapped,
+      path: "employees",
+      options: { title: "Employees" },
+    },
+    Users: {
+      screen: UsersScreenWrapped,
+      path: "users",
+      options: { title: "Users" },
+    },
+    Settings: {
+      screen: SettingsScreenWrapped,
+      path: "settings",
+      options: { title: "Settings" },
+    },
+    AccountSettings: {
+      screen: SettingsScreen,
+      path: "account-settings",
+      options: { title: "Account Settings" },
+    },
   },
 });
