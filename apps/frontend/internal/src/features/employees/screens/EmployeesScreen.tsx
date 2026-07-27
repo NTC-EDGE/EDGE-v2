@@ -9,7 +9,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { ColumnDef } from '@tanstack/react-table';
-import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, DataTable, StatusBadge, Icon as Lucide } from '@edge/ui';
+import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, DataTable, Icon as Lucide } from '@edge/ui';
 import {
   Employee,
   EmployeeRole,
@@ -30,19 +30,23 @@ const ITEMS_PER_PAGE = 10;
 // Helper Table Action Menu Cell
 function TableActionCell({
   employee,
+  activePopoverId,
+  setActivePopoverId,
   onView,
   onEdit,
   onDelete,
 }: {
   employee: Employee;
+  activePopoverId: string | null;
+  setActivePopoverId: (id: string | null) => void;
   onView: (emp: Employee) => void;
   onEdit: (emp: Employee) => void;
   onDelete: (emp: Employee) => void;
 }) {
-  const [showPopover, setShowPopover] = useState(false);
+  const isPopoverOpen = activePopoverId === employee.id;
 
   const handleAction = (action: 'view' | 'edit' | 'delete') => {
-    setShowPopover(false);
+    setActivePopoverId(null);
     if (action === 'view') {
       onView(employee);
     } else if (action === 'edit') {
@@ -54,18 +58,18 @@ function TableActionCell({
 
   return (
     <View style={styles.tableActionWrapper}>
-      {showPopover && (
-        <Pressable style={styles.popoverBackdrop} onPress={() => setShowPopover(false)} />
+      {isPopoverOpen && (
+        <Pressable style={styles.popoverBackdrop} onPress={() => setActivePopoverId(null)} />
       )}
       <Pressable
-        style={[styles.tableThreeDotsBtn, showPopover && styles.tableThreeDotsBtnActive]}
-        onPress={() => setShowPopover((prev) => !prev)}
+        style={[styles.tableThreeDotsBtn, isPopoverOpen && styles.tableThreeDotsBtnActive]}
+        onPress={() => setActivePopoverId(isPopoverOpen ? null : employee.id)}
         accessibilityLabel="Actions Menu"
       >
         <Lucide name="more-vertical" size={16} color={COLORS.neutral[700]} />
       </Pressable>
 
-      {showPopover && (
+      {isPopoverOpen && (
         <View style={[styles.tablePopoverMenu, SHADOWS.modal]}>
           <Pressable style={styles.popoverItem} onPress={() => handleAction('view')}>
             <Lucide name="eye" size={14} color={COLORS.brand[700]} style={styles.popoverIcon} />
@@ -103,7 +107,6 @@ export function EmployeesScreen() {
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRole, setSelectedRole] = useState<string>('All');
-  const [selectedStatus, setSelectedStatus] = useState<string>('All');
   const [viewMode, setViewMode] = useState<ViewMode>('cards');
 
   // Pagination state (10 items per page)
@@ -111,7 +114,6 @@ export function EmployeesScreen() {
 
   // Dropdown open states
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
-  const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
 
   // Modal states
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
@@ -119,6 +121,9 @@ export function EmployeesScreen() {
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deletingEmployee, setDeletingEmployee] = useState<Employee | null>(null);
+
+  // Active popover row id (to close others when one is open)
+  const [activePopoverId, setActivePopoverId] = useState<string | null>(null);
 
   // Notification Toast message
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -133,17 +138,13 @@ export function EmployeesScreen() {
   // Reset pagination to page 1 on filter changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, selectedRole, selectedStatus]);
+  }, [searchQuery, selectedRole]);
 
   // Filtered employees logic
   const filteredEmployees = useMemo(() => {
     return employees.filter((emp) => {
       // Role Filter
       if (selectedRole !== 'All' && emp.role !== selectedRole) {
-        return false;
-      }
-      // Status Filter
-      if (selectedStatus !== 'All' && emp.status !== selectedStatus) {
         return false;
       }
       // Search Query
@@ -159,7 +160,7 @@ export function EmployeesScreen() {
       }
       return true;
     });
-  }, [employees, searchQuery, selectedRole, selectedStatus]);
+  }, [employees, searchQuery, selectedRole]);
 
   // Pagination calculations (10 entries per page)
   const totalPages = Math.max(1, Math.ceil(filteredEmployees.length / ITEMS_PER_PAGE));
@@ -172,13 +173,13 @@ export function EmployeesScreen() {
 
   // Executive KPI summary metrics
   const stats = useMemo(() => {
-    const total = employees.length;
-    const active = employees.filter((e) => e.status === 'Active').length;
-    const evaluators = employees.filter((e) => e.role === 'Evaluator').length;
-    const admins = employees.filter((e) => e.role === 'Admin' || e.role === 'Manager').length;
+    const total = filteredEmployees.length;
+    const departments = new Set(filteredEmployees.map((e) => e.department)).size;
+    const evaluators = filteredEmployees.filter((e) => e.role === 'Evaluator').length;
+    const admins = filteredEmployees.filter((e) => e.role === 'Admin' || e.role === 'Manager').length;
 
-    return { total, active, evaluators, admins };
-  }, [employees]);
+    return { total, departments, evaluators, admins };
+  }, [filteredEmployees]);
 
   // Handlers for CRUD
   const handleOpenAddModal = () => {
@@ -333,12 +334,6 @@ export function EmployeesScreen() {
         meta: { flex: 2.2 },
       },
       {
-        accessorKey: 'status',
-        header: 'Status',
-        cell: (info) => <StatusBadge status={String(info.getValue())} />,
-        meta: { flex: 1.2 },
-      },
-      {
         id: 'actions',
         header: 'Actions',
         cell: (info) => {
@@ -346,6 +341,8 @@ export function EmployeesScreen() {
           return (
             <TableActionCell
               employee={emp}
+              activePopoverId={activePopoverId}
+              setActivePopoverId={setActivePopoverId}
               onView={handleOpenDetailsPage}
               onEdit={handleOpenEditModal}
               onDelete={handleOpenDeleteModal}
@@ -355,7 +352,7 @@ export function EmployeesScreen() {
         meta: { flex: 1.0 },
       },
     ],
-    []
+    [activePopoverId]
   );
 
   // If in 'details' subView mode, render EmployeeDetailsPage
@@ -479,12 +476,12 @@ export function EmployeesScreen() {
           </View>
 
           <View style={[styles.statCard, SHADOWS.card]}>
-            <View style={[styles.statIconBadge, { backgroundColor: COLORS.semantic.successBg }]}>
-              <Lucide name="check-circle" size={18} color={COLORS.semantic.success} />
+            <View style={[styles.statIconBadge, { backgroundColor: COLORS.neutral[100] }]}>
+              <Lucide name="briefcase" size={18} color={COLORS.brand[700]} />
             </View>
             <View>
-              <Text style={styles.statValue}>{stats.active}</Text>
-              <Text style={styles.statLabel}>Active Employees</Text>
+              <Text style={styles.statValue}>{stats.departments}</Text>
+              <Text style={styles.statLabel}>Departments</Text>
             </View>
           </View>
 
@@ -536,7 +533,6 @@ export function EmployeesScreen() {
                 style={[styles.dropdownTrigger, isRoleDropdownOpen && styles.dropdownTriggerActive]}
                 onPress={() => {
                   setIsRoleDropdownOpen((prev) => !prev);
-                  setIsStatusDropdownOpen(false);
                 }}
               >
                 <Text style={styles.dropdownTriggerText} numberOfLines={1}>
@@ -580,56 +576,14 @@ export function EmployeesScreen() {
               )}
             </View>
 
-            {/* Status Dropdown */}
-            <View style={styles.dropdownContainer}>
-              <Text style={styles.dropdownLabel}>Status:</Text>
-              <Pressable
-                style={[styles.dropdownTrigger, isStatusDropdownOpen && styles.dropdownTriggerActive]}
-                onPress={() => {
-                  setIsStatusDropdownOpen((prev) => !prev);
-                  setIsRoleDropdownOpen(false);
-                }}
-              >
-                <Text style={styles.dropdownTriggerText} numberOfLines={1}>
-                  {selectedStatus === 'All' ? 'All Statuses' : selectedStatus}
-                </Text>
-                <Lucide
-                  name={isStatusDropdownOpen ? 'chevron-up' : 'chevron-down'}
-                  size={14}
-                  color={COLORS.neutral[600]}
-                />
-              </Pressable>
-
-              {isStatusDropdownOpen && (
-                <View style={[styles.dropdownMenu, SHADOWS.modal]}>
-                  {['All', 'Active', 'On Leave', 'Inactive'].map((st) => (
-                    <Pressable
-                      key={st}
-                      style={[styles.dropdownOption, selectedStatus === st && styles.dropdownOptionActive]}
-                      onPress={() => {
-                        setSelectedStatus(st);
-                        setIsStatusDropdownOpen(false);
-                      }}
-                    >
-                      <Text style={[styles.dropdownOptionText, selectedStatus === st && styles.dropdownOptionTextActive]}>
-                        {st === 'All' ? 'All Statuses' : st}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-              )}
-            </View>
-
             {/* Reset Filters Option */}
-            {(selectedRole !== 'All' || selectedStatus !== 'All' || searchQuery.length > 0) && (
+            {(selectedRole !== 'All' || searchQuery.length > 0) && (
               <Pressable
                 style={styles.resetFiltersBtn}
                 onPress={() => {
                   setSelectedRole('All');
-                  setSelectedStatus('All');
                   setSearchQuery('');
                   setIsRoleDropdownOpen(false);
-                  setIsStatusDropdownOpen(false);
                 }}
               >
                 <Lucide name="rotate-ccw" size={13} color={COLORS.brand[700]} style={{ marginRight: 4 }} />
@@ -666,7 +620,6 @@ export function EmployeesScreen() {
                   onPress={() => {
                     setSearchQuery('');
                     setSelectedRole('All');
-                    setSelectedStatus('All');
                   }}
                 >
                   <Text style={styles.resetFilterText}>Reset Filters</Text>
