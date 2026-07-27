@@ -93,80 +93,70 @@ export function DashboardShell({
 
   return (
     <View style={styles.shell}>
-      {/* Left Sidebar (Desktop Only) */}
-      {!isMobile && (
-        <Sidebar
-          currentRole={currentRole}
-          links={links}
-          activeScreen={activeScreen}
-          onNavigate={handleLinkPress}
-        />
-      )}
+      {/* Top Navigation Header */}
+      <Header
+        currentRole={currentRole}
+        onRoleSelect={handleRoleSelect}
+        showRoleDropdown={showRoleDropdown}
+        toggleRoleDropdown={toggleRoleDropdown}
+        closeRoleDropdown={closeRoleDropdown}
+        isSwitcherHovered={isSwitcherHovered}
+        setIsSwitcherHovered={setIsSwitcherHovered}
+        isLogoutHovered={isLogoutHovered}
+        setIsLogoutHovered={setIsLogoutHovered}
+        user={user}
+        onLogout={logout}
+        isMobile={isMobile}
+        onMenuPress={activeScreen === 'AccountSettings' ? undefined : toggleSidebar}
+        onNavigate={handleLinkPress}
+      />
 
-      {/* Mobile Drawer (Backdrop & Sliding Sidebar) */}
-      {isMobile && shouldRenderSidebar && (
-        <>
-          <Animated.View
-            style={[
-              styles.backdrop,
-              { opacity: backdropOpacity },
-            ]}
-          >
-            <Pressable style={styles.backdropPressable} onPress={closeSidebar} />
-          </Animated.View>
-          <Animated.View
-            style={[
-              styles.mobileSidebarContainer,
-              { transform: [{ translateX }] },
-            ]}
-          >
-            <Sidebar
-              currentRole={currentRole}
-              links={links}
-              activeScreen={activeScreen}
-              onNavigate={handleLinkPress}
-              isMobile={true}
-              onClose={closeSidebar}
-              onLogout={logout}
-              onRoleSelect={handleRoleSelect}
-            />
-          </Animated.View>
-        </>
-      )}
+      <View style={styles.bodyWrapper}>
+        {/* Left Sidebar (Desktop Only) */}
+        {!isMobile && activeScreen !== 'AccountSettings' && (
+          <Sidebar
+            currentRole={currentRole}
+            links={links}
+            activeScreen={activeScreen}
+            onNavigate={handleLinkPress}
+          />
+        )}
 
-      {/* Right Content Area */}
-      <View style={styles.mainWrapper}>
-        {/* Top Navigation Header */}
-        <Header
-          currentRole={currentRole}
-          onRoleSelect={handleRoleSelect}
-          showRoleDropdown={showRoleDropdown}
-          toggleRoleDropdown={toggleRoleDropdown}
-          closeRoleDropdown={closeRoleDropdown}
-          isSwitcherHovered={isSwitcherHovered}
-          setIsSwitcherHovered={setIsSwitcherHovered}
-          isLogoutHovered={isLogoutHovered}
-          setIsLogoutHovered={setIsLogoutHovered}
-          user={user}
-          onLogout={logout}
-          isMobile={isMobile}
-          onMenuPress={toggleSidebar}
-        />
+        {/* Mobile Drawer (Backdrop & Sliding Sidebar) */}
+        {isMobile && activeScreen !== 'AccountSettings' && shouldRenderSidebar && (
+          <>
+            <Animated.View
+              style={[
+                styles.backdrop,
+                { opacity: backdropOpacity },
+              ]}
+            >
+              <Pressable style={styles.backdropPressable} onPress={closeSidebar} />
+            </Animated.View>
+            <Animated.View
+              style={[
+                styles.mobileSidebarContainer,
+                { transform: [{ translateX }] },
+              ]}
+            >
+              <Sidebar
+                currentRole={currentRole}
+                links={links}
+                activeScreen={activeScreen}
+                onNavigate={handleLinkPress}
+                isMobile={true}
+                onClose={closeSidebar}
+                onLogout={logout}
+                onRoleSelect={handleRoleSelect}
+              />
+            </Animated.View>
+          </>
+        )}
 
-        {/* Main Scrolling Body */}
-        <ScrollView
-          style={styles.contentScrollView}
-          contentContainerStyle={[
-            styles.contentContainer,
-            isMobile && styles.mobileContentContainer,
-          ]}
-        >
-          <View style={styles.maxContainer}>
-            <TransitionWrapper trigger={activeScreen}>
-              {children}
-            </TransitionWrapper>
-          </View>
-        </ScrollView>
+        {/* Main Body */}
+        <View style={styles.mainContentArea}>
+          {children}
+        </View>
       </View>
     </View>
   );
@@ -175,30 +165,19 @@ export function DashboardShell({
 const styles = StyleSheet.create({
   shell: {
     flex: 1,
-    flexDirection: 'row',
-    backgroundColor: COLORS.bg,
-  },
-  mainWrapper: {
-    flex: 1,
     flexDirection: 'column',
+    backgroundColor: COLORS.bg,
     height: '100%',
   },
-  contentScrollView: {
+  bodyWrapper: {
     flex: 1,
-  },
-  contentContainer: {
-    paddingHorizontal: SPACING[32],
-    paddingVertical: SPACING[32],
-    alignItems: 'center',
-  },
-  mobileContentContainer: {
-    paddingHorizontal: SPACING[16],
-    paddingVertical: SPACING[16],
-  },
-  maxContainer: {
+    flexDirection: 'row',
     width: '100%',
-    maxWidth: 1600,
-    alignSelf: 'center',
+    overflow: 'hidden',
+  },
+  mainContentArea: {
+    flex: 1,
+    height: '100%',
   },
   backdrop: {
     ...StyleSheet.absoluteFill,

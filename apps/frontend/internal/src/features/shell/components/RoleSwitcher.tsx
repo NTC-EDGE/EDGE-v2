@@ -46,7 +46,7 @@ interface RoleSwitcherProps {
   closeRoleDropdown: () => void;
   isSwitcherHovered: boolean;
   setIsSwitcherHovered: (hovered: boolean) => void;
-  variant?: 'header' | 'sidebar';
+  variant?: 'header' | 'sidebar' | 'dropdown';
 }
 
 export function RoleSwitcher({
@@ -60,8 +60,9 @@ export function RoleSwitcher({
   variant = 'header',
 }: RoleSwitcherProps) {
   const isSidebar = variant === 'sidebar';
-  const textColor = isSidebar ? COLORS.neutral[700] : COLORS.neutral.white;
-  const iconColor = isSidebar ? COLORS.neutral[500] : COLORS.neutral.white;
+  const isDropdown = variant === 'dropdown';
+  const textColor = (isSidebar || isDropdown) ? COLORS.neutral[700] : COLORS.neutral.white;
+  const iconColor = (isSidebar || isDropdown) ? COLORS.neutral[500] : COLORS.neutral.white;
 
   return (
     <View style={styles.switcherContainer}>
@@ -71,8 +72,8 @@ export function RoleSwitcher({
         onHoverOut={() => setIsSwitcherHovered(false)}
         style={[
           styles.switcherBtn,
-          isSidebar ? styles.switcherBtnSidebar : styles.switcherBtnHeader,
-          isSwitcherHovered && (isSidebar ? styles.switcherBtnSidebarHover : styles.switcherBtnHeaderHover),
+          (isSidebar || isDropdown) ? styles.switcherBtnSidebar : styles.switcherBtnHeader,
+          isSwitcherHovered && ((isSidebar || isDropdown) ? styles.switcherBtnSidebarHover : styles.switcherBtnHeaderHover),
         ]}
       >
         <Lucide
@@ -101,7 +102,7 @@ export function RoleSwitcher({
           <View
             style={[
               styles.dropdownPopover,
-              isSidebar ? styles.dropdownPopoverSidebar : styles.dropdownPopoverHeader,
+              isDropdown ? styles.dropdownPopoverDropdown : (isSidebar ? styles.dropdownPopoverSidebar : styles.dropdownPopoverHeader),
               SHADOWS.modal,
             ]}
           >
@@ -193,6 +194,11 @@ const styles = StyleSheet.create({
     bottom: 44, // Open upwards on sidebar so it doesn't run off screen
     left: 0,
     width: 252, // Adapted width to fit sidebar padding nicely
+  },
+  dropdownPopoverDropdown: {
+    top: 44,
+    left: 0,
+    width: 216,
   },
   dropdownHeader: {
     fontFamily: TYPOGRAPHY.fonts.primary,
