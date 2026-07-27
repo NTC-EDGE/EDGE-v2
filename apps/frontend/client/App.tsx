@@ -1,3 +1,4 @@
+
 import "./src/navigation";
 import { ClerkProvider, useAuth } from "@clerk/expo";
 import { tokenCache } from "@clerk/expo/token-cache";
@@ -19,7 +20,7 @@ const publishableKey = getClerkKey();
 
 if (publishableKey.length === 0) {
   console.warn(
-    "Missing EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY environment variable. Clerk will not initialize properly."
+    "Missing EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY environment variable. Clerk will not initialize properly.",
   );
 }
 
@@ -32,7 +33,6 @@ function AppContent() {
 
   return <UnauthNavigation linking={clientLinking} />;
 }
-
 export default function App() {
   return (
     <ClerkProvider tokenCache={tokenCache} publishableKey={publishableKey}>

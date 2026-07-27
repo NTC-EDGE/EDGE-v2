@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Modal,
   FlatList,
+  Platform,
   ViewStyle,
   TouchableWithoutFeedback,
 } from 'react-native';
@@ -57,6 +58,59 @@ export function Select({
     return list;
   };
 
+  // Render native HTML dropdown on web for a cleaner, presentable form experience
+  if (Platform.OS === 'web') {
+    return (
+      <View style={[styles.container, style]}>
+        {label !== undefined && label.length > 0 ? (
+          <Text style={styles.label}>{label}</Text>
+        ) : null}
+
+        <View style={styles.selectWrapper}>
+          {iconName !== undefined && iconName !== null ? (
+            <View style={styles.iconWeb}>
+              <Lucide name={iconName} size={18} color={COLORS.neutral[400]} />
+            </View>
+          ) : null}
+          <select
+            value={value}
+            onChange={(e) => onValueChange(e.target.value)}
+            style={{
+              width: '100%',
+              height: '48px',
+              paddingLeft: iconName ? '42px' : '16px',
+              paddingRight: '36px',
+              borderRadius: '8px',
+              border: error ? `1.5px solid ${COLORS.semantic.error}` : `1.5px solid ${COLORS.neutral[200]}`,
+              backgroundColor: COLORS.neutral.white,
+              fontSize: '15px',
+              fontFamily: 'inherit',
+              color: value ? COLORS.neutral[900] : COLORS.neutral[400],
+              appearance: 'none',
+              WebkitAppearance: 'none',
+              outline: 'none',
+              cursor: 'pointer',
+            }}
+          >
+            <option value="" disabled hidden>{placeholder}</option>
+            {options.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+          <View style={styles.chevronWeb}>
+            <Lucide name="chevron-down" size={18} color={COLORS.neutral[500]} />
+          </View>
+        </View>
+
+        {error !== undefined && error.length > 0 ? (
+          <Text style={styles.errorText}>{error}</Text>
+        ) : null}
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.container, style]}>
       {label !== undefined && label.length > 0 ? (
@@ -64,7 +118,7 @@ export function Select({
       ) : null}
 
       <TouchableOpacity
-        activeOpacity={0.7}
+        activeOpacity={1}
         onPress={() => setModalVisible(true)}
         style={getRowStyles()}
       >
@@ -201,8 +255,8 @@ const styles = StyleSheet.create({
     padding: SPACING[20],
   },
   modalCard: {
-    backgroundColor: COLORS.glass.bg,
-    borderColor: COLORS.glass.border,
+    backgroundColor: COLORS.neutral.white,
+    borderColor: COLORS.neutral[200],
     borderWidth: 1.5,
     borderRadius: RADIUS.dialog,
     width: '100%',
@@ -253,5 +307,31 @@ const styles = StyleSheet.create({
   optionTextSelected: {
     color: COLORS.brand[800],
     fontWeight: TYPOGRAPHY.weights.semibold,
+  },
+  selectWrapper: {
+    position: 'relative',
+    width: '100%',
+  },
+  iconWeb: {
+    position: 'absolute',
+    left: 14,
+    top: 15,
+    zIndex: 1,
+    ...Platform.select({
+      web: {
+        pointerEvents: 'none',
+      },
+    }),
+  },
+  chevronWeb: {
+    position: 'absolute',
+    right: 14,
+    top: 15,
+    zIndex: 1,
+    ...Platform.select({
+      web: {
+        pointerEvents: 'none',
+      },
+    }),
   },
 });

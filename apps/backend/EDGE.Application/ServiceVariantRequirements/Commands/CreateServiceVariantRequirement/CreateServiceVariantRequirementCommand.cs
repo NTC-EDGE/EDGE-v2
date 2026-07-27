@@ -14,6 +14,7 @@ public record CreateServiceVariantRequirementCommand : IRequest<ApiResponse<List
 public record ServiceVariantRequirementItem
 {
     public required Guid RequirementId { get; init; }
-    public string? ApplicationTypeKey { get; init; }
+    public string? ContextKey { get; init; }
+
     public bool IsRequired { get; init; }
 }

@@ -158,15 +158,20 @@ public class SubmitApplicationCommandHandler
             }
         }
 
-        // Derive ApplicationTypeKey from submitted formFieldValues or fallback to "New"
+
+        // Derive ApplicationTypeKey from submitted formFieldValues matching a valid ServiceVariantType.
+        // Only New / Renewal / Modification are valid application-level variant types.
+        // Applicant-level exam types (First Taker, Re-taker, Upgrade) are stored in FormFieldValues
+        // and are NOT ServiceVariant discriminators — they form the ContextKey at upload time.
         string effectiveAppTypeKey = "New";
         var firstFormValues = request.Applicants.FirstOrDefault()?.FormFieldValues;
         if (firstFormValues != null)
         {
+            var validVariantNames = Enum.GetNames<ServiceVariantType>();
             var matchedValue = firstFormValues
-                .Select(fv => fv.Value)
-                .FirstOrDefault(v => Enum.GetNames<ServiceVariantType>()
-                    .Any(n => n.Equals(v, StringComparison.OrdinalIgnoreCase)));
+                .Select(fv => fv.Value?.Trim())
+                .FirstOrDefault(v => !string.IsNullOrWhiteSpace(v) &&
+                    validVariantNames.Any(n => n.Equals(v, StringComparison.OrdinalIgnoreCase)));
             if (!string.IsNullOrEmpty(matchedValue))
             {
                 effectiveAppTypeKey = matchedValue;

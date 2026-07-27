@@ -40,6 +40,5 @@ public static class EndpointConfiguration
         apiV2Group.MapFeedbackEndpoints();
         apiV2Group.MapSystemAnnouncementEndpoints();
         apiV2Group.MapAuditLogEndpoints();
-
     }
 }

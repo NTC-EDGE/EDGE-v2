@@ -12,7 +12,13 @@ public class ApplicationRequirement : AuditableEntity
     public Applicant? Applicant { get; set; }
 
     public Guid RequirementId { get; set; }
+    public Requirement? Requirement { get; set; }
+
     public Guid? ServiceVariantRequirementId { get; set; }
+    public ServiceVariantRequirement? ServiceVariantRequirement { get; set; }
+
+    public Guid? StoredFileId { get; set; }
+    public StoredFile? StoredFile { get; set; }
 
     public Guid TenantId { get; set; }
     public Tenant? Tenant { get; set; }

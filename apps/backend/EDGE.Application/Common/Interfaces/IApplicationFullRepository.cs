@@ -13,6 +13,11 @@ public interface IApplicationFullRepository
     Task<Domain.Entities.Application?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<Domain.Entities.Application?> GetByIdWithDetailsAsync(Guid id, CancellationToken cancellationToken = default);
     Task<List<Domain.Entities.Application>> GetUserDraftsAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task<List<Domain.Entities.Application>> GetUserApplicationsAsync(Guid userId, ApplicationStatus? status = null, CancellationToken cancellationToken = default);
+    Task<List<Domain.Entities.Application>> GetAllApplicationsAsync(ApplicationStatus? status = null, CancellationToken cancellationToken = default);
+    Task<List<Domain.Entities.Application>> GetByApplicantIdAsync(Guid applicantId, CancellationToken cancellationToken = default);
+
+
     Task UpdateAsync(Domain.Entities.Application application, CancellationToken cancellationToken = default);
     Task DeleteAsync(Domain.Entities.Application application, CancellationToken cancellationToken = default);
 

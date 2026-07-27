@@ -50,21 +50,21 @@ public static class ServiceCategoryEndpoints
         return app;
     }
 
-    [HasPermission(Permissions.ReadTenants)]
+    [HasPermission(Permissions.ReadServices)]
     public static async Task<IResult> GetServiceCategories(IMediator mediator)
     {
         var result = await mediator.Send(new GetServiceCategoriesQuery());
         return Results.Ok(result);
     }
 
-    [HasPermission(Permissions.ReadTenants)]
+    [HasPermission(Permissions.ReadServices)]
     public static async Task<IResult> GetServiceCategoryById(Guid id, IMediator mediator)
     {
         var result = await mediator.Send(new GetServiceCategoryByIdQuery(id));
         return result.Succeeded ? Results.Ok(result) : Results.NotFound(result);
     }
 
-    [HasPermission(Permissions.SystemAdmin)]
+    [HasPermission(Permissions.CreateServices)]
     public static async Task<IResult> CreateServiceCategory(CreateServiceCategoryCommand command, IMediator mediator)
     {
         var result = await mediator.Send(command);
@@ -73,7 +73,7 @@ public static class ServiceCategoryEndpoints
             : Results.BadRequest(result);
     }
 
-    [HasPermission(Permissions.SystemAdmin)]
+    [HasPermission(Permissions.UpdateServices)]
     public static async Task<IResult> UpdateServiceCategory(Guid id, UpdateServiceCategoryCommand command, IMediator mediator)
     {
         if (id != command.Id)
@@ -83,7 +83,7 @@ public static class ServiceCategoryEndpoints
         return result.Succeeded ? Results.Ok(result) : Results.NotFound(result);
     }
 
-    [HasPermission(Permissions.SystemAdmin)]
+    [HasPermission(Permissions.DeleteServices)]
     public static async Task<IResult> DeleteServiceCategory(Guid id, IMediator mediator)
     {
         var result = await mediator.Send(new DeleteServiceCategoryCommand(id));

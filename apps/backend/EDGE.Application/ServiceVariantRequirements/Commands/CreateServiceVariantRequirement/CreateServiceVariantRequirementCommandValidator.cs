@@ -17,8 +17,9 @@ public class CreateServiceVariantRequirementCommandValidator : AbstractValidator
             item.RuleFor(x => x.RequirementId)
                 .NotEmpty().WithMessage("Requirement ID is required.");
 
-            item.RuleFor(x => x.ApplicationTypeKey)
-                .MaximumLength(100).WithMessage("Application Type Key must not exceed 100 characters.");
+            item.RuleFor(x => x.ContextKey)
+                .MaximumLength(100).WithMessage("Context Key must not exceed 100 characters.");
+
         });
     }
 }

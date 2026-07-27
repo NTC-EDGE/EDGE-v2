@@ -9,19 +9,22 @@ import {
   Animated,
 } from "react-native";
 import { Icon as Lucide } from "@edge/ui";
-import { COLORS, SHADOWS } from "../../shared/theme/tokens";
+import {
+  COLORS,
+  SHADOWS,
+  SPACING,
+} from "../../shared/theme/tokens";
 import { Input } from "../../shared/components/Input";
 import { Button } from "../../shared/components/Button";
 import { Logo } from "../../shared/components/Logo";
-import { useNavigation } from "@react-navigation/native";
-import { useSignIn, isClerkAPIResponseError } from "@clerk/expo";
-import { parseApiError } from "@edge/api";
+
+import { useAppNavigation } from "../../navigation";
+import { isClerkAPIResponseError } from "@clerk/expo";
+import { useSignIn } from "@clerk/expo/legacy";
 
 export function ForgotPasswordScreen() {
-  const navigation = useNavigation();
-  const { signIn } = useSignIn();
-
-  const [step, setStep] = useState<"request" | "reset">("request");
+  const navigation = useAppNavigation();
+  const { signIn, setActive, isLoaded } = useSignIn();
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -29,11 +32,14 @@ export function ForgotPasswordScreen() {
 
   const [emailError, setEmailError] = useState("");
   const [codeError, setCodeError] = useState("");
-  const [passwordError, setPasswordError] = useState("");
+  const [newPasswordError, setNewPasswordError] = useState("");
+  const [confirmPasswordError, setConfirmPasswordError] = useState("");
   const [generalError, setGeneralError] = useState("");
-
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+
+  // Verification and new password states
+  const [pendingVerification, setPendingVerification] = useState(false);
 
   // Animations
   const cardFade = useRef(new Animated.Value(0)).current;
@@ -69,18 +75,25 @@ export function ForgotPasswordScreen() {
     ]).start();
   }, [cardFade, cardSlide, glowAnim]);
 
-  const handleRequestCode = async () => {
-    setEmailError("");
-    setGeneralError("");
-
+  const validate = () => {
     if (email.trim().length === 0) {
       setEmailError("Email address is required");
-      return;
+      return false;
     }
+    if (!email.includes("@")) {
+      setEmailError('Please enter a valid email containing "@"');
+      return false;
+    }
+    return true;
+  };
+
+  const handlePasswordReset = async () => {
+    if (!validate()) return;
 
     setLoading(true);
+    setGeneralError("");
 
-    if (signIn === null || signIn === undefined) {
+    if (!signIn || !isLoaded) {
       setGeneralError("Authentication service is not loaded yet. Please try again.");
       setLoading(false);
       return;
@@ -89,64 +102,86 @@ export function ForgotPasswordScreen() {
     try {
       await signIn.create({
         strategy: "reset_password_email_code",
-        identifier: email.trim(),
+        identifier: email,
       });
 
-      setStep("reset");
+      setPendingVerification(true);
     } catch (err: unknown) {
-      setGeneralError(parseApiError(err));
+      let errMsg = "Failed to send reset instructions.";
+      if (isClerkAPIResponseError(err)) {
+        errMsg = err.errors[0]?.message || errMsg;
+      } else if (err instanceof Error) {
+        errMsg = err.message;
+      }
+      setGeneralError(errMsg);
     } finally {
       setLoading(false);
     }
   };
+  const handleRequestCode = handlePasswordReset;
 
-  const handleResetPassword = async () => {
+  const handleVerifyCodeAndResetPassword = async () => {
+    let isValid = true;
     setCodeError("");
-    setPasswordError("");
+    setNewPasswordError("");
+    setConfirmPasswordError("");
     setGeneralError("");
 
     if (code.trim().length === 0) {
-      setCodeError("Verification code is required");
-      return;
+      setCodeError("Verification code is required.");
+      isValid = false;
+    }
+    if (newPassword.length === 0) {
+      setNewPasswordError("New password is required.");
+      isValid = false;
+    } else if (newPassword.length < 8) {
+      setNewPasswordError("Password must be at least 8 characters.");
+      isValid = false;
+    }
+    if (confirmPassword.length === 0) {
+      setConfirmPasswordError("Please confirm your password.");
+      isValid = false;
+    } else if (newPassword !== confirmPassword) {
+      setConfirmPasswordError("Passwords do not match.");
+      isValid = false;
     }
 
-    if (newPassword.length < 8) {
-      setPasswordError("Password must be at least 8 characters");
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      setPasswordError("Passwords do not match");
-      return;
-    }
+    if (!isValid) return;
 
     setLoading(true);
 
-    if (signIn === null || signIn === undefined) {
+    if (!signIn || !setActive) {
       setGeneralError("Authentication service is not loaded yet. Please try again.");
       setLoading(false);
       return;
     }
 
     try {
-      const res = await signIn.attemptFirstFactor({
+      const result = await signIn.attemptFirstFactor({
         strategy: "reset_password_email_code",
-        code: code.trim(),
+        code,
         password: newPassword,
       });
 
-      if (res.status === "complete") {
-        await signIn.finalize();
+      if (result.status === "complete") {
+        await setActive({ session: result.createdSessionId });
         setSuccess(true);
       } else {
-        setGeneralError(`Reset incomplete. Status: ${res.status}`);
+        setGeneralError("Failed to complete password reset. Status: " + result.status);
       }
     } catch (err: unknown) {
-      setGeneralError(parseApiError(err));
+      let errMsg = "Failed to reset password. Please check the code and try again.";
+      if (isClerkAPIResponseError(err)) {
+        errMsg = err.errors[0]?.message || errMsg;
+      } else if (err instanceof Error) {
+        errMsg = err.message;
+      }
+      setGeneralError(errMsg);
     } finally {
       setLoading(false);
     }
   };
+  const handleResetPassword = handleVerifyCodeAndResetPassword;
 
   const glowScale = glowAnim.interpolate({
     inputRange: [0, 1],
@@ -189,6 +224,7 @@ export function ForgotPasswordScreen() {
             icon={
               <Lucide name="arrow-left" size={14} color={COLORS.neutral[600]} />
             }
+            disabled={loading || success}
           />
 
           <Animated.View
@@ -202,144 +238,110 @@ export function ForgotPasswordScreen() {
               <Logo />
             </View>
 
-            <Text style={styles.title}>
-              {step === "request" ? "Forgot Password?" : "Set New Password"}
-            </Text>
-            <Text style={styles.subtitle}>
-              {step === "request"
-                ? "Enter your registered email address to receive a 6-digit verification code."
-                : `Enter the code sent to ${email} and your new password.`}
+            <Text style={styles.title}>Forgot Password?</Text>
+            <Text style={[styles.subtitle, { marginBottom: 16 }]}>
+              {pendingVerification
+                ? "Enter the code sent to your email and your new password."
+                : "Enter your email and we'll send you instructions to reset your password."}
             </Text>
 
-            {generalError.length > 0 ? (
-              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: "#DC2626", marginBottom: 12, textAlign: "center" }}>
-                {generalError}
-              </Text>
-            ) : null}
 
-            {success ? (
-              <View style={styles.successWrapper}>
-                <View style={styles.successBox}>
-                  <Lucide
-                    name="check-circle"
-                    size={24}
-                    color={COLORS.semantic.success}
-                    style={styles.successIcon}
-                  />
-                  <Text style={styles.successText}>
-                    Password successfully reset! You can now sign in.
-                  </Text>
-                </View>
-                <Button
-                  title="Return to Sign In"
-                  onPress={() => (navigation as { navigate: (route: string) => void }).navigate("Login")}
-                  style={styles.returnButton}
-                  icon={
-                    <Lucide
-                      name="arrow-left"
-                      size={16}
-                      color={COLORS.neutral.white}
-                    />
-                  }
-                />
+          {generalError.length > 0 && (
+            <Text style={styles.generalError}>{generalError}</Text>
+          )}
+
+          {success ? (
+            <View style={styles.successWrapper}>
+              <View style={styles.successBox}>
+                <Lucide name="check-circle" size={24} color={COLORS.semantic.success} style={styles.successIcon} />
+                <Text style={styles.successText}>Password reset successfully! Redirecting...</Text>
               </View>
-            ) : step === "request" ? (
-              <View style={styles.form}>
-                <Input
-                  label="Email Address"
-                  placeholder="name@example.com"
-                  value={email}
-                  onChangeText={setEmail}
-                  error={emailError}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  iconName="mail"
-                />
-
-                <Button
-                  title={loading ? "Sending Code..." : "Send Reset Code"}
-                  onPress={handleRequestCode}
-                  loading={loading}
-                  style={styles.submitButton}
-                  icon={
-                    !loading ? (
-                      <Lucide
-                        name="send"
-                        size={16}
-                        color={COLORS.neutral.white}
-                      />
-                    ) : undefined
-                  }
-                />
-
-                <Button
-                  title="Return to Sign In"
-                  variant="text"
-                  size="sm"
-                  onPress={() => (navigation as { navigate: (route: string) => void }).navigate("Login")}
-                  style={styles.backToLoginBtn}
-                  textStyle={styles.backToLoginText}
-                />
-              </View>
-            ) : (
-              <View style={styles.form}>
-                <Input
-                  label="Verification Code"
-                  placeholder="Enter 6-digit code"
-                  value={code}
-                  onChangeText={setCode}
-                  error={codeError}
-                  keyboardType="numeric"
-                  iconName="shield-check"
-                />
-
-                <Input
-                  label="New Password"
-                  placeholder="Min. 8 characters"
-                  value={newPassword}
-                  onChangeText={setNewPassword}
-                  error={passwordError}
-                  secureTextEntry={true}
-                  autoCapitalize="none"
-                  iconName="lock"
-                />
-
-                <Input
-                  label="Confirm New Password"
-                  placeholder="Re-type new password"
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                  secureTextEntry={true}
-                  autoCapitalize="none"
-                  iconName="lock"
-                />
-
-                <Button
-                  title={loading ? "Resetting Password..." : "Reset Password"}
-                  onPress={handleResetPassword}
-                  loading={loading}
-                  style={styles.submitButton}
-                  icon={
-                    !loading ? (
-                      <Lucide
-                        name="check-circle"
-                        size={16}
-                        color={COLORS.neutral.white}
-                      />
-                    ) : undefined
-                  }
-                />
-
-                <Button
-                  title="Return to Sign In"
-                  variant="text"
-                  size="sm"
-                  onPress={() => (navigation as { navigate: (route: string) => void }).navigate("Login")}
-                  style={styles.backToLoginBtn}
-                  textStyle={styles.backToLoginText}
-                />
-              </View>
-            )}
+            </View>
+          ) : pendingVerification ? (
+            <View style={styles.form}>
+              <Input
+                label="Verification Code"
+                placeholder="123456"
+                value={code}
+                onChangeText={setCode}
+                error={codeError}
+                keyboardType="numeric"
+                autoCapitalize="none"
+                iconName="lock"
+              />
+              <Input
+                label="New Password"
+                placeholder="Min. 8 characters"
+                value={newPassword}
+                onChangeText={setNewPassword}
+                error={newPasswordError}
+                secureTextEntry={true}
+                autoCapitalize="none"
+                iconName="lock"
+              />
+              <Input
+                label="Confirm New Password"
+                placeholder="Re-type new password"
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                error={confirmPasswordError}
+                secureTextEntry={true}
+                autoCapitalize="none"
+                iconName="lock"
+              />
+              <Button
+                title={loading ? "Resetting Password..." : "Reset Password"}
+                onPress={handleVerifyCodeAndResetPassword}
+                loading={loading}
+                style={styles.submitButton}
+                icon={
+                  !loading ? (
+                    <Lucide name="check-circle" size={16} color={COLORS.neutral.white} />
+                  ) : undefined
+                }
+              />
+              <Button
+                title="Back to Email Entry"
+                variant="text"
+                size="sm"
+                onPress={() => setPendingVerification(false)}
+                style={styles.backToLoginBtn}
+                textStyle={styles.backToLoginText}
+              />
+            </View>
+          ) : (
+            <View style={styles.form}>
+              <Input
+                label="Email Address"
+                placeholder="name@example.com"
+                value={email}
+                onChangeText={setEmail}
+                error={emailError}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                iconName="mail"
+              />
+              <Button
+                title={loading ? "Sending Code..." : "Send Reset Code"}
+                onPress={handlePasswordReset}
+                loading={loading}
+                style={styles.submitButton}
+                icon={
+                  !loading ? (
+                    <Lucide name="send" size={16} color={COLORS.neutral.white} />
+                  ) : undefined
+                }
+              />
+              <Button
+                title="Return to Sign In"
+                variant="text"
+                size="sm"
+                onPress={() => (navigation as { navigate: (route: string) => void }).navigate("Login")}
+                style={styles.backToLoginBtn}
+                textStyle={styles.backToLoginText}
+              />
+            </View>
+          )}
           </Animated.View>
         </View>
       </ScrollView>

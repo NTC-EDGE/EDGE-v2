@@ -11,89 +11,60 @@ namespace EDGE.Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.CreateTable(
-                name: "Requirements",
-                schema: "public",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    Name = table.Column<string>(type: "character varying(150)", maxLength: 150, nullable: false),
-                    Description = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    CreatedBy = table.Column<string>(type: "text", nullable: true),
-                    LastModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    LastModifiedBy = table.Column<string>(type: "text", nullable: true),
-                    IsDeleted = table.Column<bool>(type: "boolean", nullable: false),
-                    IsDeletedBy = table.Column<string>(type: "text", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Requirements", x => x.Id);
-                });
+            migrationBuilder.Sql(@"
+                CREATE TABLE IF NOT EXISTS public.""Requirements"" (
+                    ""Id"" uuid NOT NULL,
+                    ""Name"" character varying(150) NOT NULL,
+                    ""Description"" character varying(500),
+                    ""CreatedAt"" timestamp with time zone NOT NULL,
+                    ""CreatedBy"" text,
+                    ""LastModifiedAt"" timestamp with time zone,
+                    ""LastModifiedBy"" text,
+                    ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                    ""IsDeletedBy"" text NOT NULL DEFAULT '',
+                    CONSTRAINT ""PK_Requirements"" PRIMARY KEY (""Id"")
+                );
 
-            migrationBuilder.CreateTable(
-                name: "ServiceVariantRequirements",
-                schema: "public",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    RequirementId = table.Column<Guid>(type: "uuid", nullable: false),
-                    ServiceVariantId = table.Column<Guid>(type: "uuid", nullable: false),
-                    ApplicationTypeKey = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
-                    IsRequired = table.Column<bool>(type: "boolean", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    CreatedBy = table.Column<string>(type: "text", nullable: true),
-                    LastModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    LastModifiedBy = table.Column<string>(type: "text", nullable: true),
-                    IsDeleted = table.Column<bool>(type: "boolean", nullable: false),
-                    IsDeletedBy = table.Column<string>(type: "text", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_ServiceVariantRequirements", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_ServiceVariantRequirements_Requirements_RequirementId",
-                        column: x => x.RequirementId,
-                        principalSchema: "public",
-                        principalTable: "Requirements",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_ServiceVariantRequirements_ServiceVariants_ServiceVariantId",
-                        column: x => x.ServiceVariantId,
-                        principalSchema: "public",
-                        principalTable: "ServiceVariants",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
+                CREATE TABLE IF NOT EXISTS public.""ServiceVariantRequirements"" (
+                    ""Id"" uuid NOT NULL,
+                    ""RequirementId"" uuid NOT NULL,
+                    ""ServiceVariantId"" uuid NOT NULL,
+                    ""ApplicationTypeKey"" character varying(100),
+                    ""IsRequired"" boolean NOT NULL,
+                    ""CreatedAt"" timestamp with time zone NOT NULL,
+                    ""CreatedBy"" text,
+                    ""LastModifiedAt"" timestamp with time zone,
+                    ""LastModifiedBy"" text,
+                    ""IsDeleted"" boolean NOT NULL DEFAULT false,
+                    ""IsDeletedBy"" text NOT NULL DEFAULT '',
+                    CONSTRAINT ""PK_ServiceVariantRequirements"" PRIMARY KEY (""Id"")
+                );
 
-            migrationBuilder.CreateIndex(
-                name: "IX_Schedules_ServiceId",
-                schema: "public",
-                table: "Schedules",
-                column: "ServiceId");
+                CREATE INDEX IF NOT EXISTS ""IX_Schedules_ServiceId"" ON public.""Schedules"" (""ServiceId"");
+                CREATE INDEX IF NOT EXISTS ""IX_ServiceVariantRequirements_RequirementId"" ON public.""ServiceVariantRequirements"" (""RequirementId"");
+                CREATE INDEX IF NOT EXISTS ""IX_ServiceVariantRequirements_ServiceVariantId"" ON public.""ServiceVariantRequirements"" (""ServiceVariantId"");
 
-            migrationBuilder.CreateIndex(
-                name: "IX_ServiceVariantRequirements_RequirementId",
-                schema: "public",
-                table: "ServiceVariantRequirements",
-                column: "RequirementId");
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FK_ServiceVariantRequirements_Requirements_RequirementId') THEN
+                        ALTER TABLE public.""ServiceVariantRequirements""
+                            ADD CONSTRAINT ""FK_ServiceVariantRequirements_Requirements_RequirementId""
+                            FOREIGN KEY (""RequirementId"") REFERENCES public.""Requirements"" (""Id"") ON DELETE RESTRICT;
+                    END IF;
 
-            migrationBuilder.CreateIndex(
-                name: "IX_ServiceVariantRequirements_ServiceVariantId",
-                schema: "public",
-                table: "ServiceVariantRequirements",
-                column: "ServiceVariantId");
+                    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FK_ServiceVariantRequirements_ServiceVariants_ServiceVariantId') THEN
+                        ALTER TABLE public.""ServiceVariantRequirements""
+                            ADD CONSTRAINT ""FK_ServiceVariantRequirements_ServiceVariants_ServiceVariantId""
+                            FOREIGN KEY (""ServiceVariantId"") REFERENCES public.""ServiceVariants"" (""Id"") ON DELETE CASCADE;
+                    END IF;
 
-            migrationBuilder.AddForeignKey(
-                name: "FK_Schedules_Services_ServiceId",
-                schema: "public",
-                table: "Schedules",
-                column: "ServiceId",
-                principalSchema: "public",
-                principalTable: "Services",
-                principalColumn: "Id",
-                onDelete: ReferentialAction.Restrict);
+                    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FK_Schedules_Services_ServiceId') THEN
+                        ALTER TABLE public.""Schedules""
+                            ADD CONSTRAINT ""FK_Schedules_Services_ServiceId""
+                            FOREIGN KEY (""ServiceId"") REFERENCES public.""Services"" (""Id"") ON DELETE RESTRICT;
+                    END IF;
+                END $$;
+            ");
         }
 
         /// <inheritdoc />
@@ -116,7 +87,6 @@ namespace EDGE.Infrastructure.Migrations
                 name: "IX_Schedules_ServiceId",
                 schema: "public",
                 table: "Schedules");
-
         }
     }
 }

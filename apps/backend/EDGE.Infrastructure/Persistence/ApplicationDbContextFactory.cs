@@ -64,7 +64,7 @@ public class ApplicationDbContextFactory : IDesignTimeDbContextFactory<Applicati
                 );
             ");
 
-            // 2. Check if the initial migration tables already exist (e.g., ActivityLogs)
+            // 2. Check if existing tables are present in database
             var tableExists = false;
             try
             {
@@ -73,7 +73,7 @@ public class ApplicationDbContextFactory : IDesignTimeDbContextFactory<Applicati
                     SELECT EXISTS (
                         SELECT 1 FROM information_schema.tables 
                         WHERE table_schema = 'public' 
-                        AND table_name = 'ActivityLogs'
+                        AND table_name IN ('ActivityLogs', 'Requirements', 'Services', 'Tenants')
                     );";
                 context.Database.OpenConnection();
                 var result = command.ExecuteScalar();
@@ -85,7 +85,7 @@ public class ApplicationDbContextFactory : IDesignTimeDbContextFactory<Applicati
                 // If query fails, assume table does not exist or db is uninitialized
             }
 
-            // 3. If tables exist, seed history entries so EF does not attempt to recreate existing tables
+            // 3. If tables exist, sync migration history entries so EF Core does not attempt to recreate existing tables
             if (tableExists)
             {
                 context.Database.ExecuteSqlRaw(@"
@@ -94,8 +94,21 @@ public class ApplicationDbContextFactory : IDesignTimeDbContextFactory<Applicati
                     ('20260722053305_AddFeesAndServiceFees', '10.0.5'),
                     ('20260722070017_InitialCreate', '10.0.5'),
                     ('20260722073100_AddTenantIdToFieldOffice', '10.0.5'),
-                    ('20260722074148_ChangeOfficerInChargeToGuid', '10.0.5')
+                    ('20260722074148_ChangeOfficerInChargeToGuid', '10.0.5'),
+                    ('20260722074928_AddStoredFilesTable', '10.0.5'),
+                    ('20260722075350_AddRegionalIsolationToStoredFiles', '10.0.5'),
+                    ('20260722082455_RemoveRegionIdFromStoredFile', '10.0.5'),
+                    ('20260722084551_UpdateDesignation', '10.0.5'),
+                    ('20260722101635_MakeBarangayIdNullable', '10.0.5'),
+                    ('20260723140956_AddRequirementsCatalogAndStoredFileId', '10.0.5'),
+                    ('20260724071607_AddFeesRequirementsServiceFeesServiceVariantRequirements', '10.0.5'),
+                    ('20260725022635_RenameApplicationTypeKeyToContextKey', '10.0.5'),
+                    ('20260727011245_FixPendingModelChanges', '10.0.5')
                     ON CONFLICT (""MigrationId"") DO NOTHING;
+
+                    ALTER TABLE public.""FieldOffices"" ADD COLUMN IF NOT EXISTS ""TenantId"" uuid NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000';
+                    ALTER TABLE public.""FieldOffices"" ADD COLUMN IF NOT EXISTS ""OfficerInChargeId"" uuid NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000';
+                    ALTER TABLE public.""FieldOffices"" DROP COLUMN IF EXISTS ""OfficerInCharge"";
                 ");
             }
         }
@@ -104,5 +117,4 @@ public class ApplicationDbContextFactory : IDesignTimeDbContextFactory<Applicati
             // Ignore errors if DB is uninitialized or unreachable
         }
     }
-
 }
