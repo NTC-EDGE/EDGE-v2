@@ -1,14 +1,28 @@
-import React, { createContext, useContext, ReactNode, useCallback, useMemo } from "react";
+import React, {
+  createContext,
+  useContext,
+  ReactNode,
+  useCallback,
+  useMemo,
+} from "react";
 import { useAuth } from "@clerk/expo";
-import {
-  useApplications as useApplicationsApi,
-  useDraftApplications,
-} from "@edge/api";
+import { useApplications as useApplicationsApi } from "@edge/api";
 import { useApplications } from "./ApplicationContext";
-import { ApplicationData, QueueTab, ApplicationStatus, RequirementDocument, ApplicantType, ApplicationCategory } from "../data/mockApplications";
+import {
+  ApplicationData,
+  QueueTab,
+  ApplicationStatus,
+  RequirementDocument,
+  ApplicantType,
+  ApplicationCategory,
+} from "../data/mockApplications";
 import { ApplicationDto } from "@edge/api";
 
-import { submitApplication as submitApplicationApi, SubmitApplicationCommand, ApiResponse } from "@edge/api";
+import {
+  submitApplication as submitApplicationApi,
+  SubmitApplicationCommand,
+  ApiResponse,
+} from "@edge/api";
 
 interface TabSlice {
   data: ApplicationData[];
@@ -26,10 +40,14 @@ interface QueueFetchContextType {
   selectedApplication: ApplicationData | null;
   isLoading: boolean;
   error: unknown;
-  submitApplicationToApi: (command: SubmitApplicationCommand) => Promise<ApiResponse<string>>;
+  submitApplicationToApi: (
+    command: SubmitApplicationCommand,
+  ) => Promise<ApiResponse<string>>;
 }
 
-const QueueFetchContext = createContext<QueueFetchContextType | undefined>(undefined);
+const QueueFetchContext = createContext<QueueFetchContextType | undefined>(
+  undefined,
+);
 
 export function mapDtoToApplicationData(dto: ApplicationDto): ApplicationData {
   const firstApplicant =
@@ -52,6 +70,7 @@ export function mapDtoToApplicationData(dto: ApplicationDto): ApplicationData {
   const permitNum = dto.applicationNumber ?? refNumber;
 
   const validStatuses: Record<string, ApplicationStatus> = {
+    Submitted: "Submitted" as ApplicationStatus, // Type cast since it might not be in mockApplications yet
     "For Approval": "For Approval",
     "For Verification": "For Verification",
     Returned: "Returned",
@@ -70,9 +89,7 @@ export function mapDtoToApplicationData(dto: ApplicationDto): ApplicationData {
   const queueTab: QueueTab =
     status === "Approved" || status === "Declined" || status === "Completed"
       ? "history"
-      : status === "Draft"
-        ? "activity"
-        : "pending";
+      : "pending";
 
   const applicantType: ApplicantType =
     firstApplicant?.accountType === "Company" ? "Company" : "Individual";
@@ -165,19 +182,16 @@ export function QueueFetchProvider({ children }: { children: ReactNode }) {
   const isHistoryActive = activeQueueTab === "history";
 
   // SWR Hooks
-  const allResult = useApplicationsApi(
-    clerkGetToken,
-    isAllActive ? {} : null
-  );
+  const allResult = useApplicationsApi(clerkGetToken, isAllActive ? {} : null);
 
-  const pendingResult = useDraftApplications(
+  const pendingResult = useApplicationsApi(
     clerkGetToken,
-    isPendingActive
+    isPendingActive ? { status: "Draft" } : null,
   );
 
   const historyResult = useApplicationsApi(
     clerkGetToken,
-    isHistoryActive ? { status: "Approved,Declined,Completed" } : null
+    isHistoryActive ? { status: "Approved,Declined,Completed" } : null,
   );
 
   // Map Results
@@ -199,8 +213,16 @@ export function QueueFetchProvider({ children }: { children: ReactNode }) {
     return historyData;
   }, [isAllActive, isPendingActive, allData, pendingData, historyData]);
 
-  const activeIsLoading = isAllActive ? allResult.isLoading : isPendingActive ? pendingResult.isLoading : historyResult.isLoading;
-  const activeError = isAllActive ? allResult.error : isPendingActive ? pendingResult.error : historyResult.error;
+  const activeIsLoading = isAllActive
+    ? allResult.isLoading
+    : isPendingActive
+      ? pendingResult.isLoading
+      : historyResult.isLoading;
+  const activeError = isAllActive
+    ? allResult.error
+    : isPendingActive
+      ? pendingResult.error
+      : historyResult.error;
 
   const selectedApplication = useMemo(() => {
     return selectedId !== null
@@ -215,7 +237,7 @@ export function QueueFetchProvider({ children }: { children: ReactNode }) {
       await Promise.all([
         allResult.mutate(),
         pendingResult.mutate(),
-        historyResult.mutate()
+        historyResult.mutate(),
       ]);
       return response;
     },
