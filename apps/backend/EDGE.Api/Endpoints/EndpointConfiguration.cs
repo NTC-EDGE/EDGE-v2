@@ -9,6 +9,7 @@ public static class EndpointConfiguration
     {
         // Keep webhooks at '/webhooks/clerk' as configured in the Clerk developer portal
         app.MapWebhookEndpoints();
+        app.MapFormPrintingEndpoints();
 
         // Standardize all CRUD endpoints under the '/api/v2' route group prefix
         var apiV2Group = app.MapGroup("/api/v2");
