@@ -1,24 +1,23 @@
 import { useEffect } from "react";
 import { Platform } from "react-native";
 import { type NavigationContainerRef, type ParamListBase } from "@edge/ui";
+import { getScreenTitle } from "../navigation/titles";
 
 /**
  * Custom Hook: Syncs browser tab titles and handles deep-link preservation on Web when unauthenticated.
+ * Uses the exact human-readable screen title defined for each screen.
  */
 export function useWebMetadata(isAuthenticated: boolean, activeScreen: string): void {
   useEffect(() => {
     if (Platform.OS !== "web") return;
 
-    // 1. Sync Document Title
+    // 1. Sync Document Title reusing exact screen title
     if (typeof document !== "undefined") {
       if (!isAuthenticated) {
-        document.title = "Login";
+        document.title = "Login | EDGE";
       } else {
-        const formattedTitle = activeScreen
-          .replace(/([A-Z])/g, " $1")
-          .replace(/^./, (str: string) => str.toUpperCase())
-          .trim();
-        document.title = `${formattedTitle} | EDGE`;
+        const title = getScreenTitle(activeScreen);
+        document.title = `${title} | EDGE`;
       }
     }
 
