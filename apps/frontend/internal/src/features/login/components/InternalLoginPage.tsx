@@ -293,13 +293,6 @@ export function InternalLoginPage() {
                 <View style={[styles.mockupWindowBody, isMobile && { padding: 20 }]}>
                   <Text style={styles.cardTitle}>Staff Login</Text>
 
-                  {error.length > 0 ? (
-                    <View style={styles.errorBanner}>
-                      <Lucide name="alert-circle" size={16} color="#DC2626" />
-                      <Text style={styles.errorText}>{error}</Text>
-                    </View>
-                  ) : null}
-
                   {/* Region Field - Integrated with Backend API Data Layer */}
                   <View style={[styles.fieldGroup, showRegionDropdown && styles.fieldGroupActive]}>
                     <Text style={styles.fieldLabelSmall}>Regional Office (API Connected)</Text>
