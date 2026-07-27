@@ -49,5 +49,8 @@ export function useAuthenticatedSWR<Data = unknown, Error = unknown>(
 
 export * from './types';
 export * from './types/region';
+export * from './types/auth';
 export * from './services/regionService';
+export * from './services/authService';
+export * from './services/apiErrorService';
 export * from './hooks/useRegions';

@@ -1,6 +1,6 @@
 import { createContext, useContext, ReactNode, useState } from "react";
-import { useAuth, useUser, useSignIn, useSignUp, isClerkAPIResponseError } from "@clerk/expo";
-import { validateTenantRegionAccess } from "@edge/api";
+import { useAuth, useUser, useSignIn, useSignUp } from "@clerk/expo";
+import { parseApiError, verifyStaffMembership } from "@edge/api";
 
 export interface UserProfile {
   name: string;
@@ -10,6 +10,10 @@ export interface UserProfile {
   lastName?: string;
   avatarUrl?: string;
   region?: string;
+  tenantId?: string;
+  tenantName?: string;
+  roles?: string[];
+  permissions?: string[];
 }
 
 interface AuthContextType {
@@ -27,66 +31,15 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const CLERK_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? "";
 
-/**
- * Safely parses Clerk API error responses to preserve exact root causes (e.g. rate limits like too_many_requests)
- * while returning clear messaging for incorrect credentials or region mismatches.
- */
-export const parseClerkAuthError = (err: unknown): string => {
-  if (err === null || err === undefined) {
-    return "Authentication failed. Please try again.";
-  }
-
-  if (isClerkAPIResponseError(err) && err.errors.length > 0) {
-    const firstErr = err.errors[0];
-    const code = firstErr.code ?? "";
-    const message = firstErr.message ?? "";
-
-    if (code === "too_many_requests" || code.includes("rate_limit")) {
-      return message || "Too many requests. Please try again in a bit.";
-    }
-    if (code === "form_identifier_not_found" || code === "form_password_incorrect") {
-      return "Authentication Failed: Invalid credentials, wrong password, or the wrong region selected.";
-    }
-    if (message.trim().length > 0) {
-      return message;
-    }
-  }
-
-  if (typeof err === "object" && err !== null) {
-    const record = err as Record<string, unknown>;
-
-    // Handle res.error payload from Clerk SDK methods
-    if ("error" in record && record.error !== null && typeof record.error === "object") {
-      const clerkErr = record.error as Record<string, unknown>;
-      const code = typeof clerkErr.code === "string" ? clerkErr.code : "";
-      const message = typeof clerkErr.message === "string" ? clerkErr.message : "";
-
-      if (code === "too_many_requests" || code.includes("rate_limit")) {
-        return message || "Too many requests. Please try again in a bit.";
-      }
-      if (code === "form_identifier_not_found" || code === "form_password_incorrect") {
-        return "Authentication Failed: Invalid credentials, wrong password, or the wrong region selected.";
-      }
-      if (message.trim().length > 0) {
-        return message;
-      }
-    }
-
-    if ("message" in record && typeof record.message === "string" && record.message.trim().length > 0) {
-      return record.message;
-    }
-  }
-
-  if (err instanceof Error && err.message.trim().length > 0) {
-    return err.message;
-  }
-
-  return "Authentication Failed: Invalid credentials, wrong password, or the wrong region selected.";
-};
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const isClerkEnabled = typeof CLERK_PUBLISHABLE_KEY === "string" && CLERK_PUBLISHABLE_KEY.length > 0;
   const [selectedRegionState, setSelectedRegionState] = useState<string | undefined>(undefined);
+  const [backendStaffClaims, setBackendStaffClaims] = useState<{
+    tenantId?: string;
+    tenantName?: string;
+    roles?: string[];
+    permissions?: string[];
+  }>({});
 
   // Clerk custom flow hooks (Clerk Expo SDK v3)
   const clerkAuth = useAuth();
@@ -103,10 +56,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error("Authentication service is not loaded yet. Please try again.");
     }
 
-    if (region !== undefined) {
-      setSelectedRegionState(region);
-    }
+    const targetRegion = region ?? selectedRegionState ?? "NCR";
+    setSelectedRegionState(targetRegion);
 
+    // Step 1: Perform Clerk Identity Authentication
     try {
       const res = await signIn.password({
         emailAddress: email,
@@ -119,26 +72,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (signIn.status === "complete") {
         await signIn.finalize();
-
-        // Validate Backend Tenant-Region Authorization after authentication
-        if (clerkUser.user !== null && clerkUser.user !== undefined && region !== undefined) {
-          const metadata = (clerkUser.user.publicMetadata ?? clerkUser.user.unsafeMetadata ?? {}) as Record<string, unknown>;
-          const userAssignedRegion = typeof metadata.region === "string" ? metadata.region : undefined;
-
-          const validation = validateTenantRegionAccess(userAssignedRegion, region);
-          if (!validation.isAuthorized) {
-            if (clerkAuth.signOut !== undefined) {
-              await clerkAuth.signOut();
-            }
-            throw new Error(validation.errorReason ?? "Access Denied: Regional tenant mismatch.");
-          }
-        }
       } else {
         throw new Error(`Authentication incomplete: status is ${signIn.status}`);
       }
     } catch (err: unknown) {
-      const parsedError = parseClerkAuthError(err);
-      throw new Error(parsedError);
+      const parsedMessage = parseApiError(err);
+      throw new Error(parsedMessage);
+    }
+
+    // Step 2: Perform Backend C# .NET 10 Tenant & Regional Office Verification
+    try {
+      const token = clerkAuth.getToken ? await clerkAuth.getToken() : null;
+      const verifiedClaims = await verifyStaffMembership(token, targetRegion);
+
+      setBackendStaffClaims({
+        tenantId: verifiedClaims.tenantId,
+        tenantName: verifiedClaims.tenantName,
+        roles: verifiedClaims.assignedRoles,
+        permissions: verifiedClaims.effectivePermissions,
+      });
+    } catch (backendErr: unknown) {
+      // Revoke Clerk session if backend tenant-region membership verification fails
+      if (clerkAuth.signOut !== undefined) {
+        await clerkAuth.signOut();
+      }
+      const parsedBackendMessage = parseApiError(backendErr);
+      throw new Error(parsedBackendMessage);
     }
   };
 
@@ -169,8 +128,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await signUp.verifications.sendEmailCode();
       return false;
     } catch (err: unknown) {
-      const parsedError = parseClerkAuthError(err);
-      throw new Error(parsedError);
+      const parsedMessage = parseApiError(err);
+      throw new Error(parsedMessage);
     }
   };
 
@@ -192,8 +151,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error(`Sign up incomplete: status is ${signUp.status}`);
       }
     } catch (err: unknown) {
-      const parsedError = parseClerkAuthError(err);
-      throw new Error(parsedError);
+      const parsedMessage = parseApiError(err);
+      throw new Error(parsedMessage);
     }
   };
 
@@ -201,9 +160,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (isClerkEnabled && clerkAuth.signOut !== undefined) {
       await clerkAuth.signOut();
     }
+    setBackendStaffClaims({});
   };
 
-  // Derive User Profile from Clerk or Fallback for Development
+  // Derive User Profile from Clerk & Backend Verified Claims
   let user: UserProfile | null = null;
   const isAuthenticated = isClerkEnabled ? Boolean(clerkAuth.isSignedIn) : true;
 
@@ -219,12 +179,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       lastName: cu.lastName ?? undefined,
       avatarUrl: cu.imageUrl ?? undefined,
       region: selectedRegionState,
+      tenantId: backendStaffClaims.tenantId,
+      tenantName: backendStaffClaims.tenantName,
+      roles: backendStaffClaims.roles,
+      permissions: backendStaffClaims.permissions,
     };
   } else if (!isClerkEnabled) {
     user = {
       name: "Staff User",
       email: "staff@ntc.gov.ph",
       region: selectedRegionState ?? "NCR",
+      tenantName: "NTC Regional Office - NCR",
+      roles: ["RegionalStaff"],
+      permissions: ["ViewQueues"],
     };
   }
 

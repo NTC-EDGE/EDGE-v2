@@ -25,6 +25,7 @@ import { useRegions } from "@edge/api";
 import { useOAuth } from "@clerk/expo";
 import { NtcLogo } from "./NtcLogo";
 import { useAuthContext } from "../../auth/context/AuthContext";
+import { ForgotPasswordPage } from "./ForgotPasswordPage";
 
 interface FooterPolicySection {
   title: string;
@@ -165,11 +166,16 @@ export function InternalLoginPage() {
   const [region, setRegion] = useState("NCR - National Capital Region");
   const [showRegionDropdown, setShowRegionDropdown] = useState(false);
 
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [error, setError] = useState("");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [activeFooterModal, setActiveFooterModal] = useState<FooterPolicyContent | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
+
+  if (showForgotPassword) {
+    return <ForgotPasswordPage onBackToLogin={() => setShowForgotPassword(false)} />;
+  }
 
   const triggerToastError = (msg: string) => {
     const trimmed = msg.trim();
@@ -384,6 +390,16 @@ export function InternalLoginPage() {
                       />
                     </View>
                   </View>
+
+                  {/* Forgot Password Link */}
+                  <TouchableOpacity
+                    style={{ alignSelf: "flex-end", marginBottom: 16 }}
+                    onPress={() => setShowForgotPassword(true)}
+                  >
+                    <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: COLORS.brand[800], fontWeight: TYPOGRAPHY.weights.medium }}>
+                      Forgot Password?
+                    </Text>
+                  </TouchableOpacity>
 
                   {/* Submit Button */}
                   <TouchableOpacity
