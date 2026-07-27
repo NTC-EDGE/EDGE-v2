@@ -138,7 +138,7 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     color: COLORS.neutral[900],
     padding: 0,
-    ...(Platform.OS === 'web' ? { outlineWidth: 0, outlineColor: 'transparent' } : {}),
+    ...(Platform.OS === 'web' ? ({ outlineWidth: 0, outlineColor: 'transparent' } as unknown as TextStyle) : {}),
   },
   errorText: {
     fontFamily: TYPOGRAPHY.fonts.primary,

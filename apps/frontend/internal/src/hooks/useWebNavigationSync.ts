@@ -3,13 +3,13 @@ import { Platform } from "react-native";
 import { type NavigationContainerRef, type ParamListBase } from "@edge/ui";
 
 /**
- * Runtime Type Guard to safely extract title string without type assertions.
+ * Strict Type Guard Helper: Safely extracts a string 'title' property from an unknown object without type assertions.
  */
-function extractTitleString(target: unknown): string | null {
-  if (target !== null && typeof target === "object" && "title" in target) {
-    const value = Reflect.get(target, "title");
-    if (typeof value === "string" && value.length > 0) {
-      return value;
+function extractTitleProperty(target: unknown): string | null {
+  if (typeof target === "object" && target !== null) {
+    const val = Reflect.get(target, "title");
+    if (typeof val === "string") {
+      return val;
     }
   }
   return null;
@@ -47,7 +47,7 @@ export function useWebMetadata(isAuthenticated: boolean, screenTitle: string): v
 }
 
 /**
- * Custom Hook: Tracks current React Navigation stack route and repurposes Navigator screen titles safely without type assertions.
+ * Custom Hook: Tracks current React Navigation stack route and repurposes Navigator screen titles.
  */
 export function useRouteTracker(
   isAuthenticated: boolean,
@@ -61,9 +61,8 @@ export function useRouteTracker(
       if (navigationRef.isReady()) {
         const route = navigationRef.getCurrentRoute();
         if (route?.name !== undefined && route.name !== null) {
-          const currentOptions = navigationRef.getCurrentOptions();
-          const optionsTitle = extractTitleString(currentOptions);
-          const paramTitle = extractTitleString(route.params);
+          const optionsTitle = extractTitleProperty(navigationRef.getCurrentOptions());
+          const paramTitle = extractTitleProperty(route.params);
           const title = optionsTitle ?? paramTitle ?? route.name;
           onRouteChanged(route.name, title);
         }
