@@ -264,8 +264,8 @@ export function InternalLoginPage() {
                     </View>
                   ) : null}
 
-                  {/* Region Field */}
-                  <View style={styles.fieldGroup}>
+                  {/* Region Field - zIndex raised when dropdown is active */}
+                  <View style={[styles.fieldGroup, showRegionDropdown && styles.fieldGroupActive]}>
                     <Text style={styles.fieldLabelSmall}>Regional Office</Text>
                     <TouchableOpacity
                       style={styles.regionSelectorBox}
@@ -278,12 +278,16 @@ export function InternalLoginPage() {
                           {region}
                         </Text>
                       </View>
-                      <Lucide name="chevron-down" size={18} color={COLORS.neutral[500]} />
+                      <Lucide
+                        name={showRegionDropdown ? "chevron-up" : "chevron-down"}
+                        size={18}
+                        color={COLORS.neutral[500]}
+                      />
                     </TouchableOpacity>
 
                     {showRegionDropdown ? (
                       <View style={styles.regionPopoverMenu}>
-                        <ScrollView style={{ maxHeight: 180 }} nestedScrollEnabled={true}>
+                        <ScrollView style={{ maxHeight: 220 }} nestedScrollEnabled={true}>
                           {PHILIPPINE_REGIONS.map((item) => (
                             <TouchableOpacity
                               key={item}
@@ -325,6 +329,7 @@ export function InternalLoginPage() {
                         onChangeText={setIdentifier}
                         autoCapitalize="none"
                         keyboardType="email-address"
+                        onFocus={() => setShowRegionDropdown(false)}
                       />
                     </View>
                   </View>
@@ -342,6 +347,7 @@ export function InternalLoginPage() {
                         onChangeText={setPassword}
                         secureTextEntry={true}
                         autoCapitalize="none"
+                        onFocus={() => setShowRegionDropdown(false)}
                       />
                     </View>
                   </View>
@@ -503,7 +509,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     backgroundColor: "#FAF9F6",
     position: "relative",
-    overflow: "hidden",
+    overflow: "visible",
   },
   backgroundBlobLeft: {
     position: "absolute",
@@ -626,6 +632,7 @@ const styles = StyleSheet.create({
     maxWidth: 480,
     width: "100%",
     alignSelf: "center",
+    zIndex: 10,
   },
   mockupWindowCard: {
     width: "100%",
@@ -638,6 +645,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 24,
     elevation: 8,
+    overflow: "visible",
   },
   mockupWindowHeader: {
     flexDirection: "row",
@@ -682,6 +690,8 @@ const styles = StyleSheet.create({
   },
   mockupWindowBody: {
     padding: 28,
+    position: "relative",
+    zIndex: 1,
   },
   cardTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
@@ -711,6 +721,11 @@ const styles = StyleSheet.create({
   fieldGroup: {
     marginBottom: 16,
     position: "relative",
+    zIndex: 1,
+  },
+  fieldGroupActive: {
+    zIndex: 1000,
+    elevation: 1000,
   },
   fieldLabelSmall: {
     fontFamily: TYPOGRAPHY.fonts.primary,
@@ -756,11 +771,11 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: 4,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    elevation: 8,
-    zIndex: 100,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.16,
+    shadowRadius: 16,
+    elevation: 1000,
+    zIndex: 1000,
   },
   regionOptionItem: {
     paddingVertical: 10,
@@ -835,7 +850,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.neutral.white,
     paddingVertical: 20,
     paddingHorizontal: 24,
-    zIndex: 10,
+    zIndex: 1,
   },
   footerContentContainer: {
     maxWidth: 1400,
