@@ -313,15 +313,6 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
         });
 #endif
 
-#if STEP_004
-        modelBuilder.Entity<FieldOffice>(entity =>
-        {
-            entity.HasOne(e => e.Region)
-                  .WithMany()
-                  .HasForeignKey(e => e.RegionId)
-                  .OnDelete(DeleteBehavior.Restrict);
-        });
-#endif
 
 #if STEP_005
         modelBuilder.Entity<ExaminationSchedule>(entity =>
@@ -634,9 +625,10 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
 
 
             entity.HasOne(e => e.Requirement)
-                  .WithMany()
+                  .WithMany(r => r.ServiceVariantRequirements)
                   .HasForeignKey(e => e.RequirementId)
                   .OnDelete(DeleteBehavior.Restrict);
+
 
             entity.HasOne(e => e.ServiceVariant)
                   .WithMany(sv => sv.ServiceVariantRequirements)
