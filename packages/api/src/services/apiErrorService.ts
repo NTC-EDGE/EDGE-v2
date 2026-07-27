@@ -20,6 +20,36 @@ export const parseApiError = (
       return "Unable to connect to the backend server. Please verify that your internet connection is active and the C# backend API is running.";
     }
 
+    // Handle Clerk Sign-In Attempt status objects (e.g. needs_client_trust, needs_second_factor)
+    const inspectSignInStatus = (target: Record<string, unknown>): string | null => {
+      const signInObj = "sign_in" in target && typeof target.sign_in === "object" && target.sign_in !== null
+        ? (target.sign_in as Record<string, unknown>)
+        : "response" in target && typeof target.response === "object" && target.response !== null
+        ? (target.response as Record<string, unknown>)
+        : target;
+
+      const status = typeof signInObj.status === "string" ? signInObj.status : "";
+      const identifier = typeof signInObj.identifier === "string" ? signInObj.identifier : "";
+
+      if (status === "needs_client_trust") {
+        const idSuffix = identifier.length > 0 ? ` for ${identifier}` : "";
+        return `Verification Required: Clerk requires device trust or email code verification${idSuffix}. Please check your email inbox for a verification link or code.`;
+      }
+      if (status === "needs_second_factor") {
+        const idSuffix = identifier.length > 0 ? ` for ${identifier}` : "";
+        return `Two-Factor Verification Required: Please enter the 2FA code sent to your email/authenticator${idSuffix}.`;
+      }
+      if (status === "needs_first_factor") {
+        return "Authentication Incomplete: Additional identification factor is required to finish signing in.";
+      }
+      return null;
+    };
+
+    const statusMsg = inspectSignInStatus(record);
+    if (statusMsg !== null) {
+      return statusMsg;
+    }
+
     // 1. Handle HTTP / Axios responses from C# .NET 10 Backend API
     if ("response" in record && record.response !== null && typeof record.response === "object") {
       const response = record.response as Record<string, unknown>;
@@ -120,6 +150,9 @@ export const parseApiError = (
       if (record.message.includes("Network Error")) {
         return "Unable to connect to the backend server. Please verify that your internet connection is active and the C# backend API is running.";
       }
+      if (record.message.includes("needs_client_trust")) {
+        return "Verification Required: Clerk requires device trust or email code verification for edissaamante@gmail.com. Please check your email inbox for a verification code.";
+      }
       return record.message.trim();
     }
   }
@@ -127,6 +160,9 @@ export const parseApiError = (
   if (err instanceof Error && err.message.trim().length > 0) {
     if (err.message.includes("Network Error")) {
       return "Unable to connect to the backend server. Please verify that your internet connection is active and the C# backend API is running.";
+    }
+    if (err.message.includes("needs_client_trust")) {
+      return "Verification Required: Clerk requires device trust or email code verification. Please check your email inbox for a verification code.";
     }
     return err.message.trim();
   }
