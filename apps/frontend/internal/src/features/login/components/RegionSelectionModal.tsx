@@ -51,7 +51,7 @@ export function RegionSelectionModal({
   }, [visible, clerkAuth]);
 
   // Data Layer SWR Hook for caller's tenant memberships
-  const { memberships, isLoading, isError, error: swrError } = useMyTenantMemberships(token, visible);
+  const { memberships, isLoading, isError, error: swrError, refetch } = useMyTenantMemberships(token, visible);
 
   // Automatically select the first authorized region when memberships load
   useEffect(() => {
@@ -60,7 +60,7 @@ export function RegionSelectionModal({
     }
   }, [memberships, selectedRegion]);
 
-  const displayError = actionError.length > 0 ? actionError : isError ? parseApiError(swrError) : "";
+  const displayActionError = actionError.length > 0 ? actionError : "";
 
   const handleConfirm = async () => {
     if (selectedRegion.length === 0) {
@@ -104,8 +104,30 @@ export function RegionSelectionModal({
               <ActivityIndicator size="large" color="#0E1B61" />
               <Text style={styles.loadingText}>Verifying your regional office memberships...</Text>
             </View>
+          ) : isError ? (
+            /* Case 1: Backend API Offline or Network Connection Error */
+            <View style={styles.noMembershipBox}>
+              <View style={[styles.alertIconCircle, { backgroundColor: "#FEF2F2" }]}>
+                <Lucide name="alert-triangle" size={28} color="#DC2626" />
+              </View>
+              <Text style={[styles.noMembershipTitle, { color: "#991B1B" }]}>Server Connection Error</Text>
+              <Text style={styles.noMembershipText}>
+                {parseApiError(swrError)}
+              </Text>
+
+              <View style={{ flexDirection: "row", gap: 12 }}>
+                <TouchableOpacity style={styles.retryButton} onPress={() => refetch()}>
+                  <Lucide name="refresh-cw" size={16} color={COLORS.neutral.white} />
+                  <Text style={styles.signOutButtonText}>Retry Connection</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.signOutOutlineButton} onPress={onSignOut}>
+                  <Text style={styles.signOutOutlineText}>Sign Out</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           ) : memberships.length === 0 ? (
-            /* Case B: User is NOT a member of any region */
+            /* Case 2: User is NOT a member of any region */
             <View style={styles.noMembershipBox}>
               <View style={styles.alertIconCircle}>
                 <Lucide name="alert-triangle" size={28} color="#DC2626" />
@@ -121,12 +143,12 @@ export function RegionSelectionModal({
               </TouchableOpacity>
             </View>
           ) : (
-            /* Case A: User has 1 or more assigned region memberships */
+            /* Case 3: User has 1 or more assigned region memberships */
             <View style={styles.bodyContent}>
-              {displayError.length > 0 ? (
+              {displayActionError.length > 0 ? (
                 <View style={styles.errorBanner}>
                   <Lucide name="alert-circle" size={16} color="#DC2626" />
-                  <Text style={styles.errorText}>{displayError}</Text>
+                  <Text style={styles.errorText}>{displayActionError}</Text>
                 </View>
               ) : null}
 
@@ -291,6 +313,15 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 24,
   },
+  retryButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#0E1B61",
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 10,
+  },
   signOutButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -305,6 +336,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: TYPOGRAPHY.weights.semibold,
     color: COLORS.neutral.white,
+  },
+  signOutOutlineButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
+  },
+  signOutOutlineText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    fontWeight: TYPOGRAPHY.weights.medium,
+    color: COLORS.neutral[600],
   },
   bodyContent: {
     position: "relative",
