@@ -1,4 +1,4 @@
-﻿import axios from "axios";
+import axios from "axios";
 import useSWR, { SWRConfiguration, SWRResponse } from "swr";
 
 declare const process: { env: Record<string, string | undefined> };
@@ -29,8 +29,17 @@ export const setAuthToken = (token: string | null): void => {
 
 export const formatEndpointUrl = (url: string): string => {
   let cleanedUrl = url;
-  if (cleanedUrl.includes("pg.dev.nextstep-software.com")) {
-    cleanedUrl = cleanedUrl.replace(/.*pg\.dev\.nextstep-software\.com/, "");
+  const apiUrl = getApiUrl();
+  try {
+    const match = apiUrl.match(/^(?:https?:\/\/)?([^/]+)/i);
+    const host = match ? match[1] : null;
+    if (host && cleanedUrl.includes(host)) {
+      const escapedHost = host.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&");
+      const regex = new RegExp(`.*${escapedHost}`);
+      cleanedUrl = cleanedUrl.replace(regex, "");
+    }
+  } catch {
+    // Fallback if parsing fails
   }
   return cleanedUrl;
 };

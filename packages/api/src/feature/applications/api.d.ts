@@ -1,5 +1,5 @@
-import { ApiResponse, PaginatedApiResponse } from '../../types';
-import { ApplicationDto, SubmitApplicationCommand, UpdateApplicationCommand, UploadApplicantRequirementCommand, GetApplicationsParams, PreviewCsvImportResultDto } from './types';
+import { ApiResponse, PaginatedApiResponse } from "../../types";
+import { ApplicationDto, SubmitApplicationCommand, UpdateApplicationCommand, UploadApplicantRequirementCommand, GetApplicationsParams, PreviewCsvImportResultDto } from "./types";
 export declare function submitApplication(command: SubmitApplicationCommand): Promise<ApiResponse<string>>;
 export declare function submitTenantApplication(tenantId: string, command: SubmitApplicationCommand): Promise<ApiResponse<string>>;
 export declare function getApplicationById(id: string): Promise<ApiResponse<ApplicationDto>>;
