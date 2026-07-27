@@ -5,6 +5,7 @@ import { ApplicationProvider } from '../context/ApplicationContext';
 import { ActivitiesFeedPane } from '../components/ActivitiesFeedPane';
 import { ApplicationReviewScreen } from './ApplicationReviewScreen';
 import { useApplications } from '../context/ApplicationContext';
+import { QueueFetchProvider } from '../context/QueueFetchContext';
 
 const DESKTOP_BREAKPOINT = 1024;
 
@@ -52,9 +53,11 @@ function ActivitiesContent() {
 export function ActivitiesScreen() {
   return (
     <ApplicationProvider>
-      <View style={styles.root}>
-        <ActivitiesContent />
-      </View>
+      <QueueFetchProvider>
+        <View style={styles.root}>
+          <ActivitiesContent />
+        </View>
+      </QueueFetchProvider>
     </ApplicationProvider>
   );
 }

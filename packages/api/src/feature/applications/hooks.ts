@@ -5,31 +5,33 @@ import { ApplicationDto, GetApplicationsParams } from "./types";
 
 export function useApplications(
   clerkGetToken: () => Promise<string | null>,
-  params?: GetApplicationsParams,
+  params?: GetApplicationsParams | null,
   config?: SWRConfiguration<PaginatedApiResponse<ApplicationDto>>,
 ): SWRResponse<PaginatedApiResponse<ApplicationDto>> {
-  const queryParams = new URLSearchParams();
-  if (params !== undefined) {
-    if (params.tenantId !== undefined && params.tenantId !== null) {
-      queryParams.append("tenantId", params.tenantId);
+  // When params is explicitly null, pass null as the SWR key → fetch is skipped
+  let key: string | null = null;
+  if (params !== null) {
+    const queryParams = new URLSearchParams();
+    if (params !== undefined) {
+      if (params.tenantId !== undefined && params.tenantId !== null) {
+        queryParams.append("tenantId", params.tenantId);
+      }
+      if (params.status !== undefined && params.status !== null) {
+        queryParams.append("status", params.status);
+      }
+      if (params.search !== undefined && params.search !== null) {
+        queryParams.append("search", params.search);
+      }
+      if (params.pageNumber !== undefined && params.pageNumber !== null) {
+        queryParams.append("pageNumber", params.pageNumber.toString());
+      }
+      if (params.pageSize !== undefined && params.pageSize !== null) {
+        queryParams.append("pageSize", params.pageSize.toString());
+      }
     }
-    if (params.status !== undefined && params.status !== null) {
-      queryParams.append("status", params.status);
-    }
-    if (params.search !== undefined && params.search !== null) {
-      queryParams.append("search", params.search);
-    }
-    if (params.pageNumber !== undefined && params.pageNumber !== null) {
-      queryParams.append("pageNumber", params.pageNumber.toString());
-    }
-    if (params.pageSize !== undefined && params.pageSize !== null) {
-      queryParams.append("pageSize", params.pageSize.toString());
-    }
+    const queryString = queryParams.toString();
+    key = queryString !== "" ? `/applications?${queryString}` : "/applications";
   }
-
-  const queryString = queryParams.toString();
-  const key =
-    queryString !== "" ? `/applications?${queryString}` : "/applications";
 
   return useAuthenticatedSWR<PaginatedApiResponse<ApplicationDto>>(
     key,
@@ -53,10 +55,13 @@ export function useApplicationById(
 
 export function useDraftApplications(
   clerkGetToken: () => Promise<string | null>,
+  enabled: boolean = true,
   config?: SWRConfiguration<ApiResponse<ApplicationDto[]>>,
 ): SWRResponse<ApiResponse<ApplicationDto[]>> {
+  // When not enabled, pass null key → SWR skips the fetch
+  const key = enabled ? "/applications/drafts" : null;
   return useAuthenticatedSWR<ApiResponse<ApplicationDto[]>>(
-    "/applications/drafts",
+    key,
     clerkGetToken,
     config,
   );

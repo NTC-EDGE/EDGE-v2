@@ -25,6 +25,7 @@ import {
 } from "../data/mockApplications";
 import { ActivityCard } from "./ActivityCard";
 import { useApplications } from "../context/ApplicationContext";
+import { useQueueFetch } from "../context/QueueFetchContext";
 import {
   usePermissions,
   QueueTab,
@@ -134,16 +135,29 @@ function buildDateGroups(
 
 export function ActivitiesFeedPane() {
   const {
-    applications,
     selectedId,
     setSelectedId,
     activeQueueTab,
     setActiveQueueTab,
     resetStore,
-    isLoadingApi,
-    apiError,
-    mutateApiApplications,
   } = useApplications();
+  
+  const { 
+    applications, 
+    isLoading, 
+    error: apiError, 
+    all, 
+    pending, 
+    history 
+  } = useQueueFetch();
+
+  const activeSlice =
+    activeQueueTab === "activity" ? all :
+    activeQueueTab === "pending"  ? pending :
+    history;
+
+  const mutateApiApplications = activeSlice.mutate;
+  const isLoadingApi = isLoading;
   const { visibleTabs } = usePermissions();
 
   const [searchQuery, setSearchQuery] = useState("");

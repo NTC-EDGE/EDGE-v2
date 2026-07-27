@@ -29,6 +29,7 @@ import { EndorseModal } from "../components/modals/EndorseModal";
 import { CashierVerificationModal } from "../components/modals/CashierVerificationModal";
 import { UserRole } from "../../shell/context/RoleContext";
 import { useApplications } from "../context/ApplicationContext";
+import { useQueueFetch } from "../context/QueueFetchContext";
 
 type InnerTab = "basic" | "details" | "requirements" | "soa";
 
@@ -1015,12 +1016,11 @@ export function ApplicationReviewScreen({
   isCollapsed,
 }: ApplicationReviewScreenProps) {
   const {
-    applications,
-    selectedApplication,
     activeQueueTab,
     updateApplication,
     setSelectedId,
   } = useApplications();
+  const { applications, selectedApplication, submitApplicationToApi } = useQueueFetch();
   const { currentRole } = useRole();
   const { canApprove, canDecline, canEndorse, canVerifyCashier } =
     usePermissions();
