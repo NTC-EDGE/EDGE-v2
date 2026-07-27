@@ -172,8 +172,19 @@ export function InternalLoginPage() {
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
 
   const triggerToastError = (msg: string) => {
-    setError(msg);
-    setToastMessage(msg);
+    const trimmed = msg.trim();
+    if (trimmed.length > 0) {
+      setError(trimmed);
+      setToastMessage(trimmed);
+    } else {
+      setError("");
+      setToastMessage(null);
+    }
+  };
+
+  const dismissToast = () => {
+    setToastMessage(null);
+    setError("");
   };
 
   const handleSignIn = async () => {
@@ -228,12 +239,12 @@ export function InternalLoginPage() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={styles.keyboardAvoid}
     >
-      {/* Floating Error Toast Notification */}
-      {toastMessage !== null ? (
+      {/* Floating Error Toast Notification - strictly unmounts when message is empty */}
+      {toastMessage !== null && toastMessage.trim().length > 0 ? (
         <View style={[styles.toastContainer, SHADOWS.modal]}>
           <Lucide name="alert-triangle" size={20} color="#DC2626" />
           <Text style={styles.toastText}>{toastMessage}</Text>
-          <TouchableOpacity onPress={() => setToastMessage(null)} style={styles.toastCloseBtn}>
+          <TouchableOpacity onPress={dismissToast} style={styles.toastCloseBtn}>
             <Lucide name="x" size={16} color={COLORS.neutral[500]} />
           </TouchableOpacity>
         </View>
