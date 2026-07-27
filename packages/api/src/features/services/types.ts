@@ -10,12 +10,6 @@ export interface Service {
   tenantId?: string | null;
 }
 
-export interface ServiceVariant {
-  id: string;
-  type: string;
-  description?: string | null;
-}
-
 export interface CreateServiceCommand {
   serviceCategoryId: string;
   tenantId: string;

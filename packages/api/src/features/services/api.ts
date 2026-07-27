@@ -1,8 +1,7 @@
 import { apiClient } from '../../index';
-import { ApiResponse } from '../../types';
+import { ApiResponse, ServiceVariant } from '../../types';
 import {
   Service,
-  ServiceVariant,
   CreateServiceCommand,
   UpdateServiceCommand,
 } from './types';
