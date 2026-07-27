@@ -100,6 +100,7 @@ export function ApplicationDetailsPage({
 }: ApplicationDetailsPageProps) {
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
+  const isDesktop = width >= 768;
 
   // Active Tab: 'DETAILS' | 'DOCUMENTS'
   const [activeTab, setActiveTab] = useState<'DETAILS' | 'DOCUMENTS'>('DETAILS');
@@ -297,7 +298,7 @@ export function ApplicationDetailsPage({
 
     return (
       <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-        <View style={styles.mainWrapper}>
+        <View style={[styles.mainWrapper, { paddingHorizontal: isDesktop ? SPACING[32] : SPACING[16] }]}>
           {/* Back button to Bulk Application details */}
           <TouchableOpacity
             onPress={() => setSelectedApplicant(null)}
@@ -329,10 +330,13 @@ export function ApplicationDetailsPage({
             <Text style={styles.appRefId}>
               Applicant Ref ID: #{currApplicant.id}
             </Text>
-            <Text style={styles.appTitle}>{enriched.name}</Text>
-            <Text style={styles.appSubtitleCompany}>
-              {currApplicant.applicationType} • Part of bulk batch #{app.referenceNumber}
-            </Text>
+            <Text style={[styles.appTitle, { fontSize: isDesktop ? 24 : 20 }]}>{enriched.name}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: -14, marginBottom: 16 }}>
+              <Icon name="calendar" size={14} color="#64748B" />
+              <Text style={[styles.appSubtitleCompany, { marginTop: 0, marginBottom: 0 }]}>
+                {currApplicant.applicationType} • Part of bulk batch #{app.referenceNumber}
+              </Text>
+            </View>
 
             {/* Navigation Tabs */}
             <View style={styles.tabsContainer}>
@@ -390,6 +394,7 @@ export function ApplicationDetailsPage({
                       )}
                     </View>
                     <Text style={styles.stepLabel}>Submitted</Text>
+                    <Text style={styles.stepSubLabel}>Application received</Text>
                   </View>
 
                   <View
@@ -414,6 +419,7 @@ export function ApplicationDetailsPage({
                       )}
                     </View>
                     <Text style={styles.stepLabel}>Evaluation</Text>
+                    <Text style={styles.stepSubLabel}>Under review</Text>
                   </View>
 
                   <View
@@ -442,6 +448,7 @@ export function ApplicationDetailsPage({
                       )}
                     </View>
                     <Text style={styles.stepLabel}>For Approval</Text>
+                    <Text style={styles.stepSubLabel}>Awaiting decision</Text>
                   </View>
 
                   <View
@@ -472,66 +479,75 @@ export function ApplicationDetailsPage({
                     <Text style={[styles.stepLabel, isDeclined && { color: '#DC2626' }]}>
                       {isDeclined ? 'Declined' : 'Approved & Issued'}
                     </Text>
+                    <Text style={styles.stepSubLabel}>
+                      {isDeclined ? 'Process ended' : 'License ready'}
+                    </Text>
                   </View>
                 </View>
               </View>
 
-              {/* Profile Details */}
-              <View style={styles.sectionCard}>
-                <View style={styles.sectionCardHeader}>
-                  <Icon name="user" size={18} color="#1D4ED8" />
-                  <Text style={styles.sectionCardTitle}>1. Applicant Profile</Text>
-                </View>
+              <View style={isDesktop ? styles.twoColRow : undefined}>
+                <View style={isDesktop ? styles.twoColLeft : undefined}>
+                  {/* Profile Details */}
+                  <View style={styles.sectionCard}>
+                    <View style={styles.sectionCardHeader}>
+                      <Icon name="user" size={18} color="#1D4ED8" />
+                      <Text style={styles.sectionCardTitle}>1. Applicant Profile</Text>
+                    </View>
 
-                <View style={styles.sectionCardBody}>
-                  <DetailRow label="Full Name" value={enriched.name} />
-                  <DetailRow label="Sex" value={enriched.sex} />
-                  <DetailRow label="Nationality" value={enriched.nationality} />
-                  <DetailRow label="Element / Application Type" value={enriched.applicationType} isLast />
-                </View>
-              </View>
+                    <View style={styles.sectionCardBody}>
+                      <DetailRow label="Full Name" value={enriched.name} />
+                      <DetailRow label="Sex" value={enriched.sex} />
+                      <DetailRow label="Nationality" value={enriched.nationality} />
+                      <DetailRow label="Element / Application Type" value={enriched.applicationType} isLast />
+                    </View>
+                  </View>
 
-              {/* Contacts Details */}
-              <View style={styles.sectionCard}>
-                <View style={styles.sectionCardHeader}>
-                  <Icon name="mail" size={18} color="#1D4ED8" />
-                  <Text style={styles.sectionCardTitle}>2. Contact Details</Text>
-                </View>
+                  {/* Contacts Details */}
+                  <View style={styles.sectionCard}>
+                    <View style={styles.sectionCardHeader}>
+                      <Icon name="mail" size={18} color="#1D4ED8" />
+                      <Text style={styles.sectionCardTitle}>2. Contact Details</Text>
+                    </View>
 
-                <View style={styles.sectionCardBody}>
-                  <DetailRow label="Mobile Number" value={enriched.mobileNumber} />
-                  <DetailRow label="Email Address" value={enriched.email} isLast />
+                    <View style={styles.sectionCardBody}>
+                      <DetailRow label="Mobile Number" value={enriched.mobileNumber} />
+                      <DetailRow label="Email Address" value={enriched.email} isLast />
+                    </View>
+                  </View>
                 </View>
-              </View>
+                
+                <View style={isDesktop ? styles.twoColRight : undefined}>
+                  {/* Address Details */}
+                  <View style={styles.sectionCard}>
+                    <View style={styles.sectionCardHeader}>
+                      <Icon name="map-pin" size={18} color="#1D4ED8" />
+                      <Text style={styles.sectionCardTitle}>3. Permanent Address</Text>
+                    </View>
 
-              {/* Address Details */}
-              <View style={styles.sectionCard}>
-                <View style={styles.sectionCardHeader}>
-                  <Icon name="map-pin" size={18} color="#1D4ED8" />
-                  <Text style={styles.sectionCardTitle}>3. Permanent Address</Text>
-                </View>
+                    <View style={styles.sectionCardBody}>
+                      <DetailRow label="Street Address" value={enriched.streetAddress} />
+                      <DetailRow label="Barangay" value={enriched.barangay ?? 'Brgy 4'} />
+                      <DetailRow label="City / Municipality" value={enriched.cityMunicipality} />
+                      <DetailRow label="Province" value={enriched.province} />
+                      <DetailRow label="Region" value={enriched.region} />
+                      <DetailRow label="Zip Code" value={enriched.zipCode ?? '9506'} isLast />
+                    </View>
+                  </View>
 
-                <View style={styles.sectionCardBody}>
-                  <DetailRow label="Street Address" value={enriched.streetAddress} />
-                  <DetailRow label="Barangay" value={enriched.barangay ?? 'Brgy 4'} />
-                  <DetailRow label="City / Municipality" value={enriched.cityMunicipality} />
-                  <DetailRow label="Province" value={enriched.province} />
-                  <DetailRow label="Region" value={enriched.region} />
-                  <DetailRow label="Zip Code" value={enriched.zipCode ?? '9506'} isLast />
-                </View>
-              </View>
+                  {/* Schedule Details */}
+                  <View style={styles.sectionCard}>
+                    <View style={styles.sectionCardHeader}>
+                      <Icon name="calendar" size={18} color="#1D4ED8" />
+                      <Text style={styles.sectionCardTitle}>4. Examination Schedule</Text>
+                    </View>
 
-              {/* Schedule Details */}
-              <View style={styles.sectionCard}>
-                <View style={styles.sectionCardHeader}>
-                  <Icon name="calendar" size={18} color="#1D4ED8" />
-                  <Text style={styles.sectionCardTitle}>4. Examination Schedule</Text>
-                </View>
-
-                <View style={styles.sectionCardBody}>
-                  <DetailRow label="Scheduled Date" value={enriched.schedule.date} />
-                  <DetailRow label="Scheduled Time" value={enriched.schedule.time} />
-                  <DetailRow label="Venue Location" value={enriched.schedule.venue} isLast />
+                    <View style={styles.sectionCardBody}>
+                      <DetailRow label="Scheduled Date" value={enriched.schedule.date} />
+                      <DetailRow label="Scheduled Time" value={enriched.schedule.time} />
+                      <DetailRow label="Venue Location" value={enriched.schedule.venue} isLast />
+                    </View>
+                  </View>
                 </View>
               </View>
             </View>
@@ -678,7 +694,7 @@ export function ApplicationDetailsPage({
   if (isBulk && selectedApplicant === null) {
     return (
       <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-        <View style={styles.mainWrapper}>
+        <View style={[styles.mainWrapper, { paddingHorizontal: isDesktop ? SPACING[32] : SPACING[16] }]}>
           {/* ── Top Back Button Bar ────────────────────────────────────────── */}
           <TouchableOpacity onPress={onBack} style={styles.backBtn} activeOpacity={0.7}>
             <Icon name="arrow-left" size={18} color="#1D4ED8" />
@@ -706,10 +722,13 @@ export function ApplicationDetailsPage({
             <Text style={styles.appRefId}>
               Bulk Application #{app.referenceNumber}
             </Text>
-            <Text style={styles.appTitle}>{app.serviceName}</Text>
-            <Text style={styles.appSubtitleCompany}>
-              {app.companyName} [BULK] Submitted {formatRelativeTime(app.submittedAt)}
-            </Text>
+            <Text style={[styles.appTitle, { fontSize: isDesktop ? 24 : 20 }]}>{app.serviceName}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: -14, marginBottom: 16 }}>
+              <Icon name="calendar" size={14} color="#64748B" />
+              <Text style={[styles.appSubtitleCompany, { marginTop: 0, marginBottom: 0 }]}>
+                {app.companyName} [BULK] Submitted {formatRelativeTime(app.submittedAt)}
+              </Text>
+            </View>
           </View>
 
           {/* ── Approved Applicants Table Card ───────────────────────────────── */}
@@ -842,7 +861,7 @@ export function ApplicationDetailsPage({
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-      <View style={styles.mainWrapper}>
+      <View style={[styles.mainWrapper, { paddingHorizontal: isDesktop ? SPACING[32] : SPACING[16] }]}>
         {/* ── Top Back Button Bar ────────────────────────────────────────── */}
         <TouchableOpacity onPress={onBack} style={styles.backBtn} activeOpacity={0.7}>
           <Icon name="arrow-left" size={18} color="#1D4ED8" />
@@ -870,11 +889,21 @@ export function ApplicationDetailsPage({
           <Text style={styles.appRefId}>
             {isBulk ? `Bulk Application #${app.referenceNumber}` : `#${app.referenceNumber}`}
           </Text>
-          <Text style={styles.appTitle}>{app.serviceName}</Text>
-          {isBulk && (
-            <Text style={styles.appSubtitleCompany}>
-              {primaryName} [BULK] Submitted {formatRelativeTime(app.submittedAt)}
-            </Text>
+          <Text style={[styles.appTitle, { fontSize: isDesktop ? 24 : 20 }]}>{app.serviceName}</Text>
+          {isBulk ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: -14, marginBottom: 16 }}>
+              <Icon name="calendar" size={14} color="#64748B" />
+              <Text style={[styles.appSubtitleCompany, { marginTop: 0, marginBottom: 0 }]}>
+                {primaryName} [BULK] Submitted {formatRelativeTime(app.submittedAt)}
+              </Text>
+            </View>
+          ) : (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: -14, marginBottom: 16 }}>
+              <Icon name="calendar" size={14} color="#64748B" />
+              <Text style={[styles.appSubtitleCompany, { marginTop: 0, marginBottom: 0 }]}>
+                Submitted {formatRelativeTime(app.submittedAt)}
+              </Text>
+            </View>
           )}
 
           {/* ── Navigation Tabs ─────────────────────────────────────────── */}
@@ -933,6 +962,7 @@ export function ApplicationDetailsPage({
                     )}
                   </View>
                   <Text style={styles.stepLabel}>Submitted</Text>
+                  <Text style={styles.stepSubLabel}>Application received</Text>
                 </View>
 
                 <View
@@ -957,6 +987,7 @@ export function ApplicationDetailsPage({
                     )}
                   </View>
                   <Text style={styles.stepLabel}>Evaluation</Text>
+                  <Text style={styles.stepSubLabel}>Under review</Text>
                 </View>
 
                 <View
@@ -981,6 +1012,7 @@ export function ApplicationDetailsPage({
                     )}
                   </View>
                   <Text style={styles.stepLabel}>For Approval</Text>
+                  <Text style={styles.stepSubLabel}>Awaiting decision</Text>
                 </View>
 
                 <View
@@ -1005,6 +1037,7 @@ export function ApplicationDetailsPage({
                     )}
                   </View>
                   <Text style={styles.stepLabel}>Approved & Issued</Text>
+                  <Text style={styles.stepSubLabel}>License ready</Text>
                 </View>
               </View>
             </View>
@@ -1012,8 +1045,8 @@ export function ApplicationDetailsPage({
             {isBulk ? (
               <>
                 {/* ── Bulk Metrics Grid ──────────────────────────────────────── */}
-                <View style={styles.metricsGrid}>
-                  <View style={styles.metricCard}>
+                <View style={[styles.metricsGrid, { flexWrap: isDesktop ? 'nowrap' : 'wrap' }]}>
+                  <View style={[styles.metricCard, { borderTopWidth: 3, borderTopColor: '#3B82F6' }]}>
                     <View style={styles.metricHeader}>
                       <Text style={styles.metricLabel}>TOTAL SUBMITTED</Text>
                       <Icon name="users" size={16} color="#475569" />
@@ -1022,7 +1055,7 @@ export function ApplicationDetailsPage({
                     <Text style={styles.metricSub}>applicants</Text>
                   </View>
 
-                  <View style={styles.metricCard}>
+                  <View style={[styles.metricCard, { borderTopWidth: 3, borderTopColor: '#16A34A' }]}>
                     <View style={styles.metricHeader}>
                       <Text style={styles.metricLabel}>APPROVED</Text>
                       <Icon name="check-circle" size={16} color="#16A34A" />
@@ -1031,7 +1064,7 @@ export function ApplicationDetailsPage({
                     <Text style={styles.metricSub}>applicants</Text>
                   </View>
 
-                  <View style={styles.metricCard}>
+                  <View style={[styles.metricCard, { borderTopWidth: 3, borderTopColor: '#DC2626' }]}>
                     <View style={styles.metricHeader}>
                       <Text style={styles.metricLabel}>DECLINED</Text>
                       <Icon name="x-circle" size={16} color="#DC2626" />
@@ -1040,7 +1073,7 @@ export function ApplicationDetailsPage({
                     <Text style={styles.metricSub}>applicants</Text>
                   </View>
 
-                  <View style={styles.metricCard}>
+                  <View style={[styles.metricCard, { borderTopWidth: 3, borderTopColor: '#4F46E5' }]}>
                     <View style={styles.metricHeader}>
                       <Text style={styles.metricLabel}>GENERATED DOCUMENT</Text>
                       <Icon name="file-text" size={16} color="#2563EB" />
@@ -1196,53 +1229,57 @@ export function ApplicationDetailsPage({
                 </View>
               </>
             ) : (
-              <>
-                {/* Section 1: Applicant Profile */}
-                <View style={styles.sectionCard}>
-                  <View style={styles.sectionCardHeader}>
-                    <Icon name="user" size={18} color="#1D4ED8" />
-                    <Text style={styles.sectionCardTitle}>1. Applicant Profile</Text>
+              <View style={isDesktop ? styles.twoColRow : undefined}>
+                <View style={isDesktop ? styles.twoColLeft : undefined}>
+                  {/* Section 1: Applicant Profile */}
+                  <View style={styles.sectionCard}>
+                    <View style={styles.sectionCardHeader}>
+                      <Icon name="user" size={18} color="#1D4ED8" />
+                      <Text style={styles.sectionCardTitle}>1. Applicant Profile</Text>
+                    </View>
+
+                    <View style={styles.sectionCardBody}>
+                      <DetailRow label="Full Name" value={primaryName} />
+                      <DetailRow label="Sex" value={singleApplicant?.sex} />
+                      <DetailRow label="Nationality" value={singleApplicant?.nationality} />
+                      <DetailRow label="Element Type" value={singleApplicant?.examineeType || app.element} />
+                      <DetailRow label="Submission Date" value={submissionTime} isLast />
+                    </View>
                   </View>
 
-                  <View style={styles.sectionCardBody}>
-                    <DetailRow label="Full Name" value={primaryName} />
-                    <DetailRow label="Sex" value={singleApplicant?.sex} />
-                    <DetailRow label="Nationality" value={singleApplicant?.nationality} />
-                    <DetailRow label="Element Type" value={singleApplicant?.examineeType || app.element} />
-                    <DetailRow label="Submission Date" value={submissionTime} isLast />
+                  {/* Section 2: Contact Details */}
+                  <View style={styles.sectionCard}>
+                    <View style={styles.sectionCardHeader}>
+                      <Icon name="mail" size={18} color="#1D4ED8" />
+                      <Text style={styles.sectionCardTitle}>2. Contact Details</Text>
+                    </View>
+
+                    <View style={styles.sectionCardBody}>
+                      <DetailRow label="Mobile Number" value={singleApplicant?.mobileNumber} />
+                      <DetailRow label="Email Address" value={singleApplicant?.email} isLast />
+                    </View>
                   </View>
                 </View>
 
-                {/* Section 2: Contact Details */}
-                <View style={styles.sectionCard}>
-                  <View style={styles.sectionCardHeader}>
-                    <Icon name="mail" size={18} color="#1D4ED8" />
-                    <Text style={styles.sectionCardTitle}>2. Contact Details</Text>
-                  </View>
+                <View style={isDesktop ? styles.twoColRight : undefined}>
+                  {/* Section 3: Permanent Address */}
+                  <View style={styles.sectionCard}>
+                    <View style={styles.sectionCardHeader}>
+                      <Icon name="map-pin" size={18} color="#1D4ED8" />
+                      <Text style={styles.sectionCardTitle}>3. Permanent Address</Text>
+                    </View>
 
-                  <View style={styles.sectionCardBody}>
-                    <DetailRow label="Mobile Number" value={singleApplicant?.mobileNumber} />
-                    <DetailRow label="Email Address" value={singleApplicant?.email} isLast />
+                    <View style={styles.sectionCardBody}>
+                      <DetailRow label="Street Address" value={singleApplicant?.streetAddress} />
+                      <DetailRow label="Barangay" value={singleApplicant?.barangay ?? 'Brgy 4'} />
+                      <DetailRow label="City / Municipality" value={singleApplicant?.cityMunicipality} />
+                      <DetailRow label="Province" value={singleApplicant?.province} />
+                      <DetailRow label="Region" value={singleApplicant?.region} />
+                      <DetailRow label="Zip Code" value={singleApplicant?.zipCode ?? '9506'} isLast />
+                    </View>
                   </View>
                 </View>
-
-                {/* Section 3: Permanent Address */}
-                <View style={styles.sectionCard}>
-                  <View style={styles.sectionCardHeader}>
-                    <Icon name="map-pin" size={18} color="#1D4ED8" />
-                    <Text style={styles.sectionCardTitle}>3. Permanent Address</Text>
-                  </View>
-
-                  <View style={styles.sectionCardBody}>
-                    <DetailRow label="Street Address" value={singleApplicant?.streetAddress} />
-                    <DetailRow label="Barangay" value={singleApplicant?.barangay ?? 'Brgy 4'} />
-                    <DetailRow label="City / Municipality" value={singleApplicant?.cityMunicipality} />
-                    <DetailRow label="Province" value={singleApplicant?.province} />
-                    <DetailRow label="Region" value={singleApplicant?.region} />
-                    <DetailRow label="Zip Code" value={singleApplicant?.zipCode ?? '9506'} isLast />
-                  </View>
-                </View>
-              </>
+              </View>
             )}
           </View>
         )}
@@ -1437,9 +1474,7 @@ const styles = StyleSheet.create({
   mainWrapper: {
     flex: 1,
     width: '100%',
-    maxWidth: 1200,
-    alignSelf: 'center',
-    padding: SPACING[24],
+    paddingTop: SPACING[24],
     paddingBottom: 40,
   },
 
@@ -1448,16 +1483,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     alignSelf: 'flex-start',
     gap: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
     borderRadius: 8,
     backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
     marginBottom: 16,
   },
   backBtnText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 14,
-    fontWeight: TYPOGRAPHY.weights.semibold,
+    fontWeight: TYPOGRAPHY.weights.bold,
     color: '#1D4ED8',
   },
 
@@ -1466,6 +1503,8 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     borderColor: '#E2E8F0',
+    borderTopWidth: 4,
+    borderTopColor: '#1D4ED8',
     paddingTop: 20,
     paddingHorizontal: 24,
     marginBottom: 20,
@@ -1581,6 +1620,8 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     borderColor: '#E2E8F0',
+    borderLeftWidth: 3,
+    borderLeftColor: '#1D4ED8',
     padding: 20,
     ...Platform.select({
       web: {
@@ -1608,9 +1649,9 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   stepCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1631,9 +1672,15 @@ const styles = StyleSheet.create({
   },
   stepLabel: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-    color: '#334155',
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: '#0F172A',
+  },
+  stepSubLabel: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 10,
+    color: '#64748B',
+    marginTop: -2,
   },
   stepLine: {
     flex: 1,
@@ -1684,11 +1731,25 @@ const styles = StyleSheet.create({
     color: '#64748B',
   },
   detailValue: {
+    flex: 1,
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 13,
     fontWeight: TYPOGRAPHY.weights.bold,
     color: '#0F172A',
     textAlign: 'right',
+  },
+  twoColRow: { 
+    flexDirection: 'row', 
+    gap: 16, 
+    alignItems: 'flex-start' 
+  },
+  twoColLeft: { 
+    flex: 1, 
+    gap: 16 
+  },
+  twoColRight: { 
+    flex: 1, 
+    gap: 16 
   },
 
   bulkApplicantRow: {
