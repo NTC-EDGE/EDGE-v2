@@ -1,11 +1,10 @@
 
 import "./src/navigation";
-import { createStaticNavigation } from "@react-navigation/native";
 import { ClerkProvider, useAuth } from "@clerk/expo";
 import { tokenCache } from "@clerk/expo/token-cache";
 import {
-  UnauthenticatedStack,
-  AuthenticatedStack,
+  UnauthNavigation,
+  AuthNavigation,
   clientLinking,
 } from "./src/routes";
 
@@ -25,9 +24,6 @@ if (publishableKey.length === 0) {
   );
 }
 
-const UnauthNavigation = createStaticNavigation(UnauthenticatedStack);
-const AuthNavigation = createStaticNavigation(AuthenticatedStack);
-
 function AppContent() {
   const { isSignedIn } = useAuth();
 
@@ -37,7 +33,6 @@ function AppContent() {
 
   return <UnauthNavigation linking={clientLinking} />;
 }
-
 export default function App() {
   return (
     <ClerkProvider tokenCache={tokenCache} publishableKey={publishableKey}>
