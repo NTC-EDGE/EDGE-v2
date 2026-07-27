@@ -34,6 +34,7 @@ const CLERK_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? "
 export function AuthProvider({ children }: { children: ReactNode }) {
   const isClerkEnabled = typeof CLERK_PUBLISHABLE_KEY === "string" && CLERK_PUBLISHABLE_KEY.length > 0;
   const [selectedRegionState, setSelectedRegionState] = useState<string | undefined>(undefined);
+  const [isMembershipVerified, setIsMembershipVerified] = useState<boolean>(false);
   const [backendStaffClaims, setBackendStaffClaims] = useState<{
     tenantId?: string;
     tenantName?: string;
@@ -58,8 +59,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const targetRegion = region ?? selectedRegionState ?? "NCR";
     setSelectedRegionState(targetRegion);
+    setIsMembershipVerified(false);
 
-    // Step 1: Perform Clerk Identity Authentication
+    // Step 1: Perform Password Credentials Authentication
     try {
       const res = await signIn.password({
         emailAddress: email,
@@ -70,20 +72,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw res.error;
       }
 
-      if (signIn.status === "complete") {
-        await signIn.finalize();
-      } else {
+      if (signIn.status !== "complete") {
         throw new Error(`Authentication incomplete: status is ${signIn.status}`);
       }
     } catch (err: unknown) {
+      setIsMembershipVerified(false);
       const parsedMessage = parseApiError(err);
       throw new Error(parsedMessage);
     }
 
-    // Step 2: Perform Backend C# .NET 10 Tenant & Regional Office Verification
+    // Step 2: Verify C# .NET 10 Backend Tenant & Regional Office Membership BEFORE Session Finalization
     try {
-      const token = clerkAuth.getToken ? await clerkAuth.getToken() : null;
-      const verifiedClaims = await verifyStaffMembership(token, targetRegion);
+      const sessionId = signIn.createdSessionId;
+      const verifiedClaims = await verifyStaffMembership(sessionId, targetRegion);
 
       setBackendStaffClaims({
         tenantId: verifiedClaims.tenantId,
@@ -91,8 +92,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         roles: verifiedClaims.assignedRoles,
         permissions: verifiedClaims.effectivePermissions,
       });
+
+      // ONLY finalize session if backend tenant membership verification succeeds
+      await signIn.finalize();
+      setIsMembershipVerified(true);
     } catch (backendErr: unknown) {
-      // Revoke Clerk session if backend tenant-region membership verification fails
+      setIsMembershipVerified(false);
       if (clerkAuth.signOut !== undefined) {
         await clerkAuth.signOut();
       }
@@ -157,6 +162,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
+    setIsMembershipVerified(false);
     if (isClerkEnabled && clerkAuth.signOut !== undefined) {
       await clerkAuth.signOut();
     }
@@ -165,7 +171,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Derive User Profile from Clerk & Backend Verified Claims
   let user: UserProfile | null = null;
-  const isAuthenticated = isClerkEnabled ? Boolean(clerkAuth.isSignedIn) : true;
+  const isAuthenticated = isClerkEnabled
+    ? Boolean(clerkAuth.isSignedIn)
+    : true;
 
   if (isClerkEnabled && clerkUser.user !== null && clerkUser.user !== undefined) {
     const cu = clerkUser.user;
