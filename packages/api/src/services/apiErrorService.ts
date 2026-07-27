@@ -64,7 +64,11 @@ export const parseApiError = (
       const firstErr = record.errors[0] as Record<string, unknown>;
       const code = typeof firstErr.code === "string" ? firstErr.code : "";
       const message = typeof firstErr.message === "string" ? firstErr.message : "";
+      const longMessage = typeof firstErr.long_message === "string" ? firstErr.long_message : "";
 
+      if (code === "strategy_for_user_invalid") {
+        return "Password reset or password login is unavailable for this account because it was registered using Google Sign-In. Please sign in with Google.";
+      }
       if (code === "too_many_requests" || code.includes("rate_limit")) {
         return message.trim().length > 0
           ? message.trim()
@@ -72,6 +76,9 @@ export const parseApiError = (
       }
       if (code === "form_identifier_not_found" || code === "form_password_incorrect") {
         return "Authentication Failed: Invalid credentials, wrong password, or wrong region selected.";
+      }
+      if (longMessage.trim().length > 0) {
+        return longMessage.trim();
       }
       if (message.trim().length > 0) {
         return message.trim();
@@ -83,7 +90,11 @@ export const parseApiError = (
       const clerkErr = record.error as Record<string, unknown>;
       const code = typeof clerkErr.code === "string" ? clerkErr.code : "";
       const message = typeof clerkErr.message === "string" ? clerkErr.message : "";
+      const longMessage = typeof clerkErr.long_message === "string" ? clerkErr.long_message : "";
 
+      if (code === "strategy_for_user_invalid") {
+        return "Password reset or password login is unavailable for this account because it was registered using Google Sign-In. Please sign in with Google.";
+      }
       if (code === "too_many_requests" || code.includes("rate_limit")) {
         return message.trim().length > 0
           ? message.trim()
@@ -91,6 +102,9 @@ export const parseApiError = (
       }
       if (code === "form_identifier_not_found" || code === "form_password_incorrect") {
         return "Authentication Failed: Invalid credentials, wrong password, or wrong region selected.";
+      }
+      if (longMessage.trim().length > 0) {
+        return longMessage.trim();
       }
       if (message.trim().length > 0) {
         return message.trim();
