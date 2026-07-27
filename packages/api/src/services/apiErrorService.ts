@@ -15,6 +15,11 @@ export const parseApiError = (
   if (typeof err === "object" && err !== null) {
     const record = err as Record<string, unknown>;
 
+    // Handle Network Connection Failure (Axios ERR_NETWORK)
+    if ("code" in record && record.code === "ERR_NETWORK") {
+      return "Unable to connect to the backend server. Please verify that your internet connection is active and the C# backend API is running.";
+    }
+
     // 1. Handle HTTP / Axios responses from C# .NET 10 Backend API
     if ("response" in record && record.response !== null && typeof record.response === "object") {
       const response = record.response as Record<string, unknown>;
@@ -112,11 +117,17 @@ export const parseApiError = (
     }
 
     if ("message" in record && typeof record.message === "string" && record.message.trim().length > 0) {
+      if (record.message.includes("Network Error")) {
+        return "Unable to connect to the backend server. Please verify that your internet connection is active and the C# backend API is running.";
+      }
       return record.message.trim();
     }
   }
 
   if (err instanceof Error && err.message.trim().length > 0) {
+    if (err.message.includes("Network Error")) {
+      return "Unable to connect to the backend server. Please verify that your internet connection is active and the C# backend API is running.";
+    }
     return err.message.trim();
   }
 
