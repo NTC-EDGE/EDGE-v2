@@ -46,7 +46,6 @@ public static class ApplicationEndpoints
 
         group.MapGet("/", GetAllApplications)
             .WithName("GetAllApplications")
-            .WithSummary("Get all applications regardless of status")
             .WithDescription("Retrieves all applications for the current user, optionally filtered by status.");
 
         group.MapGet("/drafts", GetDraftApplications)
@@ -73,42 +72,36 @@ public static class ApplicationEndpoints
 
         group.MapPatch("/{id:guid}/applicants/{applicantId:guid}", UpdateApplicationApplicant)
             .WithName("UpdateApplicationApplicant")
-            .WithSummary("Update individual applicant details")
             .WithDescription("Updates personal details and form values for a single applicant within an application.");
 
         group.MapDelete("/{id:guid}/applicants/{applicantId:guid}", RemoveApplicationApplicant)
             .WithName("RemoveApplicationApplicant")
-            .WithSummary("Remove applicant from draft application")
             .WithDescription("Removes a single applicant from an existing draft bulk application.");
 
         group.MapPost("/{id:guid}/applicants", AddApplicationApplicant)
             .WithName("AddApplicationApplicant")
-            .WithSummary("Add applicant to draft application")
             .WithDescription("Adds a new applicant to an existing draft bulk application.");
 
         // V2 tenant-specific mappings
         app.MapPost("/tenants/{id:guid}/applications", SubmitTenantApplication)
             .WithName("SubmitTenantApplication")
             .WithTags("Application")
-            .WithSummary("Submit tenant-scoped application")
             .WithDescription("Creates and validates a single application submission linked to a tenant.");
 
         app.MapPatch("/tenants/{id:guid}/applications/{appId:guid}/status", UpdateTenantApplicationStatus)
             .WithName("UpdateTenantApplicationStatus")
             .WithTags("Application")
-            .WithSummary("Update tenant application status")
             .WithDescription("Updates application status and logs status history for a tenant application.");
 
         app.MapPatch("/tenants/{id:guid}/applications/{appId:guid}", UploadTenantApplicationRequirement)
             .WithName("UploadTenantApplicationRequirement")
             .WithTags("Application")
-            .WithSummary("Upload requirement document for application")
             .WithDescription("Updates or uploads a requirement file for a tenant-scoped application.");
 
         app.MapGet("/services/{id:guid}/csv-template", GetServiceCsvTemplate)
             .WithTags("Services")
-            .WithName("GetServiceCsvTemplate")
-            .WithSummary("Download CSV template for service bulk upload");
+            .WithName("GetServiceCsvTemplate");
+
 
         return app;
     }
