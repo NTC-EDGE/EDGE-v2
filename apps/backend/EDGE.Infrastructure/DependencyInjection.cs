@@ -11,6 +11,10 @@ using EDGE.Infrastructure.Persistence.Interceptors;
 using EDGE.Infrastructure.Persistence.Repositories;
 using EDGE.Infrastructure.Services;
 using EDGE.Infrastructure.Printing.Services;
+using EDGE.Infrastructure.Printing.Services.Initialization;
+using EDGE.Infrastructure.Printing.Services.Renderers;
+using EDGE.Infrastructure.Printing.Services.Rendering;
+using EDGE.Infrastructure.Printing.Services.Templates;
 
 namespace EDGE.Infrastructure;
 
@@ -72,7 +76,13 @@ public static class DependencyInjection
 
         services.AddScoped<IUserActivityService, UserActivityService>();
 
-        // Register Printing & Form Filler Services
+        // Register Printing & PDF Rendering Services
+        services.AddSingleton<IPdfTemplateProvider, FileSystemPdfTemplateProvider>();
+        services.AddSingleton<IImageOverlayRenderer, ImageFieldRenderer>();
+        services.AddSingleton<IPdfLibraryInitializer, ITextLibraryInitializer>();
+        services.AddSingleton<IPdfRenderer, OverlayPdfRenderer>();
+        services.AddSingleton<IPdfRenderer, FillablePdfRenderer>();
+        services.AddSingleton<IPdfRendererFactory, PdfRendererFactory>();
         services.AddSingleton<IFormPrintingService, FormPrintingService>();
         services.AddSingleton<IPdfFormFillerService, PdfFormFillerService>();
 

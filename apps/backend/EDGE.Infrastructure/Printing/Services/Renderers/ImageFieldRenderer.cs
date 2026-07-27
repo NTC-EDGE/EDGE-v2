@@ -4,13 +4,21 @@ using PdfSharp.Drawing;
 
 namespace EDGE.Infrastructure.Printing.Services.Renderers;
 
-public class ImageFieldRenderer : IFieldTypeRenderer
+public class ImageFieldRenderer : IFieldTypeRenderer, IImageOverlayRenderer
 {
     public bool CanRender(FieldOverlay overlay) => overlay is ImageFieldOverlay;
 
     public void Render(PdfRenderingContext context, FieldOverlay overlay)
     {
-        if (overlay is not ImageFieldOverlay imageOverlay || imageOverlay.ImageBytes == null || imageOverlay.ImageBytes.Length == 0)
+        if (overlay is ImageFieldOverlay imageOverlay)
+        {
+            RenderImageOverlay(context, imageOverlay);
+        }
+    }
+
+    public void RenderImageOverlay(PdfRenderingContext context, ImageFieldOverlay imageOverlay)
+    {
+        if (imageOverlay == null || imageOverlay.ImageBytes == null || imageOverlay.ImageBytes.Length == 0)
             return;
 
         var field = imageOverlay.Field;

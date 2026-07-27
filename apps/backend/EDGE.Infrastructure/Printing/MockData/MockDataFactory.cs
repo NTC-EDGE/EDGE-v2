@@ -1213,7 +1213,7 @@ public static partial class MockDataFactory
             PreparedByTitle = "EVALUATOR, NTC XIV",
             ApprovedByName = "CEOD EDGE",
             ApprovedByTitle = "CEOD, NTC XIV",
-            Remarks = "1. Payment should be made in CASH, MANAGER'S/CASHIER'S CHECK. DEMAND DRAFT Payable to NTC-14 FAO BUREAU OF TREASURY."
+            Remarks = "1) Use additional sheets, if necessary to show detailed computation\n2) Payment should be in cash or checks in the form of managers/cashiers check;\nDemand draft check or postal money order payable to NTC 10, FAO Bureau of Treasury."
         };
 
         // Default all item fees to 0.00 first

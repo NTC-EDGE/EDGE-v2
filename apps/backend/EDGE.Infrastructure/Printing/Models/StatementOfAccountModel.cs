@@ -113,7 +113,7 @@ public class StatementOfAccountModel
     public string? ApprovedByName { get; set; }
 
     // Remarks
-    public string Remarks { get; set; } = "1. Payment should be made in CASH, MANAGER'S/CASHIER'S CHECK. DEMAND DRAFT Payable to NTC-14 FAO BUREAU OF TREASURY.";
+    public string Remarks { get; set; } = "1) Use additional sheets, if necessary to show detailed computation\n2) Payment should be in cash or checks in the form of managers/cashiers check;\nDemand draft check or postal money order payable to NTC 10, FAO Bureau of Treasury.";
 
     public decimal? TotalAmount
     {

@@ -29,17 +29,17 @@ public static class Ntc101Fields
         public static readonly PdfField ClassB_Element2 = new("ExamCategory.ClassB_Element2", AmateurRestrictedColX, 224);
         public static readonly PdfField ClassC_Elements2_3_4 = new("ExamCategory.ClassC_Elements2_3_4", AmateurRestrictedColX, 235);
         public static readonly PdfField ClassD_Element2 = new("ExamCategory.ClassD_Element2", AmateurRestrictedColX, 256);
-        public static readonly PdfField RrocAircraft_Element1 = new("ExamCategory.RrocAircraft_Element1", AmateurRestrictedColX, 284);
+        public static readonly PdfField RrocAircraft_Element1 = new("ExamCategory.RrocAircraft_Element1", AmateurRestrictedColX, 270);
 
         public static readonly PdfField DateOfExam = new("ExamCategory.DateOfExam", 440.0, 296, FontSize: 8.0);
     }
 
     public static class Applicant
     {
-        public static readonly PdfField LastName = new("Applicant.LastName", 97.0, 325.9, FontSize: 8.0, IsBold: true);
+        public static readonly PdfField LastName = new("Applicant.LastName", 97.0, 325.9, FontSize: 8.0, IsBold: true, OverflowBehavior: OverflowBehavior.Shrink, MinFontSize: 6.0);
         public static readonly PdfField DateOfBirth = new("Applicant.DateOfBirth", 464.0, 325.9, FontSize: 8.0);
 
-        public static readonly PdfField FirstName = new("Applicant.FirstName", 97.0, 337.7, FontSize: 8.0, IsBold: true);
+        public static readonly PdfField FirstName = new("Applicant.FirstName", 97.0, 337.7, FontSize: 8.0, IsBold: true, OverflowBehavior: OverflowBehavior.Shrink, MinFontSize: 6.0);
         public static readonly PdfField SexMale = new("Applicant.SexMale", 433.5, 336.24);
         public static readonly PdfField SexFemale = new("Applicant.SexFemale", 523.1, 336.24);
 

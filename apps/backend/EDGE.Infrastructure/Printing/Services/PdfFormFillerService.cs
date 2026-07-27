@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+
 using EDGE.Infrastructure.Printing.Models;
+using EDGE.Infrastructure.Printing.Services.Rendering;
+using EDGE.Infrastructure.Printing.Services.Templates;
 using Microsoft.Extensions.Configuration;
 using PdfSharp.Drawing;
 using PdfSharp.Pdf;
@@ -56,16 +59,41 @@ public class TextOverlayItem
 public class PdfFormFillerService : IPdfFormFillerService
 {
     private readonly IConfiguration? _configuration;
+    private readonly IPdfTemplateProvider _templateProvider;
+    private readonly IPdfRendererFactory _rendererFactory;
     private readonly PdfFieldRenderer _fieldRenderer;
 
-    public PdfFormFillerService(IConfiguration? configuration = null)
+    public PdfFormFillerService(
+        IConfiguration? configuration = null,
+        IPdfTemplateProvider? templateProvider = null,
+        IPdfRendererFactory? rendererFactory = null)
     {
         _configuration = configuration;
+        _templateProvider = templateProvider ?? new FileSystemPdfTemplateProvider();
         _fieldRenderer = new PdfFieldRenderer();
+
+        if (rendererFactory == null)
+        {
+            var renderers = new IPdfRenderer[]
+            {
+                new OverlayPdfRenderer(_fieldRenderer),
+                new FillablePdfRenderer()
+            };
+            _rendererFactory = new PdfRendererFactory(renderers);
+        }
+        else
+        {
+            _rendererFactory = rendererFactory;
+        }
     }
 
     public string? ResolveTemplatePath(string templateName)
     {
+        if (_templateProvider is FileSystemPdfTemplateProvider fileSystemProvider)
+        {
+            return fileSystemProvider.ResolveTemplatePath(templateName);
+        }
+
         var candidatePaths = new[]
         {
             Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Printing", "Templates", templateName),
@@ -93,8 +121,20 @@ public class PdfFormFillerService : IPdfFormFillerService
 
     public byte[]? GetTemplate(string templateName)
     {
-        var path = ResolveTemplatePath(templateName);
-        return path != null ? File.ReadAllBytes(path) : null;
+        var resourceTask = _templateProvider.GetTemplateResourceAsync(templateName);
+        var resource = resourceTask.GetAwaiter().GetResult();
+
+        if (resource == null)
+        {
+            return null;
+        }
+
+        using (resource)
+        using (var ms = new MemoryStream())
+        {
+            resource.Stream.CopyTo(ms);
+            return ms.ToArray();
+        }
     }
 
     public byte[] FillAcroForm(byte[] templateBytes, IDictionary<string, string> fieldValues)
@@ -173,25 +213,21 @@ public class PdfFormFillerService : IPdfFormFillerService
     public byte[] OverlayFields(byte[] templateBytes, IReadOnlyList<FieldOverlay> fieldOverlays, OverlayDebugOptions? debugOptions = null)
     {
         using var inputStream = new MemoryStream(templateBytes);
-        using var document = PdfReader.Open(inputStream, PdfDocumentOpenMode.Modify);
-
         var resolvedDebugOptions = ResolveDebugOptions(debugOptions);
+        var renderOptions = new PdfRenderOptions(DebugOptions: resolvedDebugOptions);
 
-        for (int i = 0; i < document.Pages.Count; i++)
+        var renderer = _rendererFactory.Resolve(RenderingStrategy.Overlay);
+        var streamTask = renderer.RenderAsync(inputStream, fieldOverlays, renderOptions);
+        using var resultStream = streamTask.GetAwaiter().GetResult();
+
+        if (resultStream is MemoryStream msResult)
         {
-            var page = document.Pages[i];
-            using var gfx = XGraphics.FromPdfPage(page);
-
-            var context = new PdfRenderingContext(gfx, resolvedDebugOptions);
-
-            PdfOverlayDebugRenderer.RenderGrid(gfx, page.Width.Point, page.Height.Point, resolvedDebugOptions);
-
-            _fieldRenderer.RenderOverlays(context, fieldOverlays);
+            return msResult.ToArray();
         }
 
-        using var outputStream = new MemoryStream();
-        document.Save(outputStream);
-        return outputStream.ToArray();
+        using var copyStream = new MemoryStream();
+        resultStream.CopyTo(copyStream);
+        return copyStream.ToArray();
     }
 
     private OverlayDebugOptions ResolveDebugOptions(OverlayDebugOptions? debugOptions)

@@ -32,6 +32,16 @@ public enum TextTransform
     SentenceCase
 }
 
+public enum OverflowBehavior
+{
+    None,       // Draw as-is
+    Clip,       // Draw only what fits
+    Ellipsis,   // "..."" at the end
+    Shrink,     // Reduce font size until it fits
+    Wrap,       // Multiple lines
+    Error       // Throw an exception
+}
+
 /// <summary>
 /// Contains pure immutable layout metadata for a form field template, including position,
 /// dimensions, alignment, anchor points, and default template typography.
@@ -47,4 +57,6 @@ public sealed record PdfField(
     PdfAnchor Anchor = PdfAnchor.BaselineLeft,
     double FontSize = 8.0,
     bool IsBold = false,
-    TextTransform TextTransform = TextTransform.None);
+    TextTransform TextTransform = TextTransform.None,
+    OverflowBehavior OverflowBehavior = OverflowBehavior.None,
+    double? MinFontSize = null);
