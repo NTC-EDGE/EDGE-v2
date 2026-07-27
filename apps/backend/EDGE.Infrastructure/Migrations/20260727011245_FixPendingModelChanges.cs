@@ -11,8 +11,21 @@ namespace EDGE.Infrastructure.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.Sql(@"
+                ALTER TABLE public.""FieldOffices"" ADD COLUMN IF NOT EXISTS ""TenantId"" uuid NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000';
+                ALTER TABLE public.""FieldOffices"" ADD COLUMN IF NOT EXISTS ""OfficerInChargeId"" uuid NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000';
+
                 DO $$
                 BEGIN
+                    IF EXISTS (
+                        SELECT 1 
+                        FROM information_schema.columns 
+                        WHERE table_schema = 'public' 
+                          AND table_name = 'FieldOffices' 
+                          AND column_name = 'OfficerInCharge'
+                    ) THEN
+                        ALTER TABLE public.""FieldOffices"" DROP COLUMN ""OfficerInCharge"";
+                    END IF;
+
                     IF EXISTS (
                         SELECT 1 
                         FROM information_schema.columns 

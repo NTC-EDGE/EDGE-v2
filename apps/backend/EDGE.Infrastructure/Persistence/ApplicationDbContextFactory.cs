@@ -96,8 +96,14 @@ public class ApplicationDbContextFactory : IDesignTimeDbContextFactory<Applicati
                     ('20260722073100_AddTenantIdToFieldOffice', '10.0.5'),
                     ('20260722074148_ChangeOfficerInChargeToGuid', '10.0.5')
                     ON CONFLICT (""MigrationId"") DO NOTHING;
+
+                    ALTER TABLE public.""FieldOffices"" ADD COLUMN IF NOT EXISTS ""TenantId"" uuid NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000';
+                    ALTER TABLE public.""FieldOffices"" ADD COLUMN IF NOT EXISTS ""OfficerInChargeId"" uuid NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000';
+                    ALTER TABLE public.""FieldOffices"" DROP COLUMN IF EXISTS ""OfficerInCharge"";
+
                 ");
             }
+
         }
         catch
         {
