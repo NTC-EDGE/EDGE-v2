@@ -1,4 +1,4 @@
-import React, { ComponentProps } from 'react';
+import React, { ComponentProps, useState } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   StyleSheet,
   ViewStyle,
   TextStyle,
+  Platform,
 } from 'react-native';
 import { Icon as Lucide } from '@edge/ui';
 import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from '../theme/tokens';
@@ -41,8 +42,13 @@ export function Input({
   iconName,
   rightIcon,
 }: InputProps) {
+  const [isFocused, setIsFocused] = useState(false);
+
   const getRowStyles = (): ViewStyle[] => {
     const list: ViewStyle[] = [styles.inputRow];
+    if (isFocused) {
+      list.push(styles.rowFocused);
+    }
     if (error !== undefined && error.length > 0) {
       list.push(styles.rowError);
     }
@@ -56,13 +62,20 @@ export function Input({
       ) : null}
       <View style={getRowStyles()}>
         {iconName !== undefined && iconName !== null ? (
-          <Lucide name={iconName} size={18} color={COLORS.neutral[400]} style={styles.icon} />
+          <Lucide
+            name={iconName}
+            size={18}
+            color={isFocused ? COLORS.brand[800] : COLORS.neutral[400]}
+            style={styles.icon}
+          />
         ) : null}
         <TextInput
           placeholder={placeholder}
           placeholderTextColor={COLORS.neutral[400]}
           value={value}
           onChangeText={onChangeText}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
           secureTextEntry={secureTextEntry}
           autoCapitalize={autoCapitalize}
           keyboardType={keyboardType}
@@ -102,6 +115,11 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.input,
     paddingHorizontal: SPACING[16],
   },
+  rowFocused: {
+    borderColor: COLORS.brand[800],
+    borderWidth: 1.5,
+    backgroundColor: COLORS.neutral.white,
+  },
   rowError: {
     borderColor: COLORS.semantic.error,
   },
@@ -119,7 +137,8 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.sizes.body,
     fontFamily: TYPOGRAPHY.fonts.primary,
     color: COLORS.neutral[900],
-    padding: 0, // Reset default padding
+    padding: 0,
+    ...(Platform.OS === 'web' ? { outlineStyle: 'none', outlineWidth: 0 } : {}),
   },
   errorText: {
     fontFamily: TYPOGRAPHY.fonts.primary,

@@ -159,6 +159,7 @@ export function InternalLoginPage() {
 
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
+  const [focusedField, setFocusedField] = useState<"identifier" | "password" | null>(null);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -279,14 +280,16 @@ export function InternalLoginPage() {
                   {/* Email / Username Field */}
                   <View style={styles.fieldGroup}>
                     <Text style={styles.fieldLabelSmall}>Email Address or Username</Text>
-                    <View style={styles.inputWithIconWrapper}>
-                      <Lucide name="user" size={18} color={COLORS.neutral[400]} style={styles.inputIconLeft} />
+                    <View style={[styles.inputWithIconWrapper, focusedField === "identifier" && styles.inputWithIconWrapperFocused]}>
+                      <Lucide name="user" size={18} color={focusedField === "identifier" ? "#0E1B61" : COLORS.neutral[400]} style={styles.inputIconLeft} />
                       <TextInput
                         style={styles.textInputStyle}
                         placeholder="staff@ntc.gov.ph"
                         placeholderTextColor={COLORS.neutral[400]}
                         value={identifier}
                         onChangeText={setIdentifier}
+                        onFocus={() => setFocusedField("identifier")}
+                        onBlur={() => setFocusedField(null)}
                         autoCapitalize="none"
                         keyboardType="email-address"
                       />
@@ -296,14 +299,16 @@ export function InternalLoginPage() {
                   {/* Password Field */}
                   <View style={styles.fieldGroup}>
                     <Text style={styles.fieldLabelSmall}>Password</Text>
-                    <View style={styles.inputWithIconWrapper}>
-                      <Lucide name="lock" size={18} color={COLORS.neutral[400]} style={styles.inputIconLeft} />
+                    <View style={[styles.inputWithIconWrapper, focusedField === "password" && styles.inputWithIconWrapperFocused]}>
+                      <Lucide name="lock" size={18} color={focusedField === "password" ? "#0E1B61" : COLORS.neutral[400]} style={styles.inputIconLeft} />
                       <TextInput
                         style={styles.textInputStyle}
                         placeholder="••••••••"
                         placeholderTextColor={COLORS.neutral[400]}
                         value={password}
                         onChangeText={setPassword}
+                        onFocus={() => setFocusedField("password")}
+                        onBlur={() => setFocusedField(null)}
                         secureTextEntry={true}
                         autoCapitalize="none"
                       />
@@ -738,6 +743,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     height: 48,
   },
+  inputWithIconWrapperFocused: {
+    borderColor: "#0E1B61",
+    borderWidth: 1.5,
+    backgroundColor: "#FFFFFF",
+  },
   inputIconLeft: {
     marginRight: 8,
   },
@@ -748,6 +758,7 @@ const styles = StyleSheet.create({
     color: COLORS.neutral[900],
     height: "100%",
     paddingVertical: 0,
+    ...(Platform.OS === "web" ? { outlineStyle: "none", outlineWidth: 0 } : {}),
   },
   loginButton: {
     height: 48,
