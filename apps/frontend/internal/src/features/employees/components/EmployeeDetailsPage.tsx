@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   StyleSheet,
   View,
@@ -7,8 +7,9 @@ import {
   ScrollView,
   Platform,
   useWindowDimensions,
+  Modal,
 } from 'react-native';
-import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide, StatusBadge } from '@edge/ui';
+import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide } from '@edge/ui';
 import { Employee } from '../data/mockEmployees';
 
 interface EmployeeDetailsPageProps {
@@ -26,6 +27,8 @@ export function EmployeeDetailsPage({
 }: EmployeeDetailsPageProps) {
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
+
+  const [isSignaturePreviewOpen, setIsSignaturePreviewOpen] = useState(false);
 
   const getInitials = (first: string, last: string): string => {
     const f = first.trim().length > 0 ? first.trim().charAt(0) : '';
@@ -77,7 +80,6 @@ export function EmployeeDetailsPage({
             <View style={styles.heroInfoSection}>
               <View style={styles.heroTitleRow}>
                 <Text style={styles.heroName}>{fullName}</Text>
-                <StatusBadge status={employee.status} />
               </View>
 
               <Text style={styles.heroId}>{employee.id}</Text>
@@ -246,7 +248,14 @@ export function EmployeeDetailsPage({
               </View>
 
               <View style={styles.gridColumn}>
-                <View style={styles.signaturePreviewBox}>
+                <Pressable
+                  style={styles.signaturePreviewBox}
+                  onPress={() => {
+                    if (employee.signatureUri && employee.signatureUri.length > 0) {
+                      setIsSignaturePreviewOpen(true);
+                    }
+                  }}
+                >
                   <Lucide name="file-text" size={24} color={COLORS.brand[700]} style={{ marginBottom: 6 }} />
                   <Text style={styles.signaturePreviewTitle}>Digital Signature File</Text>
                   <Text style={styles.signaturePreviewSub}>
@@ -254,7 +263,7 @@ export function EmployeeDetailsPage({
                       ? `Verified Signature: ${employee.signatureUri}`
                       : 'No signature file uploaded'}
                   </Text>
-                </View>
+                </Pressable>
               </View>
             </View>
           </View>
@@ -271,11 +280,6 @@ export function EmployeeDetailsPage({
             <View style={[styles.fieldsGrid, isMobile && styles.fieldsGridMobile]}>
               <View style={styles.gridColumn}>
                 <View style={styles.infoFieldRow}>
-                  <Text style={styles.fieldLabel}>Account Status:</Text>
-                  <StatusBadge status={employee.status} />
-                </View>
-
-                <View style={styles.infoFieldRow}>
                   <Text style={styles.fieldLabel}>Access Credentials:</Text>
                   <Text style={styles.fieldValue}>Internal SSO Verified</Text>
                 </View>
@@ -291,6 +295,49 @@ export function EmployeeDetailsPage({
           </View>
         </View>
       </ScrollView>
+
+      {/* Signature Preview Modal */}
+      <Modal
+        visible={isSignaturePreviewOpen}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setIsSignaturePreviewOpen(false)}
+      >
+        <View style={styles.previewOverlay}>
+          <View style={[styles.previewContainer, SHADOWS.modal]}>
+            <View style={styles.previewHeader}>
+              <Text style={styles.previewTitle}>Signature Preview</Text>
+              <Pressable onPress={() => setIsSignaturePreviewOpen(false)} style={styles.previewCloseBtn}>
+                <Lucide name="x" size={20} color={COLORS.neutral[700]} />
+              </Pressable>
+            </View>
+
+            <View style={styles.previewBody}>
+              {/* Mock Signature Canvas Display */}
+              <View style={styles.signatureCanvas}>
+                <Text style={styles.handwrittenSignature}>
+                  {employee.firstName} {employee.lastName}
+                </Text>
+                <View style={styles.signatureUnderline} />
+              </View>
+
+              <View style={styles.fileDetailsRow}>
+                <Lucide name="file-text" size={16} color={COLORS.brand[700]} style={{ marginRight: 8 }} />
+                <Text style={styles.fileNameLabel}>File Name: </Text>
+                <Text style={styles.fileNameValue} numberOfLines={1}>
+                  {employee.signatureUri}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.previewFooter}>
+              <Pressable style={styles.previewCloseFooterBtn} onPress={() => setIsSignaturePreviewOpen(false)}>
+                <Text style={styles.previewCloseFooterText}>Close Preview</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -568,6 +615,11 @@ const styles = StyleSheet.create({
     padding: SPACING[16],
     alignItems: 'center',
     justifyContent: 'center',
+    ...Platform.select({
+      web: {
+        cursor: 'pointer',
+      },
+    }),
   },
   signaturePreviewTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
@@ -580,5 +632,116 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: COLORS.neutral[500],
     marginTop: 2,
+  },
+  previewOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING[16],
+  },
+  previewContainer: {
+    width: '100%',
+    maxWidth: 460,
+    backgroundColor: COLORS.neutral.white,
+    borderRadius: RADIUS.card,
+    padding: SPACING[20],
+  },
+  previewHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING[20],
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.neutral[100],
+    paddingBottom: 12,
+  },
+  previewTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 16,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: COLORS.neutral[900],
+  },
+  previewCloseBtn: {
+    padding: 4,
+  },
+  previewBody: {
+    alignItems: 'center',
+    gap: SPACING[16],
+    width: '100%',
+  },
+  signatureCanvas: {
+    width: '100%',
+    height: 140,
+    backgroundColor: COLORS.neutral[50],
+    borderRadius: RADIUS.button,
+    borderWidth: 1,
+    borderColor: COLORS.neutral[200],
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING[16],
+    position: 'relative',
+  },
+  handwrittenSignature: {
+    fontFamily: Platform.OS === 'web' ? 'cursive' : 'sans-serif',
+    fontSize: 32,
+    fontWeight: 'normal',
+    color: COLORS.brand[900],
+    textAlign: 'center',
+  },
+  signatureUnderline: {
+    width: '80%',
+    height: 1,
+    backgroundColor: COLORS.neutral[300],
+    position: 'absolute',
+    bottom: 30,
+  },
+  fileDetailsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.neutral[50],
+    borderWidth: 1,
+    borderColor: COLORS.neutral[200],
+    paddingHorizontal: SPACING[12],
+    paddingVertical: 8,
+    borderRadius: 6,
+    width: '100%',
+  },
+  fileNameLabel: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: COLORS.neutral[600],
+  },
+  fileNameValue: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: COLORS.brand[700],
+    flex: 1,
+  },
+  previewFooter: {
+    marginTop: SPACING[20],
+    alignItems: 'flex-end',
+    width: '100%',
+  },
+  previewCloseFooterBtn: {
+    paddingHorizontal: SPACING[16],
+    paddingVertical: 8,
+    borderRadius: RADIUS.button,
+    borderWidth: 1,
+    borderColor: COLORS.neutral[300],
+    backgroundColor: COLORS.neutral.white,
+    ...Platform.select({
+      web: {
+        cursor: 'pointer',
+      },
+    }),
+  },
+  previewCloseFooterText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: COLORS.neutral[600],
   },
 });

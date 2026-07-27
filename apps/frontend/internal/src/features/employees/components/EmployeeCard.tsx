@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { StyleSheet, View, Text, Pressable, Platform } from 'react-native';
-import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide, StatusBadge } from '@edge/ui';
+import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide } from '@edge/ui';
 import { Employee } from '../data/mockEmployees';
 
 interface EmployeeCardProps {
@@ -59,21 +59,11 @@ export function EmployeeCard({ employee, onView, onEdit, onDelete }: EmployeeCar
       )}
 
       <View style={styles.cardMain}>
-        {/* Left Section: Avatar with Status Indicator */}
+        {/* Left Section: Avatar */}
         <View style={styles.avatarWrapper}>
           <View style={[styles.avatarCircle, { backgroundColor: employee.avatarColor }]}>
             <Text style={styles.avatarInitials}>{initials}</Text>
           </View>
-          <View
-            style={[
-              styles.statusDot,
-              employee.status === 'Active'
-                ? styles.statusDotActive
-                : employee.status === 'On Leave'
-                ? styles.statusDotLeave
-                : styles.statusDotInactive,
-            ]}
-          />
         </View>
 
         {/* Middle Section: Employee Details */}
@@ -82,7 +72,6 @@ export function EmployeeCard({ employee, onView, onEdit, onDelete }: EmployeeCar
             <Text style={styles.employeeName}>
               {employee.firstName} {employee.lastName}
             </Text>
-            <StatusBadge status={employee.status} />
           </View>
 
           <View style={styles.roleDeptRow}>
@@ -208,25 +197,7 @@ const styles = StyleSheet.create({
     color: COLORS.neutral.white,
     letterSpacing: 0.5,
   },
-  statusDot: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: COLORS.neutral.white,
-  },
-  statusDotActive: {
-    backgroundColor: COLORS.semantic.success,
-  },
-  statusDotLeave: {
-    backgroundColor: COLORS.semantic.warning,
-  },
-  statusDotInactive: {
-    backgroundColor: COLORS.neutral[400],
-  },
+
   infoSection: {
     flex: 1,
     justifyContent: 'center',

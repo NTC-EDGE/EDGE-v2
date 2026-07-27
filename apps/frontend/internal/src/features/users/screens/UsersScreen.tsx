@@ -29,22 +29,22 @@ const ITEMS_PER_PAGE = 10;
 // Helper Table Action Menu Cell
 function TableActionCell({
   user,
-  onView,
+  activePopoverId,
+  setActivePopoverId,
   onEdit,
   onDelete,
 }: {
   user: User;
-  onView: (u: User) => void;
+  activePopoverId: string | null;
+  setActivePopoverId: (id: string | null) => void;
   onEdit: (u: User) => void;
   onDelete: (u: User) => void;
 }) {
-  const [showPopover, setShowPopover] = useState(false);
+  const isPopoverOpen = activePopoverId === user.id;
 
-  const handleAction = (action: 'view' | 'edit' | 'delete') => {
-    setShowPopover(false);
-    if (action === 'view') {
-      onView(user);
-    } else if (action === 'edit') {
+  const handleAction = (action: 'edit' | 'delete') => {
+    setActivePopoverId(null);
+    if (action === 'edit') {
       onEdit(user);
     } else if (action === 'delete') {
       onDelete(user);
@@ -53,24 +53,19 @@ function TableActionCell({
 
   return (
     <View style={styles.tableActionWrapper}>
-      {showPopover && (
-        <Pressable style={styles.popoverBackdrop} onPress={() => setShowPopover(false)} />
+      {isPopoverOpen && (
+        <Pressable style={styles.popoverBackdrop} onPress={() => setActivePopoverId(null)} />
       )}
       <Pressable
-        style={[styles.tableThreeDotsBtn, showPopover && styles.tableThreeDotsBtnActive]}
-        onPress={() => setShowPopover((prev) => !prev)}
+        style={[styles.tableThreeDotsBtn, isPopoverOpen && styles.tableThreeDotsBtnActive]}
+        onPress={() => setActivePopoverId(isPopoverOpen ? null : user.id)}
         accessibilityLabel="Actions Menu"
       >
         <Lucide name="more-vertical" size={16} color={COLORS.neutral[700]} />
       </Pressable>
 
-      {showPopover && (
+      {isPopoverOpen && (
         <View style={[styles.tablePopoverMenu, SHADOWS.modal]}>
-          <Pressable style={styles.popoverItem} onPress={() => handleAction('view')}>
-            <Lucide name="eye" size={14} color={COLORS.brand[700]} style={styles.popoverIcon} />
-            <Text style={styles.popoverItemText}>View Details</Text>
-          </Pressable>
-
           <Pressable style={styles.popoverItem} onPress={() => handleAction('edit')}>
             <Lucide name="edit-2" size={14} color={COLORS.brand[700]} style={styles.popoverIcon} />
             <Text style={styles.popoverItemText}>Edit User</Text>
@@ -121,6 +116,9 @@ export function UsersScreen() {
 
   // Toast notification
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Active popover row id (to close others when one is open)
+  const [activePopoverId, setActivePopoverId] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -329,7 +327,8 @@ export function UsersScreen() {
         cell: (info) => (
           <TableActionCell
             user={info.row.original}
-            onView={handleOpenDetailsPage}
+            activePopoverId={activePopoverId}
+            setActivePopoverId={setActivePopoverId}
             onEdit={handleOpenEditModal}
             onDelete={handleOpenDeleteModal}
           />
@@ -337,7 +336,7 @@ export function UsersScreen() {
         meta: { flex: 0.8 },
       },
     ],
-    []
+    [activePopoverId]
   );
 
   // If subView is 'details', render the full UserDetailsPage component
@@ -439,94 +438,6 @@ export function UsersScreen() {
 
         {/* Dropdown Filters */}
         <View style={styles.filterGroup}>
-          {/* Account Type Filter Dropdown */}
-          <View style={styles.dropdownContainer}>
-            <Pressable
-              style={styles.dropdownTrigger}
-              onPress={() => {
-                setIsTypeDropdownOpen((prev) => !prev);
-                setIsRegionDropdownOpen(false);
-              }}
-            >
-              <Lucide name="filter" size={14} color={COLORS.neutral[500]} style={styles.dropdownIcon} />
-              <Text style={styles.dropdownTriggerText} numberOfLines={1}>
-                Type: {selectedAccountType}
-              </Text>
-              <Lucide name="chevron-down" size={14} color={COLORS.neutral[500]} />
-            </Pressable>
-
-            {isTypeDropdownOpen && (
-              <View style={[styles.dropdownMenu, SHADOWS.modal]}>
-                <Pressable
-                  style={[styles.dropdownMenuItem, selectedAccountType === 'All' && styles.dropdownMenuItemActive]}
-                  onPress={() => {
-                    setSelectedAccountType('All');
-                    setIsTypeDropdownOpen(false);
-                  }}
-                >
-                  <Text style={[styles.dropdownMenuText, selectedAccountType === 'All' && styles.dropdownMenuTextActive]}>
-                    All Account Types
-                  </Text>
-                </Pressable>
-                {ACCOUNT_TYPES.map((type) => (
-                  <Pressable
-                    key={type}
-                    style={[styles.dropdownMenuItem, selectedAccountType === type && styles.dropdownMenuItemActive]}
-                    onPress={() => {
-                      setSelectedAccountType(type);
-                      setIsTypeDropdownOpen(false);
-                    }}
-                  >
-                    <Text
-                      style={[
-                        styles.dropdownMenuText,
-                        selectedAccountType === type && styles.dropdownMenuTextActive,
-                      ]}
-                    >
-                      {type}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            )}
-          </View>
-
-          {/* Region Filter Dropdown */}
-          <View style={styles.dropdownContainer}>
-            <Pressable
-              style={styles.dropdownTrigger}
-              onPress={() => {
-                setIsRegionDropdownOpen((prev) => !prev);
-                setIsTypeDropdownOpen(false);
-              }}
-            >
-              <Lucide name="map-pin" size={14} color={COLORS.neutral[500]} style={styles.dropdownIcon} />
-              <Text style={styles.dropdownTriggerText} numberOfLines={1}>
-                Region: {selectedRegion}
-              </Text>
-              <Lucide name="chevron-down" size={14} color={COLORS.neutral[500]} />
-            </Pressable>
-
-            {isRegionDropdownOpen && (
-              <View style={[styles.dropdownMenu, SHADOWS.modal]}>
-                {REGIONS_LIST.map((reg) => (
-                  <Pressable
-                    key={reg}
-                    style={[styles.dropdownMenuItem, selectedRegion === reg && styles.dropdownMenuItemActive]}
-                    onPress={() => {
-                      setSelectedRegion(reg);
-                      setIsRegionDropdownOpen(false);
-                    }}
-                  >
-                    <Text style={[styles.dropdownMenuText, selectedRegion === reg && styles.dropdownMenuTextActive]}>
-                      {reg}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            )}
-          </View>
-
           {/* View Mode Toggle (Table / Cards) */}
           <View style={styles.viewModeToggle}>
             <Pressable

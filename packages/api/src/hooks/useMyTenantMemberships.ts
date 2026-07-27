@@ -1,0 +1,41 @@
+import useSWR from "swr";
+import { fetchMyTenantMemberships } from "../services/authService";
+import { TenantRegionMembershipDto } from "../types/auth";
+
+export interface UseMyTenantMembershipsReturn {
+  memberships: TenantRegionMembershipDto[];
+  isLoading: boolean;
+  isError: boolean;
+  error: unknown;
+  refetch: () => Promise<TenantRegionMembershipDto[] | undefined>;
+}
+
+/**
+ * Data Layer Hook (useSWR) for consuming the user's authorized Regional Office tenant memberships
+ * from the C# .NET 10 Backend API.
+ */
+export function useMyTenantMemberships(
+  token: string | null | undefined,
+  shouldFetch = true
+): UseMyTenantMembershipsReturn {
+  const cacheKey = shouldFetch ? ["/api/v2/tenants/my-memberships", token] : null;
+
+  const { data, error, isLoading, mutate } = useSWR<TenantRegionMembershipDto[]>(
+    cacheKey,
+    () => fetchMyTenantMemberships(token),
+    {
+      revalidateOnFocus: false,
+      revalidateIfStale: false,
+    }
+  );
+
+  const memberships = data ?? [];
+
+  return {
+    memberships,
+    isLoading,
+    isError: Boolean(error),
+    error,
+    refetch: mutate,
+  };
+}

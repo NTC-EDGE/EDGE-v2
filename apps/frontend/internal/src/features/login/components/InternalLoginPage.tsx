@@ -11,16 +11,21 @@ import {
   useWindowDimensions,
   Pressable,
   Modal,
+  TextInput,
+  TextStyle,
 } from "react-native";
 import {
   COLORS,
   SPACING,
-  RADIUS,
   SHADOWS,
   TYPOGRAPHY,
   Icon as Lucide,
 } from "@edge/ui";
+import { useOAuth } from "@clerk/expo";
+import { parseApiError } from "@edge/api";
 import { NtcLogo } from "./NtcLogo";
+import { useAuthContext } from "../../auth/context/AuthContext";
+import { ForgotPasswordPage } from "./ForgotPasswordPage";
 
 interface FooterPolicySection {
   title: string;
@@ -137,7 +142,7 @@ const FOOTER_POLICIES: Record<string, FooterPolicyContent> = {
     sections: [
       {
         title: "1. Self-Service Resources",
-        body: "Before contacting support, please check our extensive FAQ section and step-by-step guides available within the portal's Help Center link (this will lead to a dedicated website).",
+        body: "Before contacting support, please check our extensive FAQ section and step-by-step guides available within the portal's Help Center link.",
       },
       {
         title: "2. Contact Information",
@@ -156,116 +161,66 @@ export function InternalLoginPage() {
   const { width } = useWindowDimensions();
   const isMobile = width < 640;
   const isTablet = width >= 640 && width < 1024;
+  const { loginWithClerk } = useAuthContext();
+  const { startOAuthFlow } = useOAuth({ strategy: "oauth_google" });
 
-  const [error, setError] = useState("");
-  const [activeFooterModal, setActiveFooterModal] =
-    useState<FooterPolicyContent | null>(null);
+  const [identifier, setIdentifier] = useState("");
+  const [password, setPassword] = useState("");
+  const [focusedField, setFocusedField] = useState<"identifier" | "password" | null>(null);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [activeFooterModal, setActiveFooterModal] = useState<FooterPolicyContent | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
 
-  const handleClerkRedirect = () => {
-    const key = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
-    if (key === undefined || key === null || key === "") {
-      setError("Clerk publishable key is not configured.");
+  if (showForgotPassword) {
+    return <ForgotPasswordPage onBackToLogin={() => setShowForgotPassword(false)} />;
+  }
+
+  const triggerToastError = (msg: string) => {
+    const trimmed = parseApiError(msg);
+    setToastMessage(trimmed);
+  };
+
+  const dismissToast = () => {
+    setToastMessage(null);
+  };
+
+  const handleSignIn = async () => {
+    if (identifier.trim().length === 0) {
+      triggerToastError("Email address or username is required.");
+      return;
+    }
+    if (password.length === 0) {
+      triggerToastError("Password is required.");
       return;
     }
 
-    setError("");
+    setToastMessage(null);
     setIsSubmitting(true);
+
     try {
-      const parts = key.split("_");
-      const base64Part = parts[2];
-      if (
-        base64Part === undefined ||
-        base64Part === null ||
-        base64Part === ""
-      ) {
-        setError("Invalid Clerk publishable key format.");
-        setIsSubmitting(false);
-        return;
-      }
+      await loginWithClerk(identifier.trim(), password);
+    } catch (err: unknown) {
+      triggerToastError(parseApiError(err));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
-      let decoded = "";
-      if (typeof atob === "function") {
-        decoded = atob(base64Part);
-      } else {
-        const chars =
-          "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-        const lookup = new Uint8Array(256);
-        for (let i = 0; i < chars.length; i++) {
-          lookup[chars.charCodeAt(i)] = i;
-        }
-        const buffer = new Uint8Array(base64Part.length * 0.75);
-        let bytesCount = 0;
-        for (let i = 0; i < base64Part.length; i += 4) {
-          const charCode0 = base64Part.charCodeAt(i);
-          const charCode1 = base64Part.charCodeAt(i + 1);
-          const charCode2 = base64Part.charCodeAt(i + 2);
-          const charCode3 = base64Part.charCodeAt(i + 3);
-
-          const val0 = lookup[charCode0];
-          const val1 = lookup[charCode1];
-          const val2 = lookup[charCode2];
-          const val3 = lookup[charCode3];
-
-          if (
-            val0 === undefined ||
-            val1 === undefined ||
-            val2 === undefined ||
-            val3 === undefined
-          ) {
-            continue;
-          }
-
-          const chunk = (val0 << 18) | (val1 << 12) | (val2 << 6) | val3;
-          buffer[bytesCount++] = (chunk >> 16) & 255;
-          buffer[bytesCount++] = (chunk >> 8) & 255;
-          buffer[bytesCount++] = chunk & 255;
-        }
-        decoded = String.fromCharCode.apply(
-          null,
-          Array.from(buffer.subarray(0, bytesCount)),
-        );
-      }
-
-      const domain = decoded.replace(/\$$/, "");
-      if (domain === "") {
-        setError("Failed to resolve Clerk domain.");
-        setIsSubmitting(false);
-        return;
-      }
-
-      const portalDomain = domain.includes(".clerk.accounts.dev")
-        ? domain.replace(".clerk.accounts.dev", ".accounts.dev")
-        : domain;
-
-      const currentOrigin =
-        Platform.OS === "web" &&
-        typeof window !== "undefined" &&
-        window.location !== undefined &&
-        typeof window.location.origin === "string"
-          ? window.location.origin + window.location.pathname
-          : "edge://internal/login";
-
-      const signInUrl = `https://${portalDomain}/sign-in?redirect_url=${encodeURIComponent(currentOrigin)}`;
-
-      if (
-        Platform.OS === "web" &&
-        typeof window !== "undefined" &&
-        window.location !== undefined
-      ) {
-        window.location.href = signInUrl;
-      } else {
-        import("react-native").then(({ Linking }) => {
-          Linking.openURL(signInUrl).catch((err: unknown) => {
-            console.error("Failed to open URL on native:", err);
-            setIsSubmitting(false);
-          });
-        });
+  const handleGoogleSignIn = async () => {
+    setToastMessage(null);
+    setIsGoogleSubmitting(true);
+    try {
+      const res = await startOAuthFlow();
+      if (res.createdSessionId && res.setActive) {
+        await res.setActive({ session: res.createdSessionId });
       }
     } catch (err: unknown) {
-      setError("Failed to redirect to Clerk sign-in.");
-      setIsSubmitting(false);
-      console.error(err);
+      triggerToastError(parseApiError(err));
+    } finally {
+      setIsGoogleSubmitting(false);
     }
   };
 
@@ -274,9 +229,21 @@ export function InternalLoginPage() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={styles.keyboardAvoid}
     >
+      {/* Floating Error Toast Notification */}
+      {toastMessage !== null && toastMessage.trim().length > 0 ? (
+        <View style={[styles.toastContainer, SHADOWS.modal]}>
+          <Lucide name="alert-triangle" size={20} color="#DC2626" />
+          <Text style={styles.toastText}>{toastMessage}</Text>
+          <TouchableOpacity onPress={dismissToast} style={styles.toastCloseBtn}>
+            <Lucide name="x" size={16} color={COLORS.neutral[500]} />
+          </TouchableOpacity>
+        </View>
+      ) : null}
+
       <ScrollView
         contentContainerStyle={styles.scrollContainer}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         <View style={styles.backgroundBlobLeft} pointerEvents="none" />
         <View style={styles.backgroundBlobRight} pointerEvents="none" />
@@ -317,15 +284,8 @@ export function InternalLoginPage() {
                 {isMobile ? " " : "\n"}Data Governance
               </Text>
 
-              <Text
-                style={[
-                  styles.heroSubtitle,
-                  isMobile && styles.heroSubtitleMobile,
-                ]}
-              >
-                Streamline your government services experience. Apply for
-                permits, licenses, and certificates with secure, efficient, and
-                transparent processes powered by EDGE.
+              <Text style={[styles.heroSubtitle, isMobile && styles.heroSubtitleMobile]}>
+                Streamline your government services experience. Access internal queues, directories, and management tools with secure Clerk authentication.
               </Text>
             </View>
 
@@ -337,6 +297,7 @@ export function InternalLoginPage() {
                   showSubtext={false}
                 />
               </View>
+
               <View style={[styles.mockupWindowCard, SHADOWS.modal]}>
                 <View style={styles.mockupWindowHeader}>
                   <View style={styles.windowDotsRow}>
@@ -344,25 +305,69 @@ export function InternalLoginPage() {
                     <View style={styles.windowDotYellow} />
                     <View style={styles.windowDotGreen} />
                   </View>
+                  <Text style={styles.windowHeaderText}>Internal Staff Sign-In</Text>
                 </View>
 
-                <View
-                  style={[styles.mockupWindowBody, isMobile && { padding: 20 }]}
-                >
-                  <Text style={styles.cardTitle}>Get Started</Text>
+                <View style={[styles.mockupWindowBody, isMobile && { padding: 20 }]}>
+                  <Text style={styles.cardTitle}>Staff Login</Text>
 
-                  {error.length > 0 ? (
-                    <Text style={styles.errorText}>{error}</Text>
-                  ) : null}
+                  {/* Email / Username Field */}
+                  <View style={styles.fieldGroup}>
+                    <Text style={styles.fieldLabelSmall}>Email Address or Username</Text>
+                    <View style={[styles.inputWithIconWrapper, focusedField === "identifier" && styles.inputWithIconWrapperFocused]}>
+                      <Lucide name="user" size={18} color={focusedField === "identifier" ? "#0E1B61" : COLORS.neutral[400]} style={styles.inputIconLeft} />
+                      <TextInput
+                        style={styles.textInputStyle}
+                        placeholder="staff@ntc.gov.ph"
+                        placeholderTextColor={COLORS.neutral[400]}
+                        value={identifier}
+                        onChangeText={setIdentifier}
+                        onFocus={() => setFocusedField("identifier")}
+                        onBlur={() => setFocusedField(null)}
+                        autoCapitalize="none"
+                        keyboardType="email-address"
+                      />
+                    </View>
+                  </View>
 
+                  {/* Password Field */}
+                  <View style={styles.fieldGroup}>
+                    <Text style={styles.fieldLabelSmall}>Password</Text>
+                    <View style={[styles.inputWithIconWrapper, focusedField === "password" && styles.inputWithIconWrapperFocused]}>
+                      <Lucide name="lock" size={18} color={focusedField === "password" ? "#0E1B61" : COLORS.neutral[400]} style={styles.inputIconLeft} />
+                      <TextInput
+                        style={styles.textInputStyle}
+                        placeholder="••••••••"
+                        placeholderTextColor={COLORS.neutral[400]}
+                        value={password}
+                        onChangeText={setPassword}
+                        onFocus={() => setFocusedField("password")}
+                        onBlur={() => setFocusedField(null)}
+                        secureTextEntry={true}
+                        autoCapitalize="none"
+                      />
+                    </View>
+                  </View>
+
+                  {/* Forgot Password Link */}
+                  <TouchableOpacity
+                    style={{ alignSelf: "flex-end", marginBottom: 16 }}
+                    onPress={() => setShowForgotPassword(true)}
+                  >
+                    <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: COLORS.brand[800], fontWeight: TYPOGRAPHY.weights.medium }}>
+                      Forgot Password?
+                    </Text>
+                  </TouchableOpacity>
+
+                  {/* Submit Button */}
                   <TouchableOpacity
                     style={[
                       styles.loginButton,
                       styles.loginButtonActive,
                       isSubmitting && styles.buttonDisabled,
                     ]}
-                    onPress={handleClerkRedirect}
-                    disabled={isSubmitting}
+                    onPress={handleSignIn}
+                    disabled={isSubmitting || isGoogleSubmitting}
                   >
                     {isSubmitting ? (
                       <ActivityIndicator
@@ -372,7 +377,7 @@ export function InternalLoginPage() {
                     ) : (
                       <View style={styles.loginButtonInner}>
                         <Lucide
-                          name="arrow-right"
+                          name="log-in"
                           size={18}
                           color={COLORS.neutral.white}
                         />
@@ -382,8 +387,34 @@ export function InternalLoginPage() {
                             styles.loginButtonTextActive,
                           ]}
                         >
-                          Get Started
+                          Sign In
                         </Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+
+                  {/* Divider */}
+                  <View style={styles.dividerRow}>
+                    <View style={styles.dividerLine} />
+                    <Text style={styles.dividerText}>OR</Text>
+                    <View style={styles.dividerLine} />
+                  </View>
+
+                  {/* Sign In with Google Button */}
+                  <TouchableOpacity
+                    style={[
+                      styles.googleButton,
+                      isGoogleSubmitting && styles.buttonDisabled,
+                    ]}
+                    onPress={handleGoogleSignIn}
+                    disabled={isSubmitting || isGoogleSubmitting}
+                  >
+                    {isGoogleSubmitting ? (
+                      <ActivityIndicator size="small" color={COLORS.neutral[700]} />
+                    ) : (
+                      <View style={styles.googleButtonInner}>
+                        <Lucide name="globe" size={18} color="#4285F4" />
+                        <Text style={styles.googleButtonText}>Sign in with Google</Text>
                       </View>
                     )}
                   </TouchableOpacity>
@@ -474,9 +505,8 @@ export function InternalLoginPage() {
           <TouchableOpacity
             style={[styles.modalCard, SHADOWS.modal]}
             activeOpacity={1}
-            onPress={() => {}}
+            onPress={() => { }}
           >
-            {/* Close X Button */}
             <Pressable
               style={styles.modalCloseBtn}
               onPress={() => setActiveFooterModal(null)}
@@ -485,11 +515,7 @@ export function InternalLoginPage() {
             </Pressable>
 
             {activeFooterModal !== null ? (
-              <ScrollView
-                style={{ maxHeight: 560 }}
-                showsVerticalScrollIndicator={true}
-              >
-                {/* Header */}
+              <ScrollView style={{ maxHeight: 560 }} showsVerticalScrollIndicator={true}>
                 <View style={styles.policyModalHeader}>
                   <View style={styles.policyHeaderIconCircle}>
                     <Lucide name="file-text" size={20} color="#1E3A8A" />
@@ -500,7 +526,6 @@ export function InternalLoginPage() {
                 </View>
                 <View style={styles.policyTitleDivider} />
 
-                {/* Intro Box */}
                 <View style={styles.policyIntroBox}>
                   <Lucide
                     name="info"
@@ -513,7 +538,6 @@ export function InternalLoginPage() {
                   </Text>
                 </View>
 
-                {/* Section Cards */}
                 {activeFooterModal.sections.map((sec, i) => (
                   <View
                     key={i}
@@ -550,14 +574,42 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#FAF9F6",
   },
-
+  toastContainer: {
+    position: "absolute",
+    top: 20,
+    left: 20,
+    right: 20,
+    maxWidth: 600,
+    alignSelf: "center",
+    backgroundColor: "#FEF2F2",
+    borderWidth: 1,
+    borderColor: "#FCA5A5",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    zIndex: 9999,
+    elevation: 9999,
+  },
+  toastText: {
+    flex: 1,
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.medium,
+    color: "#991B1B",
+    lineHeight: 18,
+  },
+  toastCloseBtn: {
+    padding: 4,
+  },
   scrollContainer: {
     flexGrow: 1,
     minHeight: "100%",
     justifyContent: "space-between",
     backgroundColor: "#FAF9F6",
     position: "relative",
-    overflow: "hidden",
   },
   backgroundBlobLeft: {
     position: "absolute",
@@ -577,7 +629,6 @@ const styles = StyleSheet.create({
     borderRadius: 210,
     backgroundColor: "rgba(254, 226, 226, 0.45)",
   },
-
   heroSection: {
     flex: 1,
     justifyContent: "center",
@@ -669,45 +720,6 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     textAlign: "center",
   },
-  heroActionRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 16,
-    flexWrap: "wrap",
-  },
-  getStartedBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: "#0E1B61",
-    paddingHorizontal: 22,
-    paddingVertical: 14,
-    borderRadius: 12,
-  },
-  getStartedBtnText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-    color: COLORS.neutral.white,
-  },
-  trackAppBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: COLORS.neutral.white,
-    borderWidth: 1.5,
-    borderColor: "#1E40AF",
-    paddingHorizontal: 20,
-    paddingVertical: 13,
-    borderRadius: 12,
-  },
-  trackAppBtnText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-    color: "#1E40AF",
-  },
-
   loginCardLogoWrapper: {
     alignItems: "center",
     marginBottom: 20,
@@ -718,6 +730,7 @@ const styles = StyleSheet.create({
     maxWidth: 480,
     width: "100%",
     alignSelf: "center",
+    zIndex: 10,
   },
   mockupWindowCard: {
     width: "100%",
@@ -766,406 +779,273 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     backgroundColor: "#27C93F",
   },
+  windowHeaderText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    color: COLORS.neutral[500],
+    fontWeight: TYPOGRAPHY.weights.medium,
+  },
   mockupWindowBody: {
     padding: 28,
   },
   cardTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 30,
+    fontSize: 26,
     fontWeight: TYPOGRAPHY.weights.bold,
     color: "#0F172A",
-    marginBottom: SPACING[24],
+    marginBottom: SPACING[20],
     textAlign: "center",
   },
-  requiredStar: {
-    color: "#EF4444",
-  },
   fieldGroup: {
-    marginBottom: 20,
-    position: "relative",
+    marginBottom: 16,
   },
   fieldLabelSmall: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 12,
-    color: COLORS.neutral[500],
+    color: COLORS.neutral[600],
     marginBottom: 6,
     fontWeight: TYPOGRAPHY.weights.medium,
   },
-  regionSelectorBox: {
-    height: 56,
-    backgroundColor: "#F1F5F9",
+  inputWithIconWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F8FAFC",
     borderWidth: 1,
-    borderColor: "#E2E8F0",
-    borderRadius: 12,
-    paddingHorizontal: 18,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  regionSelectorInner: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    flex: 1,
-  },
-  regionSelectorValue: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 15,
-    color: COLORS.neutral[900],
-    fontWeight: TYPOGRAPHY.weights.medium,
-    flex: 1,
-  },
-  dropdownBackdrop: {
-    position: "absolute",
-    top: -1000,
-    bottom: -1000,
-    left: -1000,
-    right: -1000,
-    zIndex: 99,
-  },
-  regionPopoverMenu: {
-    position: "absolute",
-    top: "100%",
-    left: 0,
-    right: 0,
-    marginTop: 6,
-    backgroundColor: COLORS.neutral.white,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    paddingVertical: 6,
-    paddingHorizontal: 6,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    elevation: 8,
-    zIndex: 100,
-  },
-  regionOptionItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 12,
+    borderColor: "#CBD5E1",
+    borderRadius: 10,
     paddingHorizontal: 12,
-    borderRadius: 8,
-    marginVertical: 2,
+    height: 48,
   },
-  regionOptionItemSelected: {
-    backgroundColor: "rgba(37, 99, 235, 0.08)",
+  inputWithIconWrapperFocused: {
+    borderColor: "#0E1B61",
+    borderWidth: 1.5,
+    backgroundColor: "#FFFFFF",
   },
-  regionOptionText: {
+  inputIconLeft: {
+    marginRight: 8,
+  },
+  textInputStyle: {
+    flex: 1,
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 14,
-    color: COLORS.neutral[700],
-    flex: 1,
-  },
-  regionOptionTextSelected: {
-    color: COLORS.brand[800],
-    fontWeight: TYPOGRAPHY.weights.semibold,
-  },
-  dropdownMenu: {
-    backgroundColor: COLORS.neutral.white,
-    borderWidth: 1,
-    borderColor: COLORS.neutral[300],
-    borderRadius: 10,
-    marginTop: 4,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    elevation: 6,
-    zIndex: 99,
-  },
-  dropdownMenuItem: {
-    paddingHorizontal: 16,
-    paddingVertical: 11,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.neutral[100],
-  },
-  dropdownMenuItemActive: {
-    backgroundColor: "rgba(37, 99, 235, 0.08)",
-  },
-  dropdownMenuItemText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
-    color: COLORS.neutral[700],
-  },
-  dropdownMenuItemTextActive: {
-    color: COLORS.brand[800],
-    fontWeight: TYPOGRAPHY.weights.semibold,
-  },
-  inputWithIconWrapper: {
-    position: "relative",
-    justifyContent: "center",
-  },
-  greyInput: {
-    height: 56,
-    backgroundColor: "#F1F5F9",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    borderRadius: 12,
-    paddingHorizontal: 18,
-    fontSize: 16,
     color: COLORS.neutral[900],
-    fontFamily: TYPOGRAPHY.fonts.primary,
-  },
-  eyeIconButton: {
-    position: "absolute",
-    right: 16,
-    padding: 6,
+    height: "100%",
+    paddingVertical: 0,
+    ...(Platform.OS === "web" ? ({ outlineWidth: 0, outlineColor: "transparent" } as unknown as TextStyle) : {}),
   },
   loginButton: {
-    height: 56,
-    borderRadius: 12,
-    alignItems: "center",
+    height: 48,
+    borderRadius: 10,
     justifyContent: "center",
-    marginTop: 12,
-    ...Platform.select({
-      web: {
-        transition: "all 200ms ease-out",
-        cursor: "pointer",
-      },
-    }),
-  },
-  loginButtonDefault: {
-    backgroundColor: "#CBD5E1",
+    alignItems: "center",
+    marginTop: 8,
   },
   loginButtonActive: {
-    backgroundColor: COLORS.brand[800],
+    backgroundColor: "#0E1B61",
   },
   buttonDisabled: {
-    opacity: 0.6,
+    opacity: 0.7,
   },
   loginButtonInner: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 8,
   },
   loginButtonText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: TYPOGRAPHY.weights.semibold,
-  },
-  loginButtonTextDefault: {
-    color: "#475569",
   },
   loginButtonTextActive: {
     color: COLORS.neutral.white,
   },
-  forgotPasswordLinkWrapper: {
-    alignSelf: "center",
-    marginTop: 20,
-    padding: 4,
-  },
-  forgotPasswordLinkText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-    color: "#2563EB",
-  },
-  registerToggleWrapper: {
-    alignSelf: "center",
-    marginTop: 12,
-    padding: 4,
-  },
-  registerToggleText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
-    color: COLORS.neutral[500],
-  },
-  registerToggleBold: {
-    fontWeight: TYPOGRAPHY.weights.semibold,
-    color: COLORS.brand[700],
-  },
-  errorText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
-    color: "#DC2626",
-    marginBottom: 10,
-    textAlign: "center",
-  },
-  successText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
-    color: "#10B981",
-    marginBottom: 10,
-    textAlign: "center",
-  },
-  verifyDescriptionText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
-    color: COLORS.neutral[600],
-    marginBottom: 16,
-    textAlign: "center",
-  },
-
-  footerBar: {
-    width: "100%",
-    backgroundColor: "#0E1B61",
-    paddingHorizontal: SPACING[32],
-    paddingVertical: 24,
-  },
-  footerContentContainer: {
-    width: "100%",
+  dividerRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 36,
+    marginVertical: 16,
+    gap: 12,
   },
-  footerLeftBrand: {
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "#E2E8F0",
+  },
+  dividerText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    color: COLORS.neutral[400],
+    fontWeight: TYPOGRAPHY.weights.medium,
+  },
+  googleButton: {
+    height: 48,
+    borderRadius: 10,
+    backgroundColor: COLORS.neutral.white,
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  googleButtonInner: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
   },
-  footerCopyrightText: {
+  googleButtonText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 14,
-    color: COLORS.neutral[200],
-    fontWeight: TYPOGRAPHY.weights.medium,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: COLORS.neutral[700],
+  },
+  footerBar: {
+    width: "100%",
+    borderTopWidth: 1,
+    borderTopColor: "#E2E8F0",
+    backgroundColor: COLORS.neutral.white,
+    paddingVertical: 20,
+    paddingHorizontal: 24,
+  },
+  footerContentContainer: {
+    maxWidth: 1400,
+    width: "100%",
+    alignSelf: "center",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 16,
+  },
+  footerLeftBrand: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  footerCopyrightText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    color: COLORS.neutral[500],
   },
   footerRightLinks: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 36,
     alignItems: "center",
-    justifyContent: "center",
+    flexWrap: "wrap",
+    gap: 20,
   },
   footerRightLinksMobile: {
-    gap: 18,
+    gap: 12,
   },
   footerLinkPressable: {
     paddingVertical: 4,
   },
   footerLinkText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
-    color: COLORS.neutral[200],
-    fontWeight: TYPOGRAPHY.weights.medium,
+    fontSize: 13,
+    color: COLORS.neutral[600],
   },
-
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(15, 23, 42, 0.65)",
+    backgroundColor: "rgba(15, 23, 42, 0.6)",
     justifyContent: "center",
     alignItems: "center",
-    padding: 16,
+    padding: 20,
   },
   modalCard: {
     width: "100%",
-    maxWidth: 840,
-    maxHeight: "90%",
+    maxWidth: 640,
     backgroundColor: COLORS.neutral.white,
-    borderRadius: 24,
-    padding: 24,
+    borderRadius: 16,
+    padding: 28,
     position: "relative",
-    alignSelf: "center",
   },
   modalCloseBtn: {
     position: "absolute",
     top: 20,
     right: 20,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "#F1F5F9",
-    alignItems: "center",
-    justifyContent: "center",
     zIndex: 10,
+    padding: 4,
   },
   policyModalHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 10,
+    gap: 12,
+    marginBottom: 16,
   },
   policyHeaderIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: "#EEF2FF",
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(30, 58, 138, 0.1)",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 12,
   },
   policyModalTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: TYPOGRAPHY.weights.bold,
-    color: "#0F2042",
+    color: COLORS.neutral[900],
   },
   policyTitleDivider: {
     height: 1,
-    backgroundColor: COLORS.neutral[200],
-    marginBottom: 20,
-    width: "100%",
+    backgroundColor: "#E2E8F0",
+    marginBottom: 16,
   },
   policyIntroBox: {
     flexDirection: "row",
-    backgroundColor: "#EEF2FF",
-    borderColor: "#C7D2FE",
+    gap: 10,
+    backgroundColor: "#F0F9FF",
     borderWidth: 1,
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 20,
-    alignItems: "flex-start",
+    borderColor: "#BAE6FD",
+    borderRadius: 10,
+    padding: 14,
+    marginBottom: 16,
   },
   policyIntroIcon: {
-    marginRight: 10,
     marginTop: 2,
   },
   policyIntroText: {
     flex: 1,
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
-    color: "#1E3A8A",
-    fontWeight: TYPOGRAPHY.weights.medium,
-    lineHeight: 22,
+    fontSize: 13,
+    lineHeight: 20,
+    color: "#0369A1",
   },
   policySectionCard: {
-    backgroundColor: "#F8FAFC",
-    borderRadius: 14,
+    backgroundColor: COLORS.neutral.white,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: "#E2E8F0",
-    padding: 20,
-    marginBottom: 16,
+    padding: 16,
+    marginBottom: 12,
   },
   policySecTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 15,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    color: "#1E3A8A",
-    marginBottom: 8,
+    fontSize: 14,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: COLORS.neutral[900],
+    marginBottom: 6,
   },
   policySecBody: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
-    color: COLORS.neutral[700],
-    lineHeight: 22,
+    fontSize: 13,
+    lineHeight: 20,
+    color: COLORS.neutral[600],
   },
   policyHighlightBadge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: COLORS.neutral.white,
-    borderColor: "#C7D2FE",
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingVertical: 8,
+    gap: 8,
+    marginTop: 10,
+    backgroundColor: "#F1F5F9",
     paddingHorizontal: 12,
-    marginTop: 12,
-    alignSelf: "flex-start",
+    paddingVertical: 6,
+    borderRadius: 6,
   },
   policyMailIcon: {
-    marginRight: 8,
+    marginTop: 1,
   },
   policyHighlightText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
-    fontWeight: TYPOGRAPHY.weights.bold,
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.medium,
     color: "#1E3A8A",
   },
 });

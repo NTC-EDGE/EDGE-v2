@@ -53,6 +53,8 @@ export function EmployeeFormModal({
 
   const [signatureDisplay, setSignatureDisplay] = useState<'beside' | 'above'>('beside');
   const [signatureFileName, setSignatureFileName] = useState<string | null>(null);
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
 
   // Dropdown open states inside modal
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
@@ -189,8 +191,23 @@ export function EmployeeFormModal({
     });
   };
 
-  const handleSimulateUpload = () => {
-    setSignatureFileName('Employee_Signature_Signed.png');
+  const handleNativeFileUpload = () => {
+    if (Platform.OS === 'web') {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/png, image/jpeg, image/svg+xml';
+      input.onchange = (e: any) => {
+        const file = e.target.files?.[0];
+        if (file) {
+          setSignatureFileName(file.name);
+          setIsUploadDialogOpen(false);
+        }
+      };
+      input.click();
+    } else {
+      setSignatureFileName('Uploaded_Signature_' + Math.floor(Math.random() * 1000) + '.png');
+      setIsUploadDialogOpen(false);
+    }
   };
 
   if (!visible) {
@@ -577,21 +594,37 @@ export function EmployeeFormModal({
               </View>
 
               {/* Upload Box */}
-              <View style={styles.uploadBox}>
-                <Pressable style={styles.uploadBtn} onPress={handleSimulateUpload}>
-                  <Lucide name="upload-cloud" size={16} color={COLORS.neutral.white} style={{ marginRight: 8 }} />
-                  <Text style={styles.uploadBtnText}>Upload Signature</Text>
-                </Pressable>
-
-                {signatureFileName !== null ? (
-                  <View style={styles.uploadedBadge}>
-                    <Lucide name="check-circle" size={14} color={COLORS.semantic.success} style={{ marginRight: 6 }} />
-                    <Text style={styles.uploadedBadgeText}>{signatureFileName}</Text>
+              {signatureFileName !== null ? (
+                <View style={styles.uploadedFileContainer}>
+                  <View style={styles.uploadedFileInfo}>
+                    <Lucide name="image" size={20} color={COLORS.brand[700]} style={{ marginRight: 10 }} />
+                    <View>
+                      <Text style={styles.uploadedFileName} numberOfLines={1}>
+                        {signatureFileName}
+                      </Text>
+                      <Text style={styles.uploadedFileSize}>Verified & loaded successfully</Text>
+                    </View>
                   </View>
-                ) : (
-                  <Text style={styles.uploadHintText}>PNG, JPG or SVG formats up to 2MB</Text>
-                )}
-              </View>
+
+                  <View style={styles.uploadedFileActions}>
+                    <Pressable style={styles.replaceBtn} onPress={() => setIsUploadDialogOpen(true)}>
+                      <Lucide name="refresh-cw" size={13} color={COLORS.brand[700]} style={{ marginRight: 6 }} />
+                      <Text style={styles.replaceBtnText}>Replace</Text>
+                    </Pressable>
+
+                    <Pressable style={styles.deleteFileBtn} onPress={() => setSignatureFileName(null)}>
+                      <Lucide name="trash-2" size={13} color={COLORS.semantic.error} style={{ marginRight: 6 }} />
+                      <Text style={styles.deleteFileBtnText}>Delete</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ) : (
+                <Pressable style={styles.uploadPlaceholderCard} onPress={() => setIsUploadDialogOpen(true)}>
+                  <Lucide name="upload-cloud" size={28} color={COLORS.brand[700]} style={{ marginBottom: 8 }} />
+                  <Text style={styles.uploadPlaceholderText}>Upload or Capture Signature</Text>
+                  <Text style={styles.uploadPlaceholderSubtext}>Click to add digital signature file</Text>
+                </Pressable>
+              )}
             </View>
           </ScrollView>
 
@@ -613,6 +646,116 @@ export function EmployeeFormModal({
           </View>
         </View>
       </View>
+
+      {/* Camera Capture Modal */}
+      <Modal
+        visible={isCameraActive}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setIsCameraActive(false)}
+      >
+        <View style={styles.cameraOverlay}>
+          <View style={[styles.cameraContainer, SHADOWS.modal]}>
+            <View style={styles.cameraHeader}>
+              <Text style={styles.cameraTitle}>Capture Signature</Text>
+              <Pressable onPress={() => setIsCameraActive(false)} style={styles.cameraCloseBtn}>
+                <Lucide name="x" size={20} color={COLORS.neutral.white} />
+              </Pressable>
+            </View>
+
+            {/* Simulated Viewfinder */}
+            <View style={styles.viewfinder}>
+              <View style={styles.viewfinderCornerTL} />
+              <View style={styles.viewfinderCornerTR} />
+              <View style={styles.viewfinderCornerBL} />
+              <View style={styles.viewfinderCornerBR} />
+
+              <Lucide name="edit-3" size={48} color="rgba(255,255,255,0.25)" style={{ marginBottom: 12 }} />
+              <Text style={styles.viewfinderText}>
+                Position the signature inside the frame
+              </Text>
+            </View>
+
+            {/* Camera Controls */}
+            <View style={styles.cameraControls}>
+              <Pressable
+                style={styles.cameraCancelBtn}
+                onPress={() => setIsCameraActive(false)}
+              >
+                <Text style={styles.cameraCancelText}>Cancel</Text>
+              </Pressable>
+
+              <Pressable
+                style={styles.shutterBtn}
+                onPress={() => {
+                  setSignatureFileName('Captured_Signature_' + Math.floor(Math.random() * 1000) + '.png');
+                  setIsCameraActive(false);
+                }}
+              >
+                <View style={styles.shutterBtnInner} />
+              </Pressable>
+
+              <View style={{ width: 60 }} />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Signature Upload Dialog Modal */}
+      <Modal
+        visible={isUploadDialogOpen}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setIsUploadDialogOpen(false)}
+      >
+        <View style={styles.dialogOverlay}>
+          <View style={[styles.dialogContainer, SHADOWS.modal]}>
+            <View style={styles.dialogHeader}>
+              <Text style={styles.dialogTitle}>Add Signature</Text>
+              <Pressable onPress={() => setIsUploadDialogOpen(false)} style={styles.dialogCloseBtn}>
+                <Lucide name="x" size={18} color={COLORS.neutral[600]} />
+              </Pressable>
+            </View>
+
+            <View style={styles.dialogBody}>
+              {/* Standard Dropzone Upload Area */}
+              <Pressable
+                style={styles.dropzone}
+                onPress={handleNativeFileUpload}
+              >
+                <Lucide name="upload-cloud" size={36} color={COLORS.brand[700]} style={{ marginBottom: 8 }} />
+                <Text style={styles.dropzoneTitle}>Drag and drop signature file here</Text>
+                <Text style={styles.dropzoneSubtitle}>or click to browse files from your device</Text>
+                <Text style={styles.dropzoneSpecs}>PNG, JPG or SVG formats up to 2MB</Text>
+              </Pressable>
+
+              <View style={styles.dialogDividerRow}>
+                <View style={styles.dialogDividerLine} />
+                <Text style={styles.dialogDividerText}>OR</Text>
+                <View style={styles.dialogDividerLine} />
+              </View>
+
+              {/* Take Picture Action */}
+              <Pressable
+                style={styles.dialogCameraBtn}
+                onPress={() => {
+                  setIsUploadDialogOpen(false);
+                  setIsCameraActive(true);
+                }}
+              >
+                <Lucide name="camera" size={16} color={COLORS.neutral.white} style={{ marginRight: 8 }} />
+                <Text style={styles.dialogCameraBtnText}>Take Picture with Camera</Text>
+              </Pressable>
+            </View>
+
+            <View style={styles.dialogFooter}>
+              <Pressable style={styles.dialogCancelBtn} onPress={() => setIsUploadDialogOpen(false)}>
+                <Text style={styles.dialogCancelText}>Cancel</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </Modal>
   );
 }
@@ -1038,5 +1181,391 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: TYPOGRAPHY.weights.bold,
     color: COLORS.neutral.white,
+  },
+  uploadActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING[12],
+    flexWrap: 'wrap',
+  },
+  cameraBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.brand[800],
+    backgroundColor: COLORS.neutral.white,
+    paddingHorizontal: SPACING[16],
+    paddingVertical: 9,
+    borderRadius: RADIUS.button,
+    ...Platform.select({
+      web: {
+        cursor: 'pointer',
+      },
+    }),
+  },
+  cameraBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: COLORS.brand[800],
+  },
+  uploadedFileContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: COLORS.neutral[50],
+    borderWidth: 1,
+    borderColor: COLORS.neutral[200],
+    borderRadius: RADIUS.button,
+    padding: SPACING[16],
+    flexWrap: 'wrap',
+    gap: SPACING[12],
+  },
+  uploadedFileInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    minWidth: 200,
+  },
+  uploadedFileName: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: COLORS.neutral[900],
+  },
+  uploadedFileSize: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    color: COLORS.semantic.success,
+    marginTop: 2,
+  },
+  uploadedFileActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING[12],
+  },
+  replaceBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING[12],
+    paddingVertical: 6,
+    borderRadius: RADIUS.button,
+    borderWidth: 1,
+    borderColor: COLORS.brand[500],
+    backgroundColor: COLORS.neutral.white,
+    ...Platform.select({
+      web: {
+        cursor: 'pointer',
+      },
+    }),
+  },
+  replaceBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: COLORS.brand[700],
+  },
+  deleteFileBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING[12],
+    paddingVertical: 6,
+    borderRadius: RADIUS.button,
+    borderWidth: 1,
+    borderColor: COLORS.semantic.errorBorder,
+    backgroundColor: COLORS.neutral.white,
+    ...Platform.select({
+      web: {
+        cursor: 'pointer',
+      },
+    }),
+  },
+  deleteFileBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: COLORS.semantic.error,
+  },
+  cameraOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING[16],
+  },
+  cameraContainer: {
+    width: '100%',
+    maxWidth: 480,
+    backgroundColor: '#0F172A',
+    borderRadius: RADIUS.card,
+    padding: SPACING[20],
+  },
+  cameraHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING[20],
+  },
+  cameraTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 16,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: COLORS.neutral.white,
+  },
+  cameraCloseBtn: {
+    padding: 4,
+  },
+  viewfinder: {
+    height: 240,
+    backgroundColor: '#1E293B',
+    borderRadius: RADIUS.button,
+    borderWidth: 1,
+    borderColor: '#334155',
+    position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  viewfinderCornerTL: {
+    position: 'absolute',
+    top: 20,
+    left: 20,
+    width: 20,
+    height: 20,
+    borderTopWidth: 3,
+    borderLeftWidth: 3,
+    borderColor: COLORS.brand[500],
+  },
+  viewfinderCornerTR: {
+    position: 'absolute',
+    top: 20,
+    right: 20,
+    width: 20,
+    height: 20,
+    borderTopWidth: 3,
+    borderRightWidth: 3,
+    borderColor: COLORS.brand[500],
+  },
+  viewfinderCornerBL: {
+    position: 'absolute',
+    bottom: 20,
+    left: 20,
+    width: 20,
+    height: 20,
+    borderBottomWidth: 3,
+    borderLeftWidth: 3,
+    borderColor: COLORS.brand[500],
+  },
+  viewfinderCornerBR: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    width: 20,
+    height: 20,
+    borderBottomWidth: 3,
+    borderRightWidth: 3,
+    borderColor: COLORS.brand[500],
+  },
+  viewfinderText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    color: COLORS.neutral[400],
+    textAlign: 'center',
+    paddingHorizontal: SPACING[24],
+  },
+  cameraControls: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: SPACING[24],
+  },
+  cameraCancelBtn: {
+    padding: 10,
+  },
+  cameraCancelText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: COLORS.neutral[400],
+  },
+  shutterBtn: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 4,
+    borderColor: COLORS.neutral.white,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...Platform.select({
+      web: {
+        cursor: 'pointer',
+      },
+    }),
+  },
+  shutterBtnInner: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: COLORS.neutral.white,
+  },
+  uploadPlaceholderCard: {
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: COLORS.neutral[300],
+    borderRadius: RADIUS.button,
+    paddingVertical: 24,
+    paddingHorizontal: SPACING[16],
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.neutral[50],
+    ...Platform.select({
+      web: {
+        cursor: 'pointer',
+      },
+    }),
+  },
+  uploadPlaceholderText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: COLORS.neutral[800],
+  },
+  uploadPlaceholderSubtext: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    color: COLORS.neutral[500],
+    marginTop: 4,
+  },
+  dialogOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING[16],
+  },
+  dialogContainer: {
+    width: '100%',
+    maxWidth: 440,
+    backgroundColor: COLORS.neutral.white,
+    borderRadius: RADIUS.card,
+    padding: SPACING[20],
+  },
+  dialogHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING[16],
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.neutral[100],
+    paddingBottom: 12,
+  },
+  dialogTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 16,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: COLORS.neutral[900],
+  },
+  dialogCloseBtn: {
+    padding: 4,
+  },
+  dialogBody: {
+    gap: SPACING[16],
+  },
+  dropzone: {
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: COLORS.brand[700],
+    borderRadius: RADIUS.button,
+    paddingVertical: 28,
+    paddingHorizontal: SPACING[16],
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.neutral[50],
+    ...Platform.select({
+      web: {
+        cursor: 'pointer',
+      },
+    }),
+  },
+  dropzoneTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: COLORS.neutral[800],
+    textAlign: 'center',
+  },
+  dropzoneSubtitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    color: COLORS.neutral[500],
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  dropzoneSpecs: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    color: COLORS.neutral[400],
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  dialogDividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 4,
+  },
+  dialogDividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: COLORS.neutral[200],
+  },
+  dialogDividerText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: COLORS.neutral[400],
+    marginHorizontal: SPACING[12],
+  },
+  dialogCameraBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.brand[800],
+    paddingVertical: 12,
+    borderRadius: RADIUS.button,
+    ...Platform.select({
+      web: {
+        cursor: 'pointer',
+      },
+    }),
+  },
+  dialogCameraBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: COLORS.neutral.white,
+  },
+  dialogFooter: {
+    marginTop: SPACING[20],
+    alignItems: 'flex-end',
+  },
+  dialogCancelBtn: {
+    paddingHorizontal: SPACING[16],
+    paddingVertical: 8,
+    borderRadius: RADIUS.button,
+    borderWidth: 1,
+    borderColor: COLORS.neutral[300],
+    backgroundColor: COLORS.neutral.white,
+    ...Platform.select({
+      web: {
+        cursor: 'pointer',
+      },
+    }),
+  },
+  dialogCancelText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: COLORS.neutral[600],
   },
 });
