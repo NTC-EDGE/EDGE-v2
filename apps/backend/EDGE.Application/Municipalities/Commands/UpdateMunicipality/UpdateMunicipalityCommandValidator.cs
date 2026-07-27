@@ -13,7 +13,8 @@ public class UpdateMunicipalityCommandValidator : AbstractValidator<UpdateMunici
 
         RuleFor(x => x.ProvinceId)
             .NotEmpty().WithMessage("Province ID is required.")
-            .MustAsync(async (provinceId, token) => {
+            .MustAsync(async (provinceId, token) =>
+            {
                 var province = await _repository.GetProvinceByIdAsync(provinceId, token);
                 return province != null;
             }).WithMessage("The associated Province does not exist.");

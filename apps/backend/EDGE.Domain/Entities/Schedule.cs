@@ -19,7 +19,7 @@ public class Schedule : AuditableEntity
     public string? Remarks { get; set; }
 
     // Navigation properties (prepared for future integration once other entities are available):
-    // public virtual Service? Service { get; set; }
+    public virtual Service? Service { get; set; }
     public virtual Tenant? Tenant { get; set; }
     // public virtual ApplicationRecord? Application { get; set; }
 }

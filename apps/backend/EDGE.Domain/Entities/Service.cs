@@ -15,4 +15,6 @@ public class Service : AuditableEntity
     public string? Description { get; set; }
     public string Contract { get; set; } = string.Empty; // JSON column
     public ICollection<ServiceVariant> ServiceVariants { get; set; } = new List<ServiceVariant>();
+    public virtual ICollection<ServiceFee> ServiceFees { get; set; } = new List<ServiceFee>();
+    public virtual ICollection<Schedule> Schedules { get; set; } = new List<Schedule>();
 }

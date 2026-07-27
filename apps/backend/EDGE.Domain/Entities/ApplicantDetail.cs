@@ -5,7 +5,7 @@ namespace EDGE.Domain.Entities;
 
 public class ApplicantDetail : AuditableEntity
 {
-    public Guid BarangayId { get; set; }
+    public Guid? BarangayId { get; set; }
     public Barangay? Barangay { get; set; }
     public Guid? CompanyDetailId { get; set; }
     public CompanyDetail? CompanyDetail { get; set; }
@@ -21,6 +21,7 @@ public class ApplicantDetail : AuditableEntity
     public double? Height { get; set; }
     public double? Weight { get; set; }
     public DateOnly BirthDate { get; set; }
+    public string? EmailAddress { get; set; }
 
     // Contact & Education
     public string ContactNumber { get; set; } = string.Empty;

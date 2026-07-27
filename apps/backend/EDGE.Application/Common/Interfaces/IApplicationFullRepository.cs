@@ -15,7 +15,7 @@ public interface IApplicationFullRepository
     Task<List<Domain.Entities.Application>> GetUserDraftsAsync(Guid userId, CancellationToken cancellationToken = default);
     Task UpdateAsync(Domain.Entities.Application application, CancellationToken cancellationToken = default);
     Task DeleteAsync(Domain.Entities.Application application, CancellationToken cancellationToken = default);
-    
+
     Task AddApplicationServiceAsync(ApplicationService appService, CancellationToken cancellationToken = default);
     Task AddApplicationApplicantAsync(ApplicationApplicant appApplicant, CancellationToken cancellationToken = default);
     Task AddApplicationRequirementAsync(ApplicationRequirement appRequirement, CancellationToken cancellationToken = default);

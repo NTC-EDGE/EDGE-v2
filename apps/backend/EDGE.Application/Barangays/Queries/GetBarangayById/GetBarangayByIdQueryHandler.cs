@@ -9,7 +9,7 @@ using EDGE.Application.Regions.Dtos;
 
 namespace EDGE.Application.Barangays.Queries.GetBarangayById;
 
-public class GetBarangayByIdQueryHandler(IGeographicRepository repository) 
+public class GetBarangayByIdQueryHandler(IGeographicRepository repository)
     : IRequestHandler<GetBarangayByIdQuery, ApiResponse<BarangayDto>>
 {
     public async Task<ApiResponse<BarangayDto>> Handle(GetBarangayByIdQuery request, CancellationToken cancellationToken)
@@ -18,10 +18,10 @@ public class GetBarangayByIdQueryHandler(IGeographicRepository repository)
             ?? throw new NotFoundException("Barangay not found.");
 
         var dto = new BarangayDto(
-            barangay.Id, 
-            barangay.MunicipalityId, 
-            barangay.Code, 
-            barangay.Name, 
+            barangay.Id,
+            barangay.MunicipalityId,
+            barangay.Code,
+            barangay.Name,
             barangay.IsActive,
             barangay.Municipality != null ? new MunicipalityDto(
                 barangay.Municipality.Id,

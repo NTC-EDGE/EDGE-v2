@@ -23,7 +23,7 @@ public class PreviewCsvImportCommandHandler : IRequestHandler<PreviewCsvImportCo
             return ApiResponse<CsvValidationResultDto>.Fail("Uploaded CSV file is empty.");
         }
 
-        var result = await _csvParser.ParseAndValidateCsvAsync(request.CsvStream, cancellationToken);
+        var result = await _csvParser.ParseAndValidateCsvAsync(request.CsvStream, request.ServiceId, cancellationToken);
         return ApiResponse<CsvValidationResultDto>.Success(result, "CSV file parsed and validated successfully.");
     }
 }

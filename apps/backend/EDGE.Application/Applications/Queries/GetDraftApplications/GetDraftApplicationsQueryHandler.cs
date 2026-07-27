@@ -78,7 +78,7 @@ public class GetDraftApplicationsQueryHandler : IRequestHandler<GetDraftApplicat
                     dto.Details = new ApplicantDetailDto
                     {
                         Id = ad.Id,
-                        BarangayId = ad.BarangayId,
+                        BarangayId = ad.BarangayId ?? Guid.Empty,
                         Address = ad.Address,
                         FirstName = ad.FirstName,
                         MiddleName = ad.MiddleName,
@@ -96,6 +96,23 @@ public class GetDraftApplicationsQueryHandler : IRequestHandler<GetDraftApplicat
                         YearGraduated = ad.YearGraduated,
                         ESignature = ad.ESignature
                     };
+                }
+
+                if (a != null)
+                {
+                    var formSubmissionsForApplicant = app.FormSubmissions
+                        .Where(fs => fs.ApplicantId == a.Id)
+                        .ToList();
+
+                    dto.FormFieldValues = formSubmissionsForApplicant
+                        .SelectMany(fs => fs.FieldValues)
+                        .Select(fv => new FormFieldValueDto
+                        {
+                            FieldId = fv.FieldId,
+                            FieldLabel = fv.Field?.Label ?? string.Empty,
+                            Value = fv.Value
+                        })
+                        .ToList();
                 }
 
                 return dto;

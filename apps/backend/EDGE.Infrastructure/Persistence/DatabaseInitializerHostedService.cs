@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Configuration;
 
 namespace EDGE.Infrastructure.Persistence;
 
@@ -24,7 +25,7 @@ public class DatabaseInitializerHostedService : IHostedService
 
         using var scope = _serviceProvider.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-
+        var configuration = scope.ServiceProvider.GetService<IConfiguration>();
         // 1. Run migrations first
         try
         {
@@ -35,8 +36,8 @@ public class DatabaseInitializerHostedService : IHostedService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Database migration skipped or encountered an existing table/schema issue.");
-            throw new InvalidOperationException("Database migration failed. Please check the logs for details.", ex);
+            _logger.LogError(ex, "Database migration failed.");
+            throw;
         }
 
         // 2. Seed IAM reference data (Roles, Permissions, RolePermissions, default Users)
