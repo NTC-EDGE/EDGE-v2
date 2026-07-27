@@ -1,7 +1,152 @@
 /**
  * Uniform Error Message Parser for NTC-EDGE Application Ecosystem.
- * Parses errors from both C# .NET 10 Backend API (ApiResponse / ProblemDetails / ValidationProblem)
- * and Clerk Identity API uniformly into clear, user-friendly error strings.
+ * Modular, type-safe pipeline for parsing C# .NET 10 Backend API responses,
+ * Clerk Identity API errors, and network connection failures.
+ */
+
+// Helper to safely read a property from an unknown object without type assertions
+function getProperty(target: unknown, key: string): unknown {
+  if (typeof target === "object" && target !== null) {
+    return Reflect.get(target, key);
+  }
+  return undefined;
+}
+
+/**
+ * 1. Network Connection Failure Parser
+ */
+function parseNetworkError(err: unknown): string | null {
+  if (typeof err === "object" && err !== null) {
+    const code = getProperty(err, "code");
+    if (code === "ERR_NETWORK") {
+      return "Unable to connect to the backend server. Please verify that your internet connection is active and the C# backend API is running.";
+    }
+    const message = getProperty(err, "message");
+    if (typeof message === "string" && message.includes("Network Error")) {
+      return "Unable to connect to the backend server. Please verify that your internet connection is active and the C# backend API is running.";
+    }
+  }
+  if (err instanceof Error && err.message.includes("Network Error")) {
+    return "Unable to connect to the backend server. Please verify that your internet connection is active and the C# backend API is running.";
+  }
+  return null;
+}
+
+/**
+ * 2. Clerk Sign-In Attempt Status Parser (e.g. needs_client_trust, needs_second_factor)
+ */
+function parseClerkSignInStatus(errObj: object): string | null {
+  const signInObj = getProperty(errObj, "sign_in") ?? getProperty(errObj, "response") ?? errObj;
+  if (typeof signInObj !== "object" || signInObj === null) return null;
+
+  const status = getProperty(signInObj, "status");
+  const identifier = getProperty(signInObj, "identifier");
+
+  if (typeof status !== "string") return null;
+
+  const idSuffix = typeof identifier === "string" && identifier.length > 0 ? ` for ${identifier}` : "";
+
+  if (status === "needs_client_trust") {
+    return `Verification Required: Clerk requires device trust or email code verification${idSuffix}. Please check your email inbox for a verification link or code.`;
+  }
+  if (status === "needs_second_factor") {
+    return `Two-Factor Verification Required: Please enter the 2FA code sent to your email/authenticator${idSuffix}.`;
+  }
+  if (status === "needs_first_factor") {
+    return "Authentication Incomplete: Additional identification factor is required to finish signing in.";
+  }
+  return null;
+}
+
+/**
+ * 3. C# .NET 10 Backend API Response Parser (ApiResponse<T>, ProblemDetails, ValidationProblem)
+ */
+function parseBackendApiResponse(errObj: object): string | null {
+  const response = getProperty(errObj, "response");
+  if (typeof response !== "object" || response === null) return null;
+
+  const data = getProperty(response, "data");
+  const status = getProperty(response, "status");
+
+  if (typeof data === "object" && data !== null) {
+    // C# ApiResponse<T> format: { succeeded: false, message: "..." }
+    const message = getProperty(data, "message");
+    if (typeof message === "string" && message.trim().length > 0) {
+      return message.trim();
+    }
+
+    // C# ProblemDetails format: { detail: "...", title: "..." }
+    const detail = getProperty(data, "detail");
+    if (typeof detail === "string" && detail.trim().length > 0) {
+      return detail.trim();
+    }
+    const title = getProperty(data, "title");
+    if (typeof title === "string" && title.trim().length > 0) {
+      return title.trim();
+    }
+
+    // FluentValidation dictionary format: { errors: { SelectedRegion: ["Region is required"] } }
+    const errors = getProperty(data, "errors");
+    if (typeof errors === "object" && errors !== null) {
+      const keys = Object.keys(errors);
+      if (keys.length > 0) {
+        const firstArr = getProperty(errors, keys[0]);
+        if (Array.isArray(firstArr) && firstArr.length > 0 && typeof firstArr[0] === "string") {
+          return firstArr[0];
+        }
+      }
+    }
+  }
+
+  // HTTP status code fallbacks
+  if (typeof status === "number") {
+    if (status === 403) return "Access Denied: You do not have permission or active membership in the selected region.";
+    if (status === 401) return "Session Expired: Please log in again to continue.";
+    if (status === 404) return "Resource Not Found: The requested record does not exist.";
+    if (status === 429) return "Too many requests. Please wait a moment before trying again.";
+  }
+
+  return null;
+}
+
+/**
+ * 4. Clerk API Error Code Parser (strategy_for_user_invalid, form_identifier_not_found, etc.)
+ */
+function parseClerkErrorPayload(errObj: object): string | null {
+  const errors = getProperty(errObj, "errors");
+  const singleError = getProperty(errObj, "error");
+  const targetErr = Array.isArray(errors) && errors.length > 0 ? errors[0] : singleError;
+
+  if (typeof targetErr !== "object" || targetErr === null) return null;
+
+  const code = getProperty(targetErr, "code");
+  const message = getProperty(targetErr, "message");
+  const longMessage = getProperty(targetErr, "long_message");
+
+  if (code === "strategy_for_user_invalid") {
+    return "Password reset or password login is unavailable for this account because it was registered using Google Sign-In. Please sign in with Google.";
+  }
+  if (code === "too_many_requests" || (typeof code === "string" && code.includes("rate_limit"))) {
+    return typeof message === "string" && message.trim().length > 0
+      ? message.trim()
+      : "Too many requests. Please try again in a bit.";
+  }
+  if (code === "form_identifier_not_found" || code === "form_password_incorrect") {
+    return "Authentication Failed: Invalid credentials, wrong password, or wrong region selected.";
+  }
+
+  if (typeof longMessage === "string" && longMessage.trim().length > 0) {
+    return longMessage.trim();
+  }
+  if (typeof message === "string" && message.trim().length > 0) {
+    return message.trim();
+  }
+
+  return null;
+}
+
+/**
+ * Main Uniform Error Message Parser Function
  */
 export const parseApiError = (
   err: unknown,
@@ -11,156 +156,35 @@ export const parseApiError = (
     return defaultFallback;
   }
 
-  // Handle error objects
+  // Step 1: Check for Network Connection Failure
+  const networkError = parseNetworkError(err);
+  if (networkError !== null) return networkError;
+
   if (typeof err === "object" && err !== null) {
-    const record = err as Record<string, unknown>;
+    // Step 2: Check for Clerk Sign-In Attempt Status (needs_client_trust, 2FA, etc.)
+    const signInStatusError = parseClerkSignInStatus(err);
+    if (signInStatusError !== null) return signInStatusError;
 
-    // Handle Network Connection Failure (Axios ERR_NETWORK)
-    if ("code" in record && record.code === "ERR_NETWORK") {
-      return "Unable to connect to the backend server. Please verify that your internet connection is active and the C# backend API is running.";
-    }
+    // Step 3: Check for C# Backend API HTTP Response (ApiResponse / ProblemDetails)
+    const backendError = parseBackendApiResponse(err);
+    if (backendError !== null) return backendError;
 
-    // Handle Clerk Sign-In Attempt status objects (e.g. needs_client_trust, needs_second_factor)
-    const inspectSignInStatus = (target: Record<string, unknown>): string | null => {
-      const signInObj = "sign_in" in target && typeof target.sign_in === "object" && target.sign_in !== null
-        ? (target.sign_in as Record<string, unknown>)
-        : "response" in target && typeof target.response === "object" && target.response !== null
-        ? (target.response as Record<string, unknown>)
-        : target;
+    // Step 4: Check for Clerk Error Payload (errors array or error object)
+    const clerkError = parseClerkErrorPayload(err);
+    if (clerkError !== null) return clerkError;
 
-      const status = typeof signInObj.status === "string" ? signInObj.status : "";
-      const identifier = typeof signInObj.identifier === "string" ? signInObj.identifier : "";
-
-      if (status === "needs_client_trust") {
-        const idSuffix = identifier.length > 0 ? ` for ${identifier}` : "";
-        return `Verification Required: Clerk requires device trust or email code verification${idSuffix}. Please check your email inbox for a verification link or code.`;
+    // Step 5: Direct object message fallback
+    const directMessage = getProperty(err, "message");
+    if (typeof directMessage === "string" && directMessage.trim().length > 0) {
+      if (directMessage.includes("needs_client_trust")) {
+        return "Verification Required: Clerk requires device trust or email code verification. Please check your email inbox for a verification code.";
       }
-      if (status === "needs_second_factor") {
-        const idSuffix = identifier.length > 0 ? ` for ${identifier}` : "";
-        return `Two-Factor Verification Required: Please enter the 2FA code sent to your email/authenticator${idSuffix}.`;
-      }
-      if (status === "needs_first_factor") {
-        return "Authentication Incomplete: Additional identification factor is required to finish signing in.";
-      }
-      return null;
-    };
-
-    const statusMsg = inspectSignInStatus(record);
-    if (statusMsg !== null) {
-      return statusMsg;
-    }
-
-    // 1. Handle HTTP / Axios responses from C# .NET 10 Backend API
-    if ("response" in record && record.response !== null && typeof record.response === "object") {
-      const response = record.response as Record<string, unknown>;
-      const status = typeof response.status === "number" ? response.status : undefined;
-      const data = response.data as Record<string, unknown> | undefined;
-
-      if (data !== undefined && data !== null) {
-        // C# ApiResponse<T> format: { succeeded: false, message: "...", errors: { ... } }
-        if ("message" in data && typeof data.message === "string" && data.message.trim().length > 0) {
-          return data.message.trim();
-        }
-
-        // C# ProblemDetails format: { detail: "...", title: "..." }
-        if ("detail" in data && typeof data.detail === "string" && data.detail.trim().length > 0) {
-          return data.detail.trim();
-        }
-        if ("title" in data && typeof data.title === "string" && data.title.trim().length > 0) {
-          return data.title.trim();
-        }
-
-        // FluentValidation dictionary format: { errors: { SelectedRegion: ["Region is required"] } }
-        if ("errors" in data && data.errors !== null && typeof data.errors === "object") {
-          const errorsDict = data.errors as Record<string, string[]>;
-          const firstKey = Object.keys(errorsDict)[0];
-          if (firstKey !== undefined && Array.isArray(errorsDict[firstKey]) && errorsDict[firstKey].length > 0) {
-            return errorsDict[firstKey][0];
-          }
-        }
-      }
-
-      if (status === 403) {
-        return "Access Denied: You do not have permission or active membership in the selected region.";
-      }
-      if (status === 401) {
-        return "Session Expired: Please log in again to continue.";
-      }
-      if (status === 404) {
-        return "Resource Not Found: The requested record does not exist.";
-      }
-      if (status === 429) {
-        return "Too many requests. Please wait a moment before trying again.";
-      }
-    }
-
-    // 2. Direct object with errors array (Clerk API Response Error format)
-    if ("errors" in record && Array.isArray(record.errors) && record.errors.length > 0) {
-      const firstErr = record.errors[0] as Record<string, unknown>;
-      const code = typeof firstErr.code === "string" ? firstErr.code : "";
-      const message = typeof firstErr.message === "string" ? firstErr.message : "";
-      const longMessage = typeof firstErr.long_message === "string" ? firstErr.long_message : "";
-
-      if (code === "strategy_for_user_invalid") {
-        return "Password reset or password login is unavailable for this account because it was registered using Google Sign-In. Please sign in with Google.";
-      }
-      if (code === "too_many_requests" || code.includes("rate_limit")) {
-        return message.trim().length > 0
-          ? message.trim()
-          : "Too many requests. Please try again in a bit.";
-      }
-      if (code === "form_identifier_not_found" || code === "form_password_incorrect") {
-        return "Authentication Failed: Invalid credentials, wrong password, or wrong region selected.";
-      }
-      if (longMessage.trim().length > 0) {
-        return longMessage.trim();
-      }
-      if (message.trim().length > 0) {
-        return message.trim();
-      }
-    }
-
-    // 3. Direct object with error payload
-    if ("error" in record && record.error !== null && typeof record.error === "object") {
-      const clerkErr = record.error as Record<string, unknown>;
-      const code = typeof clerkErr.code === "string" ? clerkErr.code : "";
-      const message = typeof clerkErr.message === "string" ? clerkErr.message : "";
-      const longMessage = typeof clerkErr.long_message === "string" ? clerkErr.long_message : "";
-
-      if (code === "strategy_for_user_invalid") {
-        return "Password reset or password login is unavailable for this account because it was registered using Google Sign-In. Please sign in with Google.";
-      }
-      if (code === "too_many_requests" || code.includes("rate_limit")) {
-        return message.trim().length > 0
-          ? message.trim()
-          : "Too many requests. Please try again in a bit.";
-      }
-      if (code === "form_identifier_not_found" || code === "form_password_incorrect") {
-        return "Authentication Failed: Invalid credentials, wrong password, or wrong region selected.";
-      }
-      if (longMessage.trim().length > 0) {
-        return longMessage.trim();
-      }
-      if (message.trim().length > 0) {
-        return message.trim();
-      }
-    }
-
-    if ("message" in record && typeof record.message === "string" && record.message.trim().length > 0) {
-      if (record.message.includes("Network Error")) {
-        return "Unable to connect to the backend server. Please verify that your internet connection is active and the C# backend API is running.";
-      }
-      if (record.message.includes("needs_client_trust")) {
-        return "Verification Required: Clerk requires device trust or email code verification for edissaamante@gmail.com. Please check your email inbox for a verification code.";
-      }
-      return record.message.trim();
+      return directMessage.trim();
     }
   }
 
+  // Step 6: Standard JS Error instance fallback
   if (err instanceof Error && err.message.trim().length > 0) {
-    if (err.message.includes("Network Error")) {
-      return "Unable to connect to the backend server. Please verify that your internet connection is active and the C# backend API is running.";
-    }
     if (err.message.includes("needs_client_trust")) {
       return "Verification Required: Clerk requires device trust or email code verification. Please check your email inbox for a verification code.";
     }
