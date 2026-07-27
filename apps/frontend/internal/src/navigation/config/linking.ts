@@ -1,4 +1,8 @@
-import { getStateFromPath, getPathFromState, type LinkingOptions } from "@edge/ui";
+import {
+  getStateFromPath,
+  getPathFromState,
+  type LinkingOptions,
+} from "@edge/ui";
 
 const getPrefixes = (): string[] => {
   const prefixes = ["edge://"];
@@ -19,12 +23,18 @@ const getPrefixes = (): string[] => {
  */
 export const unauthLinking: LinkingOptions<object> = {
   prefixes: getPrefixes(),
-  getStateFromPath(path: string, options?: Parameters<typeof getStateFromPath>[1]) {
+  getStateFromPath(
+    path: string,
+    options?: Parameters<typeof getStateFromPath>[1],
+  ) {
     return {
       routes: [{ name: "InternalLogin" }],
     };
   },
-  getPathFromState(state: Parameters<typeof getPathFromState>[0], options?: Parameters<typeof getPathFromState>[1]) {
+  getPathFromState(
+    state: Parameters<typeof getPathFromState>[0],
+    options?: Parameters<typeof getPathFromState>[1],
+  ) {
     return "/internal/login";
   },
 };
@@ -35,7 +45,10 @@ export const unauthLinking: LinkingOptions<object> = {
  */
 export const authLinking: LinkingOptions<object> = {
   prefixes: getPrefixes(),
-  getStateFromPath(path: string, options?: Parameters<typeof getStateFromPath>[1]) {
+  getStateFromPath(
+    path: string,
+    options?: Parameters<typeof getStateFromPath>[1],
+  ) {
     const cleanPath = path.split("?")[0].replace(/\/$/, "");
     if (
       cleanPath === "" ||
@@ -51,7 +64,10 @@ export const authLinking: LinkingOptions<object> = {
     }
     return getStateFromPath(path, options);
   },
-  getPathFromState(state: Parameters<typeof getPathFromState>[0], options?: Parameters<typeof getPathFromState>[1]) {
+  getPathFromState(
+    state: Parameters<typeof getPathFromState>[0],
+    options?: Parameters<typeof getPathFromState>[1],
+  ) {
     const generatedPath = getPathFromState(state, options);
     if (generatedPath === "" || generatedPath === "/") {
       return "/dashboard";

@@ -1,11 +1,6 @@
 import { useState, useEffect } from "react";
 import { StatusBar } from "expo-status-bar";
-import {
-  StyleSheet,
-  View,
-  ActivityIndicator,
-  Platform,
-} from "react-native";
+import { StyleSheet, View, ActivityIndicator, Platform } from "react-native";
 import { ClerkProvider } from "@clerk/expo";
 import { tokenCache } from "@clerk/expo/token-cache";
 import {

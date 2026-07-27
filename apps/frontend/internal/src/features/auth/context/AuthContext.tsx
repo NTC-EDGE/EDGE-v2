@@ -11,7 +11,11 @@ export interface UserProfile {
 interface AuthContextType {
   isAuthenticated: boolean;
   user: UserProfile | null;
-  loginWithClerk: (email: string, password: string, region?: string) => Promise<void>;
+  loginWithClerk: (
+    email: string,
+    password: string,
+    region?: string,
+  ) => Promise<void>;
   signUpWithClerk: (email: string, password: string) => Promise<boolean>;
   verifySignUp: (code: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -28,7 +32,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     typeof CLERK_PUBLISHABLE_KEY === "string" &&
     CLERK_PUBLISHABLE_KEY.length > 0;
 
-  const [selectedRegionState, setSelectedRegionState] = useState<string | undefined>(undefined);
+  const [selectedRegionState, setSelectedRegionState] = useState<
+    string | undefined
+  >(undefined);
 
   const clerkAuth = useAuth();
   const clerkUser = useUser();
@@ -142,7 +148,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         );
       }
     } else {
-      throw new Error(`Sign up incomplete: status is ${(signUp as any).status}`);
+      throw new Error(
+        `Sign up incomplete: status is ${(signUp as any).status}`,
+      );
     }
   };
 
