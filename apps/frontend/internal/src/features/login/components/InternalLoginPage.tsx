@@ -220,7 +220,7 @@ export function InternalLoginPage() {
       
       const currentOrigin = Platform.OS === "web" && typeof window !== "undefined" && window.location !== undefined && typeof window.location.origin === "string"
         ? window.location.origin + window.location.pathname + window.location.search
-        : "edge://internal/login";
+        : (process.env.EXPO_PUBLIC_APP_URL ?? "edge://internal/login");
         
       const signInUrl = `https://${portalDomain}/sign-in?redirect_url=${encodeURIComponent(currentOrigin)}`;
       

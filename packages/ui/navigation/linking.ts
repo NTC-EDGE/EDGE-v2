@@ -1,21 +1,39 @@
 import { getStateFromPath, getPathFromState, type LinkingOptions } from "@react-navigation/native";
 
 /**
- * Resolves standard web and native deep linking prefixes for Expo apps (internal and client).
- * Supports localhost dev ports (8081, 8082, 8083), edge:// scheme, and dynamic window.location.origin on Web.
+ * Dynamically resolves linking prefixes for Expo apps on Web (Vercel/Production) and Native.
+ * Prioritizes dynamic browser window.location.origin, environment variables, app schemes, and dev ports.
  */
 export const getPrefixes = (): string[] => {
-  const prefixes = [
-    "http://localhost:8081",
-    "http://localhost:8082",
-    "http://localhost:8083",
-    "edge://",
-  ];
+  const prefixes: string[] = [];
+
+  // 1. Dynamic Browser Origin (Web / Vercel deployment)
   if (typeof window !== "undefined" && window.location !== undefined && typeof window.location.origin === "string") {
-    if (!prefixes.includes(window.location.origin)) {
+    if (window.location.origin.length > 0 && !prefixes.includes(window.location.origin)) {
       prefixes.push(window.location.origin);
     }
   }
+
+  // 2. Environment-Configured App Domain (if specified in EXPO_PUBLIC_APP_URL / NEXT_PUBLIC_APP_URL)
+  const envAppUrl = process.env.EXPO_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_APP_URL;
+  if (typeof envAppUrl === "string" && envAppUrl.length > 0 && !prefixes.includes(envAppUrl)) {
+    prefixes.push(envAppUrl);
+  }
+
+  // 3. Custom App Scheme for Native Deep Linking
+  const appScheme = process.env.EXPO_PUBLIC_APP_SCHEME ?? "edge://";
+  if (!prefixes.includes(appScheme)) {
+    prefixes.push(appScheme);
+  }
+
+  // 4. Local Development Fallbacks (Metro Bundler ports)
+  const defaultDevPorts = ["http://localhost:8081", "http://localhost:8082", "http://localhost:8083"];
+  for (const devPort of defaultDevPorts) {
+    if (!prefixes.includes(devPort)) {
+      prefixes.push(devPort);
+    }
+  }
+
   return prefixes;
 };
 
@@ -27,7 +45,7 @@ export interface CreateLinkingConfigOptions {
 }
 
 /**
- * Creates a clean React Navigation linking configuration with dynamic root & alias redirects,
+ * Creates a dynamic React Navigation linking configuration with root & alias redirects,
  * preserving deep link return URLs (?redirectUrl=... or ?redirect=...) post-authentication.
  */
 export const createLinkingConfig = <T extends object>(
