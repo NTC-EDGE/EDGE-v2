@@ -2,7 +2,11 @@ import { createContext, useContext, ReactNode, useState } from "react";
 import { useAuth, useUser, useSignIn, useSignUp } from "@clerk/expo";
 import { parseApiError, verifyStaffMembership } from "@edge/api";
 import { RegionSelectionModal } from "../../login/components/RegionSelectionModal";
-import { EmailVerificationModal } from "../../login/components/EmailVerificationModal";
+import {
+  MfaOtpVerificationModal,
+  MfaStrategy,
+  SupportedFactor,
+} from "../../login/components/MfaOtpVerificationModal";
 
 export interface UserProfile {
   name: string;
@@ -24,9 +28,10 @@ interface AuthContextType {
   loginWithClerk: (email: string, password: string) => Promise<void>;
   signUpWithClerk: (email: string, password: string) => Promise<boolean>;
   verifySignUp: (code: string) => Promise<void>;
-  verifySignInCode: (code: string) => Promise<void>;
-  pendingVerificationEmail: string | null;
-  cancelSignInVerification: () => void;
+  verifyMfaOtp: (strategy: MfaStrategy, code: string) => Promise<void>;
+  resendMfaOtp: (strategy: MfaStrategy) => Promise<void>;
+  mfaFactors: SupportedFactor[] | null;
+  cancelMfaVerification: () => void;
   logout: () => Promise<void>;
   isLoading: boolean;
   clerkUser: ReturnType<typeof useUser>['user'];
@@ -36,11 +41,27 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const CLERK_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? "";
 
+function extractSafeIdentifier(factor: unknown): string | undefined {
+  if (typeof factor === "object" && factor !== null) {
+    const val = Reflect.get(factor, "safeIdentifier");
+    if (typeof val === "string") return val;
+  }
+  return undefined;
+}
+
+function extractStrategy(factor: unknown): string | undefined {
+  if (typeof factor === "object" && factor !== null) {
+    const val = Reflect.get(factor, "strategy");
+    if (typeof val === "string") return val;
+  }
+  return undefined;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const isClerkEnabled = typeof CLERK_PUBLISHABLE_KEY === "string" && CLERK_PUBLISHABLE_KEY.length > 0;
   const [selectedRegionState, setSelectedRegionState] = useState<string | undefined>(undefined);
   const [isMembershipVerified, setIsMembershipVerified] = useState<boolean>(false);
-  const [pendingVerificationEmail, setPendingVerificationEmail] = useState<string | null>(null);
+  const [mfaFactors, setMfaFactors] = useState<SupportedFactor[] | null>(null);
 
   const [backendStaffClaims, setBackendStaffClaims] = useState<{
     tenantId?: string;
@@ -66,7 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     setIsMembershipVerified(false);
     setSelectedRegionState(undefined);
-    setPendingVerificationEmail(null);
+    setMfaFactors(null);
 
     // Step 1: Regular Clerk Credentials Authentication
     try {
@@ -86,37 +107,64 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signIn.status === "needs_client_trust" ||
         signIn.status === "needs_first_factor"
       ) {
+        // Extract supported factors (email_code, phone_code, totp)
+        const factors: SupportedFactor[] = [];
+        const rawFactors = signIn.supportedSecondFactors ?? signIn.supportedFirstFactors ?? [];
+
+        for (const f of rawFactors) {
+          const strat = extractStrategy(f);
+          if (strat === "email_code" || strat === "phone_code" || strat === "totp") {
+            factors.push({
+              strategy: strat as MfaStrategy,
+              safeIdentifier: extractSafeIdentifier(f),
+            });
+          }
+        }
+
+        if (factors.length === 0) {
+          factors.push({ strategy: "email_code", safeIdentifier: email });
+        }
+
+        // Trigger initial code dispatch for email/phone if applicable
         try {
-          await signIn.emailCode.sendCode();
+          if (factors[0].strategy === "email_code") {
+            await signIn.emailCode.sendCode();
+          } else if (factors[0].strategy === "phone_code") {
+            await signIn.phoneCode.sendCode();
+          }
         } catch {
           // Code might already be dispatched automatically by Clerk
         }
-        setPendingVerificationEmail(email);
+
+        setMfaFactors(factors);
       } else {
         throw new Error(`Authentication incomplete: status is ${signIn.status}`);
       }
     } catch (err: unknown) {
       setIsMembershipVerified(false);
-      setPendingVerificationEmail(null);
+      setMfaFactors(null);
       const parsedMessage = parseApiError(err);
       throw new Error(parsedMessage);
     }
   };
 
-  const verifySignInCode = async (code: string) => {
+  const verifyMfaOtp = async (strategy: MfaStrategy, code: string) => {
     if (signIn === null || signIn === undefined) {
       throw new Error("Authentication service is not loaded yet.");
     }
 
     try {
-      const res = await signIn.emailCode.verifyCode({ code });
-      if (res.error !== null && res.error !== undefined) {
-        throw res.error;
+      if (strategy === "email_code") {
+        const res = await signIn.emailCode.verifyCode({ code });
+        if (res.error) throw res.error;
+      } else if (strategy === "phone_code") {
+        const res = await signIn.phoneCode.verifyCode({ code });
+        if (res.error) throw res.error;
       }
 
       if (signIn.status === "complete") {
         await signIn.finalize();
-        setPendingVerificationEmail(null);
+        setMfaFactors(null);
       } else {
         throw new Error(`Verification incomplete: status is ${signIn.status}`);
       }
@@ -126,8 +174,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const cancelSignInVerification = () => {
-    setPendingVerificationEmail(null);
+  const resendMfaOtp = async (strategy: MfaStrategy) => {
+    if (signIn === null || signIn === undefined) return;
+    try {
+      if (strategy === "email_code") {
+        await signIn.emailCode.sendCode();
+      } else if (strategy === "phone_code") {
+        await signIn.phoneCode.sendCode();
+      }
+    } catch (err: unknown) {
+      const parsedMessage = parseApiError(err);
+      throw new Error(parsedMessage);
+    }
+  };
+
+  const cancelMfaVerification = () => {
+    setMfaFactors(null);
   };
 
   const handleConfirmRegion = async (selectedRegionCode: string) => {
@@ -209,7 +271,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     setIsMembershipVerified(false);
     setSelectedRegionState(undefined);
-    setPendingVerificationEmail(null);
+    setMfaFactors(null);
     if (isClerkEnabled && clerkAuth.signOut !== undefined) {
       await clerkAuth.signOut();
     }
@@ -263,21 +325,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loginWithClerk,
         signUpWithClerk,
         verifySignUp,
-        verifySignInCode,
-        pendingVerificationEmail,
-        cancelSignInVerification,
+        verifyMfaOtp,
+        resendMfaOtp,
+        mfaFactors,
+        cancelMfaVerification,
         logout,
         isLoading,
         clerkUser: clerkUser.user,
       }}
     >
       {children}
-      {pendingVerificationEmail !== null ? (
-        <EmailVerificationModal
-          visible={pendingVerificationEmail !== null}
-          email={pendingVerificationEmail}
-          onVerify={verifySignInCode}
-          onCancel={cancelSignInVerification}
+      {mfaFactors !== null && mfaFactors.length > 0 ? (
+        <MfaOtpVerificationModal
+          visible={mfaFactors !== null && mfaFactors.length > 0}
+          supportedFactors={mfaFactors}
+          onVerifyOtp={verifyMfaOtp}
+          onResendOtp={resendMfaOtp}
+          onCancel={cancelMfaVerification}
         />
       ) : null}
       {showRegionModal ? (
