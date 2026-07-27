@@ -77,14 +77,14 @@ public static class ServiceEndpoints
         return app;
     }
 
-    [HasPermission(Permissions.ReadTenants)]
+    [HasPermission(Permissions.ReadServices)]
     public static async Task<IResult> GetTenantServices(Guid tenantId, Guid? serviceCategoryId, IMediator mediator)
     {
         var result = await mediator.Send(new GetServicesQuery(serviceCategoryId, tenantId));
         return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
     }
 
-    [HasPermission(Permissions.SystemAdmin)]
+    [HasPermission(Permissions.CreateServices)]
     public static async Task<IResult> CreateTenantService(Guid tenantId, CreateServiceCommand command, IMediator mediator)
     {
         var updatedCommand = command with { TenantId = tenantId };
@@ -94,7 +94,7 @@ public static class ServiceEndpoints
             : Results.BadRequest(result);
     }
 
-    [HasPermission(Permissions.SystemAdmin)]
+    [HasPermission(Permissions.UpdateServices)]
     public static async Task<IResult> UpdateTenantService(Guid tenantId, Guid id, UpdateServiceCommand command, IMediator mediator)
     {
         var updatedCommand = command with { TenantId = tenantId, Id = id };
@@ -102,7 +102,7 @@ public static class ServiceEndpoints
         return result.Succeeded ? Results.Ok(result) : Results.NotFound(result);
     }
 
-    [HasPermission(Permissions.SystemAdmin)]
+    [HasPermission(Permissions.DeleteServices)]
     public static async Task<IResult> DeleteTenantService(Guid tenantId, Guid id, IMediator mediator)
     {
         var result = await mediator.Send(new DeleteServiceCommand(id));
@@ -115,35 +115,35 @@ public static class ServiceEndpoints
         return Results.Ok(result);
     }
 
-    [HasPermission(Permissions.ReadTenants)]
+    [HasPermission(Permissions.ReadServices)]
     public static async Task<IResult> GetServices(Guid? serviceCategoryId, IMediator mediator)
     {
         var result = await mediator.Send(new GetServicesQuery(serviceCategoryId, null));
         return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
     }
 
-    [HasPermission(Permissions.ReadTenants)]
+    [HasPermission(Permissions.ReadServices)]
     public static async Task<IResult> GetServiceById(Guid id, IMediator mediator)
     {
         var result = await mediator.Send(new GetServiceByIdQuery(id));
         return result.Succeeded ? Results.Ok(result) : Results.NotFound(result);
     }
 
-    [HasPermission(Permissions.ReadTenants)]
+    [HasPermission(Permissions.ReadServices)]
     public static async Task<IResult> GetServiceVariants(Guid id, IMediator mediator)
     {
         var result = await mediator.Send(new GetServiceVariantsQuery(id));
         return Results.Ok(result);
     }
 
-    [HasPermission(Permissions.ReadTenants)]
+    [HasPermission(Permissions.ReadServices)]
     public static async Task<IResult> GetServiceContract(Guid id, IMediator mediator)
     {
         var result = await mediator.Send(new GetServiceContractQuery(id));
         return result.Succeeded ? Results.Ok(result) : Results.NotFound(result);
     }
 
-    [HasPermission(Permissions.ReadTenants)]
+    [HasPermission(Permissions.ReadServices)]
     public static async Task<IResult> GetServiceFormLayout(Guid id, IMediator mediator)
     {
         var result = await mediator.Send(new GetFormByServiceIdQuery(id));

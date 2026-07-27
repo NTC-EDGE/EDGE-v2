@@ -11,6 +11,7 @@ public class ServiceVariantRequirementDto
     public string? ServiceVariantType { get; set; }
     public string? ServiceName { get; set; }
     public string? ServiceCode { get; set; }
-    public string? ApplicationTypeKey { get; set; }
+    public string? ContextKey { get; set; }
+
     public bool IsRequired { get; set; }
 }

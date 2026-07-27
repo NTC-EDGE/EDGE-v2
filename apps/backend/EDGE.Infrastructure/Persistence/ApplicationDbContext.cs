@@ -75,6 +75,8 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
 #endif
 #if STEP_003
     public DbSet<ServiceVariant> ServiceVariants => Set<ServiceVariant>();
+    public DbSet<Requirement> Requirements => Set<Requirement>();
+    public DbSet<ServiceVariantRequirement> ServiceVariantRequirements => Set<ServiceVariantRequirement>();
 #endif
 
 #if STEP_005
@@ -124,8 +126,6 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
     public DbSet<ApplicationStatusHistory> ApplicationStatusHistories => Set<ApplicationStatusHistory>();
 #endif
 
-    public DbSet<Requirement> Requirements => Set<Requirement>();
-    public DbSet<ServiceVariantRequirement> ServiceVariantRequirements => Set<ServiceVariantRequirement>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -313,15 +313,6 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
         });
 #endif
 
-#if STEP_004
-        modelBuilder.Entity<FieldOffice>(entity =>
-        {
-            entity.HasOne(e => e.Region)
-                  .WithMany()
-                  .HasForeignKey(e => e.RegionId)
-                  .OnDelete(DeleteBehavior.Restrict);
-        });
-#endif
 
 #if STEP_005
         modelBuilder.Entity<ExaminationSchedule>(entity =>
@@ -630,12 +621,14 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
         modelBuilder.Entity<ServiceVariantRequirement>(entity =>
         {
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.ApplicationTypeKey).HasMaxLength(100);
+            entity.Property(e => e.ContextKey);
+
 
             entity.HasOne(e => e.Requirement)
-                  .WithMany()
+                  .WithMany(r => r.ServiceVariantRequirements)
                   .HasForeignKey(e => e.RequirementId)
                   .OnDelete(DeleteBehavior.Restrict);
+
 
             entity.HasOne(e => e.ServiceVariant)
                   .WithMany(sv => sv.ServiceVariantRequirements)

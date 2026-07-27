@@ -24,7 +24,8 @@ public class CreateServiceVariantRequirementCommandHandler(
             {
                 RequirementId = item.RequirementId,
                 ServiceVariantId = request.ServiceVariantId,
-                ApplicationTypeKey = item.ApplicationTypeKey,
+                ContextKey = item.ContextKey,
+
                 IsRequired = item.IsRequired
             };
 

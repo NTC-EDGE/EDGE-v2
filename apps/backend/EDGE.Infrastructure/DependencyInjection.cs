@@ -10,6 +10,11 @@ using EDGE.Infrastructure.Persistence;
 using EDGE.Infrastructure.Persistence.Interceptors;
 using EDGE.Infrastructure.Persistence.Repositories;
 using EDGE.Infrastructure.Services;
+using EDGE.Infrastructure.Printing.Services;
+using EDGE.Infrastructure.Printing.Services.Initialization;
+using EDGE.Infrastructure.Printing.Services.Renderers;
+using EDGE.Infrastructure.Printing.Services.Rendering;
+using EDGE.Infrastructure.Printing.Services.Templates;
 
 namespace EDGE.Infrastructure;
 
@@ -63,10 +68,9 @@ public static class DependencyInjection
         services.AddScoped<ICsvSchemaParserService, CsvSchemaParserService>();
         services.AddScoped<INoteRepository, NoteRepository>();
         services.AddScoped<IStoredFileRepository, StoredFileRepository>();
+        services.AddScoped<IRequirementRepository, RequirementRepository>();
         services.AddScoped<IFeeRepository, FeeRepository>();
         services.AddScoped<IServiceFeeRepository, ServiceFeeRepository>();
-        services.AddScoped<IFieldOfficeRepository, FieldOfficeRepository>();
-        services.AddScoped<IRequirementRepository, RequirementRepository>();
         services.AddScoped<IServiceVariantRequirementRepository, ServiceVariantRequirementRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
@@ -75,6 +79,16 @@ public static class DependencyInjection
         services.AddScoped<IStorageService, CloudflareR2StorageService>();
 
         services.AddScoped<IUserActivityService, UserActivityService>();
+
+        // Register Printing & PDF Rendering Services
+        services.AddSingleton<IPdfTemplateProvider, FileSystemPdfTemplateProvider>();
+        services.AddSingleton<IImageOverlayRenderer, ImageFieldRenderer>();
+        services.AddSingleton<IPdfLibraryInitializer, ITextLibraryInitializer>();
+        services.AddSingleton<IPdfRenderer, OverlayPdfRenderer>();
+        services.AddSingleton<IPdfRenderer, FillablePdfRenderer>();
+        services.AddSingleton<IPdfRendererFactory, PdfRendererFactory>();
+        services.AddSingleton<IFormPrintingService, FormPrintingService>();
+        services.AddSingleton<IPdfFormFillerService, PdfFormFillerService>();
 
         // Register Clerk Client
         services.AddHttpClient<IClerkUserService, ClerkUserService>((sp, client) =>

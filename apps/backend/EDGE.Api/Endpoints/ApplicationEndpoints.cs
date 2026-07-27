@@ -2,11 +2,12 @@ using System;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
+using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
-using FluentValidation;
+
 using EDGE.Domain.Authorization;
 using EDGE.Infrastructure.Authorization;
 using EDGE.Application.Applications.Commands.AddApplicantToApplication;
@@ -19,8 +20,14 @@ using EDGE.Application.Applications.Commands.UpdateApplication;
 using EDGE.Application.Applications.Commands.UpdateApplicationApplicant;
 using EDGE.Application.Applications.Commands.UpdateApplicationStatus;
 using EDGE.Application.Applications.Commands.UploadApplicantRequirement;
+using EDGE.Application.Applications.Queries.GetAllApplications;
 using EDGE.Application.Applications.Queries.GetApplicationById;
+using EDGE.Application.Applications.Queries.GetApplicationsByApplicant;
 using EDGE.Application.Applications.Queries.GetDraftApplications;
+
+using EDGE.Domain.Enums;
+using Microsoft.AspNetCore.Mvc;
+
 using EDGE.Application.Common.Models;
 using EDGE.Application.Services.Queries.GetServiceCsvTemplate;
 
@@ -39,8 +46,13 @@ public static class ApplicationEndpoints
         group.MapPost("/", SubmitApplication)
             .WithName("SubmitApplication");
 
+        group.MapGet("/", GetAllApplications)
+            .WithName("GetAllApplications")
+            .WithDescription("Retrieves all applications for the current user, optionally filtered by status.");
+
         group.MapGet("/drafts", GetDraftApplications)
             .WithName("GetDraftApplications");
+
 
         group.MapGet("/{id:guid}", GetApplicationById)
             .WithName("GetApplicationById");
@@ -62,42 +74,41 @@ public static class ApplicationEndpoints
 
         group.MapPatch("/{id:guid}/applicants/{applicantId:guid}", UpdateApplicationApplicant)
             .WithName("UpdateApplicationApplicant")
-            .WithSummary("Update individual applicant details")
             .WithDescription("Updates personal details and form values for a single applicant within an application.");
 
         group.MapDelete("/{id:guid}/applicants/{applicantId:guid}", RemoveApplicationApplicant)
             .WithName("RemoveApplicationApplicant")
-            .WithSummary("Remove applicant from draft application")
             .WithDescription("Removes a single applicant from an existing draft bulk application.");
 
         group.MapPost("/{id:guid}/applicants", AddApplicationApplicant)
             .WithName("AddApplicationApplicant")
-            .WithSummary("Add applicant to draft application")
             .WithDescription("Adds a new applicant to an existing draft bulk application.");
 
+        app.MapGet("/applicants/{applicantId:guid}/applications", GetApplicationsByApplicant)
+            .WithName("GetApplicationsByApplicant")
+            .WithTags("Application");
+
         // V2 tenant-specific mappings
+
         app.MapPost("/tenants/{id:guid}/applications", SubmitTenantApplication)
             .WithName("SubmitTenantApplication")
             .WithTags("Application")
-            .WithSummary("Submit tenant-scoped application")
             .WithDescription("Creates and validates a single application submission linked to a tenant.");
 
         app.MapPatch("/tenants/{id:guid}/applications/{appId:guid}/status", UpdateTenantApplicationStatus)
             .WithName("UpdateTenantApplicationStatus")
             .WithTags("Application")
-            .WithSummary("Update tenant application status")
             .WithDescription("Updates application status and logs status history for a tenant application.");
 
         app.MapPatch("/tenants/{id:guid}/applications/{appId:guid}", UploadTenantApplicationRequirement)
             .WithName("UploadTenantApplicationRequirement")
             .WithTags("Application")
-            .WithSummary("Upload requirement document for application")
             .WithDescription("Updates or uploads a requirement file for a tenant-scoped application.");
 
         app.MapGet("/services/{id:guid}/csv-template", GetServiceCsvTemplate)
             .WithTags("Services")
-            .WithName("GetServiceCsvTemplate")
-            .WithSummary("Download CSV template for service bulk upload");
+            .WithName("GetServiceCsvTemplate");
+
 
         return app;
     }
@@ -132,7 +143,20 @@ public static class ApplicationEndpoints
     }
 
     [HasPermission(Permissions.ViewOwnApplications)]
+    public static async Task<IResult> GetAllApplications([FromQuery] ApplicationStatus? status, IMediator mediator)
+    {
+        var result = await mediator.Send(new GetAllApplicationsQuery(status));
+        if (!result.Succeeded && result.Message != null && result.Message.StartsWith("401"))
+        {
+            return Results.Unauthorized();
+        }
+
+        return Results.Ok(result);
+    }
+
+    [HasPermission(Permissions.ViewOwnApplications)]
     public static async Task<IResult> GetDraftApplications(IMediator mediator)
+
     {
         var result = await mediator.Send(new GetDraftApplicationsQuery());
         if (!result.Succeeded && result.Message != null && result.Message.StartsWith("401"))
@@ -247,7 +271,9 @@ public static class ApplicationEndpoints
     [HasPermission(Permissions.SubmitApplication)]
     public static async Task<IResult> UploadTenantApplicationRequirement(Guid id, Guid appId, UploadApplicantRequirementCommand command, IMediator mediator)
     {
-        var updatedCommand = command with { TenantId = id, ApplicationId = appId };
+        // TenantId is resolved securely from auth context inside the handler (ITenantContextService).
+        // ApplicationId is injected from the route param {appId}.
+        var updatedCommand = command with { ApplicationId = appId };
         var result = await mediator.Send(updatedCommand);
         return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
     }
@@ -263,4 +289,13 @@ public static class ApplicationEndpoints
         byte[] bytes = Encoding.UTF8.GetBytes(result.Data.CsvContent);
         return Results.File(bytes, "text/csv", result.Data.FileName);
     }
+
+    [HasPermission(Permissions.ViewOwnApplications)]
+    public static async Task<IResult> GetApplicationsByApplicant(Guid applicantId, IMediator mediator)
+    {
+        var result = await mediator.Send(new GetApplicationsByApplicantQuery(applicantId));
+        return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
+    }
+
 }
+

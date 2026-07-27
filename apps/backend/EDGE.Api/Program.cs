@@ -14,6 +14,7 @@ using EDGE.Domain.Authorization;
 using EDGE.Api.Middleware;
 using EDGE.Api.Services;
 using EDGE.Api.Endpoints;
+using EDGE.Infrastructure.Printing.Services.Initialization;
 
 // Configure Serilog
 Log.Logger = new LoggerConfiguration()
@@ -57,6 +58,9 @@ try
     builder.Services.AddApiCors(builder.Configuration);
 
     var app = builder.Build();
+
+    // Initialize PDF engine libraries (e.g. iText 7 license configuration)
+    app.Services.InitializePdfLibraries();
 
     // Use global exception handling middleware
     app.UseMiddleware<ExceptionHandlingMiddleware>();

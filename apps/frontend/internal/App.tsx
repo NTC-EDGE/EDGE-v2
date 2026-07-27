@@ -1,14 +1,16 @@
 import { useState } from "react";
 import { StatusBar } from "expo-status-bar";
-import {
-  StyleSheet,
-  View,
-  ActivityIndicator,
-} from "react-native";
+import { StyleSheet, View, ActivityIndicator } from "react-native";
 import { ClerkProvider } from "@clerk/expo";
 import { tokenCache } from "./tokenCache";
 import {
   COLORS,
+  createNativeStackNavigator,
+  createStaticNavigation,
+  getPathFromState,
+  getStateFromPath,
+  RouteProp,
+  SHADOWS,
   useNavigationContainerRef,
   type ParamListBase,
 } from "@edge/ui";
@@ -17,6 +19,7 @@ import {
   useAuthContext,
 } from "./src/features/auth/context/AuthContext";
 import { RoleProvider } from "./src/features/shell/context/RoleContext";
+import { PermissionProvider } from "./src/features/shell/context/PermissionContext";
 import { DashboardShell } from "./src/features/shell/components/DashboardShell";
 import {
   UnauthNavigation,
@@ -24,7 +27,10 @@ import {
   unauthLinking,
   authLinking,
 } from "./src/navigation";
-import { useWebMetadata, useRouteTracker } from "./src/hooks/useWebNavigationSync";
+import {
+  useWebMetadata,
+  useRouteTracker,
+} from "./src/hooks/useWebNavigationSync";
 
 const getClerkKey = (): string => {
   const key = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
@@ -38,7 +44,7 @@ const publishableKey = getClerkKey();
 
 if (publishableKey.length === 0) {
   console.warn(
-    "Missing EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY environment variable. Clerk will not initialize properly."
+    "Missing EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY environment variable. Clerk will not initialize properly.",
   );
 }
 
@@ -86,8 +92,10 @@ export default function App() {
     <ClerkProvider tokenCache={tokenCache} publishableKey={publishableKey}>
       <AuthProvider>
         <RoleProvider>
-          <AppContent />
-          <StatusBar style="dark" />
+          <PermissionProvider>
+            <AppContent />
+            <StatusBar style="dark" />
+          </PermissionProvider>
         </RoleProvider>
       </AuthProvider>
     </ClerkProvider>
@@ -100,5 +108,14 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.bg,
     alignItems: "center",
     justifyContent: "center",
+  },
+  placeholderTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    marginBottom: 16,
+  },
+  placeholderText: {
+    fontSize: 16,
+    color: COLORS.brand[700],
   },
 });

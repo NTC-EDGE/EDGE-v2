@@ -1,11 +1,19 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { StyleSheet, View, ScrollView, useWindowDimensions, Animated, Easing, Pressable } from 'react-native';
-import { COLORS, SPACING } from '@edge/ui';
-import { useShellState } from '../hooks/useShellState';
-import { ROLE_NAVIGATION_LINKS } from '../context/RoleContext';
-import { Sidebar } from './Sidebar';
-import { Header } from './Header';
-import { TransitionWrapper } from './TransitionWrapper';
+import React, { useEffect, useRef, useState } from "react";
+import {
+  StyleSheet,
+  View,
+  ScrollView,
+  useWindowDimensions,
+  Animated,
+  Easing,
+  Pressable,
+} from "react-native";
+import { COLORS, SPACING } from "@edge/ui";
+import { useShellState } from "../hooks/useShellState";
+import { ROLE_NAVIGATION_LINKS } from "../context/RoleContext";
+import { Sidebar } from "./Sidebar";
+import { Header } from "./Header";
+import { TransitionWrapper } from "./TransitionWrapper";
 
 interface DashboardShellProps {
   children: React.ReactNode;
@@ -15,7 +23,7 @@ interface DashboardShellProps {
 
 export function DashboardShell({
   children,
-  activeScreen = 'Dashboard',
+  activeScreen = "Dashboard",
   onNavigate,
 }: DashboardShellProps) {
   const {
@@ -107,13 +115,15 @@ export function DashboardShell({
         user={user}
         onLogout={logout}
         isMobile={isMobile}
-        onMenuPress={activeScreen === 'AccountSettings' ? undefined : toggleSidebar}
+        onMenuPress={
+          activeScreen === "AccountSettings" ? undefined : toggleSidebar
+        }
         onNavigate={handleLinkPress}
       />
 
       <View style={styles.bodyWrapper}>
         {/* Left Sidebar (Desktop Only) */}
-        {!isMobile && activeScreen !== 'AccountSettings' && (
+        {!isMobile && activeScreen !== "AccountSettings" && (
           <Sidebar
             currentRole={currentRole}
             links={links}
@@ -123,40 +133,40 @@ export function DashboardShell({
         )}
 
         {/* Mobile Drawer (Backdrop & Sliding Sidebar) */}
-        {isMobile && activeScreen !== 'AccountSettings' && shouldRenderSidebar && (
-          <>
-            <Animated.View
-              style={[
-                styles.backdrop,
-                { opacity: backdropOpacity },
-              ]}
-            >
-              <Pressable style={styles.backdropPressable} onPress={closeSidebar} />
-            </Animated.View>
-            <Animated.View
-              style={[
-                styles.mobileSidebarContainer,
-                { transform: [{ translateX }] },
-              ]}
-            >
-              <Sidebar
-                currentRole={currentRole}
-                links={links}
-                activeScreen={activeScreen}
-                onNavigate={handleLinkPress}
-                isMobile={true}
-                onClose={closeSidebar}
-                onLogout={logout}
-                onRoleSelect={handleRoleSelect}
-              />
-            </Animated.View>
-          </>
-        )}
+        {isMobile &&
+          activeScreen !== "AccountSettings" &&
+          shouldRenderSidebar && (
+            <>
+              <Animated.View
+                style={[styles.backdrop, { opacity: backdropOpacity }]}
+              >
+                <Pressable
+                  style={styles.backdropPressable}
+                  onPress={closeSidebar}
+                />
+              </Animated.View>
+              <Animated.View
+                style={[
+                  styles.mobileSidebarContainer,
+                  { transform: [{ translateX }] },
+                ]}
+              >
+                <Sidebar
+                  currentRole={currentRole}
+                  links={links}
+                  activeScreen={activeScreen}
+                  onNavigate={handleLinkPress}
+                  isMobile={true}
+                  onClose={closeSidebar}
+                  onLogout={logout}
+                  onRoleSelect={handleRoleSelect}
+                />
+              </Animated.View>
+            </>
+          )}
 
         {/* Main Body */}
-        <View style={styles.mainContentArea}>
-          {children}
-        </View>
+        <View style={styles.mainContentArea}>{children}</View>
       </View>
     </View>
   );
@@ -165,38 +175,37 @@ export function DashboardShell({
 const styles = StyleSheet.create({
   shell: {
     flex: 1,
-    flexDirection: 'column',
+    flexDirection: "column",
     backgroundColor: COLORS.bg,
-    height: '100%',
+    height: "100%",
   },
   bodyWrapper: {
     flex: 1,
-    flexDirection: 'row',
-    width: '100%',
-    overflow: 'hidden',
+    flexDirection: "row",
+    width: "100%",
+    overflow: "hidden",
   },
   mainContentArea: {
     flex: 1,
-    height: '100%',
+    height: "100%",
   },
   backdrop: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: '#000000',
+    backgroundColor: "#000000",
     zIndex: 90,
   },
   backdropPressable: {
     flex: 1,
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
   },
   mobileSidebarContainer: {
-    position: 'absolute',
+    position: "absolute",
     left: 0,
     top: 0,
     bottom: 0,
     width: 280,
-    height: '100%',
+    height: "100%",
     zIndex: 95,
   },
 });
-
