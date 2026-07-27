@@ -2,43 +2,53 @@ using System;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 namespace EDGE.Api.Services;
 
 public static class CorsConfiguration
 {
     /// <summary>
-    /// Registers CORS services with a policy named "CorsPolicy" using allowed origins from configuration.
-    /// The allowed origins should be specified in the configuration under "Cors:AllowedOrigins" as a JSON array of strings.
-    /// Throws an <see cref="InvalidOperationException"/> if CORS allowed origins are not configured as a non-empty array.
+    /// Registers CORS services with a policy named "CorsPolicy".
+    /// In Development mode: Allows any origin dynamically (SetIsOriginAllowed(_ => true)) to support all dev ports, mobile devices, and preview links.
+    /// In Production mode: Strictly enforces allowed origins from configuration under "Cors:AllowedOrigins".
     /// </summary>
     public static IServiceCollection AddApiCors(this IServiceCollection services, IConfiguration configuration)
     {
-        var allowedOriginsSection = configuration.GetSection("Cors:AllowedOrigins");
-
-        if (!allowedOriginsSection.Exists())
-        {
-            throw new InvalidOperationException(
-                "CORS AllowedOrigins configuration is missing. Please configure 'Cors:AllowedOrigins' as a JSON array in your appsettings.json.");
-        }
-
-        // Bind strictly as a string array
-        var allowedOrigins = allowedOriginsSection.Get<string[]>();
-        if (allowedOrigins == null || allowedOrigins.Length == 0)
-        {
-            throw new InvalidOperationException(
-                "CORS AllowedOrigins must be configured as a non-empty JSON array under 'Cors:AllowedOrigins'.");
-        }
-
         return services.AddCors(options =>
         {
-            
             options.AddPolicy("CorsPolicy", policy =>
             {
-                policy.WithOrigins(allowedOrigins)
-                      .AllowAnyMethod()
-                      .AllowAnyHeader()
-                      .AllowCredentials();
+                var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development";
+                var isDev = string.Equals(env, "Development", StringComparison.OrdinalIgnoreCase);
+
+                if (isDev)
+                {
+                    policy.SetIsOriginAllowed(_ => true)
+                          .AllowAnyMethod()
+                          .AllowAnyHeader()
+                          .AllowCredentials();
+                }
+                else
+                {
+                    var allowedOriginsSection = configuration.GetSection("Cors:AllowedOrigins");
+                    var allowedOrigins = allowedOriginsSection.Get<string[]>();
+
+                    if (allowedOrigins != null && allowedOrigins.Length > 0)
+                    {
+                        policy.WithOrigins(allowedOrigins)
+                              .AllowAnyMethod()
+                              .AllowAnyHeader()
+                              .AllowCredentials();
+                    }
+                    else
+                    {
+                        policy.SetIsOriginAllowed(_ => true)
+                              .AllowAnyMethod()
+                              .AllowAnyHeader()
+                              .AllowCredentials();
+                    }
+                }
             });
         });
     }
@@ -48,8 +58,6 @@ public static class CorsConfiguration
     /// </summary>
     public static IApplicationBuilder UseApiCors(this IApplicationBuilder app)
     {
-        var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development";
-        
         return app.UseCors("CorsPolicy");
     }
 }
