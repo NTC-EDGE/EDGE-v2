@@ -8,6 +8,7 @@ import {
   ScrollView,
   Switch,
   FlatList,
+  ActivityIndicator,
 } from "react-native";
 import {
   COLORS,
@@ -139,6 +140,9 @@ export function ActivitiesFeedPane() {
     activeQueueTab,
     setActiveQueueTab,
     resetStore,
+    isLoadingApi,
+    apiError,
+    mutateApiApplications,
   } = useApplications();
   const { visibleTabs } = usePermissions();
 
@@ -533,6 +537,29 @@ export function ActivitiesFeedPane() {
       </View>
 
       {/* ── Feed List ── */}
+      {isLoadingApi ? (
+        <View style={styles.loadingState}>
+          <ActivityIndicator size="small" color={COLORS.brand[700]} />
+          <Text style={styles.loadingText}>Loading applications…</Text>
+        </View>
+      ) : apiError !== undefined && apiError !== null ? (
+        <View style={styles.errorState}>
+          <Lucide name="wifi-off" size={28} color={COLORS.neutral[400]} />
+          <Text style={styles.errorTitle}>Failed to load</Text>
+          <Text style={styles.errorSubtitle}>
+            Could not connect to the server. Showing cached data.
+          </Text>
+          <Pressable
+            style={styles.retryBtn}
+            onPress={() => {
+              void mutateApiApplications();
+            }}
+          >
+            <Lucide name="refresh-cw" size={13} color={COLORS.brand[700]} />
+            <Text style={styles.retryBtnText}>Retry</Text>
+          </Pressable>
+        </View>
+      ) : (
       <ScrollView
         style={styles.feedScroll}
         showsVerticalScrollIndicator={false}
@@ -606,6 +633,7 @@ export function ActivitiesFeedPane() {
 
         <View style={{ height: SPACING[32] }} />
       </ScrollView>
+      )}
     </View>
   );
 }
@@ -928,6 +956,57 @@ const styles = StyleSheet.create({
     ...SHADOWS.card,
   },
   loadMoreText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: COLORS.brand[700],
+  },
+  loadingState: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: SPACING[12],
+    paddingVertical: SPACING[48],
+  },
+  loadingText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    color: COLORS.neutral[400],
+  },
+  errorState: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: SPACING[8],
+    paddingVertical: SPACING[48],
+    paddingHorizontal: SPACING[24],
+  },
+  errorTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: COLORS.neutral[700],
+  },
+  errorSubtitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    color: COLORS.neutral[400],
+    textAlign: "center",
+    lineHeight: 18,
+  },
+  retryBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACING[4],
+    marginTop: SPACING[4],
+    paddingVertical: SPACING[8],
+    paddingHorizontal: SPACING[16],
+    borderRadius: RADIUS.button,
+    borderWidth: 1,
+    borderColor: COLORS.brand[500],
+    backgroundColor: "#EFF6FF",
+  },
+  retryBtnText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 13,
     fontWeight: TYPOGRAPHY.weights.semibold,

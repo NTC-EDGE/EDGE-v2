@@ -197,11 +197,6 @@ export function ActivityCard({
                 <Text style={styles.viewingBadgeText}>Being viewed</Text>
               </View>
             )}
-            {application.isUrgent && (
-              <View style={styles.urgentBadge}>
-                <Lucide name="alert-circle" size={10} color="#EF4444" />
-              </View>
-            )}
             <View style={styles.typePill}>
               <Text style={styles.typePillText}>
                 {application.applicationType}

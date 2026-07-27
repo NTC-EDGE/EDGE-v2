@@ -1,4 +1,4 @@
-export type ApplicationStatus =
+﻿export type ApplicationStatus =
   | "For Approval"
   | "For Verification"
   | "Returned"
@@ -74,7 +74,6 @@ export interface ApplicationData {
   assignedTo: string;
   applicationType: "SINGLE" | "MULTIPLE";
   isBeingViewed: boolean;
-  isUrgent: boolean;
   isPinned: boolean;
   address: {
     barangay: string;
@@ -129,11 +128,10 @@ export const mockApplications: ApplicationData[] = [
     status: "Completed",
     queueTab: "activity",
     createdAt: "2026-07-23T14:30:00Z",
-    dateLabel: "Yesterday • Jul 23, 2026",
+    dateLabel: "Yesterday â€¢ Jul 23, 2026",
     assignedTo: "CASHIER EDGE",
     applicationType: "SINGLE",
     isBeingViewed: false,
-    isUrgent: false,
     isPinned: false,
     address: {
       barangay: "Brgy 4",
@@ -266,11 +264,10 @@ export const mockApplications: ApplicationData[] = [
     status: "For Approval",
     queueTab: "pending",
     createdAt: "2026-07-24T09:15:00Z",
-    dateLabel: "Today • Jul 24, 2026",
+    dateLabel: "Today â€¢ Jul 24, 2026",
     assignedTo: "EVALUATOR EDGE",
     applicationType: "SINGLE",
     isBeingViewed: true,
-    isUrgent: true,
     isPinned: false,
     address: {
       barangay: "San Roque",
@@ -382,11 +379,10 @@ export const mockApplications: ApplicationData[] = [
     status: "Returned",
     queueTab: "pending",
     createdAt: "2026-07-24T10:30:00Z",
-    dateLabel: "Today • Jul 24, 2026",
+    dateLabel: "Today â€¢ Jul 24, 2026",
     assignedTo: "ADMIN EDGE",
     applicationType: "MULTIPLE",
     isBeingViewed: false,
-    isUrgent: false,
     isPinned: true,
     address: {
       barangay: "Brgy 12",
@@ -500,11 +496,10 @@ export const mockApplications: ApplicationData[] = [
     status: "For Verification",
     queueTab: "pending",
     createdAt: "2026-07-24T11:45:00Z",
-    dateLabel: "Today • Jul 24, 2026",
+    dateLabel: "Today â€¢ Jul 24, 2026",
     assignedTo: "CASHIER EDGE",
     applicationType: "SINGLE",
     isBeingViewed: false,
-    isUrgent: false,
     isPinned: false,
     address: {
       barangay: "Poblacion",
@@ -633,11 +628,10 @@ export const mockApplications: ApplicationData[] = [
     status: "Declined",
     queueTab: "activity",
     createdAt: "2026-07-22T14:30:00Z",
-    dateLabel: "2 days ago • Jul 22, 2026",
+    dateLabel: "2 days ago â€¢ Jul 22, 2026",
     assignedTo: "ADMIN EDGE",
     applicationType: "SINGLE",
     isBeingViewed: false,
-    isUrgent: false,
     isPinned: false,
     address: {
       barangay: "Brgy 7",
@@ -719,11 +713,10 @@ export const mockApplications: ApplicationData[] = [
     status: "Approved",
     queueTab: "history",
     createdAt: "2026-07-20T08:00:00Z",
-    dateLabel: "4 days ago • Jul 20, 2026",
+    dateLabel: "4 days ago â€¢ Jul 20, 2026",
     assignedTo: "ADMIN EDGE",
     applicationType: "MULTIPLE",
     isBeingViewed: false,
-    isUrgent: false,
     isPinned: false,
     address: {
       barangay: "Fort Bonifacio",
@@ -837,11 +830,10 @@ export const mockApplications: ApplicationData[] = [
     status: "Declined",
     queueTab: "history",
     createdAt: "2026-07-21T10:15:00Z",
-    dateLabel: "3 days ago • Jul 21, 2026",
+    dateLabel: "3 days ago â€¢ Jul 21, 2026",
     assignedTo: "EVALUATOR EDGE",
     applicationType: "SINGLE",
     isBeingViewed: false,
-    isUrgent: false,
     isPinned: false,
     address: {
       barangay: "Malabag",
@@ -925,11 +917,10 @@ export const mockApplications: ApplicationData[] = [
     status: "For Approval",
     queueTab: "pending",
     createdAt: "2026-07-24T13:00:00Z",
-    dateLabel: "Today • Jul 24, 2026",
+    dateLabel: "Today â€¢ Jul 24, 2026",
     assignedTo: "ADMIN EDGE",
     applicationType: "SINGLE",
     isBeingViewed: false,
-    isUrgent: true,
     isPinned: false,
     address: {
       barangay: "North Harbor",
@@ -1037,11 +1028,10 @@ export const mockApplications: ApplicationData[] = [
     status: "For Verification",
     queueTab: "pending",
     createdAt: "2026-07-24T14:30:00Z",
-    dateLabel: "Today • Jul 24, 2026",
+    dateLabel: "Today â€¢ Jul 24, 2026",
     assignedTo: "CASHIER EDGE",
     applicationType: "SINGLE",
     isBeingViewed: false,
-    isUrgent: false,
     isPinned: false,
     address: {
       barangay: "Bagtas",
@@ -1135,11 +1125,10 @@ export const mockApplications: ApplicationData[] = [
     status: "In Process",
     queueTab: "activity",
     createdAt: "2026-07-24T15:00:00Z",
-    dateLabel: "Today • Jul 24, 2026",
+    dateLabel: "Today â€¢ Jul 24, 2026",
     assignedTo: "EVALUATOR EDGE",
     applicationType: "MULTIPLE",
     isBeingViewed: true,
-    isUrgent: false,
     isPinned: false,
     address: {
       barangay: "Wack-Wack",
@@ -1240,11 +1229,10 @@ export const mockApplications: ApplicationData[] = [
     status: "Returned",
     queueTab: "pending",
     createdAt: "2026-07-24T15:30:00Z",
-    dateLabel: "Today • Jul 24, 2026",
+    dateLabel: "Today â€¢ Jul 24, 2026",
     assignedTo: "EVALUATOR EDGE",
     applicationType: "SINGLE",
     isBeingViewed: false,
-    isUrgent: false,
     isPinned: false,
     address: {
       barangay: "Bungad",
@@ -1335,11 +1323,10 @@ export const mockApplications: ApplicationData[] = [
     status: "Completed",
     queueTab: "history",
     createdAt: "2026-07-15T10:00:00Z",
-    dateLabel: "9 days ago • Jul 15, 2026",
+    dateLabel: "9 days ago â€¢ Jul 15, 2026",
     assignedTo: "CASHIER EDGE",
     applicationType: "MULTIPLE",
     isBeingViewed: false,
-    isUrgent: false,
     isPinned: false,
     address: {
       barangay: "Port Area",
@@ -1453,11 +1440,10 @@ export const mockApplications: ApplicationData[] = [
     status: "Approved",
     queueTab: "activity",
     createdAt: "2026-07-23T09:00:00Z",
-    dateLabel: "Yesterday • Jul 23, 2026",
+    dateLabel: "Yesterday â€¢ Jul 23, 2026",
     assignedTo: "ADMIN EDGE",
     applicationType: "SINGLE",
     isBeingViewed: false,
-    isUrgent: false,
     isPinned: false,
     address: {
       barangay: "San Lorenzo",
@@ -1551,11 +1537,10 @@ export const mockApplications: ApplicationData[] = [
     status: "For Approval",
     queueTab: "pending",
     createdAt: "2026-07-24T16:00:00Z",
-    dateLabel: "Today • Jul 24, 2026",
+    dateLabel: "Today â€¢ Jul 24, 2026",
     assignedTo: "ADMIN EDGE",
     applicationType: "SINGLE",
     isBeingViewed: false,
-    isUrgent: false,
     isPinned: true,
     address: {
       barangay: "U.P. Village",
@@ -1649,11 +1634,10 @@ export const mockApplications: ApplicationData[] = [
     status: "For Verification",
     queueTab: "pending",
     createdAt: "2026-07-24T16:30:00Z",
-    dateLabel: "Today • Jul 24, 2026",
+    dateLabel: "Today â€¢ Jul 24, 2026",
     assignedTo: "CASHIER EDGE",
     applicationType: "MULTIPLE",
     isBeingViewed: false,
-    isUrgent: false,
     isPinned: false,
     address: {
       barangay: "Bel-Air",

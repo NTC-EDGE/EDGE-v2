@@ -9,6 +9,7 @@ import {
 import { useAuth } from "@clerk/expo";
 import {
   useApplications as useApplicationsApi,
+  useDraftApplications,
   submitApplication as submitApplicationApi,
   SubmitApplicationCommand,
   ApplicationDto,
@@ -124,7 +125,6 @@ function mapDtoToApplicationData(dto: ApplicationDto): ApplicationData {
     assignedTo: dto.office ?? "UNASSIGNED",
     applicationType: dto.submissionMode === "Bulk" ? "MULTIPLE" : "SINGLE",
     isBeingViewed: false,
-    isUrgent: false,
     isPinned: false,
     address: {
       barangay: "",
@@ -189,9 +189,16 @@ export function ApplicationProvider({ children }: { children: ReactNode }) {
   const {
     data: apiApplicationsData,
     error: apiError,
-    isLoading: isLoadingApi,
+    isLoading: isLoadingAllApi,
     mutate: mutateApiApplications,
   } = useApplicationsApi(clerkGetToken);
+
+  const {
+    data: draftApplicationsData,
+    isLoading: isLoadingDrafts,
+  } = useDraftApplications(clerkGetToken);
+
+  const isLoadingApi = isLoadingAllApi || isLoadingDrafts;
 
   const submitApplicationToApi = useCallback(
     async (command: SubmitApplicationCommand): Promise<ApiResponse<string>> => {
@@ -203,6 +210,20 @@ export function ApplicationProvider({ children }: { children: ReactNode }) {
   );
 
   const applications = useMemo(() => {
+    // Pending tab: prefer the dedicated drafts endpoint
+    if (activeQueueTab === "pending") {
+      const draftItems = draftApplicationsData?.data;
+      if (
+        draftItems !== undefined &&
+        draftItems !== null &&
+        Array.isArray(draftItems) &&
+        draftItems.length > 0
+      ) {
+        return draftItems.map(mapDtoToApplicationData);
+      }
+    }
+
+    // All other tabs: use the paginated /applications response
     if (
       apiApplicationsData?.data !== undefined &&
       apiApplicationsData.data !== null &&
@@ -211,8 +232,10 @@ export function ApplicationProvider({ children }: { children: ReactNode }) {
     ) {
       return apiApplicationsData.data.map(mapDtoToApplicationData);
     }
+
+    // Fallback to mock data while backend is unavailable
     return mockApplications;
-  }, [apiApplicationsData, mockApplications]);
+  }, [activeQueueTab, apiApplicationsData, draftApplicationsData, mockApplications]);
 
   const selectedApplication =
     selectedId !== null
