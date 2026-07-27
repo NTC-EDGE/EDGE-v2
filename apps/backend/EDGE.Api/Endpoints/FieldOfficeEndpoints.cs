@@ -1,5 +1,7 @@
 using MediatR;
 using FluentValidation;
+using EDGE.Domain.Authorization;
+using EDGE.Infrastructure.Authorization;
 using EDGE.Application.FieldOffices.Commands.CreateFieldOffice;
 using EDGE.Application.FieldOffices.Commands.UpdateFieldOffice;
 using EDGE.Application.FieldOffices.Commands.DeleteFieldOffice;
@@ -17,7 +19,8 @@ public static class FieldOfficeEndpoints
             .WithName("GetFieldOfficesByTenant")
             .WithTags("FieldOffices")
             .WithSummary("Get field offices by tenant organization")
-            .WithDescription("Returns all field offices associated with the tenant organization's region.");
+            .WithDescription("Returns all field offices associated with the tenant organization's region.")
+            .RequireAuthorization();
 
         var offices = group.MapGroup("field-offices")
             .WithTags("FieldOffices");
@@ -60,6 +63,7 @@ public static class FieldOfficeEndpoints
         return group;
     }
 
+    [HasPermission(Permissions.ReadTenants)]
     public static async Task<IResult> GetFieldOfficesByTenant(
         Guid tenantId,
         IMediator mediator)
@@ -68,6 +72,7 @@ public static class FieldOfficeEndpoints
         return result.Succeeded ? Results.Ok(result) : Results.NotFound(result);
     }
 
+    [HasPermission(Permissions.ReadTenants)]
     public static async Task<IResult> GetFieldOffices(
         Guid? tenantId,
         IValidator<GetFieldOfficesQuery> validator,
@@ -84,6 +89,7 @@ public static class FieldOfficeEndpoints
         return Results.Ok(result);
     }
 
+    [HasPermission(Permissions.ReadTenants)]
     public static async Task<IResult> GetFieldOfficeById(
         Guid id,
         Guid? tenantId,
@@ -103,6 +109,7 @@ public static class FieldOfficeEndpoints
             : Results.NotFound(new { message = $"Field office with ID '{id}' was not found for this tenant." });
     }
 
+    [HasPermission(Permissions.CreateTenants)]
     public static async Task<IResult> CreateFieldOffice(
         CreateFieldOfficeCommand command,
         IValidator<CreateFieldOfficeCommand> validator,
@@ -118,6 +125,7 @@ public static class FieldOfficeEndpoints
         return Results.Created($"/api/v2/field-offices/{result.Id}", result);
     }
 
+    [HasPermission(Permissions.UpdateTenants)]
     public static async Task<IResult> UpdateFieldOffice(
         Guid id,
         UpdateFieldOfficeCommand command,
@@ -141,6 +149,7 @@ public static class FieldOfficeEndpoints
             : Results.NotFound(new { message = $"Field office with ID '{id}' was not found for this tenant." });
     }
 
+    [HasPermission(Permissions.DeleteTenants)]
     public static async Task<IResult> DeleteFieldOffice(
         Guid id,
         Guid? tenantId,
