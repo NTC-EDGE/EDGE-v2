@@ -67,3 +67,32 @@ export const fetchRegionById = async (id: string): Promise<RegionDto | null> => 
     return null;
   }
 };
+
+/**
+ * Validates that a user's assigned Tenant Region matches the selected login Region.
+ * Prevents unauthorized cross-tenant staff access.
+ */
+export const validateTenantRegionAccess = (
+  userAssignedRegion: string | null | undefined,
+  selectedLoginRegion: string
+): { isAuthorized: boolean; errorReason?: string } => {
+  if (userAssignedRegion === null || userAssignedRegion === undefined || userAssignedRegion.trim().length === 0) {
+    return { isAuthorized: true };
+  }
+
+  const cleanUserRegion = userAssignedRegion.toLowerCase().trim();
+  const cleanSelectedRegion = selectedLoginRegion.toLowerCase().trim();
+
+  const isMatch =
+    cleanSelectedRegion.includes(cleanUserRegion) ||
+    cleanUserRegion.includes(cleanSelectedRegion);
+
+  if (!isMatch) {
+    return {
+      isAuthorized: false,
+      errorReason: `Access Denied: Your staff account is assigned to Regional Office "${userAssignedRegion}". You cannot log into "${selectedLoginRegion}".`,
+    };
+  }
+
+  return { isAuthorized: true };
+};

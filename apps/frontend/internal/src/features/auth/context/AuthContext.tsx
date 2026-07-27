@@ -1,5 +1,6 @@
 import { createContext, useContext, ReactNode, useState } from "react";
 import { useAuth, useUser, useSignIn, useSignUp } from "@clerk/expo";
+import { validateTenantRegionAccess } from "@edge/api";
 
 export interface UserProfile {
   name: string;
@@ -60,6 +61,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (signIn.status === "complete") {
       await signIn.finalize();
+
+      // Validate Tenant-Region Authorization after authentication
+      if (clerkUser.user !== null && clerkUser.user !== undefined && region !== undefined) {
+        const metadata = (clerkUser.user.publicMetadata ?? clerkUser.user.unsafeMetadata ?? {}) as Record<string, unknown>;
+        const userAssignedRegion = typeof metadata.region === "string" ? metadata.region : undefined;
+
+        const validation = validateTenantRegionAccess(userAssignedRegion, region);
+        if (!validation.isAuthorized) {
+          if (clerkAuth.signOut !== undefined) {
+            await clerkAuth.signOut();
+          }
+          throw new Error(validation.errorReason ?? "Access Denied: Regional tenant mismatch.");
+        }
+      }
     } else {
       throw new Error(`Authentication incomplete: status is ${signIn.status}`);
     }
