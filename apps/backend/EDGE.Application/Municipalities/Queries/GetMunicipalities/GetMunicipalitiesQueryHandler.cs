@@ -7,17 +7,17 @@ using EDGE.Application.Regions.Dtos;
 
 namespace EDGE.Application.Municipalities.Queries.GetMunicipalities;
 
-public class GetMunicipalitiesQueryHandler(IGeographicRepository repository) 
+public class GetMunicipalitiesQueryHandler(IGeographicRepository repository)
     : IRequestHandler<GetMunicipalitiesQuery, ApiResponse<List<MunicipalityDto>>>
 {
     public async Task<ApiResponse<List<MunicipalityDto>>> Handle(GetMunicipalitiesQuery request, CancellationToken cancellationToken)
     {
         var municipalities = await repository.GetMunicipalitiesAsync(request.ProvinceId, request.ActiveOnly, cancellationToken);
         var dtos = municipalities.Select(m => new MunicipalityDto(
-            m.Id, 
-            m.ProvinceId, 
-            m.Code, 
-            m.Name, 
+            m.Id,
+            m.ProvinceId,
+            m.Code,
+            m.Name,
             m.IsActive,
             m.Province != null ? new ProvinceDto(
                 m.Province.Id,

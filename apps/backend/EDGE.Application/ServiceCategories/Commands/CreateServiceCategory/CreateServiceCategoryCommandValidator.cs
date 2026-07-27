@@ -15,13 +15,13 @@ public class CreateServiceCategoryCommandValidator : AbstractValidator<CreateSer
 
         RuleFor(v => v.Code)
             .MaximumLength(20)
-            .MustAsync(async (code, cancellationToken) => 
+            .MustAsync(async (code, cancellationToken) =>
             {
                 return await repository.IsCodeUniqueAsync(code, null, cancellationToken);
             })
             .When(v => !string.IsNullOrWhiteSpace(v.Code))
             .WithMessage("Code must be unique.");
-            
+
         RuleFor(v => v.Type)
             .NotEmpty()
             .Must(t => Enum.TryParse<ServiceCategoryType>(t, true, out _))

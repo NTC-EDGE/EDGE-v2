@@ -22,6 +22,7 @@ public class TenantMemberRepository : ITenantMemberRepository
     {
         return await _context.TenantMembers
             .Include(m => m.Tenant)
+            .Include(m => m.User)
             .FirstOrDefaultAsync(m => m.Id == id, cancellationToken);
     }
 

@@ -22,9 +22,7 @@ public class ScheduleRepository : IScheduleRepository
     {
         return await _context.Schedules
             .AsNoTracking()
-            // .Include(s => s.Tenant)
-            // .Include(s => s.Service)
-            // .Include(s => s.Application)
+            .Include(s => s.Service)
             .FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
     }
 
@@ -32,6 +30,7 @@ public class ScheduleRepository : IScheduleRepository
     {
         var query = _context.Schedules
             .AsNoTracking()
+            .Include(s => s.Service)
             .AsQueryable();
 
         if (tenantId.HasValue && tenantId.Value != Guid.Empty)
@@ -51,6 +50,7 @@ public class ScheduleRepository : IScheduleRepository
     {
         var query = _context.Schedules
             .AsNoTracking()
+            .Include(s => s.Service)
             .Where(s => s.ServiceId == serviceId && s.TenantId == tenantId && s.IsPublished);
 
         if (date.HasValue)

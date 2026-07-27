@@ -73,7 +73,7 @@ export const MOCK_ROLES: Role[] = [
 ];
 
 export const MOCK_FIELD_OFFICES: FieldOffice[] = [
-  { id: "fo-1", name: "NTC Pampanga Extension Office", code: "NTC-FO-PAM", regionId: "reg-1", address: "", contactPhone: "", contactEmail: "", officerInCharge: "", isActive: true, allowSpectrumInspection: true, allowPermitIssuance: true, allowComplaintReception: true },
-  { id: "fo-2", name: "NTC Bulacan Field Sub-Office", code: "NTC-FO-BUL", regionId: "reg-1", address: "", contactPhone: "", contactEmail: "", officerInCharge: "", isActive: true, allowSpectrumInspection: true, allowPermitIssuance: false, allowComplaintReception: true },
-  { id: "fo-3", name: "NTC Cebu Extension Office", code: "NTC-FO-CEB", regionId: "reg-2", address: "", contactPhone: "", contactEmail: "", officerInCharge: "", isActive: true, allowSpectrumInspection: true, allowPermitIssuance: true, allowComplaintReception: true },
+  { id: "fo-1", tenantId: "t-101", name: "NTC Pampanga Extension Office", code: "NTC-FO-PAM", regionId: "reg-1", address: "", contactPhone: "", contactEmail: "", officerInChargeId: "m-101", officerInChargeName: "Maria Santos", isActive: true, allowSpectrumInspection: true, allowPermitIssuance: true, allowComplaintReception: true },
+  { id: "fo-2", tenantId: "t-101", name: "NTC Bulacan Field Sub-Office", code: "NTC-FO-BUL", regionId: "reg-1", address: "", contactPhone: "", contactEmail: "", officerInChargeId: "m-102", officerInChargeName: "Juan Dela Cruz", isActive: true, allowSpectrumInspection: true, allowPermitIssuance: false, allowComplaintReception: true },
+  { id: "fo-3", tenantId: "t-102", name: "NTC Cebu Extension Office", code: "NTC-FO-CEB", regionId: "reg-2", address: "", contactPhone: "", contactEmail: "", officerInChargeId: "m-103", officerInChargeName: "Roberto Reyes", isActive: true, allowSpectrumInspection: true, allowPermitIssuance: true, allowComplaintReception: true },
 ];

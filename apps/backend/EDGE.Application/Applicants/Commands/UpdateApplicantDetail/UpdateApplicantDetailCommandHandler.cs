@@ -181,7 +181,7 @@ public class UpdateApplicantDetailCommandHandler : IRequestHandler<UpdateApplica
             Details = applicant.ApplicantDetail != null ? new ApplicantDetailDto
             {
                 Id = applicant.ApplicantDetail.Id,
-                BarangayId = applicant.ApplicantDetail.BarangayId,
+                BarangayId = applicant.ApplicantDetail.BarangayId ?? Guid.Empty,
                 Address = applicant.ApplicantDetail.Address,
                 FirstName = applicant.ApplicantDetail.FirstName,
                 MiddleName = applicant.ApplicantDetail.MiddleName,

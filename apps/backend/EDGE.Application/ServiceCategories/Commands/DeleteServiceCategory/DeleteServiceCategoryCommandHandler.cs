@@ -6,7 +6,7 @@ using EDGE.Application.Common.Interfaces;
 
 namespace EDGE.Application.ServiceCategories.Commands.DeleteServiceCategory;
 
-public class DeleteServiceCategoryCommandHandler(IServiceCategoryRepository repository, IUnitOfWork unitOfWork) 
+public class DeleteServiceCategoryCommandHandler(IServiceCategoryRepository repository, IUnitOfWork unitOfWork)
     : IRequestHandler<DeleteServiceCategoryCommand, ApiResponse<string>>
 {
     public async Task<ApiResponse<string>> Handle(DeleteServiceCategoryCommand request, CancellationToken cancellationToken)
@@ -22,10 +22,10 @@ public class DeleteServiceCategoryCommandHandler(IServiceCategoryRepository repo
         {
             return ApiResponse<string>.Fail("Cannot delete Service Category because it has associated Services.");
         }
-        
+
         repository.Delete(category);
         await unitOfWork.SaveChangesAsync(cancellationToken);
-        
+
         return ApiResponse<string>.Success(category.Name, "Service category deleted successfully.");
     }
 }
