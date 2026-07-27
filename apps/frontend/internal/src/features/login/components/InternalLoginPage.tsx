@@ -21,7 +21,7 @@ import {
   TYPOGRAPHY,
   Icon as Lucide,
 } from "@edge/ui";
-import { useRegions } from "@edge/api";
+import { useRegions, verifyStaffMembership, parseApiError } from "@edge/api";
 import { useOAuth } from "@clerk/expo";
 import { NtcLogo } from "./NtcLogo";
 import { useAuthContext } from "../../auth/context/AuthContext";
@@ -227,14 +227,17 @@ export function InternalLoginPage() {
     try {
       const res = await startOAuthFlow();
       if (res.createdSessionId && res.setActive) {
-        await res.setActive({ session: res.createdSessionId });
+        // Perform C# Backend Tenant-Region Membership Verification for Google OAuth
+        try {
+          await verifyStaffMembership(res.createdSessionId, region);
+          await res.setActive({ session: res.createdSessionId });
+        } catch (verifyErr: unknown) {
+          await res.setActive({ session: null });
+          throw verifyErr;
+        }
       }
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        triggerToastError(err.message);
-      } else {
-        triggerToastError("Sign in with Google failed.");
-      }
+      triggerToastError(parseApiError(err));
     } finally {
       setIsGoogleSubmitting(false);
     }
