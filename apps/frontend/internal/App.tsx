@@ -1,10 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { StatusBar } from "expo-status-bar";
 import {
   StyleSheet,
   View,
   ActivityIndicator,
-  Platform,
 } from "react-native";
 import { ClerkProvider } from "@clerk/expo";
 import { tokenCache } from "./tokenCache";
@@ -25,6 +24,7 @@ import {
   unauthLinking,
   authLinking,
 } from "./src/navigation";
+import { useWebMetadata, useRouteTracker } from "./src/hooks/useWebNavigationSync";
 
 const getClerkKey = (): string => {
   const key = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
@@ -47,54 +47,9 @@ function AppContent() {
   const navigationRef = useNavigationContainerRef<ParamListBase>();
   const [activeScreen, setActiveScreen] = useState("Dashboard");
 
-  // Sync root URL and preserve target deep link when unauthenticated; update document title on state change
-  useEffect(() => {
-    if (Platform.OS === "web" && typeof document !== "undefined") {
-      if (!isAuthenticated) {
-        document.title = "Login";
-      } else {
-        const formattedTitle = activeScreen
-          .replace(/([A-Z])/g, " $1")
-          .replace(/^./, (str: string) => str.toUpperCase())
-          .trim();
-        document.title = `${formattedTitle} | EDGE`;
-      }
-    }
-    if (!isAuthenticated && Platform.OS === "web" && typeof window !== "undefined" && window.location !== undefined) {
-      const hasClerkParam = window.location.search.includes("__clerk");
-      if (!hasClerkParam) {
-        const currentPath = window.location.pathname;
-        if (currentPath === "/" || currentPath === "") {
-          window.history.replaceState(null, "", "/internal/login");
-        } else if (currentPath !== "/internal/login" && !currentPath.startsWith("/internal/login")) {
-          const redirectUrl = encodeURIComponent(currentPath + window.location.search);
-          window.history.replaceState(null, "", `/internal/login?redirect=${redirectUrl}`);
-        }
-      }
-    }
-  }, [isAuthenticated, activeScreen]);
-
-  // Track the current route inside the stack to sync the Sidebar highlights
-  useEffect(() => {
-    if (!isAuthenticated) return;
-
-    const syncActiveScreen = () => {
-      if (navigationRef.isReady()) {
-        const route = navigationRef.getCurrentRoute();
-        if (route !== null && route !== undefined) {
-          setActiveScreen(route.name);
-        }
-      }
-    };
-
-    syncActiveScreen();
-
-    const unsubscribe = navigationRef.addListener("state", () => {
-      syncActiveScreen();
-    });
-
-    return unsubscribe;
-  }, [isAuthenticated, navigationRef]);
+  // Refactored Custom Hooks for Web Navigation, Tab Titles, Deep-Links & Sidebar Highlights
+  useWebMetadata(isAuthenticated, activeScreen);
+  useRouteTracker(isAuthenticated, navigationRef, setActiveScreen);
 
   if (isLoading) {
     return (
