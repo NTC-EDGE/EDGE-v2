@@ -31,18 +31,15 @@ export function ForgotPasswordScreen() {
   const [confirmPassword, setConfirmPassword] = useState("");
 
   const [emailError, setEmailError] = useState("");
+  const [codeError, setCodeError] = useState("");
+  const [newPasswordError, setNewPasswordError] = useState("");
+  const [confirmPasswordError, setConfirmPasswordError] = useState("");
   const [generalError, setGeneralError] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
   // Verification and new password states
   const [pendingVerification, setPendingVerification] = useState(false);
-  const [code, setCode] = useState("");
-  const [codeError, setCodeError] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [newPasswordError, setNewPasswordError] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [confirmPasswordError, setConfirmPasswordError] = useState("");
 
   // Animations
   const cardFade = useRef(new Animated.Value(0)).current;
@@ -61,21 +58,6 @@ export function ForgotPasswordScreen() {
         duration: 650,
         useNativeDriver: true,
       }),
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(glowAnim, {
-            toValue: 1,
-            duration: 4000,
-            useNativeDriver: true,
-          }),
-          Animated.timing(glowAnim, {
-            toValue: 0,
-            duration: 4000,
-            useNativeDriver: true,
-          }),
-        ]),
-      ),
-    ]).start();
       Animated.loop(
         Animated.sequence([
           Animated.timing(glowAnim, {
@@ -136,6 +118,7 @@ export function ForgotPasswordScreen() {
       setLoading(false);
     }
   };
+  const handleRequestCode = handlePasswordReset;
 
   const handleVerifyCodeAndResetPassword = async () => {
     let isValid = true;
@@ -198,6 +181,7 @@ export function ForgotPasswordScreen() {
       setLoading(false);
     }
   };
+  const handleResetPassword = handleVerifyCodeAndResetPassword;
 
   const glowScale = glowAnim.interpolate({
     inputRange: [0, 1],
@@ -261,182 +245,103 @@ export function ForgotPasswordScreen() {
                 : "Enter your email and we'll send you instructions to reset your password."}
             </Text>
 
-            {generalError.length > 0 ? (
-              <Text style={styles.generalError}>{generalError}</Text>
-            ) : null}
 
-            {success ? (
-              <View style={styles.successWrapper}>
-                <View style={styles.successBox}>
-                  <Lucide
-                    name="check-circle"
-                    name="check-circle"
-                    size={24}
-                    color={COLORS.semantic.success}
-                    style={styles.successIcon}
-                  />
-                  <Text style={styles.successText}>
-                    Password reset successfully! Redirecting...
-                  </Text>
-                </View>
+          {generalError.length > 0 && (
+            <Text style={styles.generalError}>{generalError}</Text>
+          )}
+
+          {success ? (
+            <View style={styles.successWrapper}>
+              <View style={styles.successBox}>
+                <Lucide name="check-circle" size={24} color={COLORS.semantic.success} style={styles.successIcon} />
+                <Text style={styles.successText}>Password reset successfully! Redirecting...</Text>
               </View>
-            ) : pendingVerification ? (
-              <View style={styles.form}>
-                <Input
-                  label="Verification Code"
-                  placeholder="123456"
-                  value={code}
-                  onChangeText={setCode}
-                  error={codeError}
-                  keyboardType="numeric"
-                  autoCapitalize="none"
-                  iconName="lock"
-                />
-
-                <Input
-                  label="New Password"
-                  placeholder="Min. 8 characters"
-                  value={newPassword}
-                  onChangeText={setNewPassword}
-                  error={newPasswordError}
-                  secureTextEntry={true}
-                  autoCapitalize="none"
-                  iconName="lock"
-                />
-
-                <Input
-                  label="Confirm New Password"
-                  placeholder="Re-type new password"
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                  error={confirmPasswordError}
-                  secureTextEntry={true}
-                  autoCapitalize="none"
-                  iconName="lock"
-                />
-
-                <Button
-                  title={loading ? "Resetting Password..." : "Reset Password"}
-                  onPress={handleVerifyCodeAndResetPassword}
-                  loading={loading}
-                  style={styles.submitButton}
-                  icon={
-                    !loading ? (
-                      <Lucide
-                        name="check-circle"
-                        size={16}
-                        color={COLORS.neutral.white}
-                      />
-                    ) : undefined
-                  }
-                />
-
-                <Button
-                  title="Back to Email Entry"
-                  variant="text"
-                  size="sm"
-                  onPress={() => setPendingVerification(false)}
-                  style={styles.backToLoginBtn}
-                  textStyle={styles.backToLoginText}
-                />
-              </View>
-            ) : step === "request" ? (
-              <View style={styles.form}>
-                <Input
-                  label="Email Address"
-                  placeholder="name@example.com"
-                  value={email}
-                  onChangeText={setEmail}
-                  error={emailError}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  iconName="mail"
-                />
-
-                <Button
-                  title={loading ? "Sending Code..." : "Send Reset Code"}
-                  onPress={handleRequestCode}
-                  loading={loading}
-                  style={styles.submitButton}
-                  icon={
-                    !loading ? (
-                      <Lucide
-                        name="send"
-                        size={16}
-                        color={COLORS.neutral.white}
-                      />
-                    ) : undefined
-                  }
-                />
-
-                <Button
-                  title="Return to Sign In"
-                  variant="text"
-                  size="sm"
-                  onPress={() => (navigation as { navigate: (route: string) => void }).navigate("Login")}
-                  style={styles.backToLoginBtn}
-                  textStyle={styles.backToLoginText}
-                />
-              </View>
-            ) : (
-              <View style={styles.form}>
-                <Input
-                  label="Verification Code"
-                  placeholder="Enter 6-digit code"
-                  value={code}
-                  onChangeText={setCode}
-                  error={codeError}
-                  keyboardType="numeric"
-                  iconName="shield-check"
-                />
-
-                <Input
-                  label="New Password"
-                  placeholder="Min. 8 characters"
-                  value={newPassword}
-                  onChangeText={setNewPassword}
-                  error={passwordError}
-                  secureTextEntry={true}
-                  autoCapitalize="none"
-                  iconName="lock"
-                />
-
-                <Input
-                  label="Confirm New Password"
-                  placeholder="Re-type new password"
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                  secureTextEntry={true}
-                  autoCapitalize="none"
-                  iconName="lock"
-                />
-
-                <Button
-                  title={loading ? "Resetting Password..." : "Reset Password"}
-                  onPress={handleResetPassword}
-                  loading={loading}
-                  style={styles.submitButton}
-                  icon={
-                    !loading ? (
-                      <Lucide
-                        name="check-circle"
-                        size={16}
-                        color={COLORS.neutral.white}
-                      />
-                    ) : undefined
-                  }
-                />
-
-                <Button
-                  title="Return to Sign In"
-                  variant="text"
-                  size="sm"
-                  onPress={() => (navigation as { navigate: (route: string) => void }).navigate("Login")}
-                  style={styles.backToLoginBtn}
-                  textStyle={styles.backToLoginText}
-                />
-              </View>
-            )}
+            </View>
+          ) : pendingVerification ? (
+            <View style={styles.form}>
+              <Input
+                label="Verification Code"
+                placeholder="123456"
+                value={code}
+                onChangeText={setCode}
+                error={codeError}
+                keyboardType="numeric"
+                autoCapitalize="none"
+                iconName="lock"
+              />
+              <Input
+                label="New Password"
+                placeholder="Min. 8 characters"
+                value={newPassword}
+                onChangeText={setNewPassword}
+                error={newPasswordError}
+                secureTextEntry={true}
+                autoCapitalize="none"
+                iconName="lock"
+              />
+              <Input
+                label="Confirm New Password"
+                placeholder="Re-type new password"
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                error={confirmPasswordError}
+                secureTextEntry={true}
+                autoCapitalize="none"
+                iconName="lock"
+              />
+              <Button
+                title={loading ? "Resetting Password..." : "Reset Password"}
+                onPress={handleVerifyCodeAndResetPassword}
+                loading={loading}
+                style={styles.submitButton}
+                icon={
+                  !loading ? (
+                    <Lucide name="check-circle" size={16} color={COLORS.neutral.white} />
+                  ) : undefined
+                }
+              />
+              <Button
+                title="Back to Email Entry"
+                variant="text"
+                size="sm"
+                onPress={() => setPendingVerification(false)}
+                style={styles.backToLoginBtn}
+                textStyle={styles.backToLoginText}
+              />
+            </View>
+          ) : (
+            <View style={styles.form}>
+              <Input
+                label="Email Address"
+                placeholder="name@example.com"
+                value={email}
+                onChangeText={setEmail}
+                error={emailError}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                iconName="mail"
+              />
+              <Button
+                title={loading ? "Sending Code..." : "Send Reset Code"}
+                onPress={handlePasswordReset}
+                loading={loading}
+                style={styles.submitButton}
+                icon={
+                  !loading ? (
+                    <Lucide name="send" size={16} color={COLORS.neutral.white} />
+                  ) : undefined
+                }
+              />
+              <Button
+                title="Return to Sign In"
+                variant="text"
+                size="sm"
+                onPress={() => (navigation as { navigate: (route: string) => void }).navigate("Login")}
+                style={styles.backToLoginBtn}
+                textStyle={styles.backToLoginText}
+              />
+            </View>
+          )}
           </Animated.View>
         </View>
       </ScrollView>
