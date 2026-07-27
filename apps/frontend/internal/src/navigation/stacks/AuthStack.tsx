@@ -4,7 +4,6 @@ import {
   type RouteProp,
 } from "@edge/ui";
 import { DashboardScreen } from "../../features/dashboard/screens/DashboardScreen";
-import { QueueScreen } from "../../features/queue/screens/QueueScreen";
 import { EmployeesScreen } from "../../features/employees/screens/EmployeesScreen";
 import { UsersScreen } from "../../features/users/screens/UsersScreen";
 import { SettingsScreen } from "../../features/settings/screens/SettingsScreen";
@@ -12,6 +11,7 @@ import { AdminSettingsScreen } from "../../features/settings/screens/AdminSettin
 import { RolesPermissionScreen } from "../../features/roles-permission/screens/RolesPermissionScreen";
 import { StandardPageWrapper } from "../../features/shell/components/StandardPageWrapper";
 import { PlaceholderScreen } from "./PlaceholderScreen";
+import { ActivitiesScreen } from "../../features/queue/screens/ActivitiesScreen";
 
 function SettingsScreenWrapped() {
   return (
@@ -32,7 +32,7 @@ function DashboardScreenWrapped() {
 function ActivitiesScreenWrapped() {
   return (
     <StandardPageWrapper activeScreen="Activities">
-      <QueueScreen />
+      <ActivitiesScreen />
     </StandardPageWrapper>
   );
 }
