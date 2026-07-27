@@ -12,6 +12,8 @@ import { AdminSettingsScreen } from "../../features/settings/screens/AdminSettin
 import { RolesPermissionScreen } from "../../features/roles-permission/screens/RolesPermissionScreen";
 import { FeedbackScreen } from "../../features/feedback/screens/FeedbackScreen";
 import { FormBuilderScreen } from "../../features/form-builder/screens/FormBuilderScreen";
+import { AnnouncementsScreen } from "../../features/announcements/screens/AnnouncementsScreen";
+import { AuditLogsScreen } from "../../features/audit-logs/screens/AuditLogsScreen";
 import { StandardPageWrapper } from "../../features/shell/components/StandardPageWrapper";
 import { PlaceholderScreen } from "./PlaceholderScreen";
 import { ActivitiesScreen } from "../../features/queue/screens/ActivitiesScreen";
@@ -28,6 +30,22 @@ function FormBuilderScreenWrapped() {
   return (
     <StandardPageWrapper activeScreen="FormBuilder">
       <FormBuilderScreen />
+    </StandardPageWrapper>
+  );
+}
+
+function AnnouncementsScreenWrapped() {
+  return (
+    <StandardPageWrapper activeScreen="Announcements">
+      <AnnouncementsScreen />
+    </StandardPageWrapper>
+  );
+}
+
+function AuditLogsScreenWrapped() {
+  return (
+    <StandardPageWrapper activeScreen="AuditLogs">
+      <AuditLogsScreen />
     </StandardPageWrapper>
   );
 }
@@ -143,6 +161,16 @@ export const AuthStack = createNativeStackNavigator({
       path: "form-builder",
       options: { title: "Form Builder" },
     },
+    Announcements: {
+      screen: AnnouncementsScreenWrapped,
+      path: "announcements",
+      options: { title: "Announcements" },
+    },
+    AuditLogs: {
+      screen: AuditLogsScreenWrapped,
+      path: "audit-logs",
+      options: { title: "Audit Logs" },
+    },
     Activities: {
       screen: ActivitiesScreenWrapped,
       path: "activities",
@@ -171,7 +199,7 @@ export const AuthStack = createNativeStackNavigator({
     RolesPermission: {
       screen: RolesPermissionScreenWrapped,
       path: "roles-permissions",
-      options: { title: "Roles & Permission" },
+      options: { title: "Roles and Permissions" },
     },
     Schedule: {
       screen: ScheduleScreenWrapped,

@@ -2,7 +2,7 @@ import { createContext, useContext, ReactNode, useState, useEffect } from "react
 import { Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import { useAuth, useUser, useSignIn, useSignUp } from "@clerk/expo";
-import { parseApiError, verifyStaffMembership } from "@edge/api";
+import { parseApiError, verifyStaffMembership, setTokenProvider, setAuthToken } from "@edge/api";
 import { RegionSelectionModal } from "../../login/components/RegionSelectionModal";
 import {
   MfaOtpVerificationModal,
@@ -122,6 +122,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { signIn } = useSignIn();
   const { signUp } = useSignUp();
 
+  // Register Clerk's getToken callback with the API tokenManager service
+  useEffect(() => {
+    if (clerkAuth.isSignedIn && clerkAuth.getToken) {
+      setTokenProvider(clerkAuth.getToken);
+    } else {
+      setTokenProvider(null);
+    }
+  }, [clerkAuth.isSignedIn, clerkAuth.getToken]);
+
   // Restore stored region code on page reload and verify membership in background
   useEffect(() => {
     let isMounted = true;
@@ -138,6 +147,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Perform membership verification silently in the background
         try {
           const token = clerkAuth.getToken ? await clerkAuth.getToken() : null;
+          if (token !== null) {
+            setAuthToken(token);
+          }
           const verifiedClaims = await verifyStaffMembership(token, storedRegion);
           if (isMounted) {
             setBackendStaffClaims({

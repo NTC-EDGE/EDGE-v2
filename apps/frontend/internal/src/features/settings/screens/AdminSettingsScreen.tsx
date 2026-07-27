@@ -1,4 +1,4 @@
-// Internal Admin Settings Screen — Updated Navigation Structure
+// Internal Admin Settings Screen — Core Regional Settings
 import React, { useState } from 'react';
 import {
   StyleSheet,
@@ -7,17 +7,14 @@ import {
   Pressable,
   ScrollView,
   useWindowDimensions,
-  ActivityIndicator,
 } from 'react-native';
-import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide } from '@edge/ui';
+import { COLORS, SPACING, RADIUS, TYPOGRAPHY, Icon as Lucide } from '@edge/ui';
 import {
   useRegions,
   useAdminFieldOffices,
   useAdminRequirements,
   useAdminFees,
   useAdminNotes,
-  useAdminAnnouncements,
-  useAdminAuditLogs,
 } from '@edge/api';
 
 import {
@@ -39,18 +36,12 @@ import {
   FeeBreakdownItemInput,
 } from '../components/AdminSettingsModal';
 import { DeleteAdminItemModal } from '../components/DeleteAdminItemModal';
-import { AuditLogsTab } from '../components/AuditLogsTab';
-import { AnnouncementsTab } from '../components/AnnouncementsTab';
-import { RolePermissionsTab } from '../components/RolePermissionsTab';
 
 export type AdminTabType =
   | 'regional'
   | 'requirements'
   | 'fees'
-  | 'notes'
-  | 'audit-logs'
-  | 'announcements'
-  | 'role-permissions';
+  | 'notes';
 
 interface TabItem {
   id: AdminTabType;
@@ -63,9 +54,6 @@ const TABS: TabItem[] = [
   { id: 'requirements', label: 'Application Requirements', icon: 'check-square' },
   { id: 'fees', label: 'Fees and Payments', icon: 'dollar-sign' },
   { id: 'notes', label: 'Notes', icon: 'file-text' },
-  { id: 'audit-logs', label: 'Audit Logs', icon: 'shield' },
-  { id: 'announcements', label: 'Announcements', icon: 'bell' },
-  { id: 'role-permissions', label: 'Roles & Permissions', icon: 'users' },
 ];
 
 export function AdminSettingsScreen() {
@@ -75,12 +63,12 @@ export function AdminSettingsScreen() {
   // Active Tab State
   const [activeTab, setActiveTab] = useState<AdminTabType>('regional');
 
-  // Live API Hooks (Replacing all local mock arrays)
-  const { regions, isLoading: isRegionsLoading } = useRegions();
-  const { fieldOffices, isLoading: isOfficesLoading } = useAdminFieldOffices();
-  const { requirements: apiRequirements, serviceVariantRequirements: apiSvrRequirements, isLoading: isReqsLoading } = useAdminRequirements();
-  const { fees: apiFees, serviceFees: apiServiceFees, isLoading: isFeesLoading } = useAdminFees();
-  const { notes: apiNotes, isLoading: isNotesLoading } = useAdminNotes();
+  // Live API Hooks
+  const { regions } = useRegions();
+  const { fieldOffices } = useAdminFieldOffices();
+  const { requirements: apiRequirements, serviceVariantRequirements: apiSvrRequirements } = useAdminRequirements();
+  const { fees: apiFees, serviceFees: apiServiceFees } = useAdminFees();
+  const { notes: apiNotes } = useAdminNotes();
 
   // Edit Modal State
   const [modalType, setModalType] = useState<ModalType>('none');
@@ -135,7 +123,7 @@ export function AdminSettingsScreen() {
     },
   ];
 
-  // Map API Requirements & Service Variant Requirements -> ApplicationRequirementItem display interface
+  // Map API Requirements -> ApplicationRequirementItem display interface
   const appRequirements: ApplicationRequirementItem[] = apiSvrRequirements.length > 0
     ? apiSvrRequirements.map((svr) => ({
         id: svr.id,
@@ -162,7 +150,7 @@ export function AdminSettingsScreen() {
         mappedDocuments: [{ id: r.id, name: r.name, isRequired: true }],
       }));
 
-  // Map API Fees & Service Fees -> FeePaymentItem display interface
+  // Map API Fees -> FeePaymentItem display interface
   const feesPayments: FeePaymentItem[] = apiFees.map((fee) => {
     const matchingServiceFees = apiServiceFees.filter((sf) => sf.feeId === fee.id);
     const total = matchingServiceFees.reduce((acc, sf) => acc + sf.amount, 0);
@@ -327,7 +315,7 @@ export function AdminSettingsScreen() {
       <View style={styles.headerSection}>
         <Text style={styles.pageTitle}>Admin Settings</Text>
         <Text style={styles.pageSubtitle}>
-          Manage live regional configuration, requirements, fees, guidance notes, audit logs, and announcements.
+          Manage regional configuration, application requirements, fees and payments, and guidance notes.
         </Text>
       </View>
 
@@ -408,30 +396,6 @@ export function AdminSettingsScreen() {
             onEditNote={handleEditNote}
             onDeleteNote={handleDeleteNote}
           />
-        )}
-
-        {activeTab === 'audit-logs' && (
-          <AuditLogsTab />
-        )}
-
-        {activeTab === 'announcements' && (
-          <AnnouncementsTab
-            onAddAnnouncement={() => {
-              setSelectedItem(undefined);
-            }}
-            onDeleteAnnouncement={(id, title) => {
-              setDeleteModal({
-                visible: true,
-                itemTitle: title,
-                itemType: 'Announcement',
-                onConfirm: () => {},
-              });
-            }}
-          />
-        )}
-
-        {activeTab === 'role-permissions' && (
-          <RolePermissionsTab />
         )}
       </View>
 

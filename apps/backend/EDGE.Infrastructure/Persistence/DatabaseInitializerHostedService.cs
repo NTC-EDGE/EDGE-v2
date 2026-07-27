@@ -90,6 +90,19 @@ public class DatabaseInitializerHostedService : IHostedService
         {
             _logger.LogWarning(ex, "Feedback seed data encountered an issue.");
         }
+
+        // 6. Seed System Announcements and Audit Logs
+        try
+        {
+            _logger.LogInformation("Seeding System Announcements and Audit Logs...");
+            await SystemAnnouncementDataSeeder.SeedAsync(context);
+            await AuditLogDataSeeder.SeedAsync(context);
+            _logger.LogInformation("System Announcements and Audit Logs seeded successfully.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "System Announcements/Audit Logs seed data encountered an issue.");
+        }
     }
 
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
