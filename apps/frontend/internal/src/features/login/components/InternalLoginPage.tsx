@@ -12,6 +12,7 @@ import {
   Pressable,
   Modal,
   TextInput,
+  TextStyle,
 } from "react-native";
 import {
   COLORS,
@@ -758,7 +759,7 @@ const styles = StyleSheet.create({
     color: COLORS.neutral[900],
     height: "100%",
     paddingVertical: 0,
-    ...(Platform.OS === "web" ? { outlineStyle: "none", outlineWidth: 0 } : {}),
+    ...(Platform.OS === "web" ? ({ outlineWidth: 0, outlineColor: "transparent" } as unknown as TextStyle) : {}),
   },
   loginButton: {
     height: 48,
