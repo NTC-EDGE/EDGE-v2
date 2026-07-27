@@ -9,3 +9,4 @@ export * from '@clerk/expo';
 export * from '@react-navigation/native';
 export * from '@react-navigation/native-stack';
 export * from './client/ServiceFormModal';
+export * from './navigation/linking';

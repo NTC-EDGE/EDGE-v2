@@ -1,11 +1,19 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { StyleSheet, View, ScrollView, useWindowDimensions, Animated, Easing, Pressable } from 'react-native';
-import { COLORS, SPACING } from '@edge/ui';
-import { useShellState } from '../hooks/useShellState';
-import { ROLE_NAVIGATION_LINKS } from '../context/RoleContext';
-import { Sidebar } from './Sidebar';
-import { Header } from './Header';
-import { TransitionWrapper } from './TransitionWrapper';
+import React, { useEffect, useRef, useState } from "react";
+import {
+  StyleSheet,
+  View,
+  ScrollView,
+  useWindowDimensions,
+  Animated,
+  Easing,
+  Pressable,
+} from "react-native";
+import { COLORS, SPACING } from "@edge/ui";
+import { useShellState } from "../hooks/useShellState";
+import { ROLE_NAVIGATION_LINKS } from "../context/RoleContext";
+import { Sidebar } from "./Sidebar";
+import { Header } from "./Header";
+import { TransitionWrapper } from "./TransitionWrapper";
 
 interface DashboardShellProps {
   children: React.ReactNode;
@@ -15,7 +23,7 @@ interface DashboardShellProps {
 
 export function DashboardShell({
   children,
-  activeScreen = 'Dashboard',
+  activeScreen = "Dashboard",
   onNavigate,
 }: DashboardShellProps) {
   const {
@@ -93,80 +101,72 @@ export function DashboardShell({
 
   return (
     <View style={styles.shell}>
-      {/* Left Sidebar (Desktop Only) */}
-      {!isMobile && (
-        <Sidebar
-          currentRole={currentRole}
-          links={links}
-          activeScreen={activeScreen}
-          onNavigate={handleLinkPress}
-        />
-      )}
+      {/* Top Navigation Header */}
+      <Header
+        currentRole={currentRole}
+        onRoleSelect={handleRoleSelect}
+        showRoleDropdown={showRoleDropdown}
+        toggleRoleDropdown={toggleRoleDropdown}
+        closeRoleDropdown={closeRoleDropdown}
+        isSwitcherHovered={isSwitcherHovered}
+        setIsSwitcherHovered={setIsSwitcherHovered}
+        isLogoutHovered={isLogoutHovered}
+        setIsLogoutHovered={setIsLogoutHovered}
+        user={user}
+        onLogout={logout}
+        isMobile={isMobile}
+        onMenuPress={
+          activeScreen === "AccountSettings" ? undefined : toggleSidebar
+        }
+        onNavigate={handleLinkPress}
+      />
 
-      {/* Mobile Drawer (Backdrop & Sliding Sidebar) */}
-      {isMobile && shouldRenderSidebar && (
-        <>
-          <Animated.View
-            style={[
-              styles.backdrop,
-              { opacity: backdropOpacity },
-            ]}
-          >
-            <Pressable style={styles.backdropPressable} onPress={closeSidebar} />
-          </Animated.View>
-          <Animated.View
-            style={[
-              styles.mobileSidebarContainer,
-              { transform: [{ translateX }] },
-            ]}
-          >
-            <Sidebar
-              currentRole={currentRole}
-              links={links}
-              activeScreen={activeScreen}
-              onNavigate={handleLinkPress}
-              isMobile={true}
-              onClose={closeSidebar}
-              onLogout={logout}
-              onRoleSelect={handleRoleSelect}
-            />
-          </Animated.View>
-        </>
-      )}
+      <View style={styles.bodyWrapper}>
+        {/* Left Sidebar (Desktop Only) */}
+        {!isMobile && activeScreen !== "AccountSettings" && (
+          <Sidebar
+            currentRole={currentRole}
+            links={links}
+            activeScreen={activeScreen}
+            onNavigate={handleLinkPress}
+          />
+        )}
 
-      {/* Right Content Area */}
-      <View style={styles.mainWrapper}>
-        {/* Top Navigation Header */}
-        <Header
-          currentRole={currentRole}
-          onRoleSelect={handleRoleSelect}
-          showRoleDropdown={showRoleDropdown}
-          toggleRoleDropdown={toggleRoleDropdown}
-          closeRoleDropdown={closeRoleDropdown}
-          isSwitcherHovered={isSwitcherHovered}
-          setIsSwitcherHovered={setIsSwitcherHovered}
-          isLogoutHovered={isLogoutHovered}
-          setIsLogoutHovered={setIsLogoutHovered}
-          user={user}
-          onLogout={logout}
-          isMobile={isMobile}
-          onMenuPress={toggleSidebar}
-        />
+        {/* Mobile Drawer (Backdrop & Sliding Sidebar) */}
+        {isMobile &&
+          activeScreen !== "AccountSettings" &&
+          shouldRenderSidebar && (
+            <>
+              <Animated.View
+                style={[styles.backdrop, { opacity: backdropOpacity }]}
+              >
+                <Pressable
+                  style={styles.backdropPressable}
+                  onPress={closeSidebar}
+                />
+              </Animated.View>
+              <Animated.View
+                style={[
+                  styles.mobileSidebarContainer,
+                  { transform: [{ translateX }] },
+                ]}
+              >
+                <Sidebar
+                  currentRole={currentRole}
+                  links={links}
+                  activeScreen={activeScreen}
+                  onNavigate={handleLinkPress}
+                  isMobile={true}
+                  onClose={closeSidebar}
+                  onLogout={logout}
+                  onRoleSelect={handleRoleSelect}
+                />
+              </Animated.View>
+            </>
+          )}
 
-        {/* Main Scrolling Body */}
-        <ScrollView
-          style={styles.contentScrollView}
-          contentContainerStyle={[
-            styles.contentContainer,
-            isMobile && styles.mobileContentContainer,
-          ]}
-        >
-          <View style={styles.maxContainer}>
-            <TransitionWrapper trigger={activeScreen}>
-              {children}
-            </TransitionWrapper>
-          </View>
-        </ScrollView>
+        {/* Main Body */}
+        <View style={styles.mainContentArea}>{children}</View>
       </View>
     </View>
   );
@@ -175,49 +175,37 @@ export function DashboardShell({
 const styles = StyleSheet.create({
   shell: {
     flex: 1,
-    flexDirection: 'row',
+    flexDirection: "column",
     backgroundColor: COLORS.bg,
+    height: "100%",
   },
-  mainWrapper: {
+  bodyWrapper: {
     flex: 1,
-    flexDirection: 'column',
-    height: '100%',
+    flexDirection: "row",
+    width: "100%",
+    overflow: "hidden",
   },
-  contentScrollView: {
+  mainContentArea: {
     flex: 1,
-  },
-  contentContainer: {
-    paddingHorizontal: SPACING[32],
-    paddingVertical: SPACING[32],
-    alignItems: 'center',
-  },
-  mobileContentContainer: {
-    paddingHorizontal: SPACING[16],
-    paddingVertical: SPACING[16],
-  },
-  maxContainer: {
-    width: '100%',
-    maxWidth: 1600,
-    alignSelf: 'center',
+    height: "100%",
   },
   backdrop: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: '#000000',
+    backgroundColor: "#000000",
     zIndex: 90,
   },
   backdropPressable: {
     flex: 1,
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
   },
   mobileSidebarContainer: {
-    position: 'absolute',
+    position: "absolute",
     left: 0,
     top: 0,
     bottom: 0,
     width: 280,
-    height: '100%',
+    height: "100%",
     zIndex: 95,
   },
 });
-

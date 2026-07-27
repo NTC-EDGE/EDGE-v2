@@ -6,6 +6,11 @@ using EDGE.Domain.Authorization;
 using EDGE.Infrastructure.Authorization;
 using EDGE.Application.Tenants.Commands;
 using EDGE.Application.Tenants.Queries;
+using EDGE.Application.TenantMembers.Queries;
+using EDGE.Application.Auth.Commands.VerifyStaffSession;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
 
 namespace EDGE.Api.Endpoints;
 
@@ -28,6 +33,12 @@ public static class TenantEndpoints
             .WithSummary("Retrieve all tenants")
             .WithDescription("Retrieves all Tenant organizations registered across regions.");
 
+        tenants.MapGet("/my-memberships", GetMyTenantMemberships)
+            .WithName("GetMyTenantMemberships")
+            .WithTags("Tenants")
+            .WithSummary("Retrieve caller's active regional office memberships")
+            .WithDescription("Fetches all active Regional Office tenants and regions that the authenticated caller is a member of.");
+
         tenants.MapGet("/{id:guid}", GetTenantById)
             .WithName("GetTenantById")
             .WithTags("Tenants")
@@ -46,7 +57,39 @@ public static class TenantEndpoints
             .WithSummary("Delete tenant organization")
             .WithDescription("Deletes a Tenant organization by its unique ID.");
 
+        tenants.MapPost("/verify-membership", VerifyTenantMembership)
+            .WithName("VerifyTenantMembership")
+            .WithTags("Tenants")
+            .WithSummary("Verify staff tenant and region membership")
+            .WithDescription("Validates that an authenticated staff member belongs to the selected Regional Office tenant.");
+
         return group;
+    }
+
+    public static async Task<IResult> GetMyTenantMemberships(IMediator mediator)
+    {
+        var result = await mediator.Send(new GetMyTenantMembershipsQuery());
+        return Results.Ok(result);
+    }
+
+    public static async Task<IResult> VerifyTenantMembership(
+        VerifyStaffSessionCommand command,
+        IValidator<VerifyStaffSessionCommand> validator,
+        IMediator mediator)
+    {
+        var validationResult = await validator.ValidateAsync(command);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
+
+        var result = await mediator.Send(command);
+        if (!result.Succeeded)
+        {
+            return Results.Json(result, statusCode: StatusCodes.Status403Forbidden);
+        }
+
+        return Results.Ok(result);
     }
 
     [HasPermission(Permissions.CreateTenants)]

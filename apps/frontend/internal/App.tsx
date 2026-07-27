@@ -1,15 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { StatusBar } from "expo-status-bar";
-import {
-  StyleSheet,
-  View,
-  ActivityIndicator,
-  Platform,
-} from "react-native";
+import { StyleSheet, View, ActivityIndicator } from "react-native";
 import { ClerkProvider } from "@clerk/expo";
-import { tokenCache } from "@clerk/expo/token-cache";
+import { tokenCache } from "./tokenCache";
 import {
   COLORS,
+  createNativeStackNavigator,
+  createStaticNavigation,
+  getPathFromState,
+  getStateFromPath,
+  RouteProp,
+  SHADOWS,
   useNavigationContainerRef,
   type ParamListBase,
 } from "@edge/ui";
@@ -18,6 +19,7 @@ import {
   useAuthContext,
 } from "./src/features/auth/context/AuthContext";
 import { RoleProvider } from "./src/features/shell/context/RoleContext";
+import { PermissionProvider } from "./src/features/shell/context/PermissionContext";
 import { DashboardShell } from "./src/features/shell/components/DashboardShell";
 import {
   UnauthNavigation,
@@ -25,6 +27,10 @@ import {
   unauthLinking,
   authLinking,
 } from "./src/navigation";
+import {
+  useWebMetadata,
+  useRouteTracker,
+} from "./src/hooks/useWebNavigationSync";
 
 const getClerkKey = (): string => {
   const key = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
@@ -38,7 +44,7 @@ const publishableKey = getClerkKey();
 
 if (publishableKey.length === 0) {
   console.warn(
-    "Missing EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY environment variable. Clerk will not initialize properly."
+    "Missing EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY environment variable. Clerk will not initialize properly.",
   );
 }
 
@@ -46,49 +52,14 @@ function AppContent() {
   const { isAuthenticated, isLoading } = useAuthContext();
   const navigationRef = useNavigationContainerRef<ParamListBase>();
   const [activeScreen, setActiveScreen] = useState("Dashboard");
+  const [screenTitle, setScreenTitle] = useState("Dashboard");
 
-  // Sync root URL '/' to '/internal/login' in browser address bar when unauthenticated and update document title based on auth state and active screen
-  useEffect(() => {
-    if (Platform.OS === "web" && typeof document !== "undefined") {
-      if (!isAuthenticated) {
-        document.title = "Login";
-      } else {
-        const formattedTitle = activeScreen
-          .replace(/([A-Z])/g, " $1")
-          .replace(/^./, (str: string) => str.toUpperCase())
-          .trim();
-        document.title = `${formattedTitle} | EDGE`;
-      }
-    }
-    if (!isAuthenticated && Platform.OS === "web" && typeof window !== "undefined" && window.location !== undefined) {
-      const hasClerkParam = window.location.search.includes("__clerk");
-      if (!hasClerkParam && (window.location.pathname === "/" || window.location.pathname === "")) {
-        window.history.replaceState(null, "", "/internal/login");
-      }
-    }
-  }, [isAuthenticated, activeScreen]);
-
-  // Track the current route inside the stack to sync the Sidebar highlights
-  useEffect(() => {
-    if (!isAuthenticated) return;
-
-    const syncActiveScreen = () => {
-      if (navigationRef.isReady()) {
-        const route = navigationRef.getCurrentRoute();
-        if (route !== null && route !== undefined) {
-          setActiveScreen(route.name);
-        }
-      }
-    };
-
-    syncActiveScreen();
-
-    const unsubscribe = navigationRef.addListener("state", () => {
-      syncActiveScreen();
-    });
-
-    return unsubscribe;
-  }, [isAuthenticated, navigationRef]);
+  // Repurpose Navigator Screen Titles for Web Metadata and Tab Titles
+  useWebMetadata(isAuthenticated, screenTitle);
+  useRouteTracker(isAuthenticated, navigationRef, (routeName, title) => {
+    setActiveScreen(routeName);
+    setScreenTitle(title);
+  });
 
   if (isLoading) {
     return (
@@ -121,8 +92,10 @@ export default function App() {
     <ClerkProvider tokenCache={tokenCache} publishableKey={publishableKey}>
       <AuthProvider>
         <RoleProvider>
-          <AppContent />
-          <StatusBar style="dark" />
+          <PermissionProvider>
+            <AppContent />
+            <StatusBar style="dark" />
+          </PermissionProvider>
         </RoleProvider>
       </AuthProvider>
     </ClerkProvider>
@@ -135,5 +108,14 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.bg,
     alignItems: "center",
     justifyContent: "center",
+  },
+  placeholderTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    marginBottom: 16,
+  },
+  placeholderText: {
+    fontSize: 16,
+    color: COLORS.brand[700],
   },
 });
