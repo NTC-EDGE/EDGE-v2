@@ -25,9 +25,7 @@ import {
   BranchOffice,
 } from '../data/mockAdminSettings';
 import { RegionalConfigTab } from '../components/RegionalConfigTab';
-import { AppRequirementsTab } from '../components/AppRequirementsTab';
-import { FeesPaymentsTab } from '../components/FeesPaymentsTab';
-import { NotesTab } from '../components/NotesTab';
+import { ServiceTreeConfigTab } from '../components/ServiceTreeConfigTab';
 import {
   AdminSettingsModal,
   ModalType,
@@ -39,9 +37,7 @@ import { DeleteAdminItemModal } from '../components/DeleteAdminItemModal';
 
 export type AdminTabType =
   | 'regional'
-  | 'requirements'
-  | 'fees'
-  | 'notes';
+  | 'services';
 
 interface TabItem {
   id: AdminTabType;
@@ -50,10 +46,8 @@ interface TabItem {
 }
 
 const TABS: TabItem[] = [
-  { id: 'regional', label: 'Regional Configuration', icon: 'sliders' },
-  { id: 'requirements', label: 'Application Requirements', icon: 'check-square' },
-  { id: 'fees', label: 'Fees and Payments', icon: 'dollar-sign' },
-  { id: 'notes', label: 'Notes', icon: 'file-text' },
+  { id: 'regional', label: 'Regional Configurations', icon: 'sliders' },
+  { id: 'services', label: 'Services & Prerequisites', icon: 'layers' },
 ];
 
 export function AdminSettingsScreen() {
@@ -371,32 +365,7 @@ export function AdminSettingsScreen() {
           />
         )}
 
-        {activeTab === 'requirements' && (
-          <AppRequirementsTab
-            requirements={appRequirements}
-            onAddRequirement={handleAddRequirement}
-            onEditRequirement={handleEditRequirement}
-            onDeleteRequirement={handleDeleteRequirement}
-          />
-        )}
-
-        {activeTab === 'fees' && (
-          <FeesPaymentsTab
-            fees={feesPayments}
-            onConfigureFees={handleConfigureFees}
-            onEditFee={handleEditFee}
-            onDeleteFee={handleDeleteFee}
-          />
-        )}
-
-        {activeTab === 'notes' && (
-          <NotesTab
-            notes={notes}
-            onAddNotes={handleAddNotes}
-            onEditNote={handleEditNote}
-            onDeleteNote={handleDeleteNote}
-          />
-        )}
+        {activeTab === 'services' && <ServiceTreeConfigTab />}
       </View>
 
       {/* Admin Settings Modal for Create/Edit Operations */}
