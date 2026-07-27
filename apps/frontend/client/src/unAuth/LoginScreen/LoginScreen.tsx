@@ -9,6 +9,7 @@ import {
   Animated,
 } from "react-native";
 import { Icon as Lucide } from "@edge/ui";
+import { useRegions } from "@edge/api";
 import {
   COLORS,
   SHADOWS,
@@ -17,13 +18,15 @@ import { Input } from "../../shared/components/Input";
 import { Button } from "../../shared/components/Button";
 import { Logo } from "../../shared/components/Logo";
 import { useNavigation } from "@react-navigation/native";
-import { useSignIn, isClerkAPIResponseError } from "@clerk/expo";
+import { useSignIn, useOAuth, isClerkAPIResponseError } from "@clerk/expo";
 import { Select } from "../../shared/components/Select";
-import { PHILIPPINE_REGIONS } from "../../shared/constants/regions";
 
 export function LoginScreen() {
   const navigation = useNavigation();
   const { signIn } = useSignIn();
+  const { startOAuthFlow } = useOAuth({ strategy: "oauth_google" });
+  const { options: regionOptions, isLoading: isRegionsLoading } = useRegions();
+
   const [region, setRegion] = useState("NCR - National Capital Region");
   const [phoneOrEmail, setPhoneOrEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -35,6 +38,7 @@ export function LoginScreen() {
   const [generalError, setGeneralError] = useState("");
 
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
   // Animations
@@ -139,6 +143,26 @@ export function LoginScreen() {
     }
   };
 
+  const handleGoogleSignIn = async () => {
+    setGeneralError("");
+    setGoogleLoading(true);
+    try {
+      const res = await startOAuthFlow();
+      if (res.createdSessionId && res.setActive) {
+        await res.setActive({ session: res.createdSessionId });
+        setSuccess(true);
+      }
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setGeneralError(err.message);
+      } else {
+        setGeneralError("Sign in with Google failed.");
+      }
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
   const glowScale = glowAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [0.95, 1.05],
@@ -180,7 +204,7 @@ export function LoginScreen() {
             icon={
               <Lucide name="arrow-left" size={14} color={COLORS.neutral[600]} />
             }
-            disabled={loading || success}
+            disabled={loading || googleLoading || success}
           />
 
           <Animated.View
@@ -219,12 +243,12 @@ export function LoginScreen() {
               <View style={styles.form}>
                 <Select
                   label="Philippine Region"
-                  placeholder="Select administrative region..."
+                  placeholder={isRegionsLoading ? "Loading regions..." : "Select administrative region..."}
                   value={region}
                   onValueChange={setRegion}
-                  options={PHILIPPINE_REGIONS.map((reg) => ({
-                    label: reg,
-                    value: reg,
+                  options={regionOptions.map((reg) => ({
+                    label: reg.label,
+                    value: reg.value,
                   }))}
                   error={regionError}
                   iconName="map-pin"
@@ -265,6 +289,7 @@ export function LoginScreen() {
                   title={loading ? "Verifying Credentials..." : "Sign In"}
                   onPress={handleSignIn}
                   loading={loading}
+                  disabled={loading || googleLoading}
                   style={styles.submitButton}
                   icon={
                     !loading ? (
@@ -275,6 +300,16 @@ export function LoginScreen() {
                       />
                     ) : undefined
                   }
+                />
+
+                <Button
+                  title={googleLoading ? "Signing in..." : "Sign in with Google"}
+                  variant="outline"
+                  onPress={handleGoogleSignIn}
+                  loading={googleLoading}
+                  disabled={loading || googleLoading}
+                  style={{ marginTop: 10 }}
+                  icon={<Lucide name="globe" size={16} color="#4285F4" />}
                 />
 
                 <View style={styles.footerContainer}>

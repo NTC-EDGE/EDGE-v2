@@ -14,11 +14,12 @@ import { Input } from "../../shared/components/Input";
 import { Button } from "../../shared/components/Button";
 import { Logo } from "../../shared/components/Logo";
 import { useNavigation } from "@react-navigation/native";
-import { useSignUp, isClerkAPIResponseError } from "@clerk/expo";
+import { useSignUp, useOAuth, isClerkAPIResponseError } from "@clerk/expo";
 
 export function SignUpScreen() {
   const navigation = useNavigation();
   const { signUp } = useSignUp();
+  const { startOAuthFlow } = useOAuth({ strategy: "oauth_google" });
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -38,6 +39,7 @@ export function SignUpScreen() {
   const [generalError, setGeneralError] = useState("");
 
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
   // Animations
@@ -158,6 +160,26 @@ export function SignUpScreen() {
       setGeneralError(errMsg);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGoogleSignUp = async () => {
+    setGeneralError("");
+    setGoogleLoading(true);
+    try {
+      const res = await startOAuthFlow();
+      if (res.createdSessionId && res.setActive) {
+        await res.setActive({ session: res.createdSessionId });
+        setSuccess(true);
+      }
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setGeneralError(err.message);
+      } else {
+        setGeneralError("Sign up with Google failed.");
+      }
+    } finally {
+      setGoogleLoading(false);
     }
   };
 
@@ -377,6 +399,7 @@ export function SignUpScreen() {
                   title={loading ? "Creating Account..." : "Register"}
                   onPress={handleSignUp}
                   loading={loading}
+                  disabled={loading || googleLoading}
                   style={styles.submitButton}
                   icon={
                     !loading ? (
@@ -387,6 +410,16 @@ export function SignUpScreen() {
                       />
                     ) : undefined
                   }
+                />
+
+                <Button
+                  title={googleLoading ? "Signing up..." : "Sign up with Google"}
+                  variant="outline"
+                  onPress={handleGoogleSignUp}
+                  loading={googleLoading}
+                  disabled={loading || googleLoading}
+                  style={{ marginTop: 10 }}
+                  icon={<Lucide name="globe" size={16} color="#4285F4" />}
                 />
 
                 <View style={styles.footerContainer}>

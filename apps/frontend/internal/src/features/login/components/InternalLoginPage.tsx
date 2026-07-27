@@ -21,28 +21,10 @@ import {
   TYPOGRAPHY,
   Icon as Lucide,
 } from "@edge/ui";
+import { useRegions } from "@edge/api";
+import { useOAuth } from "@clerk/expo";
 import { NtcLogo } from "./NtcLogo";
 import { useAuthContext } from "../../auth/context/AuthContext";
-
-const PHILIPPINE_REGIONS = [
-  "NCR - National Capital Region",
-  "CAR - Cordillera Administrative Region",
-  "Region I - Ilocos Region",
-  "Region II - Cagayan Valley",
-  "Region III - Central Luzon",
-  "Region IV-A - CALABARZON",
-  "MIMAROPA Region",
-  "Region V - Bicol Region",
-  "Region VI - Western Visayas",
-  "Region VII - Central Visayas",
-  "Region VIII - Eastern Visayas",
-  "Region IX - Zamboanga Peninsula",
-  "Region X - Northern Mindanao",
-  "Region XI - Davao Region",
-  "Region XII - SOCCSKSARGEN",
-  "Region XIII - Caraga",
-  "BARMM - Bangsamoro Autonomous Region in Muslim Mindanao",
-];
 
 interface FooterPolicySection {
   title: string;
@@ -173,6 +155,10 @@ export function InternalLoginPage() {
   const isMobile = width < 640;
   const isTablet = width >= 640 && width < 1024;
   const { loginWithClerk } = useAuthContext();
+  const { startOAuthFlow } = useOAuth({ strategy: "oauth_google" });
+
+  // Consume Region Service Layer (API Backend Integration)
+  const { options: regionOptions, isLoading: isRegionsLoading } = useRegions();
 
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
@@ -182,6 +168,7 @@ export function InternalLoginPage() {
   const [error, setError] = useState("");
   const [activeFooterModal, setActiveFooterModal] = useState<FooterPolicyContent | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
 
   const handleSignIn = async () => {
     if (identifier.trim().length === 0) {
@@ -206,6 +193,25 @@ export function InternalLoginPage() {
       }
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setError("");
+    setIsGoogleSubmitting(true);
+    try {
+      const res = await startOAuthFlow();
+      if (res.createdSessionId && res.setActive) {
+        await res.setActive({ session: res.createdSessionId });
+      }
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Sign in with Google failed.");
+      }
+    } finally {
+      setIsGoogleSubmitting(false);
     }
   };
 
@@ -264,9 +270,9 @@ export function InternalLoginPage() {
                     </View>
                   ) : null}
 
-                  {/* Region Field - zIndex raised when dropdown is active */}
+                  {/* Region Field - Integrated with Backend API Data Layer */}
                   <View style={[styles.fieldGroup, showRegionDropdown && styles.fieldGroupActive]}>
-                    <Text style={styles.fieldLabelSmall}>Regional Office</Text>
+                    <Text style={styles.fieldLabelSmall}>Regional Office (API Connected)</Text>
                     <TouchableOpacity
                       style={styles.regionSelectorBox}
                       onPress={() => setShowRegionDropdown(!showRegionDropdown)}
@@ -274,9 +280,13 @@ export function InternalLoginPage() {
                     >
                       <View style={styles.regionSelectorInner}>
                         <Lucide name="map-pin" size={18} color={COLORS.neutral[500]} />
-                        <Text style={styles.regionSelectorValue} numberOfLines={1}>
-                          {region}
-                        </Text>
+                        {isRegionsLoading ? (
+                          <ActivityIndicator size="small" color={COLORS.neutral[500]} />
+                        ) : (
+                          <Text style={styles.regionSelectorValue} numberOfLines={1}>
+                            {region}
+                          </Text>
+                        )}
                       </View>
                       <Lucide
                         name={showRegionDropdown ? "chevron-up" : "chevron-down"}
@@ -288,26 +298,26 @@ export function InternalLoginPage() {
                     {showRegionDropdown ? (
                       <View style={styles.regionPopoverMenu}>
                         <ScrollView style={{ maxHeight: 220 }} nestedScrollEnabled={true}>
-                          {PHILIPPINE_REGIONS.map((item) => (
+                          {regionOptions.map((item) => (
                             <TouchableOpacity
-                              key={item}
+                              key={item.id}
                               style={[
                                 styles.regionOptionItem,
-                                item === region && styles.regionOptionItemSelected,
+                                item.value === region && styles.regionOptionItemSelected,
                               ]}
                               onPress={() => {
-                                setRegion(item);
+                                setRegion(item.value);
                                 setShowRegionDropdown(false);
                               }}
                             >
                               <Text
                                 style={[
                                   styles.regionOptionText,
-                                  item === region && styles.regionOptionTextSelected,
+                                  item.value === region && styles.regionOptionTextSelected,
                                 ]}
                                 numberOfLines={1}
                               >
-                                {item}
+                                {item.label}
                               </Text>
                             </TouchableOpacity>
                           ))}
@@ -360,7 +370,7 @@ export function InternalLoginPage() {
                       isSubmitting && styles.buttonDisabled,
                     ]}
                     onPress={handleSignIn}
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || isGoogleSubmitting}
                   >
                     {isSubmitting ? (
                       <ActivityIndicator size="small" color={COLORS.neutral.white} />
@@ -379,6 +389,32 @@ export function InternalLoginPage() {
                         >
                           Sign In
                         </Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+
+                  {/* Divider */}
+                  <View style={styles.dividerRow}>
+                    <View style={styles.dividerLine} />
+                    <Text style={styles.dividerText}>OR</Text>
+                    <View style={styles.dividerLine} />
+                  </View>
+
+                  {/* Sign In with Google Button */}
+                  <TouchableOpacity
+                    style={[
+                      styles.googleButton,
+                      isGoogleSubmitting && styles.buttonDisabled,
+                    ]}
+                    onPress={handleGoogleSignIn}
+                    disabled={isSubmitting || isGoogleSubmitting}
+                  >
+                    {isGoogleSubmitting ? (
+                      <ActivityIndicator size="small" color={COLORS.neutral[700]} />
+                    ) : (
+                      <View style={styles.googleButtonInner}>
+                        <Lucide name="globe" size={18} color="#4285F4" />
+                        <Text style={styles.googleButtonText}>Sign in with Google</Text>
                       </View>
                     )}
                   </TouchableOpacity>
@@ -841,6 +877,43 @@ const styles = StyleSheet.create({
   },
   loginButtonTextActive: {
     color: COLORS.neutral.white,
+  },
+  dividerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 16,
+    gap: 12,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "#E2E8F0",
+  },
+  dividerText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    color: COLORS.neutral[400],
+    fontWeight: TYPOGRAPHY.weights.medium,
+  },
+  googleButton: {
+    height: 48,
+    borderRadius: 10,
+    backgroundColor: COLORS.neutral.white,
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  googleButtonInner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  googleButtonText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: COLORS.neutral[700],
   },
 
   footerBar: {
