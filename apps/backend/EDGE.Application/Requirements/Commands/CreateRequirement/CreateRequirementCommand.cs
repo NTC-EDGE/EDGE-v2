@@ -1,4 +1,3 @@
-using System;
 using MediatR;
 using EDGE.Application.Common.Models;
 

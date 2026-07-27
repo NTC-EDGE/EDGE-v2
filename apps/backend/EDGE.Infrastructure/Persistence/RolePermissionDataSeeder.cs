@@ -75,6 +75,8 @@ public static class RolePermissionDataSeeder
             // Client
             (clientRoleId, Permissions.SubmitApplication),
             (clientRoleId, Permissions.ViewOwnApplications),
+            (clientRoleId, Permissions.ReadServices),
+            (clientRoleId, Permissions.ReadRequirements),
             (clientRoleId, Permissions.UploadStorage),
             (clientRoleId, Permissions.ReadStorage),
             (clientRoleId, Permissions.DownloadStorage),
@@ -82,20 +84,28 @@ public static class RolePermissionDataSeeder
             // Evaluator
             (evaluatorRoleId, Permissions.ViewAllApplications),
             (evaluatorRoleId, Permissions.EvaluateApplication),
+            (evaluatorRoleId, Permissions.ReadServices),
+            (evaluatorRoleId, Permissions.ReadRequirements),
             (evaluatorRoleId, Permissions.ReadStorage),
             (evaluatorRoleId, Permissions.DownloadStorage),
+
 
             // Higher-Ups
             (higherUpsRoleId, Permissions.ViewAllApplications),
             (higherUpsRoleId, Permissions.ApproveApplication),
+            (higherUpsRoleId, Permissions.ReadServices),
+            (higherUpsRoleId, Permissions.ReadRequirements),
 
             // Accountant
             (accountantRoleId, Permissions.ViewAllApplications),
             (accountantRoleId, Permissions.CreateBilling),
+            (accountantRoleId, Permissions.ReadServices),
 
             // Cashier
             (cashierRoleId, Permissions.ViewAllApplications),
             (cashierRoleId, Permissions.CollectPayment),
+            (cashierRoleId, Permissions.ReadServices),
+
         };
 
         // Add all permissions to Admin role dynamically
@@ -103,6 +113,7 @@ public static class RolePermissionDataSeeder
         {
             targetRolePermissions.Add((adminRoleId, permKey));
         }
+
 
         var existingRpPairs = await context.RolePermissions
             .Select(rp => new { rp.RoleId, rp.PermissionKey })

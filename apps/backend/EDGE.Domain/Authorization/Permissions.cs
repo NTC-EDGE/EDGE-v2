@@ -13,6 +13,18 @@ public static class Permissions
     public const string ApproveApplication = "applications.approve";
     public const string ImportCsvApplications = "applications.import_csv";
 
+    // Services Catalog
+    public const string ReadServices = "services.read";
+    public const string CreateServices = "services.create";
+    public const string UpdateServices = "services.update";
+    public const string DeleteServices = "services.delete";
+
+    // Requirements Catalog & Rules
+    public const string ReadRequirements = "requirements.read";
+    public const string CreateRequirements = "requirements.create";
+    public const string UpdateRequirements = "requirements.update";
+    public const string DeleteRequirements = "requirements.delete";
+
     // Users
     public const string ReadUsers = "users.read";
     public const string ManageUsers = "users.manage";
@@ -65,6 +77,16 @@ public static class Permissions
         EvaluateApplication,
         ApproveApplication,
         ImportCsvApplications,
+
+        ReadServices,
+        CreateServices,
+        UpdateServices,
+        DeleteServices,
+
+        ReadRequirements,
+        CreateRequirements,
+        UpdateRequirements,
+        DeleteRequirements,
 
         ReadUsers,
         ManageUsers,

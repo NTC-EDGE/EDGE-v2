@@ -12,8 +12,15 @@ public static class FastTrackSeeder
 {
     public static async Task SeedAsync(ApplicationDbContext context)
     {
-        if (await context.Services.CountAsync() >= 12)
+        // Skip the full initial seed if services are already present.
+        // However, always run the contract-update pass below so that changes to
+        // requirementDiscriminatorFields / requirementContextGroups in the contract
+        // JSON strings are applied to existing rows without needing a full re-seed.
+        bool skipInitialSeed = await context.Services.CountAsync() >= 12;
+        if (skipInitialSeed)
         {
+            await UpdateContractsAsync(context);
+            await UpdateVariantsAsync(context);   // ← always run so missing variants are backfilled
             return;
         }
 
@@ -87,6 +94,7 @@ public static class FastTrackSeeder
             ""categorySpecific"": {
                 ""examCategories"": [""Radiotelegraphy"", ""Radiotelephony"", ""Amateur"", ""Restricted Radiotelephone""]
             },
+            ""requirementDiscriminatorFields"": [""Exam Category"", ""Examinee Type""],
             ""entityType"": ""Application""
         }";
 
@@ -110,6 +118,21 @@ public static class FastTrackSeeder
             ""categorySpecific"": {
                 ""typeOfCertificate"": [""1RTG"",""2RTG"",""3RTG"",""1PHN"",""2PHN"",""3PHN"",""SROP"",""RROC-Land Mobile"",""RROC-Aircraft"",""GROC"",""TP RROC-Aircraft"",""Other""],
                 ""applicantPersonExtension"": [""weight_kg"",""height_cm"",""employment_status"",""employment_location""]
+            },
+            ""requirementDiscriminatorFields"": [""Type of Certificate""],
+            ""requirementContextGroups"": {
+                ""1RTG"": ""CommercialROC"",
+                ""2RTG"": ""CommercialROC"",
+                ""3RTG"": ""CommercialROC"",
+                ""1PHN"": ""CommercialROC"",
+                ""2PHN"": ""CommercialROC"",
+                ""3PHN"": ""CommercialROC"",
+                ""SROP"": ""SROP"",
+                ""RROC-Land Mobile"": ""RROC-Land Mobile"",
+                ""RROC-Aircraft"": ""RROC-Aircraft"",
+                ""GROC"": ""GROC"",
+                ""TP RROC-Aircraft"": ""TP RROC-Aircraft"",
+                ""Other"": null
             },
             ""entityType"": ""Application""
         }";
@@ -144,6 +167,7 @@ public static class FastTrackSeeder
                 ""permitType"": [""Amateur Radio Operator Certificate"",""Amateur Radio Station License"",""Club Radio Station License"",""Temporary Permit for Foreign Visitor"",""Special Permit for Vanity/Special Call Sign""],
                 ""classOfStation"": [""A"",""B"",""C"",""D""]
             },
+            ""requirementDiscriminatorFields"": [""Permit Type""],
             ""entityType"": ""Application""
         }";
 
@@ -462,29 +486,10 @@ public static class FastTrackSeeder
         await context.SaveChangesAsync();
 
         // 4. Seed Service Variants
-        var existingVariants = await context.ServiceVariants.ToListAsync();
-        var variantsToSeed = new List<ServiceVariant>
-        {
-            new() { Id = Guid.Parse("60000000-0000-0000-0000-000000000001"), ServiceId = services["NTC_1_01"].Id, Type = ServiceVariantType.New, Description = "New Radio Operator Exam Application" },
-            new() { Id = Guid.Parse("60000000-0000-0000-0000-000000000002"), ServiceId = services["NTC_1_02"].Id, Type = ServiceVariantType.New, Description = "New Radio Operator Certificate Application" },
-            new() { Id = Guid.Parse("60000000-0000-0000-0000-000000000003"), ServiceId = services["NTC_1_02"].Id, Type = ServiceVariantType.Renewal, Description = "Renew Radio Operator Certificate" },
-            new() { Id = Guid.Parse("60000000-0000-0000-0000-000000000004"), ServiceId = services["NTC_1_03"].Id, Type = ServiceVariantType.New, Description = "New Amateur Radio License Application" },
-            new() { Id = Guid.Parse("60000000-0000-0000-0000-000000000005"), ServiceId = services["NTC_1_04"].Id, Type = ServiceVariantType.New, Description = "New Ship Station License Application" },
-            new() { Id = Guid.Parse("60000000-0000-0000-0000-000000000006"), ServiceId = services["NTC_1_11"].Id, Type = ServiceVariantType.New, Description = "New Radio Station License Application" },
-            new() { Id = Guid.Parse("60000000-0000-0000-0000-000000000007"), ServiceId = services["NTC_1_11"].Id, Type = ServiceVariantType.Renewal, Description = "Renew Radio Station License" }
-        };
-
-        foreach (var v in variantsToSeed)
-        {
-            if (!existingVariants.Any(x => x.Id == v.Id || (x.ServiceId == v.ServiceId && x.Type == v.Type)))
-            {
-                context.ServiceVariants.Add(v);
-            }
-        }
-
-
-
-
+        // NOTE: UpdateVariantsAsync (called at the end) handles upsert for existing DBs.
+        // This block only runs on a fresh seed, but the IDs defined here are the
+        // canonical ones — UpdateVariantsAsync references the same BuildVariantDefs().
+        await UpdateVariantsAsync(context);
 
         await context.SaveChangesAsync();
 
@@ -730,5 +735,272 @@ public static class FastTrackSeeder
             ("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
             ("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
         });
+    }
+
+    /// <summary>
+    /// Applies the current contract JSON definitions to existing Service rows.
+    /// Called on every startup so that changes to requirementDiscriminatorFields,
+    /// requirementContextGroups, or any other contract metadata are reflected in
+    /// the DB without requiring a full re-seed or manual SQL update.
+    /// </summary>
+    private static async Task UpdateContractsAsync(ApplicationDbContext context)
+    {
+        var services = await context.Services
+            .Where(s => s.Code != null)
+            .ToListAsync();
+
+        if (services.Count == 0)
+            return;
+
+        // Build a lookup of Code → current contract string.
+        // Only NTC 1-01, 1-02, 1-03 have requirementDiscriminatorFields;
+        // all others are included to keep contracts in sync with any future edits.
+        var contractMap = BuildContractMap();
+
+        bool anyChange = false;
+        foreach (var service in services)
+        {
+            if (service.Code == null)
+                continue;
+
+            // Normalize underscores vs hyphens (seeded as "NTC_1_01", code stored as "NTC_1_01")
+            var key = service.Code.Replace("-", "_").ToUpperInvariant();
+            if (!contractMap.TryGetValue(key, out var newContract))
+                continue;
+
+            var normalizedNew     = newContract.Trim();
+            var normalizedCurrent = (service.Contract ?? string.Empty).Trim();
+            if (normalizedCurrent == normalizedNew)
+                continue;
+
+            service.Contract = newContract;
+            anyChange = true;
+        }
+
+        if (anyChange)
+            await context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Returns the authoritative contract JSON string for each service code.
+    /// Keep this in sync with the contracts defined in SeedAsync above.
+    /// </summary>
+    private static Dictionary<string, string> BuildContractMap()
+    {
+        // These strings must stay in sync with the ntc10XContract variables in SeedAsync.
+        // The source of truth is the seeder — do not edit contracts here only.
+        return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["NTC_1_01"] = @"
+        {
+            ""formNo"": ""NTC 1-01"",
+            ""revisionNo"": ""03"",
+            ""revisionDate"": ""2023-03-31"",
+            ""serviceCategory"": ""Exams"",
+            ""group"": null,
+            ""applicationTypes"": [""New""],
+            ""examineeTypes"": [""FirstTaker"", ""Retaker""],
+            ""elements"": [
+                { ""code"": ""1RTG"", ""condition"": ""Standard"", ""description"": ""Elements 1, 2, 5, 6 & Code (25/20 wpm)"" },
+                { ""code"": ""1RTG"", ""condition"": ""For removal"", ""description"": ""Code (25/20 wpm)"" },
+                { ""code"": ""1RTG"", ""condition"": ""For upgrade (2RTG Holder)"", ""description"": ""& Code (25/20 wpm)"" },
+                { ""code"": ""2RTG"", ""condition"": ""Standard"", ""description"": ""Elements 1, 2, 5, 6 & Code (16 wpm)"" },
+                { ""code"": ""2RTG"", ""condition"": ""For removal"", ""description"": ""Code (16 wpm)"" },
+                { ""code"": ""3RTG"", ""condition"": ""Standard"", ""description"": ""Elements 1, 2, 5 & Code (16 wpm)"" },
+                { ""code"": ""3RTG"", ""condition"": ""For removal"", ""description"": ""Code (16 wpm)"" },
+                { ""code"": ""1PHN"", ""condition"": ""Standard"", ""description"": ""Elements 1, 2, 3 & 4"" },
+                { ""code"": ""1PHN"", ""condition"": ""For upgrade (2PHN Holder)"", ""description"": ""Element 4"" },
+                { ""code"": ""1PHN"", ""condition"": ""For upgrade (3PHN Holder)"", ""description"": ""Element 3 & 4"" },
+                { ""code"": ""2PHN"", ""condition"": ""Standard"", ""description"": ""Elements 1, 2 & 3"" },
+                { ""code"": ""3PHN"", ""condition"": ""Standard"", ""description"": ""Elements 1 & 2"" },
+                { ""code"": ""Class A"", ""condition"": ""Standard"", ""description"": ""Elements 8, 9, 10 & Code (5 wpm)"" },
+                { ""code"": ""Class A"", ""condition"": ""For removal"", ""description"": ""Code (5 wpm)"" },
+                { ""code"": ""Class B"", ""condition"": ""Standard"", ""description"": ""Elements 5, 6 & 7"" },
+                { ""code"": ""Class B"", ""condition"": ""For Registered ECE/1PHN/1RTG/2RTG Holder"", ""description"": ""Element 2"" },
+                { ""code"": ""Class C"", ""condition"": ""Standard"", ""description"": ""Elements 2, 3 & 4"" },
+                { ""code"": ""Class C"", ""condition"": ""For Class D Holder"", ""description"": ""Elements 3 & 4"" },
+                { ""code"": ""Class D"", ""condition"": ""Standard"", ""description"": ""Element 2"" },
+                { ""code"": ""RROC-Aircraft"", ""condition"": ""Standard"", ""description"": ""Element 1"" }
+            ],
+            ""requiredSections"": [
+                { ""key"": ""applicantPerson"", ""required"": true },
+                { ""key"": ""examSelection"", ""required"": true },
+                { ""key"": ""assistanceRequest"", ""required"": false },
+                { ""key"": ""admissionSlip"", ""required"": true },
+                { ""key"": ""declaration"", ""required"": true }
+            ],
+            ""allowsBulkSubmission"": true,
+            ""categorySpecific"": {
+                ""examCategories"": [""Radiotelegraphy"", ""Radiotelephony"", ""Amateur"", ""Restricted Radiotelephone""]
+            },
+            ""requirementDiscriminatorFields"": [""Exam Category"", ""Examinee Type""],
+            ""entityType"": ""Application""
+        }",
+
+            ["NTC_1_02"] = @"
+        {
+            ""formNo"": ""NTC 1-02"",
+            ""revisionNo"": ""02"",
+            ""revisionDate"": ""2023-03-31"",
+            ""serviceCategory"": ""Certificates"",
+            ""group"": ""Radio Operator Certificates (ROC) excluding Amateur ROC"",
+            ""applicationTypes"": [""New"", ""Renewal"", ""Modification""],
+            ""elements"": [],
+            ""requiredSections"": [
+                { ""key"": ""applicantPerson"", ""required"": true },
+                { ""key"": ""typeOfCertificate"", ""required"": true },
+                { ""key"": ""examSeminarDetails"", ""required"": false },
+                { ""key"": ""declaration"", ""required"": true },
+                { ""key"": ""payment"", ""required"": true }
+            ],
+            ""allowsBulkSubmission"": true,
+            ""categorySpecific"": {
+                ""typeOfCertificate"": [""1RTG"",""2RTG"",""3RTG"",""1PHN"",""2PHN"",""3PHN"",""SROP"",""RROC-Land Mobile"",""RROC-Aircraft"",""GROC"",""TP RROC-Aircraft"",""Other""],
+                ""applicantPersonExtension"": [""weight_kg"",""height_cm"",""employment_status"",""employment_location""]
+            },
+            ""requirementDiscriminatorFields"": [""Type of Certificate""],
+            ""requirementContextGroups"": {
+                ""1RTG"": ""CommercialROC"",
+                ""2RTG"": ""CommercialROC"",
+                ""3RTG"": ""CommercialROC"",
+                ""1PHN"": ""CommercialROC"",
+                ""2PHN"": ""CommercialROC"",
+                ""3PHN"": ""CommercialROC"",
+                ""SROP"": ""SROP"",
+                ""RROC-Land Mobile"": ""RROC-Land Mobile"",
+                ""RROC-Aircraft"": ""RROC-Aircraft"",
+                ""GROC"": ""GROC"",
+                ""TP RROC-Aircraft"": ""TP RROC-Aircraft"",
+                ""Other"": null
+            },
+            ""entityType"": ""Application""
+        }",
+
+            ["NTC_1_03"] = @"
+        {
+            ""formNo"": ""NTC 1-03"",
+            ""revisionNo"": ""02"",
+            ""revisionDate"": ""2023-03-31"",
+            ""serviceCategory"": ""Licenses"",
+            ""group"": ""License in the Amateur Service"",
+            ""applicationTypes"": [""New"", ""Renewal"", ""Modification""],
+            ""examineeTypes"": [""FirstTaker"", ""Retaker"", ""Upgrade""],
+            ""elements"": [
+                { ""code"": ""Class A"", ""condition"": ""Standard"", ""description"": ""Elements 8, 9, 10 & Code (5 wpm)"" },
+                { ""code"": ""Class B"", ""condition"": ""Standard"", ""description"": ""Elements 5, 6 & 7"" },
+                { ""code"": ""Class C"", ""condition"": ""Standard"", ""description"": ""Elements 2, 3 & 4"" },
+                { ""code"": ""Class D"", ""condition"": ""Standard"", ""description"": ""Element 2"" }
+            ],
+            ""requiredSections"": [
+                { ""key"": ""applicantPerson"", ""required"": true },
+                { ""key"": ""permitType"", ""required"": true },
+                { ""key"": ""classOfStation"", ""required"": true },
+                { ""key"": ""club"", ""required"": false },
+                { ""key"": ""examination"", ""required"": false },
+                { ""key"": ""equipment"", ""required"": false },
+                { ""key"": ""declaration"", ""required"": true },
+                { ""key"": ""payment"", ""required"": true }
+            ],
+            ""allowsBulkSubmission"": false,
+            ""categorySpecific"": {
+                ""permitType"": [""Amateur Radio Operator Certificate"",""Amateur Radio Station License"",""Club Radio Station License"",""Temporary Permit for Foreign Visitor"",""Special Permit for Vanity/Special Call Sign""],
+                ""classOfStation"": [""A"",""B"",""C"",""D""]
+            },
+            ""requirementDiscriminatorFields"": [""Permit Type""],
+            ""entityType"": ""Application""
+        }"
+        };
+    }
+
+    /// <summary>
+    /// Upserts missing ServiceVariants for existing databases.
+    /// Called both during fresh seeding and during startup when skipInitialSeed is true.
+    /// </summary>
+    private static async Task UpdateVariantsAsync(ApplicationDbContext context)
+    {
+        var existingVariants = await context.ServiceVariants.ToListAsync();
+        var variantDefs = BuildVariantDefs();
+
+        bool anyChange = false;
+        foreach (var def in variantDefs)
+        {
+            if (!existingVariants.Any(v => v.Id == def.Id || (v.ServiceId == def.ServiceId && v.Type == def.Type)))
+            {
+                context.ServiceVariants.Add(new ServiceVariant
+                {
+                    Id = def.Id,
+                    ServiceId = def.ServiceId,
+                    Type = def.Type,
+                    Description = def.Description
+                });
+                anyChange = true;
+            }
+        }
+
+        if (anyChange)
+        {
+            await context.SaveChangesAsync();
+        }
+    }
+
+    /// <summary>
+    /// Returns the canonical list of all service variants to seed.
+    /// Called by both the fresh-seed path and UpdateVariantsAsync so that
+    /// existing deployments get new rows without a full re-seed.
+    ///
+    /// GUID allocation (60000000-0000-0000-0000-00000000000X):
+    ///   01 NTC 1-01 New          08 NTC 1-03 Renewal       15 NTC 1-18 Modification
+    ///   02 NTC 1-02 New          09 NTC 1-03 Modification  16 NTC 1-19 New
+    ///   03 NTC 1-02 Renewal      10 NTC 1-04 Renewal       17 NTC 1-20 New
+    ///   04 NTC 1-03 New          11 NTC 1-02 Modification  18 NTC 1-20 Renewal
+    ///   05 NTC 1-04 New          12 NTC 1-11 Modification  19 NTC 1-20 Modification
+    ///   06 NTC 1-11 New          13 NTC 1-18 New           20 NTC 1-22 New
+    ///   07 NTC 1-11 Renewal      14 NTC 1-18 Renewal       21 NTC 1-22 Renewal
+    ///
+    /// NTC 1-09 (Purchase / Possess / Sell/Transfer) is intentionally excluded here.
+    /// Its applicationTypes don't map to the standard ServiceVariantType enum.
+    /// TODO: Extend ServiceVariantType with Purchase, Possess, SellTransfer and add
+    ///       the three NTC 1-09 variants (use IDs 22-24 in the block above).
+    ///
+    /// NTC 1-05, 1-10, 1-14, 1-21 have a single "New" variant or no variants
+    /// required by their contracts — add them when the FE needs to select a variantId.
+    /// </summary>
+    private static List<(Guid Id, Guid ServiceId, ServiceVariantType Type, string Description)> BuildVariantDefs()
+    {
+        // Service IDs (seeded, deterministic)
+        var svc101 = Guid.Parse("50000000-0000-0000-0000-000000000001");
+        var svc102 = Guid.Parse("50000000-0000-0000-0000-000000000002");
+        var svc103 = Guid.Parse("50000000-0000-0000-0000-000000000003");
+        var svc104 = Guid.Parse("50000000-0000-0000-0000-000000000004");
+        var svc111 = Guid.Parse("50000000-0000-0000-0000-000000000011");
+        var svc118 = Guid.Parse("50000000-0000-0000-0000-000000000018");
+        var svc119 = Guid.Parse("50000000-0000-0000-0000-000000000019");
+        var svc120 = Guid.Parse("50000000-0000-0000-0000-000000000020");
+        var svc122 = Guid.Parse("50000000-0000-0000-0000-000000000022");
+
+        return new List<(Guid, Guid, ServiceVariantType, string)>
+        {
+            (Guid.Parse("60000000-0000-0000-0000-000000000001"), svc101, ServiceVariantType.New, "New Radio Operator Exam Application"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000002"), svc102, ServiceVariantType.New, "New Radio Operator Certificate Application"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000003"), svc102, ServiceVariantType.Renewal, "Renew Radio Operator Certificate"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000011"), svc102, ServiceVariantType.Modification, "Modify Radio Operator Certificate"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000004"), svc103, ServiceVariantType.New, "New Amateur Radio License Application"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000008"), svc103, ServiceVariantType.Renewal, "Renew Amateur Radio License"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000009"), svc103, ServiceVariantType.Modification, "Modify Amateur Radio License"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000005"), svc104, ServiceVariantType.New, "New Ship Station License Application"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000010"), svc104, ServiceVariantType.Renewal, "Renew Ship Station License"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000006"), svc111, ServiceVariantType.New, "New Radio Station License Application"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000007"), svc111, ServiceVariantType.Renewal, "Renew Radio Station License"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000012"), svc111, ServiceVariantType.Modification, "Modify Radio Station License"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000013"), svc118, ServiceVariantType.New, "New CPE Supplier Accreditation"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000014"), svc118, ServiceVariantType.Renewal, "Renew CPE Supplier Accreditation"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000015"), svc118, ServiceVariantType.Modification, "Modify CPE Supplier Accreditation"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000016"), svc119, ServiceVariantType.New, "New Certificate of Registration (WDN/SRD/RFID)"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000017"), svc120, ServiceVariantType.New, "New Certificate of Registration (VAS/VoIP)"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000018"), svc120, ServiceVariantType.Renewal, "Renew Certificate of Registration (VAS/VoIP)"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000019"), svc120, ServiceVariantType.Modification, "Modify Certificate of Registration (VAS/VoIP)"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000020"), svc122, ServiceVariantType.New, "New TVRO/CATV License"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000021"), svc122, ServiceVariantType.Renewal, "Renew TVRO/CATV License")
+        };
     }
 }

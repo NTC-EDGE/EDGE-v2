@@ -30,7 +30,8 @@ public class GetServiceVariantRequirementByIdQueryHandler(IServiceVariantRequire
                 Description = svr.Requirement.Description
             } : null,
             ServiceVariantId = svr.ServiceVariantId,
-            ApplicationTypeKey = svr.ApplicationTypeKey,
+            ContextKey = svr.ContextKey,
+
             IsRequired = svr.IsRequired
         };
 

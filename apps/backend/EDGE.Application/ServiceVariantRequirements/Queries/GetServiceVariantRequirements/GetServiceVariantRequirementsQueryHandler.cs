@@ -31,7 +31,8 @@ public class GetServiceVariantRequirementsQueryHandler(IServiceVariantRequiremen
             ServiceVariantType = svr.ServiceVariant?.Type.ToString(),
             ServiceName = svr.ServiceVariant?.Service?.Name,
             ServiceCode = svr.ServiceVariant?.Service?.Code,
-            ApplicationTypeKey = svr.ApplicationTypeKey,
+            ContextKey = svr.ContextKey,
+
             IsRequired = svr.IsRequired
         }).ToList();
 

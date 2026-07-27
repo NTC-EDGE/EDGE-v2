@@ -22,7 +22,8 @@ public class UpdateServiceVariantRequirementCommandHandler(
 
         svr.RequirementId = request.RequirementId;
         svr.ServiceVariantId = request.ServiceVariantId;
-        svr.ApplicationTypeKey = request.ApplicationTypeKey;
+        svr.ContextKey = request.ContextKey;
+
         svr.IsRequired = request.IsRequired;
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
