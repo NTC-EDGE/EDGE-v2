@@ -1,6 +1,32 @@
 import { getStateFromPath, getPathFromState, type LinkingOptions } from "@react-navigation/native";
 
 /**
+ * Sanitizes an incoming redirect path to prevent Open Redirect vulnerabilities (OWASP Top 10).
+ * Only relative internal paths (starting with / or alphanumeric route names) are permitted.
+ * External protocols (http:, https:, javascript:, data:, //) are strictly rejected.
+ */
+export const sanitizeRedirectPath = (rawPath: string | null | undefined): string | null => {
+  if (rawPath === null || rawPath === undefined || typeof rawPath !== "string") {
+    return null;
+  }
+  const trimmed = rawPath.trim();
+  if (trimmed.length === 0) {
+    return null;
+  }
+
+  // Prevent protocol-relative URLs (e.g. //evil.com) and URI schemes (http://, https://, javascript:, data:)
+  if (
+    trimmed.startsWith("//") ||
+    /^[a-z][a-z0-9+.-]*:/i.test(trimmed)
+  ) {
+    return null;
+  }
+
+  // Ensure it starts with / or is a clean relative route name
+  return trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+};
+
+/**
  * Dynamically resolves linking prefixes for Expo apps on Web (Vercel/Production) and Native.
  * Prioritizes dynamic browser window.location.origin, environment variables, app schemes, and dev ports.
  */
@@ -8,16 +34,28 @@ export const getPrefixes = (): string[] => {
   const prefixes: string[] = [];
 
   // 1. Dynamic Browser Origin (Web / Vercel deployment)
-  if (typeof window !== "undefined" && window.location !== undefined && typeof window.location.origin === "string") {
-    if (window.location.origin.length > 0 && !prefixes.includes(window.location.origin)) {
-      prefixes.push(window.location.origin);
+  if (
+    typeof window !== "undefined" &&
+    window.location !== undefined &&
+    typeof window.location.origin === "string"
+  ) {
+    const origin = window.location.origin.trim();
+    if (
+      origin.length > 0 &&
+      (origin.startsWith("http://") || origin.startsWith("https://")) &&
+      !prefixes.includes(origin)
+    ) {
+      prefixes.push(origin);
     }
   }
 
   // 2. Environment-Configured App Domain (if specified in EXPO_PUBLIC_APP_URL / NEXT_PUBLIC_APP_URL)
   const envAppUrl = process.env.EXPO_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_APP_URL;
-  if (typeof envAppUrl === "string" && envAppUrl.length > 0 && !prefixes.includes(envAppUrl)) {
-    prefixes.push(envAppUrl);
+  if (typeof envAppUrl === "string" && envAppUrl.trim().length > 0) {
+    const cleanEnvUrl = envAppUrl.trim();
+    if (!prefixes.includes(cleanEnvUrl)) {
+      prefixes.push(cleanEnvUrl);
+    }
   }
 
   // 3. Custom App Scheme for Native Deep Linking
@@ -46,7 +84,8 @@ export interface CreateLinkingConfigOptions {
 
 /**
  * Creates a dynamic React Navigation linking configuration with root & alias redirects,
- * preserving deep link return URLs (?redirectUrl=... or ?redirect=...) post-authentication.
+ * preserving deep link return URLs (?redirectUrl=... or ?redirect=...) post-authentication
+ * with strict OWASP Open Redirect security sanitization.
  */
 export const createLinkingConfig = <T extends object>(
   options: CreateLinkingConfigOptions = {}
@@ -67,9 +106,11 @@ export const createLinkingConfig = <T extends object>(
       // Check for redirect query parameters (e.g. /login?redirect=/employees)
       const queryString = path.includes("?") ? path.split("?")[1] : "";
       const searchParams = new URLSearchParams(queryString);
-      const redirectParam = searchParams.get("redirectUrl") ?? searchParams.get("redirect");
+      const rawRedirectParam = searchParams.get("redirectUrl") ?? searchParams.get("redirect");
 
-      const targetPath = (redirectParam !== null && redirectParam.length > 0) ? redirectParam : path;
+      // Validate and sanitize the redirect path against Open Redirect attacks
+      const sanitizedRedirect = sanitizeRedirectPath(rawRedirectParam);
+      const targetPath = sanitizedRedirect !== null ? sanitizedRedirect : path;
       const cleanPath = targetPath.split("?")[0].replace(/^\//, "").replace(/\/$/, "");
 
       if (normalizedRedirects.has(cleanPath)) {
