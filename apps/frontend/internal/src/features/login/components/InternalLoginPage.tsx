@@ -166,30 +166,37 @@ export function InternalLoginPage() {
   const [showRegionDropdown, setShowRegionDropdown] = useState(false);
 
   const [error, setError] = useState("");
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [activeFooterModal, setActiveFooterModal] = useState<FooterPolicyContent | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
 
+  const triggerToastError = (msg: string) => {
+    setError(msg);
+    setToastMessage(msg);
+  };
+
   const handleSignIn = async () => {
     if (identifier.trim().length === 0) {
-      setError("Email address or username is required.");
+      triggerToastError("Email address or username is required.");
       return;
     }
     if (password.length === 0) {
-      setError("Password is required.");
+      triggerToastError("Password is required.");
       return;
     }
 
     setError("");
+    setToastMessage(null);
     setIsSubmitting(true);
 
     try {
       await loginWithClerk(identifier.trim(), password, region);
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setError(err.message);
+        triggerToastError(err.message);
       } else {
-        setError("Sign-in failed. Please check your credentials.");
+        triggerToastError("Authentication Failed: Invalid credentials, wrong password, or the wrong region selected.");
       }
     } finally {
       setIsSubmitting(false);
@@ -198,6 +205,7 @@ export function InternalLoginPage() {
 
   const handleGoogleSignIn = async () => {
     setError("");
+    setToastMessage(null);
     setIsGoogleSubmitting(true);
     try {
       const res = await startOAuthFlow();
@@ -206,9 +214,9 @@ export function InternalLoginPage() {
       }
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setError(err.message);
+        triggerToastError(err.message);
       } else {
-        setError("Sign in with Google failed.");
+        triggerToastError("Sign in with Google failed.");
       }
     } finally {
       setIsGoogleSubmitting(false);
@@ -220,6 +228,17 @@ export function InternalLoginPage() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={styles.keyboardAvoid}
     >
+      {/* Floating Error Toast Notification */}
+      {toastMessage !== null ? (
+        <View style={[styles.toastContainer, SHADOWS.modal]}>
+          <Lucide name="alert-triangle" size={20} color="#DC2626" />
+          <Text style={styles.toastText}>{toastMessage}</Text>
+          <TouchableOpacity onPress={() => setToastMessage(null)} style={styles.toastCloseBtn}>
+            <Lucide name="x" size={16} color={COLORS.neutral[500]} />
+          </TouchableOpacity>
+        </View>
+      ) : null}
+
       <ScrollView
         contentContainerStyle={styles.scrollContainer}
         showsVerticalScrollIndicator={false}
@@ -537,6 +556,37 @@ const styles = StyleSheet.create({
   keyboardAvoid: {
     flex: 1,
     backgroundColor: "#FAF9F6",
+  },
+
+  toastContainer: {
+    position: "absolute",
+    top: 20,
+    left: 20,
+    right: 20,
+    maxWidth: 600,
+    alignSelf: "center",
+    backgroundColor: "#FEF2F2",
+    borderWidth: 1,
+    borderColor: "#FCA5A5",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    zIndex: 9999,
+    elevation: 9999,
+  },
+  toastText: {
+    flex: 1,
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.medium,
+    color: "#991B1B",
+    lineHeight: 18,
+  },
+  toastCloseBtn: {
+    padding: 4,
   },
 
   scrollContainer: {

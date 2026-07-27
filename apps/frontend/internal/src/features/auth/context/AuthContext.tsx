@@ -56,13 +56,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     if (res.error !== null && res.error !== undefined) {
-      throw new Error(res.error.message || "Invalid email or password.");
+      throw new Error("Authentication Failed: Invalid credentials, wrong password, or the wrong region selected.");
     }
 
     if (signIn.status === "complete") {
       await signIn.finalize();
 
-      // Validate Tenant-Region Authorization after authentication
+      // Validate Backend Tenant-Region Authorization after authentication
       if (clerkUser.user !== null && clerkUser.user !== undefined && region !== undefined) {
         const metadata = (clerkUser.user.publicMetadata ?? clerkUser.user.unsafeMetadata ?? {}) as Record<string, unknown>;
         const userAssignedRegion = typeof metadata.region === "string" ? metadata.region : undefined;
@@ -72,11 +72,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (clerkAuth.signOut !== undefined) {
             await clerkAuth.signOut();
           }
-          throw new Error(validation.errorReason ?? "Access Denied: Regional tenant mismatch.");
+          throw new Error("Authentication Failed: Invalid credentials, wrong password, or the wrong region selected for your staff account.");
         }
       }
     } else {
-      throw new Error(`Authentication incomplete: status is ${signIn.status}`);
+      throw new Error("Authentication Failed: Invalid credentials, wrong password, or the wrong region selected.");
     }
   };
 
