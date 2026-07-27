@@ -1,5 +1,4 @@
-// Tree-Based Service Activation & Prerequisites Configuration Component
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -8,9 +7,16 @@ import {
   ScrollView,
   Switch,
   TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide } from '@edge/ui';
-import { ApplicationRequirementItem, FeePaymentItem, NoteItem } from '../data/mockAdminSettings';
+import {
+  useAdminServices,
+  useAdminNotes,
+  useAdminRequirements,
+  useAdminFees,
+  apiClient,
+} from '@edge/api';
 
 export interface ServiceVariant {
   id: string;
@@ -159,6 +165,12 @@ const DEFAULT_REQUIREMENTS_MAP: Record<string, { id: string; name: string; isReq
 };
 
 export function ServiceTreeConfigTab() {
+  // Live Backend SWR API Hooks
+  const { services: apiServices, isLoading: isServicesLoading } = useAdminServices();
+  const { notes: apiNotes } = useAdminNotes();
+  const { requirements: apiRequirements, serviceVariantRequirements: apiSvr } = useAdminRequirements();
+  const { fees: apiFees, serviceFees: apiServiceFees } = useAdminFees();
+
   // Services Catalog State (Level 1)
   const [services, setServices] = useState<ServiceCatalogItem[]>(DEFAULT_SERVICES);
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
@@ -170,6 +182,26 @@ export function ServiceTreeConfigTab() {
   const [elementsMap, setElementsMap] = useState<Record<string, ServiceElement[]>>(DEFAULT_ELEMENTS);
   const [notesMap, setNotesMap] = useState<Record<string, string[]>>(DEFAULT_NOTES_MAP);
   const [requirementsMap, setRequirementsMap] = useState<Record<string, { id: string; name: string; isRequired: boolean }[]>>(DEFAULT_REQUIREMENTS_MAP);
+
+  // Populate services state from live API response when available
+  useEffect(() => {
+    if (apiServices && apiServices.length > 0) {
+      const mappedServices: ServiceCatalogItem[] = apiServices.map((s) => ({
+        id: s.id,
+        name: s.name,
+        code: s.code || `SRV-${s.id.slice(-4)}`,
+        category: s.serviceCategoryType || s.serviceCategoryCode || 'General Service',
+        description: s.description || 'System service configured by system administrator.',
+        isActive: true,
+        variants: [
+          { id: 'v-new', name: 'New Application', code: 'NEW', isEnabled: true },
+          { id: 'v-renew', name: 'Renewal Application', code: 'RENEW', isEnabled: true },
+          { id: 'v-modify', name: 'Modification', code: 'MODIFY', isEnabled: true },
+        ],
+      }));
+      setServices(mappedServices);
+    }
+  }, [apiServices]);
 
   // Expanded Element Accordion State (Level 4)
   const [expandedElementId, setExpandedElementId] = useState<string | null>('el-1');
@@ -469,7 +501,7 @@ export function ServiceTreeConfigTab() {
                   onPress={() => setSelectedVariantId(variant.id)}
                 >
                   <Lucide
-                    name={isSelected ? 'check-circle-2' : 'circle'}
+                    name={isSelected ? 'check-circle' : 'circle'}
                     size={16}
                     color={isSelected ? COLORS.brand[600] : COLORS.neutral[400]}
                   />
@@ -850,7 +882,7 @@ const styles = StyleSheet.create({
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: SPACING[10],
+    paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: RADIUS.circle,
     gap: 6,
@@ -918,7 +950,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: SPACING[14],
+    paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: RADIUS.button,
     borderWidth: 1,
@@ -1039,7 +1071,7 @@ const styles = StyleSheet.create({
   variantPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: SPACING[14],
+    paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: RADIUS.button,
     borderWidth: 1,
@@ -1145,10 +1177,10 @@ const styles = StyleSheet.create({
   addBoxContainer: {
     backgroundColor: COLORS.neutral[50],
     borderRadius: RADIUS.button,
-    padding: SPACING[14],
+    padding: 14,
     borderWidth: 1,
     borderColor: COLORS.neutral[200],
-    gap: SPACING[10],
+    gap: 10,
   },
   addInput: {
     backgroundColor: COLORS.neutral.white,
@@ -1185,7 +1217,7 @@ const styles = StyleSheet.create({
   },
   saveSmallBtn: {
     backgroundColor: COLORS.brand[600],
-    paddingHorizontal: SPACING[14],
+    paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: RADIUS.button,
   },
@@ -1197,7 +1229,7 @@ const styles = StyleSheet.create({
 
   // GUIDANCE NOTES LIST
   notesList: {
-    gap: SPACING[10],
+    gap: 10,
   },
   noteCard: {
     flexDirection: 'row',
@@ -1234,7 +1266,7 @@ const styles = StyleSheet.create({
 
   // REQUIREMENTS LIST
   reqsList: {
-    gap: SPACING[10],
+    gap: 10,
   },
   reqCard: {
     flexDirection: 'row',
@@ -1249,7 +1281,7 @@ const styles = StyleSheet.create({
   reqInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING[10],
+    gap: 10,
     flex: 1,
   },
   reqName: {
@@ -1299,7 +1331,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: SPACING[14],
+    padding: 14,
   },
   elementTitleBox: {
     flexDirection: 'row',
@@ -1336,7 +1368,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: COLORS.neutral[200],
     backgroundColor: COLORS.neutral.white,
-    padding: SPACING[14],
+    padding: 14,
     gap: SPACING[12],
   },
   elementFeesHeader: {

@@ -63,4 +63,5 @@ export * from './hooks/useAdminForms';
 export * from './hooks/useAdminRoles';
 export * from './hooks/useRolePermissions';
 export * from './hooks/usePermissionsCatalog';
+export * from './hooks/useAdminServices';
 export * from './features/services';
