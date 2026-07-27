@@ -1,16 +1,10 @@
-import "./src/navigation";
+
 import { InitialState } from "@react-navigation/native";
 import { Platform } from "react-native";
 import React from "react";
 import { ClerkProvider, useAuth } from "@clerk/expo";
 import { tokenCache } from "@clerk/expo/token-cache";
-import {
-  UnauthNavigation,
-  AuthNavigation,
-  UnauthNavigation,
-  AuthNavigation,
-  clientLinking,
-} from "./src/routes";
+import { UnauthNavigation, AuthNavigation, clientLinking } from "./src/routes";
 
 const publishableKey =
   typeof process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY === "string" &&

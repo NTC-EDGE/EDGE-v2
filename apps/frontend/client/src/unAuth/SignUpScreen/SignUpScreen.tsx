@@ -34,13 +34,11 @@ export function SignUpScreen() {
   const [generalError, setGeneralError] = useState("");
 
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
   const [success, setSuccess] = useState(false);
-  
+
   // Verification states
   const [pendingVerification, setPendingVerification] = useState(false);
   const [code, setCode] = useState('');
-  const [codeError, setCodeError] = useState('');
 
   // Animations
   const cardFade = useRef(new Animated.Value(0)).current;
@@ -259,10 +257,10 @@ export function SignUpScreen() {
             </View>
 
             <Text style={styles.title}>
-              {step === "verify" ? "Verify Email" : "Create Account"}
+              {pendingVerification ? "Verify Email" : "Create Account"}
             </Text>
             <Text style={styles.subtitle}>
-              {step === "verify"
+              {pendingVerification
                 ? `Enter the code sent to ${email}`
                 : "Register to start filing your applications"}
             </Text>
@@ -379,7 +377,7 @@ export function SignUpScreen() {
                   title={loading ? "Creating Account..." : "Register"}
                   onPress={handleSignUp}
                   loading={loading}
-                  disabled={loading || googleLoading}
+                  disabled={loading}
                   style={styles.submitButton}
                   icon={
                     !loading ? (
@@ -390,16 +388,6 @@ export function SignUpScreen() {
                       />
                     ) : undefined
                   }
-                />
-
-                <Button
-                  title={googleLoading ? "Signing up..." : "Sign up with Google"}
-                  variant="outline"
-                  onPress={handleGoogleSignUp}
-                  loading={googleLoading}
-                  disabled={loading || googleLoading}
-                  style={{ marginTop: 10 }}
-                  icon={<Lucide name="globe" size={16} color="#4285F4" />}
                 />
 
                 <View style={styles.footerContainer}>
