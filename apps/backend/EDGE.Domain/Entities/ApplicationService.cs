@@ -7,7 +7,6 @@ public class ApplicationService : BaseEntity
 {
     public Guid ApplicationId { get; set; }
     public Application? Application { get; set; }
-
     public Guid? ServiceCategoryId { get; set; }
     public ServiceCategory? ServiceCategory { get; set; }
     public Guid? ServiceId { get; set; }
