@@ -30,7 +30,10 @@ export function useApplications(
       }
     }
     const queryString = queryParams.toString();
-    key = queryString !== "" ? `/applications?${queryString}` : "/applications";
+    key =
+      queryString !== ""
+        ? `/api/v2/applications?${queryString}`
+        : "/api/v2/applications";
   }
 
   return useAuthenticatedSWR<PaginatedApiResponse<ApplicationDto>>(
@@ -45,7 +48,8 @@ export function useApplicationById(
   clerkGetToken: () => Promise<string | null>,
   config?: SWRConfiguration<ApiResponse<ApplicationDto>>,
 ): SWRResponse<ApiResponse<ApplicationDto>> {
-  const key = id !== null && id.length > 0 ? `/applications/${id}` : null;
+  const key =
+    id !== null && id.length > 0 ? `/api/v2/applications/${id}` : null;
   return useAuthenticatedSWR<ApiResponse<ApplicationDto>>(
     key,
     clerkGetToken,
@@ -59,7 +63,7 @@ export function useDraftApplications(
   config?: SWRConfiguration<ApiResponse<ApplicationDto[]>>,
 ): SWRResponse<ApiResponse<ApplicationDto[]>> {
   // When not enabled, pass null key → SWR skips the fetch
-  const key = enabled ? "/applications/drafts" : null;
+  const key = enabled ? "/api/v2/applications/drafts" : null;
   return useAuthenticatedSWR<ApiResponse<ApplicationDto[]>>(
     key,
     clerkGetToken,

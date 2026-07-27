@@ -106,6 +106,14 @@ export interface ExamSchedule {
     remarks?: string | null;
     seatNumber?: string | null;
     createdAt?: string;
+    serviceId?: string | null;
+    serviceName?: string | null;
+    serviceCode?: string | null;
+    tenantId?: string | null;
+    startDate?: string | null;
+    endDate?: string | null;
+    startApplication?: string | null;
+    endApplication?: string | null;
 }
 export interface CreateExamScheduleCommand {
     title: string;
@@ -120,6 +128,12 @@ export interface CreateExamScheduleCommand {
     description?: string | null;
     remarks?: string | null;
     seatNumber?: string | null;
+    serviceId?: string | null;
+    tenantId?: string | null;
+    startDate?: string | null;
+    endDate?: string | null;
+    startApplication?: string | null;
+    endApplication?: string | null;
 }
 export interface UpdateExamScheduleCommand {
     id: string;
@@ -208,6 +222,7 @@ export interface UpdateMemberDetailsCommand {
 }
 export interface FieldOffice {
     id: string;
+    tenantId: string;
     name: string;
     code: string;
     description?: string | null;
@@ -218,7 +233,9 @@ export interface FieldOffice {
     address: string;
     contactPhone: string;
     contactEmail: string;
-    officerInCharge: string;
+    officerInChargeId: string;
+    officerInChargeName?: string | null;
+    officerInChargeEmail?: string | null;
     isActive: boolean;
     allowSpectrumInspection: boolean;
     allowPermitIssuance: boolean;
@@ -227,6 +244,7 @@ export interface FieldOffice {
     createdAt?: string;
 }
 export interface CreateFieldOfficeCommand {
+    tenantId: string;
     name: string;
     code: string;
     description?: string | null;
@@ -235,13 +253,14 @@ export interface CreateFieldOfficeCommand {
     address: string;
     contactPhone: string;
     contactEmail: string;
-    officerInCharge: string;
+    officerInChargeId: string;
     allowSpectrumInspection: boolean;
     allowPermitIssuance: boolean;
     allowComplaintReception: boolean;
 }
 export interface UpdateFieldOfficeCommand {
     id: string;
+    tenantId: string;
     name: string;
     code: string;
     description?: string | null;
@@ -250,7 +269,7 @@ export interface UpdateFieldOfficeCommand {
     address: string;
     contactPhone: string;
     contactEmail: string;
-    officerInCharge: string;
+    officerInChargeId: string;
     isActive: boolean;
     allowSpectrumInspection: boolean;
     allowPermitIssuance: boolean;
@@ -400,17 +419,41 @@ export interface Fee {
     code: string;
     name: string;
     description?: string | null;
+    isActive?: boolean;
 }
 export interface ServiceFee {
     id: string;
     serviceId: string;
     feeId: string;
     amount: number;
+    isActive?: boolean;
 }
 export interface Note {
     id: string;
     notes: string;
     serviceCategoryId: string;
+}
+export interface Requirement {
+    id: string;
+    name: string;
+    description?: string | null;
+}
+export interface ServiceVariant {
+    id: string;
+    serviceId: string;
+    type: string;
+    description?: string | null;
+}
+export interface ServiceVariantRequirement {
+    id: string;
+    requirementId: string;
+    requirement?: Requirement;
+    serviceVariantId: string;
+    serviceVariantType?: string;
+    serviceName?: string;
+    serviceCode?: string;
+    applicationTypeKey?: string | null;
+    isRequired: boolean;
 }
 export interface StoredFileDto {
     id: string;

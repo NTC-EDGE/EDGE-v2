@@ -13,19 +13,19 @@ exports.uploadTenantApplicationRequirement = uploadTenantApplicationRequirement;
 exports.previewCsvImport = previewCsvImport;
 const client_1 = require("../../client");
 async function submitApplication(command) {
-    const response = await client_1.apiClient.post("/applications", command);
+    const response = await client_1.apiClient.post("/api/v2/applications", command);
     return response.data;
 }
 async function submitTenantApplication(tenantId, command) {
-    const response = await client_1.apiClient.post(`/tenants/${tenantId}/applications`, command);
+    const response = await client_1.apiClient.post(`/api/v2/tenants/${tenantId}/applications`, command);
     return response.data;
 }
 async function getApplicationById(id) {
-    const response = await client_1.apiClient.get(`/applications/${id}`);
+    const response = await client_1.apiClient.get(`/api/v2/applications/${id}`);
     return response.data;
 }
 async function getDraftApplications() {
-    const response = await client_1.apiClient.get("/applications/drafts");
+    const response = await client_1.apiClient.get("/api/v2/applications/drafts");
     return response.data;
 }
 async function getApplications(params) {
@@ -48,35 +48,35 @@ async function getApplications(params) {
         }
     }
     const url = queryParams.toString() !== ""
-        ? `/applications?${queryParams.toString()}`
-        : "/applications";
+        ? `/api/v2/applications?${queryParams.toString()}`
+        : "/api/v2/applications";
     const response = await client_1.apiClient.get(url);
     return response.data;
 }
 async function updateApplicationDraft(id, command) {
-    const response = await client_1.apiClient.put(`/applications/${id}`, command);
+    const response = await client_1.apiClient.put(`/api/v2/applications/${id}`, command);
     return response.data;
 }
 async function deleteDraftApplication(id) {
-    const response = await client_1.apiClient.delete(`/applications/${id}`);
+    const response = await client_1.apiClient.delete(`/api/v2/applications/${id}`);
     return response.data;
 }
 async function finalizeApplicationSubmission(id) {
-    const response = await client_1.apiClient.post(`/applications/${id}/submit`);
+    const response = await client_1.apiClient.post(`/api/v2/applications/${id}/submit`);
     return response.data;
 }
 async function uploadApplicantRequirement(id, applicantId, command) {
-    const response = await client_1.apiClient.post(`/applications/${id}/applicants/${applicantId}/requirements`, command);
+    const response = await client_1.apiClient.post(`/api/v2/applications/${id}/applicants/${applicantId}/requirements`, command);
     return response.data;
 }
 async function uploadTenantApplicationRequirement(tenantId, appId, command) {
-    const response = await client_1.apiClient.patch(`/tenants/${tenantId}/applications/${appId}`, command);
+    const response = await client_1.apiClient.patch(`/api/v2/tenants/${tenantId}/applications/${appId}`, command);
     return response.data;
 }
 async function previewCsvImport(file) {
     const formData = new FormData();
     formData.append("file", file);
-    const response = await client_1.apiClient.post("/applications/csv-preview", formData, {
+    const response = await client_1.apiClient.post("/api/v2/applications/csv-preview", formData, {
         headers: {
             "Content-Type": "multipart/form-data",
         },

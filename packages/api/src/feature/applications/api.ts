@@ -13,7 +13,7 @@ export async function submitApplication(
   command: SubmitApplicationCommand,
 ): Promise<ApiResponse<string>> {
   const response = await apiClient.post<ApiResponse<string>>(
-    "/applications",
+    "/api/v2/applications",
     command,
   );
   return response.data;
@@ -24,7 +24,7 @@ export async function submitTenantApplication(
   command: SubmitApplicationCommand,
 ): Promise<ApiResponse<string>> {
   const response = await apiClient.post<ApiResponse<string>>(
-    `/tenants/${tenantId}/applications`,
+    `/api/v2/tenants/${tenantId}/applications`,
     command,
   );
   return response.data;
@@ -34,7 +34,7 @@ export async function getApplicationById(
   id: string,
 ): Promise<ApiResponse<ApplicationDto>> {
   const response = await apiClient.get<ApiResponse<ApplicationDto>>(
-    `/applications/${id}`,
+    `/api/v2/applications/${id}`,
   );
   return response.data;
 }
@@ -43,7 +43,7 @@ export async function getDraftApplications(): Promise<
   ApiResponse<ApplicationDto[]>
 > {
   const response = await apiClient.get<ApiResponse<ApplicationDto[]>>(
-    "/applications/drafts",
+    "/api/v2/applications/drafts",
   );
   return response.data;
 }
@@ -72,8 +72,8 @@ export async function getApplications(
 
   const url =
     queryParams.toString() !== ""
-      ? `/applications?${queryParams.toString()}`
-      : "/applications";
+      ? `/api/v2/applications?${queryParams.toString()}`
+      : "/api/v2/applications";
 
   const response =
     await apiClient.get<PaginatedApiResponse<ApplicationDto>>(url);
@@ -85,7 +85,7 @@ export async function updateApplicationDraft(
   command: UpdateApplicationCommand,
 ): Promise<ApiResponse<void>> {
   const response = await apiClient.put<ApiResponse<void>>(
-    `/applications/${id}`,
+    `/api/v2/applications/${id}`,
     command,
   );
   return response.data;
@@ -95,7 +95,7 @@ export async function deleteDraftApplication(
   id: string,
 ): Promise<ApiResponse<void>> {
   const response = await apiClient.delete<ApiResponse<void>>(
-    `/applications/${id}`,
+    `/api/v2/applications/${id}`,
   );
   return response.data;
 }
@@ -104,7 +104,7 @@ export async function finalizeApplicationSubmission(
   id: string,
 ): Promise<ApiResponse<void>> {
   const response = await apiClient.post<ApiResponse<void>>(
-    `/applications/${id}/submit`,
+    `/api/v2/applications/${id}/submit`,
   );
   return response.data;
 }
@@ -115,7 +115,7 @@ export async function uploadApplicantRequirement(
   command: UploadApplicantRequirementCommand,
 ): Promise<ApiResponse<void>> {
   const response = await apiClient.post<ApiResponse<void>>(
-    `/applications/${id}/applicants/${applicantId}/requirements`,
+    `/api/v2/applications/${id}/applicants/${applicantId}/requirements`,
     command,
   );
   return response.data;
@@ -127,7 +127,7 @@ export async function uploadTenantApplicationRequirement(
   command: UploadApplicantRequirementCommand,
 ): Promise<ApiResponse<void>> {
   const response = await apiClient.patch<ApiResponse<void>>(
-    `/tenants/${tenantId}/applications/${appId}`,
+    `/api/v2/tenants/${tenantId}/applications/${appId}`,
     command,
   );
   return response.data;
@@ -140,7 +140,7 @@ export async function previewCsvImport(
   formData.append("file", file);
 
   const response = await apiClient.post<ApiResponse<PreviewCsvImportResultDto>>(
-    "/applications/csv-preview",
+    "/api/v2/applications/csv-preview",
     formData,
     {
       headers: {
