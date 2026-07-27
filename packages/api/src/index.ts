@@ -47,6 +47,12 @@ export function useAuthenticatedSWR<Data = unknown, Error = unknown>(
   return useSWR<Data, Error>(key, customFetcher, defaultConfig);
 }
 
-
 export * from './types';
+export * from './types/region';
+export * from './types/auth';
+export * from './services/regionService';
+export * from './services/authService';
+export * from './services/apiErrorService';
+export * from './hooks/useRegions';
+export * from './hooks/useMyTenantMemberships';
 export * from './features/services';

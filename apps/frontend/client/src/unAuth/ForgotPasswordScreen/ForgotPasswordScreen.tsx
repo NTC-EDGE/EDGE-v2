@@ -26,6 +26,10 @@ export function ForgotPasswordScreen() {
   const navigation = useAppNavigation();
   const { signIn, setActive, isLoaded } = useSignIn();
   const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
   const [emailError, setEmailError] = useState("");
   const [generalError, setGeneralError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -57,6 +61,21 @@ export function ForgotPasswordScreen() {
         duration: 650,
         useNativeDriver: true,
       }),
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(glowAnim, {
+            toValue: 1,
+            duration: 4000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(glowAnim, {
+            toValue: 0,
+            duration: 4000,
+            useNativeDriver: true,
+          }),
+        ]),
+      ),
+    ]).start();
       Animated.loop(
         Animated.sequence([
           Animated.timing(glowAnim, {
@@ -202,7 +221,6 @@ export function ForgotPasswordScreen() {
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Animated background glows */}
         <Animated.View
           style={[
             styles.bgGlow,
@@ -212,12 +230,11 @@ export function ForgotPasswordScreen() {
         />
 
         <View style={styles.outerContainer}>
-          {/* Back to landing */}
           <Button
             title="Back to Landing Page"
             variant="text"
             size="sm"
-            onPress={() => navigation.navigate("Landing")}
+            onPress={() => (navigation as { navigate: (route: string) => void }).navigate("Landing")}
             style={styles.backButton}
             textStyle={styles.backButtonText}
             icon={
@@ -233,7 +250,6 @@ export function ForgotPasswordScreen() {
               { opacity: cardFade, transform: [{ translateY: cardSlide }] },
             ]}
           >
-            {/* Header Logo */}
             <View style={styles.logoWrapper}>
               <Logo />
             </View>
@@ -253,6 +269,7 @@ export function ForgotPasswordScreen() {
               <View style={styles.successWrapper}>
                 <View style={styles.successBox}>
                   <Lucide
+                    name="check-circle"
                     name="check-circle"
                     size={24}
                     color={COLORS.semantic.success}
@@ -323,7 +340,7 @@ export function ForgotPasswordScreen() {
                   textStyle={styles.backToLoginText}
                 />
               </View>
-            ) : (
+            ) : step === "request" ? (
               <View style={styles.form}>
                 <Input
                   label="Email Address"
@@ -337,12 +354,8 @@ export function ForgotPasswordScreen() {
                 />
 
                 <Button
-                  title={
-                    loading
-                      ? "Sending Instructions..."
-                      : "Send Reset Instructions"
-                  }
-                  onPress={handlePasswordReset}
+                  title={loading ? "Sending Code..." : "Send Reset Code"}
+                  onPress={handleRequestCode}
                   loading={loading}
                   style={styles.submitButton}
                   icon={
@@ -360,7 +373,65 @@ export function ForgotPasswordScreen() {
                   title="Return to Sign In"
                   variant="text"
                   size="sm"
-                  onPress={() => navigation.navigate("Login")}
+                  onPress={() => (navigation as { navigate: (route: string) => void }).navigate("Login")}
+                  style={styles.backToLoginBtn}
+                  textStyle={styles.backToLoginText}
+                />
+              </View>
+            ) : (
+              <View style={styles.form}>
+                <Input
+                  label="Verification Code"
+                  placeholder="Enter 6-digit code"
+                  value={code}
+                  onChangeText={setCode}
+                  error={codeError}
+                  keyboardType="numeric"
+                  iconName="shield-check"
+                />
+
+                <Input
+                  label="New Password"
+                  placeholder="Min. 8 characters"
+                  value={newPassword}
+                  onChangeText={setNewPassword}
+                  error={passwordError}
+                  secureTextEntry={true}
+                  autoCapitalize="none"
+                  iconName="lock"
+                />
+
+                <Input
+                  label="Confirm New Password"
+                  placeholder="Re-type new password"
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry={true}
+                  autoCapitalize="none"
+                  iconName="lock"
+                />
+
+                <Button
+                  title={loading ? "Resetting Password..." : "Reset Password"}
+                  onPress={handleResetPassword}
+                  loading={loading}
+                  style={styles.submitButton}
+                  icon={
+                    !loading ? (
+                      <Lucide
+                        name="check-circle"
+                        size={16}
+                        color={COLORS.neutral.white}
+                      />
+                    ) : undefined
+                  }
+                />
+
+                <Button
+                  title="Return to Sign In"
+                  variant="text"
+                  size="sm"
+                  onPress={() => (navigation as { navigate: (route: string) => void }).navigate("Login")}
                   style={styles.backToLoginBtn}
                   textStyle={styles.backToLoginText}
                 />

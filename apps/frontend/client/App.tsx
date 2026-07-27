@@ -7,6 +7,8 @@ import { tokenCache } from "@clerk/expo/token-cache";
 import {
   UnauthNavigation,
   AuthNavigation,
+  UnauthNavigation,
+  AuthNavigation,
   clientLinking,
 } from "./src/routes";
 

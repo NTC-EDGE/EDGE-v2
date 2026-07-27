@@ -30,6 +30,7 @@ export function LoginScreen() {
   const [generalError, setGeneralError] = useState("");
 
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
   // Animations
@@ -113,9 +114,7 @@ export function LoginScreen() {
         await setActive({ session: signIn.createdSessionId });
         setSuccess(true);
       } else {
-        setGeneralError(
-          `Unable to complete sign-in. Status is: ${signIn.status}. Please complete verification.`,
-        );
+        setGeneralError(`Sign-in incomplete: status is ${signIn.status}`);
       }
     } catch (err: unknown) {
       let errMsg = "Invalid email or password.";
@@ -179,7 +178,6 @@ export function LoginScreen() {
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Animated background glows */}
         <Animated.View
           style={[
             styles.bgGlow,
@@ -189,18 +187,17 @@ export function LoginScreen() {
         />
 
         <View style={styles.outerContainer}>
-          {/* Back to landing */}
           <Button
             title="Back to Landing Page"
             variant="text"
             size="sm"
-            onPress={() => navigation.navigate("Landing")}
+            onPress={() => (navigation as { navigate: (route: string) => void }).navigate("Landing")}
             style={styles.backButton}
             textStyle={styles.backButtonText}
             icon={
               <Lucide name="arrow-left" size={14} color={COLORS.neutral[600]} />
             }
-            disabled={loading || success}
+            disabled={loading || googleLoading || success}
           />
 
           <Animated.View
@@ -210,7 +207,6 @@ export function LoginScreen() {
               { opacity: cardFade, transform: [{ translateY: cardSlide }] },
             ]}
           >
-            {/* Header and Brand */}
             <View style={styles.logoWrapper}>
               <Logo />
             </View>
@@ -264,7 +260,7 @@ export function LoginScreen() {
                   title="Forgot Password?"
                   variant="text"
                   size="sm"
-                  onPress={() => navigation.navigate("ForgotPassword")}
+                  onPress={() => (navigation as { navigate: (route: string) => void }).navigate("ForgotPassword")}
                   style={styles.forgotButton}
                   textStyle={styles.forgotText}
                 />
@@ -273,6 +269,7 @@ export function LoginScreen() {
                   title={loading ? "Verifying Credentials..." : "Sign In"}
                   onPress={handleSignIn}
                   loading={loading}
+                  disabled={loading || googleLoading}
                   style={styles.submitButton}
                   icon={
                     !loading ? (
@@ -313,7 +310,7 @@ export function LoginScreen() {
                     title="Create an account"
                     variant="text"
                     size="sm"
-                    onPress={() => navigation.navigate("SignUp")}
+                    onPress={() => (navigation as { navigate: (route: string) => void }).navigate("SignUp")}
                     textStyle={styles.footerLink}
                   />
                 </View>

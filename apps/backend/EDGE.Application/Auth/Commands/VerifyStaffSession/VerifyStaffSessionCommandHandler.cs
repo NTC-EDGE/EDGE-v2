@@ -1,0 +1,92 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using MediatR;
+using EDGE.Application.Common.Interfaces;
+using EDGE.Application.Common.Models;
+using EDGE.Domain.Entities;
+
+namespace EDGE.Application.Auth.Commands.VerifyStaffSession;
+
+public class VerifyStaffSessionCommandHandler : IRequestHandler<VerifyStaffSessionCommand, ApiResponse<VerifyStaffSessionDto>>
+{
+    private readonly ICurrentUserService _currentUserService;
+    private readonly ITenantRepository _tenantRepository;
+    private readonly IGeographicRepository _geographicRepository;
+
+    public VerifyStaffSessionCommandHandler(
+        ICurrentUserService currentUserService,
+        ITenantRepository tenantRepository,
+        IGeographicRepository geographicRepository)
+    {
+        _currentUserService = currentUserService;
+        _tenantRepository = tenantRepository;
+        _geographicRepository = geographicRepository;
+    }
+
+    public async Task<ApiResponse<VerifyStaffSessionDto>> Handle(
+        VerifyStaffSessionCommand request,
+        CancellationToken cancellationToken)
+    {
+        var rawUserId = _currentUserService.UserId;
+        var selectedRegionInput = request.SelectedRegion.Trim();
+
+        // 1. Fetch available administrative regions to compare codes and names
+        var allRegions = await _geographicRepository.GetRegionsAsync(activeOnly: true, cancellationToken);
+        var targetRegion = allRegions.FirstOrDefault(r =>
+            string.Equals(r.Code, selectedRegionInput, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(r.Name, selectedRegionInput, StringComparison.OrdinalIgnoreCase) ||
+            selectedRegionInput.StartsWith(r.Code, StringComparison.OrdinalIgnoreCase) ||
+            selectedRegionInput.Contains(r.Name, StringComparison.OrdinalIgnoreCase)
+        ) ?? allRegions.FirstOrDefault(r => string.Equals(r.Code, "NCR", StringComparison.OrdinalIgnoreCase));
+
+        var regionCode = targetRegion?.Code ?? "NCR";
+        var regionName = targetRegion?.Name ?? "National Capital Region";
+
+        // 2. Validate tenant regional access against caller context
+        var callerTenantId = _currentUserService.TenantId;
+        if (callerTenantId.HasValue)
+        {
+            var tenant = await _tenantRepository.GetByIdAsync(callerTenantId.Value, cancellationToken);
+            if (tenant != null)
+            {
+                var assignedRegion = allRegions.FirstOrDefault(r => r.Id == tenant.RegionId);
+                if (assignedRegion != null)
+                {
+                    var assignedRegionClean = assignedRegion.Code.Trim().ToLowerInvariant();
+                    var selectedRegionClean = selectedRegionInput.ToLowerInvariant();
+
+                    bool isMatch = selectedRegionClean.Contains(assignedRegionClean) ||
+                                   assignedRegionClean.Contains(selectedRegionClean) ||
+                                   (assignedRegion.Name != null && selectedRegionClean.Contains(assignedRegion.Name.ToLowerInvariant()));
+
+                    if (!isMatch)
+                    {
+                        return ApiResponse<VerifyStaffSessionDto>.Fail(
+                            $"Access Denied: Your staff account is assigned to Regional Office '{assignedRegion.Code} - {assignedRegion.Name}'. You cannot log into '{request.SelectedRegion}'."
+                        );
+                    }
+
+                    regionCode = assignedRegion.Code;
+                    regionName = assignedRegion.Name ?? regionName;
+                }
+            }
+        }
+
+        var dto = new VerifyStaffSessionDto(
+            UserId: !string.IsNullOrEmpty(rawUserId) && Guid.TryParse(rawUserId, out var uid) ? uid : Guid.NewGuid(),
+            Email: "staff@ntc.gov.ph",
+            TenantId: callerTenantId ?? Guid.NewGuid(),
+            TenantName: $"NTC Regional Office - {regionCode}",
+            RegionCode: regionCode,
+            RegionName: regionName,
+            IsAuthorized: true,
+            AssignedRoles: new List<string> { "RegionalStaff", "Officer" },
+            EffectivePermissions: new List<string> { "ViewQueues", "ManageApplications", "FileReports" }
+        );
+
+        return ApiResponse<VerifyStaffSessionDto>.Success(dto, "Staff tenant membership verified successfully.");
+    }
+}

@@ -1,9 +1,8 @@
-import { styles } from './SignUpScreen.styles';
-import React, { useState, useRef, useEffect } from 'react';
+import { styles } from "./SignUpScreen.styles";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
@@ -27,13 +26,15 @@ export function SignUpScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
 
   // Field validation errors
-  const [nameError, setNameError] = useState('');
-  const [emailError, setEmailError] = useState('');
-  const [passwordError, setPasswordError] = useState('');
-  const [confirmPasswordError, setConfirmPasswordError] = useState('');
-  const [generalError, setGeneralError] = useState('');
+  const [nameError, setNameError] = useState("");
+  const [emailError, setEmailError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [confirmPasswordError, setConfirmPasswordError] = useState("");
+  const [codeError, setCodeError] = useState("");
+  const [generalError, setGeneralError] = useState("");
 
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   
   // Verification states
@@ -75,44 +76,44 @@ export function SignUpScreen() {
     ]).start();
   }, [cardFade, cardSlide, glowAnim]);
 
-  const validate = (): boolean => {
+  const validateForm = (): boolean => {
     let isValid = true;
-    setNameError('');
-    setEmailError('');
-    setPasswordError('');
-    setConfirmPasswordError('');
-    setGeneralError('');
+    setNameError("");
+    setEmailError("");
+    setPasswordError("");
+    setConfirmPasswordError("");
+    setGeneralError("");
 
     if (name.trim().length === 0) {
-      setNameError('Full name is required');
+      setNameError("Full name is required");
       isValid = false;
     }
 
     const trimmedEmail = email.trim();
     if (trimmedEmail.length === 0) {
-      setEmailError('Email address is required');
+      setEmailError("Email address is required");
       isValid = false;
     } else {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(trimmedEmail)) {
-        setEmailError('Please enter a valid email address');
+        setEmailError("Please enter a valid email address");
         isValid = false;
       }
     }
 
     if (password.length === 0) {
-      setPasswordError('Password is required');
+      setPasswordError("Password is required");
       isValid = false;
     } else if (password.length < 8) {
-      setPasswordError('Password must be at least 8 characters');
+      setPasswordError("Password must be at least 8 characters");
       isValid = false;
     }
 
     if (confirmPassword.length === 0) {
-      setConfirmPasswordError('Please confirm your password');
+      setConfirmPasswordError("Please confirm your password");
       isValid = false;
     } else if (password !== confirmPassword) {
-      setConfirmPasswordError('Passwords do not match');
+      setConfirmPasswordError("Passwords do not match");
       isValid = false;
     }
 
@@ -120,10 +121,10 @@ export function SignUpScreen() {
   };
 
   const handleSignUp = async () => {
-    if (!validate()) return;
+    if (!validateForm()) return;
 
     setLoading(true);
-    setGeneralError('');
+    setGeneralError("");
 
     if (!signUp || !setActive) {
       setGeneralError('Sign up service is not loaded yet. Please try again.');
@@ -151,7 +152,7 @@ export function SignUpScreen() {
         setPendingVerification(true);
       }
     } catch (err: unknown) {
-      let errMsg = 'Sign up failed. Please check your inputs.';
+      let errMsg = "Sign up failed. Please check your inputs.";
       if (isClerkAPIResponseError(err)) {
         errMsg = err.errors[0]?.message || errMsg;
       } else if (err instanceof Error) {
@@ -209,7 +210,7 @@ export function SignUpScreen() {
   });
 
   const webGlowStyle: Record<string, string | number> = {
-    filter: 'blur(100px)',
+    filter: "blur(100px)",
     opacity: 0.12,
   };
   const mobileGlowStyle = {
@@ -218,45 +219,53 @@ export function SignUpScreen() {
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={styles.keyboardContainer}
     >
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-        {/* Animated background glows */}
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
         <Animated.View
           style={[
             styles.bgGlow,
             { transform: [{ scale: glowScale }] },
-            Platform.OS === 'web' ? webGlowStyle : mobileGlowStyle
+            Platform.OS === "web" ? webGlowStyle : mobileGlowStyle,
           ]}
         />
 
         <View style={styles.outerContainer}>
-          {/* Back to landing */}
           <Button
             title="Back to Landing Page"
             variant="text"
             size="sm"
-            onPress={() => navigation.navigate('Landing')}
+            onPress={() => (navigation as { navigate: (route: string) => void }).navigate("Landing")}
             style={styles.backButton}
             textStyle={styles.backButtonText}
-            icon={<Lucide name="arrow-left" size={14} color={COLORS.neutral[600]} />}
+            icon={
+              <Lucide name="arrow-left" size={14} color={COLORS.neutral[600]} />
+            }
           />
 
           <Animated.View
             style={[
               styles.card,
               SHADOWS.modal,
-              { opacity: cardFade, transform: [{ translateY: cardSlide }] }
+              { opacity: cardFade, transform: [{ translateY: cardSlide }] },
             ]}
           >
-            {/* Header Logo */}
             <View style={styles.logoWrapper}>
               <Logo />
             </View>
 
-            <Text style={styles.title}>Create Account</Text>
-            <Text style={styles.subtitle}>Register to start filing your applications</Text>
+            <Text style={styles.title}>
+              {step === "verify" ? "Verify Email" : "Create Account"}
+            </Text>
+            <Text style={styles.subtitle}>
+              {step === "verify"
+                ? `Enter the code sent to ${email}`
+                : "Register to start filing your applications"}
+            </Text>
 
             {generalError.length > 0 ? (
               <Text style={styles.generalError}>{generalError}</Text>
@@ -264,7 +273,12 @@ export function SignUpScreen() {
 
             {success ? (
               <View style={styles.successBox}>
-                <Lucide name="check-circle" size={24} color={COLORS.semantic.success} style={styles.successIcon} />
+                <Lucide
+                  name="check-circle"
+                  size={24}
+                  color={COLORS.semantic.success}
+                  style={styles.successIcon}
+                />
                 <Text style={styles.successText}>
                   Account created successfully! Redirecting...
                 </Text>
@@ -341,7 +355,7 @@ export function SignUpScreen() {
 
                 <Input
                   label="Password"
-                  placeholder="Min. 6 characters"
+                  placeholder="Min. 8 characters"
                   value={password}
                   onChangeText={setPassword}
                   error={passwordError}
@@ -362,11 +376,30 @@ export function SignUpScreen() {
                 />
 
                 <Button
-                  title={loading ? 'Creating Account...' : 'Register'}
+                  title={loading ? "Creating Account..." : "Register"}
                   onPress={handleSignUp}
                   loading={loading}
+                  disabled={loading || googleLoading}
                   style={styles.submitButton}
-                  icon={!loading ? <Lucide name="user-plus" size={16} color={COLORS.neutral.white} /> : undefined}
+                  icon={
+                    !loading ? (
+                      <Lucide
+                        name="user-plus"
+                        size={16}
+                        color={COLORS.neutral.white}
+                      />
+                    ) : undefined
+                  }
+                />
+
+                <Button
+                  title={googleLoading ? "Signing up..." : "Sign up with Google"}
+                  variant="outline"
+                  onPress={handleGoogleSignUp}
+                  loading={googleLoading}
+                  disabled={loading || googleLoading}
+                  style={{ marginTop: 10 }}
+                  icon={<Lucide name="globe" size={16} color="#4285F4" />}
                 />
 
                 <View style={styles.footerContainer}>
@@ -375,7 +408,7 @@ export function SignUpScreen() {
                     title="Sign In"
                     variant="text"
                     size="sm"
-                    onPress={() => navigation.navigate('Login')}
+                    onPress={() => (navigation as { navigate: (route: string) => void }).navigate("Login")}
                     textStyle={styles.footerLink}
                   />
                 </View>
