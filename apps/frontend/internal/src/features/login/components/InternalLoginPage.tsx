@@ -250,8 +250,8 @@ export function InternalLoginPage() {
         contentContainerStyle={styles.scrollContainer}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.backgroundBlobLeft} pointerEvents="none" />
-        <View style={styles.backgroundBlobRight} pointerEvents="none" />
+        <View style={styles.backgroundBlobLeft} pointerEvents={Platform.OS !== "web" ? "none" : undefined} />
+        <View style={styles.backgroundBlobRight} pointerEvents={Platform.OS !== "web" ? "none" : undefined} />
 
         <View style={styles.heroSection}>
           <View style={[styles.heroContentWrapper, isMobile && styles.heroContentWrapperMobile]}>
@@ -462,6 +462,11 @@ const styles = StyleSheet.create({
     height: 480,
     borderRadius: 240,
     backgroundColor: "rgba(219, 234, 254, 0.55)",
+    ...Platform.select({
+      web: {
+        pointerEvents: "none",
+      },
+    }),
   },
   backgroundBlobRight: {
     position: "absolute",
@@ -471,6 +476,11 @@ const styles = StyleSheet.create({
     height: 420,
     borderRadius: 210,
     backgroundColor: "rgba(254, 226, 226, 0.45)",
+    ...Platform.select({
+      web: {
+        pointerEvents: "none",
+      },
+    }),
   },
 
   heroSection: {

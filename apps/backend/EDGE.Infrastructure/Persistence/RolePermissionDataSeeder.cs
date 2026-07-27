@@ -78,6 +78,7 @@ public static class RolePermissionDataSeeder
             (clientRoleId, Permissions.UploadStorage),
             (clientRoleId, Permissions.ReadStorage),
             (clientRoleId, Permissions.DownloadStorage),
+            (clientRoleId, Permissions.ReadTenants),
 
             // Evaluator
             (evaluatorRoleId, Permissions.ViewAllApplications),
