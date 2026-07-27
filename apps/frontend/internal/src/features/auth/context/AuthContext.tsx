@@ -24,37 +24,24 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const CLERK_PUBLISHABLE_KEY =
-  process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? "";
+const CLERK_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? "";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const isClerkEnabled =
-    typeof CLERK_PUBLISHABLE_KEY === "string" &&
-    CLERK_PUBLISHABLE_KEY.length > 0;
-
+  const isClerkEnabled = typeof CLERK_PUBLISHABLE_KEY === "string" && CLERK_PUBLISHABLE_KEY.length > 0;
   const [selectedRegionState, setSelectedRegionState] = useState<string | undefined>(undefined);
 
-  // Clerk hooks
+  // Clerk custom flow hooks (Clerk Expo SDK v3)
   const clerkAuth = useAuth();
   const clerkUser = useUser();
-  const signInHook = useSignIn();
-  const signUpHook = useSignUp();
-
-  const signInRecord = signInHook as unknown as Record<string, unknown>;
-  const signUpRecord = signUpHook as unknown as Record<string, unknown>;
-
-  const isSignInLoaded = Boolean(signInRecord.isLoaded);
-  const isSignUpLoaded = Boolean(signUpRecord.isLoaded);
+  const { signIn } = useSignIn();
+  const { signUp } = useSignUp();
 
   const loginWithClerk = async (email: string, password: string, region?: string) => {
     if (!isClerkEnabled) {
       throw new Error("Clerk publishable key is not configured.");
     }
-    const signInObj = signInRecord.signIn as {
-      create: (params: { identifier: string; password: string }) => Promise<{ status: string; createdSessionId: string }>;
-    } | undefined;
 
-    if (!isSignInLoaded || signInObj === null || signInObj === undefined) {
+    if (signIn === null || signIn === undefined) {
       throw new Error("Authentication service is not loaded yet. Please try again.");
     }
 
@@ -62,53 +49,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSelectedRegionState(region);
     }
 
-    const result = await signInObj.create({
-      identifier: email,
-      password,
-    });
-
-    const setActiveFn = signInRecord.setActive as ((params: { session: string }) => Promise<void>) | undefined;
-
-    if (result.status === "complete") {
-      if (setActiveFn !== undefined) {
-        await setActiveFn({ session: result.createdSessionId });
-      }
-    } else {
-      throw new Error(`Authentication incomplete: status is ${result.status}`);
-    }
-  };
-
-  const signUpWithClerk = async (
-    email: string,
-    password: string,
-  ): Promise<boolean> => {
-    if (!isClerkEnabled) {
-      throw new Error("Clerk publishable key is not configured.");
-    }
-    const signUpObj = signUpRecord.signUp as {
-      create: (params: { emailAddress: string; password: string }) => Promise<{ status: string; createdSessionId: string }>;
-      prepareEmailAddressVerification: (params: { strategy: string }) => Promise<void>;
-    } | undefined;
-
-    if (!isSignUpLoaded || signUpObj === null || signUpObj === undefined) {
-      throw new Error("Sign up service is not loaded yet. Please try again.");
-    }
-
-    const result = await signUpObj.create({
+    const res = await signIn.password({
       emailAddress: email,
       password,
     });
 
-    const setActiveFn = signUpRecord.setActive as ((params: { session: string }) => Promise<void>) | undefined;
+    if (res.error !== null && res.error !== undefined) {
+      throw new Error(res.error.message || "Invalid email or password.");
+    }
 
-    if (result.status === "complete") {
-      if (setActiveFn !== undefined) {
-        await setActiveFn({ session: result.createdSessionId });
-      }
+    if (signIn.status === "complete") {
+      await signIn.finalize();
+    } else {
+      throw new Error(`Authentication incomplete: status is ${signIn.status}`);
+    }
+  };
+
+  const signUpWithClerk = async (email: string, password: string): Promise<boolean> => {
+    if (!isClerkEnabled) {
+      throw new Error("Clerk publishable key is not configured.");
+    }
+
+    if (signUp === null || signUp === undefined) {
+      throw new Error("Sign up service is not loaded yet. Please try again.");
+    }
+
+    const res = await signUp.password({
+      emailAddress: email,
+      password,
+    });
+
+    if (res.error !== null && res.error !== undefined) {
+      throw new Error(res.error.message || "Sign up failed.");
+    }
+
+    if (signUp.status === "complete") {
+      await signUp.finalize();
       return true;
     }
 
-    await signUpObj.prepareEmailAddressVerification({ strategy: "email_code" });
+    await signUp.verifications.sendEmailCode();
     return false;
   };
 
@@ -116,26 +96,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!isClerkEnabled) {
       throw new Error("Clerk publishable key is not configured.");
     }
-    const signUpObj = signUpRecord.signUp as {
-      attemptEmailAddressVerification: (params: { code: string }) => Promise<{ status: string; createdSessionId: string }>;
-    } | undefined;
 
-    if (!isSignUpLoaded || signUpObj === null || signUpObj === undefined) {
+    if (signUp === null || signUp === undefined) {
       throw new Error("Sign up service is not loaded yet. Please try again.");
     }
 
-    const result = await signUpObj.attemptEmailAddressVerification({
-      code,
-    });
+    await signUp.verifications.verifyEmailCode({ code });
 
-    const setActiveFn = signUpRecord.setActive as ((params: { session: string }) => Promise<void>) | undefined;
-
-    if (result.status === "complete") {
-      if (setActiveFn !== undefined) {
-        await setActiveFn({ session: result.createdSessionId });
-      }
+    if (signUp.status === "complete") {
+      await signUp.finalize();
     } else {
-      throw new Error(`Sign up incomplete: status is ${result.status}`);
+      throw new Error(`Sign up incomplete: status is ${signUp.status}`);
     }
   };
 
@@ -145,7 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Derive User Profile from Clerk or Fallback
+  // Derive User Profile from Clerk or Fallback for Development
   let user: UserProfile | null = null;
   const isAuthenticated = isClerkEnabled ? Boolean(clerkAuth.isSignedIn) : true;
 
@@ -163,7 +134,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       region: selectedRegionState,
     };
   } else if (!isClerkEnabled) {
-    // Simulated User for Development when Clerk key is absent
     user = {
       name: "Staff User",
       email: "staff@ntc.gov.ph",

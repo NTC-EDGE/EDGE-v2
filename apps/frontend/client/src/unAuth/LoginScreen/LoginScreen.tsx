@@ -3,7 +3,6 @@ import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
@@ -13,30 +12,19 @@ import { Icon as Lucide } from "@edge/ui";
 import {
   COLORS,
   SHADOWS,
-  SPACING,
-  RADIUS,
-  TYPOGRAPHY,
 } from "../../shared/theme/tokens";
 import { Input } from "../../shared/components/Input";
 import { Button } from "../../shared/components/Button";
 import { Logo } from "../../shared/components/Logo";
-import { useNavigation, NavigationProp } from "@react-navigation/native";
+import { useNavigation } from "@react-navigation/native";
 import { useSignIn, isClerkAPIResponseError } from "@clerk/expo";
 import { Select } from "../../shared/components/Select";
 import { PHILIPPINE_REGIONS } from "../../shared/constants/regions";
 
-type UnauthParamList = {
-  Landing: undefined;
-  Login: undefined;
-  SignUp: undefined;
-  ForgotPassword: undefined;
-};
-
 export function LoginScreen() {
   const navigation = useNavigation();
-  const signInResult = useSignIn();
-  const { signIn } = signInResult;
-  const [region, setRegion] = useState("");
+  const { signIn } = useSignIn();
+  const [region, setRegion] = useState("NCR - National Capital Region");
   const [phoneOrEmail, setPhoneOrEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -115,36 +103,28 @@ export function LoginScreen() {
     setLoading(true);
     setGeneralError("");
 
-    if (signIn === null) {
-      setGeneralError(
-        "Authentication service is not loaded yet. Please try again.",
-      );
+    if (signIn === null || signIn === undefined) {
+      setGeneralError("Authentication service is not loaded yet. Please try again.");
       setLoading(false);
       return;
     }
 
     try {
-      const result = await signIn.create({
-        identifier: phoneOrEmail,
+      const res = await signIn.password({
+        emailAddress: phoneOrEmail.trim(),
         password,
       });
 
-      if (result.error) {
-        setGeneralError(result.error.message || "Invalid email/phone or password.");
+      if (res.error !== null && res.error !== undefined) {
+        setGeneralError(res.error.message || "Invalid email/phone or password.");
         return;
       }
 
       if (signIn.status === "complete") {
-        const finalizeResult = await signIn.finalize();
-        if (finalizeResult.error) {
-          setGeneralError(finalizeResult.error.message || "Sign-in finalization failed.");
-        } else {
-          setSuccess(true);
-        }
+        await signIn.finalize();
+        setSuccess(true);
       } else {
-        setGeneralError(
-          `Unable to complete sign-in. Status is: ${signIn.status}. Please complete verification.`,
-        );
+        setGeneralError(`Sign-in incomplete: status is ${signIn.status}`);
       }
     } catch (err: unknown) {
       let errMsg = "Invalid email/phone or password.";
@@ -181,7 +161,6 @@ export function LoginScreen() {
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Animated background glows */}
         <Animated.View
           style={[
             styles.bgGlow,
@@ -191,12 +170,11 @@ export function LoginScreen() {
         />
 
         <View style={styles.outerContainer}>
-          {/* Back to landing */}
           <Button
             title="Back to Landing Page"
             variant="text"
             size="sm"
-            onPress={() => navigation.navigate("Landing")}
+            onPress={() => (navigation as { navigate: (route: string) => void }).navigate("Landing")}
             style={styles.backButton}
             textStyle={styles.backButtonText}
             icon={
@@ -212,7 +190,6 @@ export function LoginScreen() {
               { opacity: cardFade, transform: [{ translateY: cardSlide }] },
             ]}
           >
-            {/* Header and Brand */}
             <View style={styles.logoWrapper}>
               <Logo />
             </View>
@@ -279,7 +256,7 @@ export function LoginScreen() {
                   title="Forgot Password?"
                   variant="text"
                   size="sm"
-                  onPress={() => navigation.navigate("ForgotPassword")}
+                  onPress={() => (navigation as { navigate: (route: string) => void }).navigate("ForgotPassword")}
                   style={styles.forgotButton}
                   textStyle={styles.forgotText}
                 />
@@ -306,7 +283,7 @@ export function LoginScreen() {
                     title="Create an account"
                     variant="text"
                     size="sm"
-                    onPress={() => navigation.navigate("SignUp")}
+                    onPress={() => (navigation as { navigate: (route: string) => void }).navigate("SignUp")}
                     textStyle={styles.footerLink}
                   />
                 </View>
