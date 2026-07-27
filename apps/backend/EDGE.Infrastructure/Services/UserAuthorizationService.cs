@@ -153,26 +153,40 @@ public class UserAuthorizationService : IUserAuthorizationService
         try
         {
             var tenantId = _tenantContextService.TenantId;
-
-            IQueryable<string> query;
-
+            List<string> dbPermissions;
             if (tenantId.HasValue)
             {
-                query = from tm in _dbContext.Set<TenantMember>()
-                        join rp in _dbContext.Set<RolePermission>() on tm.RoleId equals rp.RoleId
-                        where tm.UserId == user.Id && tm.TenantId == tenantId.Value
-                        select rp.PermissionKey;
+                var query = from tm in _dbContext.Set<TenantMember>()
+                            join rp in _dbContext.Set<RolePermission>() on tm.RoleId equals rp.RoleId
+                            where tm.UserId == user.Id && tm.TenantId == tenantId.Value
+                            select rp.PermissionKey;
+                dbPermissions = await query.Distinct().ToListAsync(cancellationToken);
             }
             else
             {
                 // Fallback: if no active tenant in request, load permissions across active memberships
-                query = from tm in _dbContext.Set<TenantMember>()
-                        join rp in _dbContext.Set<RolePermission>() on tm.RoleId equals rp.RoleId
-                        where tm.UserId == user.Id
-                        select rp.PermissionKey;
+                var query = from tm in _dbContext.Set<TenantMember>()
+                            join rp in _dbContext.Set<RolePermission>() on tm.RoleId equals rp.RoleId
+                            where tm.UserId == user.Id
+                            select rp.PermissionKey;
+                dbPermissions = await query.Distinct().ToListAsync(cancellationToken);
             }
 
-            _cachedPermissions = await query.Distinct().ToListAsync(cancellationToken);
+            if (dbPermissions.Count == 0)
+            {
+                // Assign default client/applicant permissions for authenticated users who have no tenant membership yet
+                dbPermissions = new List<string>
+                {
+                    Permissions.ReadTenants,
+                    Permissions.SubmitApplication,
+                    Permissions.ViewOwnApplications,
+                    Permissions.UploadStorage,
+                    Permissions.ReadStorage,
+                    Permissions.DownloadStorage
+                };
+            }
+
+            _cachedPermissions = dbPermissions;
             return _cachedPermissions;
         }
         catch (Exception ex)

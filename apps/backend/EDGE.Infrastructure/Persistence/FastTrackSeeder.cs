@@ -559,56 +559,92 @@ public static class FastTrackSeeder
         await context.SaveChangesAsync();
 
         // 8. Seed Form Builders & Sections per Service
-        var existingForms = await context.Forms.Include(f => f.Sections).ThenInclude(s => s.SectionFields).ToListAsync();
+        var existingForms = await context.Forms.AsNoTracking().Select(f => f.ServiceId).ToListAsync();
 
         async Task SeedFormForService(string serviceKey, Guid formId, Guid sectionGuidPrefix, List<(string Key, string Title, List<string> FieldKeys)> sectionDefs)
         {
             var service = services[serviceKey];
-            var form = existingForms.FirstOrDefault(f => f.ServiceId == service.Id);
-            if (form == null)
+
+            // Check if the form already exists in the DB (no-tracking)
+            var formExists = existingForms.Contains(service.Id);
+            if (!formExists)
             {
-                form = new Form
+                var newForm = new Form
                 {
                     Id = formId,
                     ServiceId = service.Id,
                     Version = "1.0",
                     CategorySelectionRequired = false
                 };
-                context.Forms.Add(form);
+                context.Forms.Add(newForm);
                 await context.SaveChangesAsync();
+                existingForms.Add(service.Id);
+            }
+            else
+            {
+                // Resolve the actual formId from the DB in case it differs
+                formId = await context.Forms
+                    .AsNoTracking()
+                    .Where(f => f.ServiceId == service.Id)
+                    .Select(f => f.Id)
+                    .FirstAsync();
             }
 
             int sectionOrder = 1;
             int sectionIndex = 1;
             foreach (var (key, title, fieldKeys) in sectionDefs)
             {
-                var section = form.Sections.FirstOrDefault(s => s.Key == key);
-                if (section == null)
+                // Always query fresh to avoid EF change-tracker collisions
+                var existingSection = await context.FormSections
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(s => s.FormId == formId && s.Key == key);
+
+                Guid sectionId;
+                if (existingSection == null)
                 {
                     var bytes = sectionGuidPrefix.ToByteArray();
                     bytes[15] = (byte)sectionIndex;
-                    section = new FormSection
+                    sectionId = new Guid(bytes);
+
+                    // Guard against GUID already being tracked from an earlier iteration
+                    var alreadyTracked = context.ChangeTracker.Entries<FormSection>()
+                        .Any(e => e.Entity.Id == sectionId);
+
+                    if (!alreadyTracked)
                     {
-                        Id = new Guid(bytes),
-                        FormId = form.Id,
-                        Key = key,
-                        Title = title,
-                        OrderIndex = sectionOrder++
-                    };
-                    context.FormSections.Add(section);
-                    await context.SaveChangesAsync();
+                        context.FormSections.Add(new FormSection
+                        {
+                            Id = sectionId,
+                            FormId = formId,
+                            Key = key,
+                            Title = title,
+                            OrderIndex = sectionOrder
+                        });
+                        await context.SaveChangesAsync();
+                    }
                 }
+                else
+                {
+                    sectionId = existingSection.Id;
+                }
+
+                sectionOrder++;
+                sectionIndex++;
 
                 int fieldOrder = 1;
                 foreach (var fk in fieldKeys)
                 {
                     if (fieldsPool.TryGetValue(fk, out var f))
                     {
-                        if (!context.SectionFields.Any(sf => sf.FormSectionId == section.Id && sf.FieldId == f.Id))
+                        var sfExists = await context.SectionFields
+                            .AsNoTracking()
+                            .AnyAsync(sf => sf.FormSectionId == sectionId && sf.FieldId == f.Id);
+
+                        if (!sfExists)
                         {
                             context.SectionFields.Add(new SectionField
                             {
-                                FormSectionId = section.Id,
+                                FormSectionId = sectionId,
                                 FieldId = f.Id,
                                 IsRequired = key != "assistanceRequest" && key != "knownByAnotherName" && key != "club" && key != "examination" && key != "radioOfficers",
                                 OrderIndex = fieldOrder++
@@ -616,7 +652,6 @@ public static class FastTrackSeeder
                         }
                     }
                 }
-                sectionIndex++;
             }
             await context.SaveChangesAsync();
         }

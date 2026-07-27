@@ -332,7 +332,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(15, 23, 42, 0.6)',
-    padding: SPACING[16],
   },
   modalBackdrop: {
     position: 'absolute',
@@ -342,8 +341,7 @@ const styles = StyleSheet.create({
     right: 0,
   },
   modalContainer: {
-    width: '100%',
-    maxWidth: 820,
+    width: '96%',
     maxHeight: '90%',
     backgroundColor: '#FFFFFF',
     borderRadius: 16,

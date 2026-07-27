@@ -5,10 +5,28 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
+  Image,
+  ImageSourcePropType,
 } from "react-native";
 import { COLORS, Icon } from "@edge/ui";
 import { servicesData } from "../../data/servicesData";
 import { styles } from "./CategoryGrid.styles";
+
+const ACCREDITATIONS_PNG = require("../../../../../assets/services/Accreditations.png");
+const CERTIFICATES_PNG = require("../../../../../assets/services/Certificates.png");
+const EXAMS_PNG = require("../../../../../assets/services/Exams.png");
+const LICENCES_PNG = require("../../../../../assets/services/Licences.png");
+const PERMITS_PNG = require("../../../../../assets/services/Permits.png");
+const COMPLAINTS_PNG = require("../../../../../assets/services/Request-or-Complaints.png");
+
+const CATEGORY_IMAGES: Record<string, ImageSourcePropType> = {
+  accreditations: ACCREDITATIONS_PNG,
+  certificates: CERTIFICATES_PNG,
+  exams: EXAMS_PNG,
+  licenses: LICENCES_PNG,
+  permits: PERMITS_PNG,
+  complaints: COMPLAINTS_PNG,
+};
 
 interface CategoryGridProps {
   user: { name: string; email: string; avatarUrl?: string } | null;
@@ -16,6 +34,8 @@ interface CategoryGridProps {
   onSearchQueryChange: (query: string) => void;
   selectedCategoryId: string | null;
   onCategorySelect: (categoryId: string) => void;
+  drafts: any[];
+  onViewDrafts: (categoryId: string) => void;
 }
 
 export function CategoryGrid({
@@ -24,6 +44,8 @@ export function CategoryGrid({
   onSearchQueryChange,
   selectedCategoryId,
   onCategorySelect,
+  drafts,
+  onViewDrafts,
 }: CategoryGridProps) {
   // Derive time of day greeting
   const greeting = useMemo(() => {
@@ -59,9 +81,6 @@ export function CategoryGrid({
     <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
       {/* Column Header */}
       <View style={styles.panelHeader}>
-        <View style={styles.menuIconContainer}>
-          <Icon name="menu" size={18} color="#1f2937" />
-        </View>
         <Text style={styles.panelTitle}>Services</Text>
       </View>
 
@@ -95,6 +114,10 @@ export function CategoryGrid({
         {servicesData.map((category) => {
           const theme = getCategoryTheme(category.id);
           const isActive = selectedCategoryId === category.id;
+          const categoryDraftsCount = drafts.filter((d) =>
+            category.services.some((s) => s.title === d.service?.title)
+          ).length;
+
           return (
             <TouchableOpacity
               key={category.id}
@@ -104,13 +127,47 @@ export function CategoryGrid({
                 isActive && styles.categoryCardActive,
               ]}
             >
-              <View style={[styles.iconBadge, { backgroundColor: theme.bg, borderColor: theme.border }]}>
-                <Icon name={category.icon} size={22} color={theme.icon} />
-              </View>
+              {CATEGORY_IMAGES[category.id] !== undefined ? (
+                <Image
+                  source={CATEGORY_IMAGES[category.id]}
+                  style={styles.categoryImage}
+                  resizeMode="contain"
+                />
+              ) : (
+                <View style={[styles.iconBadge, { backgroundColor: theme.bg, borderColor: theme.border }]}>
+                  <Icon name={category.icon} size={22} color={theme.icon} />
+                </View>
+              )}
               <Text style={styles.categoryCardTitle}>{category.title}</Text>
               <Text style={styles.categoryCardCount}>
                 {category.services.length} {category.services.length === 1 ? "Service" : "Services"}
               </Text>
+
+              {categoryDraftsCount > 0 && (
+                <TouchableOpacity
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    onViewDrafts(category.id);
+                  }}
+                  style={{
+                    marginTop: 8,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    backgroundColor: "#eff6ff",
+                    borderColor: "#bfdbfe",
+                    borderWidth: 1,
+                    borderRadius: 12,
+                    paddingVertical: 4,
+                    paddingHorizontal: 8,
+                    gap: 4,
+                  }}
+                >
+                  <Icon name="file-text" size={12} color="#1d4ed8" />
+                  <Text style={{ fontFamily: "Outfit-Medium", fontSize: 11, color: "#1d4ed8", fontWeight: "600" }}>
+                    {categoryDraftsCount} {categoryDraftsCount === 1 ? "Draft" : "Drafts"}
+                  </Text>
+                </TouchableOpacity>
+              )}
             </TouchableOpacity>
           );
         })}

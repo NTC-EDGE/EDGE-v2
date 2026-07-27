@@ -5,14 +5,14 @@
   "types": "index.ts",
   "dependencies": {
     "@clerk/expo": "^3.2.0",
-    "@react-navigation/native": "8.0.0-alpha.35",
-    "@react-navigation/native-stack": "8.0.0-alpha.35",
     "@tanstack/react-table": "^8.20.5",
     "@expo/vector-icons": "^15.0.2"
   },
   "peerDependencies": {
     "react": "*",
-    "react-native": "*"
+    "react-native": "*",
+    "@react-navigation/native": "8.0.0-alpha.35",
+    "@react-navigation/native-stack": "8.0.0-alpha.35"
   },
   "devDependencies": {
     "@types/react": "~19.2.2",

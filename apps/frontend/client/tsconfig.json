@@ -3,7 +3,10 @@
   "compilerOptions": {
     "strict": true
   },
-  "files": [
-    "src/navigation.ts"
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "App.tsx",
+    "index.ts"
   ]
 }

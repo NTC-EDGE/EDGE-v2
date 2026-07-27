@@ -85,7 +85,8 @@ export const styles = StyleSheet.create({
     width: "47%",
     minWidth: 130,
     flexGrow: 1,
-    alignItems: "flex-start",
+    alignItems: "center",
+    justifyContent: "center",
     ...Platform.select({
       web: {
         cursor: "pointer",
@@ -96,6 +97,11 @@ export const styles = StyleSheet.create({
   categoryCardActive: {
     borderColor: COLORS.brand[700],
     backgroundColor: "rgba(37, 99, 235, 0.02)",
+  },
+  categoryImage: {
+    width: 82,
+    height: 82,
+    marginBottom: SPACING[12],
   },
   iconBadge: {
     width: 44,
@@ -112,11 +118,13 @@ export const styles = StyleSheet.create({
     fontWeight: TYPOGRAPHY.weights.bold,
     color: COLORS.neutral[800],
     marginBottom: 4,
+    textAlign: "center",
   },
   categoryCardCount: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 12,
     color: COLORS.neutral[400],
     fontWeight: TYPOGRAPHY.weights.medium,
+    textAlign: "center",
   },
 });

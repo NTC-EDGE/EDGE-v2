@@ -7,28 +7,23 @@ import {
   KeyboardAvoidingView,
   Platform,
   Animated,
-} from "react-native";
-import { Icon as Lucide } from "@edge/ui";
-import { COLORS, SHADOWS } from "../../shared/theme/tokens";
-import { Input } from "../../shared/components/Input";
-import { Button } from "../../shared/components/Button";
-import { Logo } from "../../shared/components/Logo";
-import { useNavigation } from "@react-navigation/native";
-import { useSignUp, useOAuth, isClerkAPIResponseError } from "@clerk/expo";
+} from 'react-native';
+import { Icon as Lucide } from '@edge/ui';
+import { COLORS, SHADOWS, SPACING, RADIUS, TYPOGRAPHY } from '../../shared/theme/tokens';
+import { Input } from '../../shared/components/Input';
+import { Button } from '../../shared/components/Button';
+import { Logo } from '../../shared/components/Logo';
+import { useAppNavigation } from '../../navigation';
+import { isClerkAPIResponseError } from '@clerk/expo';
+import { useSignUp } from '@clerk/expo/legacy';
 
 export function SignUpScreen() {
-  const navigation = useNavigation();
-  const { signUp } = useSignUp();
-  const { startOAuthFlow } = useOAuth({ strategy: "oauth_google" });
-
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [code, setCode] = useState("");
-
-  // Step state: 'form' | 'verify'
-  const [step, setStep] = useState<"form" | "verify">("form");
+  const navigation = useAppNavigation();
+  const { signUp, setActive, isLoaded } = useSignUp();
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
   // Field validation errors
   const [nameError, setNameError] = useState("");
@@ -39,8 +34,11 @@ export function SignUpScreen() {
   const [generalError, setGeneralError] = useState("");
 
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+
+  // Verification states
+  const [pendingVerification, setPendingVerification] = useState(false);
+  const [code, setCode] = useState('');
 
   // Animations
   const cardFade = useRef(new Animated.Value(0)).current;
@@ -126,29 +124,30 @@ export function SignUpScreen() {
     setLoading(true);
     setGeneralError("");
 
-    if (signUp === null || signUp === undefined) {
-      setGeneralError("Sign up service is not loaded yet. Please try again.");
+    if (!signUp || !setActive) {
+      setGeneralError('Sign up service is not loaded yet. Please try again.');
       setLoading(false);
       return;
     }
 
     try {
-      const res = await signUp.password({
-        emailAddress: email.trim(),
+      const parts = name.trim().split(" ");
+      const firstName = parts[0] || "";
+      const lastName = parts.slice(1).join(" ") || "";
+
+      await signUp.create({
+        emailAddress: email,
         password,
+        firstName,
+        lastName,
       });
 
-      if (res.error !== null && res.error !== undefined) {
-        setGeneralError(res.error.message || "Sign up failed.");
-        return;
-      }
-
-      if (signUp.status === "complete") {
-        await signUp.finalize();
+      if (signUp.status === 'complete') {
+        await setActive({ session: signUp.createdSessionId });
         setSuccess(true);
       } else {
-        await signUp.verifications.sendEmailCode();
-        setStep("verify");
+        await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
+        setPendingVerification(true);
       }
     } catch (err: unknown) {
       let errMsg = "Sign up failed. Please check your inputs.";
@@ -163,75 +162,43 @@ export function SignUpScreen() {
     }
   };
 
-  const handleGoogleSignUp = async () => {
-    setGeneralError("");
-    setGoogleLoading(true);
-    try {
-      const res = await startOAuthFlow();
-      if (res.createdSessionId && res.setActive) {
-        await res.setActive({ session: res.createdSessionId });
-        setSuccess(true);
-      }
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setGeneralError(err.message);
-      } else {
-        setGeneralError("Sign up with Google failed.");
-      }
-    } finally {
-      setGoogleLoading(false);
-    }
-  };
-
   const handleVerifyCode = async () => {
     if (code.trim().length === 0) {
       setCodeError("Verification code is required");
       return;
     }
 
-    setCodeError("");
     setLoading(true);
-    setGeneralError("");
+    setGeneralError('');
+    setCodeError('');
 
-    if (signUp === null || signUp === undefined) {
-      setGeneralError("Sign up service is not loaded yet. Please try again.");
+    if (!signUp || !setActive) {
+      setGeneralError('Sign up service is not loaded yet. Please try again.');
       setLoading(false);
       return;
     }
 
     try {
-      await signUp.verifications.verifyEmailCode({
-        code: code.trim(),
+      const completeSignUp = await signUp.attemptEmailAddressVerification({
+        code,
       });
 
-      if (signUp.status === "complete") {
-        await signUp.finalize();
+      if (completeSignUp.status === 'complete') {
+        await setActive({ session: completeSignUp.createdSessionId });
         setSuccess(true);
       } else {
-        setGeneralError(`Verification incomplete. Status: ${signUp.status}`);
+        setGeneralError('Verification failed. Verification status is: ' + completeSignUp.status);
       }
     } catch (err: unknown) {
-      let errMsg = "Invalid verification code.";
+      let errMsg = 'Verification failed. Please check the code.';
       if (isClerkAPIResponseError(err)) {
         errMsg = err.errors[0]?.message || errMsg;
       } else if (err instanceof Error) {
         errMsg = err.message;
       }
-      setCodeError(errMsg);
+      setGeneralError(errMsg);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const resendCode = async () => {
-    if (signUp === null || signUp === undefined) return;
-    try {
-      await signUp.verifications.sendEmailCode();
-      setGeneralError("");
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setGeneralError(err.message);
-      }
     }
   };
 
@@ -290,10 +257,10 @@ export function SignUpScreen() {
             </View>
 
             <Text style={styles.title}>
-              {step === "verify" ? "Verify Email" : "Create Account"}
+              {pendingVerification ? "Verify Email" : "Create Account"}
             </Text>
             <Text style={styles.subtitle}>
-              {step === "verify"
+              {pendingVerification
                 ? `Enter the code sent to ${email}`
                 : "Register to start filing your applications"}
             </Text>
@@ -311,23 +278,32 @@ export function SignUpScreen() {
                   style={styles.successIcon}
                 />
                 <Text style={styles.successText}>
-                  Account created and verified! Redirecting to app...
+                  Account created successfully! Redirecting...
                 </Text>
               </View>
-            ) : step === "verify" ? (
+            ) : pendingVerification ? (
               <View style={styles.form}>
+                <Text style={[styles.subtitle, { marginBottom: 16 }]}>
+                  We sent a 6-digit verification code to{" "}
+                  <Text style={{ fontWeight: "600", color: COLORS.brand[700] }}>
+                    {email}
+                  </Text>
+                  . Please enter it below.
+                </Text>
+
                 <Input
                   label="Verification Code"
-                  placeholder="Enter 6-digit code"
+                  placeholder="123456"
                   value={code}
                   onChangeText={setCode}
                   error={codeError}
                   keyboardType="numeric"
-                  iconName="shield-check"
+                  autoCapitalize="none"
+                  iconName="lock"
                 />
 
                 <Button
-                  title={loading ? "Verifying Code..." : "Verify & Complete"}
+                  title={loading ? "Verifying..." : "Verify Email"}
                   onPress={handleVerifyCode}
                   loading={loading}
                   style={styles.submitButton}
@@ -342,13 +318,15 @@ export function SignUpScreen() {
                   }
                 />
 
-                <Button
-                  title="Resend Verification Code"
-                  variant="text"
-                  size="sm"
-                  onPress={resendCode}
-                  style={styles.secondaryButton}
-                />
+                <View style={styles.footerContainer}>
+                  <Button
+                    title="Back to Sign Up"
+                    variant="text"
+                    size="sm"
+                    onPress={() => setPendingVerification(false)}
+                    textStyle={styles.footerLink}
+                  />
+                </View>
               </View>
             ) : (
               <View style={styles.form}>
@@ -399,7 +377,7 @@ export function SignUpScreen() {
                   title={loading ? "Creating Account..." : "Register"}
                   onPress={handleSignUp}
                   loading={loading}
-                  disabled={loading || googleLoading}
+                  disabled={loading}
                   style={styles.submitButton}
                   icon={
                     !loading ? (
@@ -410,16 +388,6 @@ export function SignUpScreen() {
                       />
                     ) : undefined
                   }
-                />
-
-                <Button
-                  title={googleLoading ? "Signing up..." : "Sign up with Google"}
-                  variant="outline"
-                  onPress={handleGoogleSignUp}
-                  loading={googleLoading}
-                  disabled={loading || googleLoading}
-                  style={{ marginTop: 10 }}
-                  icon={<Lucide name="globe" size={16} color="#4285F4" />}
                 />
 
                 <View style={styles.footerContainer}>

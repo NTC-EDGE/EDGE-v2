@@ -1,0 +1,618 @@
+import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from "@edge/ui";
+import { StyleSheet, Platform } from "react-native";
+
+export const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.neutral[50],
+    width: "100%",
+    maxWidth: 1200,
+    alignSelf: "center",
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: SPACING[24],
+    paddingVertical: SPACING[16],
+    backgroundColor: COLORS.neutral.white,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.neutral[200],
+  },
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  headerTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 18,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: COLORS.neutral[900],
+    marginLeft: SPACING[8],
+  },
+  progressContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  progressDash: {
+    width: 24,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: COLORS.neutral[200],
+  },
+  progressDashActive: {
+    backgroundColor: COLORS.brand[700],
+  },
+  progressDashCompleted: {
+    backgroundColor: COLORS.brand[500] || COLORS.brand[700],
+  },
+  scrollContent: {
+    flexGrow: 1,
+    padding: SPACING[24],
+    paddingBottom: 100, // extra space for sticky-like footer
+  },
+
+  // Step 1: Information Styles
+  infoTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 20,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: COLORS.neutral[900],
+    marginBottom: SPACING[12],
+  },
+  infoDesc: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    color: COLORS.neutral[600],
+    lineHeight: 22,
+    marginBottom: SPACING[24],
+  },
+  availCard: {
+    backgroundColor: COLORS.neutral.white,
+    borderColor: COLORS.neutral[200],
+    borderWidth: 1.5,
+    borderRadius: RADIUS.card,
+    padding: SPACING[20],
+    marginBottom: SPACING[24],
+  },
+  availHeading: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: COLORS.brand[800],
+    letterSpacing: 0.5,
+    marginBottom: SPACING[12],
+  },
+  availItem: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    color: COLORS.neutral[800],
+    lineHeight: 20,
+  },
+
+  // Step 2: Region Styles
+  stepSubtitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 15,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: COLORS.neutral[800],
+    marginBottom: SPACING[16],
+  },
+  selectLabel: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: COLORS.neutral[700],
+    marginBottom: SPACING[8],
+    marginTop: SPACING[16],
+  },
+
+  // Step 3: Filing Data Configuration Styles
+  cardsRow: {
+    flexDirection: "row",
+    gap: SPACING[16],
+    marginBottom: SPACING[24],
+    flexWrap: "wrap",
+  },
+  configCard: {
+    flex: 1,
+    minWidth: 260,
+    backgroundColor: COLORS.neutral.white,
+    borderColor: COLORS.neutral[200],
+    borderWidth: 1.5,
+    borderRadius: RADIUS.card,
+    padding: SPACING[20],
+    position: "relative",
+  },
+  configCardActive: {
+    borderColor: COLORS.brand[700],
+    backgroundColor: "rgba(37, 99, 235, 0.02)",
+  },
+  badgeCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: COLORS.neutral[200],
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: SPACING[12],
+  },
+  badgeCircleActive: {
+    backgroundColor: COLORS.brand[700],
+  },
+  badgeText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: COLORS.neutral[600],
+  },
+  badgeTextActive: {
+    color: COLORS.neutral.white,
+  },
+  cardTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 15,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: COLORS.neutral[900],
+    marginBottom: SPACING[8],
+  },
+  cardDesc: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    color: COLORS.neutral[500],
+    lineHeight: 18,
+    marginBottom: SPACING[16],
+    minHeight: 54,
+  },
+  cardBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: COLORS.neutral[300],
+    backgroundColor: COLORS.neutral[50],
+    alignSelf: "flex-start",
+    alignItems: "center",
+  },
+  cardBtnActive: {
+    backgroundColor: COLORS.brand[700],
+    borderColor: COLORS.brand[700],
+  },
+  cardBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: COLORS.neutral[700],
+  },
+  cardBtnTextActive: {
+    color: COLORS.neutral.white,
+  },
+
+  // Specifications Table Styles
+  specCard: {
+    backgroundColor: COLORS.neutral.white,
+    borderColor: COLORS.neutral[200],
+    borderWidth: 1.5,
+    borderRadius: RADIUS.card,
+    padding: SPACING[20],
+    marginBottom: SPACING[24],
+  },
+  specTitleWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: SPACING[12],
+  },
+  specTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: COLORS.neutral[800],
+    marginLeft: SPACING[8],
+  },
+  specSubheading: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: COLORS.neutral[900],
+    // marginBottom: SPACING[6],
+  },
+  specDesc: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    color: COLORS.neutral[500],
+    lineHeight: 16,
+    marginBottom: SPACING[16],
+  },
+  table: {
+    borderWidth: 1,
+    borderColor: COLORS.neutral[200],
+    borderRadius: 8,
+    overflow: "hidden",
+  },
+  tableHeaderRow: {
+    flexDirection: "row",
+    backgroundColor: COLORS.neutral[100],
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.neutral[200],
+  },
+  tableRow: {
+    flexDirection: "row",
+    backgroundColor: COLORS.neutral.white,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.neutral[200],
+  },
+  tableCellHeader: {
+    flex: 1,
+    padding: SPACING[12],
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: COLORS.neutral[700],
+  },
+  tableCell: {
+    flex: 1,
+    padding: SPACING[12],
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    color: COLORS.neutral[600],
+  },
+
+  // Bulk Action Buttons
+  bulkActionRow: {
+    flexDirection: "row",
+    gap: SPACING[16],
+    marginTop: SPACING[8],
+  },
+  downloadBtn: {
+    flex: 1.2,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: COLORS.brand[700],
+    borderRadius: RADIUS.button,
+    height: 44,
+  },
+  downloadBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: COLORS.neutral.white,
+  },
+  uploadBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: COLORS.neutral.white,
+    borderColor: COLORS.neutral[300],
+    borderWidth: 1,
+    borderRadius: RADIUS.button,
+    height: 44,
+  },
+  uploadBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: COLORS.neutral[700],
+  },
+
+  // Step 4: Application Type Styles
+  reqContainer: {
+    marginTop: SPACING[20],
+    backgroundColor: COLORS.neutral.white,
+    borderColor: COLORS.neutral[200],
+    borderWidth: 1.5,
+    borderRadius: RADIUS.card,
+    padding: SPACING[20],
+  },
+  reqTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    // color: COLORS.neutral[850],
+    marginBottom: SPACING[12],
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.neutral[100],
+    paddingBottom: 8,
+  },
+  reqItemRow: {
+    flexDirection: "row",
+    marginBottom: SPACING[12],
+    alignItems: "flex-start",
+  },
+  reqItemText: {
+    flex: 1,
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    color: COLORS.neutral[700],
+    lineHeight: 18,
+  },
+  reqNoteBox: {
+    marginTop: SPACING[8],
+    padding: SPACING[12],
+    backgroundColor: COLORS.neutral[50],
+    borderColor: COLORS.neutral[200],
+    borderWidth: 1,
+    borderRadius: 8,
+  },
+  reqNoteText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    color: COLORS.neutral[500],
+    lineHeight: 16,
+    fontStyle: "italic",
+  },
+
+  // Step 5: Scrollable Form with Sticky Jump Links
+  formHeaderTabs: {
+    flexDirection: "row",
+    backgroundColor: COLORS.neutral.white,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.neutral[200],
+    paddingHorizontal: SPACING[24],
+    ...Platform.select({
+      web: {
+        position: "sticky",
+        top: 0,
+        zIndex: 10,
+      },
+    }),
+    position: "static"
+  },
+  formTab: {
+    paddingVertical: SPACING[12],
+    marginRight: SPACING[16],
+    borderBottomWidth: 2,
+    borderBottomColor: "transparent",
+  },
+  formTabActive: {
+    borderBottomColor: COLORS.brand[700],
+  },
+  formTabText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.medium,
+    color: COLORS.neutral[500],
+  },
+  formTabTextActive: {
+    color: COLORS.brand[700],
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  formSection: {
+    backgroundColor: COLORS.neutral.white,
+    borderColor: COLORS.neutral[200],
+    borderWidth: 1,
+    borderRadius: RADIUS.card,
+    padding: SPACING[20],
+    marginBottom: SPACING[20],
+  },
+  formSectionHeading: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 15,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: COLORS.neutral[900],
+    marginBottom: SPACING[16],
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.neutral[100],
+    paddingBottom: 6,
+  },
+  formGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: SPACING[12],
+  },
+  formCol6: {
+    width: "48%",
+    minWidth: 240,
+    flexGrow: 1,
+  },
+  formCol12: {
+    width: "100%",
+  },
+
+  // Step 6: Upload Requirements Styles
+  uploadRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: COLORS.neutral.white,
+    borderColor: COLORS.neutral[200],
+    borderWidth: 1,
+    borderRadius: RADIUS.input,
+    padding: SPACING[16],
+    marginBottom: SPACING[12],
+    gap: SPACING[16],
+  },
+  uploadRowLeft: {
+    flex: 1,
+  },
+  uploadRowTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: COLORS.neutral[800],
+  },
+  uploadRowSub: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    color: COLORS.neutral[400],
+    marginTop: 2,
+  },
+  uploadButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: COLORS.neutral[50],
+    borderWidth: 1,
+    borderColor: COLORS.neutral[300],
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    alignSelf: "flex-start",
+  },
+  uploadButtonText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: COLORS.neutral[700],
+  },
+  uploadSuccessText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    color: COLORS.semantic.success,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+  },
+
+  // Step 7: Review & Submit Styles
+  reviewSection: {
+    backgroundColor: COLORS.neutral.white,
+    borderColor: COLORS.neutral[200],
+    borderWidth: 1.5,
+    borderRadius: RADIUS.card,
+    padding: SPACING[20],
+    marginBottom: SPACING[20],
+  },
+  reviewRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.neutral[50],
+  },
+  reviewLabel: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    color: COLORS.neutral[500],
+  },
+  reviewValue: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: COLORS.neutral[800],
+    textAlign: "right",
+  },
+
+  // Stepper Controls
+  footerControls: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 72,
+    backgroundColor: COLORS.neutral.white,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.neutral[200],
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: SPACING[24],
+    zIndex: 100,
+  },
+  backButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderColor: COLORS.neutral[300],
+    borderWidth: 1.5,
+    borderRadius: RADIUS.button,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    backgroundColor: COLORS.neutral.white,
+  },
+  backButtonText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: COLORS.neutral[600],
+  },
+  nextButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: COLORS.brand[800],
+    borderRadius: RADIUS.button,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+  },
+  nextButtonDisabled: {
+    backgroundColor: COLORS.neutral[300],
+  },
+  nextButtonText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: COLORS.neutral.white,
+  },
+  nextButtonTextDisabled: {
+    color: COLORS.neutral[500],
+  },
+
+  // Success view
+  successContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: SPACING[48],
+    paddingHorizontal: SPACING[24],
+  },
+  successIcon: {
+    marginBottom: SPACING[24],
+  },
+  successTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 24,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: COLORS.neutral[900],
+    marginBottom: SPACING[12],
+    textAlign: "center",
+  },
+  successDesc: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    color: COLORS.neutral[500],
+    lineHeight: 20,
+    textAlign: "center",
+    marginBottom: SPACING[32],
+  },
+  successBtn: {
+    backgroundColor: COLORS.brand[800],
+    borderRadius: RADIUS.button,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+  },
+  successBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: COLORS.neutral.white,
+  },
+
+  // Bulk CSV List Upload Row
+  csvRow: {
+    backgroundColor: COLORS.neutral.white,
+    borderColor: COLORS.neutral[200],
+    borderWidth: 1,
+    borderRadius: RADIUS.card,
+    padding: SPACING[16],
+    marginBottom: SPACING[16],
+  },
+  csvHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: SPACING[12],
+  },
+  csvName: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: COLORS.neutral[800],
+  },
+  csvMeta: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    color: COLORS.neutral[400],
+  },
+  csvUploads: {
+    borderTopWidth: 1,
+    borderTopColor: COLORS.neutral[100],
+    paddingTop: SPACING[12],
+    gap: SPACING[8],
+  },
+});

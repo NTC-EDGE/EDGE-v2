@@ -2,6 +2,8 @@ import { Icon } from "@edge/ui";
 import { ComponentProps } from "react";
 
 export interface NTCService {
+  id?: string;
+  category?: string;
   title: string;
   description: string;
   requirements: string[];

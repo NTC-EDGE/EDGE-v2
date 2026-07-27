@@ -11,7 +11,8 @@ import {
   Animated,
   Modal,
 } from "react-native";
-import { useNavigation, NavigationProp } from "@react-navigation/native";
+import { useNavigation } from "@react-navigation/native";
+import { useAppNavigation } from "../../navigation";
 import { Icon as Lucide } from "@edge/ui";
 import { COLORS, SHADOWS, SPACING } from "../../shared/theme/tokens";
 import { Button } from "../../shared/components/Button";
@@ -19,18 +20,6 @@ import { Logo } from "../../shared/components/Logo";
 import { Input } from "../../shared/components/Input";
 import { PHILIPPINE_REGIONS } from "../../shared/constants/regions";
 
-type UnauthParamList = {
-  Landing: undefined;
-  Login: undefined;
-  SignUp: undefined;
-  ForgotPassword: undefined;
-};
-
-interface LandingScreenProps {
-  navigation?: {
-    navigate: (screen: keyof UnauthParamList) => void;
-  };
-}
 
 interface TrackingResult {
   referenceNo: string;
@@ -172,7 +161,7 @@ const FOOTER_POLICIES: { [key: string]: FooterPolicyContent } = {
 };
 
 export function LandingScreen() {
-  const navigation = useNavigation();
+  const navigation = useAppNavigation();
   const { width } = useWindowDimensions();
   const isDesktop = width >= 768;
 

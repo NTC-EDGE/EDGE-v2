@@ -26,6 +26,16 @@ export interface ApplicationDocument {
   uploadedAt: string;
 }
 
+export interface RawRequirement {
+  id?: string;
+  name?: string;
+  fileName?: string;
+  url?: string;
+  size?: string;
+  category?: string;
+  uploadedAt?: string;
+}
+
 export interface Schedule {
   date: string;
   time: string;
@@ -58,6 +68,18 @@ export interface SingleApplication {
   // Examinee
   examineeType: ExamineeType;
   schedule: Schedule;
+
+  // Backend dynamic fields compatibility
+  submissionMode?: string;
+  Applicants?: BulkApplicant[];
+  applicants?: BulkApplicant[];
+  companyName?: string;
+  companyDetail?: { name?: string };
+  requirements?: RawRequirement[];
+  Requirements?: RawRequirement[];
+  documents?: RawRequirement[];
+  Documents?: RawRequirement[];
+  soaNumber?: string | null;
 }
 
 export interface BulkApplicant {
@@ -79,6 +101,34 @@ export interface BulkApplicant {
   mobileNumber?: string;
   email?: string;
   schedule?: Schedule;
+
+  // Compatibility fields
+  details?: {
+    firstName?: string;
+    lastName?: string;
+    sex?: 'Male' | 'Female';
+    nationality?: string;
+    address?: string;
+    barangay?: string;
+    cityMunicipality?: string;
+    province?: string;
+    region?: string;
+    zipCode?: string;
+    contactNumber?: string;
+    emailAddress?: string;
+    examineeType?: ExamineeType;
+    streetAddress?: string;
+    mobileNumber?: string;
+    email?: string;
+  };
+  firstName?: string;
+  lastName?: string;
+  address?: string;
+  contactNumber?: string;
+  emailAddress?: string;
+  applicantType?: string;
+  includedInSoa?: boolean;
+  examineeType?: ExamineeType;
 }
 
 export interface BulkApplication {
@@ -93,6 +143,30 @@ export interface BulkApplication {
   submittedAt: string;
   applicants: BulkApplicant[];
   soaNumber: string | null;
+
+  // Backend dynamic fields compatibility
+  submissionMode?: string;
+  Applicants?: BulkApplicant[];
+  companyDetail?: { name?: string };
+  requirements?: RawRequirement[];
+  Requirements?: RawRequirement[];
+  documents?: RawRequirement[];
+  Documents?: RawRequirement[];
+
+  // Single Application fields (optional here for API compatibility)
+  applicantName?: string;
+  sex?: 'Male' | 'Female';
+  nationality?: string;
+  streetAddress?: string;
+  barangay?: string;
+  cityMunicipality?: string;
+  province?: string;
+  region?: string;
+  zipCode?: string;
+  mobileNumber?: string;
+  email?: string;
+  examineeType?: ExamineeType;
+  schedule?: Schedule;
 }
 
 export type Application = SingleApplication | BulkApplication;
@@ -666,8 +740,22 @@ export const mockApplications: Application[] = [
   },
 ];
 
+export interface EnrichedBulkApplicant extends BulkApplicant {
+  sex: 'Male' | 'Female';
+  nationality: string;
+  streetAddress: string;
+  barangay: string;
+  cityMunicipality: string;
+  province: string;
+  region: string;
+  zipCode: string;
+  mobileNumber: string;
+  email: string;
+  schedule: Schedule;
+}
+
 // Helper to deterministically generate applicant details for bulk applications
-export function getEnrichedApplicant(applicant: BulkApplicant, serviceName: string): Required<BulkApplicant> {
+export function getEnrichedApplicant(applicant: BulkApplicant, serviceName: string): EnrichedBulkApplicant {
   const hash = (applicant.id + applicant.name).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
   const isFemale = hash % 2 === 0;
   const sex = isFemale ? 'Female' : 'Male';
