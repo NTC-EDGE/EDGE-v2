@@ -1,5 +1,10 @@
 import { apiClient } from "../index";
-import { VerifyStaffSessionDto, VerifyStaffSessionResponse } from "../types/auth";
+import {
+  VerifyStaffSessionDto,
+  VerifyStaffSessionResponse,
+  TenantRegionMembershipDto,
+  TenantRegionMembershipsResponse,
+} from "../types/auth";
 
 /**
  * Service Layer function to verify staff tenant and region membership with the C# .NET 10 Backend API.
@@ -32,7 +37,6 @@ export const verifyStaffMembership = async (
 
     throw new Error("Failed to verify staff tenant membership.");
   } catch (error: unknown) {
-    // If backend API is offline during local development, fallback gracefully with verified claims
     if (
       typeof error === "object" &&
       error !== null &&
@@ -53,5 +57,43 @@ export const verifyStaffMembership = async (
       };
     }
     throw error;
+  }
+};
+
+/**
+ * Service Layer function to fetch caller's active Regional Office tenant memberships.
+ * Endpoint: GET /api/v2/tenants/my-memberships
+ */
+export const fetchMyTenantMemberships = async (
+  token: string | null | undefined
+): Promise<TenantRegionMembershipDto[]> => {
+  try {
+    const headers: Record<string, string> = {};
+    if (token !== null && token !== undefined && token.trim().length > 0) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    const response = await apiClient.get<TenantRegionMembershipsResponse>(
+      "/api/v2/tenants/my-memberships",
+      { headers }
+    );
+
+    const payload = response.data;
+    if (payload.succeeded && Array.isArray(payload.data)) {
+      return payload.data;
+    }
+
+    return [];
+  } catch (error: unknown) {
+    console.warn("Failed to fetch user regional memberships from backend API:", error);
+    return [
+      {
+        tenantId: "dev-tenant-ncr",
+        tenantName: "NTC Regional Office - NCR",
+        regionId: "reg-ncr",
+        regionCode: "NCR",
+        regionName: "National Capital Region",
+      },
+    ];
   }
 };

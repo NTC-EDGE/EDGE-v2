@@ -16,4 +16,13 @@ export interface VerifyStaffSessionDto {
   effectivePermissions: string[];
 }
 
+export interface TenantRegionMembershipDto {
+  tenantId: string;
+  tenantName: string;
+  regionId: string;
+  regionCode: string;
+  regionName: string;
+}
+
 export type VerifyStaffSessionResponse = ApiResponse<VerifyStaffSessionDto>;
+export type TenantRegionMembershipsResponse = ApiResponse<TenantRegionMembershipDto[]>;

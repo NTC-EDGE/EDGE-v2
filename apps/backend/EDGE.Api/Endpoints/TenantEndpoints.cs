@@ -6,6 +6,7 @@ using EDGE.Domain.Authorization;
 using EDGE.Infrastructure.Authorization;
 using EDGE.Application.Tenants.Commands;
 using EDGE.Application.Tenants.Queries;
+using EDGE.Application.TenantMembers.Queries;
 using EDGE.Application.Auth.Commands.VerifyStaffSession;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -32,6 +33,12 @@ public static class TenantEndpoints
             .WithSummary("Retrieve all tenants")
             .WithDescription("Retrieves all Tenant organizations registered across regions.");
 
+        tenants.MapGet("/my-memberships", GetMyTenantMemberships)
+            .WithName("GetMyTenantMemberships")
+            .WithTags("Tenants")
+            .WithSummary("Retrieve caller's active regional office memberships")
+            .WithDescription("Fetches all active Regional Office tenants and regions that the authenticated caller is a member of.");
+
         tenants.MapGet("/{id:guid}", GetTenantById)
             .WithName("GetTenantById")
             .WithTags("Tenants")
@@ -57,6 +64,12 @@ public static class TenantEndpoints
             .WithDescription("Validates that an authenticated staff member belongs to the selected Regional Office tenant.");
 
         return group;
+    }
+
+    public static async Task<IResult> GetMyTenantMemberships(IMediator mediator)
+    {
+        var result = await mediator.Send(new GetMyTenantMembershipsQuery());
+        return Results.Ok(result);
     }
 
     public static async Task<IResult> VerifyTenantMembership(

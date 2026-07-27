@@ -54,3 +54,4 @@ export * from './services/regionService';
 export * from './services/authService';
 export * from './services/apiErrorService';
 export * from './hooks/useRegions';
+export * from './hooks/useMyTenantMemberships';

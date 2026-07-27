@@ -16,13 +16,12 @@ import {
 import {
   COLORS,
   SPACING,
-  RADIUS,
   SHADOWS,
   TYPOGRAPHY,
   Icon as Lucide,
 } from "@edge/ui";
-import { useRegions, verifyStaffMembership, parseApiError } from "@edge/api";
 import { useOAuth } from "@clerk/expo";
+import { parseApiError } from "@edge/api";
 import { NtcLogo } from "./NtcLogo";
 import { useAuthContext } from "../../auth/context/AuthContext";
 import { ForgotPasswordPage } from "./ForgotPasswordPage";
@@ -158,16 +157,10 @@ export function InternalLoginPage() {
   const { loginWithClerk } = useAuthContext();
   const { startOAuthFlow } = useOAuth({ strategy: "oauth_google" });
 
-  // Consume Region Service Layer (API Backend Integration)
-  const { options: regionOptions, isLoading: isRegionsLoading } = useRegions();
-
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
-  const [region, setRegion] = useState("NCR - National Capital Region");
-  const [showRegionDropdown, setShowRegionDropdown] = useState(false);
-
   const [showForgotPassword, setShowForgotPassword] = useState(false);
-  const [error, setError] = useState("");
+
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [activeFooterModal, setActiveFooterModal] = useState<FooterPolicyContent | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -178,19 +171,12 @@ export function InternalLoginPage() {
   }
 
   const triggerToastError = (msg: string) => {
-    const trimmed = msg.trim();
-    if (trimmed.length > 0) {
-      setError(trimmed);
-      setToastMessage(trimmed);
-    } else {
-      setError("");
-      setToastMessage(null);
-    }
+    const trimmed = parseApiError(msg);
+    setToastMessage(trimmed);
   };
 
   const dismissToast = () => {
     setToastMessage(null);
-    setError("");
   };
 
   const handleSignIn = async () => {
@@ -203,38 +189,25 @@ export function InternalLoginPage() {
       return;
     }
 
-    setError("");
     setToastMessage(null);
     setIsSubmitting(true);
 
     try {
-      await loginWithClerk(identifier.trim(), password, region);
+      await loginWithClerk(identifier.trim(), password);
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        triggerToastError(err.message);
-      } else {
-        triggerToastError("Authentication Failed: Invalid credentials, wrong password, or the wrong region selected.");
-      }
+      triggerToastError(parseApiError(err));
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleGoogleSignIn = async () => {
-    setError("");
     setToastMessage(null);
     setIsGoogleSubmitting(true);
     try {
       const res = await startOAuthFlow();
       if (res.createdSessionId && res.setActive) {
-        // Perform C# Backend Tenant-Region Membership Verification for Google OAuth
-        try {
-          await verifyStaffMembership(res.createdSessionId, region);
-          await res.setActive({ session: res.createdSessionId });
-        } catch (verifyErr: unknown) {
-          await res.setActive({ session: null });
-          throw verifyErr;
-        }
+        await res.setActive({ session: res.createdSessionId });
       }
     } catch (err: unknown) {
       triggerToastError(parseApiError(err));
@@ -248,7 +221,7 @@ export function InternalLoginPage() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={styles.keyboardAvoid}
     >
-      {/* Floating Error Toast Notification - strictly unmounts when message is empty */}
+      {/* Floating Error Toast Notification */}
       {toastMessage !== null && toastMessage.trim().length > 0 ? (
         <View style={[styles.toastContainer, SHADOWS.modal]}>
           <Lucide name="alert-triangle" size={20} color="#DC2626" />
@@ -289,6 +262,7 @@ export function InternalLoginPage() {
               <View style={styles.loginCardLogoWrapper}>
                 <NtcLogo size={isMobile ? "medium" : "large"} variant="light" showSubtext={false} />
               </View>
+
               <View style={[styles.mockupWindowCard, SHADOWS.modal]}>
                 <View style={styles.mockupWindowHeader}>
                   <View style={styles.windowDotsRow}>
@@ -301,62 +275,6 @@ export function InternalLoginPage() {
 
                 <View style={[styles.mockupWindowBody, isMobile && { padding: 20 }]}>
                   <Text style={styles.cardTitle}>Staff Login</Text>
-
-                  {/* Region Field - Integrated with Backend API Data Layer */}
-                  <View style={[styles.fieldGroup, showRegionDropdown && styles.fieldGroupActive]}>
-                    <Text style={styles.fieldLabelSmall}>Regional Office (API Connected)</Text>
-                    <TouchableOpacity
-                      style={styles.regionSelectorBox}
-                      onPress={() => setShowRegionDropdown(!showRegionDropdown)}
-                      activeOpacity={0.8}
-                    >
-                      <View style={styles.regionSelectorInner}>
-                        <Lucide name="map-pin" size={18} color={COLORS.neutral[500]} />
-                        {isRegionsLoading ? (
-                          <ActivityIndicator size="small" color={COLORS.neutral[500]} />
-                        ) : (
-                          <Text style={styles.regionSelectorValue} numberOfLines={1}>
-                            {region}
-                          </Text>
-                        )}
-                      </View>
-                      <Lucide
-                        name={showRegionDropdown ? "chevron-up" : "chevron-down"}
-                        size={18}
-                        color={COLORS.neutral[500]}
-                      />
-                    </TouchableOpacity>
-
-                    {showRegionDropdown ? (
-                      <View style={styles.regionPopoverMenu}>
-                        <ScrollView style={{ maxHeight: 220 }} nestedScrollEnabled={true}>
-                          {regionOptions.map((item) => (
-                            <TouchableOpacity
-                              key={item.id}
-                              style={[
-                                styles.regionOptionItem,
-                                item.value === region && styles.regionOptionItemSelected,
-                              ]}
-                              onPress={() => {
-                                setRegion(item.value);
-                                setShowRegionDropdown(false);
-                              }}
-                            >
-                              <Text
-                                style={[
-                                  styles.regionOptionText,
-                                  item.value === region && styles.regionOptionTextSelected,
-                                ]}
-                                numberOfLines={1}
-                              >
-                                {item.label}
-                              </Text>
-                            </TouchableOpacity>
-                          ))}
-                        </ScrollView>
-                      </View>
-                    ) : null}
-                  </View>
 
                   {/* Email / Username Field */}
                   <View style={styles.fieldGroup}>
@@ -371,7 +289,6 @@ export function InternalLoginPage() {
                         onChangeText={setIdentifier}
                         autoCapitalize="none"
                         keyboardType="email-address"
-                        onFocus={() => setShowRegionDropdown(false)}
                       />
                     </View>
                   </View>
@@ -389,7 +306,6 @@ export function InternalLoginPage() {
                         onChangeText={setPassword}
                         secureTextEntry={true}
                         autoCapitalize="none"
-                        onFocus={() => setShowRegionDropdown(false)}
                       />
                     </View>
                   </View>
@@ -580,7 +496,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#FAF9F6",
   },
-
   toastContainer: {
     position: "absolute",
     top: 20,
@@ -611,14 +526,12 @@ const styles = StyleSheet.create({
   toastCloseBtn: {
     padding: 4,
   },
-
   scrollContainer: {
     flexGrow: 1,
     minHeight: "100%",
     justifyContent: "space-between",
     backgroundColor: "#FAF9F6",
     position: "relative",
-    overflow: "visible",
   },
   backgroundBlobLeft: {
     position: "absolute",
@@ -638,7 +551,6 @@ const styles = StyleSheet.create({
     borderRadius: 210,
     backgroundColor: "rgba(254, 226, 226, 0.45)",
   },
-
   heroSection: {
     flex: 1,
     justifyContent: "center",
@@ -730,7 +642,6 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     textAlign: "center",
   },
-
   loginCardLogoWrapper: {
     alignItems: "center",
     marginBottom: 20,
@@ -754,7 +665,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 24,
     elevation: 8,
-    overflow: "visible",
   },
   mockupWindowHeader: {
     flexDirection: "row",
@@ -799,8 +709,6 @@ const styles = StyleSheet.create({
   },
   mockupWindowBody: {
     padding: 28,
-    position: "relative",
-    zIndex: 1,
   },
   cardTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
@@ -810,31 +718,8 @@ const styles = StyleSheet.create({
     marginBottom: SPACING[20],
     textAlign: "center",
   },
-  errorBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: "#FEF2F2",
-    borderWidth: 1,
-    borderColor: "#FCA5A5",
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-  },
-  errorText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
-    color: "#DC2626",
-    flex: 1,
-  },
   fieldGroup: {
     marginBottom: 16,
-    position: "relative",
-    zIndex: 1,
-  },
-  fieldGroupActive: {
-    zIndex: 1000,
-    elevation: 1000,
   },
   fieldLabelSmall: {
     fontFamily: TYPOGRAPHY.fonts.primary,
@@ -842,67 +727,6 @@ const styles = StyleSheet.create({
     color: COLORS.neutral[600],
     marginBottom: 6,
     fontWeight: TYPOGRAPHY.weights.medium,
-  },
-  regionSelectorBox: {
-    height: 48,
-    backgroundColor: "#F8FAFC",
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  regionSelectorInner: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    flex: 1,
-  },
-  regionSelectorValue: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
-    color: COLORS.neutral[900],
-    fontWeight: TYPOGRAPHY.weights.medium,
-    flex: 1,
-  },
-  regionPopoverMenu: {
-    position: "absolute",
-    top: "100%",
-    left: 0,
-    right: 0,
-    marginTop: 4,
-    backgroundColor: COLORS.neutral.white,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    paddingVertical: 4,
-    paddingHorizontal: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.16,
-    shadowRadius: 16,
-    elevation: 1000,
-    zIndex: 1000,
-  },
-  regionOptionItem: {
-    paddingVertical: 10,
-    paddingHorizontal: 10,
-    borderRadius: 6,
-    marginVertical: 1,
-  },
-  regionOptionItemSelected: {
-    backgroundColor: "rgba(37, 99, 235, 0.08)",
-  },
-  regionOptionText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
-    color: COLORS.neutral[700],
-  },
-  regionOptionTextSelected: {
-    color: COLORS.brand[800],
-    fontWeight: TYPOGRAPHY.weights.semibold,
   },
   inputWithIconWrapper: {
     flexDirection: "row",
@@ -988,7 +812,6 @@ const styles = StyleSheet.create({
     fontWeight: TYPOGRAPHY.weights.semibold,
     color: COLORS.neutral[700],
   },
-
   footerBar: {
     width: "100%",
     borderTopWidth: 1,
@@ -996,7 +819,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.neutral.white,
     paddingVertical: 20,
     paddingHorizontal: 24,
-    zIndex: 1,
   },
   footerContentContainer: {
     maxWidth: 1400,
@@ -1035,7 +857,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: COLORS.neutral[600],
   },
-
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(15, 23, 42, 0.6)",

@@ -1,6 +1,7 @@
 import { createContext, useContext, ReactNode, useState } from "react";
 import { useAuth, useUser, useSignIn, useSignUp } from "@clerk/expo";
 import { parseApiError, verifyStaffMembership } from "@edge/api";
+import { RegionSelectionModal } from "../../login/components/RegionSelectionModal";
 
 export interface UserProfile {
   name: string;
@@ -19,7 +20,7 @@ export interface UserProfile {
 interface AuthContextType {
   isAuthenticated: boolean;
   user: UserProfile | null;
-  loginWithClerk: (email: string, password: string, region?: string) => Promise<void>;
+  loginWithClerk: (email: string, password: string) => Promise<void>;
   signUpWithClerk: (email: string, password: string) => Promise<boolean>;
   verifySignUp: (code: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -48,7 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { signIn } = useSignIn();
   const { signUp } = useSignUp();
 
-  const loginWithClerk = async (email: string, password: string, region?: string) => {
+  const loginWithClerk = async (email: string, password: string) => {
     if (!isClerkEnabled) {
       throw new Error("Clerk publishable key is not configured.");
     }
@@ -57,11 +58,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error("Authentication service is not loaded yet. Please try again.");
     }
 
-    const targetRegion = region ?? selectedRegionState ?? "NCR";
-    setSelectedRegionState(targetRegion);
     setIsMembershipVerified(false);
+    setSelectedRegionState(undefined);
 
-    // Step 1: Perform Password Credentials Authentication
+    // Step 1: Regular Clerk Credentials Authentication
     try {
       const res = await signIn.password({
         emailAddress: email,
@@ -72,7 +72,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw res.error;
       }
 
-      if (signIn.status !== "complete") {
+      if (signIn.status === "complete") {
+        await signIn.finalize();
+      } else {
         throw new Error(`Authentication incomplete: status is ${signIn.status}`);
       }
     } catch (err: unknown) {
@@ -80,11 +82,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const parsedMessage = parseApiError(err);
       throw new Error(parsedMessage);
     }
+  };
 
-    // Step 2: Verify C# .NET 10 Backend Tenant & Regional Office Membership BEFORE Session Finalization
+  const handleConfirmRegion = async (selectedRegionCode: string) => {
     try {
-      const sessionId = signIn.createdSessionId;
-      const verifiedClaims = await verifyStaffMembership(sessionId, targetRegion);
+      const token = clerkAuth.getToken ? await clerkAuth.getToken() : null;
+      const verifiedClaims = await verifyStaffMembership(token, selectedRegionCode);
 
       setBackendStaffClaims({
         tenantId: verifiedClaims.tenantId,
@@ -93,16 +96,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         permissions: verifiedClaims.effectivePermissions,
       });
 
-      // ONLY finalize session if backend tenant membership verification succeeds
-      await signIn.finalize();
+      setSelectedRegionState(selectedRegionCode);
       setIsMembershipVerified(true);
-    } catch (backendErr: unknown) {
+    } catch (err: unknown) {
       setIsMembershipVerified(false);
-      if (clerkAuth.signOut !== undefined) {
-        await clerkAuth.signOut();
-      }
-      const parsedBackendMessage = parseApiError(backendErr);
-      throw new Error(parsedBackendMessage);
+      const parsedMessage = parseApiError(err);
+      throw new Error(parsedMessage);
     }
   };
 
@@ -163,16 +162,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     setIsMembershipVerified(false);
+    setSelectedRegionState(undefined);
     if (isClerkEnabled && clerkAuth.signOut !== undefined) {
       await clerkAuth.signOut();
     }
     setBackendStaffClaims({});
   };
 
-  // Derive User Profile from Clerk & Backend Verified Claims
+  // User profile derived from Clerk & Backend verified claims
   let user: UserProfile | null = null;
   const isAuthenticated = isClerkEnabled
-    ? Boolean(clerkAuth.isSignedIn)
+    ? Boolean(clerkAuth.isSignedIn) && isMembershipVerified
     : true;
 
   if (isClerkEnabled && clerkUser.user !== null && clerkUser.user !== undefined) {
@@ -205,6 +205,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const isLoading = isClerkEnabled ? !clerkAuth.isLoaded : false;
 
+  // Show Region Selection Modal when signed in with Clerk but region is not yet confirmed
+  const showRegionModal = isClerkEnabled && Boolean(clerkAuth.isSignedIn) && !isMembershipVerified;
+
   return (
     <AuthContext.Provider
       value={{
@@ -219,6 +222,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }}
     >
       {children}
+      {showRegionModal ? (
+        <RegionSelectionModal
+          visible={showRegionModal}
+          onConfirmRegion={handleConfirmRegion}
+          onSignOut={logout}
+        />
+      ) : null}
     </AuthContext.Provider>
   );
 }
