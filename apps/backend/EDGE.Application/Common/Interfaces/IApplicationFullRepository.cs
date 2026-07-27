@@ -15,6 +15,7 @@ public interface IApplicationFullRepository
     Task<List<Domain.Entities.Application>> GetUserDraftsAsync(Guid userId, CancellationToken cancellationToken = default);
     Task<List<Domain.Entities.Application>> GetUserApplicationsAsync(Guid userId, ApplicationStatus? status = null, CancellationToken cancellationToken = default);
     Task<List<Domain.Entities.Application>> GetAllApplicationsAsync(ApplicationStatus? status = null, CancellationToken cancellationToken = default);
+    Task<List<Domain.Entities.Application>> GetByApplicantIdAsync(Guid applicantId, CancellationToken cancellationToken = default);
 
 
     Task UpdateAsync(Domain.Entities.Application application, CancellationToken cancellationToken = default);

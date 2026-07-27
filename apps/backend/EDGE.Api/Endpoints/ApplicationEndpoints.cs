@@ -22,7 +22,9 @@ using EDGE.Application.Applications.Commands.UpdateApplicationStatus;
 using EDGE.Application.Applications.Commands.UploadApplicantRequirement;
 using EDGE.Application.Applications.Queries.GetAllApplications;
 using EDGE.Application.Applications.Queries.GetApplicationById;
+using EDGE.Application.Applications.Queries.GetApplicationsByApplicant;
 using EDGE.Application.Applications.Queries.GetDraftApplications;
+
 using EDGE.Domain.Enums;
 using Microsoft.AspNetCore.Mvc;
 
@@ -82,7 +84,12 @@ public static class ApplicationEndpoints
             .WithName("AddApplicationApplicant")
             .WithDescription("Adds a new applicant to an existing draft bulk application.");
 
+        app.MapGet("/applicants/{applicantId:guid}/applications", GetApplicationsByApplicant)
+            .WithName("GetApplicationsByApplicant")
+            .WithTags("Application");
+
         // V2 tenant-specific mappings
+
         app.MapPost("/tenants/{id:guid}/applications", SubmitTenantApplication)
             .WithName("SubmitTenantApplication")
             .WithTags("Application")
@@ -282,4 +289,13 @@ public static class ApplicationEndpoints
         byte[] bytes = Encoding.UTF8.GetBytes(result.Data.CsvContent);
         return Results.File(bytes, "text/csv", result.Data.FileName);
     }
+
+    [HasPermission(Permissions.ViewOwnApplications)]
+    public static async Task<IResult> GetApplicationsByApplicant(Guid applicantId, IMediator mediator)
+    {
+        var result = await mediator.Send(new GetApplicationsByApplicantQuery(applicantId));
+        return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
+    }
+
 }
+
