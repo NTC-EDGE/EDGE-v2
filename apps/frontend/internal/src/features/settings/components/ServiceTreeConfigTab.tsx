@@ -10,7 +10,7 @@ import {
   TextInput,
   ActivityIndicator,
 } from 'react-native';
-import { COLORS, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide } from '@edge/ui';
+import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide } from '@edge/ui';
 import {
   useAdminServices,
   useAdminNotes,
@@ -1652,7 +1652,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: '#F8FAFC',
-    paddingHorizontal: SPACING[14],
+    paddingHorizontal: 14,
     paddingVertical: SPACING[12],
     borderRadius: RADIUS.button,
     borderWidth: 1,
