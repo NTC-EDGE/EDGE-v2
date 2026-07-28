@@ -12,10 +12,7 @@ import {
 } from 'react-native';
 import { COLORS, SPACING, RADIUS, SHADOWS, Icon as Lucide } from '@edge/ui';
 import { useAdminRoles, useRolePermissions, usePermissionsCatalog, apiClient } from '@edge/api';
-import {
-  Role,
-  PERMISSION_CATEGORIES,
-} from '../data/mockRolesPermissions';
+import { Role } from '../data/mockRolesPermissions';
 import { RoleCard } from '../components/RoleCard';
 import { PermissionCategoryCard } from '../components/PermissionCategoryCard';
 import { AddRoleModal } from '../components/AddRoleModal';
@@ -76,10 +73,8 @@ export function RolesPermissionScreen() {
 
   const { permissionKeys: serverRolePermissions, isLoading: isPermissionsLoading, refetch: refetchPermissions } = useRolePermissions(selectedRole?.id);
 
-  // Dynamic permission categories from API or fallback
-  const displayCategories = useMemo(() => {
-    return apiCategories.length > 0 ? apiCategories : PERMISSION_CATEGORIES;
-  }, [apiCategories]);
+  // Dynamic permission categories strictly from API catalog
+  const displayCategories = apiCategories;
 
   // Committed/Saved Permissions vs Working/Draft Permissions
   const [savedRolePermissions, setSavedRolePermissions] = useState<Record<string, string[]>>({});

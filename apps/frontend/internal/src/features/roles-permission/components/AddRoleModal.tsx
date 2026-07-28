@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { StyleSheet, View, Text, TextInput, Pressable, Modal, ScrollView, useWindowDimensions } from 'react-native';
 import { COLORS, SPACING, RADIUS, SHADOWS, Icon as Lucide } from '@edge/ui';
-import { Role, PERMISSION_CATEGORIES, PermissionCategory } from '../data/mockRolesPermissions';
+import { usePermissionsCatalog, PermissionCategoryGroup } from '@edge/api';
+import { Role } from '../data/mockRolesPermissions';
 
 interface AddRoleModalProps {
   visible: boolean;
@@ -23,6 +24,8 @@ export function AddRoleModal({
 }: AddRoleModalProps) {
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
+
+  const { categories } = usePermissionsCatalog();
 
   const [roleName, setRoleName] = useState('');
   const [selectedPermissionIds, setSelectedPermissionIds] = useState<string[]>([]);
@@ -48,7 +51,7 @@ export function AddRoleModal({
   };
 
   // Toggle all permissions in a category
-  const handleToggleCategory = (category: PermissionCategory) => {
+  const handleToggleCategory = (category: PermissionCategoryGroup) => {
     const categoryPermIds = category.options.map((opt) => opt.id);
     const allSelected = categoryPermIds.every((id) => selectedPermissionIds.includes(id));
 
@@ -64,7 +67,7 @@ export function AddRoleModal({
 
   // Global Select All / Clear All
   const handleSelectAllGlobal = () => {
-    const allIds = PERMISSION_CATEGORIES.flatMap((cat) => cat.options.map((opt) => opt.id));
+    const allIds = categories.flatMap((cat) => cat.options.map((opt) => opt.id));
     setSelectedPermissionIds(allIds);
   };
 
@@ -203,7 +206,7 @@ export function AddRoleModal({
 
               {/* Categories Grid */}
               <View style={[styles.categoriesGrid, isMobile && styles.categoriesGridMobile]}>
-                {PERMISSION_CATEGORIES.map((category) => {
+                {categories.map((category) => {
                   const categoryPermIds = category.options.map((opt) => opt.id);
                   const isCategoryAllSelected = categoryPermIds.every((id) =>
                     selectedPermissionIds.includes(id)
