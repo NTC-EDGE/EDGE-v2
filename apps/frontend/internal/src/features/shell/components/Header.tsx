@@ -184,8 +184,17 @@ export function Header({
             )}
           </View>
         ) : (
-          /* Mobile Simplified Profile (toggles sidebar on press) */
-          <Pressable onPress={onMenuPress} style={styles.mobileAvatarPressable}>
+          /* Mobile Simplified Profile (toggles Settings/Profile on press) */
+          <Pressable
+            onPress={() => {
+              if (onNavigate !== undefined) {
+                onNavigate("AccountSettings");
+              } else {
+                setIsSettingsModalOpen(true);
+              }
+            }}
+            style={styles.mobileAvatarPressable}
+          >
             <View
               style={[
                 styles.avatarCircle,
@@ -307,7 +316,7 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     borderWidth: 2,
-    borderColor: "#00E676", // Premium bright green-blue border from screenshot 2
+    borderColor: "#00E676", // Premium bright green-blue border
     backgroundColor: "#2563EB",
     justifyContent: "center",
     alignItems: "center",

@@ -13,19 +13,19 @@ import { useShellState } from "../hooks/useShellState";
 import { ROLE_NAVIGATION_LINKS } from "../context/RoleContext";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
-import { TransitionWrapper } from "./TransitionWrapper";
+import { MobileBottomTabBar } from "./MobileBottomTabBar";
 
-interface DashboardShellProps {
+interface AppLayoutProps {
   children: React.ReactNode;
   activeScreen?: string;
   onNavigate?: (screenName: string) => void;
 }
 
-export function DashboardShell({
+export function AppLayout({
   children,
   activeScreen = "Dashboard",
   onNavigate,
-}: DashboardShellProps) {
+}: AppLayoutProps) {
   const {
     currentRole,
     user,
@@ -115,9 +115,8 @@ export function DashboardShell({
         user={user}
         onLogout={logout}
         isMobile={isMobile}
-        onMenuPress={
-          activeScreen === "AccountSettings" ? undefined : toggleSidebar
-        }
+        // Menu button removed from header in mobile (handled by Bottom Tabs)
+        onMenuPress={undefined}
         onNavigate={handleLinkPress}
       />
 
@@ -132,7 +131,7 @@ export function DashboardShell({
           />
         )}
 
-        {/* Mobile Drawer (Backdrop & Sliding Sidebar) */}
+        {/* Mobile Drawer (Backdrop & Sliding Sidebar for secondary links) */}
         {isMobile &&
           activeScreen !== "AccountSettings" &&
           shouldRenderSidebar && (
@@ -168,6 +167,15 @@ export function DashboardShell({
         {/* Main Body */}
         <View style={styles.mainContentArea}>{children}</View>
       </View>
+
+      {/* Mobile Bottom Tab Bar */}
+      {isMobile && activeScreen !== "AccountSettings" && (
+        <MobileBottomTabBar
+          activeScreen={activeScreen}
+          onNavigate={handleLinkPress}
+          onMenuPress={toggleSidebar}
+        />
+      )}
     </View>
   );
 }
