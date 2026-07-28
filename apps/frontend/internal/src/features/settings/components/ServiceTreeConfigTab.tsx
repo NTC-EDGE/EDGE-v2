@@ -188,6 +188,9 @@ export function ServiceTreeConfigTab() {
   const [requirementsMap, setRequirementsMap] = useState<Record<string, { id: string; name: string; isRequired: boolean }[]>>(DEFAULT_REQUIREMENTS_MAP);
 
   // Input Modal Forms State
+  const [newVariantName, setNewVariantName] = useState('');
+  const [newVariantCode, setNewVariantCode] = useState('');
+  const [isAddingVariant, setIsAddingVariant] = useState(false);
   const [newNoteText, setNewNoteText] = useState('');
   const [isAddingNote, setIsAddingNote] = useState(false);
   const [newReqName, setNewReqName] = useState('');
@@ -226,6 +229,42 @@ export function ServiceTreeConfigTab() {
   const variantContextKey = selectedServiceId && activeVariant ? `${selectedServiceId}_${activeVariant.id}` : '';
   const currentElements = variantContextKey ? elementsMap[variantContextKey] || [] : [];
   const activeElement = currentElements.find((e) => e.id === selectedElementId) || null;
+
+  // Handlers
+  const handleAddVariant = (serviceId: string) => {
+    if (!newVariantName.trim()) return;
+    const newVariant: ServiceVariant = {
+      id: `var-${Date.now()}`,
+      name: newVariantName.trim(),
+      code: newVariantCode.trim() || `VAR-${Date.now().toString().slice(-4)}`,
+      isEnabled: true,
+    };
+
+    setServices((prev) =>
+      prev.map((s) =>
+        s.id === serviceId ? { ...s, variants: [...s.variants, newVariant] } : s
+      )
+    );
+    setSelectedVariantId(newVariant.id);
+    setNewVariantName('');
+    setNewVariantCode('');
+    setIsAddingVariant(false);
+  };
+
+  const handleDeleteVariant = (serviceId: string, variantId: string) => {
+    setServices((prev) =>
+      prev.map((s) => {
+        if (s.id === serviceId) {
+          const updatedVariants = s.variants.filter((v) => v.id !== variantId);
+          if (selectedVariantId === variantId && updatedVariants.length > 0) {
+            setSelectedVariantId(updatedVariants[0].id);
+          }
+          return { ...s, variants: updatedVariants };
+        }
+        return s;
+      })
+    );
+  };
 
   // Handlers
   const handleToggleServiceActive = (serviceId: string) => {
@@ -497,58 +536,106 @@ export function ServiceTreeConfigTab() {
 
         {/* VARIANTS SELECTOR TABS STRIP */}
         <View style={styles.variantsCard}>
-          <View style={styles.variantsHeader}>
-            <Text style={styles.variantsTitle}>Select Service Variant to Configure</Text>
-            <Text style={styles.variantsSubtitle}>
-              Each service variant has its own guidance notes, document requirements, and element fee structures.
-            </Text>
+          <View style={styles.cardHeader}>
+            <View style={styles.variantsHeader}>
+              <Text style={styles.variantsTitle}>Service Variants Studio</Text>
+              <Text style={styles.variantsSubtitle}>
+                Create custom transaction variants (e.g. New Application, Renewal, Modification) for {activeService.name}. Each variant has its own guidance notes, document requirements, and element fee structures.
+              </Text>
+            </View>
+            <Pressable style={styles.addSmallBtn} onPress={() => setIsAddingVariant(true)}>
+              <Lucide name="plus" size={14} color={COLORS.brand[700]} />
+              <Text style={styles.addSmallBtnText}>Create Variant</Text>
+            </Pressable>
           </View>
 
-          <View style={styles.variantList}>
-            {activeService.variants.map((variant) => {
-              const isSelected = selectedVariantId === variant.id;
-              return (
-                <View
-                  key={variant.id}
-                  style={[
-                    styles.variantPill,
-                    isSelected ? styles.variantPillSelected : styles.variantPillUnselected,
-                  ]}
+          {isAddingVariant && (
+            <View style={styles.addBoxContainer}>
+              <TextInput
+                style={styles.addInput}
+                placeholder="Variant Name (e.g. New Commercial Application, Permit Renewal)..."
+                value={newVariantName}
+                onChangeText={setNewVariantName}
+              />
+              <TextInput
+                style={styles.addInput}
+                placeholder="Variant Code (e.g. NEW, RENEW, MOD)..."
+                value={newVariantCode}
+                onChangeText={setNewVariantCode}
+              />
+              <View style={styles.addBoxActions}>
+                <Pressable style={styles.cancelBtn} onPress={() => setIsAddingVariant(false)}>
+                  <Text style={styles.cancelBtnText}>Cancel</Text>
+                </Pressable>
+                <Pressable
+                  style={styles.saveSmallBtn}
+                  onPress={() => handleAddVariant(activeService.id)}
                 >
-                  <Pressable
-                    style={styles.variantSelectClick}
-                    onPress={() => setSelectedVariantId(variant.id)}
-                  >
-                    <Lucide
-                      name={isSelected ? 'check-circle' : 'circle'}
-                      size={16}
-                      color={isSelected ? COLORS.brand[600] : COLORS.neutral[400]}
-                    />
-                    <Text
-                      style={[
-                        styles.variantPillText,
-                        isSelected ? styles.variantPillTextSelected : styles.variantPillTextUnselected,
-                      ]}
-                    >
-                      {variant.name}
-                    </Text>
-                  </Pressable>
+                  <Text style={styles.saveSmallBtnText}>Save Service Variant</Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
 
-                  <View style={styles.variantToggleBox}>
-                    <Text style={styles.variantToggleLabel}>
-                      {variant.isEnabled ? 'Enabled' : 'Disabled'}
-                    </Text>
-                    <Switch
-                      value={variant.isEnabled}
-                      onValueChange={() => handleToggleVariantEnabled(activeService.id, variant.id)}
-                      trackColor={{ false: COLORS.neutral[200], true: '#93C5FD' }}
-                      thumbColor={variant.isEnabled ? COLORS.brand[600] : COLORS.neutral[400]}
-                    />
+          {activeService.variants.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyText}>No variants created for this service yet. Click "Create Variant" above to add one.</Text>
+            </View>
+          ) : (
+            <View style={styles.variantList}>
+              {activeService.variants.map((variant) => {
+                const isSelected = selectedVariantId === variant.id;
+                return (
+                  <View
+                    key={variant.id}
+                    style={[
+                      styles.variantPill,
+                      isSelected ? styles.variantPillSelected : styles.variantPillUnselected,
+                    ]}
+                  >
+                    <Pressable
+                      style={styles.variantSelectClick}
+                      onPress={() => setSelectedVariantId(variant.id)}
+                    >
+                      <Lucide
+                        name={isSelected ? 'check-circle' : 'circle'}
+                        size={16}
+                        color={isSelected ? COLORS.brand[600] : COLORS.neutral[400]}
+                      />
+                      <Text
+                        style={[
+                          styles.variantPillText,
+                          isSelected ? styles.variantPillTextSelected : styles.variantPillTextUnselected,
+                        ]}
+                      >
+                        {variant.name}
+                      </Text>
+                    </Pressable>
+
+                    <View style={styles.variantToggleBox}>
+                      <Text style={styles.variantToggleLabel}>
+                        {variant.isEnabled ? 'Enabled' : 'Disabled'}
+                      </Text>
+                      <Switch
+                        value={variant.isEnabled}
+                        onValueChange={() => handleToggleVariantEnabled(activeService.id, variant.id)}
+                        trackColor={{ false: COLORS.neutral[200], true: '#93C5FD' }}
+                        thumbColor={variant.isEnabled ? COLORS.brand[600] : COLORS.neutral[400]}
+                      />
+                      {activeService.variants.length > 1 && (
+                        <Pressable
+                          style={styles.deleteIconBtn}
+                          onPress={() => handleDeleteVariant(activeService.id, variant.id)}
+                        >
+                          <Lucide name="trash-2" size={13} color="#EF4444" />
+                        </Pressable>
+                      )}
+                    </View>
                   </View>
-                </View>
-              );
-            })}
-          </View>
+                );
+              })}
+            </View>
+          )}
         </View>
 
         {/* SUB-NAVIGATION TABS FOR SELECTED VARIANT WORKSPACE */}
