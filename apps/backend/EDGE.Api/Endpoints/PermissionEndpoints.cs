@@ -21,7 +21,7 @@ public static class PermissionEndpoints
             .WithDescription("Returns all available permission keys, labels, and categories defined in the system.");
     }
 
-    [HasPermission(Permissions.ReadRoles)]
+    [Microsoft.AspNetCore.Authorization.Authorize]
     public static IResult GetPermissions()
     {
         var catalog = Permissions.AllKeys.Select(key =>
