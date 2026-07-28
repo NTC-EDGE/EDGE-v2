@@ -1,7 +1,8 @@
 using System;
 using System.Linq;
-using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Routing;
 using EDGE.Domain.Authorization;
 using EDGE.Infrastructure.Authorization;
@@ -21,7 +22,7 @@ public static class PermissionEndpoints
             .WithDescription("Returns all available permission keys, labels, and categories defined in the system.");
     }
 
-    [Microsoft.AspNetCore.Authorization.Authorize]
+    [Authorize]
     public static IResult GetPermissions()
     {
         var catalog = Permissions.AllKeys.Select(key =>
