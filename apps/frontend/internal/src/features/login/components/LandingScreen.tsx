@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Pressable, Platform, Image, SafeAreaView } from
 import { COLORS, TYPOGRAPHY, SPACING, RADIUS } from '@edge/ui';
 import { useNavigation } from '@react-navigation/native';
 
-const footerLogoAsset = require("../../../../../assets/footer-logo.png"); // Make sure this path exists relative to this file
+const footerLogoAsset = require("../../../../assets/footer-logo.png"); // Make sure this path exists relative to this file
 
 export function LandingScreen() {
   const navigation = useNavigation<any>();
