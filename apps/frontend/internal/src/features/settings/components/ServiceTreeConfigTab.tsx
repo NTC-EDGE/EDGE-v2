@@ -9,6 +9,7 @@ import {
   Switch,
   TextInput,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide } from '@edge/ui';
 import {
@@ -187,21 +188,25 @@ export function ServiceTreeConfigTab() {
   const [notesMap, setNotesMap] = useState<Record<string, string[]>>(DEFAULT_NOTES_MAP);
   const [requirementsMap, setRequirementsMap] = useState<Record<string, { id: string; name: string; isRequired: boolean }[]>>(DEFAULT_REQUIREMENTS_MAP);
 
-  // Input Modal Forms State
+  // Modal Dialog Form States
+  const [isAddingVariant, setIsAddingVariant] = useState(false);
   const [newVariantName, setNewVariantName] = useState('');
   const [newVariantCode, setNewVariantCode] = useState('');
-  const [isAddingVariant, setIsAddingVariant] = useState(false);
-  const [newNoteText, setNewNoteText] = useState('');
-  const [isAddingNote, setIsAddingNote] = useState(false);
-  const [newReqName, setNewReqName] = useState('');
-  const [newReqMandatory, setNewReqMandatory] = useState(true);
-  const [isAddingReq, setIsAddingReq] = useState(false);
+
+  const [isAddingElement, setIsAddingElement] = useState(false);
   const [newElementName, setNewElementName] = useState('');
   const [newElementDesc, setNewElementDesc] = useState('');
-  const [isAddingElement, setIsAddingElement] = useState(false);
+
+  const [isAddingFee, setIsAddingFee] = useState(false);
   const [newFeeName, setNewFeeName] = useState('');
   const [newFeeAmount, setNewFeeAmount] = useState('');
-  const [isAddingFee, setIsAddingFee] = useState(false);
+
+  const [isAddingReq, setIsAddingReq] = useState(false);
+  const [newReqName, setNewReqName] = useState('');
+  const [newReqMandatory, setNewReqMandatory] = useState(true);
+
+  const [isAddingNote, setIsAddingNote] = useState(false);
+  const [newNoteText, setNewNoteText] = useState('');
 
   // Sync API Services
   useEffect(() => {
@@ -266,7 +271,6 @@ export function ServiceTreeConfigTab() {
     );
   };
 
-  // Handlers
   const handleToggleServiceActive = (serviceId: string) => {
     setServices((prev) =>
       prev.map((s) => (s.id === serviceId ? { ...s, isActive: !s.isActive } : s))
@@ -423,7 +427,7 @@ export function ServiceTreeConfigTab() {
           </View>
         </View>
 
-        {/* Fees & Payments Table / Cards Section */}
+        {/* Fees & Payments Table Section */}
         <View style={styles.sectionCard}>
           <View style={styles.cardHeader}>
             <View style={styles.cardHeaderTitleRow}>
@@ -435,32 +439,6 @@ export function ServiceTreeConfigTab() {
               <Text style={styles.addSmallBtnText}>Add Fee Item</Text>
             </Pressable>
           </View>
-
-          {isAddingFee && (
-            <View style={styles.addBoxContainer}>
-              <TextInput
-                style={styles.addInput}
-                placeholder="Fee Item Name (e.g. Filing Fee, License Rights Fee)..."
-                value={newFeeName}
-                onChangeText={setNewFeeName}
-              />
-              <TextInput
-                style={styles.addInput}
-                placeholder="Amount (e.g. 1500.00)..."
-                keyboardType="numeric"
-                value={newFeeAmount}
-                onChangeText={setNewFeeAmount}
-              />
-              <View style={styles.addBoxActions}>
-                <Pressable style={styles.cancelBtn} onPress={() => setIsAddingFee(false)}>
-                  <Text style={styles.cancelBtnText}>Cancel</Text>
-                </Pressable>
-                <Pressable style={styles.saveSmallBtn} onPress={handleAddFeeItem}>
-                  <Text style={styles.saveSmallBtnText}>Attach Fee Item</Text>
-                </Pressable>
-              </View>
-            </View>
-          )}
 
           {activeElement.fees.length === 0 ? (
             <View style={styles.emptyState}>
@@ -497,6 +475,56 @@ export function ServiceTreeConfigTab() {
             </View>
           )}
         </View>
+
+        {/* MODAL DIALOG: ATTACH FEE ITEM */}
+        <Modal
+          visible={isAddingFee}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setIsAddingFee(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Attach Fee Item</Text>
+                <Pressable onPress={() => setIsAddingFee(false)}>
+                  <Lucide name="x" size={20} color={COLORS.neutral[500]} />
+                </Pressable>
+              </View>
+              <Text style={styles.modalSubtext}>
+                Add a new fee or payment item under "{activeElement.name}".
+              </Text>
+
+              <View style={styles.modalForm}>
+                <Text style={styles.modalLabel}>Fee Item Name *</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  placeholder="e.g. Filing Fee, Inspection Fee, License Rights..."
+                  value={newFeeName}
+                  onChangeText={setNewFeeName}
+                />
+
+                <Text style={styles.modalLabel}>Amount (₱) *</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  placeholder="e.g. 1500.00"
+                  keyboardType="numeric"
+                  value={newFeeAmount}
+                  onChangeText={setNewFeeAmount}
+                />
+              </View>
+
+              <View style={styles.modalFooter}>
+                <Pressable style={styles.modalCancelBtn} onPress={() => setIsAddingFee(false)}>
+                  <Text style={styles.modalCancelBtnText}>Cancel</Text>
+                </Pressable>
+                <Pressable style={styles.modalSubmitBtn} onPress={handleAddFeeItem}>
+                  <Text style={styles.modalSubmitBtnText}>Attach Fee Item</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </View>
     );
   }
@@ -536,7 +564,7 @@ export function ServiceTreeConfigTab() {
 
         {/* VARIANTS SELECTOR TABS STRIP */}
         <View style={styles.variantsCard}>
-          <View style={styles.cardHeader}>
+          <View style={styles.cardHeaderNoBorder}>
             <View style={styles.variantsHeader}>
               <Text style={styles.variantsTitle}>Service Variants Studio</Text>
               <Text style={styles.variantsSubtitle}>
@@ -548,34 +576,6 @@ export function ServiceTreeConfigTab() {
               <Text style={styles.addSmallBtnText}>Create Variant</Text>
             </Pressable>
           </View>
-
-          {isAddingVariant && (
-            <View style={styles.addBoxContainer}>
-              <TextInput
-                style={styles.addInput}
-                placeholder="Variant Name (e.g. New Commercial Application, Permit Renewal)..."
-                value={newVariantName}
-                onChangeText={setNewVariantName}
-              />
-              <TextInput
-                style={styles.addInput}
-                placeholder="Variant Code (e.g. NEW, RENEW, MOD)..."
-                value={newVariantCode}
-                onChangeText={setNewVariantCode}
-              />
-              <View style={styles.addBoxActions}>
-                <Pressable style={styles.cancelBtn} onPress={() => setIsAddingVariant(false)}>
-                  <Text style={styles.cancelBtnText}>Cancel</Text>
-                </Pressable>
-                <Pressable
-                  style={styles.saveSmallBtn}
-                  onPress={() => handleAddVariant(activeService.id)}
-                >
-                  <Text style={styles.saveSmallBtnText}>Save Service Variant</Text>
-                </Pressable>
-              </View>
-            </View>
-          )}
 
           {activeService.variants.length === 0 ? (
             <View style={styles.emptyState}>
@@ -723,34 +723,6 @@ export function ServiceTreeConfigTab() {
               </Pressable>
             </View>
 
-            {isAddingReq && (
-              <View style={styles.addBoxContainer}>
-                <TextInput
-                  style={styles.addInput}
-                  placeholder="Enter required document name (e.g. SEC Registration, PECE Diagram)..."
-                  value={newReqName}
-                  onChangeText={setNewReqName}
-                />
-                <View style={styles.toggleRow}>
-                  <Text style={styles.toggleLabelText}>Mandatory Requirement:</Text>
-                  <Switch
-                    value={newReqMandatory}
-                    onValueChange={setNewReqMandatory}
-                    trackColor={{ false: COLORS.neutral[200], true: '#93C5FD' }}
-                    thumbColor={newReqMandatory ? COLORS.brand[600] : COLORS.neutral[400]}
-                  />
-                </View>
-                <View style={styles.addBoxActions}>
-                  <Pressable style={styles.cancelBtn} onPress={() => setIsAddingReq(false)}>
-                    <Text style={styles.cancelBtnText}>Cancel</Text>
-                  </Pressable>
-                  <Pressable style={styles.saveSmallBtn} onPress={handleAddRequirement}>
-                    <Text style={styles.saveSmallBtnText}>Attach Requirement</Text>
-                  </Pressable>
-                </View>
-              </View>
-            )}
-
             {activeRequirements.length === 0 ? (
               <View style={styles.emptyState}>
                 <Text style={styles.emptyText}>No document requirements attached for this variant.</Text>
@@ -810,26 +782,6 @@ export function ServiceTreeConfigTab() {
               </Pressable>
             </View>
 
-            {isAddingNote && (
-              <View style={styles.addBoxContainer}>
-                <TextInput
-                  style={styles.addInput}
-                  placeholder="Enter guidance note instructions for applicants..."
-                  value={newNoteText}
-                  onChangeText={setNewNoteText}
-                  multiline
-                />
-                <View style={styles.addBoxActions}>
-                  <Pressable style={styles.cancelBtn} onPress={() => setIsAddingNote(false)}>
-                    <Text style={styles.cancelBtnText}>Cancel</Text>
-                  </Pressable>
-                  <Pressable style={styles.saveSmallBtn} onPress={handleAddNote}>
-                    <Text style={styles.saveSmallBtnText}>Save Guidance Note</Text>
-                  </Pressable>
-                </View>
-              </View>
-            )}
-
             {activeNotes.length === 0 ? (
               <View style={styles.emptyState}>
                 <Text style={styles.emptyText}>No guidance notes configured for this variant.</Text>
@@ -867,31 +819,6 @@ export function ServiceTreeConfigTab() {
                 <Text style={styles.addSmallBtnText}>Add Element</Text>
               </Pressable>
             </View>
-
-            {isAddingElement && (
-              <View style={styles.addBoxContainer}>
-                <TextInput
-                  style={styles.addInput}
-                  placeholder="Element Name (e.g. Transmitter Unit, Spectrum Assignment)..."
-                  value={newElementName}
-                  onChangeText={setNewElementName}
-                />
-                <TextInput
-                  style={styles.addInput}
-                  placeholder="Description..."
-                  value={newElementDesc}
-                  onChangeText={setNewElementDesc}
-                />
-                <View style={styles.addBoxActions}>
-                  <Pressable style={styles.cancelBtn} onPress={() => setIsAddingElement(false)}>
-                    <Text style={styles.cancelBtnText}>Cancel</Text>
-                  </Pressable>
-                  <Pressable style={styles.saveSmallBtn} onPress={handleAddElement}>
-                    <Text style={styles.saveSmallBtnText}>Save Service Element</Text>
-                  </Pressable>
-                </View>
-              </View>
-            )}
 
             {currentElements.length === 0 ? (
               <View style={styles.emptyState}>
@@ -939,6 +866,200 @@ export function ServiceTreeConfigTab() {
             )}
           </View>
         )}
+
+        {/* MODAL DIALOG: CREATE VARIANT */}
+        <Modal
+          visible={isAddingVariant}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setIsAddingVariant(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Create Service Variant</Text>
+                <Pressable onPress={() => setIsAddingVariant(false)}>
+                  <Lucide name="x" size={20} color={COLORS.neutral[500]} />
+                </Pressable>
+              </View>
+              <Text style={styles.modalSubtext}>
+                Define a new transaction variant under {activeService.name}.
+              </Text>
+
+              <View style={styles.modalForm}>
+                <Text style={styles.modalLabel}>Variant Name *</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  placeholder="e.g. New Commercial Application, Permit Renewal..."
+                  value={newVariantName}
+                  onChangeText={setNewVariantName}
+                />
+
+                <Text style={styles.modalLabel}>Variant Code</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  placeholder="e.g. NEW, RENEW, MOD..."
+                  value={newVariantCode}
+                  onChangeText={setNewVariantCode}
+                />
+              </View>
+
+              <View style={styles.modalFooter}>
+                <Pressable style={styles.modalCancelBtn} onPress={() => setIsAddingVariant(false)}>
+                  <Text style={styles.modalCancelBtnText}>Cancel</Text>
+                </Pressable>
+                <Pressable
+                  style={styles.modalSubmitBtn}
+                  onPress={() => handleAddVariant(activeService.id)}
+                >
+                  <Text style={styles.modalSubmitBtnText}>Create Variant</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* MODAL DIALOG: CREATE ELEMENT */}
+        <Modal
+          visible={isAddingElement}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setIsAddingElement(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Create Service Element</Text>
+                <Pressable onPress={() => setIsAddingElement(false)}>
+                  <Lucide name="x" size={20} color={COLORS.neutral[500]} />
+                </Pressable>
+              </View>
+              <Text style={styles.modalSubtext}>
+                Add a new component element under "{activeVariant?.name}".
+              </Text>
+
+              <View style={styles.modalForm}>
+                <Text style={styles.modalLabel}>Element Name *</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  placeholder="e.g. Transmitter Unit, Spectrum Channel..."
+                  value={newElementName}
+                  onChangeText={setNewElementName}
+                />
+
+                <Text style={styles.modalLabel}>Description</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  placeholder="Element details..."
+                  value={newElementDesc}
+                  onChangeText={setNewElementDesc}
+                />
+              </View>
+
+              <View style={styles.modalFooter}>
+                <Pressable style={styles.modalCancelBtn} onPress={() => setIsAddingElement(false)}>
+                  <Text style={styles.modalCancelBtnText}>Cancel</Text>
+                </Pressable>
+                <Pressable style={styles.modalSubmitBtn} onPress={handleAddElement}>
+                  <Text style={styles.modalSubmitBtnText}>Save Service Element</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* MODAL DIALOG: ATTACH REQUIREMENT */}
+        <Modal
+          visible={isAddingReq}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setIsAddingReq(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Attach Application Requirement</Text>
+                <Pressable onPress={() => setIsAddingReq(false)}>
+                  <Lucide name="x" size={20} color={COLORS.neutral[500]} />
+                </Pressable>
+              </View>
+              <Text style={styles.modalSubtext}>
+                Attach a document requirement to "{activeVariant?.name}".
+              </Text>
+
+              <View style={styles.modalForm}>
+                <Text style={styles.modalLabel}>Document Name *</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  placeholder="e.g. SEC Registration, PECE Engineering Diagram..."
+                  value={newReqName}
+                  onChangeText={setNewReqName}
+                />
+
+                <View style={styles.toggleRow}>
+                  <Text style={styles.modalLabel}>Mandatory Requirement:</Text>
+                  <Switch
+                    value={newReqMandatory}
+                    onValueChange={setNewReqMandatory}
+                    trackColor={{ false: COLORS.neutral[200], true: '#93C5FD' }}
+                    thumbColor={newReqMandatory ? COLORS.brand[600] : COLORS.neutral[400]}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.modalFooter}>
+                <Pressable style={styles.modalCancelBtn} onPress={() => setIsAddingReq(false)}>
+                  <Text style={styles.modalCancelBtnText}>Cancel</Text>
+                </Pressable>
+                <Pressable style={styles.modalSubmitBtn} onPress={handleAddRequirement}>
+                  <Text style={styles.modalSubmitBtnText}>Attach Requirement</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* MODAL DIALOG: ADD GUIDANCE NOTE */}
+        <Modal
+          visible={isAddingNote}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setIsAddingNote(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Add Guidance Note</Text>
+                <Pressable onPress={() => setIsAddingNote(false)}>
+                  <Lucide name="x" size={20} color={COLORS.neutral[500]} />
+                </Pressable>
+              </View>
+              <Text style={styles.modalSubtext}>
+                Add compliance instruction notes for "{activeVariant?.name}".
+              </Text>
+
+              <View style={styles.modalForm}>
+                <Text style={styles.modalLabel}>Instructions / Notes *</Text>
+                <TextInput
+                  style={[styles.modalInput, { height: 80 }]}
+                  placeholder="Enter detailed compliance guidance notes..."
+                  value={newNoteText}
+                  onChangeText={setNewNoteText}
+                  multiline
+                />
+              </View>
+
+              <View style={styles.modalFooter}>
+                <Pressable style={styles.modalCancelBtn} onPress={() => setIsAddingNote(false)}>
+                  <Text style={styles.modalCancelBtnText}>Cancel</Text>
+                </Pressable>
+                <Pressable style={styles.modalSubmitBtn} onPress={handleAddNote}>
+                  <Text style={styles.modalSubmitBtnText}>Save Guidance Note</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </View>
     );
   }
@@ -1298,8 +1419,15 @@ const styles = StyleSheet.create({
     gap: SPACING[16],
     ...SHADOWS.card,
   },
+  cardHeaderNoBorder: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   variantsHeader: {
     gap: 2,
+    flex: 1,
+    marginRight: SPACING[16],
   },
   variantsTitle: {
     fontSize: 16,
@@ -1415,6 +1543,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    flex: 1,
+    marginRight: SPACING[16],
   },
   cardTitle: {
     fontSize: 16,
@@ -1447,23 +1577,54 @@ const styles = StyleSheet.create({
     color: COLORS.neutral[400],
   },
 
-  // INPUT BOX
-  addBoxContainer: {
-    backgroundColor: COLORS.neutral[50],
-    borderRadius: RADIUS.button,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: COLORS.neutral[200],
-    gap: 10,
+  // MODAL OVERLAY STYLES
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: SPACING[20],
   },
-  addInput: {
+  modalContent: {
+    width: '100%',
+    maxWidth: 480,
     backgroundColor: COLORS.neutral.white,
+    borderRadius: RADIUS.card,
+    padding: SPACING[24],
+    gap: SPACING[16],
+    ...SHADOWS.modal,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.neutral[900],
+  },
+  modalSubtext: {
+    fontSize: 13,
+    color: COLORS.neutral[500],
+    marginTop: -8,
+  },
+  modalForm: {
+    gap: SPACING[12],
+  },
+  modalLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.neutral[700],
+  },
+  modalInput: {
+    backgroundColor: COLORS.neutral[50],
     borderRadius: RADIUS.button,
     borderWidth: 1,
     borderColor: COLORS.neutral[300],
-    paddingHorizontal: SPACING[12],
-    paddingVertical: 8,
-    fontSize: 13,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 14,
     color: COLORS.neutral[900],
   },
   toggleRow: {
@@ -1471,32 +1632,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  toggleLabelText: {
-    fontSize: 13,
-    color: COLORS.neutral[700],
-  },
-  addBoxActions: {
+  modalFooter: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
-    gap: SPACING[8],
+    gap: SPACING[12],
+    marginTop: SPACING[8],
   },
-  cancelBtn: {
-    paddingHorizontal: SPACING[12],
-    paddingVertical: 6,
+  modalCancelBtn: {
+    paddingHorizontal: SPACING[16],
+    paddingVertical: 10,
   },
-  cancelBtnText: {
-    fontSize: 12,
+  modalCancelBtnText: {
+    fontSize: 14,
+    fontWeight: '500',
     color: COLORS.neutral[600],
   },
-  saveSmallBtn: {
+  modalSubmitBtn: {
     backgroundColor: COLORS.brand[600],
-    paddingHorizontal: 14,
-    paddingVertical: 6,
+    paddingHorizontal: SPACING[20],
+    paddingVertical: 10,
     borderRadius: RADIUS.button,
   },
-  saveSmallBtnText: {
-    fontSize: 12,
+  modalSubmitBtnText: {
+    fontSize: 14,
     fontWeight: '600',
     color: COLORS.neutral.white,
   },
