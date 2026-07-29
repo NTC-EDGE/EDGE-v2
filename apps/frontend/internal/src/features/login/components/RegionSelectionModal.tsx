@@ -8,6 +8,7 @@ import {
   Modal,
   ScrollView,
   useWindowDimensions,
+  Platform,
 } from "react-native";
 import {
   COLORS,
@@ -412,10 +413,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#CBD5E1",
     paddingVertical: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.16,
-    shadowRadius: 16,
+    ...Platform.select({
+      web: {
+        boxShadow: "0 8px 16px rgba(0, 0, 0, 0.16)",
+      },
+      default: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.16,
+        shadowRadius: 16,
+      },
+    }),
     elevation: 1000,
     zIndex: 1000,
   },

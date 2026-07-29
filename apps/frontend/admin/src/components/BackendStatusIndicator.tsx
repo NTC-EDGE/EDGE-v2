@@ -11,7 +11,7 @@ export function BackendStatusIndicator() {
 
   useEffect(() => {
     setMounted(true);
-    let timer: NodeJS.Timeout;
+    let timer: ReturnType<typeof setTimeout> | undefined;
 
     const handleOffline = () => {
       setIsOffline(true);

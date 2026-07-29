@@ -1,4 +1,4 @@
-import { apiClient } from "../index";
+import { apiClient } from "../apiClient";
 import {
   VerifyStaffSessionDto,
   VerifyStaffSessionResponse,

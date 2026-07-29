@@ -1,4 +1,4 @@
-import { apiClient } from "../index";
+import { apiClient } from "../apiClient";
 import { RegionDto, ApiResponse } from "../types/region";
 
 export const FALLBACK_PHILIPPINE_REGIONS: RegionDto[] = [

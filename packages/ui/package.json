@@ -12,9 +12,12 @@
     "react": "*",
     "react-native": "*",
     "@react-navigation/native": "8.0.0-alpha.35",
-    "@react-navigation/native-stack": "8.0.0-alpha.35"
+    "@react-navigation/native-stack": "8.0.0-alpha.35",
+    "@react-navigation/bottom-tabs": "8.0.0-alpha.35",
+    "@react-navigation/drawer": "8.0.0-alpha.35"
   },
   "devDependencies": {
+    "@react-navigation/core": "8.0.0-alpha.30",
     "@types/react": "~19.2.2",
     "@types/react-native": "*",
     "typescript": "~6.0.3"

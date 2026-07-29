@@ -1,12 +1,21 @@
 {
   "name": "ntc-edge-monorepo",
   "version": "1.0.0",
+  "overrides": {
+    "lru-cache": "^7.18.3",
+    "postcss": "^8.5.10",
+    "uuid": "^11.1.1",
+    "@react-navigation/core": "8.0.0-alpha.30",
+    "@react-navigation/routers": "8.0.0-alpha.16"
+  },
+  "resolutions": {
+    "lru-cache": "^7.18.3",
+    "postcss": "^8.5.10",
+    "uuid": "^11.1.1",
+    "@react-navigation/core": "8.0.0-alpha.30",
+    "@react-navigation/routers": "8.0.0-alpha.16"
+  },
   "private": true,
-  "workspaces": [
-    "apps/frontend/*",
-    "apps/backend/*",
-    "packages/*"
-  ],
   "scripts": {
     "client:start": "bun --filter ntc-edge-app start",
     "client:android": "bun --filter ntc-edge-app android",
@@ -26,11 +35,9 @@
     "admin:check-types": "bun --filter @edge/admin check-types",
     "check-types": "bun --filter ntc-edge-app --filter ntc-edge-internal --filter @edge/admin check-types"
   },
-  "overrides": {
-    "lru-cache": "^7.18.3",
-    "postcss": "^8.5.10",
-    "uuid": "^11.1.1",
-    "@react-navigation/core": "8.0.0-alpha.30",
-    "@react-navigation/routers": "8.0.0-alpha.16"
-  }
+  "workspaces": [
+    "apps/frontend/*",
+    "apps/backend/*",
+    "packages/*"
+  ]
 }

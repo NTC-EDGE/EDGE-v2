@@ -43,7 +43,8 @@ const styles = StyleSheet.create({
   },
   mobileContentContainer: {
     paddingHorizontal: SPACING[16],
-    paddingVertical: SPACING[16],
+    paddingTop: SPACING[16],
+    paddingBottom: 110,
   },
   maxContainer: {
     width: '100%',
