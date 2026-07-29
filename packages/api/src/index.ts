@@ -21,3 +21,4 @@ export * from './hooks/useRolePermissions';
 export * from './hooks/usePermissionsCatalog';
 export * from './hooks/useAdminServices';
 export * from './features/services';
+export * from './utils/safeAsync';

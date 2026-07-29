@@ -7,6 +7,7 @@
     "@edge/api": "workspace:*",
     "@edge/ui": "workspace:*",
     "@expo/vector-icons": "^15.0.2",
+    "@hookform/resolvers": "^5.5.7",
     "@react-navigation/bottom-tabs": "8.0.0-alpha.35",
     "@react-navigation/drawer": "8.0.0-alpha.35",
     "@react-navigation/native": "8.0.0-alpha.35",
@@ -20,12 +21,14 @@
     "expo-web-browser": "^57.0.2",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "react-hook-form": "^7.83.0",
     "react-native": "0.86.0",
     "react-native-gesture-handler": "~2.24.0",
     "react-native-reanimated": "~3.17.1",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "4.25.2",
-    "react-native-web": "^0.21.2"
+    "react-native-web": "^0.21.2",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@babel/runtime": "^7.26.0",

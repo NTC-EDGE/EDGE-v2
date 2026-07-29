@@ -1,4 +1,4 @@
-import { InternalLoginPage } from "../../features/login/components/InternalLoginPage";
+import { InternalLoginScreen } from "../../features/login/components/InternalLoginScreen";
 import { LandingScreen } from "../../features/login/components/LandingScreen";
 import { OnboardingScreen } from "../../features/login/components/OnboardingScreen";
 
@@ -14,7 +14,7 @@ export const unauthRoutes = {
     options: { title: "Get Started" },
   },
   InternalLogin: {
-    screen: InternalLoginPage,
+    screen: InternalLoginScreen,
     path: "internal/login",
     options: { title: "Login" },
   },
