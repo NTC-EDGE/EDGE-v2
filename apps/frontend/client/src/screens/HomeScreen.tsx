@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, Pressable } from "react-native";
 import { useAppNavigation } from "../navigation";
 import { COLORS, SPACING, TYPOGRAPHY } from "@edge/ui";
 
@@ -7,7 +7,7 @@ export default function HomeScreen() {
   const navigation = useAppNavigation();
 
   const handlePressDetails = () => {
-    navigation.navigate("Services");
+    navigation.navigate("Details");
   };
 
   return (
@@ -18,13 +18,15 @@ export default function HomeScreen() {
           Cross-platform services, licensing, and communications portal.
         </Text>
 
-        <TouchableOpacity
-          style={styles.button}
+        <Pressable
+          style={({ pressed }) => [
+            styles.button,
+            { opacity: pressed ? 0.8 : 1.0 }
+          ]}
           onPress={handlePressDetails}
-          activeOpacity={0.8}
         >
           <Text style={styles.buttonText}>View Details</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
     </View>
   );
