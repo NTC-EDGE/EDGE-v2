@@ -9,7 +9,7 @@ import {
 import { COLORS, TYPOGRAPHY, Icon as Lucide } from "@edge/ui";
 import { useRole } from "../../shell/context/RoleContext";
 
-export function DashboardScreenDesktop() {
+export function DashboardScreen() {
   const { currentRole } = useRole();
 
   return (

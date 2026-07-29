@@ -15,7 +15,7 @@ import {
 } from "@edge/ui";
 import { useRole } from "../../shell/context/RoleContext";
 
-export function DashboardScreenWeb() {
+export function DashboardScreen() {
   const { currentRole } = useRole();
   const { width } = useWindowDimensions();
   const isDesktop = width >= 1024;

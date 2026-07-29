@@ -1,17 +1,17 @@
 import React from "react";
 import { Platform } from "react-native";
-import { DashboardScreenWeb } from "./DashboardScreen.web";
-import { DashboardScreenNative } from "./DashboardScreen.native";
-import { DashboardScreenDesktop } from "./DashboardScreen.desktop";
+import { DashboardScreen as WebScreen } from "./DashboardScreen.web";
+import { DashboardScreen as NativeScreen } from "./DashboardScreen.native";
+import { DashboardScreen as DesktopScreen } from "./DashboardScreen.desktop";
 
 export function DashboardScreen() {
   if (Platform.OS === "web") {
-    return <DashboardScreenWeb />;
+    return <WebScreen />;
   }
 
   if (Platform.OS === "macos" || Platform.OS === "windows") {
-    return <DashboardScreenDesktop />;
+    return <DesktopScreen />;
   }
 
-  return <DashboardScreenNative />;
+  return <NativeScreen />;
 }
