@@ -134,8 +134,14 @@ export function LoginScreen() {
     setLoading(true);
     setGeneralError("");
     try {
+      const redirectUrl =
+        Platform.OS === "web" && typeof window !== "undefined"
+          ? window.location.origin
+          : undefined;
+
       const { createdSessionId, setActive: ssoSetActive } = await startSSOFlow({
         strategy: "oauth_google",
+        ...(redirectUrl ? { redirectUrl } : {}),
       });
       if (createdSessionId !== null && ssoSetActive !== undefined) {
         await ssoSetActive({ session: createdSessionId });
