@@ -36,6 +36,11 @@ export function InternalLoginScreen() {
 
   return (
     <View style={styles.webShell}>
+      {/* Background Decorative Mesh & Radial Glows */}
+      <View style={styles.glowSpotTopLeft} pointerEvents="none" />
+      <View style={styles.glowSpotBottomRight} pointerEvents="none" />
+      <View style={styles.gridOverlay} pointerEvents="none" />
+
       {toastMessage !== null ? (
         <View style={styles.toastWrapper}>
           <AlertToast message={toastMessage} onDismiss={dismissToast} variant="error" />
@@ -46,15 +51,13 @@ export function InternalLoginScreen() {
         contentContainerStyle={styles.scrollContainer}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.glowSpotLeft} pointerEvents="none" />
-        <View style={styles.glowSpotRight} pointerEvents="none" />
-
         <View style={styles.mainLayout}>
           <View style={[styles.contentRow, isMobile && styles.contentRowMobile]}>
+            {/* Left Hero Column */}
             <View style={[styles.heroLeftCol, isMobile && styles.heroLeftColMobile]}>
               <View style={[styles.portalBadge, isMobile && { alignSelf: "center" }]}>
                 <View style={styles.badgePulseDot} />
-                <Text style={styles.badgeLabel}>Official Government Portal</Text>
+                <Text style={styles.badgeLabel}>OFFICIAL GOV PORTAL • EDGE V2</Text>
               </View>
 
               <Text
@@ -67,13 +70,14 @@ export function InternalLoginScreen() {
                     : null,
                 ]}
               >
-                NTC Electronic Data Governance Portal
+                National Telecommunications Commission
               </Text>
 
               <Text style={[styles.heroSubtitle, isMobile && styles.heroSubtitleMobile]}>
-                Unified internal platform for National Telecommunications Commission staff authentication, regional licensing evaluation, and multi-tenant administration.
+                Next-Generation Internal Governance Platform for Multi-Tenant Regional Queue Management, Spectrum Auditing, and Operations.
               </Text>
 
+              {/* Feature Highlights Grid */}
               <View style={styles.featureGrid}>
                 <View style={styles.featureCard}>
                   <View style={styles.featureIconCircle}>
@@ -81,7 +85,7 @@ export function InternalLoginScreen() {
                   </View>
                   <View style={styles.featureTextWrapper}>
                     <Text style={styles.featureCardTitle}>RBAC & Tenant Isolation</Text>
-                    <Text style={styles.featureCardDesc}>Strict Regional Office boundary enforcement.</Text>
+                    <Text style={styles.featureCardDesc}>Strict Regional Office boundary enforcement & encryption.</Text>
                   </View>
                 </View>
 
@@ -90,13 +94,24 @@ export function InternalLoginScreen() {
                     <LucideIcon name="zap" size={20} color="#34D399" />
                   </View>
                   <View style={styles.featureTextWrapper}>
-                    <Text style={styles.featureCardTitle}>Automated Audit Logs</Text>
-                    <Text style={styles.featureCardDesc}>Complete compliance tracking & evaluation queues.</Text>
+                    <Text style={styles.featureCardTitle}>Automated Audit Workflows</Text>
+                    <Text style={styles.featureCardDesc}>Real-time licensing evaluation queues & activity feeds.</Text>
+                  </View>
+                </View>
+
+                <View style={styles.featureCard}>
+                  <View style={styles.featureIconCircle}>
+                    <LucideIcon name="cpu" size={20} color="#FBBF24" />
+                  </View>
+                  <View style={styles.featureTextWrapper}>
+                    <Text style={styles.featureCardTitle}>Spectrum Telemetry Integration</Text>
+                    <Text style={styles.featureCardDesc}>Direct telemetry monitoring for frequency allocation.</Text>
                   </View>
                 </View>
               </View>
             </View>
 
+            {/* Right Form Glass Card Column */}
             <View style={styles.heroRightCol}>
               <View style={styles.ntcLogoWrapper}>
                 <NtcLogo size={isMobile ? "medium" : "large"} variant="light" showSubtext={false} />
@@ -113,7 +128,7 @@ export function InternalLoginScreen() {
                 </View>
 
                 <View style={[styles.cardMainBody, isMobile && { padding: 20 }]}>
-                  <Text style={styles.formMainHeading}>Sign In to NTC-EDGE</Text>
+                  <Text style={styles.formMainHeading}>Sign In to Workstation</Text>
                   <Text style={styles.formSubHeading}>
                     Enter your staff credentials or continue with Google SSO.
                   </Text>
@@ -127,7 +142,7 @@ export function InternalLoginScreen() {
                   <View style={styles.securityBox}>
                     <LucideIcon name="shield" size={14} color="#2563EB" />
                     <Text style={styles.securityText}>
-                      Authorized NTC Staff Portal • Encrypted TLS 1.3 Session
+                      Authorized NTC Staff Portal • TLS 1.3 Encrypted Session
                     </Text>
                   </View>
                 </View>
@@ -136,6 +151,7 @@ export function InternalLoginScreen() {
           </View>
         </View>
 
+        {/* Footer */}
         <View style={styles.footerWrap}>
           <View style={styles.footerLinks}>
             <TouchableOpacity onPress={() => setActivePolicy("User Agreement")}>
@@ -156,6 +172,7 @@ export function InternalLoginScreen() {
         </View>
       </ScrollView>
 
+      {/* Modal */}
       {activePolicy !== null ? (
         <Modal visible={true} transparent={true} animationType="fade">
           <View style={styles.modalBackdrop}>
@@ -180,7 +197,7 @@ export function InternalLoginScreen() {
 const styles = StyleSheet.create({
   webShell: {
     flex: 1,
-    backgroundColor: "#0B132B",
+    backgroundColor: "#080D1A",
   },
   scrollContainer: {
     flexGrow: 1,
@@ -195,29 +212,34 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     zIndex: 999,
   },
-  glowSpotLeft: {
+  glowSpotTopLeft: {
     position: "absolute",
-    top: -120,
-    left: -120,
-    width: 450,
-    height: 450,
-    borderRadius: 225,
-    backgroundColor: "rgba(37, 99, 235, 0.25)",
-    ...Platform.select({ web: { filter: "blur(90px)" } }),
+    top: -150,
+    left: -150,
+    width: 500,
+    height: 500,
+    borderRadius: 250,
+    backgroundColor: "rgba(37, 99, 235, 0.22)",
+    ...Platform.select({ web: { filter: "blur(110px)" } }),
   },
-  glowSpotRight: {
+  glowSpotBottomRight: {
     position: "absolute",
-    bottom: -120,
-    right: -120,
-    width: 480,
-    height: 480,
-    borderRadius: 240,
-    backgroundColor: "rgba(59, 130, 246, 0.18)",
-    ...Platform.select({ web: { filter: "blur(100px)" } }),
+    bottom: -150,
+    right: -150,
+    width: 550,
+    height: 550,
+    borderRadius: 275,
+    backgroundColor: "rgba(6, 182, 212, 0.18)",
+    ...Platform.select({ web: { filter: "blur(120px)" } }),
+  },
+  gridOverlay: {
+    ...StyleSheet.absoluteFill,
+    opacity: 0.03,
+    backgroundColor: "transparent",
   },
   mainLayout: {
     paddingHorizontal: 24,
-    paddingTop: 40,
+    paddingTop: 48,
     alignItems: "center",
   },
   contentRow: {
@@ -244,12 +266,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    backgroundColor: "rgba(37, 99, 235, 0.12)",
     paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.15)",
+    borderColor: "rgba(59, 130, 246, 0.3)",
     marginBottom: 20,
     alignSelf: "flex-start",
   },
@@ -261,18 +283,19 @@ const styles = StyleSheet.create({
   },
   badgeLabel: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-    color: "#93C5FD",
-    letterSpacing: 0.5,
+    fontSize: 11,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: "#60A5FA",
+    letterSpacing: 0.8,
   },
   heroTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 36,
+    fontSize: 38,
     fontWeight: TYPOGRAPHY.weights.bold,
     color: "#FFFFFF",
-    lineHeight: 44,
+    lineHeight: 46,
     marginBottom: 16,
+    letterSpacing: -0.5,
   },
   heroTitleTablet: {
     fontSize: 32,
@@ -288,7 +311,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "#94A3B8",
     lineHeight: 24,
-    marginBottom: 28,
+    marginBottom: 32,
   },
   heroSubtitleMobile: {
     textAlign: "center",
@@ -300,16 +323,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 14,
-    backgroundColor: "rgba(255, 255, 255, 0.04)",
-    padding: 14,
-    borderRadius: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.03)",
+    padding: 16,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.08)",
   },
   featureIconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: "rgba(37, 99, 235, 0.15)",
     justifyContent: "center",
     alignItems: "center",

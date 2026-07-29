@@ -19,7 +19,6 @@ export function DashboardScreenWeb() {
   const { currentRole } = useRole();
   const { width } = useWindowDimensions();
   const isDesktop = width >= 1024;
-  const isMobile = width < 768;
 
   const [timeRange, setTimeRange] = useState<"7days" | "30days" | "year">("7days");
 
@@ -39,71 +38,101 @@ export function DashboardScreenWeb() {
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.container}>
-        {/* Web Banner */}
+        {/* Web Hero Banner */}
         <View style={styles.welcomeRow}>
           <View>
-            <Text style={styles.welcomeLabel}>OFFICIAL GOV PORTAL • WEB SESSION</Text>
+            <View style={styles.govBadgePill}>
+              <View style={styles.pulseDot} />
+              <Text style={styles.welcomeLabel}>GOVERNMENT DATA GOVERNANCE • WEB COMMAND CENTER</Text>
+            </View>
             <Text style={styles.welcomeTitle}>
               Welcome back, {currentRole} Staff
             </Text>
             <Text style={styles.welcomeSubtitle}>
-              NTC Data Governance & Regional Queue Management Workspace.
+              NTC EDGE multi-tenant queue management, licensing evaluation, and telemetry dashboard.
             </Text>
           </View>
           <View style={[styles.dateCard, SHADOWS.card]}>
-            <Lucide name="calendar" size={16} color={COLORS.neutral[500]} />
+            <Lucide name="calendar" size={16} color="#2563EB" />
             <Text style={styles.dateText}>{getFormattedDate()}</Text>
           </View>
         </View>
 
-        {/* Web Metric Grid */}
+        {/* Premium KPI Cards Grid */}
         <View style={styles.kpiGrid}>
           <View style={[styles.metricCard, SHADOWS.card]}>
-            <View style={[styles.iconCircle, { backgroundColor: "rgba(245, 158, 11, 0.1)" }]}>
-              <Lucide name="file-text" size={20} color="#F59E0B" />
+            <View style={[styles.iconCircle, { backgroundColor: "rgba(245, 158, 11, 0.12)" }]}>
+              <Lucide name="file-text" size={22} color="#D97706" />
             </View>
-            <View>
+            <View style={styles.metricTextGroup}>
               <Text style={styles.metricTitle}>Pending Evaluation</Text>
-              <Text style={styles.metricValue}>124</Text>
+              <View style={styles.metricValRow}>
+                <Text style={styles.metricValue}>124</Text>
+                <View style={styles.trendBadgeWarning}>
+                  <Lucide name="arrow-up-right" size={12} color="#D97706" />
+                  <Text style={styles.trendTextWarning}>+8%</Text>
+                </View>
+              </View>
             </View>
           </View>
 
           <View style={[styles.metricCard, SHADOWS.card]}>
-            <View style={[styles.iconCircle, { backgroundColor: "rgba(16, 185, 129, 0.1)" }]}>
-              <Lucide name="check-circle" size={20} color="#10B981" />
+            <View style={[styles.iconCircle, { backgroundColor: "rgba(16, 185, 129, 0.12)" }]}>
+              <Lucide name="check-circle" size={22} color="#10B981" />
             </View>
-            <View>
+            <View style={styles.metricTextGroup}>
               <Text style={styles.metricTitle}>Approved Licenses</Text>
-              <Text style={styles.metricValue}>852</Text>
+              <View style={styles.metricValRow}>
+                <Text style={styles.metricValue}>852</Text>
+                <View style={styles.trendBadgeSuccess}>
+                  <Lucide name="arrow-up-right" size={12} color="#10B981" />
+                  <Text style={styles.trendTextSuccess}>+14%</Text>
+                </View>
+              </View>
             </View>
           </View>
 
           <View style={[styles.metricCard, SHADOWS.card]}>
-            <View style={[styles.iconCircle, { backgroundColor: "rgba(239, 68, 68, 0.1)" }]}>
-              <Lucide name="alert-triangle" size={20} color="#EF4444" />
+            <View style={[styles.iconCircle, { backgroundColor: "rgba(239, 68, 68, 0.12)" }]}>
+              <Lucide name="alert-triangle" size={22} color="#EF4444" />
             </View>
-            <View>
-              <Text style={styles.metricTitle}>Rejected Audits</Text>
-              <Text style={styles.metricValue}>42</Text>
+            <View style={styles.metricTextGroup}>
+              <Text style={styles.metricTitle}>Rejected Compliance</Text>
+              <View style={styles.metricValRow}>
+                <Text style={styles.metricValue}>42</Text>
+                <View style={styles.trendBadgeDanger}>
+                  <Lucide name="arrow-down-right" size={12} color="#EF4444" />
+                  <Text style={styles.trendTextDanger}>-3%</Text>
+                </View>
+              </View>
             </View>
           </View>
 
           <View style={[styles.metricCard, SHADOWS.card]}>
-            <View style={[styles.iconCircle, { backgroundColor: "rgba(37, 99, 235, 0.1)" }]}>
-              <Lucide name="grid" size={20} color="#2563EB" />
+            <View style={[styles.iconCircle, { backgroundColor: "rgba(37, 99, 235, 0.12)" }]}>
+              <Lucide name="grid" size={22} color="#2563EB" />
             </View>
-            <View>
+            <View style={styles.metricTextGroup}>
               <Text style={styles.metricTitle}>Total Completed</Text>
-              <Text style={styles.metricValue}>710</Text>
+              <View style={styles.metricValRow}>
+                <Text style={styles.metricValue}>710</Text>
+                <View style={styles.trendBadgePrimary}>
+                  <Lucide name="arrow-up-right" size={12} color="#2563EB" />
+                  <Text style={styles.trendTextPrimary}>+18%</Text>
+                </View>
+              </View>
             </View>
           </View>
         </View>
 
-        {/* Web Content Split */}
+        {/* Analytics & Activity Split */}
         <View style={[styles.splitRow, { flexDirection: isDesktop ? "row" : "column" }]}>
           <View style={[styles.mainSection, SHADOWS.card]}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Evaluation Velocity</Text>
+              <View>
+                <Text style={styles.sectionTitle}>Evaluation Velocity & Trends</Text>
+                <Text style={styles.sectionSubtitle}>Real-time application throughput velocity by regional office</Text>
+              </View>
               <View style={styles.filterPills}>
                 {(["7days", "30days", "year"] as const).map((r) => (
                   <Pressable
@@ -118,27 +147,41 @@ export function DashboardScreenWeb() {
                 ))}
               </View>
             </View>
-            <View style={styles.chartPlaceholder}>
-              <Lucide name="bar-chart-2" size={48} color="#94A3B8" />
-              <Text style={styles.placeholderText}>Web Interactive Trend Analytics</Text>
+
+            <View style={styles.chartMockArea}>
+              <View style={styles.chartBarRow}>
+                <View style={[styles.chartBar, { height: 120, backgroundColor: "#3B82F6" }]} />
+                <View style={[styles.chartBar, { height: 160, backgroundColor: "#10B981" }]} />
+                <View style={[styles.chartBar, { height: 90, backgroundColor: "#F59E0B" }]} />
+                <View style={[styles.chartBar, { height: 180, backgroundColor: "#3B82F6" }]} />
+                <View style={[styles.chartBar, { height: 140, backgroundColor: "#10B981" }]} />
+              </View>
+              <Text style={styles.chartCaption}>Web Command Velocity Stream • NCR Head Office</Text>
             </View>
           </View>
 
           <View style={[styles.sideSection, SHADOWS.card]}>
-            <Text style={styles.sectionTitle}>System Activity</Text>
+            <Text style={styles.sectionTitle}>Live Activity Stream</Text>
             <View style={styles.activityList}>
               <View style={styles.activityItem}>
-                <Lucide name="check-circle" size={16} color="#10B981" />
+                <View style={styles.activityDotSuccess} />
                 <View style={styles.activityText}>
                   <Text style={styles.activityTitle}>Application #APP-2026-0521 Approved</Text>
                   <Text style={styles.activityTime}>10:24 AM by Juan Dela Cruz</Text>
                 </View>
               </View>
               <View style={styles.activityItem}>
-                <Lucide name="file-text" size={16} color="#F59E0B" />
+                <View style={styles.activityDotWarning} />
                 <View style={styles.activityText}>
                   <Text style={styles.activityTitle}>New Accreditation Submitted</Text>
                   <Text style={styles.activityTime}>09:45 AM by RuralNet ISP</Text>
+                </View>
+              </View>
+              <View style={styles.activityItem}>
+                <View style={styles.activityDotPrimary} />
+                <View style={styles.activityText}>
+                  <Text style={styles.activityTitle}>Role Policy Updated</Text>
+                  <Text style={styles.activityTime}>08:15 AM by System Admin</Text>
                 </View>
               </View>
             </View>
@@ -154,30 +197,47 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   contentContainer: {
-    paddingHorizontal: 24,
-    paddingVertical: 24,
+    paddingHorizontal: 32,
+    paddingVertical: 32,
     maxWidth: 1600,
     width: "100%",
     alignSelf: "center",
   },
   container: {
-    gap: 24,
+    gap: 28,
   },
   welcomeRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
+  govBadgePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "rgba(37, 99, 235, 0.1)",
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 16,
+    alignSelf: "flex-start",
+    marginBottom: 8,
+  },
+  pulseDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#10B981",
+  },
   welcomeLabel: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: TYPOGRAPHY.weights.bold,
     color: "#2563EB",
-    letterSpacing: 0.5,
+    letterSpacing: 0.6,
   },
   welcomeTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 26,
+    fontSize: 28,
     fontWeight: TYPOGRAPHY.weights.bold,
     color: "#0F172A",
   },
@@ -189,31 +249,31 @@ const styles = StyleSheet.create({
   dateCard: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 10,
     backgroundColor: "#FFFFFF",
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: "#E2E8F0",
   },
   dateText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 13,
-    color: "#475569",
-    fontWeight: TYPOGRAPHY.weights.medium,
+    color: "#1E293B",
+    fontWeight: TYPOGRAPHY.weights.semibold,
   },
   kpiGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 16,
+    gap: 20,
   },
   metricCard: {
     flex: 1,
-    minWidth: 220,
+    minWidth: 240,
     backgroundColor: "#FFFFFF",
-    borderRadius: 14,
-    padding: 20,
+    borderRadius: 16,
+    padding: 22,
     borderWidth: 1,
     borderColor: "#E2E8F0",
     flexDirection: "row",
@@ -221,23 +281,88 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   iconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     justifyContent: "center",
     alignItems: "center",
+  },
+  metricTextGroup: {
+    flex: 1,
   },
   metricTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 12,
     color: "#64748B",
     fontWeight: TYPOGRAPHY.weights.medium,
+    marginBottom: 4,
+  },
+  metricValRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   metricValue: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: TYPOGRAPHY.weights.bold,
     color: "#0F172A",
+  },
+  trendBadgeWarning: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(245, 158, 11, 0.12)",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  trendTextWarning: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: "#D97706",
+  },
+  trendBadgeSuccess: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(16, 185, 129, 0.12)",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  trendTextSuccess: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: "#10B981",
+  },
+  trendBadgeDanger: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(239, 68, 68, 0.12)",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  trendTextDanger: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: "#EF4444",
+  },
+  trendBadgePrimary: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(37, 99, 235, 0.12)",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  trendTextPrimary: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: "#2563EB",
   },
   splitRow: {
     gap: 24,
@@ -245,16 +370,16 @@ const styles = StyleSheet.create({
   mainSection: {
     flex: 2,
     backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 24,
+    borderRadius: 20,
+    padding: 28,
     borderWidth: 1,
     borderColor: "#E2E8F0",
   },
   sideSection: {
     flex: 1,
     backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 24,
+    borderRadius: 20,
+    padding: 28,
     borderWidth: 1,
     borderColor: "#E2E8F0",
   },
@@ -262,23 +387,27 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 20,
+    marginBottom: 24,
   },
   sectionTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 18,
     fontWeight: TYPOGRAPHY.weights.bold,
     color: "#0F172A",
-    marginBottom: 16,
+  },
+  sectionSubtitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    color: "#64748B",
   },
   filterPills: {
     flexDirection: "row",
     gap: 6,
   },
   pill: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
     backgroundColor: "#F1F5F9",
   },
   pillActive: {
@@ -286,33 +415,69 @@ const styles = StyleSheet.create({
   },
   pillText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: TYPOGRAPHY.weights.semibold,
     color: "#64748B",
   },
   pillTextActive: {
     color: "#FFFFFF",
   },
-  chartPlaceholder: {
+  chartMockArea: {
     height: 220,
     backgroundColor: "#F8FAFC",
-    borderRadius: 12,
+    borderRadius: 14,
     justifyContent: "center",
     alignItems: "center",
-    gap: 12,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: "#F1F5F9",
   },
-  placeholderText: {
+  chartBarRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 20,
+    height: 160,
+    marginBottom: 12,
+  },
+  chartBar: {
+    width: 36,
+    borderRadius: 6,
+  },
+  chartCaption: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
+    fontSize: 12,
     color: "#64748B",
+    fontWeight: TYPOGRAPHY.weights.medium,
   },
   activityList: {
-    gap: 16,
+    gap: 20,
+    marginTop: 16,
   },
   activityItem: {
     flexDirection: "row",
-    gap: 12,
+    gap: 14,
     alignItems: "flex-start",
+  },
+  activityDotSuccess: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#10B981",
+    marginTop: 4,
+  },
+  activityDotWarning: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#F59E0B",
+    marginTop: 4,
+  },
+  activityDotPrimary: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#2563EB",
+    marginTop: 4,
   },
   activityText: {
     flex: 1,
