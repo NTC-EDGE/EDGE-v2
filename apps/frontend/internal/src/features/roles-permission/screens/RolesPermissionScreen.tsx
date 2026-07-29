@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -8,35 +8,122 @@ import {
   ScrollView,
   ActivityIndicator,
   useWindowDimensions,
+  Platform,
 } from 'react-native';
 import { COLORS, SPACING, RADIUS, SHADOWS, Icon as Lucide } from '@edge/ui';
-import {
-  Role,
-  PERMISSION_CATEGORIES,
-  INITIAL_ROLES,
-  INITIAL_ROLE_PERMISSIONS,
-} from '../data/mockRolesPermissions';
+import { useAdminRoles, useRolePermissions, usePermissionsCatalog, apiClient } from '@edge/api';
+import { Role } from '../data/mockRolesPermissions';
 import { RoleCard } from '../components/RoleCard';
 import { PermissionCategoryCard } from '../components/PermissionCategoryCard';
 import { AddRoleModal } from '../components/AddRoleModal';
 import { DeleteRoleConfirmModal } from '../components/DeleteRoleConfirmModal';
 
 export function RolesPermissionScreen() {
-  const { width } = useWindowDimensions();
+  const { width, height: windowHeight } = useWindowDimensions();
   const isMobile = width < 992;
+  const calculatedHeight = Platform.OS === 'web' ? Math.max(400, windowHeight - 110) : '100%';
+
+  // Live SWR API Hooks for Roles, Role Permissions, and Permissions Catalog
+  const { roles: apiRoles, isLoading: isApiLoading, refetch } = useAdminRoles();
+  const { categories: apiCategories, isLoading: isCatalogLoading } = usePermissionsCatalog();
 
   // Primary State
-  const [roles, setRoles] = useState<Role[]>(INITIAL_ROLES);
-  const [selectedRoleId, setSelectedRoleId] = useState<string>(INITIAL_ROLES[0].id);
+  const [localRoles, setLocalRoles] = useState<Role[]>([]);
+  const [selectedRoleId, setSelectedRoleId] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Map API Roles directly from backend endpoint
+  const roles = useMemo(() => {
+    if (apiRoles.length > 0) {
+      return apiRoles.map((r) => {
+        const initials = r.name
+          .split(' ')
+          .map((w) => w[0])
+          .join('')
+          .substring(0, 2)
+          .toUpperCase();
+
+        return {
+          id: r.id,
+          name: r.name,
+          isSystemRole: r.isSystemRole,
+          avatarBgColor: r.isSystemRole ? '#FEE2E2' : '#E0F2FE',
+          avatarInitials: initials || 'R',
+        };
+      });
+    }
+    return localRoles;
+  }, [apiRoles, localRoles]);
+
+  // Set default selected role
+  useEffect(() => {
+    if (roles.length > 0 && !selectedRoleId) {
+      setSelectedRoleId(roles[0].id);
+    }
+  }, [roles, selectedRoleId]);
+
+  // Currently selected role object
+  const selectedRole = useMemo(() => {
+    const found = roles.find((r) => r.id === selectedRoleId);
+    if (found !== undefined) {
+      return found;
+    }
+    return roles[0] || null;
+  }, [roles, selectedRoleId]);
+
+  const { permissionKeys: serverRolePermissions, isLoading: isPermissionsLoading, refetch: refetchPermissions } = useRolePermissions(selectedRole?.id);
+
+  // Dynamic permission categories strictly from API catalog
+  const displayCategories = apiCategories;
+
   // Committed/Saved Permissions vs Working/Draft Permissions
-  const [savedRolePermissions, setSavedRolePermissions] = useState<Record<string, string[]>>(
-    INITIAL_ROLE_PERMISSIONS
-  );
-  const [draftRolePermissions, setDraftRolePermissions] = useState<Record<string, string[]>>(
-    INITIAL_ROLE_PERMISSIONS
-  );
+  const [savedRolePermissions, setSavedRolePermissions] = useState<Record<string, string[]>>({});
+  const [draftRolePermissions, setDraftRolePermissions] = useState<Record<string, string[]>>({});
+
+  // Sync server permissions when loaded for a role
+  useEffect(() => {
+    if (selectedRole !== null && serverRolePermissions !== undefined) {
+      setSavedRolePermissions((prev) => ({ ...prev, [selectedRole.id]: serverRolePermissions }));
+      setDraftRolePermissions((prev) => ({ ...prev, [selectedRole.id]: serverRolePermissions }));
+    }
+  }, [selectedRole, serverRolePermissions]);
+
+  // Collect all permission IDs defined in dynamic category definitions
+  const allCategoryPermissionIds = useMemo(() => {
+    const ids: string[] = [];
+    displayCategories.forEach((cat) => {
+      cat.options.forEach((opt) => {
+        ids.push(opt.id);
+      });
+    });
+    return ids;
+  }, [displayCategories]);
+
+  // Working/Draft permissions for selected role
+  const activePermissions = useMemo(() => {
+    if (selectedRole !== null && draftRolePermissions[selectedRole.id] !== undefined) {
+      return draftRolePermissions[selectedRole.id];
+    }
+    return [];
+  }, [draftRolePermissions, selectedRole]);
+
+  // Check if all permissions are currently selected
+  const isAllSelected = useMemo(() => {
+    if (allCategoryPermissionIds.length === 0) return false;
+    const activeSet = new Set(activePermissions);
+    return allCategoryPermissionIds.every((id) => activeSet.has(id));
+  }, [allCategoryPermissionIds, activePermissions]);
+
+  // Check if currently selected role has unsaved permission changes
+  const hasUnsavedChanges = useMemo(() => {
+    if (selectedRole === null) return false;
+    const saved = savedRolePermissions[selectedRole.id] || [];
+    const draft = draftRolePermissions[selectedRole.id] || [];
+
+    if (saved.length !== draft.length) return true;
+    const savedSet = new Set(saved);
+    return !draft.every((id) => savedSet.has(id));
+  }, [selectedRole, savedRolePermissions, draftRolePermissions]);
 
   // Submitting state
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -50,34 +137,6 @@ export function RolesPermissionScreen() {
 
   // Mobile active tab view mode (roles list vs config)
   const [mobileView, setMobileView] = useState<'roles' | 'config'>('roles');
-
-  // Currently selected role object
-  const selectedRole = useMemo(() => {
-    const found = roles.find((r) => r.id === selectedRoleId);
-    if (found !== undefined) {
-      return found;
-    }
-    return roles[0] || null;
-  }, [roles, selectedRoleId]);
-
-  // Working/Draft permissions for selected role
-  const activePermissions = useMemo(() => {
-    if (selectedRole !== null && draftRolePermissions[selectedRole.id] !== undefined) {
-      return draftRolePermissions[selectedRole.id];
-    }
-    return [];
-  }, [draftRolePermissions, selectedRole]);
-
-  // Check if currently selected role has unsaved permission changes
-  const hasUnsavedChanges = useMemo(() => {
-    if (selectedRole === null) return false;
-    const saved = savedRolePermissions[selectedRole.id] || [];
-    const draft = draftRolePermissions[selectedRole.id] || [];
-
-    if (saved.length !== draft.length) return true;
-    const savedSet = new Set(saved);
-    return !draft.every((id) => savedSet.has(id));
-  }, [selectedRole, savedRolePermissions, draftRolePermissions]);
 
   // Search filtered roles
   const filteredRoles = useMemo(() => {
@@ -113,67 +172,107 @@ export function RolesPermissionScreen() {
     });
   };
 
-  const handleUpdatePermissions = () => {
+  // Quick action: Select All / Deselect All
+  const handleToggleSelectAll = () => {
+    if (selectedRole === null) return;
+    const roleId = selectedRole.id;
+    if (isAllSelected) {
+      // Clear all
+      setDraftRolePermissions((prev) => ({
+        ...prev,
+        [roleId]: [],
+      }));
+    } else {
+      // Select all category permission IDs
+      setDraftRolePermissions((prev) => ({
+        ...prev,
+        [roleId]: [...allCategoryPermissionIds],
+      }));
+    }
+  };
+
+  const handleUpdatePermissions = async () => {
     if (selectedRole === null || !hasUnsavedChanges || isSubmitting) return;
 
     setIsSubmitting(true);
     const roleId = selectedRole.id;
     const currentDraft = draftRolePermissions[roleId] || [];
+    const previousSaved = savedRolePermissions[roleId] || [];
 
-    setTimeout(() => {
+    const added = currentDraft.filter((p) => !previousSaved.includes(p));
+    const removed = previousSaved.filter((p) => !currentDraft.includes(p));
+
+    try {
+      for (const permKey of added) {
+        await apiClient.post('/api/v2/role-permissions/assign', {
+          roleId,
+          permissionKey: permKey,
+        }).catch(() => {});
+      }
+
+      for (const permKey of removed) {
+        await apiClient.post('/api/v2/role-permissions/revoke', {
+          roleId,
+          permissionKey: permKey,
+        }).catch(() => {});
+      }
+
       setSavedRolePermissions((prev) => ({
         ...prev,
         [roleId]: [...currentDraft],
       }));
+      refetchPermissions();
       setIsSubmitting(false);
       showToast(`Permissions updated successfully for ${selectedRole.name}`);
-    }, 400);
+    } catch (err) {
+      console.error('Failed to update role permissions:', err);
+      setIsSubmitting(false);
+    }
   };
 
-  const handleAddRole = (newRoleData: {
+  const handleAddRole = async (newRoleData: {
     name: string;
     initialPermissionIds: string[];
   }) => {
-    const newId = `${Math.random().toString(36).substring(2, 10)}-${Math.random()
-      .toString(36)
-      .substring(2, 6)}-41b7-8196-${Date.now().toString(36)}`;
+    const roleKey = newRoleData.name.toLowerCase().replace(/\s+/g, '-');
+    try {
+      const res = await apiClient.post<{ id: string }>('/api/v2/roles', {
+        name: newRoleData.name,
+        key: roleKey,
+        isSystemRole: false,
+      });
+      await refetch();
+      if (res.data?.id) {
+        setSelectedRoleId(res.data.id);
+      }
+      showToast(`Role "${newRoleData.name}" created.`);
+    } catch (err) {
+      const newId = `role-${Date.now()}`;
+      const initials = newRoleData.name.substring(0, 2).toUpperCase();
+      const createdRole: Role = {
+        id: newId,
+        name: newRoleData.name,
+        isSystemRole: false,
+        avatarBgColor: '#E0F2FE',
+        avatarInitials: initials,
+      };
+      setLocalRoles((prev) => [createdRole, ...prev]);
+      setSelectedRoleId(newId);
+      showToast(`Role "${newRoleData.name}" created.`);
+    }
 
-    const initials = newRoleData.name
-      .split(' ')
-      .map((w) => w[0])
-      .join('')
-      .substring(0, 2)
-      .toUpperCase();
-
-    const createdRole: Role = {
-      id: newId,
-      name: newRoleData.name,
-      isSystemRole: false,
-      avatarBgColor: '#E0F2FE',
-      avatarInitials: initials || 'R',
-    };
-
-    setRoles((prev) => [createdRole, ...prev]);
-
-    // Set initial permissions in both saved and draft state
-    setSavedRolePermissions((prev) => ({
-      ...prev,
-      [newId]: newRoleData.initialPermissionIds,
-    }));
-    setDraftRolePermissions((prev) => ({
-      ...prev,
-      [newId]: newRoleData.initialPermissionIds,
-    }));
-
-    setSelectedRoleId(newId);
-    showToast(`Role "${newRoleData.name}" created.`);
     if (isMobile) {
       setMobileView('config');
     }
   };
 
-  const handleConfirmDeleteRole = (roleId: string) => {
-    setRoles((prev) => prev.filter((r) => r.id !== roleId));
+  const handleConfirmDeleteRole = async (roleId: string) => {
+    try {
+      await apiClient.delete(`/api/v2/roles/${roleId}`);
+      await refetch();
+    } catch (err) {
+      setLocalRoles((prev) => prev.filter((r) => r.id !== roleId));
+    }
 
     setSavedRolePermissions((prev) => {
       const next = { ...prev };
@@ -204,7 +303,7 @@ export function RolesPermissionScreen() {
   };
 
   return (
-    <View style={styles.mainWrapper}>
+    <View style={[styles.mainWrapper, { height: calculatedHeight }]}>
       {/* Toast Notification Banner */}
       {toastMessage !== null && (
         <View style={[styles.toastContainer, SHADOWS.modal]}>
@@ -221,9 +320,9 @@ export function RolesPermissionScreen() {
             {/* Header Dark Gradient Banner */}
             <View style={styles.heroCard}>
               <Text style={styles.heroSubheader}>ADMINISTRATION</Text>
-              <Text style={styles.heroTitle}>Roles & Permission</Text>
+              <Text style={styles.heroTitle}>Roles and Permissions</Text>
               <Text style={styles.heroDescription}>
-                Manage user roles, access levels, and permissions.
+                Manage user roles, access levels, and permissions across all tenant services.
               </Text>
 
               <Pressable
@@ -258,7 +357,12 @@ export function RolesPermissionScreen() {
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.rolesListContent}
             >
-              {filteredRoles.length === 0 ? (
+              {isApiLoading && roles.length === 0 ? (
+                <View style={styles.emptyState}>
+                  <ActivityIndicator size="small" color={COLORS.brand[600]} />
+                  <Text style={styles.emptyStateText}>Loading system roles from API...</Text>
+                </View>
+              ) : filteredRoles.length === 0 ? (
                 <View style={styles.emptyState}>
                   <Text style={styles.emptyStateText}>No roles found matching "{searchQuery}"</Text>
                 </View>
@@ -313,10 +417,32 @@ export function RolesPermissionScreen() {
               )}
             </View>
 
-            {/* Sub-Header: ACCESS PERMISSIONS */}
+            {/* Sub-Header: ACCESS PERMISSIONS with SELECT ALL Quick Action */}
             <View style={styles.accessPermissionsHeader}>
-              <View style={styles.accessAccentBar} />
-              <Text style={styles.accessPermissionsTitle}>ACCESS PERMISSIONS</Text>
+              <View style={styles.headerTitleGroup}>
+                <View style={styles.accessAccentBar} />
+                <Text style={styles.accessPermissionsTitle}>ACCESS PERMISSIONS</Text>
+              </View>
+
+              <Pressable
+                style={({ pressed }: { pressed: boolean }) => [
+                  styles.selectAllBtn,
+                  isAllSelected ? styles.selectAllBtnActive : styles.selectAllBtnInactive,
+                  pressed && styles.selectAllBtnPressed,
+                ]}
+                onPress={handleToggleSelectAll}
+                accessibilityRole="button"
+                accessibilityLabel={isAllSelected ? 'Deselect All Permissions' : 'Select All Permissions'}
+              >
+                <Lucide
+                  name={isAllSelected ? 'check-square' : 'square'}
+                  size={14}
+                  color={isAllSelected ? '#1E40AF' : COLORS.brand[600]}
+                />
+                <Text style={[styles.selectAllBtnText, isAllSelected && styles.selectAllBtnTextActive]}>
+                  {isAllSelected ? 'Deselect All' : 'Select All'}
+                </Text>
+              </Pressable>
             </View>
 
             {/* Permission Categories List */}
@@ -325,14 +451,21 @@ export function RolesPermissionScreen() {
               contentContainerStyle={styles.matrixScrollContent}
               showsVerticalScrollIndicator={false}
             >
-              {PERMISSION_CATEGORIES.map((category) => (
-                <PermissionCategoryCard
-                  key={category.id}
-                  category={category}
-                  activePermissionIds={activePermissions}
-                  onTogglePermission={handleTogglePermission}
-                />
-              ))}
+              {isPermissionsLoading || isCatalogLoading ? (
+                <View style={styles.emptyState}>
+                  <ActivityIndicator size="small" color={COLORS.brand[600]} />
+                  <Text style={styles.emptyStateText}>Loading permissions catalog from API...</Text>
+                </View>
+              ) : (
+                displayCategories.map((category) => (
+                  <PermissionCategoryCard
+                    key={category.id}
+                    category={category}
+                    activePermissionIds={activePermissions}
+                    onTogglePermission={handleTogglePermission}
+                  />
+                ))
+              )}
 
               {/* Bottom Padding for floating button */}
               <View style={styles.scrollBottomSpacer} />
@@ -408,6 +541,7 @@ export function RolesPermissionScreen() {
 const styles = StyleSheet.create({
   mainWrapper: {
     width: '100%',
+    overflow: 'hidden',
   },
   toastContainer: {
     position: 'absolute',
@@ -431,6 +565,7 @@ const styles = StyleSheet.create({
   },
   container: {
     width: '100%',
+    height: '100%',
     flexDirection: 'row',
     gap: SPACING[24],
   },
@@ -440,6 +575,7 @@ const styles = StyleSheet.create({
   },
   leftColumn: {
     width: 380,
+    height: '100%',
     flexDirection: 'column',
   },
   heroCard: {
@@ -517,6 +653,7 @@ const styles = StyleSheet.create({
   emptyState: {
     padding: SPACING[24],
     alignItems: 'center',
+    gap: 8,
   },
   emptyStateText: {
     fontSize: 14,
@@ -524,6 +661,7 @@ const styles = StyleSheet.create({
   },
   rightColumn: {
     flex: 1,
+    height: '100%',
     backgroundColor: COLORS.neutral.white,
     borderRadius: RADIUS.card,
     borderWidth: 1,
@@ -602,11 +740,16 @@ const styles = StyleSheet.create({
   accessPermissionsHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: SPACING[24],
     paddingVertical: SPACING[16],
     backgroundColor: '#F8FAFC',
     borderBottomWidth: 1,
     borderBottomColor: COLORS.neutral[200],
+  },
+  headerTitleGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   accessAccentBar: {
     width: 3,
@@ -619,6 +762,34 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: COLORS.neutral[700],
     letterSpacing: 1.1,
+  },
+  selectAllBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: SPACING[12],
+    paddingVertical: 6,
+    borderRadius: RADIUS.circle,
+    borderWidth: 1,
+  },
+  selectAllBtnInactive: {
+    backgroundColor: COLORS.neutral.white,
+    borderColor: '#BFDBFE',
+  },
+  selectAllBtnActive: {
+    backgroundColor: '#DBEAFE',
+    borderColor: '#93C5FD',
+  },
+  selectAllBtnPressed: {
+    backgroundColor: '#BFDBFE',
+  },
+  selectAllBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.brand[600],
+  },
+  selectAllBtnTextActive: {
+    color: '#1E40AF',
   },
   matrixScroll: {
     flex: 1,

@@ -5,7 +5,10 @@ import { UsersScreen } from "../../features/users/screens/UsersScreen";
 import { SettingsScreen } from "../../features/settings/screens/SettingsScreen";
 import { AdminSettingsScreen } from "../../features/settings/screens/AdminSettingsScreen";
 import { RolesPermissionScreen } from "../../features/roles-permission/screens/RolesPermissionScreen";
-import { ActivitiesScreen } from "../../features/queue/screens/ActivitiesScreen";
+import { FeedbackScreen } from "../../features/feedback/screens/FeedbackScreen";
+import { FormBuilderScreen } from "../../features/form-builder/screens/FormBuilderScreen";
+import { AnnouncementsScreen } from "../../features/announcements/screens/AnnouncementsScreen";
+import { AuditLogsScreen } from "../../features/audit-logs/screens/AuditLogsScreen";
 import { PlaceholderScreen } from "../stacks/PlaceholderScreen";
 
 // We keep these direct references for the route config.
@@ -16,6 +19,26 @@ export const authRoutes = {
     screen: DashboardScreen,
     path: "dashboard",
     options: { title: "Dashboard" },
+  },
+  Feedback: {
+    screen: FeedbackScreen,
+    path: "feedback",
+    options: { title: "User Feedback" },
+  },
+  FormBuilder: {
+    screen: FormBuilderScreen,
+    path: "form-builder",
+    options: { title: "Form Builder" },
+  },
+  Announcements: {
+    screen: AnnouncementsScreen,
+    path: "announcements",
+    options: { title: "Announcements" },
+  },
+  AuditLogs: {
+    screen: AuditLogsScreen,
+    path: "audit-logs",
+    options: { title: "Audit Logs" },
   },
   Activities: {
     screen: ActivitiesScreen,

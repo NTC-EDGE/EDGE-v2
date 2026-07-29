@@ -12,6 +12,10 @@ export const AuthStack = createNativeStackNavigator({
   },
   screens: {
     Dashboard: authRoutes.Dashboard,
+    Feedback: authRoutes.Feedback,
+    FormBuilder: authRoutes.FormBuilder,
+    Announcements: authRoutes.Announcements,
+    AuditLogs: authRoutes.AuditLogs,
     Activities: authRoutes.Activities,
     Chat: authRoutes.Chat,
     Meet: authRoutes.Meet,

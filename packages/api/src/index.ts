@@ -1,5 +1,6 @@
 import axios from 'axios';
 import useSWR, { SWRConfiguration, SWRResponse } from 'swr';
+import { attachTokenInterceptor } from './services/tokenManager';
 
 const getApiUrl = (): string => {
   const envUrl = process.env.EXPO_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_URL;
@@ -13,13 +14,8 @@ export const apiClient = axios.create({
   baseURL: getApiUrl(),
 });
 
-export const setAuthToken = (token: string | null): void => {
-  if (token !== null) {
-    apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-  } else {
-    delete apiClient.defaults.headers.common['Authorization'];
-  }
-};
+// Attach dynamic token interceptor to ensure all requests automatically include fresh JWT bearer tokens
+attachTokenInterceptor(apiClient);
 
 export const fetcher = <T>(url: string): Promise<T> =>
   apiClient.get<T>(url).then((res) => res.data);
@@ -53,6 +49,19 @@ export * from './types/auth';
 export * from './services/regionService';
 export * from './services/authService';
 export * from './services/apiErrorService';
+export * from './services/tokenManager';
 export * from './hooks/useRegions';
 export * from './hooks/useMyTenantMemberships';
+export * from './hooks/useAdminFeedback';
+export * from './hooks/useAdminAnnouncements';
+export * from './hooks/useAdminAuditLogs';
+export * from './hooks/useAdminFieldOffices';
+export * from './hooks/useAdminRequirements';
+export * from './hooks/useAdminFees';
+export * from './hooks/useAdminNotes';
+export * from './hooks/useAdminForms';
+export * from './hooks/useAdminRoles';
+export * from './hooks/useRolePermissions';
+export * from './hooks/usePermissionsCatalog';
+export * from './hooks/useAdminServices';
 export * from './features/services';
