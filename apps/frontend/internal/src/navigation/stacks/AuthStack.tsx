@@ -1,6 +1,6 @@
 import { createNativeStackNavigator } from "@edge/ui";
 import { Platform } from "react-native";
-import { authRoutes } from "../routes";
+import { authRoutes } from "../routes/authRoutes";
 
 export const AuthStack = createNativeStackNavigator({
   initialRouteName: "Dashboard",

@@ -30,7 +30,7 @@ export function OnboardingScreen() {
     if (currentStep < ONBOARDING_STEPS.length - 1) {
       setCurrentStep((prev) => prev + 1);
     } else {
-      navigation.navigate('Signup');
+      navigation.navigate('InternalLogin');
     }
   };
 
@@ -80,7 +80,7 @@ export function OnboardingScreen() {
             onPress={handleNext}
           >
             <Text style={styles.nextButtonText}>
-              {currentStep === ONBOARDING_STEPS.length - 1 ? "Create Account" : "Next"}
+              {currentStep === ONBOARDING_STEPS.length - 1 ? "Sign In" : "Next"}
             </Text>
           </Pressable>
         </View>
