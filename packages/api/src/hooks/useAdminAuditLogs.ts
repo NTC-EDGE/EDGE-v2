@@ -1,5 +1,5 @@
 import useSWR from "swr";
-import { apiClient } from "../index";
+import { apiClient } from "../apiClient";
 import { AuditLogDto } from "../types";
 
 export interface UseAdminAuditLogsReturn {

@@ -571,7 +571,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     paddingHorizontal: SPACING[16],
-    paddingTop: SPACING[14],
+    paddingTop: 14,
     paddingBottom: 12,
   },
   sectionIconWrap: {

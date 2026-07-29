@@ -102,7 +102,7 @@ export const createLinkingConfig = <T extends object>(
 
   return {
     prefixes,
-    getStateFromPath(path: string, opts?: Parameters<typeof getStateFromPath>[1]) {
+    getStateFromPath(path, opts) {
       // Check for redirect query parameters (e.g. /login?redirect=/employees)
       const queryString = path.includes("?") ? path.split("?")[1] : "";
       const searchParams = new URLSearchParams(queryString);
@@ -120,7 +120,7 @@ export const createLinkingConfig = <T extends object>(
       }
       return getStateFromPath(targetPath, opts);
     },
-    getPathFromState(state: Parameters<typeof getPathFromState>[0], opts?: Parameters<typeof getPathFromState>[1]) {
+    getPathFromState(state, opts) {
       const generatedPath = getPathFromState(state, opts);
       if (generatedPath === "" || generatedPath === "/") {
         return defaultPath;

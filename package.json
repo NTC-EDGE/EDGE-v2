@@ -8,6 +8,13 @@
     "@react-navigation/core": "8.0.0-alpha.30",
     "@react-navigation/routers": "8.0.0-alpha.16"
   },
+  "resolutions": {
+    "lru-cache": "^7.18.3",
+    "postcss": "^8.5.10",
+    "uuid": "^11.1.1",
+    "@react-navigation/core": "8.0.0-alpha.30",
+    "@react-navigation/routers": "8.0.0-alpha.16"
+  },
   "private": true,
   "scripts": {
     "client:start": "bun --filter ntc-edge-app start",

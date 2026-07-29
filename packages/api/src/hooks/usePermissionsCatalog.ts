@@ -1,5 +1,5 @@
 import useSWR from 'swr';
-import { apiClient } from '../index';
+import { apiClient } from '../apiClient';
 
 export interface PermissionCatalogItem {
   key: string;

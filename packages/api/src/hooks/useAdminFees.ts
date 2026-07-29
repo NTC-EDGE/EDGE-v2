@@ -1,5 +1,5 @@
 import useSWR from "swr";
-import { apiClient } from "../index";
+import { apiClient } from "../apiClient";
 import { ApiResponse, Fee, ServiceFee } from "../types";
 
 export interface UseAdminFeesReturn {
