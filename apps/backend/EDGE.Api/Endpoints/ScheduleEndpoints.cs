@@ -1,8 +1,9 @@
+using System;
+using System.Threading.Tasks;
+using System.Collections.Generic;
 using MediatR;
 using FluentValidation;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Routing;
+using EDGE.Application.Schedules.DTOs;
 using EDGE.Application.Schedules.Commands.CreateSchedule;
 using EDGE.Application.Schedules.Commands.UpdateSchedule;
 using EDGE.Application.Schedules.Commands.DeleteSchedule;
@@ -24,19 +25,24 @@ public static class ScheduleEndpoints
         schedules.MapGet("/client-view", GetClientSchedules)
             .WithName("GetClientSchedules")
             .WithSummary("Get client available appointment schedules")
-            .WithDescription("Retrieves available appointment and inspection schedule slots for clients. Both serviceId and tenantId query parameters are required.");
+            .WithDescription("Retrieves available appointment and inspection schedule slots for clients. Both serviceId and tenantId query parameters are required.")
+            .Produces<List<ClientScheduleDto>>(StatusCodes.Status200OK)
+            .Produces<string>(StatusCodes.Status400BadRequest);
 
         // GET all schedules (optional filters by tenantId or serviceId)
         schedules.MapGet("/", GetSchedules)
             .WithName("GetSchedules")
             .WithSummary("Get list of schedules")
-            .WithDescription("Fetches list of schedule configurations with optional tenant or service filters.");
+            .WithDescription("Fetches list of schedule configurations with optional tenant or service filters.")
+            .Produces<List<ScheduleDto>>(StatusCodes.Status200OK);
 
         // GET schedule by Id
         schedules.MapGet("/{id:guid}", GetScheduleById)
             .WithName("GetScheduleById")
             .WithSummary("Get schedule details by ID")
-            .WithDescription("Fetches single schedule configuration by ID.");
+            .WithDescription("Fetches single schedule configuration by ID.")
+            .Produces<ScheduleDto>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound);
 
         // POST create schedule
         schedules.MapPost("/", CreateSchedule)

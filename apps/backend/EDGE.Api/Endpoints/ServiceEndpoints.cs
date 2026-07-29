@@ -1,11 +1,8 @@
-using System;
-using System.Threading.Tasks;
+using System.Collections.Generic;
 using MediatR;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Routing;
 using EDGE.Domain.Authorization;
 using EDGE.Infrastructure.Authorization;
+using EDGE.Application.Services.Dtos;
 using EDGE.Application.Services.Queries.GetServices;
 using EDGE.Application.Services.Queries.GetServiceById;
 using EDGE.Application.Services.Queries.GetServiceVariants;
@@ -30,7 +27,8 @@ public static class ServiceEndpoints
         tenantGroup.MapGet("/", GetTenantServices)
             .WithName("GetTenantServices")
             .WithSummary("Get services for a specific tenant")
-            .WithDescription("Retrieves catalog services scoped to tenant {tenantId}, with optional serviceCategoryId filter.");
+            .WithDescription("Retrieves catalog services scoped to tenant {tenantId}, with optional serviceCategoryId filter.")
+            .Produces<ApiResponse<List<ServiceDto>>>(StatusCodes.Status200OK);
 
         tenantGroup.MapPost("/", CreateTenantService)
             .WithName("CreateTenantService")
@@ -52,12 +50,15 @@ public static class ServiceEndpoints
         globalGroup.MapGet("/", GetServices)
             .WithName("GetServices")
             .WithSummary("Get catalog services")
-            .WithDescription("Retrieves all catalog services, with optional serviceCategoryId filter.");
+            .WithDescription("Retrieves all catalog services, with optional serviceCategoryId filter.")
+            .Produces<ApiResponse<List<ServiceDto>>>(StatusCodes.Status200OK);
 
         globalGroup.MapGet("/{id:guid}", GetServiceById)
             .WithName("GetServiceById")
             .WithSummary("Get service details by ID")
-            .WithDescription("Fetches a single service by its unique identifier.");
+            .WithDescription("Fetches a single service by its unique identifier.")
+            .Produces<ApiResponse<ServiceDto>>(StatusCodes.Status200OK)
+            .Produces<ApiResponse<ServiceDto>>(StatusCodes.Status404NotFound);
 
         globalGroup.MapGet("/{id:guid}/variants", GetServiceVariants)
             .WithName("GetServiceVariants")
