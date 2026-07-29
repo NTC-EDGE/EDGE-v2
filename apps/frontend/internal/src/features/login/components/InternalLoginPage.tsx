@@ -212,11 +212,12 @@ export function InternalLoginPage() {
           ? window.location.origin
           : undefined;
 
-      const res = await startOAuthFlow(
+      const { createdSessionId, setActive } = await startOAuthFlow(
         redirectUrl ? { redirectUrl } : undefined
       );
-      if (res.createdSessionId && res.setActive) {
-        await res.setActive({ session: res.createdSessionId });
+
+      if (createdSessionId && setActive) {
+        await setActive({ session: createdSessionId });
       }
     } catch (err: unknown) {
       console.error("Google sign-in error:", err);
