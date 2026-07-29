@@ -1,10 +1,8 @@
 import React from "react";
 import { ClerkProvider, useAuth } from "@clerk/expo";
 import { tokenCache } from "@clerk/expo/token-cache";
-import { createStaticNavigation } from "@react-navigation/native";
-import { RootStack, linking } from "./src/navigation/index";
-
-const Navigation = createStaticNavigation(RootStack);
+import { ActivityIndicator, View } from "react-native";
+import { UnauthNavigation, AuthNavigation, clientLinking } from "./src/routes/index";
 
 const getClerkKey = (): string => {
   const key = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
@@ -23,8 +21,21 @@ if (publishableKey.length === 0) {
 }
 
 function AppContent() {
-  useAuth();
-  return <Navigation linking={linking} />;
+  const { isSignedIn, isLoaded } = useAuth();
+
+  if (!isLoaded) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" color="#0284C7" />
+      </View>
+    );
+  }
+
+  if (!isSignedIn) {
+    return <UnauthNavigation linking={clientLinking} />;
+  }
+
+  return <AuthNavigation linking={clientLinking} />;
 }
 
 export default function App() {

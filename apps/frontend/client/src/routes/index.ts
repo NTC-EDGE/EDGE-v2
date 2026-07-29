@@ -1,4 +1,4 @@
-import { createStaticNavigation } from "@react-navigation/native";
+import { createStaticNavigation } from "@edge/ui";
 import { UnauthenticatedStack } from "./public";
 import { AuthenticatedStack } from "./auth";
 
