@@ -12,6 +12,5 @@ export const UnauthStack = createNativeStackNavigator({
     Landing: unauthRoutes.Landing,
     Onboarding: unauthRoutes.Onboarding,
     InternalLogin: unauthRoutes.InternalLogin,
-    Signup: unauthRoutes.Signup,
   },
 });
