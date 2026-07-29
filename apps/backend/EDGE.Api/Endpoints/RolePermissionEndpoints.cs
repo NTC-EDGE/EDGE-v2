@@ -1,3 +1,5 @@
+using System;
+using System.Threading.Tasks;
 using MediatR;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -6,6 +8,7 @@ using FluentValidation;
 using EDGE.Domain.Authorization;
 using EDGE.Infrastructure.Authorization;
 using EDGE.Application.RolePermissions.Commands;
+using EDGE.Application.RolePermissions.Queries.GetRolePermissions;
 
 namespace EDGE.Api.Endpoints;
 
@@ -13,7 +16,13 @@ public static class RolePermissionEndpoints
 {
     public static void MapRolePermissionEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/rolepermissions").WithTags("RolePermissions");
+        var group = app.MapGroup("/role-permissions").WithTags("RolePermissions");
+
+        group.MapGet("/{roleId:guid}", GetRolePermissions)
+            .WithName("GetRolePermissions")
+            .WithTags("RolePermissions")
+            .WithSummary("Get permission keys for role")
+            .WithDescription("Retrieves assigned permission keys for a specific role.");
 
         group.MapPost("/assign", AssignRolePermission)
             .WithName("AssignRolePermission")
@@ -26,6 +35,12 @@ public static class RolePermissionEndpoints
             .WithTags("RolePermissions")
             .WithSummary("Revoke permission from role")
             .WithDescription("Removes a permission mapping from a role.");
+    }
+
+    public static async Task<IResult> GetRolePermissions(Guid roleId, IMediator mediator)
+    {
+        var permissionKeys = await mediator.Send(new GetRolePermissionsQuery(roleId));
+        return Results.Ok(new { succeeded = true, data = permissionKeys });
     }
 
     [HasPermission(Permissions.AssignRolePermissions)]

@@ -178,6 +178,8 @@ public class UserAuthorizationService : IUserAuthorizationService
                 dbPermissions = new List<string>
                 {
                     Permissions.ReadTenants,
+                    Permissions.ReadRoles,
+                    Permissions.ReadServices,
                     Permissions.SubmitApplication,
                     Permissions.ViewOwnApplications,
                     Permissions.UploadStorage,

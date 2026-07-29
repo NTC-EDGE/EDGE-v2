@@ -109,9 +109,10 @@ public static class RolePermissionDataSeeder
 
         };
 
-        // Add all permissions to Admin role dynamically
+        // Add all permissions to SuperAdmin and Admin roles dynamically
         foreach (var permKey in Permissions.AllKeys)
         {
+            targetRolePermissions.Add((superAdminRoleId, permKey));
             targetRolePermissions.Add((adminRoleId, permKey));
         }
 

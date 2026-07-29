@@ -78,6 +78,31 @@ public class DatabaseInitializerHostedService : IHostedService
             _logger.LogWarning(ex, "Fast-Track seed data encountered an issue.");
             throw new InvalidOperationException("Fast-Track seed data failed. Please check the logs for details.", ex);
         }
+
+        // 5. Seed Feedback data (100+ feedback instances with anonymous options)
+        try
+        {
+            _logger.LogInformation("Seeding Feedback entries (100 instances)...");
+            await FeedbackDataSeeder.SeedAsync(context);
+            _logger.LogInformation("Feedback entries seeded successfully.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Feedback seed data encountered an issue.");
+        }
+
+        // 6. Seed System Announcements and Audit Logs
+        try
+        {
+            _logger.LogInformation("Seeding System Announcements and Audit Logs...");
+            await SystemAnnouncementDataSeeder.SeedAsync(context);
+            await AuditLogDataSeeder.SeedAsync(context);
+            _logger.LogInformation("System Announcements and Audit Logs seeded successfully.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "System Announcements/Audit Logs seed data encountered an issue.");
+        }
     }
 
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;

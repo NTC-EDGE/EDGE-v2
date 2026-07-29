@@ -233,8 +233,7 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 14,
     color: COLORS.neutral[800],
-    outline: 'none',
-  } as unknown as object,
+  },
   requiredNote: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 11,

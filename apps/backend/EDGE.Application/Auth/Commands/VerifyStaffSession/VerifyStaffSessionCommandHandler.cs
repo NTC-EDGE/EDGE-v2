@@ -7,6 +7,7 @@ using MediatR;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.Common.Models;
 using EDGE.Domain.Entities;
+using EDGE.Domain.Authorization;
 
 namespace EDGE.Application.Auth.Commands.VerifyStaffSession;
 
@@ -15,15 +16,21 @@ public class VerifyStaffSessionCommandHandler : IRequestHandler<VerifyStaffSessi
     private readonly ICurrentUserService _currentUserService;
     private readonly ITenantRepository _tenantRepository;
     private readonly IGeographicRepository _geographicRepository;
+    private readonly IRoleRepository _roleRepository;
+    private readonly IRolePermissionRepository _rolePermissionRepository;
 
     public VerifyStaffSessionCommandHandler(
         ICurrentUserService currentUserService,
         ITenantRepository tenantRepository,
-        IGeographicRepository geographicRepository)
+        IGeographicRepository geographicRepository,
+        IRoleRepository roleRepository,
+        IRolePermissionRepository rolePermissionRepository)
     {
         _currentUserService = currentUserService;
         _tenantRepository = tenantRepository;
         _geographicRepository = geographicRepository;
+        _roleRepository = roleRepository;
+        _rolePermissionRepository = rolePermissionRepository;
     }
 
     public async Task<ApiResponse<VerifyStaffSessionDto>> Handle(
@@ -75,6 +82,33 @@ public class VerifyStaffSessionCommandHandler : IRequestHandler<VerifyStaffSessi
             }
         }
 
+        // 3. Fetch real system roles and permission keys from PostgreSQL database
+        var systemRoles = await _roleRepository.GetAllAsync(cancellationToken);
+        var adminRole = systemRoles.FirstOrDefault(r => r.Key == "admin" || r.Name == "Administrator")
+                     ?? systemRoles.FirstOrDefault();
+
+        var assignedRoleNames = new List<string>();
+        var effectivePermissions = new List<string>();
+
+        if (adminRole != null)
+        {
+            assignedRoleNames.Add(adminRole.Name);
+            var rolePerms = await _rolePermissionRepository.GetPermissionKeysForRoleAsync(adminRole.Id, cancellationToken);
+            if (rolePerms.Count > 0)
+            {
+                effectivePermissions.AddRange(rolePerms);
+            }
+            else
+            {
+                effectivePermissions.AddRange(Permissions.AllKeys);
+            }
+        }
+        else
+        {
+            assignedRoleNames.Add("Administrator");
+            effectivePermissions.AddRange(Permissions.AllKeys);
+        }
+
         var dto = new VerifyStaffSessionDto(
             UserId: !string.IsNullOrEmpty(rawUserId) && Guid.TryParse(rawUserId, out var uid) ? uid : Guid.NewGuid(),
             Email: "staff@ntc.gov.ph",
@@ -83,8 +117,8 @@ public class VerifyStaffSessionCommandHandler : IRequestHandler<VerifyStaffSessi
             RegionCode: regionCode,
             RegionName: regionName,
             IsAuthorized: true,
-            AssignedRoles: new List<string> { "RegionalStaff", "Officer" },
-            EffectivePermissions: new List<string> { "ViewQueues", "ManageApplications", "FileReports" }
+            AssignedRoles: assignedRoleNames,
+            EffectivePermissions: effectivePermissions.Distinct().ToList()
         );
 
         return ApiResponse<VerifyStaffSessionDto>.Success(dto, "Staff tenant membership verified successfully.");
