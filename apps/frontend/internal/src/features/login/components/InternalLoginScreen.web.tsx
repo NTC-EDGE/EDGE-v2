@@ -20,7 +20,7 @@ import { useLoginForm } from "../hooks/useLoginForm";
 import { LoginForm } from "../forms/LoginForm";
 import { ForgotPasswordScreen } from "./ForgotPasswordScreen";
 
-export function InternalLoginScreenWeb() {
+export function InternalLoginScreen() {
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
   const isTablet = width >= 768 && width < 1024;

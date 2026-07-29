@@ -15,7 +15,7 @@ import { useLoginForm } from "../hooks/useLoginForm";
 import { LoginForm } from "../forms/LoginForm";
 import { ForgotPasswordScreen } from "./ForgotPasswordScreen";
 
-export function InternalLoginScreenDesktop() {
+export function InternalLoginScreen() {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
 
   const loginState = useLoginForm();

@@ -1,17 +1,17 @@
 import React from "react";
 import { Platform } from "react-native";
-import { InternalLoginScreenWeb } from "./InternalLoginScreen.web";
-import { InternalLoginScreenNative } from "./InternalLoginScreen.native";
-import { InternalLoginScreenDesktop } from "./InternalLoginScreen.desktop";
+import { InternalLoginScreen as WebScreen } from "./InternalLoginScreen.web";
+import { InternalLoginScreen as NativeScreen } from "./InternalLoginScreen.native";
+import { InternalLoginScreen as DesktopScreen } from "./InternalLoginScreen.desktop";
 
 export function InternalLoginScreen() {
   if (Platform.OS === "web") {
-    return <InternalLoginScreenWeb />;
+    return <WebScreen />;
   }
 
   if (Platform.OS === "macos" || Platform.OS === "windows") {
-    return <InternalLoginScreenDesktop />;
+    return <DesktopScreen />;
   }
 
-  return <InternalLoginScreenNative />;
+  return <NativeScreen />;
 }
