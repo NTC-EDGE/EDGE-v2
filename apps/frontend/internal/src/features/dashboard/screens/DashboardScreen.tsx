@@ -1442,10 +1442,13 @@ const styles = StyleSheet.create({
   },
   mobileContentContainer: {
     paddingHorizontal: SPACING[16],
-    paddingVertical: SPACING[16],
+    paddingTop: SPACING[16],
+    paddingBottom: 120,
   },
   container: {
     width: "100%",
+    maxWidth: 1200,
+    alignSelf: "center",
   },
   welcomeRow: {
     flexDirection: "row",

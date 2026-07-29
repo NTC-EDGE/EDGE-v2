@@ -39,7 +39,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
-    minWidth: 260,
+    width: "100%",
+    minWidth: 240,
     gap: SPACING[20],
   },
   iconContainer: {
