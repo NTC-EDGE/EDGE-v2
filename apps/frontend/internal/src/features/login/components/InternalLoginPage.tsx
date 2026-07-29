@@ -6,13 +6,11 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Platform,
-  KeyboardAvoidingView,
   ScrollView,
   useWindowDimensions,
   Pressable,
   Modal,
   TextInput,
-  TextStyle,
 } from "react-native";
 import {
   COLORS,
@@ -42,7 +40,8 @@ interface FooterPolicyContent {
 const FOOTER_POLICIES: Record<string, FooterPolicyContent> = {
   "user-agreement": {
     title: "User Agreement",
-    intro: "Welcome to the EDGE Portal. This User Agreement governs your access to and use of all services provided by the National Telecommunications Commission (NTC) via this platform.",
+    intro:
+      "Welcome to the EDGE Portal. This User Agreement governs your access to and use of all services provided by the National Telecommunications Commission (NTC) via this platform.",
     sections: [
       {
         title: "1. Acceptance of Terms",
@@ -60,7 +59,8 @@ const FOOTER_POLICIES: Record<string, FooterPolicyContent> = {
   },
   "privacy-policy": {
     title: "Privacy Policy",
-    intro: "Your privacy is important to us. This policy outlines how the NTC collects, uses, and protects the personal and application data you provide through the EDGE Portal.",
+    intro:
+      "Your privacy is important to us. This policy outlines how the NTC collects, uses, and protects the personal and application data you provide through the EDGE Portal.",
     sections: [
       {
         title: "1. Data Collection",
@@ -78,7 +78,8 @@ const FOOTER_POLICIES: Record<string, FooterPolicyContent> = {
   },
   "community-guidelines": {
     title: "Community Guidelines",
-    intro: "These guidelines promote a safe and productive environment for all users of the EDGE Portal, especially when utilizing public-facing features like feedback forums or communication channels.",
+    intro:
+      "These guidelines promote a safe and productive environment for all users of the EDGE Portal, especially when utilizing public-facing features like feedback forums or communication channels.",
     sections: [
       {
         title: "1. Respectful Conduct",
@@ -96,7 +97,8 @@ const FOOTER_POLICIES: Record<string, FooterPolicyContent> = {
   },
   "cookie-policy": {
     title: "Cookie Policy",
-    intro: "This portal uses cookies to ensure optimal performance and user experience. By continuing to use the EDGE Portal, you consent to the use of cookies.",
+    intro:
+      "This portal uses cookies to ensure optimal performance and user experience. By continuing to use the EDGE Portal, you consent to the use of cookies.",
     sections: [
       {
         title: "1. What are Cookies?",
@@ -114,7 +116,8 @@ const FOOTER_POLICIES: Record<string, FooterPolicyContent> = {
   },
   "send-feedback": {
     title: "Send Feedback",
-    intro: "Your feedback is crucial for the continuous improvement of the EDGE Portal. Please use this channel to submit suggestions, bug reports, or compliments.",
+    intro:
+      "Your feedback is crucial for the continuous improvement of the EDGE Portal. Please use this channel to submit suggestions, bug reports, or compliments.",
     sections: [
       {
         title: "1. Focus on Specifics",
@@ -132,7 +135,8 @@ const FOOTER_POLICIES: Record<string, FooterPolicyContent> = {
   },
   "help-center": {
     title: "Help Center & Support",
-    intro: "Find comprehensive guides, video tutorials, and technical support for all NTC EDGE Portal services.",
+    intro:
+      "Find comprehensive guides, video tutorials, and technical support for all NTC EDGE Portal services.",
     sections: [
       {
         title: "1. Self-Service Resources",
@@ -160,6 +164,7 @@ export function InternalLoginPage() {
 
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [focusedField, setFocusedField] = useState<"identifier" | "password" | null>(null);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
 
@@ -220,14 +225,11 @@ export function InternalLoginPage() {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={styles.keyboardAvoid}
-    >
-      {/* Floating Error Toast Notification */}
-      {toastMessage !== null && toastMessage.trim().length > 0 ? (
-        <View style={[styles.toastContainer, SHADOWS.modal]}>
-          <Lucide name="alert-triangle" size={20} color="#DC2626" />
+    <View style={styles.outerShell}>
+      {/* Toast Notification for Error Alerts */}
+      {toastMessage !== null ? (
+        <View style={styles.toastContainer}>
+          <Lucide name="alert-circle" size={20} color="#EF4444" />
           <Text style={styles.toastText}>{toastMessage}</Text>
           <TouchableOpacity onPress={dismissToast} style={styles.toastCloseBtn}>
             <Lucide name="x" size={16} color={COLORS.neutral[500]} />
@@ -240,27 +242,62 @@ export function InternalLoginPage() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.backgroundBlobLeft} pointerEvents={Platform.OS !== "web" ? "none" : undefined} />
-        <View style={styles.backgroundBlobRight} pointerEvents={Platform.OS !== "web" ? "none" : undefined} />
+        {/* Background Ambient Glow Spots */}
+        <View style={styles.ambientGlowTopLeft} pointerEvents="none" />
+        <View style={styles.ambientGlowBottomRight} pointerEvents="none" />
 
         <View style={styles.heroSection}>
           <View style={[styles.heroContentWrapper, isMobile && styles.heroContentWrapperMobile]}>
+            
+            {/* Left Hero Branding Column */}
             <View style={[styles.heroLeftCol, isMobile && styles.heroLeftColMobile]}>
               <View style={[styles.heroPillBadge, isMobile && { alignSelf: "center" }]}>
                 <View style={styles.heroBadgeDot} />
-                <Text style={styles.heroBadgeText}>Official NTC-EDGE Portal</Text>
+                <Text style={styles.heroBadgeText}>Government Electronic Data Governance</Text>
               </View>
 
-              <Text style={[styles.heroTitle, isMobile ? styles.heroTitleMobile : isTablet ? styles.heroTitleTablet : null]}>
-                Empowering <Text style={styles.heroTitleHighlight}>NTC's</Text>
-                {isMobile ? " " : "\n"}Data Governance
+              <Text
+                style={[
+                  styles.heroTitle,
+                  isMobile
+                    ? styles.heroTitleMobile
+                    : isTablet
+                    ? styles.heroTitleTablet
+                    : null,
+                ]}
+              >
+                National Telecommunications Commission
               </Text>
 
               <Text style={[styles.heroSubtitle, isMobile && styles.heroSubtitleMobile]}>
-                Streamline your government services experience. Access internal queues, directories, and management tools with secure Clerk authentication.
+                Unified internal portal for staff authentication, regional licensing workflows, and secure administrative operations.
               </Text>
+
+              {/* Feature Highlights Grid */}
+              <View style={styles.featuresList}>
+                <View style={styles.featureItem}>
+                  <View style={styles.featureIconBadge}>
+                    <Lucide name="shield" size={18} color="#3B82F6" />
+                  </View>
+                  <View style={styles.featureTextCol}>
+                    <Text style={styles.featureTitle}>Multi-Tenant RBAC Security</Text>
+                    <Text style={styles.featureDesc}>Granular regional and departmental permissions.</Text>
+                  </View>
+                </View>
+
+                <View style={styles.featureItem}>
+                  <View style={styles.featureIconBadge}>
+                    <Lucide name="zap" size={18} color="#10B981" />
+                  </View>
+                  <View style={styles.featureTextCol}>
+                    <Text style={styles.featureTitle}>Real-Time Evaluation</Text>
+                    <Text style={styles.featureDesc}>Automated queue processing and audit tracking.</Text>
+                  </View>
+                </View>
+              </View>
             </View>
 
+            {/* Right Form Card Column */}
             <View style={styles.heroRightCol}>
               <View style={styles.loginCardLogoWrapper}>
                 <NtcLogo size={isMobile ? "medium" : "large"} variant="light" showSubtext={false} />
@@ -273,17 +310,32 @@ export function InternalLoginPage() {
                     <View style={styles.windowDotYellow} />
                     <View style={styles.windowDotGreen} />
                   </View>
-                  <Text style={styles.windowHeaderText}>Internal Staff Sign-In</Text>
+                  <Text style={styles.windowHeaderText}>Internal Staff Portal</Text>
                 </View>
 
                 <View style={[styles.mockupWindowBody, isMobile && { padding: 20 }]}>
-                  <Text style={styles.cardTitle}>Staff Login</Text>
+                  <View style={styles.cardHeaderArea}>
+                    <Text style={styles.cardTitle}>Staff Sign In</Text>
+                    <Text style={styles.cardSubTitle}>
+                      Enter your official credentials or continue with Google.
+                    </Text>
+                  </View>
 
                   {/* Email / Username Field */}
                   <View style={styles.fieldGroup}>
                     <Text style={styles.fieldLabelSmall}>Email Address or Username</Text>
-                    <View style={[styles.inputWithIconWrapper, focusedField === "identifier" && styles.inputWithIconWrapperFocused]}>
-                      <Lucide name="user" size={18} color={focusedField === "identifier" ? "#0E1B61" : COLORS.neutral[400]} style={styles.inputIconLeft} />
+                    <View
+                      style={[
+                        styles.inputWithIconWrapper,
+                        focusedField === "identifier" && styles.inputWithIconWrapperFocused,
+                      ]}
+                    >
+                      <Lucide
+                        name="user"
+                        size={18}
+                        color={focusedField === "identifier" ? "#1E3A8A" : COLORS.neutral[400]}
+                        style={styles.inputIconLeft}
+                      />
                       <TextInput
                         style={styles.textInputStyle}
                         placeholder="staff@ntc.gov.ph"
@@ -301,8 +353,18 @@ export function InternalLoginPage() {
                   {/* Password Field */}
                   <View style={styles.fieldGroup}>
                     <Text style={styles.fieldLabelSmall}>Password</Text>
-                    <View style={[styles.inputWithIconWrapper, focusedField === "password" && styles.inputWithIconWrapperFocused]}>
-                      <Lucide name="lock" size={18} color={focusedField === "password" ? "#0E1B61" : COLORS.neutral[400]} style={styles.inputIconLeft} />
+                    <View
+                      style={[
+                        styles.inputWithIconWrapper,
+                        focusedField === "password" && styles.inputWithIconWrapperFocused,
+                      ]}
+                    >
+                      <Lucide
+                        name="lock"
+                        size={18}
+                        color={focusedField === "password" ? "#1E3A8A" : COLORS.neutral[400]}
+                        style={styles.inputIconLeft}
+                      />
                       <TextInput
                         style={styles.textInputStyle}
                         placeholder="••••••••"
@@ -311,49 +373,47 @@ export function InternalLoginPage() {
                         onChangeText={setPassword}
                         onFocus={() => setFocusedField("password")}
                         onBlur={() => setFocusedField(null)}
-                        secureTextEntry={true}
+                        secureTextEntry={!showPassword}
                         autoCapitalize="none"
                       />
+                      <TouchableOpacity
+                        onPress={() => setShowPassword(!showPassword)}
+                        style={styles.eyeToggleBtn}
+                      >
+                        <Lucide
+                          name={showPassword ? "eye-off" : "eye"}
+                          size={18}
+                          color={COLORS.neutral[400]}
+                        />
+                      </TouchableOpacity>
                     </View>
                   </View>
 
                   {/* Forgot Password Link */}
                   <TouchableOpacity
-                    style={{ alignSelf: "flex-end", marginBottom: 16 }}
+                    style={styles.forgotPasswordLink}
                     onPress={() => setShowForgotPassword(true)}
+                    activeOpacity={0.7}
                   >
-                    <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: COLORS.brand[800], fontWeight: TYPOGRAPHY.weights.medium }}>
-                      Forgot Password?
-                    </Text>
+                    <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
                   </TouchableOpacity>
 
                   {/* Submit Button */}
                   <TouchableOpacity
                     style={[
                       styles.loginButton,
-                      styles.loginButtonActive,
                       isSubmitting && styles.buttonDisabled,
                     ]}
                     onPress={handleSignIn}
                     disabled={isSubmitting || isGoogleSubmitting}
+                    activeOpacity={0.85}
                   >
                     {isSubmitting ? (
                       <ActivityIndicator size="small" color={COLORS.neutral.white} />
                     ) : (
                       <View style={styles.loginButtonInner}>
-                        <Lucide
-                          name="log-in"
-                          size={18}
-                          color={COLORS.neutral.white}
-                        />
-                        <Text
-                          style={[
-                            styles.loginButtonText,
-                            styles.loginButtonTextActive,
-                          ]}
-                        >
-                          Sign In
-                        </Text>
+                        <Lucide name="arrow-right" size={18} color={COLORS.neutral.white} />
+                        <Text style={styles.loginButtonText}>Sign In to Dashboard</Text>
                       </View>
                     )}
                   </TouchableOpacity>
@@ -373,230 +433,172 @@ export function InternalLoginPage() {
                     ]}
                     onPress={handleGoogleSignIn}
                     disabled={isSubmitting || isGoogleSubmitting}
+                    activeOpacity={0.85}
                   >
                     {isGoogleSubmitting ? (
                       <ActivityIndicator size="small" color={COLORS.neutral[700]} />
                     ) : (
                       <View style={styles.googleButtonInner}>
-                        <Lucide name="globe" size={18} color="#4285F4" />
-                        <Text style={styles.googleButtonText}>Sign in with Google</Text>
+                        <View style={styles.googleIconBadge}>
+                          <Lucide name="chrome" size={18} color="#EA4335" />
+                        </View>
+                        <Text style={styles.googleButtonText}>Continue with Google</Text>
                       </View>
                     )}
                   </TouchableOpacity>
+
+                  {/* Security Notice Footer */}
+                  <View style={styles.securityNoticeBox}>
+                    <Lucide name="shield" size={14} color="#3B82F6" />
+                    <Text style={styles.securityNoticeText}>
+                      Authorized personnel only. Sessions are logged & monitored.
+                    </Text>
+                  </View>
                 </View>
               </View>
             </View>
           </View>
         </View>
 
-        <View style={styles.footerBar}>
-          <View style={styles.footerContentContainer}>
-            <View style={styles.footerLeftBrand}>
-              <NtcLogo size="small" variant="dark" showSubtext={false} />
-              <Text style={styles.footerCopyrightText}>© 2026</Text>
-            </View>
-
-            <View style={[styles.footerRightLinks, isMobile && styles.footerRightLinksMobile]}>
-              <Pressable
-                style={styles.footerLinkPressable}
-                onPress={() => setActiveFooterModal(FOOTER_POLICIES["user-agreement"])}
-              >
-                <Text style={styles.footerLinkText}>User Agreement</Text>
-              </Pressable>
-              <Pressable
-                style={styles.footerLinkPressable}
-                onPress={() => setActiveFooterModal(FOOTER_POLICIES["privacy-policy"])}
-              >
-                <Text style={styles.footerLinkText}>Privacy Policy</Text>
-              </Pressable>
-              <Pressable
-                style={styles.footerLinkPressable}
-                onPress={() => setActiveFooterModal(FOOTER_POLICIES["community-guidelines"])}
-              >
-                <Text style={styles.footerLinkText}>Community Guidelines</Text>
-              </Pressable>
-              <Pressable
-                style={styles.footerLinkPressable}
-                onPress={() => setActiveFooterModal(FOOTER_POLICIES["cookie-policy"])}
-              >
-                <Text style={styles.footerLinkText}>Cookie Policy</Text>
-              </Pressable>
-              <Pressable
-                style={styles.footerLinkPressable}
-                onPress={() => setActiveFooterModal(FOOTER_POLICIES["send-feedback"])}
-              >
-                <Text style={styles.footerLinkText}>Send Feedback</Text>
-              </Pressable>
-              <Pressable
-                style={styles.footerLinkPressable}
-                onPress={() => setActiveFooterModal(FOOTER_POLICIES["help-center"])}
-              >
-                <Text style={styles.footerLinkText}>Help Center</Text>
-              </Pressable>
-            </View>
+        {/* Footer Policies */}
+        <View style={styles.footerContainer}>
+          <View style={styles.footerLinksRow}>
+            <TouchableOpacity onPress={() => setActiveFooterModal(FOOTER_POLICIES["user-agreement"])}>
+              <Text style={styles.footerLinkText}>User Agreement</Text>
+            </TouchableOpacity>
+            <Text style={styles.footerDot}>•</Text>
+            <TouchableOpacity onPress={() => setActiveFooterModal(FOOTER_POLICIES["privacy-policy"])}>
+              <Text style={styles.footerLinkText}>Privacy Policy</Text>
+            </TouchableOpacity>
+            <Text style={styles.footerDot}>•</Text>
+            <TouchableOpacity onPress={() => setActiveFooterModal(FOOTER_POLICIES["community-guidelines"])}>
+              <Text style={styles.footerLinkText}>Community Guidelines</Text>
+            </TouchableOpacity>
+            <Text style={styles.footerDot}>•</Text>
+            <TouchableOpacity onPress={() => setActiveFooterModal(FOOTER_POLICIES["cookie-policy"])}>
+              <Text style={styles.footerLinkText}>Cookie Policy</Text>
+            </TouchableOpacity>
           </View>
+          <Text style={styles.copyrightText}>
+            © {new Date().getFullYear()} National Telecommunications Commission. All rights reserved.
+          </Text>
         </View>
       </ScrollView>
 
-      {/* Policy & Support Dialog Modal */}
-      <Modal
-        visible={activeFooterModal !== null}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setActiveFooterModal(null)}
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setActiveFooterModal(null)}
-        >
-          <TouchableOpacity
-            style={[styles.modalCard, SHADOWS.modal]}
-            activeOpacity={1}
-            onPress={() => {}}
-          >
-            <Pressable
-              style={styles.modalCloseBtn}
-              onPress={() => setActiveFooterModal(null)}
-            >
-              <Lucide name="x" size={20} color={COLORS.neutral[500]} />
-            </Pressable>
-
-            {activeFooterModal !== null ? (
-              <ScrollView style={{ maxHeight: 560 }} showsVerticalScrollIndicator={true}>
-                <View style={styles.policyModalHeader}>
-                  <View style={styles.policyHeaderIconCircle}>
-                    <Lucide name="file-text" size={20} color="#1E3A8A" />
-                  </View>
-                  <Text style={styles.policyModalTitle}>{activeFooterModal.title}</Text>
-                </View>
-                <View style={styles.policyTitleDivider} />
-
-                <View style={styles.policyIntroBox}>
-                  <Lucide name="info" size={18} color="#1E3A8A" style={styles.policyIntroIcon} />
-                  <Text style={styles.policyIntroText}>{activeFooterModal.intro}</Text>
-                </View>
-
-                {activeFooterModal.sections.map((sec, i) => (
-                  <View key={i} style={[styles.policySectionCard, SHADOWS.card]}>
-                    <Text style={styles.policySecTitle}>{sec.title}</Text>
-                    <Text style={styles.policySecBody}>{sec.body}</Text>
-                    {sec.highlight !== undefined ? (
-                      <View style={styles.policyHighlightBadge}>
-                        <Lucide name="mail" size={14} color="#1E3A8A" style={styles.policyMailIcon} />
-                        <Text style={styles.policyHighlightText}>{sec.highlight}</Text>
+      {/* Policy Modal Sheet */}
+      {activeFooterModal !== null ? (
+        <Modal visible={true} transparent={true} animationType="fade">
+          <View style={styles.modalBackdrop}>
+            <View style={styles.modalCardWrapper}>
+              <View style={styles.modalHeaderRow}>
+                <Text style={styles.modalTitleText}>{activeFooterModal.title}</Text>
+                <TouchableOpacity onPress={() => setActiveFooterModal(null)} style={styles.modalCloseIcon}>
+                  <Lucide name="x" size={20} color={COLORS.neutral[500]} />
+                </TouchableOpacity>
+              </View>
+              <ScrollView style={styles.modalBodyScroll} showsVerticalScrollIndicator={true}>
+                <Text style={styles.modalIntroText}>{activeFooterModal.intro}</Text>
+                {activeFooterModal.sections.map((sec, idx) => (
+                  <View key={idx} style={styles.modalSectionBox}>
+                    <Text style={styles.modalSectionTitle}>{sec.title}</Text>
+                    <Text style={styles.modalSectionBody}>{sec.body}</Text>
+                    {sec.highlight ? (
+                      <View style={styles.modalHighlightBox}>
+                        <Text style={styles.modalHighlightText}>{sec.highlight}</Text>
                       </View>
                     ) : null}
                   </View>
                 ))}
               </ScrollView>
-            ) : null}
-          </TouchableOpacity>
-        </TouchableOpacity>
-      </Modal>
-    </KeyboardAvoidingView>
+            </View>
+          </View>
+        </Modal>
+      ) : null}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  keyboardAvoid: {
+  outerShell: {
     flex: 1,
-    backgroundColor: "#FAF9F6",
+    backgroundColor: "#0B132B",
+  },
+  scrollContainer: {
+    flexGrow: 1,
+    paddingBottom: 40,
+  },
+  ambientGlowTopLeft: {
+    position: "absolute",
+    top: -100,
+    left: -100,
+    width: 400,
+    height: 400,
+    borderRadius: 200,
+    backgroundColor: "rgba(37, 99, 235, 0.25)",
+    ...Platform.select({ web: { filter: "blur(80px)" } }),
+  },
+  ambientGlowBottomRight: {
+    position: "absolute",
+    bottom: -100,
+    right: -100,
+    width: 450,
+    height: 450,
+    borderRadius: 225,
+    backgroundColor: "rgba(59, 130, 246, 0.18)",
+    ...Platform.select({ web: { filter: "blur(90px)" } }),
   },
   toastContainer: {
     position: "absolute",
     top: 20,
     left: 20,
     right: 20,
-    maxWidth: 600,
+    maxWidth: 560,
     alignSelf: "center",
     backgroundColor: "#FEF2F2",
     borderWidth: 1,
     borderColor: "#FCA5A5",
     borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    padding: 14,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    zIndex: 9999,
-    elevation: 9999,
+    zIndex: 999,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 10,
   },
   toastText: {
     flex: 1,
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 13,
-    fontWeight: TYPOGRAPHY.weights.medium,
     color: "#991B1B",
-    lineHeight: 18,
+    fontWeight: TYPOGRAPHY.weights.medium,
   },
   toastCloseBtn: {
     padding: 4,
   },
-  scrollContainer: {
-    flexGrow: 1,
-    minHeight: "100%",
-    justifyContent: "space-between",
-    backgroundColor: "#FAF9F6",
-    position: "relative",
-  },
-  backgroundBlobLeft: {
-    position: "absolute",
-    top: -80,
-    left: -120,
-    width: 480,
-    height: 480,
-    borderRadius: 240,
-    backgroundColor: "rgba(219, 234, 254, 0.55)",
-    ...Platform.select({
-      web: {
-        pointerEvents: "none",
-      },
-    }),
-  },
-  backgroundBlobRight: {
-    position: "absolute",
-    bottom: 40,
-    right: -100,
-    width: 420,
-    height: 420,
-    borderRadius: 210,
-    backgroundColor: "rgba(254, 226, 226, 0.45)",
-    ...Platform.select({
-      web: {
-        pointerEvents: "none",
-      },
-    }),
-  },
   heroSection: {
-    flex: 1,
-    justifyContent: "center",
-    width: "100%",
-    paddingVertical: 24,
-    position: "relative",
-    zIndex: 1,
+    paddingHorizontal: 24,
+    paddingTop: 40,
+    alignItems: "center",
   },
   heroContentWrapper: {
-    maxWidth: 1400,
     width: "100%",
-    alignSelf: "center",
+    maxWidth: 1200,
     flexDirection: "row",
-    flexWrap: "wrap",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingLeft: 16,
-    paddingRight: 28,
-    gap: 32,
+    gap: 48,
   },
   heroContentWrapperMobile: {
-    paddingHorizontal: 16,
-    gap: 24,
-    justifyContent: "center",
+    flexDirection: "column",
+    gap: 32,
   },
   heroLeftCol: {
-    flex: 1.4,
-    minWidth: 300,
-    maxWidth: 720,
+    flex: 1,
+    maxWidth: 560,
   },
   heroLeftColMobile: {
     maxWidth: "100%",
@@ -605,185 +607,222 @@ const styles = StyleSheet.create({
   heroPillBadge: {
     flexDirection: "row",
     alignItems: "center",
-    alignSelf: "flex-start",
-    backgroundColor: "rgba(37, 99, 235, 0.08)",
-    paddingHorizontal: 18,
-    paddingVertical: 8,
+    gap: 8,
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    paddingHorizontal: 14,
+    paddingVertical: 6,
     borderRadius: 20,
-    marginBottom: 24,
     borderWidth: 1,
-    borderColor: "rgba(37, 99, 235, 0.15)",
+    borderColor: "rgba(255, 255, 255, 0.15)",
+    marginBottom: 20,
+    alignSelf: "flex-start",
   },
   heroBadgeDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: "#1D4ED8",
-    marginRight: 9,
+    backgroundColor: "#10B981",
   },
   heroBadgeText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: TYPOGRAPHY.weights.semibold,
-    color: "#1E40AF",
+    color: "#93C5FD",
+    letterSpacing: 0.5,
   },
   heroTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 68,
-    lineHeight: 78,
+    fontSize: 36,
     fontWeight: TYPOGRAPHY.weights.bold,
-    color: "#0E1B61",
-    marginBottom: 24,
+    color: "#FFFFFF",
+    lineHeight: 44,
+    marginBottom: 16,
   },
   heroTitleTablet: {
-    fontSize: 50,
-    lineHeight: 60,
+    fontSize: 32,
+    lineHeight: 40,
   },
   heroTitleMobile: {
-    fontSize: 36,
-    lineHeight: 44,
+    fontSize: 26,
+    lineHeight: 34,
     textAlign: "center",
-  },
-  heroTitleHighlight: {
-    color: "#CE1127",
   },
   heroSubtitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 21,
-    lineHeight: 32,
-    color: COLORS.neutral[600],
-    marginBottom: 36,
+    fontSize: 15,
+    color: "#94A3B8",
+    lineHeight: 24,
+    marginBottom: 28,
   },
   heroSubtitleMobile: {
-    fontSize: 14,
-    lineHeight: 22,
     textAlign: "center",
   },
-  loginCardLogoWrapper: {
+  featuresList: {
+    gap: 16,
+  },
+  featureItem: {
+    flexDirection: "row",
     alignItems: "center",
-    marginBottom: 20,
+    gap: 14,
+    backgroundColor: "rgba(255, 255, 255, 0.04)",
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.08)",
+  },
+  featureIconBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(37, 99, 235, 0.15)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  featureTextCol: {
+    flex: 1,
+  },
+  featureTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: "#F8FAFC",
+  },
+  featureDesc: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    color: "#64748B",
   },
   heroRightCol: {
-    flex: 1,
-    minWidth: 280,
-    maxWidth: 480,
     width: "100%",
-    alignSelf: "center",
-    zIndex: 10,
+    maxWidth: 460,
+    alignItems: "center",
+  },
+  loginCardLogoWrapper: {
+    marginBottom: 20,
   },
   mockupWindowCard: {
     width: "100%",
-    backgroundColor: COLORS.neutral.white,
+    backgroundColor: "#FFFFFF",
     borderRadius: 20,
+    overflow: "hidden",
     borderWidth: 1,
     borderColor: "#E2E8F0",
-    shadowColor: "#0F172A",
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.1,
-    shadowRadius: 24,
-    elevation: 8,
   },
   mockupWindowHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    backgroundColor: "#F8FAFC",
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
-    backgroundColor: "#FAFAFC",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderBottomColor: "#E2E8F0",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   windowDotsRow: {
     flexDirection: "row",
-    alignItems: "center",
     gap: 6,
   },
   windowDotRed: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: "#FF5F56",
+    backgroundColor: "#EF4444",
   },
   windowDotYellow: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: "#FFBD2E",
+    backgroundColor: "#F59E0B",
   },
   windowDotGreen: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: "#27C93F",
+    backgroundColor: "#10B981",
   },
   windowHeaderText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 12,
-    color: COLORS.neutral[500],
-    fontWeight: TYPOGRAPHY.weights.medium,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: "#64748B",
   },
   mockupWindowBody: {
     padding: 28,
   },
+  cardHeaderArea: {
+    marginBottom: 24,
+  },
   cardTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: TYPOGRAPHY.weights.bold,
     color: "#0F172A",
-    marginBottom: SPACING[20],
-    textAlign: "center",
+    marginBottom: 4,
+  },
+  cardSubTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    color: "#64748B",
   },
   fieldGroup: {
     marginBottom: 16,
+    gap: 6,
   },
   fieldLabelSmall: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
-    color: COLORS.neutral[600],
-    marginBottom: 6,
-    fontWeight: TYPOGRAPHY.weights.medium,
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: "#334155",
   },
   inputWithIconWrapper: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F8FAFC",
+    height: 48,
     borderWidth: 1,
     borderColor: "#CBD5E1",
     borderRadius: 10,
-    paddingHorizontal: 12,
-    height: 48,
+    backgroundColor: "#F8FAFC",
+    paddingHorizontal: 14,
   },
   inputWithIconWrapperFocused: {
-    borderColor: "#0E1B61",
-    borderWidth: 1.5,
+    borderColor: "#1E3A8A",
     backgroundColor: "#FFFFFF",
+    boxShadow: "0 0 0 3px rgba(30, 58, 138, 0.12)",
   },
   inputIconLeft: {
-    marginRight: 8,
+    marginRight: 10,
   },
   textInputStyle: {
     flex: 1,
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 14,
-    color: COLORS.neutral[900],
+    color: "#0F172A",
     height: "100%",
-    paddingVertical: 0,
-    ...(Platform.OS === "web" ? ({ outlineWidth: 0, outlineColor: "transparent" } as unknown as TextStyle) : {}),
+    ...Platform.select({ web: { outlineWidth: 0 } }),
+  },
+  eyeToggleBtn: {
+    padding: 6,
+  },
+  forgotPasswordLink: {
+    alignSelf: "flex-end",
+    marginBottom: 20,
+  },
+  forgotPasswordText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: "#2563EB",
   },
   loginButton: {
+    backgroundColor: "#1E3A8A",
     height: 48,
     borderRadius: 10,
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 8,
-  },
-  loginButtonActive: {
-    backgroundColor: "#0E1B61",
+    ...Platform.select({ web: { cursor: "pointer" } }),
   },
   buttonDisabled: {
-    opacity: 0.7,
+    opacity: 0.6,
   },
   loginButtonInner: {
     flexDirection: "row",
@@ -793,15 +832,13 @@ const styles = StyleSheet.create({
   loginButtonText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 15,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-  },
-  loginButtonTextActive: {
-    color: COLORS.neutral.white,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: "#FFFFFF",
   },
   dividerRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginVertical: 16,
+    marginVertical: 20,
     gap: 12,
   },
   dividerLine: {
@@ -812,179 +849,148 @@ const styles = StyleSheet.create({
   dividerText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 12,
-    color: COLORS.neutral[400],
-    fontWeight: TYPOGRAPHY.weights.medium,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: "#94A3B8",
   },
   googleButton: {
+    backgroundColor: "#FFFFFF",
     height: 48,
     borderRadius: 10,
-    backgroundColor: COLORS.neutral.white,
     borderWidth: 1,
     borderColor: "#CBD5E1",
     justifyContent: "center",
     alignItems: "center",
+    ...Platform.select({ web: { cursor: "pointer" } }),
   },
   googleButtonInner: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
   },
+  googleIconBadge: {
+    width: 24,
+    height: 24,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   googleButtonText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 14,
     fontWeight: TYPOGRAPHY.weights.semibold,
-    color: COLORS.neutral[700],
+    color: "#334155",
   },
-  footerBar: {
-    width: "100%",
-    borderTopWidth: 1,
-    borderTopColor: "#E2E8F0",
-    backgroundColor: COLORS.neutral.white,
-    paddingVertical: 20,
-    paddingHorizontal: 24,
-  },
-  footerContentContainer: {
-    maxWidth: 1400,
-    width: "100%",
-    alignSelf: "center",
-    flexDirection: "row",
-    flexWrap: "wrap",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 16,
-  },
-  footerLeftBrand: {
+  securityNoticeBox: {
+    marginTop: 20,
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    justifyContent: "center",
+    gap: 6,
+    backgroundColor: "#EFF6FF",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
   },
-  footerCopyrightText: {
+  securityNoticeText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
-    color: COLORS.neutral[500],
+    fontSize: 11,
+    color: "#1E40AF",
+    fontWeight: TYPOGRAPHY.weights.medium,
   },
-  footerRightLinks: {
-    flexDirection: "row",
+  footerContainer: {
+    marginTop: 60,
     alignItems: "center",
-    flexWrap: "wrap",
-    gap: 20,
-  },
-  footerRightLinksMobile: {
     gap: 12,
   },
-  footerLinkPressable: {
-    paddingVertical: 4,
+  footerLinksRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 8,
   },
   footerLinkText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
-    color: COLORS.neutral[600],
+    fontSize: 12,
+    color: "#94A3B8",
   },
-  modalOverlay: {
+  footerDot: {
+    color: "#475569",
+    fontSize: 12,
+  },
+  copyrightText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    color: "#64748B",
+  },
+  modalBackdrop: {
     flex: 1,
-    backgroundColor: "rgba(15, 23, 42, 0.6)",
+    backgroundColor: "rgba(15, 23, 42, 0.75)",
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
   },
-  modalCard: {
+  modalCardWrapper: {
     width: "100%",
     maxWidth: 640,
-    backgroundColor: COLORS.neutral.white,
+    maxHeight: "85%",
+    backgroundColor: "#FFFFFF",
     borderRadius: 16,
-    padding: 28,
-    position: "relative",
+    padding: 24,
   },
-  modalCloseBtn: {
-    position: "absolute",
-    top: 20,
-    right: 20,
-    zIndex: 10,
+  modalHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E2E8F0",
+  },
+  modalTitleText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 18,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: "#0F172A",
+  },
+  modalCloseIcon: {
     padding: 4,
   },
-  policyModalHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    marginBottom: 16,
-  },
-  policyHeaderIconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(30, 58, 138, 0.1)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  policyModalTitle: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 20,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    color: COLORS.neutral[900],
-  },
-  policyTitleDivider: {
-    height: 1,
-    backgroundColor: "#E2E8F0",
-    marginBottom: 16,
-  },
-  policyIntroBox: {
-    flexDirection: "row",
-    gap: 10,
-    backgroundColor: "#F0F9FF",
-    borderWidth: 1,
-    borderColor: "#BAE6FD",
-    borderRadius: 10,
-    padding: 14,
-    marginBottom: 16,
-  },
-  policyIntroIcon: {
-    marginTop: 2,
-  },
-  policyIntroText: {
+  modalBodyScroll: {
     flex: 1,
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
-    lineHeight: 20,
-    color: "#0369A1",
   },
-  policySectionCard: {
-    backgroundColor: COLORS.neutral.white,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    padding: 16,
-    marginBottom: 12,
-  },
-  policySecTitle: {
+  modalIntroText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 14,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-    color: COLORS.neutral[900],
+    color: "#475569",
+    lineHeight: 22,
+    marginBottom: 20,
+  },
+  modalSectionBox: {
+    marginBottom: 16,
+  },
+  modalSectionTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: "#1E293B",
     marginBottom: 6,
   },
-  policySecBody: {
+  modalSectionBody: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 13,
+    color: "#64748B",
     lineHeight: 20,
-    color: COLORS.neutral[600],
   },
-  policyHighlightBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginTop: 10,
+  modalHighlightBox: {
+    marginTop: 8,
     backgroundColor: "#F1F5F9",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    padding: 10,
     borderRadius: 6,
   },
-  policyMailIcon: {
-    marginTop: 1,
-  },
-  policyHighlightText: {
+  modalHighlightText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
-    fontWeight: TYPOGRAPHY.weights.medium,
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.semibold,
     color: "#1E3A8A",
   },
 });
