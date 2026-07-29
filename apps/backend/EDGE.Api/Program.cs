@@ -1,16 +1,10 @@
-using System.Linq;
 using Hangfire;
-using Scalar.AspNetCore;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
 using Serilog;
-using System.Text;
 using EDGE.Application;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Infrastructure;
 using EDGE.Infrastructure.Hubs;
 using EDGE.Infrastructure.Authorization;
-using EDGE.Domain.Authorization;
 using EDGE.Api.Middleware;
 using EDGE.Api.Services;
 using EDGE.Api.Endpoints;
@@ -52,7 +46,7 @@ try
     });
 
     // Configure OpenAPI
-    builder.Services.AddOpenApi();
+    builder.Services.AddApiOpenApi();
 
     // Configure CORS
     builder.Services.AddApiCors(builder.Configuration);
@@ -74,7 +68,7 @@ try
     if (app.Environment.IsDevelopment())
     {
         app.MapOpenApi();
-        app.MapScalarApiReference("/scalar/v2");
+        app.UseApiScalar();
         app.UseHangfireDashboard("/hangfire");
     }
 
