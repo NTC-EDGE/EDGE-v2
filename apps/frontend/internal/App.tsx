@@ -1,6 +1,9 @@
 import { StatusBar } from "expo-status-bar";
 import { ClerkProvider } from "@clerk/expo";
+import * as WebBrowser from "expo-web-browser";
 import { tokenCache } from "./tokenCache";
+
+WebBrowser.maybeCompleteAuthSession();
 import { AuthProvider } from "./src/features/auth/context/AuthContext";
 import { RoleProvider } from "./src/features/shell/context/RoleContext";
 import { PermissionProvider } from "./src/features/shell/context/PermissionContext";

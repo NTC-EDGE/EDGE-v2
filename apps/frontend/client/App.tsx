@@ -1,6 +1,9 @@
 import React from "react";
 import { ClerkProvider, useAuth } from "@clerk/expo";
+import * as WebBrowser from "expo-web-browser";
 import { tokenCache } from "@clerk/expo/token-cache";
+
+WebBrowser.maybeCompleteAuthSession();
 import { createStaticNavigation } from "@react-navigation/native";
 import { RootStack, linking } from "./src/navigation/index";
 
