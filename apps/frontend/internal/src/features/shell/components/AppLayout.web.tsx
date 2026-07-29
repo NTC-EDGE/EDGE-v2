@@ -12,7 +12,7 @@ export interface AppLayoutProps {
   onNavigate?: (screenName: string) => void;
 }
 
-export function AppLayoutWeb({
+export function AppLayout({
   children,
   activeScreen = "Dashboard",
   onNavigate,

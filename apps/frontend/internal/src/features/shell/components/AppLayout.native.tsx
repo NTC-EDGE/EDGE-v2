@@ -20,7 +20,7 @@ export interface AppLayoutProps {
   onNavigate?: (screenName: string) => void;
 }
 
-export function AppLayoutNative({
+export function AppLayout({
   children,
   activeScreen = "Dashboard",
   onNavigate,

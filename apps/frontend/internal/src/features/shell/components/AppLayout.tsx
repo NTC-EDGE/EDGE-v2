@@ -1,8 +1,8 @@
 import React from "react";
 import { Platform } from "react-native";
-import { AppLayoutWeb } from "./AppLayout.web";
-import { AppLayoutNative } from "./AppLayout.native";
-import { AppLayoutDesktop } from "./AppLayout.desktop";
+import { AppLayout as WebLayout } from "./AppLayout.web";
+import { AppLayout as NativeLayout } from "./AppLayout.native";
+import { AppLayout as DesktopLayout } from "./AppLayout.desktop";
 
 export interface AppLayoutProps {
   children: React.ReactNode;
@@ -12,12 +12,12 @@ export interface AppLayoutProps {
 
 export function AppLayout(props: AppLayoutProps) {
   if (Platform.OS === "web") {
-    return <AppLayoutWeb {...props} />;
+    return <WebLayout {...props} />;
   }
 
   if (Platform.OS === "macos" || Platform.OS === "windows") {
-    return <AppLayoutDesktop {...props} />;
+    return <DesktopLayout {...props} />;
   }
 
-  return <AppLayoutNative {...props} />;
+  return <NativeLayout {...props} />;
 }
