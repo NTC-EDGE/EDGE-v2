@@ -207,17 +207,9 @@ export function InternalLoginPage() {
     setToastMessage(null);
     setIsGoogleSubmitting(true);
     try {
-      const redirectUrl =
-        Platform.OS === "web" && typeof window !== "undefined"
-          ? window.location.origin
-          : undefined;
-
-      const { createdSessionId, setActive } = await startOAuthFlow(
-        redirectUrl ? { redirectUrl } : undefined
-      );
-
-      if (createdSessionId && setActive) {
-        await setActive({ session: createdSessionId });
+      const res = await startOAuthFlow();
+      if (res !== null && res !== undefined && res.createdSessionId && typeof res.setActive === "function") {
+        await res.setActive({ session: res.createdSessionId });
       }
     } catch (err: unknown) {
       console.error("Google sign-in error:", err);
