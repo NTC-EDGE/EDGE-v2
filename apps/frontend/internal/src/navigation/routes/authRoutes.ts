@@ -9,6 +9,7 @@ import { FeedbackScreen } from "../../features/feedback/screens/FeedbackScreen";
 import { FormBuilderScreen } from "../../features/form-builder/screens/FormBuilderScreen";
 import { AnnouncementsScreen } from "../../features/announcements/screens/AnnouncementsScreen";
 import { AuditLogsScreen } from "../../features/audit-logs/screens/AuditLogsScreen";
+import { ActivitiesScreen } from "../../features/queue/screens/ActivitiesScreen";
 import { PlaceholderScreen } from "../stacks/PlaceholderScreen";
 
 // We keep these direct references for the route config.
