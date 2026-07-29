@@ -1,8 +1,9 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { ClerkProvider, useAuth } from "@clerk/expo";
 import { tokenCache } from "@clerk/expo/token-cache";
 import { ActivityIndicator, View } from "react-native";
 import { UnauthNavigation, AuthNavigation, clientLinking } from "./src/routes/index";
+import { setTokenProvider } from "@edge/api";
 
 const getClerkKey = (): string => {
   const key = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
@@ -21,7 +22,17 @@ if (publishableKey.length === 0) {
 }
 
 function AppContent() {
-  const { isSignedIn, isLoaded } = useAuth();
+  const clerkAuth = useAuth();
+  const { isSignedIn, isLoaded } = clerkAuth;
+
+  // Register Clerk's getToken callback with the API tokenManager service to populate authorization headers
+  useEffect(() => {
+    if (isSignedIn && clerkAuth.getToken) {
+      setTokenProvider(clerkAuth.getToken);
+    } else {
+      setTokenProvider(null);
+    }
+  }, [isSignedIn, clerkAuth.getToken]);
 
   if (!isLoaded) {
     return (

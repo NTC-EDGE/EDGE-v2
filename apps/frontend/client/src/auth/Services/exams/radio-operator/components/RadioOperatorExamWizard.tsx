@@ -189,12 +189,26 @@ export function RadioOperatorExamWizard({
   const [tenants, setTenants] = useState<Array<{ id: string; name: string }>>([]);
   const [loadingTenants, setLoadingTenants] = useState(false);
 
+  interface ApiResponseEnvelope<T> {
+    succeeded?: boolean;
+    data?: T;
+    items?: T;
+  }
+
   React.useEffect(() => {
     async function fetchTenants() {
       setLoadingTenants(true);
       try {
-        const data = await api.get<{ items?: Array<{ id: string; name: string }> } | Array<{ id: string; name: string }>>('/api/v2/tenants');
-        setTenants(Array.isArray(data) ? data : (data.items || []));
+        const res = await api.get<ApiResponseEnvelope<Array<{ id: string; name: string }>> | Array<{ id: string; name: string }>>('/api/v2/tenants');
+        if (res && !Array.isArray(res) && res.succeeded && Array.isArray(res.data)) {
+          setTenants(res.data);
+        } else if (Array.isArray(res)) {
+          setTenants(res);
+        } else if (res && !Array.isArray(res) && Array.isArray(res.items)) {
+          setTenants(res.items);
+        } else {
+          setTenants([]);
+        }
       } catch (err) {
         console.error("Failed to fetch tenants from API:", err);
         setTenants([]);
@@ -226,8 +240,16 @@ export function RadioOperatorExamWizard({
       }
       setLoadingOffices(true);
       try {
-        const data = await api.get<{ items?: Array<{ id: string; name: string }> } | Array<{ id: string; name: string }>>(`/api/v2/tenants/${selectedRegionId}/field-offices`);
-        setOffices(Array.isArray(data) ? data : (data.items || []));
+        const res = await api.get<ApiResponseEnvelope<Array<{ id: string; name: string }>> | Array<{ id: string; name: string }>>(`/api/v2/tenants/${selectedRegionId}/field-offices`);
+        if (res && !Array.isArray(res) && res.succeeded && Array.isArray(res.data)) {
+          setOffices(res.data);
+        } else if (Array.isArray(res)) {
+          setOffices(res);
+        } else if (res && !Array.isArray(res) && Array.isArray(res.items)) {
+          setOffices(res.items);
+        } else {
+          setOffices([]);
+        }
       } catch (err) {
         console.error("Failed to fetch offices from API:", err);
         setOffices([]);
