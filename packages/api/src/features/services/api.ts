@@ -1,4 +1,4 @@
-import { apiClient } from '../../index';
+import { apiClient } from '../../apiClient';
 import { ApiResponse, ServiceVariant } from '../../types';
 import {
   Service,
