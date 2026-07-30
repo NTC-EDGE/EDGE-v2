@@ -85,7 +85,7 @@ export function AnnouncementsScreen() {
     setMessage(ann.message);
     setType((ann.type as AnnType) || 'Info');
     setTargetAudience(ann.targetAudience || 'All Users');
-    setIsActive(ann.isActive);
+    setIsActive(false);
     setFormError(null);
     setIsAddModalOpen(true);
   };
