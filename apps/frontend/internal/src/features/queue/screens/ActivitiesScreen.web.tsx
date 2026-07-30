@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { StyleSheet, View, useWindowDimensions } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { StyleSheet, View, Animated, useWindowDimensions } from 'react-native';
 import { useTheme, PageHeader, AnimatedCard, SPACING } from '@edge/ui';
 import { ApplicationProvider, useApplications } from '../context/ApplicationContext';
 import { ActivitiesFeedPane } from '../components/ActivitiesFeedPane';
@@ -13,9 +13,18 @@ function WebActivitiesContent() {
   const { width } = useWindowDimensions();
 
   const [isPanelCollapsed, setIsPanelCollapsed] = useState(false);
+  const collapseAnim = useRef(new Animated.Value(0)).current;
 
   const handleClose = () => setSelectedId(null);
   const handleCollapse = () => setIsPanelCollapsed((p) => !p);
+
+  useEffect(() => {
+    Animated.timing(collapseAnim, {
+      toValue: isPanelCollapsed ? 1 : 0,
+      duration: 250,
+      useNativeDriver: false,
+    }).start();
+  }, [isPanelCollapsed, collapseAnim]);
 
   // On narrow web viewports behave like native: collapse the feed pane
   const isNarrow = width < 900;
@@ -23,6 +32,16 @@ function WebActivitiesContent() {
   const canvasBg = isDark ? colors.neutral[900] : colors.neutral[50];
   const cardBorderColor = isDark ? colors.neutral[700] : colors.neutral[200];
   const cardBackground = isDark ? colors.neutral[800] : colors.cardBg;
+
+  const feedWidth = collapseAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [380, 0],
+  });
+
+  const feedOpacity = collapseAnim.interpolate({
+    inputRange: [0, 0.6, 1],
+    outputRange: [1, 0, 0],
+  });
 
   return (
     <View style={[styles.screen, { backgroundColor: canvasBg }]}>
@@ -36,9 +55,19 @@ function WebActivitiesContent() {
 
       {/* Split pane layout */}
       <View style={[styles.body, isNarrow && styles.bodyNarrow]}>
-        {/* Left: Feed pane */}
-        {(!isNarrow || !isPanelCollapsed) && (
-          <View style={[styles.feedPane, isNarrow && styles.feedPaneNarrow]}>
+        {/* Left: Feed pane (animated width & opacity) */}
+        <Animated.View
+          style={[
+            styles.feedPaneWrapper,
+            isNarrow && styles.feedPaneNarrow,
+            {
+              width: isNarrow ? (isPanelCollapsed ? 0 : '100%') : feedWidth,
+              opacity: feedOpacity,
+              overflow: 'hidden',
+            },
+          ]}
+        >
+          <View style={styles.feedPaneInner}>
             <AnimatedCard
               padding={0}
               hoverEffect={false}
@@ -50,7 +79,7 @@ function WebActivitiesContent() {
               <ActivitiesFeedPane />
             </AnimatedCard>
           </View>
-        )}
+        </Animated.View>
 
         {/* Right: Detail / review pane */}
         <View style={[styles.detailPane, isNarrow && styles.detailPaneNarrow]}>
@@ -101,8 +130,12 @@ const styles = StyleSheet.create({
   bodyNarrow: {
     flexDirection: 'column',
   },
-  feedPane: {
+  feedPaneWrapper: {
+    height: '100%',
+  },
+  feedPaneInner: {
     width: 380,
+    height: '100%',
   },
   feedPaneNarrow: {
     width: '100%',

@@ -339,7 +339,7 @@ export function RolesPermissionScreen() {
           <View style={[styles.rightColumn, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
             <View style={[styles.configHeader, { borderBottomColor: colors.border }]}>
               <View style={styles.roleTitleGroup}>
-                <Text style={styles.configSubheader}>ROLE CONFIGURATION</Text>
+                <Text style={[styles.configSubheader, { color: isDark ? colors.brand[500] : colors.brand[700] }]}>ROLE CONFIGURATION</Text>
                 <Text style={[styles.configRoleName, { color: colors.text }]}>{selectedRole.name}</Text>
               </View>
 
@@ -515,6 +515,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0.8,
+    color: COLORS.neutral[400],
   },
   matrixScroll: {
     flex: 1,

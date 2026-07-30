@@ -1,62 +1,119 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from 'react';
 import {
   StyleSheet,
   View,
   Text,
-  TouchableOpacity,
+  Pressable,
   ScrollView,
-} from "react-native";
-import { COLORS, TYPOGRAPHY, SPACING, RADIUS, Icon as Lucide, useTheme, AnimatedCard } from "@edge/ui";
+  Platform,
+  useWindowDimensions,
+} from 'react-native';
+import {
+  COLORS,
+  TYPOGRAPHY,
+  SPACING,
+  RADIUS,
+  Icon as Lucide,
+  useTheme,
+  PageHeader,
+  AnimatedCard,
+} from '@edge/ui';
 import {
   useRegions,
   useAdminFieldOffices,
-  useAdminRequirements,
-  useAdminFees,
-  useAdminNotes,
-} from "@edge/api";
+} from '@edge/api';
 
 import {
   RegionalConfigCard,
-  ApplicationRequirementItem,
-  FeePaymentItem,
-  NoteItem,
   BranchOffice,
-} from "../data/mockAdminSettings";
-import { RegionalConfigTab } from "../components/RegionalConfigTab";
-import { ServiceTreeConfigTab } from "../components/ServiceTreeConfigTab";
+} from '../data/mockAdminSettings';
+import { RegionalConfigTab } from '../components/RegionalConfigTab';
+import { ServiceTreeConfigTab } from '../components/ServiceTreeConfigTab';
 import {
   AdminSettingsModal,
   ModalType,
   ModalInitialData,
-} from "../components/AdminSettingsModal";
-import { DeleteAdminItemModal } from "../components/DeleteAdminItemModal";
+} from '../components/AdminSettingsModal';
+import { DeleteAdminItemModal } from '../components/DeleteAdminItemModal';
 
-export type AdminTabType = "regional" | "services";
+export type AdminTabType = 'regional-details' | 'branch-directory' | 'services-studio';
 
 interface TabItem {
   id: AdminTabType;
   label: string;
+  subtitle: string;
   icon: keyof typeof Lucide.glyphMap;
 }
 
 const TABS: TabItem[] = [
-  { id: "regional", label: "Regional Configurations", icon: "sliders" },
-  { id: "services", label: "Services & Prerequisites", icon: "layers" },
+  {
+    id: 'regional-details',
+    label: 'Regional Office Details',
+    subtitle: 'Parameters & support contacts',
+    icon: 'shield',
+  },
+  {
+    id: 'branch-directory',
+    label: 'Regional Branch Directory',
+    subtitle: 'Field offices & locations',
+    icon: 'map-pin',
+  },
+  {
+    id: 'services-studio',
+    label: 'Services & Prerequisites Studio',
+    subtitle: 'Catalog, variants & fees tree',
+    icon: 'layers',
+  },
 ];
 
 export function AdminSettingsScreen(): React.ReactElement {
   const { colors, isDark } = useTheme();
-  const [activeTab, setActiveTab] = useState<AdminTabType>("regional");
+  const { width } = useWindowDimensions();
+  const isMobile = width < 768;
+
+  const [activeTab, setActiveTab] = useState<AdminTabType>('regional-details');
+
+  // Mouse Drag-to-Scroll Web Ref & Handlers
+  const tabScrollRef = useRef<ScrollView>(null);
+  const isDraggingTab = useRef(false);
+  const dragStartX = useRef(0);
+  const dragScrollLeft = useRef(0);
+
+  const handleMouseDown = (e: any) => {
+    if (Platform.OS !== 'web') return;
+    isDraggingTab.current = true;
+    const pageX = e.nativeEvent?.pageX || e.pageX || 0;
+    dragStartX.current = pageX;
+    const scrollNode = (tabScrollRef.current as any)?.getScrollableNode
+      ? (tabScrollRef.current as any).getScrollableNode()
+      : null;
+    if (scrollNode) {
+      dragScrollLeft.current = scrollNode.scrollLeft;
+    }
+  };
+
+  const handleMouseLeaveOrUp = () => {
+    isDraggingTab.current = false;
+  };
+
+  const handleMouseMove = (e: any) => {
+    if (!isDraggingTab.current || Platform.OS !== 'web') return;
+    const pageX = e.nativeEvent?.pageX || e.pageX || 0;
+    const distance = (pageX - dragStartX.current) * 1.5;
+    const scrollNode = (tabScrollRef.current as any)?.getScrollableNode
+      ? (tabScrollRef.current as any).getScrollableNode()
+      : null;
+    if (scrollNode) {
+      scrollNode.scrollLeft = dragScrollLeft.current - distance;
+    }
+  };
 
   // Live API Hooks
   const { regions } = useRegions();
   const { fieldOffices } = useAdminFieldOffices();
-  const { requirements: apiRequirements, serviceVariantRequirements: apiSvrRequirements } = useAdminRequirements();
-  const { fees: apiFees, serviceFees: apiServiceFees } = useAdminFees();
-  const { notes: apiNotes } = useAdminNotes();
 
   // Edit Modal State
-  const [modalType, setModalType] = useState<ModalType>("none");
+  const [modalType, setModalType] = useState<ModalType>('none');
   const [selectedItem, setSelectedItem] = useState<ModalInitialData | undefined>(undefined);
 
   // Delete Permission Dialog State
@@ -67,8 +124,8 @@ export function AdminSettingsScreen(): React.ReactElement {
     onConfirm: () => void;
   }>({
     visible: false,
-    itemTitle: "",
-    itemType: "Item",
+    itemTitle: '',
+    itemType: 'Item',
     onConfirm: () => {},
   });
 
@@ -76,32 +133,36 @@ export function AdminSettingsScreen(): React.ReactElement {
     id: fo.id,
     name: fo.name,
     code: fo.code,
-    type: fo.code.includes("MAIN") || fo.code.includes("001") ? "Main Office" : "Field Office",
+    type: fo.code.includes('MAIN') || fo.code.includes('001') ? 'Main Office' : 'Field Office',
     address: fo.address,
-    contactNumber: fo.contactPhone || "(088) 123-4567",
+    contactNumber: fo.contactPhone || '(088) 123-4567',
   }));
 
   const stats = {
     total: branchOffices.length,
-    mainOffice: branchOffices.filter((b) => b.type === "Main Office").length,
-    fieldOffice: branchOffices.filter((b) => b.type === "Field Office").length,
+    mainOffice: branchOffices.filter((b) => b.type === 'Main Office').length,
+    fieldOffice: branchOffices.filter((b) => b.type === 'Field Office').length,
   };
 
   const activeRegion = regions.length > 0 ? regions[0] : null;
   const regionalConfigs: RegionalConfigCard[] = [
     {
-      id: activeRegion ? activeRegion.id : "commissioner",
-      category: activeRegion ? activeRegion.name : "Regional Office Configuration",
-      subtitle: activeRegion ? `${activeRegion.name} Regional Office` : "Regional Office Configuration",
-      name: activeRegion ? activeRegion.name : "NTC Region X - Northern Mindanao",
-      subLabel: "Engr. Teodoro D. Buenavista Jr. · Regional Director",
+      id: activeRegion ? activeRegion.id : 'commissioner',
+      category: activeRegion ? activeRegion.name : 'Regional Office Configuration',
+      subtitle: activeRegion ? `${activeRegion.name} Regional Office` : 'Regional Office Configuration',
+      name: activeRegion ? activeRegion.name : 'NTC Region X - Northern Mindanao',
+      rcCode: activeRegion ? `RC-${activeRegion.code || '10'}` : 'RC-10',
+      officeCode: 'R10-MAIN',
+      commissionerName: 'Comm. Ella Blanca B. Lopez',
+      supportEmail: 'region10@ntc.gov.ph',
+      supportPhone: '(088) 856-1234 / (02) 8924-4008',
       badge: {
-        text: activeRegion?.isActive !== false ? "Active Region" : "Inactive",
-        type: "active",
+        text: activeRegion?.isActive !== false ? 'Active Region' : 'Inactive',
+        type: 'active',
       },
-      icon: "sliders",
+      icon: 'shield',
       iconBg: isDark ? colors.neutral[800] : colors.brand.light,
-      iconColor: isDark ? colors.brand.primary : colors.brand.secondary,
+      iconColor: isDark ? colors.brand[500] : colors.brand.primary,
     },
   ];
 
@@ -109,24 +170,24 @@ export function AdminSettingsScreen(): React.ReactElement {
     setSelectedItem({
       id: config.id,
       name: config.name,
-      subLabel: config.subLabel,
+      subLabel: config.commissionerName || config.subLabel,
       category: config.category,
     });
-    setModalType("edit-config");
+    setModalType('edit-config');
   };
 
   const handleDeleteConfig = (id: string, name: string) => {
     setDeleteModal({
       visible: true,
       itemTitle: name,
-      itemType: "Regional Configuration",
+      itemType: 'Regional Configuration',
       onConfirm: () => {},
     });
   };
 
   const handleAddBranchOffice = () => {
     setSelectedItem(undefined);
-    setModalType("add-branch");
+    setModalType('add-branch');
   };
 
   const handleEditBranchOffice = (office: BranchOffice) => {
@@ -136,80 +197,100 @@ export function AdminSettingsScreen(): React.ReactElement {
       code: office.code,
       branchType: office.type,
     });
-    setModalType("add-branch");
+    setModalType('add-branch');
   };
 
   const handleDeleteBranchOffice = (id: string, name: string) => {
     setDeleteModal({
       visible: true,
       itemTitle: name,
-      itemType: "Branch Office",
+      itemType: 'Branch Office',
       onConfirm: () => {},
     });
   };
 
   return (
     <ScrollView
-      style={[styles.desktopShell, { backgroundColor: colors.bg }]}
+      style={[styles.webShell, { backgroundColor: colors.bg }]}
       contentContainerStyle={styles.scrollContainer}
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={[styles.badgeText, { color: isDark ? colors.brand.primary : colors.brand.secondary }]}>
-            SYSTEM ADMINISTRATION • DESKTOP WORKSTATION
-          </Text>
-          <Text style={[styles.title, { color: colors.text }]}>Regional & Service Configurations</Text>
-          <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-            Configure regional office parameters, field office branches, and service catalog prerequisites.
-          </Text>
-        </View>
+        {/* Page Header - override marginBottom to eliminate large spacing */}
+        <PageHeader
+          title="Admin Configurations Studio"
+          subtitle="Configure regional office parameters, field office branch directories, and service catalog prerequisite trees."
+          style={{ marginBottom: 0, paddingBottom: SPACING[8] }}
+        />
 
-        {/* Navigation Bar */}
-        <View
-          style={[
-            styles.tabsContainer,
-            { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100] },
-          ]}
+        {/* Scrollable Top Horizontal Segmented Tab Bar with Mouse Drag-to-Scroll */}
+        <ScrollView
+          ref={tabScrollRef}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={[styles.topTabsScrollWrapper, Platform.select({ web: { cursor: 'grab' } }) as any]}
+          contentContainerStyle={styles.topTabsScrollContent}
+          {...Platform.select({
+            web: {
+              onMouseDown: handleMouseDown,
+              onMouseLeave: handleMouseLeaveOrUp,
+              onMouseUp: handleMouseLeaveOrUp,
+              onMouseMove: handleMouseMove,
+            },
+            default: {},
+          })}
         >
-          {TABS.map((t) => {
-            const isActive = activeTab === t.id;
-            return (
-              <TouchableOpacity
-                key={t.id}
-                onPress={() => setActiveTab(t.id)}
-                style={[
-                  styles.tabBtn,
-                  isActive && [
-                    styles.tabBtnActive,
-                    { backgroundColor: isDark ? colors.neutral[700] : colors.cardBg },
-                  ],
-                ]}
-                activeOpacity={0.7}
-              >
-                <Lucide
-                  name={t.icon}
-                  size={18}
-                  color={isActive ? (isDark ? colors.brand.primary : colors.brand.secondary) : colors.textMuted}
-                />
-                <Text
-                  style={[
-                    styles.tabBtnText,
-                    { color: isActive ? (isDark ? colors.brand.primary : colors.brand.secondary) : colors.textMuted },
-                    isActive && styles.tabBtnTextActive,
+          <View
+            style={[
+              styles.topTabsContainer,
+              { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[100], borderColor: colors.border },
+            ]}
+          >
+            {TABS.map((t) => {
+              const isActive = activeTab === t.id;
+              return (
+                <Pressable
+                  key={t.id}
+                  onPress={() => setActiveTab(t.id)}
+                  style={({ pressed }) => [
+                    styles.topTabBtn,
+                    isActive && [
+                      styles.topTabBtnActive,
+                      {
+                        backgroundColor: isDark ? colors.neutral[800] : colors.cardBg,
+                        borderColor: isDark ? colors.brand[500] : colors.brand.primary,
+                      },
+                    ],
+                    pressed && { opacity: 0.8 },
+                    Platform.select({ web: { cursor: 'pointer' } }),
                   ]}
                 >
-                  {t.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+                  <Lucide
+                    name={t.icon}
+                    size={15}
+                    color={isActive ? (isDark ? colors.brand[500] : colors.brand.primary) : colors.textMuted}
+                  />
+                  <Text
+                    numberOfLines={1}
+                    style={[
+                      styles.topTabBtnText,
+                      { color: isActive ? (isDark ? colors.brand[500] : colors.brand.primary) : colors.textMuted },
+                      isActive && styles.topTabBtnTextActive,
+                    ]}
+                  >
+                    {t.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </ScrollView>
 
-        {/* Active Tab View */}
-        {activeTab === "regional" ? (
+        {/* Workspace Card */}
+        {activeTab === 'regional-details' && (
           <AnimatedCard delay={0} padding={0} style={styles.tabContentCard}>
             <RegionalConfigTab
+              mode="details"
               configs={regionalConfigs}
               branchOffices={branchOffices}
               stats={stats}
@@ -220,7 +301,25 @@ export function AdminSettingsScreen(): React.ReactElement {
               onDeleteBranchOffice={handleDeleteBranchOffice}
             />
           </AnimatedCard>
-        ) : (
+        )}
+
+        {activeTab === 'branch-directory' && (
+          <AnimatedCard delay={0} padding={0} style={styles.tabContentCard}>
+            <RegionalConfigTab
+              mode="branches"
+              configs={regionalConfigs}
+              branchOffices={branchOffices}
+              stats={stats}
+              onEditConfig={handleEditConfig}
+              onDeleteConfig={handleDeleteConfig}
+              onAddBranchOffice={handleAddBranchOffice}
+              onEditBranchOffice={handleEditBranchOffice}
+              onDeleteBranchOffice={handleDeleteBranchOffice}
+            />
+          </AnimatedCard>
+        )}
+
+        {activeTab === 'services-studio' && (
           <AnimatedCard delay={0} padding={0} style={styles.tabContentCard}>
             <ServiceTreeConfigTab />
           </AnimatedCard>
@@ -228,11 +327,11 @@ export function AdminSettingsScreen(): React.ReactElement {
       </View>
 
       <AdminSettingsModal
-        visible={modalType !== "none"}
+        visible={modalType !== 'none'}
         type={modalType}
         initialData={selectedItem}
-        onClose={() => setModalType("none")}
-        onSave={() => setModalType("none")}
+        onClose={() => setModalType('none')}
+        onSave={() => setModalType('none')}
       />
 
       <DeleteAdminItemModal
@@ -247,72 +346,66 @@ export function AdminSettingsScreen(): React.ReactElement {
 }
 
 const styles = StyleSheet.create({
-  desktopShell: {
+  webShell: {
     flex: 1,
   },
   scrollContainer: {
     flexGrow: 1,
-    padding: 32,
-    paddingBottom: 60,
+    padding: SPACING[16],
+    paddingBottom: SPACING[48],
   },
   container: {
-    width: "100%",
-    maxWidth: 1200,
-    alignSelf: "center",
+    width: '100%',
+    maxWidth: 1400,
+    alignSelf: 'center',
+    gap: SPACING[12],
   },
-  header: {
-    marginBottom: 24,
+  topTabsScrollWrapper: {
+    width: '100%',
   },
-  badgeText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    letterSpacing: 0.8,
-    marginBottom: 6,
+  topTabsScrollContent: {
+    flexGrow: 1,
   },
-  title: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 28,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    marginBottom: 6,
-  },
-  subtitle: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
-  },
-  tabsContainer: {
-    flexDirection: "row",
-    borderRadius: 10,
+  topTabsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: RADIUS.button,
     padding: 4,
-    marginBottom: 24,
-    gap: 6,
+    borderWidth: 1,
+    gap: SPACING[6],
+    minWidth: '100%',
   },
-  tabBtn: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingVertical: 12,
-    borderRadius: 8,
+  topTabBtn: {
+    flexShrink: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING[8],
+    paddingVertical: SPACING[8],
+    paddingHorizontal: SPACING[16],
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
-  tabBtnActive: {
-    shadowColor: COLORS.neutral.black,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+  topTabBtnActive: {
+    borderWidth: 1,
   },
-  tabBtnText: {
+  topTabBtnText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.sizes.caption,
     fontWeight: TYPOGRAPHY.weights.medium,
+    ...Platform.select({
+      web: {
+        whiteSpace: 'nowrap',
+      },
+    }),
   },
-  tabBtnTextActive: {
-    fontWeight: TYPOGRAPHY.weights.bold,
+  topTabBtnTextActive: {
+    fontWeight: TYPOGRAPHY.weights.semibold,
   },
   tabContentCard: {
-    width: "100%",
-    borderRadius: 16,
-    overflow: "hidden",
+    width: '100%',
+    borderRadius: RADIUS.card,
+    overflow: 'hidden',
   },
 });

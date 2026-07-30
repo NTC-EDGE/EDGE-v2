@@ -5,7 +5,12 @@ export interface RegionalConfigCard {
   category: string;
   subtitle: string;
   name: string;
-  subLabel: string;
+  subLabel?: string;
+  rcCode?: string;
+  officeCode?: string;
+  commissionerName?: string;
+  supportEmail?: string;
+  supportPhone?: string;
   badge?: {
     text: string;
     type: 'primary' | 'active' | 'commissioner';
@@ -13,6 +18,17 @@ export interface RegionalConfigCard {
   icon: keyof typeof Lucide.glyphMap;
   iconBg: string;
   iconColor: string;
+}
+
+export interface FeedbackItem {
+  id: string;
+  applicantName: string;
+  applicantEmail: string;
+  rating: number;
+  category: string;
+  comment: string;
+  createdAt: string;
+  isAnonymous?: boolean;
 }
 
 export interface ApplicationRequirementItem {
@@ -69,34 +85,10 @@ export interface BranchOffice {
 export interface FormBuilderItem {
   id: string;
   title: string;
-  serviceType?: string;
   code: string;
   version: string;
   status: 'Published' | 'Draft';
   fieldsCount: number;
   lastUpdated?: string;
-  description?: string;
+  serviceType?: string;
 }
-
-export interface FeedbackItem {
-  id: string;
-  sender: string;
-  email: string;
-  subject: string;
-  date: string;
-  rating: number;
-  status: 'Reviewed' | 'Pending';
-  message: string;
-  officeAgency?: string;
-  contactNumber?: string;
-  submittedBy?: string;
-  region?: string;
-}
-
-export const INITIAL_REGIONAL_CONFIGS: RegionalConfigCard[] = [];
-export const INITIAL_BRANCH_OFFICES: BranchOffice[] = [];
-export const INITIAL_APP_REQUIREMENTS: ApplicationRequirementItem[] = [];
-export const INITIAL_FEES_PAYMENTS: FeePaymentItem[] = [];
-export const INITIAL_NOTES: NoteItem[] = [];
-export const INITIAL_FORM_BUILDERS: FormBuilderItem[] = [];
-export const INITIAL_FEEDBACK: FeedbackItem[] = [];

@@ -31,8 +31,8 @@ export function RoleCard({ role, isSelected, onSelect, onDelete }: RoleCardProps
       accessibilityLabel={`Select role ${role.name}`}
     >
       <View style={styles.contentRow}>
-        <View style={[styles.avatarCircle, { backgroundColor: avatarBg }]}>
-          <Text style={[styles.avatarText, { color: colors.brand.secondary }]}>{role.avatarInitials}</Text>
+        <View style={[styles.avatarCircle, { backgroundColor: isDark ? colors.neutral[700] : avatarBg }]}>
+          <Text style={[styles.avatarText, { color: isDark ? colors.neutral[100] : colors.brand.secondary }]}>{role.avatarInitials}</Text>
         </View>
 
         <View style={styles.infoCol}>

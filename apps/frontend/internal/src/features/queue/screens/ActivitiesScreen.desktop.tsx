@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { StyleSheet, View, Animated } from 'react-native';
 import { useTheme, PageHeader, AnimatedCard, SPACING } from '@edge/ui';
 import { ApplicationProvider, useApplications } from '../context/ApplicationContext';
 import { ActivitiesFeedPane } from '../components/ActivitiesFeedPane';
@@ -9,9 +9,28 @@ function DesktopActivitiesContent() {
   const { colors } = useTheme();
   const { setSelectedId } = useApplications();
   const [isPanelCollapsed, setIsPanelCollapsed] = useState(false);
+  const collapseAnim = useRef(new Animated.Value(0)).current;
 
   const handleClose = () => setSelectedId(null);
   const handleCollapse = () => setIsPanelCollapsed((p) => !p);
+
+  useEffect(() => {
+    Animated.timing(collapseAnim, {
+      toValue: isPanelCollapsed ? 1 : 0,
+      duration: 250,
+      useNativeDriver: false,
+    }).start();
+  }, [isPanelCollapsed, collapseAnim]);
+
+  const feedWidth = collapseAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [380, 0],
+  });
+
+  const feedOpacity = collapseAnim.interpolate({
+    inputRange: [0, 0.6, 1],
+    outputRange: [1, 0, 0],
+  });
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.bg }]}>
@@ -23,13 +42,22 @@ function DesktopActivitiesContent() {
       </View>
 
       <View style={styles.desktopLayout}>
-        {!isPanelCollapsed && (
-          <View style={styles.feedPane}>
+        <Animated.View
+          style={[
+            styles.feedPaneWrapper,
+            {
+              width: feedWidth,
+              opacity: feedOpacity,
+              overflow: 'hidden',
+            },
+          ]}
+        >
+          <View style={styles.feedPaneInner}>
             <AnimatedCard padding={0} style={{ flex: 1, backgroundColor: colors.cardBg, borderColor: colors.border }}>
               <ActivitiesFeedPane />
             </AnimatedCard>
           </View>
-        )}
+        </Animated.View>
 
         <View style={styles.detailPane}>
           <ApplicationReviewScreen
@@ -72,8 +100,12 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING[24],
     gap: SPACING[16],
   },
-  feedPane: {
+  feedPaneWrapper: {
+    height: '100%',
+  },
+  feedPaneInner: {
     width: 380,
+    height: '100%',
   },
   detailPane: {
     flex: 1,

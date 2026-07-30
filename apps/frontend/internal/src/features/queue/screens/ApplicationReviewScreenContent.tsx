@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   StyleSheet,
   View,
@@ -8,6 +8,8 @@ import {
   TextInput,
   Image,
   Alert,
+  Platform,
+  Animated,
 } from "react-native";
 import {
   useTheme,
@@ -171,13 +173,13 @@ function InfoRow({
       {isEditing ? (
         <View style={infoStyles.editRow}>
           <TextInput
-            style={[infoStyles.editInput, { color: isDark ? colors.neutral[100] : colors.neutral[900], backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50], borderColor: isDark ? colors.brand[400] : colors.brand[500], }]}
+            style={[infoStyles.editInput, { color: isDark ? colors.neutral[100] : colors.neutral[900], backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50], borderColor: isDark ? colors.brand[500] : colors.brand[500], }]}
             value={editValue}
             onChangeText={onEditChange}
             onBlur={onEditDone}
             autoFocus
           />
-          <Pressable style={[infoStyles.saveBtn, { backgroundColor: isDark ? colors.brand[400] : colors.brand[700], }]} onPress={onEditDone}>
+          <Pressable style={[infoStyles.saveBtn, { backgroundColor: isDark ? colors.brand[500] : colors.brand[700], }]} onPress={onEditDone}>
             <Text style={[infoStyles.saveBtnText, { color: isDark ? colors.neutral[800] : COLORS.neutral.white, }]}>Save</Text>
           </Pressable>
         </View>
@@ -186,7 +188,7 @@ function InfoRow({
           <Text style={[infoStyles.value, { color: isDark ? colors.neutral[100] : colors.neutral[900], }]}>{value}</Text>
           {onEdit !== undefined && (
             <Pressable onPress={onEdit}>
-              <Text style={[infoStyles.editLink, { color: isDark ? colors.brand[400] : colors.brand[700], }]}>Edit</Text>
+              <Text style={[infoStyles.editLink, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>Edit</Text>
             </Pressable>
           )}
         </View>
@@ -478,14 +480,14 @@ function BasicInfoTab({
                 setEditingNote(true);
               }}
             >
-              <Text style={[styles.editLinkBlue, { color: isDark ? colors.brand[400] : colors.brand[700], }]}>EDIT</Text>
+              <Text style={[styles.editLinkBlue, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>EDIT</Text>
             </Pressable>
           )}
         </View>
         {editingNote ? (
           <View style={{ gap: SPACING[8] }}>
             <TextInput
-              style={[styles.noteInput, { color: isDark ? colors.neutral[100] : colors.neutral[900], backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50], borderColor: isDark ? colors.brand[400] : colors.brand[500], }]}
+              style={[styles.noteInput, { color: isDark ? colors.neutral[100] : colors.neutral[900], backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50], borderColor: isDark ? colors.brand[500] : colors.brand[500], }]}
               multiline
               value={noteDraft}
               onChangeText={setNoteDraft}
@@ -493,7 +495,7 @@ function BasicInfoTab({
               autoFocus
             />
             <Pressable
-              style={[styles.saveNoteBtn, { backgroundColor: isDark ? colors.brand[400] : colors.brand[700], }]}
+              style={[styles.saveNoteBtn, { backgroundColor: isDark ? colors.brand[500] : colors.brand[700], }]}
               onPress={() => {
                 setEditingNote(false);
                 updateApplication(app.id, { note: noteDraft });
@@ -547,7 +549,7 @@ function ApplicationDetailsTab({ app }: { app: ApplicationData }) {
           <SectionHeader title="ACCOUNTABLE FORM" />
           <View style={styles.infoBlock}>
             {accountableForms.map((form) => (
-              <View key={form.name} style={[styles.formCard, { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100], borderLeftColor: isDark ? colors.brand[400] : colors.brand[700], backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white, }]}>
+              <View key={form.name} style={[styles.formCard, { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100], borderLeftColor: isDark ? colors.brand[500] : colors.brand[700], backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white, }]}>
                 <View style={styles.formCardLeft}>
                   <View style={[styles.formDocIcon, { backgroundColor: isDark ? colors.neutral[800] : '#EFF6FF', }]}>
                     <Lucide
@@ -562,12 +564,12 @@ function ApplicationDetailsTab({ app }: { app: ApplicationData }) {
                     <View style={styles.formActions}>
                       {form.canView && (
                         <Pressable onPress={() => handleAction(form, "View")}>
-                          <Text style={[styles.formActionLink, { color: isDark ? colors.brand[400] : colors.brand[700], }]}>View</Text>
+                          <Text style={[styles.formActionLink, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>View</Text>
                         </Pressable>
                       )}
                       {form.canPrint && (
                         <Pressable onPress={() => handleAction(form, "Print")}>
-                          <Text style={[styles.formActionLink, { color: isDark ? colors.brand[400] : colors.brand[700], }]}>Print</Text>
+                          <Text style={[styles.formActionLink, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>Print</Text>
                         </Pressable>
                       )}
                     </View>
@@ -598,7 +600,7 @@ function ApplicationDetailsTab({ app }: { app: ApplicationData }) {
           <SectionHeader title="DOWNLOAD FORM" />
           <View style={styles.infoBlock}>
             {downloadForms.map((form) => (
-              <View key={form.name} style={[styles.formCard, { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100], borderLeftColor: isDark ? colors.brand[400] : colors.brand[700], backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white, }]}>
+              <View key={form.name} style={[styles.formCard, { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100], borderLeftColor: isDark ? colors.brand[500] : colors.brand[700], backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white, }]}>
                 <View style={styles.formCardLeft}>
                   <View style={[styles.formDocIcon, { backgroundColor: isDark ? colors.neutral[800] : '#EFF6FF', }]}>
                     <Lucide
@@ -613,12 +615,12 @@ function ApplicationDetailsTab({ app }: { app: ApplicationData }) {
                     <View style={styles.formActions}>
                       {form.canView && (
                         <Pressable onPress={() => handleAction(form, "View")}>
-                          <Text style={[styles.formActionLink, { color: isDark ? colors.brand[400] : colors.brand[700], }]}>View</Text>
+                          <Text style={[styles.formActionLink, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>View</Text>
                         </Pressable>
                       )}
                       {form.canPrint && (
                         <Pressable onPress={() => handleAction(form, "Print")}>
-                          <Text style={[styles.formActionLink, { color: isDark ? colors.brand[400] : colors.brand[700], }]}>Print</Text>
+                          <Text style={[styles.formActionLink, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>Print</Text>
                         </Pressable>
                       )}
                     </View>
@@ -720,7 +722,7 @@ function RequirementsTab({ app }: { app: ApplicationData }) {
                 {req.filename}
               </Text>
               <Pressable onPress={() => handleViewRequirement(req.label)}>
-                <Text style={[styles.reqViewLink, { color: isDark ? colors.brand[400] : colors.brand[700], }]}>View</Text>
+                <Text style={[styles.reqViewLink, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>View</Text>
               </Pressable>
             </View>
             <View style={[styles.reqThumbnail, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100], }]}>
@@ -757,7 +759,7 @@ function SoaPaymentTab({
     <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
       {/* OFFICIAL BILLING RECORD */}
       <View style={[styles.billingContainer, { borderColor: isDark ? colors.neutral[700] : colors.neutral[200], backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white, }]}>
-        <Text style={[styles.billingLabel, { color: isDark ? colors.brand[400] : colors.brand[700], }]}>OFFICIAL BILLING RECORD</Text>
+        <Text style={[styles.billingLabel, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>OFFICIAL BILLING RECORD</Text>
         <Text style={[styles.billingTitle, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>Statement of Account</Text>
         <Text style={[styles.billingSubtitle, { color: isDark ? colors.neutral[400] : colors.neutral[500], }]}>
           Review the billing particulars, charges, and due date below.
@@ -779,6 +781,7 @@ function SoaPaymentTab({
                 key={col}
                 style={[
                   styles.feeTableHeaderCell,
+                  { color: isDark ? colors.neutral[300] : colors.neutral[600] },
                   col === "Particular"
                     ? { flex: 2 }
                     : { flex: 1, textAlign: "right" },
@@ -799,19 +802,19 @@ function SoaPaymentTab({
                 </Text>
                 <Text style={[styles.feeParticularSub, { color: isDark ? colors.neutral[500] : colors.neutral[400], }]}>Code: {item.code}</Text>
               </View>
-              <Text style={[styles.feeTableCell, { flex: 1 }]}>
+              <Text style={[styles.feeTableCell, { flex: 1, color: isDark ? colors.neutral[200] : colors.neutral[700] }]}>
                 {item.validityYears}
               </Text>
-              <Text style={[styles.feeTableCell, { flex: 1 }]}>
+              <Text style={[styles.feeTableCell, { flex: 1, color: isDark ? colors.neutral[200] : colors.neutral[700] }]}>
                 {item.percentage}
               </Text>
-              <Text style={[styles.feeTableCell, { flex: 1 }]}>
+              <Text style={[styles.feeTableCell, { flex: 1, color: isDark ? colors.neutral[200] : colors.neutral[700] }]}>
                 {item.noOfUnits}
               </Text>
-              <Text style={[styles.feeTableCell, { flex: 1 }]}>
+              <Text style={[styles.feeTableCell, { flex: 1, color: isDark ? colors.neutral[200] : colors.neutral[700] }]}>
                 {item.fees}
               </Text>
-              <Text style={[styles.feeTableCell, { flex: 1 }]}>
+              <Text style={[styles.feeTableCell, { flex: 1, color: isDark ? colors.neutral[200] : colors.neutral[700] }]}>
                 {formatAmount(item.amount)}
               </Text>
             </View>
@@ -833,7 +836,7 @@ function SoaPaymentTab({
               {editingDueDate ? (
                 <View style={styles.inlineEditRow}>
                   <TextInput
-                    style={[styles.inlineEditInput, { color: isDark ? colors.neutral[100] : colors.neutral[900], backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white, borderColor: isDark ? colors.brand[400] : colors.brand[500], }]}
+                    style={[styles.inlineEditInput, { color: isDark ? colors.neutral[100] : colors.neutral[900], backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white, borderColor: isDark ? colors.brand[500] : colors.brand[500], }]}
                     value={dueDraft}
                     onChangeText={setDueDraft}
                     autoFocus
@@ -844,7 +847,7 @@ function SoaPaymentTab({
                       updateApplication(app.id, { dueDate: dueDraft });
                     }}
                   >
-                    <Text style={[styles.inlineEditSave, { color: isDark ? colors.brand[400] : colors.brand[700], }]}>Save</Text>
+                    <Text style={[styles.inlineEditSave, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>Save</Text>
                   </Pressable>
                 </View>
               ) : (
@@ -859,8 +862,8 @@ function SoaPaymentTab({
                   setEditingDueDate(true);
                 }}
               >
-                <Lucide name="edit-2" size={12} color={isDark ? colors.brand[400] : COLORS.brand[700]} />
-                <Text style={[styles.editLinkBlue, { color: isDark ? colors.brand[400] : colors.brand[700], }]}>Edit</Text>
+                <Lucide name="edit-2" size={12} color={isDark ? colors.brand[500] : COLORS.brand[700]} />
+                <Text style={[styles.editLinkBlue, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>Edit</Text>
               </Pressable>
             )}
           </View>
@@ -917,7 +920,7 @@ function SoaPaymentTab({
                     });
                   }}
                 >
-                  <Text style={[styles.inlineEditSave, { color: isDark ? colors.brand[400] : colors.brand[700], }]}>Save</Text>
+                  <Text style={[styles.inlineEditSave, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>Save</Text>
                 </Pressable>
               </View>
             ) : (
@@ -933,8 +936,8 @@ function SoaPaymentTab({
                       setEditingOrNumber(true);
                     }}
                   >
-                    <Lucide name="edit-2" size={12} color={isDark ? colors.brand[400] : COLORS.brand[700]} />
-                    <Text style={[styles.orEditText, { color: isDark ? colors.brand[400] : colors.brand[700], }]}>EDIT</Text>
+                    <Lucide name="edit-2" size={12} color={isDark ? colors.brand[500] : COLORS.brand[700]} />
+                    <Text style={[styles.orEditText, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>EDIT</Text>
                   </Pressable>
                 )}
               </View>
@@ -1027,6 +1030,28 @@ export function ApplicationReviewScreenContent({
   const [showEndorse, setShowEndorse] = useState(false);
   const [showCashier, setShowCashier] = useState(false);
 
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    fadeAnim.setValue(0);
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+  }, [selectedApplication?.id, fadeAnim]);
+
+  const handleCloseAnimated = () => {
+    Animated.timing(fadeAnim, {
+      toValue: 0,
+      duration: 180,
+      useNativeDriver: true,
+    }).start(() => {
+      onClose();
+      fadeAnim.setValue(1);
+    });
+  };
+
   if (selectedApplication === null) {
     return (
       <View style={[styles.emptyPanel, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50], }]}>
@@ -1038,7 +1063,7 @@ export function ApplicationReviewScreenContent({
 
           <View style={styles.statsRow}>
             <View style={styles.statBox}>
-              <Text style={[styles.statValue, { color: isDark ? colors.brand[400] : colors.brand[700], }]}>
+              <Text style={[styles.statValue, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>
                 {
                   applications.filter(
                     (a: ApplicationData) =>
@@ -1049,7 +1074,7 @@ export function ApplicationReviewScreenContent({
               <Text style={[styles.statLabel, { color: isDark ? colors.neutral[400] : colors.neutral[500], }]}>To Approve</Text>
             </View>
             <View style={styles.statBox}>
-              <Text style={[styles.statValue, { color: isDark ? colors.brand[400] : colors.brand[700], }]}>
+              <Text style={[styles.statValue, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>
                 {
                   applications.filter(
                     (a: ApplicationData) =>
@@ -1061,7 +1086,7 @@ export function ApplicationReviewScreenContent({
               <Text style={[styles.statLabel, { color: isDark ? colors.neutral[400] : colors.neutral[500], }]}>To Verify</Text>
             </View>
             <View style={styles.statBox}>
-              <Text style={[styles.statValue, { color: isDark ? colors.brand[400] : colors.brand[700], }]}>
+              <Text style={[styles.statValue, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>
                 {
                   applications.filter(
                     (a: ApplicationData) =>
@@ -1245,7 +1270,7 @@ export function ApplicationReviewScreenContent({
   };
 
   return (
-    <View style={[styles.panel, { backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white, }]}>
+    <Animated.View style={[styles.panel, { backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white, opacity: fadeAnim }]}>
       {/* ── Inner Tab Bar ── */}
       <View style={[styles.innerTabBar, { borderBottomColor: isDark ? colors.neutral[700] : colors.neutral[200], backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white, }]}>
         {INNER_TABS.map((tab) => {
@@ -1259,17 +1284,17 @@ export function ApplicationReviewScreenContent({
               <Lucide
                 name={tab.icon}
                 size={13}
-                color={isActive ? (isDark ? colors.brand[400] : COLORS.brand[700]) : (isDark ? colors.neutral[500] : COLORS.neutral[400])}
+                color={isActive ? (isDark ? colors.brand[500] : COLORS.brand[700]) : (isDark ? colors.neutral[500] : COLORS.neutral[400])}
               />
               <Text
                 style={[
                   styles.innerTabText,
-                  { color: isActive ? (isDark ? colors.brand[400] : COLORS.brand[700]) : (isDark ? colors.neutral[400] : COLORS.neutral[500]) },
+                  { color: isActive ? (isDark ? colors.brand[500] : COLORS.brand[700]) : (isDark ? colors.neutral[400] : COLORS.neutral[500]) },
                 ]}
               >
                 {tab.label}
               </Text>
-              {isActive && <View style={[styles.innerTabUnderline, { backgroundColor: isDark ? colors.brand[400] : colors.brand[700] }]} />}
+              {isActive && <View style={[styles.innerTabUnderline, { backgroundColor: isDark ? colors.brand[500] : colors.brand[700] }]} />}
             </Pressable>
           );
         })}
@@ -1281,16 +1306,16 @@ export function ApplicationReviewScreenContent({
             style={styles.headerActionLink}
             onPress={() => handleTopAction("View")}
           >
-            <Lucide name="eye" size={14} color={isDark ? colors.brand[400] : COLORS.brand[700]} />
-            <Text style={[styles.headerActionLinkText, { color: isDark ? colors.brand[400] : colors.brand[700], }]}>View</Text>
+            <Lucide name="eye" size={14} color={isDark ? colors.brand[500] : COLORS.brand[700]} />
+            <Text style={[styles.headerActionLinkText, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>View</Text>
           </Pressable>
           <View style={[styles.headerActionDivider, { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[200], }]} />
           <Pressable
             style={styles.headerActionLink}
             onPress={() => handleTopAction("Print")}
           >
-            <Lucide name="printer" size={14} color={isDark ? colors.brand[400] : COLORS.brand[700]} />
-            <Text style={[styles.headerActionLinkText, { color: isDark ? colors.brand[400] : colors.brand[700], }]}>Print</Text>
+            <Lucide name="printer" size={14} color={isDark ? colors.brand[500] : COLORS.brand[700]} />
+            <Text style={[styles.headerActionLinkText, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>Print</Text>
           </Pressable>
         </View>
 
@@ -1298,15 +1323,21 @@ export function ApplicationReviewScreenContent({
 
         {/* Collapse + Close */}
         {onCollapse !== undefined && (
-          <Pressable style={styles.iconBtn} onPress={onCollapse}>
+          <Pressable
+            style={[styles.iconBtn, Platform.select({ web: { cursor: "pointer" } })]}
+            onPress={onCollapse}
+          >
             <Lucide
-              name={isCollapsed ? "maximize-2" : "minimize-2"}
+              name={isCollapsed ? "minimize-2" : "maximize-2"}
               size={14}
               color={isDark ? colors.neutral[400] : colors.neutral[500]}
             />
           </Pressable>
         )}
-        <Pressable style={styles.iconBtn} onPress={onClose}>
+        <Pressable
+          style={[styles.iconBtn, Platform.select({ web: { cursor: "pointer" } })]}
+          onPress={handleCloseAnimated}
+        >
           <Lucide name="x" size={16} color={isDark ? colors.neutral[400] : colors.neutral[500]} />
         </Pressable>
       </View>
@@ -1346,7 +1377,10 @@ export function ApplicationReviewScreenContent({
           <Pressable
             style={[
               styles.actionBtnPrimary,
-              !isEditable && styles.actionBtnDisabled,
+              !isEditable && [styles.actionBtnDisabled, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[100] }],
+              Platform.select({
+                web: { cursor: isEditable ? "pointer" : "not-allowed" } as object,
+              }),
             ]}
             onPress={() => isEditable && setShowCashier(true)}
             disabled={!isEditable}
@@ -1354,12 +1388,12 @@ export function ApplicationReviewScreenContent({
             <Lucide
               name="credit-card"
               size={15}
-              color={isEditable ? COLORS.neutral.white : (isDark ? colors.neutral[600] : COLORS.neutral[400])}
+              color={isEditable ? COLORS.neutral.white : (isDark ? colors.neutral[500] : COLORS.neutral[400])}
             />
             <Text
               style={[
                 styles.actionBtnPrimaryText,
-                !isEditable && { color: isDark ? colors.neutral[600] : COLORS.neutral[400] },
+                !isEditable && { color: isDark ? colors.neutral[500] : COLORS.neutral[400] },
               ]}
             >
               Cashier Verification
@@ -1370,7 +1404,10 @@ export function ApplicationReviewScreenContent({
             <Pressable
               style={[
                 styles.actionBtnPrimary,
-                (!isEditable || !canApprove) && styles.actionBtnDisabled,
+                (!isEditable || !canApprove) && [styles.actionBtnDisabled, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[100] }],
+                Platform.select({
+                  web: { cursor: (isEditable && canApprove) ? "pointer" : "not-allowed" } as object,
+                }),
               ]}
               onPress={() => isEditable && canApprove && setShowApprove(true)}
               disabled={!isEditable || !canApprove}
@@ -1378,7 +1415,7 @@ export function ApplicationReviewScreenContent({
               <Text
                 style={[
                   styles.actionBtnPrimaryText,
-                  (!isEditable || !canApprove) && { color: isDark ? colors.neutral[600] : COLORS.neutral[400] },
+                  (!isEditable || !canApprove) && { color: isDark ? colors.neutral[500] : COLORS.neutral[400] },
                 ]}
               >
                 Approve
@@ -1389,7 +1426,10 @@ export function ApplicationReviewScreenContent({
               style={[
                 styles.actionBtnOutline,
                 { borderColor: isDark ? colors.neutral[600] : COLORS.neutral[300] },
-                (!isEditable || !canDecline) && styles.actionBtnDisabled,
+                (!isEditable || !canDecline) && [styles.actionBtnDisabled, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[100], borderColor: isDark ? colors.neutral[800] : colors.neutral[200] }],
+                Platform.select({
+                  web: { cursor: (isEditable && canDecline) ? "pointer" : "not-allowed" } as object,
+                }),
               ]}
               onPress={() => isEditable && canDecline && setShowDecline(true)}
               disabled={!isEditable || !canDecline}
@@ -1397,8 +1437,8 @@ export function ApplicationReviewScreenContent({
               <Text
                 style={[
                   styles.actionBtnOutlineText,
-                  { color: isDark ? colors.neutral[300] : COLORS.neutral[700] },
-                  (!isEditable || !canDecline) && { color: isDark ? colors.neutral[600] : COLORS.neutral[400] },
+                  { color: isDark ? colors.neutral[200] : COLORS.neutral[700] },
+                  (!isEditable || !canDecline) && { color: isDark ? colors.neutral[500] : COLORS.neutral[400] },
                 ]}
               >
                 Decline
@@ -1409,7 +1449,10 @@ export function ApplicationReviewScreenContent({
               style={[
                 styles.actionBtnOutline,
                 { borderColor: isDark ? colors.neutral[600] : COLORS.neutral[300] },
-                (!isEditable || !canEndorse) && styles.actionBtnDisabled,
+                (!isEditable || !canEndorse) && [styles.actionBtnDisabled, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[100], borderColor: isDark ? colors.neutral[800] : colors.neutral[200] }],
+                Platform.select({
+                  web: { cursor: (isEditable && canEndorse) ? "pointer" : "not-allowed" } as object,
+                }),
               ]}
               onPress={() => isEditable && canEndorse && setShowEndorse(true)}
               disabled={!isEditable || !canEndorse}
@@ -1417,8 +1460,8 @@ export function ApplicationReviewScreenContent({
               <Text
                 style={[
                   styles.actionBtnOutlineText,
-                  { color: isDark ? colors.neutral[300] : COLORS.neutral[700] },
-                  (!isEditable || !canEndorse) && { color: isDark ? colors.neutral[600] : COLORS.neutral[400] },
+                  { color: isDark ? colors.neutral[200] : COLORS.neutral[700] },
+                  (!isEditable || !canEndorse) && { color: isDark ? colors.neutral[500] : COLORS.neutral[400] },
                 ]}
               >
                 Endorse →
@@ -1455,7 +1498,7 @@ export function ApplicationReviewScreenContent({
         onConfirm={handleCashierVerify}
         onCancel={() => setShowCashier(false)}
       />
-    </View>
+    </Animated.View>
   );
 }
 

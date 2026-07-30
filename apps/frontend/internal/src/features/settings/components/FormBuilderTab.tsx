@@ -5,9 +5,10 @@ import {
   Text,
   TextInput,
   Pressable,
+  Platform,
   useWindowDimensions,
 } from 'react-native';
-import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide } from '@edge/ui';
+import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide, useTheme } from '@edge/ui';
 import { FormBuilderItem } from '../data/mockAdminSettings';
 
 interface FormBuilderTabProps {
@@ -25,6 +26,7 @@ export function FormBuilderTab({
   onDeleteForm,
   onOpenVisualBuilder,
 }: FormBuilderTabProps) {
+  const { colors, isDark } = useTheme();
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
 
@@ -47,38 +49,62 @@ export function FormBuilderTab({
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.bg }]}>
       {/* Search & Action Control Bar */}
       <View style={[styles.controlBar, isMobile && styles.controlBarMobile]}>
-        <View style={styles.searchBox}>
-          <Lucide name="search" size={18} color={COLORS.neutral[400]} />
+        <View
+          style={[
+            styles.searchBox,
+            { backgroundColor: colors.cardBg, borderColor: colors.border },
+          ]}
+        >
+          <Lucide name="search" size={16} color={colors.textMuted} />
           <TextInput
-            style={styles.searchInput}
+            style={[styles.searchInput, { color: colors.text }]}
             placeholder="Search form templates..."
-            placeholderTextColor={COLORS.neutral[400]}
+            placeholderTextColor={colors.textMuted}
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
           {searchQuery.length > 0 && (
-            <Pressable onPress={() => setSearchQuery('')}>
-              <Lucide name="x" size={16} color={COLORS.neutral[400]} />
+            <Pressable
+              onPress={() => setSearchQuery('')}
+              style={Platform.select({ web: { cursor: 'pointer' } })}
+            >
+              <Lucide name="x" size={16} color={colors.textMuted} />
             </Pressable>
           )}
         </View>
 
-        <Pressable style={styles.addButton} onPress={onCreateForm}>
-          <Lucide name="plus" size={16} color={COLORS.neutral.white} />
-          <Text style={styles.addButtonText}>Add Form</Text>
+        <Pressable
+          style={({ pressed }) => [
+            styles.addButton,
+            { backgroundColor: isDark ? colors.brand[600] : colors.brand.primary },
+            pressed && { opacity: 0.8 },
+            Platform.select({ web: { cursor: 'pointer' } }),
+          ]}
+          onPress={onCreateForm}
+        >
+          <Lucide name="plus" size={15} color={COLORS.neutral.white} />
+          <Text style={styles.addButtonText}>Add Form Template</Text>
         </Pressable>
       </View>
 
       {/* Forms List */}
       <View style={styles.listContainer}>
         {filteredForms.length === 0 ? (
-          <View style={[styles.emptyCard, SHADOWS.card]}>
-            <Lucide name="layout" size={36} color={COLORS.neutral[400]} />
-            <Text style={styles.emptyTitle}>No matching form templates found</Text>
-            <Text style={styles.emptySubtitle}>Try searching with another keywords.</Text>
+          <View
+            style={[
+              styles.emptyCard,
+              { backgroundColor: colors.cardBg, borderColor: colors.border },
+              SHADOWS.card,
+            ]}
+          >
+            <Lucide name="layout" size={32} color={colors.textMuted} />
+            <Text style={[styles.emptyTitle, { color: colors.text }]}>No matching form templates found</Text>
+            <Text style={[styles.emptySubtitle, { color: colors.textMuted }]}>
+              Try searching with different keywords or code parameters.
+            </Text>
           </View>
         ) : (
           filteredForms.map((item) => {
@@ -86,25 +112,45 @@ export function FormBuilderTab({
             const isDraft = item.status === 'Draft';
 
             return (
-              <View key={item.id} style={[styles.card, SHADOWS.card]}>
+              <View
+                key={item.id}
+                style={[
+                  styles.card,
+                  { backgroundColor: colors.cardBg, borderColor: colors.border },
+                  SHADOWS.card,
+                ]}
+              >
                 <View style={styles.cardHeader}>
                   <View style={styles.headerLeftRow}>
-                    <View style={styles.iconBox}>
-                      <Lucide name="file-text" size={20} color={COLORS.brand.indigo} />
+                    <View
+                      style={[
+                        styles.iconBox,
+                        { backgroundColor: isDark ? colors.neutral[800] : colors.brand.light },
+                      ]}
+                    >
+                      <Lucide name="file-text" size={18} color={isDark ? colors.brand[500] : colors.brand.primary} />
                     </View>
                     <View style={styles.titleWrapper}>
                       <View style={styles.titleTitleRow}>
-                        <Text style={styles.itemTitle}>{item.title}</Text>
+                        <Text style={[styles.itemTitle, { color: colors.text }]}>{item.title}</Text>
                         <View
                           style={[
                             styles.pillBadge,
-                            isDraft ? styles.badgeDraft : styles.badgePublished,
+                            {
+                              backgroundColor: isDraft
+                                ? (isDark ? colors.neutral[800] : colors.neutral[100])
+                                : (isDark ? colors.brand[900] : colors.brand.light),
+                            },
                           ]}
                         >
                           <Text
                             style={[
                               styles.badgeText,
-                              isDraft ? styles.badgeTextDraft : styles.badgeTextPublished,
+                              {
+                                color: isDraft
+                                  ? colors.textMuted
+                                  : (isDark ? colors.brand[500] : colors.brand.primary),
+                              },
                             ]}
                           >
                             {item.status}
@@ -112,18 +158,18 @@ export function FormBuilderTab({
                         </View>
                       </View>
 
-                      <Text style={styles.serviceTypeText}>
+                      <Text style={[styles.serviceTypeText, { color: colors.textMuted }]}>
                         {item.serviceType || 'Amateur Radio Station License'}
                       </Text>
 
                       <View style={styles.subtextRow}>
-                        <Text style={styles.codeText}>{item.code}</Text>
-                        <Text style={styles.separatorDot}>·</Text>
-                        <Text style={styles.elementsText}>
+                        <Text style={[styles.codeText, { color: colors.textMuted }]}>{item.code}</Text>
+                        <Text style={[styles.separatorDot, { color: colors.textMuted }]}>·</Text>
+                        <Text style={[styles.elementsText, { color: colors.textMuted }]}>
                           {item.fieldsCount} builder elements
                         </Text>
-                        <Text style={styles.separatorDot}>·</Text>
-                        <Text style={styles.updatedText}>
+                        <Text style={[styles.separatorDot, { color: colors.textMuted }]}>·</Text>
+                        <Text style={[styles.updatedText, { color: colors.textMuted }]}>
                           Updated {item.lastUpdated || '2026-06-15T13:06:14'}
                         </Text>
                       </View>
@@ -132,88 +178,92 @@ export function FormBuilderTab({
 
                   <View style={styles.actionsRow}>
                     <Pressable
-                      style={styles.builderBtn}
+                      style={({ pressed }) => [
+                        styles.actionBtn,
+                        { backgroundColor: isDark ? colors.neutral[800] : colors.brand.light },
+                        pressed && { opacity: 0.7 },
+                        Platform.select({ web: { cursor: 'pointer' } }),
+                      ]}
                       onPress={() => (onOpenVisualBuilder ? onOpenVisualBuilder(item) : onEditForm(item))}
                     >
-                      <Lucide name="layout" size={15} color={COLORS.brand.indigo} />
-                    </Pressable>
-
-                    <Pressable style={styles.actionBtn} onPress={() => onEditForm(item)}>
-                      <Lucide name="edit-2" size={15} color={COLORS.neutral[600]} />
+                      <Lucide name="layout" size={14} color={isDark ? colors.brand[500] : colors.brand.primary} />
                     </Pressable>
 
                     <Pressable
-                      style={[styles.actionBtn, styles.deleteBtn]}
+                      style={({ pressed }) => [
+                        styles.actionBtn,
+                        { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100] },
+                        pressed && { opacity: 0.7 },
+                        Platform.select({ web: { cursor: 'pointer' } }),
+                      ]}
+                      onPress={() => onEditForm(item)}
+                    >
+                      <Lucide name="edit-2" size={14} color={colors.textMuted} />
+                    </Pressable>
+
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.actionBtn,
+                        styles.deleteBtn,
+                        pressed && { opacity: 0.7 },
+                        Platform.select({ web: { cursor: 'pointer' } }),
+                      ]}
                       onPress={() => onDeleteForm(item.id, item.title)}
                     >
-                      <Lucide name="trash-2" size={15} color={COLORS.semantic.error} />
+                      <Lucide name="trash-2" size={14} color={COLORS.semantic.error} />
                     </Pressable>
 
-                    <View style={styles.verticalDivider} />
+                    <View style={[styles.verticalDivider, { backgroundColor: colors.border }]} />
 
                     <Pressable
-                      style={styles.expandBtn}
+                      style={({ pressed }) => [
+                        styles.expandBtn,
+                        pressed && { opacity: 0.7 },
+                        Platform.select({ web: { cursor: 'pointer' } }),
+                      ]}
                       onPress={() => toggleExpand(item.id)}
                     >
                       <Lucide
                         name={isExpanded ? 'chevron-up' : 'chevron-down'}
-                        size={18}
-                        color={COLORS.neutral[600]}
+                        size={16}
+                        color={colors.textMuted}
                       />
                     </Pressable>
                   </View>
                 </View>
 
-                {/* Expanded Form Template Summary Section (Matching Screenshot 1) */}
+                {/* Expanded Form Template Summary Section */}
                 {isExpanded && (
-                  <View style={styles.expandedContent}>
+                  <View
+                    style={[
+                      styles.expandedContent,
+                      {
+                        backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50],
+                        borderColor: colors.border,
+                      },
+                    ]}
+                  >
                     <View style={styles.expandedHeaderRow}>
                       <View style={styles.expandedHeaderLeft}>
-                        <Lucide name="layout" size={16} color={COLORS.brand.indigoHover} />
-                        <Text style={styles.expandedHeaderText}>
+                        <Lucide name="layout" size={14} color={isDark ? colors.brand[500] : colors.brand.primary} />
+                        <Text style={[styles.expandedHeaderText, { color: colors.text }]}>
                           FORM TEMPLATE SUMMARY
-                        </Text>
-                      </View>
-
-                      <View
-                        style={[
-                          styles.badgeViewRight,
-                          isDraft ? styles.badgeDraft : styles.badgePublished,
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.badgeViewRightText,
-                            isDraft ? styles.badgeTextDraft : styles.badgeTextPublished,
-                          ]}
-                        >
-                          {item.status}
                         </Text>
                       </View>
                     </View>
 
                     <View style={styles.summaryBox}>
-                      <Text style={styles.summaryLineText}>
-                        <Text style={styles.boldLabel}>Service: </Text>
+                      <Text style={[styles.summaryLineText, { color: colors.text }]}>
+                        <Text style={[styles.boldLabel, { color: colors.textMuted }]}>Service: </Text>
                         {item.serviceType || 'Amateur Radio Station License'}
                       </Text>
-                      <Text style={styles.summaryLineText}>
-                        <Text style={styles.boldLabel}>Form Code: </Text>
+                      <Text style={[styles.summaryLineText, { color: colors.text }]}>
+                        <Text style={[styles.boldLabel, { color: colors.textMuted }]}>Code: </Text>
                         {item.code}
                       </Text>
-                      <Text style={styles.summaryLineText}>
-                        <Text style={styles.boldLabel}>Elements: </Text>
-                        {item.fieldsCount}
-                      </Text>
-                      <Text style={styles.summaryLineText}>
-                        <Text style={styles.boldLabel}>Last Updated: </Text>
-                        {item.lastUpdated || '2026-06-15T13:06:14'}
-                      </Text>
-
-                      <View style={styles.summarySpacer} />
-
-                      <Text style={styles.descriptionText}>
-                        {item.description || 'No description added.'}
+                      <Text style={[styles.summaryLineText, { color: colors.text }]}>
+                        <Text style={[styles.boldLabel, { color: colors.textMuted }]}>Elements: </Text>
+                        {item.fieldsCount} active inputs
                       </Text>
                     </View>
                   </View>
@@ -230,12 +280,11 @@ export function FormBuilderTab({
 const styles = StyleSheet.create({
   container: {
     gap: SPACING[16],
-    paddingBottom: SPACING[32],
+    padding: SPACING[16],
   },
   controlBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     gap: SPACING[12],
   },
   controlBarMobile: {
@@ -247,69 +296,77 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING[8],
-    backgroundColor: COLORS.neutral.white,
-    borderColor: COLORS.neutral[200],
-    borderWidth: 1,
-    borderRadius: RADIUS.input,
     paddingHorizontal: SPACING[12],
-    height: 44,
+    paddingVertical: SPACING[8],
+    borderRadius: RADIUS.input,
+    borderWidth: 1,
   },
   searchInput: {
     flex: 1,
     fontSize: TYPOGRAPHY.sizes.body,
     fontFamily: TYPOGRAPHY.fonts.primary,
-    color: COLORS.neutral[900],
+    padding: 0,
   },
   addButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING[4],
-    backgroundColor: COLORS.brand[600],
-    paddingHorizontal: SPACING[24],
-    height: 44,
+    gap: SPACING[6],
+    paddingHorizontal: SPACING[12],
+    paddingVertical: SPACING[8],
     borderRadius: RADIUS.button,
-    justifyContent: 'center',
   },
   addButtonText: {
     fontSize: TYPOGRAPHY.sizes.body,
     fontFamily: TYPOGRAPHY.fonts.primary,
+    fontWeight: TYPOGRAPHY.weights.medium,
     color: COLORS.neutral.white,
-    fontWeight: '600',
   },
   listContainer: {
-    gap: SPACING[12],
+    gap: SPACING[10],
+  },
+  emptyCard: {
+    padding: SPACING[32],
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: RADIUS.card,
+    borderWidth: 1,
+    gap: SPACING[8],
+  },
+  emptyTitle: {
+    fontSize: TYPOGRAPHY.sizes.body,
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  emptySubtitle: {
+    fontSize: TYPOGRAPHY.sizes.caption,
+    fontFamily: TYPOGRAPHY.fonts.primary,
   },
   card: {
-    backgroundColor: COLORS.neutral.white,
     borderRadius: RADIUS.card,
-    borderColor: COLORS.neutral[200],
     borderWidth: 1,
-    overflow: 'hidden',
+    padding: SPACING[12],
+    gap: SPACING[12],
   },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: SPACING[16],
-    gap: SPACING[12],
-    flexWrap: 'wrap',
   },
   headerLeftRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING[12],
     flex: 1,
-    minWidth: 260,
   },
   iconBox: {
-    width: 42,
-    height: 42,
-    borderRadius: 10,
-    backgroundColor: COLORS.brand.indigoLight,
+    width: 38,
+    height: 38,
+    borderRadius: RADIUS.input,
     justifyContent: 'center',
     alignItems: 'center',
   },
   titleWrapper: {
+    gap: 2,
     flex: 1,
   },
   titleTitleRow: {
@@ -318,192 +375,102 @@ const styles = StyleSheet.create({
     gap: SPACING[8],
   },
   itemTitle: {
-    fontSize: TYPOGRAPHY.sizes.cardTitle,
+    fontSize: TYPOGRAPHY.sizes.body,
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontWeight: '700',
-    color: COLORS.neutral[900],
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  pillBadge: {
+    paddingHorizontal: SPACING[8],
+    paddingVertical: 2,
+    borderRadius: RADIUS.button,
+  },
+  badgeText: {
+    fontSize: 10,
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontWeight: TYPOGRAPHY.weights.semibold,
   },
   serviceTypeText: {
     fontSize: TYPOGRAPHY.sizes.caption,
     fontFamily: TYPOGRAPHY.fonts.primary,
-    color: COLORS.neutral[600],
-    marginTop: 2,
-    fontWeight: '500',
   },
   subtextRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: SPACING[4],
-    marginTop: 4,
+    gap: 4,
   },
   codeText: {
     fontSize: TYPOGRAPHY.sizes.caption,
     fontFamily: TYPOGRAPHY.fonts.primary,
-    color: COLORS.neutral[500],
+    fontWeight: TYPOGRAPHY.weights.semibold,
+  },
+  separatorDot: {
+    fontSize: TYPOGRAPHY.sizes.caption,
   },
   elementsText: {
     fontSize: TYPOGRAPHY.sizes.caption,
     fontFamily: TYPOGRAPHY.fonts.primary,
-    color: COLORS.brand.indigoHover,
-    fontWeight: '700',
   },
   updatedText: {
     fontSize: TYPOGRAPHY.sizes.caption,
     fontFamily: TYPOGRAPHY.fonts.primary,
-    color: COLORS.neutral[400],
-  },
-  separatorDot: {
-    color: COLORS.neutral[400],
-    fontWeight: '700',
-  },
-  pillBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: RADIUS.circle,
-  },
-  badgeDraft: {
-    backgroundColor: COLORS.brand.indigoLight,
-  },
-  badgeTextDraft: {
-    color: COLORS.brand.indigo,
-  },
-  badgePublished: {
-    backgroundColor: COLORS.semantic.successBg,
-  },
-  badgeTextPublished: {
-    color: COLORS.semantic.success,
-  },
-  badgeText: {
-    fontSize: 11,
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontWeight: '700',
   },
   actionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING[4],
-  },
-  builderBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: RADIUS.input,
-    backgroundColor: COLORS.brand.indigoLight,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.brand.indigoBorder,
+    gap: SPACING[6],
   },
   actionBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: RADIUS.input,
-    backgroundColor: COLORS.neutral[100],
+    width: 30,
+    height: 30,
+    borderRadius: RADIUS.sm,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.neutral[200],
   },
   deleteBtn: {
-    backgroundColor: COLORS.semantic.errorBg,
-    borderColor: COLORS.semantic.errorBorder,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
   },
   verticalDivider: {
     width: 1,
-    height: 20,
-    backgroundColor: COLORS.neutral[200],
-    marginHorizontal: SPACING[4],
+    height: 18,
+    marginHorizontal: 2,
   },
   expandBtn: {
-    width: 32,
-    height: 32,
-    justifyContent: 'center',
+    width: 30,
+    height: 30,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-
-  // Expanded Content (Matching User Screenshot 1)
   expandedContent: {
-    borderTopWidth: 1,
-    borderTopColor: COLORS.neutral[200],
-    backgroundColor: COLORS.neutral.white,
-    padding: SPACING[16],
-    gap: SPACING[12],
+    marginTop: SPACING[6],
+    padding: SPACING[12],
+    borderRadius: RADIUS.card,
+    borderWidth: 1,
+    gap: SPACING[8],
   },
   expandedHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 4,
   },
   expandedHeaderLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: SPACING[6],
   },
   expandedHeaderText: {
-    fontSize: 12,
+    fontSize: 10,
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontWeight: '700',
-    color: COLORS.neutral[400],
-    letterSpacing: 0.5,
-  },
-  badgeViewRight: {
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: RADIUS.circle,
-  },
-  badgeViewRightText: {
-    fontSize: 11,
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontWeight: '700',
+    fontWeight: TYPOGRAPHY.weights.semibold,
     letterSpacing: 0.5,
   },
   summaryBox: {
-    backgroundColor: COLORS.neutral[50],
-    padding: SPACING[16],
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: COLORS.neutral[200],
     gap: 4,
   },
   summaryLineText: {
-    fontSize: 14,
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    color: COLORS.neutral[800],
-    lineHeight: 22,
-  },
-  boldLabel: {
-    fontWeight: '700',
-    color: COLORS.neutral[900],
-  },
-  summarySpacer: {
-    height: 8,
-  },
-  descriptionText: {
-    fontSize: 14,
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    color: COLORS.neutral[600],
-    fontWeight: '500',
-  },
-
-  // Empty state
-  emptyCard: {
-    backgroundColor: COLORS.neutral.white,
-    borderRadius: RADIUS.card,
-    padding: SPACING[32],
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: SPACING[4],
-  },
-  emptyTitle: {
-    fontSize: TYPOGRAPHY.sizes.cardTitle,
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontWeight: '700',
-    color: COLORS.neutral[700],
-  },
-  emptySubtitle: {
     fontSize: TYPOGRAPHY.sizes.caption,
     fontFamily: TYPOGRAPHY.fonts.primary,
-    color: COLORS.neutral[500],
+  },
+  boldLabel: {
+    fontWeight: TYPOGRAPHY.weights.semibold,
   },
 });

@@ -8,8 +8,9 @@ import {
   Modal,
   ScrollView,
   Switch,
+  Platform,
 } from 'react-native';
-import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide } from '@edge/ui';
+import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide, useTheme } from '@edge/ui';
 
 export type ModalType =
   | 'edit-config'
@@ -105,6 +106,7 @@ export function AdminSettingsModal({
   onClose,
   onSave,
 }: AdminSettingsModalProps) {
+  const { colors, isDark } = useTheme();
   const [titleInput, setTitleInput] = useState('');
   const [nameInput, setNameInput] = useState('');
   const [subLabelInput, setSubLabelInput] = useState('');
@@ -302,6 +304,7 @@ export function AdminSettingsModal({
         <View
           style={[
             styles.modalCard,
+            { backgroundColor: colors.cardBg, borderColor: colors.border },
             (isRequirementModal || isFeeModal || isNoteModal || isFormModal) && styles.modalCardWide,
             SHADOWS.modal,
           ]}

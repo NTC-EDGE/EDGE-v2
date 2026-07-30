@@ -51,6 +51,21 @@ public static class FastTrackSeeder
 
         await context.SaveChangesAsync();
 
+        // Seed Master Fee Entities
+        if (!await context.Fees.AnyAsync())
+        {
+            context.Fees.AddRange(new[]
+            {
+                new Fee { Id = Guid.Parse("f0000000-0000-0000-0000-000000000001"), Code = "FILING_FEE", Name = "Filing & Application Processing Fee", Description = "Standard mandatory filing fee charged upon submission of application documents.", IsActive = true },
+                new Fee { Id = Guid.Parse("f0000000-0000-0000-0000-000000000002"), Code = "INSP_FEE", Name = "Technical Site Inspection Fee", Description = "On-site technical evaluation and radio station inspection fee.", IsActive = true },
+                new Fee { Id = Guid.Parse("f0000000-0000-0000-0000-000000000003"), Code = "LIC_RIGHTS_FEE", Name = "Spectrum & License Rights Fee", Description = "Radio frequency spectrum rights and operational permit fee.", IsActive = true },
+                new Fee { Id = Guid.Parse("f0000000-0000-0000-0000-000000000004"), Code = "PERMIT_ISSUE_FEE", Name = "Permit & Certificate Issuance Fee", Description = "Official document printing and certificate issuance charge.", IsActive = true },
+                new Fee { Id = Guid.Parse("f0000000-0000-0000-0000-000000000005"), Code = "EXAM_REG_FEE", Name = "Operator Competency Exam Fee", Description = "Registration fee for commercial and amateur radio operator examinations.", IsActive = true },
+                new Fee { Id = Guid.Parse("f0000000-0000-0000-0000-000000000006"), Code = "SURCHARGE_LATE_FEE", Name = "Late Filing Surcharge & Penalty", Description = "Administrative surcharge penalty for late permit renewal applications.", IsActive = true }
+            });
+            await context.SaveChangesAsync();
+        }
+
         // 2. Contracts definitions
         var ntc101Contract = @"
         {

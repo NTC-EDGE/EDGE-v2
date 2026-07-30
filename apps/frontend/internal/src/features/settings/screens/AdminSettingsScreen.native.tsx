@@ -96,7 +96,11 @@ export function AdminSettingsScreen(): React.ReactElement {
       category: activeRegion ? activeRegion.name : "Regional Office Configuration",
       subtitle: activeRegion ? `${activeRegion.name} Regional Office` : "Regional Office Configuration",
       name: activeRegion ? activeRegion.name : "NTC Region X - Northern Mindanao",
-      subLabel: "Engr. Teodoro D. Buenavista Jr. · Regional Director",
+      rcCode: activeRegion ? `RC-${activeRegion.code || '10'}` : 'RC-10',
+      officeCode: 'R10-MAIN',
+      commissionerName: 'Comm. Ella Blanca B. Lopez',
+      supportEmail: 'region10@ntc.gov.ph',
+      supportPhone: '(088) 856-1234 / (02) 8924-4008',
       badge: {
         text: activeRegion?.isActive !== false ? "Active Region" : "Inactive",
         type: "active",
@@ -162,7 +166,7 @@ export function AdminSettingsScreen(): React.ReactElement {
     setSelectedItem({
       id: config.id,
       name: config.name,
-      subLabel: config.subLabel,
+      subLabel: config.commissionerName || config.subLabel,
       category: config.category,
     });
     setModalType("edit-config");
