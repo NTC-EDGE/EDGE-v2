@@ -5,6 +5,7 @@ namespace EDGE.Domain.Entities;
 
 public class AuditLog : BaseEntity
 {
+    public Guid? TenantId { get; set; }
     public string EntityName { get; set; } = null!;
     public string Action { get; set; } = null!; // Insert, Update, Delete, User Login, etc.
     public string? Event { get; set; }

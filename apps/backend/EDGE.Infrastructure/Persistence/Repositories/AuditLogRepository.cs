@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -17,9 +18,14 @@ public class AuditLogRepository : IAuditLogRepository
         _context = context;
     }
 
-    public async Task<(List<AuditLog> Items, int TotalCount)> GetPagedAuditLogsAsync(int pageNumber, int pageSize, string? searchTerm = null, CancellationToken cancellationToken = default)
+    public async Task<(List<AuditLog> Items, int TotalCount)> GetPagedAuditLogsAsync(int pageNumber, int pageSize, string? searchTerm = null, Guid? tenantId = null, CancellationToken cancellationToken = default)
     {
         var query = _context.AuditLogs.AsNoTracking();
+
+        if (tenantId.HasValue)
+        {
+            query = query.Where(a => a.TenantId == tenantId.Value || a.TenantId == null);
+        }
 
         if (!string.IsNullOrWhiteSpace(searchTerm))
         {

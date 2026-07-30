@@ -20,7 +20,7 @@ public class GetAuditLogsQueryHandler : IRequestHandler<GetAuditLogsQuery, (List
 
     public async Task<(List<AuditLogDto> Items, int TotalCount)> Handle(GetAuditLogsQuery request, CancellationToken cancellationToken)
     {
-        var (items, totalCount) = await _repository.GetPagedAuditLogsAsync(request.PageNumber, request.PageSize, request.SearchTerm, cancellationToken);
+        var (items, totalCount) = await _repository.GetPagedAuditLogsAsync(request.PageNumber, request.PageSize, request.SearchTerm, request.TenantId, cancellationToken);
         var dtos = items.Select(a => new AuditLogDto
         {
             Id = a.Id,
