@@ -1,14 +1,14 @@
 using MediatR;
 using FluentValidation;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Routing;
 using EDGE.Application.ServiceVariantElementFees.Commands.CreateServiceVariantElementFee;
 using EDGE.Application.ServiceVariantElementFees.Commands.UpdateServiceVariantElementFee;
 using EDGE.Application.ServiceVariantElementFees.Commands.DeleteServiceVariantElementFee;
 using EDGE.Application.ServiceVariantElementFees.Queries.GetServiceVariantElementFees;
 using EDGE.Application.ServiceVariantElementFees.Queries.GetServiceVariantElementFeeById;
 using EDGE.Application.ServiceVariantElementFees.DTOs;
+using EDGE.Application.Common.Models;
+using EDGE.Domain.Authorization;
+using EDGE.Infrastructure.Authorization;
 
 namespace EDGE.Api.Endpoints;
 
@@ -25,7 +25,7 @@ public static class ServiceVariantElementFeeEndpoints
             .WithName("GetServiceVariantElementFees")
             .WithSummary("Get all service variant element fees")
             .WithDescription("Retrieves a list of all service variant element fees. Filter by ServiceVariantId using query parameter.")
-            .Produces<List<ServiceVariantElementFeeDto>>(StatusCodes.Status200OK);
+            .Produces<PaginatedApiResponse<ServiceVariantElementFeeDto>>(StatusCodes.Status200OK);
 
         fees.MapGet("/{id:guid}", GetServiceVariantElementFeeById)
             .WithName("GetServiceVariantElementFeeById")
@@ -59,12 +59,16 @@ public static class ServiceVariantElementFeeEndpoints
         return group;
     }
 
+    [HasPermission(Permissions.SystemAdmin)]
     public static async Task<IResult> GetServiceVariantElementFees(
         Guid? serviceVariantId,
+        int? pageNumber,
+        int? pageSize,
+        string? searchTerm,
         IValidator<GetServiceVariantElementFeesQuery> validator,
         IMediator mediator)
     {
-        var query = new GetServiceVariantElementFeesQuery(serviceVariantId);
+        var query = new GetServiceVariantElementFeesQuery(serviceVariantId, pageNumber, pageSize, searchTerm);
         var validationResult = await validator.ValidateAsync(query);
         if (!validationResult.IsValid)
         {
@@ -75,6 +79,7 @@ public static class ServiceVariantElementFeeEndpoints
         return Results.Ok(result);
     }
 
+    [HasPermission(Permissions.SystemAdmin)]
     public static async Task<IResult> GetServiceVariantElementFeeById(
         Guid id,
         IValidator<GetServiceVariantElementFeeByIdQuery> validator,
@@ -91,6 +96,7 @@ public static class ServiceVariantElementFeeEndpoints
         return result is not null ? Results.Ok(result) : Results.NotFound();
     }
 
+    [HasPermission(Permissions.SystemAdmin)]
     public static async Task<IResult> CreateServiceVariantElementFee(
         CreateServiceVariantElementFeeCommand command,
         IValidator<CreateServiceVariantElementFeeCommand> validator,
@@ -106,6 +112,7 @@ public static class ServiceVariantElementFeeEndpoints
         return Results.Created($"/api/v2/service-variant-element-fees/{result.Id}", result);
     }
 
+    [HasPermission(Permissions.SystemAdmin)]
     public static async Task<IResult> UpdateServiceVariantElementFee(
         Guid id,
         UpdateServiceVariantElementFeeRequest request,
@@ -123,6 +130,7 @@ public static class ServiceVariantElementFeeEndpoints
         return result is not null ? Results.Ok(result) : Results.NotFound();
     }
 
+    [HasPermission(Permissions.SystemAdmin)]
     public static async Task<IResult> DeleteServiceVariantElementFee(
         Guid id,
         IValidator<DeleteServiceVariantElementFeeCommand> validator,

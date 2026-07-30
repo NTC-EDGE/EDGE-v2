@@ -1,13 +1,11 @@
-using System;
-using System.Threading.Tasks;
 using FluentValidation;
 using MediatR;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Routing;
 using EDGE.Application.Announcements.Commands.CreateAnnouncement;
 using EDGE.Application.Announcements.Commands.DeleteAnnouncement;
 using EDGE.Application.Announcements.Queries.GetAnnouncements;
+using Microsoft.AspNetCore.Authorization;
+using EDGE.Domain.Authorization;
+using EDGE.Infrastructure.Authorization;
 
 namespace EDGE.Api.Endpoints;
 
@@ -36,6 +34,7 @@ public static class SystemAnnouncementEndpoints
         return group;
     }
 
+    [HasPermission(Permissions.SystemAdmin)]
     public static async Task<IResult> CreateAnnouncement(
         CreateAnnouncementCommand command,
         IValidator<CreateAnnouncementCommand> validator,
@@ -51,12 +50,14 @@ public static class SystemAnnouncementEndpoints
         return Results.Created($"/api/v2/announcements/{result.Id}", result);
     }
 
+    [Authorize]
     public static async Task<IResult> GetAnnouncements(IMediator mediator)
     {
         var result = await mediator.Send(new GetAnnouncementsQuery());
         return Results.Ok(new { succeeded = true, data = result });
     }
 
+    [HasPermission(Permissions.SystemAdmin)]
     public static async Task<IResult> DeleteAnnouncement(Guid id, IMediator mediator)
     {
         var success = await mediator.Send(new DeleteAnnouncementCommand(id));

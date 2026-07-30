@@ -22,7 +22,7 @@ public static class PermissionEndpoints
             .WithDescription("Returns all available permission keys, labels, and categories defined in the system.");
     }
 
-    [Authorize]
+    [HasPermission(Permissions.ReadRoles)]
     public static IResult GetPermissions()
     {
         var catalog = Permissions.AllKeys.Select(key =>

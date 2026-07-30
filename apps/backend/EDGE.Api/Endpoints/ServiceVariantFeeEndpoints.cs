@@ -1,14 +1,14 @@
 using MediatR;
 using FluentValidation;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Routing;
 using EDGE.Application.ServiceVariantFees.Commands.CreateServiceVariantFee;
 using EDGE.Application.ServiceVariantFees.Commands.UpdateServiceVariantFee;
 using EDGE.Application.ServiceVariantFees.Commands.DeleteServiceVariantFee;
 using EDGE.Application.ServiceVariantFees.Queries.GetServiceVariantFees;
 using EDGE.Application.ServiceVariantFees.Queries.GetServiceVariantFeeById;
 using EDGE.Application.ServiceVariantFees.DTOs;
+using EDGE.Application.Common.Models;
+using EDGE.Domain.Authorization;
+using EDGE.Infrastructure.Authorization;
 
 namespace EDGE.Api.Endpoints;
 
@@ -25,7 +25,7 @@ public static class ServiceVariantFeeEndpoints
             .WithName("GetServiceVariantFees")
             .WithSummary("Get all service variant fees")
             .WithDescription("Retrieves a list of all service variant fees. Filter by ServiceVariantId using query parameter.")
-            .Produces<List<ServiceVariantFeeDto>>(StatusCodes.Status200OK);
+            .Produces<PaginatedApiResponse<ServiceVariantFeeDto>>(StatusCodes.Status200OK);
 
         fees.MapGet("/{id:guid}", GetServiceVariantFeeById)
             .WithName("GetServiceVariantFeeById")
@@ -59,12 +59,16 @@ public static class ServiceVariantFeeEndpoints
         return group;
     }
 
+    [HasPermission(Permissions.SystemAdmin)]
     public static async Task<IResult> GetServiceVariantFees(
         Guid? serviceVariantId,
+        int? pageNumber,
+        int? pageSize,
+        string? searchTerm,
         IValidator<GetServiceVariantFeesQuery> validator,
         IMediator mediator)
     {
-        var query = new GetServiceVariantFeesQuery(serviceVariantId);
+        var query = new GetServiceVariantFeesQuery(serviceVariantId, pageNumber, pageSize, searchTerm);
         var validationResult = await validator.ValidateAsync(query);
         if (!validationResult.IsValid)
         {
@@ -75,6 +79,7 @@ public static class ServiceVariantFeeEndpoints
         return Results.Ok(result);
     }
 
+    [HasPermission(Permissions.SystemAdmin)]
     public static async Task<IResult> GetServiceVariantFeeById(
         Guid id,
         IValidator<GetServiceVariantFeeByIdQuery> validator,
@@ -91,6 +96,7 @@ public static class ServiceVariantFeeEndpoints
         return result is not null ? Results.Ok(result) : Results.NotFound();
     }
 
+    [HasPermission(Permissions.SystemAdmin)]
     public static async Task<IResult> CreateServiceVariantFee(
         CreateServiceVariantFeeCommand command,
         IValidator<CreateServiceVariantFeeCommand> validator,
@@ -106,6 +112,7 @@ public static class ServiceVariantFeeEndpoints
         return Results.Created($"/api/v2/service-variant-fees/{result.Id}", result);
     }
 
+    [HasPermission(Permissions.SystemAdmin)]
     public static async Task<IResult> UpdateServiceVariantFee(
         Guid id,
         UpdateServiceVariantFeeRequest request,
@@ -123,6 +130,7 @@ public static class ServiceVariantFeeEndpoints
         return result is not null ? Results.Ok(result) : Results.NotFound();
     }
 
+    [HasPermission(Permissions.SystemAdmin)]
     public static async Task<IResult> DeleteServiceVariantFee(
         Guid id,
         IValidator<DeleteServiceVariantFeeCommand> validator,

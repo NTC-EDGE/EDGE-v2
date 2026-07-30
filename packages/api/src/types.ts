@@ -476,9 +476,14 @@ export interface Fee {
 export interface ServiceFee {
   id: string;
   serviceId: string;
+  serviceName?: string | null;
+  serviceCode?: string | null;
   feeId: string;
+  feeCode?: string | null;
+  feeName?: string | null;
   amount: number;
   isActive?: boolean;
+  createdAt?: string;
 }
 
 export interface Element {

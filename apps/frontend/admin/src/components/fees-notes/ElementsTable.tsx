@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { Tag, Edit2, Trash2 } from "lucide-react";
 import { Element } from "@edge/api";
 import { ActionMenu, ActionMenuItem } from "@/components/ui/action-menu";
@@ -8,41 +8,29 @@ import { Pagination } from "@/components/ui/pagination";
 
 export interface ElementsTableProps {
   elements: Element[];
+  totalCount: number;
+  currentPage: number;
+  pageSize: number;
+  onPageChange: (page: number) => void;
+  onPageSizeChange: (size: number) => void;
   loading: boolean;
   canManage: boolean;
-  searchTerm: string;
   onEdit: (item: Element) => void;
   onDelete: (item: Element) => void;
 }
 
 export function ElementsTable({
   elements,
+  totalCount,
+  currentPage,
+  pageSize,
+  onPageChange,
+  onPageSizeChange,
   loading,
   canManage,
-  searchTerm,
   onEdit,
   onDelete,
 }: ElementsTableProps) {
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-
-  // Reset pagination when search query changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm]);
-
-  const filteredElements = elements.filter(
-    (e) =>
-      e.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      e.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (e.description?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false)
-  );
-
-  const paginatedElements = filteredElements.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize
-  );
-
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden">
       <div className="overflow-x-auto">
@@ -62,7 +50,7 @@ export function ElementsTable({
                   <span>Loading billing elements...</span>
                 </td>
               </tr>
-            ) : filteredElements.length === 0 ? (
+            ) : elements.length === 0 ? (
               <tr>
                 <td colSpan={canManage ? 4 : 3} className="px-6 py-12 text-center text-slate-400">
                   <Tag className="w-10 h-10 mx-auto text-slate-600 mb-2" />
@@ -71,7 +59,7 @@ export function ElementsTable({
                 </td>
               </tr>
             ) : (
-              paginatedElements.map((item) => {
+              elements.map((item) => {
                 const menuItems: ActionMenuItem[] = [
                   {
                     label: "Modify Element",
@@ -104,16 +92,13 @@ export function ElementsTable({
         </table>
       </div>
 
-      {filteredElements.length > 0 && (
+      {elements.length > 0 && (
         <Pagination
           currentPage={currentPage}
-          totalItems={filteredElements.length}
+          totalItems={totalCount}
           pageSize={pageSize}
-          onPageChange={setCurrentPage}
-          onPageSizeChange={(sz) => {
-            setPageSize(sz);
-            setCurrentPage(1);
-          }}
+          onPageChange={onPageChange}
+          onPageSizeChange={onPageSizeChange}
         />
       )}
     </div>

@@ -1,14 +1,12 @@
 using MediatR;
 using FluentValidation;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Routing;
 using EDGE.Application.Elements.Commands.CreateElement;
 using EDGE.Application.Elements.Commands.UpdateElement;
 using EDGE.Application.Elements.Commands.DeleteElement;
 using EDGE.Application.Elements.Queries.GetElements;
 using EDGE.Application.Elements.Queries.GetElementById;
-using EDGE.Application.Elements.DTOs;
+using EDGE.Domain.Authorization;
+using EDGE.Infrastructure.Authorization;
 
 namespace EDGE.Api.Endpoints;
 
@@ -24,41 +22,32 @@ public static class ElementEndpoints
         elements.MapGet("/", GetElements)
             .WithName("GetElements")
             .WithSummary("Get all elements")
-            .WithDescription("Retrieves a list of all elements.")
-            .Produces<List<ElementDto>>(StatusCodes.Status200OK);
+            .WithDescription("Retrieves a list of all elements.");
 
         elements.MapGet("/{id:guid}", GetElementById)
             .WithName("GetElementById")
             .WithSummary("Get element by ID")
-            .WithDescription("Retrieves details of a specific element by its ID.")
-            .Produces<ElementDto>(StatusCodes.Status200OK)
-            .Produces(StatusCodes.Status404NotFound);
+            .WithDescription("Retrieves details of a specific element by its ID.");
 
         elements.MapPost("/", CreateElement)
             .WithName("CreateElement")
             .WithSummary("Create a new element")
-            .WithDescription("Creates a new element record.")
-            .Produces<ElementDto>(StatusCodes.Status201Created)
-            .Produces<HttpValidationProblemDetails>(StatusCodes.Status400BadRequest);
+            .WithDescription("Creates a new element record.");
 
         elements.MapPut("/{id:guid}", UpdateElement)
             .WithName("UpdateElement")
             .WithSummary("Update an existing element")
-            .WithDescription("Updates an existing element record.")
-            .Produces<ElementDto>(StatusCodes.Status200OK)
-            .Produces<HttpValidationProblemDetails>(StatusCodes.Status400BadRequest)
-            .Produces(StatusCodes.Status404NotFound);
+            .WithDescription("Updates an existing element record.");
 
         elements.MapDelete("/{id:guid}", DeleteElement)
             .WithName("DeleteElement")
             .WithSummary("Delete an element")
-            .WithDescription("Deletes an element record.")
-            .Produces(StatusCodes.Status204NoContent)
-            .Produces(StatusCodes.Status404NotFound);
+            .WithDescription("Deletes an element record.");
 
         return group;
     }
 
+    [HasPermission(Permissions.SystemAdmin)]
     public static async Task<IResult> GetElements(
         IValidator<GetElementsQuery> validator,
         IMediator mediator)
@@ -74,6 +63,7 @@ public static class ElementEndpoints
         return Results.Ok(result);
     }
 
+    [HasPermission(Permissions.SystemAdmin)]
     public static async Task<IResult> GetElementById(
         Guid id,
         IValidator<GetElementByIdQuery> validator,
@@ -90,6 +80,7 @@ public static class ElementEndpoints
         return result is not null ? Results.Ok(result) : Results.NotFound();
     }
 
+    [HasPermission(Permissions.SystemAdmin)]
     public static async Task<IResult> CreateElement(
         CreateElementCommand command,
         IValidator<CreateElementCommand> validator,
@@ -105,6 +96,7 @@ public static class ElementEndpoints
         return Results.Created($"/api/v2/elements/{result.Id}", result);
     }
 
+    [HasPermission(Permissions.SystemAdmin)]
     public static async Task<IResult> UpdateElement(
         Guid id,
         UpdateElementRequest request,
@@ -122,6 +114,7 @@ public static class ElementEndpoints
         return result is not null ? Results.Ok(result) : Results.NotFound();
     }
 
+    [HasPermission(Permissions.SystemAdmin)]
     public static async Task<IResult> DeleteElement(
         Guid id,
         IValidator<DeleteElementCommand> validator,

@@ -5,6 +5,8 @@ using EDGE.Application.Municipalities.Commands.DeleteMunicipality;
 using EDGE.Application.Municipalities.Queries.GetMunicipalities;
 using EDGE.Application.Municipalities.Queries.GetMunicipalityById;
 using EDGE.Application.Common.Models;
+using EDGE.Domain.Authorization;
+using EDGE.Infrastructure.Authorization;
 
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
@@ -22,6 +24,7 @@ public static class MunicipalityEndpoints
             var result = await mediator.Send(new GetMunicipalitiesQuery(provinceId, activeOnly));
             return Results.Ok(result);
         })
+        .RequireAuthorization()
         .WithName("GetMunicipalities")
         .WithTags("Municipality")
         .WithSummary("Get list of municipalities")
@@ -32,6 +35,7 @@ public static class MunicipalityEndpoints
             var result = await mediator.Send(new GetMunicipalityByIdQuery(id));
             return result.Succeeded ? Results.Ok(result) : Results.NotFound(result);
         })
+        .RequireAuthorization()
         .WithName("GetMunicipalityById")
         .WithTags("Municipality")
         .WithSummary("Get municipality by ID")
@@ -44,6 +48,7 @@ public static class MunicipalityEndpoints
                 ? Results.Created($"/api/v2/municipalities/{result.Data}", result)
                 : Results.BadRequest(result);
         })
+        .RequireAuthorization(new HasPermissionAttribute(Permissions.SystemAdmin))
         .WithName("CreateMunicipality")
         .WithTags("Municipality")
         .WithSummary("Create municipality reference")
@@ -59,6 +64,7 @@ public static class MunicipalityEndpoints
             var result = await mediator.Send(command);
             return result.Succeeded ? Results.Ok(result) : Results.NotFound(result);
         })
+        .RequireAuthorization(new HasPermissionAttribute(Permissions.SystemAdmin))
         .WithName("UpdateMunicipality")
         .WithTags("Municipality")
         .WithSummary("Update municipality details")
@@ -75,6 +81,7 @@ public static class MunicipalityEndpoints
             }
             return Results.Ok(result);
         })
+        .RequireAuthorization(new HasPermissionAttribute(Permissions.SystemAdmin))
         .WithName("DeleteMunicipality")
         .WithTags("Municipality")
         .WithSummary("Delete municipality reference")

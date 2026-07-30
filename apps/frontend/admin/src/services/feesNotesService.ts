@@ -26,11 +26,21 @@ export function useFeesNotesService() {
   const { useQuery, post, put, patch, del } = useApi();
 
   // --- FEES CRUD ---
-  const useFees = (enabled = true) => {
-    const query = useQuery<Fee[]>(enabled ? '/api/v2/fees' : null);
+  const useFees = (pageNumber?: number, pageSize?: number, searchTerm?: string, enabled = true) => {
+    let url: string | null = null;
+    if (enabled) {
+      const params = new URLSearchParams();
+      if (pageNumber !== undefined) params.append('pageNumber', pageNumber.toString());
+      if (pageSize !== undefined) params.append('pageSize', pageSize.toString());
+      if (searchTerm) params.append('searchTerm', searchTerm);
+      url = `/api/v2/fees?${params.toString()}`;
+    }
+    const query = useQuery<PaginatedApiResponse<Fee>>(url);
     return {
       ...query,
-      data: query.data !== undefined && query.data !== null ? query.data : []
+      data: query.data?.data !== undefined && query.data?.data !== null ? query.data.data : [],
+      totalCount: query.data?.totalCount ?? 0,
+      totalPages: query.data?.totalPages ?? 0
     };
   };
 
@@ -51,11 +61,21 @@ export function useFeesNotesService() {
   };
 
   // --- SERVICE FEES CRUD ---
-  const useServiceFees = (enabled = true) => {
-    const query = useQuery<ServiceFee[]>(enabled ? '/api/v2/service-fees' : null);
+  const useServiceFees = (pageNumber?: number, pageSize?: number, searchTerm?: string, enabled = true) => {
+    let url: string | null = null;
+    if (enabled) {
+      const params = new URLSearchParams();
+      if (pageNumber !== undefined) params.append('pageNumber', pageNumber.toString());
+      if (pageSize !== undefined) params.append('pageSize', pageSize.toString());
+      if (searchTerm) params.append('searchTerm', searchTerm);
+      url = `/api/v2/service-fees?${params.toString()}`;
+    }
+    const query = useQuery<PaginatedApiResponse<ServiceFee>>(url);
     return {
       ...query,
-      data: query.data !== undefined && query.data !== null ? query.data : []
+      data: query.data?.data !== undefined && query.data?.data !== null ? query.data.data : [],
+      totalCount: query.data?.totalCount ?? 0,
+      totalPages: query.data?.totalPages ?? 0
     };
   };
 
@@ -72,11 +92,21 @@ export function useFeesNotesService() {
   };
 
   // --- ELEMENTS CRUD ---
-  const useElements = (enabled = true) => {
-    const query = useQuery<Element[]>(enabled ? '/api/v2/elements' : null);
+  const useElements = (pageNumber?: number, pageSize?: number, searchTerm?: string, enabled = true) => {
+    let url: string | null = null;
+    if (enabled) {
+      const params = new URLSearchParams();
+      if (pageNumber !== undefined) params.append('pageNumber', pageNumber.toString());
+      if (pageSize !== undefined) params.append('pageSize', pageSize.toString());
+      if (searchTerm) params.append('searchTerm', searchTerm);
+      url = `/api/v2/elements?${params.toString()}`;
+    }
+    const query = useQuery<PaginatedApiResponse<Element>>(url);
     return {
       ...query,
-      data: query.data !== undefined && query.data !== null ? query.data : []
+      data: query.data?.data !== undefined && query.data?.data !== null ? query.data.data : [],
+      totalCount: query.data?.totalCount ?? 0,
+      totalPages: query.data?.totalPages ?? 0
     };
   };
 
@@ -93,14 +123,22 @@ export function useFeesNotesService() {
   };
 
   // --- SERVICE VARIANT FEES CRUD ---
-  const useServiceVariantFees = (serviceVariantId?: string, enabled = true) => {
-    const url = enabled 
-      ? (serviceVariantId ? `/api/v2/service-variant-fees?serviceVariantId=${serviceVariantId}` : '/api/v2/service-variant-fees')
-      : null;
-    const query = useQuery<ServiceVariantFee[]>(url);
+  const useServiceVariantFees = (serviceVariantId?: string, pageNumber?: number, pageSize?: number, searchTerm?: string, enabled = true) => {
+    let url: string | null = null;
+    if (enabled) {
+      const params = new URLSearchParams();
+      if (serviceVariantId) params.append('serviceVariantId', serviceVariantId);
+      if (pageNumber !== undefined) params.append('pageNumber', pageNumber.toString());
+      if (pageSize !== undefined) params.append('pageSize', pageSize.toString());
+      if (searchTerm) params.append('searchTerm', searchTerm);
+      url = `/api/v2/service-variant-fees?${params.toString()}`;
+    }
+    const query = useQuery<PaginatedApiResponse<ServiceVariantFee>>(url);
     return {
       ...query,
-      data: query.data !== undefined && query.data !== null ? query.data : []
+      data: query.data?.data !== undefined && query.data?.data !== null ? query.data.data : [],
+      totalCount: query.data?.totalCount ?? 0,
+      totalPages: query.data?.totalPages ?? 0
     };
   };
 
@@ -117,14 +155,22 @@ export function useFeesNotesService() {
   };
 
   // --- SERVICE VARIANT ELEMENT FEES CRUD ---
-  const useServiceVariantElementFees = (serviceVariantId?: string, enabled = true) => {
-    const url = enabled
-      ? (serviceVariantId ? `/api/v2/service-variant-element-fees?serviceVariantId=${serviceVariantId}` : '/api/v2/service-variant-element-fees')
-      : null;
-    const query = useQuery<ServiceVariantElementFee[]>(url);
+  const useServiceVariantElementFees = (serviceVariantId?: string, pageNumber?: number, pageSize?: number, searchTerm?: string, enabled = true) => {
+    let url: string | null = null;
+    if (enabled) {
+      const params = new URLSearchParams();
+      if (serviceVariantId) params.append('serviceVariantId', serviceVariantId);
+      if (pageNumber !== undefined) params.append('pageNumber', pageNumber.toString());
+      if (pageSize !== undefined) params.append('pageSize', pageSize.toString());
+      if (searchTerm) params.append('searchTerm', searchTerm);
+      url = `/api/v2/service-variant-element-fees?${params.toString()}`;
+    }
+    const query = useQuery<PaginatedApiResponse<ServiceVariantElementFee>>(url);
     return {
       ...query,
-      data: query.data !== undefined && query.data !== null ? query.data : []
+      data: query.data?.data !== undefined && query.data?.data !== null ? query.data.data : [],
+      totalCount: query.data?.totalCount ?? 0,
+      totalPages: query.data?.totalPages ?? 0
     };
   };
 
@@ -141,12 +187,21 @@ export function useFeesNotesService() {
   };
 
   // --- NOTES CRUD ---
-  const useNotes = (pageNumber = 1, pageSize = 10, enabled = true) => {
-    const query = useQuery<PaginatedApiResponse<Note>>(enabled ? `/api/v2/notes?pageNumber=${pageNumber}&pageSize=${pageSize}` : null);
+  const useNotes = (pageNumber = 1, pageSize = 10, searchTerm?: string, enabled = true) => {
+    let url: string | null = null;
+    if (enabled) {
+      const params = new URLSearchParams();
+      params.append('pageNumber', pageNumber.toString());
+      params.append('pageSize', pageSize.toString());
+      if (searchTerm) params.append('searchTerm', searchTerm);
+      url = `/api/v2/notes?${params.toString()}`;
+    }
+    const query = useQuery<PaginatedApiResponse<Note>>(url);
     return {
       ...query,
       data: query.data?.data !== undefined && query.data?.data !== null ? query.data.data : [],
-      totalCount: query.data?.totalCount ?? 0
+      totalCount: query.data?.totalCount ?? 0,
+      totalPages: query.data?.totalPages ?? 0
     };
   };
 

@@ -1,60 +1,36 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { Tag, Edit2, Trash2 } from "lucide-react";
-import { ServiceFee, Fee } from "@edge/api";
+import { ServiceFee } from "@edge/api";
 import { ActionMenu, ActionMenuItem } from "@/components/ui/action-menu";
 import { Pagination } from "@/components/ui/pagination";
-import { ServiceCatalogItem } from "@/services/feesNotesService";
 
 export interface ServiceFeesTableProps {
   serviceFees: ServiceFee[];
-  fees: Fee[];
-  services: ServiceCatalogItem[];
+  totalCount: number;
+  currentPage: number;
+  pageSize: number;
+  onPageChange: (page: number) => void;
+  onPageSizeChange: (size: number) => void;
   loading: boolean;
   canManage: boolean;
-  searchTerm: string;
   onEdit: (item: ServiceFee) => void;
   onDelete: (item: ServiceFee) => void;
 }
 
 export function ServiceFeesTable({
   serviceFees,
-  fees,
-  services,
+  totalCount,
+  currentPage,
+  pageSize,
+  onPageChange,
+  onPageSizeChange,
   loading,
   canManage,
-  searchTerm,
   onEdit,
   onDelete,
 }: ServiceFeesTableProps) {
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-
-  // Reset pagination when search query changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm]);
-
-  const filteredServiceFees = serviceFees.filter((sf) => {
-    const serviceName = services.find((s) => s.id === sf.serviceId)?.name ?? "";
-    const fee = fees.find((f) => f.id === sf.feeId);
-    const feeName = fee?.name ?? "";
-    const feeCode = fee?.code ?? "";
-
-    return (
-      serviceName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      feeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      feeCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      sf.amount.toString().includes(searchTerm)
-    );
-  });
-
-  const paginatedServiceFees = filteredServiceFees.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize
-  );
-
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden">
       <div className="overflow-x-auto">
@@ -74,7 +50,7 @@ export function ServiceFeesTable({
                   <span>Loading service fees catalog...</span>
                 </td>
               </tr>
-            ) : filteredServiceFees.length === 0 ? (
+            ) : serviceFees.length === 0 ? (
               <tr>
                 <td colSpan={canManage ? 4 : 3} className="px-6 py-12 text-center text-slate-400">
                   <Tag className="w-10 h-10 mx-auto text-slate-600 mb-2" />
@@ -83,9 +59,7 @@ export function ServiceFeesTable({
                 </td>
               </tr>
             ) : (
-              paginatedServiceFees.map((item) => {
-                const serviceName = services.find((s) => s.id === item.serviceId)?.name ?? "Unknown Service";
-                const fee = fees.find((f) => f.id === item.feeId);
+              serviceFees.map((item) => {
                 const menuItems: ActionMenuItem[] = [
                   {
                     label: "Modify Charge",
@@ -102,11 +76,11 @@ export function ServiceFeesTable({
 
                 return (
                   <tr key={item.id} className="hover:bg-slate-800/40 transition-colors group">
-                    <td className="px-6 py-4 font-semibold text-slate-200">{serviceName}</td>
+                    <td className="px-6 py-4 font-semibold text-slate-200">{item.serviceName ?? "Unknown Service"}</td>
                     <td className="px-6 py-4">
                       <div className="flex flex-col">
-                        <span className="text-xs font-mono text-emerald-400">{fee?.code ?? "UNKNOWN"}</span>
-                        <span className="text-xs text-slate-400">{fee?.name ?? "Unknown Fee"}</span>
+                        <span className="text-xs font-mono text-emerald-400">{item.feeCode ?? "UNKNOWN"}</span>
+                        <span className="text-xs text-slate-400">{item.feeName ?? "Unknown Fee"}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -127,16 +101,13 @@ export function ServiceFeesTable({
         </table>
       </div>
 
-      {filteredServiceFees.length > 0 && (
+      {serviceFees.length > 0 && (
         <Pagination
           currentPage={currentPage}
-          totalItems={filteredServiceFees.length}
+          totalItems={totalCount}
           pageSize={pageSize}
-          onPageChange={setCurrentPage}
-          onPageSizeChange={(sz) => {
-            setPageSize(sz);
-            setCurrentPage(1);
-          }}
+          onPageChange={onPageChange}
+          onPageSizeChange={onPageSizeChange}
         />
       )}
     </div>

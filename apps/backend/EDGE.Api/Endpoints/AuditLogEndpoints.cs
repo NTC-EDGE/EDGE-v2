@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using EDGE.Application.AuditLogs.Queries.GetAuditLogs;
+using EDGE.Domain.Authorization;
+using EDGE.Infrastructure.Authorization;
 
 namespace EDGE.Api.Endpoints;
 
@@ -22,6 +24,7 @@ public static class AuditLogEndpoints
         return group;
     }
 
+    [HasPermission(Permissions.SystemAdmin)]
     public static async Task<IResult> GetAuditLogs(
         int? pageNumber,
         int? pageSize,

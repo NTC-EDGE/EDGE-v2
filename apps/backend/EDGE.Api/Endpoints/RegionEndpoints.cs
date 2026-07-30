@@ -5,9 +5,8 @@ using EDGE.Application.Regions.Commands.DeleteRegion;
 using EDGE.Application.Regions.Queries.GetRegions;
 using EDGE.Application.Regions.Queries.GetRegionById;
 using EDGE.Application.Common.Models;
-
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Routing;
+using EDGE.Domain.Authorization;
+using EDGE.Infrastructure.Authorization;
 
 namespace EDGE.Api.Endpoints;
 
@@ -22,6 +21,7 @@ public static class RegionEndpoints
             var result = await mediator.Send(new GetRegionsQuery(activeOnly));
             return Results.Ok(result);
         })
+        .RequireAuthorization()
         .WithName("GetRegions")
         .WithTags("Region")
         .WithSummary("Get list of regions")
@@ -32,6 +32,7 @@ public static class RegionEndpoints
             var result = await mediator.Send(new GetRegionByIdQuery(id));
             return result.Succeeded ? Results.Ok(result) : Results.NotFound(result);
         })
+        .RequireAuthorization()
         .WithName("GetRegionById")
         .WithTags("Region")
         .WithSummary("Get region by ID")
@@ -44,6 +45,7 @@ public static class RegionEndpoints
                 ? Results.Created($"/api/v2/regions/{result.Data}", result)
                 : Results.BadRequest(result);
         })
+        .RequireAuthorization(new HasPermissionAttribute(Permissions.SystemAdmin))
         .WithName("CreateRegion")
         .WithTags("Region")
         .WithSummary("Create new region")
@@ -59,6 +61,7 @@ public static class RegionEndpoints
             var result = await mediator.Send(command);
             return result.Succeeded ? Results.Ok(result) : Results.NotFound(result);
         })
+        .RequireAuthorization(new HasPermissionAttribute(Permissions.SystemAdmin))
         .WithName("UpdateRegion")
         .WithTags("Region")
         .WithSummary("Update region details")
@@ -75,6 +78,7 @@ public static class RegionEndpoints
             }
             return Results.Ok(result);
         })
+        .RequireAuthorization(new HasPermissionAttribute(Permissions.SystemAdmin))
         .WithName("DeleteRegion")
         .WithTags("Region")
         .WithSummary("Delete region reference")

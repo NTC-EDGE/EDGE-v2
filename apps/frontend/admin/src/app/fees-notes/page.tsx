@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { CircleDollarSign, Plus, Search, Coins, Tag, BookOpen, CheckCircle2, Layers, Blocks, Scale } from "lucide-react";
 import { useFeesNotesService } from "@/services/feesNotesService";
 import { useAdminScope } from "@/lib/admin-scope-context";
+import { mutate } from "swr";
 import { Fee, ServiceFee, Note, Element, ServiceVariantFee, ServiceVariantElementFee } from "@edge/api";
 import { Button } from "@/components/ui/button";
 import { FeesTable } from "@/components/fees-notes/FeesTable";
@@ -57,26 +58,50 @@ export default function FeesNotesPage() {
   const [confirmConfig, setConfirmConfig] = useState<ConfirmConfig | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const { data: fees = [], mutate: mutateFees, isLoading: loadingFees } = useFees(
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  // Reset pagination when search query or active tab changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, searchTerm]);
+
+  const { data: fees = [], totalCount: feesTotalCount, mutate: mutateFees, isLoading: loadingFees } = useFees(
+    activeTab === "fees" ? currentPage : 1,
+    activeTab === "fees" ? pageSize : 9999,
+    activeTab === "fees" ? searchTerm : undefined,
     activeTab === "fees" || activeTab === "service-fees" || isCreateOpen || isEditOpen
   );
-  const { data: serviceFees = [], mutate: mutateServiceFees, isLoading: loadingSFees } = useServiceFees(
+  const { data: serviceFees = [], totalCount: serviceFeesTotalCount, mutate: mutateServiceFees, isLoading: loadingSFees } = useServiceFees(
+    activeTab === "service-fees" ? currentPage : 1,
+    activeTab === "service-fees" ? pageSize : 9999,
+    activeTab === "service-fees" ? searchTerm : undefined,
     activeTab === "service-fees" || activeTab === "fees" || isCreateOpen || isEditOpen
   );
-  const { data: elements = [], mutate: mutateElements, isLoading: loadingElements } = useElements(
+  const { data: elements = [], totalCount: elementsTotalCount, mutate: mutateElements, isLoading: loadingElements } = useElements(
+    activeTab === "elements" ? currentPage : 1,
+    activeTab === "elements" ? pageSize : 9999,
+    activeTab === "elements" ? searchTerm : undefined,
     activeTab === "elements" || activeTab === "service-variant-element-fees" || isCreateOpen || isEditOpen
   );
-  const { data: serviceVariantFees = [], mutate: mutateServiceVariantFees, isLoading: loadingSVFees } = useServiceVariantFees(
+  const { data: serviceVariantFees = [], totalCount: serviceVariantFeesTotalCount, mutate: mutateServiceVariantFees, isLoading: loadingSVFees } = useServiceVariantFees(
     undefined,
+    activeTab === "service-variant-fees" ? currentPage : 1,
+    activeTab === "service-variant-fees" ? pageSize : 9999,
+    activeTab === "service-variant-fees" ? searchTerm : undefined,
     activeTab === "service-variant-fees"
   );
-  const { data: serviceVariantElementFees = [], mutate: mutateServiceVariantElementFees, isLoading: loadingSVEFees } = useServiceVariantElementFees(
+  const { data: serviceVariantElementFees = [], totalCount: serviceVariantElementFeesTotalCount, mutate: mutateServiceVariantElementFees, isLoading: loadingSVEFees } = useServiceVariantElementFees(
     undefined,
+    activeTab === "service-variant-element-fees" ? currentPage : 1,
+    activeTab === "service-variant-element-fees" ? pageSize : 9999,
+    activeTab === "service-variant-element-fees" ? searchTerm : undefined,
     activeTab === "service-variant-element-fees"
   );
-  const { data: notes = [], mutate: mutateNotes, isLoading: loadingNotes } = useNotes(
-    1,
-    10,
+  const { data: notes = [], totalCount: notesTotalCount, mutate: mutateNotes, isLoading: loadingNotes } = useNotes(
+    currentPage,
+    pageSize,
+    activeTab === "notes" ? searchTerm : undefined,
     activeTab === "notes"
   );
   const { data: services = [] } = useServices(
@@ -91,6 +116,14 @@ export default function FeesNotesPage() {
     setTimeout(() => setToastMsg(null), 4000);
   };
 
+  const invalidatePrefix = (prefix: string) => {
+    mutate(
+      (key) => typeof key === "string" && key.startsWith(prefix),
+      undefined,
+      { revalidate: true }
+    );
+  };
+
   const handleCreateSubmit = async (tab: TabType, data: {
     code: string; name: string; description: string;
     serviceId: string; serviceVariantId: string; elementId: string;
@@ -101,26 +134,30 @@ export default function FeesNotesPage() {
     try {
       if (tab === "fees") {
         await createFee({ code: data.code.toUpperCase(), name: data.name, description: data.description || null });
-        await mutateFees();
+        invalidatePrefix("/api/v2/fees");
+        invalidatePrefix("/api/v2/service-fees");
+        invalidatePrefix("/api/v2/service-variant-fees");
+        invalidatePrefix("/api/v2/service-variant-element-fees");
       } else if (tab === "elements") {
         await createElement({ code: data.code.toUpperCase(), name: data.name, description: data.description || null });
-        await mutateElements();
+        invalidatePrefix("/api/v2/elements");
+        invalidatePrefix("/api/v2/service-variant-element-fees");
       } else if (tab === "service-fees") {
         if (data.serviceFees && data.serviceFees.length > 0) {
           await createServiceFee({ serviceId: data.serviceId, fees: data.serviceFees });
         } else {
           await createServiceFee({ serviceId: data.serviceId, fees: [{ feeId: data.feeId, amount: data.amount }] });
         }
-        await mutateServiceFees();
+        invalidatePrefix("/api/v2/service-fees");
       } else if (tab === "service-variant-fees") {
         await createServiceVariantFee({ serviceVariantId: data.serviceVariantId, feeId: data.feeId, amount: data.amount });
-        await mutateServiceVariantFees();
+        invalidatePrefix("/api/v2/service-variant-fees");
       } else if (tab === "service-variant-element-fees") {
         await createServiceVariantElementFee({ serviceVariantId: data.serviceVariantId, elementId: data.elementId, feeId: data.feeId, amount: data.amount });
-        await mutateServiceVariantElementFees();
+        invalidatePrefix("/api/v2/service-variant-element-fees");
       } else {
         await createNote({ notes: data.notes, serviceCategoryId: data.serviceCategoryId });
-        await mutateNotes();
+        invalidatePrefix("/api/v2/notes");
       }
       setIsCreateOpen(false);
       showToast("Record registered successfully!");
@@ -140,26 +177,26 @@ export default function FeesNotesPage() {
     try {
       if (tab === "fees" && selectedFee !== null) {
         await updateFee(selectedFee.id, { code: data.code.toUpperCase(), name: data.name, description: data.description || null });
-        await mutateFees();
-        await mutateServiceFees();
-        await mutateServiceVariantFees();
-        await mutateServiceVariantElementFees();
+        invalidatePrefix("/api/v2/fees");
+        invalidatePrefix("/api/v2/service-fees");
+        invalidatePrefix("/api/v2/service-variant-fees");
+        invalidatePrefix("/api/v2/service-variant-element-fees");
       } else if (tab === "elements" && selectedElement !== null) {
         await updateElement(selectedElement.id, { code: data.code.toUpperCase(), name: data.name, description: data.description || null });
-        await mutateElements();
-        await mutateServiceVariantElementFees();
+        invalidatePrefix("/api/v2/elements");
+        invalidatePrefix("/api/v2/service-variant-element-fees");
       } else if (tab === "service-fees" && selectedServiceFee !== null) {
         await updateServiceFee(selectedServiceFee.id, { serviceId: data.serviceId, feeId: data.feeId, amount: data.amount });
-        await mutateServiceFees();
+        invalidatePrefix("/api/v2/service-fees");
       } else if (tab === "service-variant-fees" && selectedServiceVariantFee !== null) {
         await updateServiceVariantFee(selectedServiceVariantFee.id, { serviceVariantId: data.serviceVariantId, feeId: data.feeId, amount: data.amount });
-        await mutateServiceVariantFees();
+        invalidatePrefix("/api/v2/service-variant-fees");
       } else if (tab === "service-variant-element-fees" && selectedServiceVariantElementFee !== null) {
         await updateServiceVariantElementFee(selectedServiceVariantElementFee.id, { serviceVariantId: data.serviceVariantId, elementId: data.elementId, feeId: data.feeId, amount: data.amount });
-        await mutateServiceVariantElementFees();
+        invalidatePrefix("/api/v2/service-variant-element-fees");
       } else if (tab === "notes" && selectedNote !== null) {
         await updateNote(selectedNote.id, { notes: data.notes, serviceCategoryId: data.serviceCategoryId });
-        await mutateNotes();
+        invalidatePrefix("/api/v2/notes");
       }
       setIsEditOpen(false);
       showToast("Record updated successfully!");
@@ -208,33 +245,33 @@ export default function FeesNotesPage() {
         const { tab, item } = payload;
         if (tab === "fees") {
           await deleteFee(item.id);
-          await mutateFees();
-          await mutateServiceFees();
-          await mutateServiceVariantFees();
-          await mutateServiceVariantElementFees();
+          invalidatePrefix("/api/v2/fees");
+          invalidatePrefix("/api/v2/service-fees");
+          invalidatePrefix("/api/v2/service-variant-fees");
+          invalidatePrefix("/api/v2/service-variant-element-fees");
         } else if (tab === "elements") {
           await deleteElement(item.id);
-          await mutateElements();
-          await mutateServiceVariantElementFees();
+          invalidatePrefix("/api/v2/elements");
+          invalidatePrefix("/api/v2/service-variant-element-fees");
         } else if (tab === "service-fees") {
           await deleteServiceFee(item.id);
-          await mutateServiceFees();
+          invalidatePrefix("/api/v2/service-fees");
         } else if (tab === "service-variant-fees") {
           await deleteServiceVariantFee(item.id);
-          await mutateServiceVariantFees();
+          invalidatePrefix("/api/v2/service-variant-fees");
         } else if (tab === "service-variant-element-fees") {
           await deleteServiceVariantElementFee(item.id);
-          await mutateServiceVariantElementFees();
+          invalidatePrefix("/api/v2/service-variant-element-fees");
         } else {
           await deleteNote(item.id);
-          await mutateNotes();
+          invalidatePrefix("/api/v2/notes");
         }
         showToast("Record deleted successfully.");
       } 
       else if (actionType === "toggle-status") {
         const { item, newStatus } = payload;
         await toggleFeeStatus(item.id, newStatus);
-        await mutateFees();
+        invalidatePrefix("/api/v2/fees");
         showToast(`Fee '${item.code}' active status is now set to: ${newStatus ? "Active" : "Inactive"}`);
       }
     } catch (err: any) {
@@ -304,10 +341,14 @@ export default function FeesNotesPage() {
         {activeTab === "fees" && (
           <FeesTable 
             fees={fees} 
+            totalCount={feesTotalCount}
+            currentPage={currentPage}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={setPageSize}
             serviceFees={serviceFees}
             loading={loadingFees} 
             canManage={canManage} 
-            searchTerm={searchTerm} 
             onEdit={(f) => { setSelectedFee(f); setIsEditOpen(true); }} 
             onDelete={(f) => handleDeleteRequest("fees", f)} 
             onToggleStatus={handleToggleStatusRequest}
@@ -316,9 +357,13 @@ export default function FeesNotesPage() {
         {activeTab === "elements" && (
           <ElementsTable 
             elements={elements} 
+            totalCount={elementsTotalCount}
+            currentPage={currentPage}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={setPageSize}
             loading={loadingElements} 
             canManage={canManage} 
-            searchTerm={searchTerm} 
             onEdit={(elem) => { setSelectedElement(elem); setIsEditOpen(true); }} 
             onDelete={(elem) => handleDeleteRequest("elements", elem)} 
           />
@@ -326,11 +371,13 @@ export default function FeesNotesPage() {
         {activeTab === "service-fees" && (
           <ServiceFeesTable 
             serviceFees={serviceFees} 
-            fees={fees} 
-            services={services}
+            totalCount={serviceFeesTotalCount}
+            currentPage={currentPage}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={setPageSize}
             loading={loadingSFees} 
             canManage={canManage} 
-            searchTerm={searchTerm} 
             onEdit={(sf) => { setSelectedServiceFee(sf); setIsEditOpen(true); }} 
             onDelete={(sf) => handleDeleteRequest("service-fees", sf)} 
           />
@@ -338,9 +385,13 @@ export default function FeesNotesPage() {
         {activeTab === "service-variant-fees" && (
           <ServiceVariantFeesTable 
             serviceVariantFees={serviceVariantFees} 
+            totalCount={serviceVariantFeesTotalCount}
+            currentPage={currentPage}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={setPageSize}
             loading={loadingSVFees} 
             canManage={canManage} 
-            searchTerm={searchTerm} 
             onEdit={(svf) => { setSelectedServiceVariantFee(svf); setIsEditOpen(true); }} 
             onDelete={(svf) => handleDeleteRequest("service-variant-fees", svf)} 
           />
@@ -348,9 +399,13 @@ export default function FeesNotesPage() {
         {activeTab === "service-variant-element-fees" && (
           <ServiceVariantElementFeesTable 
             serviceVariantElementFees={serviceVariantElementFees} 
+            totalCount={serviceVariantElementFeesTotalCount}
+            currentPage={currentPage}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={setPageSize}
             loading={loadingSVEFees} 
             canManage={canManage} 
-            searchTerm={searchTerm} 
             onEdit={(svef) => { setSelectedServiceVariantElementFee(svef); setIsEditOpen(true); }} 
             onDelete={(svef) => handleDeleteRequest("service-variant-element-fees", svef)} 
           />
@@ -358,10 +413,14 @@ export default function FeesNotesPage() {
         {activeTab === "notes" && (
           <NotesTable 
             notes={notes} 
+            totalCount={notesTotalCount}
+            currentPage={currentPage}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={setPageSize}
             categories={categories}
             loading={loadingNotes} 
             canManage={canManage} 
-            searchTerm={searchTerm} 
             onEdit={(n) => { setSelectedNote(n); setIsEditOpen(true); }} 
             onDelete={(n) => handleDeleteRequest("notes", n)} 
           />

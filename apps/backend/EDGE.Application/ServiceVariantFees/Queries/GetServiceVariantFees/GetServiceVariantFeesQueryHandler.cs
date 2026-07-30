@@ -6,9 +6,11 @@ using System.Threading.Tasks;
 using EDGE.Application.ServiceVariantFees.DTOs;
 using EDGE.Application.Common.Interfaces;
 
+using EDGE.Application.Common.Models;
+
 namespace EDGE.Application.ServiceVariantFees.Queries.GetServiceVariantFees;
 
-public class GetServiceVariantFeesQueryHandler : IRequestHandler<GetServiceVariantFeesQuery, List<ServiceVariantFeeDto>>
+public class GetServiceVariantFeesQueryHandler : IRequestHandler<GetServiceVariantFeesQuery, PaginatedApiResponse<ServiceVariantFeeDto>>
 {
     private readonly IServiceVariantFeeRepository _repository;
 
@@ -17,13 +19,31 @@ public class GetServiceVariantFeesQueryHandler : IRequestHandler<GetServiceVaria
         _repository = repository;
     }
 
-    public async Task<List<ServiceVariantFeeDto>> Handle(GetServiceVariantFeesQuery request, CancellationToken cancellationToken)
+    public async Task<PaginatedApiResponse<ServiceVariantFeeDto>> Handle(GetServiceVariantFeesQuery request, CancellationToken cancellationToken)
     {
         var fees = request.ServiceVariantId.HasValue
             ? await _repository.GetByServiceVariantIdAsync(request.ServiceVariantId.Value, cancellationToken)
             : await _repository.GetAllAsync(cancellationToken);
 
-        return fees.Select(svf => new ServiceVariantFeeDto(
+        if (!string.IsNullOrWhiteSpace(request.SearchTerm))
+        {
+            var search = request.SearchTerm.ToLower();
+            fees = fees.Where(svf => 
+                (svf.ServiceVariant?.Service != null && svf.ServiceVariant.Service.Name.ToLower().Contains(search)) || 
+                (svf.ServiceVariant != null && svf.ServiceVariant.Type.ToString().ToLower().Contains(search)) || 
+                (svf.Fee != null && svf.Fee.Code.ToLower().Contains(search)) || 
+                (svf.Fee != null && svf.Fee.Name.ToLower().Contains(search))
+            ).ToList();
+        }
+
+        int totalCount = fees.Count;
+        int pageNumber = request.PageNumber ?? 1;
+        int pageSize = request.PageSize ?? 10;
+        if (pageSize <= 0) pageSize = 1;
+
+        var paginated = fees.Skip((pageNumber - 1) * pageSize).Take(pageSize).ToList();
+
+        var dtos = paginated.Select(svf => new ServiceVariantFeeDto(
             svf.Id,
             svf.ServiceVariantId,
             svf.ServiceVariant != null ? new ServiceVariantDetailDto(
@@ -38,5 +58,7 @@ public class GetServiceVariantFeesQueryHandler : IRequestHandler<GetServiceVaria
             svf.Amount,
             svf.CreatedAt
         )).ToList();
+
+        return new PaginatedApiResponse<ServiceVariantFeeDto>(dtos, pageNumber, pageSize, totalCount);
     }
 }

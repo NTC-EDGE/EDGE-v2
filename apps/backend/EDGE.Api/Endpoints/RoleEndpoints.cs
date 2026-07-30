@@ -1,8 +1,4 @@
-using System;
 using MediatR;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Routing;
 using FluentValidation;
 using EDGE.Domain.Authorization;
 using EDGE.Infrastructure.Authorization;
@@ -48,12 +44,14 @@ public static class RoleEndpoints
             .WithDescription("Deletes a custom role definition.");
     }
 
+    [HasPermission(Permissions.ReadRoles)]
     public static async Task<IResult> GetRoles(Guid? tenantId, IMediator mediator)
     {
         var result = await mediator.Send(new GetRolesQuery(tenantId));
         return Results.Ok(result);
     }
 
+    [HasPermission(Permissions.ReadRoles)]
     public static async Task<IResult> GetRoleById(Guid id, IMediator mediator)
     {
         var result = await mediator.Send(new GetRoleByIdQuery(id));

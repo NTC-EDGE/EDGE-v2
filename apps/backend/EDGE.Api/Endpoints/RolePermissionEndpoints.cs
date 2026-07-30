@@ -1,9 +1,4 @@
-using System;
-using System.Threading.Tasks;
 using MediatR;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Routing;
 using FluentValidation;
 using EDGE.Domain.Authorization;
 using EDGE.Infrastructure.Authorization;
@@ -37,6 +32,7 @@ public static class RolePermissionEndpoints
             .WithDescription("Removes a permission mapping from a role.");
     }
 
+    [HasPermission(Permissions.ReadRoles)]
     public static async Task<IResult> GetRolePermissions(Guid roleId, IMediator mediator)
     {
         var permissionKeys = await mediator.Send(new GetRolePermissionsQuery(roleId));

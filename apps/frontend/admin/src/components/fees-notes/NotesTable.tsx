@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { BookOpen, Edit2, Trash2 } from "lucide-react";
 import { Note } from "@edge/api";
 import { ActionMenu, ActionMenuItem } from "@/components/ui/action-menu";
@@ -9,44 +9,31 @@ import { ServiceCategoryItem } from "@/services/feesNotesService";
 
 export interface NotesTableProps {
   notes: Note[];
+  totalCount: number;
+  currentPage: number;
+  pageSize: number;
+  onPageChange: (page: number) => void;
+  onPageSizeChange: (size: number) => void;
   categories: ServiceCategoryItem[];
   loading: boolean;
   canManage: boolean;
-  searchTerm: string;
   onEdit: (item: Note) => void;
   onDelete: (item: Note) => void;
 }
 
 export function NotesTable({
   notes,
+  totalCount,
+  currentPage,
+  pageSize,
+  onPageChange,
+  onPageSizeChange,
   categories,
   loading,
   canManage,
-  searchTerm,
   onEdit,
   onDelete,
 }: NotesTableProps) {
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-
-  // Reset pagination when search query changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm]);
-
-  const filteredNotes = notes.filter((n) => {
-    const categoryName = categories.find((c) => c.id === n.serviceCategoryId)?.name ?? "";
-    return (
-      n.notes.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      categoryName.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  });
-
-  const paginatedNotes = filteredNotes.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize
-  );
-
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden">
       <div className="overflow-x-auto">
@@ -65,7 +52,7 @@ export function NotesTable({
                   <span>Loading regulatory notes...</span>
                 </td>
               </tr>
-            ) : filteredNotes.length === 0 ? (
+            ) : notes.length === 0 ? (
               <tr>
                 <td colSpan={canManage ? 3 : 2} className="px-6 py-12 text-center text-slate-400">
                   <BookOpen className="w-10 h-10 mx-auto text-slate-600 mb-2" />
@@ -74,7 +61,7 @@ export function NotesTable({
                 </td>
               </tr>
             ) : (
-              paginatedNotes.map((item) => {
+              notes.map((item) => {
                 const categoryName = categories.find((c) => c.id === item.serviceCategoryId)?.name ?? "Global";
                 const menuItems: ActionMenuItem[] = [
                   {
@@ -113,16 +100,13 @@ export function NotesTable({
         </table>
       </div>
 
-      {filteredNotes.length > 0 && (
+      {notes.length > 0 && (
         <Pagination
           currentPage={currentPage}
-          totalItems={filteredNotes.length}
+          totalItems={totalCount}
           pageSize={pageSize}
-          onPageChange={setCurrentPage}
-          onPageSizeChange={(sz) => {
-            setPageSize(sz);
-            setCurrentPage(1);
-          }}
+          onPageChange={onPageChange}
+          onPageSizeChange={onPageSizeChange}
         />
       )}
     </div>

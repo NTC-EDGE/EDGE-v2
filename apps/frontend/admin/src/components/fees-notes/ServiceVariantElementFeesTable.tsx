@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { Tag, Edit2, Trash2 } from "lucide-react";
 import { ServiceVariantElementFee } from "@edge/api";
 import { ActionMenu, ActionMenuItem } from "@/components/ui/action-menu";
@@ -8,53 +8,29 @@ import { Pagination } from "@/components/ui/pagination";
 
 export interface ServiceVariantElementFeesTableProps {
   serviceVariantElementFees: ServiceVariantElementFee[];
+  totalCount: number;
+  currentPage: number;
+  pageSize: number;
+  onPageChange: (page: number) => void;
+  onPageSizeChange: (size: number) => void;
   loading: boolean;
   canManage: boolean;
-  searchTerm: string;
   onEdit: (item: ServiceVariantElementFee) => void;
   onDelete: (item: ServiceVariantElementFee) => void;
 }
 
 export function ServiceVariantElementFeesTable({
   serviceVariantElementFees,
+  totalCount,
+  currentPage,
+  pageSize,
+  onPageChange,
+  onPageSizeChange,
   loading,
   canManage,
-  searchTerm,
   onEdit,
   onDelete,
 }: ServiceVariantElementFeesTableProps) {
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-
-  // Reset pagination when search query changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm]);
-
-  const filtered = serviceVariantElementFees.filter((svef) => {
-    const serviceName = svef.serviceVariant?.serviceName ?? "";
-    const serviceVariantType = svef.serviceVariant?.type ?? "";
-    const elementCode = svef.elementCode ?? "";
-    const elementName = svef.elementName ?? "";
-    const feeCode = svef.feeCode ?? "";
-    const feeName = svef.feeName ?? "";
-
-    return (
-      serviceName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      serviceVariantType.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      elementCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      elementName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      feeCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      feeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      svef.amount.toString().includes(searchTerm)
-    );
-  });
-
-  const paginated = filtered.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize
-  );
-
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden">
       <div className="overflow-x-auto">
@@ -75,7 +51,7 @@ export function ServiceVariantElementFeesTable({
                   <span>Loading service variant element fees...</span>
                 </td>
               </tr>
-            ) : filtered.length === 0 ? (
+            ) : serviceVariantElementFees.length === 0 ? (
               <tr>
                 <td colSpan={canManage ? 5 : 4} className="px-6 py-12 text-center text-slate-400">
                   <Tag className="w-10 h-10 mx-auto text-slate-600 mb-2" />
@@ -84,7 +60,7 @@ export function ServiceVariantElementFeesTable({
                 </td>
               </tr>
             ) : (
-              paginated.map((item) => {
+              serviceVariantElementFees.map((item) => {
                 const menuItems: ActionMenuItem[] = [
                   {
                     label: "Modify Element Fee",
@@ -137,16 +113,13 @@ export function ServiceVariantElementFeesTable({
         </table>
       </div>
 
-      {filtered.length > 0 && (
+      {serviceVariantElementFees.length > 0 && (
         <Pagination
           currentPage={currentPage}
-          totalItems={filtered.length}
+          totalItems={totalCount}
           pageSize={pageSize}
-          onPageChange={setCurrentPage}
-          onPageSizeChange={(sz) => {
-            setPageSize(sz);
-            setCurrentPage(1);
-          }}
+          onPageChange={onPageChange}
+          onPageSizeChange={onPageSizeChange}
         />
       )}
     </div>
