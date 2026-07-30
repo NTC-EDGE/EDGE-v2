@@ -6,6 +6,8 @@ export * from './services/regionService';
 export * from './services/authService';
 export * from './services/feeMasterService';
 export * from './services/roleService';
+export * from './services/announcementService';
+export * from './services/auditLogService';
 export * from './services/apiErrorService';
 export * from './services/tokenManager';
 export * from './hooks/useRegions';

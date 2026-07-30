@@ -1,107 +1,106 @@
 import React, { useState } from 'react';
 import {
-  Platform,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
+  TextInput,
   View,
 } from 'react-native';
-import { Icon as Lucide, SPACING, TYPOGRAPHY, useTheme } from '@edge/ui';
+import { Icon as Lucide, SPACING, TYPOGRAPHY, useTheme, SkeletonLoader } from '@edge/ui';
+import { useAdminAnnouncements, announcementService, SystemAnnouncementDto } from '@edge/api';
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+type AnnType = 'Info' | 'Warning' | 'Critical' | 'Maintenance' | 'Emergency';
 
-type AnnStatus = 'Published' | 'Draft' | 'Scheduled';
-type AnnType = 'Info' | 'Warning' | 'Critical' | 'Maintenance';
-
-interface Announcement {
-  id: string;
-  title: string;
-  body: string;
-  type: AnnType;
-  status: AnnStatus;
-  audience: string;
-  publishedAt: string;
-}
-
-// ─── Mock Data ───────────────────────────────────────────────────────────────
-
-const MOCK_ANNOUNCEMENTS: readonly Announcement[] = [
-  {
-    id: 'ANN-001',
-    title: 'Scheduled System Maintenance – July 31, 2026',
-    body: 'EDGE Portal will undergo maintenance from 12:00 AM to 4:00 AM on July 31. All evaluation queues will be paused during this window.',
-    type: 'Maintenance',
-    status: 'Published',
-    audience: 'All Users',
-    publishedAt: 'Jul 30, 2026 8:00 AM',
-  },
-  {
-    id: 'ANN-002',
-    title: 'New License Evaluation SLA Policy Effective August 1',
-    body: 'Updated SLA requirements for ISP license evaluations now mandate 10-day turnaround. All evaluators must comply starting August 1, 2026.',
-    type: 'Info',
-    status: 'Published',
-    audience: 'Evaluators',
-    publishedAt: 'Jul 29, 2026 2:30 PM',
-  },
-  {
-    id: 'ANN-003',
-    title: 'CRITICAL: Unauthorized Access Attempts Detected',
-    body: 'Security operations have identified suspicious login attempts from external IP ranges. All staff are advised to change passwords immediately.',
-    type: 'Critical',
-    status: 'Published',
-    audience: 'All Users',
-    publishedAt: 'Jul 28, 2026 11:15 AM',
-  },
-  {
-    id: 'ANN-004',
-    title: 'Regional Director Quarterly Review – August 15',
-    body: 'All regional offices are required to submit Q2 performance reports before the quarterly review session on August 15, 2026.',
-    type: 'Warning',
-    status: 'Scheduled',
-    audience: 'Regional Directors',
-    publishedAt: 'Jul 30, 2026 (scheduled)',
-  },
-  {
-    id: 'ANN-005',
-    title: 'EDGE Mobile App v2.1.0 Release Notes',
-    body: 'Version 2.1.0 introduces offline queue review, biometric login, and improved notification reliability on Android 14.',
-    type: 'Info',
-    status: 'Draft',
-    audience: 'All Users',
-    publishedAt: '—',
-  },
-];
-
-const TYPE_STYLE: Record<AnnType, { text: string; bg: string; icon: 'info' | 'alert-triangle' | 'alert-circle' | 'tool' }> = {
+const TYPE_STYLE: Record<string, { text: string; bg: string; icon: 'info' | 'alert-triangle' | 'alert-circle' | 'tool' }> = {
   Info:        { text: '#1E40AF', bg: '#DBEAFE', icon: 'info' },
   Warning:     { text: '#92400E', bg: '#FEF3C7', icon: 'alert-triangle' },
   Critical:    { text: '#991B1B', bg: '#FEE2E2', icon: 'alert-circle' },
+  Emergency:   { text: '#991B1B', bg: '#FEE2E2', icon: 'alert-circle' },
   Maintenance: { text: '#5B21B6', bg: '#EDE9FE', icon: 'tool' },
 };
 
-const STATUS_STYLE: Record<AnnStatus, { text: string; bg: string }> = {
-  Published: { text: '#065F46', bg: '#D1FAE5' },
-  Draft:     { text: '#374151', bg: '#F3F4F6' },
-  Scheduled: { text: '#92400E', bg: '#FEF3C7' },
-};
-
-// ─── Component ───────────────────────────────────────────────────────────────
-
 export function AnnouncementsScreen() {
   const { colors, isDark } = useTheme();
-  const [activeFilter, setActiveFilter] = useState<AnnStatus | 'All'>('All');
+  const { announcements, isLoading, isError, refetch } = useAdminAnnouncements();
+
+  const [activeFilter, setActiveFilter] = useState<'All' | 'Active' | 'Inactive'>('All');
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [annToDelete, setAnnToDelete] = useState<SystemAnnouncementDto | null>(null);
+
+  // New Announcement Form State
+  const [title, setTitle] = useState('');
+  const [message, setMessage] = useState('');
+  const [type, setType] = useState<AnnType>('Info');
+  const [targetAudience, setTargetAudience] = useState('All Users');
+  const [isActive, setIsActive] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const canvasBg = isDark ? colors.neutral[900] : colors.neutral[50];
   const cardBg = isDark ? colors.neutral[800] : '#FFFFFF';
   const borderColor = isDark ? colors.neutral[700] : colors.neutral[200];
   const textColor = isDark ? colors.neutral[100] : colors.neutral[900];
   const mutedColor = isDark ? colors.neutral[400] : colors.neutral[500];
+  const inputBg = isDark ? colors.neutral[900] : colors.neutral[50];
 
-  const filtered = MOCK_ANNOUNCEMENTS.filter(
-    (a) => activeFilter === 'All' || a.status === activeFilter,
-  );
+  const filtered = announcements.filter((a) => {
+    if (activeFilter === 'Active') return a.isActive;
+    if (activeFilter === 'Inactive') return !a.isActive;
+    return true;
+  });
+
+  const handleCreateAnnouncement = async () => {
+    if (!title.trim() || !message.trim()) {
+      setFormError('Please enter both title and message.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setFormError(null);
+
+    const res = await announcementService.createAnnouncement({
+      title: title.trim(),
+      message: message.trim(),
+      type,
+      targetAudience,
+      isActive,
+    });
+
+    setIsSubmitting(false);
+
+    if (res) {
+      setIsAddModalOpen(false);
+      setTitle('');
+      setMessage('');
+      setType('Info');
+      setTargetAudience('All Users');
+      setIsActive(true);
+      await refetch();
+    } else {
+      setFormError('Failed to create announcement. Please try again.');
+    }
+  };
+
+  const handleDeleteAnnouncement = async () => {
+    if (!annToDelete) return;
+    const ok = await announcementService.deleteAnnouncement(annToDelete.id);
+    if (ok) {
+      setAnnToDelete(null);
+      await refetch();
+    }
+  };
+
+  const formatDate = (dateStr?: string) => {
+    if (!dateStr) return '—';
+    try {
+      return new Date(dateStr).toLocaleString();
+    } catch {
+      return dateStr;
+    }
+  };
 
   return (
     <ScrollView
@@ -114,10 +113,13 @@ export function AnnouncementsScreen() {
         <View>
           <Text style={[styles.pageTitle, { color: textColor }]}>Announcements</Text>
           <Text style={[styles.pageSub, { color: mutedColor }]}>
-            Publish system banners and operational updates to all regional portals
+            Publish system banners and operational updates across the platform
           </Text>
         </View>
-        <Pressable style={[styles.newBtn, { backgroundColor: isDark ? colors.brand[800] : colors.brand[700] }]}>
+        <Pressable
+          style={[styles.newBtn, { backgroundColor: isDark ? colors.brand[800] : colors.brand[700] }]}
+          onPress={() => setIsAddModalOpen(true)}
+        >
           <Lucide name="plus" size={13} color="#FFFFFF" />
           <Text style={styles.newBtnText}>New Announcement</Text>
         </Pressable>
@@ -125,7 +127,7 @@ export function AnnouncementsScreen() {
 
       {/* ── Status Filter Pills ─────────────────────────────────────────── */}
       <View style={styles.filterRow}>
-        {(['All', 'Published', 'Scheduled', 'Draft'] as const).map((f) => (
+        {(['All', 'Active', 'Inactive'] as const).map((f) => (
           <Pressable
             key={f}
             onPress={() => setActiveFilter(f)}
@@ -148,75 +150,239 @@ export function AnnouncementsScreen() {
               {f}{' '}
               <Text style={{ opacity: 0.7 }}>
                 ({f === 'All'
-                  ? MOCK_ANNOUNCEMENTS.length
-                  : MOCK_ANNOUNCEMENTS.filter((a) => a.status === f).length})
+                  ? announcements.length
+                  : announcements.filter((a) => (f === 'Active' ? a.isActive : !a.isActive)).length})
               </Text>
             </Text>
           </Pressable>
         ))}
       </View>
 
+      {/* ── Loading Skeleton ───────────────────────────────────────────── */}
+      {isLoading && (
+        <View style={{ gap: SPACING[12] }}>
+          <SkeletonLoader height={100} borderRadius={12} />
+          <SkeletonLoader height={100} borderRadius={12} />
+        </View>
+      )}
+
       {/* ── Announcement Cards ─────────────────────────────────────────── */}
-      <View style={styles.cardList}>
-        {filtered.map((ann) => {
-          const typeSt = TYPE_STYLE[ann.type];
-          const statusSt = STATUS_STYLE[ann.status];
-          return (
-            <View
-              key={ann.id}
-              style={[
-                styles.annCard,
-                { backgroundColor: cardBg, borderColor, borderLeftColor: typeSt.bg },
-              ]}
-            >
-              {/* Card header */}
-              <View style={styles.annCardHeader}>
-                <View style={styles.annTitleRow}>
-                  <View style={[styles.typeBadge, { backgroundColor: typeSt.bg }]}>
-                    <Lucide name={typeSt.icon} size={11} color={typeSt.text} />
-                    <Text style={[styles.typeBadgeText, { color: typeSt.text }]}>
-                      {ann.type}
-                    </Text>
+      {!isLoading && (
+        <View style={styles.cardList}>
+          {filtered.length === 0 ? (
+            <View style={[styles.emptyState, { backgroundColor: cardBg, borderColor }]}>
+              <Lucide name="volume-x" size={32} color={mutedColor} />
+              <Text style={[styles.emptyTitle, { color: textColor }]}>No Announcements Found</Text>
+              <Text style={[styles.emptySub, { color: mutedColor }]}>
+                No announcements match your current filter.
+              </Text>
+            </View>
+          ) : (
+            filtered.map((ann) => {
+              const typeSt = TYPE_STYLE[ann.type] || TYPE_STYLE['Info'];
+              return (
+                <View
+                  key={ann.id}
+                  style={[
+                    styles.annCard,
+                    { backgroundColor: cardBg, borderColor, borderLeftColor: typeSt.bg },
+                  ]}
+                >
+                  {/* Card header */}
+                  <View style={styles.annCardHeader}>
+                    <View style={styles.annTitleRow}>
+                      <View style={[styles.typeBadge, { backgroundColor: typeSt.bg }]}>
+                        <Lucide name={typeSt.icon} size={11} color={typeSt.text} />
+                        <Text style={[styles.typeBadgeText, { color: typeSt.text }]}>
+                          {ann.type}
+                        </Text>
+                      </View>
+                      <View
+                        style={[
+                          styles.statusBadge,
+                          { backgroundColor: ann.isActive ? '#D1FAE5' : '#F3F4F6' },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.statusBadgeText,
+                            { color: ann.isActive ? '#065F46' : '#374151' },
+                          ]}
+                        >
+                          {ann.isActive ? 'Active' : 'Inactive'}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={styles.annActions}>
+                      <Pressable
+                        style={styles.iconActionBtn}
+                        onPress={() => setAnnToDelete(ann)}
+                      >
+                        <Lucide name="trash-2" size={13} color={isDark ? '#F87171' : '#EF4444'} />
+                      </Pressable>
+                    </View>
                   </View>
-                  <View style={[styles.statusBadge, { backgroundColor: statusSt.bg }]}>
-                    <Text style={[styles.statusBadgeText, { color: statusSt.text }]}>
-                      {ann.status}
+
+                  <Text style={[styles.annTitle, { color: textColor }]}>{ann.title}</Text>
+                  <Text style={[styles.annBody, { color: mutedColor }]}>
+                    {ann.message}
+                  </Text>
+
+                  {/* Card footer */}
+                  <View style={[styles.annCardFooter, { borderTopColor: borderColor }]}>
+                    <View style={styles.footerMeta}>
+                      <Lucide name="users" size={11} color={mutedColor} />
+                      <Text style={[styles.footerText, { color: mutedColor }]}>
+                        {ann.targetAudience}
+                      </Text>
+                    </View>
+                    <View style={styles.footerMeta}>
+                      <Lucide name="clock" size={11} color={mutedColor} />
+                      <Text style={[styles.footerText, { color: mutedColor }]}>
+                        {formatDate(ann.createdAt)}
+                      </Text>
+                    </View>
+                    <Text
+                      style={[
+                        styles.footerId,
+                        { color: isDark ? colors.neutral[600] : colors.neutral[300] },
+                      ]}
+                    >
+                      {ann.id}
                     </Text>
                   </View>
                 </View>
-                <View style={styles.annActions}>
-                  <Pressable style={styles.iconActionBtn}>
-                    <Lucide name="edit-2" size={13} color={mutedColor} />
-                  </Pressable>
-                  <Pressable style={styles.iconActionBtn}>
-                    <Lucide name="trash-2" size={13} color={isDark ? '#F87171' : '#EF4444'} />
-                  </Pressable>
-                </View>
+              );
+            })
+          )}
+        </View>
+      )}
+
+      {/* ── Create Announcement Modal ───────────────────────────────────── */}
+      {isAddModalOpen && (
+        <Modal transparent animationType="fade" visible={isAddModalOpen} onRequestClose={() => setIsAddModalOpen(false)}>
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, { backgroundColor: cardBg, borderColor }]}>
+              <View style={[styles.modalHeader, { borderBottomColor: borderColor }]}>
+                <Text style={[styles.modalTitle, { color: textColor }]}>New System Announcement</Text>
+                <Pressable onPress={() => setIsAddModalOpen(false)}>
+                  <Lucide name="x" size={18} color={textColor} />
+                </Pressable>
               </View>
 
-              <Text style={[styles.annTitle, { color: textColor }]}>{ann.title}</Text>
-              <Text style={[styles.annBody, { color: mutedColor }]} numberOfLines={2}>
-                {ann.body}
-              </Text>
+              <ScrollView style={{ padding: SPACING[20] }} showsVerticalScrollIndicator={false}>
+                {formError && (
+                  <View style={styles.errorBox}>
+                    <Lucide name="alert-triangle" size={14} color="#991B1B" />
+                    <Text style={styles.errorText}>{formError}</Text>
+                  </View>
+                )}
 
-              {/* Card footer */}
-              <View style={[styles.annCardFooter, { borderTopColor: borderColor }]}>
-                <View style={styles.footerMeta}>
-                  <Lucide name="users" size={11} color={mutedColor} />
-                  <Text style={[styles.footerText, { color: mutedColor }]}>{ann.audience}</Text>
+                <Text style={[styles.inputLabel, { color: textColor }]}>Title</Text>
+                <TextInput
+                  style={[styles.textInput, { backgroundColor: inputBg, borderColor, color: textColor }]}
+                  placeholder="e.g. Scheduled System Maintenance"
+                  placeholderTextColor={mutedColor}
+                  value={title}
+                  onChangeText={setTitle}
+                />
+
+                <Text style={[styles.inputLabel, { color: textColor, marginTop: SPACING[12] }]}>Message Payload</Text>
+                <TextInput
+                  style={[styles.textInput, styles.textArea, { backgroundColor: inputBg, borderColor, color: textColor }]}
+                  placeholder="Detailed announcement description..."
+                  placeholderTextColor={mutedColor}
+                  multiline
+                  numberOfLines={4}
+                  value={message}
+                  onChangeText={setMessage}
+                />
+
+                <Text style={[styles.inputLabel, { color: textColor, marginTop: SPACING[12] }]}>Announcement Type</Text>
+                <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                  {(['Info', 'Warning', 'Maintenance', 'Emergency'] as const).map((t) => (
+                    <Pressable
+                      key={t}
+                      onPress={() => setType(t)}
+                      style={[
+                        styles.typeOption,
+                        {
+                          backgroundColor: type === t ? (isDark ? colors.brand[800] : colors.brand[700]) : inputBg,
+                          borderColor: type === t ? 'transparent' : borderColor,
+                        },
+                      ]}
+                    >
+                      <Text style={{ fontSize: 12, fontWeight: '600', color: type === t ? '#FFFFFF' : textColor }}>{t}</Text>
+                    </Pressable>
+                  ))}
                 </View>
-                <View style={styles.footerMeta}>
-                  <Lucide name="clock" size={11} color={mutedColor} />
-                  <Text style={[styles.footerText, { color: mutedColor }]}>{ann.publishedAt}</Text>
+
+                <Text style={[styles.inputLabel, { color: textColor, marginTop: SPACING[12] }]}>Target Audience</Text>
+                <TextInput
+                  style={[styles.textInput, { backgroundColor: inputBg, borderColor, color: textColor }]}
+                  placeholder="e.g. All Users, Internal Staff, Applicants"
+                  placeholderTextColor={mutedColor}
+                  value={targetAudience}
+                  onChangeText={setTargetAudience}
+                />
+
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: SPACING[16] }}>
+                  <Text style={[styles.inputLabel, { color: textColor, marginBottom: 0 }]}>Publish Immediately (Active)</Text>
+                  <Switch value={isActive} onValueChange={setIsActive} />
                 </View>
-                <Text style={[styles.footerId, { color: isDark ? colors.neutral[600] : colors.neutral[300] }]}>
-                  {ann.id}
-                </Text>
+              </ScrollView>
+
+              <View style={[styles.modalFooter, { borderTopColor: borderColor }]}>
+                <Pressable style={[styles.cancelBtn, { borderColor }]} onPress={() => setIsAddModalOpen(false)}>
+                  <Text style={[styles.cancelBtnText, { color: textColor }]}>Cancel</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.submitBtn, { backgroundColor: isDark ? colors.brand[800] : colors.brand[700] }]}
+                  onPress={handleCreateAnnouncement}
+                  disabled={isSubmitting}
+                >
+                  <Text style={styles.submitBtnText}>{isSubmitting ? 'Publishing...' : 'Publish Announcement'}</Text>
+                </Pressable>
               </View>
             </View>
-          );
-        })}
-      </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* ── Delete Confirmation Modal ──────────────────────────────────── */}
+      {annToDelete && (
+        <Modal transparent animationType="fade" visible={!!annToDelete} onRequestClose={() => setAnnToDelete(null)}>
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, { maxWidth: 440, backgroundColor: cardBg, borderColor }]}>
+              <View style={[styles.modalHeader, { borderBottomColor: borderColor }]}>
+                <Text style={[styles.modalTitle, { color: textColor }]}>Delete Announcement</Text>
+                <Pressable onPress={() => setAnnToDelete(null)}>
+                  <Lucide name="x" size={18} color={textColor} />
+                </Pressable>
+              </View>
+              <View style={{ padding: SPACING[20], gap: 12 }}>
+                <Text style={{ fontSize: 14, color: textColor }}>
+                  Are you sure you want to delete <Text style={{ fontWeight: '700' }}>"{annToDelete.title}"</Text>?
+                </Text>
+                <Text style={{ fontSize: 12, color: mutedColor }}>
+                  This action cannot be undone and will remove the announcement banner for all users.
+                </Text>
+              </View>
+              <View style={[styles.modalFooter, { borderTopColor: borderColor }]}>
+                <Pressable style={[styles.cancelBtn, { borderColor }]} onPress={() => setAnnToDelete(null)}>
+                  <Text style={[styles.cancelBtnText, { color: textColor }]}>Cancel</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.submitBtn, { backgroundColor: isDark ? '#B91C1C' : '#EF4444' }]}
+                  onPress={handleDeleteAnnouncement}
+                >
+                  <Text style={styles.submitBtnText}>Delete</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      )}
     </ScrollView>
   );
 }
@@ -252,35 +418,36 @@ const styles = StyleSheet.create({
   newBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    ...Platform.select({ web: { cursor: 'pointer' } }),
+    gap: 6,
+    paddingHorizontal: SPACING[16],
+    paddingVertical: 10,
+    borderRadius: 8,
   },
   newBtnText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
-    fontWeight: TYPOGRAPHY.weights.semibold,
     color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '600',
   },
-  filterRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
+  filterRow: {
+    flexDirection: 'row',
+    gap: SPACING[8],
+  },
   filterPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: SPACING[12],
+    paddingVertical: 6,
     borderRadius: 6,
-    ...Platform.select({ web: { cursor: 'pointer' } }),
   },
   filterPillText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-    fontWeight: TYPOGRAPHY.weights.semibold,
+    fontSize: 12,
+    fontWeight: '600',
   },
-  cardList: { gap: SPACING[10] },
+  cardList: {
+    gap: SPACING[12],
+  },
   annCard: {
-    borderRadius: 8,
+    borderRadius: 12,
     borderWidth: 1,
-    borderLeftWidth: 3,
+    borderLeftWidth: 4,
     padding: SPACING[16],
     gap: SPACING[8],
   },
@@ -289,58 +456,173 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  annTitleRow: { flexDirection: 'row', gap: 6, alignItems: 'center' },
+  annTitleRow: {
+    flexDirection: 'row',
+    gap: SPACING[8],
+    alignItems: 'center',
+  },
   typeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
   },
   typeBadgeText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 10,
-    fontWeight: TYPOGRAPHY.weights.semibold,
+    fontSize: 11,
+    fontWeight: '600',
   },
   statusBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
   },
   statusBadgeText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 10,
-    fontWeight: TYPOGRAPHY.weights.semibold,
+    fontSize: 11,
+    fontWeight: '600',
   },
-  annActions: { flexDirection: 'row', gap: 4 },
+  annActions: {
+    flexDirection: 'row',
+    gap: SPACING[4],
+  },
   iconActionBtn: {
-    width: 28,
-    height: 28,
+    padding: 6,
     borderRadius: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...Platform.select({ web: { cursor: 'pointer' } }),
   },
   annTitle: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.sectionTitle,
-    fontWeight: TYPOGRAPHY.weights.semibold,
+    fontSize: 15,
+    fontWeight: '700',
   },
   annBody: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.body,
+    fontSize: 13,
     lineHeight: 18,
   },
   annCardFooter: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING[12],
-    paddingTop: SPACING[8],
-    borderTopWidth: 1,
+    gap: SPACING[16],
+    paddingTop: SPACING[12],
     marginTop: SPACING[4],
+    borderTopWidth: 1,
   },
-  footerMeta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  footerText: { fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11 },
-  footerId: { marginLeft: 'auto', fontFamily: TYPOGRAPHY.fonts.mono, fontSize: 10 },
+  footerMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  footerText: {
+    fontSize: 11,
+  },
+  footerId: {
+    marginLeft: 'auto',
+    fontSize: 11,
+    fontFamily: 'monospace',
+  },
+  emptyState: {
+    padding: SPACING[40],
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    gap: 8,
+  },
+  emptyTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  emptySub: {
+    fontSize: 13,
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING[16],
+  },
+  modalContent: {
+    width: '100%',
+    maxWidth: 560,
+    maxHeight: '90%',
+    borderRadius: 16,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING[20],
+    paddingVertical: SPACING[16],
+    borderBottomWidth: 1,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  inputLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  textInput: {
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: SPACING[12],
+    paddingVertical: 8,
+    fontSize: 13,
+  },
+  textArea: {
+    height: 80,
+    textAlignVertical: 'top',
+  },
+  typeOption: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#FEE2E2',
+    padding: SPACING[10],
+    borderRadius: 8,
+    marginBottom: SPACING[12],
+  },
+  errorText: {
+    fontSize: 12,
+    color: '#991B1B',
+    fontWeight: '600',
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: SPACING[8],
+    paddingHorizontal: SPACING[20],
+    paddingVertical: 14,
+    borderTopWidth: 1,
+  },
+  cancelBtn: {
+    paddingHorizontal: SPACING[16],
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  cancelBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  submitBtn: {
+    paddingHorizontal: SPACING[16],
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  submitBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '600',
+  },
 });
