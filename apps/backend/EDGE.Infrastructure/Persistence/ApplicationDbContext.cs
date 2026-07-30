@@ -49,6 +49,9 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
 
     public DbSet<Fee> Fees => Set<Fee>();
     public DbSet<ServiceFee> ServiceFees => Set<ServiceFee>();
+    public DbSet<ServiceVariantFee> ServiceVariantFees => Set<ServiceVariantFee>();
+    public DbSet<ServiceVariantElementFee> ServiceVariantElementFees => Set<ServiceVariantElementFee>();
+    public DbSet<Element> Elements => Set<Element>();
     public DbSet<ServiceCategory> ServiceCategories => Set<ServiceCategory>();
     public DbSet<Service> Services => Set<Service>();
     public DbSet<ServiceVariant> ServiceVariants => Set<ServiceVariant>();
@@ -472,6 +475,50 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
                   .WithMany(p => p.ServiceFees)
                   .HasForeignKey(d => d.ServiceId)
                   .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Element entity configuration
+        modelBuilder.Entity<Element>(entity =>
+        {
+            entity.HasIndex(e => e.Code).IsUnique();
+            entity.Property(e => e.Code).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(150);
+            entity.Property(e => e.Description).HasMaxLength(500);
+        });
+
+        // ServiceVariantFee entity configuration
+        modelBuilder.Entity<ServiceVariantFee>(entity =>
+        {
+            entity.Property(e => e.Amount).HasColumnType("decimal(18,2)");
+            entity.HasOne(d => d.Fee)
+                  .WithMany()
+                  .HasForeignKey(d => d.FeeId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(d => d.ServiceVariant)
+                  .WithMany()
+                  .HasForeignKey(d => d.ServiceVariantId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ServiceVariantElementFee entity configuration
+        modelBuilder.Entity<ServiceVariantElementFee>(entity =>
+        {
+            entity.Property(e => e.Amount).HasColumnType("decimal(18,2)");
+            entity.HasOne(d => d.Fee)
+                  .WithMany()
+                  .HasForeignKey(d => d.FeeId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(d => d.ServiceVariant)
+                  .WithMany()
+                  .HasForeignKey(d => d.ServiceVariantId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(d => d.Element)
+                  .WithMany()
+                  .HasForeignKey(d => d.ElementId)
+                  .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<StoredFile>(entity =>
