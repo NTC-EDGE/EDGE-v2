@@ -136,10 +136,28 @@ public class UserAuthorizationService : IUserAuthorizationService
             return _cachedPermissions;
         }
 
+        var authUserId = _currentUserService.UserId;
+        if (string.IsNullOrEmpty(authUserId))
+        {
+            _cachedPermissions = [];
+            return _cachedPermissions;
+        }
+
         var user = await GetCurrentUserAsync(cancellationToken);
         if (user == null)
         {
-            _cachedPermissions = [];
+            // Assign default client/applicant permissions for authenticated users who have no database record yet
+            _cachedPermissions = new List<string>
+            {
+                Permissions.ReadTenants,
+                Permissions.ReadRoles,
+                Permissions.ReadServices,
+                Permissions.SubmitApplication,
+                Permissions.ViewOwnApplications,
+                Permissions.UploadStorage,
+                Permissions.ReadStorage,
+                Permissions.DownloadStorage
+            };
             return _cachedPermissions;
         }
 

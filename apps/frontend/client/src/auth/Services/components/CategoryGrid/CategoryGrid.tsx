@@ -8,7 +8,7 @@ import {
   Image,
   ImageSourcePropType,
 } from "react-native";
-import { COLORS, Icon } from "@edge/ui";
+import { COLORS, Icon, TYPOGRAPHY } from "@edge/ui";
 import { servicesData } from "../../data/servicesData";
 import { styles } from "./CategoryGrid.styles";
 
@@ -36,6 +36,8 @@ interface CategoryGridProps {
   onCategorySelect: (categoryId: string) => void;
   drafts: any[];
   onViewDrafts: (categoryId: string) => void;
+  backendCategories: any[] | null;
+  allBackendServices: any[] | null;
 }
 
 export function CategoryGrid({
@@ -46,6 +48,8 @@ export function CategoryGrid({
   onCategorySelect,
   drafts,
   onViewDrafts,
+  backendCategories,
+  allBackendServices,
 }: CategoryGridProps) {
   // Derive time of day greeting
   const greeting = useMemo(() => {
@@ -56,6 +60,22 @@ export function CategoryGrid({
   }, []);
 
   const displayName = user?.name ?? "Guest";
+
+  const visibleCategories = useMemo(() => {
+    if (!backendCategories) return servicesData;
+    return servicesData.filter((cat) => {
+      return backendCategories.some((c: any) => {
+        const code = c.code?.toUpperCase();
+        if (cat.id === "exams" && code === "EXAM") return true;
+        if (cat.id === "certificates" && code === "CERT") return true;
+        if (cat.id === "licenses" && code === "LIC") return true;
+        if (cat.id === "permits" && code === "PRM") return true;
+        if (cat.id === "accreditations" && code === "ACCR") return true;
+        if (cat.id === "complaints" && (code === "REQ" || c.type === "RequestsAndComplaints")) return true;
+        return false;
+      });
+    });
+  }, [backendCategories]);
 
   // Helper to map category ID to icon color gradient styles
   const getCategoryTheme = (id: string) => {
@@ -111,7 +131,7 @@ export function CategoryGrid({
 
       {/* Grid of Categories */}
       <View style={styles.gridContainer}>
-        {servicesData.map((category) => {
+        {visibleCategories.map((category) => {
           const theme = getCategoryTheme(category.id);
           const isActive = selectedCategoryId === category.id;
           const categoryDraftsCount = drafts.filter((d) =>
@@ -139,9 +159,27 @@ export function CategoryGrid({
                 </View>
               )}
               <Text style={styles.categoryCardTitle}>{category.title}</Text>
-              <Text style={styles.categoryCardCount}>
-                {category.services.length} {category.services.length === 1 ? "Service" : "Services"}
-              </Text>
+              {(() => {
+                const backendCat = backendCategories?.find((bc: any) => {
+                  const code = bc.code?.toUpperCase();
+                  if (category.id === "exams" && code === "EXAM") return true;
+                  if (category.id === "certificates" && code === "CERT") return true;
+                  if (category.id === "licenses" && code === "LIC") return true;
+                  if (category.id === "permits" && code === "PRM") return true;
+                  if (category.id === "accreditations" && code === "ACCR") return true;
+                  if (category.id === "complaints" && (code === "REQ" || bc.type === "RequestsAndComplaints")) return true;
+                  return false;
+                });
+                const servicesCount = allBackendServices && backendCat
+                  ? allBackendServices.filter((s: any) => s.serviceCategoryId === backendCat.id).length
+                  : category.services.length;
+
+                return (
+                  <Text style={styles.categoryCardCount}>
+                    {servicesCount} {servicesCount === 1 ? "Service" : "Services"}
+                  </Text>
+                );
+              })()}
 
               {categoryDraftsCount > 0 && (
                 <TouchableOpacity
@@ -163,7 +201,7 @@ export function CategoryGrid({
                   }}
                 >
                   <Icon name="file-text" size={12} color="#1d4ed8" />
-                  <Text style={{ fontFamily: "Outfit-Medium", fontSize: 11, color: "#1d4ed8", fontWeight: "600" }}>
+                  <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, color: "#1d4ed8", fontWeight: "600" }}>
                     {categoryDraftsCount} {categoryDraftsCount === 1 ? "Draft" : "Drafts"}
                   </Text>
                 </TouchableOpacity>

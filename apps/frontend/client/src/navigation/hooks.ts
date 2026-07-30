@@ -1,12 +1,13 @@
 import { useNavigation } from "@react-navigation/native";
 import type { NavigationProp } from "@react-navigation/native";
-import type { UnauthParamList } from "./routes/public";
-import type { AuthParamList } from "./routes/auth";
+import type { RootStackParamList } from "./types";
+import type { UnauthParamList } from "../routes/public";
+import type { AuthParamList } from "../routes/auth";
 
 /**
- * Combined param list for both authenticated and unauthenticated stacks.
+ * Combined param list for both authenticated and unauthenticated stacks, including drawer navigation.
  */
-export type AppParamList = UnauthParamList & AuthParamList;
+export type AppParamList = UnauthParamList & AuthParamList & RootStackParamList;
 export type AppNavigationProp = NavigationProp<AppParamList>;
 
 /**

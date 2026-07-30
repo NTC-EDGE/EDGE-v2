@@ -57,12 +57,27 @@ export function useServices() {
   const [selectedService, setSelectedService] = useState<NTCService | null>(
     null,
   );
+  const [serviceId, setServiceId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [activeWizardService, setActiveWizardService] = useState<string | null>(
     null,
   );
   const [isDetailsExpanded, setIsDetailsExpanded] = useState(false);
+
+  // Backend Categories Query
+  const { data: categoriesApiResponse } = api.useQuery<{ succeeded: boolean; data: any[] }>("/api/v2/service-categories");
+  const backendCategories = categoriesApiResponse?.succeeded ? categoriesApiResponse.data : null;
+
+  // Backend Services Query (all services for counting)
+  const { data: allServicesApiResponse } = api.useQuery<{ succeeded: boolean; data: any[] }>("/api/v2/services");
+  const allBackendServices = allServicesApiResponse?.succeeded ? allServicesApiResponse.data : null;
+
+  // Backend Services Query (filtered by selected category's serviceId as serviceCategoryId)
+  const { data: servicesApiResponse } = api.useQuery<{ succeeded: boolean; data: any[] }>(
+    serviceId ? `/api/v2/services?serviceCategoryId=${serviceId}` : null
+  );
+  const backendServices = servicesApiResponse?.succeeded ? servicesApiResponse.data : null;
 
   // Shared Wizard States
   const [wizardStep, setWizardStep] = useState(1);
@@ -111,6 +126,7 @@ export function useServices() {
     setCurrentExamApplicantIndex(0);
     setCurrentGeneralApplicantIndex(0);
     setIsBulkSubmitOpen(false);
+    setServiceId(null);
   };
 
   const saveActiveAsDraft = () => {
@@ -265,8 +281,64 @@ export function useServices() {
   const activeCategory = useMemo(() => {
     if (selectedCategoryId === null) return null;
     const category = servicesData.find((c) => c.id === selectedCategoryId);
-    return category ?? null;
-  }, [selectedCategoryId]);
+    if (!category) return null;
+
+    if (backendServices) {
+      // Helper to match backend service to static definitions
+      const matchBackendServiceToStatic = (backendService: any, staticServices: NTCService[]): NTCService => {
+        const bName = backendService.name.toLowerCase();
+        const matched = staticServices.find((s) => {
+          const sTitle = s.title.toLowerCase();
+          if (bName.includes(sTitle) || sTitle.includes(bName)) return true;
+          if (bName.includes("amateur") && sTitle.includes("amateur")) return true;
+          if (bName.includes("maritime") && sTitle.includes("maritime")) return true;
+          if (bName.includes("ship") && sTitle.includes("maritime")) return true;
+          if (bName.includes("aeronautical") && sTitle.includes("aeronautical")) return true;
+          if (bName.includes("cpe") && sTitle.includes("cpe")) return true;
+          if (bName.includes("premises") && sTitle.includes("premises")) return true;
+          if (bName.includes("tvro") && sTitle.includes("tvro")) return true;
+          if (bName.includes("catv") && sTitle.includes("catv")) return true;
+          if (bName.includes("value-added") && sTitle.includes("value-added")) return true;
+          if (bName.includes("vas") && sTitle.includes("vas")) return true;
+          if (bName.includes("radio operator") && sTitle.includes("radio operator")) return true;
+          return false;
+        });
+
+        if (matched) {
+          return {
+            ...matched,
+            id: backendService.id,
+            title: backendService.name,
+            description: backendService.description || matched.description,
+          };
+        }
+
+        // Fallback for general services
+        return {
+          id: backendService.id,
+          title: backendService.name,
+          description: backendService.description || backendService.name,
+          requirements: [
+            "Duly accomplished Application Form",
+            "Valid Government-issued ID",
+            "Proof of payment of fees"
+          ],
+          fee: "Varies",
+          time: "3-5 Working Days"
+        };
+      };
+
+      const mappedServices = backendServices.map((bs) => 
+        matchBackendServiceToStatic(bs, category.services)
+      );
+      return {
+        ...category,
+        services: mappedServices,
+      };
+    }
+
+    return category;
+  }, [selectedCategoryId, backendServices]);
 
   const searchResults = useMemo(() => {
     if (searchQuery.trim() === "") return null;
@@ -289,12 +361,14 @@ export function useServices() {
   const handleBackToCategories = () => {
     setSelectedCategoryId(null);
     setSelectedService(null);
+    setServiceId(null);
   };
 
   const handleBackToServices = () => {
     setSelectedService(null);
     if (isMobile && selectedCategoryId === "search-active") {
       setSelectedCategoryId(null);
+      setServiceId(null);
     }
   };
 
@@ -302,6 +376,7 @@ export function useServices() {
     setSearchQuery("");
     setSelectedCategoryId(null);
     setSelectedService(null);
+    setServiceId(null);
   };
 
   const hasUnsavedChanges = () => {
@@ -417,6 +492,10 @@ export function useServices() {
     setSelectedCategoryId,
     selectedService,
     setSelectedService,
+    serviceId,
+    setServiceId,
+    backendCategories,
+    allBackendServices,
     isModalOpen,
     setIsModalOpen,
     submitting,

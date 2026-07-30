@@ -1,12 +1,9 @@
-using System;
-using System.Threading.Tasks;
+using System.Collections.Generic;
 using MediatR;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Routing;
 using FluentValidation;
 using EDGE.Domain.Authorization;
 using EDGE.Infrastructure.Authorization;
+using EDGE.Application.ServiceCategories.Dtos;
 using EDGE.Application.ServiceCategories.Commands.CreateServiceCategory;
 using EDGE.Application.ServiceCategories.Commands.UpdateServiceCategory;
 using EDGE.Application.ServiceCategories.Commands.DeleteServiceCategory;
@@ -25,12 +22,15 @@ public static class ServiceCategoryEndpoints
         group.MapGet("/", GetServiceCategories)
             .WithName("GetServiceCategories")
             .WithSummary("Get all service categories")
-            .WithDescription("Returns all service categories (Certificate, Accreditation, Exam, License, Permit, RequestsAndComplaints).");
+            .WithDescription("Returns all service categories (Certificate, Accreditation, Exam, License, Permit, RequestsAndComplaints).")
+            .Produces<ApiResponse<List<ServiceCategoryDto>>>(StatusCodes.Status200OK);
 
         group.MapGet("/{id:guid}", GetServiceCategoryById)
             .WithName("GetServiceCategoryById")
             .WithSummary("Get service category by ID")
-            .WithDescription("Fetches a single service category by its unique identifier.");
+            .WithDescription("Fetches a single service category by its unique identifier.")
+            .Produces<ApiResponse<ServiceCategoryDto>>(StatusCodes.Status200OK)
+            .Produces<ApiResponse<ServiceCategoryDto>>(StatusCodes.Status404NotFound);
 
         group.MapPost("/", CreateServiceCategory)
             .WithName("CreateServiceCategory")

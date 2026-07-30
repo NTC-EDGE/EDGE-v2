@@ -73,6 +73,7 @@ export function DetailsColumn({ servicesState }: DetailsColumnProps) {
     width,
     activeCategory,
     handleBackToServices,
+    serviceId,
   } = servicesState;
 
   const isWizardActive = activeWizardService !== null;
@@ -126,6 +127,7 @@ export function DetailsColumn({ servicesState }: DetailsColumnProps) {
             applicants={examApplicants} setApplicants={setExamApplicants}
             currentApplicantIndex={currentExamApplicantIndex} setCurrentApplicantIndex={setCurrentExamApplicantIndex}
             isBulkSubmitOpen={isBulkSubmitOpen} setIsBulkSubmitOpen={setIsBulkSubmitOpen}
+            serviceId={selectedService?.id}
           />
         ) : activeWizardService === "general-service" &&
           selectedService !== null ? (

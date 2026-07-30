@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { ClerkProvider, useAuth } from "@clerk/expo";
 import * as WebBrowser from "expo-web-browser";
 import { tokenCache } from "@clerk/expo/token-cache";
@@ -26,8 +26,31 @@ if (publishableKey.length === 0) {
 }
 
 function AppContent() {
-  useAuth();
-  return <Navigation linking={linking} />;
+  const clerkAuth = useAuth();
+  const { isSignedIn, isLoaded } = clerkAuth;
+
+  // Register Clerk's getToken callback with the API tokenManager service to populate authorization headers
+  useEffect(() => {
+    if (isSignedIn && clerkAuth.getToken) {
+      setTokenProvider(clerkAuth.getToken);
+    } else {
+      setTokenProvider(null);
+    }
+  }, [isSignedIn, clerkAuth.getToken]);
+
+  if (!isLoaded) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" color="#0284C7" />
+      </View>
+    );
+  }
+
+  if (!isSignedIn) {
+    return <UnauthNavigation linking={clientLinking} />;
+  }
+
+  return <AuthNavigation linking={clientLinking} />;
 }
 
 export default function App() {
