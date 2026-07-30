@@ -549,8 +549,8 @@ export function AnnouncementsScreen() {
                       : formError
                       ? 'Try Again'
                       : editingAnn
-                      ? 'Save Changes'
-                      : 'Publish Announcement'}
+                      ? (isActive ? 'Publish Changes' : 'Save as Draft')
+                      : (isActive ? 'Publish Announcement' : 'Save as Draft')}
                   </Text>
                 </Pressable>
               </View>
