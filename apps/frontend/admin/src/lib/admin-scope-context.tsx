@@ -1,6 +1,8 @@
 "use client";
 
-import React, { createContext, useContext, useState, ReactNode } from "react";
+import React, { createContext, useContext, useState, ReactNode, useEffect } from "react";
+import { useAuth } from "@clerk/nextjs";
+import { setTokenProvider } from "@edge/api";
 
 export type AdminRoleType = "system_admin";
 
@@ -25,6 +27,18 @@ export function AdminScopeProvider({ children }: { children: ReactNode }) {
   const [activeRole, setActiveRole] = useState<AdminRoleType>("system_admin");
   const [selectedRegionId, setSelectedRegionId] = useState<string | null>(null);
   const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
+
+  const clerkAuth = useAuth();
+
+  // Register Clerk's getToken callback with the API tokenManager service so that
+  // all outgoing apiClient requests automatically receive the correct Bearer token in headers.
+  useEffect(() => {
+    if (clerkAuth.isSignedIn && clerkAuth.getToken) {
+      setTokenProvider(clerkAuth.getToken);
+    } else {
+      setTokenProvider(null);
+    }
+  }, [clerkAuth.isSignedIn, clerkAuth.getToken]);
 
   const isSystemAdmin = true;
   const isRegionAdmin = true;
