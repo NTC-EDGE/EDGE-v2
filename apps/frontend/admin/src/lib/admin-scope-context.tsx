@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, ReactNode } from "react";
 
-export type AdminRoleType = "system_admin" | "region_admin" | "tenant_admin";
+export type AdminRoleType = "system_admin";
 
 export interface AdminScopeContextType {
   activeRole: AdminRoleType;
@@ -26,13 +26,13 @@ export function AdminScopeProvider({ children }: { children: ReactNode }) {
   const [selectedRegionId, setSelectedRegionId] = useState<string | null>(null);
   const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
 
-  const isSystemAdmin = activeRole === "system_admin";
-  const isRegionAdmin = activeRole === "system_admin" || activeRole === "region_admin";
-  const isTenantAdmin = activeRole === "system_admin" || activeRole === "region_admin" || activeRole === "tenant_admin";
+  const isSystemAdmin = true;
+  const isRegionAdmin = true;
+  const isTenantAdmin = true;
 
-  const canManageTenants = isSystemAdmin || activeRole === "region_admin";
-  const canManageTenantMembers = isTenantAdmin;
-  const canManageRegionSettings = isSystemAdmin || activeRole === "region_admin";
+  const canManageTenants = true;
+  const canManageTenantMembers = true;
+  const canManageRegionSettings = true;
 
   return (
     <AdminScopeContext.Provider
