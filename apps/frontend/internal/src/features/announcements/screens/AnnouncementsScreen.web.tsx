@@ -32,6 +32,14 @@ export function AnnouncementsScreen() {
   const [annToDelete, setAnnToDelete] = useState<SystemAnnouncementDto | null>(null);
   const [publishModalTarget, setPublishModalTarget] = useState<{ ann: SystemAnnouncementDto; nextState: boolean } | null>(null);
 
+  // Toast Feedback State
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 4000);
+  };
+
   // Form State
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
@@ -95,7 +103,12 @@ export function AnnouncementsScreen() {
         isActive,
       });
       ok = Boolean(data);
-      if (err) setFormError(err);
+      if (err) {
+        setFormError(err);
+        showToast(`Failed to update announcement: ${err}`, 'error');
+      } else {
+        showToast(`Announcement "${title.trim()}" updated successfully!`, 'success');
+      }
     } else {
       const [data, err] = await announcementService.createAnnouncement({
         title: title.trim(),
@@ -105,7 +118,12 @@ export function AnnouncementsScreen() {
         isActive,
       });
       ok = Boolean(data);
-      if (err) setFormError(err);
+      if (err) {
+        setFormError(err);
+        showToast(`Failed to create announcement: ${err}`, 'error');
+      } else {
+        showToast(`Announcement "${title.trim()}" published successfully!`, 'success');
+      }
     }
 
     setIsSubmitting(false);
@@ -126,20 +144,33 @@ export function AnnouncementsScreen() {
     if (!publishModalTarget) return;
     const { ann, nextState } = publishModalTarget;
     setIsSubmitting(true);
-    const [data] = await announcementService.togglePublish(ann.id, nextState);
+    const [data, err] = await announcementService.togglePublish(ann.id, nextState);
     setIsSubmitting(false);
+
     if (data) {
       setPublishModalTarget(null);
+      showToast(
+        nextState
+          ? `Published "${ann.title}" to ${ann.targetAudience}!`
+          : `Unpublished "${ann.title}" (moved to draft).`,
+        'success'
+      );
       await refetch();
+    } else {
+      showToast(err || `Failed to ${nextState ? 'publish' : 'unpublish'} announcement.`, 'error');
     }
   };
 
   const handleDeleteAnnouncement = async () => {
     if (!annToDelete) return;
-    const [ok] = await announcementService.deleteAnnouncement(annToDelete.id);
+    const [ok, err] = await announcementService.deleteAnnouncement(annToDelete.id);
     if (ok) {
+      const deletedTitle = annToDelete.title;
       setAnnToDelete(null);
+      showToast(`Deleted announcement "${deletedTitle}".`, 'success');
       await refetch();
+    } else {
+      showToast(err || 'Failed to delete announcement.', 'error');
     }
   };
 
@@ -158,6 +189,33 @@ export function AnnouncementsScreen() {
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
+      {/* ── Toast Notification Banner ─────────────────────────────────── */}
+      {toast && (
+        <View
+          style={[
+            styles.toastBanner,
+            {
+              backgroundColor: toast.type === 'success' ? '#D1FAE5' : '#FEE2E2',
+              borderColor: toast.type === 'success' ? '#10B981' : '#EF4444',
+            },
+          ]}
+        >
+          <Lucide
+            name={toast.type === 'success' ? 'check-circle' : 'alert-triangle'}
+            size={16}
+            color={toast.type === 'success' ? '#065F46' : '#991B1B'}
+          />
+          <Text
+            style={[
+              styles.toastText,
+              { color: toast.type === 'success' ? '#065F46' : '#991B1B' },
+            ]}
+          >
+            {toast.message}
+          </Text>
+        </View>
+      )}
+
       {/* ── Page Title ─────────────────────────────────────────────────── */}
       <View style={styles.titleRow}>
         <View>
@@ -530,6 +588,19 @@ const styles = StyleSheet.create({
     maxWidth: 1280,
     width: '100%',
     alignSelf: 'center',
+  },
+  toastBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING[8],
+    paddingHorizontal: SPACING[16],
+    paddingVertical: SPACING[12],
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  toastText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
   titleRow: {
     flexDirection: 'row',
