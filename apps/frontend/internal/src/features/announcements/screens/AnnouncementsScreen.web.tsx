@@ -30,6 +30,7 @@ export function AnnouncementsScreen() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingAnn, setEditingAnn] = useState<SystemAnnouncementDto | null>(null);
   const [annToDelete, setAnnToDelete] = useState<SystemAnnouncementDto | null>(null);
+  const [publishModalTarget, setPublishModalTarget] = useState<{ ann: SystemAnnouncementDto; nextState: boolean } | null>(null);
 
   // Form State
   const [title, setTitle] = useState('');
@@ -117,6 +118,18 @@ export function AnnouncementsScreen() {
       setTargetAudience('All Users');
       setIsActive(true);
       setEditingAnn(null);
+      await refetch();
+    }
+  };
+
+  const handleConfirmTogglePublish = async () => {
+    if (!publishModalTarget) return;
+    const { ann, nextState } = publishModalTarget;
+    setIsSubmitting(true);
+    const [data] = await announcementService.togglePublish(ann.id, nextState);
+    setIsSubmitting(false);
+    if (data) {
+      setPublishModalTarget(null);
       await refetch();
     }
   };
@@ -234,22 +247,34 @@ export function AnnouncementsScreen() {
                           {ann.type}
                         </Text>
                       </View>
-                      <View
+                      
+                      {/* Dedicated Publish Status Toggle Button */}
+                      <Pressable
+                        onPress={() => setPublishModalTarget({ ann, nextState: !ann.isActive })}
                         style={[
-                          styles.statusBadge,
-                          { backgroundColor: ann.isActive ? '#D1FAE5' : '#F3F4F6' },
+                          styles.statusToggleBtn,
+                          {
+                            backgroundColor: ann.isActive ? '#D1FAE5' : '#FEF3C7',
+                            borderColor: ann.isActive ? '#10B981' : '#F59E0B',
+                          },
                         ]}
                       >
+                        <Lucide
+                          name={ann.isActive ? 'check-circle' : 'pause-circle'}
+                          size={12}
+                          color={ann.isActive ? '#065F46' : '#92400E'}
+                        />
                         <Text
                           style={[
                             styles.statusBadgeText,
-                            { color: ann.isActive ? '#065F46' : '#374151' },
+                            { color: ann.isActive ? '#065F46' : '#92400E' },
                           ]}
                         >
-                          {ann.isActive ? 'Active' : 'Inactive'}
+                          {ann.isActive ? 'Published (Active)' : 'Draft (Inactive)'}
                         </Text>
-                      </View>
+                      </Pressable>
                     </View>
+
                     <View style={styles.annActions}>
                       <Pressable
                         style={styles.iconActionBtn}
@@ -299,6 +324,67 @@ export function AnnouncementsScreen() {
             })
           )}
         </View>
+      )}
+
+      {/* ── Dedicated Publish / Unpublish Confirmation Modal ──────────── */}
+      {publishModalTarget && (
+        <Modal
+          transparent
+          animationType="fade"
+          visible={!!publishModalTarget}
+          onRequestClose={() => setPublishModalTarget(null)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, { maxWidth: 460, backgroundColor: cardBg, borderColor }]}>
+              <View style={[styles.modalHeader, { borderBottomColor: borderColor }]}>
+                <Text style={[styles.modalTitle, { color: textColor }]}>
+                  {publishModalTarget.nextState ? 'Publish Announcement' : 'Unpublish Announcement'}
+                </Text>
+                <Pressable onPress={() => setPublishModalTarget(null)}>
+                  <Lucide name="x" size={18} color={textColor} />
+                </Pressable>
+              </View>
+
+              <View style={{ padding: SPACING[20], gap: 12 }}>
+                <Text style={{ fontSize: 14, color: textColor }}>
+                  Are you sure you want to {publishModalTarget.nextState ? 'publish' : 'unpublish'}{' '}
+                  <Text style={{ fontWeight: '700' }}>"{publishModalTarget.ann.title}"</Text>?
+                </Text>
+                <Text style={{ fontSize: 12, color: mutedColor, lineHeight: 16 }}>
+                  {publishModalTarget.nextState
+                    ? `This will make the operational banner immediately visible to ${publishModalTarget.ann.targetAudience}.`
+                    : 'Unpublishing will hide the announcement banner from users until re-activated.'}
+                </Text>
+              </View>
+
+              <View style={[styles.modalFooter, { borderTopColor: borderColor }]}>
+                <Pressable style={[styles.cancelBtn, { borderColor }]} onPress={() => setPublishModalTarget(null)}>
+                  <Text style={[styles.cancelBtnText, { color: textColor }]}>Cancel</Text>
+                </Pressable>
+                <Pressable
+                  style={[
+                    styles.submitBtn,
+                    {
+                      backgroundColor: publishModalTarget.nextState
+                        ? (isDark ? colors.brand[800] : colors.brand[700])
+                        : (isDark ? '#B91C1C' : '#EF4444'),
+                    },
+                  ]}
+                  onPress={handleConfirmTogglePublish}
+                  disabled={isSubmitting}
+                >
+                  <Text style={styles.submitBtnText}>
+                    {isSubmitting
+                      ? 'Updating...'
+                      : publishModalTarget.nextState
+                      ? 'Publish Now'
+                      : 'Unpublish Now'}
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </Modal>
       )}
 
       {/* ── Create / Edit Announcement Modal ───────────────────────────── */}
@@ -520,10 +606,14 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
   },
-  statusBadge: {
+  statusToggleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
+    borderWidth: 1,
   },
   statusBadgeText: {
     fontSize: 11,

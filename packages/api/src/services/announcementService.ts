@@ -55,6 +55,19 @@ export const announcementService = {
   },
 
   /**
+   * Toggle publish active status of a system announcement
+   */
+  async togglePublish(id: string, isActive: boolean) {
+    return safeAsync(async () => {
+      const response = await apiClient.patch<SystemAnnouncementDto>(`/api/v2/announcements/${id}/publish`, {
+        id,
+        isActive,
+      });
+      return response.data;
+    }, `Failed to ${isActive ? 'publish' : 'unpublish'} announcement`);
+  },
+
+  /**
    * Delete an existing system announcement
    */
   async deleteAnnouncement(id: string) {

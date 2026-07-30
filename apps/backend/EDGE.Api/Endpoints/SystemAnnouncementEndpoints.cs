@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using EDGE.Application.Announcements.Commands.CreateAnnouncement;
 using EDGE.Application.Announcements.Commands.UpdateAnnouncement;
+using EDGE.Application.Announcements.Commands.TogglePublishAnnouncement;
 using EDGE.Application.Announcements.Commands.DeleteAnnouncement;
 using EDGE.Application.Announcements.Queries.GetAnnouncements;
 
@@ -33,6 +34,11 @@ public static class SystemAnnouncementEndpoints
             .WithName("UpdateAnnouncement")
             .WithSummary("Update system announcement")
             .WithDescription("Updates an existing system announcement.");
+
+        announcements.MapPatch("/{id:guid}/publish", TogglePublishAnnouncement)
+            .WithName("TogglePublishAnnouncement")
+            .WithSummary("Publish or unpublish system announcement")
+            .WithDescription("Toggles the active publishing state of a system announcement.");
 
         announcements.MapDelete("/{id:guid}", DeleteAnnouncement)
             .WithName("DeleteAnnouncement")
@@ -66,6 +72,20 @@ public static class SystemAnnouncementEndpoints
     public static async Task<IResult> UpdateAnnouncement(
         Guid id,
         UpdateAnnouncementCommand command,
+        IMediator mediator)
+    {
+        if (id != command.Id)
+        {
+            return Results.BadRequest(new { message = "ID mismatch." });
+        }
+
+        var result = await mediator.Send(command);
+        return result != null ? Results.Ok(result) : Results.NotFound(new { message = "Announcement not found." });
+    }
+
+    public static async Task<IResult> TogglePublishAnnouncement(
+        Guid id,
+        TogglePublishAnnouncementCommand command,
         IMediator mediator)
     {
         if (id != command.Id)
