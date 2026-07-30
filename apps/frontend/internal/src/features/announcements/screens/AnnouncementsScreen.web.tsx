@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -32,12 +33,12 @@ export function AnnouncementsScreen() {
   const [annToDelete, setAnnToDelete] = useState<SystemAnnouncementDto | null>(null);
   const [publishModalTarget, setPublishModalTarget] = useState<{ ann: SystemAnnouncementDto; nextState: boolean } | null>(null);
 
-  // Bottom-Right Floating Toast State
+  // Bottom-Right Toast State
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
-    setTimeout(() => setToastMsg(null), 3500);
+    setTimeout(() => setToastMsg(null), 4000);
   };
 
   // Form State
@@ -91,7 +92,10 @@ export function AnnouncementsScreen() {
     }
 
     setIsSubmitting(true);
+    setFormError(null);
     let ok = false;
+    const isEdit = Boolean(editingAnn);
+    const savedTitle = title.trim();
 
     if (editingAnn) {
       const [data, err] = await announcementService.updateAnnouncement(editingAnn.id, {
@@ -103,11 +107,7 @@ export function AnnouncementsScreen() {
         isActive,
       });
       ok = Boolean(data);
-      if (err) {
-        setFormError(err);
-      } else {
-        showToast(`Announcement updated to "${title.trim()}"`);
-      }
+      if (err) setFormError(err);
     } else {
       const [data, err] = await announcementService.createAnnouncement({
         title: title.trim(),
@@ -117,11 +117,7 @@ export function AnnouncementsScreen() {
         isActive,
       });
       ok = Boolean(data);
-      if (err) {
-        setFormError(err);
-      } else {
-        showToast(`Announcement "${title.trim()}" published`);
-      }
+      if (err) setFormError(err);
     }
 
     setIsSubmitting(false);
@@ -134,6 +130,7 @@ export function AnnouncementsScreen() {
       setTargetAudience('All Users');
       setIsActive(true);
       setEditingAnn(null);
+      showToast(isEdit ? `Announcement updated to "${savedTitle}"` : `Announcement "${savedTitle}" published`);
       await refetch();
     }
   };
@@ -158,9 +155,9 @@ export function AnnouncementsScreen() {
 
   const handleDeleteAnnouncement = async () => {
     if (!annToDelete) return;
+    const deletedTitle = annToDelete.title;
     const [ok] = await announcementService.deleteAnnouncement(annToDelete.id);
     if (ok) {
-      const deletedTitle = annToDelete.title;
       setAnnToDelete(null);
       showToast(`Deleted announcement "${deletedTitle}"`);
       await refetch();
@@ -177,7 +174,7 @@ export function AnnouncementsScreen() {
   };
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, position: 'relative' }}>
       <ScrollView
         style={[styles.scroll, { backgroundColor: canvasBg }]}
         contentContainerStyle={styles.content}
@@ -543,9 +540,15 @@ export function AnnouncementsScreen() {
         )}
       </ScrollView>
 
-      {/* ── Toast (Bottom-Right Floating Dark Pill matching Roles & Permissions) ──── */}
+      {/* ── Floating Toast (Fixed Position Top/Bottom Right Overlay) ────────────────── */}
       {toastMsg !== null && (
-        <View style={[styles.toast, { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[900] }]}>
+        <View
+          style={[
+            styles.toast,
+            { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[900] },
+            Platform.OS === 'web' ? ({ position: 'fixed', bottom: 24, right: 24 } as unknown as object) : null,
+          ]}
+        >
           <Lucide name="check-circle" size={15} color="#10B981" />
           <Text style={styles.toastText}>{toastMsg}</Text>
         </View>
@@ -796,7 +799,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
   },
-  // Toast (Bottom-Right Floating Dark Pill)
+  // Toast (Bottom-Right Fixed Positioning with Highest Z-Index)
   toast: {
     position: 'absolute',
     bottom: 24,
@@ -807,6 +810,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING[16],
     paddingVertical: SPACING[12],
     borderRadius: RADIUS.button,
+    zIndex: 999999,
+    elevation: 999,
   },
   toastText: {
     color: '#FFFFFF',
