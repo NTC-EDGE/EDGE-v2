@@ -28,9 +28,10 @@ export function AnnouncementsScreen() {
 
   const [activeFilter, setActiveFilter] = useState<'All' | 'Active' | 'Inactive'>('All');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [editingAnn, setEditingAnn] = useState<SystemAnnouncementDto | null>(null);
   const [annToDelete, setAnnToDelete] = useState<SystemAnnouncementDto | null>(null);
 
-  // New Announcement Form State
+  // Form State
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
   const [type, setType] = useState<AnnType>('Info');
@@ -52,41 +53,77 @@ export function AnnouncementsScreen() {
     return true;
   });
 
-  const handleCreateAnnouncement = async () => {
+  const openCreateModal = () => {
+    setEditingAnn(null);
+    setTitle('');
+    setMessage('');
+    setType('Info');
+    setTargetAudience('All Users');
+    setIsActive(true);
+    setFormError(null);
+    setIsAddModalOpen(true);
+  };
+
+  const openEditModal = (ann: SystemAnnouncementDto) => {
+    setEditingAnn(ann);
+    setTitle(ann.title);
+    setMessage(ann.message);
+    setType((ann.type as AnnType) || 'Info');
+    setTargetAudience(ann.targetAudience || 'All Users');
+    setIsActive(ann.isActive);
+    setFormError(null);
+    setIsAddModalOpen(true);
+  };
+
+  const handleSaveAnnouncement = async () => {
     if (!title.trim() || !message.trim()) {
       setFormError('Please enter both title and message.');
       return;
     }
 
     setIsSubmitting(true);
-    setFormError(null);
+    let ok = false;
 
-    const res = await announcementService.createAnnouncement({
-      title: title.trim(),
-      message: message.trim(),
-      type,
-      targetAudience,
-      isActive,
-    });
+    if (editingAnn) {
+      const [data, err] = await announcementService.updateAnnouncement(editingAnn.id, {
+        id: editingAnn.id,
+        title: title.trim(),
+        message: message.trim(),
+        type,
+        targetAudience,
+        isActive,
+      });
+      ok = Boolean(data);
+      if (err) setFormError(err);
+    } else {
+      const [data, err] = await announcementService.createAnnouncement({
+        title: title.trim(),
+        message: message.trim(),
+        type,
+        targetAudience,
+        isActive,
+      });
+      ok = Boolean(data);
+      if (err) setFormError(err);
+    }
 
     setIsSubmitting(false);
 
-    if (res) {
+    if (ok) {
       setIsAddModalOpen(false);
       setTitle('');
       setMessage('');
       setType('Info');
       setTargetAudience('All Users');
       setIsActive(true);
+      setEditingAnn(null);
       await refetch();
-    } else {
-      setFormError('Failed to create announcement. Please try again.');
     }
   };
 
   const handleDeleteAnnouncement = async () => {
     if (!annToDelete) return;
-    const ok = await announcementService.deleteAnnouncement(annToDelete.id);
+    const [ok] = await announcementService.deleteAnnouncement(annToDelete.id);
     if (ok) {
       setAnnToDelete(null);
       await refetch();
@@ -118,7 +155,7 @@ export function AnnouncementsScreen() {
         </View>
         <Pressable
           style={[styles.newBtn, { backgroundColor: isDark ? colors.brand[800] : colors.brand[700] }]}
-          onPress={() => setIsAddModalOpen(true)}
+          onPress={openCreateModal}
         >
           <Lucide name="plus" size={13} color="#FFFFFF" />
           <Text style={styles.newBtnText}>New Announcement</Text>
@@ -216,6 +253,12 @@ export function AnnouncementsScreen() {
                     <View style={styles.annActions}>
                       <Pressable
                         style={styles.iconActionBtn}
+                        onPress={() => openEditModal(ann)}
+                      >
+                        <Lucide name="edit-2" size={13} color={mutedColor} />
+                      </Pressable>
+                      <Pressable
+                        style={styles.iconActionBtn}
                         onPress={() => setAnnToDelete(ann)}
                       >
                         <Lucide name="trash-2" size={13} color={isDark ? '#F87171' : '#EF4444'} />
@@ -258,13 +301,15 @@ export function AnnouncementsScreen() {
         </View>
       )}
 
-      {/* ── Create Announcement Modal ───────────────────────────────────── */}
+      {/* ── Create / Edit Announcement Modal ───────────────────────────── */}
       {isAddModalOpen && (
         <Modal transparent animationType="fade" visible={isAddModalOpen} onRequestClose={() => setIsAddModalOpen(false)}>
           <View style={styles.modalOverlay}>
             <View style={[styles.modalContent, { backgroundColor: cardBg, borderColor }]}>
               <View style={[styles.modalHeader, { borderBottomColor: borderColor }]}>
-                <Text style={[styles.modalTitle, { color: textColor }]}>New System Announcement</Text>
+                <Text style={[styles.modalTitle, { color: textColor }]}>
+                  {editingAnn ? 'Edit System Announcement' : 'New System Announcement'}
+                </Text>
                 <Pressable onPress={() => setIsAddModalOpen(false)}>
                   <Lucide name="x" size={18} color={textColor} />
                 </Pressable>
@@ -338,10 +383,12 @@ export function AnnouncementsScreen() {
                 </Pressable>
                 <Pressable
                   style={[styles.submitBtn, { backgroundColor: isDark ? colors.brand[800] : colors.brand[700] }]}
-                  onPress={handleCreateAnnouncement}
+                  onPress={handleSaveAnnouncement}
                   disabled={isSubmitting}
                 >
-                  <Text style={styles.submitBtnText}>{isSubmitting ? 'Publishing...' : 'Publish Announcement'}</Text>
+                  <Text style={styles.submitBtnText}>
+                    {isSubmitting ? 'Saving...' : editingAnn ? 'Save Changes' : 'Publish Announcement'}
+                  </Text>
                 </Pressable>
               </View>
             </View>

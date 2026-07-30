@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using EDGE.Application.Announcements.Commands.CreateAnnouncement;
+using EDGE.Application.Announcements.Commands.UpdateAnnouncement;
 using EDGE.Application.Announcements.Commands.DeleteAnnouncement;
 using EDGE.Application.Announcements.Queries.GetAnnouncements;
 
@@ -27,6 +28,11 @@ public static class SystemAnnouncementEndpoints
             .WithName("GetAnnouncements")
             .WithSummary("Get announcements")
             .WithDescription("Retrieves system announcements.");
+
+        announcements.MapPut("/{id:guid}", UpdateAnnouncement)
+            .WithName("UpdateAnnouncement")
+            .WithSummary("Update system announcement")
+            .WithDescription("Updates an existing system announcement.");
 
         announcements.MapDelete("/{id:guid}", DeleteAnnouncement)
             .WithName("DeleteAnnouncement")
@@ -55,6 +61,20 @@ public static class SystemAnnouncementEndpoints
     {
         var result = await mediator.Send(new GetAnnouncementsQuery());
         return Results.Ok(new { succeeded = true, data = result });
+    }
+
+    public static async Task<IResult> UpdateAnnouncement(
+        Guid id,
+        UpdateAnnouncementCommand command,
+        IMediator mediator)
+    {
+        if (id != command.Id)
+        {
+            return Results.BadRequest(new { message = "ID mismatch." });
+        }
+
+        var result = await mediator.Send(command);
+        return result != null ? Results.Ok(result) : Results.NotFound(new { message = "Announcement not found." });
     }
 
     public static async Task<IResult> DeleteAnnouncement(Guid id, IMediator mediator)

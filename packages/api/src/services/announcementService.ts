@@ -12,6 +12,17 @@ export interface CreateAnnouncementRequest {
   targetAudience: string;
 }
 
+export interface UpdateAnnouncementRequest {
+  id: string;
+  title: string;
+  message: string;
+  type: string;
+  isActive: boolean;
+  startDate?: string | null;
+  endDate?: string | null;
+  targetAudience: string;
+}
+
 export const announcementService = {
   /**
    * Fetch all system announcements
@@ -31,6 +42,16 @@ export const announcementService = {
       const response = await apiClient.post<SystemAnnouncementDto>('/api/v2/announcements', data);
       return response.data;
     }, 'Failed to create system announcement');
+  },
+
+  /**
+   * Update an existing system announcement
+   */
+  async updateAnnouncement(id: string, data: UpdateAnnouncementRequest) {
+    return safeAsync(async () => {
+      const response = await apiClient.put<SystemAnnouncementDto>(`/api/v2/announcements/${id}`, data);
+      return response.data;
+    }, 'Failed to update system announcement');
   },
 
   /**
