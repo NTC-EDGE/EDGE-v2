@@ -16,6 +16,9 @@ public class AuditLogDto
     public string Status { get; set; } = "Success";
     public string Type { get; set; } = "System";
     public string Changes { get; set; } = string.Empty;
+    public string? KeyValues { get; set; }
+    public string? OldValues { get; set; }
+    public string? NewValues { get; set; }
     public DateTime Timestamp { get; set; }
 }
 

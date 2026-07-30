@@ -563,6 +563,9 @@ export interface AuditLogDto {
   status: 'Success' | 'Warning' | 'Error';
   type: 'Auth' | 'Data' | 'System' | 'Security' | 'User';
   changes: string;
+  keyValues?: string | null;
+  oldValues?: string | null;
+  newValues?: string | null;
   timestamp: string;
 }
 

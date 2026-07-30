@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using MediatR;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.AuditLogs.DTOs;
+using EDGE.Domain.Entities;
 
 namespace EDGE.Application.AuditLogs.Queries.GetAuditLogs;
 
@@ -21,40 +22,106 @@ public class GetAuditLogsQueryHandler : IRequestHandler<GetAuditLogsQuery, (List
     public async Task<(List<AuditLogDto> Items, int TotalCount)> Handle(GetAuditLogsQuery request, CancellationToken cancellationToken)
     {
         var (items, totalCount) = await _repository.GetPagedAuditLogsAsync(request.PageNumber, request.PageSize, request.SearchTerm, request.TenantId, cancellationToken);
-        var dtos = items.Select(a => new AuditLogDto
+        var dtos = items.Select(a =>
         {
-            Id = a.Id,
-            Event = string.IsNullOrWhiteSpace(a.Event) ? FormatActionLabel(a.Action, a.EntityName) : a.Event,
-            Action = a.Action,
-            EntityName = a.EntityName,
-            EntityId = a.KeyValues ?? string.Empty,
-            Actor = a.ChangedBy ?? "system@ntc.gov.ph",
-            UserId = a.ChangedBy ?? "system@ntc.gov.ph",
-            Resource = string.IsNullOrWhiteSpace(a.Resource) ? $"/{a.EntityName.ToLower()}" : a.Resource,
-            IpAddress = string.IsNullOrWhiteSpace(a.IpAddress) ? "192.168.1.105" : a.IpAddress,
-            Status = string.IsNullOrWhiteSpace(a.Status) ? "Success" : a.Status,
-            Type = string.IsNullOrWhiteSpace(a.Type) ? MapTypeFromAction(a.Action) : a.Type,
-            Changes = a.NewValues ?? a.OldValues ?? string.Empty,
-            Timestamp = a.ChangedAt
+            var (evt, type, resource) = FormatAuditDetails(a);
+
+            return new AuditLogDto
+            {
+                Id = a.Id,
+                Event = evt,
+                Action = a.Action,
+                EntityName = a.EntityName,
+                EntityId = a.KeyValues ?? string.Empty,
+                Actor = a.ChangedBy ?? "System",
+                UserId = a.ChangedBy ?? "System",
+                Resource = resource,
+                IpAddress = string.IsNullOrWhiteSpace(a.IpAddress) ? "192.168.1.105" : a.IpAddress,
+                Status = string.IsNullOrWhiteSpace(a.Status) ? "Success" : a.Status,
+                Type = type,
+                Changes = a.NewValues ?? a.OldValues ?? string.Empty,
+                KeyValues = a.KeyValues,
+                OldValues = a.OldValues,
+                NewValues = a.NewValues,
+                Timestamp = a.ChangedAt
+            };
         }).ToList();
 
         return (dtos, totalCount);
     }
 
-    private static string FormatActionLabel(string action, string entityName) => action.ToUpperInvariant() switch
+    private static (string Event, string Type, string Resource) FormatAuditDetails(AuditLog a)
     {
-        "CREATE" or "INSERT" => $"{entityName} Created",
-        "UPDATE" => $"{entityName} Updated",
-        "DELETE" => $"{entityName} Deleted",
-        _ => action.Replace('_', ' ')
-    };
+        string entityName = a.EntityName;
+        string action = (a.Action ?? "").ToUpperInvariant();
+        string keyVals = a.KeyValues ?? "";
 
-    private static string MapTypeFromAction(string action) => action.ToUpperInvariant() switch
-    {
-        var a when a.Contains("LOGIN") || a.Contains("AUTH") || a.Contains("SESSION") => "Auth",
-        var a when a.Contains("SECURITY") || a.Contains("ROLE") || a.Contains("PERMISSION") => "Security",
-        var a when a.Contains("USER") || a.Contains("ACCOUNT") || a.Contains("PASSWORD") => "User",
-        var a when a.Contains("RECORD") || a.Contains("LICENSE") || a.Contains("DATA") => "Data",
-        _ => "System"
-    };
+        string evt = a.Event ?? "";
+        string type = a.Type ?? "";
+        string resource = a.Resource ?? "";
+
+        if (string.IsNullOrWhiteSpace(evt))
+        {
+            switch (entityName)
+            {
+                case "RolePermission":
+                    evt = action switch
+                    {
+                        "INSERT" or "CREATE" => "Permission Assigned to Role",
+                        "DELETE" => "Permission Revoked from Role",
+                        _ => "Role Permission Modified"
+                    };
+                    break;
+                case "Role":
+                    evt = action switch
+                    {
+                        "INSERT" or "CREATE" => "New Custom Role Created",
+                        "UPDATE" => "Role Policy / Name Updated",
+                        "DELETE" => "Custom Role Deleted",
+                        _ => "Role Modified"
+                    };
+                    break;
+                case "Tenant":
+                    evt = action == "UPDATE" ? "Tenant Configuration Updated" : "Tenant Record Modified";
+                    break;
+                case "Service":
+                    evt = action == "UPDATE" ? "Service Catalog & Fee Matrix Updated" : "Service Definition Created";
+                    break;
+                case "User":
+                    evt = action == "INSERT" ? "New User Account Provisioned" : "User Profile Updated";
+                    break;
+                case "ActivityLog":
+                    evt = "User Activity Event Logged";
+                    break;
+                default:
+                    evt = action switch
+                    {
+                        "INSERT" or "CREATE" => $"{entityName} Created",
+                        "UPDATE" => $"{entityName} Updated",
+                        "DELETE" => $"{entityName} Deleted",
+                        _ => $"{entityName} {action.ToLower()}"
+                    };
+                    break;
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(type))
+        {
+            type = entityName switch
+            {
+                "Role" or "RolePermission" or "UserRole" => "Security",
+                "User" or "TenantMember" => "User",
+                "Service" or "Requirement" or "FeeMaster" or "Application" => "Data",
+                "Auth" or "Session" => "Auth",
+                _ => "System"
+            };
+        }
+
+        if (string.IsNullOrWhiteSpace(resource))
+        {
+            resource = $"/{entityName.ToLower()}s";
+        }
+
+        return (evt, type, resource);
+    }
 }

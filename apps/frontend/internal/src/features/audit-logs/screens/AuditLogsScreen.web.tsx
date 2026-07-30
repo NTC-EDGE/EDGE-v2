@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import {
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -29,12 +30,24 @@ const TYPE_STYLE: Record<EventType, { text: string; bg: string }> = {
   User:     { text: '#92400E', bg: '#FEF3C7' },
 };
 
+// Helper to safely parse JSON strings
+function safeParseJson(jsonString?: string | null): Record<string, unknown> | null {
+  if (!jsonString) return null;
+  try {
+    const parsed = JSON.parse(jsonString);
+    return typeof parsed === 'object' && parsed !== null ? (parsed as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
+}
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function AuditLogsScreen() {
   const { colors, isDark } = useTheme();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<LogStatus | 'All'>('All');
+  const [selectedLog, setSelectedLog] = useState<AuditLogDto | null>(null);
 
   const { logs, totalCount, isLoading, isError } = useAdminAuditLogs(1, 100, search);
 
@@ -61,14 +74,16 @@ export function AuditLogsScreen() {
 
   const handleExportCsv = () => {
     if (!filtered || filtered.length === 0) return;
-    const headers = ['Timestamp', 'Event', 'Type', 'Actor', 'IP Address', 'Status', 'Resource', 'Changes'];
+    const headers = ['Timestamp', 'Event', 'Action', 'Entity', 'Actor', 'IP Address', 'Status', 'Type', 'Resource', 'Changes'];
     const rows = filtered.map((log) => [
       `"${formatTimestamp(log.timestamp)}"`,
       `"${log.event || log.action}"`,
-      `"${log.type || 'System'}"`,
+      `"${log.action}"`,
+      `"${log.entityName}"`,
       `"${log.actor}"`,
       `"${log.ipAddress}"`,
       `"${log.status || 'Success'}"`,
+      `"${log.type || 'System'}"`,
       `"${log.resource}"`,
       `"${(log.changes || '').replace(/"/g, '""')}"`,
     ]);
@@ -82,6 +97,16 @@ export function AuditLogsScreen() {
     link.click();
     document.body.removeChild(link);
   };
+
+  // Prepare diff values for selected log
+  const oldObj = safeParseJson(selectedLog?.oldValues);
+  const newObj = safeParseJson(selectedLog?.newValues);
+  const keyObj = safeParseJson(selectedLog?.keyValues);
+
+  // Combine changed keys from old and new values
+  const allDiffKeys = Array.from(
+    new Set([...Object.keys(oldObj || {}), ...Object.keys(newObj || {})])
+  );
 
   return (
     <ScrollView
@@ -175,8 +200,9 @@ export function AuditLogsScreen() {
           const st = STATUS_STYLE[log.status || 'Success'];
           const tp = TYPE_STYLE[log.type || 'System'];
           return (
-            <View
+            <Pressable
               key={log.id}
+              onPress={() => setSelectedLog(log)}
               style={[
                 styles.tableRow,
                 { borderBottomColor: borderColor },
@@ -186,9 +212,12 @@ export function AuditLogsScreen() {
               <Text style={[styles.td, styles.colTs, styles.monoFont, { color: mutedColor }]}>
                 {formatTimestamp(log.timestamp)}
               </Text>
-              <Text style={[styles.td, styles.colEvent, { color: textColor }]} numberOfLines={1}>
-                {log.event || log.action}
-              </Text>
+              <View style={[styles.colEvent, { flexDirection: 'row', alignItems: 'center', gap: 6 }]}>
+                <Text style={[styles.td, { color: textColor, fontWeight: '600' }]} numberOfLines={1}>
+                  {log.event || log.action}
+                </Text>
+                <Lucide name="chevron-right" size={13} color={mutedColor} />
+              </View>
               <View style={[styles.colType, styles.tdCenter]}>
                 <View style={[styles.badge, { backgroundColor: tp.bg }]}>
                   <Text style={[styles.badgeText, { color: tp.text }]}>{log.type || 'System'}</Text>
@@ -206,7 +235,7 @@ export function AuditLogsScreen() {
                   <Text style={[styles.badgeText, { color: st.text }]}>{log.status || 'Success'}</Text>
                 </View>
               </View>
-            </View>
+            </Pressable>
           );
         })}
 
@@ -218,6 +247,143 @@ export function AuditLogsScreen() {
           </View>
         )}
       </View>
+
+      {/* ── Log Detail Modal / Slide-over Drawer ─────────────────────── */}
+      {selectedLog && (
+        <Modal transparent animationType="fade" visible={!!selectedLog} onRequestClose={() => setSelectedLog(null)}>
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, { backgroundColor: cardBg, borderColor }]}>
+              {/* Modal Header */}
+              <View style={[styles.modalHeader, { borderBottomColor: borderColor }]}>
+                <View style={{ flex: 1, gap: 4 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Text style={[styles.modalTitle, { color: textColor }]}>
+                      {selectedLog.event || selectedLog.action}
+                    </Text>
+                    {selectedLog.type && (
+                      <View style={[styles.badge, { backgroundColor: TYPE_STYLE[selectedLog.type]?.bg || '#DBEAFE' }]}>
+                        <Text style={[styles.badgeText, { color: TYPE_STYLE[selectedLog.type]?.text || '#1E40AF' }]}>
+                          {selectedLog.type}
+                        </Text>
+                      </View>
+                    )}
+                    {selectedLog.status && (
+                      <View style={[styles.badge, { backgroundColor: STATUS_STYLE[selectedLog.status]?.bg || '#D1FAE5' }]}>
+                        <View style={[styles.statusDot, { backgroundColor: STATUS_STYLE[selectedLog.status]?.dot || '#10B981' }]} />
+                        <Text style={[styles.badgeText, { color: STATUS_STYLE[selectedLog.status]?.text || '#065F46' }]}>
+                          {selectedLog.status}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={[styles.modalSub, { color: mutedColor }]}>
+                    Event ID: {selectedLog.id}
+                  </Text>
+                </View>
+                <Pressable style={styles.closeBtn} onPress={() => setSelectedLog(null)}>
+                  <Lucide name="x" size={18} color={textColor} />
+                </Pressable>
+              </View>
+
+              <ScrollView style={{ flex: 1, padding: SPACING[20] }} showsVerticalScrollIndicator={false}>
+                {/* Section 1: Event Metadata */}
+                <Text style={[styles.sectionHeading, { color: textColor }]}>Event Metadata</Text>
+                <View style={[styles.metaGrid, { backgroundColor: inputBg, borderColor }]}>
+                  <View style={styles.metaCell}>
+                    <Text style={[styles.metaLabel, { color: mutedColor }]}>Timestamp</Text>
+                    <Text style={[styles.metaVal, styles.monoFont, { color: textColor }]}>
+                      {formatTimestamp(selectedLog.timestamp)}
+                    </Text>
+                  </View>
+
+                  <View style={styles.metaCell}>
+                    <Text style={[styles.metaLabel, { color: mutedColor }]}>Actor / User</Text>
+                    <Text style={[styles.metaVal, { color: textColor }]}>{selectedLog.actor}</Text>
+                  </View>
+
+                  <View style={styles.metaCell}>
+                    <Text style={[styles.metaLabel, { color: mutedColor }]}>IP Address</Text>
+                    <Text style={[styles.metaVal, styles.monoFont, { color: textColor }]}>{selectedLog.ipAddress}</Text>
+                  </View>
+
+                  <View style={styles.metaCell}>
+                    <Text style={[styles.metaLabel, { color: mutedColor }]}>Entity Name</Text>
+                    <Text style={[styles.metaVal, { color: textColor }]}>{selectedLog.entityName}</Text>
+                  </View>
+
+                  <View style={styles.metaCell}>
+                    <Text style={[styles.metaLabel, { color: mutedColor }]}>Action</Text>
+                    <Text style={[styles.metaVal, { color: colors.brand[600], fontWeight: '700' }]}>{selectedLog.action}</Text>
+                  </View>
+
+                  <View style={styles.metaCell}>
+                    <Text style={[styles.metaLabel, { color: mutedColor }]}>Resource Path</Text>
+                    <Text style={[styles.metaVal, styles.monoFont, { color: textColor }]}>{selectedLog.resource}</Text>
+                  </View>
+                </View>
+
+                {/* Section 2: Affected Primary Keys */}
+                {keyObj && Object.keys(keyObj).length > 0 && (
+                  <>
+                    <Text style={[styles.sectionHeading, { color: textColor, marginTop: SPACING[16] }]}>Target Identifiers (Primary Keys)</Text>
+                    <View style={[styles.codeBox, { backgroundColor: isDark ? '#1F2937' : '#F9FAFB', borderColor }]}>
+                      <Text style={[styles.codeText, { color: textColor }]}>
+                        {JSON.stringify(keyObj, null, 2)}
+                      </Text>
+                    </View>
+                  </>
+                )}
+
+                {/* Section 3: Detailed Property Diff Table */}
+                <Text style={[styles.sectionHeading, { color: textColor, marginTop: SPACING[16] }]}>
+                  Property Changes & Payload Diff
+                </Text>
+
+                {allDiffKeys.length > 0 ? (
+                  <View style={[styles.diffTable, { borderColor }]}>
+                    <View style={[styles.diffHeader, { backgroundColor: inputBg, borderBottomColor: borderColor }]}>
+                      <Text style={[styles.diffTh, { flex: 2, color: mutedColor }]}>PROPERTY FIELD</Text>
+                      <Text style={[styles.diffTh, { flex: 3, color: mutedColor }]}>PREVIOUS VALUE</Text>
+                      <Text style={[styles.diffTh, { flex: 3, color: mutedColor }]}>UPDATED VALUE</Text>
+                    </View>
+                    {allDiffKeys.map((key) => {
+                      const prevVal = oldObj?.[key] !== undefined ? String(oldObj[key]) : '—';
+                      const newVal = newObj?.[key] !== undefined ? String(newObj[key]) : '—';
+                      return (
+                        <View key={key} style={[styles.diffRow, { borderBottomColor: borderColor }]}>
+                          <Text style={[styles.diffCellKey, { flex: 2, color: textColor }]}>{key}</Text>
+                          <View style={{ flex: 3 }}>
+                            <Text style={[styles.diffCellOld, { color: isDark ? '#FCA5A5' : '#DC2626' }]}>{prevVal}</Text>
+                          </View>
+                          <View style={{ flex: 3 }}>
+                            <Text style={[styles.diffCellNew, { color: isDark ? '#6EE7B7' : '#059669' }]}>{newVal}</Text>
+                          </View>
+                        </View>
+                      );
+                    })}
+                  </View>
+                ) : (
+                  <View style={[styles.codeBox, { backgroundColor: isDark ? '#1F2937' : '#F9FAFB', borderColor }]}>
+                    <Text style={[styles.codeText, { color: textColor }]}>
+                      {selectedLog.changes ? (
+                        (() => {
+                          try {
+                            return JSON.stringify(JSON.parse(selectedLog.changes), null, 2);
+                          } catch {
+                            return selectedLog.changes;
+                          }
+                        })()
+                      ) : (
+                        'No detailed property changes recorded for this event.'
+                      )}
+                    </Text>
+                  </View>
+                )}
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
+      )}
     </ScrollView>
   );
 }
@@ -362,5 +528,111 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 13,
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING[16],
+  },
+  modalContent: {
+    width: '100%',
+    maxWidth: 720,
+    maxHeight: '85%',
+    borderRadius: 16,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING[20],
+    paddingVertical: SPACING[16],
+    borderBottomWidth: 1,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  modalSub: {
+    fontSize: 11,
+    fontFamily: 'monospace',
+  },
+  closeBtn: {
+    padding: 6,
+    borderRadius: 6,
+  },
+  sectionHeading: {
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+    marginBottom: SPACING[8],
+  },
+  metaGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    borderRadius: 10,
+    borderWidth: 1,
+    padding: SPACING[12],
+    gap: SPACING[12],
+  },
+  metaCell: {
+    width: '47%',
+    gap: 2,
+  },
+  metaLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  metaVal: {
+    fontSize: 13,
+  },
+  codeBox: {
+    padding: SPACING[12],
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  codeText: {
+    fontFamily: 'monospace',
+    fontSize: 12,
+  },
+  diffTable: {
+    borderRadius: 8,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  diffHeader: {
+    flexDirection: 'row',
+    paddingHorizontal: SPACING[12],
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+  },
+  diffTh: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  diffRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING[12],
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+  },
+  diffCellKey: {
+    fontSize: 12,
+    fontWeight: '600',
+    fontFamily: 'monospace',
+  },
+  diffCellOld: {
+    fontSize: 12,
+    fontFamily: 'monospace',
+  },
+  diffCellNew: {
+    fontSize: 12,
+    fontWeight: '600',
+    fontFamily: 'monospace',
   },
 });
