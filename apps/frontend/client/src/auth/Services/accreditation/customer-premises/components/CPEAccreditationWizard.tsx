@@ -42,6 +42,7 @@ export function CPEAccreditationWizard({
   setApplicants,
   currentApplicantIndex,
   setCurrentApplicantIndex,
+  serviceId,
 }: CPEAccreditationWizardProps) {
   const scrollViewRef = useRef<ScrollView | null>(null);
 
@@ -86,6 +87,7 @@ export function CPEAccreditationWizard({
     applicants,
     setApplicants,
     currentApplicantIndex,
+    serviceId,
   });
 
   return (

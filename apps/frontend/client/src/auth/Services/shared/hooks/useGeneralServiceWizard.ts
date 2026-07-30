@@ -77,6 +77,26 @@ export function useGeneralServiceWizard({
   const [offices, setOffices] = useState<OfficeInfo[]>([]);
   const [loadingOffices, setLoadingOffices] = useState(false);
 
+  const [formFields, setFormFields] = useState<any[]>([]);
+
+  React.useEffect(() => {
+    let active = true;
+    const fetchForm = async () => {
+      if (!service.id) return;
+      try {
+        const res = await api.get<any>(`/api/v2/services/${service.id}/form`);
+        if (active && res && res.data && res.data.sections) {
+          const fields = res.data.sections.flatMap((s: any) => s.fields || []);
+          setFormFields(fields);
+        }
+      } catch (err) {
+        console.warn("Failed to fetch general service form schema:", err);
+      }
+    };
+    fetchForm();
+    return () => { active = false; };
+  }, [service.id]);
+
   // Pre-fill user profile
   React.useEffect(() => {
     if (clerkUser && applicants.length === 1) {
@@ -187,9 +207,40 @@ export function useGeneralServiceWizard({
       const address = app.address || "N/A";
       const birthDate = `${app.birthYear}-${monthMap[app.birthMonth] || "01"}-${app.birthDay.padStart(2, "0")}T00:00:00Z`;
 
-      const formFieldValues = [
-        { fieldName: "Notes", fieldValue: app.notes || "N/A" },
-      ];
+      const formFieldValues: Array<{ fieldId: string; value: string }> = [];
+
+      if (formFields.length > 0) {
+        const mappings = [
+          { terms: ["full name", "applicant name", "name"], value: `${app.firstName} ${app.lastName}` },
+          { terms: ["birth date", "date of birth", "dob"], value: `${app.birthYear}-${monthMap[app.birthMonth] || "01"}-${app.birthDay.padStart(2, "0")}` },
+          { terms: ["address", "street", "residence"], value: address },
+          { terms: ["contact no", "contact number", "phone", "mobile"], value: app.contactNo },
+          { terms: ["email address", "email"], value: app.email },
+          { terms: ["notes", "remarks"], value: app.notes || "N/A" },
+        ];
+
+        formFields.forEach((field: any) => {
+          const labelLower = (field.label || "").toLowerCase();
+          const id = field.fieldId;
+          const match = mappings.find(m => m.terms.some(t => labelLower.includes(t)));
+          if (match) {
+            formFieldValues.push({
+              fieldId: id,
+              value: match.value
+            });
+          } else {
+            formFieldValues.push({
+              fieldId: id,
+              value: field.type === "checkbox" ? "false" : ""
+            });
+          }
+        });
+      } else {
+        formFieldValues.push({
+          fieldId: "f0100000-0000-0000-0000-000000000001",
+          value: app.notes || "N/A"
+        });
+      }
 
       return {
         firstName: app.firstName,
@@ -203,9 +254,9 @@ export function useGeneralServiceWizard({
     });
 
     const payload = {
-      applicationType: "GENERAL_SERVICE",
-      serviceCategory: service.category ?? service.title,
-      serviceId: service.id ?? service.title,
+      tenantId: selectedRegionId,
+      submissionMode: "Single",
+      serviceId: service.id,
       fieldOfficeId: selectedOfficeId,
       applicants: mappedApplicants,
     };

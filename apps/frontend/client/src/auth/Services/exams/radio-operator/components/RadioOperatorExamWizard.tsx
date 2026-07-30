@@ -167,6 +167,26 @@ export function RadioOperatorExamWizard({
   // Toggle this constant to switch between live API integration and mock logic
   const USE_MOCKS = false;
 
+  const [formFields, setFormFields] = useState<any[]>([]);
+
+  React.useEffect(() => {
+    let active = true;
+    const fetchForm = async () => {
+      if (!serviceId) return;
+      try {
+        const res = await api.get<any>(`/api/v2/services/${serviceId}/form`);
+        if (active && res && res.data && res.data.sections) {
+          const fields = res.data.sections.flatMap((s: any) => s.fields || []);
+          setFormFields(fields);
+        }
+      } catch (err) {
+        console.warn("Failed to fetch service form schema, using fallback mapping:", err);
+      }
+    };
+    fetchForm();
+    return () => { active = false; };
+  }, [serviceId]);
+
   // Auto-fill first applicant with logged-in user details
   React.useEffect(() => {
     if (clerkUser && applicants.length === 1) {
@@ -283,6 +303,11 @@ export function RadioOperatorExamWizard({
         setSchedules([]);
         return;
       }
+      if (!serviceId) {
+        setSchedules([]);
+        setLoadingSchedules(false);
+        return;
+      }
       setLoadingSchedules(true);
       try {
         if (USE_MOCKS) {
@@ -309,7 +334,7 @@ export function RadioOperatorExamWizard({
         }
 
         const data = await api.get<any>(
-          `/api/v2/schedules/client-view?serviceId=${serviceId || "f0100000-0000-0000-0000-000000000021"}&tenantId=${selectedRegionId}`
+          `/api/v2/schedules/client-view?serviceId=${serviceId}&tenantId=${selectedRegionId}`
         );
         const rawItems = Array.isArray(data) ? data : (data.items || data.data || []);
         const mappedSchedules: ScheduleItem[] = rawItems.map((item: any) => {
@@ -903,6 +928,10 @@ export function RadioOperatorExamWizard({
   };
 
   const submitApplicationPayload = async () => {
+    if (!serviceId) {
+      Alert.alert("Error", "Service identifier is missing.");
+      return;
+    }
     const months: Record<string, string> = {
       January: "01", February: "02", March: "03", April: "04", May: "05", June: "06",
       July: "07", August: "08", September: "09", October: "10", November: "11", December: "12"
@@ -924,10 +953,50 @@ export function RadioOperatorExamWizard({
 
       const address = `${app.street}, ${app.barangay}, ${app.city}, ${app.province}, ${app.zipCode}`;
 
-      const formFieldValues = [
-        { fieldId: "f0100000-0000-0000-0000-000000000001", value: examCat },
-        { fieldId: "f0100000-0000-0000-0000-000000000002", value: examTaker },
-      ];
+      const formFieldValues: Array<{ fieldId: string; value: string }> = [];
+      if (formFields.length > 0) {
+        const mappings = [
+          { fieldId: "fd000000-0000-0000-0000-000000000001", terms: ["full name", "applicant name", "name"], value: `${app.firstName} ${app.lastName}` },
+          { fieldId: "fd000000-0000-0000-0000-000000000002", terms: ["birth date", "date of birth", "dob"], value: `${app.birthYear}-${monthNum}-${day}` },
+          { fieldId: "fd000000-0000-0000-0000-000000000003", terms: ["address", "street", "residence"], value: address },
+          { fieldId: "fd000000-0000-0000-0000-000000000004", terms: ["contact no", "contact number", "phone", "mobile"], value: app.contactNo },
+          { fieldId: "fd000000-0000-0000-0000-000000000005", terms: ["email address", "email"], value: app.email },
+          { fieldId: "fd000000-0000-0000-0000-000000000006", terms: ["education", "school", "course", "degree"], value: `${app.schoolName} - ${app.courseDegree}` },
+          { 
+            fieldId: "fd000000-0000-0000-0000-000000000007", 
+            terms: ["exam category", "category"], 
+            value: app.examType === "Amateur" ? "Amateur" : (app.examType === "RROC-Aircraft" ? "GMDSS" : "Commercial") 
+          },
+          { fieldId: "fd000000-0000-0000-0000-000000000008", terms: ["examinee type", "type"], value: app.examineeType },
+          { fieldId: "fd000000-0000-0000-0000-000000000009", terms: ["elements", "element"], value: app.selectedOption },
+          { fieldId: "fd000000-0000-0000-0000-000000000010", terms: ["special needs", "assistance"], value: "None" },
+          { fieldId: "fd000000-0000-0000-0000-000000000011", terms: ["admission number", "admission slip"], value: `ADM-${Math.floor(100000 + Math.random() * 900000)}` },
+          { fieldId: "fd000000-0000-0000-0000-000000000012", terms: ["signature"], value: `${app.firstName} ${app.lastName}` },
+          { fieldId: "fd000000-0000-0000-0000-000000000013", terms: ["declare", "info is true", "checkbox"], value: "true" },
+        ];
+
+        formFields.forEach((field: any) => {
+          const labelLower = (field.label || "").toLowerCase();
+          const id = field.fieldId;
+          const match = mappings.find(m => m.fieldId === id || m.terms.some(t => labelLower.includes(t)));
+          if (match) {
+            formFieldValues.push({
+              fieldId: id,
+              value: match.value
+            });
+          } else {
+            formFieldValues.push({
+              fieldId: id,
+              value: field.type === "checkbox" ? "false" : ""
+            });
+          }
+        });
+      } else {
+        formFieldValues.push(
+          { fieldId: "f0100000-0000-0000-0000-000000000001", value: examCat },
+          { fieldId: "f0100000-0000-0000-0000-000000000002", value: examTaker }
+        );
+      }
 
       return {
         firstName: app.firstName,
@@ -943,7 +1012,7 @@ export function RadioOperatorExamWizard({
     const payload = {
       tenantId: selectedRegionId,
       submissionMode: appMode === "SINGLE" ? "Single" : "Bulk",
-      serviceId: serviceId || "f0100000-0000-0000-0000-000000000021",
+      serviceId: serviceId,
       scheduleId: selectedScheduleId,
       fieldOfficeId: selectedOfficeId,
       applicants: mappedApplicants,

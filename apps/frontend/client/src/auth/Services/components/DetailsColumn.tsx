@@ -112,6 +112,7 @@ export function DetailsColumn({ servicesState }: DetailsColumnProps) {
             uploadedFileName={uploadedFileName} setUploadedFileName={setUploadedFileName}
             applicants={applicants} setApplicants={setApplicants}
             currentApplicantIndex={currentApplicantIndex} setCurrentApplicantIndex={setCurrentApplicantIndex}
+            serviceId={selectedService?.id}
           />
         ) : activeWizardService === "radio-operator-exam" ? (
           <RadioOperatorExamWizard

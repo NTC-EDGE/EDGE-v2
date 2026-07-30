@@ -21,6 +21,7 @@ export interface CPEAccreditationWizardProps {
   setApplicants: React.Dispatch<React.SetStateAction<ApplicantData[]>>;
   currentApplicantIndex: number;
   setCurrentApplicantIndex: (idx: number) => void;
+  serviceId?: string | null;
 }
 
 export interface ApplicantData {
