@@ -196,8 +196,8 @@ export function EmployeeFormModal({
       const input = document.createElement('input');
       input.type = 'file';
       input.accept = 'image/png, image/jpeg, image/svg+xml';
-      input.onchange = (e: any) => {
-        const file = e.target.files?.[0];
+      input.onchange = () => {
+        const file = input.files?.[0];
         if (file) {
           setSignatureFileName(file.name);
           setIsUploadDialogOpen(false);
@@ -1296,7 +1296,7 @@ const styles = StyleSheet.create({
   cameraContainer: {
     width: '100%',
     maxWidth: 480,
-    backgroundColor: '#0F172A',
+    backgroundColor: COLORS.neutral[900],
     borderRadius: RADIUS.card,
     padding: SPACING[20],
   },
@@ -1317,10 +1317,10 @@ const styles = StyleSheet.create({
   },
   viewfinder: {
     height: 240,
-    backgroundColor: '#1E293B',
+    backgroundColor: COLORS.neutral[800],
     borderRadius: RADIUS.button,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: COLORS.neutral[700],
     position: 'relative',
     justifyContent: 'center',
     alignItems: 'center',

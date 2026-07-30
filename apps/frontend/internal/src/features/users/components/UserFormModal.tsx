@@ -171,7 +171,7 @@ export function UserFormModal({ isOpen, onClose, onSubmit, userToEdit }: UserFor
       accountType,
       avatarType: accountType === 'Individual' ? 'icon' : 'initials',
       avatarInitials,
-      avatarBgColor: accountType === 'Company' ? '#1D4ED8' : undefined,
+      avatarBgColor: accountType === 'Company' ? COLORS.brand.royalBlue : undefined,
       region,
       phone: phone.trim() || '+63 900 000 0000',
       address: address.trim() || 'N/A',
@@ -452,7 +452,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: COLORS.brand.light,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: SPACING[12],
@@ -530,7 +530,7 @@ const styles = StyleSheet.create({
   },
   typeOptionSelected: {
     borderColor: COLORS.brand[600],
-    backgroundColor: '#EFF6FF',
+    backgroundColor: COLORS.brand.light,
   },
   typeIcon: {
     marginRight: 6,
@@ -594,7 +594,7 @@ const styles = StyleSheet.create({
     }),
   },
   dropdownOptionActive: {
-    backgroundColor: '#EFF6FF',
+    backgroundColor: COLORS.brand.light,
   },
   dropdownOptionText: {
     fontFamily: TYPOGRAPHY.fonts.primary,

@@ -1,241 +1,425 @@
-import { useState } from 'react';
-import { StyleSheet, View, Text, ScrollView, Pressable } from 'react-native';
-import { COLORS, SPACING, RADIUS, TYPOGRAPHY, Icon as Lucide } from '@edge/ui';
-import { UserRole, NavigationLink } from '../context/RoleContext';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  Animated,
+  Easing,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { Icon as Lucide, TYPOGRAPHY, useTheme } from '@edge/ui';
+import {
+  NAV_GROUP_ORDER,
+  NavigationLink,
+  NavGroup,
+  UserRole,
+} from '../context/RoleContext';
 import { SidebarNavItem } from './SidebarNavItem';
-import { RoleSwitcher } from './RoleSwitcher';
+
+// ─── Constants ───────────────────────────────────────────────────────────────
+
+const SIDEBAR_EXPANDED_WIDTH = 240;
+const SIDEBAR_COLLAPSED_WIDTH = 52;
+const STORAGE_KEY = 'edge_sidebar_collapsed';
+
+// ─── Types ───────────────────────────────────────────────────────────────────
 
 interface SidebarProps {
   currentRole: UserRole;
   links: readonly NavigationLink[];
   activeScreen: string;
   onNavigate: (screenName: string) => void;
+  onCollapsedChange?: (collapsed: boolean) => void;
   isMobile?: boolean;
   onClose?: () => void;
   onLogout?: () => void | Promise<void>;
   onRoleSelect?: (role: UserRole) => void;
 }
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function groupLinks(
+  links: readonly NavigationLink[],
+): Map<NavGroup, readonly NavigationLink[]> {
+  const map = new Map<NavGroup, NavigationLink[]>();
+  for (const link of links) {
+    const existing = map.get(link.group);
+    if (existing !== undefined) {
+      existing.push(link);
+    } else {
+      map.set(link.group, [link]);
+    }
+  }
+  return map;
+}
+
+function readCollapsedFromStorage(): boolean {
+  if (Platform.OS !== 'web') return false;
+  try {
+    return window.localStorage.getItem(STORAGE_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+function writeCollapsedToStorage(value: boolean): void {
+  if (Platform.OS !== 'web') return;
+  try {
+    window.localStorage.setItem(STORAGE_KEY, String(value));
+  } catch {
+    // ignore
+  }
+}
+
+// ─── Component ───────────────────────────────────────────────────────────────
+
 export function Sidebar({
   currentRole,
   links,
   activeScreen,
   onNavigate,
+  onCollapsedChange,
   isMobile = false,
   onClose,
   onLogout,
-  onRoleSelect,
+  onRoleSelect: _onRoleSelect,
 }: SidebarProps) {
-  const [showMobileRoleDropdown, setShowMobileRoleDropdown] = useState(false);
-  const [isSwitcherHovered, setIsSwitcherHovered] = useState(false);
+  const { colors, isDark } = useTheme();
 
-  const toggleMobileRoleDropdown = () => {
-    setShowMobileRoleDropdown((prev) => !prev);
-  };
+  // Collapse state — only relevant on non-mobile
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(
+    isMobile ? false : readCollapsedFromStorage(),
+  );
 
-  const closeMobileRoleDropdown = () => {
-    setShowMobileRoleDropdown(false);
-  };
+  const widthAnim = useRef(
+    new Animated.Value(
+      isMobile
+        ? SIDEBAR_EXPANDED_WIDTH
+        : isCollapsed
+        ? SIDEBAR_COLLAPSED_WIDTH
+        : SIDEBAR_EXPANDED_WIDTH,
+    ),
+  ).current;
+
+  const toggleCollapse = useCallback(() => {
+    const next = !isCollapsed;
+    setIsCollapsed(next);
+    writeCollapsedToStorage(next);
+    onCollapsedChange?.(next);
+    Animated.timing(widthAnim, {
+      toValue: next ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_EXPANDED_WIDTH,
+      duration: 200,
+      easing: Easing.bezier(0.4, 0, 0.2, 1),
+      useNativeDriver: false,
+    }).start();
+  }, [isCollapsed, widthAnim, onCollapsedChange]);
+
+  // Sync on mount in case storage differs from initial state
+  useEffect(() => {
+    if (isMobile) return;
+    widthAnim.setValue(
+      isCollapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_EXPANDED_WIDTH,
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const grouped = groupLinks(links);
+
+  const sidebarBg = isDark ? colors.neutral[900] : colors.cardBg;
+  const borderColor = colors.border;
+  const groupLabelColor = isDark ? colors.neutral[500] : colors.neutral[400];
 
   return (
-    <View style={[styles.sidebar, isMobile && styles.sidebarMobile]}>
-      {/* Sidebar Header (Mobile drawer only) */}
-      {isMobile && (
-        <View style={styles.sidebarHeader}>
-          <View style={styles.logoWrapper}>
-            <View style={styles.logoIcon}>
-              <Lucide name="shield" size={20} color={COLORS.brand[800]} />
-            </View>
-            <View>
-              <Text style={styles.logoTitle}>EDGE</Text>
-              <Text style={styles.logoSubtitle}>INTERNAL PORTAL</Text>
-            </View>
-          </View>
-
-          <Pressable onPress={onClose} style={styles.closeBtn}>
-            <Lucide name="x" size={18} color={COLORS.neutral[500]} />
-          </Pressable>
-        </View>
-      )}
-
-      {/* Sidebar Navigation Links */}
-      <ScrollView
-        style={styles.sidebarNav}
-        contentContainerStyle={styles.sidebarNavContent}
+    <Animated.View
+      style={[
+        styles.sidebar,
+        {
+          width: isMobile ? SIDEBAR_EXPANDED_WIDTH : widthAnim,
+          backgroundColor: sidebarBg,
+          borderRightColor: borderColor,
+        },
+      ]}
+    >
+      {/* ── Top: Collapse toggle (desktop) or Close button (mobile drawer) ── */}
+      <View
+        style={[
+          styles.topBar,
+          {
+            borderBottomColor: borderColor,
+            justifyContent: isMobile ? 'space-between' : isCollapsed ? 'center' : 'flex-end',
+          },
+        ]}
       >
-        {links.map((link) => {
-          const isActive = activeScreen === link.screen;
+        {isMobile && (
+          <Text
+            style={[styles.mobileTitle, { color: colors.text }]}
+            numberOfLines={1}
+          >
+            Menu
+          </Text>
+        )}
+
+        <Pressable
+          onPress={isMobile ? onClose : toggleCollapse}
+          style={[styles.collapseBtn, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[50] }]}
+        >
+          <Lucide
+            name={
+              isMobile
+                ? 'x'
+                : isCollapsed
+                ? 'chevron-right'
+                : 'chevron-left'
+            }
+            size={14}
+            color={isDark ? colors.neutral[400] : colors.neutral[500]}
+          />
+        </Pressable>
+      </View>
+
+      {/* ── Navigation ─────────────────────────────────────────────────────── */}
+      <ScrollView
+        style={styles.nav}
+        contentContainerStyle={[
+          styles.navContent,
+          isCollapsed && !isMobile && styles.navContentCollapsed,
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        {NAV_GROUP_ORDER.map((group) => {
+          const groupLinks = grouped.get(group);
+          if (groupLinks === undefined || groupLinks.length === 0) return null;
+
           return (
-            <SidebarNavItem
-              key={link.name}
-              link={link}
-              isActive={isActive}
-              onPress={onNavigate}
-            />
+            <View key={group} style={styles.group}>
+              {/* Group label — hidden when collapsed */}
+              {!isCollapsed && (
+                <Text
+                  style={[styles.groupLabel, { color: groupLabelColor }]}
+                  numberOfLines={1}
+                >
+                  {group.toUpperCase()}
+                </Text>
+              )}
+              {isCollapsed && (
+                <View
+                  style={[styles.groupDivider, { backgroundColor: borderColor }]}
+                />
+              )}
+
+              {groupLinks.map((link) => (
+                <SidebarNavItem
+                  key={link.screen}
+                  link={link}
+                  isActive={activeScreen === link.screen}
+                  isCollapsed={isCollapsed && !isMobile}
+                  onPress={onNavigate}
+                />
+              ))}
+            </View>
           );
         })}
       </ScrollView>
 
-      {/* Sidebar Footer */}
-      <View style={styles.sidebarFooter}>
-        {isMobile ? (
-          <View style={styles.mobileFooterContainer}>
-            <Text style={styles.roleLabel}>Switch Active Role</Text>
-            <View style={styles.roleSwitcherWrapper}>
-              <RoleSwitcher
-                currentRole={currentRole}
-                onRoleSelect={(role) => {
-                  onRoleSelect?.(role);
-                  closeMobileRoleDropdown();
-                }}
-                showRoleDropdown={showMobileRoleDropdown}
-                toggleRoleDropdown={toggleMobileRoleDropdown}
-                closeRoleDropdown={closeMobileRoleDropdown}
-                isSwitcherHovered={isSwitcherHovered}
-                setIsSwitcherHovered={setIsSwitcherHovered}
-                variant="sidebar"
-              />
-            </View>
-
-            <Pressable
-              onPress={() => {
-                if (onLogout !== undefined) {
-                  const result = onLogout();
-                  if (result instanceof Promise) {
-                    result.catch((error: unknown) => console.error('Logout error:', error));
-                  }
-                }
-              }}
-              style={styles.mobileLogoutBtn}
+      {/* ── Footer ─────────────────────────────────────────────────────────── */}
+      <View
+        style={[
+          styles.footer,
+          {
+            borderTopColor: borderColor,
+            backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50],
+            alignItems: isCollapsed && !isMobile ? 'center' : 'flex-start',
+          },
+        ]}
+      >
+        {/* Logout button */}
+        <Pressable
+          onPress={() => {
+            if (onLogout !== undefined) {
+              const result = onLogout();
+              if (result instanceof Promise) {
+                result.catch((err: unknown) =>
+                  console.error('Logout error:', err),
+                );
+              }
+            }
+          }}
+          style={[
+            styles.logoutBtn,
+            {
+              backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100],
+              width: isCollapsed && !isMobile ? 32 : '100%',
+              justifyContent: isCollapsed && !isMobile ? 'center' : 'flex-start',
+            },
+          ]}
+        >
+          <Lucide name="log-out" size={14} color={colors.semantic.error} />
+          {(!isCollapsed || isMobile) && (
+            <Text
+              style={[styles.logoutText, { color: colors.semantic.error }]}
             >
-              <Lucide name="log-out" size={16} color={COLORS.semantic.error} />
-              <Text style={styles.mobileLogoutText}>Logout</Text>
-            </Pressable>
+              Logout
+            </Text>
+          )}
+        </Pressable>
+
+        {/* Role badge — shown only when expanded */}
+        {(!isCollapsed || isMobile) && (
+          <View style={styles.roleBadge}>
+            <View
+              style={[
+                styles.roleAvatar,
+                { backgroundColor: isDark ? colors.brand[800] : colors.brand[700] },
+              ]}
+            >
+              <Text style={styles.roleAvatarText}>
+                {currentRole[0].toUpperCase()}
+              </Text>
+            </View>
+            <View style={styles.roleInfo}>
+              <Text
+                style={[styles.roleName, { color: colors.text }]}
+                numberOfLines={1}
+              >
+                {currentRole}
+              </Text>
+              <Text style={[styles.roleCaption, { color: colors.textMuted }]}>
+                Active role
+              </Text>
+            </View>
           </View>
-        ) : (
-          <>
-            <Text style={styles.roleLabel}>Current Role</Text>
-            <Text style={styles.roleValue}>{currentRole}</Text>
-          </>
         )}
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
+// ─── Styles ──────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
   sidebar: {
-    width: 260, // Refined sidebar width
-    backgroundColor: COLORS.neutral.white,
-    borderRightWidth: 1,
-    borderRightColor: COLORS.neutral[200],
     flexDirection: 'column',
     height: '100%',
+    borderRightWidth: 1,
     zIndex: 10,
+    overflow: 'hidden',
+    ...Platform.select({
+      web: { transition: 'width 200ms cubic-bezier(0.4,0,0.2,1)' },
+    }),
   },
-  sidebarMobile: {
-    width: '100%',
-  },
-  sidebarHeader: {
-    height: 72,
+  topBar: {
+    height: 44,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: SPACING[20],
+    paddingHorizontal: 10,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.neutral[200],
+    gap: 8,
   },
-  logoWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  logoIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: COLORS.neutral[50],
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: SPACING[12],
-    borderWidth: 1,
-    borderColor: COLORS.neutral[200],
-  },
-  logoTitle: {
+  mobileTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 16,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    color: COLORS.neutral[900],
-    letterSpacing: 0.5,
-  },
-  logoSubtitle: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 9,
+    fontSize: TYPOGRAPHY.sizes.body,
     fontWeight: TYPOGRAPHY.weights.semibold,
-    color: COLORS.neutral[400],
-    letterSpacing: 1,
-  },
-  closeBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 6,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: COLORS.neutral[50],
-    borderWidth: 1,
-    borderColor: COLORS.neutral[200],
-  },
-  sidebarNav: {
     flex: 1,
   },
-  sidebarNavContent: {
-    paddingHorizontal: SPACING[12],
-    paddingVertical: SPACING[16],
-  },
-  sidebarFooter: {
-    padding: SPACING[20],
-    borderTopWidth: 1,
-    borderTopColor: COLORS.neutral[100],
-    backgroundColor: COLORS.neutral[50],
-  },
-  roleLabel: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-    color: COLORS.neutral[400],
-    fontWeight: TYPOGRAPHY.weights.semibold,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 8,
-  },
-  roleValue: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
-    color: COLORS.brand[800],
-    fontWeight: TYPOGRAPHY.weights.bold,
-  },
-  mobileFooterContainer: {
-    flexDirection: 'column',
-    width: '100%',
-  },
-  roleSwitcherWrapper: {
-    width: '100%',
-    marginBottom: SPACING[16],
-  },
-  mobileLogoutBtn: {
-    flexDirection: 'row',
+  collapseBtn: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: SPACING[8],
-    borderRadius: RADIUS.input,
-    borderWidth: 1,
-    borderColor: COLORS.semantic.errorBorder,
-    backgroundColor: COLORS.semantic.errorBg,
-    width: '100%',
+    ...Platform.select({
+      web: { cursor: 'pointer', transition: 'background-color 120ms ease' },
+    }),
   },
-  mobileLogoutText: {
+  nav: {
+    flex: 1,
+    ...Platform.select({
+      web: {
+        scrollbarWidth: 'none',
+        msOverflowStyle: 'none',
+      },
+    }),
+  },
+  navContent: {
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    gap: 12,
+  },
+  navContentCollapsed: {
+    paddingHorizontal: 4,
+    alignItems: 'center',
+  },
+  group: {
+    gap: 0,
+  },
+  groupLabel: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.sizes.overline,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    letterSpacing: 0.8,
+    paddingHorizontal: 8,
+    paddingBottom: 4,
+    paddingTop: 2,
+  },
+  groupDivider: {
+    height: 1,
+    marginVertical: 6,
+    marginHorizontal: 10,
+  },
+  footer: {
+    padding: 10,
+    borderTopWidth: 1,
+    gap: 8,
+  },
+  logoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    height: 32,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    ...Platform.select({
+      web: { cursor: 'pointer', transition: 'background-color 120ms ease' },
+    }),
+  },
+  logoutText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: TYPOGRAPHY.sizes.body,
     fontWeight: TYPOGRAPHY.weights.semibold,
-    color: COLORS.semantic.error,
-    marginLeft: 8,
+  },
+  roleBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingTop: 2,
+  },
+  roleAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  roleAvatarText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: '#FFFFFF',
+  },
+  roleInfo: {
+    flex: 1,
+    overflow: 'hidden',
+  },
+  roleName: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: TYPOGRAPHY.sizes.body,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+  },
+  roleCaption: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: TYPOGRAPHY.sizes.caption,
   },
 });

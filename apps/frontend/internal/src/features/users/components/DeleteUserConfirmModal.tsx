@@ -65,7 +65,7 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: COLORS.semantic.errorBg,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: SPACING[16],

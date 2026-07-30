@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { ComponentProps } from 'react';
 import { StyleSheet, View, Text, Pressable, Platform } from 'react-native';
-import { COLORS, TYPOGRAPHY, Icon as Lucide } from '@edge/ui';
+import { useTheme, TYPOGRAPHY, Icon as Lucide } from '@edge/ui';
 
 interface TabItem {
   name: string;
   screen: string;
-  icon: any; // Lucide icon name
+  icon: ComponentProps<typeof Lucide>['name'];
 }
 
 interface MobileBottomTabBarProps {
@@ -23,8 +23,22 @@ const PRIMARY_TABS: TabItem[] = [
 ];
 
 export function MobileBottomTabBar({ activeScreen, onNavigate, onMenuPress }: MobileBottomTabBarProps) {
+  const { colors, isDark } = useTheme();
+
+  const activeColor = isDark ? colors.brand[500] : colors.brand[800];
+  const inactiveColor = isDark ? colors.neutral[400] : colors.neutral[500];
+  const activePillBg = isDark ? 'rgba(96, 165, 250, 0.15)' : 'rgba(37, 99, 235, 0.1)';
+
   return (
-    <View style={[styles.container]}>
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: isDark ? colors.neutral[900] : colors.cardBg,
+          borderTopColor: colors.border,
+        },
+      ]}
+    >
       {PRIMARY_TABS.map((tab) => {
         const isActive = activeScreen === tab.screen;
         return (
@@ -33,14 +47,25 @@ export function MobileBottomTabBar({ activeScreen, onNavigate, onMenuPress }: Mo
             style={styles.tabButton}
             onPress={() => onNavigate(tab.screen)}
           >
-            <View style={[styles.iconContainer, isActive && styles.iconContainerActive]}>
+            <View
+              style={[
+                styles.iconContainer,
+                isActive && { backgroundColor: activePillBg },
+              ]}
+            >
               <Lucide
                 name={tab.icon}
                 size={22}
-                color={isActive ? COLORS.brand[800] : COLORS.neutral[500]}
+                color={isActive ? activeColor : inactiveColor}
               />
             </View>
-            <Text style={[styles.tabText, isActive && styles.tabTextActive]}>
+            <Text
+              style={[
+                styles.tabText,
+                { color: inactiveColor },
+                isActive && [styles.tabTextActive, { color: activeColor }],
+              ]}
+            >
               {tab.name}
             </Text>
           </Pressable>
@@ -50,9 +75,9 @@ export function MobileBottomTabBar({ activeScreen, onNavigate, onMenuPress }: Mo
       {/* Menu / More Button */}
       <Pressable style={styles.tabButton} onPress={onMenuPress}>
         <View style={styles.iconContainer}>
-          <Lucide name="menu" size={22} color={COLORS.neutral[500]} />
+          <Lucide name="menu" size={22} color={inactiveColor} />
         </View>
-        <Text style={styles.tabText}>More</Text>
+        <Text style={[styles.tabText, { color: inactiveColor }]}>More</Text>
       </Pressable>
     </View>
   );
@@ -61,9 +86,7 @@ export function MobileBottomTabBar({ activeScreen, onNavigate, onMenuPress }: Mo
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    backgroundColor: COLORS.neutral.white,
     borderTopWidth: 1,
-    borderTopColor: COLORS.neutral[200],
     paddingBottom: Platform.OS === 'ios' ? 24 : 12,
     paddingTop: 12,
     justifyContent: 'space-around',
@@ -84,17 +107,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  iconContainerActive: {
-    backgroundColor: 'rgba(37, 99, 235, 0.1)', // Very soft blue background for active icon
-  },
   tabText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 11,
     fontWeight: TYPOGRAPHY.weights.medium,
-    color: COLORS.neutral[500],
   },
   tabTextActive: {
-    color: COLORS.brand[800],
     fontWeight: TYPOGRAPHY.weights.bold,
   },
 });
+

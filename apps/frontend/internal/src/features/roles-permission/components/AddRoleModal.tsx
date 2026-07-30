@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { StyleSheet, View, Text, TextInput, Pressable, Modal, ScrollView, useWindowDimensions } from 'react-native';
-import { COLORS, SPACING, RADIUS, SHADOWS, Icon as Lucide } from '@edge/ui';
+import { useTheme, COLORS, SPACING, RADIUS, SHADOWS, Icon as Lucide } from '@edge/ui';
 import { usePermissionsCatalog, PermissionCategoryGroup } from '@edge/api';
 import { Role } from '../data/mockRolesPermissions';
 
@@ -22,6 +22,7 @@ export function AddRoleModal({
   existingRoles,
   rolePermissionsMap,
 }: AddRoleModalProps) {
+  const { colors, isDark } = useTheme();
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
 
@@ -107,22 +108,22 @@ export function AddRoleModal({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose}>
       <View style={styles.backdrop}>
-        <View style={[styles.modalCard, SHADOWS.modal]}>
+        <View style={[styles.modalCard, { backgroundColor: colors.cardBg }, SHADOWS.modal]}>
           {/* Header */}
-          <View style={styles.modalHeader}>
+          <View style={[styles.modalHeader, { backgroundColor: isDark ? colors.cardBg : colors.bg, borderBottomColor: colors.border }]}>
             <View style={styles.titleRow}>
-              <View style={styles.headerBadge}>
-                <Lucide name="shield" size={20} color={COLORS.brand[700]} />
+              <View style={[styles.headerBadge, { backgroundColor: isDark ? colors.cardBg : COLORS.brand.blueLight }]}>
+                <Lucide name="shield" size={20} color={colors.brand.primary} />
               </View>
               <View>
-                <Text style={styles.modalTitle}>Add New Role</Text>
-                <Text style={styles.modalSubtitle}>
+                <Text style={[styles.modalTitle, { color: colors.text }]}>Add New Role</Text>
+                <Text style={[styles.modalSubtitle, { color: colors.textMuted }]}>
                   Define role details and assign initial module permissions.
                 </Text>
               </View>
             </View>
             <Pressable style={styles.closeBtn} onPress={handleClose} accessibilityLabel="Close modal">
-              <Lucide name="x" size={20} color={COLORS.neutral[500]} />
+              <Lucide name="x" size={20} color={colors.textMuted} />
             </Pressable>
           </View>
 
@@ -213,14 +214,14 @@ export function AddRoleModal({
                   );
 
                   return (
-                    <View key={category.id} style={styles.categoryCard}>
-                      <View style={styles.categoryHeader}>
-                        <Text style={styles.categoryTitle}>{category.title}</Text>
+                    <View key={category.id} style={[styles.categoryCard, { backgroundColor: isDark ? colors.cardBg : colors.bg, borderColor: colors.border }]}>
+                      <View style={[styles.categoryHeader, { borderBottomColor: colors.border }]}>
+                        <Text style={[styles.categoryTitle, { color: colors.text }]}>{category.title}</Text>
                         <Pressable
                           style={styles.categoryToggleBtn}
                           onPress={() => handleToggleCategory(category)}
                         >
-                          <Text style={styles.categoryToggleText}>
+                          <Text style={[styles.categoryToggleText, { color: colors.brand.primary }]}>
                             {isCategoryAllSelected ? 'Deselect All' : 'Select All'}
                           </Text>
                         </Pressable>
@@ -238,7 +239,7 @@ export function AddRoleModal({
                               <View
                                 style={[
                                   styles.checkbox,
-                                  isChecked ? styles.checkboxChecked : styles.checkboxUnchecked,
+                                  isChecked ? styles.checkboxChecked : [styles.checkboxUnchecked, { backgroundColor: colors.cardBg, borderColor: colors.border }],
                                 ]}
                               >
                                 {isChecked && (
@@ -248,7 +249,7 @@ export function AddRoleModal({
                               <Text
                                 style={[
                                   styles.optionLabel,
-                                  isChecked ? styles.optionLabelChecked : styles.optionLabelUnchecked,
+                                  isChecked ? [styles.optionLabelChecked, { color: colors.text }] : [styles.optionLabelUnchecked, { color: colors.textMuted }],
                                 ]}
                               >
                                 {option.label}
@@ -265,11 +266,11 @@ export function AddRoleModal({
           </ScrollView>
 
           {/* Footer Actions */}
-          <View style={styles.modalFooter}>
-            <Pressable style={styles.cancelBtn} onPress={handleClose}>
-              <Text style={styles.cancelBtnText}>Cancel</Text>
+          <View style={[styles.modalFooter, { backgroundColor: isDark ? colors.cardBg : colors.bg, borderTopColor: colors.border }]}>
+            <Pressable style={[styles.cancelBtn, { backgroundColor: colors.cardBg, borderColor: colors.border }]} onPress={handleClose}>
+              <Text style={[styles.cancelBtnText, { color: colors.text }]}>Cancel</Text>
             </Pressable>
-            <Pressable style={styles.submitBtn} onPress={handleCreate}>
+            <Pressable style={[styles.submitBtn, { backgroundColor: colors.brand.primary }]} onPress={handleCreate}>
               <Lucide name="plus" size={16} color={COLORS.neutral.white} style={styles.submitIcon} />
               <Text style={styles.submitBtnText}>Create Role</Text>
             </Pressable>
@@ -305,7 +306,7 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING[16],
     borderBottomWidth: 1,
     borderBottomColor: COLORS.neutral[200],
-    backgroundColor: '#F8FAFC',
+    backgroundColor: COLORS.neutral[50],
   },
   titleRow: {
     flexDirection: 'row',
@@ -315,7 +316,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#DBEAFE',
+    backgroundColor: COLORS.brand.blueLight,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: SPACING[12],
@@ -342,8 +343,8 @@ const styles = StyleSheet.create({
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEF2F2',
-    borderColor: '#FCA5A5',
+    backgroundColor: COLORS.semantic.errorBg,
+    borderColor: COLORS.semantic.errorBorder,
     borderWidth: 1,
     borderRadius: RADIUS.input,
     padding: SPACING[12],
@@ -403,8 +404,8 @@ const styles = StyleSheet.create({
     marginRight: SPACING[8],
   },
   presetChipActive: {
-    backgroundColor: '#0B1953',
-    borderColor: '#0B1953',
+    backgroundColor: COLORS.brand.dark,
+    borderColor: COLORS.brand.dark,
   },
   presetChipText: {
     fontSize: 12,
@@ -437,7 +438,7 @@ const styles = StyleSheet.create({
     marginRight: SPACING[8],
   },
   countBadge: {
-    backgroundColor: '#DBEAFE',
+    backgroundColor: COLORS.brand.blueLight,
     paddingHorizontal: SPACING[8],
     paddingVertical: 2,
     borderRadius: RADIUS.circle,
@@ -475,7 +476,7 @@ const styles = StyleSheet.create({
   categoryCard: {
     width: '49%',
     minWidth: 260,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: COLORS.neutral[50],
     borderRadius: RADIUS.card,
     borderWidth: 1,
     borderColor: COLORS.neutral[200],
@@ -521,8 +522,8 @@ const styles = StyleSheet.create({
     marginRight: SPACING[8],
   },
   checkboxChecked: {
-    backgroundColor: '#0B1953',
-    borderColor: '#0B1953',
+    backgroundColor: COLORS.brand.dark,
+    borderColor: COLORS.brand.dark,
     borderWidth: 1,
   },
   checkboxUnchecked: {
@@ -548,7 +549,7 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING[16],
     borderTopWidth: 1,
     borderTopColor: COLORS.neutral[200],
-    backgroundColor: '#F8FAFC',
+    backgroundColor: COLORS.neutral[50],
     gap: SPACING[12],
   },
   cancelBtn: {

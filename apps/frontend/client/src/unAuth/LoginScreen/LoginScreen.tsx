@@ -134,16 +134,13 @@ export function LoginScreen() {
     setGoogleLoading(true);
     setGeneralError("");
     try {
-      const { createdSessionId, setActive: ssoSetActive } = await startSSOFlow({
-        strategy: "oauth_google",
-      });
-      if (createdSessionId !== null && ssoSetActive !== undefined) {
-        await ssoSetActive({ session: createdSessionId });
+      const res = await startSSOFlow({ strategy: "oauth_google" });
+      if (res !== null && res !== undefined && res.createdSessionId && typeof res.setActive === "function") {
+        await res.setActive({ session: res.createdSessionId });
         setSuccess(true);
-      } else {
-        setGeneralError("Google sign-in did not complete. Please try again.");
       }
     } catch (err: unknown) {
+      console.error("Google sign-in error:", err);
       let errMsg = "Google sign-in failed. Please try again.";
       if (isClerkAPIResponseError(err)) {
         errMsg = err.errors[0]?.message ?? errMsg;

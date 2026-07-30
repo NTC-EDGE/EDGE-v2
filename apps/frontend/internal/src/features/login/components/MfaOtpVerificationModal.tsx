@@ -8,15 +8,8 @@ import {
   TextInput,
   Modal,
   Platform,
-  TextStyle,
 } from "react-native";
-import {
-  COLORS,
-  SPACING,
-  SHADOWS,
-  TYPOGRAPHY,
-  Icon as Lucide,
-} from "@edge/ui";
+import { COLORS, SPACING, SHADOWS, TYPOGRAPHY, Icon as Lucide, useTheme } from "@edge/ui";
 import { parseApiError } from "@edge/api";
 
 export type MfaStrategy = "email_code" | "phone_code" | "totp";
@@ -34,14 +27,17 @@ interface MfaOtpVerificationModalProps {
   onCancel: () => void;
 }
 
+const DEFAULT_FACTOR: SupportedFactor = { strategy: "email_code" };
+
 export function MfaOtpVerificationModal({
   visible,
   supportedFactors,
   onVerifyOtp,
   onResendOtp,
   onCancel,
-}: MfaOtpVerificationModalProps) {
-  const activeFactor = supportedFactors[0] ?? { strategy: "email_code" as const };
+}: MfaOtpVerificationModalProps): React.ReactElement {
+  const { colors, isDark } = useTheme();
+  const activeFactor = supportedFactors[0] ?? DEFAULT_FACTOR;
   const [selectedStrategy, setSelectedStrategy] = useState<MfaStrategy>(activeFactor.strategy);
   const [otpCode, setOtpCode] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -72,7 +68,7 @@ export function MfaOtpVerificationModal({
   };
 
   const handleResend = async () => {
-    if (!onResendOtp || selectedStrategy === "totp") return;
+    if (onResendOtp === undefined || selectedStrategy === "totp") return;
 
     setErrorMessage(null);
     setResendSuccess(null);
@@ -88,14 +84,14 @@ export function MfaOtpVerificationModal({
     }
   };
 
-  const getStrategyLabel = (strat: MfaStrategy) => {
+  const getStrategyLabel = (strat: MfaStrategy): string => {
     if (strat === "email_code") return "Email OTP";
     if (strat === "phone_code") return "SMS OTP";
     if (strat === "totp") return "Authenticator App";
     return "OTP Verification";
   };
 
-  const getStrategyDescription = () => {
+  const getStrategyDescription = (): string => {
     if (selectedStrategy === "email_code") {
       const id = currentFactorInfo.safeIdentifier ?? "your email address";
       return `Enter the 6-digit email OTP sent to ${id}.`;
@@ -118,31 +114,56 @@ export function MfaOtpVerificationModal({
       onRequestClose={onCancel}
     >
       <View style={styles.modalOverlay}>
-        <View style={[styles.modalCard, SHADOWS.modal]}>
+        <View
+          style={[
+            styles.modalCard,
+            SHADOWS.modal,
+            {
+              backgroundColor: colors.cardBg,
+              borderColor: colors.border,
+            },
+          ]}
+        >
           <TouchableOpacity style={styles.closeBtn} onPress={onCancel} disabled={isSubmitting}>
-            <Lucide name="x" size={20} color={COLORS.neutral[500]} />
+            <Lucide name="x" size={20} color={colors.textMuted} />
           </TouchableOpacity>
 
-          <View style={styles.iconCircle}>
+          <View
+            style={[
+              styles.iconCircle,
+              { backgroundColor: isDark ? colors.neutral[800] : colors.brand.light },
+            ]}
+          >
             <Lucide
               name={selectedStrategy === "totp" ? "shield" : selectedStrategy === "phone_code" ? "smartphone" : "mail"}
               size={28}
-              color="#0E1B61"
+              color={isDark ? colors.brand.primary : colors.brand.secondary}
             />
           </View>
 
-          <Text style={styles.title}>Multi-Factor OTP Verification</Text>
-          <Text style={styles.subtitle}>{getStrategyDescription()}</Text>
+          <Text style={[styles.title, { color: colors.text }]}>Multi-Factor OTP Verification</Text>
+          <Text style={[styles.subtitle, { color: colors.textMuted }]}>{getStrategyDescription()}</Text>
 
           {/* Strategy Selector Tabs if user has multiple MFA factors */}
           {supportedFactors.length > 1 ? (
-            <View style={styles.tabContainer}>
+            <View
+              style={[
+                styles.tabContainer,
+                { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100] },
+              ]}
+            >
               {supportedFactors.map((factor) => {
                 const isActive = factor.strategy === selectedStrategy;
                 return (
                   <TouchableOpacity
                     key={factor.strategy}
-                    style={[styles.tabButton, isActive && styles.tabButtonActive]}
+                    style={[
+                      styles.tabButton,
+                      isActive && [
+                        styles.tabButtonActive,
+                        { backgroundColor: isDark ? colors.neutral[700] : colors.cardBg },
+                      ],
+                    ]}
                     onPress={() => {
                       setSelectedStrategy(factor.strategy);
                       setOtpCode("");
@@ -151,7 +172,13 @@ export function MfaOtpVerificationModal({
                     }}
                     disabled={isSubmitting}
                   >
-                    <Text style={[styles.tabButtonText, isActive && styles.tabButtonTextActive]}>
+                    <Text
+                      style={[
+                        styles.tabButtonText,
+                        { color: isActive ? (isDark ? colors.brand.primary : colors.brand.secondary) : colors.textMuted },
+                        isActive && styles.tabButtonTextActive,
+                      ]}
+                    >
                       {getStrategyLabel(factor.strategy)}
                     </Text>
                   </TouchableOpacity>
@@ -161,27 +188,64 @@ export function MfaOtpVerificationModal({
           ) : null}
 
           {errorMessage !== null && errorMessage.trim().length > 0 ? (
-            <View style={styles.errorBox}>
-              <Lucide name="alert-circle" size={16} color="#DC2626" />
-              <Text style={styles.errorText}>{errorMessage}</Text>
+            <View
+              style={[
+                styles.errorBox,
+                {
+                  backgroundColor: colors.semantic.errorBg,
+                  borderColor: colors.semantic.errorBorder,
+                },
+              ]}
+            >
+              <Lucide name="alert-circle" size={16} color={colors.semantic.error} />
+              <Text style={[styles.errorText, { color: colors.semantic.errorText }]}>{errorMessage}</Text>
             </View>
           ) : null}
 
           {resendSuccess !== null && resendSuccess.trim().length > 0 ? (
-            <View style={styles.successBox}>
-              <Lucide name="check-circle" size={16} color="#16A34A" />
-              <Text style={styles.successText}>{resendSuccess}</Text>
+            <View
+              style={[
+                styles.successBox,
+                {
+                  backgroundColor: colors.semantic.successBg,
+                  borderColor: colors.semantic.successBorder,
+                },
+              ]}
+            >
+              <Lucide name="check-circle" size={16} color={colors.semantic.success} />
+              <Text style={[styles.successText, { color: colors.semantic.successText }]}>{resendSuccess}</Text>
             </View>
           ) : null}
 
           <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>6-Digit OTP Code</Text>
-            <View style={[styles.inputWrapper, isFocused && styles.inputWrapperFocused]}>
-              <Lucide name="key" size={18} color={isFocused ? "#0E1B61" : COLORS.neutral[400]} style={{ marginRight: 8 }} />
+            <Text style={[styles.fieldLabel, { color: colors.text }]}>6-Digit OTP Code</Text>
+            <View
+              style={[
+                styles.inputWrapper,
+                {
+                  backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50],
+                  borderColor: colors.border,
+                },
+                isFocused && [
+                  styles.inputWrapperFocused,
+                  { borderColor: isDark ? colors.brand.primary : colors.brand.secondary },
+                ],
+              ]}
+            >
+              <Lucide
+                name="key"
+                size={18}
+                color={isFocused ? (isDark ? colors.brand.primary : colors.brand.secondary) : colors.textMuted}
+                style={{ marginRight: 8 }}
+              />
               <TextInput
-                style={styles.textInput}
+                style={[
+                  styles.textInput,
+                  { color: colors.text },
+                  Platform.OS === "web" ? styles.webTextInput : null,
+                ]}
                 placeholder="123456"
-                placeholderTextColor={COLORS.neutral[400]}
+                placeholderTextColor={colors.textMuted}
                 value={otpCode}
                 onChangeText={setOtpCode}
                 onFocus={() => setIsFocused(true)}
@@ -195,33 +259,39 @@ export function MfaOtpVerificationModal({
           </View>
 
           <TouchableOpacity
-            style={[styles.verifyButton, isSubmitting && styles.buttonDisabled]}
+            style={[
+              styles.verifyButton,
+              { backgroundColor: isDark ? colors.brand.primary : colors.brand.secondary },
+              isSubmitting && styles.buttonDisabled,
+            ]}
             onPress={handleVerify}
             disabled={isSubmitting}
           >
             {isSubmitting ? (
-              <ActivityIndicator color={COLORS.neutral.white} size="small" />
+              <ActivityIndicator color={colors.neutral.white} size="small" />
             ) : (
               <Text style={styles.verifyButtonText}>Verify OTP & Sign In</Text>
             )}
           </TouchableOpacity>
 
-          {selectedStrategy !== "totp" && onResendOtp ? (
+          {selectedStrategy !== "totp" && onResendOtp !== undefined ? (
             <TouchableOpacity
               style={styles.resendBtn}
               onPress={handleResend}
               disabled={isSubmitting || isResending}
             >
               {isResending ? (
-                <ActivityIndicator size="small" color="#0E1B61" />
+                <ActivityIndicator size="small" color={isDark ? colors.brand.primary : colors.brand.secondary} />
               ) : (
-                <Text style={styles.resendBtnText}>Resend OTP Code</Text>
+                <Text style={[styles.resendBtnText, { color: isDark ? colors.brand.primary : colors.brand.secondary }]}>
+                  Resend OTP Code
+                </Text>
               )}
             </TouchableOpacity>
           ) : null}
 
           <TouchableOpacity style={styles.cancelBtn} onPress={onCancel} disabled={isSubmitting}>
-            <Text style={styles.cancelBtnText}>Cancel Sign-In</Text>
+            <Text style={[styles.cancelBtnText, { color: colors.textMuted }]}>Cancel Sign-In</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -239,12 +309,12 @@ const styles = StyleSheet.create({
   },
   modalCard: {
     width: "100%",
-    maxWidth: 460,
-    backgroundColor: COLORS.neutral.white,
+    maxWidth: 440,
     borderRadius: 20,
     padding: 28,
     alignItems: "center",
     position: "relative",
+    borderWidth: 1,
   },
   closeBtn: {
     position: "absolute",
@@ -256,7 +326,6 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: "#EFF6FF",
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 16,
@@ -265,21 +334,18 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 22,
     fontWeight: TYPOGRAPHY.weights.bold,
-    color: "#0F172A",
     marginBottom: 8,
     textAlign: "center",
   },
   subtitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 14,
-    color: COLORS.neutral[600],
     textAlign: "center",
     lineHeight: 22,
     marginBottom: 16,
   },
   tabContainer: {
     flexDirection: "row",
-    backgroundColor: "#F1F5F9",
     borderRadius: 10,
     padding: 4,
     marginBottom: 16,
@@ -293,8 +359,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   tabButtonActive: {
-    backgroundColor: "#FFFFFF",
-    shadowColor: "#000",
+    shadowColor: COLORS.neutral.black,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
@@ -303,18 +368,14 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 12,
     fontWeight: TYPOGRAPHY.weights.medium,
-    color: COLORS.neutral[600],
   },
   tabButtonTextActive: {
     fontWeight: TYPOGRAPHY.weights.bold,
-    color: "#0E1B61",
   },
   errorBox: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FEF2F2",
     borderWidth: 1,
-    borderColor: "#FCA5A5",
     borderRadius: 10,
     padding: 12,
     marginBottom: 16,
@@ -325,14 +386,11 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 13,
-    color: "#991B1B",
   },
   successBox: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F0FDF4",
     borderWidth: 1,
-    borderColor: "#86EFAC",
     borderRadius: 10,
     padding: 12,
     marginBottom: 16,
@@ -343,7 +401,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 13,
-    color: "#166534",
   },
   fieldGroup: {
     width: "100%",
@@ -353,38 +410,37 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 12,
     fontWeight: TYPOGRAPHY.weights.medium,
-    color: COLORS.neutral[700],
     marginBottom: 6,
   },
   inputWrapper: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F8FAFC",
     borderWidth: 1,
-    borderColor: "#CBD5E1",
     borderRadius: 10,
     paddingHorizontal: 12,
     height: 48,
   },
   inputWrapperFocused: {
-    borderColor: "#0E1B61",
     borderWidth: 1.5,
-    backgroundColor: "#FFFFFF",
   },
   textInput: {
     flex: 1,
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 16,
     letterSpacing: 4,
-    color: COLORS.neutral[900],
     height: "100%",
     paddingVertical: 0,
-    ...(Platform.OS === "web" ? ({ outlineWidth: 0, outlineColor: "transparent" } as unknown as TextStyle) : {}),
   },
+  webTextInput: Platform.select({
+    web: {
+      outlineWidth: 0,
+      outlineColor: "transparent",
+    },
+    default: {},
+  }),
   verifyButton: {
     width: "100%",
     height: 48,
-    backgroundColor: "#0E1B61",
     borderRadius: 10,
     justifyContent: "center",
     alignItems: "center",
@@ -407,7 +463,6 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 13,
     fontWeight: TYPOGRAPHY.weights.medium,
-    color: "#0E1B61",
   },
   cancelBtn: {
     paddingVertical: 6,
@@ -415,6 +470,5 @@ const styles = StyleSheet.create({
   cancelBtnText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 14,
-    color: COLORS.neutral[500],
   },
 });

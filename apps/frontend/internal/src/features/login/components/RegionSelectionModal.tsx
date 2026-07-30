@@ -15,6 +15,8 @@ import {
   SHADOWS,
   TYPOGRAPHY,
   Icon as Lucide,
+  useTheme,
+  SkeletonLoader,
 } from "@edge/ui";
 import { useMyTenantMemberships, parseApiError } from "@edge/api";
 import { useAuth } from "@clerk/expo";
@@ -30,6 +32,7 @@ export function RegionSelectionModal({
   onConfirmRegion,
   onSignOut,
 }: RegionSelectionModalProps) {
+  const { colors, isDark } = useTheme();
   const { width } = useWindowDimensions();
   const isMobile = width < 640;
   const clerkAuth = useAuth();
@@ -87,59 +90,59 @@ export function RegionSelectionModal({
       <View style={styles.overlay}>
         <View style={[styles.modalCard, SHADOWS.modal, isMobile && { padding: 20 }]}>
           <View style={styles.headerRow}>
-            <View style={styles.headerIconCircle}>
-              <Lucide name="map-pin" size={22} color="#1E3A8A" />
+            <View style={[styles.headerIconCircle, { backgroundColor: isDark ? colors.neutral[800] : colors.brand.light }]}>
+              <Lucide name="map-pin" size={22} color={isDark ? colors.brand.primary : colors.brand[800]} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.modalTitle}>Select Regional Office</Text>
-              <Text style={styles.modalSubtitle}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Select Regional Office</Text>
+              <Text style={[styles.modalSubtitle, { color: colors.textMuted }]}>
                 Choose which regional portal session you want to open.
               </Text>
             </View>
           </View>
 
-          <View style={styles.divider} />
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
           {isLoading ? (
             <View style={styles.loadingBox}>
-              <ActivityIndicator size="large" color="#0E1B61" />
-              <Text style={styles.loadingText}>Verifying your regional office memberships...</Text>
+              <SkeletonLoader height={48} borderRadius={10} style={{ marginBottom: 12 }} />
+              <Text style={[styles.loadingText, { color: colors.textMuted }]}>Verifying your regional office memberships...</Text>
             </View>
           ) : isError ? (
             /* Case 1: Backend API Offline or Network Connection Error */
             <View style={styles.noMembershipBox}>
-              <View style={[styles.alertIconCircle, { backgroundColor: "#FEF2F2" }]}>
-                <Lucide name="alert-triangle" size={28} color="#DC2626" />
+              <View style={[styles.alertIconCircle, { backgroundColor: colors.semantic.errorBg }]}>
+                <Lucide name="alert-triangle" size={28} color={colors.semantic.error} />
               </View>
-              <Text style={[styles.noMembershipTitle, { color: "#991B1B" }]}>Server Connection Error</Text>
-              <Text style={styles.noMembershipText}>
+              <Text style={[styles.noMembershipTitle, { color: colors.semantic.errorText }]}>Server Connection Error</Text>
+              <Text style={[styles.noMembershipText, { color: colors.textMuted }]}>
                 {parseApiError(swrError)}
               </Text>
 
               <View style={{ flexDirection: "row", gap: 12 }}>
-                <TouchableOpacity style={styles.retryButton} onPress={() => refetch()}>
-                  <Lucide name="refresh-cw" size={16} color={COLORS.neutral.white} />
+                <TouchableOpacity style={[styles.retryButton, { backgroundColor: isDark ? colors.brand.primary : colors.brand[800] }]} onPress={() => refetch()}>
+                  <Lucide name="refresh-cw" size={16} color={colors.neutral.white} />
                   <Text style={styles.signOutButtonText}>Retry Connection</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.signOutOutlineButton} onPress={onSignOut}>
-                  <Text style={styles.signOutOutlineText}>Sign Out</Text>
+                <TouchableOpacity style={[styles.signOutOutlineButton, { borderColor: colors.border }]} onPress={onSignOut}>
+                  <Text style={[styles.signOutOutlineText, { color: colors.textMuted }]}>Sign Out</Text>
                 </TouchableOpacity>
               </View>
             </View>
           ) : memberships.length === 0 ? (
             /* Case 2: User is NOT a member of any region */
             <View style={styles.noMembershipBox}>
-              <View style={styles.alertIconCircle}>
-                <Lucide name="alert-triangle" size={28} color="#DC2626" />
+              <View style={[styles.alertIconCircle, { backgroundColor: colors.semantic.errorBg }]}>
+                <Lucide name="alert-triangle" size={28} color={colors.semantic.error} />
               </View>
-              <Text style={styles.noMembershipTitle}>Access Denied</Text>
-              <Text style={styles.noMembershipText}>
+              <Text style={[styles.noMembershipTitle, { color: colors.semantic.errorText }]}>Access Denied</Text>
+              <Text style={[styles.noMembershipText, { color: colors.textMuted }]}>
                 You are not an active member yet of any Regional Office. Please contact your system administrator to assign you to a region.
               </Text>
 
-              <TouchableOpacity style={styles.signOutButton} onPress={onSignOut}>
-                <Lucide name="log-out" size={16} color={COLORS.neutral.white} />
+              <TouchableOpacity style={[styles.signOutButton, { backgroundColor: colors.semantic.error }]} onPress={onSignOut}>
+                <Lucide name="log-out" size={16} color={colors.neutral.white} />
                 <Text style={styles.signOutButtonText}>Sign Out</Text>
               </TouchableOpacity>
             </View>
@@ -147,41 +150,41 @@ export function RegionSelectionModal({
             /* Case 3: User has 1 or more assigned region memberships */
             <View style={styles.bodyContent}>
               {displayActionError.length > 0 ? (
-                <View style={styles.errorBanner}>
-                  <Lucide name="alert-circle" size={16} color="#DC2626" />
-                  <Text style={styles.errorText}>{displayActionError}</Text>
+                <View style={[styles.errorBanner, { backgroundColor: colors.semantic.errorBg, borderColor: colors.semantic.errorBorder }]}>
+                  <Lucide name="alert-circle" size={16} color={colors.semantic.error} />
+                  <Text style={[styles.errorText, { color: colors.semantic.errorText }]}>{displayActionError}</Text>
                 </View>
               ) : null}
 
-              <Text style={styles.fieldLabel}>Your Authorized Regional Offices</Text>
+              <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>Your Authorized Regional Offices</Text>
 
               <TouchableOpacity
-                style={styles.dropdownSelector}
+                style={[styles.dropdownSelector, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50], borderColor: colors.border }]}
                 onPress={() => setShowDropdown(!showDropdown)}
                 activeOpacity={0.8}
               >
                 <View style={styles.dropdownInner}>
-                  <Lucide name="map-pin" size={18} color={COLORS.neutral[500]} />
-                  <Text style={styles.dropdownValue}>
+                  <Lucide name="map-pin" size={18} color={colors.textMuted} />
+                  <Text style={[styles.dropdownValue, { color: colors.text }]}>
                     {memberships.find((m) => m.regionCode === selectedRegion)?.regionName ?? selectedRegion}
                   </Text>
                 </View>
                 <Lucide
                   name={showDropdown ? "chevron-up" : "chevron-down"}
                   size={18}
-                  color={COLORS.neutral[500]}
+                  color={colors.textMuted}
                 />
               </TouchableOpacity>
 
               {showDropdown ? (
-                <View style={styles.popoverMenu}>
+                <View style={[styles.popoverMenu, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
                   <ScrollView style={{ maxHeight: 180 }} nestedScrollEnabled={true}>
                     {memberships.map((item) => (
                       <TouchableOpacity
                         key={item.tenantId}
                         style={[
                           styles.optionItem,
-                          item.regionCode === selectedRegion && styles.optionItemSelected,
+                          item.regionCode === selectedRegion && [styles.optionItemSelected, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100] }],
                         ]}
                         onPress={() => {
                           setSelectedRegion(item.regionCode);
@@ -191,7 +194,8 @@ export function RegionSelectionModal({
                         <Text
                           style={[
                             styles.optionText,
-                            item.regionCode === selectedRegion && styles.optionTextSelected,
+                            { color: colors.text },
+                            item.regionCode === selectedRegion && [styles.optionTextSelected, { color: isDark ? colors.brand.primary : colors.brand[800] }],
                           ]}
                         >
                           {item.regionCode} - {item.regionName}
@@ -204,20 +208,20 @@ export function RegionSelectionModal({
 
               <View style={styles.actionsRow}>
                 <TouchableOpacity style={styles.cancelBtn} onPress={onSignOut} disabled={isSubmitting}>
-                  <Text style={styles.cancelBtnText}>Sign Out</Text>
+                  <Text style={[styles.cancelBtnText, { color: colors.textMuted }]}>Sign Out</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[styles.confirmBtn, isSubmitting && { opacity: 0.7 }]}
+                  style={[styles.confirmBtn, { backgroundColor: isDark ? colors.brand.primary : colors.brand[800] }, isSubmitting && { opacity: 0.7 }]}
                   onPress={handleConfirm}
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? (
-                    <ActivityIndicator size="small" color={COLORS.neutral.white} />
+                    <ActivityIndicator size="small" color={colors.neutral.white} />
                   ) : (
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                       <Text style={styles.confirmBtnText}>Confirm & Enter Portal</Text>
-                      <Lucide name="arrow-right" size={16} color={COLORS.neutral.white} />
+                      <Lucide name="arrow-right" size={16} color={colors.neutral.white} />
                     </View>
                   )}
                 </TouchableOpacity>
@@ -241,7 +245,7 @@ const styles = StyleSheet.create({
   modalCard: {
     width: "100%",
     maxWidth: 520,
-    backgroundColor: COLORS.neutral.white,
+    backgroundColor: COLORS.cardBg,
     borderRadius: 20,
     padding: 28,
     position: "relative",
@@ -255,7 +259,6 @@ const styles = StyleSheet.create({
     width: 46,
     height: 46,
     borderRadius: 23,
-    backgroundColor: "rgba(30, 58, 138, 0.08)",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -263,17 +266,14 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 20,
     fontWeight: TYPOGRAPHY.weights.bold,
-    color: "#0F172A",
   },
   modalSubtitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 13,
-    color: COLORS.neutral[600],
     marginTop: 2,
   },
   divider: {
     height: 1,
-    backgroundColor: "#E2E8F0",
     marginVertical: 20,
   },
   loadingBox: {
@@ -284,7 +284,6 @@ const styles = StyleSheet.create({
   loadingText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 13,
-    color: COLORS.neutral[600],
   },
   noMembershipBox: {
     paddingVertical: 12,
@@ -294,7 +293,6 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: "#FEF2F2",
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 14,
@@ -303,14 +301,12 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 18,
     fontWeight: TYPOGRAPHY.weights.bold,
-    color: "#991B1B",
     marginBottom: 8,
   },
   noMembershipText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 14,
     lineHeight: 22,
-    color: COLORS.neutral[600],
     textAlign: "center",
     marginBottom: 24,
   },
@@ -318,7 +314,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: "#0E1B61",
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 10,
@@ -327,7 +322,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: "#DC2626",
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 10,
@@ -343,13 +337,11 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#CBD5E1",
   },
   signOutOutlineText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 14,
     fontWeight: TYPOGRAPHY.weights.medium,
-    color: COLORS.neutral[600],
   },
   bodyContent: {
     position: "relative",
@@ -358,9 +350,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: "#FEF2F2",
     borderWidth: 1,
-    borderColor: "#FCA5A5",
     borderRadius: 8,
     padding: 12,
     marginBottom: 16,
@@ -368,21 +358,17 @@ const styles = StyleSheet.create({
   errorText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 13,
-    color: "#DC2626",
     flex: 1,
   },
   fieldLabel: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 12,
     fontWeight: TYPOGRAPHY.weights.medium,
-    color: COLORS.neutral[600],
     marginBottom: 8,
   },
   dropdownSelector: {
     height: 48,
-    backgroundColor: "#F8FAFC",
     borderWidth: 1,
-    borderColor: "#CBD5E1",
     borderRadius: 10,
     paddingHorizontal: 14,
     flexDirection: "row",
@@ -399,7 +385,6 @@ const styles = StyleSheet.create({
   dropdownValue: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 14,
-    color: COLORS.neutral[900],
     fontWeight: TYPOGRAPHY.weights.semibold,
     flex: 1,
   },
@@ -408,17 +393,15 @@ const styles = StyleSheet.create({
     top: 76,
     left: 0,
     right: 0,
-    backgroundColor: COLORS.neutral.white,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#CBD5E1",
     paddingVertical: 4,
     ...Platform.select({
       web: {
         boxShadow: "0 8px 16px rgba(0, 0, 0, 0.16)",
       },
       default: {
-        shadowColor: "#000",
+        shadowColor: COLORS.neutral[900],
         shadowOffset: { width: 0, height: 8 },
         shadowOpacity: 0.16,
         shadowRadius: 16,
@@ -432,16 +415,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     marginVertical: 1,
   },
-  optionItemSelected: {
-    backgroundColor: "rgba(37, 99, 235, 0.08)",
-  },
+  optionItemSelected: {},
   optionText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 13,
-    color: COLORS.neutral[700],
   },
   optionTextSelected: {
-    color: "#0E1B61",
     fontWeight: TYPOGRAPHY.weights.semibold,
   },
   actionsRow: {
@@ -457,11 +436,9 @@ const styles = StyleSheet.create({
   cancelBtnText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 14,
-    color: COLORS.neutral[600],
     fontWeight: TYPOGRAPHY.weights.medium,
   },
   confirmBtn: {
-    backgroundColor: "#0E1B61",
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 10,

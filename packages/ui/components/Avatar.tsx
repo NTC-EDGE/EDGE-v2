@@ -1,11 +1,13 @@
 import React from 'react';
 import { StyleSheet, View, Text, Image } from 'react-native';
-import { COLORS, RADIUS, TYPOGRAPHY } from '../theme/tokens';
+import { RADIUS, TYPOGRAPHY, LIGHT_COLORS } from '../theme/tokens';
+import { useTheme } from '../theme/useTheme';
+import { ThemeColors } from '../theme/types';
 
 type AvatarSize = 'sm' | 'md' | 'lg';
 type AvatarVariant = 'circle' | 'square';
 
-interface AvatarProps {
+export interface AvatarProps {
   imageUri?: string | null;
   name: string;
   size?: AvatarSize;
@@ -13,26 +15,30 @@ interface AvatarProps {
   useDeterministicColors?: boolean;
 }
 
-const fallbackColors = [
-  { bg: COLORS.brand[900], text: COLORS.neutral.white },
-  { bg: COLORS.brand[700], text: COLORS.neutral.white },
-  { bg: COLORS.brand[500], text: COLORS.neutral.white },
-  { bg: COLORS.semantic.successBg, text: COLORS.semantic.success },
-  { bg: COLORS.semantic.warningBg, text: COLORS.semantic.warning },
-  { bg: COLORS.semantic.infoBg, text: COLORS.semantic.info },
-] as const;
-
-export function getAvatarColors(name: string) {
+export function getAvatarColors(name: string, themeColors?: ThemeColors) {
   let hash = 0;
   for (let i = 0; i < name.length; i++) {
     hash = name.charCodeAt(i) + ((hash << 5) - hash);
   }
-  const index = Math.abs(hash) % fallbackColors.length;
-  const match = fallbackColors[index];
-  if (match !== undefined) {
-    return match;
+
+  if (themeColors !== undefined) {
+    const dynamicFallbackColors = [
+      { bg: themeColors.brand[900], text: themeColors.neutral.white },
+      { bg: themeColors.brand[700], text: themeColors.neutral.white },
+      { bg: themeColors.brand[500], text: themeColors.neutral.white },
+      { bg: themeColors.semantic.successBg, text: themeColors.semantic.success },
+      { bg: themeColors.semantic.warningBg, text: themeColors.semantic.warning },
+      { bg: themeColors.semantic.infoBg, text: themeColors.semantic.info },
+    ];
+    const index = Math.abs(hash) % dynamicFallbackColors.length;
+    const match = dynamicFallbackColors[index];
+    if (match !== undefined) {
+      return match;
+    }
+    return { bg: themeColors.neutral[100], text: themeColors.text };
   }
-  return { bg: COLORS.neutral[100], text: COLORS.neutral[900] };
+
+  return { bg: LIGHT_COLORS.brand[800], text: LIGHT_COLORS.neutral.white };
 }
 
 export function Avatar({
@@ -42,11 +48,12 @@ export function Avatar({
   variant = 'circle',
   useDeterministicColors = false,
 }: AvatarProps) {
+  const { colors } = useTheme();
   const initial = name.length > 0 ? name.charAt(0).toUpperCase() : 'S';
 
-  const colors = useDeterministicColors
-    ? getAvatarColors(name)
-    : { bg: COLORS.neutral.white, text: COLORS.brand[900] };
+  const avatarColor = useDeterministicColors
+    ? getAvatarColors(name, colors)
+    : { bg: colors.cardBg, text: colors.brand[800] };
 
   const sizeValue = size === 'sm' ? 28 : size === 'lg' ? 48 : 36;
   const fontStyle = size === 'sm' ? styles.textSm : size === 'lg' ? styles.textLg : styles.textMd;
@@ -58,7 +65,7 @@ export function Avatar({
       width: sizeValue,
       height: sizeValue,
       borderRadius,
-      backgroundColor: colors.bg,
+      backgroundColor: avatarColor.bg,
     },
   ];
 
@@ -77,7 +84,7 @@ export function Avatar({
 
   return (
     <View style={containerStyle}>
-      <Text style={[styles.fallbackText, fontStyle, { color: colors.text }]}>
+      <Text style={[styles.fallbackText, fontStyle, { color: avatarColor.text }]}>
         {initial}
       </Text>
     </View>

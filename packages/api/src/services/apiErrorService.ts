@@ -131,8 +131,19 @@ function parseClerkErrorPayload(errObj: object): string | null {
       ? message.trim()
       : "Too many requests. Please try again in a bit.";
   }
-  if (code === "form_identifier_not_found" || code === "form_password_incorrect") {
-    return "Authentication Failed: Invalid credentials, wrong password, or wrong region selected.";
+  if (code === "form_identifier_not_found") {
+    return typeof longMessage === "string" && longMessage.trim().length > 0
+      ? longMessage.trim()
+      : typeof message === "string" && message.trim().length > 0
+      ? message.trim()
+      : "Couldn't find your account. Please check your email or username.";
+  }
+  if (code === "form_password_incorrect") {
+    return typeof longMessage === "string" && longMessage.trim().length > 0
+      ? longMessage.trim()
+      : typeof message === "string" && message.trim().length > 0
+      ? message.trim()
+      : "Incorrect password. Please try again.";
   }
 
   if (typeof longMessage === "string" && longMessage.trim().length > 0) {
@@ -154,6 +165,10 @@ export const parseApiError = (
 ): string => {
   if (err === null || err === undefined) {
     return defaultFallback;
+  }
+
+  if (typeof err === "string" && err.trim().length > 0) {
+    return err.trim();
   }
 
   // Step 1: Check for Network Connection Failure

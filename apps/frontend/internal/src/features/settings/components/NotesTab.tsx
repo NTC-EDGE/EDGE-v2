@@ -122,7 +122,7 @@ export function NotesTab({
                       onPress={() => onDeleteNote(item.id, item.title)}
                       accessibilityLabel="Delete Note"
                     >
-                      <Lucide name="trash-2" size={15} color="#EF4444" />
+                      <Lucide name="trash-2" size={15} color={COLORS.semantic.error} />
                     </Pressable>
 
                     <View style={styles.verticalDivider} />
@@ -146,7 +146,7 @@ export function NotesTab({
                   <View style={styles.expandedContent}>
                     <View style={styles.expandedHeaderRow}>
                       <View style={styles.expandedHeaderLeft}>
-                        <Lucide name="file-text" size={16} color="#6366F1" />
+                        <Lucide name="file-text" size={16} color={COLORS.brand.indigoHover} />
                         <Text style={styles.expandedHeaderText}>
                           SERVICE GUIDANCE NOTES SHOWN TO CLIENTS END
                         </Text>
@@ -317,10 +317,10 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.circle,
   },
   badgePurple: {
-    backgroundColor: '#EEF2FF',
+    backgroundColor: COLORS.brand.indigoLight,
   },
   badgeTextPurple: {
-    color: '#4F46E5',
+    color: COLORS.brand.indigo,
   },
   badgeText: {
     fontSize: 11,
@@ -345,8 +345,8 @@ const styles = StyleSheet.create({
     borderColor: COLORS.neutral[200],
   },
   deleteBtn: {
-    backgroundColor: '#FEF2F2',
-    borderColor: '#FCA5A5',
+    backgroundColor: COLORS.semantic.errorBg,
+    borderColor: COLORS.semantic.errorBorder,
   },
   verticalDivider: {
     width: 1,
@@ -384,11 +384,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontWeight: '700',
-    color: '#94A3B8',
+    color: COLORS.neutral[400],
     letterSpacing: 0.5,
   },
   badgeViewRight: {
-    backgroundColor: '#EEF2FF',
+    backgroundColor: COLORS.brand.indigoLight,
     paddingHorizontal: 10,
     paddingVertical: 3,
     borderRadius: RADIUS.circle,
@@ -397,21 +397,21 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontWeight: '700',
-    color: '#4F46E5',
+    color: COLORS.brand.indigo,
     letterSpacing: 0.5,
   },
   instructionBox: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: COLORS.neutral[50],
     padding: SPACING[16],
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: COLORS.neutral[200],
   },
   instructionText: {
     fontSize: 14,
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontWeight: '600',
-    color: '#1E293B',
+    color: COLORS.neutral[800],
     lineHeight: 22,
   },
 

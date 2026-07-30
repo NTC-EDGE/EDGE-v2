@@ -55,7 +55,7 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.card,
     marginBottom: SPACING[16],
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: COLORS.neutral[200],
     flexDirection: 'row',
     overflow: 'hidden',
   },
@@ -94,8 +94,8 @@ const styles = StyleSheet.create({
     marginRight: SPACING[12],
   },
   checkboxChecked: {
-    backgroundColor: '#0B1953',
-    borderColor: '#0B1953',
+    backgroundColor: COLORS.brand.dark,
+    borderColor: COLORS.brand.dark,
     borderWidth: 1,
   },
   checkboxUnchecked: {

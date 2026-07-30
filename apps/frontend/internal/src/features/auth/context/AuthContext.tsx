@@ -95,10 +95,12 @@ function extractSafeIdentifier(factor: unknown): string | undefined {
   return undefined;
 }
 
-function extractStrategy(factor: unknown): string | undefined {
+function extractStrategy(factor: unknown): MfaStrategy | undefined {
   if (typeof factor === "object" && factor !== null) {
     const val = Reflect.get(factor, "strategy");
-    if (typeof val === "string") return val;
+    if (val === "email_code" || val === "phone_code" || val === "totp") {
+      return val;
+    }
   }
   return undefined;
 }
@@ -214,9 +216,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         for (const f of rawFactors) {
           const strat = extractStrategy(f);
-          if (strat === "email_code" || strat === "phone_code" || strat === "totp") {
+          if (strat !== undefined) {
             factors.push({
-              strategy: strat as MfaStrategy,
+              strategy: strat,
               safeIdentifier: extractSafeIdentifier(f),
             });
           }

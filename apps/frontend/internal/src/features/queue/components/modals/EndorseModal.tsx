@@ -3,7 +3,13 @@ import { StyleSheet, View, Text, Pressable, Modal, ScrollView } from 'react-nati
 import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide } from '@edge/ui';
 import { UserRole } from '../../../shell/context/RoleContext';
 
-const ENDORSABLE_ROLES: { role: UserRole; label: string; description: string; icon: string }[] = [
+type EndorseIcon = 'briefcase' | 'award' | 'dollar-sign' | 'shield';
+
+function isEndorseIcon(icon: string): icon is EndorseIcon {
+  return ['briefcase', 'award', 'dollar-sign', 'shield'].includes(icon);
+}
+
+const ENDORSABLE_ROLES: { role: UserRole; label: string; description: string; icon: EndorseIcon }[] = [
   {
     role: 'Chief of EOD',
     label: 'Chief of EOD',
@@ -77,6 +83,7 @@ export function EndorseModal({ visible, applicantName, currentRole, onConfirm, o
           <View style={styles.roleList}>
             {availableRoles.map((item) => {
               const isSelected = selectedRole === item.role;
+              const iconName: EndorseIcon = isEndorseIcon(item.icon) ? item.icon : 'briefcase';
               return (
                 <Pressable
                   key={item.role}
@@ -85,7 +92,7 @@ export function EndorseModal({ visible, applicantName, currentRole, onConfirm, o
                 >
                   <View style={[styles.roleIcon, isSelected && styles.roleIconSelected]}>
                     <Lucide
-                      name={item.icon as 'briefcase'}
+                      name={iconName}
                       size={18}
                       color={isSelected ? COLORS.neutral.white : COLORS.neutral[500]}
                     />
@@ -152,7 +159,7 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: COLORS.brand.light,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
@@ -193,7 +200,7 @@ const styles = StyleSheet.create({
   },
   roleItemSelected: {
     borderColor: COLORS.brand[600],
-    backgroundColor: '#EFF6FF',
+    backgroundColor: COLORS.brand.light,
   },
   roleIcon: {
     width: 36,
