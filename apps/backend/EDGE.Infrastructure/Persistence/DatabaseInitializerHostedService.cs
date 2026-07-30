@@ -100,10 +100,9 @@ public class DatabaseInitializerHostedService : IHostedService
         // 6. Seed System Announcements and Audit Logs
         try
         {
-            _logger.LogInformation("Seeding System Announcements and Audit Logs...");
+            _logger.LogInformation("Seeding System Announcements...");
             await SystemAnnouncementDataSeeder.SeedAsync(context);
-            await AuditLogDataSeeder.SeedAsync(context);
-            _logger.LogInformation("System Announcements and Audit Logs seeded successfully.");
+            _logger.LogInformation("System Announcements seeded successfully.");
         }
         catch (Exception ex)
         {
