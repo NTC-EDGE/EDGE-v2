@@ -9,7 +9,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { ColumnDef } from '@tanstack/react-table';
-import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, DataTable, Icon as Lucide } from '@edge/ui';
+import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, DataTable, Icon as Lucide, useTheme } from '@edge/ui';
 import {
   Employee,
   EmployeeRole,
@@ -19,7 +19,7 @@ import {
 } from '../data/mockEmployees';
 import { EmployeeCard } from '../components/EmployeeCard';
 import { EmployeeFormModal } from '../components/EmployeeFormModal';
-import { EmployeeDetailsPage } from '../components/EmployeeDetailsPage';
+import { EmployeeDetailsScreen } from '../components/EmployeeDetailsScreen';
 import { DeleteConfirmModal } from '../components/DeleteConfirmModal';
 
 type ViewMode = 'cards' | 'table';
@@ -102,6 +102,7 @@ export function EmployeesScreenContent({
   isMobileNative?: boolean;
   isDesktop?: boolean;
 }) {
+  const { colors, isDark } = useTheme();
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
 
@@ -225,7 +226,7 @@ export function EmployeesScreenContent({
               suffix: data.suffix ?? item.suffix,
               email: data.email ?? item.email,
               phone: data.phone ?? item.phone,
-              role: (data.role as EmployeeRole) ?? item.role,
+              role: data.role ?? item.role,
               region: data.region ?? item.region,
               department: data.department ?? item.department,
               division: data.division ?? item.division,
@@ -234,7 +235,7 @@ export function EmployeesScreenContent({
               position: data.position ?? item.position,
               designation: data.designation ?? item.designation,
               signatureDisplay: data.signatureDisplay ?? item.signatureDisplay,
-              status: (data.status as EmployeeStatus) ?? item.status,
+              status: data.status ?? item.status,
               location: data.location ?? item.location,
             };
             if (viewingEmployee !== null && viewingEmployee.id === item.id) {
@@ -258,7 +259,7 @@ export function EmployeesScreenContent({
         suffix: data.suffix ?? '',
         email: data.email ?? 'user@example.com',
         phone: data.phone ?? '+63 900 000 0000',
-        role: (data.role as EmployeeRole) ?? 'Evaluator',
+        role: data.role ?? 'Evaluator',
         region: data.region ?? 'Central Office (Headquarters)',
         department: data.department ?? 'Licensing & Registration Division',
         division: data.division ?? 'Licensing & Registration Division',
@@ -268,8 +269,8 @@ export function EmployeesScreenContent({
         designation: data.designation ?? '',
         signatureDisplay: data.signatureDisplay ?? 'beside',
         signatureUri: 'mock_signature_new.png',
-        status: (data.status as EmployeeStatus) ?? 'Active',
-        avatarColor: '#2563EB',
+        status: data.status ?? 'Active',
+        avatarColor: COLORS.brand.secondary,
         dateJoined: 'Today',
         location: data.location ?? 'Central Office - Quezon City',
       };
@@ -363,7 +364,7 @@ export function EmployeesScreenContent({
     [activePopoverId]
   );
 
-  // If in 'details' subView mode, render EmployeeDetailsPage
+  // If in 'details' subView mode, render EmployeeDetailsScreen
   if (subView === 'details' && viewingEmployee !== null && viewingEmployee !== undefined) {
     return (
       <View style={styles.container}>
@@ -374,7 +375,7 @@ export function EmployeesScreenContent({
           </View>
         )}
 
-        <EmployeeDetailsPage
+        <EmployeeDetailsScreen
           employee={viewingEmployee}
           onBack={() => {
             setSubView('list');

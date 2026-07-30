@@ -1,3 +1,4 @@
+import { COLORS } from '@edge/ui';
 export interface Role {
   id: string;
   name: string;
@@ -110,35 +111,35 @@ export const INITIAL_ROLES: Role[] = [
     id: '3a02d1e8-49d9-41b7-8196-e433c0d57193',
     name: 'Evaluator',
     isSystemRole: false,
-    avatarBgColor: '#DBEAFE',
+    avatarBgColor: COLORS.brand.blueLight,
     avatarInitials: 'E',
   },
   {
     id: 'f1b8a9d0-23e1-4c28-9f12-0012e84711aa',
     name: 'Admin',
     isSystemRole: true,
-    avatarBgColor: '#E0E7FF',
+    avatarBgColor: COLORS.brand.indigoBorder,
     avatarInitials: 'A',
   },
   {
     id: '8b72e11d-65a4-47e2-a1b9-339d10e82c54',
     name: 'Staff User',
     isSystemRole: true,
-    avatarBgColor: '#F3E8FF',
+    avatarBgColor: COLORS.brand.purpleLight,
     avatarInitials: 'S',
   },
   {
     id: 'd4e5f6a7-8901-2345-6789-0123456789ab',
     name: 'Cashier',
     isSystemRole: false,
-    avatarBgColor: '#FEF3C7',
+    avatarBgColor: COLORS.semantic.warningBg,
     avatarInitials: 'C',
   },
   {
     id: '9a8b7c6d-5e4f-3a2b-1c0d-9e8f7a6b5c4d',
     name: 'Auditor',
     isSystemRole: false,
-    avatarBgColor: '#DCFCE7',
+    avatarBgColor: COLORS.semantic.successBg,
     avatarInitials: 'AU',
   },
 ];

@@ -1,10 +1,11 @@
 import React from "react";
 import { StyleSheet, View, Text } from "react-native";
-import { COLORS, TYPOGRAPHY, Icon as LucideIcon } from "@edge/ui";
+import { COLORS, useTheme, TYPOGRAPHY, Icon as LucideIcon } from "@edge/ui";
 import { useShellState } from "../hooks/useShellState";
 import { ROLE_NAVIGATION_LINKS } from "../context/RoleContext";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
+import { StandardScreenWrapper } from "./StandardScreenWrapper";
 
 export interface AppLayoutProps {
   children: React.ReactNode;
@@ -17,6 +18,7 @@ export function AppLayout({
   activeScreen = "Dashboard",
   onNavigate,
 }: AppLayoutProps) {
+  const { colors, isDark } = useTheme();
   const {
     currentRole,
     user,
@@ -39,14 +41,16 @@ export function AppLayout({
     }
   };
 
+  const bgCanvas = isDark ? colors.neutral[900] : colors.bg;
+
   return (
-    <View style={styles.desktopShell}>
+    <View style={[styles.desktopShell, { backgroundColor: bgCanvas }]}>
       {/* Desktop Window Title Bar */}
       <View style={styles.desktopTitleBar}>
         <View style={styles.windowDots}>
-          <View style={[styles.dot, { backgroundColor: "#EF4444" }]} />
-          <View style={[styles.dot, { backgroundColor: "#F59E0B" }]} />
-          <View style={[styles.dot, { backgroundColor: "#10B981" }]} />
+          <View style={[styles.dot, { backgroundColor: COLORS.semantic.error }]} />
+          <View style={[styles.dot, { backgroundColor: COLORS.semantic.warning }]} />
+          <View style={[styles.dot, { backgroundColor: COLORS.semantic.success }]} />
         </View>
         <Text style={styles.windowTitleText}>NTC EDGE Workstation Client • Internal Operations</Text>
       </View>
@@ -54,6 +58,7 @@ export function AppLayout({
       {/* Header */}
       <Header
         currentRole={currentRole}
+        activeScreen={activeScreen}
         onRoleSelect={handleRoleSelect}
         showRoleDropdown={showRoleDropdown}
         toggleRoleDropdown={toggleRoleDropdown}
@@ -75,14 +80,19 @@ export function AppLayout({
             links={links}
             activeScreen={activeScreen}
             onNavigate={handleLinkPress}
+            onLogout={logout}
           />
         )}
 
-        <View style={styles.mainContentArea}>{children}</View>
+        <View style={styles.mainContentArea}>
+          <StandardScreenWrapper activeScreen={activeScreen}>
+            {children}
+          </StandardScreenWrapper>
+        </View>
       </View>
 
       {/* Desktop Workstation Status Bar */}
-      <View style={styles.desktopStatusBar}>
+      <View style={[styles.desktopStatusBar, { borderTopColor: isDark ? colors.border : COLORS.neutral[800] }]}>
         <View style={styles.statusLeft}>
           <View style={styles.statusOnlineDot} />
           <Text style={styles.statusText}>Server Status: Operational</Text>
@@ -93,7 +103,7 @@ export function AppLayout({
         </View>
 
         <View style={styles.statusRight}>
-          <LucideIcon name="activity" size={12} color="#10B981" />
+          <LucideIcon name="activity" size={12} color={COLORS.semantic.success} />
           <Text style={styles.statusText}>API Latency: 24ms</Text>
         </View>
       </View>
@@ -105,12 +115,11 @@ const styles = StyleSheet.create({
   desktopShell: {
     flex: 1,
     flexDirection: "column",
-    backgroundColor: COLORS.bg,
     height: "100%",
   },
   desktopTitleBar: {
     height: 32,
-    backgroundColor: "#0B132B",
+    backgroundColor: COLORS.brand.navyDark,
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 12,
@@ -129,7 +138,7 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 11,
     fontWeight: TYPOGRAPHY.weights.semibold,
-    color: "#94A3B8",
+    color: COLORS.neutral[400],
   },
   bodyWrapper: {
     flex: 1,
@@ -143,9 +152,8 @@ const styles = StyleSheet.create({
   },
   desktopStatusBar: {
     height: 28,
-    backgroundColor: "#0F172A",
+    backgroundColor: COLORS.neutral[900],
     borderTopWidth: 1,
-    borderTopColor: "#1E293B",
     paddingHorizontal: 16,
     flexDirection: "row",
     alignItems: "center",
@@ -160,15 +168,15 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: "#10B981",
+    backgroundColor: COLORS.semantic.success,
   },
   statusText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 11,
-    color: "#94A3B8",
+    color: COLORS.neutral[400],
   },
   statusDivider: {
-    color: "#334155",
+    color: COLORS.neutral[700],
     fontSize: 11,
   },
   statusRight: {
@@ -177,3 +185,4 @@ const styles = StyleSheet.create({
     gap: 6,
   },
 });
+

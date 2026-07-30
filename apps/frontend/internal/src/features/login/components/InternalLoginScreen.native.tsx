@@ -8,13 +8,14 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import { TYPOGRAPHY, AlertToast } from "@edge/ui";
+import { TYPOGRAPHY, AlertToast, useTheme, AnimatedCard } from "@edge/ui";
 import { NtcLogo } from "./NtcLogo";
 import { useLoginForm } from "../hooks/useLoginForm";
 import { LoginForm } from "../forms/LoginForm";
 import { ForgotPasswordScreen } from "./ForgotPasswordScreen";
 
-export function InternalLoginScreen() {
+export function InternalLoginScreen(): React.ReactElement {
+  const { colors, isDark } = useTheme();
   const [showForgotPassword, setShowForgotPassword] = useState(false);
 
   const loginState = useLoginForm();
@@ -25,7 +26,7 @@ export function InternalLoginScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.nativeSafeArea}>
+    <SafeAreaView style={[styles.nativeSafeArea, { backgroundColor: colors.bg }]}>
       <KeyboardAvoidingView
         style={styles.keyboardAvoid}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -43,16 +44,36 @@ export function InternalLoginScreen() {
         >
           <View style={styles.container}>
             <View style={styles.logoHeader}>
-              <NtcLogo size="medium" variant="light" showSubtext={false} />
-              <View style={styles.badgePill}>
-                <View style={styles.pulseDot} />
-                <Text style={styles.badgeText}>Internal Mobile Access</Text>
+              <NtcLogo size="medium" variant={isDark ? "light" : "dark"} showSubtext={false} />
+              <View
+                style={[
+                  styles.badgePill,
+                  { backgroundColor: isDark ? colors.neutral[800] : colors.brand.light },
+                ]}
+              >
+                <View style={[styles.pulseDot, { backgroundColor: colors.semantic.success }]} />
+                <Text
+                  style={[
+                    styles.badgeText,
+                    { color: isDark ? colors.brand.primary : colors.brand.secondary },
+                  ]}
+                >
+                  Internal Mobile Access
+                </Text>
               </View>
             </View>
 
-            <View style={styles.loginCard}>
-              <Text style={styles.cardHeading}>Staff Sign In</Text>
-              <Text style={styles.cardSubHeading}>
+            <AnimatedCard
+              delay={0}
+              padding={24}
+              style={{
+                ...styles.loginCard,
+                backgroundColor: colors.cardBg,
+                borderColor: colors.border,
+              }}
+            >
+              <Text style={[styles.cardHeading, { color: colors.text }]}>Staff Sign In</Text>
+              <Text style={[styles.cardSubHeading, { color: colors.textMuted }]}>
                 Sign in with official credentials or Google SSO.
               </Text>
 
@@ -60,9 +81,9 @@ export function InternalLoginScreen() {
                 loginState={loginState}
                 onForgotPasswordClick={() => setShowForgotPassword(true)}
               />
-            </View>
+            </AnimatedCard>
 
-            <Text style={styles.copyrightText}>
+            <Text style={[styles.copyrightText, { color: colors.textMuted }]}>
               © {new Date().getFullYear()} National Telecommunications Commission
             </Text>
           </View>
@@ -75,7 +96,6 @@ export function InternalLoginScreen() {
 const styles = StyleSheet.create({
   nativeSafeArea: {
     flex: 1,
-    backgroundColor: "#0B132B",
   },
   keyboardAvoid: {
     flex: 1,
@@ -106,7 +126,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: 16,
@@ -115,32 +134,25 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: "#10B981",
   },
   badgeText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 11,
     fontWeight: TYPOGRAPHY.weights.semibold,
-    color: "#93C5FD",
   },
   loginCard: {
-    backgroundColor: "#FFFFFF",
     borderRadius: 16,
-    padding: 24,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
   },
   cardHeading: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 20,
     fontWeight: TYPOGRAPHY.weights.bold,
-    color: "#0F172A",
     marginBottom: 4,
   },
   cardSubHeading: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 13,
-    color: "#64748B",
     marginBottom: 16,
   },
   copyrightText: {
@@ -148,6 +160,5 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 12,
-    color: "#64748B",
   },
 });

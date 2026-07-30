@@ -1,7 +1,8 @@
 import React from "react";
-import { StyleSheet, Text, View, TouchableOpacity, ViewStyle } from "react-native";
+import { StyleSheet, Text, View, TouchableOpacity, ViewStyle, TextStyle } from "react-native";
 import { Feather as Icon } from "@expo/vector-icons";
-import { TYPOGRAPHY, COLORS } from "../theme/tokens";
+import { TYPOGRAPHY } from "../theme/tokens";
+import { useTheme } from "../theme/useTheme";
 
 export interface AlertToastProps {
   message: string | null;
@@ -10,50 +11,59 @@ export interface AlertToastProps {
   style?: ViewStyle;
 }
 
+interface VariantStyle {
+  containerStyle: ViewStyle;
+  textStyle: TextStyle;
+  icon: keyof typeof Icon.glyphMap;
+  iconColor: string;
+}
+
 export function AlertToast({
   message,
   onDismiss,
   variant = "error",
   style,
 }: AlertToastProps) {
+  const { colors } = useTheme();
+
   if (message === null || message.length === 0) return null;
 
-  const getVariantStyles = () => {
+  const getVariantStyles = (): VariantStyle => {
     switch (variant) {
       case "error":
         return {
-          container: styles.errorContainer,
-          text: styles.errorText,
-          icon: "alert-circle" as const,
-          iconColor: "#EF4444",
+          containerStyle: { backgroundColor: colors.semantic.errorBg, borderColor: colors.semantic.errorBorder },
+          textStyle: { color: colors.semantic.errorText },
+          icon: "alert-circle",
+          iconColor: colors.semantic.error,
         };
       case "success":
         return {
-          container: styles.successContainer,
-          text: styles.successText,
-          icon: "check-circle" as const,
-          iconColor: "#10B981",
+          containerStyle: { backgroundColor: colors.semantic.successBg, borderColor: colors.semantic.successBorder },
+          textStyle: { color: colors.semantic.successText },
+          icon: "check-circle",
+          iconColor: colors.semantic.success,
         };
       case "warning":
         return {
-          container: styles.warningContainer,
-          text: styles.warningText,
-          icon: "alert-triangle" as const,
-          iconColor: "#F59E0B",
+          containerStyle: { backgroundColor: colors.semantic.warningBg, borderColor: colors.semantic.warningBorder },
+          textStyle: { color: colors.semantic.warningText },
+          icon: "alert-triangle",
+          iconColor: colors.semantic.warning,
         };
       case "info":
         return {
-          container: styles.infoContainer,
-          text: styles.infoText,
-          icon: "info" as const,
-          iconColor: "#3B82F6",
+          containerStyle: { backgroundColor: colors.semantic.infoBg, borderColor: colors.semantic.infoBorder },
+          textStyle: { color: colors.semantic.infoText },
+          icon: "info",
+          iconColor: colors.semantic.info,
         };
       default:
         return {
-          container: styles.errorContainer,
-          text: styles.errorText,
-          icon: "alert-circle" as const,
-          iconColor: "#EF4444",
+          containerStyle: { backgroundColor: colors.semantic.errorBg, borderColor: colors.semantic.errorBorder },
+          textStyle: { color: colors.semantic.errorText },
+          icon: "alert-circle",
+          iconColor: colors.semantic.error,
         };
     }
   };
@@ -61,11 +71,11 @@ export function AlertToast({
   const v = getVariantStyles();
 
   return (
-    <View style={[styles.baseContainer, v.container, style]}>
+    <View style={[styles.baseContainer, v.containerStyle, style]}>
       <Icon name={v.icon} size={20} color={v.iconColor} />
-      <Text style={[styles.baseText, v.text]}>{message}</Text>
+      <Text style={[styles.baseText, v.textStyle]}>{message}</Text>
       <TouchableOpacity onPress={onDismiss} style={styles.closeBtn} activeOpacity={0.7}>
-        <Icon name="x" size={16} color={COLORS.neutral[500]} />
+        <Icon name="x" size={16} color={colors.neutral[500]} />
       </TouchableOpacity>
     </View>
   );
@@ -89,33 +99,5 @@ const styles = StyleSheet.create({
   },
   closeBtn: {
     padding: 4,
-  },
-  errorContainer: {
-    backgroundColor: "#FEF2F2",
-    borderColor: "#FCA5A5",
-  },
-  errorText: {
-    color: "#991B1B",
-  },
-  successContainer: {
-    backgroundColor: "#ECFDF5",
-    borderColor: "#6EE7B7",
-  },
-  successText: {
-    color: "#065F46",
-  },
-  warningContainer: {
-    backgroundColor: "#FFFBEB",
-    borderColor: "#FDE68A",
-  },
-  warningText: {
-    color: "#92400E",
-  },
-  infoContainer: {
-    backgroundColor: "#EFF6FF",
-    borderColor: "#93C5FD",
-  },
-  infoText: {
-    color: "#1E40AF",
   },
 });

@@ -10,6 +10,26 @@ import {
   ForgotPasswordResetFormData,
 } from "../schemas/authSchemas";
 
+interface SignInWithCreate {
+  create: (opts: { strategy: string; identifier: string }) => Promise<unknown>;
+}
+
+interface SignInWithReset {
+  resetPassword: (opts: { code: string; password: string }) => Promise<unknown>;
+}
+
+function isObject(val: unknown): val is Record<string, unknown> {
+  return typeof val === "object" && val !== null;
+}
+
+function isSignInWithCreate(obj: unknown): obj is SignInWithCreate {
+  return isObject(obj) && typeof obj.create === "function";
+}
+
+function isSignInWithReset(obj: unknown): obj is SignInWithReset {
+  return isObject(obj) && typeof obj.resetPassword === "function";
+}
+
 export function useForgotPasswordForm() {
   const { signIn } = useSignIn();
 
@@ -43,11 +63,8 @@ export function useForgotPasswordForm() {
     }
 
     const [, error] = await safeAsync(async () => {
-      const signInObj = signIn as unknown as {
-        create: (opts: { strategy: string; identifier: string }) => Promise<unknown>;
-      };
-      if (typeof signInObj.create === "function") {
-        await signInObj.create({
+      if (isSignInWithCreate(signIn)) {
+        await signIn.create({
           strategy: "reset_password_email_code",
           identifier: data.email.trim(),
         });
@@ -74,11 +91,8 @@ export function useForgotPasswordForm() {
     }
 
     const [, error] = await safeAsync(async () => {
-      const signInObj = signIn as unknown as {
-        resetPassword: (opts: { code: string; password: string }) => Promise<unknown>;
-      };
-      if (typeof signInObj.resetPassword === "function") {
-        await signInObj.resetPassword({
+      if (isSignInWithReset(signIn)) {
+        await signIn.resetPassword({
           code: data.code.trim(),
           password: data.newPassword,
         });

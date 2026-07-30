@@ -1,37 +1,44 @@
-import { useState } from "react";
+import React, { useState } from 'react';
 import {
-  StyleSheet,
-  View,
-  Text,
-  Pressable,
-  Platform,
   Image,
-} from "react-native";
+  ImageSourcePropType,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import {
   COLORS,
-  SPACING,
-  RADIUS,
-  TYPOGRAPHY,
   Icon as Lucide,
+  RADIUS,
   SHADOWS,
-} from "@edge/ui";
+  SPACING,
+  TYPOGRAPHY,
+  ThemeToggle,
+  useTheme,
+} from '@edge/ui';
+import { UserRole, NAV_GROUP_ORDER, ROLE_NAVIGATION_LINKS } from '../context/RoleContext';
+import { UserProfile as UserProfileType } from '../../auth/context/AuthContext';
+import { EditAccountModal } from '../../auth/components/EditAccountModal';
 
-const footerLogoAsset = require("../../../../assets/footer-logo.png");
-import { UserRole } from "../context/RoleContext";
-import { UserProfile as UserProfileType } from "../../auth/context/AuthContext";
-import { RoleSwitcher } from "./RoleSwitcher";
-import { EditAccountModal } from "../../auth/components/EditAccountModal";
+// ─── Asset ───────────────────────────────────────────────────────────────────
+
+const footerLogoAsset: ImageSourcePropType = require('../../../../assets/footer-logo.png');
+
+// ─── Types ───────────────────────────────────────────────────────────────────
 
 interface HeaderProps {
   currentRole: UserRole;
+  activeScreen: string;
   onRoleSelect: (role: UserRole) => void;
   showRoleDropdown: boolean;
   toggleRoleDropdown: () => void;
   closeRoleDropdown: () => void;
   isSwitcherHovered: boolean;
-  setIsSwitcherHovered: (hovered: boolean) => void;
+  setIsSwitcherHovered: (v: boolean) => void;
   isLogoutHovered: boolean;
-  setIsLogoutHovered: (hovered: boolean) => void;
+  setIsLogoutHovered: (v: boolean) => void;
   user: UserProfileType | null;
   onLogout: () => void | Promise<void>;
   isMobile?: boolean;
@@ -39,366 +46,467 @@ interface HeaderProps {
   onNavigate?: (screenName: string) => void;
 }
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function getInitials(name: string): string {
+  if (!name || name === 'User') return 'U';
+  const parts = name.trim().split(' ');
+  if (parts.length >= 2 && parts[0] !== undefined && parts[1] !== undefined) {
+    const first = parts[0][0];
+    const second = parts[1][0];
+    if (first !== undefined && second !== undefined) {
+      return `${first}${second}`.toUpperCase();
+    }
+  }
+  return name.slice(0, 2).toUpperCase();
+}
+
+/**
+ * Given an activeScreen name and a role, resolve the breadcrumb:
+ * group label (e.g. "Administration") + screen name (e.g. "Users")
+ */
+function getBreadcrumb(
+  activeScreen: string,
+  currentRole: UserRole,
+): { group: string; screen: string } | null {
+  const links = ROLE_NAVIGATION_LINKS[currentRole];
+  // links is a readonly array of NavigationLink
+  const found = (links as ReadonlyArray<{ name: string; screen: string; group: string }>).find(
+    (l) => l.screen === activeScreen,
+  );
+  if (found === undefined) return null;
+  return { group: found.group, screen: found.name };
+}
+
+// ─── Component ───────────────────────────────────────────────────────────────
+
 export function Header({
   currentRole,
-  onRoleSelect,
-  showRoleDropdown,
-  toggleRoleDropdown,
-  closeRoleDropdown,
-  isSwitcherHovered,
-  setIsSwitcherHovered,
-  isLogoutHovered,
-  setIsLogoutHovered,
+  activeScreen,
+  onRoleSelect: _onRoleSelect,
+  showRoleDropdown: _showRoleDropdown,
+  toggleRoleDropdown: _toggleRoleDropdown,
+  closeRoleDropdown: _closeRoleDropdown,
+  isSwitcherHovered: _isSwitcherHovered,
+  setIsSwitcherHovered: _setIsSwitcherHovered,
+  isLogoutHovered: _isLogoutHovered,
+  setIsLogoutHovered: _setIsLogoutHovered,
   user,
   onLogout,
   isMobile = false,
   onMenuPress,
   onNavigate,
 }: HeaderProps) {
-  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
-  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const { isDark } = useTheme();
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
 
-  const profileName = user?.name ?? "User";
-  const profileEmail = user?.email ?? "";
+  const profileName = user?.name ?? 'User';
+  const profileEmail = user?.email ?? '';
+  const initials = getInitials(profileName);
+  const breadcrumb = getBreadcrumb(activeScreen, currentRole);
 
-  const getInitials = (name: string) => {
-    if (!name || name === "User") return "U";
-    const parts = name.split(" ");
-    if (parts.length >= 2) {
-      return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-    }
-    return name.slice(0, 2).toUpperCase();
-  };
+  // Unread notifications mock count
+  const notifCount = 3;
+
+  const dropdownBg = isDark ? '#1E293B' : '#FFFFFF';
+  const dropdownBorder = isDark ? '#334155' : '#E2E8F0';
+  const dropdownText = isDark ? '#CBD5E1' : '#334155';
 
   return (
-    <View style={[styles.header, isMobile && styles.headerMobile]}>
-      {/* Left side: Hamburger (Mobile) and Title */}
-      <View style={styles.leftContainer}>
+    <View
+      style={[
+        styles.header,
+        isMobile && styles.headerMobile,
+      ]}
+    >
+      {/* ── Left: Hamburger (mobile) + Logo ─────────────────────────────── */}
+      <View style={styles.left}>
         {isMobile && onMenuPress !== undefined && (
-          <Pressable onPress={onMenuPress} style={styles.menuBtn}>
-            <Lucide name="menu" size={20} color={COLORS.neutral.white} />
+          <Pressable onPress={onMenuPress} style={styles.iconBtn}>
+            <Lucide name="menu" size={18} color={COLORS.neutral.white} />
           </Pressable>
         )}
         <Image
           source={footerLogoAsset}
-          style={[styles.headerLogo, isMobile && styles.headerLogoMobile]}
+          style={isMobile ? styles.logoMobile : styles.logo}
           resizeMode="contain"
         />
       </View>
 
-      {/* Header Controls */}
-      <View style={styles.headerControls}>
-        {/* Notification Bell */}
-        <Pressable style={styles.bellBtn}>
-          <Lucide name="bell" size={20} color={COLORS.neutral.white} />
-        </Pressable>
+      {/* ── Center: Breadcrumb ───────────────────────────────────────────── */}
+      {!isMobile && breadcrumb !== null && (
+        <View style={styles.breadcrumb} pointerEvents="none">
+          <Text style={styles.breadcrumbGroup}>{breadcrumb.group}</Text>
+          <Lucide
+            name="chevron-right"
+            size={12}
+            color="rgba(255,255,255,0.4)"
+          />
+          <Text style={styles.breadcrumbScreen}>{breadcrumb.screen}</Text>
+        </View>
+      )}
 
+      {/* ── Right: Controls ─────────────────────────────────────────────── */}
+      <View style={styles.right}>
+        {/* Theme toggle — icon only */}
+        <ThemeToggle variant="icon" size="sm" />
+
+        {/* Notifications bell */}
+        <View style={styles.bellWrap}>
+          <Pressable style={styles.iconBtn}>
+            <Lucide name="bell" size={16} color={COLORS.neutral.white} />
+          </Pressable>
+          {notifCount > 0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>
+                {notifCount > 9 ? '9+' : String(notifCount)}
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* Vertical divider */}
+        <View style={styles.divider} />
+
+        {/* Profile */}
         {!isMobile ? (
-          <View style={styles.profileWrapper}>
-            {/* User Profile Pressable (opens dropdown) */}
+          <View>
             <Pressable
-              onPress={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
-              style={styles.profileContainer}
+              onPress={() => setProfileOpen((v) => !v)}
+              style={styles.profileBtn}
             >
-              <View style={styles.profileInfo}>
-                <Text style={styles.profileName}>{profileName}</Text>
-                <Text style={styles.profileRole}>{currentRole}</Text>
+              <View style={styles.profileAvatar}>
+                <Text style={styles.profileAvatarText}>{initials}</Text>
               </View>
-              <View style={styles.avatarCircle}>
-                <Text style={styles.avatarText}>
-                  {getInitials(profileName)}
+              <View style={styles.profileInfo}>
+                <Text style={styles.profileName} numberOfLines={1}>
+                  {profileName}
+                </Text>
+                <Text style={styles.profileRole} numberOfLines={1}>
+                  {currentRole}
                 </Text>
               </View>
+              <Lucide
+                name={profileOpen ? 'chevron-up' : 'chevron-down'}
+                size={13}
+                color="rgba(255,255,255,0.5)"
+              />
             </Pressable>
 
-            {/* Profile Dropdown Menu */}
-            {isProfileDropdownOpen && (
-              <View style={[styles.profileDropdownCard, SHADOWS.modal]}>
-                <View style={styles.dropdownHeader}>
-                  <Text style={styles.dropdownName}>{profileName}</Text>
-                  <Text style={styles.dropdownEmail}>{profileEmail}</Text>
+            {/* Profile dropdown */}
+            {profileOpen && (
+              <View
+                style={[
+                  styles.dropdown,
+                  SHADOWS.modal,
+                  {
+                    backgroundColor: dropdownBg,
+                    borderColor: dropdownBorder,
+                  },
+                ]}
+              >
+                {/* Identity */}
+                <View style={styles.dropdownIdent}>
+                  <Text style={[styles.dropdownName, { color: dropdownText }]}>
+                    {profileName}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.dropdownEmail,
+                      { color: isDark ? '#64748B' : '#94A3B8' },
+                    ]}
+                  >
+                    {profileEmail}
+                  </Text>
                 </View>
 
-                <View style={styles.dropdownDivider} />
-
-                <Pressable
-                  onPress={() => {
-                    setIsProfileDropdownOpen(false);
-                    if (onNavigate !== undefined) {
-                      onNavigate("AccountSettings");
-                    } else {
-                      setIsSettingsModalOpen(true);
-                    }
-                  }}
-                  style={styles.dropdownItemBtn}
-                >
-                  <Lucide
-                    name="settings"
-                    size={14}
-                    color={COLORS.neutral[700]}
-                  />
-                  <Text style={styles.dropdownItemText}>Account Settings</Text>
-                </Pressable>
-
-                <View style={styles.dropdownDivider} />
-
-                <Text style={styles.dropdownSectionTitle}>
-                  Switch Active Role
-                </Text>
-                <RoleSwitcher
-                  currentRole={currentRole}
-                  onRoleSelect={(role) => {
-                    onRoleSelect(role);
-                    setIsProfileDropdownOpen(false);
-                  }}
-                  showRoleDropdown={showRoleDropdown}
-                  toggleRoleDropdown={toggleRoleDropdown}
-                  closeRoleDropdown={closeRoleDropdown}
-                  isSwitcherHovered={isSwitcherHovered}
-                  setIsSwitcherHovered={setIsSwitcherHovered}
-                  variant="dropdown"
+                <View
+                  style={[
+                    styles.dropdownDivider,
+                    { backgroundColor: dropdownBorder },
+                  ]}
                 />
 
-                <View style={styles.dropdownDivider} />
-
+                {/* Account Settings */}
                 <Pressable
+                  style={styles.dropdownItem}
                   onPress={() => {
-                    setIsProfileDropdownOpen(false);
+                    setProfileOpen(false);
+                    if (onNavigate !== undefined) {
+                      onNavigate('AccountSettings');
+                    } else {
+                      setSettingsModalOpen(true);
+                    }
+                  }}
+                >
+                  <Lucide name="settings" size={13} color={dropdownText} />
+                  <Text style={[styles.dropdownItemText, { color: dropdownText }]}>
+                    Account Settings
+                  </Text>
+                </Pressable>
+
+                <View
+                  style={[
+                    styles.dropdownDivider,
+                    { backgroundColor: dropdownBorder },
+                  ]}
+                />
+
+                {/* Logout */}
+                <Pressable
+                  style={styles.dropdownItem}
+                  onPress={() => {
+                    setProfileOpen(false);
                     const result = onLogout();
                     if (result instanceof Promise) {
-                      result.catch((error: unknown) =>
-                        console.error("Logout error:", error),
+                      result.catch((err: unknown) =>
+                        console.error('Logout error:', err),
                       );
                     }
                   }}
-                  style={styles.dropdownLogoutBtn}
                 >
                   <Lucide
                     name="log-out"
-                    size={14}
-                    color={COLORS.semantic.error}
+                    size={13}
+                    color={isDark ? '#F87171' : '#EF4444'}
                   />
-                  <Text style={styles.dropdownLogoutText}>Logout</Text>
+                  <Text
+                    style={[
+                      styles.dropdownItemText,
+                      { color: isDark ? '#F87171' : '#EF4444' },
+                    ]}
+                  >
+                    Sign out
+                  </Text>
                 </Pressable>
               </View>
             )}
           </View>
         ) : (
-          /* Mobile Simplified Profile (toggles Settings/Profile on press) */
+          /* Mobile avatar */
           <Pressable
             onPress={() => {
               if (onNavigate !== undefined) {
-                onNavigate("AccountSettings");
+                onNavigate('AccountSettings');
               } else {
-                setIsSettingsModalOpen(true);
+                setSettingsModalOpen(true);
               }
             }}
-            style={styles.mobileAvatarPressable}
           >
-            <View
-              style={[
-                styles.avatarCircle,
-                { width: 32, height: 32, borderRadius: 16 },
-              ]}
-            >
-              <Text style={[styles.avatarText, { fontSize: 11 }]}>
-                {getInitials(profileName)}
-              </Text>
+            <View style={[styles.profileAvatar, styles.profileAvatarMobile]}>
+              <Text style={styles.profileAvatarText}>{initials}</Text>
             </View>
           </Pressable>
         )}
       </View>
+
       <EditAccountModal
-        visible={isSettingsModalOpen}
-        onClose={() => setIsSettingsModalOpen(false)}
+        visible={settingsModalOpen}
+        onClose={() => setSettingsModalOpen(false)}
       />
     </View>
   );
 }
 
+// ─── Styles ──────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
   header: {
-    height: 88,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: SPACING[32],
+    height: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING[16],
     zIndex: 100,
-    backgroundColor: "#1839B3",
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(255, 255, 255, 0.1)",
+    borderBottomColor: 'rgba(255,255,255,0.08)',
+    gap: SPACING[12],
     ...Platform.select({
       web: {
-        backgroundImage:
-          "linear-gradient(to right, #0E1B61 0%, #1839B3 50%, #2B56F0 100%)",
-        boxShadow: "0 4px 12px 0 rgba(0, 0, 0, 0.08)",
+        backgroundImage: `linear-gradient(to right, #0E1B61 0%, #1E3A8A 50%, #2563EB 100%)`,
+        boxShadow: '0 1px 3px 0 rgba(0,0,0,0.15)',
+        flexShrink: 0,
+      },
+      default: {
+        backgroundColor: '#1E3A8A',
       },
     }),
   },
   headerMobile: {
-    paddingHorizontal: SPACING[16],
-    height: 76,
-  },
-  leftContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-    marginRight: SPACING[16],
-    gap: SPACING[12],
-  },
-  menuBtn: {
-    width: 40,
-    height: 40,
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 4,
-    borderRadius: 8,
-    backgroundColor: "rgba(255, 255, 255, 0.08)",
-  },
-  headerLogo: {
-    height: 60,
-    width: 192,
-  },
-  headerLogoMobile: {
+    paddingHorizontal: SPACING[12],
     height: 52,
-    width: 166.4,
   },
-  headerControls: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: SPACING[16],
+  left: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING[10],
+    flexShrink: 0,
   },
-  bellBtn: {
-    width: 40,
+  logo: {
     height: 40,
-    borderRadius: 20,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.06)",
+    width: 130,
+  },
+  logoMobile: {
+    height: 34,
+    width: 110,
+  },
+  breadcrumb: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    justifyContent: 'center',
+  },
+  breadcrumbGroup: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: TYPOGRAPHY.sizes.caption,
+    color: 'rgba(255,255,255,0.45)',
+    fontWeight: TYPOGRAPHY.weights.medium,
+  },
+  breadcrumbScreen: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: TYPOGRAPHY.sizes.caption,
+    color: 'rgba(255,255,255,0.85)',
+    fontWeight: TYPOGRAPHY.weights.semibold,
+  },
+  right: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING[8],
+    marginLeft: 'auto',
+  },
+  iconBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: RADIUS.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.07)',
     ...Platform.select({
       web: {
-        transition: "background-color 200ms ease",
-        cursor: "pointer",
+        cursor: 'pointer',
+        transition: 'background-color 120ms ease',
       },
     }),
   },
-  profileWrapper: {
-    position: "relative",
+  bellWrap: {
+    position: 'relative',
   },
-  profileContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: SPACING[12],
+  badge: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    minWidth: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: '#EF4444',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 2,
+  },
+  badgeText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 8,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: '#FFFFFF',
+    lineHeight: 10,
+  },
+  divider: {
+    width: 1,
+    height: 20,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    marginHorizontal: 4,
+  },
+  profileBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING[8],
+    paddingHorizontal: SPACING[8],
+    paddingVertical: 4,
+    borderRadius: RADIUS.sm,
     ...Platform.select({
       web: {
-        cursor: "pointer",
+        cursor: 'pointer',
+        transition: 'background-color 120ms ease',
       },
     }),
+  },
+  profileAvatar: {
+    width: 30,
+    height: 30,
+    borderRadius: RADIUS.sm,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  profileAvatarMobile: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+  },
+  profileAvatarText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: '#FFFFFF',
   },
   profileInfo: {
-    alignItems: "flex-end",
+    alignItems: 'flex-start',
   },
   profileName: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: TYPOGRAPHY.weights.semibold,
-    color: COLORS.neutral.white,
+    color: '#FFFFFF',
+    maxWidth: 100,
   },
   profileRole: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-    color: "rgba(255, 255, 255, 0.65)",
-    fontWeight: TYPOGRAPHY.weights.medium,
-    marginTop: 2,
+    fontSize: 10,
+    fontWeight: TYPOGRAPHY.weights.regular,
+    color: 'rgba(255,255,255,0.55)',
   },
-  avatarCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 2,
-    borderColor: "#00E676", // Premium bright green-blue border
-    backgroundColor: "#2563EB",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  avatarText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    color: COLORS.neutral.white,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    fontSize: 13,
-  },
-  mobileAvatarPressable: {
-    borderRadius: 9999,
-    padding: 2,
-  },
-  profileDropdownCard: {
-    position: "absolute",
-    top: 68,
+  dropdown: {
+    position: 'absolute',
+    top: 44,
     right: 0,
-    width: 250,
-    backgroundColor: COLORS.neutral.white,
+    width: 220,
     borderRadius: RADIUS.card,
     borderWidth: 1,
-    borderColor: COLORS.neutral[200],
-    padding: SPACING[16],
     zIndex: 200,
+    overflow: 'hidden',
   },
-  dropdownHeader: {
-    marginBottom: SPACING[8],
+  dropdownIdent: {
+    padding: 12,
   },
   dropdownName: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    color: COLORS.neutral[900],
+    fontSize: TYPOGRAPHY.sizes.body,
+    fontWeight: TYPOGRAPHY.weights.semibold,
   },
   dropdownEmail: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
-    color: COLORS.neutral[500],
+    fontSize: TYPOGRAPHY.sizes.caption,
     marginTop: 2,
   },
   dropdownDivider: {
     height: 1,
-    backgroundColor: COLORS.neutral[200],
-    marginVertical: SPACING[12],
   },
-  dropdownSectionTitle: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-    color: COLORS.neutral[400],
-    fontWeight: TYPOGRAPHY.weights.bold,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: SPACING[8],
-  },
-  dropdownLogoutBtn: {
-    flexDirection: "row",
-    alignItems: "center",
+  dropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
-    paddingVertical: SPACING[4],
-  },
-  dropdownLogoutText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-    color: COLORS.semantic.error,
-  },
-  dropdownItemBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingVertical: SPACING[8],
+    paddingHorizontal: 12,
+    paddingVertical: 9,
     ...Platform.select({
-      web: {
-        cursor: "pointer",
-      },
+      web: { cursor: 'pointer' },
     }),
   },
   dropdownItemText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-    color: COLORS.neutral[700],
+    fontSize: TYPOGRAPHY.sizes.body,
+    fontWeight: TYPOGRAPHY.weights.medium,
   },
 });

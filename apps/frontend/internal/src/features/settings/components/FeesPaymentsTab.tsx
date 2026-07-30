@@ -133,7 +133,7 @@ export function FeesPaymentsTab({
                       onPress={() => onDeleteFee(item.id, item.title)}
                       accessibilityLabel="Delete Fee Configuration"
                     >
-                      <Lucide name="trash-2" size={15} color="#EF4444" />
+                      <Lucide name="trash-2" size={15} color={COLORS.semantic.error} />
                     </Pressable>
 
                     <View style={styles.verticalDivider} />
@@ -263,7 +263,7 @@ const styles = StyleSheet.create({
     gap: SPACING[12],
   },
   recordsBadge: {
-    backgroundColor: '#EEF2FF',
+    backgroundColor: COLORS.brand.indigoLight,
     paddingHorizontal: SPACING[12],
     paddingVertical: 10,
     borderRadius: RADIUS.input,
@@ -272,7 +272,7 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.sizes.caption,
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontWeight: '700',
-    color: '#4F46E5',
+    color: COLORS.brand.indigo,
   },
   addButton: {
     flexDirection: 'row',
@@ -350,10 +350,10 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.circle,
   },
   badgeGreen: {
-    backgroundColor: '#DCFCE7',
+    backgroundColor: COLORS.semantic.successBg,
   },
   badgeTextGreen: {
-    color: '#16A34A',
+    color: COLORS.semantic.success,
   },
   badgeText: {
     fontSize: 11,
@@ -378,8 +378,8 @@ const styles = StyleSheet.create({
     borderColor: COLORS.neutral[200],
   },
   deleteBtn: {
-    backgroundColor: '#FEF2F2',
-    borderColor: '#FCA5A5',
+    backgroundColor: COLORS.semantic.errorBg,
+    borderColor: COLORS.semantic.errorBorder,
   },
   verticalDivider: {
     width: 1,
@@ -398,7 +398,7 @@ const styles = StyleSheet.create({
   expandedContent: {
     borderTopWidth: 1,
     borderTopColor: COLORS.neutral[200],
-    backgroundColor: '#F8FAFC',
+    backgroundColor: COLORS.neutral[50],
     padding: SPACING[16],
     gap: SPACING[12],
   },
@@ -459,7 +459,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: SPACING[12],
     paddingVertical: SPACING[8],
-    backgroundColor: '#F1F5F9',
+    backgroundColor: COLORS.neutral[100],
   },
   feeTotalLabel: {
     fontSize: TYPOGRAPHY.sizes.cardTitle,
@@ -471,7 +471,7 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.sizes.cardTitle,
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontWeight: '800',
-    color: '#16A34A',
+    color: COLORS.semantic.success,
   },
 
   // Empty state

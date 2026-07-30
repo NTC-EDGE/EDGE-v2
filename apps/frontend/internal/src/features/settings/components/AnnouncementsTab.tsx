@@ -8,7 +8,7 @@ import {
   useWindowDimensions,
   ActivityIndicator,
 } from 'react-native';
-import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide } from '@edge/ui';
+import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide, SkeletonLoader } from '@edge/ui';
 import { useAdminAnnouncements, SystemAnnouncementDto } from '@edge/api';
 
 interface AnnouncementsTabProps {
@@ -38,9 +38,9 @@ export function AnnouncementsTab({ onAddAnnouncement, onDeleteAnnouncement }: An
 
       {/* Loading & Error States */}
       {isLoading && (
-        <View style={styles.centeredState}>
-          <ActivityIndicator size="large" color={COLORS.brand[600]} />
-          <Text style={styles.stateText}>Loading system announcements...</Text>
+        <View style={styles.listGrid}>
+          <SkeletonLoader height={100} borderRadius={RADIUS.card} />
+          <SkeletonLoader height={100} borderRadius={RADIUS.card} />
         </View>
       )}
 
@@ -70,11 +70,11 @@ export function AnnouncementsTab({ onAddAnnouncement, onDeleteAnnouncement }: An
               const getTypeColor = (type: string) => {
                 switch (type) {
                   case 'Warning':
-                    return { bg: '#FEF3C7', text: '#D97706', border: '#FDE68A' };
+                    return { bg: COLORS.semantic.warningBg, text: COLORS.semantic.warningText, border: COLORS.semantic.warningBorder };
                   case 'Maintenance':
-                    return { bg: '#FEE2E2', text: '#DC2626', border: '#FCA5A5' };
+                    return { bg: COLORS.semantic.errorBg, text: COLORS.semantic.errorText, border: COLORS.semantic.errorBorder };
                   default:
-                    return { bg: '#DBEAFE', text: '#2563EB', border: '#BFDBFE' };
+                    return { bg: COLORS.brand.light, text: COLORS.brand[700], border: COLORS.brand[500] };
                 }
               };
 
@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#16A34A',
+    backgroundColor: COLORS.semantic.success,
   },
   statusText: {
     fontSize: 12,

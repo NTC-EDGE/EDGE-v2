@@ -9,7 +9,8 @@ import {
   TextInputProps,
 } from "react-native";
 import { Control, Controller, FieldValues, Path } from "react-hook-form";
-import { COLORS, TYPOGRAPHY } from "../theme/tokens";
+import { TYPOGRAPHY } from "../theme/tokens";
+import { useTheme } from "../theme/useTheme";
 import { Feather as Icon } from "@expo/vector-icons";
 
 export interface FormFieldInputProps<T extends FieldValues> extends Omit<TextInputProps, "value" | "onChangeText"> {
@@ -35,6 +36,7 @@ export function FormFieldInput<T extends FieldValues>({
 }: FormFieldInputProps<T>) {
   const [isFocused, setIsFocused] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const { colors, isDark } = useTheme();
 
   return (
     <Controller
@@ -43,35 +45,42 @@ export function FormFieldInput<T extends FieldValues>({
       render={({ field: { onChange, onBlur, value }, fieldState: { error } }) => {
         const hasError = error !== undefined && error !== null;
 
+        const dynamicWrapperStyle = {
+          borderColor: hasError
+            ? colors.semantic.error
+            : isFocused
+            ? colors.brand[800]
+            : colors.border,
+          backgroundColor: hasError
+            ? colors.semantic.errorBg
+            : isFocused
+            ? colors.cardBg
+            : (isDark ? colors.neutral[800] : colors.neutral[50]),
+        };
+
+        const iconColor = hasError
+          ? colors.semantic.error
+          : isFocused
+          ? colors.brand[800]
+          : colors.neutral[400];
+
         return (
           <View style={styles.container}>
-            <Text style={styles.label}>{label}</Text>
-            <View
-              style={[
-                styles.inputWrapper,
-                isFocused && styles.inputWrapperFocused,
-                hasError && styles.inputWrapperError,
-              ]}
-            >
+            <Text style={[styles.label, { color: colors.text }]}>{label}</Text>
+            <View style={[styles.inputWrapper, dynamicWrapperStyle]}>
               {leftIconName !== undefined ? (
                 <Icon
                   name={leftIconName}
                   size={18}
-                  color={
-                    hasError
-                      ? "#EF4444"
-                      : isFocused
-                      ? "#1E3A8A"
-                      : COLORS.neutral[400]
-                  }
+                  color={iconColor}
                   style={styles.iconLeft}
                 />
               ) : null}
 
               <TextInput
-                style={styles.textInput}
+                style={[styles.textInput, { color: colors.text }]}
                 placeholder={placeholder}
-                placeholderTextColor={COLORS.neutral[400]}
+                placeholderTextColor={colors.neutral[400]}
                 value={typeof value === "string" ? value : ""}
                 onChangeText={onChange}
                 onFocus={() => setIsFocused(true)}
@@ -94,16 +103,16 @@ export function FormFieldInput<T extends FieldValues>({
                   <Icon
                     name={showPassword ? "eye-off" : "eye"}
                     size={18}
-                    color={COLORS.neutral[400]}
+                    color={colors.neutral[400]}
                   />
                 </TouchableOpacity>
               ) : null}
             </View>
 
             {hasError ? (
-              <Text style={styles.errorText}>{error?.message}</Text>
+              <Text style={[styles.errorText, { color: colors.semantic.error }]}>{error?.message}</Text>
             ) : helperText !== undefined ? (
-              <Text style={styles.helperText}>{helperText}</Text>
+              <Text style={[styles.helperText, { color: colors.textMuted }]}>{helperText}</Text>
             ) : null}
           </View>
         );
@@ -121,25 +130,14 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 13,
     fontWeight: TYPOGRAPHY.weights.semibold,
-    color: "#334155",
   },
   inputWrapper: {
     flexDirection: "row",
     alignItems: "center",
     height: 48,
     borderWidth: 1,
-    borderColor: "#CBD5E1",
     borderRadius: 10,
-    backgroundColor: "#F8FAFC",
     paddingHorizontal: 14,
-  },
-  inputWrapperFocused: {
-    borderColor: "#1E3A8A",
-    backgroundColor: "#FFFFFF",
-  },
-  inputWrapperError: {
-    borderColor: "#EF4444",
-    backgroundColor: "#FEF2F2",
   },
   iconLeft: {
     marginRight: 10,
@@ -148,7 +146,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 14,
-    color: "#0F172A",
     height: "100%",
     ...Platform.select({ web: { outlineWidth: 0 } }),
   },
@@ -158,11 +155,9 @@ const styles = StyleSheet.create({
   errorText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 12,
-    color: "#EF4444",
   },
   helperText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 12,
-    color: "#64748B",
   },
 });

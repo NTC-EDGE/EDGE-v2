@@ -9,7 +9,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { ColumnDef } from '@tanstack/react-table';
-import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, DataTable, Icon as Lucide } from '@edge/ui';
+import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, DataTable, Icon as Lucide, useTheme } from '@edge/ui';
 import {
   User,
   INITIAL_USERS,
@@ -18,7 +18,7 @@ import {
 } from '../data/mockUsers';
 import { UserCard } from '../components/UserCard';
 import { UserFormModal } from '../components/UserFormModal';
-import { UserDetailsPage } from '../components/UserDetailsPage';
+import { UserDetailsScreen } from '../components/UserDetailsScreen';
 import { DeleteUserConfirmModal } from '../components/DeleteUserConfirmModal';
 
 type ViewMode = 'table' | 'cards';
@@ -92,6 +92,7 @@ export function UsersScreenContent({
   isMobileNative?: boolean;
   isDesktop?: boolean;
 }) {
+  const { colors, isDark } = useTheme();
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
 
@@ -291,12 +292,12 @@ export function UsersScreenContent({
           if (user.avatarType === 'icon') {
             return (
               <View style={styles.tableAvatarIconCircle}>
-                <Lucide name="user" size={18} color="#64748B" />
+                <Lucide name="user" size={18} color={COLORS.neutral[500]} />
               </View>
             );
           }
           return (
-            <View style={[styles.tableAvatarInitialsCircle, { backgroundColor: user.avatarBgColor || '#1D4ED8' }]}>
+            <View style={[styles.tableAvatarInitialsCircle, { backgroundColor: user.avatarBgColor || COLORS.brand.royalBlue }]}>
               <Text style={styles.tableAvatarInitialsText}>
                 {user.avatarInitials || user.name.slice(0, 2).toUpperCase()}
               </Text>
@@ -347,10 +348,10 @@ export function UsersScreenContent({
     [activePopoverId]
   );
 
-  // If subView is 'details', render the full UserDetailsPage component
+  // If subView is 'details', render the full UserDetailsScreen component
   if (subView === 'details' && viewingUser !== null && viewingUser !== undefined) {
     return (
-      <UserDetailsPage
+      <UserDetailsScreen
         user={viewingUser}
         onBack={() => {
           setSubView('list');
@@ -385,8 +386,8 @@ export function UsersScreenContent({
       {/* Executive KPI Stats Cards */}
       <View style={[styles.kpiGrid, isMobile && styles.kpiGridMobile]}>
         <View style={[styles.kpiCard, SHADOWS.card]}>
-          <View style={[styles.kpiIconBg, { backgroundColor: '#EFF6FF' }]}>
-            <Lucide name="users" size={20} color="#2563EB" />
+          <View style={[styles.kpiIconBg, { backgroundColor: COLORS.brand.light }]}>
+            <Lucide name="users" size={20} color={COLORS.brand.secondary} />
           </View>
           <View style={styles.kpiTextGroup}>
             <Text style={styles.kpiLabel}>Total Client Users</Text>
@@ -395,8 +396,8 @@ export function UsersScreenContent({
         </View>
 
         <View style={[styles.kpiCard, SHADOWS.card]}>
-          <View style={[styles.kpiIconBg, { backgroundColor: '#F0FDF4' }]}>
-            <Lucide name="user" size={20} color="#16A34A" />
+          <View style={[styles.kpiIconBg, { backgroundColor: COLORS.semantic.successBg }]}>
+            <Lucide name="user" size={20} color={COLORS.semantic.success} />
           </View>
           <View style={styles.kpiTextGroup}>
             <Text style={styles.kpiLabel}>Individual Accounts</Text>
@@ -405,8 +406,8 @@ export function UsersScreenContent({
         </View>
 
         <View style={[styles.kpiCard, SHADOWS.card]}>
-          <View style={[styles.kpiIconBg, { backgroundColor: '#FEF3C7' }]}>
-            <Lucide name="briefcase" size={20} color="#D97706" />
+          <View style={[styles.kpiIconBg, { backgroundColor: COLORS.semantic.warningBg }]}>
+            <Lucide name="briefcase" size={20} color={COLORS.semantic.warningText} />
           </View>
           <View style={styles.kpiTextGroup}>
             <Text style={styles.kpiLabel}>Company Accounts</Text>
@@ -415,8 +416,8 @@ export function UsersScreenContent({
         </View>
 
         <View style={[styles.kpiCard, SHADOWS.card]}>
-          <View style={[styles.kpiIconBg, { backgroundColor: '#F3E8FF' }]}>
-            <Lucide name="file-text" size={20} color="#9333EA" />
+          <View style={[styles.kpiIconBg, { backgroundColor: COLORS.brand.purpleLight }]}>
+            <Lucide name="file-text" size={20} color={COLORS.brand.purpleDark} />
           </View>
           <View style={styles.kpiTextGroup}>
             <Text style={styles.kpiLabel}>Total Applications</Text>
@@ -779,7 +780,7 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING[8],
   },
   dropdownMenuItemActive: {
-    backgroundColor: '#EFF6FF',
+    backgroundColor: COLORS.brand.light,
   },
   dropdownMenuText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
@@ -828,7 +829,7 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: COLORS.neutral[200],
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -843,7 +844,7 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontWeight: TYPOGRAPHY.weights.bold,
     fontSize: 13,
-    color: '#FFFFFF',
+    color: COLORS.neutral.white,
   },
   tableNameText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
@@ -854,7 +855,7 @@ const styles = StyleSheet.create({
   tableEmailText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 13,
-    color: '#2563EB',
+    color: COLORS.brand.secondary,
   },
   tableRegionText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
@@ -965,9 +966,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING[16],
     paddingVertical: SPACING[8],
     borderRadius: RADIUS.button,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: COLORS.brand.light,
     borderWidth: 1,
-    borderColor: '#BFDBFE',
+    borderColor: COLORS.brand.blueSoft,
   },
   resetFiltersBtnText: {
     fontFamily: TYPOGRAPHY.fonts.primary,

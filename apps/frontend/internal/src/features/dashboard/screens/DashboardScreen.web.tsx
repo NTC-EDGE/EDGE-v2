@@ -1,496 +1,637 @@
-import React, { useState } from "react";
+import React, { useState } from 'react';
 import {
-  StyleSheet,
-  View,
-  Text,
+  Platform,
   Pressable,
-  useWindowDimensions,
   ScrollView,
-} from "react-native";
-import {
-  COLORS,
-  SHADOWS,
-  TYPOGRAPHY,
-  Icon as Lucide,
-} from "@edge/ui";
-import { useRole } from "../../shell/context/RoleContext";
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from 'react-native';
+import { AnimatedCard, Icon as Lucide, SPACING, TYPOGRAPHY, useTheme } from '@edge/ui';
+import { useRole } from '../../shell/context/RoleContext';
 
-export function DashboardScreen() {
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+type TimeRange = '7d' | '30d' | '1y';
+
+interface KpiCard {
+  label: string;
+  value: string;
+  sub: string;
+  icon: 'file-text' | 'check-circle' | 'alert-triangle' | 'layers';
+  trend: string;
+  trendUp: boolean;
+  accentColor: string;
+}
+
+interface ActivityItem {
+  id: string;
+  title: string;
+  meta: string;
+  dot: string;
+}
+
+interface QueueRow {
+  id: string;
+  applicant: string;
+  type: string;
+  submitted: string;
+  status: 'Pending' | 'In Review' | 'Approved' | 'Rejected';
+}
+
+// ─── Mock Data ───────────────────────────────────────────────────────────────
+
+const MOCK_KPI: readonly KpiCard[] = [
+  {
+    label: 'Pending Evaluation',
+    value: '124',
+    sub: '+8 today',
+    icon: 'file-text',
+    trend: '+8%',
+    trendUp: false,
+    accentColor: '#F59E0B',
+  },
+  {
+    label: 'Approved Licenses',
+    value: '852',
+    sub: '+14 this week',
+    icon: 'check-circle',
+    trend: '+14%',
+    trendUp: true,
+    accentColor: '#10B981',
+  },
+  {
+    label: 'Rejected / Non-Compliant',
+    value: '42',
+    sub: '-3 vs last week',
+    icon: 'alert-triangle',
+    trend: '-3%',
+    trendUp: false,
+    accentColor: '#EF4444',
+  },
+  {
+    label: 'Total Completed',
+    value: '710',
+    sub: '+18 this month',
+    icon: 'layers',
+    trend: '+18%',
+    trendUp: true,
+    accentColor: '#3B82F6',
+  },
+];
+
+const MOCK_CHART_BARS: readonly { h: number; color: string; label: string }[] = [
+  { h: 48, color: '#3B82F6', label: 'Mon' },
+  { h: 80, color: '#10B981', label: 'Tue' },
+  { h: 60, color: '#3B82F6', label: 'Wed' },
+  { h: 100, color: '#10B981', label: 'Thu' },
+  { h: 72, color: '#3B82F6', label: 'Fri' },
+  { h: 44, color: '#F59E0B', label: 'Sat' },
+  { h: 90, color: '#10B981', label: 'Sun' },
+];
+
+const MOCK_ACTIVITY: readonly ActivityItem[] = [
+  { id: '1', title: 'APP-2026-0521 Approved', meta: '10:24 AM · Juan Dela Cruz', dot: '#10B981' },
+  { id: '2', title: 'New Accreditation Submitted', meta: '09:45 AM · RuralNet ISP', dot: '#F59E0B' },
+  { id: '3', title: 'Compliance Policy Updated', meta: '08:15 AM · System Admin', dot: '#3B82F6' },
+  { id: '4', title: 'APP-2026-0519 Rejected — missing docs', meta: '07:52 AM · Maria Santos', dot: '#EF4444' },
+  { id: '5', title: '3.5 GHz Spectrum Band Assigned', meta: 'Yesterday · NTC Engineering', dot: '#8B5CF6' },
+];
+
+const MOCK_QUEUE: readonly QueueRow[] = [
+  { id: 'APP-2026-0528', applicant: 'TelePinas Corp',      type: 'ISP License',     submitted: 'Jul 30, 2026', status: 'Pending' },
+  { id: 'APP-2026-0527', applicant: 'BlueSky Broadband',   type: 'Frequency Alloc', submitted: 'Jul 29, 2026', status: 'In Review' },
+  { id: 'APP-2026-0526', applicant: 'SouthNet Telecom',    type: 'Accreditation',   submitted: 'Jul 28, 2026', status: 'Pending' },
+  { id: 'APP-2026-0525', applicant: 'AsiaCom Networks',    type: 'ISP License',     submitted: 'Jul 27, 2026', status: 'In Review' },
+  { id: 'APP-2026-0524', applicant: 'MaxLink Philippines', type: 'VSAT Permit',     submitted: 'Jul 26, 2026', status: 'Approved' },
+];
+
+const STATUS_COLORS: Record<QueueRow['status'], { text: string; bg: string }> = {
+  Pending:   { text: '#92400E', bg: '#FEF3C7' },
+  'In Review': { text: '#1E40AF', bg: '#DBEAFE' },
+  Approved:  { text: '#065F46', bg: '#D1FAE5' },
+  Rejected:  { text: '#991B1B', bg: '#FEE2E2' },
+};
+
+// ─── Component ───────────────────────────────────────────────────────────────
+
+export function DashboardScreen(): React.ReactElement {
   const { currentRole } = useRole();
+  const { colors, isDark } = useTheme();
   const { width } = useWindowDimensions();
   const isDesktop = width >= 1024;
+  const [timeRange, setTimeRange] = useState<TimeRange>('7d');
 
-  const [timeRange, setTimeRange] = useState<"7days" | "30days" | "year">("7days");
+  const canvasBg = isDark ? colors.neutral[900] : colors.neutral[50];
+  const cardBg = isDark ? colors.neutral[800] : '#FFFFFF';
+  const borderColor = isDark ? colors.neutral[700] : colors.neutral[200];
+  const textColor = isDark ? colors.neutral[100] : colors.neutral[900];
+  const mutedColor = isDark ? colors.neutral[400] : colors.neutral[500];
+  const tableHdrBg = isDark ? colors.neutral[900] : colors.neutral[50];
+  const tableRowHover = isDark ? colors.neutral[700] : colors.neutral[50];
 
-  const getFormattedDate = () => {
-    return new Date().toLocaleDateString("en-US", {
-      weekday: "long",
-      month: "long",
-      day: "2-digit",
-      year: "numeric",
-    });
-  };
+  const today = new Date().toLocaleDateString('en-US', {
+    weekday: 'long', month: 'long', day: '2-digit', year: 'numeric',
+  });
 
   return (
     <ScrollView
-      style={styles.scrollView}
-      contentContainerStyle={styles.contentContainer}
+      style={[styles.scroll, { backgroundColor: canvasBg }]}
+      contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-      <View style={styles.container}>
-        {/* Web Hero Banner */}
-        <View style={styles.welcomeRow}>
-          <View>
-            <View style={styles.govBadgePill}>
-              <View style={styles.pulseDot} />
-              <Text style={styles.welcomeLabel}>GOVERNMENT DATA GOVERNANCE • WEB COMMAND CENTER</Text>
-            </View>
-            <Text style={styles.welcomeTitle}>
-              Welcome back, {currentRole} Staff
-            </Text>
-            <Text style={styles.welcomeSubtitle}>
-              NTC EDGE multi-tenant queue management, licensing evaluation, and telemetry dashboard.
-            </Text>
-          </View>
-          <View style={[styles.dateCard, SHADOWS.card]}>
-            <Lucide name="calendar" size={16} color="#2563EB" />
-            <Text style={styles.dateText}>{getFormattedDate()}</Text>
-          </View>
+      {/* ── Page Title Row ─────────────────────────────────────────────── */}
+      <View style={styles.titleRow}>
+        <View>
+          <Text style={[styles.pageTitle, { color: textColor }]}>
+            Dashboard
+          </Text>
+          <Text style={[styles.pageSub, { color: mutedColor }]}>
+            Welcome back, {currentRole} — {today}
+          </Text>
         </View>
-
-        {/* Premium KPI Cards Grid */}
-        <View style={styles.kpiGrid}>
-          <View style={[styles.metricCard, SHADOWS.card]}>
-            <View style={[styles.iconCircle, { backgroundColor: "rgba(245, 158, 11, 0.12)" }]}>
-              <Lucide name="file-text" size={22} color="#D97706" />
-            </View>
-            <View style={styles.metricTextGroup}>
-              <Text style={styles.metricTitle}>Pending Evaluation</Text>
-              <View style={styles.metricValRow}>
-                <Text style={styles.metricValue}>124</Text>
-                <View style={styles.trendBadgeWarning}>
-                  <Lucide name="arrow-up-right" size={12} color="#D97706" />
-                  <Text style={styles.trendTextWarning}>+8%</Text>
-                </View>
-              </View>
-            </View>
-          </View>
-
-          <View style={[styles.metricCard, SHADOWS.card]}>
-            <View style={[styles.iconCircle, { backgroundColor: "rgba(16, 185, 129, 0.12)" }]}>
-              <Lucide name="check-circle" size={22} color="#10B981" />
-            </View>
-            <View style={styles.metricTextGroup}>
-              <Text style={styles.metricTitle}>Approved Licenses</Text>
-              <View style={styles.metricValRow}>
-                <Text style={styles.metricValue}>852</Text>
-                <View style={styles.trendBadgeSuccess}>
-                  <Lucide name="arrow-up-right" size={12} color="#10B981" />
-                  <Text style={styles.trendTextSuccess}>+14%</Text>
-                </View>
-              </View>
-            </View>
-          </View>
-
-          <View style={[styles.metricCard, SHADOWS.card]}>
-            <View style={[styles.iconCircle, { backgroundColor: "rgba(239, 68, 68, 0.12)" }]}>
-              <Lucide name="alert-triangle" size={22} color="#EF4444" />
-            </View>
-            <View style={styles.metricTextGroup}>
-              <Text style={styles.metricTitle}>Rejected Compliance</Text>
-              <View style={styles.metricValRow}>
-                <Text style={styles.metricValue}>42</Text>
-                <View style={styles.trendBadgeDanger}>
-                  <Lucide name="arrow-down-right" size={12} color="#EF4444" />
-                  <Text style={styles.trendTextDanger}>-3%</Text>
-                </View>
-              </View>
-            </View>
-          </View>
-
-          <View style={[styles.metricCard, SHADOWS.card]}>
-            <View style={[styles.iconCircle, { backgroundColor: "rgba(37, 99, 235, 0.12)" }]}>
-              <Lucide name="grid" size={22} color="#2563EB" />
-            </View>
-            <View style={styles.metricTextGroup}>
-              <Text style={styles.metricTitle}>Total Completed</Text>
-              <View style={styles.metricValRow}>
-                <Text style={styles.metricValue}>710</Text>
-                <View style={styles.trendBadgePrimary}>
-                  <Lucide name="arrow-up-right" size={12} color="#2563EB" />
-                  <Text style={styles.trendTextPrimary}>+18%</Text>
-                </View>
-              </View>
-            </View>
-          </View>
+        <View style={[styles.statusPill, { backgroundColor: isDark ? '#1A2E4A' : '#EFF6FF', borderColor: '#BFDBFE' }]}>
+          <View style={[styles.statusDot, { backgroundColor: '#10B981' }]} />
+          <Text style={[styles.statusText, { color: isDark ? '#60A5FA' : '#1D4ED8' }]}>
+            All Systems Operational
+          </Text>
         </View>
+      </View>
 
-        {/* Analytics & Activity Split */}
-        <View style={[styles.splitRow, { flexDirection: isDesktop ? "row" : "column" }]}>
-          <View style={[styles.mainSection, SHADOWS.card]}>
-            <View style={styles.sectionHeader}>
-              <View>
-                <Text style={styles.sectionTitle}>Evaluation Velocity & Trends</Text>
-                <Text style={styles.sectionSubtitle}>Real-time application throughput velocity by regional office</Text>
+      {/* ── KPI Strip ──────────────────────────────────────────────────── */}
+      <View style={[styles.kpiRow, { flexDirection: isDesktop ? 'row' : 'row', flexWrap: 'wrap' }]}>
+        {MOCK_KPI.map((kpi) => (
+          <View
+            key={kpi.label}
+            style={[
+              styles.kpiCard,
+              { backgroundColor: cardBg, borderColor, borderLeftColor: kpi.accentColor },
+            ]}
+          >
+            <View style={styles.kpiTop}>
+              <View style={[styles.kpiIconBox, { backgroundColor: `${kpi.accentColor}18` }]}>
+                <Lucide name={kpi.icon} size={14} color={kpi.accentColor} />
               </View>
-              <View style={styles.filterPills}>
-                {(["7days", "30days", "year"] as const).map((r) => (
-                  <Pressable
-                    key={r}
-                    onPress={() => setTimeRange(r)}
-                    style={[styles.pill, timeRange === r && styles.pillActive]}
+              <Text style={[styles.kpiTrend, { color: kpi.trendUp ? '#10B981' : '#F59E0B' }]}>
+                {kpi.trend}
+              </Text>
+            </View>
+            <Text style={[styles.kpiValue, { color: textColor }]}>{kpi.value}</Text>
+            <Text style={[styles.kpiLabel, { color: mutedColor }]}>{kpi.label}</Text>
+            <Text style={[styles.kpiSub, { color: mutedColor }]}>{kpi.sub}</Text>
+          </View>
+        ))}
+      </View>
+
+      {/* ── Middle Row: Chart + Activity ────────────────────────────────── */}
+      <View style={[styles.splitRow, { flexDirection: isDesktop ? 'row' : 'column' }]}>
+        {/* Chart Card */}
+        <View style={[styles.chartCard, { backgroundColor: cardBg, borderColor }]}>
+          <View style={styles.cardHeader}>
+            <View>
+              <Text style={[styles.cardTitle, { color: textColor }]}>Evaluation Velocity</Text>
+              <Text style={[styles.cardSub, { color: mutedColor }]}>
+                Applications processed per day
+              </Text>
+            </View>
+            <View style={styles.pills}>
+              {(['7d', '30d', '1y'] as const).map((r) => (
+                <Pressable
+                  key={r}
+                  onPress={() => setTimeRange(r)}
+                  style={[
+                    styles.pill,
+                    {
+                      backgroundColor: timeRange === r
+                        ? (isDark ? colors.brand[800] : colors.brand[700])
+                        : (isDark ? colors.neutral[700] : colors.neutral[100]),
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.pillText,
+                      { color: timeRange === r ? '#FFFFFF' : mutedColor },
+                    ]}
                   >
-                    <Text style={[styles.pillText, timeRange === r && styles.pillTextActive]}>
-                      {r === "7days" ? "7 Days" : r === "30days" ? "30 Days" : "1 Year"}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            </View>
-
-            <View style={styles.chartMockArea}>
-              <View style={styles.chartBarRow}>
-                <View style={[styles.chartBar, { height: 120, backgroundColor: "#3B82F6" }]} />
-                <View style={[styles.chartBar, { height: 160, backgroundColor: "#10B981" }]} />
-                <View style={[styles.chartBar, { height: 90, backgroundColor: "#F59E0B" }]} />
-                <View style={[styles.chartBar, { height: 180, backgroundColor: "#3B82F6" }]} />
-                <View style={[styles.chartBar, { height: 140, backgroundColor: "#10B981" }]} />
-              </View>
-              <Text style={styles.chartCaption}>Web Command Velocity Stream • NCR Head Office</Text>
+                    {r === '7d' ? '7D' : r === '30d' ? '30D' : '1Y'}
+                  </Text>
+                </Pressable>
+              ))}
             </View>
           </View>
 
-          <View style={[styles.sideSection, SHADOWS.card]}>
-            <Text style={styles.sectionTitle}>Live Activity Stream</Text>
-            <View style={styles.activityList}>
-              <View style={styles.activityItem}>
-                <View style={styles.activityDotSuccess} />
-                <View style={styles.activityText}>
-                  <Text style={styles.activityTitle}>Application #APP-2026-0521 Approved</Text>
-                  <Text style={styles.activityTime}>10:24 AM by Juan Dela Cruz</Text>
+          {/* Bar chart */}
+          <View style={[styles.chartArea, { borderColor: isDark ? colors.neutral[700] : colors.neutral[100] }]}>
+            <View style={styles.barsRow}>
+              {MOCK_CHART_BARS.map((bar, i) => (
+                <View key={i} style={styles.barWrap}>
+                  <Text style={[styles.barValue, { color: mutedColor }]}>
+                    {Math.round(bar.h * 1.2)}
+                  </Text>
+                  <View
+                    style={[
+                      styles.bar,
+                      { height: bar.h, backgroundColor: bar.color, opacity: isDark ? 0.85 : 1 },
+                    ]}
+                  />
+                  <Text style={[styles.barLabel, { color: mutedColor }]}>{bar.label}</Text>
                 </View>
-              </View>
-              <View style={styles.activityItem}>
-                <View style={styles.activityDotWarning} />
-                <View style={styles.activityText}>
-                  <Text style={styles.activityTitle}>New Accreditation Submitted</Text>
-                  <Text style={styles.activityTime}>09:45 AM by RuralNet ISP</Text>
-                </View>
-              </View>
-              <View style={styles.activityItem}>
-                <View style={styles.activityDotPrimary} />
-                <View style={styles.activityText}>
-                  <Text style={styles.activityTitle}>Role Policy Updated</Text>
-                  <Text style={styles.activityTime}>08:15 AM by System Admin</Text>
-                </View>
-              </View>
+              ))}
+            </View>
+          </View>
+
+          {/* Legend */}
+          <View style={styles.legend}>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: '#3B82F6' }]} />
+              <Text style={[styles.legendText, { color: mutedColor }]}>New</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: '#10B981' }]} />
+              <Text style={[styles.legendText, { color: mutedColor }]}>Resolved</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: '#F59E0B' }]} />
+              <Text style={[styles.legendText, { color: mutedColor }]}>Escalated</Text>
             </View>
           </View>
         </View>
+
+        {/* Activity Feed */}
+        <View style={[styles.activityCard, { backgroundColor: cardBg, borderColor }]}>
+          <View style={styles.cardHeader}>
+            <Text style={[styles.cardTitle, { color: textColor }]}>Live Activity</Text>
+            <Text style={[styles.seeAll, { color: isDark ? colors.brand[500] : colors.brand[700] }]}>
+              See all →
+            </Text>
+          </View>
+          <View style={styles.activityList}>
+            {MOCK_ACTIVITY.map((item, idx) => (
+              <View
+                key={item.id}
+                style={[
+                  styles.activityRow,
+                  idx < MOCK_ACTIVITY.length - 1 && { borderBottomWidth: 1, borderBottomColor: borderColor },
+                ]}
+              >
+                <View style={[styles.actDot, { backgroundColor: item.dot }]} />
+                <View style={styles.actText}>
+                  <Text style={[styles.actTitle, { color: textColor }]} numberOfLines={1}>
+                    {item.title}
+                  </Text>
+                  <Text style={[styles.actMeta, { color: mutedColor }]}>{item.meta}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        </View>
+      </View>
+
+      {/* ── Queue Table ─────────────────────────────────────────────────── */}
+      <View style={[styles.tableCard, { backgroundColor: cardBg, borderColor }]}>
+        <View style={[styles.cardHeader, styles.tableCardHeader]}>
+          <View>
+            <Text style={[styles.cardTitle, { color: textColor }]}>Application Queue</Text>
+            <Text style={[styles.cardSub, { color: mutedColor }]}>
+              Active evaluation queue — {MOCK_QUEUE.length} entries
+            </Text>
+          </View>
+          <Pressable
+            style={[
+              styles.reviewBtn,
+              { backgroundColor: isDark ? colors.brand[800] : colors.brand[700] },
+            ]}
+          >
+            <Lucide name="plus" size={13} color="#FFFFFF" />
+            <Text style={styles.reviewBtnText}>Review Next</Text>
+          </Pressable>
+        </View>
+
+        {/* Table header */}
+        <View style={[styles.tableHeader, { backgroundColor: tableHdrBg, borderBottomColor: borderColor }]}>
+          {(['Application ID', 'Applicant', 'Type', 'Submitted', 'Status'] as const).map((col) => (
+            <Text
+              key={col}
+              style={[
+                styles.tableHdrCell,
+                { color: mutedColor },
+                col === 'Application ID' ? styles.colId : col === 'Status' ? styles.colStatus : styles.colDefault,
+              ]}
+            >
+              {col.toUpperCase()}
+            </Text>
+          ))}
+        </View>
+
+        {/* Table rows */}
+        {MOCK_QUEUE.map((row, idx) => {
+          const statusStyle = STATUS_COLORS[row.status];
+          return (
+            <View
+              key={row.id}
+              style={[
+                styles.tableRow,
+                { borderBottomColor: borderColor },
+                idx === MOCK_QUEUE.length - 1 && { borderBottomWidth: 0 },
+              ]}
+            >
+              <Text style={[styles.tableCell, styles.colId, styles.monoCell, { color: isDark ? colors.brand[500] : colors.brand[700] }]}>
+                {row.id}
+              </Text>
+              <Text style={[styles.tableCell, styles.colDefault, { color: textColor }]} numberOfLines={1}>
+                {row.applicant}
+              </Text>
+              <Text style={[styles.tableCell, styles.colDefault, { color: mutedColor }]} numberOfLines={1}>
+                {row.type}
+              </Text>
+              <Text style={[styles.tableCell, styles.colDefault, { color: mutedColor }]}>
+                {row.submitted}
+              </Text>
+              <View style={[styles.colStatus, styles.tableCellCenter]}>
+                <View style={[styles.statusBadge, { backgroundColor: statusStyle.bg }]}>
+                  <Text style={[styles.statusBadgeText, { color: statusStyle.text }]}>
+                    {row.status}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          );
+        })}
       </View>
     </ScrollView>
   );
 }
 
+// ─── Styles ──────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
-  scrollView: {
+  scroll: { flex: 1 },
+  content: {
+    padding: SPACING[24],
+    gap: SPACING[16],
+    maxWidth: 1280,
+    width: '100%',
+    alignSelf: 'center',
+  },
+
+  // Title
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: SPACING[16],
+    flexWrap: 'wrap',
+  },
+  pageTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: TYPOGRAPHY.sizes.pageTitle,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  pageSub: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: TYPOGRAPHY.sizes.caption,
+    marginTop: 2,
+  },
+  statusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+    borderWidth: 1,
+    alignSelf: 'flex-start',
+  },
+  statusDot: { width: 6, height: 6, borderRadius: 3 },
+  statusText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 10,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+  },
+
+  // KPI
+  kpiRow: { gap: SPACING[12] },
+  kpiCard: {
     flex: 1,
+    minWidth: 160,
+    padding: SPACING[12],
+    borderRadius: 8,
+    borderWidth: 1,
+    borderLeftWidth: 3,
+    gap: 2,
+    ...Platform.select({ web: { transition: 'box-shadow 150ms ease' } }),
   },
-  contentContainer: {
-    paddingHorizontal: 32,
-    paddingVertical: 32,
-    maxWidth: 1600,
-    width: "100%",
-    alignSelf: "center",
+  kpiTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
   },
-  container: {
-    gap: 28,
+  kpiIconBox: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  welcomeRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  govBadgePill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: "rgba(37, 99, 235, 0.1)",
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 16,
-    alignSelf: "flex-start",
-    marginBottom: 8,
-  },
-  pulseDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "#10B981",
-  },
-  welcomeLabel: {
+  kpiTrend: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 10,
     fontWeight: TYPOGRAPHY.weights.bold,
-    color: "#2563EB",
-    letterSpacing: 0.6,
   },
-  welcomeTitle: {
+  kpiValue: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: TYPOGRAPHY.weights.bold,
-    color: "#0F172A",
+    lineHeight: 28,
   },
-  welcomeSubtitle: {
+  kpiLabel: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
-    color: "#64748B",
+    fontSize: 11,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    marginTop: 2,
   },
-  dateCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 12,
+  kpiSub: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 10,
+  },
+
+  // Split row
+  splitRow: { gap: SPACING[16] },
+
+  // Chart card
+  chartCard: {
+    flex: 2,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    padding: SPACING[16],
   },
-  dateText: {
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: SPACING[12],
+    gap: SPACING[12],
+  },
+  cardTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
-    color: "#1E293B",
+    fontSize: TYPOGRAPHY.sizes.sectionTitle,
     fontWeight: TYPOGRAPHY.weights.semibold,
   },
-  kpiGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 20,
-  },
-  metricCard: {
-    flex: 1,
-    minWidth: 240,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 22,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 16,
-  },
-  iconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  metricTextGroup: {
-    flex: 1,
-  },
-  metricTitle: {
+  cardSub: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
-    color: "#64748B",
-    fontWeight: TYPOGRAPHY.weights.medium,
-    marginBottom: 4,
+    fontSize: TYPOGRAPHY.sizes.caption,
+    marginTop: 2,
   },
-  metricValRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  metricValue: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 26,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    color: "#0F172A",
-  },
-  trendBadgeWarning: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(245, 158, 11, 0.12)",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  trendTextWarning: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    color: "#D97706",
-  },
-  trendBadgeSuccess: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(16, 185, 129, 0.12)",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  trendTextSuccess: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    color: "#10B981",
-  },
-  trendBadgeDanger: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(239, 68, 68, 0.12)",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  trendTextDanger: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    color: "#EF4444",
-  },
-  trendBadgePrimary: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(37, 99, 235, 0.12)",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  trendTextPrimary: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    color: "#2563EB",
-  },
-  splitRow: {
-    gap: 24,
-  },
-  mainSection: {
-    flex: 2,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    padding: 28,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-  },
-  sideSection: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    padding: 28,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 18,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    color: "#0F172A",
-  },
-  sectionSubtitle: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
-    color: "#64748B",
-  },
-  filterPills: {
-    flexDirection: "row",
-    gap: 6,
-  },
+  pills: { flexDirection: 'row', gap: 4 },
   pill: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    backgroundColor: "#F1F5F9",
-  },
-  pillActive: {
-    backgroundColor: "#2563EB",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
+    ...Platform.select({ web: { cursor: 'pointer' } }),
   },
   pillText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: TYPOGRAPHY.weights.semibold,
-    color: "#64748B",
   },
-  pillTextActive: {
-    color: "#FFFFFF",
-  },
-  chartMockArea: {
-    height: 220,
-    backgroundColor: "#F8FAFC",
-    borderRadius: 14,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-    borderWidth: 1,
-    borderColor: "#F1F5F9",
-  },
-  chartBarRow: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    gap: 20,
-    height: 160,
-    marginBottom: 12,
-  },
-  chartBar: {
-    width: 36,
+  chartArea: {
     borderRadius: 6,
+    borderWidth: 1,
+    padding: SPACING[12],
+    marginBottom: SPACING[10],
   },
-  chartCaption: {
+  barsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-around',
+    height: 120,
+    gap: 8,
+  },
+  barWrap: { alignItems: 'center', gap: 4, flex: 1 },
+  barValue: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
-    color: "#64748B",
-    fontWeight: TYPOGRAPHY.weights.medium,
+    fontSize: 9,
   },
-  activityList: {
-    gap: 20,
-    marginTop: 16,
+  bar: {
+    width: '80%',
+    borderRadius: 3,
+    minHeight: 4,
   },
-  activityItem: {
-    flexDirection: "row",
-    gap: 14,
-    alignItems: "flex-start",
+  barLabel: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 9,
   },
-  activityDotSuccess: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: "#10B981",
-    marginTop: 4,
-  },
-  activityDotWarning: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: "#F59E0B",
-    marginTop: 4,
-  },
-  activityDotPrimary: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: "#2563EB",
-    marginTop: 4,
-  },
-  activityText: {
+  legend: { flexDirection: 'row', gap: SPACING[12] },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  legendDot: { width: 6, height: 6, borderRadius: 3 },
+  legendText: { fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 10 },
+
+  // Activity card
+  activityCard: {
     flex: 1,
+    borderRadius: 8,
+    borderWidth: 1,
+    padding: SPACING[16],
+    minWidth: 240,
   },
-  activityTitle: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-    color: "#1E293B",
-  },
-  activityTime: {
+  seeAll: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 11,
-    color: "#64748B",
+    fontWeight: TYPOGRAPHY.weights.medium,
+    ...Platform.select({ web: { cursor: 'pointer' } }),
+  },
+  activityList: { gap: 0 },
+  activityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING[10],
+    paddingVertical: SPACING[8],
+  },
+  actDot: { width: 7, height: 7, borderRadius: 4, flexShrink: 0 },
+  actText: { flex: 1 },
+  actTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: TYPOGRAPHY.sizes.body,
+    fontWeight: TYPOGRAPHY.weights.medium,
+  },
+  actMeta: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: TYPOGRAPHY.sizes.caption,
+    marginTop: 1,
+  },
+
+  // Queue table
+  tableCard: {
+    borderRadius: 8,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  tableCardHeader: {
+    padding: SPACING[16],
+    paddingBottom: SPACING[12],
+  },
+  reviewBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: SPACING[12],
+    paddingVertical: 6,
+    borderRadius: 6,
+    ...Platform.select({ web: { cursor: 'pointer' } }),
+  },
+  reviewBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: '#FFFFFF',
+  },
+  tableHeader: {
+    flexDirection: 'row',
+    paddingHorizontal: SPACING[16],
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+  },
+  tableHdrCell: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: TYPOGRAPHY.sizes.label,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    letterSpacing: 0.4,
+  },
+  tableRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING[16],
+    height: 36,
+    borderBottomWidth: 1,
+    ...Platform.select({ web: { transition: 'background-color 100ms ease' } }),
+  },
+  tableCell: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: TYPOGRAPHY.sizes.body,
+  },
+  tableCellCenter: {
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+  },
+  monoCell: {
+    fontFamily: TYPOGRAPHY.fonts.mono,
+    fontSize: 12,
+  },
+  colId: { flex: 1.4, paddingRight: 8 },
+  colDefault: { flex: 1, paddingRight: 8 },
+  colStatus: { width: 90 },
+  statusBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 4,
+    alignSelf: 'flex-start',
+  },
+  statusBadgeText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 10,
+    fontWeight: TYPOGRAPHY.weights.semibold,
   },
 });

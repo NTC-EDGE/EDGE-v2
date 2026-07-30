@@ -22,6 +22,14 @@ interface RegionalConfigTabProps {
   onDeleteBranchOffice: (id: string, name: string) => void;
 }
 
+type IconName = keyof typeof Lucide.glyphMap;
+
+function isIconName(icon: string): icon is IconName {
+  return icon in Lucide.glyphMap;
+}
+
+const BRANCH_FILTERS: readonly ('All' | 'Main Office' | 'Field Office')[] = ['All', 'Main Office', 'Field Office'];
+
 export function RegionalConfigTab({
   configs,
   branchOffices,
@@ -62,7 +70,7 @@ export function RegionalConfigTab({
       <View style={styles.notificationBanner}>
         <View style={styles.bannerLeft}>
           <View style={styles.bannerIconWrapper}>
-            <Lucide name="mail" size={20} color="#4F46E5" />
+            <Lucide name="mail" size={20} color={COLORS.brand.indigo} />
           </View>
           <View style={styles.bannerTextWrapper}>
             <Text style={styles.bannerTitle}>Regional Email Notification System</Text>
@@ -84,48 +92,50 @@ export function RegionalConfigTab({
           <Switch
             value={isEmailNotificationActive}
             onValueChange={setIsEmailNotificationActive}
-            trackColor={{ false: '#CBD5E1', true: '#818CF8' }}
-            thumbColor={isEmailNotificationActive ? '#4F46E5' : '#FFFFFF'}
+            trackColor={{ false: COLORS.neutral[300], true: COLORS.brand.indigo400 }}
+            thumbColor={isEmailNotificationActive ? COLORS.brand.indigo : COLORS.neutral.white}
           />
         </View>
       </View>
 
       {/* 2. 2x2 Grid of Regional Configuration Cards */}
       <View style={[styles.gridContainer, isMobile && styles.gridContainerMobile]}>
-        {configs.map((card) => (
-          <View
-            key={card.id}
-            style={[styles.card, SHADOWS.card, isMobile && styles.cardMobile]}
-          >
-            <View style={styles.cardHeader}>
-              <View style={styles.cardTitleRow}>
-                <View style={[styles.cardIconBox, { backgroundColor: card.iconBg }]}>
-                  <Lucide name={card.icon as keyof typeof Lucide.glyphMap} size={18} color={card.iconColor} />
+        {configs.map((card) => {
+          const iconName: IconName = isIconName(card.icon) ? card.icon : 'help-circle';
+          return (
+            <View
+              key={card.id}
+              style={[styles.card, SHADOWS.card, isMobile && styles.cardMobile]}
+            >
+              <View style={styles.cardHeader}>
+                <View style={styles.cardTitleRow}>
+                  <View style={[styles.cardIconBox, { backgroundColor: card.iconBg }]}>
+                    <Lucide name={iconName} size={18} color={card.iconColor} />
+                  </View>
+                  <View style={styles.cardHeaderTitles}>
+                    <Text style={styles.cardCategoryText}>{card.category}</Text>
+                    <Text style={styles.cardSubtitleText}>{card.subtitle}</Text>
+                  </View>
                 </View>
-                <View style={styles.cardHeaderTitles}>
-                  <Text style={styles.cardCategoryText}>{card.category}</Text>
-                  <Text style={styles.cardSubtitleText}>{card.subtitle}</Text>
-                </View>
-              </View>
 
-              {/* Edit & Delete Action Buttons */}
-              <View style={styles.actionButtonsRow}>
-                <Pressable
-                  style={styles.iconActionBtn}
-                  onPress={() => onEditConfig(card)}
-                  accessibilityLabel={`Edit ${card.category}`}
-                >
-                  <Lucide name="edit-2" size={15} color={COLORS.neutral[600]} />
-                </Pressable>
-                <Pressable
-                  style={[styles.iconActionBtn, styles.iconDeleteBtn]}
-                  onPress={() => onDeleteConfig(card.id, card.category)}
-                  accessibilityLabel={`Delete ${card.category}`}
-                >
-                  <Lucide name="trash-2" size={15} color="#EF4444" />
-                </Pressable>
+                {/* Edit & Delete Action Buttons */}
+                <View style={styles.actionButtonsRow}>
+                  <Pressable
+                    style={styles.iconActionBtn}
+                    onPress={() => onEditConfig(card)}
+                    accessibilityLabel={`Edit ${card.category}`}
+                  >
+                    <Lucide name="edit-2" size={15} color={COLORS.neutral[600]} />
+                  </Pressable>
+                  <Pressable
+                    style={[styles.iconActionBtn, styles.iconDeleteBtn]}
+                    onPress={() => onDeleteConfig(card.id, card.category)}
+                    accessibilityLabel={`Delete ${card.category}`}
+                  >
+                    <Lucide name="trash-2" size={15} color={COLORS.semantic.error} />
+                  </Pressable>
+                </View>
               </View>
-            </View>
 
             {/* Card Main Info */}
             <View style={styles.cardBody}>
@@ -158,7 +168,8 @@ export function RegionalConfigTab({
               </View>
             )}
           </View>
-        ))}
+        );
+      })}
       </View>
 
       {/* 3. Regional Branch Offices Header */}
@@ -229,7 +240,7 @@ export function RegionalConfigTab({
 
         {/* Category Filter Pills */}
         <View style={styles.branchFilterGroup}>
-          {(['All', 'Main Office', 'Field Office'] as const).map((filter) => {
+          {BRANCH_FILTERS.map((filter) => {
             const isActive = selectedBranchFilter === filter;
             return (
               <Pressable
@@ -267,7 +278,7 @@ export function RegionalConfigTab({
             <View key={branch.id} style={[styles.branchCardRow, SHADOWS.card]}>
               <View style={styles.branchRowLeft}>
                 <View style={styles.branchPinBox}>
-                  <Lucide name="map-pin" size={18} color="#6366F1" />
+                  <Lucide name="map-pin" size={18} color={COLORS.brand.indigoHover} />
                 </View>
                 <View style={styles.branchInfo}>
                   <Text style={styles.branchName}>{branch.name}</Text>
@@ -306,7 +317,7 @@ export function RegionalConfigTab({
                   onPress={() => onDeleteBranchOffice(branch.id, branch.name)}
                   accessibilityLabel={`Delete ${branch.name}`}
                 >
-                  <Lucide name="trash-2" size={15} color="#EF4444" />
+                  <Lucide name="trash-2" size={15} color={COLORS.semantic.error} />
                 </Pressable>
               </View>
             </View>
@@ -328,8 +339,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#EEF2FF',
-    borderColor: '#E0E7FF',
+    backgroundColor: COLORS.brand.indigoLight,
+    borderColor: COLORS.brand.indigoBorder,
     borderWidth: 1,
     borderRadius: RADIUS.card,
     padding: SPACING[16],
@@ -347,7 +358,7 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: RADIUS.input,
-    backgroundColor: '#E0E7FF',
+    backgroundColor: COLORS.brand.indigoBorder,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -378,10 +389,10 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   statusActive: {
-    color: '#4F46E5',
+    color: COLORS.brand.indigo,
   },
   statusInactive: {
-    color: '#EF4444',
+    color: COLORS.semantic.error,
   },
 
   // Cards Grid
@@ -454,8 +465,8 @@ const styles = StyleSheet.create({
     borderColor: COLORS.neutral[200],
   },
   iconDeleteBtn: {
-    backgroundColor: '#FEF2F2',
-    borderColor: '#FCA5A5',
+    backgroundColor: COLORS.semantic.errorBg,
+    borderColor: COLORS.semantic.errorBorder,
   },
   cardBody: {
     marginTop: SPACING[12],
@@ -490,22 +501,22 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   badgeCommissioner: {
-    backgroundColor: '#FEE2E2',
+    backgroundColor: COLORS.brand.redLight,
   },
   badgeTextCommissioner: {
-    color: '#DC2626',
+    color: COLORS.brand.redDark,
   },
   badgePrimary: {
-    backgroundColor: '#FEF3C7',
+    backgroundColor: COLORS.semantic.warningBg,
   },
   badgeTextPrimary: {
-    color: '#D97706',
+    color: COLORS.semantic.warningText,
   },
   badgeActive: {
-    backgroundColor: '#DCFCE7',
+    backgroundColor: COLORS.semantic.successBg,
   },
   badgeTextActive: {
-    color: '#16A34A',
+    color: COLORS.semantic.success,
   },
 
   // Section Header
@@ -584,22 +595,22 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   badgeYellowPill: {
-    backgroundColor: '#FEF3C7',
+    backgroundColor: COLORS.semantic.warningBg,
   },
   badgeTextYellow: {
-    color: '#D97706',
+    color: COLORS.semantic.warningText,
   },
   badgeGreenPill: {
-    backgroundColor: '#DCFCE7',
+    backgroundColor: COLORS.semantic.successBg,
   },
   badgeTextGreen: {
-    color: '#16A34A',
+    color: COLORS.semantic.success,
   },
   badgeBluePill: {
-    backgroundColor: '#DBEAFE',
+    backgroundColor: COLORS.brand.blueLight,
   },
   badgeTextBlue: {
-    color: '#2563EB',
+    color: COLORS.brand.secondary,
   },
 
   // Branch Offices Search & Filter Bar
@@ -686,7 +697,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: RADIUS.input,
-    backgroundColor: '#EEF2FF',
+    backgroundColor: COLORS.brand.indigoLight,
     justifyContent: 'center',
     alignItems: 'center',
   },

@@ -90,7 +90,7 @@ export function FormBuilderTab({
                 <View style={styles.cardHeader}>
                   <View style={styles.headerLeftRow}>
                     <View style={styles.iconBox}>
-                      <Lucide name="file-text" size={20} color="#4F46E5" />
+                      <Lucide name="file-text" size={20} color={COLORS.brand.indigo} />
                     </View>
                     <View style={styles.titleWrapper}>
                       <View style={styles.titleTitleRow}>
@@ -135,7 +135,7 @@ export function FormBuilderTab({
                       style={styles.builderBtn}
                       onPress={() => (onOpenVisualBuilder ? onOpenVisualBuilder(item) : onEditForm(item))}
                     >
-                      <Lucide name="layout" size={15} color="#4F46E5" />
+                      <Lucide name="layout" size={15} color={COLORS.brand.indigo} />
                     </Pressable>
 
                     <Pressable style={styles.actionBtn} onPress={() => onEditForm(item)}>
@@ -146,7 +146,7 @@ export function FormBuilderTab({
                       style={[styles.actionBtn, styles.deleteBtn]}
                       onPress={() => onDeleteForm(item.id, item.title)}
                     >
-                      <Lucide name="trash-2" size={15} color="#EF4444" />
+                      <Lucide name="trash-2" size={15} color={COLORS.semantic.error} />
                     </Pressable>
 
                     <View style={styles.verticalDivider} />
@@ -169,7 +169,7 @@ export function FormBuilderTab({
                   <View style={styles.expandedContent}>
                     <View style={styles.expandedHeaderRow}>
                       <View style={styles.expandedHeaderLeft}>
-                        <Lucide name="layout" size={16} color="#6366F1" />
+                        <Lucide name="layout" size={16} color={COLORS.brand.indigoHover} />
                         <Text style={styles.expandedHeaderText}>
                           FORM TEMPLATE SUMMARY
                         </Text>
@@ -305,7 +305,7 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 10,
-    backgroundColor: '#EEF2FF',
+    backgroundColor: COLORS.brand.indigoLight,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -345,7 +345,7 @@ const styles = StyleSheet.create({
   elementsText: {
     fontSize: TYPOGRAPHY.sizes.caption,
     fontFamily: TYPOGRAPHY.fonts.primary,
-    color: '#6366F1',
+    color: COLORS.brand.indigoHover,
     fontWeight: '700',
   },
   updatedText: {
@@ -363,16 +363,16 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.circle,
   },
   badgeDraft: {
-    backgroundColor: '#EEF2FF',
+    backgroundColor: COLORS.brand.indigoLight,
   },
   badgeTextDraft: {
-    color: '#4F46E5',
+    color: COLORS.brand.indigo,
   },
   badgePublished: {
-    backgroundColor: '#DCFCE7',
+    backgroundColor: COLORS.semantic.successBg,
   },
   badgeTextPublished: {
-    color: '#16A34A',
+    color: COLORS.semantic.success,
   },
   badgeText: {
     fontSize: 11,
@@ -388,11 +388,11 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: RADIUS.input,
-    backgroundColor: '#EEF2FF',
+    backgroundColor: COLORS.brand.indigoLight,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E0E7FF',
+    borderColor: COLORS.brand.indigoBorder,
   },
   actionBtn: {
     width: 32,
@@ -405,8 +405,8 @@ const styles = StyleSheet.create({
     borderColor: COLORS.neutral[200],
   },
   deleteBtn: {
-    backgroundColor: '#FEF2F2',
-    borderColor: '#FCA5A5',
+    backgroundColor: COLORS.semantic.errorBg,
+    borderColor: COLORS.semantic.errorBorder,
   },
   verticalDivider: {
     width: 1,
@@ -444,7 +444,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontWeight: '700',
-    color: '#94A3B8',
+    color: COLORS.neutral[400],
     letterSpacing: 0.5,
   },
   badgeViewRight: {
@@ -459,22 +459,22 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   summaryBox: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: COLORS.neutral[50],
     padding: SPACING[16],
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: COLORS.neutral[200],
     gap: 4,
   },
   summaryLineText: {
     fontSize: 14,
     fontFamily: TYPOGRAPHY.fonts.primary,
-    color: '#1E293B',
+    color: COLORS.neutral[800],
     lineHeight: 22,
   },
   boldLabel: {
     fontWeight: '700',
-    color: '#0F172A',
+    color: COLORS.neutral[900],
   },
   summarySpacer: {
     height: 8,
@@ -482,7 +482,7 @@ const styles = StyleSheet.create({
   descriptionText: {
     fontSize: 14,
     fontFamily: TYPOGRAPHY.fonts.primary,
-    color: '#475569',
+    color: COLORS.neutral[600],
     fontWeight: '500',
   },
 

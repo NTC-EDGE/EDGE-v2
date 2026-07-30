@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
   Modal,
 } from 'react-native';
-import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide } from '@edge/ui';
+import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide, SkeletonLoader } from '@edge/ui';
 import {
   useAdminServices,
   useAdminNotes,
@@ -467,7 +467,7 @@ export function ServiceTreeConfigTab() {
                       style={styles.deleteIconBtn}
                       onPress={() => handleDeleteFeeItem(fee.id)}
                     >
-                      <Lucide name="trash-2" size={14} color="#EF4444" />
+                      <Lucide name="trash-2" size={14} color={COLORS.semantic.error} />
                     </Pressable>
                   </View>
                 </View>
@@ -619,7 +619,7 @@ export function ServiceTreeConfigTab() {
                       <Switch
                         value={variant.isEnabled}
                         onValueChange={() => handleToggleVariantEnabled(activeService.id, variant.id)}
-                        trackColor={{ false: COLORS.neutral[200], true: '#93C5FD' }}
+                        trackColor={{ false: COLORS.neutral[200], true: COLORS.brand[500] }}
                         thumbColor={variant.isEnabled ? COLORS.brand[600] : COLORS.neutral[400]}
                       />
                       {activeService.variants.length > 1 && (
@@ -627,7 +627,7 @@ export function ServiceTreeConfigTab() {
                           style={styles.deleteIconBtn}
                           onPress={() => handleDeleteVariant(activeService.id, variant.id)}
                         >
-                          <Lucide name="trash-2" size={13} color="#EF4444" />
+                          <Lucide name="trash-2" size={13} color={COLORS.semantic.error} />
                         </Pressable>
                       )}
                     </View>
@@ -756,7 +756,7 @@ export function ServiceTreeConfigTab() {
                         style={styles.deleteIconBtn}
                         onPress={() => handleDeleteRequirement(req.id)}
                       >
-                        <Lucide name="trash-2" size={14} color="#EF4444" />
+                        <Lucide name="trash-2" size={14} color={COLORS.semantic.error} />
                       </Pressable>
                     </View>
                   </View>
@@ -795,7 +795,7 @@ export function ServiceTreeConfigTab() {
                     </View>
                     <Text style={styles.noteContentText}>{noteText}</Text>
                     <Pressable style={styles.deleteIconBtn} onPress={() => handleDeleteNote(idx)}>
-                      <Lucide name="trash-2" size={14} color="#EF4444" />
+                      <Lucide name="trash-2" size={14} color={COLORS.semantic.error} />
                     </Pressable>
                   </View>
                 ))}
@@ -1001,7 +1001,7 @@ export function ServiceTreeConfigTab() {
                   <Switch
                     value={newReqMandatory}
                     onValueChange={setNewReqMandatory}
-                    trackColor={{ false: COLORS.neutral[200], true: '#93C5FD' }}
+                    trackColor={{ false: COLORS.neutral[200], true: COLORS.brand[500] }}
                     thumbColor={newReqMandatory ? COLORS.brand[600] : COLORS.neutral[400]}
                   />
                 </View>
@@ -1077,9 +1077,9 @@ export function ServiceTreeConfigTab() {
       </View>
 
       {isServicesLoading && services.length === 0 ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.brand[600]} />
-          <Text style={styles.loadingText}>Loading System Services Catalog...</Text>
+        <View style={styles.servicesGrid}>
+          <SkeletonLoader height={140} borderRadius={RADIUS.card} />
+          <SkeletonLoader height={140} borderRadius={RADIUS.card} />
         </View>
       ) : (
         <View style={styles.servicesGrid}>
@@ -1126,7 +1126,7 @@ export function ServiceTreeConfigTab() {
                   <Switch
                     value={service.isActive}
                     onValueChange={() => handleToggleServiceActive(service.id)}
-                    trackColor={{ false: COLORS.neutral[200], true: '#93C5FD' }}
+                    trackColor={{ false: COLORS.neutral[200], true: COLORS.brand[500] }}
                     thumbColor={service.isActive ? COLORS.brand[600] : COLORS.neutral[400]}
                   />
                 </View>
@@ -1225,7 +1225,7 @@ const styles = StyleSheet.create({
     ...SHADOWS.card,
   },
   serviceCardActive: {
-    borderColor: '#93C5FD',
+    borderColor: COLORS.brand[500],
   },
   serviceCardInactive: {
     borderColor: COLORS.neutral[200],
@@ -1240,7 +1240,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: RADIUS.button,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: COLORS.brand.light,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1258,7 +1258,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   badgeActive: {
-    backgroundColor: '#DCFCE7',
+    backgroundColor: COLORS.semantic.successBg,
   },
   badgeInactive: {
     backgroundColor: COLORS.neutral[100],
@@ -1269,7 +1269,7 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   badgeDotActive: {
-    backgroundColor: '#16A34A',
+    backgroundColor: COLORS.semantic.success,
   },
   badgeDotInactive: {
     backgroundColor: COLORS.neutral[400],
@@ -1279,7 +1279,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   badgeTextActive: {
-    color: '#15803D',
+    color: COLORS.semantic.successText,
   },
   badgeTextInactive: {
     color: COLORS.neutral[600],
@@ -1326,15 +1326,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   configureBtnActive: {
-    backgroundColor: '#EFF6FF',
-    borderColor: '#BFDBFE',
+    backgroundColor: COLORS.brand.light,
+    borderColor: COLORS.brand[500],
   },
   configureBtnDisabled: {
     backgroundColor: COLORS.neutral[50],
     borderColor: COLORS.neutral[200],
   },
   configureBtnPressed: {
-    backgroundColor: '#DBEAFE',
+    backgroundColor: COLORS.brand.light,
   },
   configureBtnText: {
     fontSize: 12,
@@ -1372,7 +1372,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   serviceBanner: {
-    backgroundColor: '#0B1953',
+    backgroundColor: COLORS.brand[900],
     borderRadius: RADIUS.card,
     padding: SPACING[20],
   },
@@ -1395,7 +1395,7 @@ const styles = StyleSheet.create({
   bannerCategory: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#93C5FD',
+    color: COLORS.brand[500],
     letterSpacing: 1.2,
     textTransform: 'uppercase',
   },
@@ -1406,7 +1406,7 @@ const styles = StyleSheet.create({
   },
   bannerSubtext: {
     fontSize: 12,
-    color: '#CBD5E1',
+    color: COLORS.neutral[300],
   },
 
   // LEVEL 2: VARIANTS CARD
@@ -1453,8 +1453,8 @@ const styles = StyleSheet.create({
     gap: SPACING[12],
   },
   variantPillSelected: {
-    backgroundColor: '#EFF6FF',
-    borderColor: '#93C5FD',
+    backgroundColor: COLORS.brand.light,
+    borderColor: COLORS.brand[500],
   },
   variantPillUnselected: {
     backgroundColor: COLORS.neutral.white,
@@ -1509,8 +1509,8 @@ const styles = StyleSheet.create({
     borderColor: COLORS.neutral[200],
   },
   workspaceTabActive: {
-    backgroundColor: '#EFF6FF',
-    borderColor: '#93C5FD',
+    backgroundColor: COLORS.brand.light,
+    borderColor: COLORS.brand[500],
   },
   workspaceTabText: {
     fontSize: 13,
@@ -1555,12 +1555,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: COLORS.brand.light,
     paddingHorizontal: SPACING[12],
     paddingVertical: 6,
     borderRadius: RADIUS.circle,
     borderWidth: 1,
-    borderColor: '#BFDBFE',
+    borderColor: COLORS.brand[500],
   },
   addSmallBtnText: {
     fontSize: 12,
@@ -1667,7 +1667,7 @@ const styles = StyleSheet.create({
   noteCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: COLORS.neutral[50],
     borderRadius: RADIUS.button,
     padding: SPACING[12],
     gap: SPACING[12],
@@ -1703,7 +1703,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: COLORS.neutral[50],
     borderRadius: RADIUS.button,
     padding: SPACING[12],
     borderWidth: 1,
@@ -1731,20 +1731,20 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.circle,
   },
   reqBadgeMandatory: {
-    backgroundColor: '#FEE2E2',
+    backgroundColor: COLORS.semantic.errorBg,
   },
   reqBadgeOptional: {
-    backgroundColor: '#E0F2FE',
+    backgroundColor: COLORS.brand.light,
   },
   reqBadgeText: {
     fontSize: 11,
     fontWeight: '700',
   },
   reqBadgeTextMandatory: {
-    color: '#991B1B',
+    color: COLORS.semantic.errorText,
   },
   reqBadgeTextOptional: {
-    color: '#075985',
+    color: COLORS.brand[700],
   },
   elementsList: {
     gap: SPACING[12],
@@ -1753,7 +1753,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: COLORS.neutral[50],
     borderRadius: RADIUS.card,
     borderWidth: 1,
     borderColor: COLORS.neutral[200],
@@ -1769,7 +1769,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: RADIUS.button,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: COLORS.brand.light,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1791,7 +1791,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     color: COLORS.brand[700],
-    backgroundColor: '#EFF6FF',
+    backgroundColor: COLORS.brand.light,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
@@ -1815,14 +1815,14 @@ const styles = StyleSheet.create({
   elementTotalFeeText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#059669',
+    color: COLORS.semantic.success,
   },
   drillFeeBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#EFF6FF',
-    borderColor: '#BFDBFE',
+    backgroundColor: COLORS.brand.light,
+    borderColor: COLORS.brand[500],
     borderWidth: 1,
     paddingHorizontal: SPACING[12],
     paddingVertical: 8,
@@ -1836,7 +1836,7 @@ const styles = StyleSheet.create({
 
   // LEVEL 3: ELEMENT FEES BANNER & TABLE
   elementBanner: {
-    backgroundColor: '#0F172A',
+    backgroundColor: COLORS.neutral[900],
     borderRadius: RADIUS.card,
     padding: SPACING[20],
   },
@@ -1861,7 +1861,7 @@ const styles = StyleSheet.create({
   elementBannerTag: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#38BDF8',
+    color: COLORS.brand[500],
     letterSpacing: 1.2,
     textTransform: 'uppercase',
   },
@@ -1872,7 +1872,7 @@ const styles = StyleSheet.create({
   },
   elementBannerSub: {
     fontSize: 12,
-    color: '#94A3B8',
+    color: COLORS.neutral[400],
   },
   totalFeeCard: {
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
@@ -1883,12 +1883,12 @@ const styles = StyleSheet.create({
   },
   totalFeeLabel: {
     fontSize: 11,
-    color: '#94A3B8',
+    color: COLORS.neutral[400],
   },
   totalFeeAmount: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#34D399',
+    color: COLORS.semantic.success,
   },
   feeItemsTable: {
     gap: SPACING[8],
@@ -1897,7 +1897,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: COLORS.neutral[50],
     paddingHorizontal: 14,
     paddingVertical: SPACING[12],
     borderRadius: RADIUS.button,
@@ -1913,14 +1913,14 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#DCFCE7',
+    backgroundColor: COLORS.semantic.successBg,
     alignItems: 'center',
     justifyContent: 'center',
   },
   feeIndexText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#166534',
+    color: COLORS.semantic.successText,
   },
   feeNameText: {
     fontSize: 13,

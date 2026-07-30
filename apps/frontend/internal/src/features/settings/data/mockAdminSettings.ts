@@ -1,3 +1,5 @@
+import { Icon as Lucide } from '@edge/ui';
+
 export interface RegionalConfigCard {
   id: string;
   category: string;
@@ -8,7 +10,7 @@ export interface RegionalConfigCard {
     text: string;
     type: 'primary' | 'active' | 'commissioner';
   };
-  icon: string;
+  icon: keyof typeof Lucide.glyphMap;
   iconBg: string;
   iconColor: string;
 }

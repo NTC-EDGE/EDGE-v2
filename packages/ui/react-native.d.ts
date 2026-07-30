@@ -8,6 +8,7 @@ declare module 'react-native' {
     cursor?: 'auto' | 'pointer' | 'default' | 'not-allowed';
     transition?: string;
     backgroundImage?: string;
+    boxShadow?: string;
   }
   interface TextStyle {
     cursor?: 'auto' | 'pointer' | 'default' | 'not-allowed';
@@ -18,3 +19,11 @@ declare module 'react-native' {
     transition?: string;
   }
 }
+
+declare global {
+  const process: {
+    env: Record<string, string | undefined>;
+  };
+}
+
+

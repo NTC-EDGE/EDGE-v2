@@ -7,7 +7,7 @@ import {
   Easing,
   Pressable,
 } from "react-native";
-import { COLORS } from "@edge/ui";
+import { COLORS, useTheme } from "@edge/ui";
 import { useShellState } from "../hooks/useShellState";
 import { ROLE_NAVIGATION_LINKS } from "../context/RoleContext";
 import { Sidebar } from "./Sidebar";
@@ -25,6 +25,7 @@ export function AppLayout({
   activeScreen = "Dashboard",
   onNavigate,
 }: AppLayoutProps) {
+  const { colors, isDark } = useTheme();
   const {
     currentRole,
     user,
@@ -87,11 +88,14 @@ export function AppLayout({
     outputRange: [0, 0.4],
   });
 
+  const bgCanvas = isDark ? colors.neutral[900] : colors.bg;
+
   return (
-    <SafeAreaView style={styles.nativeSafeArea}>
-      <View style={styles.shell}>
+    <SafeAreaView style={[styles.nativeSafeArea, { backgroundColor: bgCanvas }]}>
+      <View style={[styles.shell, { backgroundColor: bgCanvas }]}>
         <Header
           currentRole={currentRole}
+          activeScreen={activeScreen}
           onRoleSelect={handleRoleSelect}
           showRoleDropdown={showRoleDropdown}
           toggleRoleDropdown={toggleRoleDropdown}
@@ -103,6 +107,7 @@ export function AppLayout({
           user={user}
           onLogout={logout}
           isMobile={true}
+          onMenuPress={toggleSidebar}
           onNavigate={handleLinkPress}
         />
 
@@ -150,12 +155,10 @@ export function AppLayout({
 const styles = StyleSheet.create({
   nativeSafeArea: {
     flex: 1,
-    backgroundColor: COLORS.bg,
   },
   shell: {
     flex: 1,
     flexDirection: "column",
-    backgroundColor: COLORS.bg,
   },
   bodyWrapper: {
     flex: 1,
@@ -168,7 +171,7 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: "#000000",
+    backgroundColor: COLORS.neutral.black,
     zIndex: 90,
   },
   backdropPressable: {
@@ -186,3 +189,4 @@ const styles = StyleSheet.create({
     zIndex: 95,
   },
 });
+

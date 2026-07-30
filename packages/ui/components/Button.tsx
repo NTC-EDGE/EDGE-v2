@@ -9,7 +9,8 @@ import {
   ViewStyle,
   TextStyle,
 } from "react-native";
-import { COLORS, TYPOGRAPHY, RADIUS } from "../theme/tokens";
+import { TYPOGRAPHY, RADIUS } from "../theme/tokens";
+import { useTheme } from "../theme/useTheme";
 
 export type ButtonVariant = "primary" | "secondary" | "outline" | "ghost" | "danger";
 export type ButtonSize = "sm" | "md" | "lg";
@@ -41,38 +42,39 @@ export function Button({
   style,
   textStyle,
 }: ButtonProps) {
+  const { colors, isDark } = useTheme();
   const disabled = isDisabled || isLoading;
 
-  const getVariantStyle = (): ViewStyle => {
+  const getDynamicVariantStyle = (): ViewStyle => {
     switch (variant) {
       case "primary":
-        return styles.primaryBtn;
+        return { backgroundColor: colors.brand[800] };
       case "secondary":
-        return styles.secondaryBtn;
+        return { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100] };
       case "outline":
-        return styles.outlineBtn;
+        return { backgroundColor: colors.cardBg, borderWidth: 1, borderColor: colors.border };
       case "ghost":
-        return styles.ghostBtn;
+        return { backgroundColor: "transparent" };
       case "danger":
-        return styles.dangerBtn;
+        return { backgroundColor: colors.semantic.error };
       default:
-        return styles.primaryBtn;
+        return { backgroundColor: colors.brand[800] };
     }
   };
 
-  const getTextStyle = (): TextStyle => {
+  const getDynamicTextStyle = (): TextStyle => {
     switch (variant) {
       case "primary":
       case "danger":
-        return styles.primaryText;
+        return { color: colors.neutral.white };
       case "secondary":
-        return styles.secondaryText;
+        return { color: colors.text };
       case "outline":
-        return styles.outlineText;
+        return { color: colors.text };
       case "ghost":
-        return styles.ghostText;
+        return { color: colors.brand[700] };
       default:
-        return styles.primaryText;
+        return { color: colors.neutral.white };
     }
   };
 
@@ -89,11 +91,13 @@ export function Button({
     }
   };
 
+  const spinnerColor = variant === "outline" || variant === "ghost" ? colors.brand[800] : colors.neutral.white;
+
   return (
     <TouchableOpacity
       style={[
         styles.baseButton,
-        getVariantStyle(),
+        getDynamicVariantStyle(),
         getSizeStyle(),
         fullWidth && styles.fullWidth,
         disabled && styles.disabledBtn,
@@ -104,16 +108,13 @@ export function Button({
       activeOpacity={0.8}
     >
       {isLoading ? (
-        <ActivityIndicator
-          size="small"
-          color={variant === "outline" || variant === "ghost" ? COLORS.brand[800] : "#FFFFFF"}
-        />
+        <ActivityIndicator size="small" color={spinnerColor} />
       ) : (
         <View style={styles.innerContent}>
           {leftIcon !== undefined && leftIcon !== null ? (
             <View style={styles.iconLeft}>{leftIcon}</View>
           ) : null}
-          <Text style={[styles.baseText, getTextStyle(), textStyle]}>
+          <Text style={[styles.baseText, getDynamicTextStyle(), textStyle]}>
             {children}
           </Text>
           {rightIcon !== undefined && rightIcon !== null ? (
@@ -148,35 +149,6 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 15,
     fontWeight: TYPOGRAPHY.weights.bold,
-  },
-  primaryBtn: {
-    backgroundColor: "#1E3A8A",
-  },
-  primaryText: {
-    color: "#FFFFFF",
-  },
-  secondaryBtn: {
-    backgroundColor: "#F1F5F9",
-  },
-  secondaryText: {
-    color: "#1E293B",
-  },
-  outlineBtn: {
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-  },
-  outlineText: {
-    color: "#334155",
-  },
-  ghostBtn: {
-    backgroundColor: "transparent",
-  },
-  ghostText: {
-    color: "#2563EB",
-  },
-  dangerBtn: {
-    backgroundColor: "#DC2626",
   },
   iconLeft: {
     marginRight: 2,

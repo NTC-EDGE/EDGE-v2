@@ -1,11 +1,6 @@
 import React from "react";
 import { StyleSheet, View, Text, TouchableOpacity } from "react-native";
-import {
-  Button,
-  FormFieldInput,
-  Icon as LucideIcon,
-  TYPOGRAPHY,
-} from "@edge/ui";
+import { COLORS, Button, FormFieldInput, Icon as LucideIcon, TYPOGRAPHY, useTheme } from "@edge/ui";
 import { useLoginForm } from "../hooks/useLoginForm";
 
 const DEMO_PRESETS = [
@@ -22,7 +17,8 @@ export interface LoginFormProps {
 export function LoginForm({
   loginState,
   onForgotPasswordClick,
-}: LoginFormProps) {
+}: LoginFormProps): React.ReactElement {
+  const { colors, isDark } = useTheme();
   const {
     form,
     onSubmit,
@@ -35,17 +31,37 @@ export function LoginForm({
   return (
     <View style={styles.formContainer}>
       {/* Demo Presets */}
-      <View style={styles.demoPresetsContainer}>
-        <Text style={styles.demoPresetsTitle}>QUICK FILL DEMO ACCOUNT</Text>
+      <View
+        style={[
+          styles.demoPresetsContainer,
+          { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100] },
+        ]}
+      >
+        <Text style={[styles.demoPresetsTitle, { color: colors.textMuted }]}>
+          QUICK FILL DEMO ACCOUNT
+        </Text>
         <View style={styles.presetsPillRow}>
           {DEMO_PRESETS.map((preset) => (
             <TouchableOpacity
               key={preset.email}
-              style={styles.presetPill}
+              style={[
+                styles.presetPill,
+                {
+                  backgroundColor: colors.cardBg,
+                  borderColor: colors.border,
+                },
+              ]}
               onPress={() => handleApplyPreset(preset.email)}
               activeOpacity={0.7}
             >
-              <Text style={styles.presetPillText}>{preset.label}</Text>
+              <Text
+                style={[
+                  styles.presetPillText,
+                  { color: isDark ? colors.brand.primary : colors.brand.secondary },
+                ]}
+              >
+                {preset.label}
+              </Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -75,7 +91,14 @@ export function LoginForm({
         onPress={onForgotPasswordClick}
         activeOpacity={0.7}
       >
-        <Text style={styles.forgotPassText}>Forgot Password?</Text>
+        <Text
+          style={[
+            styles.forgotPassText,
+            { color: isDark ? colors.brand.primary : colors.brand.secondary },
+          ]}
+        >
+          Forgot Password?
+        </Text>
       </TouchableOpacity>
 
       {/* Atomic Credentials Submit Button */}
@@ -85,16 +108,16 @@ export function LoginForm({
         isDisabled={isSubmitting || isGoogleSubmitting}
         variant="primary"
         size="md"
-        leftIcon={<LucideIcon name="log-in" size={18} color="#FFFFFF" />}
+        leftIcon={<LucideIcon name="log-in" size={18} color={COLORS.neutral.white} />}
       >
         Sign In to Account
       </Button>
 
       {/* Divider */}
       <View style={styles.orDividerRow}>
-        <View style={styles.dividerLine} />
-        <Text style={styles.orDividerText}>OR</Text>
-        <View style={styles.dividerLine} />
+        <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+        <Text style={[styles.orDividerText, { color: colors.textMuted }]}>OR</Text>
+        <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
       </View>
 
       {/* Atomic Google SSO Button */}
@@ -104,7 +127,7 @@ export function LoginForm({
         isDisabled={isSubmitting || isGoogleSubmitting}
         variant="outline"
         size="md"
-        leftIcon={<LucideIcon name="chrome" size={18} color="#EA4335" />}
+        leftIcon={<LucideIcon name="chrome" size={18} color={COLORS.semantic.error} />}
       >
         Continue with Google
       </Button>
@@ -117,7 +140,6 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   demoPresetsContainer: {
-    backgroundColor: "#F1F5F9",
     borderRadius: 10,
     padding: 12,
     marginBottom: 20,
@@ -126,7 +148,6 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 10,
     fontWeight: TYPOGRAPHY.weights.bold,
-    color: "#475569",
     letterSpacing: 0.5,
     marginBottom: 8,
   },
@@ -136,18 +157,15 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   presetPill: {
-    backgroundColor: "#FFFFFF",
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: "#CBD5E1",
   },
   presetPillText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 11,
     fontWeight: TYPOGRAPHY.weights.semibold,
-    color: "#1E3A8A",
   },
   forgotPassButton: {
     alignSelf: "flex-end",
@@ -157,7 +175,6 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 13,
     fontWeight: TYPOGRAPHY.weights.semibold,
-    color: "#2563EB",
   },
   orDividerRow: {
     flexDirection: "row",
@@ -168,12 +185,10 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: "#E2E8F0",
   },
   orDividerText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 12,
     fontWeight: TYPOGRAPHY.weights.semibold,
-    color: "#94A3B8",
   },
 });

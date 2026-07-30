@@ -1,10 +1,11 @@
 import React, { useState } from "react";
-import { View, StyleSheet, ActivityIndicator } from "react-native";
+import { View, StyleSheet } from "react-native";
 import {
   createStaticNavigation,
   useNavigationContainerRef,
   type ParamListBase,
   COLORS,
+  SkeletonLoader,
 } from "@edge/ui";
 import { UnauthStack } from "./stacks/UnauthStack";
 import { AuthStack } from "./stacks/AuthStack";
@@ -39,7 +40,7 @@ export function RootNavigator() {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.brand[800]} />
+        <SkeletonLoader height={60} width={280} borderRadius={12} />
       </View>
     );
   }

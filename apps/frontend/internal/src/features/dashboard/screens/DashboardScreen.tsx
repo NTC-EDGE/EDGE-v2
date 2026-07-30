@@ -4,7 +4,7 @@ import { DashboardScreen as WebScreen } from "./DashboardScreen.web";
 import { DashboardScreen as NativeScreen } from "./DashboardScreen.native";
 import { DashboardScreen as DesktopScreen } from "./DashboardScreen.desktop";
 
-export function DashboardScreen() {
+export function DashboardScreen(): React.ReactElement {
   if (Platform.OS === "web") {
     return <WebScreen />;
   }
