@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -8,40 +7,13 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { Icon as Lucide, SPACING, TYPOGRAPHY, useTheme } from '@edge/ui';
+import { Icon as Lucide, SPACING, useTheme, SkeletonLoader } from '@edge/ui';
+import { useAdminAuditLogs, AuditLogDto } from '@edge/api';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type LogStatus = 'Success' | 'Warning' | 'Error';
 type EventType = 'Auth' | 'Data' | 'System' | 'Security' | 'User';
-
-interface LogEntry {
-  id: string;
-  timestamp: string;
-  event: string;
-  actor: string;
-  resource: string;
-  ip: string;
-  status: LogStatus;
-  type: EventType;
-}
-
-// ─── Mock Data ───────────────────────────────────────────────────────────────
-
-const MOCK_LOGS: readonly LogEntry[] = [
-  { id: 'LOG-001', timestamp: '2026-07-30 10:24:17', event: 'User Login',            actor: 'admin@ntc.gov.ph',   resource: '/auth/login',               ip: '192.168.1.105', status: 'Success', type: 'Auth' },
-  { id: 'LOG-002', timestamp: '2026-07-30 10:22:04', event: 'Role Policy Updated',   actor: 'admin@ntc.gov.ph',   resource: '/roles/Admin',              ip: '192.168.1.105', status: 'Success', type: 'Security' },
-  { id: 'LOG-003', timestamp: '2026-07-30 10:18:33', event: 'Employee Record Edit',  actor: 'hr@ntc.gov.ph',      resource: '/employees/EMP-0042',       ip: '10.0.0.88',     status: 'Success', type: 'Data' },
-  { id: 'LOG-004', timestamp: '2026-07-30 09:55:11', event: 'Failed Login Attempt',  actor: 'unknown',             resource: '/auth/login',               ip: '203.0.113.42',  status: 'Error',   type: 'Auth' },
-  { id: 'LOG-005', timestamp: '2026-07-30 09:44:02', event: 'Announcement Created',  actor: 'admin@ntc.gov.ph',   resource: '/announcements/ANN-019',    ip: '192.168.1.105', status: 'Success', type: 'System' },
-  { id: 'LOG-006', timestamp: '2026-07-30 09:30:58', event: 'License Approved',      actor: 'evaluator@ntc.ph',   resource: '/applications/APP-2026-0521', ip: '172.16.0.22', status: 'Success', type: 'Data' },
-  { id: 'LOG-007', timestamp: '2026-07-30 09:15:44', event: 'Report Exported',       actor: 'director@ntc.gov.ph',resource: '/reports/export/q2-2026',   ip: '10.0.0.55',     status: 'Success', type: 'System' },
-  { id: 'LOG-008', timestamp: '2026-07-30 08:52:17', event: 'Unauthorized Access',   actor: 'cashier@ntc.ph',     resource: '/admin/system-config',      ip: '10.0.0.71',     status: 'Error',   type: 'Security' },
-  { id: 'LOG-009', timestamp: '2026-07-30 08:41:36', event: 'Password Changed',      actor: 'user@ntc.gov.ph',    resource: '/account/password',         ip: '192.168.1.88',  status: 'Success', type: 'User' },
-  { id: 'LOG-010', timestamp: '2026-07-30 08:33:05', event: 'Session Timeout',       actor: 'legal@ntc.gov.ph',   resource: '/auth/session',             ip: '10.0.0.33',     status: 'Warning', type: 'Auth' },
-  { id: 'LOG-011', timestamp: '2026-07-30 08:20:49', event: 'User Account Created',  actor: 'admin@ntc.gov.ph',   resource: '/users/USR-0188',           ip: '192.168.1.105', status: 'Success', type: 'User' },
-  { id: 'LOG-012', timestamp: '2026-07-30 07:58:23', event: 'Bulk Data Export',      actor: 'admin@ntc.gov.ph',   resource: '/data/export/employees',    ip: '192.168.1.105', status: 'Warning', type: 'Data' },
-];
 
 const STATUS_STYLE: Record<LogStatus, { text: string; bg: string; dot: string }> = {
   Success: { text: '#065F46', bg: '#D1FAE5', dot: '#10B981' },
@@ -64,6 +36,8 @@ export function AuditLogsScreen() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<LogStatus | 'All'>('All');
 
+  const { logs, totalCount, isLoading, isError } = useAdminAuditLogs(1, 100, search);
+
   const canvasBg = isDark ? colors.neutral[900] : colors.neutral[50];
   const cardBg = isDark ? colors.neutral[800] : '#FFFFFF';
   const borderColor = isDark ? colors.neutral[700] : colors.neutral[200];
@@ -71,15 +45,43 @@ export function AuditLogsScreen() {
   const mutedColor = isDark ? colors.neutral[400] : colors.neutral[500];
   const inputBg = isDark ? colors.neutral[900] : colors.neutral[50];
 
-  const filtered = MOCK_LOGS.filter((log) => {
-    const matchSearch =
-      search === '' ||
-      log.event.toLowerCase().includes(search.toLowerCase()) ||
-      log.actor.toLowerCase().includes(search.toLowerCase()) ||
-      log.resource.toLowerCase().includes(search.toLowerCase());
-    const matchStatus = statusFilter === 'All' || log.status === statusFilter;
-    return matchSearch && matchStatus;
+  const filtered = logs.filter((log) => {
+    return statusFilter === 'All' || log.status === statusFilter;
   });
+
+  const formatTimestamp = (tsString: string) => {
+    try {
+      const d = new Date(tsString);
+      if (isNaN(d.getTime())) return tsString;
+      return d.toISOString().replace('T', ' ').substring(0, 19);
+    } catch {
+      return tsString;
+    }
+  };
+
+  const handleExportCsv = () => {
+    if (!filtered || filtered.length === 0) return;
+    const headers = ['Timestamp', 'Event', 'Type', 'Actor', 'IP Address', 'Status', 'Resource', 'Changes'];
+    const rows = filtered.map((log) => [
+      `"${formatTimestamp(log.timestamp)}"`,
+      `"${log.event || log.action}"`,
+      `"${log.type || 'System'}"`,
+      `"${log.actor}"`,
+      `"${log.ipAddress}"`,
+      `"${log.status || 'Success'}"`,
+      `"${log.resource}"`,
+      `"${(log.changes || '').replace(/"/g, '""')}"`,
+    ]);
+    const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `audit_logs_${new Date().toISOString().substring(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   return (
     <ScrollView
@@ -92,11 +94,12 @@ export function AuditLogsScreen() {
         <View>
           <Text style={[styles.pageTitle, { color: textColor }]}>Audit Logs</Text>
           <Text style={[styles.pageSub, { color: mutedColor }]}>
-            Immutable audit trail — {MOCK_LOGS.length} events recorded today
+            Immutable audit trail — {totalCount} events recorded today
           </Text>
         </View>
         <Pressable
           style={[styles.exportBtn, { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[100], borderColor }]}
+          onPress={handleExportCsv}
         >
           <Lucide name="download" size={13} color={mutedColor} />
           <Text style={[styles.exportBtnText, { color: mutedColor }]}>Export CSV</Text>
@@ -158,10 +161,19 @@ export function AuditLogsScreen() {
           <Text style={[styles.th, styles.colStatus, { color: mutedColor }]}>STATUS</Text>
         </View>
 
+        {/* ── Loading Skeleton ───────────────────────────────────────── */}
+        {isLoading && (
+          <View style={{ padding: SPACING[16], gap: SPACING[8] }}>
+            <SkeletonLoader height={32} borderRadius={4} />
+            <SkeletonLoader height={32} borderRadius={4} />
+            <SkeletonLoader height={32} borderRadius={4} />
+          </View>
+        )}
+
         {/* ── Table Rows ─────────────────────────────────────────────── */}
-        {filtered.map((log, idx) => {
-          const st = STATUS_STYLE[log.status];
-          const tp = TYPE_STYLE[log.type];
+        {!isLoading && filtered.map((log, idx) => {
+          const st = STATUS_STYLE[log.status || 'Success'];
+          const tp = TYPE_STYLE[log.type || 'System'];
           return (
             <View
               key={log.id}
@@ -172,26 +184,26 @@ export function AuditLogsScreen() {
               ]}
             >
               <Text style={[styles.td, styles.colTs, styles.monoFont, { color: mutedColor }]}>
-                {log.timestamp}
+                {formatTimestamp(log.timestamp)}
               </Text>
               <Text style={[styles.td, styles.colEvent, { color: textColor }]} numberOfLines={1}>
-                {log.event}
+                {log.event || log.action}
               </Text>
               <View style={[styles.colType, styles.tdCenter]}>
                 <View style={[styles.badge, { backgroundColor: tp.bg }]}>
-                  <Text style={[styles.badgeText, { color: tp.text }]}>{log.type}</Text>
+                  <Text style={[styles.badgeText, { color: tp.text }]}>{log.type || 'System'}</Text>
                 </View>
               </View>
               <Text style={[styles.td, styles.colActor, { color: mutedColor }]} numberOfLines={1}>
                 {log.actor}
               </Text>
               <Text style={[styles.td, styles.colIp, styles.monoFont, { color: mutedColor }]}>
-                {log.ip}
+                {log.ipAddress}
               </Text>
               <View style={[styles.colStatus, styles.tdCenter]}>
                 <View style={[styles.badge, { backgroundColor: st.bg }]}>
                   <View style={[styles.statusDot, { backgroundColor: st.dot }]} />
-                  <Text style={[styles.badgeText, { color: st.text }]}>{log.status}</Text>
+                  <Text style={[styles.badgeText, { color: st.text }]}>{log.status || 'Success'}</Text>
                 </View>
               </View>
             </View>
@@ -199,10 +211,10 @@ export function AuditLogsScreen() {
         })}
 
         {/* Empty state */}
-        {filtered.length === 0 && (
+        {!isLoading && filtered.length === 0 && (
           <View style={styles.emptyState}>
             <Lucide name="inbox" size={28} color={mutedColor} />
-            <Text style={[styles.emptyText, { color: mutedColor }]}>No matching log entries</Text>
+            <Text style={[styles.emptyText, { color: mutedColor }]}>No matching log entries found</Text>
           </View>
         )}
       </View>
@@ -218,152 +230,137 @@ const styles = StyleSheet.create({
     padding: SPACING[24],
     gap: SPACING[16],
     maxWidth: 1280,
-    width: '100%',
     alignSelf: 'center',
+    width: '100%',
   },
-
   titleRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: SPACING[12],
   },
   pageTitle: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.pageTitle,
-    fontWeight: TYPOGRAPHY.weights.bold,
+    fontSize: 22,
+    fontWeight: '700',
+    letterSpacing: -0.3,
   },
   pageSub: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.caption,
+    fontSize: 13,
     marginTop: 2,
   },
   exportBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
+    gap: 6,
+    paddingHorizontal: SPACING[12],
+    paddingVertical: 7,
+    borderRadius: 8,
     borderWidth: 1,
-    ...Platform.select({ web: { cursor: 'pointer' } }),
   },
   exportBtnText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 12,
-    fontWeight: TYPOGRAPHY.weights.medium,
+    fontWeight: '600',
   },
-
   tableCard: {
-    borderRadius: 8,
+    borderRadius: 12,
     borderWidth: 1,
     overflow: 'hidden',
   },
   toolbar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING[12],
+    justifyContent: 'space-between',
     padding: SPACING[12],
     borderBottomWidth: 1,
-    flexWrap: 'wrap',
+    gap: SPACING[12],
   },
   searchBox: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    height: 32,
-    paddingHorizontal: 10,
-    borderRadius: 6,
+    paddingHorizontal: SPACING[12],
+    paddingVertical: 6,
+    borderRadius: 8,
     borderWidth: 1,
-    minWidth: 180,
+    flex: 1,
+    maxWidth: 400,
   },
   searchInput: {
     flex: 1,
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.body,
-    outlineStyle: 'none',
-  } as object,
-  filters: { flexDirection: 'row', gap: 4 },
+    fontSize: 13,
+    padding: 0,
+  },
+  filters: {
+    flexDirection: 'row',
+    gap: SPACING[6],
+  },
   filterPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 4,
+    paddingHorizontal: SPACING[12],
+    paddingVertical: 5,
+    borderRadius: 6,
     borderWidth: 1,
-    ...Platform.select({ web: { cursor: 'pointer' } }),
   },
   filterPillText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-    fontWeight: TYPOGRAPHY.weights.semibold,
+    fontSize: 12,
+    fontWeight: '600',
   },
-
   tableHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: SPACING[12],
-    paddingVertical: 6,
+    paddingHorizontal: SPACING[16],
+    paddingVertical: 10,
     borderBottomWidth: 1,
   },
   th: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.label,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-    letterSpacing: 0.4,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   tableRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: SPACING[12],
-    height: 36,
+    paddingHorizontal: SPACING[16],
+    paddingVertical: 12,
     borderBottomWidth: 1,
-    ...Platform.select({ web: { transition: 'background-color 100ms ease' } }),
   },
   td: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.body,
+    fontSize: 13,
   },
+  monoFont: {
+    fontFamily: 'monospace',
+  },
+  colTs: { width: 160 },
+  colEvent: { flex: 1 },
+  colType: { width: 90 },
+  colActor: { width: 180 },
+  colIp: { width: 140 },
+  colStatus: { width: 100 },
   tdCenter: {
     alignItems: 'flex-start',
     justifyContent: 'center',
   },
-  monoFont: {
-    fontFamily: TYPOGRAPHY.fonts.mono,
-    fontSize: 11,
-  },
-
-  // Columns
-  colTs:     { width: 148, paddingRight: 8 },
-  colEvent:  { flex: 1.5, paddingRight: 8 },
-  colType:   { width: 80, paddingRight: 8 },
-  colActor:  { flex: 1, paddingRight: 8 },
-  colIp:     { width: 120, paddingRight: 8 },
-  colStatus: { width: 80 },
-
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    alignSelf: 'flex-start',
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
   },
-  statusDot: { width: 5, height: 5, borderRadius: 3 },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
   badgeText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 10,
-    fontWeight: TYPOGRAPHY.weights.semibold,
+    fontSize: 11,
+    fontWeight: '600',
   },
-
   emptyState: {
+    padding: SPACING[40],
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: SPACING[40],
-    gap: SPACING[12],
+    gap: SPACING[8],
   },
   emptyText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.body,
+    fontSize: 13,
   },
 });
