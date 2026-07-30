@@ -1,3 +1,4 @@
+using System.Linq;
 using MediatR;
 using EDGE.Domain.Entities;
 using EDGE.Application.Common.Interfaces;
@@ -15,11 +16,21 @@ public class GetRolesQueryHandler : IRequestHandler<GetRolesQuery, List<Role>>
 
     public async Task<List<Role>> Handle(GetRolesQuery request, CancellationToken cancellationToken)
     {
+        List<Role> roles;
         if (request.TenantId.HasValue)
         {
-            return await _roleRepository.GetAllByTenantAsync(request.TenantId.Value, cancellationToken);
+            roles = await _roleRepository.GetAllByTenantAsync(request.TenantId.Value, cancellationToken);
+        }
+        else
+        {
+            roles = await _roleRepository.GetAllAsync(cancellationToken);
         }
 
-        return await _roleRepository.GetAllAsync(cancellationToken);
+        if (!request.IncludeSystemRoles)
+        {
+            roles = roles.Where(r => !r.IsSystemRole && !r.Name.ToLower().Contains("super admin")).ToList();
+        }
+
+        return roles;
     }
 }

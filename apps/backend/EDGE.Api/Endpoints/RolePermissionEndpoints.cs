@@ -1,7 +1,12 @@
 using MediatR;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Routing;
 using FluentValidation;
 using EDGE.Domain.Authorization;
 using EDGE.Infrastructure.Authorization;
+using EDGE.Infrastructure.Persistence;
 using EDGE.Application.RolePermissions.Commands;
 using EDGE.Application.RolePermissions.Queries.GetRolePermissions;
 
@@ -30,6 +35,12 @@ public static class RolePermissionEndpoints
             .WithTags("RolePermissions")
             .WithSummary("Revoke permission from role")
             .WithDescription("Removes a permission mapping from a role.");
+
+        group.MapPost("/reset", ResetRolePermissions)
+            .WithName("ResetRolePermissions")
+            .WithTags("RolePermissions")
+            .WithSummary("Reset seeded role permissions")
+            .WithDescription("Resets default seeded roles to their initial permission configurations.");
     }
 
     [HasPermission(Permissions.ReadRoles)]
@@ -69,5 +80,12 @@ public static class RolePermissionEndpoints
 
         var success = await mediator.Send(command);
         return success ? Results.Ok(new { Message = "Permission revoked successfully." }) : Results.NotFound("Mapping not found.");
+    }
+
+    [HasPermission(Permissions.AssignRolePermissions)]
+    public static async Task<IResult> ResetRolePermissions([FromServices] ApplicationDbContext context)
+    {
+        await RolePermissionDataSeeder.SeedAsync(context, forceResetPermissions: true);
+        return Results.Ok(new { succeeded = true, message = "Seeded role permissions have been successfully reset." });
     }
 }

@@ -1,529 +1,855 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import {
-  StyleSheet,
-  View,
-  Text,
+  Animated,
   Pressable,
   ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
   useWindowDimensions,
-  Platform,
+  View,
 } from 'react-native';
-import {
-  COLORS,
-  useTheme,
-  PageHeader,
-  AnimatedCard,
-  SearchBar,
-  SkeletonLoader,
-  EmptyState,
-  Button,
-  Icon as Lucide,
-  SPACING,
-  RADIUS,
-  SHADOWS,
-} from '@edge/ui';
-import { useAdminRoles, useRolePermissions, usePermissionsCatalog, apiClient } from '@edge/api';
-import { Role } from '../data/mockRolesPermissions';
-import { RoleCard } from '../components/RoleCard';
+import { Icon as Lucide, RADIUS, SPACING, TYPOGRAPHY, useTheme } from '@edge/ui';
+import { useRoleManagement } from '../hooks/useRoleManagement';
+import { RoleListItem } from '../components/RoleListItem';
 import { PermissionCategoryCard } from '../components/PermissionCategoryCard';
 import { AddRoleModal } from '../components/AddRoleModal';
 import { DeleteRoleConfirmModal } from '../components/DeleteRoleConfirmModal';
+import type { Role } from '../types';
+
+// ── Fade animation on role switch ───────────────────────────────────────────
+function useFadeOnChange(value: unknown) {
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const prevRef = useRef(value);
+
+  useEffect(() => {
+    if (prevRef.current !== value) {
+      prevRef.current = value;
+      fadeAnim.setValue(0);
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 240,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [value, fadeAnim]);
+
+  return fadeAnim;
+}
 
 export function RolesPermissionScreen() {
   const { colors, isDark } = useTheme();
-  const { width, height: windowHeight } = useWindowDimensions();
-  const calculatedHeight = Platform.OS === 'web' ? Math.max(500, windowHeight - 160) : '100%';
+  const { width } = useWindowDimensions();
+  const isMobile = width < 768;
 
-  const { roles: apiRoles, isLoading: isApiLoading, refetch } = useAdminRoles();
-  const { categories: apiCategories, isLoading: isCatalogLoading } = usePermissionsCatalog();
+  // Master-detail state for small screens (no tabs, back button navigation)
+  const [mobileView, setMobileView] = useState<'list' | 'permissions'>('list');
 
-  const [localRoles, setLocalRoles] = useState<Role[]>([]);
-  const [selectedRoleId, setSelectedRoleId] = useState<string>('');
-  const [searchQuery, setSearchQuery] = useState('');
-
-  const roles = useMemo(() => {
-    if (apiRoles.length > 0) {
-      return apiRoles.map((r) => {
-        const initials = r.name
-          .split(' ')
-          .map((w) => w[0])
-          .join('')
-          .substring(0, 2)
-          .toUpperCase();
-
-        return {
-          id: r.id,
-          name: r.name,
-          isSystemRole: r.isSystemRole,
-          avatarBgColor: r.isSystemRole ? COLORS.brand.redLight : COLORS.brand.skyLight,
-          avatarInitials: initials || 'R',
-        };
-      });
-    }
-    return localRoles;
-  }, [apiRoles, localRoles]);
-
-  useEffect(() => {
-    if (roles.length > 0 && !selectedRoleId) {
-      setSelectedRoleId(roles[0].id);
-    }
-  }, [roles, selectedRoleId]);
-
-  const selectedRole = useMemo(() => {
-    const found = roles.find((r) => r.id === selectedRoleId);
-    return found !== undefined ? found : roles[0] || null;
-  }, [roles, selectedRoleId]);
+  const management = useRoleManagement();
 
   const {
-    permissionKeys: serverRolePermissions,
-    isLoading: isPermissionsLoading,
-    refetch: refetchPermissions,
-  } = useRolePermissions(selectedRole?.id);
+    roles,
+    allRoles,
+    selectedRole,
+    setSelectedRoleId,
+    roleSearchQuery,
+    setRoleSearchQuery,
+    roleScopeFilter,
+    setRoleScopeFilter,
+    permissionQuery,
+    setPermissionQuery,
+    categories,
+    activePermissions,
+    isAllSelected,
+    hasUnsavedChanges,
+    isSubmitting,
+    isLoading,
+    handleTogglePermission,
+    handleToggleSelectAll,
+    resetChanges,
+    savePermissions,
+    createRole,
+    updateRole,
+    deleteRole,
+  } = management;
 
-  const displayCategories = apiCategories;
-
-  const [savedRolePermissions, setSavedRolePermissions] = useState<Record<string, string[]>>({});
-  const [draftRolePermissions, setDraftRolePermissions] = useState<Record<string, string[]>>({});
-
-  useEffect(() => {
-    if (selectedRole !== null && serverRolePermissions !== undefined) {
-      setSavedRolePermissions((prev) => ({ ...prev, [selectedRole.id]: serverRolePermissions }));
-      setDraftRolePermissions((prev) => ({ ...prev, [selectedRole.id]: serverRolePermissions }));
-    }
-  }, [selectedRole, serverRolePermissions]);
-
-  const allCategoryPermissionIds = useMemo(() => {
-    const ids: string[] = [];
-    displayCategories.forEach((cat) => {
-      cat.options.forEach((opt) => ids.push(opt.id));
-    });
-    return ids;
-  }, [displayCategories]);
-
-  const activePermissions = useMemo(() => {
-    if (selectedRole !== null && draftRolePermissions[selectedRole.id] !== undefined) {
-      return draftRolePermissions[selectedRole.id];
-    }
-    return [];
-  }, [draftRolePermissions, selectedRole]);
-
-  const isAllSelected = useMemo(() => {
-    if (allCategoryPermissionIds.length === 0) return false;
-    const activeSet = new Set(activePermissions);
-    return allCategoryPermissionIds.every((id) => activeSet.has(id));
-  }, [allCategoryPermissionIds, activePermissions]);
-
-  const hasUnsavedChanges = useMemo(() => {
-    if (selectedRole === null) return false;
-    const saved = savedRolePermissions[selectedRole.id] || [];
-    const draft = draftRolePermissions[selectedRole.id] || [];
-
-    if (saved.length !== draft.length) return true;
-    const savedSet = new Set(saved);
-    return !draft.every((id) => savedSet.has(id));
-  }, [selectedRole, savedRolePermissions, draftRolePermissions]);
-
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [roleToDelete, setRoleToDelete] = useState<Role | null>(null);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
 
-  const filteredRoles = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return roles;
-    return roles.filter(
-      (r) => r.name.toLowerCase().includes(q) || r.id.toLowerCase().includes(q)
-    );
-  }, [roles, searchQuery]);
+  const [isEditingRoleName, setIsEditingRoleName] = useState(false);
+  const [editingRoleNameText, setEditingRoleNameText] = useState('');
 
-  const handleSelectRole = (role: Role) => {
-    setSelectedRoleId(role.id);
-  };
-
-  const handleTogglePermission = (permissionId: string) => {
-    if (selectedRole === null) return;
-    const roleId = selectedRole.id;
-    setDraftRolePermissions((prev) => {
-      const currentList = prev[roleId] || [];
-      const exists = currentList.includes(permissionId);
-      const updated = exists
-        ? currentList.filter((id) => id !== permissionId)
-        : [...currentList, permissionId];
-
-      return { ...prev, [roleId]: updated };
-    });
-  };
-
-  const handleToggleSelectAll = () => {
-    if (selectedRole === null) return;
-    const roleId = selectedRole.id;
-    if (isAllSelected) {
-      setDraftRolePermissions((prev) => ({ ...prev, [roleId]: [] }));
-    } else {
-      setDraftRolePermissions((prev) => ({ ...prev, [roleId]: [...allCategoryPermissionIds] }));
+  const startEditingRoleName = () => {
+    if (selectedRole) {
+      setEditingRoleNameText(selectedRole.name);
+      setIsEditingRoleName(true);
     }
   };
 
-  const handleUpdatePermissions = async () => {
-    if (selectedRole === null || !hasUnsavedChanges || isSubmitting) return;
-
-    setIsSubmitting(true);
-    const roleId = selectedRole.id;
-    const currentDraft = draftRolePermissions[roleId] || [];
-    const previousSaved = savedRolePermissions[roleId] || [];
-
-    const added = currentDraft.filter((p) => !previousSaved.includes(p));
-    const removed = previousSaved.filter((p) => !currentDraft.includes(p));
-
-    try {
-      for (const permKey of added) {
-        await apiClient.post('/api/v2/role-permissions/assign', {
-          roleId,
-          permissionKey: permKey,
-        }).catch(() => {});
-      }
-
-      for (const permKey of removed) {
-        await apiClient.post('/api/v2/role-permissions/revoke', {
-          roleId,
-          permissionKey: permKey,
-        }).catch(() => {});
-      }
-
-      setSavedRolePermissions((prev) => ({
-        ...prev,
-        [roleId]: [...currentDraft],
-      }));
-      refetchPermissions();
-      setIsSubmitting(false);
-      showToast(`Permissions updated successfully for ${selectedRole.name}`);
-    } catch (err) {
-      console.error('Failed to update role permissions:', err);
-      setIsSubmitting(false);
+  const handleSaveRoleName = async () => {
+    if (!selectedRole || !editingRoleNameText.trim()) return;
+    const trimmed = editingRoleNameText.trim();
+    if (trimmed === selectedRole.name) {
+      setIsEditingRoleName(false);
+      return;
+    }
+    const ok = await updateRole(selectedRole.id, trimmed);
+    if (ok) {
+      showToast(`Role renamed to "${trimmed}"`);
+      setIsEditingRoleName(false);
     }
   };
 
-  const handleAddRole = async (newRoleData: {
-    name: string;
-    initialPermissionIds: string[];
-  }) => {
-    const roleKey = newRoleData.name.toLowerCase().replace(/\s+/g, '-');
-    try {
-      const res = await apiClient.post<{ id: string }>('/api/v2/roles', {
-        name: newRoleData.name,
-        key: roleKey,
-        isSystemRole: false,
-      });
-      await refetch();
-      if (res.data?.id) {
-        setSelectedRoleId(res.data.id);
-      }
-      showToast(`Role "${newRoleData.name}" created.`);
-    } catch (err) {
-      const newId = `role-${Date.now()}`;
-      const initials = newRoleData.name.substring(0, 2).toUpperCase();
-      const createdRole: Role = {
-        id: newId,
-        name: newRoleData.name,
-        isSystemRole: false,
-        avatarBgColor: COLORS.brand.skyLight,
-        avatarInitials: initials,
-      };
-      setLocalRoles((prev) => [createdRole, ...prev]);
-      setSelectedRoleId(newId);
-      showToast(`Role "${newRoleData.name}" created.`);
-    }
-  };
+  // Theme tokens
+  const canvasBg = isDark ? colors.neutral[900] : colors.neutral[50];
+  const panelBg = isDark ? colors.neutral[800] : '#FFFFFF';
+  const borderColor = isDark ? colors.neutral[700] : colors.neutral[200];
+  const textColor = isDark ? colors.neutral[100] : colors.neutral[900];
+  const mutedColor = isDark ? colors.neutral[400] : colors.neutral[500];
+  const accentColor = isDark ? '#60A5FA' : colors.brand[700];
+  const accentBg = isDark ? colors.brand[800] : colors.brand[700];
+  const inputBg = isDark ? colors.neutral[800] : '#FFFFFF';
+  const inputBorder = isDark ? colors.neutral[600] : colors.neutral[300];
 
-  const handleConfirmDeleteRole = async (roleId: string) => {
-    try {
-      await apiClient.delete(`/api/v2/roles/${roleId}`);
-      await refetch();
-    } catch (err) {
-      setLocalRoles((prev) => prev.filter((r) => r.id !== roleId));
-    }
-
-    setSavedRolePermissions((prev) => {
-      const next = { ...prev };
-      delete next[roleId];
-      return next;
-    });
-
-    setDraftRolePermissions((prev) => {
-      const next = { ...prev };
-      delete next[roleId];
-      return next;
-    });
-
-    if (selectedRoleId === roleId) {
-      const remaining = roles.filter((r) => r.id !== roleId);
-      if (remaining.length > 0) {
-        setSelectedRoleId(remaining[0].id);
-      }
-    }
-    showToast('Role deleted successfully.');
-  };
+  // Right panel fade animation
+  const rightFade = useFadeOnChange(selectedRole?.id);
 
   const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => {
-      setToastMessage(null);
-    }, 3500);
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(null), 3000);
   };
 
+  const handleSave = async () => {
+    const ok = await savePermissions();
+    if (ok && selectedRole) {
+      showToast(`Permissions saved for "${selectedRole.name}"`);
+    }
+  };
+
+  const handleAddRole = async (data: { name: string; initialPermissionIds: string[] }) => {
+    const ok = await createRole(data.name, undefined, data.initialPermissionIds);
+    if (ok) showToast(`Role "${data.name}" created.`);
+  };
+
+  const handleDeleteRole = async (roleId: string) => {
+    const ok = await deleteRole(roleId);
+    if (ok) showToast('Role deleted.');
+  };
+
+  // Scope filter counts
+  const systemCount = allRoles.filter((r) => r.isSystemRole).length;
+  const customCount = allRoles.filter((r) => !r.isSystemRole).length;
+
   return (
-    <ScrollView
-      style={[styles.screen, { backgroundColor: colors.bg }]}
-      contentContainerStyle={styles.container}
-    >
-      <PageHeader
-        title="Roles & Permission Governance"
-        subtitle="Manage user roles, RBAC policy access levels, and granular tenant permissions across all NTC services."
-        action={
-          <Button
-            variant="primary"
-            leftIcon={<Lucide name="user-plus" size={16} color={COLORS.neutral.white} />}
-            onPress={() => setIsAddModalOpen(true)}
-          >
-            Add Role
-          </Button>
-        }
-      />
+    <View style={[styles.root, { backgroundColor: canvasBg }]}>
 
-      {toastMessage !== null && (
-        <View style={[styles.toastContainer, SHADOWS.modal]}>
-          <Lucide name="check-circle" size={18} color={COLORS.semantic.success} style={{ marginRight: 8 }} />
-          <Text style={{ color: COLORS.neutral.white, fontWeight: '500' }}>{toastMessage}</Text>
-        </View>
-      )}
+      {/* ──────────────────────────────────────────────────────────────────────
+          MOBILE / SMALL SCREEN LAYOUT (width < 768) — Master Detail with Back Btn
+         ────────────────────────────────────────────────────────────────────── */}
+      {isMobile ? (
+        <View style={styles.mobileContainer}>
+          {/* VIEW 1: Roles List (Mobile) */}
+          {mobileView === 'list' && (
+            <View style={styles.mobileTabContent}>
+              {/* Header + Add */}
+              <View style={[styles.leftHeader, { borderBottomColor: borderColor }]}>
+                <View style={styles.leftHeaderTop}>
+                  <Text style={[styles.leftTitle, { color: textColor }]}>Roles Directory</Text>
+                  <Pressable
+                    style={[styles.addBtn, { backgroundColor: accentBg }]}
+                    onPress={() => setIsAddModalOpen(true)}
+                  >
+                    <Lucide name="plus" size={14} color="#FFFFFF" />
+                    <Text style={styles.addBtnText}>Add</Text>
+                  </Pressable>
+                </View>
 
-      <View style={[styles.mainLayout, { height: calculatedHeight }]}>
-        {/* Left Column - Role Selection List */}
-        <View style={[styles.leftColumn, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
-          <View style={styles.searchWrapper}>
-            <SearchBar
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              placeholder="Search roles..."
-            />
-          </View>
+                {/* Search */}
+                <View style={[styles.searchRow, { backgroundColor: inputBg, borderColor: inputBorder }]}>
+                  <Lucide name="search" size={14} color={mutedColor} />
+                  <TextInput
+                    style={[styles.searchInput, { color: textColor }]}
+                    placeholder="Search roles..."
+                    placeholderTextColor={mutedColor}
+                    value={roleSearchQuery}
+                    onChangeText={setRoleSearchQuery}
+                  />
+                  {roleSearchQuery.length > 0 && (
+                    <Pressable onPress={() => setRoleSearchQuery('')} hitSlop={8}>
+                      <Lucide name="x" size={13} color={mutedColor} />
+                    </Pressable>
+                  )}
+                </View>
 
-          <ScrollView style={styles.rolesScroll} showsVerticalScrollIndicator={false}>
-            {isApiLoading && roles.length === 0 ? (
-              <View style={styles.loadingPadding}>
-                <SkeletonLoader variant="rectangular" width="100%" height={60} borderRadius={8} />
-                <SkeletonLoader variant="rectangular" width="100%" height={60} borderRadius={8} />
-              </View>
-            ) : filteredRoles.length === 0 ? (
-              <EmptyState
-                icon="shield"
-                title="No Roles Found"
-                description={`No role matches "${searchQuery}"`}
-              />
-            ) : (
-              filteredRoles.map((role) => (
-                <RoleCard
-                  key={role.id}
-                  role={role}
-                  isSelected={selectedRole !== null && selectedRole.id === role.id}
-                  onSelect={handleSelectRole}
-                  onDelete={(r) => setRoleToDelete(r)}
-                />
-              ))
-            )}
-          </ScrollView>
-        </View>
-
-        {/* Right Column - Permission Matrix Panel */}
-        {selectedRole !== null && (
-          <View style={[styles.rightColumn, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
-            <View style={[styles.configHeader, { borderBottomColor: colors.border }]}>
-              <View style={styles.roleTitleGroup}>
-                <Text style={[styles.configSubheader, { color: isDark ? colors.brand[500] : colors.brand[700] }]}>ROLE CONFIGURATION</Text>
-                <Text style={[styles.configRoleName, { color: colors.text }]}>{selectedRole.name}</Text>
               </View>
 
-              {hasUnsavedChanges && (
-                <View style={styles.unsavedBadge}>
-                  <View style={styles.unsavedDot} />
-                  <Text style={styles.unsavedText}>Unsaved Changes</Text>
-                </View>
-              )}
+              {/* Roles List */}
+              <ScrollView style={styles.roleList} showsVerticalScrollIndicator={false}>
+                {roles.map((role) => (
+                  <RoleListItem
+                    key={role.id}
+                    role={role}
+                    isSelected={selectedRole?.id === role.id}
+                    onPress={() => {
+                      setSelectedRoleId(role.id);
+                      setMobileView('permissions');
+                    }}
+                    onDeletePress={() => setRoleToDelete(role)}
+                  />
+                ))}
+              </ScrollView>
             </View>
+          )}
 
-            <View style={[styles.matrixToolbar, { backgroundColor: isDark ? colors.cardBg : colors.bg, borderBottomColor: colors.border }]}>
-              <Text style={[styles.matrixTitle, { color: colors.text }]}>ACCESS PERMISSIONS</Text>
-              <Button
-                variant={isAllSelected ? 'primary' : 'outline'}
-                size="sm"
-                onPress={handleToggleSelectAll}
-              >
-                {isAllSelected ? 'Deselect All' : 'Select All'}
-              </Button>
-            </View>
+          {/* VIEW 2: Permission Matrix with BACK BUTTON (Mobile) */}
+          {mobileView === 'permissions' && selectedRole !== null && (
+            <View style={styles.mobileTabContent}>
+              {/* Sticky Right Header with BACK BUTTON replacing Circled Initial */}
+              <View style={[styles.rightHeader, { backgroundColor: panelBg, borderBottomColor: borderColor }]}>
+                <View style={styles.rightHeaderLeft}>
+                  {/* BACK BUTTON replacing circled initial */}
+                  <Pressable
+                    style={[styles.backBtn, { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[100] }]}
+                    onPress={() => setMobileView('list')}
+                    accessibilityLabel="Back to roles list"
+                  >
+                    <Lucide name="arrow-left" size={18} color={textColor} />
+                  </Pressable>
 
-            <ScrollView style={styles.matrixScroll} showsVerticalScrollIndicator={false}>
-              {isPermissionsLoading || isCatalogLoading ? (
-                <View style={styles.loadingPadding}>
-                  <SkeletonLoader variant="rectangular" width="100%" height={100} borderRadius={8} />
-                  <SkeletonLoader variant="rectangular" width="100%" height={100} borderRadius={8} />
+                  <View>
+                    {isEditingRoleName ? (
+                      <View style={styles.inlineEditRow}>
+                        <TextInput
+                          style={[styles.inlineEditInput, { color: textColor, borderColor: inputBorder, backgroundColor: inputBg }]}
+                          value={editingRoleNameText}
+                          onChangeText={setEditingRoleNameText}
+                          autoFocus
+                          onSubmitEditing={handleSaveRoleName}
+                        />
+                        <Pressable onPress={handleSaveRoleName} style={styles.inlineEditIconBtn} hitSlop={6}>
+                          <Lucide name="check" size={14} color="#10B981" />
+                        </Pressable>
+                        <Pressable onPress={() => setIsEditingRoleName(false)} style={styles.inlineEditIconBtn} hitSlop={6}>
+                          <Lucide name="x" size={14} color={mutedColor} />
+                        </Pressable>
+                      </View>
+                    ) : (
+                      <View style={styles.roleNameRow}>
+                        <Text style={[styles.roleTitleText, { color: textColor }]}>
+                          {selectedRole.name}
+                        </Text>
+                        {hasUnsavedChanges && <View style={styles.unsavedDot} />}
+                        {!selectedRole.isSystemRole && (
+                          <Pressable onPress={startEditingRoleName} style={styles.editTitleBtn} hitSlop={6} accessibilityLabel="Rename role">
+                            <Lucide name="edit-2" size={13} color={mutedColor} />
+                          </Pressable>
+                        )}
+                      </View>
+                    )}
+                    <Text style={[styles.roleScopeBadgeText, { color: mutedColor }]}>
+                      {selectedRole.isSystemRole ? 'SYSTEM ROLE' : 'CUSTOM ROLE'}
+                    </Text>
+                  </View>
                 </View>
-              ) : (
-                displayCategories.map((category) => (
+
+                <Pressable
+                  style={[
+                    styles.saveBtn,
+                    {
+                      backgroundColor: hasUnsavedChanges && !isSubmitting ? accentBg : (isDark ? colors.neutral[700] : colors.neutral[200]),
+                      opacity: !hasUnsavedChanges || isSubmitting ? 0.55 : 1,
+                    },
+                  ]}
+                  onPress={handleSave}
+                  disabled={!hasUnsavedChanges || isSubmitting}
+                >
+                  <Lucide name="save" size={14} color="#FFFFFF" />
+                  <Text style={styles.saveBtnText}>{isSubmitting ? 'Saving...' : 'Save'}</Text>
+                </Pressable>
+              </View>
+
+              {/* Body */}
+              <ScrollView style={styles.rightBody} contentContainerStyle={styles.rightBodyContent} showsVerticalScrollIndicator={false}>
+                {/* Search */}
+                <View style={[styles.permSearchRow, { backgroundColor: inputBg, borderColor: inputBorder }]}>
+                  <Lucide name="search" size={14} color={mutedColor} />
+                  <TextInput
+                    style={[styles.permSearchInput, { color: textColor }]}
+                    placeholder="Search permissions..."
+                    placeholderTextColor={mutedColor}
+                    value={permissionQuery}
+                    onChangeText={setPermissionQuery}
+                  />
+                  {permissionQuery.length > 0 && (
+                    <Pressable onPress={() => setPermissionQuery('')} hitSlop={8}>
+                      <Lucide name="x" size={13} color={mutedColor} />
+                    </Pressable>
+                  )}
+                </View>
+
+                {/* Categories */}
+                {categories.map((cat) => (
                   <PermissionCategoryCard
-                    key={category.id}
-                    category={category}
+                    key={cat.id}
+                    category={cat}
                     activePermissionIds={activePermissions}
                     onTogglePermission={handleTogglePermission}
+                  />
+                ))}
+              </ScrollView>
+            </View>
+          )}
+        </View>
+      ) : (
+        /* ──────────────────────────────────────────────────────────────────────
+            DESKTOP / WIDE SCREEN TWO-PANEL WORKSTATION (width >= 768)
+           ────────────────────────────────────────────────────────────────────── */
+        <>
+          {/* LEFT PANEL — Role List */}
+          <View style={[styles.leftPanel, { backgroundColor: panelBg, borderRightColor: borderColor }]}>
+            <View style={[styles.leftHeader, { borderBottomColor: borderColor }]}>
+              <View style={styles.leftHeaderTop}>
+                <Text style={[styles.leftTitle, { color: textColor }]}>Roles</Text>
+                <Pressable
+                  style={[styles.addBtn, { backgroundColor: accentBg }]}
+                  onPress={() => setIsAddModalOpen(true)}
+                  accessibilityLabel="Add new role"
+                >
+                  <Lucide name="plus" size={14} color="#FFFFFF" />
+                  <Text style={styles.addBtnText}>Add</Text>
+                </Pressable>
+              </View>
+
+              {/* Search */}
+              <View style={[styles.searchRow, { backgroundColor: inputBg, borderColor: inputBorder }]}>
+                <Lucide name="search" size={14} color={mutedColor} />
+                <TextInput
+                  style={[styles.searchInput, { color: textColor }]}
+                  placeholder="Search roles..."
+                  placeholderTextColor={mutedColor}
+                  value={roleSearchQuery}
+                  onChangeText={setRoleSearchQuery}
+                />
+                {roleSearchQuery.length > 0 && (
+                  <Pressable onPress={() => setRoleSearchQuery('')} hitSlop={8}>
+                    <Lucide name="x" size={13} color={mutedColor} />
+                  </Pressable>
+                )}
+              </View>
+
+              </View>
+
+            {/* Role Item List */}
+            <ScrollView style={styles.roleList} showsVerticalScrollIndicator={false}>
+              {isLoading ? (
+                <View style={styles.loadingState}>
+                  <Text style={[styles.loadingText, { color: mutedColor }]}>Loading roles...</Text>
+                </View>
+              ) : roles.length === 0 ? (
+                <View style={styles.emptyState}>
+                  <Lucide name="shield-off" size={28} color={mutedColor} />
+                  <Text style={[styles.emptyText, { color: mutedColor }]}>No roles found</Text>
+                </View>
+              ) : (
+                roles.map((role) => (
+                  <RoleListItem
+                    key={role.id}
+                    role={role}
+                    isSelected={selectedRole?.id === role.id}
+                    onPress={() => setSelectedRoleId(role.id)}
+                    onDeletePress={() => setRoleToDelete(role)}
                   />
                 ))
               )}
             </ScrollView>
-
-            <View style={[styles.stickyFooter, { borderTopColor: colors.border }]}>
-              <Button
-                variant="primary"
-                isLoading={isSubmitting}
-                isDisabled={!hasUnsavedChanges || isSubmitting}
-                leftIcon={<Lucide name="save" size={16} color={COLORS.neutral.white} />}
-                onPress={handleUpdatePermissions}
-              >
-                Update Permissions
-              </Button>
-            </View>
           </View>
-        )}
-      </View>
 
+          {/* RIGHT PANEL — Permission Matrix */}
+          <Animated.View style={[styles.rightPanel, { opacity: rightFade }]}>
+            {selectedRole === null ? (
+              <View style={styles.emptyRight}>
+                <Lucide name="shield" size={40} color={mutedColor} />
+                <Text style={[styles.emptyRightText, { color: mutedColor }]}>
+                  Select a role to configure permissions
+                </Text>
+              </View>
+            ) : (
+              <>
+                {/* Sticky Right Header */}
+                <View
+                  style={[
+                    styles.rightHeader,
+                    {
+                      backgroundColor: panelBg,
+                      borderBottomColor: borderColor,
+                    },
+                  ]}
+                >
+                  <View style={styles.rightHeaderLeft}>
+                    <View>
+                      {isEditingRoleName ? (
+                        <View style={styles.inlineEditRow}>
+                          <TextInput
+                            style={[styles.inlineEditInput, { color: textColor, borderColor: inputBorder, backgroundColor: inputBg }]}
+                            value={editingRoleNameText}
+                            onChangeText={setEditingRoleNameText}
+                            autoFocus
+                            onSubmitEditing={handleSaveRoleName}
+                          />
+                          <Pressable onPress={handleSaveRoleName} style={styles.inlineEditIconBtn} hitSlop={6}>
+                            <Lucide name="check" size={14} color="#10B981" />
+                          </Pressable>
+                          <Pressable onPress={() => setIsEditingRoleName(false)} style={styles.inlineEditIconBtn} hitSlop={6}>
+                            <Lucide name="x" size={14} color={mutedColor} />
+                          </Pressable>
+                        </View>
+                      ) : (
+                        <View style={styles.roleNameRow}>
+                          <Text style={[styles.roleTitleText, { color: textColor }]}>
+                            {selectedRole.name}
+                          </Text>
+                          {hasUnsavedChanges && (
+                            <View style={styles.unsavedDot} />
+                          )}
+                          {!selectedRole.isSystemRole && (
+                            <Pressable onPress={startEditingRoleName} style={styles.editTitleBtn} hitSlop={6} accessibilityLabel="Rename role">
+                              <Lucide name="edit-2" size={13} color={mutedColor} />
+                            </Pressable>
+                          )}
+                        </View>
+                      )}
+                      <View
+                        style={[
+                          styles.roleScopeBadge,
+                          {
+                            backgroundColor: selectedRole.isSystemRole
+                              ? (isDark ? 'rgba(245,158,11,0.15)' : '#FEF3C7')
+                              : (isDark ? 'rgba(96,165,250,0.12)' : '#EFF6FF'),
+                          },
+                        ]}
+                      >
+                        <Lucide
+                          name={selectedRole.isSystemRole ? 'lock' : 'settings'}
+                          size={9}
+                          color={selectedRole.isSystemRole
+                            ? (isDark ? '#FBBF24' : '#B45309')
+                            : accentColor}
+                        />
+                        <Text
+                          style={[
+                            styles.roleScopeBadgeText,
+                            {
+                              color: selectedRole.isSystemRole
+                                ? (isDark ? '#FBBF24' : '#B45309')
+                                : accentColor,
+                            },
+                          ]}
+                        >
+                          {selectedRole.isSystemRole ? 'SYSTEM' : 'CUSTOM'}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  <View style={styles.rightHeaderActions}>
+                    {hasUnsavedChanges && (
+                      <Pressable onPress={resetChanges} style={styles.discardBtn}>
+                        <Text style={[styles.discardBtnText, { color: mutedColor }]}>
+                          Discard
+                        </Text>
+                      </Pressable>
+                    )}
+                    <Pressable
+                      style={[
+                        styles.saveBtn,
+                        {
+                          backgroundColor: hasUnsavedChanges && !isSubmitting ? accentBg : (isDark ? colors.neutral[700] : colors.neutral[200]),
+                          opacity: !hasUnsavedChanges || isSubmitting ? 0.55 : 1,
+                        },
+                      ]}
+                      onPress={handleSave}
+                      disabled={!hasUnsavedChanges || isSubmitting}
+                    >
+                      <Lucide name="save" size={14} color="#FFFFFF" />
+                      <Text style={styles.saveBtnText}>
+                        {isSubmitting ? 'Saving…' : 'Save Changes'}
+                      </Text>
+                    </Pressable>
+                  </View>
+                </View>
+
+                {/* Right Body */}
+                <ScrollView
+                  style={[styles.rightBody, { backgroundColor: canvasBg }]}
+                  contentContainerStyle={styles.rightBodyContent}
+                  showsVerticalScrollIndicator={false}
+                >
+                  <View style={styles.matrixToolbar}>
+                    <View style={[styles.permSearchRow, { backgroundColor: inputBg, borderColor: inputBorder }]}>
+                      <Lucide name="search" size={14} color={mutedColor} />
+                      <TextInput
+                        style={[styles.permSearchInput, { color: textColor }]}
+                        placeholder="Search permissions..."
+                        placeholderTextColor={mutedColor}
+                        value={permissionQuery}
+                        onChangeText={setPermissionQuery}
+                      />
+                      {permissionQuery.length > 0 && (
+                        <Pressable onPress={() => setPermissionQuery('')} hitSlop={8}>
+                          <Lucide name="x" size={13} color={mutedColor} />
+                        </Pressable>
+                      )}
+                    </View>
+
+                    <Pressable
+                      style={[styles.selectAllBtn, { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[100] }]}
+                      onPress={handleToggleSelectAll}
+                    >
+                      <Lucide
+                        name={isAllSelected ? 'x-circle' : 'check-circle'}
+                        size={13}
+                        color={mutedColor}
+                      />
+                      <Text style={[styles.selectAllText, { color: mutedColor }]}>
+                        {isAllSelected ? 'Deselect All' : 'Select All'}
+                      </Text>
+                    </Pressable>
+                  </View>
+
+                  {categories.length === 0 ? (
+                    <View style={styles.emptyPerms}>
+                      <Text style={[styles.emptyText, { color: mutedColor }]}>
+                        No permissions match your search.
+                      </Text>
+                    </View>
+                  ) : (
+                    categories.map((cat) => (
+                      <PermissionCategoryCard
+                        key={cat.id}
+                        category={cat}
+                        activePermissionIds={activePermissions}
+                        onTogglePermission={handleTogglePermission}
+                      />
+                    ))
+                  )}
+                </ScrollView>
+              </>
+            )}
+          </Animated.View>
+        </>
+      )}
+
+      {/* ── Toast ──────────────────────────────────────────────────────────── */}
+      {toastMsg !== null && (
+        <View style={[styles.toast, { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[900] }]}>
+          <Lucide name="check-circle" size={15} color="#10B981" />
+          <Text style={styles.toastText}>{toastMsg}</Text>
+        </View>
+      )}
+
+      {/* ── Modals ─────────────────────────────────────────────────────────── */}
       <AddRoleModal
         visible={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onAddRole={handleAddRole}
-        existingRoles={roles}
-        rolePermissionsMap={savedRolePermissions}
+        existingRoles={allRoles}
       />
-
       <DeleteRoleConfirmModal
         visible={roleToDelete !== null}
         role={roleToDelete}
         onClose={() => setRoleToDelete(null)}
-        onConfirmDelete={handleConfirmDeleteRole}
+        onConfirmDelete={handleDeleteRole}
       />
-    </ScrollView>
+    </View>
   );
 }
 
+// ── Styles ────────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
-  screen: {
+  root: {
+    flex: 1,
+    flexDirection: 'row',
+  },
+
+  // ── Mobile adaptive container ─────────────────────────────────────────────
+  mobileContainer: {
+    flex: 1,
+    flexDirection: 'column',
+  },
+  mobileTabContent: {
     flex: 1,
   },
-  container: {
-    padding: SPACING[20],
-    gap: SPACING[16],
-    maxWidth: 1200,
-    alignSelf: 'center',
-    width: '100%',
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  toastContainer: {
-    position: 'absolute',
-    top: 20,
-    right: 20,
-    zIndex: 100,
-    backgroundColor: COLORS.neutral[900],
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: RADIUS.button,
+
+  // ── Left Panel ─────────────────────────────────────────────────────────────
+  leftPanel: {
+    width: 300,
+    borderRightWidth: 1,
+    flexDirection: 'column',
+  },
+  leftHeader: {
+    borderBottomWidth: 1,
+    paddingHorizontal: SPACING[16],
+    paddingTop: SPACING[16],
+    paddingBottom: SPACING[12],
+    gap: SPACING[10],
+  },
+  leftHeaderTop: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  mainLayout: {
+  leftTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  addBtn: {
     flexDirection: 'row',
-    gap: SPACING[16],
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: RADIUS.button,
   },
-  leftColumn: {
-    width: 360,
-    borderRadius: RADIUS.card,
+  addBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING[8],
     borderWidth: 1,
-    padding: SPACING[12],
-    gap: SPACING[12],
+    borderRadius: RADIUS.input,
+    paddingHorizontal: SPACING[10],
+    paddingVertical: 8,
   },
-  searchWrapper: {
-    width: '100%',
+  searchInput: {
+    flex: 1,
+    fontSize: 13,
+    padding: 0,
   },
-  rolesScroll: {
+  pillsRow: {
+    flexDirection: 'row',
+    gap: SPACING[6],
+  },
+  pill: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+  },
+  pillText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  roleList: {
     flex: 1,
   },
-  loadingPadding: {
-    padding: SPACING[12],
+  loadingState: {
+    padding: SPACING[24],
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 13,
+  },
+  emptyState: {
+    padding: SPACING[32],
+    alignItems: 'center',
     gap: SPACING[8],
   },
-  rightColumn: {
+  emptyText: {
+    fontSize: 13,
+  },
+
+  // ── Right Panel ────────────────────────────────────────────────────────────
+  rightPanel: {
     flex: 1,
-    borderRadius: RADIUS.card,
-    borderWidth: 1,
-    overflow: 'hidden',
+    flexDirection: 'column',
   },
-  configHeader: {
+  emptyRight: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING[12],
+  },
+  emptyRightText: {
+    fontSize: 14,
+  },
+
+  // Right Header (sticky)
+  rightHeader: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: SPACING[16],
-    borderBottomWidth: 1,
-  },
-  roleTitleGroup: {
-    gap: 2,
-  },
-  configSubheader: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: COLORS.brand[700],
-    letterSpacing: 0.8,
-  },
-  configRoleName: {
-    fontSize: 20,
-    fontWeight: '700',
-  },
-  unsavedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.semantic.warningBg,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: RADIUS.circle,
-  },
-  unsavedDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: COLORS.semantic.warning,
-    marginRight: 6,
-  },
-  unsavedText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: COLORS.semantic.warningText,
-  },
-  matrixToolbar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: SPACING[16],
+    paddingHorizontal: SPACING[20],
     paddingVertical: SPACING[12],
     borderBottomWidth: 1,
   },
-  matrixTitle: {
-    fontSize: 12,
+  rightHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING[12],
+  },
+  roleAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  roleAvatarText: {
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  roleNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING[6],
+  },
+  editTitleBtn: {
+    padding: 4,
+  },
+  inlineEditRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING[6],
+  },
+  inlineEditInput: {
+    borderWidth: 1,
+    borderRadius: RADIUS.input,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    fontSize: 14,
     fontWeight: '700',
-    letterSpacing: 0.8,
-    color: COLORS.neutral[400],
+    minWidth: 140,
   },
-  matrixScroll: {
+  inlineEditIconBtn: {
+    padding: 4,
+  },
+  roleTitleText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  unsavedDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#F59E0B',
+  },
+  roleScopeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    alignSelf: 'flex-start',
+    marginTop: 3,
+  },
+  roleScopeBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  rightHeaderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING[10],
+  },
+  discardBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  discardBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  saveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING[6],
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: RADIUS.button,
+  },
+  saveBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+
+  // Right Body
+  rightBody: {
     flex: 1,
-    padding: SPACING[16],
   },
-  stickyFooter: {
-    padding: SPACING[16],
-    borderTopWidth: 1,
-    alignItems: 'flex-end',
+  rightBodyContent: {
+    padding: SPACING[20],
+    gap: SPACING[12],
+  },
+  matrixToolbar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING[10],
+  },
+  permSearchRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING[8],
+    borderWidth: 1,
+    borderRadius: RADIUS.input,
+    paddingHorizontal: SPACING[10],
+    paddingVertical: 8,
+  },
+  permSearchInput: {
+    flex: 1,
+    fontSize: 13,
+    padding: 0,
+  },
+  selectAllBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING[6],
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: RADIUS.button,
+    flexShrink: 0,
+  },
+  selectAllText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  emptyPerms: {
+    paddingVertical: SPACING[32],
+    alignItems: 'center',
+  },
+
+  // Toast
+  toast: {
+    position: 'absolute',
+    bottom: 24,
+    right: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING[8],
+    paddingHorizontal: SPACING[16],
+    paddingVertical: SPACING[12],
+    borderRadius: RADIUS.button,
+  },
+  toastText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '600',
   },
 });

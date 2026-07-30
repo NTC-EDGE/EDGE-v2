@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -65,11 +68,20 @@ public class AuditableEntitySaveChangesInterceptor : SaveChangesInterceptor
                 }
             }
 
-            // 2. Generate Audit Logs
+            // 2. Extract TenantId if present
+            Guid? tenantId = null;
+            var tenantProp = entry.Properties.FirstOrDefault(p => p.Metadata.Name == "TenantId");
+            if (tenantProp != null && tenantProp.CurrentValue is Guid gVal)
+            {
+                tenantId = gVal;
+            }
+
+            // 3. Generate Audit Logs
             var auditEntry = new AuditEntry(entry)
             {
                 EntityName = entry.Entity.GetType().Name,
-                ChangedBy = userId
+                ChangedBy = userId,
+                TenantId = tenantId
             };
 
             foreach (var property in entry.Properties)
@@ -118,6 +130,7 @@ internal class AuditEntry
 {
     public AuditEntry(Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry entry) { Entry = entry; }
     public Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry Entry { get; }
+    public Guid? TenantId { get; set; }
     public string EntityName { get; set; } = null!;
     public string Action { get; set; } = null!;
     public string ChangedBy { get; set; } = null!;
@@ -127,6 +140,7 @@ internal class AuditEntry
 
     public AuditLog ToAuditLog() => new()
     {
+        TenantId = TenantId,
         EntityName = EntityName,
         Action = Action,
         ChangedBy = ChangedBy,

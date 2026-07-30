@@ -7,5 +7,6 @@ public record CreateRoleCommand(
     string Name,
     string Key,
     string? Description = null,
-    Guid? TenantId = null
+    Guid? TenantId = null,
+    bool IsSystemRole = false
 ) : IRequest<Role>;

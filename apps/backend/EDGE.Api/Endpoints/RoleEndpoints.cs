@@ -1,7 +1,9 @@
 using MediatR;
 using FluentValidation;
+using Microsoft.AspNetCore.Mvc;
 using EDGE.Domain.Authorization;
 using EDGE.Infrastructure.Authorization;
+using EDGE.Application.Common.Interfaces;
 using EDGE.Application.Roles.Queries;
 using EDGE.Application.Roles.Commands;
 
@@ -45,9 +47,25 @@ public static class RoleEndpoints
     }
 
     [HasPermission(Permissions.ReadRoles)]
-    public static async Task<IResult> GetRoles(Guid? tenantId, IMediator mediator)
+    public static async Task<IResult> GetRoles(
+        [FromQuery] Guid? tenantId = null,
+        [FromQuery] bool includeSystemRoles = false,
+        IMediator mediator = null!,
+        [FromServices] IUserAuthorizationService authService = null!)
     {
-        var result = await mediator.Send(new GetRolesQuery(tenantId));
+        if (includeSystemRoles)
+        {
+            var hasSystemAdmin = await authService.HasPermissionAsync(Permissions.SystemAdmin);
+            if (!hasSystemAdmin)
+            {
+                return Results.Problem(
+                    statusCode: StatusCodes.Status403Forbidden,
+                    title: "Forbidden",
+                    detail: "Access denied. Requesting system roles requires SystemAdmin permission.");
+            }
+        }
+
+        var result = await mediator.Send(new GetRolesQuery(tenantId, includeSystemRoles));
         return Results.Ok(result);
     }
 

@@ -594,11 +594,20 @@ export interface SystemAnnouncementDto {
 
 export interface AuditLogDto {
   id: string;
+  event: string;
   action: string;
   entityName: string;
   entityId: string;
-  userId: string;
+  actor: string;
+  userId?: string;
+  resource: string;
+  ipAddress: string;
+  status: 'Success' | 'Warning' | 'Error';
+  type: 'Auth' | 'Data' | 'System' | 'Security' | 'User';
   changes: string;
+  keyValues?: string | null;
+  oldValues?: string | null;
+  newValues?: string | null;
   timestamp: string;
 }
 
