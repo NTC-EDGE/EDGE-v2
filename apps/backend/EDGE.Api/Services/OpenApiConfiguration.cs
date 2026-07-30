@@ -34,6 +34,13 @@ public static class OpenApiConfiguration
 
                 if (document.Paths is not null)
                 {
+                    var sortedPaths = document.Paths.OrderBy(p => p.Key).ToList();
+                    document.Paths.Clear();
+                    foreach (var path in sortedPaths)
+                    {
+                        document.Paths.Add(path.Key, path.Value);
+                    }
+
                     foreach (var path in document.Paths.Values)
                     {
                         if (path.Operations is not null)

@@ -33,6 +33,9 @@ public static class EndpointConfiguration
         apiV2Group.MapMunicipalityEndpoints();
         apiV2Group.MapBarangayEndpoints();
         apiV2Group.MapFeeEndpoints();
+        apiV2Group.MapElementEndpoints();
+        apiV2Group.MapServiceVariantFeeEndpoints();
+        apiV2Group.MapServiceVariantElementFeeEndpoints();
         apiV2Group.MapServiceFeeEndpoints();
         apiV2Group.MapRequirementEndpoints();
         apiV2Group.MapServiceVariantRequirementEndpoints();
