@@ -28,24 +28,19 @@ public class UpdateScheduleCommandHandler : IRequestHandler<UpdateScheduleComman
             return null;
         }
 
-        var service = await _serviceRepository.GetByIdAsync(request.ServiceId, cancellationToken);
+        var service = await _serviceRepository.GetByIdAsync(schedule.ServiceId, cancellationToken);
         if (service == null)
         {
-            throw new InvalidOperationException($"Service with ID '{request.ServiceId}' does not exist.");
+            throw new InvalidOperationException($"Service with ID '{schedule.ServiceId}' does not exist.");
         }
 
-        schedule.ServiceId = request.ServiceId;
-        schedule.TenantId = request.TenantId;
         schedule.Venue = request.Venue;
         schedule.StartDate = request.StartDate;
         schedule.EndDate = request.EndDate;
         schedule.StartApplication = request.StartApplication;
         schedule.EndApplication = request.EndApplication;
-        schedule.IsPublished = request.IsPublished;
         schedule.MaximumSlots = request.MaximumSlots;
-        schedule.SeatNumber = request.SeatNumber;
         schedule.Remarks = request.Remarks;
-        schedule.ApplicationId = request.ApplicationId;
 
         _scheduleRepository.Update(schedule);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -56,8 +51,6 @@ public class UpdateScheduleCommandHandler : IRequestHandler<UpdateScheduleComman
             service.Name,
             service.Code,
             schedule.TenantId,
-            schedule.ApplicationId,
-            schedule.SeatNumber,
             schedule.Venue,
             schedule.StartDate,
             schedule.EndDate,

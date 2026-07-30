@@ -118,7 +118,6 @@ export interface ExamSchedule {
   isPublished: boolean;
   description?: string | null;
   remarks?: string | null;
-  seatNumber?: string | null;
   createdAt?: string;
   // Connected Service Fields
   serviceId?: string | null;
@@ -143,7 +142,6 @@ export interface CreateExamScheduleCommand {
   isPublished: boolean;
   description?: string | null;
   remarks?: string | null;
-  seatNumber?: string | null;
   // Connected Service Fields
   serviceId?: string | null;
   tenantId?: string | null;
@@ -166,7 +164,6 @@ export interface UpdateExamScheduleCommand {
   isPublished: boolean;
   description?: string | null;
   remarks?: string | null;
-  seatNumber?: string | null;
 }
 
 // Tenant and Member Management Types

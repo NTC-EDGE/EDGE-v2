@@ -40,9 +40,7 @@ public class CreateScheduleCommandHandler : IRequestHandler<CreateScheduleComman
             EndApplication = request.EndApplication,
             IsPublished = request.IsPublished,
             MaximumSlots = request.MaximumSlots,
-            SeatNumber = request.SeatNumber,
             Remarks = request.Remarks,
-            ApplicationId = request.ApplicationId
         };
 
         await _scheduleRepository.AddAsync(schedule, cancellationToken);
@@ -54,8 +52,6 @@ public class CreateScheduleCommandHandler : IRequestHandler<CreateScheduleComman
             service.Name,
             service.Code,
             schedule.TenantId,
-            schedule.ApplicationId,
-            schedule.SeatNumber,
             schedule.Venue,
             schedule.StartDate,
             schedule.EndDate,

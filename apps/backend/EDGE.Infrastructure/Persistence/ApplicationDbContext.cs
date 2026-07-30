@@ -212,7 +212,6 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
         modelBuilder.Entity<Schedule>(entity =>
         {
             entity.Property(e => e.Venue).IsRequired().HasMaxLength(200);
-            entity.Property(e => e.SeatNumber).HasMaxLength(50);
             entity.Property(e => e.Remarks).HasMaxLength(500);
             entity.Property(e => e.IsPublished).HasDefaultValue(false);
             entity.Property(e => e.MaximumSlots).IsRequired(false);

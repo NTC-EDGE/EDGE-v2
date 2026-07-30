@@ -120,14 +120,20 @@ public static class ScheduleEndpoints
 
     public static async Task<IResult> UpdateSchedule(
         Guid id,
-        UpdateScheduleCommand command,
+        UpdateScheduleRequest request,
         IValidator<UpdateScheduleCommand> validator,
         IMediator mediator)
     {
-        if (id != command.Id)
-        {
-            return Results.BadRequest("Route ID does not match request body ID.");
-        }
+        var command = new UpdateScheduleCommand(
+            id,
+            request.Venue,
+            request.StartDate,
+            request.EndDate,
+            request.StartApplication,
+            request.EndApplication,
+            request.MaximumSlots,
+            request.Remarks
+        );
 
         var validationResult = await validator.ValidateAsync(command);
         if (!validationResult.IsValid)
