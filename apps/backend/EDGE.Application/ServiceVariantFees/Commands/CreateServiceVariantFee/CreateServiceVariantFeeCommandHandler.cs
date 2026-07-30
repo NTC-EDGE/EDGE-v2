@@ -42,14 +42,26 @@ public class CreateServiceVariantFeeCommandHandler : IRequestHandler<CreateServi
         await _repository.AddAsync(svf, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
+        var created = await _repository.GetByIdAsync(svf.Id, cancellationToken);
+        if (created == null)
+        {
+            throw new InvalidOperationException("Failed to retrieve created service variant fee.");
+        }
+
         return new ServiceVariantFeeDto(
-            svf.Id,
-            svf.ServiceVariantId,
-            svf.FeeId,
-            fee.Code,
-            fee.Name,
-            svf.Amount,
-            svf.CreatedAt
+            created.Id,
+            created.ServiceVariantId,
+            created.ServiceVariant != null ? new ServiceVariantDetailDto(
+                created.ServiceVariant.Id,
+                created.ServiceVariant.ServiceId,
+                created.ServiceVariant.Service?.Name,
+                created.ServiceVariant.Type.ToString()
+            ) : null,
+            created.FeeId,
+            created.Fee?.Code,
+            created.Fee?.Name,
+            created.Amount,
+            created.CreatedAt
         );
     }
 }

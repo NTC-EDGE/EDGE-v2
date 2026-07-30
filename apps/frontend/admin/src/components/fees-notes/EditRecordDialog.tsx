@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { AlertCircle } from "lucide-react";
-import { Fee, ServiceFee, Note } from "@edge/api";
+import { Fee, ServiceFee, Note, Element, ServiceVariantFee, ServiceVariantElementFee } from "@edge/api";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -12,28 +12,35 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { ServiceCatalogItem, ServiceCategoryItem } from "@/services/feesNotesService";
+import { ServiceCatalogItem, ServiceCategoryItem, useFeesNotesService } from "@/services/feesNotesService";
+
+type TabType = "fees" | "service-fees" | "notes" | "elements" | "service-variant-fees" | "service-variant-element-fees";
 
 export interface EditRecordDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  activeTab: "fees" | "service-fees" | "notes";
+  activeTab: TabType;
   fees: Fee[];
+  elements: Element[];
   services: ServiceCatalogItem[];
   categories: ServiceCategoryItem[];
   selectedFee: Fee | null;
   selectedServiceFee: ServiceFee | null;
   selectedNote: Note | null;
+  selectedElement: Element | null;
+  selectedServiceVariantFee: ServiceVariantFee | null;
+  selectedServiceVariantElementFee: ServiceVariantElementFee | null;
   onSubmit: (
-    tab: "fees" | "service-fees" | "notes",
+    tab: TabType,
     data: {
       code: string;
       name: string;
       description: string;
       serviceId: string;
+      serviceVariantId: string;
+      elementId: string;
       feeId: string;
       amount: number;
-      serviceFees?: { feeId: string; amount: number }[];
       notes: string;
       serviceCategoryId: string;
     }
@@ -45,13 +52,18 @@ export function EditRecordDialog({
   onOpenChange,
   activeTab,
   fees,
+  elements,
   services,
   categories,
   selectedFee,
   selectedServiceFee,
   selectedNote,
+  selectedElement,
+  selectedServiceVariantFee,
+  selectedServiceVariantElementFee,
   onSubmit,
 }: EditRecordDialogProps) {
+  const { useServiceVariants } = useFeesNotesService();
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -61,11 +73,16 @@ export function EditRecordDialog({
   const [description, setDescription] = useState("");
 
   const [serviceId, setServiceId] = useState("");
+  const [serviceVariantId, setServiceVariantId] = useState("");
+  const [elementId, setElementId] = useState("");
   const [feeId, setFeeId] = useState("");
   const [amount, setAmount] = useState(0);
 
   const [notes, setNotes] = useState("");
   const [serviceCategoryId, setServiceCategoryId] = useState("");
+
+  // Query variants dynamically based on selected serviceId
+  const { data: variants = [] } = useServiceVariants(serviceId);
 
   const hasInitialized = useRef(false);
 
@@ -78,10 +95,25 @@ export function EditRecordDialog({
           setCode(selectedFee.code);
           setName(selectedFee.name);
           setDescription(selectedFee.description ?? "");
+        } else if (activeTab === "elements" && selectedElement !== null) {
+          setCode(selectedElement.code);
+          setName(selectedElement.name);
+          setDescription(selectedElement.description ?? "");
         } else if (activeTab === "service-fees" && selectedServiceFee !== null) {
           setServiceId(selectedServiceFee.serviceId);
           setFeeId(selectedServiceFee.feeId);
           setAmount(selectedServiceFee.amount);
+        } else if (activeTab === "service-variant-fees" && selectedServiceVariantFee !== null) {
+          setServiceId(selectedServiceVariantFee.serviceVariant?.serviceId ?? services[0]?.id ?? "");
+          setServiceVariantId(selectedServiceVariantFee.serviceVariantId);
+          setFeeId(selectedServiceVariantFee.feeId);
+          setAmount(selectedServiceVariantFee.amount);
+        } else if (activeTab === "service-variant-element-fees" && selectedServiceVariantElementFee !== null) {
+          setServiceId(selectedServiceVariantElementFee.serviceVariant?.serviceId ?? services[0]?.id ?? "");
+          setServiceVariantId(selectedServiceVariantElementFee.serviceVariantId);
+          setElementId(selectedServiceVariantElementFee.elementId);
+          setFeeId(selectedServiceVariantElementFee.feeId);
+          setAmount(selectedServiceVariantElementFee.amount);
         } else if (activeTab === "notes" && selectedNote !== null) {
           setNotes(selectedNote.notes);
           setServiceCategoryId(selectedNote.serviceCategoryId);
@@ -91,12 +123,23 @@ export function EditRecordDialog({
     } else {
       hasInitialized.current = false;
     }
-  }, [open, activeTab, selectedFee, selectedServiceFee, selectedNote]);
+  }, [open, activeTab, selectedFee, selectedElement, selectedServiceFee, selectedServiceVariantFee, selectedServiceVariantElementFee, selectedNote, services]);
+
+  const handleServiceChange = (val: string) => {
+    setServiceId(val);
+    setServiceVariantId(""); // reset variant to let next useEffect pick first item
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     setErrorMsg(null);
+
+    if ((activeTab === "service-variant-fees" || activeTab === "service-variant-element-fees") && !serviceVariantId) {
+      setErrorMsg("Please select a Service Variant.");
+      setSubmitting(false);
+      return;
+    }
 
     try {
       await onSubmit(activeTab, {
@@ -104,6 +147,8 @@ export function EditRecordDialog({
         name,
         description,
         serviceId,
+        serviceVariantId,
+        elementId,
         feeId,
         amount,
         notes,
@@ -123,7 +168,10 @@ export function EditRecordDialog({
         <DialogHeader>
           <DialogTitle className="text-lg font-bold text-white">
             {activeTab === "fees" && "Edit Fee Code details"}
+            {activeTab === "elements" && "Edit Billing Element"}
             {activeTab === "service-fees" && "Modify Mapped Service Fee"}
+            {activeTab === "service-variant-fees" && "Modify Variant Fee Mapping"}
+            {activeTab === "service-variant-element-fees" && "Modify Variant Element Fee"}
             {activeTab === "notes" && "Update Guideline Instruction"}
           </DialogTitle>
           <DialogDescription className="text-xs text-slate-400">
@@ -139,25 +187,25 @@ export function EditRecordDialog({
             </div>
           )}
 
-          {activeTab === "fees" && (
+          {(activeTab === "fees" || activeTab === "elements") && (
             <>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300">Fee Code *</label>
+                <label className="text-xs font-semibold text-slate-300">Code *</label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. FILING_FEE"
+                  placeholder="e.g. CODE"
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300">Fee Name *</label>
+                <label className="text-xs font-semibold text-slate-300">Name *</label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Licensing Application Filing Fee"
+                  placeholder="e.g. Name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -166,7 +214,7 @@ export function EditRecordDialog({
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-slate-300">Description (Optional)</label>
                 <textarea
-                  placeholder="Provide context about what this fee applies to."
+                  placeholder="Provide context about what this applies to."
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 min-h-[80px]"
@@ -181,7 +229,7 @@ export function EditRecordDialog({
                 <label className="text-xs font-semibold text-slate-300">Service Standard *</label>
                 <select
                   value={serviceId}
-                  onChange={(e) => setServiceId(e.target.value)}
+                  onChange={(e) => handleServiceChange(e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
                   {services.map((s) => (
@@ -206,6 +254,96 @@ export function EditRecordDialog({
                   ))}
                 </select>
               </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-300">Amount *</label>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-2.5 text-slate-400 text-sm font-semibold pointer-events-none">₱</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    required
+                    placeholder="0.00"
+                    value={amount}
+                    onChange={(e) => setAmount(Number(e.target.value))}
+                    className="w-full pl-8 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+            </>
+          )}
+
+          {(activeTab === "service-variant-fees" || activeTab === "service-variant-element-fees") && (
+            <>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-300">Service Standard *</label>
+                <select
+                  value={serviceId}
+                  onChange={(e) => handleServiceChange(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                >
+                  {services.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-300">Service Variant Type *</label>
+                <select
+                  value={serviceVariantId}
+                  onChange={(e) => setServiceVariantId(e.target.value)}
+                  required
+                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                >
+                  {variants.length === 0 ? (
+                    <option value="">No variants available for this service</option>
+                  ) : (
+                    variants.map((v) => (
+                      <option key={v.id} value={v.id}>
+                        {v.type} {v.description ? `(${v.description})` : ""}
+                      </option>
+                    ))
+                  )}
+                </select>
+              </div>
+
+              {activeTab === "service-variant-element-fees" && (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-300">Billing Element *</label>
+                  <select
+                    value={elementId}
+                    onChange={(e) => setElementId(e.target.value)}
+                    required
+                    className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                  >
+                    {elements.map((elem) => (
+                      <option key={elem.id} value={elem.id}>
+                        [{elem.code}] {elem.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-300">Mapped Fee Code *</label>
+                <select
+                  value={feeId}
+                  onChange={(e) => setFeeId(e.target.value)}
+                  required
+                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                >
+                  {fees.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      [{f.code}] {f.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-slate-300">Amount *</label>
                 <div className="relative">

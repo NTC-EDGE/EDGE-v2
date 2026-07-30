@@ -26,6 +26,12 @@ public class GetServiceVariantFeesQueryHandler : IRequestHandler<GetServiceVaria
         return fees.Select(svf => new ServiceVariantFeeDto(
             svf.Id,
             svf.ServiceVariantId,
+            svf.ServiceVariant != null ? new ServiceVariantDetailDto(
+                svf.ServiceVariant.Id,
+                svf.ServiceVariant.ServiceId,
+                svf.ServiceVariant.Service?.Name,
+                svf.ServiceVariant.Type.ToString()
+            ) : null,
             svf.FeeId,
             svf.Fee?.Code,
             svf.Fee?.Name,

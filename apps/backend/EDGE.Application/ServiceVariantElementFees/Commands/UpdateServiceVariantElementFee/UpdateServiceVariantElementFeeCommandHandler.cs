@@ -3,6 +3,7 @@ using MediatR;
 using System.Threading;
 using System.Threading.Tasks;
 using EDGE.Application.ServiceVariantElementFees.DTOs;
+using EDGE.Application.ServiceVariantFees.DTOs;
 using EDGE.Application.Common.Interfaces;
 
 namespace EDGE.Application.ServiceVariantElementFees.Commands.UpdateServiceVariantElementFee;
@@ -53,17 +54,29 @@ public class UpdateServiceVariantElementFeeCommandHandler : IRequestHandler<Upda
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
+        var updated = await _repository.GetByIdAsync(svef.Id, cancellationToken);
+        if (updated == null)
+        {
+            return null;
+        }
+
         return new ServiceVariantElementFeeDto(
-            svef.Id,
-            svef.ServiceVariantId,
-            svef.ElementId,
-            element.Code,
-            element.Name,
-            svef.FeeId,
-            fee.Code,
-            fee.Name,
-            svef.Amount,
-            svef.CreatedAt
+            updated.Id,
+            updated.ServiceVariantId,
+            updated.ServiceVariant != null ? new ServiceVariantDetailDto(
+                updated.ServiceVariant.Id,
+                updated.ServiceVariant.ServiceId,
+                updated.ServiceVariant.Service?.Name,
+                updated.ServiceVariant.Type.ToString()
+            ) : null,
+            updated.ElementId,
+            updated.Element?.Code,
+            updated.Element?.Name,
+            updated.FeeId,
+            updated.Fee?.Code,
+            updated.Fee?.Name,
+            updated.Amount,
+            updated.CreatedAt
         );
     }
 }

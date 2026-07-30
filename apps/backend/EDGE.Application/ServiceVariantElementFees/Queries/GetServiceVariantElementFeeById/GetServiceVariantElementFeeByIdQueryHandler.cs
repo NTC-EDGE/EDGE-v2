@@ -2,6 +2,7 @@ using MediatR;
 using System.Threading;
 using System.Threading.Tasks;
 using EDGE.Application.ServiceVariantElementFees.DTOs;
+using EDGE.Application.ServiceVariantFees.DTOs;
 using EDGE.Application.Common.Interfaces;
 
 namespace EDGE.Application.ServiceVariantElementFees.Queries.GetServiceVariantElementFeeById;
@@ -26,6 +27,12 @@ public class GetServiceVariantElementFeeByIdQueryHandler : IRequestHandler<GetSe
         return new ServiceVariantElementFeeDto(
             svef.Id,
             svef.ServiceVariantId,
+            svef.ServiceVariant != null ? new ServiceVariantDetailDto(
+                svef.ServiceVariant.Id,
+                svef.ServiceVariant.ServiceId,
+                svef.ServiceVariant.Service?.Name,
+                svef.ServiceVariant.Type.ToString()
+            ) : null,
             svef.ElementId,
             svef.Element?.Code,
             svef.Element?.Name,

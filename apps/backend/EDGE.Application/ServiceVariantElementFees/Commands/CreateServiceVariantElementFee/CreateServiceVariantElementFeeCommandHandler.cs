@@ -3,6 +3,7 @@ using MediatR;
 using System.Threading;
 using System.Threading.Tasks;
 using EDGE.Application.ServiceVariantElementFees.DTOs;
+using EDGE.Application.ServiceVariantFees.DTOs;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Domain.Entities;
 
@@ -52,17 +53,29 @@ public class CreateServiceVariantElementFeeCommandHandler : IRequestHandler<Crea
         await _repository.AddAsync(svef, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
+        var created = await _repository.GetByIdAsync(svef.Id, cancellationToken);
+        if (created == null)
+        {
+            throw new InvalidOperationException("Failed to retrieve created service variant element fee.");
+        }
+
         return new ServiceVariantElementFeeDto(
-            svef.Id,
-            svef.ServiceVariantId,
-            svef.ElementId,
-            element.Code,
-            element.Name,
-            svef.FeeId,
-            fee.Code,
-            fee.Name,
-            svef.Amount,
-            svef.CreatedAt
+            created.Id,
+            created.ServiceVariantId,
+            created.ServiceVariant != null ? new ServiceVariantDetailDto(
+                created.ServiceVariant.Id,
+                created.ServiceVariant.ServiceId,
+                created.ServiceVariant.Service?.Name,
+                created.ServiceVariant.Type.ToString()
+            ) : null,
+            created.ElementId,
+            created.Element?.Code,
+            created.Element?.Name,
+            created.FeeId,
+            created.Fee?.Code,
+            created.Fee?.Name,
+            created.Amount,
+            created.CreatedAt
         );
     }
 }

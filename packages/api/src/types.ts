@@ -481,6 +481,46 @@ export interface ServiceFee {
   isActive?: boolean;
 }
 
+export interface Element {
+  id: string;
+  name: string;
+  code: string;
+  description?: string | null;
+  createdAt?: string;
+}
+
+export interface ServiceVariantDetail {
+  id: string;
+  serviceId: string;
+  serviceName?: string | null;
+  type?: string | null;
+}
+
+export interface ServiceVariantFee {
+  id: string;
+  serviceVariantId: string;
+  serviceVariant?: ServiceVariantDetail | null;
+  feeId: string;
+  feeCode?: string | null;
+  feeName?: string | null;
+  amount: number;
+  createdAt?: string;
+}
+
+export interface ServiceVariantElementFee {
+  id: string;
+  serviceVariantId: string;
+  serviceVariant?: ServiceVariantDetail | null;
+  elementId: string;
+  elementCode?: string | null;
+  elementName?: string | null;
+  feeId: string;
+  feeCode?: string | null;
+  feeName?: string | null;
+  amount: number;
+  createdAt?: string;
+}
+
 export interface Note {
   id: string;
   notes: string;

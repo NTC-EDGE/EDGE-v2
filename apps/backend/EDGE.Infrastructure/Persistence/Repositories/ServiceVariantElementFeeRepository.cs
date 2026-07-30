@@ -17,6 +17,7 @@ public class ServiceVariantElementFeeRepository : IServiceVariantElementFeeRepos
     {
         return await _context.ServiceVariantElementFees
             .Include(svef => svef.ServiceVariant)
+                .ThenInclude(sv => sv!.Service)
             .Include(svef => svef.Element)
             .Include(svef => svef.Fee)
             .FirstOrDefaultAsync(svef => svef.Id == id, cancellationToken);
@@ -26,6 +27,7 @@ public class ServiceVariantElementFeeRepository : IServiceVariantElementFeeRepos
     {
         return await _context.ServiceVariantElementFees
             .Include(svef => svef.ServiceVariant)
+                .ThenInclude(sv => sv!.Service)
             .Include(svef => svef.Element)
             .Include(svef => svef.Fee)
             .Where(svef => svef.ServiceVariantId == serviceVariantId)
@@ -36,6 +38,7 @@ public class ServiceVariantElementFeeRepository : IServiceVariantElementFeeRepos
     {
         return await _context.ServiceVariantElementFees
             .Include(svef => svef.ServiceVariant)
+                .ThenInclude(sv => sv!.Service)
             .Include(svef => svef.Element)
             .Include(svef => svef.Fee)
             .ToListAsync(cancellationToken);
