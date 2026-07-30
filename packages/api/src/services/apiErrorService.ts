@@ -1,6 +1,6 @@
 /**
  * Uniform Error Message Parser for NTC-EDGE Application Ecosystem.
- * Modular, type-safe pipeline for parsing C# .NET 10 Backend API responses,
+ * Modular, type-safe pipeline for parsing Backend API responses,
  * Clerk Identity API errors, and network connection failures.
  */
 
@@ -13,21 +13,42 @@ function getProperty(target: unknown, key: string): unknown {
 }
 
 /**
+ * Sanitizes error messages to prevent exposing internal technical details.
+ */
+function sanitizeErrorMessage(msg: string): string {
+  const trimmed = msg.trim();
+  if (
+    trimmed.includes("Failed to read parameter") ||
+    trimmed.includes("CreateFieldOfficeCommand") ||
+    trimmed.includes("UpdateFieldOfficeCommand") ||
+    trimmed.includes("System.Text.Json") ||
+    trimmed.includes("JsonException") ||
+    trimmed.includes("NullReferenceException") ||
+    trimmed.includes("Stack trace") ||
+    trimmed.includes("request body as JSON")
+  ) {
+    return "Invalid request payload. Please check your inputs and try again.";
+  }
+  return trimmed;
+}
+
+/**
  * 1. Network Connection Failure Parser
  */
 function parseNetworkError(err: unknown): string | null {
+  const genericMsg = "Unable to connect to the server. Please check your network connection and try again.";
   if (typeof err === "object" && err !== null) {
     const code = getProperty(err, "code");
     if (code === "ERR_NETWORK") {
-      return "Unable to connect to the backend server. Please verify that your internet connection is active and the C# backend API is running.";
+      return genericMsg;
     }
     const message = getProperty(err, "message");
     if (typeof message === "string" && message.includes("Network Error")) {
-      return "Unable to connect to the backend server. Please verify that your internet connection is active and the C# backend API is running.";
+      return genericMsg;
     }
   }
   if (err instanceof Error && err.message.includes("Network Error")) {
-    return "Unable to connect to the backend server. Please verify that your internet connection is active and the C# backend API is running.";
+    return genericMsg;
   }
   return null;
 }
@@ -59,7 +80,7 @@ function parseClerkSignInStatus(errObj: object): string | null {
 }
 
 /**
- * 3. C# .NET 10 Backend API Response Parser (ApiResponse<T>, ProblemDetails, ValidationProblem)
+ * 3. Backend API Response Parser (ApiResponse<T>, ProblemDetails, ValidationProblem)
  */
 function parseBackendApiResponse(errObj: object): string | null {
   const response = getProperty(errObj, "response");
@@ -69,20 +90,20 @@ function parseBackendApiResponse(errObj: object): string | null {
   const status = getProperty(response, "status");
 
   if (typeof data === "object" && data !== null) {
-    // C# ApiResponse<T> format: { succeeded: false, message: "..." }
+    // ApiResponse<T> format: { succeeded: false, message: "..." }
     const message = getProperty(data, "message");
     if (typeof message === "string" && message.trim().length > 0) {
-      return message.trim();
+      return sanitizeErrorMessage(message);
     }
 
-    // C# ProblemDetails format: { detail: "...", title: "..." }
+    // ProblemDetails format: { detail: "...", title: "..." }
     const detail = getProperty(data, "detail");
     if (typeof detail === "string" && detail.trim().length > 0) {
-      return detail.trim();
+      return sanitizeErrorMessage(detail);
     }
     const title = getProperty(data, "title");
     if (typeof title === "string" && title.trim().length > 0) {
-      return title.trim();
+      return sanitizeErrorMessage(title);
     }
 
     // FluentValidation dictionary format: { errors: { SelectedRegion: ["Region is required"] } }
@@ -92,7 +113,7 @@ function parseBackendApiResponse(errObj: object): string | null {
       if (keys.length > 0) {
         const firstArr = getProperty(errors, keys[0]);
         if (Array.isArray(firstArr) && firstArr.length > 0 && typeof firstArr[0] === "string") {
-          return firstArr[0];
+          return sanitizeErrorMessage(firstArr[0]);
         }
       }
     }
@@ -147,10 +168,10 @@ function parseClerkErrorPayload(errObj: object): string | null {
   }
 
   if (typeof longMessage === "string" && longMessage.trim().length > 0) {
-    return longMessage.trim();
+    return sanitizeErrorMessage(longMessage);
   }
   if (typeof message === "string" && message.trim().length > 0) {
-    return message.trim();
+    return sanitizeErrorMessage(message);
   }
 
   return null;
@@ -168,7 +189,7 @@ export const parseApiError = (
   }
 
   if (typeof err === "string" && err.trim().length > 0) {
-    return err.trim();
+    return sanitizeErrorMessage(err);
   }
 
   // Step 1: Check for Network Connection Failure
@@ -180,7 +201,7 @@ export const parseApiError = (
     const signInStatusError = parseClerkSignInStatus(err);
     if (signInStatusError !== null) return signInStatusError;
 
-    // Step 3: Check for C# Backend API HTTP Response (ApiResponse / ProblemDetails)
+    // Step 3: Check for Backend API HTTP Response (ApiResponse / ProblemDetails)
     const backendError = parseBackendApiResponse(err);
     if (backendError !== null) return backendError;
 
@@ -194,7 +215,7 @@ export const parseApiError = (
       if (directMessage.includes("needs_client_trust")) {
         return "Verification Required: Clerk requires device trust or email code verification. Please check your email inbox for a verification code.";
       }
-      return directMessage.trim();
+      return sanitizeErrorMessage(directMessage);
     }
   }
 
@@ -203,7 +224,7 @@ export const parseApiError = (
     if (err.message.includes("needs_client_trust")) {
       return "Verification Required: Clerk requires device trust or email code verification. Please check your email inbox for a verification code.";
     }
-    return err.message.trim();
+    return sanitizeErrorMessage(err.message);
   }
 
   return defaultFallback;

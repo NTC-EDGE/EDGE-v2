@@ -7,6 +7,7 @@ export interface FieldOfficeDto {
   tenantId: string;
   name: string;
   code: string;
+  category?: string;
   description?: string | null;
   regionId: string;
   provinceId?: string | null;

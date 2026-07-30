@@ -10,6 +10,7 @@ export * from './services/announcementService';
 export * from './services/auditLogService';
 export * from './services/apiErrorService';
 export * from './services/tokenManager';
+export * from './services/fieldOfficeService';
 export * from './hooks/useRegions';
 export * from './hooks/useMyTenantMemberships';
 export * from './hooks/useAdminFeedback';

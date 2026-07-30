@@ -7,6 +7,7 @@ public record FieldOfficeDto(
     Guid TenantId,
     string Name,
     string Code,
+    string Category,
     string? Description,
     Guid RegionId,
     Guid? ProvinceId,

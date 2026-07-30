@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   StyleSheet,
   View,
@@ -11,6 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide, useTheme } from '@edge/ui';
+import { fieldOfficeSchema } from '../schemas/fieldOffice.schema';
 
 export type ModalType =
   | 'edit-config'
@@ -44,9 +45,19 @@ export interface ModalInitialData {
   subLabel?: string;
   code?: string;
   branchType?: 'Main Office' | 'Field Office';
+  branchCategory?: 'Main' | 'Extension';
+  address?: string;
+  contactPhone?: string;
+  contactEmail?: string;
+  officerName?: string;
+  officerEmail?: string;
+  description?: string;
+  isActive?: boolean;
+  allowSpectrumInspection?: boolean;
+  allowPermitIssuance?: boolean;
+  allowComplaintReception?: boolean;
   amount?: number;
   instructions?: string;
-  isActive?: boolean;
   mappedDocuments?: MappedDocInput[];
   feeBreakdown?: FeeBreakdownItemInput[];
   status?: 'Published' | 'Draft';
@@ -64,9 +75,19 @@ interface AdminSettingsModalProps {
     subLabel: string;
     code: string;
     branchType: 'Main Office' | 'Field Office';
+    branchCategory?: 'Main' | 'Extension';
+    address?: string;
+    contactPhone?: string;
+    contactEmail?: string;
+    officerName?: string;
+    officerEmail?: string;
+    description?: string;
+    isActive?: boolean;
+    allowSpectrumInspection?: boolean;
+    allowPermitIssuance?: boolean;
+    allowComplaintReception?: boolean;
     amount: number;
     instructions: string;
-    isActive: boolean;
     mappedDocuments?: MappedDocInput[];
     feeBreakdown?: FeeBreakdownItemInput[];
     status?: 'Published' | 'Draft';
@@ -112,10 +133,100 @@ export function AdminSettingsModal({
   const [subLabelInput, setSubLabelInput] = useState('');
   const [codeInput, setCodeInput] = useState('');
   const [branchType, setBranchType] = useState<'Main Office' | 'Field Office'>('Main Office');
+  const [branchCategory, setBranchCategory] = useState<'Main' | 'Extension'>('Main');
+  const [addressInput, setAddressInput] = useState('');
+  const [contactPhoneInput, setContactPhoneInput] = useState('');
+  const [contactEmailInput, setContactEmailInput] = useState('');
+  const [officerNameInput, setOfficerNameInput] = useState('');
+  const [officerEmailInput, setOfficerEmailInput] = useState('');
+  const [descriptionInput, setDescriptionInput] = useState('');
+  const [allowSpectrumInspectionToggle, setAllowSpectrumInspectionToggle] = useState(true);
+  const [allowPermitIssuanceToggle, setAllowPermitIssuanceToggle] = useState(true);
+  const [allowComplaintReceptionToggle, setAllowComplaintReceptionToggle] = useState(true);
+  const [isActiveToggle, setIsActiveToggle] = useState(true);
   const [formStatus, setFormStatus] = useState<'Published' | 'Draft'>('Draft');
+
+  // Error & Loading States
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Form Validation Satisfaction Check via Zod
+  const isFormSatisfied = useMemo(() => {
+    if (type === 'add-branch') {
+      const parsed = fieldOfficeSchema.safeParse({
+        name: nameInput,
+        code: codeInput,
+        category: branchCategory,
+        address: addressInput,
+        contactPhone: contactPhoneInput,
+        contactEmail: contactEmailInput,
+        officerName: officerNameInput,
+        officerEmail: officerEmailInput,
+        description: descriptionInput,
+        isActive: isActiveToggle,
+        allowSpectrumInspection: allowSpectrumInspectionToggle,
+        allowPermitIssuance: allowPermitIssuanceToggle,
+        allowComplaintReception: allowComplaintReceptionToggle,
+      });
+      return parsed.success;
+    }
+    if (type === 'edit-config') {
+      return nameInput.trim().length > 0 || titleInput.trim().length > 0;
+    }
+    return true;
+  }, [
+    type,
+    nameInput,
+    codeInput,
+    branchCategory,
+    addressInput,
+    contactPhoneInput,
+    contactEmailInput,
+    officerNameInput,
+    officerEmailInput,
+    descriptionInput,
+    isActiveToggle,
+    allowSpectrumInspectionToggle,
+    allowPermitIssuanceToggle,
+    allowComplaintReceptionToggle,
+    titleInput,
+  ]);
+
+  const isSaveDisabled = isSubmitting || !isFormSatisfied;
+
+  // On Blur Validation Handler for individual fields
+  const handleBlur = (fieldName: string) => {
+    if (type !== 'add-branch') return;
+    const parsed = fieldOfficeSchema.safeParse({
+      name: nameInput,
+      code: codeInput,
+      category: branchCategory,
+      address: addressInput,
+      contactPhone: contactPhoneInput,
+      contactEmail: contactEmailInput,
+      officerName: officerNameInput,
+      officerEmail: officerEmailInput,
+      description: descriptionInput,
+      isActive: isActiveToggle,
+      allowSpectrumInspection: allowSpectrumInspectionToggle,
+      allowPermitIssuance: allowPermitIssuanceToggle,
+      allowComplaintReception: allowComplaintReceptionToggle,
+    });
+
+    if (!parsed.success) {
+      const issue = parsed.error.issues.find((i) => String(i.path[0]) === fieldName);
+      if (issue) {
+        setFieldErrors((prev) => ({ ...prev, [fieldName]: issue.message }));
+      } else {
+        setFieldErrors((prev) => ({ ...prev, [fieldName]: '' }));
+      }
+    } else {
+      setFieldErrors((prev) => ({ ...prev, [fieldName]: '' }));
+    }
+  };
   const [amountInput, setAmountInput] = useState('');
   const [instructionsInput, setInstructionsInput] = useState('');
-  const [isActiveToggle, setIsActiveToggle] = useState(true);
 
   // Dropdown visibility states
   const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
@@ -130,12 +241,25 @@ export function AdminSettingsModal({
   const [feeBreakdowns, setFeeBreakdowns] = useState<FeeBreakdownItemInput[]>([]);
 
   useEffect(() => {
+    setErrorMessage(null);
+    setFieldErrors({});
+    setIsSubmitting(false);
     if (visible && initialData !== undefined && initialData !== null) {
       setTitleInput(initialData.serviceType ?? initialData.title ?? 'Aeronautical Station Permit to POSSESS');
       setNameInput(initialData.name ?? initialData.title ?? '');
       setSubLabelInput(initialData.subLabel ?? '');
-      setCodeInput(initialData.code ?? 'RSL-CERT-001');
+      setCodeInput(initialData.code ?? 'ZC-001');
       setBranchType(initialData.branchType === 'Field Office' ? 'Field Office' : 'Main Office');
+      setBranchCategory(initialData.branchCategory === 'Extension' || initialData.branchType === 'Field Office' ? 'Extension' : 'Main');
+      setAddressInput(initialData.address ?? '');
+      setContactPhoneInput(initialData.contactPhone ?? '');
+      setContactEmailInput(initialData.contactEmail ?? '');
+      setOfficerNameInput(initialData.officerName ?? '');
+      setOfficerEmailInput(initialData.officerEmail ?? '');
+      setDescriptionInput(initialData.description ?? '');
+      setAllowSpectrumInspectionToggle(initialData.allowSpectrumInspection ?? true);
+      setAllowPermitIssuanceToggle(initialData.allowPermitIssuance ?? true);
+      setAllowComplaintReceptionToggle(initialData.allowComplaintReception ?? true);
       setFormStatus(initialData.status === 'Published' ? 'Published' : 'Draft');
       setAmountInput(initialData.amount !== undefined ? String(initialData.amount) : '');
       setInstructionsInput(initialData.instructions ?? '1.\n2.\n3.');
@@ -161,6 +285,16 @@ export function AdminSettingsModal({
       setSubLabelInput('');
       setCodeInput('');
       setBranchType('Main Office');
+      setBranchCategory('Main');
+      setAddressInput('');
+      setContactPhoneInput('');
+      setContactEmailInput('');
+      setOfficerNameInput('');
+      setOfficerEmailInput('');
+      setDescriptionInput('');
+      setAllowSpectrumInspectionToggle(true);
+      setAllowPermitIssuanceToggle(true);
+      setAllowComplaintReceptionToggle(true);
       setFormStatus('Draft');
       setAmountInput('');
       setInstructionsInput('1.\n2.\n3.');
@@ -196,7 +330,7 @@ export function AdminSettingsModal({
         if (categoryName === 'Region Summary') return 'Edit Region Summary';
         return 'Edit Regional Configuration';
       case 'add-branch':
-        return initialData?.id ? 'Edit Regional Branch Office' : 'Add Regional Branch Office';
+        return initialData?.id ? 'Edit Regional Field Office' : 'Add Regional Field Office';
       case 'add-requirement':
         return 'Add Service Requirements Checklist';
       case 'edit-requirement':
@@ -276,26 +410,78 @@ export function AdminSettingsModal({
     setFeeBreakdowns((prev) => prev.filter((fb) => fb.id !== id));
   };
 
-  const handleSave = () => {
-    const totalFromBreakdowns = feeBreakdowns.reduce((acc, curr) => acc + curr.amount, 0);
-    const parsedAmount = parseFloat(amountInput);
-    const finalAmount = totalFromBreakdowns > 0 ? totalFromBreakdowns : (isNaN(parsedAmount) ? 0 : parsedAmount);
+  const handleSave = async () => {
+    if (type === 'add-branch') {
+      const zodResult = fieldOfficeSchema.safeParse({
+        name: nameInput,
+        code: codeInput,
+        category: branchCategory,
+        address: addressInput,
+        contactPhone: contactPhoneInput,
+        contactEmail: contactEmailInput,
+        officerName: officerNameInput,
+        officerEmail: officerEmailInput,
+        description: descriptionInput,
+        isActive: isActiveToggle,
+        allowSpectrumInspection: allowSpectrumInspectionToggle,
+        allowPermitIssuance: allowPermitIssuanceToggle,
+        allowComplaintReception: allowComplaintReceptionToggle,
+      });
 
-    onSave({
-      title: nameInput || titleInput,
-      name: nameInput,
-      subLabel: subLabelInput,
-      code: codeInput,
-      branchType,
-      amount: finalAmount,
-      instructions: instructionsInput,
-      isActive: isActiveToggle,
-      mappedDocuments: mappedDocs,
-      feeBreakdown: feeBreakdowns,
-      status: formStatus,
-      serviceType: titleInput,
-    });
-    onClose();
+      if (!zodResult.success) {
+        const errors: Record<string, string> = {};
+        for (const issue of zodResult.error.issues) {
+          const pathKey = String(issue.path[0]);
+          if (pathKey && !errors[pathKey]) {
+            errors[pathKey] = issue.message;
+          }
+        }
+        setFieldErrors(errors);
+        setErrorMessage('Please fix the highlighted errors below before saving.');
+        return;
+      }
+    }
+
+    setErrorMessage(null);
+    setFieldErrors({});
+    setIsSubmitting(true);
+
+    try {
+      const totalFromBreakdowns = feeBreakdowns.reduce((acc, curr) => acc + curr.amount, 0);
+      const parsedAmount = parseFloat(amountInput);
+      const finalAmount = totalFromBreakdowns > 0 ? totalFromBreakdowns : (isNaN(parsedAmount) ? 0 : parsedAmount);
+
+      await onSave({
+        title: nameInput || titleInput,
+        name: nameInput,
+        subLabel: subLabelInput,
+        code: codeInput,
+        branchType: branchCategory === 'Extension' ? 'Field Office' : 'Main Office',
+        branchCategory,
+        address: addressInput,
+        contactPhone: contactPhoneInput,
+        contactEmail: contactEmailInput,
+        officerName: officerNameInput,
+        officerEmail: officerEmailInput,
+        description: descriptionInput,
+        isActive: isActiveToggle,
+        allowSpectrumInspection: allowSpectrumInspectionToggle,
+        allowPermitIssuance: allowPermitIssuanceToggle,
+        allowComplaintReception: allowComplaintReceptionToggle,
+        amount: finalAmount,
+        instructions: instructionsInput,
+        mappedDocuments: mappedDocs,
+        feeBreakdown: feeBreakdowns,
+        status: formStatus,
+        serviceType: titleInput,
+      });
+      onClose();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to save. Please check your inputs.';
+      setErrorMessage(message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -305,7 +491,7 @@ export function AdminSettingsModal({
           style={[
             styles.modalCard,
             { backgroundColor: colors.cardBg, borderColor: colors.border },
-            (isRequirementModal || isFeeModal || isNoteModal || isFormModal) && styles.modalCardWide,
+            (type === 'add-branch' || isRequirementModal || isFeeModal || isNoteModal || isFormModal) && styles.modalCardWide,
             SHADOWS.modal,
           ]}
         >
@@ -367,8 +553,21 @@ export function AdminSettingsModal({
             </Pressable>
           </View>
 
+          {/* Inline Error Banner */}
+          {errorMessage !== null && (
+            <View style={styles.errorBanner}>
+              <View style={styles.errorBannerLeft}>
+                <Lucide name="alert-circle" size={16} color={COLORS.semantic.error} />
+                <Text style={styles.errorBannerText}>{errorMessage}</Text>
+              </View>
+              <Pressable onPress={() => setErrorMessage(null)} style={styles.errorDismissBtn}>
+                <Lucide name="x" size={14} color={COLORS.semantic.error} />
+              </Pressable>
+            </View>
+          )}
+
           {/* Form Content */}
-          <ScrollView contentContainerStyle={styles.formContainer} showsVerticalScrollIndicator={false}>
+          <ScrollView style={styles.modalScroll} contentContainerStyle={styles.formContainer} showsVerticalScrollIndicator={false}>
             {/* 1. Regional Config Modal Fields */}
             {type === 'edit-config' && (
               <>
@@ -508,80 +707,246 @@ export function AdminSettingsModal({
               </>
             )}
 
-            {/* 2. Regional Branch Office Modal Fields */}
+            {/* 2. Regional Field Office Modal Fields */}
             {type === 'add-branch' && (
               <>
                 <View style={styles.inputGroup}>
                   <Text style={styles.inputLabel}>BRANCH NAME</Text>
                   <TextInput
-                    style={styles.textInput}
+                    style={[
+                      styles.textInput,
+                      fieldErrors.name !== undefined && fieldErrors.name !== '' && styles.textInputError,
+                    ]}
                     placeholder="Zamboanga City Main Office"
                     placeholderTextColor={COLORS.neutral[400]}
                     value={nameInput}
-                    onChangeText={setNameInput}
+                    onChangeText={(val) => {
+                      setNameInput(val);
+                      if (fieldErrors.name) setFieldErrors((prev) => ({ ...prev, name: '' }));
+                    }}
+                    onBlur={() => handleBlur('name')}
                   />
+                  {fieldErrors.name ? <Text style={styles.fieldErrorText}>{fieldErrors.name}</Text> : null}
                 </View>
 
                 <View style={styles.inputGroup}>
                   <Text style={styles.inputLabel}>BRANCH CODE</Text>
                   <TextInput
-                    style={styles.textInput}
+                    style={[
+                      styles.textInput,
+                      fieldErrors.code !== undefined && fieldErrors.code !== '' && styles.textInputError,
+                    ]}
                     placeholder="ZC-001"
                     placeholderTextColor={COLORS.neutral[400]}
                     value={codeInput}
-                    onChangeText={setCodeInput}
+                    onChangeText={(val) => {
+                      setCodeInput(val);
+                      if (fieldErrors.code) setFieldErrors((prev) => ({ ...prev, code: '' }));
+                    }}
+                    onBlur={() => handleBlur('code')}
                   />
+                  {fieldErrors.code ? <Text style={styles.fieldErrorText}>{fieldErrors.code}</Text> : null}
                 </View>
 
                 <View style={styles.inputGroup}>
                   <Text style={styles.inputLabel}>BRANCH CATEGORY</Text>
-                  <Pressable
-                    style={styles.dropdownTrigger}
-                    onPress={() => setIsCategoryDropdownOpen(!isCategoryDropdownOpen)}
-                  >
-                    <Text style={styles.dropdownTriggerText}>{branchType}</Text>
-                    <Lucide
-                      name={isCategoryDropdownOpen ? 'chevron-up' : 'chevron-down'}
-                      size={18}
-                      color={COLORS.neutral[400]}
+                  <View style={styles.radioContainer}>
+                    <Pressable
+                      style={[
+                        styles.radioOption,
+                        branchCategory === 'Main' && styles.radioOptionActive,
+                      ]}
+                      onPress={() => {
+                        setBranchCategory('Main');
+                        setBranchType('Main Office');
+                      }}
+                      accessibilityRole="radio"
+                      accessibilityState={{ checked: branchCategory === 'Main' }}
+                    >
+                      <View style={[styles.radioCircle, branchCategory === 'Main' && styles.radioCircleActive]}>
+                        {branchCategory === 'Main' && <View style={styles.radioDot} />}
+                      </View>
+                      <Text style={[styles.radioText, branchCategory === 'Main' && styles.radioTextActive]}>
+                        Main
+                      </Text>
+                    </Pressable>
+
+                    <Pressable
+                      style={[
+                        styles.radioOption,
+                        branchCategory === 'Extension' && styles.radioOptionActive,
+                      ]}
+                      onPress={() => {
+                        setBranchCategory('Extension');
+                        setBranchType('Field Office');
+                      }}
+                      accessibilityRole="radio"
+                      accessibilityState={{ checked: branchCategory === 'Extension' }}
+                    >
+                      <View style={[styles.radioCircle, branchCategory === 'Extension' && styles.radioCircleActive]}>
+                        {branchCategory === 'Extension' && <View style={styles.radioDot} />}
+                      </View>
+                      <Text style={[styles.radioText, branchCategory === 'Extension' && styles.radioTextActive]}>
+                        Extension
+                      </Text>
+                    </Pressable>
+                  </View>
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>OFFICE ADDRESS</Text>
+                  <TextInput
+                    style={[
+                      styles.textInput,
+                      fieldErrors.address !== undefined && fieldErrors.address !== '' && styles.textInputError,
+                    ]}
+                    placeholder="Pasonanca, Zamboanga City"
+                    placeholderTextColor={COLORS.neutral[400]}
+                    value={addressInput}
+                    onChangeText={(val) => {
+                      setAddressInput(val);
+                      if (fieldErrors.address) setFieldErrors((prev) => ({ ...prev, address: '' }));
+                    }}
+                    onBlur={() => handleBlur('address')}
+                  />
+                  {fieldErrors.address ? <Text style={styles.fieldErrorText}>{fieldErrors.address}</Text> : null}
+                </View>
+
+                <View style={styles.rowTwoInputs}>
+                  <View style={[styles.inputGroup, { flex: 1 }]}>
+                    <Text style={styles.inputLabel}>CONTACT PHONE</Text>
+                    <TextInput
+                      style={[
+                        styles.textInput,
+                        fieldErrors.contactPhone !== undefined && fieldErrors.contactPhone !== '' && styles.textInputError,
+                      ]}
+                      placeholder="(062) 991-1234"
+                      placeholderTextColor={COLORS.neutral[400]}
+                      value={contactPhoneInput}
+                      onChangeText={(val) => {
+                        setContactPhoneInput(val);
+                        if (fieldErrors.contactPhone) setFieldErrors((prev) => ({ ...prev, contactPhone: '' }));
+                      }}
+                      onBlur={() => handleBlur('contactPhone')}
                     />
-                  </Pressable>
+                    {fieldErrors.contactPhone ? <Text style={styles.fieldErrorText}>{fieldErrors.contactPhone}</Text> : null}
+                  </View>
 
-                  {isCategoryDropdownOpen && (
-                    <View style={styles.dropdownMenu}>
-                      <Pressable
-                        style={[
-                          styles.dropdownOption,
-                          branchType === 'Main Office' && styles.dropdownOptionActive,
-                        ]}
-                        onPress={() => {
-                          setBranchType('Main Office');
-                          setIsCategoryDropdownOpen(false);
-                        }}
-                      >
-                        <Text style={styles.dropdownOptionText}>Main Office</Text>
-                        {branchType === 'Main Office' && (
-                          <Lucide name="check" size={16} color={COLORS.brand.indigo} />
-                        )}
-                      </Pressable>
+                  <View style={[styles.inputGroup, { flex: 1 }]}>
+                    <Text style={styles.inputLabel}>CONTACT EMAIL</Text>
+                    <TextInput
+                      style={[
+                        styles.textInput,
+                        fieldErrors.contactEmail !== undefined && fieldErrors.contactEmail !== '' && styles.textInputError,
+                      ]}
+                      placeholder="zamboanga@ntc.gov.ph"
+                      placeholderTextColor={COLORS.neutral[400]}
+                      value={contactEmailInput}
+                      onChangeText={(val) => {
+                        setContactEmailInput(val);
+                        if (fieldErrors.contactEmail) setFieldErrors((prev) => ({ ...prev, contactEmail: '' }));
+                      }}
+                      onBlur={() => handleBlur('contactEmail')}
+                    />
+                    {fieldErrors.contactEmail ? <Text style={styles.fieldErrorText}>{fieldErrors.contactEmail}</Text> : null}
+                  </View>
+                </View>
 
-                      <Pressable
-                        style={[
-                          styles.dropdownOption,
-                          branchType === 'Field Office' && styles.dropdownOptionActive,
-                        ]}
-                        onPress={() => {
-                          setBranchType('Field Office');
-                          setIsCategoryDropdownOpen(false);
-                        }}
-                      >
-                        <Text style={styles.dropdownOptionText}>Field Office</Text>
-                        {branchType === 'Field Office' && (
-                          <Lucide name="check" size={16} color={COLORS.brand.indigo} />
-                        )}
-                      </Pressable>
+                <View style={styles.rowTwoInputs}>
+                  <View style={[styles.inputGroup, { flex: 1 }]}>
+                    <Text style={styles.inputLabel}>OFFICER IN CHARGE NAME</Text>
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="Engr. Juan Dela Cruz"
+                      placeholderTextColor={COLORS.neutral[400]}
+                      value={officerNameInput}
+                      onChangeText={setOfficerNameInput}
+                    />
+                  </View>
+
+                  <View style={[styles.inputGroup, { flex: 1 }]}>
+                    <Text style={styles.inputLabel}>OFFICER EMAIL</Text>
+                    <TextInput
+                      style={[
+                        styles.textInput,
+                        fieldErrors.officerEmail !== undefined && fieldErrors.officerEmail !== '' && styles.textInputError,
+                      ]}
+                      placeholder="officer@ntc.gov.ph"
+                      placeholderTextColor={COLORS.neutral[400]}
+                      value={officerEmailInput}
+                      onChangeText={(val) => {
+                        setOfficerEmailInput(val);
+                        if (fieldErrors.officerEmail) setFieldErrors((prev) => ({ ...prev, officerEmail: '' }));
+                      }}
+                      onBlur={() => handleBlur('officerEmail')}
+                    />
+                    {fieldErrors.officerEmail ? <Text style={styles.fieldErrorText}>{fieldErrors.officerEmail}</Text> : null}
+                  </View>
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>PERMIT & INSPECTION CAPABILITIES</Text>
+                  <View style={{ gap: SPACING[10], marginTop: SPACING[4] }}>
+                    <View style={styles.switchRow}>
+                      <Text style={[styles.switchLabel, { color: colors.text }]}>Allow Permit Issuance</Text>
+                      <Switch
+                        value={allowPermitIssuanceToggle}
+                        onValueChange={setAllowPermitIssuanceToggle}
+                        trackColor={{ false: COLORS.neutral[300], true: COLORS.brand.indigo }}
+                        thumbColor={COLORS.neutral.white}
+                      />
                     </View>
-                  )}
+
+                    <View style={styles.switchRow}>
+                      <Text style={[styles.switchLabel, { color: colors.text }]}>Allow Spectrum Inspection</Text>
+                      <Switch
+                        value={allowSpectrumInspectionToggle}
+                        onValueChange={setAllowSpectrumInspectionToggle}
+                        trackColor={{ false: COLORS.neutral[300], true: COLORS.brand.indigo }}
+                        thumbColor={COLORS.neutral.white}
+                      />
+                    </View>
+
+                    <View style={styles.switchRow}>
+                      <Text style={[styles.switchLabel, { color: colors.text }]}>Allow Complaint Reception</Text>
+                      <Switch
+                        value={allowComplaintReceptionToggle}
+                        onValueChange={setAllowComplaintReceptionToggle}
+                        trackColor={{ false: COLORS.neutral[300], true: COLORS.brand.indigo }}
+                        thumbColor={COLORS.neutral.white}
+                      />
+                    </View>
+                  </View>
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>DESCRIPTION / REMARKS</Text>
+                  <TextInput
+                    style={[styles.textInput, styles.textAreaInput]}
+                    placeholder="Provide additional details or notes regarding this field office..."
+                    placeholderTextColor={COLORS.neutral[400]}
+                    multiline
+                    numberOfLines={3}
+                    value={descriptionInput}
+                    onChangeText={setDescriptionInput}
+                  />
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <View style={styles.switchRow}>
+                    <View>
+                      <Text style={[styles.switchLabel, { color: colors.text }]}>Active Status</Text>
+                      <Text style={[styles.switchSubtext, { color: colors.textMuted }]}>
+                        Field office is active and accessible for service assignments
+                      </Text>
+                    </View>
+                    <Switch
+                      value={isActiveToggle}
+                      onValueChange={setIsActiveToggle}
+                      trackColor={{ false: COLORS.neutral[300], true: COLORS.brand.indigo }}
+                      thumbColor={COLORS.neutral.white}
+                    />
+                  </View>
                 </View>
               </>
             )}
@@ -1050,11 +1415,20 @@ export function AdminSettingsModal({
 
           {/* Footer Buttons (Exact Match to Screenshots) */}
           <View style={styles.modalFooter}>
-            <Pressable style={styles.cancelBtn} onPress={onClose}>
+            <Pressable style={styles.cancelBtn} onPress={onClose} disabled={isSubmitting}>
               <Text style={styles.cancelBtnText}>Cancel</Text>
             </Pressable>
-            <Pressable style={styles.saveBtn} onPress={handleSave}>
-              <Text style={styles.saveBtnText}>{getSaveButtonText()}</Text>
+            <Pressable
+              style={[
+                styles.saveBtn,
+                isSaveDisabled && styles.saveBtnDisabled,
+              ]}
+              onPress={handleSave}
+              disabled={isSaveDisabled}
+            >
+              <Text style={[styles.saveBtnText, isSaveDisabled && styles.saveBtnTextDisabled]}>
+                {isSubmitting ? 'Saving...' : getSaveButtonText()}
+              </Text>
             </Pressable>
           </View>
         </View>
@@ -1074,14 +1448,20 @@ const styles = StyleSheet.create({
   modalCard: {
     width: '100%',
     maxWidth: 480,
+    maxHeight: '88%',
+    flexDirection: 'column',
     backgroundColor: COLORS.neutral.white,
     borderRadius: 20,
     padding: SPACING[24],
-    overflow: 'visible',
+    overflow: 'hidden',
     zIndex: 1000,
   },
   modalCardWide: {
-    maxWidth: 580,
+    maxWidth: 640,
+  },
+  modalScroll: {
+    flex: 1,
+    flexShrink: 1,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -1435,5 +1815,115 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     color: COLORS.neutral.white,
     fontWeight: '700',
+  },
+  saveBtnDisabled: {
+    backgroundColor: COLORS.neutral[200],
+    opacity: 0.6,
+  },
+  saveBtnTextDisabled: {
+    color: COLORS.neutral[400],
+  },
+  radioContainer: {
+    flexDirection: 'row',
+    gap: SPACING[12],
+    marginTop: SPACING[4],
+  },
+  radioOption: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: COLORS.neutral[200],
+    backgroundColor: COLORS.neutral[50],
+  },
+  radioOptionActive: {
+    borderColor: COLORS.brand.indigo,
+    backgroundColor: 'rgba(99, 102, 241, 0.06)',
+  },
+  radioCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: COLORS.neutral[300],
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  radioCircleActive: {
+    borderColor: COLORS.brand.indigo,
+  },
+  radioDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: COLORS.brand.indigo,
+  },
+  radioText: {
+    fontSize: 14,
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontWeight: '600',
+    color: COLORS.neutral[700],
+  },
+  radioTextActive: {
+    color: COLORS.brand.indigo,
+    fontWeight: '700',
+  },
+  rowTwoInputs: {
+    flexDirection: 'row',
+    gap: SPACING[12],
+  },
+  textAreaInput: {
+    minHeight: 72,
+    textAlignVertical: 'top',
+  },
+  switchSubtext: {
+    fontSize: 12,
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    color: COLORS.neutral[500],
+    marginTop: 2,
+  },
+  textInputError: {
+    borderColor: COLORS.semantic.error,
+    borderWidth: 1.5,
+    backgroundColor: 'rgba(239, 68, 68, 0.04)',
+  },
+  fieldErrorText: {
+    fontSize: 12,
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontWeight: '600',
+    color: COLORS.semantic.error,
+    marginTop: 3,
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: COLORS.semantic.errorBg,
+    borderColor: COLORS.semantic.errorBorder,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: SPACING[12],
+  },
+  errorBannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  errorBannerText: {
+    fontSize: 13,
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontWeight: '600',
+    color: COLORS.semantic.error,
+    flex: 1,
+  },
+  errorDismissBtn: {
+    padding: 2,
   },
 });

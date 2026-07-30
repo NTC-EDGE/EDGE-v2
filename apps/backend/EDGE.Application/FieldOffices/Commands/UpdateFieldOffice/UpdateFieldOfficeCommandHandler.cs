@@ -1,3 +1,6 @@
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 using MediatR;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.FieldOffices.DTOs;
@@ -26,20 +29,25 @@ public class UpdateFieldOfficeCommandHandler : IRequestHandler<UpdateFieldOffice
     public async Task<FieldOfficeDto?> Handle(UpdateFieldOfficeCommand request, CancellationToken cancellationToken)
     {
         var fieldOffice = await _repository.GetByIdAsync(request.Id, cancellationToken);
-        if (fieldOffice == null || fieldOffice.TenantId != request.TenantId)
+        if (fieldOffice == null)
         {
             return null;
         }
 
-        fieldOffice.Name = request.Name.Trim();
-        fieldOffice.Code = request.Code.Trim().ToUpper();
+        var category = string.IsNullOrWhiteSpace(request.Category) ? "Main" : request.Category.Trim();
+        if (category == "Extension Office") category = "Extension";
+        if (category == "Main Office") category = "Main";
+
+        if (!string.IsNullOrWhiteSpace(request.Name)) fieldOffice.Name = request.Name.Trim();
+        if (!string.IsNullOrWhiteSpace(request.Code)) fieldOffice.Code = request.Code.Trim().ToUpper();
+        fieldOffice.Category = category;
         fieldOffice.Description = request.Description?.Trim();
-        fieldOffice.RegionId = request.RegionId;
-        fieldOffice.ProvinceId = request.ProvinceId;
-        fieldOffice.Address = request.Address.Trim();
-        fieldOffice.ContactPhone = request.ContactPhone.Trim();
-        fieldOffice.ContactEmail = request.ContactEmail.Trim();
-        fieldOffice.OfficerInChargeId = request.OfficerInChargeId;
+        if (request.RegionId.HasValue && request.RegionId.Value != Guid.Empty) fieldOffice.RegionId = request.RegionId.Value;
+        if (request.ProvinceId.HasValue) fieldOffice.ProvinceId = request.ProvinceId.Value;
+        if (request.Address != null) fieldOffice.Address = request.Address.Trim();
+        if (request.ContactPhone != null) fieldOffice.ContactPhone = request.ContactPhone.Trim();
+        if (request.ContactEmail != null) fieldOffice.ContactEmail = request.ContactEmail.Trim();
+        if (request.OfficerInChargeId.HasValue && request.OfficerInChargeId.Value != Guid.Empty) fieldOffice.OfficerInChargeId = request.OfficerInChargeId.Value;
         fieldOffice.IsActive = request.IsActive;
         fieldOffice.AllowSpectrumInspection = request.AllowSpectrumInspection;
         fieldOffice.AllowPermitIssuance = request.AllowPermitIssuance;
@@ -53,22 +61,22 @@ public class UpdateFieldOfficeCommandHandler : IRequestHandler<UpdateFieldOffice
         var officerName = "";
         var officerEmail = "";
 
-        var region = await _geographicRepository.GetRegionByIdAsync(request.RegionId, cancellationToken);
+        var region = await _geographicRepository.GetRegionByIdAsync(fieldOffice.RegionId, cancellationToken);
         if (region != null)
         {
             regionName = region.Name;
         }
 
-        if (request.ProvinceId.HasValue)
+        if (fieldOffice.ProvinceId.HasValue)
         {
-            var province = await _geographicRepository.GetProvinceByIdAsync(request.ProvinceId.Value, cancellationToken);
+            var province = await _geographicRepository.GetProvinceByIdAsync(fieldOffice.ProvinceId.Value, cancellationToken);
             if (province != null)
             {
                 provinceName = province.Name;
             }
         }
 
-        var officer = await _tenantMemberRepository.GetByIdAsync(request.OfficerInChargeId, cancellationToken);
+        var officer = await _tenantMemberRepository.GetByIdAsync(fieldOffice.OfficerInChargeId, cancellationToken);
         if (officer != null && officer.User != null)
         {
             officerName = $"{officer.User.FirstName} {officer.User.LastName}".Trim();
@@ -80,6 +88,7 @@ public class UpdateFieldOfficeCommandHandler : IRequestHandler<UpdateFieldOffice
             fieldOffice.TenantId,
             fieldOffice.Name,
             fieldOffice.Code,
+            fieldOffice.Category,
             fieldOffice.Description,
             fieldOffice.RegionId,
             fieldOffice.ProvinceId,

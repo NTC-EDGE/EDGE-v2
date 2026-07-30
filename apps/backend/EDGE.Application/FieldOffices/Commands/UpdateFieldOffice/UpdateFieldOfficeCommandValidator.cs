@@ -21,23 +21,12 @@ public class UpdateFieldOfficeCommandValidator : AbstractValidator<UpdateFieldOf
         RuleFor(v => v.Code)
             .NotEmpty().WithMessage("Code is required.")
             .MaximumLength(50).WithMessage("Code must not exceed 50 characters.")
-            .MustAsync(async (model, code, token) => await _repository.IsCodeUniqueAsync(model.TenantId, code, model.Id, token))
+            .MustAsync(async (model, code, token) =>
+            {
+                if (string.IsNullOrWhiteSpace(code)) return true;
+                var tenantId = model.TenantId ?? Guid.Empty;
+                return await _repository.IsCodeUniqueAsync(tenantId, code, model.Id, token);
+            })
             .WithMessage("Field office code must be unique within the tenant.");
-
-        RuleFor(v => v.RegionId)
-            .NotEmpty().WithMessage("RegionId is required.");
-
-        RuleFor(v => v.Address)
-            .NotEmpty().WithMessage("Address is required.");
-
-        RuleFor(v => v.ContactPhone)
-            .NotEmpty().WithMessage("Contact phone is required.");
-
-        RuleFor(v => v.ContactEmail)
-            .NotEmpty().WithMessage("Contact email is required.")
-            .EmailAddress().WithMessage("A valid email address is required.");
-
-        RuleFor(v => v.OfficerInChargeId)
-            .NotEmpty().WithMessage("Officer in charge ID is required.");
     }
 }
