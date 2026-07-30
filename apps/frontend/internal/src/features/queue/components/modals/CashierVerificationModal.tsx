@@ -53,7 +53,7 @@ export function CashierVerificationModal({
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.iconWrapper}>
-              <Lucide name="credit-card" size={28} color="#059669" />
+              <Lucide name="credit-card" size={28} color={COLORS.semantic.success} />
             </View>
             <View style={styles.headerText}>
               <Text style={styles.title}>Cashier Verification</Text>
@@ -171,7 +171,7 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: COLORS.semantic.successBg,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
@@ -263,7 +263,7 @@ const styles = StyleSheet.create({
     flex: 2,
     paddingVertical: SPACING[12],
     borderRadius: RADIUS.button,
-    backgroundColor: '#059669',
+    backgroundColor: COLORS.semantic.success,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

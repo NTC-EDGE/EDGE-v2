@@ -10,7 +10,8 @@ import {
   ColumnDef,
   Row,
 } from '@tanstack/react-table';
-import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY } from '../theme/tokens';
+import { SPACING, RADIUS, SHADOWS, TYPOGRAPHY } from '../theme/tokens';
+import { useTheme } from '../theme/useTheme';
 import { StatusBadge } from './StatusBadge';
 
 type TabType = 'All' | 'Approved' | 'Pending' | 'Rejected' | 'Draft';
@@ -20,7 +21,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
-// 1. Modular Tab Button with local hover state
+// 1. Modular Tab Button with local hover state & theme awareness
 interface TabButtonProps {
   tab: TabType;
   isActive: boolean;
@@ -28,7 +29,12 @@ interface TabButtonProps {
 }
 
 function TabButton({ tab, isActive, onPress }: TabButtonProps) {
+  const { colors, isDark } = useTheme();
   const [isHovered, setIsHovered] = useState(false);
+
+  const activeBg = isDark ? colors.brand[800] : colors.cardBg;
+  const hoverBg = isDark ? colors.neutral[800] : colors.neutral[100];
+  const activeText = isDark ? colors.neutral.white : colors.brand[800];
 
   return (
     <Pressable
@@ -37,23 +43,29 @@ function TabButton({ tab, isActive, onPress }: TabButtonProps) {
       onHoverOut={() => setIsHovered(false)}
       style={[
         styles.tabItem,
-        isActive && styles.tabItemActive,
-        !isActive && isHovered && styles.tabItemHover,
+        isActive && { backgroundColor: activeBg },
+        !isActive && isHovered && { backgroundColor: hoverBg },
       ]}
     >
-      <Text style={[styles.tabText, isActive && styles.tabTextActive]}>{tab}</Text>
+      <Text style={[styles.tabText, { color: colors.textMuted }, isActive && { color: activeText, fontWeight: TYPOGRAPHY.weights.semibold }]}>
+        {tab}
+      </Text>
     </Pressable>
   );
 }
 
-// 2. Modular Data Table Row with local hover state
+// 2. Modular Data Table Row with local hover state & theme awareness
 interface DataTableRowProps<TData> {
   row: Row<TData>;
   isLastRow?: boolean;
 }
 
 function DataTableRow<TData>({ row, isLastRow }: DataTableRowProps<TData>) {
+  const { colors, isDark } = useTheme();
   const [isHovered, setIsHovered] = useState(false);
+
+  const rowBg = colors.cardBg;
+  const rowHoverBg = isDark ? colors.neutral[800] : colors.neutral[50];
 
   return (
     <Pressable
@@ -61,7 +73,7 @@ function DataTableRow<TData>({ row, isLastRow }: DataTableRowProps<TData>) {
       onHoverOut={() => setIsHovered(false)}
       style={[
         styles.tableRow,
-        isHovered && styles.tableRowHover,
+        { backgroundColor: isHovered ? rowHoverBg : rowBg },
         isLastRow && {
           borderBottomLeftRadius: 7,
           borderBottomRightRadius: 7,
@@ -81,7 +93,7 @@ function DataTableRow<TData>({ row, isLastRow }: DataTableRowProps<TData>) {
   );
 }
 
-// 3. Modular Pagination Action Button with local hover state
+// 3. Modular Pagination Action Button with local hover state & theme awareness
 interface PaginationButtonProps {
   disabled: boolean;
   onPress: () => void;
@@ -89,7 +101,11 @@ interface PaginationButtonProps {
 }
 
 function PaginationButton({ disabled, onPress, iconName }: PaginationButtonProps) {
+  const { colors, isDark } = useTheme();
   const [isHovered, setIsHovered] = useState(false);
+
+  const btnBg = colors.cardBg;
+  const hoverBg = isDark ? colors.neutral[800] : colors.neutral[50];
 
   return (
     <Pressable
@@ -99,14 +115,14 @@ function PaginationButton({ disabled, onPress, iconName }: PaginationButtonProps
       onHoverOut={() => setIsHovered(false)}
       style={[
         styles.pageBtn,
+        { backgroundColor: isHovered && !disabled ? hoverBg : btnBg, borderColor: colors.border },
         disabled && styles.pageBtnDisabled,
-        !disabled && isHovered && styles.pageBtnHover,
       ]}
     >
       <Lucide
         name={iconName}
         size={16}
-        color={!disabled ? COLORS.neutral[700] : COLORS.neutral[300]}
+        color={!disabled ? colors.text : colors.neutral[400]}
       />
     </Pressable>
   );
@@ -127,6 +143,7 @@ export function DataTable<TData, TValue>({
   searchKey,
   statusKey,
 }: DataTableProps<TData, TValue>) {
+  const { colors, isDark } = useTheme();
   const [searchText, setSearchText] = useState('');
   const [activeTab, setActiveTab] = useState<TabType>('All');
   const { width } = useWindowDimensions();
@@ -187,12 +204,12 @@ export function DataTable<TData, TValue>({
   const hasNextPage = table.getCanNextPage();
 
   return (
-    <View style={[styles.container, isMobile && styles.containerMobile, SHADOWS.card]}>
+    <View style={[styles.container, { backgroundColor: colors.cardBg, borderColor: colors.border }, isMobile && styles.containerMobile, SHADOWS.card]}>
       {/* Table Toolbar */}
       <View style={styles.toolbar}>
         {/* Status Tabs */}
         {statusKey !== undefined ? (
-          <View style={styles.tabsContainer}>
+          <View style={[styles.tabsContainer, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[50], borderColor: colors.border }]}>
             {TABS.map((tab) => {
               const isActive = activeTab === tab;
               return (
@@ -210,24 +227,24 @@ export function DataTable<TData, TValue>({
         )}
 
         {/* Search Input */}
-        <View style={[styles.searchContainer, isMobile && styles.searchContainerMobile]}>
-          <Lucide name="search" size={15} color={COLORS.neutral[400]} style={styles.searchIcon} />
+        <View style={[styles.searchContainer, { backgroundColor: colors.cardBg, borderColor: colors.border }, isMobile && styles.searchContainerMobile]}>
+          <Lucide name="search" size={15} color={colors.neutral[400]} style={styles.searchIcon} />
           <TextInput
             placeholder={searchPlaceholder}
-            placeholderTextColor={COLORS.neutral[400]}
+            placeholderTextColor={colors.neutral[400]}
             value={searchText}
             onChangeText={setSearchText}
-            style={styles.searchInput}
+            style={[styles.searchInput, { color: colors.text }]}
           />
         </View>
       </View>
 
-      {/* Main Table Grid - scrollable horizontally on mobile to prevent squishing */}
+      {/* Main Table Grid */}
       {(() => {
         const TableContent = (
-          <View style={[styles.tableWrapper, isMobile && { width: 680 }]}>
+          <View style={[styles.tableWrapper, { borderColor: colors.border }, isMobile && { width: 680 }]}>
             {/* Table Header */}
-            <View style={styles.tableHeaderRow}>
+            <View style={[styles.tableHeaderRow, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[50], borderBottomColor: colors.border }]}>
               {table.getHeaderGroups().map((headerGroup) => (
                 <React.Fragment key={headerGroup.id}>
                   {headerGroup.headers.map((header) => {
@@ -235,7 +252,7 @@ export function DataTable<TData, TValue>({
 
                     return (
                       <View key={header.id} style={[styles.tableHeaderCell, { flex: colFlex }]}>
-                        <Text style={styles.headerText}>
+                        <Text style={[styles.headerText, { color: colors.textMuted }]}>
                           {header.isPlaceholder
                             ? null
                             : flexRender(header.column.columnDef.header, header.getContext())}
@@ -256,6 +273,7 @@ export function DataTable<TData, TValue>({
                     key={row.id}
                     style={[
                       styles.tableRowContainer,
+                      { borderBottomColor: colors.border },
                       { zIndex: table.getRowModel().rows.length - index },
                       isLastRow && styles.tableRowContainerLast,
                     ]}
@@ -265,9 +283,9 @@ export function DataTable<TData, TValue>({
                 );
               })
             ) : (
-              <View style={styles.emptyState}>
-                <Lucide name="folder" size={32} color={COLORS.neutral[300]} style={{ marginBottom: 12 }} />
-                <Text style={styles.emptyText}>No records found matching your selection.</Text>
+              <View style={[styles.emptyState, { backgroundColor: colors.cardBg }]}>
+                <Lucide name="folder" size={32} color={colors.neutral[400]} style={{ marginBottom: 12 }} />
+                <Text style={[styles.emptyText, { color: colors.textMuted }]}>No records found matching your selection.</Text>
               </View>
             )}
           </View>
@@ -289,7 +307,7 @@ export function DataTable<TData, TValue>({
 
       {/* Table Pagination */}
       <View style={styles.pagination}>
-        <Text style={styles.paginationText}>
+        <Text style={[styles.paginationText, { color: colors.textMuted }]}>
           Page {pageCount > 0 ? pageIndex + 1 : 0} of {pageCount} ({filteredData.length} total rows)
         </Text>
         <View style={styles.paginationActions}>
@@ -311,10 +329,8 @@ export function DataTable<TData, TValue>({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: COLORS.neutral.white,
     borderRadius: RADIUS.card,
     borderWidth: 1,
-    borderColor: COLORS.neutral[200],
     padding: SPACING[24],
     width: '100%',
   },
@@ -331,11 +347,9 @@ const styles = StyleSheet.create({
   },
   tabsContainer: {
     flexDirection: 'row',
-    backgroundColor: COLORS.neutral[50],
     padding: 3,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: COLORS.neutral[200],
   },
   tabItem: {
     paddingHorizontal: SPACING[12],
@@ -348,33 +362,15 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  tabItemHover: {
-    backgroundColor: COLORS.neutral[100],
-  },
-  tabItemActive: {
-    backgroundColor: COLORS.neutral.white,
-    ...Platform.select({
-      web: {
-        boxShadow: '0 1px 2px rgba(15,23,42,.05)',
-      },
-    }),
-  },
   tabText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 13,
     fontWeight: TYPOGRAPHY.weights.medium,
-    color: COLORS.neutral[500],
-  },
-  tabTextActive: {
-    color: COLORS.brand[800],
-    fontWeight: TYPOGRAPHY.weights.semibold,
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.neutral.white,
     borderWidth: 1,
-    borderColor: COLORS.neutral[200],
     borderRadius: RADIUS.input,
     height: 36,
     width: 240,
@@ -387,7 +383,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 13,
-    color: COLORS.neutral[900],
     height: '100%',
     padding: 0,
     ...Platform.select({
@@ -398,7 +393,6 @@ const styles = StyleSheet.create({
   },
   tableWrapper: {
     borderWidth: 1,
-    borderColor: COLORS.neutral[200],
     borderRadius: 8,
     ...Platform.select({
       web: {
@@ -411,9 +405,7 @@ const styles = StyleSheet.create({
   },
   tableHeaderRow: {
     flexDirection: 'row',
-    backgroundColor: COLORS.neutral[50],
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.neutral[200],
     height: 44,
     alignItems: 'center',
     paddingHorizontal: SPACING[16],
@@ -427,14 +419,12 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 12,
     fontWeight: TYPOGRAPHY.weights.bold,
-    color: COLORS.neutral[500],
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   tableRowContainer: {
     position: 'relative',
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.neutral[200],
   },
   tableRowContainerLast: {
     borderBottomWidth: 0,
@@ -446,16 +436,12 @@ const styles = StyleSheet.create({
     height: 52,
     alignItems: 'center',
     paddingHorizontal: SPACING[16],
-    backgroundColor: COLORS.neutral.white,
     ...Platform.select({
       web: {
         transition: 'background-color 150ms ease-out',
         cursor: 'pointer',
       },
     }),
-  },
-  tableRowHover: {
-    backgroundColor: COLORS.neutral[50],
   },
   tableCell: {
     justifyContent: 'center',
@@ -464,11 +450,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 40,
-    backgroundColor: COLORS.neutral.white,
   },
   emptyText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    color: COLORS.neutral[400],
     fontSize: 13,
   },
   pagination: {
@@ -480,7 +464,6 @@ const styles = StyleSheet.create({
   paginationText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 13,
-    color: COLORS.neutral[500],
   },
   paginationActions: {
     flexDirection: 'row',
@@ -490,11 +473,9 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderWidth: 1,
-    borderColor: COLORS.neutral[200],
     borderRadius: 6,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.neutral.white,
     ...Platform.select({
       web: {
         transition: 'all 150ms ease-out',
@@ -502,17 +483,8 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  pageBtnHover: {
-    backgroundColor: COLORS.neutral[50],
-  },
   pageBtnDisabled: {
     opacity: 0.5,
-    backgroundColor: COLORS.neutral[50],
-    ...Platform.select({
-      web: {
-        cursor: 'not-allowed',
-      },
-    }),
   },
   searchContainerMobile: {
     width: '100%',

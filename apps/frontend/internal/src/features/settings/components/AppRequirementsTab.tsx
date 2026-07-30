@@ -126,7 +126,7 @@ export function AppRequirementsTab({
                       onPress={() => onDeleteRequirement(item.id, item.title)}
                       accessibilityLabel="Delete Requirement"
                     >
-                      <Lucide name="trash-2" size={15} color="#EF4444" />
+                      <Lucide name="trash-2" size={15} color={COLORS.semantic.error} />
                     </Pressable>
 
                     <View style={styles.verticalDivider} />
@@ -342,10 +342,10 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.circle,
   },
   badgeGreen: {
-    backgroundColor: '#DCFCE7',
+    backgroundColor: COLORS.semantic.successBg,
   },
   badgeTextGreen: {
-    color: '#16A34A',
+    color: COLORS.semantic.success,
   },
   badgeGrey: {
     backgroundColor: COLORS.neutral[100],
@@ -376,8 +376,8 @@ const styles = StyleSheet.create({
     borderColor: COLORS.neutral[200],
   },
   deleteBtn: {
-    backgroundColor: '#FEF2F2',
-    borderColor: '#FCA5A5',
+    backgroundColor: COLORS.semantic.errorBg,
+    borderColor: COLORS.semantic.errorBorder,
   },
   verticalDivider: {
     width: 1,
@@ -396,7 +396,7 @@ const styles = StyleSheet.create({
   expandedContent: {
     borderTopWidth: 1,
     borderTopColor: COLORS.neutral[200],
-    backgroundColor: '#F8FAFC',
+    backgroundColor: COLORS.neutral[50],
     padding: SPACING[16],
     gap: SPACING[12],
   },
@@ -436,7 +436,7 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: RADIUS.circle,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: COLORS.brand.light,
     justifyContent: 'center',
     alignItems: 'center',
   },

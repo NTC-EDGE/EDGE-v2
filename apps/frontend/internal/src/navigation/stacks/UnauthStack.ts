@@ -1,5 +1,5 @@
 import { createNativeStackNavigator } from "@edge/ui";
-import { unauthRoutes } from "../routes";
+import { unauthRoutes } from "../routes/unauthRoutes";
 
 export const UnauthStack = createNativeStackNavigator({
   initialRouteName: "Landing",
@@ -12,6 +12,5 @@ export const UnauthStack = createNativeStackNavigator({
     Landing: unauthRoutes.Landing,
     Onboarding: unauthRoutes.Onboarding,
     InternalLogin: unauthRoutes.InternalLogin,
-    Signup: unauthRoutes.Signup,
   },
 });

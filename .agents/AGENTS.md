@@ -17,6 +17,15 @@ This workspace houses both the C# .NET 10 Clean Architecture backend (`apps/back
 *   **Prevent Overstretching on Web**: To prevent inputs, buttons, cards, forms, and main container wrappers from stretching awkwardly across wide desktop web browsers, you **must** apply a reasonable `maxWidth` constraint (e.g., `maxWidth: 440` for authentication/modals, or `maxWidth: 1200` for grid/dashboards) combined with `alignSelf: 'center'` (or centering parent flex layouts).
 *   **Layout Adaptability**: Avoid creating duplicate platform-specific files for layout structures (e.g., avoiding `.web.tsx` vs `.tsx`). Instead, use React Native's `useWindowDimensions()` hook to adapt layout flex directions (e.g., `row` on desktop, `column` on mobile) and override styling properties dynamically.
 
+### Layered Feature Architecture & Naming Standards
+Every frontend feature module (`src/features/[featureName]/`) **must strictly follow** the 4-layer separation of concerns:
+
+1.  **Naming Keyword Standard (`*Screen`)**: Use `*Screen` keyword for all screen components (e.g., `InternalLoginScreen`, `ForgotPasswordScreen`). Do **NOT** use `*Page`.
+2.  **Data & Schema Layer (`schemas/`)**: Define Zod validation schemas (`z.object({...})`) and inferred TypeScript types in `schemas/`.
+3.  **Service & Form Hook Layer (`hooks/`)**: Wrap form states using `react-hook-form` + `zodResolver`. Execute all async API/auth operations via the `safeAsync` wrapper (`import { safeAsync } from '@edge/api'`) to prevent scope error message leaks and avoid scattered `try-catch` blocks.
+4.  **Form Component Layer (`forms/`)**: Build pure UI form components (`LoginForm.tsx`) consuming atomic reusable components from `@edge/ui` (`FormFieldInput`, `Button`, `AlertToast`).
+5.  **Screen Presentation Layer (`components/`)**: Build platform-native screen components (`[Feature]Screen.native.tsx`, `[Feature]Screen.desktop.tsx`, `[Feature]Screen.web.tsx`) with `[Feature]Screen.tsx` as the master selector.
+
 ---
 
 ## 2. Backend (C# & .NET 10 Clean Architecture) Rules

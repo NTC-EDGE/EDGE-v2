@@ -71,7 +71,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: COLORS.semantic.errorBg,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: SPACING[16],

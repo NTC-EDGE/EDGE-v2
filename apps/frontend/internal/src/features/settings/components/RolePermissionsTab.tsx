@@ -155,8 +155,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   roleTabActive: {
-    backgroundColor: '#EFF6FF',
-    borderColor: '#BFDBFE',
+    backgroundColor: COLORS.brand.light,
+    borderColor: COLORS.brand.blueSoft,
   },
   roleTabInactive: {
     backgroundColor: COLORS.neutral.white,

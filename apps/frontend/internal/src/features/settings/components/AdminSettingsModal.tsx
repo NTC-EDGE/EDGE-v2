@@ -8,8 +8,9 @@ import {
   Modal,
   ScrollView,
   Switch,
+  Platform,
 } from 'react-native';
-import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide } from '@edge/ui';
+import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide, useTheme } from '@edge/ui';
 
 export type ModalType =
   | 'edit-config'
@@ -105,6 +106,7 @@ export function AdminSettingsModal({
   onClose,
   onSave,
 }: AdminSettingsModalProps) {
+  const { colors, isDark } = useTheme();
   const [titleInput, setTitleInput] = useState('');
   const [nameInput, setNameInput] = useState('');
   const [subLabelInput, setSubLabelInput] = useState('');
@@ -302,6 +304,7 @@ export function AdminSettingsModal({
         <View
           style={[
             styles.modalCard,
+            { backgroundColor: colors.cardBg, borderColor: colors.border },
             (isRequirementModal || isFeeModal || isNoteModal || isFormModal) && styles.modalCardWide,
             SHADOWS.modal,
           ]}
@@ -360,7 +363,7 @@ export function AdminSettingsModal({
               )}
             </View>
             <Pressable style={styles.closeBtn} onPress={onClose}>
-              <Lucide name="x" size={18} color="#94A3B8" />
+              <Lucide name="x" size={18} color={COLORS.neutral[400]} />
             </Pressable>
           </View>
 
@@ -398,8 +401,8 @@ export function AdminSettingsModal({
                       <Switch
                         value={isActiveToggle}
                         onValueChange={setIsActiveToggle}
-                        trackColor={{ false: '#CBD5E1', true: '#818CF8' }}
-                        thumbColor={isActiveToggle ? '#4F46E5' : '#FFFFFF'}
+                        trackColor={{ false: COLORS.neutral[300], true: COLORS.brand.indigo400 }}
+                        thumbColor={isActiveToggle ? COLORS.brand.indigo : COLORS.neutral.white}
                       />
                     </View>
                   </>
@@ -460,8 +463,8 @@ export function AdminSettingsModal({
                       <Switch
                         value={isActiveToggle}
                         onValueChange={setIsActiveToggle}
-                        trackColor={{ false: '#CBD5E1', true: '#818CF8' }}
-                        thumbColor={isActiveToggle ? '#4F46E5' : '#FFFFFF'}
+                        trackColor={{ false: COLORS.neutral[300], true: COLORS.brand.indigo400 }}
+                        thumbColor={isActiveToggle ? COLORS.brand.indigo : COLORS.neutral.white}
                       />
                     </View>
                   </>
@@ -496,8 +499,8 @@ export function AdminSettingsModal({
                       <Switch
                         value={isActiveToggle}
                         onValueChange={setIsActiveToggle}
-                        trackColor={{ false: '#CBD5E1', true: '#818CF8' }}
-                        thumbColor={isActiveToggle ? '#4F46E5' : '#FFFFFF'}
+                        trackColor={{ false: COLORS.neutral[300], true: COLORS.brand.indigo400 }}
+                        thumbColor={isActiveToggle ? COLORS.brand.indigo : COLORS.neutral.white}
                       />
                     </View>
                   </>
@@ -540,7 +543,7 @@ export function AdminSettingsModal({
                     <Lucide
                       name={isCategoryDropdownOpen ? 'chevron-up' : 'chevron-down'}
                       size={18}
-                      color="#94A3B8"
+                      color={COLORS.neutral[400]}
                     />
                   </Pressable>
 
@@ -558,7 +561,7 @@ export function AdminSettingsModal({
                       >
                         <Text style={styles.dropdownOptionText}>Main Office</Text>
                         {branchType === 'Main Office' && (
-                          <Lucide name="check" size={16} color="#4F46E5" />
+                          <Lucide name="check" size={16} color={COLORS.brand.indigo} />
                         )}
                       </Pressable>
 
@@ -574,7 +577,7 @@ export function AdminSettingsModal({
                       >
                         <Text style={styles.dropdownOptionText}>Field Office</Text>
                         {branchType === 'Field Office' && (
-                          <Lucide name="check" size={16} color="#4F46E5" />
+                          <Lucide name="check" size={16} color={COLORS.brand.indigo} />
                         )}
                       </Pressable>
                     </View>
@@ -599,7 +602,7 @@ export function AdminSettingsModal({
                     <Lucide
                       name={isServiceTypeDropdownOpen ? 'chevron-up' : 'chevron-down'}
                       size={18}
-                      color="#94A3B8"
+                      color={COLORS.neutral[400]}
                     />
                   </Pressable>
 
@@ -619,7 +622,7 @@ export function AdminSettingsModal({
                         >
                           <Text style={styles.dropdownOptionText}>{option}</Text>
                           {titleInput === option && (
-                            <Lucide name="check" size={16} color="#4F46E5" />
+                            <Lucide name="check" size={16} color={COLORS.brand.indigo} />
                           )}
                         </Pressable>
                       ))}
@@ -632,7 +635,7 @@ export function AdminSettingsModal({
                   <View style={styles.checklistHeaderRow}>
                     <Text style={styles.inputLabel}>REQUIRED CHECKLIST DOCUMENTS</Text>
                     <Pressable style={styles.addItemBtn} onPress={handleAddDocumentItem}>
-                      <Lucide name="plus" size={14} color="#4F46E5" />
+                      <Lucide name="plus" size={14} color={COLORS.brand.indigo} />
                       <Text style={styles.addItemBtnText}>Add Item</Text>
                     </Pressable>
                   </View>
@@ -691,7 +694,7 @@ export function AdminSettingsModal({
                           style={styles.docDeleteBtn}
                           onPress={() => handleDeleteDocItem(doc.id)}
                         >
-                          <Lucide name="trash-2" size={14} color="#EF4444" />
+                          <Lucide name="trash-2" size={14} color={COLORS.semantic.error} />
                         </Pressable>
                       </View>
                     ))}
@@ -716,7 +719,7 @@ export function AdminSettingsModal({
                     <Lucide
                       name={isServiceTypeDropdownOpen ? 'chevron-up' : 'chevron-down'}
                       size={18}
-                      color="#94A3B8"
+                      color={COLORS.neutral[400]}
                     />
                   </Pressable>
 
@@ -736,7 +739,7 @@ export function AdminSettingsModal({
                         >
                           <Text style={styles.dropdownOptionText}>{option}</Text>
                           {titleInput === option && (
-                            <Lucide name="check" size={16} color="#4F46E5" />
+                            <Lucide name="check" size={16} color={COLORS.brand.indigo} />
                           )}
                         </Pressable>
                       ))}
@@ -749,7 +752,7 @@ export function AdminSettingsModal({
                   <View style={styles.checklistHeaderRow}>
                     <Text style={styles.inputLabel}>ALLOCATED COSTS BREAKDOWN LIST</Text>
                     <Pressable style={styles.addItemBtn} onPress={handleAddFeeItem}>
-                      <Lucide name="plus" size={14} color="#4F46E5" />
+                      <Lucide name="plus" size={14} color={COLORS.brand.indigo} />
                       <Text style={styles.addItemBtnText}>Add Fee Item</Text>
                     </Pressable>
                   </View>
@@ -780,7 +783,7 @@ export function AdminSettingsModal({
                               <Lucide
                                 name={activeFeeDropdownId === fb.id ? 'chevron-up' : 'chevron-down'}
                                 size={16}
-                                color="#94A3B8"
+                                color={COLORS.neutral[400]}
                               />
                             </Pressable>
 
@@ -800,7 +803,7 @@ export function AdminSettingsModal({
                                   >
                                     <Text style={styles.dropdownOptionText}>{opt}</Text>
                                     {fb.name === opt && (
-                                      <Lucide name="check" size={14} color="#4F46E5" />
+                                      <Lucide name="check" size={14} color={COLORS.brand.indigo} />
                                     )}
                                   </Pressable>
                                 ))}
@@ -826,7 +829,7 @@ export function AdminSettingsModal({
                             style={styles.docDeleteBtn}
                             onPress={() => handleDeleteFeeItem(fb.id)}
                           >
-                            <Lucide name="trash-2" size={14} color="#EF4444" />
+                            <Lucide name="trash-2" size={14} color={COLORS.semantic.error} />
                           </Pressable>
                         </View>
                       );
@@ -852,7 +855,7 @@ export function AdminSettingsModal({
                     <Lucide
                       name={isServiceTypeDropdownOpen ? 'chevron-up' : 'chevron-down'}
                       size={18}
-                      color="#94A3B8"
+                      color={COLORS.neutral[400]}
                     />
                   </Pressable>
 
@@ -872,7 +875,7 @@ export function AdminSettingsModal({
                         >
                           <Text style={styles.dropdownOptionText}>{option}</Text>
                           {titleInput === option && (
-                            <Lucide name="check" size={16} color="#4F46E5" />
+                            <Lucide name="check" size={16} color={COLORS.brand.indigo} />
                           )}
                         </Pressable>
                       ))}
@@ -915,7 +918,7 @@ export function AdminSettingsModal({
                     <Lucide
                       name={isServiceTypeDropdownOpen ? 'chevron-up' : 'chevron-down'}
                       size={18}
-                      color="#94A3B8"
+                      color={COLORS.neutral[400]}
                     />
                   </Pressable>
 
@@ -935,7 +938,7 @@ export function AdminSettingsModal({
                         >
                           <Text style={styles.dropdownOptionText}>{option}</Text>
                           {titleInput === option && (
-                            <Lucide name="check" size={16} color="#4F46E5" />
+                            <Lucide name="check" size={16} color={COLORS.brand.indigo} />
                           )}
                         </Pressable>
                       ))}
@@ -986,7 +989,7 @@ export function AdminSettingsModal({
                       <Lucide
                         name={isFormStatusDropdownOpen ? 'chevron-up' : 'chevron-down'}
                         size={18}
-                        color="#94A3B8"
+                        color={COLORS.neutral[400]}
                       />
                     </Pressable>
 
@@ -1004,7 +1007,7 @@ export function AdminSettingsModal({
                         >
                           <Text style={styles.dropdownOptionText}>Draft</Text>
                           {formStatus === 'Draft' && (
-                            <Lucide name="check" size={16} color="#4F46E5" />
+                            <Lucide name="check" size={16} color={COLORS.brand.indigo} />
                           )}
                         </Pressable>
 
@@ -1020,7 +1023,7 @@ export function AdminSettingsModal({
                         >
                           <Text style={styles.dropdownOptionText}>Published</Text>
                           {formStatus === 'Published' && (
-                            <Lucide name="check" size={16} color="#4F46E5" />
+                            <Lucide name="check" size={16} color={COLORS.brand.indigo} />
                           )}
                         </Pressable>
                       </View>
@@ -1095,7 +1098,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontWeight: '700',
-    color: '#6366F1',
+    color: COLORS.brand.indigoHover,
     letterSpacing: 0.5,
     marginBottom: 4,
   },
@@ -1103,12 +1106,12 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontWeight: '700',
-    color: '#0F172A',
+    color: COLORS.neutral[900],
   },
   modalSubtitle: {
     fontSize: 13,
     fontFamily: TYPOGRAPHY.fonts.primary,
-    color: '#64748B',
+    color: COLORS.neutral[500],
     marginTop: 4,
     lineHeight: 18,
   },
@@ -1138,7 +1141,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontWeight: '700',
-    color: '#94A3B8',
+    color: COLORS.neutral[400],
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -1146,11 +1149,11 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontWeight: '700',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: COLORS.neutral[50],
     borderRadius: 10,
     paddingHorizontal: SPACING[16],
     height: 48,
-    color: '#0F172A',
+    color: COLORS.neutral[900],
   },
   textArea: {
     height: 100,
@@ -1165,14 +1168,14 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontWeight: '700',
-    color: '#0F172A',
+    color: COLORS.neutral[900],
     lineHeight: 22,
   },
   notesHelperText: {
     fontSize: 12,
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontStyle: 'italic',
-    color: '#64748B',
+    color: COLORS.neutral[500],
     marginTop: 2,
   },
   switchRow: {
@@ -1186,13 +1189,13 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontWeight: '700',
-    color: '#0F172A',
+    color: COLORS.neutral[900],
   },
   dropdownTrigger: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: COLORS.neutral[50],
     borderRadius: 10,
     paddingHorizontal: SPACING[16],
     height: 48,
@@ -1201,7 +1204,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontWeight: '700',
-    color: '#0F172A',
+    color: COLORS.neutral[900],
   },
   dropdownMenu: {
     position: 'absolute',
@@ -1209,7 +1212,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     backgroundColor: COLORS.neutral.white,
-    borderColor: '#E2E8F0',
+    borderColor: COLORS.neutral[200],
     borderWidth: 1,
     borderRadius: 10,
     marginTop: 4,
@@ -1224,16 +1227,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING[16],
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: COLORS.neutral[100],
   },
   dropdownOptionActive: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: COLORS.neutral[50],
   },
   dropdownOptionText: {
     fontSize: 14,
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontWeight: '600',
-    color: '#0F172A',
+    color: COLORS.neutral[900],
   },
 
   // Checklist & Fees Section
@@ -1255,7 +1258,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontWeight: '700',
-    color: '#4F46E5',
+    color: COLORS.brand.indigo,
   },
   docListContainer: {
     gap: 10,
@@ -1263,8 +1266,8 @@ const styles = StyleSheet.create({
   docRowCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    borderColor: '#E2E8F0',
+    backgroundColor: COLORS.neutral[50],
+    borderColor: COLORS.neutral[200],
     borderWidth: 1,
     borderRadius: 12,
     paddingHorizontal: 12,
@@ -1274,8 +1277,8 @@ const styles = StyleSheet.create({
   feeRowCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    borderColor: '#E2E8F0',
+    backgroundColor: COLORS.neutral[50],
+    borderColor: COLORS.neutral[200],
     borderWidth: 1,
     borderRadius: 12,
     paddingHorizontal: 12,
@@ -1287,14 +1290,14 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontWeight: '700',
-    color: '#94A3B8',
+    color: COLORS.neutral[400],
   },
   docNameInput: {
     flex: 1,
     fontSize: 14,
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontWeight: '700',
-    color: '#0F172A',
+    color: COLORS.neutral[900],
   },
   feeTypeBox: {
     flex: 1,
@@ -1306,7 +1309,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: COLORS.neutral.white,
-    borderColor: '#E2E8F0',
+    borderColor: COLORS.neutral[200],
     borderWidth: 1,
     borderRadius: 8,
     paddingHorizontal: 12,
@@ -1316,7 +1319,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontWeight: '700',
-    color: '#0F172A',
+    color: COLORS.neutral[900],
   },
   feeDropdownMenu: {
     position: 'absolute',
@@ -1324,7 +1327,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     backgroundColor: COLORS.neutral.white,
-    borderColor: '#E2E8F0',
+    borderColor: COLORS.neutral[200],
     borderWidth: 1,
     borderRadius: 8,
     zIndex: 99999,
@@ -1335,7 +1338,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.neutral.white,
-    borderColor: '#E2E8F0',
+    borderColor: COLORS.neutral[200],
     borderWidth: 1,
     borderRadius: 8,
     paddingHorizontal: 10,
@@ -1346,7 +1349,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontWeight: '700',
-    color: '#94A3B8',
+    color: COLORS.neutral[400],
     marginRight: 4,
   },
   feeAmountInput: {
@@ -1354,7 +1357,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontWeight: '700',
-    color: '#0F172A',
+    color: COLORS.neutral[900],
   },
   pillToggleGroup: {
     flexDirection: 'row',
@@ -1367,15 +1370,15 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   pillRequiredActive: {
-    backgroundColor: '#EF4444',
+    backgroundColor: COLORS.semantic.error,
   },
   pillOptionalActive: {
-    backgroundColor: '#F1F5F9',
-    borderColor: '#CBD5E1',
+    backgroundColor: COLORS.neutral[100],
+    borderColor: COLORS.neutral[300],
     borderWidth: 1,
   },
   pillInactive: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: COLORS.neutral[100],
   },
   pillToggleText: {
     fontSize: 12,
@@ -1386,19 +1389,19 @@ const styles = StyleSheet.create({
     color: COLORS.neutral.white,
   },
   pillOptionalTextActive: {
-    color: '#334155',
+    color: COLORS.neutral[700],
   },
   pillTextInactive: {
-    color: '#94A3B8',
+    color: COLORS.neutral[400],
   },
   docDeleteBtn: {
     width: 32,
     height: 32,
     borderRadius: 8,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: COLORS.semantic.errorBg,
     justifyContent: 'center',
     alignItems: 'center',
-    borderColor: '#FCA5A5',
+    borderColor: COLORS.semantic.errorBorder,
     borderWidth: 1,
   },
 
@@ -1413,19 +1416,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 12,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: COLORS.neutral[100],
   },
   cancelBtnText: {
     fontSize: 14,
     fontFamily: TYPOGRAPHY.fonts.primary,
-    color: '#334155',
+    color: COLORS.neutral[700],
     fontWeight: '700',
   },
   saveBtn: {
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 12,
-    backgroundColor: '#4F46E5',
+    backgroundColor: COLORS.brand.indigo,
   },
   saveBtnText: {
     fontSize: 14,

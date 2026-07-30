@@ -53,10 +53,10 @@ export function UserCard({ user, onView, onEdit, onDelete }: UserCardProps) {
         <View style={styles.avatarWrapper}>
           {user.avatarType === 'icon' ? (
             <View style={styles.avatarIconCircle}>
-              <Lucide name="user" size={20} color="#64748B" />
+              <Lucide name="user" size={20} color={COLORS.neutral[500]} />
             </View>
           ) : (
-            <View style={[styles.avatarInitialsCircle, { backgroundColor: user.avatarBgColor || '#1D4ED8' }]}>
+            <View style={[styles.avatarInitialsCircle, { backgroundColor: user.avatarBgColor || COLORS.brand.royalBlue }]}>
               <Text style={styles.avatarInitialsText}>{user.avatarInitials || user.name.slice(0, 2).toUpperCase()}</Text>
             </View>
           )}
@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   cardHovered: {
-    borderColor: '#93C5FD',
+    borderColor: COLORS.brand.blueSoft,
     boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
   },
   cardActivePopover: {
@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: COLORS.neutral[200],
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -183,7 +183,7 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontWeight: TYPOGRAPHY.weights.bold,
     fontSize: 15,
-    color: '#FFFFFF',
+    color: COLORS.neutral.white,
   },
 
   infoSection: {
@@ -206,25 +206,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 12,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: COLORS.neutral[100],
   },
   individualBadgeText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 11,
     fontWeight: TYPOGRAPHY.weights.medium,
-    color: '#475569',
+    color: COLORS.neutral[600],
   },
   companyBadge: {
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 12,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: COLORS.brand.light,
   },
   companyBadgeText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 11,
     fontWeight: TYPOGRAPHY.weights.medium,
-    color: '#1D4ED8',
+    color: COLORS.brand.royalBlue,
   },
 
   userName: {

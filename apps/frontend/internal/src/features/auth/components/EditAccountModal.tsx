@@ -12,7 +12,7 @@ import {
   useWindowDimensions,
   ScrollView,
 } from 'react-native';
-import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide } from '@edge/ui';
+import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide, useTheme } from '@edge/ui';
 import { useAuthContext } from '../context/AuthContext';
 
 interface EditAccountModalProps {
@@ -23,7 +23,7 @@ interface EditAccountModalProps {
 type TabType = 'profile' | 'security';
 
 type UserResourceType = NonNullable<ReturnType<typeof useAuthContext>['clerkUser']>;
-type EmailAddressResourceType = ReturnType<UserResourceType['createEmailAddress']> extends Promise<infer T> ? T : never;
+type EmailAddressResourceType = Awaited<ReturnType<UserResourceType['createEmailAddress']>>;
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
@@ -47,6 +47,7 @@ function getErrorMessage(error: unknown): string {
 }
 
 export function EditAccountModal({ visible, onClose }: EditAccountModalProps) {
+  const { colors, isDark } = useTheme();
   const { width } = useWindowDimensions();
   const isMobile = width < 640;
 
@@ -130,7 +131,7 @@ export function EditAccountModal({ visible, onClose }: EditAccountModalProps) {
       if (email !== currentEmail) {
         const emailRes = await clerkUser.createEmailAddress({ email });
         await emailRes.prepareVerification({ strategy: 'email_code' });
-        setPendingEmailResource(emailRes as EmailAddressResourceType);
+        setPendingEmailResource(emailRes);
         setVerificationPending(true);
         setLoading(false);
         return;
@@ -230,7 +231,7 @@ export function EditAccountModal({ visible, onClose }: EditAccountModalProps) {
 
           <View style={styles.modalHeader}>
             <View style={styles.headerIconCircle}>
-              <Lucide name="user" size={18} color="#1E3A8A" />
+              <Lucide name="user" size={18} color={COLORS.brand.primary} />
             </View>
             <Text style={styles.modalTitle}>Account Settings</Text>
           </View>
@@ -238,14 +239,14 @@ export function EditAccountModal({ visible, onClose }: EditAccountModalProps) {
           {/* Success / Error Messages */}
           {errorMsg.length > 0 && (
             <View style={styles.errorBox}>
-              <Lucide name="alert-circle" size={16} color="#DC2626" style={{ marginRight: 6 }} />
+              <Lucide name="alert-circle" size={16} color={COLORS.brand.redDark} style={{ marginRight: 6 }} />
               <Text style={styles.errorText}>{errorMsg}</Text>
             </View>
           )}
 
           {successMsg.length > 0 && (
             <View style={styles.successBox}>
-              <Lucide name="check-circle" size={16} color="#10B981" style={{ marginRight: 6 }} />
+              <Lucide name="check-circle" size={16} color={COLORS.semantic.success} style={{ marginRight: 6 }} />
               <Text style={styles.successText}>{successMsg}</Text>
             </View>
           )}
@@ -426,7 +427,7 @@ export function EditAccountModal({ visible, onClose }: EditAccountModalProps) {
             /* Verification Multi-step flow Screen */
             <View style={styles.verificationContainer}>
               <View style={styles.verificationIntroBox}>
-                <Lucide name="mail" size={24} color="#1E3A8A" style={{ marginBottom: 8 }} />
+                <Lucide name="mail" size={24} color={COLORS.brand.primary} style={{ marginBottom: 8 }} />
                 <Text style={styles.verifyTitle}>Verify New Email Address</Text>
                 <Text style={styles.verifyDescriptionText}>
                   A security verification code has been dispatched to {email}. Please retrieve the code and submit it below to authorize this email update.
@@ -507,7 +508,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: COLORS.neutral[100],
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 10,
@@ -526,7 +527,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: '#EEF2FF',
+    backgroundColor: COLORS.brand.light,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -535,7 +536,7 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 18,
     fontWeight: TYPOGRAPHY.weights.bold,
-    color: '#0F2042',
+    color: COLORS.brand.navy,
   },
   tabRow: {
     flexDirection: 'row',
@@ -587,9 +588,9 @@ const styles = StyleSheet.create({
   },
   greyInput: {
     height: 48,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: COLORS.neutral[100],
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: COLORS.neutral[200],
     borderRadius: RADIUS.input,
     paddingHorizontal: 16,
     fontSize: 14,
@@ -678,7 +679,7 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 16,
     fontWeight: TYPOGRAPHY.weights.bold,
-    color: '#0F2042',
+    color: COLORS.brand.navy,
     marginTop: 8,
     marginBottom: 6,
   },

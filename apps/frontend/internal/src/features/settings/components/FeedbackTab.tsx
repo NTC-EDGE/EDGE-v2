@@ -8,7 +8,7 @@ import {
   useWindowDimensions,
   ActivityIndicator,
 } from 'react-native';
-import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide } from '@edge/ui';
+import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide, SkeletonLoader } from '@edge/ui';
 import { useAdminFeedback, FeedbackDto } from '@edge/api';
 import { FeedbackItem } from '../data/mockAdminSettings';
 
@@ -50,7 +50,7 @@ export function FeedbackTab({ onDeleteFeedback }: FeedbackTabProps) {
           key={i}
           name="star"
           size={14}
-          color={i <= rating ? '#F59E0B' : '#CBD5E1'}
+          color={i <= rating ? COLORS.semantic.warning : COLORS.neutral[300]}
           style={{ marginRight: 2 }}
         />
       );
@@ -82,7 +82,7 @@ export function FeedbackTab({ onDeleteFeedback }: FeedbackTabProps) {
         {/* Refresh & Filter Controls */}
         <View style={styles.filterControlsRow}>
           <Pressable style={styles.filterBtn} onPress={() => refetch()}>
-            <Lucide name="refresh-cw" size={15} color="#4F46E5" />
+            <Lucide name="refresh-cw" size={15} color={COLORS.brand[700]} />
             <Text style={styles.filterBtnText}>Refresh</Text>
           </Pressable>
         </View>
@@ -90,9 +90,9 @@ export function FeedbackTab({ onDeleteFeedback }: FeedbackTabProps) {
 
       {/* Loading state */}
       {isLoading && (
-        <View style={styles.centeredState}>
-          <ActivityIndicator size="large" color={COLORS.brand[600]} />
-          <Text style={styles.stateText}>Loading feedback submissions from API...</Text>
+        <View style={styles.listContainer}>
+          <SkeletonLoader height={80} borderRadius={RADIUS.card} />
+          <SkeletonLoader height={80} borderRadius={RADIUS.card} />
         </View>
       )}
 
@@ -129,7 +129,7 @@ export function FeedbackTab({ onDeleteFeedback }: FeedbackTabProps) {
 
                       <View style={styles.subtextRow}>
                         <View style={styles.emailRow}>
-                          <Lucide name="mail" size={14} color="#94A3B8" />
+                          <Lucide name="mail" size={14} color={COLORS.neutral[400]} />
                           <Text style={styles.senderEmail}>{item.senderEmail}</Text>
                         </View>
 
@@ -155,7 +155,7 @@ export function FeedbackTab({ onDeleteFeedback }: FeedbackTabProps) {
                           style={[styles.actionBtn, styles.deleteBtn]}
                           onPress={() => onDeleteFeedback(item.id, item.senderName)}
                         >
-                          <Lucide name="trash-2" size={15} color="#EF4444" />
+                          <Lucide name="trash-2" size={15} color={COLORS.semantic.error} />
                         </Pressable>
                       )}
 
@@ -178,7 +178,7 @@ export function FeedbackTab({ onDeleteFeedback }: FeedbackTabProps) {
                   {isExpanded && (
                     <View style={styles.expandedContent}>
                       <View style={styles.expandedHeaderLeft}>
-                        <Lucide name="message-square" size={16} color="#6366F1" />
+                        <Lucide name="message-square" size={16} color={COLORS.brand[600]} />
                         <Text style={styles.expandedHeaderText}>FEEDBACK MESSAGE</Text>
                       </View>
 
@@ -252,7 +252,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#EEF2FF',
+    backgroundColor: COLORS.brand.light,
     paddingHorizontal: 14,
     height: 44,
     borderRadius: RADIUS.input,
@@ -261,7 +261,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontWeight: '700',
-    color: '#4F46E5',
+    color: COLORS.brand[700],
   },
   listContainer: {
     gap: SPACING[12],
@@ -317,7 +317,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   badgePurple: {
-    backgroundColor: '#EEF2FF',
+    backgroundColor: COLORS.brand.light,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: RADIUS.circle,
@@ -326,10 +326,10 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontWeight: '700',
-    color: '#4F46E5',
+    color: COLORS.brand[700],
   },
   badgeDate: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: COLORS.neutral[100],
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: RADIUS.circle,
@@ -338,7 +338,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontWeight: '700',
-    color: '#64748B',
+    color: COLORS.neutral[500],
   },
   headerRight: {
     flexDirection: 'row',
@@ -356,8 +356,8 @@ const styles = StyleSheet.create({
     borderColor: COLORS.neutral[200],
   },
   deleteBtn: {
-    backgroundColor: '#FEF2F2',
-    borderColor: '#FCA5A5',
+    backgroundColor: COLORS.semantic.errorBg,
+    borderColor: COLORS.semantic.errorBorder,
   },
   verticalDivider: {
     width: 1,
@@ -374,7 +374,7 @@ const styles = StyleSheet.create({
   expandedContent: {
     borderTopWidth: 1,
     borderTopColor: COLORS.neutral[200],
-    backgroundColor: '#F8FAFC',
+    backgroundColor: COLORS.neutral[50],
     padding: SPACING[16],
     gap: SPACING[12],
   },
@@ -387,12 +387,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontWeight: '700',
-    color: '#94A3B8',
+    color: COLORS.neutral[400],
     letterSpacing: 0.5,
   },
   messageBox: {
     backgroundColor: COLORS.neutral.white,
-    borderColor: '#E2E8F0',
+    borderColor: COLORS.neutral[200],
     borderWidth: 1,
     borderRadius: 12,
     padding: SPACING[16],
@@ -401,7 +401,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontWeight: '500',
-    color: '#334155',
+    color: COLORS.neutral[700],
     lineHeight: 20,
   },
   centeredState: {

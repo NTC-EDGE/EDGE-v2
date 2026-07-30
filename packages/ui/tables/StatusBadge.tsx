@@ -1,34 +1,38 @@
 import React from 'react';
 import { StyleSheet, View, Text } from 'react-native';
-import { COLORS, TYPOGRAPHY } from '../theme/tokens';
+import { TYPOGRAPHY, LIGHT_COLORS } from '../theme/tokens';
+import { useTheme } from '../theme/useTheme';
+import { ThemeColors } from '../theme/types';
 
-export const getStatusColors = (status: string) => {
+export const getStatusColors = (status: string, themeColors?: ThemeColors) => {
   const normalized = status.toLowerCase();
+  const c = themeColors ?? LIGHT_COLORS;
+
   if (normalized === 'approved' || normalized === 'active' || normalized === 'complete') {
     return {
-      bg: COLORS.semantic.successBg,
-      border: COLORS.semantic.successBorder,
-      text: COLORS.semantic.success,
+      bg: c.semantic.successBg,
+      border: c.semantic.successBorder,
+      text: c.semantic.successText,
     };
   }
   if (normalized === 'pending' || normalized === 'reviewing' || normalized === 'warning') {
     return {
-      bg: COLORS.semantic.warningBg,
-      border: COLORS.semantic.warningBorder,
-      text: COLORS.semantic.warning,
+      bg: c.semantic.warningBg,
+      border: c.semantic.warningBorder,
+      text: c.semantic.warningText,
     };
   }
   if (normalized === 'rejected' || normalized === 'failed' || normalized === 'error') {
     return {
-      bg: COLORS.semantic.errorBg,
-      border: COLORS.semantic.errorBorder,
-      text: COLORS.semantic.error,
+      bg: c.semantic.errorBg,
+      border: c.semantic.errorBorder,
+      text: c.semantic.errorText,
     };
   }
   return {
-    bg: COLORS.neutral[100],
-    border: COLORS.neutral[200],
-    text: COLORS.neutral[600],
+    bg: c.neutral[100],
+    border: c.border,
+    text: c.textMuted,
   };
 };
 
@@ -37,10 +41,11 @@ interface StatusBadgeProps {
 }
 
 export function StatusBadge({ status }: StatusBadgeProps) {
-  const colors = getStatusColors(status);
+  const { colors } = useTheme();
+  const badgeColors = getStatusColors(status, colors);
   return (
-    <View style={[styles.badge, { backgroundColor: colors.bg, borderColor: colors.border }]}>
-      <Text style={[styles.badgeText, { color: colors.text }]}>{status}</Text>
+    <View style={[styles.badge, { backgroundColor: badgeColors.bg, borderColor: badgeColors.border }]}>
+      <Text style={[styles.badgeText, { color: badgeColors.text }]}>{status}</Text>
     </View>
   );
 }

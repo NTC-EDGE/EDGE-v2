@@ -1,8 +1,6 @@
-import { InternalLoginPage } from "../../features/login/components/InternalLoginPage";
-// Assuming we create simple placeholders for Landing and Onboarding in a moment
+import { InternalLoginScreen } from "../../features/login/components/InternalLoginScreen";
 import { LandingScreen } from "../../features/login/components/LandingScreen";
 import { OnboardingScreen } from "../../features/login/components/OnboardingScreen";
-import { SignupScreen } from "../../features/login/components/SignupScreen";
 
 export const unauthRoutes = {
   Landing: {
@@ -16,13 +14,8 @@ export const unauthRoutes = {
     options: { title: "Get Started" },
   },
   InternalLogin: {
-    screen: InternalLoginPage,
+    screen: InternalLoginScreen,
     path: "internal/login",
     options: { title: "Login" },
-  },
-  Signup: {
-    screen: SignupScreen,
-    path: "signup",
-    options: { title: "Sign Up" },
   },
 };

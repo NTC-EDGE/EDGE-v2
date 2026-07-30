@@ -29,11 +29,18 @@ interface VisualFormBuilderModalProps {
   onSaveLayout: (elements: CanvasElement[]) => void;
 }
 
-const OFFICIAL_ELEMENTS = [
-  { id: 'el-img', type: 'image' as const, label: 'Upload Image', icon: 'image' },
-  { id: 'el-label', type: 'label' as const, label: 'Static Label', icon: 'type' },
-  { id: 'el-line', type: 'line' as const, label: 'Horizontal Line', icon: 'minus' },
-  { id: 'el-table', type: 'table' as const, label: 'Data Table', icon: 'table' },
+type IconName = keyof typeof Lucide.glyphMap;
+
+const OFFICIAL_ELEMENTS: Array<{
+  id: string;
+  type: 'image' | 'label' | 'line' | 'table';
+  label: string;
+  icon: IconName;
+}> = [
+  { id: 'el-img', type: 'image', label: 'Upload Image', icon: 'image' },
+  { id: 'el-label', type: 'label', label: 'Static Label', icon: 'type' },
+  { id: 'el-line', type: 'line', label: 'Horizontal Line', icon: 'minus' },
+  { id: 'el-table', type: 'table', label: 'Data Table', icon: 'table' },
 ];
 
 const NTC_DATA_SOURCES = [
@@ -169,7 +176,7 @@ export function VisualFormBuilderModal({
               </Pressable>
 
               <Pressable style={styles.closeBtn} onPress={onClose}>
-                <Lucide name="x" size={20} color="#94A3B8" />
+                <Lucide name="x" size={20} color={COLORS.neutral[400]} />
               </Pressable>
             </View>
           </View>
@@ -188,7 +195,7 @@ export function VisualFormBuilderModal({
                       style={styles.elementCard}
                       onPress={() => handleAddOfficialElement(oe)}
                     >
-                      <Lucide name={oe.icon as any} size={20} color="#334155" />
+                      <Lucide name={oe.icon} size={20} color={COLORS.neutral[700]} />
                       <Text style={styles.elementCardText}>{oe.label}</Text>
                     </Pressable>
                   ))}
@@ -210,7 +217,7 @@ export function VisualFormBuilderModal({
                         <Text style={styles.dataSourceKey}>{ds.key}</Text>
                       </View>
                       <View style={styles.plusIconBox}>
-                        <Lucide name="plus" size={16} color="#94A3B8" />
+                        <Lucide name="plus" size={16} color={COLORS.neutral[400]} />
                       </View>
                     </Pressable>
                   ))}
@@ -219,7 +226,7 @@ export function VisualFormBuilderModal({
 
               {/* Guidance Callout Banner */}
               <View style={styles.guidanceCallout}>
-                <Lucide name="move" size={16} color="#4F46E5" />
+                <Lucide name="move" size={16} color={COLORS.brand.indigo} />
                 <Text style={styles.guidanceText}>
                   Click an item to add it. Drag inside the paper. Select an element then delete if needed.
                 </Text>
@@ -314,7 +321,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING[24],
     paddingVertical: SPACING[16],
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: COLORS.neutral[200],
     backgroundColor: COLORS.neutral.white,
   },
   headerLeft: {
@@ -324,19 +331,19 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontWeight: '700',
-    color: '#6366F1',
+    color: COLORS.brand.indigoHover,
     letterSpacing: 0.5,
   },
   formTitleText: {
     fontSize: 20,
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontWeight: '700',
-    color: '#0F172A',
+    color: COLORS.neutral[900],
   },
   headerSubtitle: {
     fontSize: 13,
     fontFamily: TYPOGRAPHY.fonts.primary,
-    color: '#64748B',
+    color: COLORS.neutral[500],
   },
   headerRightActions: {
     flexDirection: 'row',
@@ -347,13 +354,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 10,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: COLORS.neutral[100],
   },
   secondaryBtnText: {
     fontSize: 14,
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontWeight: '700',
-    color: '#334155',
+    color: COLORS.neutral[700],
   },
   saveLayoutBtn: {
     flexDirection: 'row',
@@ -362,7 +369,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 10,
-    backgroundColor: '#4F46E5',
+    backgroundColor: COLORS.brand.indigo,
   },
   saveLayoutBtnText: {
     fontSize: 14,
@@ -391,7 +398,7 @@ const styles = StyleSheet.create({
   paletteSidebar: {
     width: 380,
     borderRightWidth: 1,
-    borderRightColor: '#E2E8F0',
+    borderRightColor: COLORS.neutral[200],
     backgroundColor: COLORS.neutral.white,
   },
   paletteContent: {
@@ -405,7 +412,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontWeight: '700',
-    color: '#94A3B8',
+    color: COLORS.neutral[400],
     letterSpacing: 0.5,
   },
   elementsGrid: {
@@ -417,7 +424,7 @@ const styles = StyleSheet.create({
     width: '47%',
     height: 64,
     backgroundColor: COLORS.neutral.white,
-    borderColor: '#E2E8F0',
+    borderColor: COLORS.neutral[200],
     borderWidth: 1,
     borderRadius: 12,
     justifyContent: 'center',
@@ -428,7 +435,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontWeight: '700',
-    color: '#334155',
+    color: COLORS.neutral[700],
   },
 
   // Data sources list
@@ -440,7 +447,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: COLORS.neutral.white,
-    borderColor: '#E2E8F0',
+    borderColor: COLORS.neutral[200],
     borderWidth: 1,
     borderRadius: 12,
     paddingHorizontal: 14,
@@ -453,12 +460,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontWeight: '700',
-    color: '#0F172A',
+    color: COLORS.neutral[900],
   },
   dataSourceKey: {
     fontSize: 11,
     fontFamily: TYPOGRAPHY.fonts.primary,
-    color: '#94A3B8',
+    color: COLORS.neutral[400],
   },
   plusIconBox: {
     width: 24,
@@ -473,17 +480,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: COLORS.brand.light,
     padding: 12,
     borderRadius: 10,
-    borderColor: '#BFDBFE',
+    borderColor: COLORS.brand.blueSoft,
     borderWidth: 1,
   },
   guidanceText: {
     flex: 1,
     fontSize: 12,
     fontFamily: TYPOGRAPHY.fonts.primary,
-    color: '#1E40AF',
+    color: COLORS.brand.deepBlue,
     fontWeight: '500',
     lineHeight: 16,
   },
@@ -491,7 +498,7 @@ const styles = StyleSheet.create({
   // Right Paper Canvas Container
   canvasContainer: {
     flex: 1,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: COLORS.neutral[100],
     justifyContent: 'center',
     alignItems: 'center',
     padding: SPACING[20],
@@ -502,7 +509,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.neutral.white,
     borderRadius: 8,
     position: 'relative',
-    borderColor: '#CBD5E1',
+    borderColor: COLORS.neutral[300],
     borderWidth: 1,
     ...SHADOWS.card,
   },
@@ -518,20 +525,20 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   canvasElementSelected: {
-    borderColor: '#3B82F6',
-    backgroundColor: '#EFF6FF',
+    borderColor: COLORS.brand.accent,
+    backgroundColor: COLORS.brand.light,
     borderRadius: 6,
   },
   elementTitleText: {
     fontSize: 13,
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontWeight: '700',
-    color: '#0F172A',
+    color: COLORS.neutral[900],
   },
   elementKeyText: {
     fontSize: 11,
     fontFamily: TYPOGRAPHY.fonts.primary,
-    color: '#64748B',
+    color: COLORS.neutral[500],
     marginTop: 2,
   },
 });

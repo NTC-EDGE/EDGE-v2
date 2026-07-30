@@ -1,6 +1,10 @@
 import { StatusBar } from "expo-status-bar";
 import { ClerkProvider } from "@clerk/expo";
+import * as WebBrowser from "expo-web-browser";
 import { tokenCache } from "./tokenCache";
+
+WebBrowser.maybeCompleteAuthSession();
+import { ThemeProvider } from "@edge/ui";
 import { AuthProvider } from "./src/features/auth/context/AuthContext";
 import { RoleProvider } from "./src/features/shell/context/RoleContext";
 import { PermissionProvider } from "./src/features/shell/context/PermissionContext";
@@ -24,15 +28,17 @@ if (publishableKey.length === 0) {
 
 export default function App() {
   return (
-    <ClerkProvider tokenCache={tokenCache} publishableKey={publishableKey}>
-      <AuthProvider>
-        <RoleProvider>
-          <PermissionProvider>
-            <RootNavigator />
-            <StatusBar style="dark" />
-          </PermissionProvider>
-        </RoleProvider>
-      </AuthProvider>
-    </ClerkProvider>
+    <ThemeProvider>
+      <ClerkProvider tokenCache={tokenCache} publishableKey={publishableKey}>
+        <AuthProvider>
+          <RoleProvider>
+            <PermissionProvider>
+              <RootNavigator />
+              <StatusBar style="dark" />
+            </PermissionProvider>
+          </RoleProvider>
+        </AuthProvider>
+      </ClerkProvider>
+    </ThemeProvider>
   );
 }

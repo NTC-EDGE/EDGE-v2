@@ -9,7 +9,7 @@ import {
   useWindowDimensions,
   ActivityIndicator,
 } from 'react-native';
-import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide } from '@edge/ui';
+import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide, SkeletonLoader } from '@edge/ui';
 import { useAdminAuditLogs } from '@edge/api';
 
 export function AuditLogsTab() {
@@ -59,9 +59,10 @@ export function AuditLogsTab() {
 
       {/* Loading state */}
       {isLoading && (
-        <View style={styles.centeredState}>
-          <ActivityIndicator size="large" color={COLORS.brand[600]} />
-          <Text style={styles.stateText}>Loading system audit logs...</Text>
+        <View style={styles.card}>
+          <SkeletonLoader height={40} borderRadius={0} style={{ marginBottom: 8 }} />
+          <SkeletonLoader height={40} borderRadius={0} style={{ marginBottom: 8 }} />
+          <SkeletonLoader height={40} borderRadius={0} />
         </View>
       )}
 

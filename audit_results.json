@@ -1,0 +1,1220 @@
+[
+  {
+    "key": "announcements\\screens/AnnouncementsScreen",
+    "baseName": "AnnouncementsScreen",
+    "dir": "announcements\\screens",
+    "completeness": {
+      "hasNative": true,
+      "hasWeb": true,
+      "hasDesktop": true,
+      "hasMaster": true,
+      "isComplete": true
+    },
+    "filesAudit": {
+      "desktop": {
+        "filePath": "announcements\\screens\\AnnouncementsScreen.desktop.tsx",
+        "importsUseTheme": true,
+        "usesThemeHook": true,
+        "usesThemeColors": true,
+        "tokenCoverage": {
+          "background": true,
+          "card": true,
+          "text": false,
+          "border": true
+        },
+        "hardcodedHexes": [
+          "#FFFFFF"
+        ],
+        "selectorDelegates": null
+      },
+      "native": {
+        "filePath": "announcements\\screens\\AnnouncementsScreen.native.tsx",
+        "importsUseTheme": true,
+        "usesThemeHook": true,
+        "usesThemeColors": true,
+        "tokenCoverage": {
+          "background": true,
+          "card": true,
+          "text": false,
+          "border": true
+        },
+        "hardcodedHexes": [
+          "#FFFFFF"
+        ],
+        "selectorDelegates": null
+      },
+      "master": {
+        "filePath": "announcements\\screens\\AnnouncementsScreen.tsx",
+        "importsUseTheme": false,
+        "usesThemeHook": false,
+        "usesThemeColors": false,
+        "tokenCoverage": {
+          "background": false,
+          "card": false,
+          "text": false,
+          "border": false
+        },
+        "hardcodedHexes": [],
+        "selectorDelegates": true
+      },
+      "web": {
+        "filePath": "announcements\\screens\\AnnouncementsScreen.web.tsx",
+        "importsUseTheme": true,
+        "usesThemeHook": true,
+        "usesThemeColors": true,
+        "tokenCoverage": {
+          "background": true,
+          "card": true,
+          "text": false,
+          "border": true
+        },
+        "hardcodedHexes": [
+          "#FFFFFF"
+        ],
+        "selectorDelegates": null
+      }
+    }
+  },
+  {
+    "key": "audit-logs\\screens/AuditLogsScreen",
+    "baseName": "AuditLogsScreen",
+    "dir": "audit-logs\\screens",
+    "completeness": {
+      "hasNative": true,
+      "hasWeb": true,
+      "hasDesktop": true,
+      "hasMaster": true,
+      "isComplete": true
+    },
+    "filesAudit": {
+      "desktop": {
+        "filePath": "audit-logs\\screens\\AuditLogsScreen.desktop.tsx",
+        "importsUseTheme": true,
+        "usesThemeHook": true,
+        "usesThemeColors": true,
+        "tokenCoverage": {
+          "background": true,
+          "card": true,
+          "text": false,
+          "border": true
+        },
+        "hardcodedHexes": [],
+        "selectorDelegates": null
+      },
+      "native": {
+        "filePath": "audit-logs\\screens\\AuditLogsScreen.native.tsx",
+        "importsUseTheme": true,
+        "usesThemeHook": true,
+        "usesThemeColors": true,
+        "tokenCoverage": {
+          "background": true,
+          "card": true,
+          "text": false,
+          "border": true
+        },
+        "hardcodedHexes": [],
+        "selectorDelegates": null
+      },
+      "master": {
+        "filePath": "audit-logs\\screens\\AuditLogsScreen.tsx",
+        "importsUseTheme": false,
+        "usesThemeHook": false,
+        "usesThemeColors": false,
+        "tokenCoverage": {
+          "background": false,
+          "card": false,
+          "text": false,
+          "border": false
+        },
+        "hardcodedHexes": [],
+        "selectorDelegates": true
+      },
+      "web": {
+        "filePath": "audit-logs\\screens\\AuditLogsScreen.web.tsx",
+        "importsUseTheme": true,
+        "usesThemeHook": true,
+        "usesThemeColors": true,
+        "tokenCoverage": {
+          "background": true,
+          "card": true,
+          "text": false,
+          "border": true
+        },
+        "hardcodedHexes": [],
+        "selectorDelegates": null
+      }
+    }
+  },
+  {
+    "key": "dashboard\\screens/DashboardScreen",
+    "baseName": "DashboardScreen",
+    "dir": "dashboard\\screens",
+    "completeness": {
+      "hasNative": true,
+      "hasWeb": true,
+      "hasDesktop": true,
+      "hasMaster": true,
+      "isComplete": true
+    },
+    "filesAudit": {
+      "desktop": {
+        "filePath": "dashboard\\screens\\DashboardScreen.desktop.tsx",
+        "importsUseTheme": true,
+        "usesThemeHook": true,
+        "usesThemeColors": true,
+        "tokenCoverage": {
+          "background": false,
+          "card": false,
+          "text": true,
+          "border": true
+        },
+        "hardcodedHexes": [
+          "#FFFFFF"
+        ],
+        "selectorDelegates": null
+      },
+      "native": {
+        "filePath": "dashboard\\screens\\DashboardScreen.native.tsx",
+        "importsUseTheme": true,
+        "usesThemeHook": true,
+        "usesThemeColors": true,
+        "tokenCoverage": {
+          "background": false,
+          "card": false,
+          "text": true,
+          "border": true
+        },
+        "hardcodedHexes": [],
+        "selectorDelegates": null
+      },
+      "master": {
+        "filePath": "dashboard\\screens\\DashboardScreen.tsx",
+        "importsUseTheme": false,
+        "usesThemeHook": false,
+        "usesThemeColors": false,
+        "tokenCoverage": {
+          "background": false,
+          "card": false,
+          "text": false,
+          "border": false
+        },
+        "hardcodedHexes": [],
+        "selectorDelegates": true
+      },
+      "web": {
+        "filePath": "dashboard\\screens\\DashboardScreen.web.tsx",
+        "importsUseTheme": true,
+        "usesThemeHook": true,
+        "usesThemeColors": true,
+        "tokenCoverage": {
+          "background": true,
+          "card": true,
+          "text": true,
+          "border": true
+        },
+        "hardcodedHexes": [],
+        "selectorDelegates": null
+      }
+    }
+  },
+  {
+    "key": "employees\\screens/EmployeesScreen",
+    "baseName": "EmployeesScreen",
+    "dir": "employees\\screens",
+    "completeness": {
+      "hasNative": true,
+      "hasWeb": true,
+      "hasDesktop": true,
+      "hasMaster": true,
+      "isComplete": true
+    },
+    "filesAudit": {
+      "desktop": {
+        "filePath": "employees\\screens\\EmployeesScreen.desktop.tsx",
+        "importsUseTheme": true,
+        "usesThemeHook": true,
+        "usesThemeColors": true,
+        "tokenCoverage": {
+          "background": false,
+          "card": false,
+          "text": false,
+          "border": false
+        },
+        "hardcodedHexes": [],
+        "selectorDelegates": null
+      },
+      "native": {
+        "filePath": "employees\\screens\\EmployeesScreen.native.tsx",
+        "importsUseTheme": false,
+        "usesThemeHook": false,
+        "usesThemeColors": false,
+        "tokenCoverage": {
+          "background": false,
+          "card": false,
+          "text": false,
+          "border": false
+        },
+        "hardcodedHexes": [],
+        "selectorDelegates": null
+      },
+      "master": {
+        "filePath": "employees\\screens\\EmployeesScreen.tsx",
+        "importsUseTheme": false,
+        "usesThemeHook": false,
+        "usesThemeColors": false,
+        "tokenCoverage": {
+          "background": false,
+          "card": false,
+          "text": false,
+          "border": false
+        },
+        "hardcodedHexes": [],
+        "selectorDelegates": true
+      },
+      "web": {
+        "filePath": "employees\\screens\\EmployeesScreen.web.tsx",
+        "importsUseTheme": true,
+        "usesThemeHook": true,
+        "usesThemeColors": true,
+        "tokenCoverage": {
+          "background": false,
+          "card": false,
+          "text": false,
+          "border": false
+        },
+        "hardcodedHexes": [],
+        "selectorDelegates": null
+      }
+    }
+  },
+  {
+    "key": "feedback\\screens/FeedbackScreen",
+    "baseName": "FeedbackScreen",
+    "dir": "feedback\\screens",
+    "completeness": {
+      "hasNative": true,
+      "hasWeb": true,
+      "hasDesktop": true,
+      "hasMaster": true,
+      "isComplete": true
+    },
+    "filesAudit": {
+      "desktop": {
+        "filePath": "feedback\\screens\\FeedbackScreen.desktop.tsx",
+        "importsUseTheme": false,
+        "usesThemeHook": true,
+        "usesThemeColors": true,
+        "tokenCoverage": {
+          "background": true,
+          "card": true,
+          "text": true,
+          "border": true
+        },
+        "hardcodedHexes": [
+          "#F59E0B",
+          "#CBD5E1",
+          "#3B82F6",
+          "#10B981",
+          "#1E293B",
+          "#EFF6FF",
+          "#EF4444"
+        ],
+        "selectorDelegates": null
+      },
+      "native": {
+        "filePath": "feedback\\screens\\FeedbackScreen.native.tsx",
+        "importsUseTheme": false,
+        "usesThemeHook": true,
+        "usesThemeColors": true,
+        "tokenCoverage": {
+          "background": true,
+          "card": true,
+          "text": true,
+          "border": true
+        },
+        "hardcodedHexes": [
+          "#F59E0B",
+          "#CBD5E1",
+          "#1E293B",
+          "#EFF6FF",
+          "#3B82F6",
+          "#EF4444"
+        ],
+        "selectorDelegates": null
+      },
+      "master": {
+        "filePath": "feedback\\screens\\FeedbackScreen.tsx",
+        "importsUseTheme": false,
+        "usesThemeHook": false,
+        "usesThemeColors": false,
+        "tokenCoverage": {
+          "background": false,
+          "card": false,
+          "text": false,
+          "border": false
+        },
+        "hardcodedHexes": [],
+        "selectorDelegates": true
+      },
+      "web": {
+        "filePath": "feedback\\screens\\FeedbackScreen.web.tsx",
+        "importsUseTheme": false,
+        "usesThemeHook": true,
+        "usesThemeColors": true,
+        "tokenCoverage": {
+          "background": true,
+          "card": true,
+          "text": true,
+          "border": true
+        },
+        "hardcodedHexes": [
+          "#F59E0B",
+          "#CBD5E1",
+          "#3B82F6",
+          "#10B981",
+          "#1E293B",
+          "#EFF6FF",
+          "#EF4444"
+        ],
+        "selectorDelegates": null
+      }
+    }
+  },
+  {
+    "key": "form-builder\\screens/FormBuilderScreen",
+    "baseName": "FormBuilderScreen",
+    "dir": "form-builder\\screens",
+    "completeness": {
+      "hasNative": true,
+      "hasWeb": true,
+      "hasDesktop": true,
+      "hasMaster": true,
+      "isComplete": true
+    },
+    "filesAudit": {
+      "desktop": {
+        "filePath": "form-builder\\screens\\FormBuilderScreen.desktop.tsx",
+        "importsUseTheme": true,
+        "usesThemeHook": true,
+        "usesThemeColors": true,
+        "tokenCoverage": {
+          "background": true,
+          "card": true,
+          "text": false,
+          "border": true
+        },
+        "hardcodedHexes": [
+          "#FFFFFF"
+        ],
+        "selectorDelegates": null
+      },
+      "native": {
+        "filePath": "form-builder\\screens\\FormBuilderScreen.native.tsx",
+        "importsUseTheme": true,
+        "usesThemeHook": true,
+        "usesThemeColors": true,
+        "tokenCoverage": {
+          "background": true,
+          "card": true,
+          "text": false,
+          "border": true
+        },
+        "hardcodedHexes": [
+          "#FFFFFF"
+        ],
+        "selectorDelegates": null
+      },
+      "master": {
+        "filePath": "form-builder\\screens\\FormBuilderScreen.tsx",
+        "importsUseTheme": false,
+        "usesThemeHook": false,
+        "usesThemeColors": false,
+        "tokenCoverage": {
+          "background": false,
+          "card": false,
+          "text": false,
+          "border": false
+        },
+        "hardcodedHexes": [],
+        "selectorDelegates": true
+      },
+      "web": {
+        "filePath": "form-builder\\screens\\FormBuilderScreen.web.tsx",
+        "importsUseTheme": true,
+        "usesThemeHook": true,
+        "usesThemeColors": true,
+        "tokenCoverage": {
+          "background": true,
+          "card": true,
+          "text": false,
+          "border": true
+        },
+        "hardcodedHexes": [
+          "#FFFFFF"
+        ],
+        "selectorDelegates": null
+      }
+    }
+  },
+  {
+    "key": "login\\components/ForgotPasswordScreen",
+    "baseName": "ForgotPasswordScreen",
+    "dir": "login\\components",
+    "completeness": {
+      "hasNative": true,
+      "hasWeb": true,
+      "hasDesktop": true,
+      "hasMaster": true,
+      "isComplete": true
+    },
+    "filesAudit": {
+      "desktop": {
+        "filePath": "login\\components\\ForgotPasswordScreen.desktop.tsx",
+        "importsUseTheme": false,
+        "usesThemeHook": true,
+        "usesThemeColors": true,
+        "tokenCoverage": {
+          "background": true,
+          "card": true,
+          "text": true,
+          "border": true
+        },
+        "hardcodedHexes": [],
+        "selectorDelegates": null
+      },
+      "native": {
+        "filePath": "login\\components\\ForgotPasswordScreen.native.tsx",
+        "importsUseTheme": false,
+        "usesThemeHook": true,
+        "usesThemeColors": true,
+        "tokenCoverage": {
+          "background": true,
+          "card": true,
+          "text": true,
+          "border": true
+        },
+        "hardcodedHexes": [],
+        "selectorDelegates": null
+      },
+      "master": {
+        "filePath": "login\\components\\ForgotPasswordScreen.tsx",
+        "importsUseTheme": false,
+        "usesThemeHook": false,
+        "usesThemeColors": false,
+        "tokenCoverage": {
+          "background": false,
+          "card": false,
+          "text": false,
+          "border": false
+        },
+        "hardcodedHexes": [],
+        "selectorDelegates": true
+      },
+      "web": {
+        "filePath": "login\\components\\ForgotPasswordScreen.web.tsx",
+        "importsUseTheme": false,
+        "usesThemeHook": true,
+        "usesThemeColors": true,
+        "tokenCoverage": {
+          "background": true,
+          "card": true,
+          "text": true,
+          "border": true
+        },
+        "hardcodedHexes": [],
+        "selectorDelegates": null
+      }
+    }
+  },
+  {
+    "key": "login\\components/InternalLoginScreen",
+    "baseName": "InternalLoginScreen",
+    "dir": "login\\components",
+    "completeness": {
+      "hasNative": true,
+      "hasWeb": true,
+      "hasDesktop": true,
+      "hasMaster": true,
+      "isComplete": true
+    },
+    "filesAudit": {
+      "desktop": {
+        "filePath": "login\\components\\InternalLoginScreen.desktop.tsx",
+        "importsUseTheme": false,
+        "usesThemeHook": true,
+        "usesThemeColors": true,
+        "tokenCoverage": {
+          "background": true,
+          "card": true,
+          "text": true,
+          "border": true
+        },
+        "hardcodedHexes": [],
+        "selectorDelegates": null
+      },
+      "native": {
+        "filePath": "login\\components\\InternalLoginScreen.native.tsx",
+        "importsUseTheme": true,
+        "usesThemeHook": true,
+        "usesThemeColors": true,
+        "tokenCoverage": {
+          "background": true,
+          "card": true,
+          "text": true,
+          "border": true
+        },
+        "hardcodedHexes": [],
+        "selectorDelegates": null
+      },
+      "master": {
+        "filePath": "login\\components\\InternalLoginScreen.tsx",
+        "importsUseTheme": false,
+        "usesThemeHook": false,
+        "usesThemeColors": false,
+        "tokenCoverage": {
+          "background": false,
+          "card": false,
+          "text": false,
+          "border": false
+        },
+        "hardcodedHexes": [],
+        "selectorDelegates": true
+      },
+      "web": {
+        "filePath": "login\\components\\InternalLoginScreen.web.tsx",
+        "importsUseTheme": false,
+        "usesThemeHook": true,
+        "usesThemeColors": true,
+        "tokenCoverage": {
+          "background": true,
+          "card": true,
+          "text": true,
+          "border": true
+        },
+        "hardcodedHexes": [
+          "#EF4444",
+          "#F59E0B",
+          "#10B981"
+        ],
+        "selectorDelegates": null
+      }
+    }
+  },
+  {
+    "key": "login\\components/LandingScreen",
+    "baseName": "LandingScreen",
+    "dir": "login\\components",
+    "completeness": {
+      "hasNative": true,
+      "hasWeb": true,
+      "hasDesktop": true,
+      "hasMaster": true,
+      "isComplete": true
+    },
+    "filesAudit": {
+      "desktop": {
+        "filePath": "login\\components\\LandingScreen.desktop.tsx",
+        "importsUseTheme": true,
+        "usesThemeHook": true,
+        "usesThemeColors": true,
+        "tokenCoverage": {
+          "background": false,
+          "card": false,
+          "text": true,
+          "border": true
+        },
+        "hardcodedHexes": [
+          "#FFFFFF"
+        ],
+        "selectorDelegates": null
+      },
+      "native": {
+        "filePath": "login\\components\\LandingScreen.native.tsx",
+        "importsUseTheme": true,
+        "usesThemeHook": true,
+        "usesThemeColors": true,
+        "tokenCoverage": {
+          "background": false,
+          "card": false,
+          "text": true,
+          "border": true
+        },
+        "hardcodedHexes": [
+          "#FFFFFF"
+        ],
+        "selectorDelegates": null
+      },
+      "master": {
+        "filePath": "login\\components\\LandingScreen.tsx",
+        "importsUseTheme": false,
+        "usesThemeHook": false,
+        "usesThemeColors": false,
+        "tokenCoverage": {
+          "background": false,
+          "card": false,
+          "text": false,
+          "border": false
+        },
+        "hardcodedHexes": [],
+        "selectorDelegates": true
+      },
+      "web": {
+        "filePath": "login\\components\\LandingScreen.web.tsx",
+        "importsUseTheme": true,
+        "usesThemeHook": true,
+        "usesThemeColors": true,
+        "tokenCoverage": {
+          "background": false,
+          "card": false,
+          "text": true,
+          "border": true
+        },
+        "hardcodedHexes": [
+          "#FFFFFF"
+        ],
+        "selectorDelegates": null
+      }
+    }
+  },
+  {
+    "key": "login\\components/OnboardingScreen",
+    "baseName": "OnboardingScreen",
+    "dir": "login\\components",
+    "completeness": {
+      "hasNative": true,
+      "hasWeb": true,
+      "hasDesktop": true,
+      "hasMaster": true,
+      "isComplete": true
+    },
+    "filesAudit": {
+      "desktop": {
+        "filePath": "login\\components\\OnboardingScreen.desktop.tsx",
+        "importsUseTheme": true,
+        "usesThemeHook": true,
+        "usesThemeColors": true,
+        "tokenCoverage": {
+          "background": false,
+          "card": false,
+          "text": true,
+          "border": false
+        },
+        "hardcodedHexes": [
+          "#FFFFFF"
+        ],
+        "selectorDelegates": null
+      },
+      "native": {
+        "filePath": "login\\components\\OnboardingScreen.native.tsx",
+        "importsUseTheme": true,
+        "usesThemeHook": true,
+        "usesThemeColors": true,
+        "tokenCoverage": {
+          "background": false,
+          "card": false,
+          "text": true,
+          "border": false
+        },
+        "hardcodedHexes": [
+          "#FFFFFF"
+        ],
+        "selectorDelegates": null
+      },
+      "master": {
+        "filePath": "login\\components\\OnboardingScreen.tsx",
+        "importsUseTheme": false,
+        "usesThemeHook": false,
+        "usesThemeColors": false,
+        "tokenCoverage": {
+          "background": false,
+          "card": false,
+          "text": false,
+          "border": false
+        },
+        "hardcodedHexes": [],
+        "selectorDelegates": true
+      },
+      "web": {
+        "filePath": "login\\components\\OnboardingScreen.web.tsx",
+        "importsUseTheme": true,
+        "usesThemeHook": true,
+        "usesThemeColors": true,
+        "tokenCoverage": {
+          "background": false,
+          "card": false,
+          "text": true,
+          "border": false
+        },
+        "hardcodedHexes": [
+          "#FFFFFF"
+        ],
+        "selectorDelegates": null
+      }
+    }
+  },
+  {
+    "key": "queue\\screens/ActivitiesScreen",
+    "baseName": "ActivitiesScreen",
+    "dir": "queue\\screens",
+    "completeness": {
+      "hasNative": true,
+      "hasWeb": true,
+      "hasDesktop": true,
+      "hasMaster": true,
+      "isComplete": true
+    },
+    "filesAudit": {
+      "desktop": {
+        "filePath": "queue\\screens\\ActivitiesScreen.desktop.tsx",
+        "importsUseTheme": true,
+        "usesThemeHook": true,
+        "usesThemeColors": true,
+        "tokenCoverage": {
+          "background": true,
+          "card": true,
+          "text": false,
+          "border": true
+        },
+        "hardcodedHexes": [],
+        "selectorDelegates": null
+      },
+      "native": {
+        "filePath": "queue\\screens\\ActivitiesScreen.native.tsx",
+        "importsUseTheme": true,
+        "usesThemeHook": true,
+        "usesThemeColors": true,
+        "tokenCoverage": {
+          "background": true,
+          "card": true,
+          "text": false,
+          "border": true
+        },
+        "hardcodedHexes": [],
+        "selectorDelegates": null
+      },
+      "master": {
+        "filePath": "queue\\screens\\ActivitiesScreen.tsx",
+        "importsUseTheme": false,
+        "usesThemeHook": false,
+        "usesThemeColors": false,
+        "tokenCoverage": {
+          "background": false,
+          "card": false,
+          "text": false,
+          "border": false
+        },
+        "hardcodedHexes": [],
+        "selectorDelegates": true
+      },
+      "web": {
+        "filePath": "queue\\screens\\ActivitiesScreen.web.tsx",
+        "importsUseTheme": true,
+        "usesThemeHook": true,
+        "usesThemeColors": true,
+        "tokenCoverage": {
+          "background": true,
+          "card": true,
+          "text": false,
+          "border": true
+        },
+        "hardcodedHexes": [],
+        "selectorDelegates": null
+      }
+    }
+  },
+  {
+    "key": "queue\\screens/ApplicationReviewScreen",
+    "baseName": "ApplicationReviewScreen",
+    "dir": "queue\\screens",
+    "completeness": {
+      "hasNative": true,
+      "hasWeb": true,
+      "hasDesktop": true,
+      "hasMaster": true,
+      "isComplete": true
+    },
+    "filesAudit": {
+      "desktop": {
+        "filePath": "queue\\screens\\ApplicationReviewScreen.desktop.tsx",
+        "importsUseTheme": true,
+        "usesThemeHook": true,
+        "usesThemeColors": true,
+        "tokenCoverage": {
+          "background": false,
+          "card": false,
+          "text": false,
+          "border": false
+        },
+        "hardcodedHexes": [],
+        "selectorDelegates": null
+      },
+      "native": {
+        "filePath": "queue\\screens\\ApplicationReviewScreen.native.tsx",
+        "importsUseTheme": true,
+        "usesThemeHook": true,
+        "usesThemeColors": true,
+        "tokenCoverage": {
+          "background": false,
+          "card": false,
+          "text": false,
+          "border": false
+        },
+        "hardcodedHexes": [],
+        "selectorDelegates": null
+      },
+      "master": {
+        "filePath": "queue\\screens\\ApplicationReviewScreen.tsx",
+        "importsUseTheme": false,
+        "usesThemeHook": false,
+        "usesThemeColors": false,
+        "tokenCoverage": {
+          "background": false,
+          "card": false,
+          "text": false,
+          "border": false
+        },
+        "hardcodedHexes": [],
+        "selectorDelegates": true
+      },
+      "web": {
+        "filePath": "queue\\screens\\ApplicationReviewScreen.web.tsx",
+        "importsUseTheme": true,
+        "usesThemeHook": true,
+        "usesThemeColors": true,
+        "tokenCoverage": {
+          "background": false,
+          "card": false,
+          "text": false,
+          "border": false
+        },
+        "hardcodedHexes": [],
+        "selectorDelegates": null
+      }
+    }
+  },
+  {
+    "key": "roles-permission\\screens/RolesPermissionScreen",
+    "baseName": "RolesPermissionScreen",
+    "dir": "roles-permission\\screens",
+    "completeness": {
+      "hasNative": true,
+      "hasWeb": true,
+      "hasDesktop": true,
+      "hasMaster": true,
+      "isComplete": true
+    },
+    "filesAudit": {
+      "desktop": {
+        "filePath": "roles-permission\\screens\\RolesPermissionScreen.desktop.tsx",
+        "importsUseTheme": false,
+        "usesThemeHook": true,
+        "usesThemeColors": true,
+        "tokenCoverage": {
+          "background": true,
+          "card": true,
+          "text": true,
+          "border": true
+        },
+        "hardcodedHexes": [
+          "#FEE2E2",
+          "#E0F2FE",
+          "#FFFFFF",
+          "#10B981",
+          "#0F172A",
+          "#F8FAFC",
+          "#3B82F6",
+          "#FEF3C7",
+          "#D97706",
+          "#92400E"
+        ],
+        "selectorDelegates": null
+      },
+      "native": {
+        "filePath": "roles-permission\\screens\\RolesPermissionScreen.native.tsx",
+        "importsUseTheme": false,
+        "usesThemeHook": true,
+        "usesThemeColors": true,
+        "tokenCoverage": {
+          "background": false,
+          "card": false,
+          "text": true,
+          "border": true
+        },
+        "hardcodedHexes": [
+          "#FEE2E2",
+          "#E0F2FE",
+          "#FFFFFF"
+        ],
+        "selectorDelegates": null
+      },
+      "master": {
+        "filePath": "roles-permission\\screens\\RolesPermissionScreen.tsx",
+        "importsUseTheme": false,
+        "usesThemeHook": false,
+        "usesThemeColors": false,
+        "tokenCoverage": {
+          "background": false,
+          "card": false,
+          "text": false,
+          "border": false
+        },
+        "hardcodedHexes": [],
+        "selectorDelegates": true
+      },
+      "web": {
+        "filePath": "roles-permission\\screens\\RolesPermissionScreen.web.tsx",
+        "importsUseTheme": false,
+        "usesThemeHook": true,
+        "usesThemeColors": true,
+        "tokenCoverage": {
+          "background": true,
+          "card": true,
+          "text": true,
+          "border": true
+        },
+        "hardcodedHexes": [
+          "#FEE2E2",
+          "#E0F2FE",
+          "#FFFFFF",
+          "#10B981",
+          "#0F172A",
+          "#F8FAFC",
+          "#3B82F6",
+          "#FEF3C7",
+          "#D97706",
+          "#92400E"
+        ],
+        "selectorDelegates": null
+      }
+    }
+  },
+  {
+    "key": "settings\\screens/AdminSettingsScreen",
+    "baseName": "AdminSettingsScreen",
+    "dir": "settings\\screens",
+    "completeness": {
+      "hasNative": true,
+      "hasWeb": true,
+      "hasDesktop": true,
+      "hasMaster": true,
+      "isComplete": true
+    },
+    "filesAudit": {
+      "desktop": {
+        "filePath": "settings\\screens\\AdminSettingsScreen.desktop.tsx",
+        "importsUseTheme": true,
+        "usesThemeHook": true,
+        "usesThemeColors": true,
+        "tokenCoverage": {
+          "background": true,
+          "card": true,
+          "text": true,
+          "border": false
+        },
+        "hardcodedHexes": [
+          "#000"
+        ],
+        "selectorDelegates": null
+      },
+      "native": {
+        "filePath": "settings\\screens\\AdminSettingsScreen.native.tsx",
+        "importsUseTheme": true,
+        "usesThemeHook": true,
+        "usesThemeColors": true,
+        "tokenCoverage": {
+          "background": true,
+          "card": true,
+          "text": true,
+          "border": false
+        },
+        "hardcodedHexes": [
+          "#000"
+        ],
+        "selectorDelegates": null
+      },
+      "master": {
+        "filePath": "settings\\screens\\AdminSettingsScreen.tsx",
+        "importsUseTheme": false,
+        "usesThemeHook": false,
+        "usesThemeColors": false,
+        "tokenCoverage": {
+          "background": false,
+          "card": false,
+          "text": false,
+          "border": false
+        },
+        "hardcodedHexes": [],
+        "selectorDelegates": true
+      },
+      "web": {
+        "filePath": "settings\\screens\\AdminSettingsScreen.web.tsx",
+        "importsUseTheme": true,
+        "usesThemeHook": true,
+        "usesThemeColors": true,
+        "tokenCoverage": {
+          "background": true,
+          "card": true,
+          "text": true,
+          "border": false
+        },
+        "hardcodedHexes": [
+          "#000"
+        ],
+        "selectorDelegates": null
+      }
+    }
+  },
+  {
+    "key": "settings\\screens/SettingsScreen",
+    "baseName": "SettingsScreen",
+    "dir": "settings\\screens",
+    "completeness": {
+      "hasNative": true,
+      "hasWeb": true,
+      "hasDesktop": true,
+      "hasMaster": true,
+      "isComplete": true
+    },
+    "filesAudit": {
+      "desktop": {
+        "filePath": "settings\\screens\\SettingsScreen.desktop.tsx",
+        "importsUseTheme": false,
+        "usesThemeHook": true,
+        "usesThemeColors": true,
+        "tokenCoverage": {
+          "background": true,
+          "card": true,
+          "text": true,
+          "border": true
+        },
+        "hardcodedHexes": [
+          "#FFFFFF",
+          "#CBD5E1",
+          "#3B82F6"
+        ],
+        "selectorDelegates": null
+      },
+      "native": {
+        "filePath": "settings\\screens\\SettingsScreen.native.tsx",
+        "importsUseTheme": false,
+        "usesThemeHook": true,
+        "usesThemeColors": true,
+        "tokenCoverage": {
+          "background": true,
+          "card": true,
+          "text": true,
+          "border": true
+        },
+        "hardcodedHexes": [
+          "#FFFFFF",
+          "#CBD5E1",
+          "#3B82F6",
+          "#000"
+        ],
+        "selectorDelegates": null
+      },
+      "master": {
+        "filePath": "settings\\screens\\SettingsScreen.tsx",
+        "importsUseTheme": false,
+        "usesThemeHook": false,
+        "usesThemeColors": false,
+        "tokenCoverage": {
+          "background": false,
+          "card": false,
+          "text": false,
+          "border": false
+        },
+        "hardcodedHexes": [],
+        "selectorDelegates": true
+      },
+      "web": {
+        "filePath": "settings\\screens\\SettingsScreen.web.tsx",
+        "importsUseTheme": false,
+        "usesThemeHook": true,
+        "usesThemeColors": true,
+        "tokenCoverage": {
+          "background": true,
+          "card": true,
+          "text": true,
+          "border": true
+        },
+        "hardcodedHexes": [
+          "#FFFFFF",
+          "#CBD5E1",
+          "#3B82F6"
+        ],
+        "selectorDelegates": null
+      }
+    }
+  },
+  {
+    "key": "users\\screens/UsersScreen",
+    "baseName": "UsersScreen",
+    "dir": "users\\screens",
+    "completeness": {
+      "hasNative": true,
+      "hasWeb": true,
+      "hasDesktop": true,
+      "hasMaster": true,
+      "isComplete": true
+    },
+    "filesAudit": {
+      "desktop": {
+        "filePath": "users\\screens\\UsersScreen.desktop.tsx",
+        "importsUseTheme": true,
+        "usesThemeHook": true,
+        "usesThemeColors": true,
+        "tokenCoverage": {
+          "background": false,
+          "card": false,
+          "text": false,
+          "border": false
+        },
+        "hardcodedHexes": [],
+        "selectorDelegates": null
+      },
+      "native": {
+        "filePath": "users\\screens\\UsersScreen.native.tsx",
+        "importsUseTheme": false,
+        "usesThemeHook": false,
+        "usesThemeColors": false,
+        "tokenCoverage": {
+          "background": false,
+          "card": false,
+          "text": false,
+          "border": false
+        },
+        "hardcodedHexes": [],
+        "selectorDelegates": null
+      },
+      "master": {
+        "filePath": "users\\screens\\UsersScreen.tsx",
+        "importsUseTheme": false,
+        "usesThemeHook": false,
+        "usesThemeColors": false,
+        "tokenCoverage": {
+          "background": false,
+          "card": false,
+          "text": false,
+          "border": false
+        },
+        "hardcodedHexes": [],
+        "selectorDelegates": true
+      },
+      "web": {
+        "filePath": "users\\screens\\UsersScreen.web.tsx",
+        "importsUseTheme": true,
+        "usesThemeHook": true,
+        "usesThemeColors": true,
+        "tokenCoverage": {
+          "background": false,
+          "card": false,
+          "text": false,
+          "border": false
+        },
+        "hardcodedHexes": [],
+        "selectorDelegates": null
+      }
+    }
+  }
+]

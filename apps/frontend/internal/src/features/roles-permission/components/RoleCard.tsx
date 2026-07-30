@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, View, Text, Pressable } from 'react-native';
-import { COLORS, SPACING, RADIUS, SHADOWS } from '@edge/ui';
+import { useTheme, SPACING, RADIUS, SHADOWS } from '@edge/ui';
 import { Role } from '../data/mockRolesPermissions';
 
 interface RoleCardProps {
@@ -11,26 +11,33 @@ interface RoleCardProps {
 }
 
 export function RoleCard({ role, isSelected, onSelect, onDelete }: RoleCardProps) {
-  const avatarBg = role.avatarBgColor !== undefined ? role.avatarBgColor : COLORS.brand[500];
+  const { colors, isDark } = useTheme();
+  const avatarBg = role.avatarBgColor !== undefined ? role.avatarBgColor : colors.brand.primary;
 
   return (
     <Pressable
       style={[
         styles.cardContainer,
-        isSelected ? styles.cardSelected : styles.cardUnselected,
+        {
+          backgroundColor: isSelected
+            ? (isDark ? colors.cardBg : colors.bg)
+            : colors.cardBg,
+          borderColor: isSelected ? colors.brand.primary : colors.border,
+          borderWidth: isSelected ? 1.5 : 1,
+        },
       ]}
       onPress={() => onSelect(role)}
       accessibilityRole="button"
       accessibilityLabel={`Select role ${role.name}`}
     >
       <View style={styles.contentRow}>
-        <View style={[styles.avatarCircle, { backgroundColor: avatarBg }]}>
-          <Text style={styles.avatarText}>{role.avatarInitials}</Text>
+        <View style={[styles.avatarCircle, { backgroundColor: isDark ? colors.neutral[700] : avatarBg }]}>
+          <Text style={[styles.avatarText, { color: isDark ? colors.neutral[100] : colors.brand.secondary }]}>{role.avatarInitials}</Text>
         </View>
 
         <View style={styles.infoCol}>
-          <Text style={styles.roleNameText}>{role.name}</Text>
-          <Text style={styles.roleIdText} numberOfLines={1}>
+          <Text style={[styles.roleNameText, { color: colors.text }]}>{role.name}</Text>
+          <Text style={[styles.roleIdText, { color: colors.textMuted }]} numberOfLines={1}>
             Role ID: {role.id}
           </Text>
         </View>
@@ -39,7 +46,7 @@ export function RoleCard({ role, isSelected, onSelect, onDelete }: RoleCardProps
           <Pressable
             style={({ pressed }: { pressed: boolean }) => [
               styles.deleteBtn,
-              pressed && styles.deleteBtnPressed,
+              { backgroundColor: pressed ? colors.semantic.errorBorder : colors.semantic.errorBg },
             ]}
             onPress={(e) => {
               e.stopPropagation();
@@ -48,7 +55,7 @@ export function RoleCard({ role, isSelected, onSelect, onDelete }: RoleCardProps
             accessibilityRole="button"
             accessibilityLabel={`Delete role ${role.name}`}
           >
-            <Text style={styles.deleteBtnText}>Delete</Text>
+            <Text style={[styles.deleteBtnText, { color: colors.semantic.error }]}>Delete</Text>
           </Pressable>
         )}
       </View>
@@ -58,21 +65,10 @@ export function RoleCard({ role, isSelected, onSelect, onDelete }: RoleCardProps
 
 const styles = StyleSheet.create({
   cardContainer: {
-    backgroundColor: COLORS.neutral.white,
     borderRadius: RADIUS.card,
     paddingHorizontal: SPACING[16],
     paddingVertical: SPACING[16],
     marginBottom: SPACING[12],
-    borderWidth: 1,
-  },
-  cardUnselected: {
-    borderColor: COLORS.neutral[200],
-    ...SHADOWS.card,
-  },
-  cardSelected: {
-    borderColor: COLORS.brand[600],
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1.5,
     ...SHADOWS.card,
   },
   contentRow: {
@@ -90,7 +86,6 @@ const styles = StyleSheet.create({
   avatarText: {
     fontSize: 16,
     fontWeight: '700',
-    color: COLORS.brand[900],
   },
   infoCol: {
     flex: 1,
@@ -99,24 +94,17 @@ const styles = StyleSheet.create({
   roleNameText: {
     fontSize: 15,
     fontWeight: '700',
-    color: COLORS.neutral[900],
     marginBottom: 2,
   },
   roleIdText: {
     fontSize: 11,
-    color: COLORS.neutral[400],
   },
   deleteBtn: {
-    backgroundColor: '#FEE2E2',
     paddingHorizontal: SPACING[12],
     paddingVertical: SPACING[4],
     borderRadius: RADIUS.button,
   },
-  deleteBtnPressed: {
-    backgroundColor: '#FCA5A5',
-  },
   deleteBtnText: {
-    color: COLORS.semantic.error,
     fontSize: 12,
     fontWeight: '600',
   },

@@ -5,8 +5,12 @@
   "types": "index.ts",
   "dependencies": {
     "@clerk/expo": "^3.2.0",
+    "@expo/vector-icons": "^15.0.2",
+    "@hookform/resolvers": "^5.5.7",
+    "@react-native-async-storage/async-storage": "^2.1.2",
     "@tanstack/react-table": "^8.20.5",
-    "@expo/vector-icons": "^15.0.2"
+    "react-hook-form": "^7.83.0",
+    "zod": "^4.4.3"
   },
   "peerDependencies": {
     "react": "*",
