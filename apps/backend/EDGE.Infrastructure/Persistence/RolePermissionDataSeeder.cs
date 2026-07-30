@@ -5,15 +5,15 @@ using System.Threading.Tasks;
 using EDGE.Domain.Authorization;
 using EDGE.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace EDGE.Infrastructure.Persistence;
 
 public static class RolePermissionDataSeeder
 {
-    public static async Task SeedAsync(ApplicationDbContext context)
+    public static async Task SeedAsync(ApplicationDbContext context, bool forceResetPermissions = true)
     {
         var staticDate = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-        bool changesMade = false;
 
         // ── 1. Seed Default Tenant ────────────────────────────────────────────────
         var defaultTenantId = Guid.Parse("00000000-0000-0000-0000-000000000001");
@@ -29,11 +29,18 @@ public static class RolePermissionDataSeeder
                 RegionId = Guid.Parse("1e66819d-583c-4852-83bd-a4195bd126a8"),
                 CreatedAt = staticDate
             };
-            await context.Tenants.AddAsync(defaultTenant);
-            changesMade = true;
+            try
+            {
+                await context.Tenants.AddAsync(defaultTenant);
+                await context.SaveChangesAsync();
+            }
+            catch (Exception ex) when (ex is DbUpdateException || ex.InnerException is PostgresException)
+            {
+                context.Entry(defaultTenant).State = EntityState.Detached;
+            }
         }
 
-        // ── 2. Seed Roles ─────────────────────────────────────────────────────────
+        // ── 2. Seed Roles (Idempotent per role with duplicate key catch) ──────────
         var superAdminRoleId  = Guid.Parse("10000000-0000-0000-0000-000000000000");
         var clientRoleId      = Guid.Parse("10000000-0000-0000-0000-000000000001");
         var evaluatorRoleId   = Guid.Parse("10000000-0000-0000-0000-000000000002");
@@ -53,89 +60,125 @@ public static class RolePermissionDataSeeder
             new() { Id = adminRoleId,      TenantId = defaultTenantId, IsSystemRole = false, Name = "Administrator",       Key = "admin",      Description = "Tenant administrator", CreatedAt = staticDate },
         };
 
-        var existingRoleIds = await context.Roles.Select(r => r.Id).ToListAsync();
         foreach (var role in defaultRoles)
         {
-            if (!existingRoleIds.Contains(role.Id))
+            var exists = await context.Roles.AnyAsync(r => r.Id == role.Id || r.Key == role.Key);
+            if (!exists)
             {
-                await context.Roles.AddAsync(role);
-                changesMade = true;
+                try
+                {
+                    await context.Roles.AddAsync(role);
+                    await context.SaveChangesAsync();
+                }
+                catch (Exception ex) when (ex is DbUpdateException || ex.InnerException is PostgresException)
+                {
+                    context.Entry(role).State = EntityState.Detached;
+                }
             }
         }
 
-        if (changesMade)
+        // Fetch actual role mappings from database
+        var dbRoles = await context.Roles.AsNoTracking().ToListAsync();
+        var roleKeyToIdMap = dbRoles.ToDictionary(r => r.Key.ToLowerInvariant(), r => r.Id);
+
+        var actualSuperAdminRoleId  = roleKeyToIdMap.GetValueOrDefault("superadmin", superAdminRoleId);
+        var actualClientRoleId      = roleKeyToIdMap.GetValueOrDefault("client", clientRoleId);
+        var actualEvaluatorRoleId   = roleKeyToIdMap.GetValueOrDefault("evaluator", evaluatorRoleId);
+        var actualHigherUpsRoleId   = roleKeyToIdMap.GetValueOrDefault("higherups", higherUpsRoleId);
+        var actualAccountantRoleId  = roleKeyToIdMap.GetValueOrDefault("accountant", accountantRoleId);
+        var actualCashierRoleId     = roleKeyToIdMap.GetValueOrDefault("cashier", cashierRoleId);
+        var actualAdminRoleId       = roleKeyToIdMap.GetValueOrDefault("admin", adminRoleId);
+
+        var seedRoleIds = new List<Guid>
         {
-            await context.SaveChangesAsync();
-            changesMade = false;
+            actualSuperAdminRoleId,
+            actualClientRoleId,
+            actualEvaluatorRoleId,
+            actualHigherUpsRoleId,
+            actualAccountantRoleId,
+            actualCashierRoleId,
+            actualAdminRoleId
+        };
+
+        if (forceResetPermissions)
+        {
+            var validKeys = Permissions.AllKeys.ToList();
+            var invalidOrSeededRolePermissions = await context.RolePermissions
+                .Where(rp => seedRoleIds.Contains(rp.RoleId) || !validKeys.Contains(rp.PermissionKey))
+                .ToListAsync();
+
+            if (invalidOrSeededRolePermissions.Count > 0)
+            {
+                context.RolePermissions.RemoveRange(invalidOrSeededRolePermissions);
+                await context.SaveChangesAsync();
+            }
         }
 
-        // ── 3. Seed RolePermissions (Idempotent by (RoleId, PermissionKey)) ─────
+        // ── 3. Seed RolePermissions ───────────────────────────────────────────────
         var targetRolePermissions = new List<(Guid RoleId, string PermissionKey)>
         {
             // Client
-            (clientRoleId, Permissions.SubmitApplication),
-            (clientRoleId, Permissions.ViewOwnApplications),
-            (clientRoleId, Permissions.ReadServices),
-            (clientRoleId, Permissions.ReadRequirements),
-            (clientRoleId, Permissions.UploadStorage),
-            (clientRoleId, Permissions.ReadStorage),
-            (clientRoleId, Permissions.DownloadStorage),
-            (clientRoleId, Permissions.ReadTenants),
+            (actualClientRoleId, Permissions.SubmitApplication),
+            (actualClientRoleId, Permissions.ViewOwnApplications),
+            (actualClientRoleId, Permissions.ReadServices),
+            (actualClientRoleId, Permissions.ReadRequirements),
+            (actualClientRoleId, Permissions.UploadStorage),
+            (actualClientRoleId, Permissions.ReadStorage),
+            (actualClientRoleId, Permissions.DownloadStorage),
 
             // Evaluator
-            (evaluatorRoleId, Permissions.ViewAllApplications),
-            (evaluatorRoleId, Permissions.EvaluateApplication),
-            (evaluatorRoleId, Permissions.ReadServices),
-            (evaluatorRoleId, Permissions.ReadRequirements),
-            (evaluatorRoleId, Permissions.ReadStorage),
-            (evaluatorRoleId, Permissions.DownloadStorage),
-
+            (actualEvaluatorRoleId, Permissions.ViewAllApplications),
+            (actualEvaluatorRoleId, Permissions.EvaluateApplication),
+            (actualEvaluatorRoleId, Permissions.ReadServices),
+            (actualEvaluatorRoleId, Permissions.ReadRequirements),
+            (actualEvaluatorRoleId, Permissions.ReadStorage),
+            (actualEvaluatorRoleId, Permissions.DownloadStorage),
 
             // Higher-Ups
-            (higherUpsRoleId, Permissions.ViewAllApplications),
-            (higherUpsRoleId, Permissions.ApproveApplication),
-            (higherUpsRoleId, Permissions.ReadServices),
-            (higherUpsRoleId, Permissions.ReadRequirements),
+            (actualHigherUpsRoleId, Permissions.ViewAllApplications),
+            (actualHigherUpsRoleId, Permissions.ApproveApplication),
+            (actualHigherUpsRoleId, Permissions.ReadServices),
+            (actualHigherUpsRoleId, Permissions.ReadRequirements),
 
             // Accountant
-            (accountantRoleId, Permissions.ViewAllApplications),
-            (accountantRoleId, Permissions.CreateBilling),
-            (accountantRoleId, Permissions.ReadServices),
+            (actualAccountantRoleId, Permissions.ViewAllApplications),
+            (actualAccountantRoleId, Permissions.CreateBilling),
+            (actualAccountantRoleId, Permissions.ReadServices),
 
             // Cashier
-            (cashierRoleId, Permissions.ViewAllApplications),
-            (cashierRoleId, Permissions.CollectPayment),
-            (cashierRoleId, Permissions.ReadServices),
-
+            (actualCashierRoleId, Permissions.ViewAllApplications),
+            (actualCashierRoleId, Permissions.CollectPayment),
+            (actualCashierRoleId, Permissions.ReadServices),
         };
 
         // Add all permissions to SuperAdmin and Admin roles dynamically
         foreach (var permKey in Permissions.AllKeys)
         {
-            targetRolePermissions.Add((superAdminRoleId, permKey));
-            targetRolePermissions.Add((adminRoleId, permKey));
+            targetRolePermissions.Add((actualSuperAdminRoleId, permKey));
+            targetRolePermissions.Add((actualAdminRoleId, permKey));
         }
-
-
-        var existingRpPairs = await context.RolePermissions
-            .Select(rp => new { rp.RoleId, rp.PermissionKey })
-            .ToListAsync();
-
-        var existingRpSet = new HashSet<(Guid RoleId, string PermissionKey)>(
-            existingRpPairs.Select(rp => (rp.RoleId, rp.PermissionKey)));
 
         foreach (var (roleId, permKey) in targetRolePermissions)
         {
-            if (!existingRpSet.Contains((roleId, permKey)))
+            var exists = await context.RolePermissions.AnyAsync(rp => rp.RoleId == roleId && rp.PermissionKey == permKey);
+            if (!exists)
             {
-                await context.RolePermissions.AddAsync(new RolePermission
+                var rpEntity = new RolePermission
                 {
                     Id = Guid.NewGuid(),
                     RoleId = roleId,
                     PermissionKey = permKey,
                     CreatedAt = staticDate
-                });
-                changesMade = true;
+                };
+                try
+                {
+                    await context.RolePermissions.AddAsync(rpEntity);
+                    await context.SaveChangesAsync();
+                }
+                catch (Exception ex) when (ex is DbUpdateException || ex.InnerException is PostgresException)
+                {
+                    context.Entry(rpEntity).State = EntityState.Detached;
+                }
             }
         }
 
@@ -150,46 +193,49 @@ public static class RolePermissionDataSeeder
             new() { Id = Guid.Parse("66666666-6666-6666-6666-666666666666"), AuthUserId = "user_admin123", Email = "admin@ntcedge.com", FirstName = "Super", LastName = "Admin", IsSuperAdmin = true, CreatedAt = staticDate },
         };
 
-        var existingUserIds = await context.Users.Select(u => u.Id).ToListAsync();
         foreach (var user in defaultUsers)
         {
-            if (!existingUserIds.Contains(user.Id))
+            var exists = await context.Users.AnyAsync(u => u.Id == user.Id || u.Email == user.Email);
+            if (!exists)
             {
-                await context.Users.AddAsync(user);
-                changesMade = true;
+                try
+                {
+                    await context.Users.AddAsync(user);
+                    await context.SaveChangesAsync();
+                }
+                catch (Exception ex) when (ex is DbUpdateException || ex.InnerException is PostgresException)
+                {
+                    context.Entry(user).State = EntityState.Detached;
+                }
             }
-        }
-
-        if (changesMade)
-        {
-            await context.SaveChangesAsync();
-            changesMade = false;
         }
 
         // ── 5. Seed Tenant Memberships ────────────────────────────────────────────
         var defaultTenantMembers = new List<TenantMember>
         {
-            new() { Id = Guid.Parse("40000000-0000-0000-0000-000000000001"), TenantId = defaultTenantId, UserId = Guid.Parse("11111111-1111-1111-1111-111111111111"), RoleId = clientRoleId, CreatedAt = staticDate },
-            new() { Id = Guid.Parse("40000000-0000-0000-0000-000000000002"), TenantId = defaultTenantId, UserId = Guid.Parse("22222222-2222-2222-2222-222222222222"), RoleId = evaluatorRoleId, CreatedAt = staticDate },
-            new() { Id = Guid.Parse("40000000-0000-0000-0000-000000000003"), TenantId = defaultTenantId, UserId = Guid.Parse("33333333-3333-3333-3333-333333333333"), RoleId = higherUpsRoleId, CreatedAt = staticDate },
-            new() { Id = Guid.Parse("40000000-0000-0000-0000-000000000004"), TenantId = defaultTenantId, UserId = Guid.Parse("44444444-4444-4444-4444-444444444444"), RoleId = accountantRoleId, CreatedAt = staticDate },
-            new() { Id = Guid.Parse("40000000-0000-0000-0000-000000000005"), TenantId = defaultTenantId, UserId = Guid.Parse("55555555-5555-5555-5555-555555555555"), RoleId = cashierRoleId, CreatedAt = staticDate },
-            new() { Id = Guid.Parse("40000000-0000-0000-0000-000000000006"), TenantId = defaultTenantId, UserId = Guid.Parse("66666666-6666-6666-6666-666666666666"), RoleId = adminRoleId, CreatedAt = staticDate },
+            new() { Id = Guid.Parse("40000000-0000-0000-0000-000000000001"), TenantId = defaultTenantId, UserId = Guid.Parse("11111111-1111-1111-1111-111111111111"), RoleId = actualClientRoleId, CreatedAt = staticDate },
+            new() { Id = Guid.Parse("40000000-0000-0000-0000-000000000002"), TenantId = defaultTenantId, UserId = Guid.Parse("22222222-2222-2222-2222-222222222222"), RoleId = actualEvaluatorRoleId, CreatedAt = staticDate },
+            new() { Id = Guid.Parse("40000000-0000-0000-0000-000000000003"), TenantId = defaultTenantId, UserId = Guid.Parse("33333333-3333-3333-3333-333333333333"), RoleId = actualHigherUpsRoleId, CreatedAt = staticDate },
+            new() { Id = Guid.Parse("40000000-0000-0000-0000-000000000004"), TenantId = defaultTenantId, UserId = Guid.Parse("44444444-4444-4444-4444-444444444444"), RoleId = actualAccountantRoleId, CreatedAt = staticDate },
+            new() { Id = Guid.Parse("40000000-0000-0000-0000-000000000005"), TenantId = defaultTenantId, UserId = Guid.Parse("55555555-5555-5555-5555-555555555555"), RoleId = actualCashierRoleId, CreatedAt = staticDate },
+            new() { Id = Guid.Parse("40000000-0000-0000-0000-000000000006"), TenantId = defaultTenantId, UserId = Guid.Parse("66666666-6666-6666-6666-666666666666"), RoleId = actualAdminRoleId, CreatedAt = staticDate },
         };
 
-        var existingMemberIds = await context.TenantMembers.Select(m => m.Id).ToListAsync();
         foreach (var member in defaultTenantMembers)
         {
-            if (!existingMemberIds.Contains(member.Id))
+            var exists = await context.TenantMembers.AnyAsync(m => m.Id == member.Id || (m.TenantId == member.TenantId && m.UserId == member.UserId));
+            if (!exists)
             {
-                await context.TenantMembers.AddAsync(member);
-                changesMade = true;
+                try
+                {
+                    await context.TenantMembers.AddAsync(member);
+                    await context.SaveChangesAsync();
+                }
+                catch (Exception ex) when (ex is DbUpdateException || ex.InnerException is PostgresException)
+                {
+                    context.Entry(member).State = EntityState.Detached;
+                }
             }
-        }
-
-        if (changesMade)
-        {
-            await context.SaveChangesAsync();
         }
     }
 }

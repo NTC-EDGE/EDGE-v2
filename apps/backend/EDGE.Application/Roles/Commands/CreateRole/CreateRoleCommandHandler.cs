@@ -37,7 +37,7 @@ public class CreateRoleCommandHandler : IRequestHandler<CreateRoleCommand, Role>
             Key = request.Key,
             Description = request.Description,
             TenantId = request.TenantId,
-            IsSystemRole = request.TenantId == null
+            IsSystemRole = request.IsSystemRole
         };
 
         await _roleRepository.AddAsync(role, cancellationToken);
