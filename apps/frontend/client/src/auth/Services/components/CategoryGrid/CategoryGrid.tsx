@@ -8,7 +8,7 @@ import {
   Image,
   ImageSourcePropType,
 } from "react-native";
-import { COLORS, Icon } from "@edge/ui";
+import { COLORS, Icon, TYPOGRAPHY } from "@edge/ui";
 import { servicesData } from "../../data/servicesData";
 import { styles } from "./CategoryGrid.styles";
 
@@ -201,7 +201,7 @@ export function CategoryGrid({
                   }}
                 >
                   <Icon name="file-text" size={12} color="#1d4ed8" />
-                  <Text style={{ fontFamily: "Outfit-Medium", fontSize: 11, color: "#1d4ed8", fontWeight: "600" }}>
+                  <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, color: "#1d4ed8", fontWeight: "600" }}>
                     {categoryDraftsCount} {categoryDraftsCount === 1 ? "Draft" : "Drafts"}
                   </Text>
                 </TouchableOpacity>

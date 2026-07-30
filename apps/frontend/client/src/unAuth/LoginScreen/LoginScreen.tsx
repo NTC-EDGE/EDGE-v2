@@ -130,8 +130,8 @@ export function LoginScreen() {
   };
 
   const handleGoogleSignIn = async () => {
-    if (loading) return;
-    setLoading(true);
+    if (loading || googleLoading) return;
+    setGoogleLoading(true);
     setGeneralError("");
     try {
       const { createdSessionId, setActive: ssoSetActive } = await startSSOFlow({
@@ -152,7 +152,7 @@ export function LoginScreen() {
       }
       setGeneralError(errMsg);
     } finally {
-      setLoading(false);
+      setGoogleLoading(false);
     }
   };
 
@@ -209,6 +209,11 @@ export function LoginScreen() {
           >
             <View style={styles.logoWrapper}>
               <Logo />
+            </View>
+
+            <View style={styles.securityBadge}>
+              <View style={styles.securityDot} />
+              <Text style={styles.securityText}>Secure NTC Node: Active</Text>
             </View>
 
             <Text style={styles.title}>Welcome Back</Text>
@@ -291,14 +296,14 @@ export function LoginScreen() {
 
                 {/* Google Sign-In */}
                 <Button
-                  title="Continue with Google"
+                  title={googleLoading ? "Connecting to Google..." : "Continue with Google"}
                   variant="outline"
                   onPress={handleGoogleSignIn}
-                  loading={loading}
-                  disabled={loading || success}
+                  loading={googleLoading}
+                  disabled={loading || googleLoading || success}
                   style={styles.guestButton}
                   icon={
-                    !loading ? (
+                    !googleLoading ? (
                       <Lucide name="chrome" size={16} color={COLORS.neutral[700]} />
                     ) : undefined
                   }

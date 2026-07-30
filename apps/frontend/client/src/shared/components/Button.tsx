@@ -202,12 +202,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   primary: {
-    backgroundColor: '#1236A8',
+    backgroundColor: COLORS.brand[800],
   },
   primaryHovered: {
-    backgroundColor: '#0D2678', // Noticeable dark blue hover state
+    backgroundColor: COLORS.brand[700], // Noticeable dark blue hover state
     transform: [{ translateY: -2 }],
-    shadowColor: '#1236A8',
+    shadowColor: COLORS.brand[800],
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
     shadowRadius: 12,
@@ -223,13 +223,13 @@ const styles = StyleSheet.create({
   outline: {
     backgroundColor: 'transparent',
     borderWidth: 1.5,
-    borderColor: '#1236A8',
+    borderColor: COLORS.brand[800],
   },
   outlineHovered: {
     backgroundColor: '#EEF2FF', // Noticeable light blue fill on hover
-    borderColor: '#0D2678',
+    borderColor: COLORS.brand[700],
     transform: [{ translateY: -2 }],
-    shadowColor: '#1236A8',
+    shadowColor: COLORS.brand[800],
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 8,
@@ -280,17 +280,17 @@ const styles = StyleSheet.create({
     color: COLORS.neutral.white,
   },
   textOutline: {
-    color: '#1236A8',
+    color: COLORS.brand[800],
   },
   textOutlineHovered: {
-    color: '#0D2678',
+    color: COLORS.brand[700],
   },
   textLink: {
-    color: '#1236A8',
+    color: COLORS.brand[800],
     textDecorationLine: 'underline',
   },
   textLinkHovered: {
-    color: '#0D2678',
+    color: COLORS.brand[700],
   },
   textSm: {
     fontSize: TYPOGRAPHY.sizes.caption,

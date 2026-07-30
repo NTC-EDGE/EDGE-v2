@@ -1,10 +1,10 @@
 export const COLORS = {
   brand: {
-    900: '#0A1B66', // Navigation background
-    800: '#1236A8', // Primary buttons
-    700: '#2F56E8', // Hover
-    600: '#4D73FF', // Active
-    500: '#7392FF', // Selected
+    900: '#0B1953', // Deep Executive Navy
+    800: '#2563EB', // Vibrant Cyber Blue
+    700: '#1D4ED8', // Darker Cyber Blue (Hover)
+    600: '#3B82F6', // Active Highlight Blue
+    500: '#60A5FA', // Light Focus Blue
     100: '#E6EDFF', // Light theme accent
   },
   neutral: {

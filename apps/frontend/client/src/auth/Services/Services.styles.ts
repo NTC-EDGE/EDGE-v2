@@ -287,7 +287,7 @@ export const styles = StyleSheet.create({
     alignItems: "center",
   },
   avatarText: {
-    color: "#0A1B66",
+    color: COLORS.brand[900],
     fontSize: 14,
     fontWeight: "bold",
   },

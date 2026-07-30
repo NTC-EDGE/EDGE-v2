@@ -256,6 +256,11 @@ export function SignUpScreen() {
               <Logo />
             </View>
 
+            <View style={styles.securityBadge}>
+              <View style={styles.securityDot} />
+              <Text style={styles.securityText}>Secure NTC Node: Active</Text>
+            </View>
+
             <Text style={styles.title}>
               {pendingVerification ? "Verify Email" : "Create Account"}
             </Text>

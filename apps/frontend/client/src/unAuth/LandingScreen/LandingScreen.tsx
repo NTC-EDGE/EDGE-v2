@@ -925,9 +925,9 @@ export function LandingScreen() {
                 size="lg"
                 style={styles.heroSecondaryBtn}
                 hoverStyle={styles.heroSecondaryBtnHovered}
-                textStyle={{ color: "#1236A8" }}
-                hoverTextStyle={{ color: "#0D2678" }}
-                icon={<Lucide name="search" size={18} color="#1236A8" />}
+                textStyle={{ color: "#2563EB" }}
+                hoverTextStyle={{ color: "#1D4ED8" }}
+                icon={<Lucide name="search" size={18} color="#2563EB" />}
               />
             </View>
           </View>
@@ -971,12 +971,12 @@ export function LandingScreen() {
                       <Lucide
                         name="file-text"
                         size={14}
-                        color="#1236A8"
+                        color="#2563EB"
                         style={{ marginBottom: 4 }}
                       />
                       <Text style={styles.mockupStatLabel}>Applications</Text>
                       <Text
-                        style={[styles.mockupStatValue, { color: "#1236A8" }]}
+                        style={[styles.mockupStatValue, { color: "#2563EB" }]}
                       >
                         12,450
                       </Text>
@@ -1033,7 +1033,7 @@ export function LandingScreen() {
                         <View
                           style={[
                             styles.mockupProgressFill,
-                            { backgroundColor: "#1236A8", width: "65%" },
+                            { backgroundColor: "#2563EB", width: "65%" },
                           ]}
                         />
                         <View
@@ -1064,7 +1064,7 @@ export function LandingScreen() {
                     <Lucide
                       name="bell"
                       size={14}
-                      color="#1236A8"
+                      color="#2563EB"
                       style={{ marginRight: 8 }}
                     />
                     <Text style={styles.mockupActivityText}>
@@ -1096,7 +1096,7 @@ export function LandingScreen() {
               <View style={[styles.aboutGraphicCard, SHADOWS.card]}>
                 <View style={styles.aboutGraphicHeader}>
                   <View style={styles.aboutGraphicBadge}>
-                    <Lucide name="shield" size={20} color="#1236A8" />
+                    <Lucide name="shield" size={20} color="#2563EB" />
                   </View>
                   <Text style={styles.aboutGraphicHeaderText}>
                     NTC SECURE GATEWAY
@@ -1114,7 +1114,7 @@ export function LandingScreen() {
                     <Lucide
                       name="file-text"
                       size={22}
-                      color="#1236A8"
+                      color="#2563EB"
                       style={{ marginBottom: 6 }}
                     />
                     <Text style={styles.aboutGridItemText}>Certificates</Text>
@@ -1123,7 +1123,7 @@ export function LandingScreen() {
                     <Lucide
                       name="file"
                       size={22}
-                      color="#1236A8"
+                      color="#2563EB"
                       style={{ marginBottom: 6 }}
                     />
                     <Text style={styles.aboutGridItemText}>Permits</Text>
@@ -1132,7 +1132,7 @@ export function LandingScreen() {
                     <Lucide
                       name="award"
                       size={22}
-                      color="#1236A8"
+                      color="#2563EB"
                       style={{ marginBottom: 6 }}
                     />
                     <Text style={styles.aboutGridItemText}>Licenses</Text>
@@ -1141,7 +1141,7 @@ export function LandingScreen() {
                     <Lucide
                       name="help-circle"
                       size={22}
-                      color="#1236A8"
+                      color="#2563EB"
                       style={{ marginBottom: 6 }}
                     />
                     <Text style={styles.aboutGridItemText}>Requests</Text>
@@ -1182,7 +1182,7 @@ export function LandingScreen() {
               <Lucide
                 name="info"
                 size={20}
-                color="#1236A8"
+                color="#2563EB"
                 style={{ marginRight: 12, marginTop: 2 }}
               />
               <Text style={styles.aboutInfoBoxText}>
@@ -1315,7 +1315,7 @@ export function LandingScreen() {
                           <Lucide
                             name="arrow-right"
                             size={16}
-                            color="#1236A8"
+                            color="#2563EB"
                           />
                         </View>
                       )}
@@ -1365,7 +1365,7 @@ export function LandingScreen() {
                           <Lucide
                             name="arrow-right"
                             size={16}
-                            color="#1236A8"
+                            color="#2563EB"
                           />
                         </View>
                       )}
@@ -1421,7 +1421,7 @@ export function LandingScreen() {
                           alignItems: "center",
                         }}
                       >
-                        <Lucide name="arrow-down" size={16} color="#1236A8" />
+                        <Lucide name="arrow-down" size={16} color="#2563EB" />
                       </View>
                     )}
                   </React.Fragment>
@@ -1488,7 +1488,7 @@ export function LandingScreen() {
                       <Lucide
                         name={isExpanded ? "chevron-up" : "chevron-down"}
                         size={16}
-                        color={isExpanded ? COLORS.neutral.white : "#1236A8"}
+                        color={isExpanded ? COLORS.neutral.white : "#2563EB"}
                       />
                     </View>
                   </Pressable>
@@ -1524,9 +1524,9 @@ export function LandingScreen() {
               onPress={() => openGetStartedModal("choice")}
               style={styles.ctaPrimaryBtn}
               hoverStyle={styles.ctaPrimaryBtnHovered}
-              textStyle={{ color: "#1236A8", fontWeight: "700" }}
-              hoverTextStyle={{ color: "#0D2678", fontWeight: "700" }}
-              icon={<Lucide name="arrow-right" size={18} color="#1236A8" />}
+              textStyle={{ color: "#2563EB", fontWeight: "700" }}
+              hoverTextStyle={{ color: "#1D4ED8", fontWeight: "700" }}
+              icon={<Lucide name="arrow-right" size={18} color="#2563EB" />}
             />
           </View>
         </View>
@@ -1818,7 +1818,7 @@ export function LandingScreen() {
                 {/* Header */}
                 <View style={styles.policyModalHeader}>
                   <View style={styles.policyHeaderIconCircle}>
-                    <Lucide name="file-text" size={20} color="#1236A8" />
+                    <Lucide name="file-text" size={20} color="#2563EB" />
                   </View>
                   <Text style={styles.policyModalTitle}>
                     {activeFooterModal.title}
@@ -1831,7 +1831,7 @@ export function LandingScreen() {
                   <Lucide
                     name="info"
                     size={18}
-                    color="#1236A8"
+                    color="#2563EB"
                     style={{ marginRight: 10, marginTop: 2 }}
                   />
                   <Text style={styles.policyIntroText}>
@@ -1852,7 +1852,7 @@ export function LandingScreen() {
                         <Lucide
                           name="mail"
                           size={14}
-                          color="#1236A8"
+                          color="#2563EB"
                           style={{ marginRight: 8 }}
                         />
                         <Text style={styles.policyHighlightText}>
@@ -1959,9 +1959,9 @@ export function LandingScreen() {
                         ...styles.modalGuestBtn,
                       }}
                       hoverStyle={styles.heroSecondaryBtnHovered}
-                      textStyle={{ color: "#1236A8" }}
-                      hoverTextStyle={{ color: "#0D2678" }}
-                      icon={<Lucide name="user" size={16} color="#1236A8" />}
+                      textStyle={{ color: "#2563EB" }}
+                      hoverTextStyle={{ color: "#1D4ED8" }}
+                      icon={<Lucide name="user" size={16} color="#2563EB" />}
                     />
                   </View>
 
@@ -2562,8 +2562,8 @@ export function LandingScreen() {
                     setTrackingResult(null);
                   }}
                   style={styles.modalResetBtn}
-                  textStyle={{ color: "#1236A8" }}
-                  icon={<Lucide name="refresh-cw" size={16} color="#1236A8" />}
+                  textStyle={{ color: "#2563EB" }}
+                  icon={<Lucide name="refresh-cw" size={16} color="#2563EB" />}
                 />
               </View>
             )}
