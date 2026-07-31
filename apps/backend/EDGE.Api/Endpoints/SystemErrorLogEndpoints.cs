@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.AspNetCore.Builder;
@@ -6,6 +7,7 @@ using Microsoft.AspNetCore.Routing;
 using EDGE.Domain.Authorization;
 using EDGE.Infrastructure.Authorization;
 using EDGE.Application.SystemErrorLogs.Queries.GetSystemErrorLogs;
+using EDGE.Application.SystemErrorLogs.DTOs;
 
 namespace EDGE.Api.Endpoints;
 
@@ -19,7 +21,10 @@ public static class SystemErrorLogEndpoints
         logs.MapGet("/", GetErrorLogs)
             .WithName("GetSystemErrorLogs")
             .WithSummary("Get application error logs")
-            .WithDescription("Retrieves paged system exception logs and stack traces for debugging and issue resolution.");
+            .WithDescription("Retrieves paged system exception logs and stack traces for debugging and issue resolution.")
+            .Produces<PagedSystemErrorLogsResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status403Forbidden);
 
         return group;
     }
@@ -38,6 +43,12 @@ public static class SystemErrorLogEndpoints
             level,
             searchTerm));
 
-        return Results.Ok(new { items, totalCount });
+        return Results.Ok(new PagedSystemErrorLogsResponse { Items = items, TotalCount = totalCount });
     }
+}
+
+public class PagedSystemErrorLogsResponse
+{
+    public List<SystemErrorLogDto> Items { get; set; } = new();
+    public int TotalCount { get; set; }
 }

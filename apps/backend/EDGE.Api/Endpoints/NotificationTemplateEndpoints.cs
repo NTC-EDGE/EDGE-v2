@@ -10,8 +10,15 @@ using EDGE.Domain.Authorization;
 using EDGE.Infrastructure.Authorization;
 using EDGE.Application.NotificationTemplates.Commands.UpdateNotificationTemplate;
 using EDGE.Application.NotificationTemplates.Queries.GetNotificationTemplates;
+using EDGE.Application.NotificationTemplates.DTOs;
 
 namespace EDGE.Api.Endpoints;
+
+public record UpdateNotificationTemplateRequest(
+    string Subject,
+    string BodyHtml,
+    bool IsActive
+);
 
 public static class NotificationTemplateEndpoints
 {
@@ -23,12 +30,20 @@ public static class NotificationTemplateEndpoints
         templates.MapGet("/", GetNotificationTemplates)
             .WithName("GetNotificationTemplates")
             .WithSummary("Get email notification templates")
-            .WithDescription("Retrieves automated email templates triggered by system events.");
+            .WithDescription("Retrieves automated email templates triggered by system events.")
+            .Produces<List<NotificationTemplateDto>>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status403Forbidden);
 
         templates.MapPut("/{id:guid}", UpdateNotificationTemplate)
             .WithName("UpdateNotificationTemplate")
             .WithSummary("Update notification template")
-            .WithDescription("Updates subject, HTML body, or active state of a notification template.");
+            .WithDescription("Updates subject, HTML body, or active state of a notification template.")
+            .Produces<NotificationTemplateDto>(StatusCodes.Status200OK)
+            .Produces<HttpValidationProblemDetails>(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status404NotFound)
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status403Forbidden);
 
         return group;
     }
@@ -43,15 +58,11 @@ public static class NotificationTemplateEndpoints
     [HasPermission(Permissions.SystemAdmin)]
     public static async Task<IResult> UpdateNotificationTemplate(
         Guid id,
-        UpdateNotificationTemplateCommand command,
+        UpdateNotificationTemplateRequest request,
         IValidator<UpdateNotificationTemplateCommand> validator,
         IMediator mediator)
     {
-        if (id != command.Id)
-        {
-            return Results.BadRequest(new { message = "Path ID does not match request body ID." });
-        }
-
+        var command = new UpdateNotificationTemplateCommand(id, request.Subject, request.BodyHtml, request.IsActive);
         var validationResult = await validator.ValidateAsync(command);
         if (!validationResult.IsValid)
         {

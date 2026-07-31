@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using FluentValidation;
 using MediatR;
@@ -8,6 +9,7 @@ using EDGE.Domain.Authorization;
 using EDGE.Infrastructure.Authorization;
 using EDGE.Application.DocumentTypes.Commands.CreateDocumentType;
 using EDGE.Application.DocumentTypes.Queries.GetDocumentTypes;
+using EDGE.Application.DocumentTypes.DTOs;
 
 namespace EDGE.Api.Endpoints;
 
@@ -21,12 +23,19 @@ public static class DocumentTypeEndpoints
         docTypes.MapGet("/", GetDocumentTypes)
             .WithName("GetDocumentTypes")
             .WithSummary("Get document types")
-            .WithDescription("Retrieves system-wide reference document types for application requirements.");
+            .WithDescription("Retrieves system-wide reference document types for application requirements.")
+            .Produces<List<DocumentTypeDto>>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status403Forbidden);
 
         docTypes.MapPost("/", CreateDocumentType)
             .WithName("CreateDocumentType")
             .WithSummary("Create document type")
-            .WithDescription("Creates a new document type reference record.");
+            .WithDescription("Creates a new document type reference record.")
+            .Produces<DocumentTypeDto>(StatusCodes.Status201Created)
+            .Produces<HttpValidationProblemDetails>(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status403Forbidden);
 
         return group;
     }

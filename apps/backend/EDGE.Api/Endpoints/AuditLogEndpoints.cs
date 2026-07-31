@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.AspNetCore.Builder;
@@ -6,6 +7,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using EDGE.Application.AuditLogs.Queries.GetAuditLogs;
+using EDGE.Application.AuditLogs.DTOs;
 using EDGE.Domain.Authorization;
 using EDGE.Infrastructure.Authorization;
 
@@ -21,7 +23,10 @@ public static class AuditLogEndpoints
         logs.MapGet("/", GetAuditLogs)
             .WithName("GetAuditLogs")
             .WithSummary("Get system audit logs")
-            .WithDescription("Retrieves paginated system audit logs scoped by optional tenantId.");
+            .WithDescription("Retrieves paginated system audit logs scoped by optional tenantId.")
+            .Produces<PagedAuditLogsResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status403Forbidden);
 
         return group;
     }
@@ -35,6 +40,22 @@ public static class AuditLogEndpoints
         IMediator mediator)
     {
         var (items, totalCount) = await mediator.Send(new GetAuditLogsQuery(pageNumber ?? 1, pageSize ?? 20, searchTerm, tenantId));
-        return Results.Ok(new { succeeded = true, data = items, totalCount, pageNumber = pageNumber ?? 1, pageSize = pageSize ?? 20 });
+        return Results.Ok(new PagedAuditLogsResponse
+        {
+            Succeeded = true,
+            Data = items,
+            TotalCount = totalCount,
+            PageNumber = pageNumber ?? 1,
+            PageSize = pageSize ?? 20
+        });
     }
+}
+
+public class PagedAuditLogsResponse
+{
+    public bool Succeeded { get; set; }
+    public List<AuditLogDto> Data { get; set; } = new();
+    public int TotalCount { get; set; }
+    public int PageNumber { get; set; }
+    public int PageSize { get; set; }
 }
