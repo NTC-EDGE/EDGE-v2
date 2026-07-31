@@ -1,13 +1,18 @@
+using System;
+using System.Threading.Tasks;
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.AspNetCore.Authorization;
+using EDGE.Domain.Authorization;
+using EDGE.Infrastructure.Authorization;
 using EDGE.Application.Announcements.Commands.CreateAnnouncement;
 using EDGE.Application.Announcements.Commands.UpdateAnnouncement;
 using EDGE.Application.Announcements.Commands.TogglePublishAnnouncement;
 using EDGE.Application.Announcements.Commands.DeleteAnnouncement;
 using EDGE.Application.Announcements.Queries.GetAnnouncements;
-using Microsoft.AspNetCore.Authorization;
-using EDGE.Domain.Authorization;
-using EDGE.Infrastructure.Authorization;
 
 namespace EDGE.Api.Endpoints;
 
@@ -73,11 +78,18 @@ public static class SystemAnnouncementEndpoints
     public static async Task<IResult> UpdateAnnouncement(
         Guid id,
         UpdateAnnouncementCommand command,
+        IValidator<UpdateAnnouncementCommand> validator,
         IMediator mediator)
     {
         if (id != command.Id)
         {
             return Results.BadRequest(new { message = "ID mismatch." });
+        }
+
+        var validationResult = await validator.ValidateAsync(command);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
         }
 
         var result = await mediator.Send(command);
@@ -88,6 +100,7 @@ public static class SystemAnnouncementEndpoints
     public static async Task<IResult> TogglePublishAnnouncement(
         Guid id,
         TogglePublishAnnouncementCommand command,
+        IValidator<TogglePublishAnnouncementCommand> validator,
         IMediator mediator)
     {
         if (id != command.Id)
@@ -95,14 +108,30 @@ public static class SystemAnnouncementEndpoints
             return Results.BadRequest(new { message = "ID mismatch." });
         }
 
+        var validationResult = await validator.ValidateAsync(command);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
+
         var result = await mediator.Send(command);
         return result != null ? Results.Ok(result) : Results.NotFound(new { message = "Announcement not found." });
     }
 
     [HasPermission(Permissions.SystemAdmin)]
-    public static async Task<IResult> DeleteAnnouncement(Guid id, IMediator mediator)
+    public static async Task<IResult> DeleteAnnouncement(
+        Guid id,
+        IValidator<DeleteAnnouncementCommand> validator,
+        IMediator mediator)
     {
-        var success = await mediator.Send(new DeleteAnnouncementCommand(id));
+        var command = new DeleteAnnouncementCommand(id);
+        var validationResult = await validator.ValidateAsync(command);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
+
+        var success = await mediator.Send(command);
         return success ? Results.NoContent() : Results.NotFound(new { message = "Announcement not found" });
     }
 }

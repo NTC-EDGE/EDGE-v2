@@ -48,6 +48,10 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
     public DbSet<SystemAnnouncement> SystemAnnouncements => Set<SystemAnnouncement>();
 
     public DbSet<Fee> Fees => Set<Fee>();
+    public DbSet<SystemConfig> SystemConfigs => Set<SystemConfig>();
+    public DbSet<NotificationTemplate> NotificationTemplates => Set<NotificationTemplate>();
+    public DbSet<SystemErrorLog> SystemErrorLogs => Set<SystemErrorLog>();
+    public DbSet<DocumentType> DocumentTypes => Set<DocumentType>();
     public DbSet<ServiceFee> ServiceFees => Set<ServiceFee>();
     public DbSet<ServiceVariantFee> ServiceVariantFees => Set<ServiceVariantFee>();
     public DbSet<ServiceVariantElementFee> ServiceVariantElementFees => Set<ServiceVariantElementFee>();

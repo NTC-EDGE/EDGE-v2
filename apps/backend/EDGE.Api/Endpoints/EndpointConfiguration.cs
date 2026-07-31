@@ -43,5 +43,9 @@ public static class EndpointConfiguration
         apiV2Group.MapFeedbackEndpoints();
         apiV2Group.MapSystemAnnouncementEndpoints();
         apiV2Group.MapAuditLogEndpoints();
+        apiV2Group.MapSystemConfigEndpoints();
+        apiV2Group.MapNotificationTemplateEndpoints();
+        apiV2Group.MapSystemErrorLogEndpoints();
+        apiV2Group.MapDocumentTypeEndpoints();
     }
 }
