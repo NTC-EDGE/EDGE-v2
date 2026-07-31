@@ -8,6 +8,7 @@ import { ThemeProvider } from "@edge/ui";
 import { AuthProvider } from "./src/features/auth/context/AuthContext";
 import { RoleProvider } from "./src/features/shell/context/RoleContext";
 import { PermissionProvider } from "./src/features/shell/context/PermissionContext";
+import { ForbiddenToastProvider } from "./src/features/shell/context/ForbiddenToastProvider";
 import { RootNavigator } from "./src/navigation";
 
 const getClerkKey = (): string => {
@@ -29,16 +30,18 @@ if (publishableKey.length === 0) {
 export default function App() {
   return (
     <ThemeProvider>
-      <ClerkProvider tokenCache={tokenCache} publishableKey={publishableKey}>
-        <AuthProvider>
-          <RoleProvider>
-            <PermissionProvider>
-              <RootNavigator />
-              <StatusBar style="dark" />
-            </PermissionProvider>
-          </RoleProvider>
-        </AuthProvider>
-      </ClerkProvider>
+      <ForbiddenToastProvider>
+        <ClerkProvider tokenCache={tokenCache} publishableKey={publishableKey}>
+          <AuthProvider>
+            <RoleProvider>
+              <PermissionProvider>
+                <RootNavigator />
+                <StatusBar style="dark" />
+              </PermissionProvider>
+            </RoleProvider>
+          </AuthProvider>
+        </ClerkProvider>
+      </ForbiddenToastProvider>
     </ThemeProvider>
   );
 }

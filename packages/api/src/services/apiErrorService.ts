@@ -119,9 +119,10 @@ function parseBackendApiResponse(errObj: object): string | null {
     }
   }
 
-  // HTTP status code fallbacks
+  // HTTP status code fallbacks (even when response body is empty)
   if (typeof status === "number") {
-    if (status === 403) return "Access Denied: You do not have permission or active membership in the selected region.";
+    if (status === 403) return "You don't have permission to perform this action.";
+    if (status === 409) return "A conflict occurred with the resource state (e.g., duplicate code or active references exist).";
     if (status === 401) return "Session Expired: Please log in again to continue.";
     if (status === 404) return "Resource Not Found: The requested record does not exist.";
     if (status === 429) return "Too many requests. Please wait a moment before trying again.";

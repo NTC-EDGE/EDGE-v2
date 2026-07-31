@@ -30,7 +30,7 @@ export function ToastNotification({ toast, onClose, autoHideDuration = 5000 }: T
   const isError = toast.type === "error";
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 max-w-md w-full animate-in fade-in slide-in-from-bottom-4 duration-300">
+    <div className="fixed bottom-6 right-6 z-[9999] max-w-md w-full animate-in fade-in slide-in-from-bottom-4 duration-300">
       <div
         className={`p-4 rounded-xl border shadow-2xl flex items-start justify-between gap-3 backdrop-blur-md ${
           isSuccess
@@ -64,20 +64,45 @@ export function ToastNotification({ toast, onClose, autoHideDuration = 5000 }: T
 
 export const getErrorMessage = (err: unknown, defaultMessage = "An error occurred while executing the transaction."): string => {
   if (!err) return defaultMessage;
+  if (typeof err === "string" && err.trim().length > 0) return err;
+
   const anyErr = err as {
+    status?: number;
+    statusCode?: number;
     response?: {
+      status?: number;
       data?: {
         detail?: string;
         message?: string;
         title?: string;
         errors?: Record<string, string[]>;
-      };
+      } | string | null;
       statusText?: string;
     };
     message?: string;
   };
 
-  const data = anyErr.response?.data;
+  const status = anyErr.response?.status || anyErr.status || anyErr.statusCode;
+  const rawData = anyErr.response?.data;
+  const data = typeof rawData === "object" && rawData !== null ? rawData : null;
+
+  // Handle specific HTTP Status Codes FIRST (even when response payload is empty, null, or undefined!)
+  if (status === 403) {
+    return data?.detail || data?.message || "You don't have permission to perform this action.";
+  }
+
+  if (status === 409) {
+    return data?.detail || data?.message || "A conflict occurred with the resource state (e.g., duplicate code or active references exist).";
+  }
+
+  if (status === 401) {
+    return data?.detail || data?.message || "You are unauthorized to perform this action.";
+  }
+
+  if (status === 404) {
+    return data?.detail || data?.message || "The requested resource could not be found.";
+  }
+
   if (data?.detail) return data.detail;
   if (data?.message) return data.message;
   if (data?.errors) {

@@ -907,6 +907,13 @@ namespace EDGE.Infrastructure.Migrations
                     b.Property<bool>("AllowSpectrumInspection")
                         .HasColumnType("boolean");
 
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasDefaultValue("Main");
+
                     b.Property<string>("Code")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -1582,7 +1589,7 @@ namespace EDGE.Infrastructure.Migrations
                     b.Property<Guid>("ServiceCategoryId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("TenantId")
+                    b.Property<Guid?>("TenantId")
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
@@ -2735,8 +2742,7 @@ namespace EDGE.Infrastructure.Migrations
                     b.HasOne("EDGE.Domain.Entities.Tenant", "Tenant")
                         .WithMany()
                         .HasForeignKey("TenantId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("ServiceCategory");
 
