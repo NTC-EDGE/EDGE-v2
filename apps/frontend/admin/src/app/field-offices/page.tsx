@@ -140,7 +140,8 @@ function FieldOfficesContent() {
   );
   const [searchTerm, setSearchTerm] = useState("");
 
-  const activeTenantId = selectedTenantFilter || selectedTenantId || tenantsResponse?.[0]?.id || "";
+  const tenantsList = Array.isArray(tenantsResponse) ? tenantsResponse : tenantsResponse?.data ?? [];
+  const activeTenantId = selectedTenantFilter || selectedTenantId || tenantsList[0]?.id || "";
 
   const { data: fetchedFieldOfficesResponse, isLoading: loadingFieldOffices, mutate } = useFieldOffices(
     activeTenantId,
@@ -456,7 +457,7 @@ function FieldOfficesContent() {
                 }}
                 className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer max-w-[200px] truncate"
               >
-                {tenantsResponse?.map((t) => (
+                {tenantsList.map((t: { id: string; name: string }) => (
                   <option key={t.id} value={t.id}>
                     {t.name}
                   </option>

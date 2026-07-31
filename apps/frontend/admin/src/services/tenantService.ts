@@ -1,11 +1,27 @@
 import { useApi } from './api';
 import { Tenant, CreateTenantCommand, UpdateTenantCommand } from '@edge/api';
 
+export interface PaginatedApiResponse<T> {
+  succeeded: boolean;
+  message?: string;
+  data: T[];
+  pageNumber: number;
+  pageSize: number;
+  totalPages: number;
+  totalCount: number;
+}
+
 export function useTenantService() {
   const { useQuery, post, put, del } = useApi();
 
-  const useTenants = () => {
-    return useQuery<Tenant[]>('/api/v2/tenants');
+  const useTenants = (pageNumber = 1, pageSize = 50, searchTerm?: string) => {
+    const params = new URLSearchParams();
+    params.append('pageNumber', pageNumber.toString());
+    params.append('pageSize', pageSize.toString());
+    if (searchTerm !== undefined && searchTerm !== null && searchTerm.trim().length > 0) {
+      params.append('searchTerm', searchTerm.trim());
+    }
+    return useQuery<PaginatedApiResponse<Tenant>>(`/api/v2/tenants?${params.toString()}`);
   };
 
   const useTenant = (id: string | null) => {

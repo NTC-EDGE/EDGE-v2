@@ -12,19 +12,24 @@ import {
   Home,
   ShieldCheck,
   Building2 as TenantIcon,
-  ChevronDown,
-  UserCheck,
   Menu,
   X,
   LifeBuoy,
   CircleDollarSign,
-  ClipboardList
+  ClipboardList,
+  Megaphone,
+  Sliders,
+  Mail,
+  Activity,
+  AlertCircle,
+  FileCheck,
+  Layers
 } from "lucide-react";
 import { useAdminScope, AdminRoleType } from "@/lib/admin-scope-context";
 
 export function SidebarNav() {
   const pathname = usePathname();
-  const { activeRole, isSystemAdmin, isRegionAdmin, isTenantAdmin } = useAdminScope();
+  const { activeRole, isSystemAdmin, isRegionAdmin } = useAdminScope();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const isActive = (path: string) => pathname === path || (path !== "/" && pathname.startsWith(path));
@@ -89,10 +94,10 @@ export function SidebarNav() {
             </Link>
           </div>
 
-          {/* Tech Support & Diagnostics Group */}
+          {/* Tech Support & Helpdesk Group */}
           <div className="space-y-1">
             <div className="px-3 pb-1">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tech Support & Helpdesk</p>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tech Support & Diagnostics</p>
             </div>
 
             <Link
@@ -110,9 +115,41 @@ export function SidebarNav() {
               </div>
               <span className="text-[10px] px-2 py-0.5 rounded-md bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 font-mono">Support</span>
             </Link>
+
+            <Link
+              href="/audit-logs"
+              onClick={() => setMobileOpen(false)}
+              className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                isActive("/audit-logs")
+                  ? "bg-gradient-to-r from-indigo-600/30 to-slate-800 text-white border border-indigo-500/30 shadow-sm"
+                  : "text-slate-300 hover:text-white hover:bg-slate-800/60"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Activity className="h-4 w-4 text-emerald-400" />
+                <span>Audit Logs</span>
+              </div>
+              <span className="text-[10px] px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 font-mono">Logs</span>
+            </Link>
+
+            <Link
+              href="/error-logs"
+              onClick={() => setMobileOpen(false)}
+              className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                isActive("/error-logs")
+                  ? "bg-gradient-to-r from-indigo-600/30 to-slate-800 text-white border border-indigo-500/30 shadow-sm"
+                  : "text-slate-300 hover:text-white hover:bg-slate-800/60"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <AlertCircle className="h-4 w-4 text-rose-400" />
+                <span>Error Logs</span>
+              </div>
+              <span className="text-[10px] px-2 py-0.5 rounded-md bg-rose-500/10 text-rose-300 border border-rose-500/20 font-mono">Errors</span>
+            </Link>
           </div>
 
-          {/* Admin Configurations Group */}
+          {/* System Admin Configurations Group */}
           <div className="space-y-1">
             <div className="px-3 pb-1">
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Admin Configurations</p>
@@ -133,6 +170,60 @@ export function SidebarNav() {
                   <span>Tenants & Branches</span>
                 </div>
                 <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-800 text-slate-400 font-mono">System/Region</span>
+              </Link>
+            )}
+
+            {isSystemAdmin && (
+              <Link
+                href="/announcements"
+                onClick={() => setMobileOpen(false)}
+                className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                  isActive("/announcements")
+                    ? "bg-gradient-to-r from-indigo-600/30 to-slate-800 text-white border border-indigo-500/30 shadow-sm"
+                    : "text-slate-300 hover:text-white hover:bg-slate-800/60"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Megaphone className="h-4 w-4 text-purple-400" />
+                  <span>Announcements</span>
+                </div>
+                <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-800 text-slate-400 font-mono">System</span>
+              </Link>
+            )}
+
+            {isSystemAdmin && (
+              <Link
+                href="/system-config"
+                onClick={() => setMobileOpen(false)}
+                className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                  isActive("/system-config")
+                    ? "bg-gradient-to-r from-indigo-600/30 to-slate-800 text-white border border-indigo-500/30 shadow-sm"
+                    : "text-slate-300 hover:text-white hover:bg-slate-800/60"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Sliders className="h-4 w-4 text-indigo-400" />
+                  <span>System Configuration</span>
+                </div>
+                <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-800 text-slate-400 font-mono">System</span>
+              </Link>
+            )}
+
+            {isSystemAdmin && (
+              <Link
+                href="/notification-templates"
+                onClick={() => setMobileOpen(false)}
+                className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                  isActive("/notification-templates")
+                    ? "bg-gradient-to-r from-indigo-600/30 to-slate-800 text-white border border-indigo-500/30 shadow-sm"
+                    : "text-slate-300 hover:text-white hover:bg-slate-800/60"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Mail className="h-4 w-4 text-cyan-400" />
+                  <span>Email Templates</span>
+                </div>
+                <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-800 text-slate-400 font-mono">System</span>
               </Link>
             )}
 
@@ -172,6 +263,41 @@ export function SidebarNav() {
               </Link>
             )}
 
+            {isSystemAdmin && (
+              <Link
+                href="/document-types"
+                onClick={() => setMobileOpen(false)}
+                className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                  isActive("/document-types")
+                    ? "bg-gradient-to-r from-indigo-600/30 to-slate-800 text-white border border-indigo-500/30 shadow-sm"
+                    : "text-slate-300 hover:text-white hover:bg-slate-800/60"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <FileCheck className="h-4 w-4 text-emerald-400" />
+                  <span>Document Types</span>
+                </div>
+                <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-800 text-slate-400 font-mono">System</span>
+              </Link>
+            )}
+
+            {isSystemAdmin && (
+              <Link
+                href="/application-statuses"
+                onClick={() => setMobileOpen(false)}
+                className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                  isActive("/application-statuses")
+                    ? "bg-gradient-to-r from-indigo-600/30 to-slate-800 text-white border border-indigo-500/30 shadow-sm"
+                    : "text-slate-300 hover:text-white hover:bg-slate-800/60"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Layers className="h-4 w-4 text-purple-400" />
+                  <span>Application Statuses</span>
+                </div>
+                <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-800 text-slate-400 font-mono">System</span>
+              </Link>
+            )}
           </div>
 
           {/* Geographics Reference Group */}

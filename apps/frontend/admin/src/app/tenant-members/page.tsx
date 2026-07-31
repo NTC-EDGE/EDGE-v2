@@ -50,7 +50,9 @@ function TenantMembersContent() {
     selectedTenantFilter !== "ALL" ? selectedTenantFilter : null
   );
 
-  const tenants: Tenant[] = fetchedTenants ?? [
+  const tenants: Tenant[] = Array.isArray(fetchedTenants)
+    ? fetchedTenants
+    : fetchedTenants?.data ?? [
         { id: "t-101", name: "NTC National Capital Region Regional Office", code: "NTC-NCR-01", isActive: true, regionId: "reg-ncr" },
         { id: "t-102", name: "Central Luzon Field Operations Tenant", code: "NTC-R3-01", isActive: true, regionId: "reg-r3" },
         { id: "t-103", name: "Central Visayas Telecommunications Branch", code: "NTC-R7-01", isActive: true, regionId: "reg-r7" },

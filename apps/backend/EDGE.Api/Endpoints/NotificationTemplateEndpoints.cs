@@ -30,8 +30,8 @@ public static class NotificationTemplateEndpoints
         templates.MapGet("/", GetNotificationTemplates)
             .WithName("GetNotificationTemplates")
             .WithSummary("Get email notification templates")
-            .WithDescription("Retrieves automated email templates triggered by system events.")
-            .Produces<List<NotificationTemplateDto>>(StatusCodes.Status200OK)
+            .WithDescription("Retrieves paginated automated email templates triggered by system events.")
+            .Produces<EDGE.Application.Common.Models.PaginatedApiResponse<NotificationTemplateDto>>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status401Unauthorized)
             .Produces(StatusCodes.Status403Forbidden);
 
@@ -49,9 +49,13 @@ public static class NotificationTemplateEndpoints
     }
 
     [HasPermission(Permissions.SystemAdmin)]
-    public static async Task<IResult> GetNotificationTemplates(IMediator mediator)
+    public static async Task<IResult> GetNotificationTemplates(
+        IMediator mediator,
+        [Microsoft.AspNetCore.Mvc.FromQuery] int pageNumber = 1,
+        [Microsoft.AspNetCore.Mvc.FromQuery] int pageSize = 10,
+        [Microsoft.AspNetCore.Mvc.FromQuery] string? searchTerm = null)
     {
-        var result = await mediator.Send(new GetNotificationTemplatesQuery());
+        var result = await mediator.Send(new GetNotificationTemplatesQuery(pageNumber, pageSize, searchTerm));
         return Results.Ok(result);
     }
 

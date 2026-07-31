@@ -23,8 +23,8 @@ public static class DocumentTypeEndpoints
         docTypes.MapGet("/", GetDocumentTypes)
             .WithName("GetDocumentTypes")
             .WithSummary("Get document types")
-            .WithDescription("Retrieves system-wide reference document types for application requirements.")
-            .Produces<List<DocumentTypeDto>>(StatusCodes.Status200OK)
+            .WithDescription("Retrieves paginated system-wide reference document types for application requirements.")
+            .Produces<EDGE.Application.Common.Models.PaginatedApiResponse<DocumentTypeDto>>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status401Unauthorized)
             .Produces(StatusCodes.Status403Forbidden);
 
@@ -41,9 +41,15 @@ public static class DocumentTypeEndpoints
     }
 
     [HasPermission(Permissions.ReadRequirements)]
-    public static async Task<IResult> GetDocumentTypes(bool activeOnly, IMediator mediator)
+    public static async Task<IResult> GetDocumentTypes(
+        IMediator mediator,
+        [Microsoft.AspNetCore.Mvc.FromQuery] int pageNumber = 1,
+        [Microsoft.AspNetCore.Mvc.FromQuery] int pageSize = 10,
+        [Microsoft.AspNetCore.Mvc.FromQuery] string? searchTerm = null,
+        [Microsoft.AspNetCore.Mvc.FromQuery] string? category = null,
+        [Microsoft.AspNetCore.Mvc.FromQuery] bool activeOnly = false)
     {
-        var result = await mediator.Send(new GetDocumentTypesQuery(activeOnly));
+        var result = await mediator.Send(new GetDocumentTypesQuery(pageNumber, pageSize, searchTerm, category, activeOnly));
         return Results.Ok(result);
     }
 

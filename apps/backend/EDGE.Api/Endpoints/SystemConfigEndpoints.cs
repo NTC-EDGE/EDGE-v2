@@ -24,8 +24,8 @@ public static class SystemConfigEndpoints
         configs.MapGet("/", GetSystemConfigs)
             .WithName("GetSystemConfigs")
             .WithSummary("Get system configurations")
-            .WithDescription("Retrieves all application system configurations or filtered by category.")
-            .Produces<List<SystemConfigDto>>(StatusCodes.Status200OK)
+            .WithDescription("Retrieves paginated application system configurations or filtered by category.")
+            .Produces<EDGE.Application.Common.Models.PaginatedApiResponse<SystemConfigDto>>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status401Unauthorized)
             .Produces(StatusCodes.Status403Forbidden);
 
@@ -33,7 +33,7 @@ public static class SystemConfigEndpoints
             .WithName("GetPublicSystemConfigs")
             .WithSummary("Get public system settings")
             .WithDescription("Retrieves non-sensitive public system settings such as maintenance mode, system title, and logo.")
-            .Produces<List<SystemConfigDto>>(StatusCodes.Status200OK);
+            .Produces<EDGE.Application.Common.Models.PaginatedApiResponse<SystemConfigDto>>(StatusCodes.Status200OK);
 
         configs.MapPut("/", UpdateSystemConfig)
             .WithName("UpdateSystemConfig")
@@ -48,16 +48,24 @@ public static class SystemConfigEndpoints
     }
 
     [HasPermission(Permissions.SystemAdmin)]
-    public static async Task<IResult> GetSystemConfigs(string? category, IMediator mediator)
+    public static async Task<IResult> GetSystemConfigs(
+        IMediator mediator,
+        [Microsoft.AspNetCore.Mvc.FromQuery] int pageNumber = 1,
+        [Microsoft.AspNetCore.Mvc.FromQuery] int pageSize = 10,
+        [Microsoft.AspNetCore.Mvc.FromQuery] string? searchTerm = null,
+        [Microsoft.AspNetCore.Mvc.FromQuery] string? category = null)
     {
-        var result = await mediator.Send(new GetSystemConfigsQuery(category, PublicOnly: false));
+        var result = await mediator.Send(new GetSystemConfigsQuery(pageNumber, pageSize, searchTerm, category, PublicOnly: false));
         return Results.Ok(result);
     }
 
     [AllowAnonymous]
-    public static async Task<IResult> GetPublicSystemConfigs(IMediator mediator)
+    public static async Task<IResult> GetPublicSystemConfigs(
+        IMediator mediator,
+        [Microsoft.AspNetCore.Mvc.FromQuery] int pageNumber = 1,
+        [Microsoft.AspNetCore.Mvc.FromQuery] int pageSize = 10)
     {
-        var result = await mediator.Send(new GetSystemConfigsQuery(Category: null, PublicOnly: true));
+        var result = await mediator.Send(new GetSystemConfigsQuery(pageNumber, pageSize, Category: null, PublicOnly: true));
         return Results.Ok(result);
     }
 

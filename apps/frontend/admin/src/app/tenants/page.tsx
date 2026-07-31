@@ -44,7 +44,13 @@ export default function TenantsPage() {
   const { useTenants, createTenant, updateTenant, deleteTenant, toggleTenantActive } = useTenantService();
   const { useRegions } = useRegionService();
 
-  const { data: fetchedTenants, isLoading: loadingTenants, mutate } = useTenants();
+  // Search, Filter, Pagination
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedRegionFilter, setSelectedRegionFilter] = useState("ALL");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  const { data: fetchedTenants, isLoading: loadingTenants, mutate } = useTenants(currentPage, pageSize, searchTerm);
   const { data: regionsResponse } = useRegions();
 
   const regions: Region[] = regionsResponse?.data ?? [
@@ -53,13 +59,9 @@ export default function TenantsPage() {
     { id: "7037536b-59d8-4786-8f92-fee3e0c78413", code: "R7", name: "Region VII - Central Visayas", isActive: true },
   ];
 
-  const tenants: Tenant[] = fetchedTenants ?? [];
-
-  // Search, Filter, Pagination
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedRegionFilter, setSelectedRegionFilter] = useState("ALL");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const tenants: Tenant[] = Array.isArray(fetchedTenants)
+    ? fetchedTenants
+    : fetchedTenants?.data ?? [];
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);

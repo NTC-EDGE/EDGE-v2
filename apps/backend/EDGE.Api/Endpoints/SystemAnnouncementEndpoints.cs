@@ -51,8 +51,8 @@ public static class SystemAnnouncementEndpoints
         announcements.MapGet("/", GetAnnouncements)
             .WithName("GetAnnouncements")
             .WithSummary("Get announcements")
-            .WithDescription("Retrieves system announcements.")
-            .Produces<List<SystemAnnouncementDto>>(StatusCodes.Status200OK)
+            .WithDescription("Retrieves paginated system announcements.")
+            .Produces<EDGE.Application.Common.Models.PaginatedApiResponse<SystemAnnouncementDto>>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status401Unauthorized);
 
         announcements.MapPut("/{id:guid}", UpdateAnnouncement)
@@ -105,9 +105,14 @@ public static class SystemAnnouncementEndpoints
     }
 
     [Authorize]
-    public static async Task<IResult> GetAnnouncements(IMediator mediator)
+    public static async Task<IResult> GetAnnouncements(
+        IMediator mediator,
+        [Microsoft.AspNetCore.Mvc.FromQuery] int pageNumber = 1,
+        [Microsoft.AspNetCore.Mvc.FromQuery] int pageSize = 10,
+        [Microsoft.AspNetCore.Mvc.FromQuery] string? searchTerm = null,
+        [Microsoft.AspNetCore.Mvc.FromQuery] string? type = null)
     {
-        var result = await mediator.Send(new GetAnnouncementsQuery());
+        var result = await mediator.Send(new GetAnnouncementsQuery(pageNumber, pageSize, searchTerm, type));
         return Results.Ok(result);
     }
 

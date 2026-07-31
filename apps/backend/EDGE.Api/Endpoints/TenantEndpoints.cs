@@ -37,8 +37,8 @@ public static class TenantEndpoints
             .WithName("GetAllTenants")
             .WithTags("Tenants")
             .WithSummary("Retrieve all tenants")
-            .WithDescription("Retrieves all Tenant organizations registered across regions.")
-            .Produces<List<TenantDto>>(StatusCodes.Status200OK);
+            .WithDescription("Retrieves paginated Tenant organizations registered across regions.")
+            .Produces<PaginatedApiResponse<TenantDto>>(StatusCodes.Status200OK);
 
         tenants.MapGet("/my-memberships", GetMyTenantMemberships)
             .WithName("GetMyTenantMemberships")
@@ -143,9 +143,13 @@ public static class TenantEndpoints
     }
 
     [HasPermission(Permissions.ReadTenants)]
-    public static async Task<IResult> GetAllTenants(IMediator mediator)
+    public static async Task<IResult> GetAllTenants(
+        IMediator mediator,
+        [Microsoft.AspNetCore.Mvc.FromQuery] int pageNumber = 1,
+        [Microsoft.AspNetCore.Mvc.FromQuery] int pageSize = 10,
+        [Microsoft.AspNetCore.Mvc.FromQuery] string? searchTerm = null)
     {
-        var result = await mediator.Send(new GetAllTenantsQuery());
+        var result = await mediator.Send(new GetAllTenantsQuery(pageNumber, pageSize, searchTerm));
         return Results.Ok(result);
     }
 

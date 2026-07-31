@@ -41,7 +41,9 @@ export default function Dashboard() {
   const provincesCount = provincesData?.data?.length ?? 81;
   const municipalitiesCount = municipalitiesData?.data?.length ?? 1488;
   const barangaysCount = barangaysData?.data?.length ?? 42027;
-  const tenantsCount = tenantsData?.length ?? 3;
+  const tenantsCount = Array.isArray(tenantsData)
+    ? tenantsData.length
+    : tenantsData?.totalCount ?? tenantsData?.data?.length ?? 3;
 
   const adminStats = [
     {
