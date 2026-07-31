@@ -22,7 +22,17 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Tenant, Region } from "@edge/api";
-import { getRegionalExternalUsers, ExternalUser } from "@/components/tenants/mockData";
+import { useSupportService } from "@/services/supportService";
+
+export interface ExternalUser {
+  id: string;
+  name: string;
+  email: string;
+  organization: string;
+  licenseCategory: string;
+  status: string;
+  registeredDate: string;
+}
 
 interface ExternalUsersTabProps {
   currentTenant: Tenant;
@@ -37,7 +47,22 @@ export function ExternalUsersTab({ currentTenant, getRegionName, getRegionCode }
   const [selectedExternalUser, setSelectedExternalUser] = useState<ExternalUser | null>(null);
   const [isExternalUserModalOpen, setIsExternalUserModalOpen] = useState(false);
 
-  const fullExternalUsers = getRegionalExternalUsers(currentTenant.regionId, getRegionCode(currentTenant.regionId));
+  const { useGlobalUsers } = useSupportService();
+  const { data: globalUsers, isLoading: loadingUsers } = useGlobalUsers(
+    externalSearchTerm,
+    currentTenant.regionId,
+    "ALL"
+  );
+
+  const fullExternalUsers: ExternalUser[] = (globalUsers ?? []).map((usr) => ({
+    id: usr.id,
+    name: `${usr.firstName} ${usr.lastName}`.trim() || usr.email,
+    email: usr.email,
+    organization: usr.tenantName || usr.fieldOfficeName || "Client Entity",
+    licenseCategory: usr.assignedRoles.length > 0 ? usr.assignedRoles.join(", ") : "Public Telecommunications Entity (PTE)",
+    status: usr.isLockedOut ? "Locked Out" : usr.status === "active" ? "Active License" : "Under Review",
+    registeredDate: usr.createdAt ? usr.createdAt.slice(0, 10) : "2026-01-15",
+  }));
 
   const filteredExternalUsers = fullExternalUsers.filter((usr) => {
     const matchesSearch =

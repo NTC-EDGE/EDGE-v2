@@ -24,11 +24,16 @@ export function useTenantService() {
     return del<void>(`/api/v2/tenants/${id}`);
   };
 
+  const toggleTenantActive = async (id: string): Promise<Tenant> => {
+    return post<Tenant, undefined>(`/api/v2/tenants/${id}/toggle-active`, undefined);
+  };
+
   return {
     useTenants,
     useTenant,
     createTenant,
     updateTenant,
     deleteTenant,
+    toggleTenantActive,
   };
 }

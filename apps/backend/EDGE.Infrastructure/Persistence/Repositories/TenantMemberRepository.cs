@@ -36,6 +36,7 @@ public class TenantMemberRepository : ITenantMemberRepository
     public async Task<List<TenantMember>> GetMembersByTenantAsync(Guid tenantId, CancellationToken cancellationToken = default)
     {
         return await _context.TenantMembers
+            .Include(m => m.User)
             .Where(m => m.TenantId == tenantId)
             .ToListAsync(cancellationToken);
     }

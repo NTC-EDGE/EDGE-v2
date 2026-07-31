@@ -12,4 +12,7 @@ public class TenantDto
     public string? CreatedBy { get; set; }
     public DateTime? LastModifiedAt { get; set; }
     public string? LastModifiedBy { get; set; }
+    public int TenantMembersTotal { get; set; }
+    public int ClientTotal { get; set; }
+    public int FieldOfficesCount { get; set; }
 }

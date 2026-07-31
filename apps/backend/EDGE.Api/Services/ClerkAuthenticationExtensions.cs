@@ -33,6 +33,7 @@ public static class ClerkAuthenticationExtensions
                     ValidIssuer = clerkAuthority,
                     ValidateAudience = false,
                     ValidateLifetime = true,
+                    ClockSkew = TimeSpan.FromMinutes(2),
                     NameClaimType = ClaimTypes.NameIdentifier
                 };
             });

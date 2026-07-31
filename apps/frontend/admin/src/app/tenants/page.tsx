@@ -17,13 +17,16 @@ import {
   Loader2,
   ShieldCheck,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Power,
+  PowerOff
 } from "lucide-react";
 import { useTenantService } from "@/services/tenantService";
 import { useRegionService } from "@/services/regionService";
 import { useAdminScope } from "@/lib/admin-scope-context";
 import { Tenant, Region } from "@edge/api";
 import { Button } from "@/components/ui/button";
+import { ConfirmActionDialog } from "@/components/ui/confirm-action-dialog";
 import { ActionMenu, ActionMenuItem } from "@/components/ui/action-menu";
 import { Pagination } from "@/components/ui/pagination";
 import {
@@ -38,7 +41,7 @@ import {
 export default function TenantsPage() {
   const router = useRouter();
   const { isSystemAdmin, canManageTenants } = useAdminScope();
-  const { useTenants, createTenant, updateTenant, deleteTenant } = useTenantService();
+  const { useTenants, createTenant, updateTenant, deleteTenant, toggleTenantActive } = useTenantService();
   const { useRegions } = useRegionService();
 
   const { data: fetchedTenants, isLoading: loadingTenants, mutate } = useTenants();
@@ -58,10 +61,12 @@ export default function TenantsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  // Modal State
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isToggleConfirmOpen, setIsToggleConfirmOpen] = useState(false);
+  const [toggleTargetTenant, setToggleTargetTenant] = useState<Tenant | null>(null);
+  const [togglingActive, setTogglingActive] = useState(false);
   const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
 
   // Form State
@@ -129,6 +134,32 @@ export default function TenantsPage() {
     setSelectedTenant(tenant);
     setErrorMsg(null);
     setIsDeleteOpen(true);
+  };
+
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const showToast = (msg: string) => {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(null), 4000);
+  };
+
+  const handleToggleActive = (tenant: Tenant) => {
+    setToggleTargetTenant(tenant);
+    setIsToggleConfirmOpen(true);
+  };
+
+  const handleConfirmToggleActive = async () => {
+    if (toggleTargetTenant === null) return;
+    setTogglingActive(true);
+    try {
+      const updated = await toggleTenantActive(toggleTargetTenant.id);
+      await mutate();
+      showToast(`Tenant "${toggleTargetTenant.name}" successfully ${updated.isActive ? "activated" : "deactivated"}.`);
+      setIsToggleConfirmOpen(false);
+    } catch (err: unknown) {
+      showToast("Failed to toggle tenant active status.");
+    } finally {
+      setTogglingActive(false);
+    }
   };
 
   const handleCreateSubmit = async (e: React.FormEvent) => {
@@ -297,6 +328,8 @@ export default function TenantsPage() {
                 </tr>
               ) : (
                 paginatedTenants.map((tenant) => {
+                  const hasEntriesOrMembers = (tenant.tenantMembersTotal ?? 0) > 0 || (tenant.fieldOfficesCount ?? 0) > 0;
+
                   const menuItems: ActionMenuItem[] = [
                     {
                       label: "View Details Page",
@@ -311,11 +344,20 @@ export default function TenantsPage() {
                             onClick: () => handleOpenEdit(tenant),
                           },
                           {
-                            label: "Delete Tenant",
-                            icon: Trash2,
-                            onClick: () => handleOpenDelete(tenant),
-                            variant: "destructive" as const,
+                            label: tenant.isActive ? "Deactivate Tenant" : "Activate Tenant",
+                            icon: tenant.isActive ? PowerOff : Power,
+                            onClick: () => handleToggleActive(tenant),
                           },
+                          ...(!hasEntriesOrMembers
+                            ? [
+                                {
+                                  label: "Delete Tenant",
+                                  icon: Trash2,
+                                  onClick: () => handleOpenDelete(tenant),
+                                  variant: "destructive" as const,
+                                },
+                              ]
+                            : []),
                         ]
                       : []),
                   ];
@@ -613,6 +655,29 @@ export default function TenantsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Confirm Toggle Status Modal */}
+      <ConfirmActionDialog
+        isOpen={isToggleConfirmOpen}
+        onClose={() => setIsToggleConfirmOpen(false)}
+        onConfirm={handleConfirmToggleActive}
+        title={toggleTargetTenant?.isActive ? "Deactivate Tenant Confirmation" : "Activate Tenant Confirmation"}
+        description={
+          toggleTargetTenant?.isActive
+            ? `Are you sure you want to deactivate "${toggleTargetTenant.name}"? Deactivating this tenant branch will restrict operational access for associated staff members and regional clients.`
+            : `Are you sure you want to activate "${toggleTargetTenant?.name}"? This will restore operational access for associated members and clients.`
+        }
+        confirmLabel={toggleTargetTenant?.isActive ? "Deactivate Tenant" : "Activate Tenant"}
+        cancelLabel="Cancel"
+        loading={togglingActive}
+      />
+
+      {/* Toast Alert */}
+      {toastMsg && (
+        <div className="fixed bottom-5 right-5 bg-slate-900 border-l-4 border-indigo-500 text-white px-5 py-3.5 rounded-xl shadow-2xl z-50 flex items-center gap-3">
+          <span className="text-xs font-bold">{toastMsg}</span>
+        </div>
+      )}
     </div>
   );
 }

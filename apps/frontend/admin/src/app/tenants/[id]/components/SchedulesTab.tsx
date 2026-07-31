@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { Tenant, ExamSchedule } from "@edge/api";
 import { useScheduleService } from "@/services/scheduleService";
-import { MOCK_SCHEDULES } from "@/components/schedules/mockData";
+import { useAdminScope } from "@/lib/admin-scope-context";
 
 interface SchedulesTabProps {
   currentTenant: Tenant;
@@ -30,6 +30,7 @@ interface SchedulesTabProps {
 
 export function SchedulesTab({ currentTenant, showToast }: SchedulesTabProps) {
   const tenantId = currentTenant.id;
+  const { isSystemAdmin } = useAdminScope();
   const { useSchedules, createSchedule, togglePublishStatus, useServices } = useScheduleService();
 
   const { data: fetchedSchedules, mutate: mutateSchedules } = useSchedules("", currentTenant.regionId);
@@ -49,9 +50,7 @@ export function SchedulesTab({ currentTenant, showToast }: SchedulesTabProps) {
     description: "",
   });
 
-  const schedulesList: ExamSchedule[] = (fetchedSchedules !== undefined && fetchedSchedules !== null && fetchedSchedules.length > 0)
-    ? fetchedSchedules
-    : MOCK_SCHEDULES.filter((s) => s.regionId === currentTenant.regionId || currentTenant.regionId === "4570bda0-8fee-4c79-993c-7d73cfa29a0d");
+  const schedulesList: ExamSchedule[] = fetchedSchedules ?? [];
 
   const handleToggleSchedPublish = async (sched: ExamSchedule) => {
     try {
@@ -103,26 +102,28 @@ export function SchedulesTab({ currentTenant, showToast }: SchedulesTabProps) {
           <h3 className="text-base font-bold text-white">Regional Exam Schedules</h3>
           <p className="text-xs text-slate-400">Licensure examination schedules and publish toggle control.</p>
         </div>
-        <Button
-          onClick={() => {
-            setSchedFormData({
-              title: "",
-              examType: "",
-              serviceId: "",
-              venue: "",
-              examDate: new Date(Date.now() + 864000000).toISOString().slice(0, 16),
-              applicationDeadline: new Date(Date.now() + 432000000).toISOString().slice(0, 16),
-              maxSlots: 50,
-              isPublished: true,
-              description: "",
-            });
-            setIsCreateSchedOpen(true);
-          }}
-          className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-4 py-2 rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-indigo-600/20"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Create Exam Schedule</span>
-        </Button>
+        {!isSystemAdmin && (
+          <Button
+            onClick={() => {
+              setSchedFormData({
+                title: "",
+                examType: "",
+                serviceId: "",
+                venue: "",
+                examDate: new Date(Date.now() + 864000000).toISOString().slice(0, 16),
+                applicationDeadline: new Date(Date.now() + 432000000).toISOString().slice(0, 16),
+                maxSlots: 50,
+                isPublished: true,
+                description: "",
+              });
+              setIsCreateSchedOpen(true);
+            }}
+            className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-4 py-2 rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-indigo-600/20"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Create Exam Schedule</span>
+          </Button>
+        )}
       </div>
 
       <div className="divide-y divide-slate-800 border border-slate-800 rounded-xl overflow-hidden bg-slate-950/60">
@@ -148,30 +149,48 @@ export function SchedulesTab({ currentTenant, showToast }: SchedulesTabProps) {
               </div>
 
               <div className="flex items-center gap-4">
-                <button
-                  onClick={() => handleToggleSchedPublish(sched)}
-                  className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all inline-flex items-center gap-1.5 cursor-pointer ${
-                    sched.isPublished
-                      ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20"
-                      : "bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700"
-                  }`}
-                >
-                  {sched.isPublished ? (
-                    <><Eye className="w-3.5 h-3.5 text-emerald-400" /> Published</>
-                  ) : (
-                    <><EyeOff className="w-3.5 h-3.5 text-slate-400" /> Draft / Hidden</>
-                  )}
-                </button>
+                {isSystemAdmin ? (
+                  <span
+                    className={`px-3 py-1 rounded-full text-xs font-semibold border inline-flex items-center gap-1.5 ${
+                      sched.isPublished
+                        ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                        : "bg-slate-800 text-slate-400 border-slate-700"
+                    }`}
+                  >
+                    {sched.isPublished ? (
+                      <><Eye className="w-3.5 h-3.5 text-emerald-400" /> Published</>
+                    ) : (
+                      <><EyeOff className="w-3.5 h-3.5 text-slate-400" /> Draft / Hidden</>
+                    )}
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => handleToggleSchedPublish(sched)}
+                    className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all inline-flex items-center gap-1.5 cursor-pointer ${
+                      sched.isPublished
+                        ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20"
+                        : "bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700"
+                    }`}
+                  >
+                    {sched.isPublished ? (
+                      <><Eye className="w-3.5 h-3.5 text-emerald-400" /> Published</>
+                    ) : (
+                      <><EyeOff className="w-3.5 h-3.5 text-slate-400" /> Draft / Hidden</>
+                    )}
+                  </button>
+                )}
 
-                <ActionMenu
-                  items={[
-                    {
-                      label: sched.isPublished ? "Unpublish Schedule" : "Publish Schedule",
-                      icon: sched.isPublished ? EyeOff : Eye,
-                      onClick: () => handleToggleSchedPublish(sched),
-                    },
-                  ]}
-                />
+                {!isSystemAdmin && (
+                  <ActionMenu
+                    items={[
+                      {
+                        label: sched.isPublished ? "Unpublish Schedule" : "Publish Schedule",
+                        icon: sched.isPublished ? EyeOff : Eye,
+                        onClick: () => handleToggleSchedPublish(sched),
+                      },
+                    ]}
+                  />
+                )}
               </div>
             </div>
           );

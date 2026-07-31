@@ -178,6 +178,9 @@ export interface Tenant {
   createdBy?: string | null;
   lastModifiedAt?: string | null;
   lastModifiedBy?: string | null;
+  tenantMembersTotal?: number;
+  clientTotal?: number;
+  fieldOfficesCount?: number;
 }
 
 export interface CreateTenantCommand {

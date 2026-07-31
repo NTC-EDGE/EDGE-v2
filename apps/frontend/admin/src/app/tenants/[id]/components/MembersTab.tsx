@@ -9,7 +9,9 @@ import {
   Building,
   Edit2,
   Trash2,
-  Loader2
+  Loader2,
+  Eye,
+  Info
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ActionMenu } from "@/components/ui/action-menu";
@@ -21,11 +23,11 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Tenant, TenantMember, Role, User, FieldOffice } from "@edge/api";
+import { Tenant, TenantMember, Role, FieldOffice } from "@edge/api";
 import { useTenantMemberService } from "@/services/tenantMemberService";
-import { useUserService } from "@/services/userService";
+import { useFieldOfficeService } from "@/services/fieldOfficeService";
 import { useRoleService } from "@/services/roleService";
-import { MOCK_TENANT_MEMBERS } from "@/components/tenants/mockData";
+import { useAdminScope } from "@/lib/admin-scope-context";
 
 interface MembersTabProps {
   currentTenant: Tenant;
@@ -35,29 +37,37 @@ interface MembersTabProps {
 
 export function MembersTab({ currentTenant, fieldOfficesList, showToast }: MembersTabProps) {
   const tenantId = currentTenant.id;
-  const { useTenantMembers, assignUserToTenant, updateMemberDetails, removeUserFromTenant } = useTenantMemberService();
-  const { useUsers } = useUserService();
+  const { isSystemAdmin } = useAdminScope();
+  const { useTenantMembers, useMemberDetails, assignUserToTenant, updateMemberDetails, removeUserFromTenant } = useTenantMemberService();
+  const { useFieldOffices } = useFieldOfficeService();
   const { useRoles } = useRoleService();
 
   const { data: fetchedMembers, mutate: mutateMembers } = useTenantMembers(tenantId);
-  const { data: fetchedUsers } = useUsers();
-  const { data: fetchedRoles } = useRoles();
-
-  // Local state fallbacks
-  const [membersList, setMembersList] = useState<TenantMember[]>(
-    MOCK_TENANT_MEMBERS[currentTenant.id] ?? MOCK_TENANT_MEMBERS["t-101"]
-  );
-
-  const [rolesList] = useState<Role[]>([
-    { id: "r-admin", name: "System Administrator", key: "system_admin", isSystemRole: true, description: "Full system governance and tenant management" },
-    { id: "r-licensing", name: "Regional Executive Director", key: "region_admin", isSystemRole: false, description: "Regional fee rules, schedules, and field office oversight" },
-    { id: "r-inspector", name: "Field Inspector Lead", key: "inspector_lead", isSystemRole: false, description: "On-site frequency verification and field station inspection" },
-  ]);
+  const { data: fetchedRoles } = useRoles(tenantId);
+  const rolesList: Role[] = fetchedRoles ?? [];
 
   const [isAssignMemberOpen, setIsAssignMemberOpen] = useState(false);
   const [isEditMemberOpen, setIsEditMemberOpen] = useState(false);
   const [isRemoveMemberOpen, setIsRemoveMemberOpen] = useState(false);
+  const [isViewMemberOpen, setIsViewMemberOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<TenantMember | null>(null);
+  const [viewingMemberId, setViewingMemberId] = useState<string | null>(null);
+
+  const { data: localFieldOffices } = useFieldOffices(
+    isAssignMemberOpen || isEditMemberOpen ? tenantId : null,
+    isAssignMemberOpen || isEditMemberOpen ? currentTenant.regionId : null
+  );
+  const activeFieldOfficesList = localFieldOffices ?? fieldOfficesList;
+
+  const { data: memberDetails, isLoading: loadingMemberDetails } = useMemberDetails(
+    tenantId,
+    viewingMemberId
+  );
+
+  const handleOpenViewMember = (member: TenantMember) => {
+    setViewingMemberId(member.id);
+    setIsViewMemberOpen(true);
+  };
 
   const [memberFormData, setMemberFormData] = useState({
     userId: "",
@@ -70,13 +80,13 @@ export function MembersTab({ currentTenant, fieldOfficesList, showToast }: Membe
     designation: "Spectrum Regulator",
   });
 
-  const tenantMembersList: TenantMember[] = fetchedMembers ?? membersList;
+  const tenantMembersList: TenantMember[] = fetchedMembers ?? [];
 
   const handleOpenAssignMember = () => {
     setMemberFormData({
-      userId: fetchedUsers && fetchedUsers.length > 0 ? fetchedUsers[0].id : "",
+      userId: "",
       roleId: rolesList.length > 0 ? rolesList[0].id : "",
-      fieldOfficeId: fieldOfficesList.length > 0 ? fieldOfficesList[0].id : "",
+      fieldOfficeId: activeFieldOfficesList.length > 0 ? activeFieldOfficesList[0].id : "",
       jobTitle: "Regulator Officer",
       level: "SG-18",
       division: "Licensing & Permit Division",
@@ -126,27 +136,7 @@ export function MembersTab({ currentTenant, fieldOfficesList, showToast }: Membe
       setIsAssignMemberOpen(false);
       showToast(`Staff member assigned to tenant!`);
     } catch (err: unknown) {
-      const userObj = fetchedUsers?.find((u) => u.id === memberFormData.userId);
-      const newMember: TenantMember = {
-        id: `tm-${Date.now()}`,
-        tenantId: currentTenant.id,
-        tenantName: currentTenant.name,
-        userId: memberFormData.userId,
-        userEmail: userObj?.email ?? "user@ntc.gov.ph",
-        userFirstName: userObj?.firstName ?? "User",
-        userLastName: userObj?.lastName ?? "Member",
-        roleId: memberFormData.roleId,
-        fieldOfficeId: memberFormData.fieldOfficeId || null,
-        fieldOfficeName: memberFormData.fieldOfficeId ? "Pasig Extension Office" : "Headquarters",
-        jobTitle: memberFormData.jobTitle,
-        level: memberFormData.level,
-        division: memberFormData.division,
-        position: memberFormData.position,
-        designation: memberFormData.designation,
-      };
-      setMembersList((prev) => [newMember, ...prev]);
-      setIsAssignMemberOpen(false);
-      showToast(`Staff member saved locally!`);
+      showToast(`Failed to assign staff member to tenant.`);
     }
   };
 
@@ -170,24 +160,7 @@ export function MembersTab({ currentTenant, fieldOfficesList, showToast }: Membe
       setIsEditMemberOpen(false);
       showToast(`Member details updated.`);
     } catch (err: unknown) {
-      setMembersList((prev) =>
-        prev.map((m) =>
-          m.id === selectedMember.id
-            ? {
-                ...m,
-                roleId: memberFormData.roleId,
-                fieldOfficeId: memberFormData.fieldOfficeId || null,
-                jobTitle: memberFormData.jobTitle,
-                level: memberFormData.level,
-                division: memberFormData.division,
-                position: memberFormData.position,
-                designation: memberFormData.designation,
-              }
-            : m
-        )
-      );
-      setIsEditMemberOpen(false);
-      showToast(`Member details updated locally.`);
+      showToast(`Failed to update member details.`);
     }
   };
 
@@ -200,9 +173,7 @@ export function MembersTab({ currentTenant, fieldOfficesList, showToast }: Membe
       setIsRemoveMemberOpen(false);
       showToast(`Member unassigned from tenant.`);
     } catch (err: unknown) {
-      setMembersList((prev) => prev.filter((m) => m.id !== selectedMember.id));
-      setIsRemoveMemberOpen(false);
-      showToast(`Member unassigned locally.`);
+      showToast(`Failed to unassign member.`);
     }
   };
 
@@ -213,13 +184,15 @@ export function MembersTab({ currentTenant, fieldOfficesList, showToast }: Membe
           <h3 className="text-base font-bold text-white">Assigned Tenant Members & Staff</h3>
           <p className="text-xs text-slate-400">Personnel assigned to this regional administrative tenant branch.</p>
         </div>
-        <Button
-          onClick={handleOpenAssignMember}
-          className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-4 py-2 rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-indigo-600/20"
-        >
-          <UserPlus className="w-4 h-4" />
-          <span>Assign Staff Member</span>
-        </Button>
+        {!isSystemAdmin && (
+          <Button
+            onClick={handleOpenAssignMember}
+            className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-4 py-2 rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-indigo-600/20"
+          >
+            <UserPlus className="w-4 h-4" />
+            <span>Assign Staff Member</span>
+          </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -249,16 +222,25 @@ export function MembersTab({ currentTenant, fieldOfficesList, showToast }: Membe
                 <ActionMenu
                   items={[
                     {
-                      label: "Edit Member Details",
-                      icon: Edit2,
-                      onClick: () => handleOpenEditMember(member),
+                      label: "View Member Details",
+                      icon: Eye,
+                      onClick: () => handleOpenViewMember(member),
                     },
-                    {
-                      label: "Unassign Member",
-                      icon: Trash2,
-                      onClick: () => handleOpenRemoveMember(member),
-                      variant: "destructive" as const,
-                    },
+                    ...(!isSystemAdmin
+                      ? [
+                          {
+                            label: "Edit Member Details",
+                            icon: Edit2,
+                            onClick: () => handleOpenEditMember(member),
+                          },
+                          {
+                            label: "Unassign Member",
+                            icon: Trash2,
+                            onClick: () => handleOpenRemoveMember(member),
+                            variant: "destructive" as const,
+                          },
+                        ]
+                      : []),
                   ]}
                 />
               </div>
@@ -293,20 +275,15 @@ export function MembersTab({ currentTenant, fieldOfficesList, showToast }: Membe
 
           <form onSubmit={handleAssignMemberSubmit} className="space-y-4 pt-2">
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300">Select User *</label>
-              <select
+              <label className="text-xs font-semibold text-slate-300">User Account ID *</label>
+              <input
+                type="text"
                 required
+                placeholder="Enter User GUID (e.g. 123e4567-e89b-12d3-a456-426614174000)"
                 value={memberFormData.userId}
                 onChange={(e) => setMemberFormData({ ...memberFormData, userId: e.target.value })}
-                className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-              >
-                <option value="" disabled>Select User...</option>
-                {(fetchedUsers ?? []).map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.firstName} {u.lastName} ({u.email})
-                  </option>
-                ))}
-              </select>
+                className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -319,7 +296,7 @@ export function MembersTab({ currentTenant, fieldOfficesList, showToast }: Membe
                   className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                 >
                   <option value="" disabled>Select Role...</option>
-                  {(fetchedRoles ?? rolesList).map((r) => (
+                  {rolesList.map((r) => (
                     <option key={r.id} value={r.id}>
                       {r.name}
                     </option>
@@ -335,7 +312,7 @@ export function MembersTab({ currentTenant, fieldOfficesList, showToast }: Membe
                   className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                 >
                   <option value="">Headquarters / Unassigned</option>
-                  {fieldOfficesList.map((fo) => (
+                  {activeFieldOfficesList.map((fo) => (
                     <option key={fo.id} value={fo.id}>
                       {fo.name}
                     </option>
@@ -440,7 +417,7 @@ export function MembersTab({ currentTenant, fieldOfficesList, showToast }: Membe
                   className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                 >
                   <option value="" disabled>Select Role...</option>
-                  {(fetchedRoles ?? rolesList).map((r) => (
+                  {rolesList.map((r) => (
                     <option key={r.id} value={r.id}>
                       {r.name}
                     </option>
@@ -456,7 +433,7 @@ export function MembersTab({ currentTenant, fieldOfficesList, showToast }: Membe
                   className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                 >
                   <option value="">Headquarters / Unassigned</option>
-                  {fieldOfficesList.map((fo) => (
+                  {activeFieldOfficesList.map((fo) => (
                     <option key={fo.id} value={fo.id}>
                       {fo.name}
                     </option>
@@ -550,6 +527,110 @@ export function MembersTab({ currentTenant, fieldOfficesList, showToast }: Membe
             <Button type="button" variant="outline" onClick={() => setIsRemoveMemberOpen(false)}>Cancel</Button>
             <Button type="button" onClick={handleRemoveMemberConfirm} className="bg-rose-600 hover:bg-rose-500 text-white font-semibold">Unassign Member</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Member Details Modal */}
+      <Dialog open={isViewMemberOpen} onOpenChange={setIsViewMemberOpen}>
+        <DialogContent className="sm:max-w-[550px] bg-slate-900 border-slate-800 text-white p-6 rounded-2xl overflow-hidden">
+          <DialogHeader className="pb-4 border-b border-slate-800/80">
+            <DialogTitle className="text-xl font-extrabold text-white flex items-center gap-2">
+              <Eye className="w-5 h-5 text-sky-400" /> Staff Member Details
+            </DialogTitle>
+            <DialogDescription className="text-slate-400 text-xs">
+              Detailed membership and deployment profile information.
+            </DialogDescription>
+          </DialogHeader>
+
+          {loadingMemberDetails && !memberDetails ? (
+            <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+              <Loader2 className="w-8 h-8 animate-spin text-sky-400 mb-3" />
+              <span className="text-xs font-semibold">Fetching details from API...</span>
+            </div>
+          ) : (memberDetails !== undefined && memberDetails !== null) || (viewingMemberId !== null && tenantMembersList.find((m) => m.id === viewingMemberId) !== undefined) ? (() => {
+            const displayedMember = memberDetails !== undefined && memberDetails !== null
+              ? memberDetails
+              : (tenantMembersList.find((m) => m.id === viewingMemberId) as TenantMember);
+            return (
+              <div className="space-y-6 pt-4">
+                {/* Header profile details */}
+                <div className="flex items-center gap-4 p-4 rounded-xl bg-slate-950/40 border border-slate-800/50">
+                  <div className="h-16 w-16 rounded-full bg-gradient-to-tr from-sky-500 via-indigo-500 to-purple-600 flex items-center justify-center text-white font-black text-xl shadow-lg shrink-0">
+                    {displayedMember.userFirstName.charAt(0)}{displayedMember.userLastName.charAt(0)}
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-lg font-bold text-white leading-snug">
+                      {displayedMember.userFirstName} {displayedMember.userLastName}
+                    </h4>
+                    <p className="text-xs text-sky-400 font-semibold">{displayedMember.jobTitle ?? "Staff Member"}</p>
+                    <p className="text-xs text-slate-400 flex items-center gap-1.5">
+                      <Mail className="w-3.5 h-3.5 text-slate-500" /> {displayedMember.userEmail}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Grid properties */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1 bg-slate-950/30 p-3 rounded-lg border border-slate-800/40">
+                    <span className="text-[10px] text-slate-500 uppercase font-bold block tracking-wider">Salary Grade Level</span>
+                    <span className="text-sm font-semibold text-slate-200">{displayedMember.level ?? "N/A"}</span>
+                  </div>
+                  <div className="space-y-1 bg-slate-950/30 p-3 rounded-lg border border-slate-800/40">
+                    <span className="text-[10px] text-slate-500 uppercase font-bold block tracking-wider">Security Role</span>
+                    <span className="text-sm font-semibold text-slate-200">
+                      {rolesList.find(r => r.id === displayedMember.roleId)?.name ?? "Member"}
+                    </span>
+                  </div>
+                  <div className="space-y-1 bg-slate-950/30 p-3 rounded-lg border border-slate-800/40">
+                    <span className="text-[10px] text-slate-500 uppercase font-bold block tracking-wider">Division</span>
+                    <span className="text-sm font-semibold text-slate-200">{displayedMember.division}</span>
+                  </div>
+                  <div className="space-y-1 bg-slate-950/30 p-3 rounded-lg border border-slate-800/40">
+                    <span className="text-[10px] text-slate-500 uppercase font-bold block tracking-wider">Position</span>
+                    <span className="text-sm font-semibold text-slate-200">{displayedMember.position}</span>
+                  </div>
+                </div>
+
+                <div className="space-y-4 border-t border-slate-800/60 pt-4">
+                  <div className="space-y-1">
+                    <span className="text-[10px] text-slate-500 uppercase font-bold block tracking-wider">Designation</span>
+                    <p className="text-xs text-slate-300 bg-slate-950/20 p-2.5 rounded-lg border border-slate-800/30">
+                      {displayedMember.designation ?? "No specific designation assigned."}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-[10px] text-slate-500 uppercase font-bold block tracking-wider">Field Office Assignment</span>
+                    <div className="flex items-center gap-2 text-xs text-slate-300 bg-slate-950/20 p-2.5 rounded-lg border border-slate-800/30">
+                      <Building className="w-4 h-4 text-emerald-400 shrink-0" />
+                      <span>{displayedMember.fieldOfficeName ?? "Regional Headquarters / Unassigned"}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Metadata if available */}
+                {(displayedMember.createdAt || displayedMember.createdBy) && (
+                  <div className="pt-3 border-t border-slate-800/40 text-[10px] text-slate-500 flex flex-wrap justify-between gap-2">
+                    {displayedMember.createdAt && (
+                      <span>Created: {new Date(displayedMember.createdAt).toLocaleDateString()}</span>
+                    )}
+                    {displayedMember.createdBy && (
+                      <span>By: {displayedMember.createdBy}</span>
+                    )}
+                  </div>
+                )}
+
+                <DialogFooter className="pt-4 border-t border-slate-800">
+                  <Button type="button" onClick={() => setIsViewMemberOpen(false)} className="bg-slate-800 hover:bg-slate-700 text-white font-semibold">
+                    Close
+                  </Button>
+                </DialogFooter>
+              </div>
+            );
+          })() : (
+            <div className="py-8 text-center text-slate-400 text-sm">
+              Failed to load member details.
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
