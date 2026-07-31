@@ -45,79 +45,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 
-// Mock Fallback Field Offices for demo & immediate rendering
-const MOCK_FIELD_OFFICES: FieldOffice[] = [
-  {
-    id: "fo-1",
-    tenantId: "t-101",
-    name: "NTC Pampanga Extension Office",
-    code: "NTC-FO-PAM",
-    description: "Extension office serving Pampanga, Bataan, and Tarlac spectrum inspection and amateur licensing.",
-    regionId: "073b2085-fab9-4cfb-9a6a-ca93ccf1fee2",
-    regionName: "Region III - Central Luzon",
-    provinceId: "p-pam",
-    provinceName: "Pampanga",
-    address: "Government Center, Maimpis, City of San Fernando, Pampanga",
-    contactPhone: "+63 (045) 455-2144",
-    contactEmail: "fo.pampanga@ntc.gov.ph",
-    officerInChargeId: "m-101",
-    officerInChargeName: "Engr. Manuel L. Santos",
-    officerInChargeEmail: "manuel.santos@ntc.gov.ph",
-    isActive: true,
-    allowSpectrumInspection: true,
-    allowPermitIssuance: true,
-    allowComplaintReception: true,
-    assignedMemberCount: 5,
-    createdAt: "2026-01-10T08:00:00Z",
-  },
-  {
-    id: "fo-2",
-    tenantId: "t-101",
-    name: "NTC Bulacan Field Sub-Office",
-    code: "NTC-FO-BUL",
-    description: "Local field office handling frequency monitoring and public complaint reception for Bulacan province.",
-    regionId: "073b2085-fab9-4cfb-9a6a-ca93ccf1fee2",
-    regionName: "Region III - Central Luzon",
-    provinceId: "p-bul",
-    provinceName: "Bulacan",
-    address: "Capitol Compound, City of Malolos, Bulacan",
-    contactPhone: "+63 (044) 791-0022",
-    contactEmail: "fo.bulacan@ntc.gov.ph",
-    officerInChargeId: "m-102",
-    officerInChargeName: "Engr. Teresa M. Ramos",
-    officerInChargeEmail: "teresa.ramos@ntc.gov.ph",
-    isActive: true,
-    allowSpectrumInspection: true,
-    allowPermitIssuance: false,
-    allowComplaintReception: true,
-    assignedMemberCount: 3,
-    createdAt: "2026-02-15T09:30:00Z",
-  },
-  {
-    id: "fo-3",
-    tenantId: "t-102",
-    name: "NTC Cebu Extension Office",
-    code: "NTC-FO-CEB",
-    description: "Primary regional extension office for Central Visayas field spectrum audits and maritime radio licensing.",
-    regionId: "7037536b-59d8-4786-8f92-fee3e0c78413",
-    regionName: "Region VII - Central Visayas",
-    provinceId: "p-ceb",
-    provinceName: "Cebu",
-    address: "Subangdaku, Mandaue City, Cebu",
-    contactPhone: "+63 (032) 346-0123",
-    contactEmail: "fo.cebu@ntc.gov.ph",
-    officerInChargeId: "m-103",
-    officerInChargeName: "Engr. Gabriel S. Mendoza",
-    officerInChargeEmail: "gabriel.mendoza@ntc.gov.ph",
-    isActive: true,
-    allowSpectrumInspection: true,
-    allowPermitIssuance: true,
-    allowComplaintReception: true,
-    assignedMemberCount: 6,
-    createdAt: "2026-03-01T10:15:00Z",
-  },
-];
-
 function FieldOfficesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -151,17 +78,8 @@ function FieldOfficesContent() {
   const { data: membersResponse } = useTenantMembers(activeTenantId);
   const tenantMembers: TenantMember[] = membersResponse ?? [];
 
-  const regions: Region[] = regionsResponse?.data ?? [
-    { id: "4570bda0-8fee-4c79-993c-7d73cfa29a0d", code: "NCR", name: "National Capital Region", isActive: true },
-    { id: "073b2085-fab9-4cfb-9a6a-ca93ccf1fee2", code: "R3", name: "Region III - Central Luzon", isActive: true },
-    { id: "7037536b-59d8-4786-8f92-fee3e0c78413", code: "R7", name: "Region VII - Central Visayas", isActive: true },
-  ];
-
-  const provinces: Province[] = provincesResponse?.data ?? [
-    { id: "p-pam", regionId: "073b2085-fab9-4cfb-9a6a-ca93ccf1fee2", code: "PAM", name: "Pampanga", isActive: true },
-    { id: "p-bul", regionId: "073b2085-fab9-4cfb-9a6a-ca93ccf1fee2", code: "BUL", name: "Bulacan", isActive: true },
-    { id: "p-ceb", regionId: "7037536b-59d8-4786-8f92-fee3e0c78413", code: "CEB", name: "Cebu", isActive: true },
-  ];
+  const regions: Region[] = regionsResponse?.data ?? [];
+  const provinces: Province[] = provincesResponse?.data ?? [];
 
   const fieldOffices: FieldOffice[] = fetchedFieldOfficesResponse ?? [];
 

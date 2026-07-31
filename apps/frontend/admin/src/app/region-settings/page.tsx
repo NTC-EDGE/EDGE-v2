@@ -24,56 +24,13 @@ import { useAdminScope } from "@/lib/admin-scope-context";
 import { Region, RegionSettings } from "@edge/api";
 import { Button } from "@/components/ui/button";
 
-const DEFAULT_REGION_SETTINGS: Record<string, RegionSettings> = {
-  "4570bda0-8fee-4c79-993c-7d73cfa29a0d": {
-    regionId: "4570bda0-8fee-4c79-993c-7d73cfa29a0d",
-    regionCode: "NCR",
-    regionName: "National Capital Region",
-    regionalDirector: "Engr. Victorino C. Bernardo",
-    contactEmail: "ncr.director@ntc.gov.ph",
-    contactPhone: "+63 (02) 8924-4010",
-    officeAddress: "NTC Building, BIR Road, Diliman, Quezon City",
-    isActive: true,
-    fees: {
-      applicationFee: 1500.0,
-      inspectionFee: 3500.0,
-      permitRenewalFee: 2000.0,
-      lateSurchargeRatePercent: 12.5,
-      maxProcessingFeeCap: 25000.0,
-      emergencyProcessingFee: 5000.0,
-    },
-  },
-  "073b2085-fab9-4cfb-9a6a-ca93ccf1fee2": {
-    regionId: "073b2085-fab9-4cfb-9a6a-ca93ccf1fee2",
-    regionCode: "R3",
-    regionName: "Region III - Central Luzon",
-    regionalDirector: "Engr. Aurora A. Bonifacio",
-    contactEmail: "r3.director@ntc.gov.ph",
-    contactPhone: "+63 (045) 455-2144",
-    officeAddress: "Government Center, Maimpis, City of San Fernando, Pampanga",
-    isActive: true,
-    fees: {
-      applicationFee: 1200.0,
-      inspectionFee: 3000.0,
-      permitRenewalFee: 1800.0,
-      lateSurchargeRatePercent: 10.0,
-      maxProcessingFeeCap: 20000.0,
-      emergencyProcessingFee: 4000.0,
-    },
-  },
-};
-
 export default function RegionSettingsPage() {
   const { canManageRegionSettings } = useAdminScope();
   const { useRegions } = useRegionService();
   const { useRegionSettings, updateRegionSettings } = useRegionSettingsService();
 
   const { data: regionsResponse } = useRegions();
-  const regions: Region[] = regionsResponse?.data ?? [
-    { id: "4570bda0-8fee-4c79-993c-7d73cfa29a0d", code: "NCR", name: "National Capital Region", isActive: true },
-    { id: "073b2085-fab9-4cfb-9a6a-ca93ccf1fee2", code: "R3", name: "Region III - Central Luzon", isActive: true },
-    { id: "7037536b-59d8-4786-8f92-fee3e0c78413", code: "R7", name: "Region VII - Central Visayas", isActive: true },
-  ];
+  const regions: Region[] = regionsResponse?.data ?? [];
 
   const [selectedRegionId, setSelectedRegionId] = useState<string>(
     regions.length > 0 ? regions[0].id : ""
@@ -83,24 +40,24 @@ export default function RegionSettingsPage() {
 
   const currentSettings: RegionSettings = (fetchedSettings !== undefined && fetchedSettings !== null)
     ? fetchedSettings
-    : (DEFAULT_REGION_SETTINGS[selectedRegionId] ?? {
+    : {
         regionId: selectedRegionId,
-        regionCode: regions.find((r) => r.id === selectedRegionId)?.code ?? "REG",
-        regionName: regions.find((r) => r.id === selectedRegionId)?.name ?? "Selected Region",
-        regionalDirector: "Engr. Regional Director",
-        contactEmail: "regional.office@ntc.gov.ph",
-        contactPhone: "+63 (02) 8000-0000",
-        officeAddress: "Regional Government Center",
+        regionCode: regions.find((r) => r.id === selectedRegionId)?.code ?? "",
+        regionName: regions.find((r) => r.id === selectedRegionId)?.name ?? "",
+        regionalDirector: "",
+        contactEmail: "",
+        contactPhone: "",
+        officeAddress: "",
         isActive: true,
         fees: {
-          applicationFee: 1500.0,
-          inspectionFee: 3200.0,
-          permitRenewalFee: 2000.0,
-          lateSurchargeRatePercent: 10.0,
-          maxProcessingFeeCap: 25000.0,
-          emergencyProcessingFee: 4500.0,
+          applicationFee: 0,
+          inspectionFee: 0,
+          permitRenewalFee: 0,
+          lateSurchargeRatePercent: 0,
+          maxProcessingFeeCap: 0,
+          emergencyProcessingFee: 0,
         },
-      });
+      };
 
   const [formData, setFormData] = useState<RegionSettings>(currentSettings);
   const [saving, setSaving] = useState(false);
@@ -133,9 +90,7 @@ export default function RegionSettingsPage() {
       await updateRegionSettings(selectedRegionId, formData);
       setSuccessMsg(`Region settings and fee schedule for ${formData.regionName} successfully updated!`);
     } catch (err: unknown) {
-      // Local fallback update
-      DEFAULT_REGION_SETTINGS[selectedRegionId] = formData;
-      setSuccessMsg(`Region settings and fee schedule for ${formData.regionName} saved locally!`);
+      setErrorMsg(err instanceof Error ? err.message : "Failed to update region settings. Please try again.");
     } finally {
       setSaving(false);
     }

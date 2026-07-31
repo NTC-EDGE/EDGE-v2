@@ -32,11 +32,7 @@ export default function DocumentTypesPage() {
     ? responseData
     : responseData && Array.isArray(responseData.data)
     ? responseData.data
-    : [
-        { id: "1", code: "NTC_LIC", name: "Radio Operator License", description: "Official NTC Operator License Certificate", category: "Licensing", isActive: true },
-        { id: "2", code: "SEC_REG", name: "SEC Registration Certificate", description: "Securities and Exchange Commission Certificate", category: "Identification", isActive: true },
-        { id: "3", code: "TECH_DIAG", name: "Radio Equipment Schematic Diagram", description: "Technical circuit diagram of transmitter/antenna system", category: "Technical", isActive: true },
-      ];
+    : [];
 
   const filtered = docTypes.filter(
     (d) =>

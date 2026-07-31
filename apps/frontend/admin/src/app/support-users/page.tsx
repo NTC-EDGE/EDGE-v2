@@ -52,19 +52,13 @@ function GlobalUserDirectoryContent() {
     statusFilter
   );
 
-  const rawRegions = fetchedRegions !== undefined && fetchedRegions !== null ? fetchedRegions.data : null;
-  const regions: Region[] = (rawRegions !== undefined && rawRegions !== null && rawRegions.length > 0)
-    ? rawRegions
-    : [
-        { id: "reg-ncr", code: "NCR", name: "NCR - National Capital Region", isActive: true },
-        { id: "reg-r3", code: "R3", name: "Region III - Central Luzon", isActive: true },
-        { id: "reg-r7", code: "R7", name: "Region VII - Central Visayas", isActive: true },
-        { id: "reg-r11", code: "R11", name: "Region XI - Davao Region", isActive: true },
-      ];
+  const regions: Region[] = Array.isArray(fetchedRegions)
+    ? fetchedRegions
+    : fetchedRegions?.data ?? [];
 
-  const allUsers: GlobalSupportUser[] = (fetchedUsers !== undefined && fetchedUsers !== null && fetchedUsers.length > 0)
+  const allUsers: GlobalSupportUser[] = (fetchedUsers !== undefined && fetchedUsers !== null)
     ? fetchedUsers
-    : MOCK_SUPPORT_USERS;
+    : [];
 
   const filteredUsers = useMemo(() => {
     return allUsers.filter((u) => {

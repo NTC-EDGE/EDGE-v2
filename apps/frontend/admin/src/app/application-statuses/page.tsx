@@ -101,7 +101,7 @@ export default function ApplicationStatusesPage() {
     ? responseData
     : responseData && Array.isArray(responseData.data)
     ? responseData.data
-    : DEFAULT_STATUSES;
+    : [];
 
   const filteredStatuses = statuses.filter((s) => {
     const matchesSearch =

@@ -35,35 +35,7 @@ export default function NotificationTemplatesPage() {
     ? responseData
     : responseData && Array.isArray(responseData.data)
     ? responseData.data
-    : [
-        {
-          id: "1",
-          eventKey: "ApplicationSubmitted",
-          name: "Application Submission Receipt",
-          subject: "NTC EDGE - Application Submission Received [Ref: {{ReferenceNumber}}]",
-          bodyHtml: "<p>Dear {{ApplicantName}},</p><p>Your application for <strong>{{ServiceName}}</strong> has been successfully received.</p>",
-          availablePlaceholders: "{{ApplicantName}},{{ReferenceNumber}},{{ServiceName}},{{SubmissionDate}}",
-          isActive: true,
-        },
-        {
-          id: "2",
-          eventKey: "ApplicationApproved",
-          name: "Application Approval Notice",
-          subject: "NTC EDGE - Permit Application Approved [Ref: {{ReferenceNumber}}]",
-          bodyHtml: "<p>Dear {{ApplicantName}},</p><p>We are pleased to inform you that your application for <strong>{{ServiceName}}</strong> has been approved.</p>",
-          availablePlaceholders: "{{ApplicantName}},{{ReferenceNumber}},{{ServiceName}},{{ApprovalDate}}",
-          isActive: true,
-        },
-        {
-          id: "3",
-          eventKey: "PasswordReset",
-          name: "Account Password Reset Instructions",
-          subject: "NTC EDGE - Reset Your Password",
-          bodyHtml: "<p>Hello {{ApplicantName}},</p><p>Click the link below to reset your portal password.</p>",
-          availablePlaceholders: "{{ApplicantName}},{{ResetLink}},{{ExpiryTime}}",
-          isActive: true,
-        },
-      ];
+    : [];
 
   const handleEdit = (t: NotificationTemplate) => {
     setSelectedTemplate(t);

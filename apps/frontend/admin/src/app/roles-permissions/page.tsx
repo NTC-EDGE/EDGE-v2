@@ -29,53 +29,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 
-const MOCK_ROLES: Role[] = [
-  {
-    id: "r-sys-admin",
-    name: "System Administrator",
-    key: "SYSTEM_ADMIN",
-    isSystemRole: true,
-    description: "Full system administration access across all regions, tenants, users, and fee configurations.",
-  },
-  {
-    id: "r-reg-admin",
-    name: "Region Administrator",
-    key: "REGION_ADMIN",
-    isSystemRole: true,
-    description: "Regional level access to manage regional tenants, regional members, and regional fee settings.",
-  },
-  {
-    id: "r-ten-admin",
-    name: "Tenant Administrator",
-    key: "TENANT_ADMIN",
-    isSystemRole: false,
-    description: "Manage users, divisions, positions, and member profiles within assigned tenant scope.",
-  },
-  {
-    id: "r-licensing",
-    name: "Licensing & Permit Officer",
-    key: "LICENSING_OFFICER",
-    isSystemRole: false,
-    description: "Process permit applications, fee payments, and issue regional license certificates.",
-  },
-  {
-    id: "r-inspector",
-    name: "Regional Field Inspector",
-    key: "FIELD_INSPECTOR",
-    isSystemRole: false,
-    description: "Conduct field compliance inspections, verify equipment frequencies, and submit inspection logs.",
-  },
-];
-
-const MOCK_PERMISSIONS: Permission[] = [
-  { id: "p-1", code: "Tenants.Manage", name: "Manage Tenants & Branches", category: "Tenants", description: "Create, update, and delete tenant configurations." },
-  { id: "p-2", code: "Tenants.View", name: "View Tenants", category: "Tenants", description: "View tenant lists and details." },
-  { id: "p-3", code: "Members.Manage", name: "Manage Tenant Members", category: "Membership", description: "Assign, update, and remove members from tenants." },
-  { id: "p-4", code: "RegionSettings.Manage", name: "Manage Region Fee Rules", category: "Region Admin", description: "Update fee schedules and regional director settings." },
-  { id: "p-5", code: "Roles.Manage", name: "Manage Roles & Permissions", category: "Security", description: "Define system roles and permission policies." },
-  { id: "p-6", code: "Geographics.Manage", name: "Manage Geographics Reference", category: "Geographics", description: "Create and edit Regions, Provinces, Municipalities, and Barangays." },
-];
-
 export default function RolesPermissionsPage() {
   const { isSystemAdmin } = useAdminScope();
   const { useRoles, usePermissions, createRole, updateRole, deleteRole } = useRoleService();
@@ -83,13 +36,13 @@ export default function RolesPermissionsPage() {
   const { data: fetchedRoles, isLoading: loadingRoles, mutate } = useRoles();
   const { data: fetchedPermissions } = usePermissions();
 
-  const roles: Role[] = (fetchedRoles !== undefined && fetchedRoles !== null && fetchedRoles.length > 0)
+  const roles: Role[] = (fetchedRoles !== undefined && fetchedRoles !== null)
     ? fetchedRoles
-    : MOCK_ROLES;
+    : [];
 
-  const permissions: Permission[] = (fetchedPermissions !== undefined && fetchedPermissions !== null && fetchedPermissions.length > 0)
+  const permissions: Permission[] = (fetchedPermissions !== undefined && fetchedPermissions !== null)
     ? fetchedPermissions
-    : MOCK_PERMISSIONS;
+    : [];
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);

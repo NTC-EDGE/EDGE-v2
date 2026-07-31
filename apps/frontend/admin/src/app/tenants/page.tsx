@@ -56,11 +56,7 @@ export default function TenantsPage() {
   const { data: fetchedTenants, isLoading: loadingTenants, mutate } = useTenants(currentPage, pageSize, searchTerm);
   const { data: regionsResponse } = useRegions();
 
-  const regions: Region[] = regionsResponse?.data ?? [
-    { id: "4570bda0-8fee-4c79-993c-7d73cfa29a0d", code: "NCR", name: "National Capital Region", isActive: true },
-    { id: "073b2085-fab9-4cfb-9a6a-ca93ccf1fee2", code: "R3", name: "Region III - Central Luzon", isActive: true },
-    { id: "7037536b-59d8-4786-8f92-fee3e0c78413", code: "R7", name: "Region VII - Central Visayas", isActive: true },
-  ];
+  const regions: Region[] = regionsResponse?.data ?? [];
 
   const tenants: Tenant[] = Array.isArray(fetchedTenants)
     ? fetchedTenants
