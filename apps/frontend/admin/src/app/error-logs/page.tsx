@@ -12,8 +12,11 @@ import {
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
+import { ToastNotification, ToastMessage } from "@/components/ui/toast-notification";
+
 export default function ErrorLogsPage() {
   const { useErrorLogs } = useErrorLogService();
+  const [toast, setToast] = useState<ToastMessage | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [levelFilter, setLevelFilter] = useState("ALL");
   const [page, setPage] = useState(1);
@@ -204,6 +207,8 @@ export default function ErrorLogsPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      <ToastNotification toast={toast} onClose={() => setToast(null)} />
     </div>
   );
 }

@@ -21,6 +21,8 @@ import { useAnnouncementService, SystemAnnouncement } from "@/services/announcem
 import { ConfirmActionDialog } from "@/components/ui/confirm-action-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
+import { ToastNotification, ToastMessage, getErrorMessage } from "@/components/ui/toast-notification";
+
 export default function AnnouncementsPage() {
   const {
     useAnnouncements,
@@ -30,6 +32,7 @@ export default function AnnouncementsPage() {
     deleteAnnouncement,
   } = useAnnouncementService();
 
+  const [toast, setToast] = useState<ToastMessage | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState<string>("ALL");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -87,7 +90,7 @@ export default function AnnouncementsPage() {
     setIsSubmitting(true);
 
     if (editingAnnouncement) {
-      const [res] = await safeAsync(
+      const [res, err] = await safeAsync(
         updateAnnouncement(editingAnnouncement.id, {
           title,
           message,
@@ -97,11 +100,14 @@ export default function AnnouncementsPage() {
         })
       );
       if (res) {
+        setToast({ message: "System announcement updated successfully.", type: "success" });
         mutate();
         setIsModalOpen(false);
+      } else {
+        setToast({ message: getErrorMessage(err, "Failed to update announcement."), type: "error" });
       }
     } else {
-      const [res] = await safeAsync(
+      const [res, err] = await safeAsync(
         createAnnouncement({
           title,
           message,
@@ -111,23 +117,36 @@ export default function AnnouncementsPage() {
         })
       );
       if (res) {
+        setToast({ message: "New system announcement published successfully.", type: "success" });
         mutate();
         setIsModalOpen(false);
+      } else {
+        setToast({ message: getErrorMessage(err, "Failed to create announcement."), type: "error" });
       }
     }
     setIsSubmitting(false);
   };
 
   const handleTogglePublish = async (a: SystemAnnouncement) => {
-    await safeAsync(togglePublishStatus(a.id, !a.isActive));
-    mutate();
+    const [res, err] = await safeAsync(togglePublishStatus(a.id, !a.isActive));
+    if (res) {
+      setToast({ message: `Announcement status changed to ${!a.isActive ? "Published" : "Draft"}.`, type: "success" });
+      mutate();
+    } else {
+      setToast({ message: getErrorMessage(err, "Failed to update publish status."), type: "error" });
+    }
   };
 
   const handleDeleteConfirm = async () => {
     if (!deletingId) return;
-    await safeAsync(deleteAnnouncement(deletingId));
+    const [res, err] = await safeAsync(deleteAnnouncement(deletingId));
+    if (err) {
+      setToast({ message: getErrorMessage(err, "Failed to delete announcement."), type: "error" });
+    } else {
+      setToast({ message: "System announcement deleted successfully.", type: "success" });
+      mutate();
+    }
     setDeletingId(null);
-    mutate();
   };
 
   const getTypeBadge = (announcementType: string) => {
@@ -375,6 +394,8 @@ export default function AnnouncementsPage() {
         onConfirm={handleDeleteConfirm}
         onClose={() => setDeletingId(null)}
       />
+
+      <ToastNotification toast={toast} onClose={() => setToast(null)} />
     </div>
   );
 }

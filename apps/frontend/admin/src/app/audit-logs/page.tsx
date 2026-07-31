@@ -11,13 +11,16 @@ import {
   ChevronRight
 } from "lucide-react";
 
+import { ToastNotification, ToastMessage } from "@/components/ui/toast-notification";
+
 export default function AuditLogsPage() {
   const { useAuditLogs } = useAuditLogService();
+  const [toast, setToast] = useState<ToastMessage | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [page, setPage] = useState(1);
   const pageSize = 15;
 
-  const { data: responseData, isLoading } = useAuditLogs(page, pageSize, searchTerm);
+  const { data: responseData, isLoading, error } = useAuditLogs(page, pageSize, searchTerm);
 
   const auditLogs: AuditLog[] = responseData?.data ?? responseData?.items ?? [];
   const totalCount = responseData?.totalCount ?? auditLogs.length;
@@ -162,6 +165,7 @@ export default function AuditLogsPage() {
           </div>
         </div>
       </div>
+      <ToastNotification toast={toast} onClose={() => setToast(null)} />
     </div>
   );
 }

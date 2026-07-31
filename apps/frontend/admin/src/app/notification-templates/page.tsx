@@ -14,8 +14,11 @@ import {
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
+import { ToastNotification, ToastMessage, getErrorMessage } from "@/components/ui/toast-notification";
+
 export default function NotificationTemplatesPage() {
   const { useNotificationTemplates, updateNotificationTemplate } = useNotificationTemplateService();
+  const [toast, setToast] = useState<ToastMessage | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedTemplate, setSelectedTemplate] = useState<NotificationTemplate | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -75,7 +78,7 @@ export default function NotificationTemplatesPage() {
     if (!selectedTemplate) return;
 
     setIsSaving(true);
-    const [res] = await safeAsync(
+    const [res, err] = await safeAsync(
       updateNotificationTemplate(selectedTemplate.id, {
         subject,
         bodyHtml,
@@ -84,8 +87,11 @@ export default function NotificationTemplatesPage() {
     );
 
     if (res) {
+      setToast({ message: "Notification template updated successfully.", type: "success" });
       mutate();
       setIsEditModalOpen(false);
+    } else {
+      setToast({ message: getErrorMessage(err, "Failed to update notification template."), type: "error" });
     }
     setIsSaving(false);
   };
@@ -275,6 +281,8 @@ export default function NotificationTemplatesPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <ToastNotification toast={toast} onClose={() => setToast(null)} />
     </div>
   );
 }

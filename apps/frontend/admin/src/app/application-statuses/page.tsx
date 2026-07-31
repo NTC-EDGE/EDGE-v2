@@ -87,8 +87,11 @@ const DEFAULT_STATUSES: ApplicationStatusRef[] = [
   },
 ];
 
+import { ToastNotification, ToastMessage, getErrorMessage } from "@/components/ui/toast-notification";
+
 export default function ApplicationStatusesPage() {
   const { useApplicationStatuses } = useApplicationStatusService();
+  const [toast, setToast] = useState<ToastMessage | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("ALL");
 
@@ -252,6 +255,7 @@ export default function ApplicationStatusesPage() {
           ))}
         </div>
       )}
+      <ToastNotification toast={toast} onClose={() => setToast(null)} />
     </div>
   );
 }

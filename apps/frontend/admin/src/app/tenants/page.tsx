@@ -37,12 +37,15 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { ToastNotification, ToastMessage, getErrorMessage } from "@/components/ui/toast-notification";
 
 export default function TenantsPage() {
   const router = useRouter();
   const { isSystemAdmin, canManageTenants } = useAdminScope();
   const { useTenants, createTenant, updateTenant, deleteTenant, toggleTenantActive } = useTenantService();
   const { useRegions } = useRegionService();
+
+  const [toast, setToast] = useState<ToastMessage | null>(null);
 
   // Search, Filter, Pagination
   const [searchTerm, setSearchTerm] = useState("");
@@ -67,9 +70,11 @@ export default function TenantsPage() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isToggleConfirmOpen, setIsToggleConfirmOpen] = useState(false);
-  const [toggleTargetTenant, setToggleTargetTenant] = useState<Tenant | null>(null);
-  const [togglingActive, setTogglingActive] = useState(false);
   const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
+  const [toggleTargetTenant, setToggleTargetTenant] = useState<Tenant | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [togglingActive, setTogglingActive] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -79,9 +84,6 @@ export default function TenantsPage() {
     regionId: "",
     isActive: true,
   });
-
-  const [submitting, setSubmitting] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Filtered tenants
   const filteredTenants = tenants.filter((tenant) => {
@@ -138,12 +140,6 @@ export default function TenantsPage() {
     setIsDeleteOpen(true);
   };
 
-  const [toastMsg, setToastMsg] = useState<string | null>(null);
-  const showToast = (msg: string) => {
-    setToastMsg(msg);
-    setTimeout(() => setToastMsg(null), 4000);
-  };
-
   const handleToggleActive = (tenant: Tenant) => {
     setToggleTargetTenant(tenant);
     setIsToggleConfirmOpen(true);
@@ -155,10 +151,11 @@ export default function TenantsPage() {
     try {
       const updated = await toggleTenantActive(toggleTargetTenant.id);
       await mutate();
-      showToast(`Tenant "${toggleTargetTenant.name}" successfully ${updated.isActive ? "activated" : "deactivated"}.`);
+      setToast({ message: `Tenant "${toggleTargetTenant.name}" successfully ${updated.isActive ? "activated" : "deactivated"}.`, type: "success" });
       setIsToggleConfirmOpen(false);
     } catch (err: unknown) {
-      showToast("Failed to toggle tenant active status.");
+      const msg = getErrorMessage(err, "Failed to toggle tenant active status.");
+      setToast({ message: msg, type: "error" });
     } finally {
       setTogglingActive(false);
     }
@@ -177,9 +174,12 @@ export default function TenantsPage() {
         regionId: formData.regionId,
       });
       await mutate();
+      setToast({ message: `Tenant "${formData.name}" created successfully.`, type: "success" });
       setIsCreateOpen(false);
     } catch (err: unknown) {
-      setErrorMsg(err instanceof Error ? err.message : "Failed to create tenant. Please try again.");
+      const msg = getErrorMessage(err, "Failed to create tenant. Please try again.");
+      setErrorMsg(msg);
+      setToast({ message: msg, type: "error" });
     } finally {
       setSubmitting(false);
     }
@@ -202,9 +202,12 @@ export default function TenantsPage() {
         isActive: formData.isActive,
       });
       await mutate();
+      setToast({ message: `Tenant "${formData.name}" details updated successfully.`, type: "success" });
       setIsEditOpen(false);
     } catch (err: unknown) {
-      setErrorMsg(err instanceof Error ? err.message : "Failed to update tenant. Please try again.");
+      const msg = getErrorMessage(err, "Failed to update tenant. Please try again.");
+      setErrorMsg(msg);
+      setToast({ message: msg, type: "error" });
     } finally {
       setSubmitting(false);
     }
@@ -217,9 +220,12 @@ export default function TenantsPage() {
     try {
       await deleteTenant(selectedTenant.id);
       await mutate();
+      setToast({ message: `Tenant "${selectedTenant.name}" deleted successfully.`, type: "success" });
       setIsDeleteOpen(false);
     } catch (err: unknown) {
-      setErrorMsg(err instanceof Error ? err.message : "Failed to delete tenant. Please try again.");
+      const msg = getErrorMessage(err, "Failed to delete tenant.");
+      setErrorMsg(msg);
+      setToast({ message: msg, type: "error" });
     } finally {
       setSubmitting(false);
     }
@@ -675,11 +681,7 @@ export default function TenantsPage() {
       />
 
       {/* Toast Alert */}
-      {toastMsg && (
-        <div className="fixed bottom-5 right-5 bg-slate-900 border-l-4 border-indigo-500 text-white px-5 py-3.5 rounded-xl shadow-2xl z-50 flex items-center gap-3">
-          <span className="text-xs font-bold">{toastMsg}</span>
-        </div>
-      )}
+      <ToastNotification toast={toast} onClose={() => setToast(null)} />
     </div>
   );
 }

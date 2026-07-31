@@ -12,8 +12,11 @@ import {
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
+import { ToastNotification, ToastMessage, getErrorMessage } from "@/components/ui/toast-notification";
+
 export default function DocumentTypesPage() {
   const { useDocumentTypes, createDocumentType } = useDocumentTypeService();
+  const [toast, setToast] = useState<ToastMessage | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -47,17 +50,20 @@ export default function DocumentTypesPage() {
 
     setIsSubmitting(true);
 
-    const [res] = await safeAsync(
+    const [res, err] = await safeAsync(
       createDocumentType({ code, name, description, category })
     );
 
     if (res) {
+      setToast({ message: "Document type reference created successfully.", type: "success" });
       mutate();
       setIsModalOpen(false);
       setCode("");
       setName("");
       setDescription("");
       setCategory("General");
+    } else {
+      setToast({ message: getErrorMessage(err, "Failed to create document type."), type: "error" });
     }
     setIsSubmitting(false);
   };
@@ -235,6 +241,8 @@ export default function DocumentTypesPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <ToastNotification toast={toast} onClose={() => setToast(null)} />
     </div>
   );
 }

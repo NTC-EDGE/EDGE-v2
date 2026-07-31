@@ -15,9 +15,11 @@ import {
   Settings,
   Search
 } from "lucide-react";
+import { ToastNotification, ToastMessage, getErrorMessage } from "@/components/ui/toast-notification";
 
 export default function SystemConfigPage() {
   const { useSystemConfigs, updateSystemConfig } = useSystemConfigService();
+  const [toast, setToast] = useState<ToastMessage | null>(null);
   const [activeTab, setActiveTab] = useState<string>("General");
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [configsState, setConfigsState] = useState<Record<string, string>>({});
@@ -44,7 +46,7 @@ export default function SystemConfigPage() {
       list.forEach((c) => {
         stateMap[c.key] = c.value;
       });
-      setConfigsState(stateMap);
+      setConfigsState((prev) => (Object.keys(prev).length > 0 ? prev : stateMap));
     } else {
       setConfigsState((prev) => {
         if (Object.keys(prev).length > 0) return prev;
@@ -65,6 +67,10 @@ export default function SystemConfigPage() {
     setConfigsState((prev) => ({ ...prev, [key]: val }));
   };
 
+  const handleInputChange = (key: string, val: string) => {
+    setConfigsState((prev) => ({ ...prev, [key]: val }));
+  };
+
   const handleSaveCategory = async () => {
     setIsSaving(true);
     setSaveSuccess(false);
@@ -75,9 +81,12 @@ export default function SystemConfigPage() {
         ? categoryConfigs.map((c) => c.key)
         : Object.keys(configsState);
 
+    let hasError = false;
+    let lastErrorMsg = "";
+
     for (const key of keysToSave) {
       if (configsState[key] !== undefined) {
-        await safeAsync(
+        const [res, err] = await safeAsync(
           updateSystemConfig({
             key,
             value: configsState[key],
@@ -85,13 +94,22 @@ export default function SystemConfigPage() {
             description: `Global ${activeTab} configuration`,
           })
         );
+        if (err) {
+          hasError = true;
+          lastErrorMsg = getErrorMessage(err, "Failed to update configuration setting.");
+        }
       }
     }
 
     await mutate();
     setIsSaving(false);
-    setSaveSuccess(true);
-    setTimeout(() => setSaveSuccess(false), 3000);
+    if (hasError) {
+      setToast({ message: lastErrorMsg, type: "error" });
+    } else {
+      setToast({ message: "System configuration settings updated successfully.", type: "success" });
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    }
   };
 
   const tabs = [
@@ -305,7 +323,7 @@ export default function SystemConfigPage() {
               <button
                 type="button"
                 onClick={() =>
-                  handleChange(
+                  handleInputChange(
                     "MAINTENANCE_MODE",
                     configsState["MAINTENANCE_MODE"] === "true" ? "false" : "true"
                   )
@@ -322,6 +340,8 @@ export default function SystemConfigPage() {
           </div>
         )}
       </div>
+
+      <ToastNotification toast={toast} onClose={() => setToast(null)} />
     </div>
   );
 }
