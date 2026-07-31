@@ -178,6 +178,7 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Name).IsRequired().HasMaxLength(150);
             entity.Property(e => e.Code).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Category).IsRequired().HasMaxLength(50).HasDefaultValue("Main");
             entity.HasIndex(e => new { e.TenantId, e.Code }).IsUnique();
             entity.HasOne(e => e.Tenant)
                   .WithMany()

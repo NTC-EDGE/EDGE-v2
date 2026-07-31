@@ -273,12 +273,12 @@ export function RegionalConfigTab({
         {showBranches && (
           <View style={[mode === 'all' ? styles.rightDirectoryColumn : styles.fullWidthColumn]}>
 
-      {/* 3. Regional Branch Offices Header */}
+      {/* 3. Regional Field Offices Header */}
       <View style={[styles.sectionHeaderRow, isMobile && styles.sectionHeaderMobile]}>
         <View style={styles.sectionTitleWrapper}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Regional Branch Offices</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Regional Field Offices</Text>
           <Text style={[styles.sectionSubtitle, { color: colors.textMuted }]}>
-            Configure, update, and manage regional sub-branch office locations and contacts.
+            Configure, update, and manage regional field office locations and contacts.
           </Text>
         </View>
         <Pressable
@@ -289,10 +289,10 @@ export function RegionalConfigTab({
             Platform.select({ web: { cursor: 'pointer' } }),
           ]}
           onPress={onAddBranchOffice}
-          accessibilityLabel="Add Branch Office"
+          accessibilityLabel="Add Field Office"
         >
           <Lucide name="plus" size={15} color={COLORS.neutral.white} />
-          <Text style={styles.addBranchBtnText}>Add Branch Office</Text>
+          <Text style={styles.addBranchBtnText}>Add Field Office</Text>
         </Pressable>
       </View>
 
@@ -408,7 +408,7 @@ export function RegionalConfigTab({
             ]}
           >
             <Lucide name="map-pin" size={32} color={colors.textMuted} />
-            <Text style={[styles.emptyBranchTitle, { color: colors.text }]}>No matching branch offices</Text>
+            <Text style={[styles.emptyBranchTitle, { color: colors.text }]}>No matching field offices</Text>
             <Text style={[styles.emptyBranchSubtitle, { color: colors.textMuted }]}>
               Try searching with a different office code or name.
             </Text>

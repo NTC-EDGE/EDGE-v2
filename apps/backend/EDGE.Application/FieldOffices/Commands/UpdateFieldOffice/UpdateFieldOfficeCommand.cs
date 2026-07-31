@@ -1,3 +1,4 @@
+using System;
 using MediatR;
 using EDGE.Application.FieldOffices.DTOs;
 
@@ -5,18 +6,19 @@ namespace EDGE.Application.FieldOffices.Commands.UpdateFieldOffice;
 
 public record UpdateFieldOfficeCommand(
     Guid Id,
-    Guid TenantId,
-    string Name,
-    string Code,
-    string? Description,
-    Guid RegionId,
-    Guid? ProvinceId,
-    string Address,
-    string ContactPhone,
-    string ContactEmail,
-    Guid OfficerInChargeId,
-    bool IsActive,
-    bool AllowSpectrumInspection,
-    bool AllowPermitIssuance,
-    bool AllowComplaintReception
+    Guid? TenantId = null,
+    string? Name = null,
+    string? Code = null,
+    string? Category = null,
+    string? Description = null,
+    Guid? RegionId = null,
+    Guid? ProvinceId = null,
+    string? Address = null,
+    string? ContactPhone = null,
+    string? ContactEmail = null,
+    Guid? OfficerInChargeId = null,
+    bool IsActive = true,
+    bool AllowSpectrumInspection = true,
+    bool AllowPermitIssuance = true,
+    bool AllowComplaintReception = true
 ) : IRequest<FieldOfficeDto?>;

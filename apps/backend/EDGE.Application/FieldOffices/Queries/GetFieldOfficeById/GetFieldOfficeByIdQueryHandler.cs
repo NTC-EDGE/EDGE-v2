@@ -26,6 +26,7 @@ public class GetFieldOfficeByIdQueryHandler : IRequestHandler<GetFieldOfficeById
             office.TenantId,
             office.Name,
             office.Code,
+            office.Category ?? "Main",
             office.Description,
             office.RegionId,
             office.ProvinceId,

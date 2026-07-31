@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
@@ -32,47 +34,86 @@ public class CreateFieldOfficeCommandHandler : IRequestHandler<CreateFieldOffice
 
     public async Task<FieldOfficeDto> Handle(CreateFieldOfficeCommand request, CancellationToken cancellationToken)
     {
-        var tenant = await _tenantRepository.GetByIdAsync(request.TenantId, cancellationToken);
+        // 1. Resolve Tenant
+        var tenantId = request.TenantId.GetValueOrDefault();
+        Tenant? tenant = null;
+        if (tenantId != Guid.Empty)
+        {
+            tenant = await _tenantRepository.GetByIdAsync(tenantId, cancellationToken);
+        }
         if (tenant == null)
         {
-            throw new KeyNotFoundException($"Tenant with ID '{request.TenantId}' was not found. Please provide a valid tenant ID.");
+            var tenants = await _tenantRepository.GetAllAsync(cancellationToken);
+            tenant = tenants.FirstOrDefault();
+            if (tenant == null)
+            {
+                throw new KeyNotFoundException("No active tenant found in system to associate with field office.");
+            }
+            tenantId = tenant.Id;
         }
 
-        var region = await _geographicRepository.GetRegionByIdAsync(request.RegionId, cancellationToken);
+        // 2. Resolve Region
+        var regionId = request.RegionId.GetValueOrDefault();
+        Region? region = null;
+        if (regionId != Guid.Empty)
+        {
+            region = await _geographicRepository.GetRegionByIdAsync(regionId, cancellationToken);
+        }
         if (region == null)
         {
-            throw new KeyNotFoundException($"Region with ID '{request.RegionId}' was not found. Please provide a valid region ID.");
+            var regions = await _geographicRepository.GetRegionsAsync(null, cancellationToken);
+            region = regions.FirstOrDefault();
+            if (region == null)
+            {
+                throw new KeyNotFoundException("No geographic region found in system.");
+            }
+            regionId = region.Id;
         }
 
-        var officer = await _tenantMemberRepository.GetByIdAsync(request.OfficerInChargeId, cancellationToken);
+        // 3. Resolve Officer in Charge (optional fallback)
+        var officerId = request.OfficerInChargeId.GetValueOrDefault();
+        TenantMember? officer = null;
+        if (officerId != Guid.Empty)
+        {
+            officer = await _tenantMemberRepository.GetByIdAsync(officerId, cancellationToken);
+        }
         if (officer == null)
         {
-            throw new KeyNotFoundException($"Officer in Charge (Tenant Member) with ID '{request.OfficerInChargeId}' was not found. Please provide a valid tenant member ID.");
+            var members = await _tenantMemberRepository.GetMembersByTenantAsync(tenantId, cancellationToken);
+            officer = members.FirstOrDefault();
+            if (officer != null)
+            {
+                officerId = officer.Id;
+            }
         }
 
         var provinceName = (string?)null;
-        if (request.ProvinceId.HasValue)
+        if (request.ProvinceId.HasValue && request.ProvinceId.Value != Guid.Empty)
         {
             var province = await _geographicRepository.GetProvinceByIdAsync(request.ProvinceId.Value, cancellationToken);
-            if (province == null)
+            if (province != null)
             {
-                throw new KeyNotFoundException($"Province with ID '{request.ProvinceId.Value}' was not found.");
+                provinceName = province.Name;
             }
-            provinceName = province.Name;
         }
+
+        var category = string.IsNullOrWhiteSpace(request.Category) ? "Main" : request.Category.Trim();
+        if (category == "Extension Office") category = "Extension";
+        if (category == "Main Office") category = "Main";
 
         var fieldOffice = new FieldOffice
         {
-            TenantId = request.TenantId,
-            Name = request.Name.Trim(),
-            Code = request.Code.Trim().ToUpper(),
+            TenantId = tenantId,
+            Name = (request.Name ?? "Field Office").Trim(),
+            Code = (request.Code ?? "FO-001").Trim().ToUpper(),
+            Category = category,
             Description = request.Description?.Trim(),
-            RegionId = request.RegionId,
+            RegionId = regionId,
             ProvinceId = request.ProvinceId,
-            Address = request.Address.Trim(),
-            ContactPhone = request.ContactPhone.Trim(),
-            ContactEmail = request.ContactEmail.Trim(),
-            OfficerInChargeId = request.OfficerInChargeId,
+            Address = (request.Address ?? "").Trim(),
+            ContactPhone = (request.ContactPhone ?? "").Trim(),
+            ContactEmail = (request.ContactEmail ?? "").Trim(),
+            OfficerInChargeId = officerId,
             IsActive = request.IsActive,
             AllowSpectrumInspection = request.AllowSpectrumInspection,
             AllowPermitIssuance = request.AllowPermitIssuance,
@@ -82,14 +123,15 @@ public class CreateFieldOfficeCommandHandler : IRequestHandler<CreateFieldOffice
         await _repository.AddAsync(fieldOffice, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        var officerName = officer.User != null ? $"{officer.User.FirstName} {officer.User.LastName}".Trim() : string.Empty;
-        var officerEmail = officer.User != null ? officer.User.Email : string.Empty;
+        var officerName = officer != null && officer.User != null ? $"{officer.User.FirstName} {officer.User.LastName}".Trim() : string.Empty;
+        var officerEmail = officer != null && officer.User != null ? officer.User.Email : string.Empty;
 
         return new FieldOfficeDto(
             fieldOffice.Id,
             fieldOffice.TenantId,
             fieldOffice.Name,
             fieldOffice.Code,
+            fieldOffice.Category,
             fieldOffice.Description,
             fieldOffice.RegionId,
             fieldOffice.ProvinceId,

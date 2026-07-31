@@ -7,13 +7,17 @@ import {
   ScrollView,
   SafeAreaView,
 } from "react-native";
-import { COLORS, TYPOGRAPHY, SPACING, RADIUS, Icon as Lucide, useTheme, AnimatedCard } from "@edge/ui";
+import { COLORS, TYPOGRAPHY, SPACING, RADIUS, Icon as Lucide, useTheme, AnimatedCard, AlertToast } from "@edge/ui";
 import {
   useRegions,
   useAdminFieldOffices,
   useAdminRequirements,
   useAdminFees,
   useAdminNotes,
+  safeAsync,
+  createFieldOffice,
+  updateFieldOffice,
+  deleteFieldOffice,
 } from "@edge/api";
 
 import {
@@ -51,7 +55,7 @@ export function AdminSettingsScreen(): React.ReactElement {
 
   // Live API Hooks
   const { regions } = useRegions();
-  const { fieldOffices } = useAdminFieldOffices();
+  const { fieldOffices, refetch } = useAdminFieldOffices();
   const { requirements: apiRequirements, serviceVariantRequirements: apiSvrRequirements } = useAdminRequirements();
   const { fees: apiFees, serviceFees: apiServiceFees } = useAdminFees();
   const { notes: apiNotes } = useAdminNotes();
@@ -59,6 +63,13 @@ export function AdminSettingsScreen(): React.ReactElement {
   // Edit Modal State
   const [modalType, setModalType] = useState<ModalType>("none");
   const [selectedItem, setSelectedItem] = useState<ModalInitialData | undefined>(undefined);
+
+  // Toast State
+  const [toast, setToast] = useState<{ message: string; variant: "success" | "error" } | null>(null);
+
+  const showToast = (message: string, variant: "success" | "error" = "success") => {
+    setToast({ message, variant });
+  };
 
   // Delete Permission Dialog State
   const [deleteModal, setDeleteModal] = useState<{
@@ -78,7 +89,7 @@ export function AdminSettingsScreen(): React.ReactElement {
     id: fo.id,
     name: fo.name,
     code: fo.code,
-    type: fo.code.includes("MAIN") || fo.code.includes("001") ? "Main Office" : "Field Office",
+    type: fo.category === "Extension" ? "Field Office" : (fo.code.includes("MAIN") || fo.code.includes("001") ? "Main Office" : "Field Office"),
     address: fo.address,
     contactNumber: fo.contactPhone || "(088) 123-4567",
   }));
@@ -192,6 +203,9 @@ export function AdminSettingsScreen(): React.ReactElement {
       name: office.name,
       code: office.code,
       branchType: office.type,
+      branchCategory: office.type === "Field Office" ? "Extension" : "Main",
+      address: office.address,
+      contactPhone: office.contactNumber,
     });
     setModalType("add-branch");
   };
@@ -200,8 +214,12 @@ export function AdminSettingsScreen(): React.ReactElement {
     setDeleteModal({
       visible: true,
       itemTitle: name,
-      itemType: "Branch Office",
-      onConfirm: () => {},
+      itemType: "Field Office",
+      onConfirm: async () => {
+        await safeAsync(deleteFieldOffice(id));
+        refetch();
+        setDeleteModal((prev) => ({ ...prev, visible: false }));
+      },
     });
   };
 
@@ -289,8 +307,64 @@ export function AdminSettingsScreen(): React.ReactElement {
           type={modalType}
           initialData={selectedItem}
           onClose={() => setModalType("none")}
-          onSave={() => setModalType("none")}
+          onSave={async (savedData) => {
+            if (modalType === "add-branch") {
+              const selectedRegionId = regions.length > 0 ? regions[0].id : "00000000-0000-0000-0000-000000000000";
+              if (selectedItem?.id) {
+                const [res, err] = await safeAsync(
+                  updateFieldOffice(selectedItem.id, {
+                    id: selectedItem.id,
+                    name: savedData.name || savedData.title,
+                    code: savedData.code,
+                    category: savedData.branchCategory || (savedData.branchType === "Field Office" ? "Extension" : "Main"),
+                    address: savedData.address,
+                    contactPhone: savedData.contactPhone,
+                    contactEmail: savedData.contactEmail,
+                    description: savedData.description,
+                    regionId: selectedRegionId,
+                  })
+                );
+                if (err || !res) {
+                  const errorMsg = err || "Failed to update regional field office.";
+                  showToast(errorMsg, "error");
+                  throw new Error(errorMsg);
+                }
+                showToast("Regional Field Office updated successfully!", "success");
+              } else {
+                const [res, err] = await safeAsync(
+                  createFieldOffice({
+                    name: savedData.name || savedData.title,
+                    code: savedData.code,
+                    category: savedData.branchCategory || (savedData.branchType === "Field Office" ? "Extension" : "Main"),
+                    address: savedData.address,
+                    contactPhone: savedData.contactPhone,
+                    contactEmail: savedData.contactEmail,
+                    description: savedData.description,
+                    regionId: selectedRegionId,
+                  })
+                );
+                if (err || !res) {
+                  const errorMsg = err || "Failed to create regional field office.";
+                  showToast(errorMsg, "error");
+                  throw new Error(errorMsg);
+                }
+                showToast("Regional Field Office created successfully!", "success");
+              }
+              refetch();
+            }
+            setModalType("none");
+          }}
         />
+
+        {toast !== null && (
+          <View style={styles.toastContainer}>
+            <AlertToast
+              message={toast.message}
+              variant={toast.variant}
+              onDismiss={() => setToast(null)}
+            />
+          </View>
+        )}
 
         <DeleteAdminItemModal
           visible={deleteModal.visible}
@@ -370,5 +444,11 @@ const styles = StyleSheet.create({
     width: "100%",
     borderRadius: 16,
     overflow: "hidden",
+  },
+  toastContainer: {
+    position: "absolute",
+    top: 20,
+    right: 24,
+    zIndex: 99999,
   },
 });
