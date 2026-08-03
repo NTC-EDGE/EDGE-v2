@@ -544,6 +544,7 @@ export interface Requirement {
 export interface ServiceVariant {
   id: string;
   serviceId: string;
+  serviceName?: string | null;
   type: string;
   description?: string | null;
 }
@@ -556,7 +557,7 @@ export interface ServiceVariantRequirement {
   serviceVariantType?: string;
   serviceName?: string;
   serviceCode?: string;
-  applicationTypeKey?: string | null;
+  contextKey?: string | null;
   isRequired: boolean;
 }
 

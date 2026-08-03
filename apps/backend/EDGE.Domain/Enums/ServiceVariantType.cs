@@ -15,5 +15,8 @@ public enum ServiceVariantType
 {
     New,
     Renewal,
-    Modification
+    Modification,
+    Retaker,
+    FirstTaker,
+    Upgrade
 }

@@ -6,4 +6,4 @@ using EDGE.Application.Services.Dtos;
 
 namespace EDGE.Application.Services.Queries.GetServiceVariants;
 
-public record GetServiceVariantsQuery(Guid ServiceId) : IRequest<ApiResponse<List<ServiceVariantDto>>>;
+public record GetServiceVariantsQuery(Guid? ServiceId) : IRequest<ApiResponse<List<ServiceVariantDto>>>;

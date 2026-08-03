@@ -36,7 +36,7 @@ export function ServiceVariantRequirementsTable({
     const serviceCode = svr.serviceCode ?? "";
     const variantType = svr.serviceVariantType ?? "";
     const reqName = svr.requirement?.name ?? "";
-    const appType = svr.applicationTypeKey ?? "";
+    const appType = svr.contextKey ?? "";
 
     return (
       serviceName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -60,7 +60,7 @@ export function ServiceVariantRequirementsTable({
             <tr className="border-b border-slate-800 bg-slate-950/60 text-slate-400 text-xs uppercase font-semibold tracking-wider">
               <th className="px-6 py-4">Service & Variant</th>
               <th className="px-6 py-4">Requirement</th>
-              <th className="px-6 py-4">Application Type Key</th>
+              <th className="px-6 py-4">Context Key</th>
               <th className="px-6 py-4">Necessity</th>
               {canManage && <th className="px-6 py-4 text-right">Actions</th>}
             </tr>
@@ -119,8 +119,8 @@ export function ServiceVariantRequirementsTable({
                     </td>
                     <td className="px-6 py-4">
                       <span className="font-mono text-xs bg-slate-950/70 border border-slate-800 px-2 py-0.5 rounded text-slate-300">
-                        {item.applicationTypeKey !== null && item.applicationTypeKey !== undefined && item.applicationTypeKey !== "" 
-                          ? item.applicationTypeKey 
+                        {item.contextKey !== null && item.contextKey !== undefined && item.contextKey !== "" 
+                          ? item.contextKey 
                           : "Any / Default"}
                       </span>
                     </td>
