@@ -13,6 +13,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 import { ToastNotification, ToastMessage, getErrorMessage } from "@/components/ui/toast-notification";
+import { isForbiddenError, PageForbiddenState } from "@/components/PageForbiddenState";
 
 export default function DocumentTypesPage() {
   const { useDocumentTypes, createDocumentType } = useDocumentTypeService();
@@ -26,7 +27,7 @@ export default function DocumentTypesPage() {
   const [category, setCategory] = useState("General");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { data: responseData, mutate, isLoading } = useDocumentTypes(1, 50, searchTerm);
+  const { data: responseData, mutate, isLoading, error } = useDocumentTypes(1, 50, searchTerm);
 
   const docTypes: DocumentType[] = Array.isArray(responseData)
     ? responseData
@@ -116,7 +117,20 @@ export default function DocumentTypesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60">
-              {isLoading ? (
+              {!!error && isForbiddenError(error) ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12">
+                    <PageForbiddenState />
+                  </td>
+                </tr>
+              ) : !!error && !isForbiddenError(error) ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center text-slate-500 font-mono">
+                     <p className="text-sm font-semibold text-red-500">Failed to load document types.</p>
+                     <button onClick={() => mutate()} className="mt-4 px-4 py-2 bg-slate-800 text-slate-300 rounded-xl text-sm hover:bg-slate-700 font-medium">Retry</button>
+                  </td>
+                </tr>
+              ) : isLoading ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-12 text-center text-slate-500 font-mono">
                     Loading reference document types...

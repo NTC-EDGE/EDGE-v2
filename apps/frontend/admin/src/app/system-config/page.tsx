@@ -16,6 +16,7 @@ import {
   Search
 } from "lucide-react";
 import { ToastNotification, ToastMessage, getErrorMessage } from "@/components/ui/toast-notification";
+import { isForbiddenError, PageForbiddenState } from "@/components/PageForbiddenState";
 
 export default function SystemConfigPage() {
   const { useSystemConfigs, updateSystemConfig } = useSystemConfigService();
@@ -26,7 +27,7 @@ export default function SystemConfigPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
-  const { data: responseData, mutate, isLoading } = useSystemConfigs(1, 50, searchTerm, activeTab);
+  const { data: responseData, mutate, isLoading, error } = useSystemConfigs(1, 50, searchTerm, activeTab);
 
   const configs: SystemConfig[] = Array.isArray(responseData)
     ? responseData
@@ -195,8 +196,16 @@ export default function SystemConfigPage() {
       </div>
 
       {/* Settings Form Content */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 md:p-8 space-y-6">
-        {activeTab === "General" && (
+      {!!error && isForbiddenError(error) && <PageForbiddenState />}
+      {!!error && !isForbiddenError(error) && (
+        <div className="p-12 text-center bg-slate-900 border border-slate-800 rounded-2xl shadow-xl">
+          <p className="text-red-500 font-medium text-base">Failed to load system config</p>
+          <button onClick={() => mutate()} className="mt-4 px-4 py-2 bg-slate-800 text-slate-300 rounded-xl text-sm hover:bg-slate-700 font-medium">Retry</button>
+        </div>
+      )}
+      {!error && (
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 md:p-8 space-y-6">
+          {activeTab === "General" && (
           <div className="space-y-6 max-w-2xl">
             <h2 className="text-lg font-bold text-white flex items-center gap-2">
               <Globe className="h-5 w-5 text-indigo-400" /> General Application Info
@@ -340,6 +349,7 @@ export default function SystemConfigPage() {
           </div>
         )}
       </div>
+      )}
 
       <ToastNotification toast={toast} onClose={() => setToast(null)} />
     </div>

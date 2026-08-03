@@ -23,8 +23,8 @@ import {
   Activity,
   AlertCircle,
   FileCheck,
-  Layers,
-  Boxes
+  Boxes,
+  KeyRound,
 } from "lucide-react";
 import { useAdminScope, AdminRoleType } from "@/lib/admin-scope-context";
 
@@ -302,21 +302,22 @@ export function SidebarNav() {
 
             {isSystemAdmin && (
               <Link
-                href="/application-statuses"
+                href="/roles-permissions"
                 onClick={() => setMobileOpen(false)}
                 className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                  isActive("/application-statuses")
+                  isActive("/roles-permissions")
                     ? "bg-gradient-to-r from-indigo-600/30 to-slate-800 text-white border border-indigo-500/30 shadow-sm"
                     : "text-slate-300 hover:text-white hover:bg-slate-800/60"
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <Layers className="h-4 w-4 text-purple-400" />
-                  <span>Application Statuses</span>
+                  <KeyRound className="h-4 w-4 text-purple-400" />
+                  <span>Roles &amp; Permissions</span>
                 </div>
                 <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-800 text-slate-400 font-mono">System</span>
               </Link>
             )}
+
           </div>
 
           {/* Geographics Reference Group */}

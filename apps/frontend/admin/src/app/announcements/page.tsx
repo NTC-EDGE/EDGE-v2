@@ -22,6 +22,7 @@ import { ConfirmActionDialog } from "@/components/ui/confirm-action-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 import { ToastNotification, ToastMessage, getErrorMessage } from "@/components/ui/toast-notification";
+import { isForbiddenError, PageForbiddenState } from "@/components/PageForbiddenState";
 
 export default function AnnouncementsPage() {
   const {
@@ -47,7 +48,7 @@ export default function AnnouncementsPage() {
   const [isActive, setIsActive] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { data: responseData, mutate, isLoading } = useAnnouncements(1, 50, searchTerm, filterType);
+  const { data: responseData, mutate, isLoading, error } = useAnnouncements(1, 50, searchTerm, filterType);
 
   const announcements: SystemAnnouncement[] = Array.isArray(responseData)
     ? responseData
@@ -232,67 +233,79 @@ export default function AnnouncementsPage() {
       </div>
 
       {/* Grid of Announcements */}
-      {isLoading ? (
-        <div className="p-12 text-center text-slate-500 font-mono text-sm">Loading system announcements...</div>
-      ) : filteredAnnouncements.length === 0 ? (
+      {!!error && isForbiddenError(error) && <PageForbiddenState />}
+      {!!error && !isForbiddenError(error) && (
         <div className="p-12 text-center bg-slate-900/40 rounded-2xl border border-slate-800">
-          <Megaphone className="h-10 w-10 text-slate-600 mx-auto mb-3" />
-          <p className="text-white font-medium text-base">No announcements found</p>
-          <p className="text-slate-400 text-xs mt-1">Create an announcement banner to notify operational users.</p>
+          <AlertTriangle className="h-10 w-10 text-red-500 mx-auto mb-3" />
+          <p className="text-red-500 font-medium text-base">Failed to load announcements</p>
+          <button onClick={() => mutate()} className="mt-4 px-4 py-2 bg-slate-800 text-slate-300 rounded-xl text-sm hover:bg-slate-700 font-medium">Retry</button>
         </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredAnnouncements.map((a) => (
-            <div
-              key={a.id}
-              className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col justify-between hover:border-slate-700 transition-all group"
-            >
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  {getTypeBadge(a.type)}
-                  <button
-                    onClick={() => handleTogglePublish(a)}
-                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
-                      a.isActive
-                        ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                        : "bg-slate-800 text-slate-400 border border-slate-700"
-                    }`}
-                  >
-                    {a.isActive ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
-                    {a.isActive ? "Published" : "Draft"}
-                  </button>
-                </div>
-                <h3 className="font-bold text-white text-lg group-hover:text-indigo-400 transition-colors">
-                  {a.title}
-                </h3>
-                <p className="text-slate-400 text-sm line-clamp-3 leading-relaxed">{a.message}</p>
-              </div>
-
-              <div className="pt-5 mt-5 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-500">
-                <div className="flex items-center gap-1.5">
-                  <Globe className="h-3.5 w-3.5 text-slate-400" />
-                  <span>Audience: {a.targetAudience}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handleOpenEditModal(a)}
-                    className="p-1.5 text-slate-400 hover:text-indigo-400 hover:bg-slate-800 rounded-lg transition-all"
-                    title="Edit"
-                  >
-                    <Edit className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => setDeletingId(a.id)}
-                    className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition-all"
-                    title="Delete"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
+      )}
+      {!error && (
+        <>
+          {isLoading ? (
+            <div className="p-12 text-center text-slate-500 font-mono text-sm">Loading system announcements...</div>
+          ) : filteredAnnouncements.length === 0 ? (
+            <div className="p-12 text-center bg-slate-900/40 rounded-2xl border border-slate-800">
+              <Megaphone className="h-10 w-10 text-slate-600 mx-auto mb-3" />
+              <p className="text-white font-medium text-base">No announcements found</p>
+              <p className="text-slate-400 text-xs mt-1">Create an announcement banner to notify operational users.</p>
             </div>
-          ))}
-        </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredAnnouncements.map((a) => (
+                <div
+                  key={a.id}
+                  className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col justify-between hover:border-slate-700 transition-all group"
+                >
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      {getTypeBadge(a.type)}
+                      <button
+                        onClick={() => handleTogglePublish(a)}
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
+                          a.isActive
+                            ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                            : "bg-slate-800 text-slate-400 border border-slate-700"
+                        }`}
+                      >
+                        {a.isActive ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+                        {a.isActive ? "Published" : "Draft"}
+                      </button>
+                    </div>
+                    <h3 className="font-bold text-white text-lg group-hover:text-indigo-400 transition-colors">
+                      {a.title}
+                    </h3>
+                    <p className="text-slate-400 text-sm line-clamp-3 leading-relaxed">{a.message}</p>
+                  </div>
+
+                  <div className="pt-5 mt-5 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-500">
+                    <div className="flex items-center gap-1.5">
+                      <Globe className="h-3.5 w-3.5 text-slate-400" />
+                      <span>Audience: {a.targetAudience}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleOpenEditModal(a)}
+                        className="p-1.5 text-slate-400 hover:text-indigo-400 hover:bg-slate-800 rounded-lg transition-all"
+                        title="Edit"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => setDeletingId(a.id)}
+                        className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition-all"
+                        title="Delete"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       {/* Create / Edit Modal */}

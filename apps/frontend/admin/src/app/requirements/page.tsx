@@ -11,6 +11,7 @@ import { ServiceVariantRequirementsTable } from "@/components/requirements/Servi
 import { CreateRequirementDialog } from "@/components/requirements/CreateRequirementDialog";
 import { EditRequirementDialog } from "@/components/requirements/EditRequirementDialog";
 import { ConfirmActionDialog } from "@/components/ui/confirm-action-dialog";
+import { isForbiddenError, PageForbiddenState } from "@/components/PageForbiddenState";
 
 type TabType = "requirements" | "service-requirements";
 
@@ -53,8 +54,9 @@ export default function RequirementsPage() {
   const [confirmConfig, setConfirmConfig] = useState<ConfirmConfig | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const { data: requirements = [], mutate: mutateReqs, isLoading: loadingReqs } = useRequirements();
-  const { data: serviceVariantRequirements = [], mutate: mutateSvr, isLoading: loadingSvr } = useServiceVariantRequirements();
+  const { data: requirements = [], mutate: mutateReqs, isLoading: loadingReqs, error: errorReqs } = useRequirements();
+  const { data: serviceVariantRequirements = [], mutate: mutateSvr, isLoading: loadingSvr, error: errorSvr } = useServiceVariantRequirements();
+  const error = errorReqs || errorSvr;
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
@@ -248,31 +250,42 @@ export default function RequirementsPage() {
       </div>
 
       <div className="animate-fade-in">
-        {activeTab === "requirements" ? (
-          <RequirementsTable
-            requirements={requirements}
-            serviceVariantRequirements={serviceVariantRequirements}
-            loading={loadingReqs}
-            canManage={canManage}
-            searchTerm={searchTerm}
-            onEdit={(req) => {
-              setSelectedReq(req);
-              setIsEditOpen(true);
-            }}
-            onDelete={(req) => handleDeleteRequest("requirements", req)}
-          />
-        ) : (
-          <ServiceVariantRequirementsTable
-            serviceVariantRequirements={serviceVariantRequirements}
-            loading={loadingSvr}
-            canManage={canManage}
-            searchTerm={searchTerm}
-            onEdit={(svr) => {
-              setSelectedSvr(svr);
-              setIsEditOpen(true);
-            }}
-            onDelete={(svr) => handleDeleteRequest("service-requirements", svr)}
-          />
+        {!!error && isForbiddenError(error) && <PageForbiddenState />}
+        {!!error && !isForbiddenError(error) && (
+          <div className="p-12 text-center bg-slate-900/40 rounded-2xl border border-slate-800">
+            <p className="text-red-500 font-medium text-base">Failed to load requirements</p>
+            <button onClick={() => { mutateReqs(); mutateSvr(); }} className="mt-4 px-4 py-2 bg-slate-800 text-slate-300 rounded-xl text-sm hover:bg-slate-700 font-medium">Retry</button>
+          </div>
+        )}
+        {!error && (
+          <>
+            {activeTab === "requirements" ? (
+              <RequirementsTable
+                requirements={requirements}
+                serviceVariantRequirements={serviceVariantRequirements}
+                loading={loadingReqs}
+                canManage={canManage}
+                searchTerm={searchTerm}
+                onEdit={(req) => {
+                  setSelectedReq(req);
+                  setIsEditOpen(true);
+                }}
+                onDelete={(req) => handleDeleteRequest("requirements", req)}
+              />
+            ) : (
+              <ServiceVariantRequirementsTable
+                serviceVariantRequirements={serviceVariantRequirements}
+                loading={loadingSvr}
+                canManage={canManage}
+                searchTerm={searchTerm}
+                onEdit={(svr) => {
+                  setSelectedSvr(svr);
+                  setIsEditOpen(true);
+                }}
+                onDelete={(svr) => handleDeleteRequest("service-requirements", svr)}
+              />
+            )}
+          </>
         )}
       </div>
 

@@ -38,6 +38,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { ToastNotification, ToastMessage, getErrorMessage } from "@/components/ui/toast-notification";
+import { isForbiddenError, PageForbiddenState } from "@/components/PageForbiddenState";
 
 export default function TenantsPage() {
   const router = useRouter();
@@ -53,7 +54,7 @@ export default function TenantsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  const { data: fetchedTenants, isLoading: loadingTenants, mutate } = useTenants(currentPage, pageSize, searchTerm);
+  const { data: fetchedTenants, isLoading: loadingTenants, mutate, error } = useTenants(currentPage, pageSize, searchTerm);
   const { data: regionsResponse } = useRegions();
 
   const regions: Region[] = regionsResponse?.data ?? [];
@@ -300,8 +301,16 @@ export default function TenantsPage() {
       </div>
 
       {/* Tenants Table */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden">
-        <div className="overflow-x-auto">
+      {!!error && isForbiddenError(error) && <PageForbiddenState />}
+      {!!error && !isForbiddenError(error) && (
+        <div className="p-12 text-center bg-slate-900 border border-slate-800 rounded-2xl shadow-xl">
+          <p className="text-red-500 font-medium text-base">Failed to load tenants</p>
+          <button onClick={() => mutate()} className="mt-4 px-4 py-2 bg-slate-800 text-slate-300 rounded-xl text-sm hover:bg-slate-700 font-medium">Retry</button>
+        </div>
+      )}
+      {!error && (
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden">
+          <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-slate-800 bg-slate-950/60 text-slate-400 text-xs uppercase font-semibold tracking-wider">
@@ -432,6 +441,7 @@ export default function TenantsPage() {
           />
         )}
       </div>
+      )}
 
       {/* Create Tenant Modal */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>

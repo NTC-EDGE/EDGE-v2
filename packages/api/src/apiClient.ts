@@ -4,10 +4,13 @@ import { attachTokenInterceptor } from './services/tokenManager';
 
 const getApiUrl = (): string => {
   const envUrl = process.env.EXPO_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_URL;
-  if (typeof envUrl === 'string' && envUrl.length > 0) {
-    return envUrl;
+  if (typeof envUrl === 'string' && envUrl.trim().length > 0) {
+    return envUrl.trim();
   }
-  return 'http://localhost:5038';
+  throw new Error(
+    '[EDGE API] No API base URL configured. ' +
+    'Set NEXT_PUBLIC_API_URL (Next.js) or EXPO_PUBLIC_API_URL (Expo) in your .env file.'
+  );
 };
 
 export const apiClient = axios.create({
@@ -51,6 +54,14 @@ export function useAuthenticatedSWR<Data = unknown, Error = unknown>(
     keepPreviousData: true,
     dedupingInterval: 5000,
     onErrorRetry: (error, _key, _config, revalidate, opts) => {
+      // Never retry on 403 Forbidden — it is not a transient error
+      if (
+        typeof error === 'object' &&
+        error !== null &&
+        (error as { response?: { status?: number } }).response?.status === 403
+      ) {
+        return;
+      }
       // Retry up to 3 times for 401 errors to allow Clerk authentication token to settle
       if (opts.retryCount < 3) {
         setTimeout(() => revalidate({ retryCount: opts.retryCount }), 1200);

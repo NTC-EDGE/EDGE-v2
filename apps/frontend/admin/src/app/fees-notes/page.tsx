@@ -16,6 +16,7 @@ import { NotesTable } from "@/components/fees-notes/NotesTable";
 import { CreateRecordDialog } from "@/components/fees-notes/CreateRecordDialog";
 import { EditRecordDialog } from "@/components/fees-notes/EditRecordDialog";
 import { ConfirmActionDialog } from "@/components/ui/confirm-action-dialog";
+import { isForbiddenError, PageForbiddenState } from "@/components/PageForbiddenState";
 
 type TabType = "fees" | "service-fees" | "notes" | "elements" | "service-variant-fees" | "service-variant-element-fees";
 
@@ -66,44 +67,47 @@ export default function FeesNotesPage() {
     setCurrentPage(1);
   }, [activeTab, searchTerm]);
 
-  const { data: fees = [], totalCount: feesTotalCount, mutate: mutateFees, isLoading: loadingFees } = useFees(
+  const { data: fees = [], totalCount: feesTotalCount, mutate: mutateFees, isLoading: loadingFees, error: errorFees } = useFees(
     activeTab === "fees" ? currentPage : 1,
     activeTab === "fees" ? pageSize : 9999,
     activeTab === "fees" ? searchTerm : undefined,
     activeTab === "fees" || activeTab === "service-fees" || isCreateOpen || isEditOpen
   );
-  const { data: serviceFees = [], totalCount: serviceFeesTotalCount, mutate: mutateServiceFees, isLoading: loadingSFees } = useServiceFees(
+  const { data: serviceFees = [], totalCount: serviceFeesTotalCount, mutate: mutateServiceFees, isLoading: loadingSFees, error: errorSFees } = useServiceFees(
     activeTab === "service-fees" ? currentPage : 1,
     activeTab === "service-fees" ? pageSize : 9999,
     activeTab === "service-fees" ? searchTerm : undefined,
     activeTab === "service-fees" || activeTab === "fees" || isCreateOpen || isEditOpen
   );
-  const { data: elements = [], totalCount: elementsTotalCount, mutate: mutateElements, isLoading: loadingElements } = useElements(
+  const { data: elements = [], totalCount: elementsTotalCount, mutate: mutateElements, isLoading: loadingElements, error: errorElements } = useElements(
     activeTab === "elements" ? currentPage : 1,
     activeTab === "elements" ? pageSize : 9999,
     activeTab === "elements" ? searchTerm : undefined,
     activeTab === "elements" || activeTab === "service-variant-element-fees" || isCreateOpen || isEditOpen
   );
-  const { data: serviceVariantFees = [], totalCount: serviceVariantFeesTotalCount, mutate: mutateServiceVariantFees, isLoading: loadingSVFees } = useServiceVariantFees(
+  const { data: serviceVariantFees = [], totalCount: serviceVariantFeesTotalCount, mutate: mutateServiceVariantFees, isLoading: loadingSVFees, error: errorSVFees } = useServiceVariantFees(
     undefined,
     activeTab === "service-variant-fees" ? currentPage : 1,
     activeTab === "service-variant-fees" ? pageSize : 9999,
     activeTab === "service-variant-fees" ? searchTerm : undefined,
     activeTab === "service-variant-fees"
   );
-  const { data: serviceVariantElementFees = [], totalCount: serviceVariantElementFeesTotalCount, mutate: mutateServiceVariantElementFees, isLoading: loadingSVEFees } = useServiceVariantElementFees(
+  const { data: serviceVariantElementFees = [], totalCount: serviceVariantElementFeesTotalCount, mutate: mutateServiceVariantElementFees, isLoading: loadingSVEFees, error: errorSVEFees } = useServiceVariantElementFees(
     undefined,
     activeTab === "service-variant-element-fees" ? currentPage : 1,
     activeTab === "service-variant-element-fees" ? pageSize : 9999,
     activeTab === "service-variant-element-fees" ? searchTerm : undefined,
     activeTab === "service-variant-element-fees"
   );
-  const { data: notes = [], totalCount: notesTotalCount, mutate: mutateNotes, isLoading: loadingNotes } = useNotes(
+  const { data: notes = [], totalCount: notesTotalCount, mutate: mutateNotes, isLoading: loadingNotes, error: errorNotes } = useNotes(
     currentPage,
     pageSize,
     activeTab === "notes" ? searchTerm : undefined,
     activeTab === "notes"
   );
+  
+  const error = errorFees || errorSFees || errorElements || errorSVFees || errorSVEFees || errorNotes;
+
   const { data: services = [] } = useServices(
     isCreateOpen || isEditOpen || activeTab === "service-fees"
   );
@@ -338,92 +342,103 @@ export default function FeesNotesPage() {
       </div>
 
       <div className="animate-fade-in">
-        {activeTab === "fees" && (
-          <FeesTable 
-            fees={fees} 
-            totalCount={feesTotalCount}
-            currentPage={currentPage}
-            pageSize={pageSize}
-            onPageChange={setCurrentPage}
-            onPageSizeChange={setPageSize}
-            serviceFees={serviceFees}
-            loading={loadingFees} 
-            canManage={canManage} 
-            onEdit={(f) => { setSelectedFee(f); setIsEditOpen(true); }} 
-            onDelete={(f) => handleDeleteRequest("fees", f)} 
-            onToggleStatus={handleToggleStatusRequest}
-          />
+        {!!error && isForbiddenError(error) && <PageForbiddenState />}
+        {!!error && !isForbiddenError(error) && (
+          <div className="p-12 text-center bg-slate-900 border border-slate-800 rounded-2xl shadow-xl">
+            <p className="text-red-500 font-medium text-base">Failed to load data</p>
+            <button onClick={() => window.location.reload()} className="mt-4 px-4 py-2 bg-slate-800 text-slate-300 rounded-xl text-sm hover:bg-slate-700 font-medium">Retry</button>
+          </div>
         )}
-        {activeTab === "elements" && (
-          <ElementsTable 
-            elements={elements} 
-            totalCount={elementsTotalCount}
-            currentPage={currentPage}
-            pageSize={pageSize}
-            onPageChange={setCurrentPage}
-            onPageSizeChange={setPageSize}
-            loading={loadingElements} 
-            canManage={canManage} 
-            onEdit={(elem) => { setSelectedElement(elem); setIsEditOpen(true); }} 
-            onDelete={(elem) => handleDeleteRequest("elements", elem)} 
-          />
-        )}
-        {activeTab === "service-fees" && (
-          <ServiceFeesTable 
-            serviceFees={serviceFees} 
-            totalCount={serviceFeesTotalCount}
-            currentPage={currentPage}
-            pageSize={pageSize}
-            onPageChange={setCurrentPage}
-            onPageSizeChange={setPageSize}
-            loading={loadingSFees} 
-            canManage={canManage} 
-            onEdit={(sf) => { setSelectedServiceFee(sf); setIsEditOpen(true); }} 
-            onDelete={(sf) => handleDeleteRequest("service-fees", sf)} 
-          />
-        )}
-        {activeTab === "service-variant-fees" && (
-          <ServiceVariantFeesTable 
-            serviceVariantFees={serviceVariantFees} 
-            totalCount={serviceVariantFeesTotalCount}
-            currentPage={currentPage}
-            pageSize={pageSize}
-            onPageChange={setCurrentPage}
-            onPageSizeChange={setPageSize}
-            loading={loadingSVFees} 
-            canManage={canManage} 
-            onEdit={(svf) => { setSelectedServiceVariantFee(svf); setIsEditOpen(true); }} 
-            onDelete={(svf) => handleDeleteRequest("service-variant-fees", svf)} 
-          />
-        )}
-        {activeTab === "service-variant-element-fees" && (
-          <ServiceVariantElementFeesTable 
-            serviceVariantElementFees={serviceVariantElementFees} 
-            totalCount={serviceVariantElementFeesTotalCount}
-            currentPage={currentPage}
-            pageSize={pageSize}
-            onPageChange={setCurrentPage}
-            onPageSizeChange={setPageSize}
-            loading={loadingSVEFees} 
-            canManage={canManage} 
-            onEdit={(svef) => { setSelectedServiceVariantElementFee(svef); setIsEditOpen(true); }} 
-            onDelete={(svef) => handleDeleteRequest("service-variant-element-fees", svef)} 
-          />
-        )}
-        {activeTab === "notes" && (
-          <NotesTable 
-            notes={notes} 
-            totalCount={notesTotalCount}
-            currentPage={currentPage}
-            pageSize={pageSize}
-            onPageChange={setCurrentPage}
-            onPageSizeChange={setPageSize}
-            categories={categories}
-            loading={loadingNotes} 
-            canManage={canManage} 
-            onEdit={(n) => { setSelectedNote(n); setIsEditOpen(true); }} 
-            onDelete={(n) => handleDeleteRequest("notes", n)} 
-          />
+        {!error && (
+          <>
+            {activeTab === "fees" && (
+              <FeesTable 
+                fees={fees} 
+                totalCount={feesTotalCount}
+                currentPage={currentPage}
+                pageSize={pageSize}
+                onPageChange={setCurrentPage}
+                onPageSizeChange={setPageSize}
+                serviceFees={serviceFees}
+                loading={loadingFees} 
+                canManage={canManage} 
+                onEdit={(f) => { setSelectedFee(f); setIsEditOpen(true); }} 
+                onDelete={(f) => handleDeleteRequest("fees", f)} 
+                onToggleStatus={handleToggleStatusRequest}
+              />
+            )}
+            {activeTab === "elements" && (
+              <ElementsTable 
+                elements={elements} 
+                totalCount={elementsTotalCount}
+                currentPage={currentPage}
+                pageSize={pageSize}
+                onPageChange={setCurrentPage}
+                onPageSizeChange={setPageSize}
+                loading={loadingElements} 
+                canManage={canManage} 
+                onEdit={(elem) => { setSelectedElement(elem); setIsEditOpen(true); }} 
+                onDelete={(elem) => handleDeleteRequest("elements", elem)} 
+              />
+            )}
+            {activeTab === "service-fees" && (
+              <ServiceFeesTable 
+                serviceFees={serviceFees} 
+                totalCount={serviceFeesTotalCount}
+                currentPage={currentPage}
+                pageSize={pageSize}
+                onPageChange={setCurrentPage}
+                onPageSizeChange={setPageSize}
+                loading={loadingSFees} 
+                canManage={canManage} 
+                onEdit={(sf) => { setSelectedServiceFee(sf); setIsEditOpen(true); }} 
+                onDelete={(sf) => handleDeleteRequest("service-fees", sf)} 
+              />
+            )}
+            {activeTab === "service-variant-fees" && (
+              <ServiceVariantFeesTable 
+                serviceVariantFees={serviceVariantFees} 
+                totalCount={serviceVariantFeesTotalCount}
+                currentPage={currentPage}
+                pageSize={pageSize}
+                onPageChange={setCurrentPage}
+                onPageSizeChange={setPageSize}
+                loading={loadingSVFees} 
+                canManage={canManage} 
+                onEdit={(svf) => { setSelectedServiceVariantFee(svf); setIsEditOpen(true); }} 
+                onDelete={(svf) => handleDeleteRequest("service-variant-fees", svf)} 
+              />
+            )}
+            {activeTab === "service-variant-element-fees" && (
+              <ServiceVariantElementFeesTable 
+                serviceVariantElementFees={serviceVariantElementFees} 
+                totalCount={serviceVariantElementFeesTotalCount}
+                currentPage={currentPage}
+                pageSize={pageSize}
+                onPageChange={setCurrentPage}
+                onPageSizeChange={setPageSize}
+                loading={loadingSVEFees} 
+                canManage={canManage} 
+                onEdit={(svef) => { setSelectedServiceVariantElementFee(svef); setIsEditOpen(true); }} 
+                onDelete={(svef) => handleDeleteRequest("service-variant-element-fees", svef)} 
+              />
+            )}
+            {activeTab === "notes" && (
+              <NotesTable 
+                notes={notes} 
+                totalCount={notesTotalCount}
+                currentPage={currentPage}
+                pageSize={pageSize}
+                onPageChange={setCurrentPage}
+                onPageSizeChange={setPageSize}
+                categories={categories}
+                loading={loadingNotes} 
+                canManage={canManage} 
+                onEdit={(n) => { setSelectedNote(n); setIsEditOpen(true); }} 
+                onDelete={(n) => handleDeleteRequest("notes", n)} 
+              />
+            )}
+          </>
         )}
       </div>
 

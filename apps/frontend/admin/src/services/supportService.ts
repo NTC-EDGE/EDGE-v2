@@ -22,41 +22,41 @@ export function useSupportService() {
     }
 
     const queryString = params.toString();
-    const endpoint = `/support/users${queryString.length > 0 ? `?${queryString}` : ''}`;
+    const endpoint = `/api/v2/support/users${queryString.length > 0 ? `?${queryString}` : ''}`;
     return useQuery<GlobalSupportUser[]>(endpoint);
   };
 
   const useUserDiagnostics = (userId: string | null) => {
     const isVal = userId !== null && userId !== undefined && userId.length > 0;
-    return useQuery<UserDiagnosticDetails>(isVal ? `/support/users/${userId}/diagnostics` : null);
+    return useQuery<UserDiagnosticDetails>(isVal ? `/api/v2/support/users/${userId}/diagnostics` : null);
   };
 
   const unlockAccount = async (userId: string): Promise<{ success: boolean; message: string }> => {
-    return post<{ success: boolean; message: string }>(`/support/users/${userId}/unlock`, {});
+    return post<{ success: boolean; message: string }>(`/api/v2/support/users/${userId}/unlock`, {});
   };
 
   const resetPassword = async (userId: string): Promise<{ success: boolean; message: string }> => {
-    return post<{ success: boolean; message: string }>(`/support/users/${userId}/reset-password`, {});
+    return post<{ success: boolean; message: string }>(`/api/v2/support/users/${userId}/reset-password`, {});
   };
 
   const revokeAllSessions = async (userId: string): Promise<{ success: boolean; message: string }> => {
-    return post<{ success: boolean; message: string }>(`/support/users/${userId}/revoke-sessions`, {});
+    return post<{ success: boolean; message: string }>(`/api/v2/support/users/${userId}/revoke-sessions`, {});
   };
 
   const toggleMfaRequirement = async (userId: string, enabled: boolean): Promise<{ success: boolean; message: string }> => {
-    return put<{ success: boolean; message: string }>(`/support/users/${userId}/mfa`, { enabled });
+    return put<{ success: boolean; message: string }>(`/api/v2/support/users/${userId}/mfa`, { enabled });
   };
 
   const updateUserStatus = async (request: UpdateUserStatusRequest): Promise<{ success: boolean; message: string }> => {
-    return put<{ success: boolean; message: string }>(`/support/users/${request.userId}/status`, request);
+    return put<{ success: boolean; message: string }>(`/api/v2/support/users/${request.userId}/status`, request);
   };
 
   const addSupportNote = async (request: AddSupportNoteRequest): Promise<{ success: boolean; message: string }> => {
-    return post<{ success: boolean; message: string }>(`/support/users/${request.userId}/notes`, request);
+    return post<{ success: boolean; message: string }>(`/api/v2/support/users/${request.userId}/notes`, request);
   };
 
   const revokeSession = async (userId: string, sessionId: string): Promise<{ success: boolean; message: string }> => {
-    return del<{ success: boolean; message: string }>(`/support/users/${userId}/sessions/${sessionId}`);
+    return del<{ success: boolean; message: string }>(`/api/v2/support/users/${userId}/sessions/${sessionId}`);
   };
 
   return {

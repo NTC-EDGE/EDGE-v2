@@ -32,13 +32,16 @@ export function AdminScopeProvider({ children }: { children: ReactNode }) {
 
   // Register Clerk's getToken callback with the API tokenManager service so that
   // all outgoing apiClient requests automatically receive the correct Bearer token in headers.
+  // NOTE: We always register getToken regardless of isSignedIn state. Clerk's own SDK returns
+  // null from getToken when there is no active session, so we let it handle that gracefully.
+  // Clearing the provider when isSignedIn is false/undefined causes a race condition where
+  // the first API calls (which SWR fires immediately on mount) go out without auth headers
+  // while Clerk is still hydrating the session from its cookie — resulting in spurious 401s.
   useEffect(() => {
-    if (clerkAuth.isSignedIn && clerkAuth.getToken) {
+    if (clerkAuth.getToken) {
       setTokenProvider(clerkAuth.getToken);
-    } else {
-      setTokenProvider(null);
     }
-  }, [clerkAuth.isSignedIn, clerkAuth.getToken]);
+  }, [clerkAuth.getToken]);
 
   const isSystemAdmin = true;
   const isRegionAdmin = true;

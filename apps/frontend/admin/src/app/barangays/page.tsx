@@ -15,6 +15,7 @@ import {
   DialogDescription,
   DialogFooter
 } from "@/components/ui/dialog";
+import { isForbiddenError, PageForbiddenState } from "@/components/PageForbiddenState";
 
 export default function BarangaysPage() {
   const { useBarangays, createBarangay, updateBarangay, deleteBarangay } = useBarangayService();
@@ -253,6 +254,8 @@ export default function BarangaysPage() {
             <Loader2 className="h-8 w-8 text-primary animate-spin" />
             <p className="text-xs text-slate-400">Loading barangays database...</p>
           </div>
+        ) : !!error && isForbiddenError(error) ? (
+          <PageForbiddenState />
         ) : error ? (
           <div className="text-center py-16 px-4">
             <p className="text-sm font-semibold text-red-500">Failed to load barangays.</p>

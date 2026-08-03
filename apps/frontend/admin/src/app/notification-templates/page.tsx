@@ -15,6 +15,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 import { ToastNotification, ToastMessage, getErrorMessage } from "@/components/ui/toast-notification";
+import { isForbiddenError, PageForbiddenState } from "@/components/PageForbiddenState";
 
 export default function NotificationTemplatesPage() {
   const { useNotificationTemplates, updateNotificationTemplate } = useNotificationTemplateService();
@@ -29,7 +30,7 @@ export default function NotificationTemplatesPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [previewTab, setPreviewTab] = useState<"code" | "preview">("preview");
 
-  const { data: responseData, mutate, isLoading } = useNotificationTemplates(1, 50, searchTerm);
+  const { data: responseData, mutate, isLoading, error } = useNotificationTemplates(1, 50, searchTerm);
 
   const templates: NotificationTemplate[] = Array.isArray(responseData)
     ? responseData
@@ -100,64 +101,75 @@ export default function NotificationTemplatesPage() {
       </div>
 
       {/* Templates List */}
-      {isLoading ? (
-        <div className="p-12 text-center text-slate-500 font-mono text-sm">Loading notification templates...</div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {templates.map((t) => (
-            <div
-              key={t.id}
-              className="bg-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col justify-between space-y-4 hover:border-slate-700 transition-all"
-            >
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-mono px-2.5 py-1 rounded-md bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
-                    {t.eventKey}
-                  </span>
-                  <span
-                    className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      t.isActive
-                        ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                        : "bg-slate-800 text-slate-400"
-                    }`}
-                  >
-                    <CheckCircle className="h-3 w-3" />
-                    {t.isActive ? "Active" : "Disabled"}
-                  </span>
-                </div>
-                <h3 className="font-bold text-white text-lg">{t.name}</h3>
-                <p className="text-slate-400 text-xs font-mono bg-slate-950 p-2.5 rounded-xl border border-slate-800/80 truncate">
-                  <span className="text-slate-500">Subject:</span> {t.subject}
-                </p>
-              </div>
-
-              <div>
-                <p className="text-[10px] font-semibold uppercase text-slate-500 tracking-wider mb-2">Available Placeholders</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {t.availablePlaceholders.split(",").map((p) => (
-                    <span
-                      key={p}
-                      className="inline-flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 bg-slate-950 text-slate-300 rounded-md border border-slate-800"
-                    >
-                      <Tag className="h-2.5 w-2.5 text-indigo-400" />
-                      {p.trim()}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              <div className="pt-4 border-t border-slate-800 flex justify-end">
-                <button
-                  onClick={() => handleEdit(t)}
-                  className="flex items-center gap-2 px-4 py-2 bg-indigo-600/20 hover:bg-indigo-600 text-indigo-300 hover:text-white rounded-xl text-xs font-medium border border-indigo-500/30 transition-all"
-                >
-                  <Edit2 className="h-3.5 w-3.5" />
-                  <span>Edit Template</span>
-                </button>
-              </div>
-            </div>
-          ))}
+      {!!error && isForbiddenError(error) && <PageForbiddenState />}
+      {!!error && !isForbiddenError(error) && (
+        <div className="p-12 text-center bg-slate-900/40 rounded-2xl border border-slate-800">
+          <p className="text-red-500 font-medium text-base">Failed to load notification templates</p>
+          <button onClick={() => mutate()} className="mt-4 px-4 py-2 bg-slate-800 text-slate-300 rounded-xl text-sm hover:bg-slate-700 font-medium">Retry</button>
         </div>
+      )}
+      {!error && (
+        <>
+          {isLoading ? (
+            <div className="p-12 text-center text-slate-500 font-mono text-sm">Loading notification templates...</div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {templates.map((t) => (
+                <div
+                  key={t.id}
+                  className="bg-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col justify-between space-y-4 hover:border-slate-700 transition-all"
+                >
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-mono px-2.5 py-1 rounded-md bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
+                        {t.eventKey}
+                      </span>
+                      <span
+                        className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          t.isActive
+                            ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                            : "bg-slate-800 text-slate-400"
+                        }`}
+                      >
+                        <CheckCircle className="h-3 w-3" />
+                        {t.isActive ? "Active" : "Disabled"}
+                      </span>
+                    </div>
+                    <h3 className="font-bold text-white text-lg">{t.name}</h3>
+                    <p className="text-slate-400 text-xs font-mono bg-slate-950 p-2.5 rounded-xl border border-slate-800/80 truncate">
+                      <span className="text-slate-500">Subject:</span> {t.subject}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase text-slate-500 tracking-wider mb-2">Available Placeholders</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {t.availablePlaceholders.split(",").map((p) => (
+                        <span
+                          key={p}
+                          className="inline-flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 bg-slate-950 text-slate-300 rounded-md border border-slate-800"
+                        >
+                          <Tag className="h-2.5 w-2.5 text-indigo-400" />
+                          {p.trim()}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="pt-4 border-t border-slate-800 flex justify-end">
+                    <button
+                      onClick={() => handleEdit(t)}
+                      className="flex items-center gap-2 px-4 py-2 bg-indigo-600/20 hover:bg-indigo-600 text-indigo-300 hover:text-white rounded-xl text-xs font-medium border border-indigo-500/30 transition-all"
+                    >
+                      <Edit2 className="h-3.5 w-3.5" />
+                      <span>Edit Template</span>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       {/* Edit Template Modal */}

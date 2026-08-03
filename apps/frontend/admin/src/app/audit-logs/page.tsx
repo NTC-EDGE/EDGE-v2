@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { ToastNotification, ToastMessage } from "@/components/ui/toast-notification";
+import { isForbiddenError, PageForbiddenState } from "@/components/PageForbiddenState";
 
 export default function AuditLogsPage() {
   const { useAuditLogs } = useAuditLogService();
@@ -104,7 +105,20 @@ export default function AuditLogsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60">
-              {isLoading ? (
+              {!!error && isForbiddenError(error) ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12">
+                    <PageForbiddenState />
+                  </td>
+                </tr>
+              ) : !!error && !isForbiddenError(error) ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center text-slate-500 font-mono">
+                     <p className="text-sm font-semibold text-red-500">Failed to load audit logs.</p>
+                     <button onClick={() => window.location.reload()} className="mt-4 px-4 py-2 bg-slate-800 text-slate-300 rounded-xl text-sm hover:bg-slate-700 font-medium">Retry</button>
+                  </td>
+                </tr>
+              ) : isLoading ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-12 text-center text-slate-500 font-mono">
                     Loading audit trail logs...

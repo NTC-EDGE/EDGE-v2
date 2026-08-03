@@ -27,6 +27,7 @@ import { useTenantService } from "@/services/tenantService";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ConfirmActionDialog } from "@/components/ui/confirm-action-dialog";
 import { ToastNotification, ToastMessage, getErrorMessage } from "@/components/ui/toast-notification";
+import { isForbiddenError, PageForbiddenState } from "@/components/PageForbiddenState";
 
 export default function ServicesPage() {
   const {
@@ -68,13 +69,14 @@ export default function ServicesPage() {
   const [deletingServiceId, setDeletingServiceId] = useState<string | null>(null);
 
   // Queries
-  const { data: categoriesResponse, mutate: mutateCategories } = useServiceCategories();
+  const { data: categoriesResponse, mutate: mutateCategories, error: errorCat } = useServiceCategories();
   const categories: ServiceCategory[] = categoriesResponse?.data ?? [];
 
-  const { data: servicesResponse, mutate: mutateServices, isLoading } = useServices(
+  const { data: servicesResponse, mutate: mutateServices, isLoading, error: errorSvc } = useServices(
     selectedCategoryId !== "ALL" ? selectedCategoryId : undefined
   );
   const services: ServiceItem[] = servicesResponse?.data ?? [];
+  const error = errorCat || errorSvc;
 
   const { data: tenantsResponse } = useTenants(1, 100);
   const tenants = Array.isArray(tenantsResponse) ? tenantsResponse : tenantsResponse?.data ?? [];
@@ -355,61 +357,72 @@ export default function ServicesPage() {
       </div>
 
       {/* Services Grid */}
-      {isLoading ? (
-        <div className="p-12 text-center text-slate-500 font-mono text-sm">Loading catalog services...</div>
-      ) : filteredServices.length === 0 ? (
-        <div className="p-12 text-center bg-slate-900/40 border border-slate-800/80 rounded-2xl space-y-3">
-          <Boxes className="h-10 w-10 text-slate-600 mx-auto" />
-          <p className="text-white font-medium text-base">No services found</p>
-          <p className="text-xs text-slate-400 max-w-md mx-auto">
-            No catalog services match the selected category or search filter. Click "New Service" to add a service entry.
-          </p>
+      {!!error && isForbiddenError(error) && <PageForbiddenState />}
+      {!!error && !isForbiddenError(error) && (
+        <div className="p-12 text-center bg-slate-900/40 border border-slate-800/80 rounded-2xl">
+          <p className="text-red-500 font-medium text-base">Failed to load services</p>
+          <button onClick={() => { mutateCategories(); mutateServices(); }} className="mt-4 px-4 py-2 bg-slate-800 text-slate-300 rounded-xl text-sm hover:bg-slate-700 font-medium">Retry</button>
         </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredServices.map((s) => (
-            <div
-              key={s.id}
-              className="bg-slate-900/80 border border-slate-800 hover:border-indigo-500/40 transition-all rounded-2xl p-5 flex flex-col justify-between space-y-4"
-            >
-              <div>
-                <div className="flex items-start justify-between gap-3">
+      )}
+      {!error && (
+        <>
+          {isLoading ? (
+            <div className="p-12 text-center text-slate-500 font-mono text-sm">Loading catalog services...</div>
+          ) : filteredServices.length === 0 ? (
+            <div className="p-12 text-center bg-slate-900/40 border border-slate-800/80 rounded-2xl space-y-3">
+              <Boxes className="h-10 w-10 text-slate-600 mx-auto" />
+              <p className="text-white font-medium text-base">No services found</p>
+              <p className="text-xs text-slate-400 max-w-md mx-auto">
+                No catalog services match the selected category or search filter. Click "New Service" to add a service entry.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredServices.map((s) => (
+                <div
+                  key={s.id}
+                  className="bg-slate-900/80 border border-slate-800 hover:border-indigo-500/40 transition-all rounded-2xl p-5 flex flex-col justify-between space-y-4"
+                >
                   <div>
-                    <span className="px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[10px] font-bold font-mono">
-                      {s.serviceCategoryType || s.serviceCategoryCode || "Catalog Service"}
-                    </span>
-                    <h3 className="text-base font-bold text-white mt-1.5 line-clamp-1">{s.name}</h3>
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <span className="px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[10px] font-bold font-mono">
+                          {s.serviceCategoryType || s.serviceCategoryCode || "Catalog Service"}
+                        </span>
+                        <h3 className="text-base font-bold text-white mt-1.5 line-clamp-1">{s.name}</h3>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handleOpenEditService(s)}
+                          className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 transition-all"
+                          title="Edit Service"
+                        >
+                          <Edit className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={() => setDeletingServiceId(s.id)}
+                          className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-rose-400 hover:bg-slate-700 transition-all"
+                          title="Delete Service"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-slate-400 mt-2 line-clamp-2 leading-relaxed">
+                      {s.description || "No specific catalog description provided for this service entry."}
+                    </p>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => handleOpenEditService(s)}
-                      className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 transition-all"
-                      title="Edit Service"
-                    >
-                      <Edit className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      onClick={() => setDeletingServiceId(s.id)}
-                      className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-rose-400 hover:bg-slate-700 transition-all"
-                      title="Delete Service"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+
+                  <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between text-[11px] font-mono text-slate-500">
+                    <span>Code: {s.code || "N/A"}</span>
+                    <span>Group: {s.group || "General"}</span>
                   </div>
                 </div>
-
-                <p className="text-xs text-slate-400 mt-2 line-clamp-2 leading-relaxed">
-                  {s.description || "No specific catalog description provided for this service entry."}
-                </p>
-              </div>
-
-              <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between text-[11px] font-mono text-slate-500">
-                <span>Code: {s.code || "N/A"}</span>
-                <span>Group: {s.group || "General"}</span>
-              </div>
+              ))}
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
 
       {/* Category Modal */}
