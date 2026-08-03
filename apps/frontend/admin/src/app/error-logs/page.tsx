@@ -6,14 +6,13 @@ import {
   AlertCircle,
   Search,
   Code,
-  Globe,
-  ChevronLeft,
-  ChevronRight
+  Globe
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 import { ToastNotification, ToastMessage } from "@/components/ui/toast-notification";
 import { isForbiddenError, PageForbiddenState } from "@/components/PageForbiddenState";
+import { DataTable, ColumnDef } from "@/components/ui/data-table";
 
 export default function ErrorLogsPage() {
   const { useErrorLogs } = useErrorLogService();
@@ -83,103 +82,72 @@ export default function ErrorLogsPage() {
       </div>
 
       {/* Table */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-slate-300">
-            <thead className="bg-slate-950/80 border-b border-slate-800 text-xs font-semibold uppercase text-slate-400 tracking-wider">
-              <tr>
-                <th className="px-6 py-4">Timestamp</th>
-                <th className="px-6 py-4">Level</th>
-                <th className="px-6 py-4">Message</th>
-                <th className="px-6 py-4">Request Path</th>
-                <th className="px-6 py-4">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/60">
-              {!!error && isForbiddenError(error) ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-12">
-                    <PageForbiddenState />
-                  </td>
-                </tr>
-              ) : !!error && !isForbiddenError(error) ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-slate-500 font-mono">
-                     <p className="text-sm font-semibold text-red-500">Failed to load error logs.</p>
-                     <button onClick={() => window.location.reload()} className="mt-4 px-4 py-2 bg-slate-800 text-slate-300 rounded-xl text-sm hover:bg-slate-700 font-medium">Retry</button>
-                  </td>
-                </tr>
-              ) : isLoading ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-slate-500 font-mono">
-                    Fetching exception diagnostic logs...
-                  </td>
-                </tr>
-              ) : errorLogs.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-slate-500 font-mono">
-                    No application errors captured.
-                  </td>
-                </tr>
-              ) : (
-                errorLogs.map((log) => (
-                  <tr key={log.id} className="hover:bg-slate-800/40 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap text-xs font-mono text-slate-400">
-                      {new Date(log.loggedAt).toLocaleString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20">
-                        {log.level}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 font-mono text-xs text-white max-w-sm truncate">
-                      {log.message}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-xs font-mono text-slate-400">
-                      <div className="flex items-center gap-1.5">
-                        <Globe className="h-3.5 w-3.5 text-slate-500" />
-                        <span>{log.httpMethod ? `${log.httpMethod} ${log.requestPath}` : log.requestPath || "-"}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <button
-                        onClick={() => setSelectedError(log)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-medium transition-all"
-                      >
-                        <Code className="h-3.5 w-3.5 text-indigo-400" />
-                        <span>Inspect Stack Trace</span>
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+      {!!error && isForbiddenError(error) ? (
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl p-6">
+          <PageForbiddenState />
         </div>
-
-        {/* Footer */}
-        <div className="p-4 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
-          <span>
-            Page {page} of {totalPages} ({totalCount} captured exceptions)
-          </span>
-          <div className="flex items-center gap-2">
-            <button
-              disabled={page <= 1}
-              onClick={() => setPage((p) => p - 1)}
-              className="p-2 rounded-lg bg-slate-800 text-slate-300 hover:text-white disabled:opacity-40"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <button
-              disabled={page >= totalPages}
-              onClick={() => setPage((p) => p + 1)}
-              className="p-2 rounded-lg bg-slate-800 text-slate-300 hover:text-white disabled:opacity-40"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
+      ) : !!error && !isForbiddenError(error) ? (
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl p-12 text-center text-slate-500 font-mono">
+           <p className="text-sm font-semibold text-red-500">Failed to load error logs.</p>
+           <button onClick={() => window.location.reload()} className="mt-4 px-4 py-2 bg-slate-800 text-slate-300 rounded-xl text-sm hover:bg-slate-700 font-medium">Retry</button>
         </div>
-      </div>
+      ) : (
+        <DataTable
+          columns={[
+            {
+              key: "timestamp",
+              header: "Timestamp",
+              cell: (log) => <span className="whitespace-nowrap text-xs font-mono text-slate-400">{new Date(log.loggedAt).toLocaleString()}</span>,
+            },
+            {
+              key: "level",
+              header: "Level",
+              cell: (log) => (
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                  {log.level}
+                </span>
+              ),
+            },
+            {
+              key: "message",
+              header: "Message",
+              cell: (log) => <div className="font-mono text-xs text-white max-w-sm truncate">{log.message}</div>,
+            },
+            {
+              key: "requestPath",
+              header: "Request Path",
+              cell: (log) => (
+                <div className="flex items-center gap-1.5 whitespace-nowrap text-xs font-mono text-slate-400">
+                  <Globe className="h-3.5 w-3.5 text-slate-500" />
+                  <span>{log.httpMethod ? `${log.httpMethod} ${log.requestPath}` : log.requestPath || "-"}</span>
+                </div>
+              ),
+            },
+            {
+              key: "action",
+              header: "Action",
+              cell: (log) => (
+                <button
+                  onClick={() => setSelectedError(log)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-medium transition-all"
+                >
+                  <Code className="h-3.5 w-3.5 text-indigo-400" />
+                  <span>Inspect Stack Trace</span>
+                </button>
+              ),
+            },
+          ]}
+          data={errorLogs}
+          getItemKey={(log) => log.id}
+          loading={isLoading}
+          pagination={{
+            currentPage: page,
+            totalItems: totalCount,
+            pageSize,
+            onPageChange: setPage,
+          }}
+        />
+      )}
 
       {/* Stack Trace Inspector Modal */}
       <Dialog open={Boolean(selectedError)} onOpenChange={() => setSelectedError(null)}>

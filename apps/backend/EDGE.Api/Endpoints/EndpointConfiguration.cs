@@ -1,5 +1,10 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
+using EDGE.Api.Endpoints.NotificationTemplates;
+using EDGE.Api.Endpoints.Announcements;
+using EDGE.Api.Endpoints.AuditLogs;
+using EDGE.Api.Endpoints.SystemErrorLogs;
+using EDGE.Api.Endpoints.SystemConfigs;
 
 namespace EDGE.Api.Endpoints;
 

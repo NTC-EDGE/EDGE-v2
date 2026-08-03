@@ -4,14 +4,14 @@ using System.Threading.Tasks;
 using MediatR;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using EDGE.Application.AuditLogs.Queries.GetAuditLogs;
 using EDGE.Application.AuditLogs.DTOs;
 using EDGE.Domain.Authorization;
 using EDGE.Infrastructure.Authorization;
+using EDGE.Api.Endpoints.AuditLogs.DTOs;
 
-namespace EDGE.Api.Endpoints;
+namespace EDGE.Api.Endpoints.AuditLogs;
 
 public static class AuditLogEndpoints
 {
@@ -49,13 +49,4 @@ public static class AuditLogEndpoints
             PageSize = pageSize ?? 20
         });
     }
-}
-
-public class PagedAuditLogsResponse
-{
-    public bool Succeeded { get; set; }
-    public List<AuditLogDto> Data { get; set; } = new();
-    public int TotalCount { get; set; }
-    public int PageNumber { get; set; }
-    public int PageSize { get; set; }
 }

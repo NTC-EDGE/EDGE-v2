@@ -2,13 +2,18 @@ import React from "react";
 import { Loader2, Inbox } from "lucide-react";
 import { Pagination } from "./pagination";
 import { ActionMenu, ActionMenuItem } from "./action-menu";
+export type { ActionMenuItem };
 
 export interface ColumnDef<T> {
-  key: string;
+  key?: string;
+  /** Column identifier used when no accessorKey is set */
+  id?: string;
+  accessorKey?: string;
   header: React.ReactNode;
-  cell: (item: T, index: number) => React.ReactNode;
+  cell: (value: any, item?: any, index?: number) => React.ReactNode;
   align?: "left" | "center" | "right";
   className?: string;
+  [key: string]: unknown;
 }
 
 export interface DataTablePaginationProps {
@@ -33,10 +38,10 @@ export interface DataTableProps<T> {
   columns: ColumnDef<T>[];
   /** Array of data items */
   data: T[];
-  /** Unique key extractor for each row */
-  getItemKey: (item: T, index: number) => string | number;
+  /** Unique key extractor for each row. Defaults to index-based key if not provided. */
+  getItemKey?: (item: T, index: number) => string | number;
   /** Row action menu items generator (renders ActionMenu dropdown) */
-  rowActionMenu?: (item: T) => ActionMenuItem[];
+  rowActionMenu?: (item: T) => ActionMenuItem[] | undefined;
   /** Custom rendered actions column cell (alternative to rowActionMenu) */
   renderActions?: (item: T) => React.ReactNode;
   /** Custom text for Actions column header */
@@ -44,7 +49,7 @@ export interface DataTableProps<T> {
   /** Loading state indicator */
   loading?: boolean;
   /** Optional custom empty state message or icon */
-  emptyState?: {
+  emptyState?: React.ReactNode | {
     icon?: React.ReactNode;
     title?: string;
     description?: string;
@@ -73,6 +78,50 @@ export function DataTable<T>({
 }: DataTableProps<T>) {
   const hasHeader = Boolean(title || description || headerBadge);
   const hasActions = Boolean(rowActionMenu || renderActions);
+  const resolveItemKey = (item: T, idx: number): string | number =>
+    getItemKey ? getItemKey(item, idx) : idx;
+
+  const renderEmptyState = () => {
+    if (!emptyState) {
+      return (
+        <div className="flex flex-col items-center justify-center gap-2">
+          <Inbox className="w-10 h-10 text-slate-600 mb-1" />
+          <p className="font-semibold text-slate-300">No data available</p>
+          <p className="text-xs text-slate-500 max-w-sm">
+            There are no records matching the specified criteria.
+          </p>
+        </div>
+      );
+    }
+
+    if (React.isValidElement(emptyState) || typeof emptyState === "string" || typeof emptyState === "number") {
+      return emptyState;
+    }
+
+    const stateObj = emptyState as { icon?: React.ReactNode; title?: string; description?: string };
+    return (
+      <div className="flex flex-col items-center justify-center gap-2">
+        {stateObj.icon ?? <Inbox className="w-10 h-10 text-slate-600 mb-1" />}
+        <p className="font-semibold text-slate-300">
+          {stateObj.title ?? "No data available"}
+        </p>
+        <p className="text-xs text-slate-500 max-w-sm">
+          {stateObj.description ?? "There are no records matching the specified criteria."}
+        </p>
+      </div>
+    );
+  };
+
+  const displayData = React.useMemo(() => {
+    if (!pagination) return data;
+    const { currentPage, pageSize } = pagination;
+    // If data length is larger than the page size, perform client-side slicing automatically.
+    if (data.length > pageSize) {
+      const startIndex = (currentPage - 1) * pageSize;
+      return data.slice(startIndex, startIndex + pageSize);
+    }
+    return data;
+  }, [data, pagination]);
 
   return (
     <div className={`space-y-4 ${className}`}>
@@ -104,7 +153,7 @@ export function DataTable<T>({
                       ? "text-right"
                       : "text-left";
                   return (
-                    <th key={col.key} className={`px-6 py-4 ${alignClass} ${col.className ?? ""}`}>
+                    <th key={col.key || col.accessorKey} className={`px-6 py-4 ${alignClass} ${col.className ?? ""}`}>
                       {col.header}
                     </th>
                   );
@@ -112,7 +161,7 @@ export function DataTable<T>({
                 {hasActions && <th className="px-6 py-4 text-right">{actionsHeaderLabel}</th>}
               </tr>
             </thead>
-
+ 
             <tbody className="divide-y divide-slate-800/60">
               {loading ? (
                 <tr>
@@ -123,23 +172,15 @@ export function DataTable<T>({
                     </div>
                   </td>
                 </tr>
-              ) : data.length === 0 ? (
+              ) : displayData.length === 0 ? (
                 <tr>
                   <td colSpan={columns.length + (hasActions ? 1 : 0)} className="px-6 py-12 text-center text-slate-400">
-                    <div className="flex flex-col items-center justify-center gap-2">
-                      {emptyState?.icon ?? <Inbox className="w-10 h-10 text-slate-600 mb-1" />}
-                      <p className="font-semibold text-slate-300">
-                        {emptyState?.title ?? "No data available"}
-                      </p>
-                      <p className="text-xs text-slate-500 max-w-sm">
-                        {emptyState?.description ?? "There are no records matching the specified criteria."}
-                      </p>
-                    </div>
+                    {renderEmptyState()}
                   </td>
                 </tr>
               ) : (
-                data.map((item, idx) => (
-                  <tr key={getItemKey(item, idx)} className="hover:bg-slate-800/40 transition-colors group">
+                displayData.map((item, idx) => (
+                  <tr key={resolveItemKey(item, idx)} className="hover:bg-slate-800/40 transition-colors group">
                     {columns.map((col) => {
                       const alignClass =
                         col.align === "center"
@@ -147,9 +188,14 @@ export function DataTable<T>({
                           : col.align === "right"
                           ? "text-right"
                           : "text-left";
+                      const firstArg = col.accessorKey 
+                        ? (item as any)[col.accessorKey] 
+                        : item;
+                      const secondArg = col.accessorKey ? item : idx;
+                      const thirdArg = col.accessorKey ? idx : undefined;
                       return (
-                        <td key={col.key} className={`px-6 py-4 ${alignClass} ${col.className ?? ""}`}>
-                          {col.cell(item, idx)}
+                        <td key={col.key || col.accessorKey} className={`px-6 py-4 ${alignClass} ${col.className ?? ""}`}>
+                          {col.cell(firstArg, secondArg, thirdArg)}
                         </td>
                       );
                     })}
@@ -158,7 +204,10 @@ export function DataTable<T>({
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-2">
                           {renderActions && renderActions(item)}
-                          {rowActionMenu && <ActionMenu items={rowActionMenu(item)} />}
+                          {rowActionMenu && (() => {
+                            const menuItems = rowActionMenu(item);
+                            return menuItems && menuItems.length > 0 ? <ActionMenu items={menuItems} /> : null;
+                          })()}
                         </div>
                       </td>
                     )}

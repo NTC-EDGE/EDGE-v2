@@ -7,9 +7,9 @@ using Microsoft.AspNetCore.Routing;
 using EDGE.Domain.Authorization;
 using EDGE.Infrastructure.Authorization;
 using EDGE.Application.SystemErrorLogs.Queries.GetSystemErrorLogs;
-using EDGE.Application.SystemErrorLogs.DTOs;
+using EDGE.Api.Endpoints.SystemErrorLogs.DTOs;
 
-namespace EDGE.Api.Endpoints;
+namespace EDGE.Api.Endpoints.SystemErrorLogs;
 
 public static class SystemErrorLogEndpoints
 {
@@ -31,10 +31,10 @@ public static class SystemErrorLogEndpoints
 
     [HasPermission(Permissions.SystemAdmin)]
     public static async Task<IResult> GetErrorLogs(
-        int? pageNumber,
-        int? pageSize,
-        string? level,
-        string? searchTerm,
+        [FromQuery] int? pageNumber,
+        [FromQuery] int? pageSize,
+        [FromQuery] string? level,
+        [FromQuery] string? searchTerm,
         IMediator mediator)
     {
         var (items, totalCount) = await mediator.Send(new GetSystemErrorLogsQuery(
@@ -45,10 +45,4 @@ public static class SystemErrorLogEndpoints
 
         return Results.Ok(new PagedSystemErrorLogsResponse { Items = items, TotalCount = totalCount });
     }
-}
-
-public class PagedSystemErrorLogsResponse
-{
-    public List<SystemErrorLogDto> Items { get; set; } = new();
-    public int TotalCount { get; set; }
 }

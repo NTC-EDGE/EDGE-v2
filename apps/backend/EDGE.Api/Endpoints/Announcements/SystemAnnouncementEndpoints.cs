@@ -15,22 +15,9 @@ using EDGE.Application.Announcements.Commands.TogglePublishAnnouncement;
 using EDGE.Application.Announcements.Commands.DeleteAnnouncement;
 using EDGE.Application.Announcements.Queries.GetAnnouncements;
 using EDGE.Application.Announcements.DTOs;
+using EDGE.Api.Endpoints.Announcements.DTOs;
 
-namespace EDGE.Api.Endpoints;
-
-public record UpdateAnnouncementRequest(
-    string Title,
-    string Message,
-    string Type,
-    bool IsActive,
-    DateTime? StartDate,
-    DateTime? EndDate,
-    string TargetAudience
-);
-
-public record TogglePublishAnnouncementRequest(
-    bool IsActive
-);
+namespace EDGE.Api.Endpoints.Announcements;
 
 public static class SystemAnnouncementEndpoints
 {
@@ -104,13 +91,13 @@ public static class SystemAnnouncementEndpoints
         return Results.Created($"/api/v2/announcements/{result.Id}", result);
     }
 
-    [Authorize]
+    [AllowAnonymous]
     public static async Task<IResult> GetAnnouncements(
         IMediator mediator,
-        [Microsoft.AspNetCore.Mvc.FromQuery] int pageNumber = 1,
-        [Microsoft.AspNetCore.Mvc.FromQuery] int pageSize = 10,
-        [Microsoft.AspNetCore.Mvc.FromQuery] string? searchTerm = null,
-        [Microsoft.AspNetCore.Mvc.FromQuery] string? type = null)
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 10,
+        [FromQuery] string? searchTerm = null,
+        [FromQuery] string? type = null)
     {
         var result = await mediator.Send(new GetAnnouncementsQuery(pageNumber, pageSize, searchTerm, type));
         return Results.Ok(result);
@@ -131,7 +118,8 @@ public static class SystemAnnouncementEndpoints
             request.IsActive,
             request.StartDate,
             request.EndDate,
-            request.TargetAudience);
+            request.TargetAudience
+        );
 
         var validationResult = await validator.ValidateAsync(command);
         if (!validationResult.IsValid)
@@ -139,8 +127,15 @@ public static class SystemAnnouncementEndpoints
             return Results.ValidationProblem(validationResult.ToDictionary());
         }
 
-        var result = await mediator.Send(command);
-        return result != null ? Results.Ok(result) : Results.NotFound(new { message = "Announcement not found." });
+        try
+        {
+            var result = await mediator.Send(command);
+            return Results.Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return Results.NotFound(new { message = ex.Message });
+        }
     }
 
     [HasPermission(Permissions.SystemAdmin)]
@@ -151,31 +146,36 @@ public static class SystemAnnouncementEndpoints
         IMediator mediator)
     {
         var command = new TogglePublishAnnouncementCommand(id, request.IsActive);
-
         var validationResult = await validator.ValidateAsync(command);
         if (!validationResult.IsValid)
         {
             return Results.ValidationProblem(validationResult.ToDictionary());
         }
 
-        var result = await mediator.Send(command);
-        return result != null ? Results.Ok(result) : Results.NotFound(new { message = "Announcement not found." });
+        try
+        {
+            var result = await mediator.Send(command);
+            return Results.Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return Results.NotFound(new { message = ex.Message });
+        }
     }
 
     [HasPermission(Permissions.SystemAdmin)]
     public static async Task<IResult> DeleteAnnouncement(
         Guid id,
-        IValidator<DeleteAnnouncementCommand> validator,
         IMediator mediator)
     {
-        var command = new DeleteAnnouncementCommand(id);
-        var validationResult = await validator.ValidateAsync(command);
-        if (!validationResult.IsValid)
+        try
         {
-            return Results.ValidationProblem(validationResult.ToDictionary());
+            await mediator.Send(new DeleteAnnouncementCommand(id));
+            return Results.NoContent();
         }
-
-        var success = await mediator.Send(command);
-        return success ? Results.NoContent() : Results.NotFound(new { message = "Announcement not found" });
+        catch (KeyNotFoundException ex)
+        {
+            return Results.NotFound(new { message = ex.Message });
+        }
     }
 }

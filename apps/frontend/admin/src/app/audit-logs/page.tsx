@@ -6,13 +6,12 @@ import {
   FileText,
   Search,
   User,
-  Activity,
-  ChevronLeft,
-  ChevronRight
+  Activity
 } from "lucide-react";
 
 import { ToastNotification, ToastMessage } from "@/components/ui/toast-notification";
 import { isForbiddenError, PageForbiddenState } from "@/components/PageForbiddenState";
+import { DataTable, ColumnDef } from "@/components/ui/data-table";
 
 export default function AuditLogsPage() {
   const { useAuditLogs } = useAuditLogService();
@@ -92,93 +91,60 @@ export default function AuditLogsPage() {
       </div>
 
       {/* Data Table */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-slate-300">
-            <thead className="bg-slate-950/80 border-b border-slate-800 text-xs font-semibold uppercase text-slate-400 tracking-wider">
-              <tr>
-                <th className="px-6 py-4">Timestamp</th>
-                <th className="px-6 py-4">User</th>
-                <th className="px-6 py-4">Action</th>
-                <th className="px-6 py-4">Target Entity</th>
-                <th className="px-6 py-4">Details</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/60">
-              {!!error && isForbiddenError(error) ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-12">
-                    <PageForbiddenState />
-                  </td>
-                </tr>
-              ) : !!error && !isForbiddenError(error) ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-slate-500 font-mono">
-                     <p className="text-sm font-semibold text-red-500">Failed to load audit logs.</p>
-                     <button onClick={() => window.location.reload()} className="mt-4 px-4 py-2 bg-slate-800 text-slate-300 rounded-xl text-sm hover:bg-slate-700 font-medium">Retry</button>
-                  </td>
-                </tr>
-              ) : isLoading ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-slate-500 font-mono">
-                    Loading audit trail logs...
-                  </td>
-                </tr>
-              ) : auditLogs.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-slate-500 font-mono">
-                    No activity logs recorded.
-                  </td>
-                </tr>
-              ) : (
-                auditLogs.map((log) => (
-                  <tr key={log.id} className="hover:bg-slate-800/40 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap text-xs font-mono text-slate-400">
-                      {new Date(log.createdAt).toLocaleString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-2">
-                        <User className="h-4 w-4 text-slate-400" />
-                        <span className="font-medium text-white">{log.userEmail || log.userId || "System Admin"}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">{getActionBadge(log.action)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-xs font-mono text-slate-300">
-                      {log.entityName}
-                    </td>
-                    <td className="px-6 py-4 text-xs text-slate-400 max-w-xs truncate">
-                      {log.details || log.entityId || "-"}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+      {!!error && isForbiddenError(error) ? (
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl p-6">
+          <PageForbiddenState />
         </div>
-
-        {/* Pagination Footer */}
-        <div className="p-4 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
-          <span>
-            Page {page} of {totalPages} ({totalCount} total entries)
-          </span>
-          <div className="flex items-center gap-2">
-            <button
-              disabled={page <= 1}
-              onClick={() => setPage((p) => p - 1)}
-              className="p-2 rounded-lg bg-slate-800 text-slate-300 hover:text-white disabled:opacity-40"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <button
-              disabled={page >= totalPages}
-              onClick={() => setPage((p) => p + 1)}
-              className="p-2 rounded-lg bg-slate-800 text-slate-300 hover:text-white disabled:opacity-40"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
+      ) : !!error && !isForbiddenError(error) ? (
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl p-12 text-center text-slate-500 font-mono">
+           <p className="text-sm font-semibold text-red-500">Failed to load audit logs.</p>
+           <button onClick={() => window.location.reload()} className="mt-4 px-4 py-2 bg-slate-800 text-slate-300 rounded-xl text-sm hover:bg-slate-700 font-medium">Retry</button>
         </div>
-      </div>
+      ) : (
+        <DataTable
+          columns={[
+            {
+              key: "timestamp",
+              header: "Timestamp",
+              cell: (log) => <span className="whitespace-nowrap text-xs font-mono text-slate-400">{new Date(log.createdAt).toLocaleString()}</span>,
+            },
+            {
+              key: "user",
+              header: "User",
+              cell: (log) => (
+                <div className="flex items-center gap-2 whitespace-nowrap">
+                  <User className="h-4 w-4 text-slate-400" />
+                  <span className="font-medium text-white">{log.userEmail || log.userId || "System Admin"}</span>
+                </div>
+              ),
+            },
+            {
+              key: "action",
+              header: "Action",
+              cell: (log) => <span className="whitespace-nowrap">{getActionBadge(log.action)}</span>,
+            },
+            {
+              key: "target",
+              header: "Target Entity",
+              cell: (log) => <span className="whitespace-nowrap text-xs font-mono text-slate-300">{log.entityName}</span>,
+            },
+            {
+              key: "details",
+              header: "Details",
+              cell: (log) => <div className="text-xs text-slate-400 max-w-xs truncate">{log.details || log.entityId || "-"}</div>,
+            },
+          ]}
+          data={auditLogs}
+          getItemKey={(log) => log.id}
+          loading={isLoading}
+          pagination={{
+            currentPage: page,
+            totalItems: totalCount,
+            pageSize,
+            onPageChange: setPage,
+          }}
+        />
+      )}
       <ToastNotification toast={toast} onClose={() => setToast(null)} />
     </div>
   );

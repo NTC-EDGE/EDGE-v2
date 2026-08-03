@@ -5,8 +5,7 @@ import { Plus, Edit2, Trash2, Building2, Loader2, Search, CheckCircle, XCircle }
 import { useMunicipalityService } from "@/services/municipalityService";
 import { useProvinceService } from "@/services/provinceService";
 import { Button } from "@/components/ui/button";
-import { ActionMenu } from "@/components/ui/action-menu";
-import { Pagination } from "@/components/ui/pagination";
+import { DataTable, ColumnDef } from "@/components/ui/data-table";
 import { 
   Dialog, 
   DialogContent, 
@@ -248,93 +247,82 @@ export default function MunicipalitiesPage() {
       </div>
 
       {/* Main Content Pane */}
-      <div className="rounded-xl border border-slate-800 bg-slate-900/60 overflow-hidden shadow-lg">
-        {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <Loader2 className="h-8 w-8 text-primary animate-spin" />
-            <p className="text-xs text-slate-400">Loading municipalities database...</p>
-          </div>
-        ) : !!error && isForbiddenError(error) ? (
-          <PageForbiddenState />
-        ) : error ? (
-          <div className="text-center py-16 px-4">
-            <p className="text-sm font-semibold text-red-500">Failed to load municipalities.</p>
-            <p className="text-xs text-slate-400 mt-1">Please check your backend service connections.</p>
-            <Button onClick={() => mutate()} className="mt-4" size="sm" variant="outline">Retry</Button>
-          </div>
-        ) : filteredMunicipalities.length === 0 ? (
-          <div className="text-center py-16 px-4">
-            <p className="text-sm font-semibold text-slate-300">No municipalities found.</p>
-            <p className="text-xs text-slate-400 mt-1">Try resetting your search query or filters.</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-slate-800 bg-slate-950/80 text-[10px] uppercase font-bold text-slate-400 tracking-wider">
-                  <th className="px-6 py-4">Code</th>
-                  <th className="px-6 py-4">Name</th>
-                  <th className="px-6 py-4">Parent Province</th>
-                  <th className="px-6 py-4">Status</th>
-                  <th className="px-6 py-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/80 text-sm">
-                {paginatedMunicipalities.map((muni) => (
-                  <tr key={muni.id} className="hover:bg-slate-800/20 transition-colors">
-                    <td className="px-6 py-4 font-mono font-bold text-white text-xs">{muni.code}</td>
-                    <td className="px-6 py-4 text-slate-200">{muni.name}</td>
-                    <td className="px-6 py-4 text-slate-400 text-xs">
-                      {muni.province?.name || "Loading parent province..."}
-                    </td>
-                    <td className="px-6 py-4">
-                      {muni.isActive ? (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-400 bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-800/40">
-                          <CheckCircle className="h-3 w-3" /> Active
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
-                          <XCircle className="h-3 w-3" /> Inactive
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <ActionMenu
-                        items={[
-                          {
-                            label: "Edit Municipality",
-                            icon: Edit2,
-                            onClick: () => handleOpenEdit(muni),
-                          },
-                          {
-                            label: "Delete Municipality",
-                            icon: Trash2,
-                            onClick: () => handleOpenDelete(muni),
-                            variant: "destructive",
-                          },
-                        ]}
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {filteredMunicipalities.length > 0 && (
-          <Pagination
-            currentPage={currentPage}
-            totalItems={filteredMunicipalities.length}
-            pageSize={pageSize}
-            onPageChange={setCurrentPage}
-            onPageSizeChange={(newSize) => {
+      {isLoading ? (
+        <div className="rounded-xl border border-slate-800 bg-slate-900/60 overflow-hidden shadow-lg flex flex-col items-center justify-center py-20 gap-3">
+          <Loader2 className="h-8 w-8 text-primary animate-spin" />
+          <p className="text-xs text-slate-400">Loading municipalities database...</p>
+        </div>
+      ) : !!error && isForbiddenError(error) ? (
+        <PageForbiddenState />
+      ) : error ? (
+        <div className="rounded-xl border border-slate-800 bg-slate-900/60 overflow-hidden shadow-lg text-center py-16 px-4">
+          <p className="text-sm font-semibold text-red-500">Failed to load municipalities.</p>
+          <p className="text-xs text-slate-400 mt-1">Please check your backend service connections.</p>
+          <Button onClick={() => mutate()} className="mt-4" size="sm" variant="outline">Retry</Button>
+        </div>
+      ) : (
+        <DataTable
+          columns={[
+            {
+              key: "code",
+              header: "Code",
+              cell: (muni) => <span className="font-mono font-bold text-white text-xs">{muni.code}</span>,
+            },
+            {
+              key: "name",
+              header: "Name",
+              cell: (muni) => <span className="text-slate-200">{muni.name}</span>,
+            },
+            {
+              key: "province",
+              header: "Parent Province",
+              cell: (muni) => <span className="text-slate-400 text-xs">{muni.province?.name || "Loading parent province..."}</span>,
+            },
+            {
+              key: "status",
+              header: "Status",
+              cell: (muni) => muni.isActive ? (
+                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-400 bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-800/40">
+                  <CheckCircle className="h-3 w-3" /> Active
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+                  <XCircle className="h-3 w-3" /> Inactive
+                </span>
+              ),
+            },
+          ]}
+          data={paginatedMunicipalities}
+          getItemKey={(muni) => muni.id}
+          rowActionMenu={(muni) => [
+            {
+              label: "Edit Municipality",
+              icon: Edit2,
+              onClick: () => handleOpenEdit(muni),
+            },
+            {
+              label: "Delete Municipality",
+              icon: Trash2,
+              onClick: () => handleOpenDelete(muni),
+              variant: "destructive",
+            },
+          ]}
+          pagination={filteredMunicipalities.length > 0 ? {
+            currentPage: currentPage,
+            totalItems: filteredMunicipalities.length,
+            pageSize: pageSize,
+            onPageChange: setCurrentPage,
+            onPageSizeChange: (newSize) => {
               setPageSize(newSize);
               setCurrentPage(1);
-            }}
-          />
-        )}
-      </div>
+            }
+          } : undefined}
+          emptyState={{
+            title: "No municipalities found.",
+            description: "Try resetting your search query or filters.",
+          }}
+        />
+      )}
 
       {/* CREATE DIALOG */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>

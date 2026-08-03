@@ -11,14 +11,9 @@ using EDGE.Infrastructure.Authorization;
 using EDGE.Application.NotificationTemplates.Commands.UpdateNotificationTemplate;
 using EDGE.Application.NotificationTemplates.Queries.GetNotificationTemplates;
 using EDGE.Application.NotificationTemplates.DTOs;
+using EDGE.Api.Endpoints.NotificationTemplates.DTOs;
 
-namespace EDGE.Api.Endpoints;
-
-public record UpdateNotificationTemplateRequest(
-    string Subject,
-    string BodyHtml,
-    bool IsActive
-);
+namespace EDGE.Api.Endpoints.NotificationTemplates;
 
 public static class NotificationTemplateEndpoints
 {
@@ -51,9 +46,9 @@ public static class NotificationTemplateEndpoints
     [HasPermission(Permissions.SystemAdmin)]
     public static async Task<IResult> GetNotificationTemplates(
         IMediator mediator,
-        [Microsoft.AspNetCore.Mvc.FromQuery] int pageNumber = 1,
-        [Microsoft.AspNetCore.Mvc.FromQuery] int pageSize = 10,
-        [Microsoft.AspNetCore.Mvc.FromQuery] string? searchTerm = null)
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 10,
+        [FromQuery] string? searchTerm = null)
     {
         var result = await mediator.Send(new GetNotificationTemplatesQuery(pageNumber, pageSize, searchTerm));
         return Results.Ok(result);

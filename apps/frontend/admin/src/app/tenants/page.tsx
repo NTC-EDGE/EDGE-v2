@@ -27,8 +27,7 @@ import { useAdminScope } from "@/lib/admin-scope-context";
 import { Tenant, Region } from "@edge/api";
 import { Button } from "@/components/ui/button";
 import { ConfirmActionDialog } from "@/components/ui/confirm-action-dialog";
-import { ActionMenu, ActionMenuItem } from "@/components/ui/action-menu";
-import { Pagination } from "@/components/ui/pagination";
+import { DataTable, ColumnDef } from "@/components/ui/data-table";
 import {
   Dialog,
   DialogContent,
@@ -54,7 +53,7 @@ export default function TenantsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  const { data: fetchedTenants, isLoading: loadingTenants, mutate, error } = useTenants(currentPage, pageSize, searchTerm);
+  const { data: fetchedTenants, isLoading: loadingTenants, mutate, error } = useTenants(1, 100);
   const { data: regionsResponse } = useRegions();
 
   const regions: Region[] = regionsResponse?.data ?? [];
@@ -91,11 +90,6 @@ export default function TenantsPage() {
       selectedRegionFilter === "ALL" || tenant.regionId === selectedRegionFilter;
     return matchesSearch && matchesRegion;
   });
-
-  const paginatedTenants = filteredTenants.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize
-  );
 
   const getRegionName = (regionId: string): string => {
     const found = regions.find((r) => r.id === regionId);
@@ -301,146 +295,118 @@ export default function TenantsPage() {
       </div>
 
       {/* Tenants Table */}
-      {!!error && isForbiddenError(error) && <PageForbiddenState />}
-      {!!error && !isForbiddenError(error) && (
+      {!!error && isForbiddenError(error) ? (
+        <PageForbiddenState />
+      ) : !!error && !isForbiddenError(error) ? (
         <div className="p-12 text-center bg-slate-900 border border-slate-800 rounded-2xl shadow-xl">
           <p className="text-red-500 font-medium text-base">Failed to load tenants</p>
           <button onClick={() => mutate()} className="mt-4 px-4 py-2 bg-slate-800 text-slate-300 rounded-xl text-sm hover:bg-slate-700 font-medium">Retry</button>
         </div>
-      )}
-      {!error && (
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden">
-          <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-slate-800 bg-slate-950/60 text-slate-400 text-xs uppercase font-semibold tracking-wider">
-                <th className="px-6 py-4">Tenant Name & Code</th>
-                <th className="px-6 py-4">Region Assigned</th>
-                <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4">Created Date</th>
-                <th className="px-6 py-4 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800 text-sm">
-              {loadingTenants ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-slate-400">
-                    <div className="flex items-center justify-center gap-2">
-                      <Loader2 className="w-5 h-5 animate-spin text-indigo-400" />
-                      <span>Loading tenant configurations...</span>
-                    </div>
-                  </td>
-                </tr>
-              ) : filteredTenants.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-slate-400">
-                    <Building2 className="w-10 h-10 mx-auto text-slate-600 mb-2" />
-                    <p className="font-semibold text-slate-300">No tenants found</p>
-                    <p className="text-xs text-slate-500">Try adjusting your search query or region filter.</p>
-                  </td>
-                </tr>
+      ) : (
+        <DataTable
+          columns={[
+            {
+              key: "name_code",
+              header: "Tenant Name & Code",
+              cell: (tenant) => (
+                <div className="flex items-center gap-3">
+                  <div className="bg-indigo-500/10 border border-indigo-500/20 p-2.5 rounded-xl text-indigo-400 group-hover:bg-indigo-500/20 transition-colors">
+                    <Building2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <Link
+                      href={`/tenants/${tenant.id}`}
+                      className="font-bold text-white hover:text-indigo-400 transition-colors text-sm"
+                    >
+                      {tenant.name}
+                    </Link>
+                    <p className="text-xs text-slate-400 font-mono mt-0.5">{tenant.code}</p>
+                  </div>
+                </div>
+              ),
+            },
+            {
+              key: "region",
+              header: "Region Assigned",
+              cell: (tenant) => (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-950 border border-slate-800 text-emerald-400">
+                  <MapPin className="w-3.5 h-3.5" />
+                  {getRegionName(tenant.regionId)}
+                </span>
+              ),
+            },
+            {
+              key: "status",
+              header: "Status",
+              cell: (tenant) => tenant.isActive ? (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Operational
+                </span>
               ) : (
-                paginatedTenants.map((tenant) => {
-                  const hasEntriesOrMembers = (tenant.tenantMembersTotal ?? 0) > 0 || (tenant.fieldOfficesCount ?? 0) > 0;
-
-                  const menuItems: ActionMenuItem[] = [
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-800 text-slate-400 border border-slate-700">
+                  Disabled
+                </span>
+              ),
+            },
+            {
+              key: "created",
+              header: "Created Date",
+              cell: (tenant) => <span className="text-xs font-mono text-slate-400">{tenant.createdAt ? new Date(tenant.createdAt).toLocaleDateString() : "2026-01-15"}</span>,
+            },
+          ]}
+          data={filteredTenants}
+          getItemKey={(tenant) => tenant.id}
+          loading={loadingTenants}
+          rowActionMenu={(tenant) => {
+            const hasEntriesOrMembers = (tenant.tenantMembersTotal ?? 0) > 0 || (tenant.fieldOfficesCount ?? 0) > 0;
+            return [
+              {
+                label: "View Details Page",
+                icon: Eye,
+                onClick: () => handleOpenViewDetails(tenant),
+              },
+              ...(canManageTenants
+                ? [
                     {
-                      label: "View Details Page",
-                      icon: Eye,
-                      onClick: () => handleOpenViewDetails(tenant),
+                      label: "Edit Tenant",
+                      icon: Edit2,
+                      onClick: () => handleOpenEdit(tenant),
                     },
-                    ...(canManageTenants
+                    {
+                      label: tenant.isActive ? "Deactivate Tenant" : "Activate Tenant",
+                      icon: tenant.isActive ? PowerOff : Power,
+                      onClick: () => handleToggleActive(tenant),
+                    },
+                    ...(!hasEntriesOrMembers
                       ? [
                           {
-                            label: "Edit Tenant",
-                            icon: Edit2,
-                            onClick: () => handleOpenEdit(tenant),
+                            label: "Delete Tenant",
+                            icon: Trash2,
+                            onClick: () => handleOpenDelete(tenant),
+                            variant: "destructive" as const,
                           },
-                          {
-                            label: tenant.isActive ? "Deactivate Tenant" : "Activate Tenant",
-                            icon: tenant.isActive ? PowerOff : Power,
-                            onClick: () => handleToggleActive(tenant),
-                          },
-                          ...(!hasEntriesOrMembers
-                            ? [
-                                {
-                                  label: "Delete Tenant",
-                                  icon: Trash2,
-                                  onClick: () => handleOpenDelete(tenant),
-                                  variant: "destructive" as const,
-                                },
-                              ]
-                            : []),
                         ]
                       : []),
-                  ];
-
-                  return (
-                    <tr key={tenant.id} className="hover:bg-slate-800/40 transition-colors group">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="bg-indigo-500/10 border border-indigo-500/20 p-2.5 rounded-xl text-indigo-400 group-hover:bg-indigo-500/20 transition-colors">
-                            <Building2 className="w-5 h-5" />
-                          </div>
-                          <div>
-                            <Link
-                              href={`/tenants/${tenant.id}`}
-                              className="font-bold text-white hover:text-indigo-400 transition-colors text-sm"
-                            >
-                              {tenant.name}
-                            </Link>
-                            <p className="text-xs text-slate-400 font-mono mt-0.5">{tenant.code}</p>
-                          </div>
-                        </div>
-                      </td>
-
-                      <td className="px-6 py-4">
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-950 border border-slate-800 text-emerald-400">
-                          <MapPin className="w-3.5 h-3.5" />
-                          {getRegionName(tenant.regionId)}
-                        </span>
-                      </td>
-
-                      <td className="px-6 py-4">
-                        {tenant.isActive ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                            <CheckCircle2 className="w-3.5 h-3.5" /> Operational
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-800 text-slate-400 border border-slate-700">
-                            Disabled
-                          </span>
-                        )}
-                      </td>
-
-                      <td className="px-6 py-4 text-xs font-mono text-slate-400">
-                        {tenant.createdAt ? new Date(tenant.createdAt).toLocaleDateString() : "2026-01-15"}
-                      </td>
-
-                      <td className="px-6 py-4 text-right">
-                        <ActionMenu items={menuItems} />
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {filteredTenants.length > 0 && (
-          <Pagination
-            currentPage={currentPage}
-            totalItems={filteredTenants.length}
-            pageSize={pageSize}
-            onPageChange={setCurrentPage}
-            onPageSizeChange={(sz) => {
+                  ]
+                : []),
+            ];
+          }}
+          pagination={filteredTenants.length > 0 ? {
+            currentPage: currentPage,
+            totalItems: filteredTenants.length,
+            pageSize: pageSize,
+            onPageChange: setCurrentPage,
+            onPageSizeChange: (sz) => {
               setPageSize(sz);
               setCurrentPage(1);
-            }}
-          />
-        )}
-      </div>
+            }
+          } : undefined}
+          emptyState={{
+            icon: <Building2 className="w-10 h-10 text-slate-600 mb-2" />,
+            title: "No tenants found",
+            description: "Try adjusting your search query or region filter.",
+          }}
+        />
       )}
 
       {/* Create Tenant Modal */}

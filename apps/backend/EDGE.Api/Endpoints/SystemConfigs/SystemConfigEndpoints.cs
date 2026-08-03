@@ -12,7 +12,7 @@ using EDGE.Application.SystemConfigs.Commands.UpdateSystemConfig;
 using EDGE.Application.SystemConfigs.Queries.GetSystemConfigs;
 using EDGE.Application.SystemConfigs.DTOs;
 
-namespace EDGE.Api.Endpoints;
+namespace EDGE.Api.Endpoints.SystemConfigs;
 
 public static class SystemConfigEndpoints
 {
@@ -50,10 +50,10 @@ public static class SystemConfigEndpoints
     [HasPermission(Permissions.SystemAdmin)]
     public static async Task<IResult> GetSystemConfigs(
         IMediator mediator,
-        [Microsoft.AspNetCore.Mvc.FromQuery] int pageNumber = 1,
-        [Microsoft.AspNetCore.Mvc.FromQuery] int pageSize = 10,
-        [Microsoft.AspNetCore.Mvc.FromQuery] string? searchTerm = null,
-        [Microsoft.AspNetCore.Mvc.FromQuery] string? category = null)
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 10,
+        [FromQuery] string? searchTerm = null,
+        [FromQuery] string? category = null)
     {
         var result = await mediator.Send(new GetSystemConfigsQuery(pageNumber, pageSize, searchTerm, category, PublicOnly: false));
         return Results.Ok(result);
@@ -62,8 +62,8 @@ public static class SystemConfigEndpoints
     [AllowAnonymous]
     public static async Task<IResult> GetPublicSystemConfigs(
         IMediator mediator,
-        [Microsoft.AspNetCore.Mvc.FromQuery] int pageNumber = 1,
-        [Microsoft.AspNetCore.Mvc.FromQuery] int pageSize = 10)
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 10)
     {
         var result = await mediator.Send(new GetSystemConfigsQuery(pageNumber, pageSize, Category: null, PublicOnly: true));
         return Results.Ok(result);
