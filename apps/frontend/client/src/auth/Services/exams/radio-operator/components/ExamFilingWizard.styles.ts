@@ -1,5 +1,5 @@
 import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from "@edge/ui";
-import { StyleSheet, Platform } from "react-native";
+import { StyleSheet } from "react-native";
 
 export const styles = StyleSheet.create({
   container: {

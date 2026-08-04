@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { Icon, SPACING, TYPOGRAPHY } from "@edge/ui";
 import { COLORS } from "@edge/ui";
-import { styles } from "./RadioOperatorExamWizard.styles";
+import { styles } from "./ExamFilingWizard.styles";
 import { PHILIPPINE_REGIONS_WITH_OFFICES } from "../../../accreditation/customer-premises/data/mockRegionData";
 import { Select } from "../../../../../shared/components/Select";
 import { ValidatedInput } from "../../../../../shared/components/ValidatedInput";
@@ -21,7 +21,7 @@ import { useApi } from "../../../../../shared/hooks/useApi";
 
 export interface ExamApplicantData {
   id: number;
-  examType: "Radiotelegraphy" | "RROC-Aircraft" | "Amateur";
+  examType: string;
   examineeType: "First Taker" | "Repeater" | "Upgrader";
   selectedOption: string;
   lastName: string;
@@ -77,7 +77,7 @@ export const initialExamApplicant = (id: number): ExamApplicantData => ({
   uploads: {},
 });
 
-interface RadioOperatorExamWizardProps {
+interface ExamFilingWizardProps {
   onClose: () => void;
   onSuccess: () => void;
   isDetailsExpanded: boolean;
@@ -103,9 +103,10 @@ interface RadioOperatorExamWizardProps {
   isBulkSubmitOpen: boolean;
   setIsBulkSubmitOpen: (val: boolean) => void;
   serviceId?: string | null;
+  serviceName?: string | null;
 }
 
-export function RadioOperatorExamWizard({
+export function ExamFilingWizard({
   onClose,
   onSuccess,
   isDetailsExpanded,
@@ -131,7 +132,8 @@ export function RadioOperatorExamWizard({
   isBulkSubmitOpen,
   setIsBulkSubmitOpen,
   serviceId,
-}: RadioOperatorExamWizardProps) {
+  serviceName,
+}: ExamFilingWizardProps) {
   const { width } = useWindowDimensions();
   const isWeb = width > 768;
 
@@ -420,7 +422,33 @@ export function RadioOperatorExamWizard({
   };
 
   // Get dynamic options based on selected exam type
-  const getExamOptions = (type: "Radiotelegraphy" | "RROC-Aircraft" | "Amateur"): string[] => {
+  const getDynamicApplicationTypes = () => {
+    const field = formFields.find((f: any) => {
+      const label = (f.label || "").toLowerCase();
+      return label.includes("exam type") || label.includes("application type") || label.includes("category");
+    });
+    if (field && Array.isArray(field.options) && field.options.length > 0) {
+      return field.options.map((opt: any) => ({
+        label: typeof opt === "string" ? opt : (opt.label || opt.value || opt),
+        value: typeof opt === "string" ? opt : (opt.value || opt.label || opt)
+      }));
+    }
+    return [
+      { label: "Radiotelegraphy", value: "Radiotelegraphy" },
+      { label: "RROC - Aircraft", value: "RROC-Aircraft" },
+      { label: "Amateur", value: "Amateur" },
+    ];
+  };
+
+  const getExamOptions = (type: string): string[] => {
+    const field = formFields.find((f: any) => {
+      const label = (f.label || "").toLowerCase();
+      return label.includes("element") || label.includes("option") || label.includes("class");
+    });
+    if (field && Array.isArray(field.options) && field.options.length > 0) {
+      return field.options.map((opt: any) => typeof opt === "string" ? opt : (opt.label || opt.value || opt));
+    }
+
     switch (type) {
       case "Radiotelegraphy":
         return [
@@ -443,19 +471,21 @@ export function RadioOperatorExamWizard({
           "Class C - Elements 2, 3, 4",
           "Class D - Element 2",
         ];
+      default:
+        return [];
     }
   };
 
   const getRequirementsList = (
-    type: "Radiotelegraphy" | "RROC-Aircraft" | "Amateur",
-    examineeType: "First Taker" | "Repeater" | "Upgrader"
+    type: string,
+    examineeType: string
   ): string[] => {
     const list = [
       "PSA Birth Certificate or Valid Passport / Government ID",
       "Transcript of Records or Diploma with Special Order (SO) Number",
       "Three (3) clear 1x1 ID pictures taken within the last six (6) months",
     ];
-    if (examineeType === "Upgrader") {
+    if (examineeType === "Upgrader" || (serviceName && serviceName.toLowerCase().includes("radio"))) {
       list.push("Copy of prior Radio Operator Certificate (ROC) / License");
     }
     return list;
@@ -1238,7 +1268,7 @@ export function RadioOperatorExamWizard({
                 </View>
                 <Text style={styles.cardTitle}>MANUAL ENCODING BOARD</Text>
                 <Text style={styles.cardDesc}>
-                  Input each applicant's personal details, examinee categories, and radio class options directly within the NTC portal form.
+                  Input each applicant's personal details, examinee categories, and exam options directly within the NTC portal form.
                 </Text>
                 <TouchableOpacity
                   onPress={() => {
@@ -1311,7 +1341,7 @@ export function RadioOperatorExamWizard({
 
                 <View style={styles.bulkActionRow}>
                   <TouchableOpacity
-                    onPress={() => Alert.alert("Download Complete", "Radio_Operator_Template.csv downloaded successfully.")}
+                    onPress={() => Alert.alert("Download Complete", "Exam_Applicant_Template.csv downloaded successfully.")}
                     style={styles.downloadBtn}
                   >
                     <Icon name="download" size={16} color="#ffffff" style={{ marginRight: 8 }} />
@@ -1340,18 +1370,14 @@ export function RadioOperatorExamWizard({
               placeholder="Select Application type"
               value={activeApplicant.examType}
               onValueChange={(val) => {
-                const nextType = val as "Radiotelegraphy" | "RROC-Aircraft" | "Amateur";
+                const nextType = val as string;
                 const defaultOption = getExamOptions(nextType)[0] || "";
                 updateActiveApplicant({
                   examType: nextType,
                   selectedOption: defaultOption,
                 });
               }}
-              options={[
-                { label: "Radiotelegraphy", value: "Radiotelegraphy" },
-                { label: "RROC - Aircraft", value: "RROC-Aircraft" },
-                { label: "Amateur", value: "Amateur" },
-              ]}
+              options={getDynamicApplicationTypes()}
             />
 
             <Text style={styles.selectLabel}>Examinee type</Text>
