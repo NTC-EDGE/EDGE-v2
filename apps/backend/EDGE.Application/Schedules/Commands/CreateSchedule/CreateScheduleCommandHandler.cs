@@ -52,8 +52,6 @@ public class CreateScheduleCommandHandler : IRequestHandler<CreateScheduleComman
             service.Name,
             service.Code,
             schedule.TenantId,
-            schedule.ApplicationId,
-            schedule.SeatNumber,
             schedule.Venue,
             schedule.StartDate,
             schedule.EndDate,

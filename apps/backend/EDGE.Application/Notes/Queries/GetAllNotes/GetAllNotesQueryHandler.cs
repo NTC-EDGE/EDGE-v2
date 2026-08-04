@@ -34,7 +34,7 @@ public class GetAllNotesQueryHandler : IRequestHandler<GetAllNotesQuery, Paginat
                 .Select(c => c.Id)
                 .ToHashSet();
 
-            var categoryMatches = notes.Where(n => matchingCategoryIds.Contains(n.ServiceCategoryId)).ToList();
+            var categoryMatches = notes.Where(n => n.Service != null && matchingCategoryIds.Contains(n.Service.ServiceCategoryId)).ToList();
 
             // Combine and distinct
             notes = contentMatches.Union(categoryMatches).ToList();

@@ -2,8 +2,11 @@ using System;
 using System.Collections.Generic;
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using EDGE.Domain.Authorization;
 using EDGE.Infrastructure.Authorization;
+using EDGE.Application.Common.Models;
+using EDGE.Application.Notes.DTOs;
 using EDGE.Application.Notes.Commands.CreateNote;
 using EDGE.Application.Notes.Commands.UpdateNote;
 using EDGE.Application.Notes.Commands.DeleteNote;
@@ -23,31 +26,52 @@ public static class NoteEndpoints
             .WithName("CreateNote")
             .WithTags("Notes")
             .WithSummary("Create new regulatory note")
-            .WithDescription("Creates a new compliance or regulatory instruction note associated with a service category.");
+            .WithDescription("Creates a new compliance or regulatory instruction note associated with a service category.")
+            .Produces<NoteDto>(StatusCodes.Status201Created)
+            .ProducesValidationProblem()
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status403Forbidden);
 
         notes.MapGet("/", GetAllNotes)
             .WithName("GetAllNotes")
             .WithTags("Notes")
             .WithSummary("Retrieve all regulatory notes")
-            .WithDescription("Retrieves a list of all regulatory and guideline notes registered across service categories.");
+            .WithDescription("Retrieves a list of all regulatory and guideline notes registered across service categories.")
+            .Produces<PaginatedApiResponse<NoteDto>>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status403Forbidden);
 
         notes.MapGet("/{id:guid}", GetNoteById)
             .WithName("GetNoteById")
             .WithTags("Notes")
             .WithSummary("Retrieve note by ID")
-            .WithDescription("Retrieves the details of a specific compliance note by its unique identifier.");
+            .WithDescription("Retrieves the details of a specific compliance note by its unique identifier.")
+            .Produces<NoteDto>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound)
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status403Forbidden);
 
         notes.MapPut("/{id:guid}", UpdateNote)
             .WithName("UpdateNote")
             .WithTags("Notes")
             .WithSummary("Update regulatory note")
-            .WithDescription("Updates the details of a specific compliance note.");
+            .WithDescription("Updates the details of a specific compliance note.")
+            .Produces<NoteDto>(StatusCodes.Status200OK)
+            .ProducesValidationProblem()
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status404NotFound)
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status403Forbidden);
 
         notes.MapDelete("/{id:guid}", DeleteNote)
             .WithName("DeleteNote")
             .WithTags("Notes")
             .WithSummary("Delete regulatory note")
-            .WithDescription("Permanently removes a specific compliance note from the database.");
+            .WithDescription("Permanently removes a specific compliance note from the database.")
+            .Produces(StatusCodes.Status204NoContent)
+            .Produces(StatusCodes.Status404NotFound)
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status403Forbidden);
 
         return group;
     }
