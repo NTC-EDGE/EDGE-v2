@@ -22,7 +22,7 @@ import { useApi } from "../../../../../shared/hooks/useApi";
 export interface ExamApplicantData {
   id: number;
   examType: string;
-  examineeType: "First Taker" | "Repeater" | "Upgrader";
+  examineeType: string;
   selectedOption: string;
   lastName: string;
   firstName: string;
@@ -46,13 +46,15 @@ export interface ExamApplicantData {
   email: string;
   contactNo: string;
   uploads: Record<string, string | { name: string; uri: string }>; // Maps requirement index/key to filename or file object
+  selectedVariantId?: string;
+  selectedElementId?: string;
 }
 
 export const initialExamApplicant = (id: number): ExamApplicantData => ({
   id,
-  examType: "Radiotelegraphy",
-  examineeType: "First Taker",
-  selectedOption: "1RTG - Elements 1, 2, 5, 6 & Code (25/20 wpm)",
+  examType: "",
+  examineeType: "",
+  selectedOption: "",
   lastName: "",
   firstName: "",
   middleName: "",
@@ -421,6 +423,22 @@ export function ExamFilingWizard({
     );
   };
 
+  const { data: variantsResponse } = api.useQuery<{ succeeded: boolean; data: any[] }>(
+    serviceId ? `/api/v2/services/${serviceId}/variants` : null
+  );
+  const variants = variantsResponse?.succeeded ? variantsResponse.data : [];
+
+  const selectedVariantId = activeApplicant?.selectedVariantId;
+  const { data: elementsResponse } = api.useQuery<{ succeeded: boolean; data: any[] }>(
+    selectedVariantId ? `/api/v2/service-variant-elements?serviceVariantId=${selectedVariantId}` : null
+  );
+  const variantElements = elementsResponse?.succeeded ? elementsResponse.data : [];
+
+  const { data: requirementsResponse } = api.useQuery<{ succeeded: boolean; data: any[] }>(
+    serviceId && selectedVariantId ? `/api/v2/services/${serviceId}/requirements?variantId=${selectedVariantId}` : null
+  );
+  const dbRequirements = requirementsResponse?.succeeded ? requirementsResponse.data : [];
+
   // Get dynamic options based on selected exam type
   const getDynamicApplicationTypes = () => {
     const field = formFields.find((f: any) => {
@@ -480,6 +498,9 @@ export function ExamFilingWizard({
     type: string,
     examineeType: string
   ): string[] => {
+    if (dbRequirements && dbRequirements.length > 0) {
+      return dbRequirements.map((r: any) => r.name);
+    }
     const list = [
       "PSA Birth Certificate or Valid Passport / Government ID",
       "Transcript of Records or Diploma with Special Order (SO) Number",
@@ -975,12 +996,14 @@ export function ExamFilingWizard({
       const birthDate = `${monthNum}/${day}/${app.birthYear}`;
 
       let examCat = "radio";
-      if (app.examType === "RROC-Aircraft") examCat = "rroc";
-      if (app.examType === "Amateur") examCat = "amateur";
+      const sNameLower = (serviceName || app.examType || "").toLowerCase();
+      if (sNameLower.includes("rroc") || sNameLower.includes("aircraft")) examCat = "rroc";
+      if (sNameLower.includes("amateur")) examCat = "amateur";
 
       let examTaker = "first taker";
-      if (app.examineeType === "Repeater") examTaker = "retaker";
-      if (app.examineeType === "Upgrader") examTaker = "upgrade";
+      const etLower = (app.examineeType || "").toLowerCase();
+      if (etLower.includes("repeat") || etLower.includes("retake")) examTaker = "retaker";
+      if (etLower.includes("upgrade")) examTaker = "upgrade";
 
       const address = `${app.street}, ${app.barangay}, ${app.city}, ${app.province}, ${app.zipCode}`;
 
@@ -1365,60 +1388,79 @@ export function ExamFilingWizard({
           <View>
             <Text style={styles.stepSubtitle}>Specify your application concern and view the required documents:</Text>
 
-            <Text style={styles.selectLabel}>Application type</Text>
-            <Select
-              placeholder="Select Application type"
-              value={activeApplicant.examType}
-              onValueChange={(val) => {
-                const nextType = val as string;
-                const defaultOption = getExamOptions(nextType)[0] || "";
-                updateActiveApplicant({
-                  examType: nextType,
-                  selectedOption: defaultOption,
-                });
-              }}
-              options={getDynamicApplicationTypes()}
+            <Text style={styles.selectLabel}>Selected Service</Text>
+            <ValidatedInput
+              value={serviceName || "Exam Filing"}
+              editable={false}
+              onChangeText={() => {}}
             />
 
             <Text style={styles.selectLabel}>Examinee type</Text>
             <Select
               placeholder="Select Examinee type"
-              value={activeApplicant.examineeType}
-              onValueChange={(val) => updateActiveApplicant({ examineeType: val as any })}
-              options={[
-                { label: "First Taker", value: "First Taker" },
-                { label: "Repeater", value: "Repeater" },
-                { label: "Upgrader", value: "Upgrader" },
-              ]}
+              value={activeApplicant.selectedVariantId || ""}
+              onValueChange={(val) => {
+                const matchedVariant = variants.find((v: any) => v.id === val);
+                updateActiveApplicant({
+                  examineeType: matchedVariant ? (matchedVariant.type === "FirstTaker" ? "First Taker" : (matchedVariant.type === "Retaker" ? "Repeater" : "Upgrader")) : "",
+                  selectedVariantId: val as string,
+                  selectedOption: "",
+                  selectedElementId: ""
+                });
+              }}
+              options={variants.map((v: any) => {
+                const label = v.type === "FirstTaker" ? "First Taker" 
+                            : v.type === "Retaker" ? "Repeater" 
+                            : v.type === "Upgrade" ? "Upgrader" 
+                            : v.description || v.type;
+                return {
+                  label,
+                  value: v.id
+                };
+              })}
             />
 
             {/* Radio Options List */}
-            <View style={styles.radioGroup}>
-              {getExamOptions(activeApplicant.examType).map((opt) => {
-                const isSelected = activeApplicant.selectedOption === opt;
-                return (
-                  <TouchableOpacity
-                    key={opt}
-                    onPress={() => updateActiveApplicant({ selectedOption: opt })}
-                    style={[styles.radioOption, isSelected && styles.radioOptionSelected]}
-                  >
-                    <View style={[styles.radioCircle, isSelected && styles.radioCircleSelected]}>
-                      {isSelected && <View style={styles.radioCircleInner} />}
-                    </View>
-                    <Text style={[styles.radioText, isSelected && styles.radioTextSelected]}>{opt}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+            {variantElements.length === 0 ? (
+              <Text style={{ fontSize: 12, color: COLORS.neutral[500], fontStyle: "italic", marginTop: 8, marginBottom: 12 }}>
+                {activeApplicant.selectedVariantId ? "Loading available elements..." : "Please select an examinee type to view available elements."}
+              </Text>
+            ) : (
+              <View style={styles.radioGroup}>
+                {variantElements.map((elem: any) => {
+                  const optText = `${elem.code} - ${elem.description}`;
+                  const isSelected = activeApplicant.selectedElementId === elem.id;
+                  return (
+                    <TouchableOpacity
+                      key={elem.id}
+                      onPress={() => updateActiveApplicant({
+                        selectedOption: optText,
+                        selectedElementId: elem.id
+                      })}
+                      style={[styles.radioOption, isSelected && styles.radioOptionSelected]}
+                    >
+                      <View style={[styles.radioCircle, isSelected && styles.radioCircleSelected]}>
+                        {isSelected && <View style={styles.radioCircleInner} />}
+                      </View>
+                      <Text style={[styles.radioText, isSelected && styles.radioTextSelected]}>{optText}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
 
             {/* Requirements Box */}
             <View style={styles.reqBox}>
               <Text style={styles.reqTitle}>Requirements</Text>
-              {getRequirementsList(activeApplicant.examType, activeApplicant.examineeType).map((req, idx) => (
-                <Text key={idx} style={styles.reqItem}>
-                  {idx + 1}. {req}*
-                </Text>
-              ))}
+              {dbRequirements.length === 0 ? (
+                <Text style={styles.reqItem}>Select Examinee Type to load requirements.</Text>
+              ) : (
+                dbRequirements.map((req: any, idx: number) => (
+                  <Text key={req.requirementId} style={styles.reqItem}>
+                    {idx + 1}. {req.name}{req.isRequired ? " *" : ""}
+                  </Text>
+                ))
+              )}
             </View>
           </View>
         )}

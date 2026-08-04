@@ -22,6 +22,7 @@ export function Services() {
     submitting,
     activeWizardService,
     setActiveWizardService,
+    backendCategories,
     setSelectedService,
     resetWizardState,
     confirmModalVisible,
@@ -218,6 +219,7 @@ export function Services() {
         onClose={() => setViewingDraftsCategory(null)}
         drafts={drafts}
         loadDraft={loadDraft}
+        backendCategories={backendCategories}
       />
 
       {/* View Profile Modal */}

@@ -154,25 +154,7 @@ export function ContentColumn({ servicesState }: ContentColumnProps) {
           onCategorySelect={(catId) => {
             confirmSwitchService(() => {
               setSelectedCategoryId(catId);
-              if (backendCategories) {
-                const matched = backendCategories.find((c: any) => {
-                  const code = c.code?.toUpperCase();
-                  if (catId === "exams" && code === "EXAM") return true;
-                  if (catId === "certificates" && code === "CERT") return true;
-                  if (catId === "licenses" && code === "LIC") return true;
-                  if (catId === "permits" && code === "PRM") return true;
-                  if (catId === "accreditations" && code === "ACCR") return true;
-                  if (catId === "complaints" && (code === "REQ" || c.type === "RequestsAndComplaints")) return true;
-                  return false;
-                });
-                if (matched) {
-                  setServiceId(matched.id);
-                } else {
-                  setServiceId(null);
-                }
-              } else {
-                setServiceId(null);
-              }
+              setServiceId(catId);
             });
           }}
           drafts={drafts}

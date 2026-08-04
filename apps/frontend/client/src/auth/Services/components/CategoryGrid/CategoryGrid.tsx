@@ -9,7 +9,6 @@ import {
   ImageSourcePropType,
 } from "react-native";
 import { COLORS, Icon, TYPOGRAPHY } from "@edge/ui";
-import { servicesData } from "../../data/servicesData";
 import { styles } from "./CategoryGrid.styles";
 
 const ACCREDITATIONS_PNG = require("../../../../../assets/services/Accreditations.png");
@@ -62,18 +61,31 @@ export function CategoryGrid({
   const displayName = user?.name ?? "Guest";
 
   const visibleCategories = useMemo(() => {
-    if (!backendCategories) return servicesData;
-    return servicesData.filter((cat) => {
-      return backendCategories.some((c: any) => {
-        const code = c.code?.toUpperCase();
-        if (cat.id === "exams" && code === "EXAM") return true;
-        if (cat.id === "certificates" && code === "CERT") return true;
-        if (cat.id === "licenses" && code === "LIC") return true;
-        if (cat.id === "permits" && code === "PRM") return true;
-        if (cat.id === "accreditations" && code === "ACCR") return true;
-        if (cat.id === "complaints" && (code === "REQ" || c.type === "RequestsAndComplaints")) return true;
-        return false;
-      });
+    if (!backendCategories) return [];
+    return backendCategories.map((c: any) => {
+      const code = c.code?.toUpperCase();
+      const id = code === "EXAM" ? "exams"
+               : code === "CERT" ? "certificates"
+               : code === "LIC" ? "licenses"
+               : code === "PRM" ? "permits"
+               : code === "ACCR" ? "accreditations"
+               : "complaints";
+
+      const icon = id === "exams" ? "award"
+                 : id === "certificates" ? "file-text"
+                 : id === "licenses" ? "shield"
+                 : id === "permits" ? "key"
+                 : id === "accreditations" ? "activity"
+                 : "help-circle";
+
+      return {
+        id: c.id,
+        staticId: id,
+        title: c.name,
+        icon: icon as any,
+        description: c.description || `NTC ${c.name} services.`,
+        services: []
+      };
     });
   }, [backendCategories]);
 
@@ -132,10 +144,11 @@ export function CategoryGrid({
       {/* Grid of Categories */}
       <View style={styles.gridContainer}>
         {visibleCategories.map((category) => {
-          const theme = getCategoryTheme(category.id);
+          const staticId = category.staticId || category.id;
+          const theme = getCategoryTheme(staticId);
           const isActive = selectedCategoryId === category.id;
           const categoryDraftsCount = drafts.filter((d) =>
-            category.services.some((s) => s.title === d.service?.title)
+            d.service?.serviceCategoryId === category.id || d.service?.category === category.title
           ).length;
 
           return (
@@ -147,9 +160,9 @@ export function CategoryGrid({
                 isActive && styles.categoryCardActive,
               ]}
             >
-              {CATEGORY_IMAGES[category.id] !== undefined ? (
+              {CATEGORY_IMAGES[staticId] !== undefined ? (
                 <Image
-                  source={CATEGORY_IMAGES[category.id]}
+                  source={CATEGORY_IMAGES[staticId]}
                   style={styles.categoryImage}
                   resizeMode="contain"
                 />
