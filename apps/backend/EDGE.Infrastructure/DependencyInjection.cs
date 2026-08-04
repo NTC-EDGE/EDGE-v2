@@ -72,6 +72,7 @@ public static class DependencyInjection
         services.AddScoped<IFeeRepository, FeeRepository>();
         services.AddScoped<IServiceFeeRepository, ServiceFeeRepository>();
         services.AddScoped<IServiceVariantRequirementRepository, ServiceVariantRequirementRepository>();
+        services.AddScoped<IServiceVariantElementRepository, ServiceVariantElementRepository>();
         services.AddScoped<IFeedbackRepository, FeedbackRepository>();
         services.AddScoped<ISystemAnnouncementRepository, SystemAnnouncementRepository>();
         services.AddScoped<IAuditLogRepository, AuditLogRepository>();

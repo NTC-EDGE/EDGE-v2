@@ -34,6 +34,7 @@ public static class EndpointConfiguration
         apiV2Group.MapBarangayEndpoints();
         apiV2Group.MapFeeEndpoints();
         apiV2Group.MapServiceFeeEndpoints();
+        apiV2Group.MapServiceVariantElementEndpoints();
         apiV2Group.MapRequirementEndpoints();
         apiV2Group.MapServiceVariantRequirementEndpoints();
         apiV2Group.MapFormEndpoints();
