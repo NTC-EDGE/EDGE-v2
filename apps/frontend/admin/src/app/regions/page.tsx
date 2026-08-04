@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { RegionsTable } from "@/components/geographics/RegionsTable";
 import { CreateRegionDialog, EditRegionDialog } from "@/components/geographics/RegionDialogs";
 import { ConfirmActionDialog } from "@/components/ui/confirm-action-dialog";
+import { isForbiddenError, PageForbiddenState } from "@/components/PageForbiddenState";
 import { Region } from "@edge/api";
 
 type FilterType = "all" | "active" | "inactive";
@@ -195,7 +196,8 @@ export default function RegionsPage() {
       </div>
 
       {/* Error state */}
-      {!!error && (
+      {!!error && isForbiddenError(error) && <PageForbiddenState />}
+      {!!error && !isForbiddenError(error) && (
         <div className="text-center py-16 px-4 bg-slate-900 border border-slate-800 rounded-2xl">
           <p className="text-sm font-semibold text-red-500">Failed to load regions database.</p>
           <Button onClick={() => mutate()} className="mt-4" size="sm" variant="outline">Retry</Button>

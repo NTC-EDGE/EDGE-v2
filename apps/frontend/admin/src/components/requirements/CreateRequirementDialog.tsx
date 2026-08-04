@@ -25,7 +25,7 @@ export interface CreateRequirementDialogProps {
       name: string;
       description: string;
       serviceVariantId: string;
-      requirementsList: { requirementId: string; applicationTypeKey: string | null; isRequired: boolean }[];
+      requirementsList: { requirementId: string; contextKey: string | null; isRequired: boolean }[];
     }
   ) => Promise<void>;
 }
@@ -33,7 +33,7 @@ export interface CreateRequirementDialogProps {
 interface RequirementEntry {
   uid: number;
   requirementId: string;
-  applicationTypeKey: string;
+  contextKey: string;
   isRequired: boolean;
 }
 
@@ -44,7 +44,7 @@ const nextUid = () => { uidCounter += 1; return uidCounter; };
 const makeEntry = (firstReqId: string): RequirementEntry => ({
   uid: nextUid(),
   requirementId: firstReqId,
-  applicationTypeKey: "",
+  contextKey: "",
   isRequired: true,
 });
 
@@ -154,7 +154,7 @@ export function CreateRequirementDialog({
         serviceVariantId: selectedVariantId,
         requirementsList: entries.map((entry) => ({
           requirementId: entry.requirementId,
-          applicationTypeKey: entry.applicationTypeKey.trim() === "" ? null : entry.applicationTypeKey.trim(),
+          contextKey: entry.contextKey.trim() === "" ? null : entry.contextKey.trim(),
           isRequired: entry.isRequired,
         })),
       });
@@ -280,16 +280,16 @@ export function CreateRequirementDialog({
                           </select>
                         </div>
 
-                        {/* App Type Key — free text input */}
+                        {/* Context Key — free text input */}
                         <div className="w-36 space-y-1.5 shrink-0">
                           <label className="text-[10px] font-bold text-slate-400 uppercase">
-                            Key
+                            Context Key
                           </label>
                           <input
                             type="text"
                             placeholder="e.g. NEW"
-                            value={entry.applicationTypeKey}
-                            onChange={(e) => handleUpdateField(entry.uid, "applicationTypeKey", e.target.value)}
+                            value={entry.contextKey}
+                            onChange={(e) => handleUpdateField(entry.uid, "contextKey", e.target.value)}
                             className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 uppercase"
                           />
                         </div>

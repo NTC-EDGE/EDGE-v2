@@ -23,10 +23,26 @@ public class CreateScheduleCommandValidator : AbstractValidator<CreateScheduleCo
             .NotEmpty().WithMessage("EndDate is required.")
             .GreaterThan(x => x.StartDate).WithMessage("EndDate must be later than StartDate.");
 
-        When(x => x.StartApplication.HasValue && x.EndApplication.HasValue, () =>
+        RuleFor(x => x.IsPublished)
+            .Must((x, isPublished) => !isPublished || (x.StartApplication.HasValue && x.EndApplication.HasValue))
+            .WithMessage("Please set the Start Application and End Application dates before publishing the schedule.");
+
+        When(x => x.StartApplication.HasValue, () =>
+        {
+            RuleFor(x => x.StartApplication!.Value)
+                .LessThan(x => x.StartDate).WithMessage("Start Application date must be earlier than the exam Start Date.");
+        });
+
+        When(x => x.EndApplication.HasValue, () =>
         {
             RuleFor(x => x.EndApplication!.Value)
-                .GreaterThanOrEqualTo(x => x.StartApplication!.Value).WithMessage("EndApplication must be later than or equal to StartApplication.");
+                .LessThan(x => x.StartDate).WithMessage("End Application date must be earlier than the exam Start Date.");
+        });
+
+        When(x => x.StartApplication.HasValue && x.EndApplication.HasValue, () =>
+        {
+            RuleFor(x => x.StartApplication!.Value)
+                .LessThanOrEqualTo(x => x.EndApplication!.Value).WithMessage("Start Application date must not be later than End Application date.");
         });
 
         When(x => x.MaximumSlots.HasValue, () =>

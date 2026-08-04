@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Save,
   Loader2
@@ -18,6 +18,7 @@ interface RegionSettingsTabProps {
 
 export function RegionSettingsTab({ currentTenant, getRegionName, getRegionCode, showToast }: RegionSettingsTabProps) {
   const { useRegionSettings, updateRegionSettings } = useRegionSettingsService();
+  const { data: fetchedSettings } = useRegionSettings(currentTenant.regionId);
   const [savingSettings, setSavingSettings] = useState(false);
 
   const [regionSettingsData, setRegionSettingsData] = useState<RegionSettings>({
@@ -39,6 +40,12 @@ export function RegionSettingsTab({ currentTenant, getRegionName, getRegionCode,
     },
   });
 
+  useEffect(() => {
+    if (fetchedSettings) {
+      setRegionSettingsData(fetchedSettings);
+    }
+  }, [fetchedSettings]);
+
   const handleSaveRegionSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     setSavingSettings(true);
@@ -46,7 +53,7 @@ export function RegionSettingsTab({ currentTenant, getRegionName, getRegionCode,
       await updateRegionSettings(currentTenant.regionId, regionSettingsData);
       showToast("Region settings & fee schedules saved!");
     } catch (err: unknown) {
-      showToast("Region settings & fee schedules saved locally!");
+      showToast(err instanceof Error ? err.message : "Failed to save region settings.");
     } finally {
       setSavingSettings(false);
     }

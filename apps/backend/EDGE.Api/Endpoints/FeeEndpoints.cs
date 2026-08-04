@@ -1,13 +1,12 @@
 using MediatR;
 using FluentValidation;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Routing;
 using EDGE.Application.Fees.Commands.CreateFee;
 using EDGE.Application.Fees.Commands.UpdateFee;
 using EDGE.Application.Fees.Commands.SetFeeStatus;
 using EDGE.Application.Fees.Commands.DeleteFee;
 using EDGE.Application.Fees.Queries;
+using EDGE.Domain.Authorization;
+using EDGE.Infrastructure.Authorization;
 
 namespace EDGE.Api.Endpoints;
 
@@ -54,12 +53,16 @@ public static class FeeEndpoints
         return group;
     }
 
+    [HasPermission(Permissions.SystemAdmin)]
     public static async Task<IResult> GetFees(
         bool? activeOnly,
+        int? pageNumber,
+        int? pageSize,
+        string? searchTerm,
         IValidator<GetFeesQuery> validator,
         IMediator mediator)
     {
-        var query = new GetFeesQuery(activeOnly);
+        var query = new GetFeesQuery(activeOnly, pageNumber, pageSize, searchTerm);
         var validationResult = await validator.ValidateAsync(query);
         if (!validationResult.IsValid)
         {
@@ -70,6 +73,7 @@ public static class FeeEndpoints
         return Results.Ok(result);
     }
 
+    [HasPermission(Permissions.SystemAdmin)]
     public static async Task<IResult> GetFeeById(
         Guid id,
         IValidator<GetFeeByIdQuery> validator,
@@ -86,6 +90,7 @@ public static class FeeEndpoints
         return result is not null ? Results.Ok(result) : Results.NotFound();
     }
 
+    [HasPermission(Permissions.SystemAdmin)]
     public static async Task<IResult> CreateFee(
         CreateFeeCommand command,
         IValidator<CreateFeeCommand> validator,
@@ -101,6 +106,7 @@ public static class FeeEndpoints
         return Results.Created($"/api/v2/fees/{result.Id}", result);
     }
 
+    [HasPermission(Permissions.SystemAdmin)]
     public static async Task<IResult> UpdateFee(
         Guid id,
         UpdateFeeRequest request,
@@ -118,6 +124,7 @@ public static class FeeEndpoints
         return result is not null ? Results.Ok(result) : Results.NotFound();
     }
 
+    [HasPermission(Permissions.SystemAdmin)]
     public static async Task<IResult> SetFeeStatus(
         Guid id,
         SetFeeStatusRequest request,
@@ -135,6 +142,7 @@ public static class FeeEndpoints
         return result is not null ? Results.Ok(result) : Results.NotFound();
     }
 
+    [HasPermission(Permissions.SystemAdmin)]
     public static async Task<IResult> DeleteFee(
         Guid id,
         IValidator<DeleteFeeCommand> validator,

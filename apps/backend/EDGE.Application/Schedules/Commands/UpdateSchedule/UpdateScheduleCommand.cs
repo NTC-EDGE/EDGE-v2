@@ -5,14 +5,21 @@ namespace EDGE.Application.Schedules.Commands.UpdateSchedule;
 
 public record UpdateScheduleCommand(
     Guid Id,
-    Guid ServiceId,
-    Guid TenantId,
     string Venue,
     DateTime StartDate,
     DateTime EndDate,
     DateTime? StartApplication = null,
     DateTime? EndApplication = null,
-    bool IsPublished = false,
     int? MaximumSlots = null,
     string? Remarks = null
 ) : IRequest<ScheduleDto?>;
+
+public record UpdateScheduleRequest(
+    string Venue,
+    DateTime StartDate,
+    DateTime EndDate,
+    DateTime? StartApplication = null,
+    DateTime? EndApplication = null,
+    int? MaximumSlots = null,
+    string? Remarks = null
+);

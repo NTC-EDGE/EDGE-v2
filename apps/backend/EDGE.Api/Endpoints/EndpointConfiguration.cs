@@ -1,5 +1,10 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
+using EDGE.Api.Endpoints.NotificationTemplates;
+using EDGE.Api.Endpoints.Announcements;
+using EDGE.Api.Endpoints.AuditLogs;
+using EDGE.Api.Endpoints.SystemErrorLogs;
+using EDGE.Api.Endpoints.SystemConfigs;
 
 namespace EDGE.Api.Endpoints;
 
@@ -33,13 +38,21 @@ public static class EndpointConfiguration
         apiV2Group.MapMunicipalityEndpoints();
         apiV2Group.MapBarangayEndpoints();
         apiV2Group.MapFeeEndpoints();
+        apiV2Group.MapElementEndpoints();
+        apiV2Group.MapServiceVariantFeeEndpoints();
+        apiV2Group.MapServiceVariantElementFeeEndpoints();
         apiV2Group.MapServiceFeeEndpoints();
         apiV2Group.MapServiceVariantElementEndpoints();
         apiV2Group.MapRequirementEndpoints();
         apiV2Group.MapServiceVariantRequirementEndpoints();
+        apiV2Group.MapServiceVariantEndpoints();
         apiV2Group.MapFormEndpoints();
         apiV2Group.MapFeedbackEndpoints();
         apiV2Group.MapSystemAnnouncementEndpoints();
         apiV2Group.MapAuditLogEndpoints();
+        apiV2Group.MapSystemConfigEndpoints();
+        apiV2Group.MapNotificationTemplateEndpoints();
+        apiV2Group.MapSystemErrorLogEndpoints();
+        apiV2Group.MapDocumentTypeEndpoints();
     }
 }

@@ -23,7 +23,16 @@ public class SetSchedulePublishCommandHandler : IRequestHandler<SetSchedulePubli
             return null;
         }
 
-        schedule.IsPublished = request.IsPublished ?? !schedule.IsPublished;
+        var newPublishStatus = request.IsPublished ?? !schedule.IsPublished;
+        if (newPublishStatus && (schedule.StartApplication == null || schedule.EndApplication == null))
+        {
+            throw new FluentValidation.ValidationException(new[]
+            {
+                new FluentValidation.Results.ValidationFailure("IsPublished", "Please set the Start Application and End Application dates before publishing the schedule.")
+            });
+        }
+
+        schedule.IsPublished = newPublishStatus;
 
         _scheduleRepository.Update(schedule);
         await _unitOfWork.SaveChangesAsync(cancellationToken);

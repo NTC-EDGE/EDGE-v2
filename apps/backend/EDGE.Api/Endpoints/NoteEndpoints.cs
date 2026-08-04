@@ -72,9 +72,10 @@ public static class NoteEndpoints
     public static async Task<IResult> GetAllNotes(
         int? pageNumber,
         int? pageSize,
+        string? searchTerm,
         IMediator mediator)
     {
-        var result = await mediator.Send(new GetAllNotesQuery(pageNumber ?? 1, pageSize ?? 10));
+        var result = await mediator.Send(new GetAllNotesQuery(pageNumber, pageSize, searchTerm));
         return Results.Ok(result);
     }
 

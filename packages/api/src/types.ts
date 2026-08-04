@@ -118,7 +118,6 @@ export interface ExamSchedule {
   isPublished: boolean;
   description?: string | null;
   remarks?: string | null;
-  seatNumber?: string | null;
   createdAt?: string;
   // Connected Service Fields
   serviceId?: string | null;
@@ -143,7 +142,6 @@ export interface CreateExamScheduleCommand {
   isPublished: boolean;
   description?: string | null;
   remarks?: string | null;
-  seatNumber?: string | null;
   // Connected Service Fields
   serviceId?: string | null;
   tenantId?: string | null;
@@ -166,7 +164,6 @@ export interface UpdateExamScheduleCommand {
   isPublished: boolean;
   description?: string | null;
   remarks?: string | null;
-  seatNumber?: string | null;
 }
 
 // Tenant and Member Management Types
@@ -181,6 +178,9 @@ export interface Tenant {
   createdBy?: string | null;
   lastModifiedAt?: string | null;
   lastModifiedBy?: string | null;
+  tenantMembersTotal?: number;
+  clientTotal?: number;
+  fieldOfficesCount?: number;
 }
 
 export interface CreateTenantCommand {
@@ -479,9 +479,54 @@ export interface Fee {
 export interface ServiceFee {
   id: string;
   serviceId: string;
+  serviceName?: string | null;
+  serviceCode?: string | null;
   feeId: string;
+  feeCode?: string | null;
+  feeName?: string | null;
   amount: number;
   isActive?: boolean;
+  createdAt?: string;
+}
+
+export interface Element {
+  id: string;
+  name: string;
+  code: string;
+  description?: string | null;
+  createdAt?: string;
+}
+
+export interface ServiceVariantDetail {
+  id: string;
+  serviceId: string;
+  serviceName?: string | null;
+  type?: string | null;
+}
+
+export interface ServiceVariantFee {
+  id: string;
+  serviceVariantId: string;
+  serviceVariant?: ServiceVariantDetail | null;
+  feeId: string;
+  feeCode?: string | null;
+  feeName?: string | null;
+  amount: number;
+  createdAt?: string;
+}
+
+export interface ServiceVariantElementFee {
+  id: string;
+  serviceVariantId: string;
+  serviceVariant?: ServiceVariantDetail | null;
+  elementId: string;
+  elementCode?: string | null;
+  elementName?: string | null;
+  feeId: string;
+  feeCode?: string | null;
+  feeName?: string | null;
+  amount: number;
+  createdAt?: string;
 }
 
 export interface Note {
@@ -502,6 +547,7 @@ export interface Requirement {
 export interface ServiceVariant {
   id: string;
   serviceId: string;
+  serviceName?: string | null;
   type: string;
   description?: string | null;
 }
@@ -514,7 +560,7 @@ export interface ServiceVariantRequirement {
   serviceVariantType?: string;
   serviceName?: string;
   serviceCode?: string;
-  applicationTypeKey?: string | null;
+  contextKey?: string | null;
   isRequired: boolean;
 }
 

@@ -6,6 +6,10 @@ using EDGE.Domain.Authorization;
 using EDGE.Infrastructure.Authorization;
 using EDGE.Application.TenantMembers.Commands;
 using EDGE.Application.TenantMembers.Queries;
+using EDGE.Application.TenantMembers.DTOs;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
 
 namespace EDGE.Api.Endpoints;
 
@@ -20,31 +24,44 @@ public static class TenantMemberEndpoints
             .WithName("AssignUserToTenant")
             .WithTags("Tenant Members")
             .WithSummary("Assign user to tenant")
-            .WithDescription("Assigns a user to a tenant organization and registers member details including role, division, position, level, and field office.");
+            .WithDescription("Assigns a user to a tenant organization and registers member details including role, division, position, level, and field office.")
+            .Produces<TenantMemberDto>(StatusCodes.Status201Created)
+            .Produces<HttpValidationProblemDetails>(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status404NotFound)
+            .Produces(StatusCodes.Status409Conflict);
 
         members.MapGet("/", GetTenantMembers)
             .WithName("GetTenantMembers")
             .WithTags("Tenant Members")
             .WithSummary("Retrieve tenant members")
-            .WithDescription("Retrieves all assigned members under a specific tenant organization.");
+            .WithDescription("Retrieves all assigned members under a specific tenant organization.")
+            .Produces<List<TenantMemberDto>>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound);
 
         members.MapGet("/{memberId:guid}", GetMemberDetails)
             .WithName("GetMemberDetails")
             .WithTags("Tenant Members")
             .WithSummary("Get tenant member details")
-            .WithDescription("Retrieves specific membership and profile details for a tenant member.");
+            .WithDescription("Retrieves specific membership and profile details for a tenant member.")
+            .Produces<TenantMemberDto>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound);
 
         members.MapPut("/{memberId:guid}", UpdateMemberDetails)
             .WithName("UpdateMemberDetails")
             .WithTags("Tenant Members")
             .WithSummary("Update tenant member details")
-            .WithDescription("Updates extended profile information, role, field office, division, or position for a tenant member.");
+            .WithDescription("Updates extended profile information, role, field office, division, or position for a tenant member.")
+            .Produces<TenantMemberDto>(StatusCodes.Status200OK)
+            .Produces<HttpValidationProblemDetails>(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status404NotFound);
 
         members.MapDelete("/{memberId:guid}", RemoveUserFromTenant)
             .WithName("RemoveUserFromTenant")
             .WithTags("Tenant Members")
             .WithSummary("Remove user from tenant")
-            .WithDescription("Removes a member's assignment from a tenant organization.");
+            .WithDescription("Removes a member's assignment from a tenant organization.")
+            .Produces(StatusCodes.Status204NoContent)
+            .Produces(StatusCodes.Status404NotFound);
 
         return group;
     }

@@ -5,6 +5,8 @@ using EDGE.Application.Provinces.Commands.DeleteProvince;
 using EDGE.Application.Provinces.Queries.GetProvinces;
 using EDGE.Application.Provinces.Queries.GetProvinceById;
 using EDGE.Application.Common.Models;
+using EDGE.Domain.Authorization;
+using EDGE.Infrastructure.Authorization;
 
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
@@ -22,6 +24,7 @@ public static class ProvinceEndpoints
             var result = await mediator.Send(new GetProvincesQuery(regionId, activeOnly));
             return Results.Ok(result);
         })
+        .RequireAuthorization()
         .WithName("GetProvinces")
         .WithTags("Province")
         .WithSummary("Get list of provinces")
@@ -32,6 +35,7 @@ public static class ProvinceEndpoints
             var result = await mediator.Send(new GetProvinceByIdQuery(id));
             return result.Succeeded ? Results.Ok(result) : Results.NotFound(result);
         })
+        .RequireAuthorization()
         .WithName("GetProvinceById")
         .WithTags("Province")
         .WithSummary("Get province details by ID")
@@ -44,6 +48,7 @@ public static class ProvinceEndpoints
                 ? Results.Created($"/api/v2/provinces/{result.Data}", result)
                 : Results.BadRequest(result);
         })
+        .RequireAuthorization(new HasPermissionAttribute(Permissions.SystemAdmin))
         .WithName("CreateProvince")
         .WithTags("Province")
         .WithSummary("Create province reference")
@@ -59,6 +64,7 @@ public static class ProvinceEndpoints
             var result = await mediator.Send(command);
             return result.Succeeded ? Results.Ok(result) : Results.NotFound(result);
         })
+        .RequireAuthorization(new HasPermissionAttribute(Permissions.SystemAdmin))
         .WithName("UpdateProvince")
         .WithTags("Province")
         .WithSummary("Update province details")
@@ -75,6 +81,7 @@ public static class ProvinceEndpoints
             }
             return Results.Ok(result);
         })
+        .RequireAuthorization(new HasPermissionAttribute(Permissions.SystemAdmin))
         .WithName("DeleteProvince")
         .WithTags("Province")
         .WithSummary("Delete province reference")

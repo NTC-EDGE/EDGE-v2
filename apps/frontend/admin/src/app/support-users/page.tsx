@@ -20,6 +20,7 @@ import { SupportFilterToolbar } from "@/components/support-users/SupportFilterTo
 import { SupportUserTable } from "@/components/support-users/SupportUserTable";
 import { TroubleshootingWorkbenchModal } from "@/components/support-users/TroubleshootingWorkbenchModal";
 import { StatusOverrideModal } from "@/components/support-users/StatusOverrideModal";
+import { isForbiddenError, PageForbiddenState } from "@/components/PageForbiddenState";
 
 function GlobalUserDirectoryContent() {
   const searchParams = useSearchParams();
@@ -46,25 +47,19 @@ function GlobalUserDirectoryContent() {
   const [roleFilter, setRoleFilter] = useState<string>("ALL");
 
   const { data: fetchedRegions } = useRegions();
-  const { data: fetchedUsers, isLoading: loadingUsers, mutate: mutateUsers } = useGlobalUsers(
+  const { data: fetchedUsers, isLoading: loadingUsers, mutate: mutateUsers, error } = useGlobalUsers(
     searchTerm,
     regionFilter,
     statusFilter
   );
 
-  const rawRegions = fetchedRegions !== undefined && fetchedRegions !== null ? fetchedRegions.data : null;
-  const regions: Region[] = (rawRegions !== undefined && rawRegions !== null && rawRegions.length > 0)
-    ? rawRegions
-    : [
-        { id: "reg-ncr", code: "NCR", name: "NCR - National Capital Region", isActive: true },
-        { id: "reg-r3", code: "R3", name: "Region III - Central Luzon", isActive: true },
-        { id: "reg-r7", code: "R7", name: "Region VII - Central Visayas", isActive: true },
-        { id: "reg-r11", code: "R11", name: "Region XI - Davao Region", isActive: true },
-      ];
+  const regions: Region[] = Array.isArray(fetchedRegions)
+    ? fetchedRegions
+    : fetchedRegions?.data ?? [];
 
-  const allUsers: GlobalSupportUser[] = (fetchedUsers !== undefined && fetchedUsers !== null && fetchedUsers.length > 0)
+  const allUsers: GlobalSupportUser[] = (fetchedUsers !== undefined && fetchedUsers !== null)
     ? fetchedUsers
-    : MOCK_SUPPORT_USERS;
+    : [];
 
   const filteredUsers = useMemo(() => {
     return allUsers.filter((u) => {
@@ -307,29 +302,38 @@ function GlobalUserDirectoryContent() {
         regions={regions}
       />
 
-      <SupportUserTable
-        users={paginatedUsers}
-        loading={loadingUsers && fetchedUsers === undefined}
-        onOpenWorkbench={handleOpenWorkbench}
-        onUnlockAccount={handleUnlockAccount}
-        onResetPassword={handleResetPassword}
-        onRevokeSessions={handleRevokeSessions}
-        onOpenStatusModal={handleOpenStatusModal}
-        pagination={
-          filteredUsers.length > 0
-            ? {
-                currentPage,
-                totalItems: filteredUsers.length,
-                pageSize,
-                onPageChange: setCurrentPage,
-                onPageSizeChange: (newSize) => {
-                  setPageSize(newSize);
-                  setCurrentPage(1);
-                },
-              }
-            : undefined
-        }
-      />
+      {!!error && isForbiddenError(error) && <PageForbiddenState />}
+      {!!error && !isForbiddenError(error) && (
+        <div className="p-12 text-center bg-slate-900 border border-slate-800 rounded-2xl shadow-xl">
+          <p className="text-red-500 font-medium text-base">Failed to load support users</p>
+          <button onClick={() => mutateUsers()} className="mt-4 px-4 py-2 bg-slate-800 text-slate-300 rounded-xl text-sm hover:bg-slate-700 font-medium">Retry</button>
+        </div>
+      )}
+      {!error && (
+        <SupportUserTable
+          users={paginatedUsers}
+          loading={loadingUsers && fetchedUsers === undefined}
+          onOpenWorkbench={handleOpenWorkbench}
+          onUnlockAccount={handleUnlockAccount}
+          onResetPassword={handleResetPassword}
+          onRevokeSessions={handleRevokeSessions}
+          onOpenStatusModal={handleOpenStatusModal}
+          pagination={
+            filteredUsers.length > 0
+              ? {
+                  currentPage,
+                  totalItems: filteredUsers.length,
+                  pageSize,
+                  onPageChange: setCurrentPage,
+                  onPageSizeChange: (newSize) => {
+                    setPageSize(newSize);
+                    setCurrentPage(1);
+                  },
+                }
+              : undefined
+          }
+        />
+      )}
 
       <TroubleshootingWorkbenchModal
         selectedUser={selectedUser}

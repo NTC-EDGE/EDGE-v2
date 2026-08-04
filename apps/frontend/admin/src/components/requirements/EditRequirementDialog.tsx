@@ -28,7 +28,7 @@ export interface EditRequirementDialogProps {
       description: string;
       requirementId: string;
       serviceVariantId: string;
-      applicationTypeKey: string | null;
+      contextKey: string | null;
       isRequired: boolean;
     }
   ) => Promise<void>;
@@ -57,7 +57,7 @@ export function EditRequirementDialog({
   const [selectedServiceId, setSelectedServiceId] = useState("");
   const [selectedVariantId, setSelectedVariantId] = useState("");
   const [selectedReqId, setSelectedReqId] = useState("");
-  const [applicationTypeKey, setApplicationTypeKey] = useState("NEW");
+  const [contextKey, setContextKey] = useState("NEW");
   const [isRequired, setIsRequired] = useState(true);
 
   // Fetch variants for selected service
@@ -86,7 +86,7 @@ export function EditRequirementDialog({
         setSelectedServiceId(matchedService?.id ?? "");
         setSelectedVariantId(selectedSvr.serviceVariantId);
         setSelectedReqId(selectedSvr.requirementId);
-        setApplicationTypeKey(selectedSvr.applicationTypeKey ?? "ALL");
+        setContextKey(selectedSvr.contextKey ?? "ALL");
         setIsRequired(selectedSvr.isRequired);
       }
     }
@@ -116,7 +116,7 @@ export function EditRequirementDialog({
         description,
         requirementId: selectedReqId,
         serviceVariantId: selectedVariantId,
-        applicationTypeKey: applicationTypeKey === "ALL" ? null : applicationTypeKey,
+        contextKey: contextKey === "ALL" ? null : contextKey,
         isRequired,
       });
       onOpenChange(false);
@@ -229,10 +229,10 @@ export function EditRequirementDialog({
 
               <div className="flex items-center justify-between gap-4 pt-2">
                 <div className="flex items-center gap-2 flex-1">
-                  <label className="text-xs font-semibold text-slate-300">App Type Key</label>
+                  <label className="text-xs font-semibold text-slate-300">Context Key</label>
                   <select
-                    value={applicationTypeKey}
-                    onChange={(e) => setApplicationTypeKey(e.target.value)}
+                    value={contextKey}
+                    onChange={(e) => setContextKey(e.target.value)}
                     className="px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                   >
                     <option value="NEW">NEW</option>

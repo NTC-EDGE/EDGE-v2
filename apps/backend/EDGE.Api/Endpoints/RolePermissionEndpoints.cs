@@ -1,5 +1,3 @@
-using System;
-using System.Threading.Tasks;
 using MediatR;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -45,6 +43,7 @@ public static class RolePermissionEndpoints
             .WithDescription("Resets default seeded roles to their initial permission configurations.");
     }
 
+    [HasPermission(Permissions.ReadRoles)]
     public static async Task<IResult> GetRolePermissions(Guid roleId, IMediator mediator)
     {
         var permissionKeys = await mediator.Send(new GetRolePermissionsQuery(roleId));

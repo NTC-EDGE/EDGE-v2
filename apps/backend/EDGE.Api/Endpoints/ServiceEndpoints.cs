@@ -53,6 +53,21 @@ public static class ServiceEndpoints
             .WithDescription("Retrieves all catalog services, with optional serviceCategoryId filter.")
             .Produces<ApiResponse<List<ServiceDto>>>(StatusCodes.Status200OK);
 
+        globalGroup.MapPost("/", CreateGlobalService)
+            .WithName("CreateGlobalService")
+            .WithSummary("Create a new global catalog service")
+            .WithDescription("Creates a new catalog service with optional tenant binding.");
+
+        globalGroup.MapPut("/{id:guid}", UpdateGlobalService)
+            .WithName("UpdateGlobalService")
+            .WithSummary("Update global service details")
+            .WithDescription("Updates catalog service information.");
+
+        globalGroup.MapDelete("/{id:guid}", DeleteGlobalService)
+            .WithName("DeleteGlobalService")
+            .WithSummary("Delete a global service")
+            .WithDescription("Deletes a service. Returns 409 Conflict if the service has associated applications.");
+
         globalGroup.MapGet("/{id:guid}", GetServiceById)
             .WithName("GetServiceById")
             .WithSummary("Get service details by ID")
@@ -76,6 +91,36 @@ public static class ServiceEndpoints
             .WithDescription("Fetches dynamic sections, fields, and options configured in the form builder for a service.");
 
         return app;
+    }
+
+    [HasPermission(Permissions.CreateServices)]
+    public static async Task<IResult> CreateGlobalService(CreateServiceCommand command, IMediator mediator)
+    {
+        var result = await mediator.Send(command);
+        return result.Succeeded
+            ? Results.Created($"/api/v2/services/{result.Data}", result)
+            : Results.BadRequest(result);
+    }
+
+    [HasPermission(Permissions.UpdateServices)]
+    public static async Task<IResult> UpdateGlobalService(Guid id, UpdateServiceCommand command, IMediator mediator)
+    {
+        var updatedCommand = command with { Id = id };
+        var result = await mediator.Send(updatedCommand);
+        return result.Succeeded ? Results.Ok(result) : Results.NotFound(result);
+    }
+
+    [HasPermission(Permissions.DeleteServices)]
+    public static async Task<IResult> DeleteGlobalService(Guid id, IMediator mediator)
+    {
+        var result = await mediator.Send(new DeleteServiceCommand(id));
+        if (!result.Succeeded)
+        {
+            return result.Message != null && result.Message.Contains("not found")
+                ? Results.NotFound(result)
+                : Results.Conflict(result);
+        }
+        return Results.Ok(result);
     }
 
     [HasPermission(Permissions.ReadServices)]

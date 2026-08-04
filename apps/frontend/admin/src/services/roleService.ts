@@ -4,29 +4,36 @@ import { Role, CreateRoleCommand, UpdateRoleCommand, Permission } from '@edge/ap
 export function useRoleService() {
   const { useQuery, post, put, del } = useApi();
 
-  const useRoles = (tenantId?: string | null) => {
-    const queryStr = tenantId !== undefined && tenantId !== null && tenantId.length > 0 ? `?tenantId=${tenantId}` : '';
-    return useQuery<Role[]>(`/roles${queryStr}`);
+  const useRoles = (tenantId?: string | null, includeSystemRoles?: boolean) => {
+    const params = new URLSearchParams();
+    if (tenantId !== undefined && tenantId !== null && tenantId.length > 0) {
+      params.append('tenantId', tenantId);
+    }
+    if (includeSystemRoles === true) {
+      params.append('includeSystemRoles', 'true');
+    }
+    const queryStr = params.toString().length > 0 ? `?${params.toString()}` : '';
+    return useQuery<Role[]>(`/api/v2/roles${queryStr}`);
   };
 
   const useRole = (id: string | null) => {
-    return useQuery<Role>(id !== null && id.length > 0 ? `/roles/${id}` : null);
+    return useQuery<Role>(id !== null && id.length > 0 ? `/api/v2/roles/${id}` : null);
   };
 
   const usePermissions = () => {
-    return useQuery<Permission[]>('/permissions');
+    return useQuery<Permission[]>('/api/v2/permissions');
   };
 
   const createRole = async (command: CreateRoleCommand): Promise<Role> => {
-    return post<Role, CreateRoleCommand>('/roles', command);
+    return post<Role, CreateRoleCommand>('/api/v2/roles', command);
   };
 
   const updateRole = async (id: string, command: UpdateRoleCommand): Promise<Role> => {
-    return put<Role, UpdateRoleCommand>(`/roles/${id}`, command);
+    return put<Role, UpdateRoleCommand>(`/api/v2/roles/${id}`, command);
   };
 
   const deleteRole = async (id: string): Promise<void> => {
-    return del<void>(`/roles/${id}`);
+    return del<void>(`/api/v2/roles/${id}`);
   };
 
   return {

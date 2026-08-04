@@ -5,6 +5,7 @@ import { ClerkProvider, UserButton } from "@clerk/nextjs";
 import { AdminScopeProvider } from "@/lib/admin-scope-context";
 import { SidebarNav } from "@/components/SidebarNav";
 import { BackendStatusIndicator } from "@/components/BackendStatusIndicator";
+import { ForbiddenAccessToast } from "@/components/ForbiddenAccessToast";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -37,6 +38,9 @@ export default function RootLayout({
           <AdminScopeProvider>
             {/* Sidebar Navigation */}
             <SidebarNav />
+
+            {/* Global 403 Forbidden Toast */}
+            <ForbiddenAccessToast />
 
             {/* Main Area */}
             <div className="flex-1 flex flex-col min-w-0 overflow-hidden">

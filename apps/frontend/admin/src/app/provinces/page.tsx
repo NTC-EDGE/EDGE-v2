@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { ProvincesTable } from "@/components/geographics/ProvincesTable";
 import { CreateProvinceDialog, EditProvinceDialog } from "@/components/geographics/ProvinceDialogs";
 import { ConfirmActionDialog } from "@/components/ui/confirm-action-dialog";
+import { isForbiddenError, PageForbiddenState } from "@/components/PageForbiddenState";
 import { Province } from "@edge/api";
 
 type FilterType = "all" | "active" | "inactive";
@@ -222,7 +223,8 @@ export default function ProvincesPage() {
       </div>
 
       {/* Error state */}
-      {!!error && (
+      {!!error && isForbiddenError(error) && <PageForbiddenState />}
+      {!!error && !isForbiddenError(error) && (
         <div className="text-center py-16 px-4 bg-slate-900 border border-slate-800 rounded-2xl">
           <p className="text-sm font-semibold text-red-500">Failed to load provinces database.</p>
           <Button onClick={() => mutate()} className="mt-4" size="sm" variant="outline">Retry</Button>
