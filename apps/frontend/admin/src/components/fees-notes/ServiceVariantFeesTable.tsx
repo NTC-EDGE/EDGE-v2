@@ -57,7 +57,7 @@ export function ServiceVariantFeesTable({
     },
     {
       header: "Amount",
-      accessorKey: "amount",
+      id: "amount",
       cell: (item) => (
         <span className="font-mono font-bold text-white text-sm bg-slate-950/70 border border-slate-800 px-3 py-1 rounded-lg">
           ₱{item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}

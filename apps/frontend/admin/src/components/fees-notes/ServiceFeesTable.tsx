@@ -33,7 +33,7 @@ export function ServiceFeesTable({
   const columns = useMemo<ColumnDef<ServiceFee>[]>(() => [
     {
       header: "Service Standard",
-      accessorKey: "serviceName",
+      id: "serviceName",
       cell: (item) => <span className="font-semibold text-slate-200">{item.serviceName ?? "Unknown Service"}</span>,
     },
     {
@@ -48,7 +48,7 @@ export function ServiceFeesTable({
     },
     {
       header: "Charge Amount",
-      accessorKey: "amount",
+      id: "amount",
       cell: (item) => (
         <span className="font-mono font-bold text-white text-sm bg-slate-950/70 border border-slate-800 px-3 py-1 rounded-lg">
           ₱{item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}

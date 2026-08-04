@@ -13,12 +13,12 @@ export function AuditTab({ diagnosticData }: AuditTabProps) {
   const columns = useMemo<ColumnDef<LoginLog>[]>(() => [
     {
       header: "Timestamp",
-      accessorKey: "timestamp",
+      id: "timestamp",
       cell: (item) => <span className="font-mono text-slate-400">{item.timestamp}</span>,
     },
     {
       header: "Outcome",
-      accessorKey: "status",
+      id: "status",
       cell: (item) => (
         item.status === "success" ? (
           <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold">
@@ -43,12 +43,12 @@ export function AuditTab({ diagnosticData }: AuditTabProps) {
     },
     {
       header: "Device / Agent",
-      accessorKey: "deviceInfo",
+      id: "deviceInfo",
       cell: (item) => <span className="text-slate-300">{item.deviceInfo}</span>,
     },
     {
       header: "Failure Reason / Notes",
-      accessorKey: "failureReason",
+      id: "failureReason",
       cell: (item) => (
         <span className="text-slate-400">
           {item.failureReason ?? <span className="text-slate-600">N/A</span>}
