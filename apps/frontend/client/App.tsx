@@ -1,13 +1,15 @@
-import React, { useEffect } from "react";
-import { ClerkProvider, useAuth } from "@clerk/expo";
+import { StatusBar } from "expo-status-bar";
+import { useAuth } from "@clerk/expo";
+import { ClerkProvider } from "@clerk/expo";
 import * as WebBrowser from "expo-web-browser";
 import { tokenCache } from "@clerk/expo/token-cache";
+import { ActivityIndicator, View } from "react-native";
+import { useEffect } from "react";
+import { ThemeProvider } from "@edge/ui";
+import { setTokenProvider } from "@edge/api";
+import { UnauthNavigation, AuthNavigation, clientLinking } from "./src/routes";
 
 WebBrowser.maybeCompleteAuthSession();
-import { createStaticNavigation } from "@react-navigation/native";
-import { RootStack, linking } from "./src/navigation/index";
-
-const Navigation = createStaticNavigation(RootStack);
 
 const getClerkKey = (): string => {
   const key = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
@@ -26,17 +28,18 @@ if (publishableKey.length === 0) {
 }
 
 function AppContent() {
-  const clerkAuth = useAuth();
-  const { isSignedIn, isLoaded } = clerkAuth;
+  const { isSignedIn, isLoaded, getToken } = useAuth();
 
-  // Register Clerk's getToken callback with the API tokenManager service to populate authorization headers
+  // Register Clerk's getToken with the API tokenManager so the Axios interceptor
+  // can attach Bearer tokens on every outgoing request. Without this, the
+  // interceptor's null-check deletes any manually-set Authorization headers → 401.
   useEffect(() => {
-    if (isSignedIn && clerkAuth.getToken) {
-      setTokenProvider(clerkAuth.getToken);
+    if (isSignedIn && getToken) {
+      setTokenProvider(getToken);
     } else {
       setTokenProvider(null);
     }
-  }, [isSignedIn, clerkAuth.getToken]);
+  }, [isSignedIn, getToken]);
 
   if (!isLoaded) {
     return (
@@ -55,8 +58,11 @@ function AppContent() {
 
 export default function App() {
   return (
-    <ClerkProvider tokenCache={tokenCache} publishableKey={publishableKey}>
-      <AppContent />
-    </ClerkProvider>
+    <ThemeProvider>
+      <ClerkProvider tokenCache={tokenCache} publishableKey={publishableKey}>
+        <AppContent />
+        <StatusBar style="dark" />
+      </ClerkProvider>
+    </ThemeProvider>
   );
 }
