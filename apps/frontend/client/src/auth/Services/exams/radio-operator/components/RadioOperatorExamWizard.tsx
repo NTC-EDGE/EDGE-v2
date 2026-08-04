@@ -333,8 +333,9 @@ export function RadioOperatorExamWizard({
           return;
         }
 
+        const currentDateIso = new Date().toISOString();
         const data = await api.get<any>(
-          `/api/v2/schedules/client-view?serviceId=${serviceId}&tenantId=${selectedRegionId}`
+          `/api/v2/schedules/client-view?serviceId=${serviceId}&tenantId=${selectedRegionId}&date=${currentDateIso}`
         );
         const rawItems = Array.isArray(data) ? data : (data.items || data.data || []);
         const mappedSchedules: ScheduleItem[] = rawItems.map((item: any) => {

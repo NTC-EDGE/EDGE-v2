@@ -1,10 +1,11 @@
 using MediatR;
 using EDGE.Application.Common.Interfaces;
+using EDGE.Application.Common.Models;
 using EDGE.Application.Schedules.DTOs;
 
 namespace EDGE.Application.Schedules.Queries.GetSchedules;
 
-public class GetSchedulesQueryHandler : IRequestHandler<GetSchedulesQuery, List<ScheduleDto>>
+public class GetSchedulesQueryHandler : IRequestHandler<GetSchedulesQuery, PaginatedApiResponse<ScheduleDto>>
 {
     private readonly IScheduleRepository _scheduleRepository;
 
@@ -13,11 +14,19 @@ public class GetSchedulesQueryHandler : IRequestHandler<GetSchedulesQuery, List<
         _scheduleRepository = scheduleRepository;
     }
 
-    public async Task<List<ScheduleDto>> Handle(GetSchedulesQuery request, CancellationToken cancellationToken)
+    public async Task<PaginatedApiResponse<ScheduleDto>> Handle(GetSchedulesQuery request, CancellationToken cancellationToken)
     {
-        var schedules = await _scheduleRepository.GetAllAsync(request.TenantId, request.ServiceId, cancellationToken);
+        var pageNumber = request.PageNumber <= 0 ? 1 : request.PageNumber;
+        var pageSize = request.PageSize <= 0 ? 10 : request.PageSize;
 
-        return schedules.Select(s => new ScheduleDto(
+        var (schedules, totalCount) = await _scheduleRepository.GetAllAsync(
+            request.TenantId,
+            request.ServiceId,
+            pageNumber,
+            pageSize,
+            cancellationToken);
+
+        var scheduleDtos = schedules.Select(s => new ScheduleDto(
             s.Id,
             s.ServiceId,
             s.Service?.Name,
@@ -33,5 +42,7 @@ public class GetSchedulesQueryHandler : IRequestHandler<GetSchedulesQuery, List<
             s.Remarks,
             s.CreatedAt
         )).ToList();
+
+        return new PaginatedApiResponse<ScheduleDto>(scheduleDtos, pageNumber, pageSize, totalCount);
     }
 }
