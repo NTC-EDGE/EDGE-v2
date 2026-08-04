@@ -1,0 +1,87 @@
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using FluentValidation;
+using MediatR;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.AspNetCore.Authorization;
+using EDGE.Domain.Authorization;
+using EDGE.Infrastructure.Authorization;
+using EDGE.Application.SystemConfigs.Commands.UpdateSystemConfig;
+using EDGE.Application.SystemConfigs.Queries.GetSystemConfigs;
+using EDGE.Application.SystemConfigs.DTOs;
+
+namespace EDGE.Api.Endpoints.SystemConfigs;
+
+public static class SystemConfigEndpoints
+{
+    public static RouteGroupBuilder MapSystemConfigEndpoints(this RouteGroupBuilder group)
+    {
+        var configs = group.MapGroup("system-config")
+            .WithTags("System Configuration");
+
+        configs.MapGet("/", GetSystemConfigs)
+            .WithName("GetSystemConfigs")
+            .WithSummary("Get system configurations")
+            .WithDescription("Retrieves paginated application system configurations or filtered by category.")
+            .Produces<EDGE.Application.Common.Models.PaginatedApiResponse<SystemConfigDto>>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status403Forbidden);
+
+        configs.MapGet("/public", GetPublicSystemConfigs)
+            .WithName("GetPublicSystemConfigs")
+            .WithSummary("Get public system settings")
+            .WithDescription("Retrieves non-sensitive public system settings such as maintenance mode, system title, and logo.")
+            .Produces<EDGE.Application.Common.Models.PaginatedApiResponse<SystemConfigDto>>(StatusCodes.Status200OK);
+
+        configs.MapPut("/", UpdateSystemConfig)
+            .WithName("UpdateSystemConfig")
+            .WithSummary("Update system configuration setting")
+            .WithDescription("Updates value or description for a specific configuration key.")
+            .Produces<SystemConfigDto>(StatusCodes.Status200OK)
+            .Produces<HttpValidationProblemDetails>(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status403Forbidden);
+
+        return group;
+    }
+
+    [HasPermission(Permissions.SystemAdmin)]
+    public static async Task<IResult> GetSystemConfigs(
+        IMediator mediator,
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 10,
+        [FromQuery] string? searchTerm = null,
+        [FromQuery] string? category = null)
+    {
+        var result = await mediator.Send(new GetSystemConfigsQuery(pageNumber, pageSize, searchTerm, category, PublicOnly: false));
+        return Results.Ok(result);
+    }
+
+    [AllowAnonymous]
+    public static async Task<IResult> GetPublicSystemConfigs(
+        IMediator mediator,
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 10)
+    {
+        var result = await mediator.Send(new GetSystemConfigsQuery(pageNumber, pageSize, Category: null, PublicOnly: true));
+        return Results.Ok(result);
+    }
+
+    [HasPermission(Permissions.SystemAdmin)]
+    public static async Task<IResult> UpdateSystemConfig(
+        UpdateSystemConfigCommand command,
+        IValidator<UpdateSystemConfigCommand> validator,
+        IMediator mediator)
+    {
+        var validationResult = await validator.ValidateAsync(command);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
+
+        var result = await mediator.Send(command);
+        return Results.Ok(result);
+    }
+}

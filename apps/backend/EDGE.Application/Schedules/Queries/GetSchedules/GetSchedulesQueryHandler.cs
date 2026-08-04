@@ -23,8 +23,6 @@ public class GetSchedulesQueryHandler : IRequestHandler<GetSchedulesQuery, List<
             s.Service?.Name,
             s.Service?.Code,
             s.TenantId,
-            s.ApplicationId,
-            s.SeatNumber,
             s.Venue,
             s.StartDate,
             s.EndDate,

@@ -27,9 +27,9 @@ public class GetMemberDetailsQueryHandler : IRequestHandler<GetMemberDetailsQuer
             TenantId = member.TenantId,
             TenantName = member.Tenant?.Name ?? string.Empty,
             UserId = member.UserId,
-            UserEmail = string.Empty, // Populate dynamically later when User entity is available
-            UserFirstName = string.Empty,
-            UserLastName = string.Empty,
+            UserEmail = member.User?.Email ?? string.Empty,
+            UserFirstName = member.User?.FirstName ?? string.Empty,
+            UserLastName = member.User?.LastName ?? string.Empty,
             RoleId = member.RoleId,
             JobTitle = member.JobTitle,
             Level = member.Level,

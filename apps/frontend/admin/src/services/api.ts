@@ -5,7 +5,9 @@ import axios from 'axios';
 
 let isBackendUnavailable = false;
 let lastAlertTime = 0;
+let lastForbiddenTime = 0;
 const ALERT_COOLDOWN = 15000; // 15 seconds
+const FORBIDDEN_COOLDOWN = 3000; // 3 seconds — allow per-page toasts but avoid spam
 
 if (typeof window !== 'undefined') {
   // Request Interceptor to short-circuit requests if backend is offline
@@ -21,7 +23,7 @@ if (typeof window !== 'undefined') {
     (error) => Promise.reject(error)
   );
 
-  // Response Interceptor to detect offline state and trigger events
+  // Response Interceptor to detect offline state, 403 forbidden, and trigger events
   apiClient.interceptors.response.use(
     (response) => {
       if (isBackendUnavailable) {
@@ -32,6 +34,16 @@ if (typeof window !== 'undefined') {
     },
     (error: unknown) => {
       if (axios.isAxiosError(error)) {
+        // 403 Forbidden — dispatch event so the UI can notify the user
+        if (error.response?.status === 403) {
+          const now = Date.now();
+          if (now - lastForbiddenTime > FORBIDDEN_COOLDOWN) {
+            lastForbiddenTime = now;
+            const url = error.config?.url ?? '';
+            window.dispatchEvent(new CustomEvent('forbidden-access', { detail: { url } }));
+          }
+        }
+
         const isNetworkError =
           !error.response ||
           error.code === 'ERR_NETWORK' ||

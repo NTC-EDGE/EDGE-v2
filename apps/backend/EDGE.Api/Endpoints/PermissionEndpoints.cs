@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.Authorization;
 using EDGE.Domain.Authorization;
 using EDGE.Application.Common.Interfaces;
+using EDGE.Infrastructure.Authorization;
 
 namespace EDGE.Api.Endpoints;
 
@@ -23,7 +24,7 @@ public static class PermissionEndpoints
             .WithDescription("Returns categorized permission definitions. Requesting system-level permissions returns 403 Forbidden if user lacks SystemAdmin permission.");
     }
 
-    [Authorize]
+    [HasPermission(Permissions.ReadRoles)]
     public static async Task<IResult> GetPermissions(
         [FromQuery] string? scope = "internal",
         [FromServices] IUserAuthorizationService authService = null!)

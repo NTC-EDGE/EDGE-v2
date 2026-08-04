@@ -5,6 +5,8 @@ using EDGE.Application.Barangays.Commands.DeleteBarangay;
 using EDGE.Application.Barangays.Queries.GetBarangays;
 using EDGE.Application.Barangays.Queries.GetBarangayById;
 using EDGE.Application.Common.Models;
+using EDGE.Domain.Authorization;
+using EDGE.Infrastructure.Authorization;
 
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
@@ -22,6 +24,7 @@ public static class BarangayEndpoints
             var result = await mediator.Send(new GetBarangaysQuery(municipalityId, activeOnly));
             return Results.Ok(result);
         })
+        .RequireAuthorization()
         .WithName("GetBarangays")
         .WithTags("Barangay")
         .WithSummary("Get list of barangays")
@@ -32,6 +35,7 @@ public static class BarangayEndpoints
             var result = await mediator.Send(new GetBarangayByIdQuery(id));
             return result.Succeeded ? Results.Ok(result) : Results.NotFound(result);
         })
+        .RequireAuthorization()
         .WithName("GetBarangayById")
         .WithTags("Barangay")
         .WithSummary("Get barangay details by ID")
@@ -44,6 +48,7 @@ public static class BarangayEndpoints
                 ? Results.Created($"/api/v2/barangays/{result.Data}", result)
                 : Results.BadRequest(result);
         })
+        .RequireAuthorization(new HasPermissionAttribute(Permissions.SystemAdmin))
         .WithName("CreateBarangay")
         .WithTags("Barangay")
         .WithSummary("Create new barangay")
@@ -59,6 +64,7 @@ public static class BarangayEndpoints
             var result = await mediator.Send(command);
             return result.Succeeded ? Results.Ok(result) : Results.NotFound(result);
         })
+        .RequireAuthorization(new HasPermissionAttribute(Permissions.SystemAdmin))
         .WithName("UpdateBarangay")
         .WithTags("Barangay")
         .WithSummary("Update barangay reference")
@@ -75,6 +81,7 @@ public static class BarangayEndpoints
             }
             return Results.Ok(result);
         })
+        .RequireAuthorization(new HasPermissionAttribute(Permissions.SystemAdmin))
         .WithName("DeleteBarangay")
         .WithTags("Barangay")
         .WithSummary("Delete barangay reference")

@@ -20,6 +20,7 @@ import {
 import { Tenant, FieldOffice, TenantMember } from "@edge/api";
 import { useFieldOfficeService } from "@/services/fieldOfficeService";
 import { useTenantMemberService } from "@/services/tenantMemberService";
+import { useAdminScope } from "@/lib/admin-scope-context";
 
 interface FieldOfficesTabProps {
   currentTenant: Tenant;
@@ -30,14 +31,15 @@ interface FieldOfficesTabProps {
 
 export function FieldOfficesTab({ currentTenant, getRegionName, getRegionCode, showToast }: FieldOfficesTabProps) {
   const tenantId = currentTenant.id;
+  const { isSystemAdmin } = useAdminScope();
   const { useFieldOffices, createFieldOffice } = useFieldOfficeService();
   const { useTenantMembers } = useTenantMemberService();
 
+  const [isCreateOfficeOpen, setIsCreateOfficeOpen] = useState(false);
   const { data: fetchedFieldOfficesResponse, mutate: mutateFieldOffices } = useFieldOffices(tenantId, currentTenant.regionId);
-  const { data: membersResponse } = useTenantMembers(tenantId);
+  const { data: membersResponse } = useTenantMembers(isCreateOfficeOpen ? tenantId : null);
   const tenantMembers: TenantMember[] = membersResponse ?? [];
 
-  const [isCreateOfficeOpen, setIsCreateOfficeOpen] = useState(false);
   const [officeFormData, setOfficeFormData] = useState({
     code: "",
     name: "",
@@ -88,26 +90,28 @@ export function FieldOfficesTab({ currentTenant, getRegionName, getRegionCode, s
           <h3 className="text-base font-bold text-white">Field & Extension Offices</h3>
           <p className="text-xs text-slate-400">Regional extension branches, physical testing locations, and inspection hubs.</p>
         </div>
-        <Button
-          onClick={() => {
-            setOfficeFormData({
-              code: `${getRegionCode(currentTenant.regionId)}-FO-${Date.now().toString().slice(-4)}`,
-              name: "",
-              address: "",
-              contactPhone: "",
-              contactEmail: "",
-              officerInChargeId: tenantMembers.length > 0 ? tenantMembers[0].id : "",
-              allowSpectrumInspection: true,
-              allowPermitIssuance: true,
-              allowComplaintReception: true,
-            });
-            setIsCreateOfficeOpen(true);
-          }}
-          className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-4 py-2 rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-emerald-600/20"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Add Field Office</span>
-        </Button>
+        {!isSystemAdmin && (
+          <Button
+            onClick={() => {
+              setOfficeFormData({
+                code: `${getRegionCode(currentTenant.regionId)}-FO-${Date.now().toString().slice(-4)}`,
+                name: "",
+                address: "",
+                contactPhone: "",
+                contactEmail: "",
+                officerInChargeId: tenantMembers.length > 0 ? tenantMembers[0].id : "",
+                allowSpectrumInspection: true,
+                allowPermitIssuance: true,
+                allowComplaintReception: true,
+              });
+              setIsCreateOfficeOpen(true);
+            }}
+            className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-4 py-2 rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-emerald-600/20"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Add Field Office</span>
+          </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

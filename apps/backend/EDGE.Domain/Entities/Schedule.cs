@@ -6,9 +6,7 @@ public class Schedule : AuditableEntity
 {
     public Guid ServiceId { get; set; }
     public Guid TenantId { get; set; }
-    public Guid? ApplicationId { get; set; }
 
-    public string? SeatNumber { get; set; }
     public string Venue { get; set; } = string.Empty;
     public DateTime StartDate { get; set; }
     public DateTime EndDate { get; set; }

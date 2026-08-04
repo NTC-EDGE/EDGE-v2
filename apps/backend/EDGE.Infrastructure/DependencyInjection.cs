@@ -75,6 +75,14 @@ public static class DependencyInjection
         services.AddScoped<IFeedbackRepository, FeedbackRepository>();
         services.AddScoped<ISystemAnnouncementRepository, SystemAnnouncementRepository>();
         services.AddScoped<IAuditLogRepository, AuditLogRepository>();
+        services.AddScoped<ISystemConfigRepository, SystemConfigRepository>();
+        services.AddScoped<INotificationTemplateRepository, NotificationTemplateRepository>();
+        services.AddScoped<ISystemErrorLogRepository, SystemErrorLogRepository>();
+        services.AddScoped<IDocumentTypeRepository, DocumentTypeRepository>();
+        services.AddScoped<IElementRepository, ElementRepository>();
+        services.AddScoped<IServiceVariantFeeRepository, ServiceVariantFeeRepository>();
+        services.AddScoped<IServiceVariantElementFeeRepository, ServiceVariantElementFeeRepository>();
+        services.AddScoped<IServiceVariantRepository, ServiceVariantRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         // Register Encryption & Cloudflare R2 Storage Services

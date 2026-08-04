@@ -5,11 +5,12 @@ export function useFieldOfficeService() {
   const { useQuery, post, put, del } = useApi();
 
   const useFieldOffices = (tenantId: string | null, regionId?: string | null) => {
-    if (tenantId === null || tenantId.length === 0) return useQuery<FieldOffice[]>(null);
-    const queryStr = regionId !== undefined && regionId !== null && regionId.length > 0 
-      ? `?tenantId=${tenantId}&regionId=${regionId}` 
-      : `?tenantId=${tenantId}`;
-    return useQuery<FieldOffice[]>(`/api/v2/field-offices${queryStr}`);
+    const key = tenantId !== null && tenantId.length > 0
+      ? (regionId !== undefined && regionId !== null && regionId.length > 0
+          ? `/api/v2/field-offices?tenantId=${tenantId}&regionId=${regionId}`
+          : `/api/v2/field-offices?tenantId=${tenantId}`)
+      : null;
+    return useQuery<FieldOffice[]>(key);
   };
 
   const useFieldOffice = (id: string | null, tenantId: string | null) => {

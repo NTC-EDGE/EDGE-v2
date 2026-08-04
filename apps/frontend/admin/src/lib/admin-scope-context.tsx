@@ -1,8 +1,10 @@
 "use client";
 
-import React, { createContext, useContext, useState, ReactNode } from "react";
+import React, { createContext, useContext, useState, ReactNode, useEffect } from "react";
+import { useAuth } from "@clerk/nextjs";
+import { setTokenProvider } from "@edge/api";
 
-export type AdminRoleType = "system_admin" | "region_admin" | "tenant_admin";
+export type AdminRoleType = "system_admin";
 
 export interface AdminScopeContextType {
   activeRole: AdminRoleType;
@@ -26,13 +28,28 @@ export function AdminScopeProvider({ children }: { children: ReactNode }) {
   const [selectedRegionId, setSelectedRegionId] = useState<string | null>(null);
   const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
 
-  const isSystemAdmin = activeRole === "system_admin";
-  const isRegionAdmin = activeRole === "system_admin" || activeRole === "region_admin";
-  const isTenantAdmin = activeRole === "system_admin" || activeRole === "region_admin" || activeRole === "tenant_admin";
+  const clerkAuth = useAuth();
 
-  const canManageTenants = isSystemAdmin || activeRole === "region_admin";
-  const canManageTenantMembers = isTenantAdmin;
-  const canManageRegionSettings = isSystemAdmin || activeRole === "region_admin";
+  // Register Clerk's getToken callback with the API tokenManager service so that
+  // all outgoing apiClient requests automatically receive the correct Bearer token in headers.
+  // NOTE: We always register getToken regardless of isSignedIn state. Clerk's own SDK returns
+  // null from getToken when there is no active session, so we let it handle that gracefully.
+  // Clearing the provider when isSignedIn is false/undefined causes a race condition where
+  // the first API calls (which SWR fires immediately on mount) go out without auth headers
+  // while Clerk is still hydrating the session from its cookie — resulting in spurious 401s.
+  useEffect(() => {
+    if (clerkAuth.getToken) {
+      setTokenProvider(clerkAuth.getToken);
+    }
+  }, [clerkAuth.getToken]);
+
+  const isSystemAdmin = true;
+  const isRegionAdmin = true;
+  const isTenantAdmin = true;
+
+  const canManageTenants = true;
+  const canManageTenantMembers = true;
+  const canManageRegionSettings = true;
 
   return (
     <AdminScopeContext.Provider

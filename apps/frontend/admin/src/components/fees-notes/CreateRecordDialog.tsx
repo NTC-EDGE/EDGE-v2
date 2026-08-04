@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { AlertCircle, Plus, Trash2 } from "lucide-react";
-import { Fee } from "@edge/api";
+import { Fee, Element } from "@edge/api";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -12,22 +12,27 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { ServiceCatalogItem, ServiceCategoryItem } from "@/services/feesNotesService";
+import { ServiceCatalogItem, ServiceCategoryItem, useFeesNotesService } from "@/services/feesNotesService";
+
+type TabType = "fees" | "service-fees" | "notes" | "elements" | "service-variant-fees" | "service-variant-element-fees";
 
 export interface CreateRecordDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  activeTab: "fees" | "service-fees" | "notes";
+  activeTab: TabType;
   fees: Fee[];
+  elements: Element[];
   services: ServiceCatalogItem[];
   categories: ServiceCategoryItem[];
   onSubmit: (
-    tab: "fees" | "service-fees" | "notes",
+    tab: TabType,
     data: {
       code: string;
       name: string;
       description: string;
       serviceId: string;
+      serviceVariantId: string;
+      elementId: string;
       feeId: string;
       amount: number;
       serviceFees?: { feeId: string; amount: number }[];
@@ -42,10 +47,12 @@ export function CreateRecordDialog({
   onOpenChange,
   activeTab,
   fees,
+  elements,
   services,
   categories,
   onSubmit,
 }: CreateRecordDialogProps) {
+  const { useServiceVariants } = useFeesNotesService();
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -55,12 +62,17 @@ export function CreateRecordDialog({
   const [description, setDescription] = useState("");
 
   const [serviceId, setServiceId] = useState("");
+  const [serviceVariantId, setServiceVariantId] = useState("");
+  const [elementId, setElementId] = useState("");
   const [feeId, setFeeId] = useState("");
   const [amount, setAmount] = useState(0);
   const [feeEntries, setFeeEntries] = useState<{ feeId: string; amount: number }[]>([]);
 
   const [notes, setNotes] = useState("");
   const [serviceCategoryId, setServiceCategoryId] = useState("");
+
+  // Query variants dynamically based on selected serviceId
+  const { data: variants = [] } = useServiceVariants(serviceId);
 
   const hasInitialized = useRef(false);
 
@@ -73,7 +85,10 @@ export function CreateRecordDialog({
         setName("");
         setDescription("");
         
-        setServiceId(services[0]?.id ?? "");
+        const defaultServiceId = services[0]?.id ?? "";
+        setServiceId(defaultServiceId);
+        setServiceVariantId("");
+        setElementId(elements[0]?.id ?? "");
         setFeeId(fees[0]?.id ?? "");
         setAmount(0);
         setFeeEntries([{ feeId: fees[0]?.id ?? "", amount: 0 }]);
@@ -82,22 +97,29 @@ export function CreateRecordDialog({
         setServiceCategoryId(categories[0]?.id ?? "");
         hasInitialized.current = true;
       } else {
-        // If we are already open but fees catalog finished loading/updating
-        // and we haven't selected a fee yet, initialize the selection.
         if (fees.length > 0) {
           setFeeId((prev) => prev || (fees[0]?.id ?? ""));
-          setFeeEntries((prev) => {
-            if (prev.length === 0 || (prev.length === 1 && prev[0].feeId === "")) {
-              return [{ feeId: fees[0]?.id ?? "", amount: 0 }];
-            }
-            return prev;
-          });
+        }
+        if (elements.length > 0) {
+          setElementId((prev) => prev || (elements[0]?.id ?? ""));
         }
       }
     } else {
       hasInitialized.current = false;
     }
-  }, [open, activeTab, fees]);
+  }, [open, activeTab, fees, elements, services, categories]);
+
+  // Sync selected variant when variants load
+  useEffect(() => {
+    if (variants.length > 0 && !serviceVariantId) {
+      setServiceVariantId(variants[0].id);
+    }
+  }, [variants, serviceVariantId]);
+
+  const handleServiceChange = (val: string) => {
+    setServiceId(val);
+    setServiceVariantId(""); // reset variant to let next useEffect pick first item
+  };
 
   const handleAddFeeEntry = () => {
     setFeeEntries([...feeEntries, { feeId: fees[0]?.id ?? "", amount: 0 }]);
@@ -130,14 +152,22 @@ export function CreateRecordDialog({
       }
     }
 
+    if ((activeTab === "service-variant-fees" || activeTab === "service-variant-element-fees") && !serviceVariantId) {
+      setErrorMsg("Please select a Service Variant.");
+      setSubmitting(false);
+      return;
+    }
+
     try {
       await onSubmit(activeTab, {
         code,
         name,
         description,
         serviceId,
-        feeId: feeEntries[0]?.feeId ?? "",
-        amount: feeEntries[0]?.amount ?? 0,
+        serviceVariantId,
+        elementId,
+        feeId: activeTab === "service-fees" ? (feeEntries[0]?.feeId ?? "") : feeId,
+        amount: activeTab === "service-fees" ? (feeEntries[0]?.amount ?? 0) : amount,
         serviceFees: feeEntries,
         notes,
         serviceCategoryId,
@@ -156,7 +186,10 @@ export function CreateRecordDialog({
         <DialogHeader>
           <DialogTitle className="text-lg font-bold text-white">
             {activeTab === "fees" && "Register New Fee Code"}
+            {activeTab === "elements" && "Register Billing Element"}
             {activeTab === "service-fees" && "Configure Service Fee"}
+            {activeTab === "service-variant-fees" && "Map Variant Fee"}
+            {activeTab === "service-variant-element-fees" && "Map Variant Element Fee"}
             {activeTab === "notes" && "Add Guideline Instruction"}
           </DialogTitle>
           <DialogDescription className="text-xs text-slate-400">
@@ -172,25 +205,25 @@ export function CreateRecordDialog({
             </div>
           )}
 
-          {activeTab === "fees" && (
+          {(activeTab === "fees" || activeTab === "elements") && (
             <>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300">Fee Code *</label>
+                <label className="text-xs font-semibold text-slate-300">Code *</label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. FILING_FEE"
+                  placeholder={activeTab === "fees" ? "e.g. FILING_FEE" : "e.g. ELEM_TRANS"}
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300">Fee Name *</label>
+                <label className="text-xs font-semibold text-slate-300">Name *</label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Licensing Application Filing Fee"
+                  placeholder={activeTab === "fees" ? "e.g. Licensing Application Filing Fee" : "e.g. Transmitter Element"}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -199,7 +232,7 @@ export function CreateRecordDialog({
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-slate-300">Description (Optional)</label>
                 <textarea
-                  placeholder="Provide context about what this fee applies to."
+                  placeholder="Provide context about what this applies to."
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 min-h-[80px]"
@@ -214,7 +247,7 @@ export function CreateRecordDialog({
                 <label className="text-xs font-semibold text-slate-300">Service Standard *</label>
                 <select
                   value={serviceId}
-                  onChange={(e) => setServiceId(e.target.value)}
+                  onChange={(e) => handleServiceChange(e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                 >
                   {services.map((s) => (
@@ -285,6 +318,96 @@ export function CreateRecordDialog({
                       )}
                     </div>
                   ))}
+                </div>
+              </div>
+            </>
+          )}
+
+          {(activeTab === "service-variant-fees" || activeTab === "service-variant-element-fees") && (
+            <>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-300">Service Standard *</label>
+                <select
+                  value={serviceId}
+                  onChange={(e) => handleServiceChange(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                >
+                  {services.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-300">Service Variant Type *</label>
+                <select
+                  value={serviceVariantId}
+                  onChange={(e) => setServiceVariantId(e.target.value)}
+                  required
+                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                >
+                  {variants.length === 0 ? (
+                    <option value="">No variants available for this service</option>
+                  ) : (
+                    variants.map((v) => (
+                      <option key={v.id} value={v.id}>
+                        {v.type} {v.description ? `(${v.description})` : ""}
+                      </option>
+                    ))
+                  )}
+                </select>
+              </div>
+
+              {activeTab === "service-variant-element-fees" && (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-300">Billing Element *</label>
+                  <select
+                    value={elementId}
+                    onChange={(e) => setElementId(e.target.value)}
+                    required
+                    className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                  >
+                    {elements.map((elem) => (
+                      <option key={elem.id} value={elem.id}>
+                        [{elem.code}] {elem.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-300">Mapped Fee Code *</label>
+                <select
+                  value={feeId}
+                  onChange={(e) => setFeeId(e.target.value)}
+                  required
+                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                >
+                  {fees.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      [{f.code}] {f.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-300">Amount *</label>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-2.5 text-slate-400 text-sm font-semibold pointer-events-none">₱</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    required
+                    placeholder="0.00"
+                    value={amount}
+                    onChange={(e) => setAmount(Number(e.target.value))}
+                    className="w-full pl-8 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
                 </div>
               </div>
             </>

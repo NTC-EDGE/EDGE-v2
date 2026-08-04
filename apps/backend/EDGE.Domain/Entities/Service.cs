@@ -7,7 +7,7 @@ public class Service : AuditableEntity
 {
     public Guid ServiceCategoryId { get; set; }
     public ServiceCategory? ServiceCategory { get; set; }
-    public Guid TenantId { get; set; }
+    public Guid? TenantId { get; set; }
     public Tenant? Tenant { get; set; }
     public string Name { get; set; } = string.Empty;
     public string? Group { get; set; }

@@ -1,8 +1,4 @@
-using System;
 using MediatR;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Routing;
 using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
 using EDGE.Domain.Authorization;
@@ -73,6 +69,7 @@ public static class RoleEndpoints
         return Results.Ok(result);
     }
 
+    [HasPermission(Permissions.ReadRoles)]
     public static async Task<IResult> GetRoleById(Guid id, IMediator mediator)
     {
         var result = await mediator.Send(new GetRoleByIdQuery(id));

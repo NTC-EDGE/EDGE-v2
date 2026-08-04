@@ -11,6 +11,7 @@ import { useFieldOfficeService } from "@/services/fieldOfficeService";
 import { useTenantMemberService } from "@/services/tenantMemberService";
 import { Tenant, Region, FieldOffice } from "@edge/api";
 import { Button } from "@/components/ui/button";
+import { ConfirmActionDialog } from "@/components/ui/confirm-action-dialog";
 import { MembersTab } from "./components/MembersTab";
 import { ExternalUsersTab } from "./components/ExternalUsersTab";
 import { FieldOfficesTab } from "./components/FieldOfficesTab";
@@ -18,13 +19,12 @@ import { SchedulesTab } from "./components/SchedulesTab";
 import { RegionSettingsTab } from "./components/RegionSettingsTab";
 import { RolesTab } from "./components/RolesTab";
 import { TransactionsTab } from "./components/TransactionsTab";
-import { getRegionalExternalUsers } from "@/components/tenants/mockData";
 
 export default function TenantDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
   const tenantId = resolvedParams.id;
-  const { useTenant } = useTenantService();
-  const { data: tenantResponse, isLoading: loadingTenant } = useTenant(tenantId);
+  const { useTenant, toggleTenantActive } = useTenantService();
+  const { data: tenantResponse, isLoading: loadingTenant, mutate: mutateTenant } = useTenant(tenantId);
 
   if (loadingTenant || !tenantResponse) {
     return (
@@ -34,41 +34,93 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
       </div>
     );
   }
-  return <TenantDetailPageContent currentTenant={tenantResponse} />;
+  return (
+    <TenantDetailPageContent
+      currentTenant={tenantResponse}
+      toggleTenantActive={toggleTenantActive}
+      mutateTenant={mutateTenant}
+    />
+  );
 }
 
-function TenantDetailPageContent({ currentTenant }: { currentTenant: Tenant }) {
+interface TenantDetailPageContentProps {
+  currentTenant: Tenant;
+  toggleTenantActive: (id: string) => Promise<Tenant>;
+  mutateTenant: (data?: Tenant) => Promise<Tenant | undefined>;
+}
+
+function TenantDetailPageContent({
+  currentTenant,
+  toggleTenantActive,
+  mutateTenant,
+}: TenantDetailPageContentProps) {
   const tenantId = currentTenant.id;
   const { useRegions } = useRegionService();
   const { useFieldOffices } = useFieldOfficeService();
   const { useTenantMembers } = useTenantMemberService();
 
-  const { data: regionsResponse } = useRegions();
-  const { data: fetchedMembers } = useTenantMembers(tenantId);
-  const { data: fetchedFieldOfficesResponse } = useFieldOffices(tenantId, currentTenant.regionId);
-
-  const regions: Region[] = regionsResponse?.data ?? [
-    { id: "4570bda0-8fee-4c79-993c-7d73cfa29a0d", code: "NCR", name: "National Capital Region", isActive: true },
-    { id: "073b2085-fab9-4cfb-9a6a-ca93ccf1fee2", code: "R3", name: "Region III - Central Luzon", isActive: true },
-    { id: "7037536b-59d8-4786-8f92-fee3e0c78413", code: "R7", name: "Region VII - Central Visayas", isActive: true },
-  ];
-
-  const getRegionName = (id: string) => regions.find((r) => r.id === id)?.name ?? "National Region";
-  const getRegionCode = (id: string) => regions.find((r) => r.id === id)?.code ?? "REG";
-
   const [activeTab, setActiveTab] = useState<
     "members" | "external_users" | "field_offices" | "schedules" | "region_settings" | "roles_permissions" | "transactions"
   >("members");
+  const [visitedTabs, setVisitedTabs] = useState<string[]>(["members"]);
+  const [isConfirmToggleOpen, setIsConfirmToggleOpen] = useState(false);
+  const [isToggling, setIsToggling] = useState(false);
 
+  const handleTabChange = (
+    tab: "members" | "external_users" | "field_offices" | "schedules" | "region_settings" | "roles_permissions" | "transactions"
+  ) => {
+    setActiveTab(tab);
+    if (!visitedTabs.includes(tab)) {
+      setVisitedTabs((prev) => [...prev, tab]);
+    }
+  };
+
+  const { data: regionsResponse } = useRegions();
+  const regionsList: Region[] = Array.isArray(regionsResponse)
+    ? regionsResponse
+    : (regionsResponse as { data?: Region[] } | undefined)?.data ?? [];
+
+  const getRegionName = (regionId: string): string => {
+    const found = regionsList.find((r) => r.id === regionId);
+    return found !== undefined && found !== null ? `${found.name} (${found.code})` : "Regional Office";
+  };
+
+  const getRegionCode = (regionId: string): string => {
+    const found = regionsList.find((r) => r.id === regionId);
+    return found !== undefined && found !== null ? found.code : "REG";
+  };
+
+  const { data: fetchedMembers } = useTenantMembers(
+    visitedTabs.includes("members") ? tenantId : null
+  );
+  const { data: fetchedFieldOfficesResponse } = useFieldOffices(
+    visitedTabs.includes("field_offices") ? tenantId : null,
+    visitedTabs.includes("field_offices") ? currentTenant.regionId : null
+  );
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const showToast = (msg: string) => {
     setToastMsg(msg);
     setTimeout(() => setToastMsg(null), 4000);
   };
 
+  const handleToggleStatus = async () => {
+    setIsToggling(true);
+    try {
+      const updated = await toggleTenantActive(currentTenant.id);
+      await mutateTenant(updated);
+      showToast(`Tenant successfully ${updated.isActive ? "activated" : "deactivated"}.`);
+      setIsConfirmToggleOpen(false);
+    } catch (err: unknown) {
+      showToast(`Failed to toggle tenant active status.`);
+    } finally {
+      setIsToggling(false);
+    }
+  };
+
   const fieldOfficesList: FieldOffice[] = fetchedFieldOfficesResponse ?? [];
-  const staffCount = fetchedMembers?.length ?? 0;
-  const externalUsers = getRegionalExternalUsers(currentTenant.regionId, getRegionCode(currentTenant.regionId));
+  const staffCount = fetchedMembers !== undefined && fetchedMembers !== null ? fetchedMembers.length : (currentTenant.tenantMembersTotal ?? 0);
+  const officesCount = fetchedFieldOfficesResponse !== undefined && fetchedFieldOfficesResponse !== null ? fetchedFieldOfficesResponse.length : (currentTenant.fieldOfficesCount ?? 0);
+  const clientCount = currentTenant.clientTotal ?? 0;
 
   return (
     <div className="space-y-6">
@@ -99,6 +151,25 @@ function TenantDetailPageContent({ currentTenant }: { currentTenant: Tenant }) {
             </h1>
           </div>
         </div>
+
+        <Button
+          onClick={() => setIsConfirmToggleOpen(true)}
+          disabled={isToggling}
+          variant="outline"
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border shadow-lg shrink-0 ${
+            currentTenant.isActive
+              ? "border-rose-500/20 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 hover:text-rose-300 shadow-rose-500/5"
+              : "border-emerald-500/20 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-300 shadow-emerald-500/5"
+          }`}
+        >
+          {isToggling ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : currentTenant.isActive ? (
+            "Deactivate Tenant"
+          ) : (
+            "Activate Tenant"
+          )}
+        </Button>
       </div>
 
       <div className="p-6 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-900/95 to-indigo-950/60 border border-slate-800 shadow-xl space-y-4">
@@ -121,40 +192,46 @@ function TenantDetailPageContent({ currentTenant }: { currentTenant: Tenant }) {
           <div className="flex items-center gap-3 bg-slate-950/80 border border-slate-800/80 p-3.5 rounded-xl shrink-0 font-sans">
             <div className="text-center px-3 border-r border-slate-800">
               <p className="text-[10px] uppercase font-bold text-slate-400">Staff</p>
-              <p className="text-lg font-extrabold text-sky-400">{staffCount}</p>
+              <p className="text-lg font-extrabold text-sky-400">
+                {staffCount}
+              </p>
             </div>
             <div className="text-center px-3 border-r border-slate-800">
               <p className="text-[10px] uppercase font-bold text-slate-400">Clients</p>
-              <p className="text-lg font-extrabold text-purple-400">{externalUsers.length.toLocaleString()}</p>
+              <p className="text-lg font-extrabold text-purple-400">
+                {clientCount.toLocaleString()}
+              </p>
             </div>
             <div className="text-center px-3">
               <p className="text-[10px] uppercase font-bold text-slate-400">Offices</p>
-              <p className="text-lg font-extrabold text-emerald-400">{fieldOfficesList.length}</p>
+              <p className="text-lg font-extrabold text-emerald-400">
+                {officesCount}
+              </p>
             </div>
           </div>
         </div>
       </div>
 
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-2 flex items-center gap-2 overflow-x-auto">
-        <button onClick={() => setActiveTab("members")} className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shrink-0 ${activeTab === "members" ? "bg-indigo-600 text-white" : "text-slate-400"}`}>
+        <button onClick={() => handleTabChange("members")} className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shrink-0 ${activeTab === "members" ? "bg-indigo-600 text-white" : "text-slate-400"}`}>
           <Users className="w-4 h-4 text-sky-400" /> Staff ({staffCount})
         </button>
-        <button onClick={() => setActiveTab("external_users")} className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shrink-0 ${activeTab === "external_users" ? "bg-indigo-600 text-white" : "text-slate-400"}`}>
-          <UserCheck className="w-4 h-4 text-purple-400" /> Clients ({externalUsers.length.toLocaleString()})
+        <button onClick={() => handleTabChange("external_users")} className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shrink-0 ${activeTab === "external_users" ? "bg-indigo-600 text-white" : "text-slate-400"}`}>
+          <UserCheck className="w-4 h-4 text-purple-400" /> Clients ({clientCount.toLocaleString()})
         </button>
-        <button onClick={() => setActiveTab("field_offices")} className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shrink-0 ${activeTab === "field_offices" ? "bg-indigo-600 text-white" : "text-slate-400"}`}>
-          <Building2 className="w-4 h-4 text-emerald-400" /> Offices ({fieldOfficesList.length})
+        <button onClick={() => handleTabChange("field_offices")} className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shrink-0 ${activeTab === "field_offices" ? "bg-indigo-600 text-white" : "text-slate-400"}`}>
+          <Building2 className="w-4 h-4 text-emerald-400" /> Offices ({officesCount})
         </button>
-        <button onClick={() => setActiveTab("schedules")} className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shrink-0 ${activeTab === "schedules" ? "bg-indigo-600 text-white" : "text-slate-400"}`}>
+        <button onClick={() => handleTabChange("schedules")} className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shrink-0 ${activeTab === "schedules" ? "bg-indigo-600 text-white" : "text-slate-400"}`}>
           <Calendar className="w-4 h-4 text-amber-400" /> Schedules
         </button>
-        <button onClick={() => setActiveTab("region_settings")} className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shrink-0 ${activeTab === "region_settings" ? "bg-indigo-600 text-white" : "text-slate-400"}`}>
+        <button onClick={() => handleTabChange("region_settings")} className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shrink-0 ${activeTab === "region_settings" ? "bg-indigo-600 text-white" : "text-slate-400"}`}>
           <Sliders className="w-4 h-4 text-amber-500" /> Settings
         </button>
-        <button onClick={() => setActiveTab("roles_permissions")} className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shrink-0 ${activeTab === "roles_permissions" ? "bg-indigo-600 text-white" : "text-slate-400"}`}>
+        <button onClick={() => handleTabChange("roles_permissions")} className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shrink-0 ${activeTab === "roles_permissions" ? "bg-indigo-600 text-white" : "text-slate-400"}`}>
           <KeyRound className="w-4 h-4 text-purple-400" /> Roles
         </button>
-        <button onClick={() => setActiveTab("transactions")} className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shrink-0 ${activeTab === "transactions" ? "bg-indigo-600 text-white" : "text-slate-400"}`}>
+        <button onClick={() => handleTabChange("transactions")} className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shrink-0 ${activeTab === "transactions" ? "bg-indigo-600 text-white" : "text-slate-400"}`}>
           <Receipt className="w-4 h-4 text-teal-400" /> Transactions
         </button>
       </div>
@@ -168,6 +245,21 @@ function TenantDetailPageContent({ currentTenant }: { currentTenant: Tenant }) {
         {activeTab === "roles_permissions" && <RolesTab currentTenant={currentTenant} showToast={showToast} />}
         {activeTab === "transactions" && <TransactionsTab currentTenant={currentTenant} />}
       </div>
+
+      <ConfirmActionDialog
+        isOpen={isConfirmToggleOpen}
+        onClose={() => setIsConfirmToggleOpen(false)}
+        onConfirm={handleToggleStatus}
+        title={currentTenant.isActive ? "Deactivate Tenant Confirmation" : "Activate Tenant Confirmation"}
+        description={
+          currentTenant.isActive
+            ? `Are you sure you want to deactivate "${currentTenant.name}"? Deactivating this tenant branch will restrict operational access for associated staff members and regional clients.`
+            : `Are you sure you want to activate "${currentTenant.name}"? This will restore operational access for associated members and clients.`
+        }
+        confirmLabel={currentTenant.isActive ? "Deactivate Tenant" : "Activate Tenant"}
+        cancelLabel="Cancel"
+        loading={isToggling}
+      />
     </div>
   );
 }

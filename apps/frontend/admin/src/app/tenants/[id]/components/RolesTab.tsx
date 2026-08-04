@@ -7,6 +7,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tenant, Role } from "@edge/api";
+import { useRoleService } from "@/services/roleService";
+import { Loader2 } from "lucide-react";
 
 interface RolesTabProps {
   currentTenant: Tenant;
@@ -14,11 +16,9 @@ interface RolesTabProps {
 }
 
 export function RolesTab({ currentTenant, showToast }: RolesTabProps) {
-  const [rolesList, setRolesList] = useState<Role[]>([
-    { id: "r-admin", name: "System Administrator", key: "system_admin", isSystemRole: true, description: "Full system governance and tenant management" },
-    { id: "r-licensing", name: "Regional Executive Director", key: "region_admin", isSystemRole: false, description: "Regional fee rules, schedules, and field office oversight" },
-    { id: "r-inspector", name: "Field Inspector Lead", key: "inspector_lead", isSystemRole: false, description: "On-site frequency verification and field station inspection" },
-  ]);
+  const { useRoles } = useRoleService();
+  const { data: fetchedRoles, isLoading: loadingRoles } = useRoles(currentTenant.id);
+  const rolesList: Role[] = fetchedRoles ?? [];
 
   return (
     <div className="space-y-4">

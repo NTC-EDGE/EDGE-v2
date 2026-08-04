@@ -1,13 +1,10 @@
-using System;
-using System.Threading.Tasks;
 using FluentValidation;
 using MediatR;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Routing;
 using EDGE.Application.Feedback.Commands.SubmitFeedback;
 using EDGE.Application.Feedback.Commands.DeleteFeedback;
 using EDGE.Application.Feedback.Queries.GetFeedbacks;
+using EDGE.Domain.Authorization;
+using EDGE.Infrastructure.Authorization;
 
 namespace EDGE.Api.Endpoints;
 
@@ -25,7 +22,6 @@ public static class FeedbackEndpoints
             .WithDescription("Submits user or client feedback for administrative review.");
 
         feedback.MapGet("/", GetFeedbacks)
-            .AllowAnonymous()
             .WithName("GetFeedbacks")
             .WithSummary("Get feedback submissions")
             .WithDescription("Retrieves all customer and client feedback submissions.");
@@ -53,12 +49,14 @@ public static class FeedbackEndpoints
         return Results.Created($"/api/v2/feedback/{result.Id}", result);
     }
 
+    [HasPermission(Permissions.SystemAdmin)]
     public static async Task<IResult> GetFeedbacks(IMediator mediator)
     {
         var result = await mediator.Send(new GetFeedbacksQuery());
         return Results.Ok(new { succeeded = true, data = result });
     }
 
+    [HasPermission(Permissions.SystemAdmin)]
     public static async Task<IResult> DeleteFeedback(Guid id, IMediator mediator)
     {
         var success = await mediator.Send(new DeleteFeedbackCommand(id));
