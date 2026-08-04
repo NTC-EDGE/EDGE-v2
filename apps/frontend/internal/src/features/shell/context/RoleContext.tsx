@@ -15,8 +15,8 @@ export type UserRole =
  */
 export type NavGroup =
   | 'Workspace'
-  | 'Communication'
   | 'Operations'
+  | 'Communication'
   | 'Compliance'
   | 'Administration';
 
@@ -42,8 +42,8 @@ export const ROLES: readonly UserRole[] = [
  */
 export const NAV_GROUP_ORDER: readonly NavGroup[] = [
   'Workspace',
-  'Communication',
   'Operations',
+  'Communication',
   'Compliance',
   'Administration',
 ] as const;
@@ -51,14 +51,14 @@ export const NAV_GROUP_ORDER: readonly NavGroup[] = [
 export const ROLE_NAVIGATION_LINKS = {
   Admin: [
     { name: 'Dashboard',            screen: 'Dashboard',        icon: 'grid',           group: 'Workspace' },
-    { name: 'Announcements',        screen: 'Announcements',    icon: 'volume-2',       group: 'Communication' },
-    { name: 'Feedback',             screen: 'Feedback',         icon: 'message-circle', group: 'Communication' },
-    { name: 'Chat',                 screen: 'Chat',             icon: 'message-square', group: 'Communication' },
-    { name: 'Meet',                 screen: 'Meet',             icon: 'video',          group: 'Communication' },
     { name: 'Activities',           screen: 'Activities',       icon: 'activity',       group: 'Operations' },
     { name: 'Form Builder',         screen: 'FormBuilder',      icon: 'layout',         group: 'Operations' },
     { name: 'Receipt Management',   screen: 'ReceiptManagement',icon: 'file',           group: 'Operations' },
     { name: 'Schedule',             screen: 'Schedule',         icon: 'calendar',       group: 'Operations' },
+    { name: 'Announcements',        screen: 'Announcements',    icon: 'volume-2',       group: 'Communication' },
+    { name: 'Feedback',             screen: 'Feedback',         icon: 'message-circle', group: 'Communication' },
+    { name: 'Chat',                 screen: 'Chat',             icon: 'message-square', group: 'Communication' },
+    { name: 'Meet',                 screen: 'Meet',             icon: 'video',          group: 'Communication' },
     { name: 'Audit Logs',           screen: 'AuditLogs',        icon: 'shield',         group: 'Compliance' },
     { name: 'Reports',              screen: 'Reports',          icon: 'file-text',      group: 'Compliance' },
     { name: 'Roles & Permissions',  screen: 'RolesPermission',  icon: 'lock',           group: 'Administration' },

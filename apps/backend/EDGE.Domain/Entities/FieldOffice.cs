@@ -9,6 +9,7 @@ public class FieldOffice : AuditableEntity
     public Guid TenantId { get; set; }
     public string Name { get; set; } = string.Empty;
     public string Code { get; set; } = string.Empty;
+    public string Category { get; set; } = "Main";
     public string? Description { get; set; }
     public Guid RegionId { get; set; }
     public Guid? ProvinceId { get; set; }

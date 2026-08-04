@@ -29,8 +29,14 @@ public class DatabaseInitializerHostedService : IHostedService
         // 1. Run migrations first
         try
         {
+            if (configuration?.GetValue<bool>("ResetDatabase") == true || Environment.GetEnvironmentVariable("RESET_DATABASE") == "true")
+            {
+                _logger.LogWarning("RESET_DATABASE requested. Dropping public schema...");
+                await context.Database.ExecuteSqlRawAsync("DROP SCHEMA public CASCADE; CREATE SCHEMA public;", cancellationToken);
+                _logger.LogInformation("Public schema dropped and recreated successfully.");
+            }
+
             _logger.LogInformation("Applying database migrations...");
-            ApplicationDbContextFactory.EnsureMigrationHistorySynced(context);
             await context.Database.MigrateAsync(cancellationToken);
             _logger.LogInformation("Database migrations applied successfully.");
         }
@@ -94,10 +100,9 @@ public class DatabaseInitializerHostedService : IHostedService
         // 6. Seed System Announcements and Audit Logs
         try
         {
-            _logger.LogInformation("Seeding System Announcements and Audit Logs...");
+            _logger.LogInformation("Seeding System Announcements...");
             await SystemAnnouncementDataSeeder.SeedAsync(context);
-            await AuditLogDataSeeder.SeedAsync(context);
-            _logger.LogInformation("System Announcements and Audit Logs seeded successfully.");
+            _logger.LogInformation("System Announcements seeded successfully.");
         }
         catch (Exception ex)
         {

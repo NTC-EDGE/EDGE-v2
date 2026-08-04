@@ -1,7 +1,7 @@
 import React from 'react';
-import { StyleSheet, View, Text, Pressable, Modal } from 'react-native';
-import { COLORS, SPACING, RADIUS, SHADOWS, Icon as Lucide } from '@edge/ui';
-import { Role } from '../data/mockRolesPermissions';
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { COLORS, Icon as Lucide, RADIUS, SHADOWS, SPACING, TYPOGRAPHY, useTheme } from '@edge/ui';
+import type { Role } from '../types';
 
 interface DeleteRoleConfirmModalProps {
   visible: boolean;
@@ -16,7 +16,14 @@ export function DeleteRoleConfirmModal({
   onClose,
   onConfirmDelete,
 }: DeleteRoleConfirmModalProps) {
+  const { colors, isDark } = useTheme();
+
   if (!visible || role === null) return null;
+
+  const cardBg = isDark ? colors.neutral[800] : '#FFFFFF';
+  const textColor = isDark ? colors.neutral[100] : colors.neutral[900];
+  const mutedColor = isDark ? colors.neutral[400] : colors.neutral[500];
+  const borderColor = isDark ? colors.neutral[700] : colors.neutral[200];
 
   const handleConfirm = () => {
     onConfirmDelete(role.id);
@@ -26,22 +33,32 @@ export function DeleteRoleConfirmModal({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.backdrop}>
-        <View style={[styles.modalCard, SHADOWS.modal]}>
+        <View style={[styles.card, { backgroundColor: cardBg }, SHADOWS.modal]}>
+          {/* Warning Icon */}
           <View style={styles.iconWrapper}>
-            <Lucide name="alert-triangle" size={28} color={COLORS.semantic.error} />
+            <Lucide name="alert-triangle" size={28} color="#EF4444" />
           </View>
 
-          <Text style={styles.title}>Delete Role</Text>
-          <Text style={styles.message}>
-            Are you sure you want to delete the role <Text style={styles.roleBold}>{role.name}</Text>? User accounts currently assigned to this role will lose their permission scope.
+          <Text style={[styles.title, { color: textColor }]}>Delete Role</Text>
+          <Text style={[styles.message, { color: mutedColor }]}>
+            Are you sure you want to delete the role{' '}
+            <Text style={[styles.roleName, { color: textColor }]}>{role.name}</Text>? Users
+            assigned to this role will lose their permission scope.
           </Text>
 
-          <View style={styles.actionsRow}>
-            <Pressable style={styles.cancelBtn} onPress={onClose}>
-              <Text style={styles.cancelBtnText}>Cancel</Text>
+          {/* Divider */}
+          <View style={[styles.divider, { backgroundColor: borderColor }]} />
+
+          <View style={styles.actions}>
+            <Pressable
+              style={[styles.cancelBtn, { borderColor }]}
+              onPress={onClose}
+            >
+              <Text style={[styles.cancelBtnText, { color: textColor }]}>Cancel</Text>
             </Pressable>
 
             <Pressable style={styles.deleteBtn} onPress={handleConfirm}>
+              <Lucide name="trash-2" size={14} color="#FFFFFF" />
               <Text style={styles.deleteBtnText}>Delete Role</Text>
             </Pressable>
           </View>
@@ -54,15 +71,14 @@ export function DeleteRoleConfirmModal({
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.4)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: SPACING[16],
+    padding: SPACING[24],
   },
-  modalCard: {
+  card: {
     width: '100%',
-    maxWidth: 440,
-    backgroundColor: COLORS.neutral.white,
+    maxWidth: 420,
     borderRadius: RADIUS.dialog,
     padding: SPACING[24],
     alignItems: 'center',
@@ -71,57 +87,61 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: COLORS.semantic.errorBg,
+    backgroundColor: '#FEF2F2',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: SPACING[16],
   },
   title: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 18,
     fontWeight: '700',
-    color: COLORS.neutral[900],
     marginBottom: SPACING[8],
+    textAlign: 'center',
   },
   message: {
     fontSize: 14,
-    color: COLORS.neutral[600],
     textAlign: 'center',
     lineHeight: 20,
-    marginBottom: SPACING[24],
+    marginBottom: SPACING[20],
   },
-  roleBold: {
+  roleName: {
     fontWeight: '700',
-    color: COLORS.neutral[900],
   },
-  actionsRow: {
+  divider: {
+    height: 1,
+    width: '100%',
+    marginBottom: SPACING[20],
+  },
+  actions: {
     flexDirection: 'row',
     gap: SPACING[12],
     width: '100%',
   },
   cancelBtn: {
     flex: 1,
-    paddingVertical: 10,
+    paddingVertical: 11,
     borderRadius: RADIUS.button,
-    backgroundColor: COLORS.neutral.white,
     borderWidth: 1,
-    borderColor: COLORS.neutral[300],
     alignItems: 'center',
   },
   cancelBtnText: {
     fontSize: 14,
     fontWeight: '600',
-    color: COLORS.neutral[700],
   },
   deleteBtn: {
     flex: 1,
-    paddingVertical: 10,
-    borderRadius: RADIUS.button,
-    backgroundColor: COLORS.semantic.error,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING[6],
+    paddingVertical: 11,
+    borderRadius: RADIUS.button,
+    backgroundColor: '#EF4444',
   },
   deleteBtnText: {
+    color: '#FFFFFF',
     fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.neutral.white,
+    fontWeight: '700',
   },
 });

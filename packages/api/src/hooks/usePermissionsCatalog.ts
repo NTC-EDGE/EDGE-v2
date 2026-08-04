@@ -5,12 +5,14 @@ export interface PermissionCatalogItem {
   key: string;
   category: string;
   label: string;
+  tag?: string;
+  description?: string;
 }
 
 export interface PermissionCategoryGroup {
   id: string;
   title: string;
-  options: { id: string; label: string }[];
+  options: { id: string; label: string; tag?: string; description?: string }[];
 }
 
 export interface UsePermissionsCatalogReturn {
@@ -33,7 +35,10 @@ export function usePermissionsCatalog(): UsePermissionsCatalogReturn {
   const items = Array.isArray(data) ? data : [];
 
   // Dynamically group items into category cards directly from API response
-  const categoryMap = new Map<string, { id: string; title: string; options: { id: string; label: string }[] }>();
+  const categoryMap = new Map<
+    string,
+    { id: string; title: string; options: { id: string; label: string; tag?: string; description?: string }[] }
+  >();
 
   items.forEach((item) => {
     const catId = item.category.toLowerCase().replace(/\s+/g, '_');
@@ -47,6 +52,8 @@ export function usePermissionsCatalog(): UsePermissionsCatalogReturn {
     categoryMap.get(catId)?.options.push({
       id: item.key,
       label: item.label,
+      tag: item.tag,
+      description: item.description,
     });
   });
 

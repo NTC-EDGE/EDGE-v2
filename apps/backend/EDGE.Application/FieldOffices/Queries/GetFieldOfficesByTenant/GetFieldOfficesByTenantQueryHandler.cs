@@ -20,6 +20,7 @@ public class GetFieldOfficesByTenantQueryHandler(
             f.TenantId,
             f.Name,
             f.Code,
+            f.Category ?? "Main",
             f.Description,
             f.RegionId,
             f.ProvinceId,

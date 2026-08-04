@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace EDGE.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260727082201_AddFeedbackAndAnnouncements")]
-    partial class AddFeedbackAndAnnouncements
+    [Migration("20260730065439_AddTenantIdAndMetadataToAuditLogs")]
+    partial class AddTenantIdAndMetadataToAuditLogs
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -356,6 +356,9 @@ namespace EDGE.Infrastructure.Migrations
                     b.Property<Guid?>("ServiceVariantRequirementId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("StoredFileId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid");
 
@@ -368,6 +371,12 @@ namespace EDGE.Infrastructure.Migrations
                     b.HasIndex("ApplicantId");
 
                     b.HasIndex("ApplicationId");
+
+                    b.HasIndex("RequirementId");
+
+                    b.HasIndex("ServiceVariantRequirementId");
+
+                    b.HasIndex("StoredFileId");
 
                     b.HasIndex("TenantId");
 
@@ -462,6 +471,12 @@ namespace EDGE.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("Event")
+                        .HasColumnType("text");
+
+                    b.Property<string>("IpAddress")
+                        .HasColumnType("text");
+
                     b.Property<string>("KeyValues")
                         .HasColumnType("text");
 
@@ -469,6 +484,18 @@ namespace EDGE.Infrastructure.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("OldValues")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Resource")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Status")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Type")
                         .HasColumnType("text");
 
                     b.HasKey("Id");
@@ -677,6 +704,9 @@ namespace EDGE.Infrastructure.Migrations
                     b.Property<string>("CreatedBy")
                         .HasColumnType("text");
 
+                    b.Property<bool>("IsAnonymous")
+                        .HasColumnType("boolean");
+
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
@@ -836,9 +866,6 @@ namespace EDGE.Infrastructure.Migrations
                     b.Property<Guid>("RegionId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("RegionId1")
-                        .HasColumnType("uuid");
-
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid");
 
@@ -849,8 +876,6 @@ namespace EDGE.Infrastructure.Migrations
                     b.HasIndex("ProvinceId");
 
                     b.HasIndex("RegionId");
-
-                    b.HasIndex("RegionId1");
 
                     b.HasIndex("TenantId", "Code")
                         .IsUnique();
@@ -1571,9 +1596,8 @@ namespace EDGE.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<string>("ApplicationTypeKey")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                    b.Property<string>("ContextKey")
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -2080,6 +2104,20 @@ namespace EDGE.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("EDGE.Domain.Entities.Requirement", "Requirement")
+                        .WithMany()
+                        .HasForeignKey("RequirementId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("EDGE.Domain.Entities.ServiceVariantRequirement", "ServiceVariantRequirement")
+                        .WithMany()
+                        .HasForeignKey("ServiceVariantRequirementId");
+
+                    b.HasOne("EDGE.Domain.Entities.StoredFile", "StoredFile")
+                        .WithMany()
+                        .HasForeignKey("StoredFileId");
+
                     b.HasOne("EDGE.Domain.Entities.Tenant", "Tenant")
                         .WithMany()
                         .HasForeignKey("TenantId")
@@ -2089,6 +2127,12 @@ namespace EDGE.Infrastructure.Migrations
                     b.Navigation("Applicant");
 
                     b.Navigation("Application");
+
+                    b.Navigation("Requirement");
+
+                    b.Navigation("ServiceVariantRequirement");
+
+                    b.Navigation("StoredFile");
 
                     b.Navigation("Tenant");
                 });
@@ -2188,14 +2232,10 @@ namespace EDGE.Infrastructure.Migrations
                         .HasForeignKey("ProvinceId");
 
                     b.HasOne("EDGE.Domain.Entities.Region", "Region")
-                        .WithMany()
-                        .HasForeignKey("RegionId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("EDGE.Domain.Entities.Region", null)
                         .WithMany("FieldOffices")
-                        .HasForeignKey("RegionId1");
+                        .HasForeignKey("RegionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.HasOne("EDGE.Domain.Entities.Tenant", "Tenant")
                         .WithMany()
@@ -2413,7 +2453,7 @@ namespace EDGE.Infrastructure.Migrations
             modelBuilder.Entity("EDGE.Domain.Entities.ServiceVariantRequirement", b =>
                 {
                     b.HasOne("EDGE.Domain.Entities.Requirement", "Requirement")
-                        .WithMany()
+                        .WithMany("ServiceVariantRequirements")
                         .HasForeignKey("RequirementId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
@@ -2536,6 +2576,11 @@ namespace EDGE.Infrastructure.Migrations
                     b.Navigation("FieldOffices");
 
                     b.Navigation("Provinces");
+                });
+
+            modelBuilder.Entity("EDGE.Domain.Entities.Requirement", b =>
+                {
+                    b.Navigation("ServiceVariantRequirements");
                 });
 
             modelBuilder.Entity("EDGE.Domain.Entities.Role", b =>

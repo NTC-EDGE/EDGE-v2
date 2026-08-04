@@ -1,7 +1,8 @@
 using MediatR;
-using FluentValidation;
+using Microsoft.AspNetCore.Mvc;
 using EDGE.Domain.Authorization;
 using EDGE.Infrastructure.Authorization;
+using EDGE.Application.FieldOffices.DTOs;
 using EDGE.Application.FieldOffices.Commands.CreateFieldOffice;
 using EDGE.Application.FieldOffices.Commands.UpdateFieldOffice;
 using EDGE.Application.FieldOffices.Commands.DeleteFieldOffice;
@@ -75,17 +76,9 @@ public static class FieldOfficeEndpoints
     [HasPermission(Permissions.ReadTenants)]
     public static async Task<IResult> GetFieldOffices(
         Guid? tenantId,
-        IValidator<GetFieldOfficesQuery> validator,
         IMediator mediator)
     {
-        var query = new GetFieldOfficesQuery(tenantId.GetValueOrDefault());
-        var validationResult = await validator.ValidateAsync(query);
-        if (!validationResult.IsValid)
-        {
-            return Results.ValidationProblem(validationResult.ToDictionary());
-        }
-
-        var result = await mediator.Send(query);
+        var result = await mediator.Send(new GetFieldOfficesQuery(tenantId.GetValueOrDefault()));
         return Results.Ok(result);
     }
 
@@ -93,17 +86,9 @@ public static class FieldOfficeEndpoints
     public static async Task<IResult> GetFieldOfficeById(
         Guid id,
         Guid? tenantId,
-        IValidator<GetFieldOfficeByIdQuery> validator,
         IMediator mediator)
     {
-        var query = new GetFieldOfficeByIdQuery(id, tenantId.GetValueOrDefault());
-        var validationResult = await validator.ValidateAsync(query);
-        if (!validationResult.IsValid)
-        {
-            return Results.ValidationProblem(validationResult.ToDictionary());
-        }
-
-        var result = await mediator.Send(query);
+        var result = await mediator.Send(new GetFieldOfficeByIdQuery(id, tenantId.GetValueOrDefault()));
         return result is not null
             ? Results.Ok(result)
             : Results.NotFound(new { message = $"Field office with ID '{id}' was not found for this tenant." });
@@ -111,15 +96,26 @@ public static class FieldOfficeEndpoints
 
     [HasPermission(Permissions.CreateTenants)]
     public static async Task<IResult> CreateFieldOffice(
-        CreateFieldOfficeCommand command,
-        IValidator<CreateFieldOfficeCommand> validator,
+        [FromBody] CreateFieldOfficeRequest request,
         IMediator mediator)
     {
-        var validationResult = await validator.ValidateAsync(command);
-        if (!validationResult.IsValid)
-        {
-            return Results.ValidationProblem(validationResult.ToDictionary());
-        }
+        var command = new CreateFieldOfficeCommand(
+            request.GetTenantGuid(),
+            request.Name,
+            request.Code,
+            request.Category,
+            request.Description,
+            request.GetRegionGuid(),
+            request.GetProvinceGuid(),
+            request.Address,
+            request.ContactPhone,
+            request.ContactEmail,
+            request.GetOfficerInChargeGuid(),
+            request.IsActive,
+            request.AllowSpectrumInspection,
+            request.AllowPermitIssuance,
+            request.AllowComplaintReception
+        );
 
         var result = await mediator.Send(command);
         return Results.Created($"/api/v2/field-offices/{result.Id}", result);
@@ -128,20 +124,27 @@ public static class FieldOfficeEndpoints
     [HasPermission(Permissions.UpdateTenants)]
     public static async Task<IResult> UpdateFieldOffice(
         Guid id,
-        UpdateFieldOfficeCommand command,
-        IValidator<UpdateFieldOfficeCommand> validator,
+        [FromBody] UpdateFieldOfficeRequest request,
         IMediator mediator)
     {
-        if (id != command.Id)
-        {
-            return Results.BadRequest(new { message = "The path ID does not match the request body ID." });
-        }
-
-        var validationResult = await validator.ValidateAsync(command);
-        if (!validationResult.IsValid)
-        {
-            return Results.ValidationProblem(validationResult.ToDictionary());
-        }
+        var command = new UpdateFieldOfficeCommand(
+            id,
+            request.GetTenantGuid(),
+            request.Name,
+            request.Code,
+            request.Category,
+            request.Description,
+            request.GetRegionGuid(),
+            request.GetProvinceGuid(),
+            request.Address,
+            request.ContactPhone,
+            request.ContactEmail,
+            request.GetOfficerInChargeGuid(),
+            request.IsActive,
+            request.AllowSpectrumInspection,
+            request.AllowPermitIssuance,
+            request.AllowComplaintReception
+        );
 
         var result = await mediator.Send(command);
         return result is not null
@@ -153,17 +156,9 @@ public static class FieldOfficeEndpoints
     public static async Task<IResult> DeleteFieldOffice(
         Guid id,
         Guid? tenantId,
-        IValidator<DeleteFieldOfficeCommand> validator,
         IMediator mediator)
     {
-        var command = new DeleteFieldOfficeCommand(id, tenantId.GetValueOrDefault());
-        var validationResult = await validator.ValidateAsync(command);
-        if (!validationResult.IsValid)
-        {
-            return Results.ValidationProblem(validationResult.ToDictionary());
-        }
-
-        var success = await mediator.Send(command);
+        var success = await mediator.Send(new DeleteFieldOfficeCommand(id, tenantId.GetValueOrDefault()));
         return success
             ? Results.NoContent()
             : Results.NotFound(new { message = $"Field office with ID '{id}' was not found or could not be deleted." });

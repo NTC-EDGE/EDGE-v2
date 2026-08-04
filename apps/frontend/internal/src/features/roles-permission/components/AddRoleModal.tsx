@@ -1,18 +1,33 @@
-import React, { useState } from 'react';
-import { StyleSheet, View, Text, TextInput, Pressable, Modal, ScrollView, useWindowDimensions } from 'react-native';
-import { useTheme, COLORS, SPACING, RADIUS, SHADOWS, Icon as Lucide } from '@edge/ui';
-import { usePermissionsCatalog, PermissionCategoryGroup } from '@edge/api';
-import { Role } from '../data/mockRolesPermissions';
+import React, { useState, useRef } from 'react';
+import {
+  ActivityIndicator,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import {
+  Icon as Lucide,
+  RADIUS,
+  SHADOWS,
+  SPACING,
+  TYPOGRAPHY,
+  useTheme,
+} from '@edge/ui';
+import { usePermissionsCatalog, PermissionCategoryGroup, roleService } from '@edge/api';
+import type { Role } from '../types';
 
 interface AddRoleModalProps {
   visible: boolean;
   onClose: () => void;
-  onAddRole: (newRole: {
-    name: string;
-    initialPermissionIds: string[];
-  }) => void;
+  onAddRole: (newRole: { name: string; initialPermissionIds: string[] }) => void;
   existingRoles: Role[];
-  rolePermissionsMap: Record<string, string[]>;
+  /** @deprecated Not needed anymore — permissions are fetched on-demand */
+  rolePermissionsMap?: Record<string, string[]>;
 }
 
 export function AddRoleModal({
@@ -20,59 +35,103 @@ export function AddRoleModal({
   onClose,
   onAddRole,
   existingRoles,
-  rolePermissionsMap,
 }: AddRoleModalProps) {
   const { colors, isDark } = useTheme();
-  const { width } = useWindowDimensions();
-  const isMobile = width < 768;
-
   const { categories } = usePermissionsCatalog();
 
   const [roleName, setRoleName] = useState('');
   const [selectedPermissionIds, setSelectedPermissionIds] = useState<string[]>([]);
   const [errorMsg, setErrorMsg] = useState('');
+  const [activeTemplateId, setActiveTemplateId] = useState<string>('');
+  const [isLoadingTemplate, setIsLoadingTemplate] = useState(false);
 
-  // Preset Template loader
-  const handleApplyTemplate = (templateRoleId: string) => {
+  const canvasBg = isDark ? colors.neutral[900] : colors.neutral[50];
+  const cardBg = isDark ? colors.neutral[800] : '#FFFFFF';
+  const borderColor = isDark ? colors.neutral[700] : colors.neutral[200];
+  const textColor = isDark ? colors.neutral[100] : colors.neutral[900];
+  const mutedColor = isDark ? colors.neutral[400] : colors.neutral[500];
+  const inputBg = isDark ? colors.neutral[900] : '#FFFFFF';
+  const inputBorder = isDark ? colors.neutral[600] : colors.neutral[300];
+  const accentColor = isDark ? '#60A5FA' : colors.brand[700];
+  const accentBg = isDark ? colors.brand[800] : colors.brand[700];
+
+  // ── Mouse Drag-to-Scroll Web Ref & Handlers ─────────────────────────────
+  const presetsScrollRef = useRef<ScrollView>(null);
+  const isDraggingPresets = useRef(false);
+  const dragStartX = useRef(0);
+  const dragScrollLeft = useRef(0);
+
+  const handleMouseDown = (e: any) => {
+    if (Platform.OS !== 'web') return;
+    isDraggingPresets.current = true;
+    const pageX = e.nativeEvent?.pageX || e.pageX || 0;
+    dragStartX.current = pageX;
+    const scrollNode = (presetsScrollRef.current as any)?.getScrollableNode
+      ? (presetsScrollRef.current as any).getScrollableNode()
+      : null;
+    if (scrollNode) {
+      dragScrollLeft.current = scrollNode.scrollLeft;
+    }
+  };
+
+  const handleMouseLeaveOrUp = () => {
+    isDraggingPresets.current = false;
+  };
+
+  const handleMouseMove = (e: any) => {
+    if (!isDraggingPresets.current || Platform.OS !== 'web') return;
+    const pageX = e.nativeEvent?.pageX || e.pageX || 0;
+    const distance = (pageX - dragStartX.current) * 1.5;
+    const scrollNode = (presetsScrollRef.current as any)?.getScrollableNode
+      ? (presetsScrollRef.current as any).getScrollableNode()
+      : null;
+    if (scrollNode) {
+      scrollNode.scrollLeft = dragScrollLeft.current - distance;
+    }
+  };
+
+  // ── Fetch permissions for template role from the backend ────────────────────
+  const handleApplyTemplate = async (templateRoleId: string) => {
     if (!templateRoleId) {
+      setActiveTemplateId('');
       setSelectedPermissionIds([]);
       return;
     }
-    const perms = rolePermissionsMap[templateRoleId];
-    if (perms !== undefined) {
+
+    setActiveTemplateId(templateRoleId);
+    setIsLoadingTemplate(true);
+
+    const [perms, err] = await roleService.getRolePermissions(templateRoleId);
+
+    setIsLoadingTemplate(false);
+
+    if (!err && perms !== null) {
       setSelectedPermissionIds([...perms]);
     }
   };
 
-  // Toggle single permission checkbox
   const handleTogglePermission = (permId: string) => {
     setSelectedPermissionIds((prev) =>
-      prev.includes(permId) ? prev.filter((id) => id !== permId) : [...prev, permId]
+      prev.includes(permId) ? prev.filter((id) => id !== permId) : [...prev, permId],
     );
   };
 
-  // Toggle all permissions in a category
   const handleToggleCategory = (category: PermissionCategoryGroup) => {
     const categoryPermIds = category.options.map((opt) => opt.id);
     const allSelected = categoryPermIds.every((id) => selectedPermissionIds.includes(id));
-
     if (allSelected) {
-      // Remove all from this category
       setSelectedPermissionIds((prev) => prev.filter((id) => !categoryPermIds.includes(id)));
     } else {
-      // Add all missing from this category
       const newSet = new Set([...selectedPermissionIds, ...categoryPermIds]);
       setSelectedPermissionIds(Array.from(newSet));
     }
   };
 
-  // Global Select All / Clear All
-  const handleSelectAllGlobal = () => {
-    const allIds = categories.flatMap((cat) => cat.options.map((opt) => opt.id));
-    setSelectedPermissionIds(allIds);
+  const handleSelectAll = () => {
+    setSelectedPermissionIds(categories.flatMap((cat) => cat.options.map((opt) => opt.id)));
   };
 
-  const handleClearAllGlobal = () => {
+  const handleClearAll = () => {
     setSelectedPermissionIds([]);
   };
 
@@ -82,12 +141,7 @@ export function AddRoleModal({
       setErrorMsg('Role name is required.');
       return;
     }
-
-    onAddRole({
-      name: trimmedName,
-      initialPermissionIds: selectedPermissionIds,
-    });
-
+    onAddRole({ name: trimmedName, initialPermissionIds: selectedPermissionIds });
     handleReset();
     onClose();
   };
@@ -96,6 +150,8 @@ export function AddRoleModal({
     setRoleName('');
     setSelectedPermissionIds([]);
     setErrorMsg('');
+    setActiveTemplateId('');
+    setIsLoadingTemplate(false);
   };
 
   const handleClose = () => {
@@ -108,152 +164,221 @@ export function AddRoleModal({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose}>
       <View style={styles.backdrop}>
-        <View style={[styles.modalCard, { backgroundColor: colors.cardBg }, SHADOWS.modal]}>
-          {/* Header */}
-          <View style={[styles.modalHeader, { backgroundColor: isDark ? colors.cardBg : colors.bg, borderBottomColor: colors.border }]}>
-            <View style={styles.titleRow}>
-              <View style={[styles.headerBadge, { backgroundColor: isDark ? colors.cardBg : COLORS.brand.blueLight }]}>
-                <Lucide name="shield" size={20} color={colors.brand.primary} />
+        <View style={[styles.sheet, { backgroundColor: cardBg }, SHADOWS.modal]}>
+          {/* ── Header ──────────────────────────────────────────────────────── */}
+          <View style={[styles.header, { backgroundColor: canvasBg, borderBottomColor: borderColor }]}>
+            <View style={styles.headerLeft}>
+              <View style={[styles.headerIcon, { backgroundColor: isDark ? 'rgba(96,165,250,0.15)' : '#DBEAFE' }]}>
+                <Lucide name="shield" size={18} color={accentColor} />
               </View>
               <View>
-                <Text style={[styles.modalTitle, { color: colors.text }]}>Add New Role</Text>
-                <Text style={[styles.modalSubtitle, { color: colors.textMuted }]}>
-                  Define role details and assign initial module permissions.
+                <Text style={[styles.headerTitle, { color: textColor }]}>Add New Role</Text>
+                <Text style={[styles.headerSub, { color: mutedColor }]}>
+                  Name a role and assign initial permissions
                 </Text>
               </View>
             </View>
-            <Pressable style={styles.closeBtn} onPress={handleClose} accessibilityLabel="Close modal">
-              <Lucide name="x" size={20} color={colors.textMuted} />
+            <Pressable onPress={handleClose} style={styles.closeBtn} hitSlop={8}>
+              <Lucide name="x" size={18} color={mutedColor} />
             </Pressable>
           </View>
 
-          {/* Body */}
+          {/* ── Body ────────────────────────────────────────────────────────── */}
           <ScrollView
-            style={styles.modalBodyScroll}
-            contentContainerStyle={styles.modalBodyContent}
+            style={styles.body}
+            contentContainerStyle={styles.bodyContent}
             showsVerticalScrollIndicator={false}
           >
+            {/* Error Banner */}
             {errorMsg !== '' && (
-              <View style={styles.errorContainer}>
-                <Lucide name="alert-circle" size={16} color={COLORS.semantic.error} style={styles.errorIcon} />
+              <View style={[styles.errorBanner, { backgroundColor: isDark ? 'rgba(239,68,68,0.1)' : '#FEF2F2', borderColor: isDark ? '#F87171' : '#FECACA' }]}>
+                <Lucide name="alert-circle" size={14} color="#EF4444" />
                 <Text style={styles.errorText}>{errorMsg}</Text>
               </View>
             )}
 
-            {/* Form Fields Section */}
-            <View style={styles.formSection}>
-              <View style={styles.formRow}>
-                <View style={styles.formGroupFlex}>
-                  <Text style={styles.label}>
-                    Role Name <Text style={styles.requiredStar}>*</Text>
-                  </Text>
-                  <TextInput
-                    style={styles.textInput}
-                    placeholder="e.g. Senior Evaluator"
-                    value={roleName}
-                    onChangeText={(val) => {
-                      setRoleName(val);
-                      if (errorMsg) setErrorMsg('');
-                    }}
-                    placeholderTextColor={COLORS.neutral[400]}
-                  />
-                </View>
+            {/* Role Name */}
+            <View style={styles.fieldGroup}>
+              <Text style={[styles.label, { color: textColor }]}>
+                Role Name <Text style={{ color: '#EF4444' }}>*</Text>
+              </Text>
+              <TextInput
+                style={[styles.textInput, { backgroundColor: inputBg, borderColor: inputBorder, color: textColor }]}
+                placeholder="e.g. Senior Evaluator"
+                placeholderTextColor={mutedColor}
+                value={roleName}
+                onChangeText={(val) => {
+                  setRoleName(val);
+                  if (errorMsg) setErrorMsg('');
+                }}
+              />
+            </View>
 
-                <View style={styles.formGroupFlex}>
-                  <Text style={styles.label}>Template Presets</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.presetsRow}>
+            {/* Copy from Template */}
+            {existingRoles.length > 0 && (
+              <View style={styles.fieldGroup}>
+                <View style={styles.templateLabelRow}>
+                  <Text style={[styles.label, { color: textColor }]}>Copy from Template</Text>
+                  {isLoadingTemplate && (
+                    <ActivityIndicator size="small" color={accentColor} />
+                  )}
+                </View>
+                <ScrollView
+                  ref={presetsScrollRef}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  {...({
+                    onMouseDown: handleMouseDown,
+                    onMouseLeave: handleMouseLeaveOrUp,
+                    onMouseUp: handleMouseLeaveOrUp,
+                    onMouseMove: handleMouseMove,
+                  } as any)}
+                >
+                  <View style={styles.presetsRow}>
+                    {/* Clear chip */}
                     <Pressable
-                      style={[styles.presetChip, selectedPermissionIds.length === 0 && styles.presetChipActive]}
+                      style={[
+                        styles.presetChip,
+                        {
+                          backgroundColor: activeTemplateId === ''
+                            ? accentBg
+                            : (isDark ? colors.neutral[700] : colors.neutral[100]),
+                          borderColor: activeTemplateId === '' ? accentBg : borderColor,
+                        },
+                      ]}
                       onPress={() => handleApplyTemplate('')}
                     >
-                      <Text style={[styles.presetChipText, selectedPermissionIds.length === 0 && styles.presetChipTextActive]}>
+                      <Text
+                        style={[
+                          styles.presetChipText,
+                          { color: activeTemplateId === '' ? '#FFFFFF' : mutedColor },
+                        ]}
+                      >
                         Clear
                       </Text>
                     </Pressable>
-                    {existingRoles.map((r) => (
-                      <Pressable
-                        key={r.id}
-                        style={styles.presetChip}
-                        onPress={() => handleApplyTemplate(r.id)}
-                      >
-                        <Text style={styles.presetChipText}>Copy {r.name}</Text>
-                      </Pressable>
-                    ))}
-                  </ScrollView>
-                </View>
-              </View>
-            </View>
 
-            {/* Permission Checkbox Grid Section */}
-            <View style={styles.permissionsSection}>
-              <View style={styles.permSectionHeader}>
-                <View style={styles.permTitleRow}>
-                  <Text style={styles.permSectionTitle}>MODULE PERMISSIONS</Text>
-                  <View style={styles.countBadge}>
-                    <Text style={styles.countBadgeText}>{selectedPermissionIds.length} Selected</Text>
+                    {/* Role template chips */}
+                    {existingRoles.map((r) => {
+                      const isActive = activeTemplateId === r.id;
+                      return (
+                        <Pressable
+                          key={r.id}
+                          style={[
+                            styles.presetChip,
+                            {
+                              backgroundColor: isActive
+                                ? accentBg
+                                : (isDark ? colors.neutral[700] : colors.neutral[100]),
+                              borderColor: isActive ? accentBg : borderColor,
+                              opacity: isLoadingTemplate && !isActive ? 0.5 : 1,
+                            },
+                          ]}
+                          onPress={() => handleApplyTemplate(r.id)}
+                          disabled={isLoadingTemplate}
+                        >
+                          {isActive && isLoadingTemplate && (
+                            <ActivityIndicator
+                              size="small"
+                              color="#FFFFFF"
+                              style={{ transform: [{ scale: 0.75 }] }}
+                            />
+                          )}
+                          <Text
+                            style={[
+                              styles.presetChipText,
+                              { color: isActive ? '#FFFFFF' : textColor },
+                            ]}
+                          >
+                            Copy {r.name}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </ScrollView>
+              </View>
+            )}
+
+            {/* Permissions */}
+            <View style={[styles.permSection, { borderTopColor: borderColor }]}>
+              <View style={styles.permHeader}>
+                <View style={styles.permHeaderLeft}>
+                  <Text style={[styles.permTitle, { color: accentColor }]}>PERMISSIONS</Text>
+                  <View style={[styles.countPill, { backgroundColor: isDark ? 'rgba(96,165,250,0.15)' : '#DBEAFE' }]}>
+                    <Text style={[styles.countPillText, { color: accentColor }]}>
+                      {selectedPermissionIds.length} selected
+                    </Text>
                   </View>
                 </View>
-
-                <View style={styles.globalActionsRow}>
-                  <Pressable style={styles.actionLinkBtn} onPress={handleSelectAllGlobal}>
-                    <Text style={styles.actionLinkText}>Select All</Text>
+                <View style={styles.permActions}>
+                  <Pressable onPress={handleSelectAll}>
+                    <Text style={[styles.permActionText, { color: accentColor }]}>Select All</Text>
                   </Pressable>
-                  <Text style={styles.actionDivider}>•</Text>
-                  <Pressable style={styles.actionLinkBtn} onPress={handleClearAllGlobal}>
-                    <Text style={styles.actionLinkText}>Clear All</Text>
+                  <Text style={[styles.permActionDivider, { color: mutedColor }]}>·</Text>
+                  <Pressable onPress={handleClearAll}>
+                    <Text style={[styles.permActionText, { color: mutedColor }]}>Clear</Text>
                   </Pressable>
                 </View>
               </View>
 
-              {/* Categories Grid */}
-              <View style={[styles.categoriesGrid, isMobile && styles.categoriesGridMobile]}>
+              <View style={styles.categoriesGrid}>
                 {categories.map((category) => {
-                  const categoryPermIds = category.options.map((opt) => opt.id);
-                  const isCategoryAllSelected = categoryPermIds.every((id) =>
-                    selectedPermissionIds.includes(id)
-                  );
-
+                  const catIds = category.options.map((opt) => opt.id);
+                  const allSel = catIds.every((id) => selectedPermissionIds.includes(id));
                   return (
-                    <View key={category.id} style={[styles.categoryCard, { backgroundColor: isDark ? colors.cardBg : colors.bg, borderColor: colors.border }]}>
-                      <View style={[styles.categoryHeader, { borderBottomColor: colors.border }]}>
-                        <Text style={[styles.categoryTitle, { color: colors.text }]}>{category.title}</Text>
-                        <Pressable
-                          style={styles.categoryToggleBtn}
-                          onPress={() => handleToggleCategory(category)}
-                        >
-                          <Text style={[styles.categoryToggleText, { color: colors.brand.primary }]}>
-                            {isCategoryAllSelected ? 'Deselect All' : 'Select All'}
+                    <View
+                      key={category.id}
+                      style={[styles.categoryCard, { backgroundColor: canvasBg, borderColor }]}
+                    >
+                      <View style={[styles.categoryHeader, { borderBottomColor: borderColor }]}>
+                        <Text style={[styles.categoryTitle, { color: textColor }]}>
+                          {category.title}
+                        </Text>
+                        <Pressable onPress={() => handleToggleCategory(category)}>
+                          <Text style={[styles.categoryToggle, { color: accentColor }]}>
+                            {allSel ? 'Deselect All' : 'Select All'}
                           </Text>
                         </Pressable>
                       </View>
-
-                      <View style={styles.optionsGrid}>
-                        {category.options.map((option) => {
-                          const isChecked = selectedPermissionIds.includes(option.id);
+                      <View style={styles.optionsList}>
+                        {category.options.map((opt) => {
+                          const isChecked = selectedPermissionIds.includes(opt.id);
                           return (
                             <Pressable
-                              key={option.id}
-                              style={styles.optionCheckboxRow}
-                              onPress={() => handleTogglePermission(option.id)}
+                              key={opt.id}
+                              style={styles.optionRow}
+                              onPress={() => handleTogglePermission(opt.id)}
                             >
                               <View
                                 style={[
                                   styles.checkbox,
-                                  isChecked ? styles.checkboxChecked : [styles.checkboxUnchecked, { backgroundColor: colors.cardBg, borderColor: colors.border }],
+                                  {
+                                    backgroundColor: isChecked ? accentBg : inputBg,
+                                    borderColor: isChecked ? accentBg : inputBorder,
+                                  },
                                 ]}
                               >
-                                {isChecked && (
-                                  <Lucide name="check" size={14} color={COLORS.neutral.white} />
+                                {isChecked && <Lucide name="check" size={12} color="#FFFFFF" />}
+                              </View>
+                              <View style={{ flex: 1 }}>
+                                <Text
+                                  style={[
+                                    styles.optionLabel,
+                                    {
+                                      color: isChecked ? textColor : mutedColor,
+                                      fontWeight: isChecked ? '600' : '400',
+                                    },
+                                  ]}
+                                >
+                                  {opt.label}
+                                </Text>
+                                {opt.description && (
+                                  <Text style={[styles.optionDescription, { color: mutedColor }]}>
+                                    {opt.description}
+                                  </Text>
                                 )}
                               </View>
-                              <Text
-                                style={[
-                                  styles.optionLabel,
-                                  isChecked ? [styles.optionLabelChecked, { color: colors.text }] : [styles.optionLabelUnchecked, { color: colors.textMuted }],
-                                ]}
-                              >
-                                {option.label}
-                              </Text>
                             </Pressable>
                           );
                         })}
@@ -265,14 +390,17 @@ export function AddRoleModal({
             </View>
           </ScrollView>
 
-          {/* Footer Actions */}
-          <View style={[styles.modalFooter, { backgroundColor: isDark ? colors.cardBg : colors.bg, borderTopColor: colors.border }]}>
-            <Pressable style={[styles.cancelBtn, { backgroundColor: colors.cardBg, borderColor: colors.border }]} onPress={handleClose}>
-              <Text style={[styles.cancelBtnText, { color: colors.text }]}>Cancel</Text>
+          {/* ── Footer ──────────────────────────────────────────────────────── */}
+          <View style={[styles.footer, { backgroundColor: canvasBg, borderTopColor: borderColor }]}>
+            <Pressable style={[styles.cancelBtn, { borderColor }]} onPress={handleClose}>
+              <Text style={[styles.cancelBtnText, { color: textColor }]}>Cancel</Text>
             </Pressable>
-            <Pressable style={[styles.submitBtn, { backgroundColor: colors.brand.primary }]} onPress={handleCreate}>
-              <Lucide name="plus" size={16} color={COLORS.neutral.white} style={styles.submitIcon} />
-              <Text style={styles.submitBtnText}>Create Role</Text>
+            <Pressable
+              style={[styles.createBtn, { backgroundColor: accentBg }]}
+              onPress={handleCreate}
+            >
+              <Lucide name="plus" size={15} color="#FFFFFF" />
+              <Text style={styles.createBtnText}>Create Role</Text>
             </Pressable>
           </View>
         </View>
@@ -284,301 +412,233 @@ export function AddRoleModal({
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.45)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     alignItems: 'center',
     justifyContent: 'center',
     padding: SPACING[16],
   },
-  modalCard: {
+  sheet: {
     width: '100%',
-    maxWidth: 880,
-    maxHeight: '90%',
-    backgroundColor: COLORS.neutral.white,
+    maxWidth: 860,
+    maxHeight: '92%',
     borderRadius: RADIUS.dialog,
     overflow: 'hidden',
-    flexDirection: 'column',
   },
-  modalHeader: {
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING[24],
     paddingVertical: SPACING[16],
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.neutral[200],
-    backgroundColor: COLORS.neutral[50],
   },
-  titleRow: {
+  headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: SPACING[12],
   },
-  headerBadge: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: COLORS.brand.blueLight,
+  headerIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: SPACING[12],
   },
-  modalTitle: {
-    fontSize: 18,
+  headerTitle: {
+    fontSize: 17,
     fontWeight: '800',
-    color: COLORS.neutral[900],
+    fontFamily: TYPOGRAPHY.fonts.primary,
   },
-  modalSubtitle: {
+  headerSub: {
     fontSize: 12,
-    color: COLORS.neutral[500],
     marginTop: 2,
   },
   closeBtn: {
     padding: SPACING[4],
   },
-  modalBodyScroll: {
+  body: {
     flex: 1,
   },
-  modalBodyContent: {
+  bodyContent: {
     padding: SPACING[24],
+    gap: SPACING[16],
   },
-  errorContainer: {
+  errorBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.semantic.errorBg,
-    borderColor: COLORS.semantic.errorBorder,
-    borderWidth: 1,
-    borderRadius: RADIUS.input,
+    gap: SPACING[8],
     padding: SPACING[12],
-    marginBottom: SPACING[16],
-  },
-  errorIcon: {
-    marginRight: SPACING[8],
+    borderRadius: RADIUS.input,
+    borderWidth: 1,
   },
   errorText: {
-    color: COLORS.semantic.error,
+    color: '#EF4444',
     fontSize: 13,
     fontWeight: '500',
   },
-  formSection: {
-    marginBottom: SPACING[16],
+  fieldGroup: {
+    gap: SPACING[6],
   },
-  formRow: {
+  templateLabelRow: {
     flexDirection: 'row',
-    gap: SPACING[16],
-    alignItems: 'flex-start',
-    flexWrap: 'wrap',
-  },
-  formGroupFlex: {
-    flex: 1,
-    minWidth: 260,
+    alignItems: 'center',
+    gap: SPACING[8],
   },
   label: {
     fontSize: 13,
-    fontWeight: '600',
-    color: COLORS.neutral[700],
-    marginBottom: 6,
-  },
-  requiredStar: {
-    color: COLORS.semantic.error,
+    fontWeight: '700',
+    fontFamily: TYPOGRAPHY.fonts.primary,
   },
   textInput: {
     borderWidth: 1,
-    borderColor: COLORS.neutral[300],
     borderRadius: RADIUS.input,
     paddingHorizontal: SPACING[12],
     paddingVertical: 10,
     fontSize: 14,
-    color: COLORS.neutral[900],
-    backgroundColor: COLORS.neutral.white,
   },
   presetsRow: {
     flexDirection: 'row',
+    gap: SPACING[8],
     paddingVertical: 4,
   },
   presetChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 60,
+    height: 32,
     paddingHorizontal: SPACING[12],
-    paddingVertical: 8,
-    borderRadius: RADIUS.circle,
-    backgroundColor: COLORS.neutral[100],
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: COLORS.neutral[200],
-    marginRight: SPACING[8],
-  },
-  presetChipActive: {
-    backgroundColor: COLORS.brand.dark,
-    borderColor: COLORS.brand.dark,
+    gap: SPACING[6],
   },
   presetChipText: {
     fontSize: 12,
-    fontWeight: '500',
-    color: COLORS.neutral[700],
+    fontWeight: '600',
   },
-  presetChipTextActive: {
-    color: COLORS.neutral.white,
-  },
-  permissionsSection: {
+  permSection: {
     borderTopWidth: 1,
-    borderTopColor: COLORS.neutral[200],
     paddingTop: SPACING[16],
+    gap: SPACING[12],
   },
-  permSectionHeader: {
+  permHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: SPACING[16],
   },
-  permTitleRow: {
+  permHeaderLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: SPACING[8],
   },
-  permSectionTitle: {
-    fontSize: 12,
+  permTitle: {
+    fontSize: 11,
     fontWeight: '800',
-    color: COLORS.brand[700],
-    letterSpacing: 1.1,
-    marginRight: SPACING[8],
+    letterSpacing: 1,
   },
-  countBadge: {
-    backgroundColor: COLORS.brand.blueLight,
+  countPill: {
     paddingHorizontal: SPACING[8],
     paddingVertical: 2,
-    borderRadius: RADIUS.circle,
+    borderRadius: 10,
   },
-  countBadgeText: {
+  countPillText: {
     fontSize: 11,
     fontWeight: '700',
-    color: COLORS.brand[900],
   },
-  globalActionsRow: {
+  permActions: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: SPACING[6],
   },
-  actionLinkBtn: {
-    paddingVertical: 2,
-  },
-  actionLinkText: {
+  permActionText: {
     fontSize: 12,
     fontWeight: '600',
-    color: COLORS.brand[700],
   },
-  actionDivider: {
-    marginHorizontal: SPACING[8],
-    color: COLORS.neutral[400],
-    fontSize: 12,
+  permActionDivider: {
+    fontSize: 14,
   },
   categoriesGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: SPACING[12],
   },
-  categoriesGridMobile: {
-    flexDirection: 'column',
-  },
   categoryCard: {
-    width: '49%',
-    minWidth: 260,
-    backgroundColor: COLORS.neutral[50],
+    width: '48%',
+    minWidth: 240,
     borderRadius: RADIUS.card,
     borderWidth: 1,
-    borderColor: COLORS.neutral[200],
-    padding: SPACING[12],
+    overflow: 'hidden',
   },
   categoryHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: SPACING[8],
-    paddingBottom: SPACING[4],
+    paddingHorizontal: SPACING[12],
+    paddingVertical: SPACING[8],
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.neutral[200],
   },
   categoryTitle: {
     fontSize: 13,
     fontWeight: '700',
-    color: COLORS.neutral[900],
   },
-  categoryToggleBtn: {
-    paddingVertical: 2,
-  },
-  categoryToggleText: {
+  categoryToggle: {
     fontSize: 11,
     fontWeight: '600',
-    color: COLORS.brand[600],
   },
-  optionsGrid: {
-    flexDirection: 'column',
-    gap: SPACING[8],
+  optionsList: {
+    padding: SPACING[8],
+    gap: SPACING[4],
   },
-  optionCheckboxRow: {
+  optionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 4,
+    gap: SPACING[8],
+    paddingVertical: 5,
   },
   checkbox: {
     width: 18,
     height: 18,
     borderRadius: 4,
+    borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: SPACING[8],
-  },
-  checkboxChecked: {
-    backgroundColor: COLORS.brand.dark,
-    borderColor: COLORS.brand.dark,
-    borderWidth: 1,
-  },
-  checkboxUnchecked: {
-    backgroundColor: COLORS.neutral.white,
-    borderColor: COLORS.neutral[400],
-    borderWidth: 1.5,
   },
   optionLabel: {
     fontSize: 13,
   },
-  optionLabelChecked: {
-    fontWeight: '600',
-    color: COLORS.neutral[900],
+  optionDescription: {
+    fontSize: 11,
+    marginTop: 1,
   },
-  optionLabelUnchecked: {
-    fontWeight: '400',
-    color: COLORS.neutral[600],
-  },
-  modalFooter: {
+  footer: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
+    gap: SPACING[12],
     paddingHorizontal: SPACING[24],
     paddingVertical: SPACING[16],
     borderTopWidth: 1,
-    borderTopColor: COLORS.neutral[200],
-    backgroundColor: COLORS.neutral[50],
-    gap: SPACING[12],
   },
   cancelBtn: {
     paddingHorizontal: SPACING[16],
     paddingVertical: 10,
     borderRadius: RADIUS.button,
-    backgroundColor: COLORS.neutral.white,
     borderWidth: 1,
-    borderColor: COLORS.neutral[300],
   },
   cancelBtnText: {
     fontSize: 14,
     fontWeight: '600',
-    color: COLORS.neutral[700],
   },
-  submitBtn: {
+  createBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: SPACING[6],
     paddingHorizontal: SPACING[20],
     paddingVertical: 10,
     borderRadius: RADIUS.button,
-    backgroundColor: COLORS.brand[700],
   },
-  submitIcon: {
-    marginRight: 6,
-  },
-  submitBtnText: {
+  createBtnText: {
+    color: '#FFFFFF',
     fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.neutral.white,
+    fontWeight: '700',
   },
 });

@@ -10,8 +10,14 @@ export interface UseAdminAuditLogsReturn {
   refetch: () => Promise<any>;
 }
 
-export function useAdminAuditLogs(pageNumber = 1, pageSize = 20, searchTerm = ""): UseAdminAuditLogsReturn {
-  const queryUrl = `/api/v2/audit-logs?pageNumber=${pageNumber}&pageSize=${pageSize}${searchTerm ? `&searchTerm=${encodeURIComponent(searchTerm)}` : ''}`;
+export function useAdminAuditLogs(pageNumber = 1, pageSize = 20, searchTerm = "", tenantId?: string): UseAdminAuditLogsReturn {
+  const queryParams = new URLSearchParams();
+  queryParams.set('pageNumber', String(pageNumber));
+  queryParams.set('pageSize', String(pageSize));
+  if (searchTerm) queryParams.set('searchTerm', searchTerm);
+  if (tenantId) queryParams.set('tenantId', tenantId);
+
+  const queryUrl = `/api/v2/audit-logs?${queryParams.toString()}`;
 
   const { data, error, isLoading, mutate } = useSWR<{ succeeded: boolean; data: AuditLogDto[]; totalCount: number }>(
     queryUrl,
