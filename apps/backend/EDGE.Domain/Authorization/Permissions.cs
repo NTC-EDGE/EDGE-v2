@@ -35,6 +35,10 @@ public static class Permissions
     public const string CreateServices = "services.create";
     public const string UpdateServices = "services.update";
     public const string DeleteServices = "services.delete";
+    public const string ReadServiceVariantElements = "services.variant_elements.read";
+    public const string CreateServiceVariantElements = "services.variant_elements.create";
+    public const string UpdateServiceVariantElements = "services.variant_elements.update";
+    public const string DeleteServiceVariantElements = "services.variant_elements.delete";
 
     // Requirements Catalog & Rules
     public const string ReadRequirements = "requirements.read";
@@ -102,6 +106,10 @@ public static class Permissions
         new(CreateServices, "Services Catalog", "Create Services", PermissionScope.Internal, "Allows adding new services to catalog"),
         new(UpdateServices, "Services Catalog", "Update Services", PermissionScope.Internal, "Allows modifying service definitions"),
         new(DeleteServices, "Services Catalog", "Delete Services", PermissionScope.Internal, "Allows removing services from catalog"),
+        new(ReadServiceVariantElements, "Services Catalog", "Read Variant Elements", PermissionScope.Internal, "Allows viewing exam elements attached to service variants"),
+        new(CreateServiceVariantElements, "Services Catalog", "Create Variant Elements", PermissionScope.Internal, "Allows adding exam elements to service variants"),
+        new(UpdateServiceVariantElements, "Services Catalog", "Update Variant Elements", PermissionScope.Internal, "Allows editing exam elements on service variants"),
+        new(DeleteServiceVariantElements, "Services Catalog", "Delete Variant Elements", PermissionScope.Internal, "Allows removing exam elements from service variants"),
 
         // Requirements & Rules
         new(ReadRequirements, "Requirements Catalog", "Read Requirements", PermissionScope.Internal, "Allows viewing permit requirement rules"),
