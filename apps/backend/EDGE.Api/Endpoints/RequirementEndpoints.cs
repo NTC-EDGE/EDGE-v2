@@ -187,6 +187,14 @@ public static class RequirementEndpoints
     {
         var query = new GetServiceRequirementsQuery(serviceId, variantId, contextKey);
         var result = await mediator.Send(query);
-        return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
+        if (!result.Succeeded)
+        {
+            if (result.Message != null && result.Message.Contains("not found"))
+            {
+                return Results.NotFound(result);
+            }
+            return Results.BadRequest(result);
+        }
+        return Results.Ok(result);
     }
 }

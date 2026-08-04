@@ -23,21 +23,22 @@ public class GetAllNotesQueryHandler : IRequestHandler<GetAllNotesQuery, Paginat
         if (!string.IsNullOrWhiteSpace(request.SearchTerm))
         {
             var search = request.SearchTerm.ToLower();
-            
-            // Search in notes content
-            var contentMatches = notes.Where(n => n.Notes.ToLower().Contains(search)).ToList();
-            
-            // Also search in service categories
-            var categories = await _categoryRepository.GetAllAsync(cancellationToken);
-            var matchingCategoryIds = categories
-                .Where(c => c.Name.ToLower().Contains(search))
-                .Select(c => c.Id)
-                .ToHashSet();
+            notes = notes.Where(n => 
+                n.Notes.ToLower().Contains(search) ||
+                (n.Service != null && n.Service.Name.ToLower().Contains(search)) ||
+                (n.ServiceVariant != null && n.ServiceVariant.Type.ToString().ToLower().Contains(search)) ||
+                (n.ServiceVariant != null && n.ServiceVariant.Description != null && n.ServiceVariant.Description.ToLower().Contains(search))
+            ).ToList();
+        }
 
-            var categoryMatches = notes.Where(n => n.Service != null && matchingCategoryIds.Contains(n.Service.ServiceCategoryId)).ToList();
+        if (request.ServiceId.HasValue)
+        {
+            notes = notes.Where(n => n.ServiceId == request.ServiceId.Value).ToList();
+        }
 
-            // Combine and distinct
-            notes = contentMatches.Union(categoryMatches).ToList();
+        if (request.ServiceVariantId.HasValue)
+        {
+            notes = notes.Where(n => n.ServiceVariantId == request.ServiceVariantId.Value).ToList();
         }
 
         int totalCount = notes.Count;

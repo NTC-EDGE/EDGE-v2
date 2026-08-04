@@ -116,7 +116,8 @@ export function EditRecordDialog({
           setAmount(selectedServiceVariantElementFee.amount);
         } else if (activeTab === "notes" && selectedNote !== null) {
           setNotes(selectedNote.notes);
-          setServiceCategoryId(selectedNote.serviceCategoryId);
+          setServiceId(selectedNote.serviceId);
+          setServiceVariantId(selectedNote.serviceVariantId ?? "");
         }
         hasInitialized.current = true;
       }
@@ -366,15 +367,31 @@ export function EditRecordDialog({
           {activeTab === "notes" && (
             <>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300">Service Category Scope *</label>
+                <label className="text-xs font-semibold text-slate-300">Target Service *</label>
                 <select
-                  value={serviceCategoryId}
-                  onChange={(e) => setServiceCategoryId(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  value={serviceId}
+                  onChange={(e) => handleServiceChange(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                 >
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
+                  {services.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-300">Service Variant Scope (Optional)</label>
+                <select
+                  value={serviceVariantId}
+                  onChange={(e) => setServiceVariantId(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                >
+                  <option value="">All Variants (Service-Wide)</option>
+                  {variants.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.type} ({v.description})
                     </option>
                   ))}
                 </select>

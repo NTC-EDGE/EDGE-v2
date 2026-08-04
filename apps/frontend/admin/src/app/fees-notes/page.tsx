@@ -61,11 +61,24 @@ export default function FeesNotesPage() {
 
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [filterServiceId, setFilterServiceId] = useState<string>("");
+  const [filterServiceVariantId, setFilterServiceVariantId] = useState<string>("");
 
-  // Reset pagination when search query or active tab changes
+  const { useServiceVariants } = useFeesNotesService();
+  const { data: filterVariants = [] } = useServiceVariants(filterServiceId);
+
+  // Reset pagination when search query, active tab, or filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [activeTab, searchTerm]);
+  }, [activeTab, searchTerm, filterServiceId, filterServiceVariantId]);
+
+  // Reset filters when tab changes
+  useEffect(() => {
+    if (activeTab !== "notes") {
+      setFilterServiceId("");
+      setFilterServiceVariantId("");
+    }
+  }, [activeTab]);
 
   const { data: fees = [], totalCount: feesTotalCount, mutate: mutateFees, isLoading: loadingFees, error: errorFees } = useFees(
     activeTab === "fees" ? currentPage : 1,
@@ -103,13 +116,15 @@ export default function FeesNotesPage() {
     currentPage,
     pageSize,
     activeTab === "notes" ? searchTerm : undefined,
+    activeTab === "notes" ? filterServiceId : undefined,
+    activeTab === "notes" ? filterServiceVariantId : undefined,
     activeTab === "notes"
   );
   
   const error = errorFees || errorSFees || errorElements || errorSVFees || errorSVEFees || errorNotes;
 
   const { data: services = [] } = useServices(
-    isCreateOpen || isEditOpen || activeTab === "service-fees"
+    isCreateOpen || isEditOpen || activeTab === "service-fees" || activeTab === "notes"
   );
   const { data: categories = [] } = useServiceCategories(
     isCreateOpen || isEditOpen || activeTab === "notes"
@@ -160,7 +175,11 @@ export default function FeesNotesPage() {
         await createServiceVariantElementFee({ serviceVariantId: data.serviceVariantId, elementId: data.elementId, feeId: data.feeId, amount: data.amount });
         invalidatePrefix("/api/v2/service-variant-element-fees");
       } else {
-        await createNote({ notes: data.notes, serviceCategoryId: data.serviceCategoryId });
+        await createNote({
+          notes: data.notes,
+          serviceId: data.serviceId,
+          serviceVariantId: data.serviceVariantId || null
+        });
         invalidatePrefix("/api/v2/notes");
       }
       setIsCreateOpen(false);
@@ -199,7 +218,11 @@ export default function FeesNotesPage() {
         await updateServiceVariantElementFee(selectedServiceVariantElementFee.id, { serviceVariantId: data.serviceVariantId, elementId: data.elementId, feeId: data.feeId, amount: data.amount });
         invalidatePrefix("/api/v2/service-variant-element-fees");
       } else if (tab === "notes" && selectedNote !== null) {
-        await updateNote(selectedNote.id, { notes: data.notes, serviceCategoryId: data.serviceCategoryId });
+        await updateNote(selectedNote.id, {
+          notes: data.notes,
+          serviceId: data.serviceId,
+          serviceVariantId: data.serviceVariantId || null
+        });
         invalidatePrefix("/api/v2/notes");
       }
       setIsEditOpen(false);
@@ -340,6 +363,58 @@ export default function FeesNotesPage() {
           <input type="text" placeholder="Search configurations..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none" />
         </div>
       </div>
+
+      {activeTab === "notes" && (
+        <div className="flex flex-col md:flex-row gap-3 bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow-xl -mt-2">
+          <div className="flex flex-col gap-1.5 w-full md:w-72">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Filter by Service</label>
+            <select
+              value={filterServiceId}
+              onChange={(e) => {
+                setFilterServiceId(e.target.value);
+                setFilterServiceVariantId("");
+              }}
+              className="px-3 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+            >
+              <option value="">All Services</option>
+              {services.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1.5 w-full md:w-72">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Filter by Variant</label>
+            <select
+              value={filterServiceVariantId}
+              onChange={(e) => setFilterServiceVariantId(e.target.value)}
+              disabled={!filterServiceId}
+              className="px-3 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <option value="">All Variants</option>
+              {filterVariants.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.type} ({v.description})
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          {(filterServiceId || filterServiceVariantId) && (
+            <button
+              onClick={() => {
+                setFilterServiceId("");
+                setFilterServiceVariantId("");
+              }}
+              className="text-xs font-semibold text-rose-400 hover:text-rose-300 self-end mb-2.5 transition-colors cursor-pointer"
+            >
+              Clear Filters
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="animate-fade-in">
         {!!error && isForbiddenError(error) && <PageForbiddenState />}

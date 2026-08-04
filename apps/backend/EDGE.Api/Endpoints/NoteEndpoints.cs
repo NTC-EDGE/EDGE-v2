@@ -97,9 +97,11 @@ public static class NoteEndpoints
         int? pageNumber,
         int? pageSize,
         string? searchTerm,
+        Guid? serviceId,
+        Guid? serviceVariantId,
         IMediator mediator)
     {
-        var result = await mediator.Send(new GetAllNotesQuery(pageNumber, pageSize, searchTerm));
+        var result = await mediator.Send(new GetAllNotesQuery(pageNumber, pageSize, searchTerm, serviceId, serviceVariantId));
         return Results.Ok(result);
     }
 
