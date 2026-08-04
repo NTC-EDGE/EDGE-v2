@@ -25,7 +25,10 @@ public class GetAllNotesQueryHandler : IRequestHandler<GetAllNotesQuery, Paginat
         {
             Id = n.Id,
             Notes = n.Notes,
-            ServiceCategoryId = n.ServiceCategoryId,
+            ServiceId = n.ServiceId,
+            ServiceVariantId = n.ServiceVariantId,
+            ServiceName = n.Service?.Name,
+            ServiceVariantName = n.ServiceVariant != null ? $"{n.ServiceVariant.Type} ({n.ServiceVariant.Description})" : null,
             CreatedAt = n.CreatedAt,
             CreatedBy = n.CreatedBy,
             LastModifiedAt = n.LastModifiedAt,

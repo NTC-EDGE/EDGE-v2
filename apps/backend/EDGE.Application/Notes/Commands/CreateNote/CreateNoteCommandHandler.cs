@@ -21,21 +21,27 @@ public class CreateNoteCommandHandler : IRequestHandler<CreateNoteCommand, NoteD
         var note = new Note
         {
             Notes = request.Notes,
-            ServiceCategoryId = request.ServiceCategoryId
+            ServiceId = request.ServiceId,
+            ServiceVariantId = request.ServiceVariantId
         };
 
         await _noteRepository.AddAsync(note, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
+        var loadedNote = await _noteRepository.GetByIdAsync(note.Id, cancellationToken) ?? note;
+
         return new NoteDto
         {
-            Id = note.Id,
-            Notes = note.Notes,
-            ServiceCategoryId = note.ServiceCategoryId,
-            CreatedAt = note.CreatedAt,
-            CreatedBy = note.CreatedBy,
-            LastModifiedAt = note.LastModifiedAt,
-            LastModifiedBy = note.LastModifiedBy
+            Id = loadedNote.Id,
+            Notes = loadedNote.Notes,
+            ServiceId = loadedNote.ServiceId,
+            ServiceVariantId = loadedNote.ServiceVariantId,
+            ServiceName = loadedNote.Service?.Name,
+            ServiceVariantName = loadedNote.ServiceVariant != null ? $"{loadedNote.ServiceVariant.Type} ({loadedNote.ServiceVariant.Description})" : null,
+            CreatedAt = loadedNote.CreatedAt,
+            CreatedBy = loadedNote.CreatedBy,
+            LastModifiedAt = loadedNote.LastModifiedAt,
+            LastModifiedBy = loadedNote.LastModifiedBy
         };
     }
 }

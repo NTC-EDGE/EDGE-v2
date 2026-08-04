@@ -53,6 +53,7 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
     public DbSet<ServiceCategory> ServiceCategories => Set<ServiceCategory>();
     public DbSet<Service> Services => Set<Service>();
     public DbSet<ServiceVariant> ServiceVariants => Set<ServiceVariant>();
+    public DbSet<ServiceVariantElement> ServiceVariantElements => Set<ServiceVariantElement>();
     public DbSet<Requirement> Requirements => Set<Requirement>();
     public DbSet<ServiceVariantRequirement> ServiceVariantRequirements => Set<ServiceVariantRequirement>();
     public DbSet<ExaminationSchedule> ExaminationSchedules => Set<ExaminationSchedule>();
@@ -256,6 +257,16 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
                   .OnDelete(DeleteBehavior.Cascade);
         });
 
+        modelBuilder.Entity<ServiceVariantElement>(entity =>
+        {
+            entity.Property(e => e.Code).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Description).IsRequired().HasMaxLength(500);
+            entity.HasOne(e => e.ServiceVariant)
+                  .WithMany(sv => sv.ServiceVariantElements)
+                  .HasForeignKey(e => e.ServiceVariantId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
         modelBuilder.Entity<ExaminationSchedule>(entity =>
         {
             entity.HasOne(e => e.Service)
@@ -456,6 +467,20 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
                   .OnDelete(DeleteBehavior.SetNull);
         });
 
+        // Note entity configuration
+        modelBuilder.Entity<Note>(entity =>
+        {
+            entity.HasOne(e => e.Service)
+                  .WithMany()
+                  .HasForeignKey(e => e.ServiceId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.ServiceVariant)
+                  .WithMany()
+                  .HasForeignKey(e => e.ServiceVariantId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
         // Fee entity configuration
         modelBuilder.Entity<Fee>(entity =>
         {
@@ -477,6 +502,16 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
             entity.HasOne(d => d.Service)
                   .WithMany(p => p.ServiceFees)
                   .HasForeignKey(d => d.ServiceId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.ServiceVariant)
+                  .WithMany()
+                  .HasForeignKey(e => e.ServiceVariantId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.ServiceVariantElement)
+                  .WithMany()
+                  .HasForeignKey(e => e.ServiceVariantElementId)
                   .OnDelete(DeleteBehavior.Cascade);
         });
 

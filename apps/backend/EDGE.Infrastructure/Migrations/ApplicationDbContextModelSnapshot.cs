@@ -1104,10 +1104,17 @@ namespace EDGE.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<Guid>("ServiceCategoryId")
+                    b.Property<Guid>("ServiceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ServiceVariantId")
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ServiceId");
+
+                    b.HasIndex("ServiceVariantId");
 
                     b.ToTable("Notes", "public");
                 });
@@ -1536,11 +1543,21 @@ namespace EDGE.Infrastructure.Migrations
                     b.Property<Guid>("ServiceId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("ServiceVariantElementId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ServiceVariantId")
+                        .HasColumnType("uuid");
+
                     b.HasKey("Id");
 
                     b.HasIndex("FeeId");
 
                     b.HasIndex("ServiceId");
+
+                    b.HasIndex("ServiceVariantElementId");
+
+                    b.HasIndex("ServiceVariantId");
 
                     b.ToTable("ServiceFees", "public");
                 });
@@ -1585,6 +1602,51 @@ namespace EDGE.Infrastructure.Migrations
                     b.HasIndex("ServiceId");
 
                     b.ToTable("ServiceVariants", "public");
+                });
+
+            modelBuilder.Entity("EDGE.Domain.Entities.ServiceVariantElement", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("IsDeletedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ServiceVariantId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ServiceVariantId");
+
+                    b.ToTable("ServiceVariantElements", "public");
                 });
 
             modelBuilder.Entity("EDGE.Domain.Entities.ServiceVariantRequirement", b =>
@@ -2328,6 +2390,24 @@ namespace EDGE.Infrastructure.Migrations
                     b.Navigation("Province");
                 });
 
+            modelBuilder.Entity("EDGE.Domain.Entities.Note", b =>
+                {
+                    b.HasOne("EDGE.Domain.Entities.Service", "Service")
+                        .WithMany()
+                        .HasForeignKey("ServiceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("EDGE.Domain.Entities.ServiceVariant", "ServiceVariant")
+                        .WithMany()
+                        .HasForeignKey("ServiceVariantId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("Service");
+
+                    b.Navigation("ServiceVariant");
+                });
+
             modelBuilder.Entity("EDGE.Domain.Entities.Province", b =>
                 {
                     b.HasOne("EDGE.Domain.Entities.Region", "Region")
@@ -2431,9 +2511,23 @@ namespace EDGE.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("EDGE.Domain.Entities.ServiceVariantElement", "ServiceVariantElement")
+                        .WithMany()
+                        .HasForeignKey("ServiceVariantElementId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("EDGE.Domain.Entities.ServiceVariant", "ServiceVariant")
+                        .WithMany()
+                        .HasForeignKey("ServiceVariantId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
                     b.Navigation("Fee");
 
                     b.Navigation("Service");
+
+                    b.Navigation("ServiceVariant");
+
+                    b.Navigation("ServiceVariantElement");
                 });
 
             modelBuilder.Entity("EDGE.Domain.Entities.ServiceVariant", b =>
@@ -2445,6 +2539,17 @@ namespace EDGE.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Service");
+                });
+
+            modelBuilder.Entity("EDGE.Domain.Entities.ServiceVariantElement", b =>
+                {
+                    b.HasOne("EDGE.Domain.Entities.ServiceVariant", "ServiceVariant")
+                        .WithMany("ServiceVariantElements")
+                        .HasForeignKey("ServiceVariantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ServiceVariant");
                 });
 
             modelBuilder.Entity("EDGE.Domain.Entities.ServiceVariantRequirement", b =>
@@ -2598,6 +2703,8 @@ namespace EDGE.Infrastructure.Migrations
 
             modelBuilder.Entity("EDGE.Domain.Entities.ServiceVariant", b =>
                 {
+                    b.Navigation("ServiceVariantElements");
+
                     b.Navigation("ServiceVariantRequirements");
                 });
 

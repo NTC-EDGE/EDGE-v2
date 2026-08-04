@@ -22,7 +22,10 @@ public class GetNoteByIdQueryHandler : IRequestHandler<GetNoteByIdQuery, NoteDto
         {
             Id = note.Id,
             Notes = note.Notes,
-            ServiceCategoryId = note.ServiceCategoryId,
+            ServiceId = note.ServiceId,
+            ServiceVariantId = note.ServiceVariantId,
+            ServiceName = note.Service?.Name,
+            ServiceVariantName = note.ServiceVariant != null ? $"{note.ServiceVariant.Type} ({note.ServiceVariant.Description})" : null,
             CreatedAt = note.CreatedAt,
             CreatedBy = note.CreatedBy,
             LastModifiedAt = note.LastModifiedAt,
