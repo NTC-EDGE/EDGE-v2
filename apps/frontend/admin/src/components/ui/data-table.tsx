@@ -145,15 +145,16 @@ export function DataTable<T>({
           <table className="w-full text-left text-sm text-slate-300">
             <thead className="bg-slate-950/90 text-xs uppercase text-slate-400 font-semibold tracking-wider border-b border-slate-800">
               <tr>
-                {columns.map((col) => {
+                {columns.map((col, colIdx) => {
                   const alignClass =
                     col.align === "center"
                       ? "text-center"
                       : col.align === "right"
                       ? "text-right"
                       : "text-left";
+                  const colKey = `${colIdx}-${col.key ?? col.id ?? col.accessorKey ?? "col"}`;
                   return (
-                    <th key={col.key || col.accessorKey} className={`px-6 py-4 ${alignClass} ${col.className ?? ""}`}>
+                    <th key={colKey} className={`px-6 py-4 ${alignClass} ${col.className ?? ""}`}>
                       {col.header}
                     </th>
                   );
@@ -181,20 +182,21 @@ export function DataTable<T>({
               ) : (
                 displayData.map((item, idx) => (
                   <tr key={resolveItemKey(item, idx)} className="hover:bg-slate-800/40 transition-colors group">
-                    {columns.map((col) => {
+                    {columns.map((col, colIdx) => {
                       const alignClass =
                         col.align === "center"
                           ? "text-center"
                           : col.align === "right"
                           ? "text-right"
                           : "text-left";
-                      const firstArg = col.accessorKey 
-                        ? (item as any)[col.accessorKey] 
+                      const colKey = `${colIdx}-${col.key ?? col.id ?? col.accessorKey ?? "col"}`;
+                      const firstArg = col.accessorKey
+                        ? (item as any)[col.accessorKey]
                         : item;
                       const secondArg = col.accessorKey ? item : idx;
                       const thirdArg = col.accessorKey ? idx : undefined;
                       return (
-                        <td key={col.key || col.accessorKey} className={`px-6 py-4 ${alignClass} ${col.className ?? ""}`}>
+                        <td key={colKey} className={`px-6 py-4 ${alignClass} ${col.className ?? ""}`}>
                           {col.cell(firstArg, secondArg, thirdArg)}
                         </td>
                       );
