@@ -614,10 +614,18 @@ export default function RolesPermissionsPage() {
               ) : (
                 <div className="overflow-y-auto max-h-[calc(100vh-400px)]">
                   {filteredRoles.map((role, idx) => (
-                    <button
+                    <div
                       key={role.id}
+                      role="button"
+                      tabIndex={0}
                       onClick={() => setSelectedRoleId(role.id)}
-                      className={`w-full text-left px-4 py-3.5 transition-all group relative ${
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          setSelectedRoleId(role.id);
+                        }
+                      }}
+                      className={`w-full text-left px-4 py-3.5 transition-all group relative cursor-pointer select-none ${
                         idx < filteredRoles.length - 1 ? "border-b border-slate-800/60" : ""
                       } ${
                         selectedRoleId === role.id
@@ -677,7 +685,7 @@ export default function RolesPermissionsPage() {
                           )}
                         </div>
                       </div>
-                    </button>
+                    </div>
                   ))}
                 </div>
               )}
