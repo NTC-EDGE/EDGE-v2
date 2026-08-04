@@ -119,13 +119,20 @@ export function ServiceVariantDialog({
                               setIsVariantServiceDropdownOpen(false);
                             }}
                             title={fullLabel}
-                            className={`w-full min-w-0 text-left px-3 py-2.5 rounded-lg text-xs transition-colors block truncate ${
+                            className={`w-full min-w-0 text-left px-3 py-2 rounded-lg text-xs transition-colors block whitespace-normal break-words ${
                               variantServiceId === s.id 
                                 ? "bg-indigo-600/20 text-indigo-400 font-semibold border border-indigo-500/20" 
                                 : "text-slate-300 hover:bg-slate-900/50 hover:text-white"
                             }`}
                           >
-                            [{s.code || "SVC"}] {s.name}{variantSuffix}
+                            <div className="flex flex-col gap-0.5">
+                              <span className="font-semibold text-slate-200">
+                                [{s.code || "SVC"}] {s.name}
+                              </span>
+                              <span className="text-[10px] text-indigo-400/80 font-medium italic">
+                                {variantLabels ? `Variants: ${variantLabels}` : "No variants"}
+                              </span>
+                            </div>
                           </button>
                         );
                       })
