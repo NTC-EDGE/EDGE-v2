@@ -1,5 +1,6 @@
 using FluentValidation;
 using EDGE.Application.Common.Interfaces;
+using EDGE.Domain.Enums;
 
 namespace EDGE.Application.FieldOffices.Commands.CreateFieldOffice;
 
@@ -25,5 +26,22 @@ public class CreateFieldOfficeCommandValidator : AbstractValidator<CreateFieldOf
                 return await _repository.IsCodeUniqueAsync(tenantId, code, null, token);
             })
             .WithMessage("Field office code must be unique within the tenant.");
+
+        RuleFor(v => v.Category)
+            .IsInEnum().WithMessage("Category must be a valid FieldOfficeCategory.")
+            .When(v => v.Category.HasValue);
+
+        RuleFor(v => v.ContactEmail)
+            .EmailAddress().WithMessage("Contact email must be a valid email address.")
+            .MaximumLength(100).WithMessage("Contact email must not exceed 100 characters.")
+            .When(v => !string.IsNullOrWhiteSpace(v.ContactEmail));
+
+        RuleFor(v => v.ContactPhone)
+            .MaximumLength(50).WithMessage("Contact phone must not exceed 50 characters.")
+            .When(v => !string.IsNullOrWhiteSpace(v.ContactPhone));
+
+        RuleFor(v => v.Address)
+            .NotEmpty().WithMessage("Address is required.")
+            .MaximumLength(250).WithMessage("Address must not exceed 250 characters.");
     }
 }

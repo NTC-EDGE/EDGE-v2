@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using EDGE.Application.Common.Interfaces;
+using EDGE.Domain.Enums;
 using EDGE.Application.FieldOffices.DTOs;
 
 namespace EDGE.Application.FieldOffices.Commands.UpdateFieldOffice;
@@ -34,13 +35,9 @@ public class UpdateFieldOfficeCommandHandler : IRequestHandler<UpdateFieldOffice
             return null;
         }
 
-        var category = string.IsNullOrWhiteSpace(request.Category) ? "Main" : request.Category.Trim();
-        if (category == "Extension Office") category = "Extension";
-        if (category == "Main Office") category = "Main";
-
         if (!string.IsNullOrWhiteSpace(request.Name)) fieldOffice.Name = request.Name.Trim();
         if (!string.IsNullOrWhiteSpace(request.Code)) fieldOffice.Code = request.Code.Trim().ToUpper();
-        fieldOffice.Category = category;
+        if (request.Category.HasValue) fieldOffice.Category = request.Category.Value;
         fieldOffice.Description = request.Description?.Trim();
         if (request.RegionId.HasValue && request.RegionId.Value != Guid.Empty) fieldOffice.RegionId = request.RegionId.Value;
         if (request.ProvinceId.HasValue) fieldOffice.ProvinceId = request.ProvinceId.Value;
@@ -88,7 +85,7 @@ public class UpdateFieldOfficeCommandHandler : IRequestHandler<UpdateFieldOffice
             fieldOffice.TenantId,
             fieldOffice.Name,
             fieldOffice.Code,
-            fieldOffice.Category,
+            fieldOffice.Category.ToString(),
             fieldOffice.Description,
             fieldOffice.RegionId,
             fieldOffice.ProvinceId,

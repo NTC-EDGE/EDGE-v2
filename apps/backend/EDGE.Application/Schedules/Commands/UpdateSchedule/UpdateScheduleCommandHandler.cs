@@ -43,9 +43,7 @@ public class UpdateScheduleCommandHandler : IRequestHandler<UpdateScheduleComman
         schedule.EndApplication = request.EndApplication;
         schedule.IsPublished = request.IsPublished;
         schedule.MaximumSlots = request.MaximumSlots;
-        schedule.SeatNumber = request.SeatNumber;
         schedule.Remarks = request.Remarks;
-        schedule.ApplicationId = request.ApplicationId;
 
         _scheduleRepository.Update(schedule);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -56,8 +54,6 @@ public class UpdateScheduleCommandHandler : IRequestHandler<UpdateScheduleComman
             service.Name,
             service.Code,
             schedule.TenantId,
-            schedule.ApplicationId,
-            schedule.SeatNumber,
             schedule.Venue,
             schedule.StartDate,
             schedule.EndDate,

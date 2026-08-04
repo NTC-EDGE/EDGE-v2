@@ -1,5 +1,6 @@
 using System;
 using MediatR;
+using EDGE.Domain.Enums;
 using EDGE.Application.FieldOffices.DTOs;
 
 namespace EDGE.Application.FieldOffices.Commands.CreateFieldOffice;
@@ -8,7 +9,7 @@ public record CreateFieldOfficeCommand(
     Guid? TenantId = null,
     string? Name = null,
     string? Code = null,
-    string? Category = null,
+    FieldOfficeCategory? Category = null,
     string? Description = null,
     Guid? RegionId = null,
     Guid? ProvinceId = null,

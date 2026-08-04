@@ -4,7 +4,6 @@ public record ClientScheduleDto(
     Guid Id,
     Guid ServiceId,
     Guid TenantId,
-    string? SeatNumber,
     string Venue,
     DateTime StartDate,
     DateTime EndDate,

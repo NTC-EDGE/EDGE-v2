@@ -26,7 +26,6 @@ public class GetAvailableSchedulesQueryHandler : IRequestHandler<GetAvailableSch
             s.Id,
             s.ServiceId,
             s.TenantId,
-            s.SeatNumber,
             s.Venue,
             s.StartDate,
             s.EndDate,

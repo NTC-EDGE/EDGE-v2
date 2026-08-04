@@ -34,8 +34,6 @@ public class SetSchedulePublishCommandHandler : IRequestHandler<SetSchedulePubli
             schedule.Service?.Name,
             schedule.Service?.Code,
             schedule.TenantId,
-            schedule.ApplicationId,
-            schedule.SeatNumber,
             schedule.Venue,
             schedule.StartDate,
             schedule.EndDate,

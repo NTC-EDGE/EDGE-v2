@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using EDGE.Domain.Entities;
 using EDGE.Domain.Common;
+using EDGE.Domain.Enums;
 using EDGE.Application.Common.Interfaces;
 
 namespace EDGE.Infrastructure.Persistence;
@@ -171,7 +172,11 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Name).IsRequired().HasMaxLength(150);
             entity.Property(e => e.Code).IsRequired().HasMaxLength(50);
-            entity.Property(e => e.Category).IsRequired().HasMaxLength(50).HasDefaultValue("Main");
+            entity.Property(e => e.Category)
+                  .HasConversion<string>()
+                  .IsRequired()
+                  .HasMaxLength(50)
+                  .HasDefaultValue(FieldOfficeCategory.Main);
             entity.HasIndex(e => new { e.TenantId, e.Code }).IsUnique();
             entity.HasOne(e => e.Tenant)
                   .WithMany()
@@ -213,7 +218,6 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
         modelBuilder.Entity<Schedule>(entity =>
         {
             entity.Property(e => e.Venue).IsRequired().HasMaxLength(200);
-            entity.Property(e => e.SeatNumber).HasMaxLength(50);
             entity.Property(e => e.Remarks).HasMaxLength(500);
             entity.Property(e => e.IsPublished).HasDefaultValue(false);
             entity.Property(e => e.MaximumSlots).IsRequired(false);

@@ -1,5 +1,6 @@
 using System;
 using MediatR;
+using EDGE.Domain.Enums;
 using EDGE.Application.FieldOffices.DTOs;
 
 namespace EDGE.Application.FieldOffices.Commands.UpdateFieldOffice;
@@ -9,7 +10,7 @@ public record UpdateFieldOfficeCommand(
     Guid? TenantId = null,
     string? Name = null,
     string? Code = null,
-    string? Category = null,
+    FieldOfficeCategory? Category = null,
     string? Description = null,
     Guid? RegionId = null,
     Guid? ProvinceId = null,

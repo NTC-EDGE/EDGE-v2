@@ -811,6 +811,13 @@ namespace EDGE.Infrastructure.Migrations
                     b.Property<bool>("AllowSpectrumInspection")
                         .HasColumnType("boolean");
 
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasDefaultValue("Main");
+
                     b.Property<string>("Code")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -1298,9 +1305,6 @@ namespace EDGE.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("ApplicationId")
-                        .HasColumnType("uuid");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -1337,10 +1341,6 @@ namespace EDGE.Infrastructure.Migrations
                     b.Property<string>("Remarks")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
-
-                    b.Property<string>("SeatNumber")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
 
                     b.Property<Guid>("ServiceId")
                         .HasColumnType("uuid");

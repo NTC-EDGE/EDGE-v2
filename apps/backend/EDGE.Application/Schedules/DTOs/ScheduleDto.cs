@@ -6,8 +6,6 @@ public record ScheduleDto(
     string? ServiceName,
     string? ServiceCode,
     Guid TenantId,
-    Guid? ApplicationId,
-    string? SeatNumber,
     string Venue,
     DateTime StartDate,
     DateTime EndDate,
