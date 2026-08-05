@@ -129,7 +129,7 @@ export function useServices() {
     setServiceId(null);
   };
 
-  const saveActiveAsDraft = () => {
+  const saveActiveAsDraft = async () => {
     if (!activeWizardService) return;
 
     const draftId = `draft-${Date.now()}`;
@@ -161,7 +161,93 @@ export function useServices() {
     };
 
     setDrafts((prev) => [newDraft, ...prev.filter((d) => d.id !== draftId)]);
-    Alert.alert("Success", "Draft saved successfully.");
+
+    if (!selectedRegionId) {
+      Alert.alert("Success", "Draft saved locally. (Select a region to save to server)");
+      return;
+    }
+
+    try {
+      const months: Record<string, string> = {
+        January: "01", February: "02", March: "03", April: "04", May: "05", June: "06",
+        July: "07", August: "08", September: "09", October: "10", November: "11", December: "12"
+      };
+
+      let mappedApplicants: Array<{
+        firstName: string;
+        lastName: string;
+        email: string;
+        contactNumber: string;
+        address: string;
+        birthDate: string;
+        formFieldValues: Array<{ fieldId: string; value: string }>;
+      }> = [];
+      let svId: string | null = null;
+      let sveIds: string[] = [];
+
+      if (activeWizardService === "cpe-accreditation") {
+        mappedApplicants = applicants.map(app => ({
+          firstName: "CPE Supplier",
+          lastName: app.businessName || "Draft",
+          email: app.email || "draft@example.com",
+          contactNumber: app.contactNo || "",
+          address: `${app.unitBldgNo || ""}, ${app.street || ""}, ${app.barangay || ""}, ${app.city || ""}, ${app.province || ""}` || "N/A",
+          birthDate: "1990-01-01T00:00:00Z",
+          formFieldValues: []
+        }));
+      } else if (activeWizardService === "radio-operator-exam") {
+        const activeApp = examApplicants[currentExamApplicantIndex];
+        if (activeApp) {
+          svId = activeApp.selectedVariantId || null;
+          sveIds = activeApp.selectedElementId ? [activeApp.selectedElementId] : [];
+        }
+        mappedApplicants = examApplicants.map(app => {
+          const monthNum = months[app.birthMonth] || "01";
+          const day = (app.birthDay || "1").padStart(2, '0');
+          return {
+            firstName: app.firstName || "Draft",
+            lastName: app.lastName || "Applicant",
+            email: app.email || "draft@example.com",
+            contactNumber: app.contactNo || "",
+            address: `${app.street || ""}, ${app.barangay || ""}, ${app.city || ""}, ${app.province || ""}` || "N/A",
+            birthDate: app.birthYear ? `${app.birthYear}-${monthNum}-${day}T00:00:00Z` : "1990-01-01T00:00:00Z",
+            formFieldValues: []
+          };
+        });
+      } else if (activeWizardService === "general-service") {
+        mappedApplicants = generalApplicants.map(app => {
+          const monthNum = months[app.birthMonth] || "01";
+          const day = (app.birthDay || "1").padStart(2, '0');
+          return {
+            firstName: app.firstName || "Draft",
+            lastName: app.lastName || "Applicant",
+            email: app.email || "draft@example.com",
+            contactNumber: app.contactNo || "",
+            address: app.address || "N/A",
+            birthDate: app.birthYear ? `${app.birthYear}-${monthNum}-${day}T00:00:00Z` : "1990-01-01T00:00:00Z",
+            formFieldValues: []
+          };
+        });
+      }
+
+      const payload = {
+        tenantId: selectedRegionId,
+        submissionMode: appMode === "BULK" ? "Bulk" : "Single",
+        serviceId: selectedService?.id || null,
+        scheduleId: null,
+        fieldOfficeId: selectedOfficeId || null,
+        serviceVariantId: svId,
+        serviceVariantElementIds: sveIds,
+        isDraft: true,
+        applicants: mappedApplicants,
+      };
+
+      await api.post(`/api/v2/tenants/${selectedRegionId}/applications`, payload);
+      Alert.alert("Success", "Draft saved to server successfully.");
+    } catch (err) {
+      console.error("Failed to save draft to backend:", err);
+      Alert.alert("Partial Success", "Draft saved locally, but failed to sync to server.");
+    }
   };
 
   const loadDraft = (draft: DraftApplication) => {

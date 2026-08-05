@@ -245,7 +245,7 @@ export function useCPEAccreditationWizard({
     );
   };
 
-  const submitApplicationPayload = async () => {
+  const submitApplicationPayload = async (isDraft = false) => {
     if (!serviceId) {
       Alert.alert("Error", "Service identifier is missing.");
       return;
@@ -299,6 +299,9 @@ export function useCPEAccreditationWizard({
         serviceId: serviceId,
         scheduleId: null,
         fieldOfficeId: null,
+        serviceVariantId: null,
+        serviceVariantElementIds: [],
+        isDraft: isDraft,
         applicants: [
           {
             firstName: "CPE Supplier",

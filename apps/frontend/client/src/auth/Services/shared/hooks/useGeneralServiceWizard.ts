@@ -187,7 +187,7 @@ export function useGeneralServiceWizard({
 
 
 
-  const submitApplicationPayload = async () => {
+  const submitApplicationPayload = async (isDraft = false) => {
     const monthMap: Record<string, string> = {
       January: "01",
       February: "02",
@@ -258,6 +258,9 @@ export function useGeneralServiceWizard({
       submissionMode: "Single",
       serviceId: service.id,
       fieldOfficeId: selectedOfficeId,
+      serviceVariantId: null,
+      serviceVariantElementIds: [],
+      isDraft: isDraft,
       applicants: mappedApplicants,
     };
 

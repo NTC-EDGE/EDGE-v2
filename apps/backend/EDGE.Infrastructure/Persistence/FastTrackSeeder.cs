@@ -413,44 +413,12 @@ public static class FastTrackSeeder
 
     private static async Task BackfillNewServicesAsync(ApplicationDbContext context)
     {
-        var tenant = await context.Tenants.FirstOrDefaultAsync();
-        if (tenant == null) return;
-        var tenantId = tenant.Id;
-
-        var examsCategory = await context.ServiceCategories.FirstOrDefaultAsync(c => c.Code == "EXAM");
-        if (examsCategory == null) return;
-        var examsCategoryId = examsCategory.Id;
-
-        var svcRtg = Guid.Parse("50000000-0000-0000-0000-000000000031");
-        var svcRtp = Guid.Parse("50000000-0000-0000-0000-000000000032");
-        var svcAma = Guid.Parse("50000000-0000-0000-0000-000000000033");
-        var svcRrocAc = Guid.Parse("50000000-0000-0000-0000-000000000034");
-
-        var newServices = new List<Service>
-        {
-            new() { Id = svcRtg, ServiceCategoryId = examsCategoryId, TenantId = tenantId, Name = "Radiotelegraphy Examination", Code = "EXAM_RTG", Description = "Radiotelegraphy Examination Application", Contract = "{}" },
-            new() { Id = svcRtp, ServiceCategoryId = examsCategoryId, TenantId = tenantId, Name = "Radiotelephony Examination", Code = "EXAM_RTP", Description = "Radiotelephony Examination Application", Contract = "{}" },
-            new() { Id = svcAma, ServiceCategoryId = examsCategoryId, TenantId = tenantId, Name = "Amateur Radio Examination", Code = "EXAM_AMA", Description = "Amateur Radio Examination Application", Contract = "{}" },
-            new() { Id = svcRrocAc, ServiceCategoryId = examsCategoryId, TenantId = tenantId, Name = "Restricted Radio Operator Certificate - Aircraft Examination", Code = "EXAM_RROC_AC", Description = "Restricted Radio Operator Certificate - Aircraft Examination Application", Contract = "{}" }
-        };
-
-        foreach (var svc in newServices)
-        {
-            var existing = await context.Services.FirstOrDefaultAsync(s => s.Id == svc.Id || s.Code == svc.Code);
-            if (existing == null)
-            {
-                context.Services.Add(svc);
-            }
-        }
-        await context.SaveChangesAsync();
+        await Task.CompletedTask;
     }
 
     private static async Task BackfillNewCatalogDetailsAsync(ApplicationDbContext context)
     {
-        var svcRtg = Guid.Parse("50000000-0000-0000-0000-000000000031");
-        var svcRtp = Guid.Parse("50000000-0000-0000-0000-000000000032");
-        var svcAma = Guid.Parse("50000000-0000-0000-0000-000000000033");
-        var svcRrocAc = Guid.Parse("50000000-0000-0000-0000-000000000034");
+        var svc101 = Guid.Parse("50000000-0000-0000-0000-000000000001");
 
         // 2. Seed ServiceVariantElements
         var elementsToSeed = FastTrackSeederData.GetBackfillElements();
@@ -471,7 +439,7 @@ public static class FastTrackSeeder
         await context.SaveChangesAsync();
 
         // 3. Seed Notes
-        var notesToSeed = FastTrackSeederData.GetBackfillNotes(svcRtg, svcRtp, svcAma, svcRrocAc);
+        var notesToSeed = FastTrackSeederData.GetBackfillNotes(svc101);
 
         foreach (var note in notesToSeed)
         {
@@ -525,21 +493,17 @@ public static class FastTrackSeeder
 
         // 6. Seed ServiceFees
         var examFeeId = Guid.Parse("f0000000-0000-0000-0000-000000000005"); // Operator Competency Exam Fee
-        var servicesToSeedFees = new List<Guid> { svcRtg, svcRtp, svcAma, svcRrocAc };
 
-        foreach (var svcId in servicesToSeedFees)
+        if (!await context.ServiceFees.AnyAsync(sf => sf.ServiceId == svc101 && sf.FeeId == examFeeId))
         {
-            if (!await context.ServiceFees.AnyAsync(sf => sf.ServiceId == svcId && sf.FeeId == examFeeId))
+            context.ServiceFees.Add(new ServiceFee
             {
-                context.ServiceFees.Add(new ServiceFee
-                {
-                    Id = Guid.NewGuid(),
-                    ServiceId = svcId,
-                    FeeId = examFeeId,
-                    Amount = 50.00m,
-                    IsActive = true
-                });
-            }
+                Id = Guid.NewGuid(),
+                ServiceId = svc101,
+                FeeId = examFeeId,
+                Amount = 50.00m,
+                IsActive = true
+            });
         }
         await context.SaveChangesAsync();
     }

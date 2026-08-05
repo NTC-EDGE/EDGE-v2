@@ -1,2 +1,3 @@
 export { ExamBulkApplicantsPanel } from "./components/ExamBulkApplicantsPanel";
-export { ExamFilingWizard, ExamApplicantData, initialExamApplicant } from "./components/ExamFilingWizard";
+export { ExamFilingWizard } from "./components/ExamFilingWizard";
+export { ExamApplicantData, initialExamApplicant } from "./types/examTypes";

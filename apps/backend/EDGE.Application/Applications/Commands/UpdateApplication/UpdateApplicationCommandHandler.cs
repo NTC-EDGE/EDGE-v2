@@ -11,13 +11,19 @@ namespace EDGE.Application.Applications.Commands.UpdateApplication;
 public class UpdateApplicationCommandHandler : IRequestHandler<UpdateApplicationCommand, ApiResponse<Guid>>
 {
     private readonly IApplicationFullRepository _applicationRepository;
+    private readonly IServiceRepository _serviceRepository;
+    private readonly IServiceVariantElementRepository _elementRepository;
     private readonly IUnitOfWork _unitOfWork;
 
     public UpdateApplicationCommandHandler(
         IApplicationFullRepository applicationRepository,
+        IServiceRepository serviceRepository,
+        IServiceVariantElementRepository elementRepository,
         IUnitOfWork unitOfWork)
     {
         _applicationRepository = applicationRepository;
+        _serviceRepository = serviceRepository;
+        _elementRepository = elementRepository;
         _unitOfWork = unitOfWork;
     }
 
@@ -38,10 +44,43 @@ public class UpdateApplicationCommandHandler : IRequestHandler<UpdateApplication
         if (request.ScheduleId.HasValue) app.ScheduleId = request.ScheduleId;
         if (!string.IsNullOrEmpty(request.Office)) app.Office = request.Office;
 
-        if (!string.IsNullOrEmpty(request.DynamicDataJson) && app.ApplicationServices.Count > 0)
+        if (app.ApplicationServices.Count > 0)
         {
             var appService = app.ApplicationServices.First();
-            appService.DynamicDataJson = request.DynamicDataJson;
+            if (request.ServiceVariantId.HasValue && request.ServiceVariantId.Value != Guid.Empty)
+            {
+                var variant = await _serviceRepository.GetVariantByIdAsync(request.ServiceVariantId.Value, cancellationToken);
+                if (variant == null || variant.ServiceId != appService.ServiceId)
+                {
+                    return ApiResponse<Guid>.Fail("Validation Error: The selected service variant is invalid or does not belong to the application's service.");
+                }
+                appService.ServiceVariantId = variant.Id;
+                appService.ApplicationTypeKey = variant.Type.ToString();
+            }
+
+            if (request.ServiceVariantElementIds != null)
+            {
+                var variantId = appService.ServiceVariantId;
+                if (!variantId.HasValue)
+                {
+                    return ApiResponse<Guid>.Fail("Validation Error: Cannot update variant elements without a resolved service variant.");
+                }
+
+                var validElements = await _elementRepository.GetAllByVariantAsync(variantId.Value, cancellationToken);
+                var validElementIds = validElements.Select(e => e.Id).ToHashSet();
+
+                var invalidElementIds = request.ServiceVariantElementIds.Where(id => !validElementIds.Contains(id)).ToList();
+                if (invalidElementIds.Any())
+                {
+                    return ApiResponse<Guid>.Fail($"Validation Error: Element ID(s) '{string.Join(", ", invalidElementIds)}' do not belong to the selected variant.");
+                }
+
+                appService.DynamicDataJson = System.Text.Json.JsonSerializer.Serialize(new { selectedElementIds = request.ServiceVariantElementIds });
+            }
+            else if (!string.IsNullOrEmpty(request.DynamicDataJson))
+            {
+                appService.DynamicDataJson = request.DynamicDataJson;
+            }
         }
 
         await _unitOfWork.BeginTransactionAsync(cancellationToken);

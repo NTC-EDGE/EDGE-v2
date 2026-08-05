@@ -26,6 +26,7 @@ public class SubmitApplicationCommandHandler
     private readonly IScheduleRepository _scheduleRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IServiceVariantElementRepository _elementRepository;
 
     public SubmitApplicationCommandHandler(
         IApplicationFullRepository applicationRepository,
@@ -36,7 +37,8 @@ public class SubmitApplicationCommandHandler
         ITenantRepository tenantRepository,
         IScheduleRepository scheduleRepository,
         IUnitOfWork unitOfWork,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        IServiceVariantElementRepository elementRepository)
     {
         _applicationRepository = applicationRepository;
         _applicantRepository = applicantRepository;
@@ -47,6 +49,7 @@ public class SubmitApplicationCommandHandler
         _scheduleRepository = scheduleRepository;
         _unitOfWork = unitOfWork;
         _currentUserService = currentUserService;
+        _elementRepository = elementRepository;
     }
 
     public async Task<ApiResponse<Guid>> Handle(
@@ -159,22 +162,59 @@ public class SubmitApplicationCommandHandler
         }
 
 
-        // Derive ApplicationTypeKey from submitted formFieldValues matching a valid ServiceVariantType.
-        // Only New / Renewal / Modification are valid application-level variant types.
-        // Applicant-level exam types (First Taker, Re-taker, Upgrade) are stored in FormFieldValues
-        // and are NOT ServiceVariant discriminators — they form the ContextKey at upload time.
+        // Derive/Resolve ServiceVariantId and ApplicationTypeKey
         string effectiveAppTypeKey = "New";
-        var firstFormValues = request.Applicants.FirstOrDefault()?.FormFieldValues;
-        if (firstFormValues != null)
+        Guid? resolvedVariantId = null;
+
+        if (request.ServiceVariantId.HasValue && request.ServiceVariantId.Value != Guid.Empty)
         {
-            var validVariantNames = Enum.GetNames<ServiceVariantType>();
-            var matchedValue = firstFormValues
-                .Select(fv => fv.Value?.Trim())
-                .FirstOrDefault(v => !string.IsNullOrWhiteSpace(v) &&
-                    validVariantNames.Any(n => n.Equals(v, StringComparison.OrdinalIgnoreCase)));
-            if (!string.IsNullOrEmpty(matchedValue))
+            var selectedVariant = await _serviceRepository.GetVariantByIdAsync(request.ServiceVariantId.Value, cancellationToken);
+            if (selectedVariant == null || selectedVariant.ServiceId != service.Id)
             {
-                effectiveAppTypeKey = matchedValue;
+                return ApiResponse<Guid>.Fail("Validation Error: The selected service variant is invalid or does not belong to the selected service.");
+            }
+            resolvedVariantId = selectedVariant.Id;
+            effectiveAppTypeKey = selectedVariant.Type.ToString();
+        }
+        else
+        {
+            // Fallback: Derive ApplicationTypeKey from submitted formFieldValues matching a valid ServiceVariantType.
+            // Only New / Renewal / Modification are valid application-level variant types.
+            // Applicant-level exam types (First Taker, Re-taker, Upgrade) are stored in FormFieldValues
+            // and are NOT ServiceVariant discriminators — they form the ContextKey at upload time.
+            var firstFormValues = request.Applicants.FirstOrDefault()?.FormFieldValues;
+            if (firstFormValues != null)
+            {
+                var validVariantNames = Enum.GetNames<ServiceVariantType>();
+                var matchedValue = firstFormValues
+                    .Select(fv => fv.Value?.Trim())
+                    .FirstOrDefault(v => !string.IsNullOrWhiteSpace(v) &&
+                        validVariantNames.Any(n => n.Equals(v, StringComparison.OrdinalIgnoreCase)));
+                if (!string.IsNullOrEmpty(matchedValue))
+                {
+                    effectiveAppTypeKey = matchedValue;
+                }
+            }
+
+            resolvedVariantId = service.ServiceVariants?
+                .FirstOrDefault(v => v.Type.ToString().Equals(effectiveAppTypeKey, StringComparison.OrdinalIgnoreCase))?.Id;
+        }
+
+        // Validate ServiceVariantElementIds if provided
+        if (request.ServiceVariantElementIds != null && request.ServiceVariantElementIds.Any())
+        {
+            if (!resolvedVariantId.HasValue)
+            {
+                return ApiResponse<Guid>.Fail("Validation Error: Cannot select variant elements without a resolved service variant.");
+            }
+
+            var validElements = await _elementRepository.GetAllByVariantAsync(resolvedVariantId.Value, cancellationToken);
+            var validElementIds = validElements.Select(e => e.Id).ToHashSet();
+
+            var invalidElementIds = request.ServiceVariantElementIds.Where(id => !validElementIds.Contains(id)).ToList();
+            if (invalidElementIds.Any())
+            {
+                return ApiResponse<Guid>.Fail($"Validation Error: Element ID(s) '{string.Join(", ", invalidElementIds)}' do not belong to the selected variant.");
             }
         }
 
@@ -209,10 +249,6 @@ public class SubmitApplicationCommandHandler
             await _applicationRepository.AddAsync(application, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            // Resolve ServiceVariantId from service variants matching effectiveAppTypeKey
-            Guid? resolvedVariantId = service.ServiceVariants?
-                .FirstOrDefault(v => v.Type.ToString().Equals(effectiveAppTypeKey, StringComparison.OrdinalIgnoreCase))?.Id;
-
             // Create ApplicationService
             var appService = new ApplicationService
             {
@@ -220,7 +256,10 @@ public class SubmitApplicationCommandHandler
                 ServiceCategoryId = service.ServiceCategoryId,
                 ServiceId = service.Id,
                 ServiceVariantId = resolvedVariantId,
-                ApplicationTypeKey = effectiveAppTypeKey
+                ApplicationTypeKey = effectiveAppTypeKey,
+                DynamicDataJson = request.ServiceVariantElementIds != null && request.ServiceVariantElementIds.Any()
+                    ? System.Text.Json.JsonSerializer.Serialize(new { selectedElementIds = request.ServiceVariantElementIds })
+                    : null
             };
             await _applicationRepository.AddApplicationServiceAsync(appService, cancellationToken);
 

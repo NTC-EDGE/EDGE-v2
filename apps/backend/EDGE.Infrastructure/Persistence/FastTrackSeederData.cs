@@ -417,7 +417,7 @@ public static class FastTrackSeederData
     {
         return new List<(string Key, Guid Id, Guid CategoryId, string Name, string? Group, string Code, string Desc, string Contract)>
         {
-            ("NTC_1_01", Guid.Parse("50000000-0000-0000-0000-000000000001"), categoryIds["Exams"], "Application for Radio Operator Examination", null, "NTC_1_01", "Application for Radio Operator Examination (NTC 1-01)", Ntc101Contract),
+            ("NTC_1_01", Guid.Parse("50000000-0000-0000-0000-000000000001"), categoryIds["Exams"], "Admission Slip for Radio Operator Examination", null, "NTC_1_01", "Admission Slip for Radio Operator Examination (NTC 1-01)", Ntc101Contract),
             ("NTC_1_02", Guid.Parse("50000000-0000-0000-0000-000000000002"), categoryIds["Certificates"], "Application for Radio Operator Certificate", "Radio Operator Certificates (ROC) excluding Amateur ROC", "NTC_1_02", "Application for Radio Operator Certificate (NTC 1-02)", Ntc102Contract),
             ("NTC_1_03", Guid.Parse("50000000-0000-0000-0000-000000000003"), categoryIds["Licenses"], "Application for Amateur Radio Operator Certificate / Station License", "License in the Amateur Service", "NTC_1_03", "Application for Amateur Radio License (NTC 1-03)", Ntc103Contract),
             ("NTC_1_04", Guid.Parse("50000000-0000-0000-0000-000000000004"), categoryIds["Licenses"], "Application for Ship/Ship-Earth Station License", "Ship/Ship-Earth Station", "NTC_1_04", "Application for Ship/Ship-Earth Station License (NTC 1-04)", Ntc104Contract),
@@ -446,11 +446,6 @@ public static class FastTrackSeederData
         var svc120 = Guid.Parse("50000000-0000-0000-0000-000000000020");
         var svc122 = Guid.Parse("50000000-0000-0000-0000-000000000022");
 
-        var svcRtg = Guid.Parse("50000000-0000-0000-0000-000000000031");
-        var svcRtp = Guid.Parse("50000000-0000-0000-0000-000000000032");
-        var svcAma = Guid.Parse("50000000-0000-0000-0000-000000000033");
-        var svcRrocAc = Guid.Parse("50000000-0000-0000-0000-000000000034");
-
         return new List<(Guid, Guid, ServiceVariantType, string)>
         {
             (Guid.Parse("60000000-0000-0000-0000-000000000001"), svc101, ServiceVariantType.New, "New Radio Operator Exam Application"),
@@ -476,23 +471,23 @@ public static class FastTrackSeederData
             (Guid.Parse("60000000-0000-0000-0000-000000000021"), svc122, ServiceVariantType.Renewal, "Renew TVRO/CATV License"),
 
             // Radiotelegraphy (RTG)
-            (Guid.Parse("60000000-0000-0000-0000-000000000031"), svcRtg, ServiceVariantType.FirstTaker, "Radiotelegraphy First Taker"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000032"), svcRtg, ServiceVariantType.Retaker, "Radiotelegraphy Retaker"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000033"), svcRtg, ServiceVariantType.Upgrade, "Radiotelegraphy Upgrade"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000031"), svc101, ServiceVariantType.FirstTaker, "Radiotelegraphy First Taker"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000032"), svc101, ServiceVariantType.Retaker, "Radiotelegraphy Retaker"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000033"), svc101, ServiceVariantType.Upgrade, "Radiotelegraphy Upgrade"),
 
             // Radiotelephony (RTP)
-            (Guid.Parse("60000000-0000-0000-0000-000000000034"), svcRtp, ServiceVariantType.FirstTaker, "Radiotelephony First Taker"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000035"), svcRtp, ServiceVariantType.Retaker, "Radiotelephony Retaker"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000036"), svcRtp, ServiceVariantType.Upgrade, "Radiotelephony Upgrade"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000034"), svc101, ServiceVariantType.FirstTaker, "Radiotelephony First Taker"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000035"), svc101, ServiceVariantType.Retaker, "Radiotelephony Retaker"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000036"), svc101, ServiceVariantType.Upgrade, "Radiotelephony Upgrade"),
 
             // Amateur (AMA)
-            (Guid.Parse("60000000-0000-0000-0000-000000000037"), svcAma, ServiceVariantType.FirstTaker, "Amateur Radio First Taker"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000038"), svcAma, ServiceVariantType.Retaker, "Amateur Radio Retaker"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000039"), svcAma, ServiceVariantType.Upgrade, "Amateur Radio Upgrade"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000037"), svc101, ServiceVariantType.FirstTaker, "Amateur Radio First Taker"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000038"), svc101, ServiceVariantType.Retaker, "Amateur Radio Retaker"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000039"), svc101, ServiceVariantType.Upgrade, "Amateur Radio Upgrade"),
 
             // RROC Aircraft
-            (Guid.Parse("60000000-0000-0000-0000-000000000040"), svcRrocAc, ServiceVariantType.FirstTaker, "RROC Aircraft First Taker"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000041"), svcRrocAc, ServiceVariantType.Retaker, "RROC Aircraft Retaker")
+            (Guid.Parse("60000000-0000-0000-0000-000000000040"), svc101, ServiceVariantType.FirstTaker, "RROC Aircraft First Taker"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000041"), svc101, ServiceVariantType.Retaker, "RROC Aircraft Retaker")
         };
     }
 
@@ -579,7 +574,7 @@ public static class FastTrackSeederData
         };
     }
 
-    public static List<(Guid ServiceId, Guid? ServiceVariantId, string Content)> GetBackfillNotes(Guid svcRtg, Guid svcRtp, Guid svcAma, Guid svcRrocAc)
+    public static List<(Guid ServiceId, Guid? ServiceVariantId, string Content)> GetBackfillNotes(Guid svc101)
     {
         var list = new List<(Guid ServiceId, Guid? ServiceVariantId, string Content)>();
         var examNotes = new[]
@@ -601,10 +596,10 @@ public static class FastTrackSeederData
 
         foreach (var note in examNotes)
         {
-            foreach (var v in rtgVariants) list.Add((svcRtg, v, note));
-            foreach (var v in rtpVariants) list.Add((svcRtp, v, note));
-            foreach (var v in amaVariants) list.Add((svcAma, v, note));
-            foreach (var v in rrocVariants) list.Add((svcRrocAc, v, note));
+            foreach (var v in rtgVariants) list.Add((svc101, v, note));
+            foreach (var v in rtpVariants) list.Add((svc101, v, note));
+            foreach (var v in amaVariants) list.Add((svc101, v, note));
+            foreach (var v in rrocVariants) list.Add((svc101, v, note));
         }
         return list;
     }
@@ -613,14 +608,14 @@ public static class FastTrackSeederData
     {
         return new Dictionary<string, (Guid Id, string Name, string Desc)>
         {
-            ["AGE"] = (Guid.Parse("70000000-0000-0000-0000-000000000001"), "Proof of Age / Identity", "ANY of the following: Birth Certificate, Baptismal Certificate, Passport, PRC License, Driver's License, any document which can serve as the basis for age requirement"),
-            ["TOR"] = (Guid.Parse("70000000-0000-0000-0000-000000000002"), "Transcript of Records with Special Order (SO)", "Transcript of Records with Special Order (SO) (Note: SO not required for State Universities/Colleges)"),
+            ["AGE"] = (Guid.Parse("70000000-0000-0000-0000-000000000001"), "Proof of Age / Identity", "ANY of the following:\n• Birth Certificate\n• Baptismal Certificate\n• Passport\n• PRC License\n• Driver's License\n• any document which can serve as the basis for age requirement"),
+            ["TOR"] = (Guid.Parse("70000000-0000-0000-0000-000000000002"), "Transcript of Records with Special Order (SO)", "Transcript of Records with Special Order (SO)\nNote 1: The applicant has to show the original copy.\nNote 2: SO is not required for State Universities/Colleges"),
             ["PHOTO"] = (Guid.Parse("70000000-0000-0000-0000-000000000003"), "1x1 ID Picture", "Please provide a clear 1x1 ID picture taken within the last six (6) months."),
             ["RATING"] = (Guid.Parse("70000000-0000-0000-0000-000000000004"), "Proof of Rating", "Official proof of rating from past exams."),
             ["ROC"] = (Guid.Parse("70000000-0000-0000-0000-000000000005"), "Copy of Valid ROC", "Copy of Valid Radio Operator Certificate."),
             ["SEMINAR"] = (Guid.Parse("70000000-0000-0000-0000-000000000006"), "Proof of Attendance of Seminar", "Proof of attendance of seminar conducted by NTC accredited Amateur Radio Club."),
             ["AT_ROC"] = (Guid.Parse("70000000-0000-0000-0000-000000000007"), "Copy of Valid AT-ROC", "Copy of Valid Amateur Radio Operator Certificate."),
-            ["CAAP"] = (Guid.Parse("70000000-0000-0000-0000-000000000008"), "CAAP Pilot License", "Aircraft pilot's license or student pilot's license issued by the CAAP / foreign aviation authority.")
+            ["CAAP"] = (Guid.Parse("70000000-0000-0000-0000-000000000008"), "CAAP Pilot License", "Aircraft pilot's license or student pilot's license issued by the Civil Aviation Authority of the Philippines (CAAP) / Pilot license issued by the aviation authority of the Administration for foreign applicants")
         };
     }
 
