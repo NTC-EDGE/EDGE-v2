@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using EDGE.Domain.Entities;
 using EDGE.Domain.Common;
+using EDGE.Domain.Enums;
 using EDGE.Application.Common.Interfaces;
 
 namespace EDGE.Infrastructure.Persistence;
@@ -59,6 +60,7 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
     public DbSet<ServiceCategory> ServiceCategories => Set<ServiceCategory>();
     public DbSet<Service> Services => Set<Service>();
     public DbSet<ServiceVariant> ServiceVariants => Set<ServiceVariant>();
+    public DbSet<ServiceVariantElement> ServiceVariantElements => Set<ServiceVariantElement>();
     public DbSet<Requirement> Requirements => Set<Requirement>();
     public DbSet<ServiceVariantRequirement> ServiceVariantRequirements => Set<ServiceVariantRequirement>();
     public DbSet<ExaminationSchedule> ExaminationSchedules => Set<ExaminationSchedule>();
@@ -178,7 +180,11 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Name).IsRequired().HasMaxLength(150);
             entity.Property(e => e.Code).IsRequired().HasMaxLength(50);
-            entity.Property(e => e.Category).IsRequired().HasMaxLength(50).HasDefaultValue("Main");
+            entity.Property(e => e.Category)
+                  .HasConversion<string>()
+                  .IsRequired()
+                  .HasMaxLength(50)
+                  .HasDefaultValue(FieldOfficeCategory.Main);
             entity.HasIndex(e => new { e.TenantId, e.Code }).IsUnique();
             entity.HasOne(e => e.Tenant)
                   .WithMany()
@@ -255,6 +261,16 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
             entity.HasOne(e => e.Service)
                   .WithMany(s => s.ServiceVariants)
                   .HasForeignKey(e => e.ServiceId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ServiceVariantElement>(entity =>
+        {
+            entity.Property(e => e.Code).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Description).IsRequired().HasMaxLength(500);
+            entity.HasOne(e => e.ServiceVariant)
+                  .WithMany(sv => sv.ServiceVariantElements)
+                  .HasForeignKey(e => e.ServiceVariantId)
                   .OnDelete(DeleteBehavior.Cascade);
         });
 
@@ -458,6 +474,20 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
                   .OnDelete(DeleteBehavior.SetNull);
         });
 
+        // Note entity configuration
+        modelBuilder.Entity<Note>(entity =>
+        {
+            entity.HasOne(e => e.Service)
+                  .WithMany()
+                  .HasForeignKey(e => e.ServiceId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.ServiceVariant)
+                  .WithMany()
+                  .HasForeignKey(e => e.ServiceVariantId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
         // Fee entity configuration
         modelBuilder.Entity<Fee>(entity =>
         {
@@ -479,6 +509,16 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
             entity.HasOne(d => d.Service)
                   .WithMany(p => p.ServiceFees)
                   .HasForeignKey(d => d.ServiceId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.ServiceVariant)
+                  .WithMany()
+                  .HasForeignKey(e => e.ServiceVariantId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.ServiceVariantElement)
+                  .WithMany()
+                  .HasForeignKey(e => e.ServiceVariantElementId)
                   .OnDelete(DeleteBehavior.Cascade);
         });
 

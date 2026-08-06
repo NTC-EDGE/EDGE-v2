@@ -10,7 +10,12 @@ public class CreateNoteCommandValidator : AbstractValidator<CreateNoteCommand>
             .NotEmpty().WithMessage("Notes text is required.")
             .MaximumLength(2000).WithMessage("Notes text must not exceed 2000 characters.");
 
-        RuleFor(x => x.ServiceCategoryId)
-            .NotEmpty().WithMessage("Service Category ID is required.");
+        RuleFor(x => x.ServiceId)
+            .NotEmpty().WithMessage("Service ID is required.")
+            .NotEqual(Guid.Empty).WithMessage("Service ID cannot be an empty Guid.");
+
+        RuleFor(x => x.ServiceVariantId)
+            .NotEqual(Guid.Empty).When(x => x.ServiceVariantId.HasValue)
+            .WithMessage("Service Variant ID cannot be an empty Guid.");
     }
 }

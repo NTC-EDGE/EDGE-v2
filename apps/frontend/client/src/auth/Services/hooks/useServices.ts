@@ -4,7 +4,7 @@ import { Alert, useWindowDimensions, Platform } from "react-native";
 import { useAppNavigation } from "../../../navigation";
 import { useUser, useAuth } from "@clerk/expo";
 import { useApi } from "../../../shared/hooks/useApi";
-import { servicesData, NTCService } from "../data/servicesData";
+import { NTCService } from "../data/servicesData";
 import { initialDrafts } from "../data/initialDrafts";
 import {
   ApplicantData,
@@ -129,7 +129,7 @@ export function useServices() {
     setServiceId(null);
   };
 
-  const saveActiveAsDraft = () => {
+  const saveActiveAsDraft = async () => {
     if (!activeWizardService) return;
 
     const draftId = `draft-${Date.now()}`;
@@ -161,7 +161,93 @@ export function useServices() {
     };
 
     setDrafts((prev) => [newDraft, ...prev.filter((d) => d.id !== draftId)]);
-    Alert.alert("Success", "Draft saved successfully.");
+
+    if (!selectedRegionId) {
+      Alert.alert("Success", "Draft saved locally. (Select a region to save to server)");
+      return;
+    }
+
+    try {
+      const months: Record<string, string> = {
+        January: "01", February: "02", March: "03", April: "04", May: "05", June: "06",
+        July: "07", August: "08", September: "09", October: "10", November: "11", December: "12"
+      };
+
+      let mappedApplicants: Array<{
+        firstName: string;
+        lastName: string;
+        email: string;
+        contactNumber: string;
+        address: string;
+        birthDate: string;
+        formFieldValues: Array<{ fieldId: string; value: string }>;
+      }> = [];
+      let svId: string | null = null;
+      let sveIds: string[] = [];
+
+      if (activeWizardService === "cpe-accreditation") {
+        mappedApplicants = applicants.map(app => ({
+          firstName: "CPE Supplier",
+          lastName: app.businessName || "Draft",
+          email: app.email || "draft@example.com",
+          contactNumber: app.contactNo || "",
+          address: `${app.unitBldgNo || ""}, ${app.street || ""}, ${app.barangay || ""}, ${app.city || ""}, ${app.province || ""}` || "N/A",
+          birthDate: "1990-01-01T00:00:00Z",
+          formFieldValues: []
+        }));
+      } else if (activeWizardService === "radio-operator-exam") {
+        const activeApp = examApplicants[currentExamApplicantIndex];
+        if (activeApp) {
+          svId = activeApp.selectedVariantId || null;
+          sveIds = activeApp.selectedElementId ? [activeApp.selectedElementId] : [];
+        }
+        mappedApplicants = examApplicants.map(app => {
+          const monthNum = months[app.birthMonth] || "01";
+          const day = (app.birthDay || "1").padStart(2, '0');
+          return {
+            firstName: app.firstName || "Draft",
+            lastName: app.lastName || "Applicant",
+            email: app.email || "draft@example.com",
+            contactNumber: app.contactNo || "",
+            address: `${app.street || ""}, ${app.barangay || ""}, ${app.city || ""}, ${app.province || ""}` || "N/A",
+            birthDate: app.birthYear ? `${app.birthYear}-${monthNum}-${day}T00:00:00Z` : "1990-01-01T00:00:00Z",
+            formFieldValues: []
+          };
+        });
+      } else if (activeWizardService === "general-service") {
+        mappedApplicants = generalApplicants.map(app => {
+          const monthNum = months[app.birthMonth] || "01";
+          const day = (app.birthDay || "1").padStart(2, '0');
+          return {
+            firstName: app.firstName || "Draft",
+            lastName: app.lastName || "Applicant",
+            email: app.email || "draft@example.com",
+            contactNumber: app.contactNo || "",
+            address: app.address || "N/A",
+            birthDate: app.birthYear ? `${app.birthYear}-${monthNum}-${day}T00:00:00Z` : "1990-01-01T00:00:00Z",
+            formFieldValues: []
+          };
+        });
+      }
+
+      const payload = {
+        tenantId: selectedRegionId,
+        submissionMode: appMode === "BULK" ? "Bulk" : "Single",
+        serviceId: selectedService?.id || null,
+        scheduleId: null,
+        fieldOfficeId: selectedOfficeId || null,
+        serviceVariantId: svId,
+        serviceVariantElementIds: sveIds,
+        isDraft: true,
+        applicants: mappedApplicants,
+      };
+
+      await api.post(`/api/v2/tenants/${selectedRegionId}/applications`, payload);
+      Alert.alert("Success", "Draft saved to server successfully.");
+    } catch (err) {
+      console.error("Failed to save draft to backend:", err);
+      Alert.alert("Partial Success", "Draft saved locally, but failed to sync to server.");
+    }
   };
 
   const loadDraft = (draft: DraftApplication) => {
@@ -279,84 +365,76 @@ export function useServices() {
   };
 
   const activeCategory = useMemo(() => {
-    if (selectedCategoryId === null) return null;
-    const category = servicesData.find((c) => c.id === selectedCategoryId);
+    if (selectedCategoryId === null || !backendCategories) return null;
+    const category = backendCategories.find((c: any) => c.id === selectedCategoryId);
     if (!category) return null;
 
-    if (backendServices) {
-      // Helper to match backend service to static definitions
-      const matchBackendServiceToStatic = (backendService: any, staticServices: NTCService[]): NTCService => {
-        const bName = backendService.name.toLowerCase();
-        const matched = staticServices.find((s) => {
-          const sTitle = s.title.toLowerCase();
-          if (bName.includes(sTitle) || sTitle.includes(bName)) return true;
-          if (bName.includes("amateur") && sTitle.includes("amateur")) return true;
-          if (bName.includes("maritime") && sTitle.includes("maritime")) return true;
-          if (bName.includes("ship") && sTitle.includes("maritime")) return true;
-          if (bName.includes("aeronautical") && sTitle.includes("aeronautical")) return true;
-          if (bName.includes("cpe") && sTitle.includes("cpe")) return true;
-          if (bName.includes("premises") && sTitle.includes("premises")) return true;
-          if (bName.includes("tvro") && sTitle.includes("tvro")) return true;
-          if (bName.includes("catv") && sTitle.includes("catv")) return true;
-          if (bName.includes("value-added") && sTitle.includes("value-added")) return true;
-          if (bName.includes("vas") && sTitle.includes("vas")) return true;
-          if (bName.includes("radio operator") && sTitle.includes("radio operator")) return true;
-          return false;
-        });
-
-        if (matched) {
-          return {
-            ...matched,
-            id: backendService.id,
-            title: backendService.name,
-            description: backendService.description || matched.description,
-          };
-        }
-
-        // Fallback for general services
-        return {
-          id: backendService.id,
-          title: backendService.name,
-          description: backendService.description || backendService.name,
-          requirements: [
-            "Duly accomplished Application Form",
-            "Valid Government-issued ID",
-            "Proof of payment of fees"
-          ],
-          fee: "Varies",
-          time: "3-5 Working Days"
-        };
-      };
-
-      const mappedServices = backendServices.map((bs) => 
-        matchBackendServiceToStatic(bs, category.services)
-      );
+    const servicesList = backendServices ? backendServices.map((bs: any) => {
       return {
-        ...category,
-        services: mappedServices,
+        id: bs.id,
+        serviceCategoryId: category.id,
+        category: category.name,
+        title: bs.name,
+        description: bs.description || bs.name,
+        requirements: bs.requirements?.map((r: any) => r.name) || [
+          "Duly accomplished Application Form",
+          "Valid Government-issued ID",
+          "Proof of payment of fees"
+        ],
+        fee: bs.feeDescription || "Varies",
+        time: bs.estimatedDuration || "3-5 Working Days"
       };
-    }
+    }) : [];
 
-    return category;
-  }, [selectedCategoryId, backendServices]);
+    const code = category.code?.toUpperCase();
+    const icon = code === "EXAM" ? "award"
+               : code === "CERT" ? "file-text"
+               : code === "LIC" ? "shield"
+               : code === "PRM" ? "key"
+               : code === "ACCR" ? "activity"
+               : "help-circle";
+
+    return {
+      id: category.id,
+      title: category.name,
+      icon: icon as any,
+      description: category.description || `NTC ${category.name} services.`,
+      services: servicesList
+    };
+  }, [selectedCategoryId, backendCategories, backendServices]);
 
   const searchResults = useMemo(() => {
-    if (searchQuery.trim() === "") return null;
+    if (searchQuery.trim() === "" || !allBackendServices) return null;
     const query = searchQuery.toLowerCase();
     const results: { categoryTitle: string; service: NTCService }[] = [];
 
-    servicesData.forEach((category) => {
-      category.services.forEach((service) => {
-        if (
-          service.title.toLowerCase().includes(query) ||
-          service.description.toLowerCase().includes(query)
-        ) {
-          results.push({ categoryTitle: category.title, service });
-        }
-      });
+    allBackendServices.forEach((bs: any) => {
+      if (
+        bs.name.toLowerCase().includes(query) ||
+        (bs.description && bs.description.toLowerCase().includes(query))
+      ) {
+        const cat = backendCategories?.find((c: any) => c.id === bs.serviceCategoryId);
+        results.push({
+          categoryTitle: cat?.name || "Services",
+          service: {
+            id: bs.id,
+            serviceCategoryId: bs.serviceCategoryId,
+            category: cat?.name || "Services",
+            title: bs.name,
+            description: bs.description || bs.name,
+            requirements: bs.requirements?.map((r: any) => r.name) || [
+              "Duly accomplished Application Form",
+              "Valid Government-issued ID",
+              "Proof of payment of fees"
+            ],
+            fee: bs.feeDescription || "Varies",
+            time: bs.estimatedDuration || "3-5 Working Days"
+          }
+        });
+      }
     });
     return results;
-  }, [searchQuery]);
+  }, [searchQuery, allBackendServices, backendCategories]);
 
   const handleBackToCategories = () => {
     setSelectedCategoryId(null);

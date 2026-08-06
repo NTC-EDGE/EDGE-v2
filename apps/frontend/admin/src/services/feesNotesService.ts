@@ -187,13 +187,22 @@ export function useFeesNotesService() {
   };
 
   // --- NOTES CRUD ---
-  const useNotes = (pageNumber = 1, pageSize = 10, searchTerm?: string, enabled = true) => {
+  const useNotes = (
+    pageNumber = 1,
+    pageSize = 10,
+    searchTerm?: string,
+    serviceId?: string,
+    serviceVariantId?: string,
+    enabled = true
+  ) => {
     let url: string | null = null;
     if (enabled) {
       const params = new URLSearchParams();
       params.append('pageNumber', pageNumber.toString());
       params.append('pageSize', pageSize.toString());
       if (searchTerm) params.append('searchTerm', searchTerm);
+      if (serviceId) params.append('serviceId', serviceId);
+      if (serviceVariantId) params.append('serviceVariantId', serviceVariantId);
       url = `/api/v2/notes?${params.toString()}`;
     }
     const query = useQuery<PaginatedApiResponse<Note>>(url);

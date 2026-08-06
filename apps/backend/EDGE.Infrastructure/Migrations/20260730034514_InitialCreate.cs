@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -557,8 +557,6 @@ namespace EDGE.Infrastructure.Migrations
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     ServiceId = table.Column<Guid>(type: "uuid", nullable: false),
                     TenantId = table.Column<Guid>(type: "uuid", nullable: false),
-                    ApplicationId = table.Column<Guid>(type: "uuid", nullable: true),
-                    SeatNumber = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
                     Venue = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
                     StartDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     EndDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
@@ -1199,6 +1197,7 @@ namespace EDGE.Infrastructure.Migrations
                     TenantId = table.Column<Guid>(type: "uuid", nullable: false),
                     Name = table.Column<string>(type: "character varying(150)", maxLength: 150, nullable: false),
                     Code = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    Category = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false, defaultValue: "Main"),
                     Description = table.Column<string>(type: "text", nullable: true),
                     RegionId = table.Column<Guid>(type: "uuid", nullable: false),
                     ProvinceId = table.Column<Guid>(type: "uuid", nullable: true),

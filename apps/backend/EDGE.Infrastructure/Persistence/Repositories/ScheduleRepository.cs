@@ -26,7 +26,12 @@ public class ScheduleRepository : IScheduleRepository
             .FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
     }
 
-    public async Task<List<Schedule>> GetAllAsync(Guid? tenantId = null, Guid? serviceId = null, CancellationToken cancellationToken = default)
+    public async Task<(List<Schedule> Items, int TotalCount)> GetAllAsync(
+        Guid? tenantId = null,
+        Guid? serviceId = null,
+        int pageNumber = 1,
+        int pageSize = 10,
+        CancellationToken cancellationToken = default)
     {
         var query = _context.Schedules
             .AsNoTracking()
@@ -43,28 +48,50 @@ public class ScheduleRepository : IScheduleRepository
             query = query.Where(s => s.ServiceId == serviceId.Value);
         }
 
-        return await query.OrderBy(s => s.StartDate).ToListAsync(cancellationToken);
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var page = pageNumber <= 0 ? 1 : pageNumber;
+        var size = pageSize <= 0 ? 10 : pageSize;
+
+        var items = await query.OrderBy(s => s.StartDate)
+                               .Skip((page - 1) * size)
+                               .Take(size)
+                               .ToListAsync(cancellationToken);
+
+        return (items, totalCount);
     }
 
-    public async Task<List<Schedule>> GetAvailableSchedulesAsync(Guid serviceId, Guid tenantId, DateTime? date = null, CancellationToken cancellationToken = default)
+    public async Task<(List<Schedule> Items, int TotalCount)> GetAvailableSchedulesAsync(
+        Guid serviceId,
+        Guid tenantId,
+        DateTime? date = null,
+        int pageNumber = 1,
+        int pageSize = 10,
+        CancellationToken cancellationToken = default)
     {
+        var referenceDate = date.HasValue ? DateTime.SpecifyKind(date.Value, DateTimeKind.Utc) : DateTime.UtcNow;
+
         var query = _context.Schedules
             .AsNoTracking()
             .Include(s => s.Service)
-            .Where(s => s.ServiceId == serviceId && s.TenantId == tenantId && s.IsPublished);
+            .Where(s => s.ServiceId == serviceId && s.TenantId == tenantId && s.IsPublished)
+            // Filter by application window
+            .Where(s => (s.StartApplication == null || s.StartApplication <= referenceDate) &&
+                        (s.EndApplication == null || s.EndApplication >= referenceDate))
+            // Only return schedules that haven't ended yet
+            .Where(s => s.EndDate >= referenceDate);
 
-        if (date.HasValue)
-        {
-            var targetDate = date.Value.Date;
-            query = query.Where(s => s.StartDate.Date == targetDate);
-        }
-        else
-        {
-            // By default, return upcoming schedules
-            query = query.Where(s => s.StartDate >= DateTime.UtcNow);
-        }
+        var totalCount = await query.CountAsync(cancellationToken);
 
-        return await query.OrderBy(s => s.StartDate).ToListAsync(cancellationToken);
+        var page = pageNumber <= 0 ? 1 : pageNumber;
+        var size = pageSize <= 0 ? 10 : pageSize;
+
+        var items = await query.OrderBy(s => s.StartDate)
+                               .Skip((page - 1) * size)
+                               .Take(size)
+                               .ToListAsync(cancellationToken);
+
+        return (items, totalCount);
     }
 
     public void Update(Schedule schedule)

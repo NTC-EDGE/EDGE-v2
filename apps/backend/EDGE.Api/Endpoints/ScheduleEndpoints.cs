@@ -11,6 +11,7 @@ using EDGE.Application.Schedules.Commands.SetSchedulePublishStatus;
 using Microsoft.AspNetCore.Authorization;
 using EDGE.Domain.Authorization;
 using EDGE.Infrastructure.Authorization;
+using EDGE.Application.Common.Models;
 
 namespace EDGE.Api.Endpoints;
 
@@ -26,7 +27,7 @@ public static class ScheduleEndpoints
             .WithName("GetClientSchedules")
             .WithSummary("Get client available appointment schedules")
             .WithDescription("Retrieves available appointment and inspection schedule slots for clients. Both serviceId and tenantId query parameters are required.")
-            .Produces<List<ClientScheduleDto>>(StatusCodes.Status200OK)
+            .Produces<PaginatedApiResponse<ClientScheduleDto>>(StatusCodes.Status200OK)
             .Produces<string>(StatusCodes.Status400BadRequest);
 
         // GET all schedules (optional filters by tenantId or serviceId)
@@ -34,7 +35,7 @@ public static class ScheduleEndpoints
             .WithName("GetSchedules")
             .WithSummary("Get list of schedules")
             .WithDescription("Fetches list of schedule configurations with optional tenant or service filters.")
-            .Produces<List<ScheduleDto>>(StatusCodes.Status200OK);
+            .Produces<PaginatedApiResponse<ScheduleDto>>(StatusCodes.Status200OK);
 
         // GET schedule by Id
         schedules.MapGet("/{id:guid}", GetScheduleById)
@@ -73,27 +74,68 @@ public static class ScheduleEndpoints
 
     [Authorize]
     public static async Task<IResult> GetClientSchedules(
-        Guid serviceId,
-        Guid tenantId,
-        DateTime? date,
-        IMediator mediator)
+        string serviceId,
+        string tenantId,
+        IMediator mediator,
+        DateTime? date = null,
+        int pageNumber = 1,
+        int pageSize = 10)
     {
-        if (serviceId == Guid.Empty || tenantId == Guid.Empty)
+        if (string.IsNullOrWhiteSpace(serviceId) || string.IsNullOrWhiteSpace(tenantId))
         {
             return Results.BadRequest("Both 'serviceId' and 'tenantId' query parameters are required.");
         }
 
-        var result = await mediator.Send(new GetAvailableSchedulesQuery(serviceId, tenantId, date));
+        var cleanedService = serviceId.Trim().TrimStart('+');
+        var cleanedTenant = tenantId.Trim().TrimStart('+');
+
+        if (!Guid.TryParse(cleanedService, out var serviceGuid) || serviceGuid == Guid.Empty ||
+            !Guid.TryParse(cleanedTenant, out var tenantGuid) || tenantGuid == Guid.Empty)
+        {
+            return Results.BadRequest("Invalid 'serviceId' or 'tenantId' query parameter format.");
+        }
+
+        var result = await mediator.Send(new GetAvailableSchedulesQuery(serviceGuid, tenantGuid, date, pageNumber, pageSize));
         return Results.Ok(result);
     }
 
     [HasPermission(Permissions.SystemAdmin)]
     public static async Task<IResult> GetSchedules(
-        Guid? tenantId,
-        Guid? serviceId,
-        IMediator mediator)
+        string? tenantId,
+        string? serviceId,
+        IMediator mediator,
+        int pageNumber = 1,
+        int pageSize = 10)
     {
-        var result = await mediator.Send(new GetSchedulesQuery(tenantId, serviceId));
+        Guid? tenantGuid = null;
+        if (!string.IsNullOrWhiteSpace(tenantId))
+        {
+            var cleaned = tenantId.Trim().TrimStart('+');
+            if (Guid.TryParse(cleaned, out var parsed))
+            {
+                tenantGuid = parsed;
+            }
+            else
+            {
+                return Results.BadRequest("Invalid 'tenantId' query parameter format.");
+            }
+        }
+
+        Guid? serviceGuid = null;
+        if (!string.IsNullOrWhiteSpace(serviceId))
+        {
+            var cleaned = serviceId.Trim().TrimStart('+');
+            if (Guid.TryParse(cleaned, out var parsed))
+            {
+                serviceGuid = parsed;
+            }
+            else
+            {
+                return Results.BadRequest("Invalid 'serviceId' query parameter format.");
+            }
+        }
+
+        var result = await mediator.Send(new GetSchedulesQuery(tenantGuid, serviceGuid, pageNumber, pageSize));
         return Results.Ok(result);
     }
 

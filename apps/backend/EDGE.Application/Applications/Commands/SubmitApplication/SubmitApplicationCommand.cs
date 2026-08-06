@@ -14,6 +14,8 @@ public record SubmitApplicationCommand : IRequest<ApiResponse<Guid>>
     public Guid? ServiceId { get; init; }
     public Guid? ScheduleId { get; init; }
     public Guid? FieldOfficeId { get; init; }
+    public Guid? ServiceVariantId { get; init; }
+    public List<Guid> ServiceVariantElementIds { get; init; } = new();
 
     public List<ApplicantSubmissionDto> Applicants { get; init; } = new();
 }

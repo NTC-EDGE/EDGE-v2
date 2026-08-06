@@ -1,4 +1,4 @@
-using System;
+using System.Collections.Generic;
 using System.Text.Json.Serialization;
 using MediatR;
 using EDGE.Application.Common.Models;
@@ -14,4 +14,7 @@ public record UpdateApplicationCommand : IRequest<ApiResponse<Guid>>
     public Guid? RegionId { get; init; }
     public Guid? ScheduleId { get; init; }
     public string? DynamicDataJson { get; init; }
+
+    public Guid? ServiceVariantId { get; init; }
+    public List<Guid>? ServiceVariantElementIds { get; init; }
 }

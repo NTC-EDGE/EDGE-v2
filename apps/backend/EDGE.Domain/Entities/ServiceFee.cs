@@ -10,4 +10,10 @@ public class ServiceFee : AuditableEntity
     public virtual Fee? Fee { get; set; }
     public decimal Amount { get; set; }
     public bool IsActive { get; set; } = true;
+
+    public Guid? ServiceVariantId { get; set; }
+    public virtual ServiceVariant? ServiceVariant { get; set; }
+
+    public Guid? ServiceVariantElementId { get; set; }
+    public virtual ServiceVariantElement? ServiceVariantElement { get; set; }
 }

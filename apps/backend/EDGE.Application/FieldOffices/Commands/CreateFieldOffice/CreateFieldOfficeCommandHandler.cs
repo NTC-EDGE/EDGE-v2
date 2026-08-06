@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using EDGE.Domain.Entities;
+using EDGE.Domain.Enums;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.FieldOffices.DTOs;
 
@@ -59,6 +60,11 @@ public class CreateFieldOfficeCommandHandler : IRequestHandler<CreateFieldOffice
         {
             region = await _geographicRepository.GetRegionByIdAsync(regionId, cancellationToken);
         }
+        if (region == null && tenant != null)
+        {
+            regionId = tenant.RegionId;
+            region = await _geographicRepository.GetRegionByIdAsync(regionId, cancellationToken);
+        }
         if (region == null)
         {
             var regions = await _geographicRepository.GetRegionsAsync(null, cancellationToken);
@@ -97,9 +103,7 @@ public class CreateFieldOfficeCommandHandler : IRequestHandler<CreateFieldOffice
             }
         }
 
-        var category = string.IsNullOrWhiteSpace(request.Category) ? "Main" : request.Category.Trim();
-        if (category == "Extension Office") category = "Extension";
-        if (category == "Main Office") category = "Main";
+        var category = request.Category ?? FieldOfficeCategory.Main;
 
         var fieldOffice = new FieldOffice
         {
@@ -131,7 +135,7 @@ public class CreateFieldOfficeCommandHandler : IRequestHandler<CreateFieldOffice
             fieldOffice.TenantId,
             fieldOffice.Name,
             fieldOffice.Code,
-            fieldOffice.Category,
+            fieldOffice.Category.ToString(),
             fieldOffice.Description,
             fieldOffice.RegionId,
             fieldOffice.ProvinceId,

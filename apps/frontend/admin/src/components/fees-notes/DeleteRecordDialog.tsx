@@ -97,10 +97,10 @@ export function DeleteRecordDialog({
         {activeTab === "notes" && selectedNote !== null && (
           <div className="py-2 space-y-2">
             <p className="text-sm">
-              Are you sure you want to delete the regulatory guideline for category:
+              Are you sure you want to delete the regulatory guideline note for service:
               <br />
               <strong className="text-indigo-300">
-                {categories.find((c) => c.id === selectedNote.serviceCategoryId)?.name}
+                {selectedNote.serviceName ?? "Global"} {selectedNote.serviceVariantName ? `(${selectedNote.serviceVariantName})` : ""}
               </strong>
               ?
             </p>

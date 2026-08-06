@@ -532,7 +532,10 @@ export interface ServiceVariantElementFee {
 export interface Note {
   id: string;
   notes: string;
-  serviceCategoryId: string;
+  serviceId: string;
+  serviceVariantId?: string | null;
+  serviceName?: string | null;
+  serviceVariantName?: string | null;
 }
 
 export interface Requirement {

@@ -35,23 +35,50 @@ export function NotesTable({
 }: NotesTableProps) {
   const columns: ColumnDef<Note>[] = [
     {
-      key: "category",
-      header: "Service Category Scope",
-      cell: (item) => {
-        const categoryName = categories.find((c) => c.id === item.serviceCategoryId)?.name ?? "Global";
-        return (
-          <span className="font-semibold text-indigo-300 text-xs bg-indigo-500/10 px-2 py-1 rounded border border-indigo-500/20">
-            {categoryName}
+      key: "serviceVariant",
+      header: "Service & Variant Scope",
+      cell: (item) => (
+        <div className="flex flex-col gap-1.5 py-0.5">
+          <span className="font-semibold text-slate-200 text-xs max-w-[260px] truncate block">
+            {item.serviceName ?? "Global"}
           </span>
-        );
-      },
+          <span className={`text-[10px] w-fit px-2 py-0.5 rounded-lg border font-semibold tracking-wide ${item.serviceVariantName ? "text-emerald-300 bg-emerald-500/10 border-emerald-500/20" : "text-amber-300 bg-amber-500/10 border-amber-500/20"}`}>
+            {item.serviceVariantName ?? "All Variants"}
+          </span>
+        </div>
+      ),
     },
     {
       key: "notes",
       header: "Regulatory Guideline Notes",
-      cell: (item) => (
-        <p className="text-slate-300 text-xs leading-relaxed max-w-xl whitespace-pre-wrap">{item.notes}</p>
-      ),
+      cell: (item) => {
+        // Handle multiline formatting if present
+        const lines = (item.notes ?? "")
+          .split("\n")
+          .map((l: string) => l.trim())
+          .filter((l: string) => l.length > 0);
+
+        return (
+          <div className="flex flex-col gap-1.5 max-w-xl py-1">
+            {lines.length > 1 ? (
+              <ul className="space-y-1.5 list-none">
+                {lines.map((line: string, idx: number) => {
+                  // If it already starts with a number like "1.", let it show normally, otherwise prefix with bullet
+                  const hasPrefix = /^\d+\./.test(line);
+                  return (
+                    <li key={idx} className="text-slate-300 text-xs leading-relaxed flex gap-2">
+                      {!hasPrefix && <span className="text-indigo-400 font-bold select-none">•</span>}
+                      <span>{line}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <p className="text-slate-300 text-xs leading-relaxed whitespace-pre-wrap">{item.notes}</p>
+            )}
+          </div>
+        );
+      },
     },
   ];
 

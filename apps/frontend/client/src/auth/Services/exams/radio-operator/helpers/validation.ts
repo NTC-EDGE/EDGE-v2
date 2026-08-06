@@ -1,4 +1,4 @@
-import { ExamApplicantData } from "../components/RadioOperatorExamWizard";
+import { ExamApplicantData } from "../types/examTypes";
 
 export const isExamApplicantComplete = (app: ExamApplicantData): boolean => {
   const emailVal = app.email;

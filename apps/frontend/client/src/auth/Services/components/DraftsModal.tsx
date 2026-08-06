@@ -1,6 +1,5 @@
 import { Modal, View, Text, TouchableOpacity, ScrollView } from "react-native";
 import { Icon, COLORS, TYPOGRAPHY } from "@edge/ui";
-import { servicesData } from "../data/servicesData";
 import { DraftApplication } from "../hooks/useServices";
 
 interface DraftsModalProps {
@@ -8,6 +7,7 @@ interface DraftsModalProps {
   onClose: () => void;
   drafts: DraftApplication[];
   loadDraft: (draft: DraftApplication) => void;
+  backendCategories: any[] | null;
 }
 
 export function DraftsModal({
@@ -15,12 +15,13 @@ export function DraftsModal({
   onClose,
   drafts,
   loadDraft,
+  backendCategories,
 }: DraftsModalProps) {
-  const currentCategory = servicesData.find((c) => c.id === viewingDraftsCategory);
-  const categoryTitle = currentCategory?.title ?? "";
+  const currentCategory = backendCategories?.find((c) => c.id === viewingDraftsCategory);
+  const categoryTitle = currentCategory?.name ?? "";
 
   const categoryDrafts = drafts.filter((d) =>
-    currentCategory?.services.some((s) => s.title === d.service?.title)
+    d.service?.serviceCategoryId === viewingDraftsCategory || d.service?.category === categoryTitle
   );
 
   return (

@@ -40,7 +40,7 @@ public class CreateScheduleCommandHandler : IRequestHandler<CreateScheduleComman
             EndApplication = request.EndApplication,
             IsPublished = request.IsPublished,
             MaximumSlots = request.MaximumSlots,
-            Remarks = request.Remarks,
+            Remarks = request.Remarks
         };
 
         await _scheduleRepository.AddAsync(schedule, cancellationToken);

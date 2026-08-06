@@ -21,18 +21,24 @@ public class NoteRepository : INoteRepository
     public async Task<Note?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         return await _context.Notes
+            .Include(n => n.Service)
+            .Include(n => n.ServiceVariant)
             .FirstOrDefaultAsync(n => n.Id == id, cancellationToken);
     }
 
     public async Task<List<Note>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         return await _context.Notes
+            .Include(n => n.Service)
+            .Include(n => n.ServiceVariant)
             .ToListAsync(cancellationToken);
     }
 
     public async Task<(List<Note> Items, int TotalCount)> GetPagedAsync(int pageNumber, int pageSize, CancellationToken cancellationToken = default)
     {
-        var query = _context.Notes.AsNoTracking();
+        var query = _context.Notes.AsNoTracking()
+            .Include(n => n.Service)
+            .Include(n => n.ServiceVariant);
         var totalCount = await query.CountAsync(cancellationToken);
         var items = await query
             .OrderByDescending(n => n.CreatedAt)

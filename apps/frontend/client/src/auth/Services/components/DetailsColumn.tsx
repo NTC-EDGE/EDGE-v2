@@ -2,7 +2,7 @@ import { View, Text, TouchableOpacity } from "react-native";
 import { Icon } from "@edge/ui";
 import { ServicesState } from "../hooks/useServices";
 import { CPEAccreditationWizard } from "../accreditation/customer-premises";
-import { RadioOperatorExamWizard } from "../exams/radio-operator";
+import { ExamFilingWizard } from "../exams/radio-operator";
 import { GeneralServiceWizard } from "../shared/GeneralServiceWizard";
 import { ServiceDetails } from "./ServiceDetails";
 import { styles } from "../Services.styles";
@@ -112,9 +112,10 @@ export function DetailsColumn({ servicesState }: DetailsColumnProps) {
             uploadedFileName={uploadedFileName} setUploadedFileName={setUploadedFileName}
             applicants={applicants} setApplicants={setApplicants}
             currentApplicantIndex={currentApplicantIndex} setCurrentApplicantIndex={setCurrentApplicantIndex}
+            serviceId={selectedService?.id}
           />
         ) : activeWizardService === "radio-operator-exam" ? (
-          <RadioOperatorExamWizard
+          <ExamFilingWizard
             onClose={handleClose} onSuccess={handleSuccess}
             isDetailsExpanded={isDetailsExpanded} onToggleExpand={() => setIsDetailsExpanded((prev) => !prev)}
             step={examWizardStep} setStep={setExamWizardStep}
@@ -128,6 +129,7 @@ export function DetailsColumn({ servicesState }: DetailsColumnProps) {
             currentApplicantIndex={currentExamApplicantIndex} setCurrentApplicantIndex={setCurrentExamApplicantIndex}
             isBulkSubmitOpen={isBulkSubmitOpen} setIsBulkSubmitOpen={setIsBulkSubmitOpen}
             serviceId={selectedService?.id}
+            serviceName={selectedService?.title}
           />
         ) : activeWizardService === "general-service" &&
           selectedService !== null ? (
@@ -147,9 +149,10 @@ export function DetailsColumn({ servicesState }: DetailsColumnProps) {
             selectedService={selectedService}
             onBackToServices={handleBackToServices}
             onApplyPress={() => {
-              if (selectedService.title.includes("Premises")) {
+              const titleLower = selectedService.title.toLowerCase();
+              if (titleLower.includes("premises")) {
                 setActiveWizardService("cpe-accreditation");
-              } else if (selectedService.title.includes("Radio Operator")) {
+              } else if (titleLower.includes("radio operator") || titleLower.includes("exam") || titleLower.includes("examination")) {
                 setActiveWizardService("radio-operator-exam");
               } else {
                 setActiveWizardService("general-service");

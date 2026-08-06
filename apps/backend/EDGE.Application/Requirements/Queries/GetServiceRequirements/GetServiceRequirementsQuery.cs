@@ -19,14 +19,35 @@ public record GetServiceRequirementsQuery(
 public class GetServiceRequirementsQueryHandler : IRequestHandler<GetServiceRequirementsQuery, ApiResponse<List<ServiceRequirementItemDto>>>
 {
     private readonly IRequirementRepository _repository;
+    private readonly IServiceRepository _serviceRepository;
 
-    public GetServiceRequirementsQueryHandler(IRequirementRepository repository)
+    public GetServiceRequirementsQueryHandler(IRequirementRepository repository, IServiceRepository serviceRepository)
     {
         _repository = repository;
+        _serviceRepository = serviceRepository;
     }
 
     public async Task<ApiResponse<List<ServiceRequirementItemDto>>> Handle(GetServiceRequirementsQuery request, CancellationToken cancellationToken)
     {
+        var service = await _serviceRepository.GetByIdAsync(request.ServiceId, cancellationToken);
+        if (service == null)
+        {
+            return ApiResponse<List<ServiceRequirementItemDto>>.Fail("Service not found.");
+        }
+
+        if (request.VariantId.HasValue)
+        {
+            var variant = await _serviceRepository.GetVariantByIdAsync(request.VariantId.Value, cancellationToken);
+            if (variant == null)
+            {
+                return ApiResponse<List<ServiceRequirementItemDto>>.Fail("Service variant not found.");
+            }
+            if (variant.ServiceId != request.ServiceId)
+            {
+                return ApiResponse<List<ServiceRequirementItemDto>>.Fail("Service variant does not belong to the specified service.");
+            }
+        }
+
         var rules = await _repository.GetServiceVariantRequirementsAsync(request.ServiceId, request.VariantId, request.ContextKey, cancellationToken);
 
         var result = rules.Select(svr => new ServiceRequirementItemDto

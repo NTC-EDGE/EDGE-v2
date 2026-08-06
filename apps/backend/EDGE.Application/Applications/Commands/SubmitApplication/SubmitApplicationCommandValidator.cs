@@ -61,5 +61,14 @@ public class SubmitApplicationCommandValidator : AbstractValidator<SubmitApplica
                     .WithMessage("FieldId is required for each form field value.");
             });
         }).When(x => !x.IsDraft);
+
+        RuleFor(x => x.ServiceVariantId)
+            .NotEmpty()
+            .When(x => !x.IsDraft)
+            .WithMessage("Service Variant ID is required.");
+
+        RuleForEach(x => x.ServiceVariantElementIds)
+            .NotEmpty()
+            .WithMessage("Service Variant Element ID cannot be empty.");
     }
 }

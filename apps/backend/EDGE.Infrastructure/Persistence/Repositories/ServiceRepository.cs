@@ -51,6 +51,12 @@ public class ServiceRepository : IServiceRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<ServiceVariant?> GetVariantByIdAsync(Guid variantId, CancellationToken cancellationToken = default)
+    {
+        return await _context.ServiceVariants
+            .FirstOrDefaultAsync(v => v.Id == variantId, cancellationToken);
+    }
+
     public async Task AddAsync(Service service, CancellationToken cancellationToken = default)
     {
         await _context.Services.AddAsync(service, cancellationToken);
