@@ -5,13 +5,16 @@ import { safeAsync } from "@edge/api";
 import { useCatalogService, ServiceCategory } from "@/services/catalogService";
 import { useTenantService } from "@/services/tenantService";
 import { useRequirementsService } from "@/services/requirementsService";
+import { useFeesNotesService } from "@/services/feesNotesService";
 import { ToastMessage, getErrorMessage } from "@/components/ui/toast-notification";
-import { Requirement, ServiceVariant, ServiceVariantRequirement } from "@edge/api";
+import { Requirement, ServiceVariant, ServiceVariantRequirement, Element, Note } from "@edge/api";
 import { isForbiddenError } from "@/components/PageForbiddenState";
+import { useSWRConfig } from "swr";
 
-export type TabType = "services" | "variants" | "requirements" | "service-requirements" | "service-variant-requirements";
+export type TabType = "services" | "variants" | "requirements" | "service-requirements" | "service-variant-requirements" | "elements" | "notes";
 
 export function useServicesPage() {
+  const { mutate: globalMutate } = useSWRConfig();
   const {
     useServiceCategories, createServiceCategory, updateServiceCategory, deleteServiceCategory,
     useServices, createService, updateService, deleteService
@@ -24,6 +27,13 @@ export function useServicesPage() {
     useServiceVariantRequirements, createServiceVariantRequirement, updateServiceVariantRequirement, deleteServiceVariantRequirement,
     useServiceRequirements, attachServiceVariantRequirement, unlinkServiceVariantRequirement
   } = useRequirementsService();
+
+  const {
+    useElements, createElement, updateElement, deleteElement,
+    useNotes, createNote, updateNote, deleteNote,
+    useServices: useServicesForNotes,
+    useServiceVariants: useVariantsForNotes,
+  } = useFeesNotesService();
 
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>("services");
@@ -38,7 +48,15 @@ export function useServicesPage() {
   const [variantsPage, setVariantsPage] = useState(1);
   const [requirementsPage, setRequirementsPage] = useState(1);
   const [flatMappingsPage, setFlatMappingsPage] = useState(1);
+  const [elementsPage, setElementsPage] = useState(1);
+  const [notesPage, setNotesPage] = useState(1);
+  const [elementsSearch, setElementsSearch] = useState("");
+  const [notesSearch, setNotesSearch] = useState("");
   const [pageSize, setPageSize] = useState(10);
+
+  // Notes filter state
+  const [notesFilterServiceId, setNotesFilterServiceId] = useState("");
+  const [notesFilterVariantId, setNotesFilterVariantId] = useState("");
 
   // Selected Category filter
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>("ALL");
@@ -73,25 +91,114 @@ export function useServicesPage() {
   const [isMappingSubmitting, setIsMappingSubmitting] = useState(false);
   const [deletingMappingId, setDeletingMappingId] = useState<string | null>(null);
 
+  // Elements dialog state
+  const [isElementModalOpen, setIsElementModalOpen] = useState(false);
+  const [editingElement, setEditingElement] = useState<Element | null>(null);
+  const [isElementSubmitting, setIsElementSubmitting] = useState(false);
+  const [deletingElementId, setDeletingElementId] = useState<string | null>(null);
+
+  // Notes dialog state
+  const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
+  const [editingNote, setEditingNote] = useState<Note | null>(null);
+  const [isNoteSubmitting, setIsNoteSubmitting] = useState(false);
+  const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null);
+
   // Queries
   const { data: categoriesResponse, error: catErr, mutate: mutCat } = useServiceCategories();
   const categories = categoriesResponse?.data || [];
 
-  const { data: servicesResponse, error: svcErr, isLoading: loadingServices, mutate: mutSvc } = useServices();
-  const servicesRaw = servicesResponse?.data || [];
+  const servicesSearchTerm = useMemo(() => {
+    return (activeTab === "services" || activeTab === "service-requirements") ? servicesSearch : "";
+  }, [activeTab, servicesSearch]);
 
-  const { data: tenantsResponse } = useTenants();
+  const { data: servicesResponse, error: svcErr, isLoading: loadingServices, mutate: mutSvc } = useServices(
+    selectedCategoryId === "ALL" ? undefined : selectedCategoryId,
+    (activeTab === "services" || activeTab === "service-requirements") ? servicesPage : 1,
+    pageSize,
+    servicesSearchTerm
+  );
+  const servicesRaw = servicesResponse?.data || [];
+  const servicesTotalCount = servicesResponse?.totalCount || 0;
+
+  const { data: tenantsResponse } = useTenants(1, 50, undefined, isServiceModalOpen);
   const tenants = tenantsResponse?.data || [];
 
-  const { data: allVariants = [], error: varErr, isLoading: loadingVariants, mutate: mutVar } = useServiceVariants();
-  const { data: requirements = [], error: reqErr, isLoading: loadingReqs, mutate: mutReq } = useRequirements();
-  const { data: flatMappings = [], error: mapErr, isLoading: loadingAllMapped, mutate: mutFlatMap } = useServiceVariantRequirements();
+  // Full list of variants for dialog lookups
+  const { data: allVariants = [] } = useServiceVariants(
+    1,
+    9999,
+    undefined,
+    null,
+    true
+  );
+
+  // Paginated list of variants for the table
+  const { data: pagedVariantsRaw = [], totalCount: variantsTotalCount = 0, error: varErr, isLoading: loadingVariants, mutate: mutVar } = useServiceVariants(
+    variantsPage,
+    pageSize,
+    variantsSearch,
+    null,
+    activeTab === "variants"
+  );
+  // Full list of requirements for dropdowns and mappings
+  const { data: requirements = [], mutate: mutReq } = useRequirements(
+    1,
+    9999,
+    undefined,
+    activeTab === "requirements" || activeTab === "service-requirements"
+  );
+
+  // Paginated list of requirements for the table
+  const { data: pagedRequirementsRaw = [], totalCount: requirementsTotalCount = 0, error: reqErr, isLoading: loadingReqs, mutate: mutPagedReq } = useRequirements(
+    requirementsPage,
+    pageSize,
+    requirementsSearch,
+    activeTab === "requirements"
+  );
+  const { data: flatMappings = [], error: mapErr, isLoading: loadingAllMapped, mutate: mutFlatMap } = useServiceVariantRequirements(
+    undefined,
+    activeTab === "service-variant-requirements"
+  );
 
   // Service Variant Specific Checklist (Tab 4)
   const { data: serviceRequirements = [], error: svcReqErr, isLoading: loadingServiceReqs, mutate: mutSvcReq } = useServiceRequirements(
     activeTab === "service-requirements" && mappingServiceId ? mappingServiceId : undefined,
-    activeTab === "service-requirements" && mappingVariantId ? mappingVariantId : undefined
+    activeTab === "service-requirements" && mappingVariantId ? mappingVariantId : undefined,
+    undefined,
+    activeTab === "service-requirements"
   );
+
+  // Elements data
+  const { data: elements = [], totalCount: elementsTotalCount, isLoading: loadingElements, mutate: mutElements } = useElements(
+    activeTab === "elements" ? elementsPage : 1,
+    activeTab === "elements" ? pageSize : 9999,
+    activeTab === "elements" ? elementsSearch : undefined,
+    activeTab === "elements"
+  );
+
+  // Notes data
+  const { data: notes = [], totalCount: notesTotalCount, isLoading: loadingNotes, mutate: mutNotes } = useNotes(
+    activeTab === "notes" ? notesPage : 1,
+    activeTab === "notes" ? pageSize : 9999,
+    activeTab === "notes" ? notesSearch : undefined,
+    activeTab === "notes" ? notesFilterServiceId : undefined,
+    activeTab === "notes" ? notesFilterVariantId : undefined,
+    activeTab === "notes"
+  );
+
+  // Services list for notes dialog
+  const { data: servicesForNotes = [] } = useServicesForNotes(activeTab === "notes" || isNoteModalOpen);
+
+  // Variants for notes filter (keyed by filterServiceId)
+  const { data: variantsForNotesFilter = [] } = useVariantsForNotes(
+    notesFilterServiceId,
+    (activeTab === "notes" || isNoteModalOpen) && !!notesFilterServiceId
+  );
+
+  // Reset page when category changes
+  useEffect(() => {
+    setServicesPage(1);
+  }, [selectedCategoryId]);
 
   // Forbidden Check
   const forbidden = isForbiddenError(catErr) || isForbiddenError(svcErr) || isForbiddenError(varErr) || isForbiddenError(reqErr) || isForbiddenError(mapErr) || isForbiddenError(svcReqErr);
@@ -120,40 +227,42 @@ export function useServicesPage() {
 
   // Filter Category & Service Data list
   const services = useMemo(() => {
-    if (selectedCategoryId === "ALL") return servicesRaw;
-    return servicesRaw.filter(s => s.serviceCategoryId === selectedCategoryId);
-  }, [servicesRaw, selectedCategoryId]);
+    return servicesRaw;
+  }, [servicesRaw]);
 
   // Filtering search queries
   const filteredServices = useMemo(() => {
-    const term = (activeTab === "service-requirements" ? servicesSearch : "").toLowerCase();
-    return services.filter(s => s.name.toLowerCase().includes(term) || (s.code?.toLowerCase() || "").includes(term) || (s.group?.toLowerCase() || "").includes(term));
-  }, [services, servicesSearch, activeTab]);
+    if (activeTab === "services") {
+      return Array(servicesTotalCount).fill({});
+    }
+    return servicesRaw;
+  }, [activeTab, servicesRaw, servicesTotalCount]);
 
   const pagedServices = useMemo(() => {
-    const start = (servicesPage - 1) * pageSize;
-    return filteredServices.slice(start, start + pageSize);
-  }, [filteredServices, servicesPage, pageSize]);
+    return servicesRaw;
+  }, [servicesRaw]);
 
   const filteredVariants = useMemo(() => {
-    const term = variantsSearch.toLowerCase();
-    return allVariants.filter((v: ServiceVariant) => (v.serviceName?.toLowerCase() || "").includes(term) || v.type.toLowerCase().includes(term) || (v.description?.toLowerCase() || "").includes(term));
-  }, [allVariants, variantsSearch]);
+    if (activeTab === "variants") {
+      return Array(variantsTotalCount).fill({});
+    }
+    return pagedVariantsRaw;
+  }, [activeTab, pagedVariantsRaw, variantsTotalCount]);
 
   const pagedVariants = useMemo(() => {
-    const start = (variantsPage - 1) * pageSize;
-    return filteredVariants.slice(start, start + pageSize);
-  }, [filteredVariants, variantsPage, pageSize]);
+    return pagedVariantsRaw;
+  }, [pagedVariantsRaw]);
 
   const filteredRequirements = useMemo(() => {
-    const term = requirementsSearch.toLowerCase();
-    return requirements.filter((r: Requirement) => r.name.toLowerCase().includes(term) || (r.description?.toLowerCase() || "").includes(term));
-  }, [requirements, requirementsSearch]);
+    if (activeTab === "requirements") {
+      return Array(requirementsTotalCount).fill({});
+    }
+    return pagedRequirementsRaw;
+  }, [activeTab, pagedRequirementsRaw, requirementsTotalCount]);
 
   const pagedRequirements = useMemo(() => {
-    const start = (requirementsPage - 1) * pageSize;
-    return filteredRequirements.slice(start, start + pageSize);
-  }, [filteredRequirements, requirementsPage, pageSize]);
+    return pagedRequirementsRaw;
+  }, [pagedRequirementsRaw]);
 
   const filteredFlatMappings = useMemo(() => {
     const term = flatMappingsSearch.toLowerCase();
@@ -167,12 +276,18 @@ export function useServicesPage() {
 
   const showToast = (message: string, type: "success" | "error" = "success") => setToast({ message, type });
 
+  const invalidatePrefix = (prefix: string) => {
+    globalMutate((key: unknown) => typeof key === "string" && key.startsWith(prefix));
+  };
+
   // Dialog openers
   const handleOpenEditCategory = (cat: ServiceCategory) => { setEditingCategory(cat); setIsCategoryModalOpen(true); };
   const handleOpenEditService = (s: any) => { setEditingService(s); setIsServiceModalOpen(true); };
   const handleOpenEditVariant = (v: ServiceVariant) => { setEditingVariant(v); setIsVariantModalOpen(true); };
   const handleOpenEditRequirement = (r: Requirement) => { setEditingReq(r); setIsReqModalOpen(true); };
   const handleOpenEditMapping = (mr: any) => { setEditingMapping(mr); setIsMappingFormOpen(true); };
+  const handleOpenEditElement = (el: Element) => { setEditingElement(el); setIsElementModalOpen(true); };
+  const handleOpenEditNote = (n: Note) => { setEditingNote(n); setIsNoteModalOpen(true); };
 
   // Submit Handlers
   const handleCategorySubmit = async (data: any) => {
@@ -226,6 +341,8 @@ export function useServicesPage() {
     if (res) {
       showToast(`Requirement ${editingReq ? "updated" : "created"} successfully.`);
       mutReq();
+      mutPagedReq();
+      invalidatePrefix("/api/v2/requirements");
       setIsReqModalOpen(false);
     } else {
       showToast(getErrorMessage(err, "Failed to save requirement."), "error");
@@ -262,11 +379,68 @@ export function useServicesPage() {
     setIsMappingSubmitting(false);
   };
 
+  // Elements CRUD
+  const handleElementSubmit = async (data: { code: string; name: string; description: string }) => {
+    setIsElementSubmitting(true);
+    const apiCall = editingElement
+      ? updateElement(editingElement.id, { code: data.code.toUpperCase(), name: data.name, description: data.description || null })
+      : createElement({ code: data.code.toUpperCase(), name: data.name, description: data.description || null });
+    const [res, err] = await safeAsync(apiCall);
+    if (res) {
+      showToast(`Element ${editingElement ? "updated" : "created"} successfully.`);
+      mutElements();
+      invalidatePrefix("/api/v2/elements");
+      setIsElementModalOpen(false);
+    } else {
+      showToast(getErrorMessage(err, "Failed to save element."), "error");
+    }
+    setIsElementSubmitting(false);
+  };
+
+  const handleDeleteElementConfirm = async () => {
+    if (!deletingElementId) return;
+    const [res, err] = await safeAsync(deleteElement(deletingElementId));
+    if (res) { showToast("Element deleted."); mutElements(); invalidatePrefix("/api/v2/elements"); }
+    else showToast(getErrorMessage(err, "Failed to delete element."), "error");
+    setDeletingElementId(null);
+  };
+
+  // Notes CRUD
+  const handleNoteSubmit = async (data: { notes: string; serviceId: string; serviceVariantId: string }) => {
+    setIsNoteSubmitting(true);
+    const payload = {
+      notes: data.notes,
+      serviceId: data.serviceId,
+      serviceVariantId: data.serviceVariantId || null
+    };
+    const apiCall = editingNote
+      ? updateNote(editingNote.id, payload)
+      : createNote(payload);
+    const [res, err] = await safeAsync(apiCall);
+    if (res) {
+      showToast(`Note ${editingNote ? "updated" : "created"} successfully.`);
+      mutNotes();
+      invalidatePrefix("/api/v2/notes");
+      setIsNoteModalOpen(false);
+    } else {
+      showToast(getErrorMessage(err, "Failed to save note."), "error");
+    }
+    setIsNoteSubmitting(false);
+  };
+
+  const handleDeleteNoteConfirm = async () => {
+    if (!deletingNoteId) return;
+    const [res, err] = await safeAsync(deleteNote(deletingNoteId));
+    if (res) { showToast("Note deleted."); mutNotes(); invalidatePrefix("/api/v2/notes"); }
+    else showToast(getErrorMessage(err, "Failed to delete note."), "error");
+    setDeletingNoteId(null);
+  };
+
   // Delete Handlers
   const handleDeleteCategoryConfirm = async () => {
     if (!deletingCategoryId) return;
     const [res, err] = await safeAsync(deleteServiceCategory(deletingCategoryId));
-    if (res) { showToast("Category deleted."); mutCat(); } 
+    if (res) { showToast("Category deleted."); mutCat(); }
     else showToast(getErrorMessage(err, "Failed to delete category."), "error");
     setDeletingCategoryId(null);
   };
@@ -292,7 +466,12 @@ export function useServicesPage() {
   const handleDeleteReqConfirm = async () => {
     if (!deletingReqId) return;
     const [res, err] = await safeAsync(deleteRequirement(deletingReqId));
-    if (res) { showToast("Requirement deleted."); mutReq(); }
+    if (res) {
+      showToast("Requirement deleted.");
+      mutReq();
+      mutPagedReq();
+      invalidatePrefix("/api/v2/requirements");
+    }
     else showToast(getErrorMessage(err, "Failed to delete requirement."), "error");
     setDeletingReqId(null);
   };
@@ -317,8 +496,10 @@ export function useServicesPage() {
     toast, setToast, activeTab, setActiveTab,
     servicesSearch, setServicesSearch, variantsSearch, setVariantsSearch,
     requirementsSearch, setRequirementsSearch, flatMappingsSearch, setFlatMappingsSearch,
+    elementsSearch, setElementsSearch, notesSearch, setNotesSearch,
     servicesPage, setServicesPage, variantsPage, setVariantsPage,
     requirementsPage, setRequirementsPage, flatMappingsPage, setFlatMappingsPage,
+    elementsPage, setElementsPage, notesPage, setNotesPage,
     pageSize, setPageSize, selectedCategoryId, setSelectedCategoryId,
     mappingServiceId, setMappingServiceId, mappingVariantId, setMappingVariantId,
     isCategoryModalOpen, setIsCategoryModalOpen, editingCategory, setEditingCategory,
@@ -331,6 +512,18 @@ export function useServicesPage() {
     isReqSubmitting, deletingReqId, setDeletingReqId,
     isMappingFormOpen, setIsMappingFormOpen, editingMapping, setEditingMapping,
     isMappingSubmitting, deletingMappingId, setDeletingMappingId,
+    // Elements
+    isElementModalOpen, setIsElementModalOpen, editingElement, setEditingElement,
+    isElementSubmitting, deletingElementId, setDeletingElementId,
+    elements, elementsTotalCount, loadingElements,
+    handleOpenEditElement, handleElementSubmit, handleDeleteElementConfirm,
+    // Notes
+    isNoteModalOpen, setIsNoteModalOpen, editingNote, setEditingNote,
+    isNoteSubmitting, deletingNoteId, setDeletingNoteId,
+    notes, notesTotalCount, loadingNotes,
+    servicesForNotes, variantsForNotesFilter,
+    notesFilterServiceId, setNotesFilterServiceId, notesFilterVariantId, setNotesFilterVariantId,
+    handleOpenEditNote, handleNoteSubmit, handleDeleteNoteConfirm,
     categories, servicesRaw, tenants, allVariants, requirements, flatMappings, serviceRequirements,
     loadingServices, loadingVariants, loadingReqs, loadingAllMapped, loadingServiceReqs,
     forbidden, mappingVariants, services, filteredServices, pagedServices,

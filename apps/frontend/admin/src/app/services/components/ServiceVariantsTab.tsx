@@ -37,15 +37,24 @@ export function ServiceVariantsTab({
       accessorKey: "type",
       cell: (val) => {
         const typeStr = String(val);
+        if (typeStr === "NA") return null;
+        
+        const isNewStyle = ["New", "FirstTaker", "First-taker", "VSAT"].includes(typeStr);
+        const isRenewalStyle = ["Renewal", "Retaker"].includes(typeStr);
+        
+        let label = typeStr;
+        if (typeStr === "FirstTaker") label = "First-taker";
+        else if (typeStr === "CivicActionGroup") label = "Civic Action Group";
+
         return (
           <span className={`text-[10px] px-2 py-0.5 rounded border uppercase inline-block font-bold ${
-            typeStr === "New" || typeStr === "FirstTaker" || typeStr === "First-taker"
+            isNewStyle
               ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" 
-              : typeStr === "Renewal" || typeStr === "Retaker"
+              : isRenewalStyle
               ? "bg-amber-500/10 text-amber-400 border-amber-500/20" 
               : "bg-sky-500/10 text-sky-400 border-sky-500/20"
           }`}>
-            {typeStr === "FirstTaker" ? "First-taker" : typeStr}
+            {label}
           </span>
         );
       },

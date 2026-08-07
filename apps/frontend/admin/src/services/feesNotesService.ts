@@ -253,14 +253,14 @@ export function useFeesNotesService() {
     updateNote,
     deleteNote,
     useServices: (enabled = true) => {
-      const query = useQuery<{ succeeded: boolean; data: ServiceCatalogItem[] }>(enabled ? '/api/v2/services' : null);
+      const query = useQuery<{ succeeded: boolean; data: ServiceCatalogItem[] }>(enabled ? '/api/v2/services?pageSize=9999' : null);
       return {
         ...query,
         data: query.data?.data !== undefined && query.data?.data !== null ? query.data.data : []
       };
     },
-    useServiceVariants: (serviceId: string) => {
-      const query = useQuery<{ succeeded: boolean; data: ServiceVariant[] }>(serviceId ? `/api/v2/services/${serviceId}/variants` : null);
+    useServiceVariants: (serviceId: string, enabled = true) => {
+      const query = useQuery<{ succeeded: boolean; data: ServiceVariant[] }>((enabled && serviceId) ? `/api/v2/services/${serviceId}/variants` : null);
       return {
         ...query,
         data: query.data?.data !== undefined && query.data?.data !== null ? query.data.data : []

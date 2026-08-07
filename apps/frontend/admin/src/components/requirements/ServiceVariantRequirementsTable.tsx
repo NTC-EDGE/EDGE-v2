@@ -66,7 +66,9 @@ export function ServiceVariantRequirementsTable({
         return (
           <div className="flex flex-col">
             <span className="font-semibold text-slate-200">{serviceDisplay}</span>
-            <span className="text-xs text-indigo-400 mt-0.5 font-medium">{variantDisplay} Variant</span>
+            {item.serviceVariantType !== "NA" && (
+              <span className="text-xs text-indigo-400 mt-0.5 font-medium">{variantDisplay} Variant</span>
+            )}
           </div>
         );
       },

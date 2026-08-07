@@ -33,7 +33,9 @@ export function ServiceVariantRequirementsTab({
       cell: (_, row) => (
         <div className="flex flex-col">
           <span className="font-bold text-white block">{row.serviceName || "Global Service"}</span>
-          <span className="text-[10px] text-indigo-400 mt-0.5 font-medium block">{row.serviceVariantType || "Standard"} Variant</span>
+          {row.serviceVariantType !== "NA" && (
+            <span className="text-[10px] text-indigo-400 mt-0.5 font-medium block">{row.serviceVariantType || "Standard"} Variant</span>
+          )}
         </div>
       ),
     },

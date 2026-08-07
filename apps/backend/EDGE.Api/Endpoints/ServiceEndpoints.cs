@@ -28,7 +28,7 @@ public static class ServiceEndpoints
             .WithName("GetTenantServices")
             .WithSummary("Get services for a specific tenant")
             .WithDescription("Retrieves catalog services scoped to tenant {tenantId}, with optional serviceCategoryId filter.")
-            .Produces<ApiResponse<List<ServiceDto>>>(StatusCodes.Status200OK);
+            .Produces<PaginatedApiResponse<ServiceDto>>(StatusCodes.Status200OK);
 
         tenantGroup.MapPost("/", CreateTenantService)
             .WithName("CreateTenantService")
@@ -51,7 +51,7 @@ public static class ServiceEndpoints
             .WithName("GetServices")
             .WithSummary("Get catalog services")
             .WithDescription("Retrieves all catalog services, with optional serviceCategoryId filter.")
-            .Produces<ApiResponse<List<ServiceDto>>>(StatusCodes.Status200OK);
+            .Produces<PaginatedApiResponse<ServiceDto>>(StatusCodes.Status200OK);
 
         globalGroup.MapPost("/", CreateGlobalService)
             .WithName("CreateGlobalService")
@@ -124,10 +124,16 @@ public static class ServiceEndpoints
     }
 
     [HasPermission(Permissions.ReadServices)]
-    public static async Task<IResult> GetTenantServices(Guid tenantId, Guid? serviceCategoryId, IMediator mediator)
+    public static async Task<IResult> GetTenantServices(
+        Guid tenantId, 
+        Guid? serviceCategoryId, 
+        int? pageNumber, 
+        int? pageSize, 
+        string? searchTerm, 
+        IMediator mediator)
     {
-        var result = await mediator.Send(new GetServicesQuery(serviceCategoryId, tenantId));
-        return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
+        var result = await mediator.Send(new GetServicesQuery(serviceCategoryId, tenantId, pageNumber, pageSize, searchTerm));
+        return Results.Ok(result);
     }
 
     [HasPermission(Permissions.CreateServices)]
@@ -162,10 +168,15 @@ public static class ServiceEndpoints
     }
 
     [HasPermission(Permissions.ReadServices)]
-    public static async Task<IResult> GetServices(Guid? serviceCategoryId, IMediator mediator)
+    public static async Task<IResult> GetServices(
+        Guid? serviceCategoryId, 
+        int? pageNumber, 
+        int? pageSize, 
+        string? searchTerm, 
+        IMediator mediator)
     {
-        var result = await mediator.Send(new GetServicesQuery(serviceCategoryId, null));
-        return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
+        var result = await mediator.Send(new GetServicesQuery(serviceCategoryId, null, pageNumber, pageSize, searchTerm));
+        return Results.Ok(result);
     }
 
     [HasPermission(Permissions.ReadServices)]

@@ -107,7 +107,12 @@ export function ServiceVariantDialog({
                     ) : (
                       services.map((s) => {
                         const svcVariants = allVariants.filter((v) => v.serviceId === s.id);
-                        const variantLabels = svcVariants.map((v) => v.type === "FirstTaker" ? "First-taker" : v.type).join(", ");
+                        const variantLabels = svcVariants.map((v) => {
+                          if (v.type === "NA") return "Standard";
+                          if (v.type === "FirstTaker") return "First-taker";
+                          if (v.type === "CivicActionGroup") return "Civic Action Group";
+                          return v.type;
+                        }).join(", ");
                         const variantSuffix = variantLabels ? ` [${variantLabels}]` : " [No variants]";
                         const fullLabel = `[${s.code || "SVC"}] ${s.name}${variantSuffix}`;
                         return (
@@ -148,7 +153,7 @@ export function ServiceVariantDialog({
             <select
               value={variantType}
               onChange={(e) => setVariantType(e.target.value)}
-              className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all font-medium"
+              className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all font-medium cursor-pointer"
             >
               <option value="New">New</option>
               <option value="Renewal">Renewal</option>
@@ -156,6 +161,11 @@ export function ServiceVariantDialog({
               <option value="FirstTaker">First-taker</option>
               <option value="Retaker">Retaker</option>
               <option value="Upgrade">Upgrade</option>
+              <option value="NA">N/A</option>
+              <option value="VSAT">VSAT</option>
+              <option value="Private">Private</option>
+              <option value="CivicActionGroup">Civic Action Group</option>
+              <option value="Government">Government</option>
             </select>
           </div>
 

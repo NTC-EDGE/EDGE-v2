@@ -18,5 +18,12 @@ public enum ServiceVariantType
     Modification,
     Retaker,
     FirstTaker,
-    Upgrade
+    Upgrade,
+    NA,
+    
+    // Permit applicant/entity sub-types as variants
+    VSAT,
+    Private,
+    CivicActionGroup,
+    Government
 }

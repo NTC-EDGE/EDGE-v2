@@ -1,4 +1,6 @@
 using MediatR;
+using EDGE.Application.Common.Models;
+using EDGE.Application.Elements.DTOs;
 using FluentValidation;
 using EDGE.Application.Elements.Commands.CreateElement;
 using EDGE.Application.Elements.Commands.UpdateElement;
@@ -22,7 +24,8 @@ public static class ElementEndpoints
         elements.MapGet("/", GetElements)
             .WithName("GetElements")
             .WithSummary("Get all elements")
-            .WithDescription("Retrieves a list of all elements.");
+            .WithDescription("Retrieves a list of all elements.")
+            .Produces<PaginatedApiResponse<ElementDto>>(StatusCodes.Status200OK);
 
         elements.MapGet("/{id:guid}", GetElementById)
             .WithName("GetElementById")
@@ -49,10 +52,13 @@ public static class ElementEndpoints
 
     [HasPermission(Permissions.SystemAdmin)]
     public static async Task<IResult> GetElements(
+        int? pageNumber,
+        int? pageSize,
+        string? searchTerm,
         IValidator<GetElementsQuery> validator,
         IMediator mediator)
     {
-        var query = new GetElementsQuery();
+        var query = new GetElementsQuery(pageNumber, pageSize, searchTerm);
         var validationResult = await validator.ValidateAsync(query);
         if (!validationResult.IsValid)
         {

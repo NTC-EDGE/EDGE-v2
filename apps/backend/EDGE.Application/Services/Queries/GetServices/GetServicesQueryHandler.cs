@@ -9,7 +9,7 @@ using EDGE.Application.Services.Dtos;
 
 namespace EDGE.Application.Services.Queries.GetServices;
 
-public class GetServicesQueryHandler : IRequestHandler<GetServicesQuery, ApiResponse<List<ServiceDto>>>
+public class GetServicesQueryHandler : IRequestHandler<GetServicesQuery, PaginatedApiResponse<ServiceDto>>
 {
     private readonly IServiceRepository _serviceRepository;
 
@@ -18,14 +18,31 @@ public class GetServicesQueryHandler : IRequestHandler<GetServicesQuery, ApiResp
         _serviceRepository = serviceRepository;
     }
 
-    public async Task<ApiResponse<List<ServiceDto>>> Handle(GetServicesQuery request, CancellationToken cancellationToken)
+    public async Task<PaginatedApiResponse<ServiceDto>> Handle(GetServicesQuery request, CancellationToken cancellationToken)
     {
         var services = await _serviceRepository.GetServicesAsync(
             request.ServiceCategoryId,
             request.TenantId,
             cancellationToken);
 
-        var dtos = services.Select(s => new ServiceDto
+        if (!string.IsNullOrWhiteSpace(request.SearchTerm))
+        {
+            var search = request.SearchTerm.ToLower();
+            services = services.Where(s => 
+                s.Name.ToLower().Contains(search) || 
+                (s.Code != null && s.Code.ToLower().Contains(search)) || 
+                (s.Description != null && s.Description.ToLower().Contains(search))
+            ).ToList();
+        }
+
+        int totalCount = services.Count;
+        int pageNumber = request.PageNumber ?? 1;
+        int pageSize = request.PageSize ?? 10;
+        if (pageSize <= 0) pageSize = 1;
+
+        var paginated = services.Skip((pageNumber - 1) * pageSize).Take(pageSize).ToList();
+
+        var dtos = paginated.Select(s => new ServiceDto
         {
             Id = s.Id,
             ServiceCategoryId = s.ServiceCategoryId,
@@ -38,6 +55,6 @@ public class GetServicesQueryHandler : IRequestHandler<GetServicesQuery, ApiResp
             TenantId = s.TenantId
         }).ToList();
 
-        return ApiResponse<List<ServiceDto>>.Success(dtos);
+        return new PaginatedApiResponse<ServiceDto>(dtos, pageNumber, pageSize, totalCount);
     }
 }

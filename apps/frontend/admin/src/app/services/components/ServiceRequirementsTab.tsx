@@ -113,7 +113,12 @@ export function ServiceRequirementsTab({
                 }`}
               >
                 <div className="flex items-center justify-between w-full">
-                  <span>{v.type === "FirstTaker" ? "First-taker" : v.type}</span>
+                  <span>{(() => {
+                    if (v.type === "NA") return "N/A";
+                    if (v.type === "FirstTaker") return "First-taker";
+                    if (v.type === "CivicActionGroup") return "Civic Action Group";
+                    return v.type;
+                  })()}</span>
                   <span className={`text-[8px] font-mono uppercase px-1 rounded ${
                     mappingVariantId === v.id ? "bg-indigo-700" : "bg-slate-800 text-slate-500"
                   }`}>

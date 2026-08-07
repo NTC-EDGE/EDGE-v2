@@ -14,7 +14,10 @@ export interface PaginatedApiResponse<T> {
 export function useTenantService() {
   const { useQuery, post, put, del } = useApi();
 
-  const useTenants = (pageNumber = 1, pageSize = 50, searchTerm?: string) => {
+  const useTenants = (pageNumber = 1, pageSize = 50, searchTerm?: string, enabled = true) => {
+    if (!enabled) {
+      return useQuery<PaginatedApiResponse<Tenant>>(null);
+    }
     const params = new URLSearchParams();
     params.append('pageNumber', pageNumber.toString());
     params.append('pageSize', pageSize.toString());

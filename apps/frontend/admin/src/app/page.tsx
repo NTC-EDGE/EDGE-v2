@@ -102,15 +102,15 @@ export default function Dashboard() {
       href: "/roles-permissions",
     },
     {
-      name: "Fees & Notes",
+      name: "Fees",
       count: "System-wide",
       loading: false,
-      subtitle: "Regulatory Fees & Notes",
+      subtitle: "Regulatory Fees",
       icon: CircleDollarSign,
       textColor: "text-amber-400",
       borderColor: "border-amber-500/30",
       bgGradient: "from-amber-500/10 to-transparent",
-      href: "/fees-notes",
+      href: "/fees",
     },
   ];
 

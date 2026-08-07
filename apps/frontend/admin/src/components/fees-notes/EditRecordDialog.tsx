@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { ServiceCatalogItem, ServiceCategoryItem, useFeesNotesService } from "@/services/feesNotesService";
 
-type TabType = "fees" | "service-fees" | "notes" | "elements" | "service-variant-fees" | "service-variant-element-fees";
+type TabType = "fees" | "service-fees" | "service-variant-fees" | "service-variant-element-fees";
 
 export interface EditRecordDialogProps {
   open: boolean;
@@ -23,11 +23,8 @@ export interface EditRecordDialogProps {
   fees: Fee[];
   elements: Element[];
   services: ServiceCatalogItem[];
-  categories: ServiceCategoryItem[];
   selectedFee: Fee | null;
   selectedServiceFee: ServiceFee | null;
-  selectedNote: Note | null;
-  selectedElement: Element | null;
   selectedServiceVariantFee: ServiceVariantFee | null;
   selectedServiceVariantElementFee: ServiceVariantElementFee | null;
   onSubmit: (
@@ -54,11 +51,8 @@ export function EditRecordDialog({
   fees,
   elements,
   services,
-  categories,
   selectedFee,
   selectedServiceFee,
-  selectedNote,
-  selectedElement,
   selectedServiceVariantFee,
   selectedServiceVariantElementFee,
   onSubmit,
@@ -78,9 +72,6 @@ export function EditRecordDialog({
   const [feeId, setFeeId] = useState("");
   const [amount, setAmount] = useState(0);
 
-  const [notes, setNotes] = useState("");
-  const [serviceCategoryId, setServiceCategoryId] = useState("");
-
   // Query variants dynamically based on selected serviceId
   const { data: variants = [] } = useServiceVariants(serviceId);
 
@@ -95,10 +86,6 @@ export function EditRecordDialog({
           setCode(selectedFee.code);
           setName(selectedFee.name);
           setDescription(selectedFee.description ?? "");
-        } else if (activeTab === "elements" && selectedElement !== null) {
-          setCode(selectedElement.code);
-          setName(selectedElement.name);
-          setDescription(selectedElement.description ?? "");
         } else if (activeTab === "service-fees" && selectedServiceFee !== null) {
           setServiceId(selectedServiceFee.serviceId);
           setFeeId(selectedServiceFee.feeId);
@@ -114,17 +101,13 @@ export function EditRecordDialog({
           setElementId(selectedServiceVariantElementFee.elementId);
           setFeeId(selectedServiceVariantElementFee.feeId);
           setAmount(selectedServiceVariantElementFee.amount);
-        } else if (activeTab === "notes" && selectedNote !== null) {
-          setNotes(selectedNote.notes);
-          setServiceId(selectedNote.serviceId);
-          setServiceVariantId(selectedNote.serviceVariantId ?? "");
         }
         hasInitialized.current = true;
       }
     } else {
       hasInitialized.current = false;
     }
-  }, [open, activeTab, selectedFee, selectedElement, selectedServiceFee, selectedServiceVariantFee, selectedServiceVariantElementFee, selectedNote, services]);
+  }, [open, activeTab, selectedFee, selectedServiceFee, selectedServiceVariantFee, selectedServiceVariantElementFee, services]);
 
   const handleServiceChange = (val: string) => {
     setServiceId(val);
@@ -152,8 +135,8 @@ export function EditRecordDialog({
         elementId,
         feeId,
         amount,
-        notes,
-        serviceCategoryId,
+        notes: "",
+        serviceCategoryId: "",
       });
       onOpenChange(false);
     } catch (err: unknown) {
@@ -169,11 +152,9 @@ export function EditRecordDialog({
         <DialogHeader>
           <DialogTitle className="text-lg font-bold text-white">
             {activeTab === "fees" && "Edit Fee Code details"}
-            {activeTab === "elements" && "Edit Billing Element"}
             {activeTab === "service-fees" && "Modify Mapped Service Fee"}
             {activeTab === "service-variant-fees" && "Modify Variant Fee Mapping"}
             {activeTab === "service-variant-element-fees" && "Modify Variant Element Fee"}
-            {activeTab === "notes" && "Update Guideline Instruction"}
           </DialogTitle>
           <DialogDescription className="text-xs text-slate-400">
             Modify the configuration parameters. Saved changes update instantly.
@@ -188,7 +169,7 @@ export function EditRecordDialog({
             </div>
           )}
 
-          {(activeTab === "fees" || activeTab === "elements") && (
+          {activeTab === "fees" && (
             <>
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-slate-300">Code *</label>
@@ -360,51 +341,6 @@ export function EditRecordDialog({
                     className="w-full pl-8 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
-              </div>
-            </>
-          )}
-
-          {activeTab === "notes" && (
-            <>
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300">Target Service *</label>
-                <select
-                  value={serviceId}
-                  onChange={(e) => handleServiceChange(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-                >
-                  {services.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300">Service Variant Scope (Optional)</label>
-                <select
-                  value={serviceVariantId}
-                  onChange={(e) => setServiceVariantId(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-                >
-                  <option value="">All Variants (Service-Wide)</option>
-                  {variants.map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {v.type} ({v.description})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300">Guideline Instruction Text *</label>
-                <textarea
-                  required
-                  placeholder="Enter compliance rules, document requirements, or general process instructions..."
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 min-h-[120px]"
-                />
               </div>
             </>
           )}

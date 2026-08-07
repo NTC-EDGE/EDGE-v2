@@ -166,7 +166,10 @@ export function MappingDialog({
               <div className="min-w-0">
                 <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">Variant</label>
                 <div className="w-full px-3.5 py-2.5 bg-slate-950/60 border border-slate-850 rounded-xl text-xs text-slate-500 select-none truncate">
-                  {dialogVariants.find(v => v.id === dialogVariantId)?.type || "Selected Variant"}
+                  {(() => {
+                    const t = dialogVariants.find(v => v.id === dialogVariantId)?.type;
+                    return t === "NA" ? "N/A" : (t || "Selected Variant");
+                  })()}
                 </div>
               </div>
             </div>
@@ -181,7 +184,10 @@ export function MappingDialog({
               <div className="min-w-0">
                 <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">Variant</label>
                 <div className="w-full px-3.5 py-2.5 bg-slate-950/60 border border-slate-850 rounded-xl text-xs text-slate-500 select-none truncate">
-                  {mappingVariants.find(v => v.id === mappingVariantId)?.type || "Selected Variant"}
+                  {(() => {
+                    const t = mappingVariants.find(v => v.id === mappingVariantId)?.type;
+                    return t === "NA" ? "N/A" : (t || "Selected Variant");
+                  })()}
                 </div>
               </div>
             </div>
@@ -216,7 +222,7 @@ export function MappingDialog({
                   ) : (
                     dialogVariants.map((v) => (
                       <option key={v.id} value={v.id}>
-                        {v.type} {v.description ? `- ${v.description}` : ""}
+                        {v.type === "NA" ? "N/A" : v.type} {v.description ? `- ${v.description}` : ""}
                       </option>
                     ))
                   )}
