@@ -106,11 +106,8 @@ jobs:
             # Ensure Docker network exists
             docker network create edge-network || true
 
-            # Strip port mapping from docker-compose.yml for production security (Standard Linux Bash Sed)
-            cd /opt/docker-stack/$CONTAINER_NAME
-            sed -i '/ports:/,+1d' docker-compose.yml
-
             # Restart the Compose stack
+            cd /opt/docker-stack/$CONTAINER_NAME
             docker compose down || true
             docker compose up -d
 

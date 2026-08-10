@@ -79,13 +79,12 @@ jobs:
           CLOUDFLARE_R2_BUCKET_NAME: ${{ vars.CLOUDFLARE_R2_BUCKET_NAME }}
           STORAGE_ENCRYPTION_MASTER_KEY: ${{ secrets.STORAGE_ENCRYPTION_MASTER_KEY }}
           CONTAINER_NAME: ${{ env.CONTAINER_NAME }}
-          TARGET_PORT: ${{ vars.PORT }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           passphrase: ${{ secrets.SSH_PASSPHRASE }}
-          envs: DB_CONNECTION_STRING,CLERK_SECRET_KEY,CLERK_WEBHOOK_SECRET,CLOUDFLARE_R2_ACCOUNT_ID,CLOUDFLARE_R2_ACCESS_KEY_ID,CLOUDFLARE_R2_SECRET_ACCESS_KEY,CLOUDFLARE_R2_BUCKET_NAME,STORAGE_ENCRYPTION_MASTER_KEY,CONTAINER_NAME,TARGET_PORT
+          envs: DB_CONNECTION_STRING,CLERK_SECRET_KEY,CLERK_WEBHOOK_SECRET,CLOUDFLARE_R2_ACCOUNT_ID,CLOUDFLARE_R2_ACCESS_KEY_ID,CLOUDFLARE_R2_SECRET_ACCESS_KEY,CLOUDFLARE_R2_BUCKET_NAME,STORAGE_ENCRYPTION_MASTER_KEY,CONTAINER_NAME
           script: |
             # Export environment variables for Docker Compose
             export ConnectionStrings__DefaultConnection="$DB_CONNECTION_STRING"
@@ -96,7 +95,6 @@ jobs:
             export CloudflareR2__SecretAccessKey="$CLOUDFLARE_R2_SECRET_ACCESS_KEY"
             export CloudflareR2__BucketName="$CLOUDFLARE_R2_BUCKET_NAME"
             export StorageEncryption__MasterEncryptionKey="$STORAGE_ENCRYPTION_MASTER_KEY"
-            export TARGET_PORT="$TARGET_PORT"
             export IMAGE_TAG="${{ github.sha }}"
             export IMAGE_NAME="edge-backend-dev"
             export CONTAINER_NAME="$CONTAINER_NAME"
@@ -105,11 +103,11 @@ jobs:
             # Load the Docker image
             gunzip -c /opt/docker-stack/$CONTAINER_NAME/backend-image-dev.tar.gz | docker load
             
-            # Strip edge-network config for local dev port mapping compatibility (Standard Linux Bash Sed)
-            cd /opt/docker-stack/$CONTAINER_NAME
-            sed -i '/networks:/,$d' docker-compose.yml
+            # Ensure Docker network exists
+            docker network create edge-network || true
 
             # Restart the Compose stack
+            cd /opt/docker-stack/$CONTAINER_NAME
             docker compose down || true
             docker compose up -d
 
