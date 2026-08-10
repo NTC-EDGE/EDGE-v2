@@ -49,17 +49,28 @@ jobs:
       name: staging
 
     steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
       - name: Download Compressed Image
         uses: actions/download-artifact@v4
         with:
           name: backend-image-staging
 
-      - name: Deploy to Server via SCP & SSH
+      - name: Copy Files via SCP
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          passphrase: ${{ secrets.SSH_PASSPHRASE }}
+          source: "apps/backend/docker-compose.yml,backend-image-staging.tar.gz"
+          target: "/opt/docker-stack/ntc-edge-api-staging"
+          strip_components: 2
+
+      - name: Deploy and Restart Stack via SSH
+        uses: appleboy/ssh-action@v1.0.3
         env:
-          SSH_HOST: ${{ secrets.SSH_HOST }}
-          SSH_USER: ${{ secrets.SSH_USER }}
-          SSH_KEY: ${{ secrets.SSH_KEY }}
-          SSH_PASSPHRASE: ${{ secrets.SSH_PASSPHRASE }}
           DB_CONNECTION_STRING: ${{ secrets.DB_CONNECTION_STRING }}
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
           CLERK_WEBHOOK_SECRET: ${{ secrets.CLERK_WEBHOOK_SECRET }}
@@ -68,61 +79,37 @@ jobs:
           CLOUDFLARE_R2_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
           CLOUDFLARE_R2_BUCKET_NAME: ${{ secrets.CLOUDFLARE_R2_BUCKET_NAME }}
           STORAGE_ENCRYPTION_MASTER_KEY: ${{ secrets.STORAGE_ENCRYPTION_MASTER_KEY }}
-          TARGET_PORT: ${{ vars.PORT }}
-        run: |
-          # Write SSH Private Key to file
-          mkdir -p ~/.ssh
-          echo "$SSH_KEY" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
- 
-          # Start SSH Agent
-          eval $(ssh-agent -s)
- 
-          # Add Key to Agent depending on passphrase presence
-          if [ -n "$SSH_PASSPHRASE" ]; then
-            echo "SSH passphrase provided. Adding key via expect..."
-            sudo apt-get update && sudo apt-get install -y expect
-            expect -c "
-              spawn ssh-add $HOME/.ssh/id_rsa
-              expect \"Enter passphrase\"
-              send \"$SSH_PASSPHRASE\r\"
-              expect eof
-            "
-          else
-            echo "No SSH passphrase provided. Adding key directly..."
-            ssh-add ~/.ssh/id_rsa
-          fi
- 
-          # Secure Copy Compressed Archive to Remote Host
-          scp -o StrictHostKeyChecking=no backend-image-staging.tar.gz $SSH_USER@$SSH_HOST:/tmp/backend-image-staging.tar.gz
- 
-          # Execute Deployment Commands on Remote Host
-          ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST << EOF
-            # Export environment variables safely using bash @Q quoting
-            export ConnectionStrings__DefaultConnection=${DB_CONNECTION_STRING@Q}
-            export Clerk__SecretKey=${CLERK_SECRET_KEY@Q}
-            export Clerk__WebhookSecret=${CLERK_WEBHOOK_SECRET@Q}
-            export CloudflareR2__AccountId=${CLOUDFLARE_R2_ACCOUNT_ID@Q}
-            export CloudflareR2__AccessKeyId=${CLOUDFLARE_R2_ACCESS_KEY_ID@Q}
-            export CloudflareR2__SecretAccessKey=${CLOUDFLARE_R2_SECRET_ACCESS_KEY@Q}
-            export CloudflareR2__BucketName=${CLOUDFLARE_R2_BUCKET_NAME@Q}
-            export StorageEncryption__MasterEncryptionKey=${STORAGE_ENCRYPTION_MASTER_KEY@Q}
-            export TARGET_PORT=${TARGET_PORT@Q}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          passphrase: ${{ secrets.SSH_PASSPHRASE }}
+          envs: DB_CONNECTION_STRING,CLERK_SECRET_KEY,CLERK_WEBHOOK_SECRET,CLOUDFLARE_R2_ACCOUNT_ID,CLOUDFLARE_R2_ACCESS_KEY_ID,CLOUDFLARE_R2_SECRET_ACCESS_KEY,CLOUDFLARE_R2_BUCKET_NAME,STORAGE_ENCRYPTION_MASTER_KEY
+          script: |
+            # Export environment variables for Docker Compose
+            export ConnectionStrings__DefaultConnection="$DB_CONNECTION_STRING"
+            export Clerk__SecretKey="$CLERK_SECRET_KEY"
+            export Clerk__WebhookSecret="$CLERK_WEBHOOK_SECRET"
+            export CloudflareR2__AccountId="$CLOUDFLARE_R2_ACCOUNT_ID"
+            export CloudflareR2__AccessKeyId="$CLOUDFLARE_R2_ACCESS_KEY_ID"
+            export CloudflareR2__SecretAccessKey="$CLOUDFLARE_R2_SECRET_ACCESS_KEY"
+            export CloudflareR2__BucketName="$CLOUDFLARE_R2_BUCKET_NAME"
+            export StorageEncryption__MasterEncryptionKey="$STORAGE_ENCRYPTION_MASTER_KEY"
+            export GITHUB_SHA="${{ github.sha }}"
+            export IMAGE_NAME="edge-backend-staging"
+            export CONTAINER_NAME="ntc-edge-api-staging"
+            export ASPNETCORE_ENVIRONMENT="Staging"
 
-            # Unzip and load image in stream
-            gunzip -c /tmp/backend-image-staging.tar.gz | docker load
-            docker stop edge-backend-staging || true
-            docker rm edge-backend-staging || true
-            docker run -d --name edge-backend-staging -p "\$TARGET_PORT":8080 \
-              -e ConnectionStrings__DefaultConnection \
-              -e Clerk__SecretKey \
-              -e Clerk__WebhookSecret \
-              -e CloudflareR2__AccountId \
-              -e CloudflareR2__AccessKeyId \
-              -e CloudflareR2__SecretAccessKey \
-              -e CloudflareR2__BucketName \
-              -e StorageEncryption__MasterEncryptionKey \
-              -e ASPNETCORE_ENVIRONMENT="Staging" \
-              edge-backend-staging:${{ github.sha }}
-            rm /tmp/backend-image-staging.tar.gz
-          EOF
+            # Load the Docker image
+            gunzip -c /opt/docker-stack/ntc-edge-api-staging/backend-image-staging.tar.gz | docker load
+            
+            # Ensure Docker network exists
+            docker network create edge-network || true
+
+            # Restart the Compose stack
+            cd /opt/docker-stack/ntc-edge-api-staging
+            docker compose down || true
+            docker compose up -d
+
+            # Clean up upload archive
+            rm -f /opt/docker-stack/ntc-edge-api-staging/backend-image-staging.tar.gz
