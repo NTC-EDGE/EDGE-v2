@@ -84,6 +84,7 @@ export function CategoryGrid({
         title: c.name,
         icon: icon as any,
         description: c.description || `NTC ${c.name} services.`,
+        totalServices: typeof c.totalServices === "number" ? c.totalServices : undefined,
         services: []
       };
     });
@@ -183,9 +184,11 @@ export function CategoryGrid({
                   if (category.id === "complaints" && (code === "REQ" || bc.type === "RequestsAndComplaints")) return true;
                   return false;
                 });
-                const servicesCount = allBackendServices && backendCat
-                  ? allBackendServices.filter((s: any) => s.serviceCategoryId === backendCat.id).length
-                  : category.services.length;
+                const servicesCount = category.totalServices !== undefined
+                  ? category.totalServices
+                  : (allBackendServices && backendCat
+                      ? allBackendServices.filter((s: any) => s.serviceCategoryId === backendCat.id).length
+                      : category.services.length);
 
                 return (
                   <Text style={styles.categoryCardCount}>

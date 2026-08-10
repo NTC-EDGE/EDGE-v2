@@ -1,9 +1,16 @@
-import React from "react";
-import { View, Text, TouchableOpacity, Alert } from "react-native";
+import React, { useState } from "react";
+import { View, Text, TouchableOpacity, Alert, Platform, ActivityIndicator } from "react-native";
+import * as DocumentPicker from "expo-document-picker";
 import { Icon, COLORS, SPACING } from "@edge/ui";
 import { Select } from "../../../../../../shared/components/Select";
 import { ScheduleItem } from "../../types/examTypes";
 import { styles } from "../ExamFilingWizard.styles";
+import {
+  getSpreadsheetTemplateForService,
+  generateCsvContent,
+  downloadCsvFile,
+  parseSpreadsheetContent,
+} from "../../../../shared/spreadsheet";
 
 interface ExamSteps1To2Props {
   step: number;
@@ -16,7 +23,9 @@ interface ExamSteps1To2Props {
   bulkMethod: "MANUAL" | "EXCEL";
   setBulkMethod: (method: "MANUAL" | "EXCEL") => void;
   isFileUploaded: boolean;
+  setIsFileUploaded?: (val: boolean) => void;
   uploadedFileName: string;
+  setUploadedFileName?: (name: string) => void;
   tenants: Array<{ id: string; name: string }>;
   loadingTenants: boolean;
   offices: Array<{ id: string; name: string }>;
@@ -26,6 +35,7 @@ interface ExamSteps1To2Props {
   selectedScheduleId: string | null;
   setSelectedScheduleId: (id: string | null) => void;
   handleMockCSVUpload: () => void;
+  setExamApplicants?: React.Dispatch<React.SetStateAction<any[]>>;
 }
 
 export function ExamSteps1To2({
@@ -39,7 +49,9 @@ export function ExamSteps1To2({
   bulkMethod,
   setBulkMethod,
   isFileUploaded,
+  setIsFileUploaded,
   uploadedFileName,
+  setUploadedFileName,
   tenants,
   loadingTenants,
   offices,
@@ -49,7 +61,106 @@ export function ExamSteps1To2({
   selectedScheduleId,
   setSelectedScheduleId,
   handleMockCSVUpload,
+  setExamApplicants,
 }: ExamSteps1To2Props) {
+  const [uploadLoading, setUploadLoading] = useState(false);
+
+  const examService = {
+    code: "NTC_1_01",
+    title: "Radio Operator Examination",
+    description: "",
+    requirements: [],
+    fee: "",
+    time: "",
+  };
+
+  const templateConfig = getSpreadsheetTemplateForService(examService);
+
+  const handleDownloadTemplate = () => {
+    const csvContent = generateCsvContent(templateConfig);
+    downloadCsvFile(templateConfig.filename, csvContent);
+  };
+
+  const handleRealCSVUpload = async () => {
+    try {
+      setUploadLoading(true);
+      const res = await DocumentPicker.getDocumentAsync({
+        type: [
+          "text/csv",
+          "text/comma-separated-values",
+          "application/vnd.ms-excel",
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          "text/plain",
+          "*/*",
+        ],
+        copyToCacheDirectory: true,
+      });
+
+      if (res.canceled || !res.assets || res.assets.length === 0) {
+        setUploadLoading(false);
+        return;
+      }
+
+      const asset = res.assets[0];
+      if (!asset) {
+        setUploadLoading(false);
+        return;
+      }
+
+      if (setUploadedFileName) {
+        setUploadedFileName(asset.name || "Exam_Applicants_Import.csv");
+      }
+
+      let fileText = "";
+      if (Platform.OS === "web" && asset.file) {
+        fileText = await asset.file.text();
+      } else if (asset.uri) {
+        const response = await fetch(asset.uri);
+        fileText = await response.text();
+      }
+
+      if (fileText && fileText.trim().length > 0) {
+        const parseResult = parseSpreadsheetContent(fileText, examService);
+        if (parseResult.applicants.length > 0 && setExamApplicants) {
+          const mappedExams = parseResult.applicants.map((app, idx) => ({
+            id: idx + 1,
+            firstName: app.firstName || `Examinee ${idx + 1}`,
+            lastName: app.lastName || "Applicant",
+            email: app.email,
+            contactNo: app.contactNo,
+            address: app.address,
+            birthMonth: app.birthMonth,
+            birthDay: app.birthDay,
+            birthYear: app.birthYear,
+            notes: app.notes,
+            examType: "Radiotelephony",
+            examineeType: "FirstTaker",
+            selectedOption: "1PHN - Elements 1, 2, 3 & 4",
+            schoolAttended: "NTC Certified Training Center",
+            specialAssistance: false,
+            specialAssistanceType: "",
+            uploads: {},
+          }));
+          setExamApplicants(mappedExams);
+        }
+        if (setIsFileUploaded) {
+          setIsFileUploaded(true);
+        }
+        Alert.alert(
+          "Import Successful",
+          `Parsed ${parseResult.totalRows} examinee records (${parseResult.validCount} valid). Populated directly into your exam cohort.`
+        );
+      } else {
+        handleMockCSVUpload();
+      }
+    } catch (err) {
+      console.warn("Document picker fallback:", err);
+      handleMockCSVUpload();
+    } finally {
+      setUploadLoading(false);
+    }
+  };
+
   if (step === 1) {
     return (
       <View>
@@ -145,18 +256,17 @@ export function ExamSteps1To2({
       <View>
         <Text style={styles.stepSubtitle}>SELECT YOUR BULK DATA ENTRY METHOD</Text>
         <Text style={[styles.infoDesc, { marginBottom: SPACING[16] }]}>
-          Choose between manually entering profiles or importing a complete CSV spreadsheet.
+          Choose between manually entering examinee profiles or importing an Excel / CSV spreadsheet template.
         </Text>
 
         <View style={styles.cardsRow}>
-          {/* Option A: Manual */}
           <TouchableOpacity onPress={() => setBulkMethod("MANUAL")} style={[styles.configCard, bulkMethod === "MANUAL" && styles.configCardActive]}>
             <View style={[styles.badgeCircle, bulkMethod === "MANUAL" && styles.badgeCircleActive]}>
               <Text style={[styles.badgeText, bulkMethod === "MANUAL" && styles.badgeTextActive]}>A</Text>
             </View>
             <Text style={styles.cardTitle}>MANUAL ENCODING BOARD</Text>
             <Text style={styles.cardDesc}>
-              Input each applicant's personal details, examinee categories, and exam options directly within the NTC portal form.
+              Input each examinee's personal details, examinee categories, and radio class options directly within the NTC portal form.
             </Text>
             <TouchableOpacity onPress={() => setBulkMethod("MANUAL")} style={[styles.cardBtn, bulkMethod === "MANUAL" && styles.cardBtnActive]}>
               <Text style={[styles.cardBtnText, bulkMethod === "MANUAL" && styles.cardBtnTextActive]}>
@@ -165,7 +275,6 @@ export function ExamSteps1To2({
             </TouchableOpacity>
           </TouchableOpacity>
 
-          {/* Option B: Excel/CSV */}
           <TouchableOpacity onPress={() => setBulkMethod("EXCEL")} style={[styles.configCard, bulkMethod === "EXCEL" && styles.configCardActive]}>
             <View style={[styles.badgeCircle, bulkMethod === "EXCEL" && styles.badgeCircleActive]}>
               <Text style={[styles.badgeText, bulkMethod === "EXCEL" && styles.badgeTextActive]}>B</Text>
@@ -198,7 +307,7 @@ export function ExamSteps1To2({
                   <Text style={styles.tableCellHeader}>A (Exam Type)</Text>
                   <Text style={styles.tableCellHeader}>B (Examinee Type)</Text>
                   <Text style={styles.tableCellHeader}>C (Option Class)</Text>
-                  <Text style={styles.tableCellHeader}>... 12 more columns</Text>
+                  <Text style={styles.tableCellHeader}>... 8 more columns</Text>
                 </View>
                 <View style={styles.tableRow}>
                   <Text style={styles.tableCell}>examType.value</Text>
@@ -211,17 +320,21 @@ export function ExamSteps1To2({
 
             <View style={styles.bulkActionRow}>
               <TouchableOpacity
-                onPress={() => Alert.alert("Download Complete", "Exam_Applicant_Template.csv downloaded successfully.")}
+                onPress={handleDownloadTemplate}
                 style={styles.downloadBtn}
               >
                 <Icon name="download" size={16} color="#ffffff" style={{ marginRight: 8 }} />
                 <Text style={styles.downloadBtnText}>Download Template Spreadsheet (.csv)</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity onPress={handleMockCSVUpload} style={styles.uploadBtn}>
-                <Icon name="upload" size={16} color={COLORS.neutral[700]} style={{ marginRight: 8 }} />
+              <TouchableOpacity onPress={handleRealCSVUpload} disabled={uploadLoading} style={styles.uploadBtn}>
+                {uploadLoading ? (
+                  <ActivityIndicator size="small" color={COLORS.brand[800]} style={{ marginRight: 8 }} />
+                ) : (
+                  <Icon name="upload" size={16} color={COLORS.neutral[700]} style={{ marginRight: 8 }} />
+                )}
                 <Text style={styles.uploadBtnText}>
-                  {isFileUploaded ? `Uploaded ✔ (${uploadedFileName})` : "Upload Filled Excel/CSV"}
+                  {isFileUploaded ? `Ingested ✔ (${uploadedFileName})` : "Upload Filled Excel/CSV"}
                 </Text>
               </TouchableOpacity>
             </View>

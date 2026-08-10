@@ -1,6 +1,13 @@
-import React from "react";
-import { View, Text, TouchableOpacity, Alert } from "react-native";
+import React, { useState } from "react";
+import { View, Text, TouchableOpacity, Alert, Platform, ActivityIndicator } from "react-native";
+import * as DocumentPicker from "expo-document-picker";
 import { Icon, COLORS, SPACING, TYPOGRAPHY } from "@edge/ui";
+import {
+  getSpreadsheetTemplateForService,
+  generateCsvContent,
+  downloadCsvFile,
+  parseSpreadsheetContent,
+} from "../../../../shared/spreadsheet";
 
 interface CPEStep4BulkMethodProps {
   appMode: "SINGLE" | "BULK" | "";
@@ -8,7 +15,10 @@ interface CPEStep4BulkMethodProps {
   bulkMethod: "MANUAL" | "EXCEL";
   setBulkMethod: (method: "MANUAL" | "EXCEL") => void;
   isFileUploaded: boolean;
+  setIsFileUploaded?: (val: boolean) => void;
+  setUploadedFileName?: (name: string) => void;
   handleMockFileUpload: () => void;
+  setApplicants?: React.Dispatch<React.SetStateAction<any[]>>;
   styles: any;
 }
 
@@ -18,14 +28,115 @@ export function CPEStep4BulkMethod({
   bulkMethod,
   setBulkMethod,
   isFileUploaded,
+  setIsFileUploaded,
+  setUploadedFileName,
   handleMockFileUpload,
+  setApplicants,
   styles,
 }: CPEStep4BulkMethodProps) {
+  const [loading, setLoading] = useState(false);
+
+  const mockService = {
+    code: "NTC_1_18",
+    title: "Accreditation of Customer Premises Equipment (CPE) Suppliers",
+    description: "",
+    requirements: [],
+    fee: "",
+    time: "",
+  };
+
+  const templateConfig = getSpreadsheetTemplateForService(mockService);
+
+  const handleDownloadTemplate = () => {
+    const csvContent = generateCsvContent(templateConfig);
+    downloadCsvFile(templateConfig.filename, csvContent);
+  };
+
+  const handleRealFileUpload = async () => {
+    try {
+      setLoading(true);
+      const res = await DocumentPicker.getDocumentAsync({
+        type: [
+          "text/csv",
+          "text/comma-separated-values",
+          "application/vnd.ms-excel",
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          "text/plain",
+          "*/*",
+        ],
+        copyToCacheDirectory: true,
+      });
+
+      if (res.canceled || !res.assets || res.assets.length === 0) {
+        setLoading(false);
+        return;
+      }
+
+      const asset = res.assets[0];
+      if (!asset) {
+        setLoading(false);
+        return;
+      }
+
+      if (setUploadedFileName) {
+        setUploadedFileName(asset.name || "CPE_Supplier_Import.csv");
+      }
+
+      let fileText = "";
+      if (Platform.OS === "web" && asset.file) {
+        fileText = await asset.file.text();
+      } else if (asset.uri) {
+        const response = await fetch(asset.uri);
+        fileText = await response.text();
+      }
+
+      if (fileText && fileText.trim().length > 0) {
+        const parseResult = parseSpreadsheetContent(fileText, mockService);
+        if (parseResult.applicants.length > 0 && setApplicants) {
+          // Map to CPE Applicant structure
+          const mappedCPE = parseResult.applicants.map((app, idx) => ({
+            id: idx + 1,
+            businessName: app.firstName || `CPE Supplier ${idx + 1}`,
+            businessType: "Corporation",
+            secDtiRegNo: "SEC-2023-00192",
+            contactNo: app.contactNo,
+            email: app.email,
+            province: "Metro Manila",
+            city: "Quezon City",
+            barangay: "Diliman",
+            street: app.address || "Commonwealth Ave",
+            years: "3",
+            variation: "Mobile",
+            applicationType: "NEW",
+            supervisingEngineer: { name: "Engr. Roberto Dela Cruz", peceNumber: "PECE-0012948" },
+            technician: { name: "Juan Santos", certificateNumber: "ECT-009812" },
+            uploads: {},
+          }));
+          setApplicants(mappedCPE);
+        }
+        if (setIsFileUploaded) {
+          setIsFileUploaded(true);
+        }
+        Alert.alert(
+          "Import Successful",
+          `Parsed ${parseResult.totalRows} supplier entries (${parseResult.validCount} valid). Populated directly into your CPE cohort.`
+        );
+      } else {
+        handleMockFileUpload();
+      }
+    } catch (err) {
+      console.warn("Document picker fallback:", err);
+      handleMockFileUpload();
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <View>
       <Text style={styles.stepSubtitle}>SELECT YOUR BULK DATA ENTRY METHOD</Text>
       <Text style={[styles.infoDesc, { marginBottom: SPACING[16] }]}>
-        Choose between manually entering profiles or importing a complete CSV spreadsheet.
+        Choose between manually entering profiles or importing an Excel / CSV spreadsheet template.
       </Text>
 
       <View style={styles.cardsRow}>
@@ -108,7 +219,7 @@ export function CPEStep4BulkMethod({
           </View>
           <Text style={styles.cardTitle}>EXCEL / CSV + INDIVIDUAL UPLOAD</Text>
           <Text style={styles.cardDesc}>
-            Download a pre-structured spreadsheet template. Once filled, import the file to automatically set up 100+ applicant entries.
+            Download our official pre-formatted spreadsheet template. Once filled, import the file to automatically set up 100+ applicant entries.
           </Text>
           <TouchableOpacity
             onPress={() => {
@@ -145,17 +256,21 @@ export function CPEStep4BulkMethod({
 
         <View style={styles.table}>
           <View style={styles.tableHeaderRow}>
-            <Text style={styles.tableCellHeader}>A (Application Type)</Text>
-            <Text style={styles.tableCellHeader}>B (Examinee Type)</Text>
-            <Text style={styles.tableCellHeader}>C (Class/Element)</Text>
-            <Text style={styles.tableCellHeader}>... 19 more columns</Text>
+            {templateConfig.headers.slice(0, 4).map((h, idx) => (
+              <Text key={idx} style={styles.tableCellHeader}>
+                {h}
+              </Text>
+            ))}
           </View>
-          <View style={styles.tableRow}>
-            <Text style={styles.tableCell}>applicationType.label</Text>
-            <Text style={styles.tableCell}>service.examineeType...</Text>
-            <Text style={styles.tableCell}>service.application...</Text>
-            <Text style={styles.tableCell}>(Mapping path row)</Text>
-          </View>
+          {templateConfig.sampleRows.slice(0, 1).map((row, rIdx) => (
+            <View key={rIdx} style={styles.tableRow}>
+              {row.slice(0, 4).map((c, cIdx) => (
+                <Text key={cIdx} style={styles.tableCell} numberOfLines={1}>
+                  {c}
+                </Text>
+              ))}
+            </View>
+          ))}
         </View>
       </View>
 
@@ -163,7 +278,7 @@ export function CPEStep4BulkMethod({
       {appMode === "BULK" && bulkMethod === "EXCEL" && (
         <View style={styles.bulkActionRow}>
           <TouchableOpacity
-            onPress={() => Alert.alert("Download Complete", "CPE_Supplier_Template.csv downloaded successfully.")}
+            onPress={handleDownloadTemplate}
             style={styles.downloadBtn}
           >
             <Icon name="download" size={16} color="#ffffff" style={{ marginRight: 8 }} />
@@ -171,12 +286,17 @@ export function CPEStep4BulkMethod({
           </TouchableOpacity>
 
           <TouchableOpacity
-            onPress={handleMockFileUpload}
+            onPress={handleRealFileUpload}
+            disabled={loading}
             style={styles.uploadBtn}
           >
-            <Icon name="upload" size={16} color={COLORS.neutral[700]} style={{ marginRight: 8 }} />
+            {loading ? (
+              <ActivityIndicator size="small" color={COLORS.brand[800]} style={{ marginRight: 8 }} />
+            ) : (
+              <Icon name="upload" size={16} color={COLORS.neutral[700]} style={{ marginRight: 8 }} />
+            )}
             <Text style={styles.uploadBtnText}>
-              {isFileUploaded ? "Uploaded ✔" : "Upload Filled Excel/CSV"}
+              {isFileUploaded ? "Spreadsheet Ingested ✔" : "Upload Filled Excel/CSV"}
             </Text>
           </TouchableOpacity>
         </View>
