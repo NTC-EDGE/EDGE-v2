@@ -82,12 +82,13 @@ jobs:
           CLOUDFLARE_R2_BUCKET_NAME: ${{ secrets.CLOUDFLARE_R2_BUCKET_NAME }}
           STORAGE_ENCRYPTION_MASTER_KEY: ${{ secrets.STORAGE_ENCRYPTION_MASTER_KEY }}
           CONTAINER_NAME: ${{ env.CONTAINER_NAME }}
+          TARGET_PORT: ${{ vars.PORT }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           passphrase: ${{ secrets.SSH_PASSPHRASE }}
-          envs: DB_CONNECTION_STRING,CLERK_SECRET_KEY,CLERK_WEBHOOK_SECRET,CLOUDFLARE_R2_ACCOUNT_ID,CLOUDFLARE_R2_ACCESS_KEY_ID,CLOUDFLARE_R2_SECRET_ACCESS_KEY,CLOUDFLARE_R2_BUCKET_NAME,STORAGE_ENCRYPTION_MASTER_KEY,CONTAINER_NAME
+          envs: DB_CONNECTION_STRING,CLERK_SECRET_KEY,CLERK_WEBHOOK_SECRET,CLOUDFLARE_R2_ACCOUNT_ID,CLOUDFLARE_R2_ACCESS_KEY_ID,CLOUDFLARE_R2_SECRET_ACCESS_KEY,CLOUDFLARE_R2_BUCKET_NAME,STORAGE_ENCRYPTION_MASTER_KEY,CONTAINER_NAME,TARGET_PORT
           script: |
             # Export environment variables for Docker Compose
             export ConnectionStrings__DefaultConnection="$DB_CONNECTION_STRING"
@@ -98,6 +99,7 @@ jobs:
             export CloudflareR2__SecretAccessKey="$CLOUDFLARE_R2_SECRET_ACCESS_KEY"
             export CloudflareR2__BucketName="$CLOUDFLARE_R2_BUCKET_NAME"
             export StorageEncryption__MasterEncryptionKey="$STORAGE_ENCRYPTION_MASTER_KEY"
+            export TARGET_PORT="$TARGET_PORT"
             export GITHUB_SHA="${{ github.sha }}"
             export IMAGE_NAME="edge-backend-staging"
             export CONTAINER_NAME="$CONTAINER_NAME"
