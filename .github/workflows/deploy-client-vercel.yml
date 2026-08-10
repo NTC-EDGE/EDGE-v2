@@ -6,10 +6,6 @@ on:
       - develop
     tags:
       - 'client-v*'
-    paths:
-      - 'apps/frontend/client/**'
-      - 'packages/api/**'
-      - '.github/workflows/deploy-client-vercel.yml'
   pull_request:
     branches:
       - develop

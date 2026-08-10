@@ -6,10 +6,6 @@ on:
       - develop
     tags:
       - 'admin-v*'
-    paths:
-      - 'apps/frontend/admin/**'
-      - 'packages/api/**'
-      - '.github/workflows/deploy-admin-vercel.yml'
   pull_request:
     branches:
       - develop

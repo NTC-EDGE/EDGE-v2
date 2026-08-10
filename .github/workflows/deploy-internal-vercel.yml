@@ -6,10 +6,6 @@ on:
       - develop
     tags:
       - 'internal-v*'
-    paths:
-      - 'apps/frontend/internal/**'
-      - 'packages/api/**'
-      - '.github/workflows/deploy-internal-vercel.yml'
   pull_request:
     branches:
       - develop
