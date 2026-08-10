@@ -7,11 +7,6 @@ on:
     paths:
       - 'apps/backend/**'
       - '.github/workflows/deploy-backend-dev.yml'
-  pull_request:
-    branches:
-      - develop
-    paths:
-      - 'apps/backend/**'
 
 jobs:
   build:
@@ -57,26 +52,16 @@ jobs:
         with:
           name: backend-image-dev
 
-      - name: Copy docker-compose.yml via SCP
+      - name: Copy Files via SCP
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           passphrase: ${{ secrets.SSH_PASSPHRASE }}
-          source: "apps/backend/docker-compose.yml"
+          source: "apps/backend/docker-compose.yml,backend-image-dev.tar.gz"
           target: "/opt/docker-stack/ntc-edge-api-dev"
           strip_components: 2
-
-      - name: Copy Compressed Image via SCP
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          passphrase: ${{ secrets.SSH_PASSPHRASE }}
-          source: "backend-image-dev.tar.gz"
-          target: "/tmp"
 
       - name: Deploy and Restart Stack via SSH
         uses: appleboy/ssh-action@v1.0.3
@@ -111,7 +96,7 @@ jobs:
             export ASPNETCORE_ENVIRONMENT="Development"
 
             # Load the Docker image
-            gunzip -c /tmp/backend-image-dev.tar.gz | docker load
+            gunzip -c /opt/docker-stack/ntc-edge-api-dev/backend-image-dev.tar.gz | docker load
             
             # Ensure Docker network exists
             docker network create edge-network || true
@@ -121,7 +106,5 @@ jobs:
             docker compose down || true
             docker compose up -d
 
-            # Clean up upload
-            rm /tmp/backend-image-dev.tar.gz
-
-
+            # Clean up upload archive
+            rm -f /opt/docker-stack/ntc-edge-api-dev/backend-image-dev.tar.gz
