@@ -126,8 +126,11 @@ jobs:
               exit 1
             fi
 
-            echo "🔍 Checking API port connectivity..."
-            if docker exec $CONTAINER_NAME wget --spider -q http://localhost:8080/ || docker exec $CONTAINER_NAME curl -s http://localhost:8080/ > /dev/null; then
+            # Retrieve internal IP address of container
+            CONTAINER_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}} {{end}}' $CONTAINER_NAME | awk '{print $1}')
+
+            echo "🔍 Checking API port connectivity on $CONTAINER_IP:8080..."
+            if curl -s --max-time 5 http://$CONTAINER_IP:8080/ > /dev/null; then
               echo "✅ Success: API is up and responding!"
             else
               echo "❌ Error: API is not responding on port 8080!"
