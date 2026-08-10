@@ -53,6 +53,9 @@ jobs:
         with:
           name: backend-image-prod
 
+      - name: Copy docker-compose.yml to workspace root
+        run: cp apps/backend/docker-compose.yml ./docker-compose.yml
+
       - name: Copy Files via SCP
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -60,9 +63,8 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           passphrase: ${{ secrets.SSH_PASSPHRASE }}
-          source: "apps/backend/docker-compose.yml,backend-image-prod.tar.gz"
+          source: "docker-compose.yml,backend-image-prod.tar.gz"
           target: "/opt/docker-stack/${{ env.CONTAINER_NAME }}"
-          strip_components: 2
 
       - name: Deploy and Restart Stack via SSH
         uses: appleboy/ssh-action@v1.0.3
@@ -93,6 +95,7 @@ jobs:
             export CloudflareR2__BucketName="$CLOUDFLARE_R2_BUCKET_NAME"
             export StorageEncryption__MasterEncryptionKey="$STORAGE_ENCRYPTION_MASTER_KEY"
             export GITHUB_SHA="${{ github.sha }}"
+            export IMAGE_TAG="${{ github.sha }}"
             export IMAGE_NAME="edge-backend-prod"
             export CONTAINER_NAME="$CONTAINER_NAME"
             export ASPNETCORE_ENVIRONMENT="Production"
