@@ -105,6 +105,10 @@ jobs:
             
             # Restart the Compose stack
             cd /opt/docker-stack/$CONTAINER_NAME
+            
+            # Remove stale override file from previous deployments
+            rm -f docker-compose.override.yml
+
             docker compose down || true
             docker compose up -d
 

@@ -112,6 +112,9 @@ jobs:
             cd /opt/docker-stack/$CONTAINER_NAME
             sed -i 's/edge-network/npm-default/g' docker-compose.yml
 
+            # Remove stale override file from previous deployments
+            rm -f docker-compose.override.yml
+
             # Restart the Compose stack
             docker compose down || true
             docker compose up -d
