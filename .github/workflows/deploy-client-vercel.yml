@@ -22,8 +22,6 @@ jobs:
   deploy:
     name: Deploy to Vercel
     runs-on: ubuntu-latest
-    environment:
-      name: ${{ (github.ref == 'refs/heads/main' || github.ref_type == 'tag') && 'production' || 'development' }}
     permissions:
       contents: read
       pull-requests: write
