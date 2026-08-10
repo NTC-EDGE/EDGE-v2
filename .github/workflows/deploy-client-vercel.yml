@@ -22,6 +22,8 @@ jobs:
   deploy:
     name: Deploy to Vercel
     runs-on: ubuntu-latest
+    environment:
+      name: development
     permissions:
       contents: read
       pull-requests: write
