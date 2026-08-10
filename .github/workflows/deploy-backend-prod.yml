@@ -51,12 +51,30 @@ jobs:
         with:
           name: backend-image-prod
 
-      - name: Deploy to Server via SCP & SSH
+      - name: Copy docker-compose.yml via SCP
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          passphrase: ${{ secrets.SSH_PASSPHRASE }}
+          source: "apps/backend/docker-compose.yml"
+          target: "/opt/docker-stack/ntc-edge-api"
+          strip_components: 2
+
+      - name: Copy Compressed Image via SCP
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          passphrase: ${{ secrets.SSH_PASSPHRASE }}
+          source: "backend-image-prod.tar.gz"
+          target: "/tmp"
+
+      - name: Deploy and Restart Stack via SSH
+        uses: appleboy/ssh-action@v1.0.3
         env:
-          SSH_HOST: ${{ secrets.SSH_HOST }}
-          SSH_USER: ${{ secrets.SSH_USER }}
-          SSH_KEY: ${{ secrets.SSH_KEY }}
-          SSH_PASSPHRASE: ${{ secrets.SSH_PASSPHRASE }}
           DB_CONNECTION_STRING: ${{ secrets.DB_CONNECTION_STRING }}
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
           CLERK_WEBHOOK_SECRET: ${{ secrets.CLERK_WEBHOOK_SECRET }}
@@ -65,65 +83,37 @@ jobs:
           CLOUDFLARE_R2_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
           CLOUDFLARE_R2_BUCKET_NAME: ${{ vars.CLOUDFLARE_R2_BUCKET_NAME }}
           STORAGE_ENCRYPTION_MASTER_KEY: ${{ secrets.STORAGE_ENCRYPTION_MASTER_KEY }}
-        run: |
-          # Write SSH Private Key to file
-          mkdir -p ~/.ssh
-          echo "$SSH_KEY" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
- 
-          # Start SSH Agent
-          eval $(ssh-agent -s)
- 
-          # Add Key to Agent depending on passphrase presence
-          if [ -n "$SSH_PASSPHRASE" ]; then
-            echo "SSH passphrase provided. Adding key via expect..."
-            sudo apt-get update && sudo apt-get install -y expect
-            expect -c "
-              spawn ssh-add $HOME/.ssh/id_rsa
-              expect \"Enter passphrase\"
-              send \"$SSH_PASSPHRASE\r\"
-              expect eof
-            "
-          else
-            echo "No SSH passphrase provided. Adding key directly..."
-            ssh-add ~/.ssh/id_rsa
-          fi
- 
-            # Secure Copy docker-compose.yml to Remote Host
-            ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST "mkdir -p /opt/docker-stack/ntc-edge-api"
-            scp -o StrictHostKeyChecking=no apps/backend/docker-compose.yml $SSH_USER@$SSH_HOST:/opt/docker-stack/ntc-edge-api/docker-compose.yml
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          passphrase: ${{ secrets.SSH_PASSPHRASE }}
+          envs: DB_CONNECTION_STRING,CLERK_SECRET_KEY,CLERK_WEBHOOK_SECRET,CLOUDFLARE_R2_ACCOUNT_ID,CLOUDFLARE_R2_ACCESS_KEY_ID,CLOUDFLARE_R2_SECRET_ACCESS_KEY,CLOUDFLARE_R2_BUCKET_NAME,STORAGE_ENCRYPTION_MASTER_KEY
+          script: |
+            # Export environment variables for Docker Compose
+            export ConnectionStrings__DefaultConnection="$DB_CONNECTION_STRING"
+            export Clerk__SecretKey="$CLERK_SECRET_KEY"
+            export Clerk__WebhookSecret="$CLERK_WEBHOOK_SECRET"
+            export CloudflareR2__AccountId="$CLOUDFLARE_R2_ACCOUNT_ID"
+            export CloudflareR2__AccessKeyId="$CLOUDFLARE_R2_ACCESS_KEY_ID"
+            export CloudflareR2__SecretAccessKey="$CLOUDFLARE_R2_SECRET_ACCESS_KEY"
+            export CloudflareR2__BucketName="$CLOUDFLARE_R2_BUCKET_NAME"
+            export StorageEncryption__MasterEncryptionKey="$STORAGE_ENCRYPTION_MASTER_KEY"
+            export GITHUB_SHA="${{ github.sha }}"
+            export IMAGE_NAME="edge-backend-prod"
+            export CONTAINER_NAME="ntc-edge-api"
+            export ASPNETCORE_ENVIRONMENT="Production"
 
-            # Secure Copy Compressed Archive to Remote Host
-            scp -o StrictHostKeyChecking=no backend-image-prod.tar.gz $SSH_USER@$SSH_HOST:/tmp/backend-image-prod.tar.gz
-  
-            # Execute Deployment Commands on Remote Host
-            ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST << EOF
-              # Export environment variables safely using bash @Q quoting
-              export ConnectionStrings__DefaultConnection=${DB_CONNECTION_STRING@Q}
-              export Clerk__SecretKey=${CLERK_SECRET_KEY@Q}
-              export Clerk__WebhookSecret=${CLERK_WEBHOOK_SECRET@Q}
-              export CloudflareR2__AccountId=${CLOUDFLARE_R2_ACCOUNT_ID@Q}
-              export CloudflareR2__AccessKeyId=${CLOUDFLARE_R2_ACCESS_KEY_ID@Q}
-              export CloudflareR2__SecretAccessKey=${CLOUDFLARE_R2_SECRET_ACCESS_KEY@Q}
-              export CloudflareR2__BucketName=${CLOUDFLARE_R2_BUCKET_NAME@Q}
-              export StorageEncryption__MasterEncryptionKey=${STORAGE_ENCRYPTION_MASTER_KEY@Q}
-              export GITHUB_SHA=${{ github.sha }}
-              export IMAGE_NAME="edge-backend-prod"
-              export CONTAINER_NAME="ntc-edge-api"
-              export ASPNETCORE_ENVIRONMENT="Production"
+            # Load the Docker image
+            gunzip -c /tmp/backend-image-prod.tar.gz | docker load
+            
+            # Ensure Docker network exists
+            docker network create edge-network || true
 
-              # Unzip and load image in stream
-              gunzip -c /tmp/backend-image-prod.tar.gz | docker load
-              
-              # Ensure the external network exists on the server first
-              docker network create edge-network || true
+            # Restart the Compose stack
+            cd /opt/docker-stack/ntc-edge-api
+            docker compose down || true
+            docker compose up -d
 
-              # Spin up using docker-compose
-              cd /opt/docker-stack/ntc-edge-api
-              docker compose down || true
-              docker compose up -d
-
-              
-              # Clean up temporary archive file
-              rm /tmp/backend-image-prod.tar.gz
-EOF
+            # Clean up upload
+            rm /tmp/backend-image-prod.tar.gz
