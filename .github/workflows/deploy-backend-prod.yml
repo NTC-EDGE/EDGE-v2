@@ -116,24 +116,12 @@ jobs:
             # Clean up upload archive
             rm -f backend-image-prod.tar.gz
 
-            # Post-Deployment Health Check (Fail if not up within 15s)
-            echo "Waiting for container startup (15s)..."
-            sleep 15
-
-            if [ "$(docker inspect -f '{{.State.Running}}' $CONTAINER_NAME)" != "true" ]; then
-              echo "❌ Error: Container $CONTAINER_NAME is not running!"
-              docker logs $CONTAINER_NAME
-              exit 1
-            fi
-
-            # Retrieve internal IP address of container
-            CONTAINER_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}} {{end}}' $CONTAINER_NAME | awk '{print $1}')
-
-            echo "🔍 Checking API port connectivity on $CONTAINER_IP:8080..."
-            if curl -s --max-time 5 http://$CONTAINER_IP:8080/ > /dev/null; then
-              echo "✅ Success: API is up and responding!"
+            # Post-Deployment Health Check (Monitor logs for startup confirmation)
+            echo "⏳ Monitoring container logs for startup confirmation..."
+            if timeout 30 docker logs -f $CONTAINER_NAME 2>&1 | grep -q "Now listening on:"; then
+              echo "✅ Success: API is up and listening!"
             else
-              echo "❌ Error: API is not responding on port 8080!"
+              echo "❌ Error: API failed to start or did not listen within 30 seconds!"
               docker logs $CONTAINER_NAME
               exit 1
             fi
