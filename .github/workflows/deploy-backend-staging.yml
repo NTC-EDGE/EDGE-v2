@@ -108,13 +108,13 @@ jobs:
             # Load the Docker image
             gunzip -c /opt/docker-stack/$CONTAINER_NAME/backend-image-staging.tar.gz | docker load
             
-            # Ensure Docker network exists
-            docker network create edge-network || true
+            # Strip edge-network config for local dev port mapping compatibility
+            cd /opt/docker-stack/$CONTAINER_NAME
+            sed -i '/networks:/,$d' docker-compose.yml
 
             # Restart the Compose stack
-            cd /opt/docker-stack/$CONTAINER_NAME
             docker compose down || true
             docker compose up -d
 
             # Clean up upload archive
-            rm -f /opt/docker-stack/$CONTAINER_NAME/backend-image-staging.tar.gz
+            rm -f backend-image-staging.tar.gz
