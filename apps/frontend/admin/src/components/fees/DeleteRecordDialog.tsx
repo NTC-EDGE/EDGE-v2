@@ -12,7 +12,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { ServiceCatalogItem, ServiceCategoryItem } from "@/services/feesNotesService";
+import { ServiceCatalogItem, ServiceCategoryItem } from "@/services/feesService";
 
 export interface DeleteRecordDialogProps {
   open: boolean;

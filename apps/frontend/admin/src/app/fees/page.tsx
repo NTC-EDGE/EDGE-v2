@@ -2,17 +2,17 @@
 
 import React, { useState, useEffect } from "react";
 import { CircleDollarSign, Plus, Search, Coins, Tag, CheckCircle2, Blocks, Scale } from "lucide-react";
-import { useFeesNotesService } from "@/services/feesNotesService";
+import { useFeesService } from "@/services/feesService";
 import { useAdminScope } from "@/lib/admin-scope-context";
 import { useSWRConfig } from "swr";
 import { Fee, ServiceFee, ServiceVariantFee, ServiceVariantElementFee, Element } from "@edge/api";
 import { Button } from "@/components/ui/button";
-import { FeesTable } from "@/components/fees-notes/FeesTable";
-import { ServiceFeesTable } from "@/components/fees-notes/ServiceFeesTable";
-import { ServiceVariantFeesTable } from "@/components/fees-notes/ServiceVariantFeesTable";
-import { ServiceVariantElementFeesTable } from "@/components/fees-notes/ServiceVariantElementFeesTable";
-import { CreateRecordDialog } from "@/components/fees-notes/CreateRecordDialog";
-import { EditRecordDialog } from "@/components/fees-notes/EditRecordDialog";
+import { FeesTable } from "@/components/fees/FeesTable";
+import { ServiceFeesTable } from "@/components/fees/ServiceFeesTable";
+import { ServiceVariantFeesTable } from "@/components/fees/ServiceVariantFeesTable";
+import { ServiceVariantElementFeesTable } from "@/components/fees/ServiceVariantElementFeesTable";
+import { CreateRecordDialog } from "@/components/fees/CreateRecordDialog";
+import { EditRecordDialog } from "@/components/fees/EditRecordDialog";
 import { ConfirmActionDialog } from "@/components/ui/confirm-action-dialog";
 import { isForbiddenError, PageForbiddenState } from "@/components/PageForbiddenState";
 
@@ -36,7 +36,7 @@ export default function FeesNotesPage() {
     useServiceVariantFees, createServiceVariantFee, updateServiceVariantFee, deleteServiceVariantFee,
     useServiceVariantElementFees, createServiceVariantElementFee, updateServiceVariantElementFee, deleteServiceVariantElementFee,
     useElements, useServices,
-  } = useFeesNotesService();
+  } = useFeesService();
 
   const [activeTab, setActiveTab] = useState<TabType>("fees");
   const [searchTerm, setSearchTerm] = useState("");

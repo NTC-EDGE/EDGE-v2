@@ -4,7 +4,7 @@ import React from "react";
 import { BookOpen, Edit2, Trash2 } from "lucide-react";
 import { Note } from "@edge/api";
 import { DataTable, ColumnDef } from "@/components/ui/data-table";
-import { ServiceCategoryItem } from "@/services/feesNotesService";
+import { ServiceCategoryItem } from "@/services/feesService";
 
 export interface NotesTableProps {
   notes: Note[];

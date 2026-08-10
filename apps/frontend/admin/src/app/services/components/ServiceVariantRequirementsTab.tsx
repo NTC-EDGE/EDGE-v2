@@ -68,27 +68,6 @@ export function ServiceVariantRequirementsTab({
         </span>
       ),
     },
-    {
-      header: "Actions",
-      accessorKey: "id",
-      cell: (_, row) => (
-        <div className="flex items-center justify-end gap-1.5">
-          <button
-            onClick={() => onEditMapping(row)}
-            className="p-1.5 rounded-lg border border-slate-800 hover:bg-slate-850 hover:text-white transition-colors"
-          >
-            <Edit className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={() => onDeleteMapping(row.id)}
-            className="p-1.5 rounded-lg border border-slate-855 hover:bg-slate-850 hover:text-rose-400 transition-colors"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      ),
-      className: "text-right",
-    },
   ];
 
   return (
@@ -99,6 +78,19 @@ export function ServiceVariantRequirementsTab({
           columns={columns}
           loading={loadingAllMapped}
           emptyState={<div>No service variant requirements registered.</div>}
+          rowActionMenu={(row) => [
+            {
+              label: "Edit Checklist Rule",
+              icon: Edit,
+              onClick: () => onEditMapping(row),
+            },
+            {
+              label: "Delete Checklist Rule",
+              icon: Trash2,
+              onClick: () => onDeleteMapping(row.id),
+              variant: "destructive" as const,
+            },
+          ]}
           pagination={
             filteredFlatMappings.length > 0
               ? {

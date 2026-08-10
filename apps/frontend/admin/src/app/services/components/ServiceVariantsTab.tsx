@@ -1,59 +1,115 @@
 "use client";
 
-import { Edit, Trash2, Loader2 } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Settings2, Edit, Trash2, Filter, Search, X, Folder } from "lucide-react";
 import { ServiceVariant } from "@edge/api";
-import { DataTable, ColumnDef } from "@/components/ui/data-table";
+import { DataTable, ColumnDef, ActionMenuItem } from "@/components/ui/data-table";
+import { ServiceCatalogItem } from "@/services/feesService";
+import { ServiceCategory } from "@/services/catalogService";
+
 interface ServiceVariantsTabProps {
   loadingVariants: boolean;
   pagedVariants: ServiceVariant[];
-  filteredVariants: ServiceVariant[];
+  totalCount: number;
   variantsPage: number;
   pageSize: number;
   onPageChange: (page: number) => void;
   onPageSizeChange: (size: number) => void;
   onEditVariant: (v: ServiceVariant) => void;
   onDeleteVariant: (id: string) => void;
+  categories: ServiceCategory[];
+  services: ServiceCatalogItem[];
+  filterServiceId: string;
+  onFilterServiceChange: (serviceId: string) => void;
+  searchTerm: string;
+  onSearchChange: (val: string) => void;
+  onClearFilters: () => void;
 }
 
 export function ServiceVariantsTab({
   loadingVariants,
   pagedVariants,
-  filteredVariants,
+  totalCount,
   variantsPage,
   pageSize,
   onPageChange,
   onPageSizeChange,
   onEditVariant,
   onDeleteVariant,
+  categories,
+  services,
+  filterServiceId,
+  onFilterServiceChange,
+  searchTerm,
+  onSearchChange,
+  onClearFilters,
 }: ServiceVariantsTabProps) {
+  const [showFilters, setShowFilters] = useState(false);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
+
+  // Filter services list based on selected category (UI-only helper for easy navigation)
+  const filteredServices = useMemo(() => {
+    if (selectedCategoryId.trim().length === 0) {
+      return services;
+    }
+    return services.filter((s) => s.serviceCategoryId === selectedCategoryId);
+  }, [services, selectedCategoryId]);
+
+  const handleCategoryChange = (categoryId: string) => {
+    setSelectedCategoryId(categoryId);
+    if (categoryId.trim().length > 0) {
+      const isCurrentServiceInCategory = services.some(
+        (s) => s.id === filterServiceId && s.serviceCategoryId === categoryId
+      );
+      if (!isCurrentServiceInCategory) {
+        onFilterServiceChange("");
+      }
+    }
+  };
+
+  const handleClearAll = () => {
+    setSelectedCategoryId("");
+    onClearFilters();
+  };
+
+  const selectedCategory = categories.find((c) => c.id === selectedCategoryId);
+  const selectedService = services.find((s) => s.id === filterServiceId);
+  const hasActiveFilters = selectedCategoryId !== "" || filterServiceId !== "" || searchTerm.trim().length > 0;
+
   const columns: ColumnDef<ServiceVariant>[] = [
     {
       header: "Service",
       accessorKey: "serviceName",
-      cell: (val) => <span className="font-medium text-slate-400 max-w-xs truncate block">{val ? String(val) : "Global Service"}</span>,
+      cell: (val) => (
+        <span className="font-semibold text-slate-300 max-w-xs truncate block">
+          {val !== null && val !== undefined && String(val).trim().length > 0 ? String(val) : "Global Service"}
+        </span>
+      ),
     },
     {
       header: "Type",
       accessorKey: "type",
       cell: (val) => {
-        const typeStr = String(val);
-        if (typeStr === "NA") return null;
-        
+        const typeStr = val !== null && val !== undefined ? String(val) : "";
+        if (typeStr === "NA" || typeStr.length === 0) return null;
+
         const isNewStyle = ["New", "FirstTaker", "First-taker", "VSAT"].includes(typeStr);
         const isRenewalStyle = ["Renewal", "Retaker"].includes(typeStr);
-        
+
         let label = typeStr;
         if (typeStr === "FirstTaker") label = "First-taker";
         else if (typeStr === "CivicActionGroup") label = "Civic Action Group";
 
         return (
-          <span className={`text-[10px] px-2 py-0.5 rounded border uppercase inline-block font-bold ${
-            isNewStyle
-              ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" 
-              : isRenewalStyle
-              ? "bg-amber-500/10 text-amber-400 border-amber-500/20" 
-              : "bg-sky-500/10 text-sky-400 border-sky-500/20"
-          }`}>
+          <span
+            className={`text-[10px] px-2.5 py-0.5 rounded-lg border uppercase inline-block font-bold tracking-wide ${
+              isNewStyle
+                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                : isRenewalStyle
+                ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                : "bg-sky-500/10 text-sky-400 border-sky-500/20"
+            }`}
+          >
             {label}
           </span>
         );
@@ -62,44 +118,227 @@ export function ServiceVariantsTab({
     {
       header: "Description",
       accessorKey: "description",
-      cell: (val) => <span className="text-slate-400 max-w-sm truncate block">{val ? String(val) : "No description."}</span>,
-    },
-    {
-      header: "Actions",
-      accessorKey: "id",
-      cell: (_, row) => (
-        <div className="flex items-center justify-end gap-1.5">
-          <button
-            onClick={() => onEditVariant(row)}
-            className="p-1.5 rounded-lg border border-slate-800 hover:bg-slate-850 hover:text-white transition-colors"
-          >
-            <Edit className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={() => onDeleteVariant(row.id)}
-            className="p-1.5 rounded-lg border border-slate-800 hover:bg-slate-850 hover:text-rose-400 transition-colors"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
-        </div>
+      cell: (val) => (
+        <span className="text-slate-400 max-w-sm truncate block text-xs">
+          {val !== null && val !== undefined && String(val).trim().length > 0 ? String(val) : "No description."}
+        </span>
       ),
-      className: "text-right",
     },
   ];
 
   return (
-    <div className="p-4 md:p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-4">
+      {/* Header & Quick Controls Toolbar */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-bold text-white flex items-center gap-2">
+            <Settings2 className="w-4 h-4 text-indigo-400" />
+            Service Variants
+          </h2>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Configure application types, pricing parameters, and requirements per service.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap sm:flex-nowrap">
+          {/* Quick Category Filter Dropdown */}
+          <div className="w-full sm:w-48">
+            <select
+              value={selectedCategoryId}
+              onChange={(e) => handleCategoryChange(e.target.value)}
+              className="w-full px-3 py-1.5 bg-slate-900 text-slate-100 border border-slate-800 rounded-xl text-xs focus:outline-none focus:border-indigo-500 cursor-pointer"
+              aria-label="Filter services by category"
+            >
+              <option value="" className="bg-slate-900 text-slate-100 py-1">All Categories</option>
+              {categories.map((cat) => (
+                <option key={cat.id} value={cat.id} className="bg-slate-900 text-slate-100 py-1">
+                  {cat.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Quick Service Filter Dropdown */}
+          <div className="w-full sm:w-56">
+            <select
+              value={filterServiceId}
+              onChange={(e) => onFilterServiceChange(e.target.value)}
+              className="w-full px-3 py-1.5 bg-slate-900 text-slate-100 border border-slate-800 rounded-xl text-xs focus:outline-none focus:border-indigo-500 cursor-pointer"
+              aria-label="Filter variants by service"
+            >
+              <option value="" className="bg-slate-900 text-slate-100 py-1">
+                {selectedCategoryId ? `All in Category (${filteredServices.length})` : "All Services"}
+              </option>
+              {filteredServices.map((s) => (
+                <option key={s.id} value={s.id} className="bg-slate-900 text-slate-100 py-1">
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Filter toggle button */}
+          <button
+            type="button"
+            onClick={() => setShowFilters((v) => !v)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors shrink-0 ${
+              hasActiveFilters
+                ? "bg-indigo-600/20 border-indigo-500/40 text-indigo-300"
+                : "bg-slate-900 border-slate-800 text-slate-400 hover:text-white"
+            }`}
+          >
+            <Filter className="w-3.5 h-3.5" />
+            Filter
+            {hasActiveFilters && (
+              <span className="bg-indigo-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-none">
+                ON
+              </span>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Expanded Filters Panel */}
+      {showFilters && (
+        <div className="flex flex-col md:flex-row items-start md:items-end gap-3 bg-slate-900/60 border border-slate-800 p-4 rounded-xl">
+          <div className="flex flex-col gap-1.5 w-full md:w-56">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+              <Folder className="w-3 h-3 text-indigo-400" />
+              Filter by Category
+            </label>
+            <select
+              value={selectedCategoryId}
+              onChange={(e) => handleCategoryChange(e.target.value)}
+              className="px-3 py-2 bg-slate-900 text-slate-100 border border-slate-800 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+            >
+              <option value="" className="bg-slate-900 text-slate-100 py-1">All Categories</option>
+              {categories.map((cat) => (
+                <option key={cat.id} value={cat.id} className="bg-slate-900 text-slate-100 py-1">
+                  {cat.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1.5 w-full md:w-64">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+              <Settings2 className="w-3 h-3 text-indigo-400" />
+              Filter by Service
+            </label>
+            <select
+              value={filterServiceId}
+              onChange={(e) => onFilterServiceChange(e.target.value)}
+              className="px-3 py-2 bg-slate-900 text-slate-100 border border-slate-800 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+            >
+              <option value="" className="bg-slate-900 text-slate-100 py-1">
+                {selectedCategoryId ? `All in Category (${filteredServices.length})` : "All Services"}
+              </option>
+              {filteredServices.map((s) => (
+                <option key={s.id} value={s.id} className="bg-slate-900 text-slate-100 py-1">
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1.5 w-full md:w-64">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+              <Search className="w-3 h-3 text-indigo-400" />
+              Search Variants
+            </label>
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-500" />
+              <input
+                type="text"
+                placeholder="Search by type or description..."
+                value={searchTerm}
+                onChange={(e) => onSearchChange(e.target.value)}
+                className="w-full pl-8 pr-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              />
+            </div>
+          </div>
+
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={handleClearAll}
+              className="text-xs font-semibold text-rose-400 hover:text-rose-300 mb-2 transition-colors cursor-pointer flex items-center gap-1"
+            >
+              <X className="w-3.5 h-3.5" />
+              Clear Filters
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Active Filter Indicator Tags */}
+      {hasActiveFilters && (selectedCategoryId !== "" || filterServiceId !== "") && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs text-slate-400">Active filters:</span>
+          {selectedCategory !== undefined && (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-medium">
+              <span>Category: <strong>{selectedCategory.name}</strong></span>
+              <button
+                type="button"
+                onClick={() => handleCategoryChange("")}
+                className="text-indigo-400 hover:text-white transition-colors"
+                title="Remove category filter"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          )}
+          {selectedService !== undefined && (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-medium">
+              <span>Service: <strong>{selectedService.name}</strong></span>
+              <button
+                type="button"
+                onClick={() => onFilterServiceChange("")}
+                className="text-indigo-400 hover:text-white transition-colors"
+                title="Remove service filter"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Data Table */}
       <div className="overflow-x-auto">
         <DataTable
           data={pagedVariants}
           columns={columns}
           loading={loadingVariants}
-          emptyState={<div>No service variants registered.</div>}
+          emptyState={
+            <div className="text-center py-8 text-slate-400">
+              <Settings2 className="w-8 h-8 mx-auto text-slate-600 mb-2" />
+              <p className="font-semibold text-slate-300">No service variants found</p>
+              <p className="text-xs text-slate-500 mt-1">
+                {hasActiveFilters
+                  ? "Try adjusting your category, service, or search filter criteria."
+                  : "No service variants have been registered yet."}
+              </p>
+            </div>
+          }
+          rowActionMenu={(row): ActionMenuItem[] => [
+            {
+              label: "Edit Variant",
+              icon: Edit,
+              onClick: () => onEditVariant(row),
+            },
+            {
+              label: "Delete Variant",
+              icon: Trash2,
+              onClick: () => onDeleteVariant(row.id),
+              variant: "destructive",
+            },
+          ]}
           pagination={
-            filteredVariants.length > 0
+            totalCount > 0
               ? {
                   currentPage: variantsPage,
-                  totalItems: filteredVariants.length,
+                  totalItems: totalCount,
                   pageSize,
                   onPageChange,
                   onPageSizeChange,

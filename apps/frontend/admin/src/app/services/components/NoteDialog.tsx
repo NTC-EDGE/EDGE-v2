@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Note, ServiceVariant } from "@edge/api";
 import { X, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ServiceCatalogItem } from "@/services/feesNotesService";
+import { ServiceCatalogItem } from "@/services/feesService";
 
 interface NoteDialogProps {
   isOpen: boolean;

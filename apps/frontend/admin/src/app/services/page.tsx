@@ -21,6 +21,8 @@ import { RequirementsCatalogTab } from "./components/RequirementsCatalogTab";
 import { ServiceRequirementsTab } from "./components/ServiceRequirementsTab";
 import { ServiceVariantRequirementsTab } from "./components/ServiceVariantRequirementsTab";
 import { ServiceCatalogElementsTab } from "./components/ServiceCatalogElementsTab";
+import { ServiceElementsTab } from "./components/ServiceElementsTab";
+import { VariantElementDialog } from "./components/VariantElementDialog";
 import { ServiceNotesTab } from "./components/ServiceNotesTab";
 import { ElementDialog } from "./components/ElementDialog";
 import { NoteDialog } from "./components/NoteDialog";
@@ -36,7 +38,8 @@ export default function ServicesPage() {
     { key: "requirements", label: "Master Requirements" },
     { key: "service-requirements", label: "Service Checklist Mappings" },
     { key: "service-variant-requirements", label: "Flat Checklist Mappings" },
-    { key: "elements", label: "Variant Elements" },
+    { key: "elements", label: "Elements Catalog" },
+    { key: "variant-elements", label: "Variant Elements" },
     { key: "notes", label: "Service Notes" },
   ];
 
@@ -145,9 +148,22 @@ export default function ServicesPage() {
 
       {p.activeTab === "variants" && (
         <ServiceVariantsTab
-          loadingVariants={p.loadingVariants} pagedVariants={p.pagedVariants} filteredVariants={p.filteredVariants}
-          variantsPage={p.variantsPage} pageSize={p.pageSize} onPageChange={p.setVariantsPage} onPageSizeChange={p.setPageSize}
-          onEditVariant={p.handleOpenEditVariant} onDeleteVariant={p.setDeletingVariantId}
+          loadingVariants={p.loadingVariants}
+          pagedVariants={p.pagedVariants}
+          totalCount={p.variantsTotalCount}
+          variantsPage={p.variantsPage}
+          pageSize={p.pageSize}
+          onPageChange={p.setVariantsPage}
+          onPageSizeChange={p.setPageSize}
+          onEditVariant={p.handleOpenEditVariant}
+          onDeleteVariant={p.setDeletingVariantId}
+          categories={p.categories}
+          services={p.servicesForNotes}
+          filterServiceId={p.variantsFilterServiceId}
+          onFilterServiceChange={p.setVariantsFilterServiceId}
+          searchTerm={p.variantsSearch}
+          onSearchChange={(val) => { p.setVariantsSearch(val); p.setVariantsPage(1); }}
+          onClearFilters={() => { p.setVariantsFilterServiceId(""); p.setVariantsSearch(""); p.setVariantsPage(1); }}
         />
       )}
 
@@ -180,7 +196,7 @@ export default function ServicesPage() {
       )}
 
       {p.activeTab === "elements" && (
-        <ServiceCatalogElementsTab
+        <ServiceElementsTab
           elements={p.elements}
           totalCount={p.elementsTotalCount}
           currentPage={p.elementsPage}
@@ -192,6 +208,34 @@ export default function ServicesPage() {
           onEdit={p.handleOpenEditElement}
           onDelete={(el) => p.setDeletingElementId(el.id)}
           onAdd={() => { p.setEditingElement(null); p.setIsElementModalOpen(true); }}
+        />
+      )}
+
+      {p.activeTab === "variant-elements" && (
+        <ServiceCatalogElementsTab
+          categories={p.categories}
+          services={p.servicesRaw}
+          filteredServices={p.filteredServices}
+          servicesSearch={p.servicesSearch}
+          onServicesSearchChange={p.setServicesSearch}
+          elementsSearch={p.elementsSearch}
+          onElementsSearchChange={(val) => { p.setElementsSearch(val); p.setVarElementsPage(1); }}
+          mappingServiceId={p.mappingServiceId}
+          onSelectMappingServiceId={p.setMappingServiceId}
+          mappingVariants={p.mappingVariants}
+          mappingVariantId={p.mappingVariantId}
+          onSelectMappingVariantId={p.setMappingVariantId}
+          elements={p.serviceVariantElements}
+          totalCount={p.varElementsTotalCount}
+          currentPage={p.varElementsPage}
+          pageSize={p.pageSize}
+          onPageChange={p.setVarElementsPage}
+          onPageSizeChange={p.setPageSize}
+          loadingElements={p.loadingVarElements}
+          canManage={!p.forbidden}
+          onAddElement={() => { p.setEditingVarElement(null); p.setIsVarElementModalOpen(true); }}
+          onEditElement={p.handleOpenEditVarElement}
+          onDeleteElement={p.setDeletingVarElementId}
         />
       )}
 
@@ -208,6 +252,7 @@ export default function ServicesPage() {
           onEdit={p.handleOpenEditNote}
           onDelete={(n) => p.setDeletingNoteId(n.id)}
           onAdd={() => { p.setEditingNote(null); p.setIsNoteModalOpen(true); }}
+          categories={p.categories}
           services={p.servicesForNotes}
           variants={p.variantsForNotesFilter}
           filterServiceId={p.notesFilterServiceId}
@@ -227,6 +272,7 @@ export default function ServicesPage() {
       <RequirementCatalogDialog isOpen={p.isReqModalOpen} onClose={() => p.setIsReqModalOpen(false)} onSubmit={p.handleReqSubmit} editingReq={p.editingReq} isSubmitting={p.isReqSubmitting} />
       <MappingDialog isOpen={p.isMappingFormOpen} onClose={() => p.setIsMappingFormOpen(false)} onSubmit={p.handleMappingSubmit} editingMapping={p.editingMapping} isSubmitting={p.isMappingSubmitting} services={p.servicesRaw} allVariants={p.allVariants} availableRequirements={p.requirements} activeTab={p.activeTab} mappingServiceId={p.mappingServiceId} mappingVariantId={p.mappingVariantId} mappingVariants={p.mappingVariants} />
       <ElementDialog isOpen={p.isElementModalOpen} onClose={() => p.setIsElementModalOpen(false)} onSubmit={p.handleElementSubmit} editingElement={p.editingElement} isSubmitting={p.isElementSubmitting} />
+      <VariantElementDialog isOpen={p.isVarElementModalOpen} onClose={() => p.setIsVarElementModalOpen(false)} onSubmit={p.handleVarElementSubmit} editingElement={p.editingVarElement} isSubmitting={p.isVarElementSubmitting} />
       <NoteDialog isOpen={p.isNoteModalOpen} onClose={() => p.setIsNoteModalOpen(false)} onSubmit={p.handleNoteSubmit} editingNote={p.editingNote} isSubmitting={p.isNoteSubmitting} services={p.servicesForNotes} variants={p.allVariants} />
 
       {/* Action Confirmation Dialogs */}
@@ -236,6 +282,7 @@ export default function ServicesPage() {
       <ConfirmActionDialog isOpen={p.deletingReqId !== null} onClose={() => p.setDeletingReqId(null)} onConfirm={p.handleDeleteReqConfirm} title="Delete Requirement" description="Are you sure you want to delete this catalog requirement? Requirements actively mapped to variants will fail to delete." confirmLabel="Delete Requirement" cancelLabel="Cancel" />
       <ConfirmActionDialog isOpen={p.deletingMappingId !== null} onClose={() => p.setDeletingMappingId(null)} onConfirm={p.handleDeleteMappingConfirm} title="Unlink Requirement" description="Are you sure you want to unlink this requirement from the service variant? This will remove it from the citizen's checklist." confirmLabel="Unlink Requirement" cancelLabel="Cancel" />
       <ConfirmActionDialog isOpen={p.deletingElementId !== null} onClose={() => p.setDeletingElementId(null)} onConfirm={p.handleDeleteElementConfirm} title="Delete Element" description="Are you sure you want to delete this exam element? This may affect variant element fee mappings." confirmLabel="Delete Element" cancelLabel="Cancel" />
+      <ConfirmActionDialog isOpen={p.deletingVarElementId !== null} onClose={() => p.setDeletingVarElementId(null)} onConfirm={p.handleDeleteVarElementConfirm} title="Delete Variant Element" description="Are you sure you want to delete this variant exam element? This cannot be undone." confirmLabel="Delete Element" cancelLabel="Cancel" />
       <ConfirmActionDialog isOpen={p.deletingNoteId !== null} onClose={() => p.setDeletingNoteId(null)} onConfirm={p.handleDeleteNoteConfirm} title="Delete Note" description="Are you sure you want to delete this service note? This cannot be undone." confirmLabel="Delete Note" cancelLabel="Cancel" />
 
       {p.toast && <ToastNotification toast={p.toast} onClose={() => p.setToast(null)} />}

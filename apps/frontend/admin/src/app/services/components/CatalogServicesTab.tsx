@@ -66,27 +66,6 @@ export function CatalogServicesTab({
       accessorKey: "description",
       cell: (val) => <span className="max-w-sm truncate block">{val ? String(val) : "No description."}</span>,
     },
-    {
-      header: "Actions",
-      accessorKey: "id",
-      cell: (_, row) => (
-        <div className="flex items-center justify-end gap-1.5">
-          <button
-            onClick={() => onEditService(row)}
-            className="p-1.5 rounded-lg border border-slate-800 hover:bg-slate-850 hover:text-white transition-colors"
-          >
-            <Edit className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={() => onDeleteService(row.id)}
-            className="p-1.5 rounded-lg border border-slate-800 hover:bg-slate-850 hover:text-rose-400 transition-colors"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      ),
-      className: "text-right",
-    },
   ];
 
   return (
@@ -140,6 +119,19 @@ export function CatalogServicesTab({
           columns={columns}
           loading={loadingServices}
           emptyState={<div>No services registered.</div>}
+          rowActionMenu={(row) => [
+            {
+              label: "Edit Service",
+              icon: Edit,
+              onClick: () => onEditService(row),
+            },
+            {
+              label: "Delete Service",
+              icon: Trash2,
+              onClick: () => onDeleteService(row.id),
+              variant: "destructive" as const,
+            },
+          ]}
           pagination={
             filteredServices.length > 0
               ? {
