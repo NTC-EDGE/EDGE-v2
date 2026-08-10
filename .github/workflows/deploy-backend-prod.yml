@@ -76,13 +76,12 @@ jobs:
           CLOUDFLARE_R2_BUCKET_NAME: ${{ secrets.CLOUDFLARE_R2_BUCKET_NAME }}
           STORAGE_ENCRYPTION_MASTER_KEY: ${{ secrets.STORAGE_ENCRYPTION_MASTER_KEY }}
           CONTAINER_NAME: ${{ env.CONTAINER_NAME }}
-          TARGET_PORT: ${{ vars.PORT }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           passphrase: ${{ secrets.SSH_PASSPHRASE }}
-          envs: DB_CONNECTION_STRING,CLERK_SECRET_KEY,CLERK_WEBHOOK_SECRET,CLOUDFLARE_R2_ACCOUNT_ID,CLOUDFLARE_R2_ACCESS_KEY_ID,CLOUDFLARE_R2_SECRET_ACCESS_KEY,CLOUDFLARE_R2_BUCKET_NAME,STORAGE_ENCRYPTION_MASTER_KEY,CONTAINER_NAME,TARGET_PORT
+          envs: DB_CONNECTION_STRING,CLERK_SECRET_KEY,CLERK_WEBHOOK_SECRET,CLOUDFLARE_R2_ACCOUNT_ID,CLOUDFLARE_R2_ACCESS_KEY_ID,CLOUDFLARE_R2_SECRET_ACCESS_KEY,CLOUDFLARE_R2_BUCKET_NAME,STORAGE_ENCRYPTION_MASTER_KEY,CONTAINER_NAME
           script: |
             # Export environment variables for Docker Compose
             export ConnectionStrings__DefaultConnection="$DB_CONNECTION_STRING"
@@ -93,7 +92,6 @@ jobs:
             export CloudflareR2__SecretAccessKey="$CLOUDFLARE_R2_SECRET_ACCESS_KEY"
             export CloudflareR2__BucketName="$CLOUDFLARE_R2_BUCKET_NAME"
             export StorageEncryption__MasterEncryptionKey="$STORAGE_ENCRYPTION_MASTER_KEY"
-            export TARGET_PORT="$TARGET_PORT"
             export GITHUB_SHA="${{ github.sha }}"
             export IMAGE_NAME="edge-backend-prod"
             export CONTAINER_NAME="$CONTAINER_NAME"
@@ -105,10 +103,13 @@ jobs:
             # Ensure Docker network exists
             docker network create edge-network || true
 
-            # Restart the Compose stack
+            # Strip port mapping from docker-compose.yml for production security
             cd /opt/docker-stack/$CONTAINER_NAME
+            sed -i '/ports:/,+1d' docker-compose.yml
+
+            # Restart the Compose stack
             docker compose down || true
             docker compose up -d
 
             # Clean up upload archive
-            rm -f /opt/docker-stack/$CONTAINER_NAME/backend-image-prod.tar.gz
+            rm -f backend-image-prod.tar.gz
