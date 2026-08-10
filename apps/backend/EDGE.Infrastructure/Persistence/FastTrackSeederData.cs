@@ -296,9 +296,8 @@ public static class FastTrackSeederData
         ],
         ""allowsBulkSubmission"": false,
         ""categorySpecific"": {
-            ""category"": [""RCE"",""Mobile Phone"",""CPE Supplier Accreditation""],
-            ""rceSubtype"": [""Dealer (Radio Transmitter/Transceiver)"",""Dealer (WDN Indoor/SRD/RFID)"",""Manufacturer"",""Service Center"", null],
-            ""mobileSubtype"": [""Dealer MPDP"",""Retailer/Reseller MPRR"",""Service Center MPSCP"", null]
+            ""category"": [""MOBILE"", ""MOBILE PHONES"", ""NON-MOBILE PHONES""],
+            ""applicationType"": [""MOBILE"", ""MOBILE PHONES"", ""NON-MOBILE PHONES""]
         },
         ""entityType"": ""Application""
     }";
@@ -445,7 +444,7 @@ public static class FastTrackSeederData
             ("NTC_1_10", Guid.Parse("50000000-0000-0000-0000-000000000010"), categoryIds["Permits"], "Form E (Multiple Stations/Equipment)", null, "NTC_1_10", "Form E Continuation Sheet (NTC 1-10)", Ntc110Contract),
             ("NTC_1_11", Guid.Parse("50000000-0000-0000-0000-000000000011"), categoryIds["Permits"], "Application for Construction Permit / Radio Station License", null, "NTC_1_11", "Application for Construction Permit / Radio Station License (NTC 1-11)", Ntc111Contract),
             ("NTC_1_14", Guid.Parse("50000000-0000-0000-0000-000000000014"), categoryIds["Permits"], "Application for Temporary Permit to Propagate/Demonstrate", null, "NTC_1_14", "Application for Temporary Permit to Propagate/Demonstrate (NTC 1-14)", Ntc114Contract),
-            ("NTC_1_18", Guid.Parse("50000000-0000-0000-0000-000000000018"), categoryIds["Accreditations"], "Application for Dealer/Manufacturer/Service Center/CPE Supplier Accreditation", "Customer Premises Equipment Supplier Accreditation", "NTC_1_18", "Application for CPE Supplier Accreditation (NTC 1-18)", Ntc118Contract),
+            ("NTC_1_18", Guid.Parse("50000000-0000-0000-0000-000000000018"), categoryIds["Accreditations"], "CUSTOMER PREMISES EQUIPMENT SUPPLIER ACCREDITATION", "Customer Premises Equipment Supplier Accreditation", "NTC_1_18", "CUSTOMER PREMISES EQUIPMENT SUPPLIER ACCREDITATION (NTC 1-18)", Ntc118Contract),
             ("NTC_1_19", Guid.Parse("50000000-0000-0000-0000-000000000019"), categoryIds["Certificates"], "CERTIFICATE OF REGISTRATION FOR RFID, SRD, WDN, DEVICES- INDOOR", null, "NTC_1_19", "CERTIFICATE OF REGISTRATION FOR RFID, SRD, WDN, DEVICES- INDOOR (NTC 1-19)", Ntc119Contract),
             ("NTC_1_20", Guid.Parse("50000000-0000-0000-0000-000000000020"), categoryIds["Certificates"], "CERTIFICATE OF REGISTRATION AS A VALUE-ADDED SERVICE (VAS) PROVIDER", null, "NTC_1_20", "CERTIFICATE OF REGISTRATION AS A VALUE-ADDED SERVICE (VAS) PROVIDER (NTC 1-20)", Ntc120Contract),
             ("NTC_1_21", Guid.Parse("50000000-0000-0000-0000-000000000021"), categoryIds["Certificates"], "COPY OF CERTIFICATES", null, "NTC_1_21", "COPY OF CERTIFICATES (NTC 1-21)", Ntc121Contract),
@@ -517,9 +516,17 @@ public static class FastTrackSeederData
             (Guid.Parse("60000000-0000-0000-0000-000000000006"), svc111, ServiceVariantType.New, "New Radio Station License Application"),
             (Guid.Parse("60000000-0000-0000-0000-000000000007"), svc111, ServiceVariantType.Renewal, "Renew Radio Station License"),
             (Guid.Parse("60000000-0000-0000-0000-000000000012"), svc111, ServiceVariantType.Modification, "Modify Radio Station License"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000013"), svc118, ServiceVariantType.New, "New CPE Supplier Accreditation"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000014"), svc118, ServiceVariantType.Renewal, "Renew CPE Supplier Accreditation"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000015"), svc118, ServiceVariantType.Modification, "Modify CPE Supplier Accreditation"),
+
+            // --- CUSTOMER PREMISES EQUIPMENT SUPPLIER ACCREDITATION (svc118) ---
+            // Mobile
+            (Guid.Parse("60000000-0000-0000-0000-000000000013"), svc118, ServiceVariantType.New, "Customer Premises Equipment Supplier Accreditation - MOBILE (NEW)"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000014"), svc118, ServiceVariantType.Renewal, "Customer Premises Equipment Supplier Accreditation - MOBILE PHONES (RENEWAL)"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000015"), svc118, ServiceVariantType.Modification, "Customer Premises Equipment Supplier Accreditation - MOBILE (MODIFICATION)"),
+
+            // Non-Mobile Phones
+            (Guid.Parse("60000000-0000-0000-0000-000000000304"), svc118, ServiceVariantType.New, "Customer Premises Equipment Supplier Accreditation - NON-MOBILE PHONES (NEW)"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000305"), svc118, ServiceVariantType.Renewal, "Customer Premises Equipment Supplier Accreditation - NON-MOBILE PHONES (RENEWAL)"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000306"), svc118, ServiceVariantType.Modification, "Customer Premises Equipment Supplier Accreditation - NON-MOBILE PHONES (MODIFICATION)"),
             (Guid.Parse("60000000-0000-0000-0000-000000000016"), svc119, ServiceVariantType.NA, "Certificate of Registration for RFID, SRD, WDN"),
             (Guid.Parse("60000000-0000-0000-0000-000000000017"), svc120, ServiceVariantType.New, "New Certificate of Registration as VAS Provider"),
             (Guid.Parse("60000000-0000-0000-0000-000000000018"), svc120, ServiceVariantType.Renewal, "Renewal of Certificate of Registration as VAS Provider"),
@@ -899,6 +906,12 @@ public static class FastTrackSeederData
         list.Add((svc102Id, svc102NewVariantId, "Apply for Duplicate Copy if Original is lost/mutilated/destroyed or not available."));
         list.Add((svc102Id, svc102NewVariantId, "For Foreign Pilots: The applicant has to show the original pilot license."));
 
+        // Add Customer Premises Equipment Supplier Accreditation (svc118) notes from spreadsheet
+        var svc118Id = Guid.Parse("50000000-0000-0000-0000-000000000018");
+        list.Add((svc118Id, null, "The purpose of the company as indicated in its registration document must include information related to the accreditation applied for."));
+        list.Add((svc118Id, null, "Proof of Paid-Up Capital: Minimum of PHP 250,000.00, duly certified by the Treasurer of the Corporation or by the partners in a partnership or by the owner in a sole proprietorship."));
+        list.Add((svc118Id, null, "For equipment not previously indicated in the CPE Supplier Accreditation: Copy of Type Approval Certificate OR Copy of Grant of Equipment Conformity for CPE to be sold."));
+
         return list;
     }
 
@@ -1032,7 +1045,17 @@ public static class FastTrackSeederData
             ["CATV_PROGRAMS_LIST"] = (Guid.Parse("70000000-0000-0000-0000-000000000252"), "List of Programs Offered - Channel, Program, and Signal Source", "List of Programs Offered - Channel, Program, and Signal Source*"),
             ["CATV_STATION_LICENSE_REQUIRED"] = (Guid.Parse("70000000-0000-0000-0000-000000000253"), "CATV Station License", "CATV Station License*"),
             ["COPY_LIC_PERMIT"] = (Guid.Parse("70000000-0000-0000-0000-000000000260"), "Copy of Permit: A scanned or photocopied copy of the original permit.", "Copy of Permit:\nA scanned or photocopied copy of the original permit."),
-            ["ROC_PHOTO"] = (Guid.Parse("70000000-0000-0000-0000-000000000261"), "For Radio Operator Certificate: Please provide a clear 1x1 ID picture taken within the last six (6) months.", "For Radio Operator Certificate:\nPlease provide a clear 1x1 ID picture taken within the last six (6) months.")
+            ["ROC_PHOTO"] = (Guid.Parse("70000000-0000-0000-0000-000000000261"), "For Radio Operator Certificate: Please provide a clear 1x1 ID picture taken within the last six (6) months.", "For Radio Operator Certificate:\nPlease provide a clear 1x1 ID picture taken within the last six (6) months."),
+
+            // New Accreditations-specific requirements (CPE Supplier Accreditation)
+            ["PAID_UP_CAPITAL_250K"] = (Guid.Parse("70000000-0000-0000-0000-000000000301"), "Proof of Paid-Up Capital (Minimum of PHP 250,000.00)", "Proof of Paid-Up Capital*\nMinimum of PHP 250,000.00, duly certified by the Treasurer of the Corporation or by the partners in a partnership or by the owner in a sole proprietorship"),
+            ["DISTRIBUTORSHIP_AGREEMENT"] = (Guid.Parse("70000000-0000-0000-0000-000000000302"), "Distributorship OR Representation Agreement on products to be sold", "Distributorship OR Representation Agreement on products to be sold*"),
+            ["TYPE_APPROVAL_OR_GRANT_OF_EQUIPMENT_CONFORMITY"] = (Guid.Parse("70000000-0000-0000-0000-000000000303"), "Type Approval Certificate OR Copy of Grant of Equipment Conformity for CPE to be sold", "Type Approval Certificate OR Copy of Grant of Equipment Conformity for CPE to be sold*"),
+            ["TWO_TECH_EMPLOYMENT_DOCS"] = (Guid.Parse("70000000-0000-0000-0000-000000000304"), "Certificate of Employment and ROC/license of two (2) qualified radio technicians employed full-time", "Certificate of Employment AND copy of valid ROC/license of two (2) qualified radio technicians (i.e. Radio Communications Technician OR Electronics Technician) employed on a full-time basis*"),
+            ["ECE_PECE_EMPLOYMENT_DOCS"] = (Guid.Parse("70000000-0000-0000-0000-000000000305"), "Certificate of Employment and valid license of supervising Electronics Engineer (ECE) OR PECE", "Certificate of Employment and copy of valid license of supervising Electronics Engineer (ECE) OR Professional Electronics Engineer (PECE)*"),
+            ["CPE_SUPPLIER_ACCREDITATION_DOC"] = (Guid.Parse("70000000-0000-0000-0000-000000000306"), "CPE Supplier Accreditation", "CPE Supplier Accreditation*"),
+            ["BUSINESS_MAYORS_PERMIT"] = (Guid.Parse("70000000-0000-0000-0000-000000000307"), "Business/Mayor's Permit", "Business/Mayor's Permit*"),
+            ["TYPE_APPROVAL_NOT_PREVIOUSLY_INDICATED"] = (Guid.Parse("70000000-0000-0000-0000-000000000308"), "For equipment not previously indicated: Copy of Type Approval Certificate OR Grant of Equipment Conformity", "For equipment not previously indicated in the CPE Supplier Accreditation:\nCopy of Type Approval Certificate OR Copy of Grant of Equipment Conformity for CPE to be sold")
         };
     }
 
@@ -1893,7 +1916,46 @@ public static class FastTrackSeederData
 
             // Duplicate Copy (License)
             (Guid.Parse("60000000-0000-0000-0000-000000000281"), Guid.Parse("70000000-0000-0000-0000-000000000260"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000281"), Guid.Parse("70000000-0000-0000-0000-000000000261"), true, null)
+            (Guid.Parse("60000000-0000-0000-0000-000000000281"), Guid.Parse("70000000-0000-0000-0000-000000000261"), true, null),
+
+            // --- CUSTOMER PREMISES EQUIPMENT SUPPLIER ACCREDITATION (svc118) ---
+            // Mobile - NEW (60000000-0000-0000-0000-000000000013)
+            (Guid.Parse("60000000-0000-0000-0000-000000000013"), Guid.Parse("70000000-0000-0000-0000-000000000082"), true, null), // DEALER_REG_DOCS
+            (Guid.Parse("60000000-0000-0000-0000-000000000013"), Guid.Parse("70000000-0000-0000-0000-000000000301"), true, null), // PAID_UP_CAPITAL_250K
+            (Guid.Parse("60000000-0000-0000-0000-000000000013"), Guid.Parse("70000000-0000-0000-0000-000000000302"), true, null), // DISTRIBUTORSHIP_AGREEMENT
+            (Guid.Parse("60000000-0000-0000-0000-000000000013"), Guid.Parse("70000000-0000-0000-0000-000000000303"), true, null), // TYPE_APPROVAL_OR_GRANT_OF_EQUIPMENT_CONFORMITY
+            (Guid.Parse("60000000-0000-0000-0000-000000000013"), Guid.Parse("70000000-0000-0000-0000-000000000304"), true, null), // TWO_TECH_EMPLOYMENT_DOCS
+            (Guid.Parse("60000000-0000-0000-0000-000000000013"), Guid.Parse("70000000-0000-0000-0000-000000000305"), true, null), // ECE_PECE_EMPLOYMENT_DOCS
+
+            // Mobile Phones - RENEWAL (60000000-0000-0000-0000-000000000014)
+            (Guid.Parse("60000000-0000-0000-0000-000000000014"), Guid.Parse("70000000-0000-0000-0000-000000000306"), true, null), // CPE_SUPPLIER_ACCREDITATION_DOC
+            (Guid.Parse("60000000-0000-0000-0000-000000000014"), Guid.Parse("70000000-0000-0000-0000-000000000307"), true, null), // BUSINESS_MAYORS_PERMIT
+            (Guid.Parse("60000000-0000-0000-0000-000000000014"), Guid.Parse("70000000-0000-0000-0000-000000000302"), true, null), // DISTRIBUTORSHIP_AGREEMENT
+            (Guid.Parse("60000000-0000-0000-0000-000000000014"), Guid.Parse("70000000-0000-0000-0000-000000000304"), true, null), // TWO_TECH_EMPLOYMENT_DOCS
+            (Guid.Parse("60000000-0000-0000-0000-000000000014"), Guid.Parse("70000000-0000-0000-0000-000000000305"), true, null), // ECE_PECE_EMPLOYMENT_DOCS
+
+            // Mobile - MODIFICATION (60000000-0000-0000-0000-000000000015)
+            (Guid.Parse("60000000-0000-0000-0000-000000000015"), Guid.Parse("70000000-0000-0000-0000-000000000306"), true, null), // CPE_SUPPLIER_ACCREDITATION_DOC
+            (Guid.Parse("60000000-0000-0000-0000-000000000015"), Guid.Parse("70000000-0000-0000-0000-000000000308"), true, null), // TYPE_APPROVAL_NOT_PREVIOUSLY_INDICATED
+
+            // Non-Mobile Phones - NEW (60000000-0000-0000-0000-000000000304)
+            (Guid.Parse("60000000-0000-0000-0000-000000000304"), Guid.Parse("70000000-0000-0000-0000-000000000082"), true, null), // DEALER_REG_DOCS
+            (Guid.Parse("60000000-0000-0000-0000-000000000304"), Guid.Parse("70000000-0000-0000-0000-000000000301"), true, null), // PAID_UP_CAPITAL_250K
+            (Guid.Parse("60000000-0000-0000-0000-000000000304"), Guid.Parse("70000000-0000-0000-0000-000000000302"), true, null), // DISTRIBUTORSHIP_AGREEMENT
+            (Guid.Parse("60000000-0000-0000-0000-000000000304"), Guid.Parse("70000000-0000-0000-0000-000000000303"), true, null), // TYPE_APPROVAL_OR_GRANT_OF_EQUIPMENT_CONFORMITY
+            (Guid.Parse("60000000-0000-0000-0000-000000000304"), Guid.Parse("70000000-0000-0000-0000-000000000304"), true, null), // TWO_TECH_EMPLOYMENT_DOCS
+            (Guid.Parse("60000000-0000-0000-0000-000000000304"), Guid.Parse("70000000-0000-0000-0000-000000000305"), true, null), // ECE_PECE_EMPLOYMENT_DOCS
+
+            // Non-Mobile Phones - RENEWAL (60000000-0000-0000-0000-000000000305)
+            (Guid.Parse("60000000-0000-0000-0000-000000000305"), Guid.Parse("70000000-0000-0000-0000-000000000306"), true, null), // CPE_SUPPLIER_ACCREDITATION_DOC
+            (Guid.Parse("60000000-0000-0000-0000-000000000305"), Guid.Parse("70000000-0000-0000-0000-000000000307"), true, null), // BUSINESS_MAYORS_PERMIT
+            (Guid.Parse("60000000-0000-0000-0000-000000000305"), Guid.Parse("70000000-0000-0000-0000-000000000302"), true, null), // DISTRIBUTORSHIP_AGREEMENT
+            (Guid.Parse("60000000-0000-0000-0000-000000000305"), Guid.Parse("70000000-0000-0000-0000-000000000304"), true, null), // TWO_TECH_EMPLOYMENT_DOCS
+            (Guid.Parse("60000000-0000-0000-0000-000000000305"), Guid.Parse("70000000-0000-0000-0000-000000000305"), true, null), // ECE_PECE_EMPLOYMENT_DOCS
+
+            // Non-Mobile Phones - MODIFICATION (60000000-0000-0000-0000-000000000306)
+            (Guid.Parse("60000000-0000-0000-0000-000000000306"), Guid.Parse("70000000-0000-0000-0000-000000000306"), true, null), // CPE_SUPPLIER_ACCREDITATION_DOC
+            (Guid.Parse("60000000-0000-0000-0000-000000000306"), Guid.Parse("70000000-0000-0000-0000-000000000308"), true, null)  // TYPE_APPROVAL_NOT_PREVIOUSLY_INDICATED
         };
     }
 }
