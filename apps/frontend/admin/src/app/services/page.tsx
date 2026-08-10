@@ -42,13 +42,13 @@ export default function ServicesPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white font-sans">
-      <div className="border-b border-slate-900 bg-slate-900/50 backdrop-blur-md px-6 py-5 flex items-center justify-between sticky top-0 z-20">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white font-sans transition-colors duration-200">
+      <div className="border-b border-slate-200 dark:border-slate-900 bg-white/80 dark:bg-slate-900/50 backdrop-blur-md px-6 py-5 flex items-center justify-between sticky top-0 z-20 transition-colors duration-200">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+          <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
             <Boxes className="h-5 w-5 text-indigo-500" /> Services Catalog
           </h1>
-          <p className="text-xs text-slate-500 mt-1">Configure service directories, forms, checklists, elements, notes, and document verification rules.</p>
+          <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">Configure service directories, forms, checklists, elements, notes, and document verification rules.</p>
         </div>
 
         <div className="flex items-center gap-2">
@@ -57,47 +57,47 @@ export default function ServicesPage() {
               <Button onClick={() => { p.setEditingCategory(null); p.setIsCategoryModalOpen(true); }} variant="outline" className="text-xs py-1.5 h-auto">
                 <FolderPlus className="h-3.5 w-3.5 mr-1" /> New Category
               </Button>
-              <Button onClick={() => { p.setEditingService(null); p.setIsServiceModalOpen(true); }} className="bg-indigo-600 text-xs py-1.5 h-auto">
+              <Button onClick={() => { p.setEditingService(null); p.setIsServiceModalOpen(true); }} className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs py-1.5 h-auto">
                 <Plus className="h-3.5 w-3.5 mr-1" /> New Service
               </Button>
             </>
           )}
           {p.activeTab === "variants" && (
-            <Button onClick={() => { p.setEditingVariant(null); p.setMappingServiceId(p.servicesRaw.length > 0 ? p.servicesRaw[0].id : ""); p.setIsVariantModalOpen(true); }} className="bg-indigo-600 text-xs py-1.5 h-auto">
+            <Button onClick={() => { p.setEditingVariant(null); p.setMappingServiceId(p.servicesRaw.length > 0 ? p.servicesRaw[0].id : ""); p.setIsVariantModalOpen(true); }} className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs py-1.5 h-auto">
               <Settings2 className="h-3.5 w-3.5 mr-1" /> New Variant
             </Button>
           )}
           {p.activeTab === "requirements" && (
-            <Button onClick={() => { p.setEditingReq(null); p.setIsReqModalOpen(true); }} className="bg-indigo-600 text-xs py-1.5 h-auto">
+            <Button onClick={() => { p.setEditingReq(null); p.setIsReqModalOpen(true); }} className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs py-1.5 h-auto">
               <ClipboardList className="h-3.5 w-3.5 mr-1" /> New Catalog Requirement
             </Button>
           )}
           {p.activeTab === "service-requirements" && (
-            <Button onClick={() => { p.setEditingMapping(null); p.setIsMappingFormOpen(true); }} className="bg-indigo-600 text-xs py-1.5 h-auto">
+            <Button onClick={() => { p.setEditingMapping(null); p.setIsMappingFormOpen(true); }} className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs py-1.5 h-auto">
               <Link2 className="h-3.5 w-3.5 mr-1" /> Link Master Requirement
             </Button>
           )}
           {p.activeTab === "elements" && (
-            <Button onClick={() => { p.setEditingElement(null); p.setIsElementModalOpen(true); }} className="bg-indigo-600 text-xs py-1.5 h-auto">
+            <Button onClick={() => { p.setEditingElement(null); p.setIsElementModalOpen(true); }} className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs py-1.5 h-auto">
               <Layers className="h-3.5 w-3.5 mr-1" /> New Element
             </Button>
           )}
           {p.activeTab === "notes" && (
-            <Button onClick={() => { p.setEditingNote(null); p.setIsNoteModalOpen(true); }} className="bg-indigo-600 text-xs py-1.5 h-auto">
+            <Button onClick={() => { p.setEditingNote(null); p.setIsNoteModalOpen(true); }} className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs py-1.5 h-auto">
               <BookOpen className="h-3.5 w-3.5 mr-1" /> Add Note
             </Button>
           )}
         </div>
       </div>
 
-      <div className="border-b border-slate-900 bg-slate-900/30 px-6 py-2.5 flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-1 bg-slate-950 p-0.5 rounded-xl border border-slate-900 flex-wrap">
+      <div className="border-b border-slate-200 dark:border-slate-900 bg-slate-100/50 dark:bg-slate-900/30 px-6 py-2.5 flex items-center justify-between gap-4 flex-wrap transition-colors duration-200">
+        <div className="flex items-center gap-1 bg-slate-200/60 dark:bg-slate-950 p-0.5 rounded-xl border border-slate-300/60 dark:border-slate-800 flex-wrap">
           {allTabs.map((tab) => (
             <button
               key={tab.key}
               onClick={() => p.setActiveTab(tab.key)}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                p.activeTab === tab.key ? "bg-indigo-600 text-white shadow" : "text-slate-400 hover:text-white"
+                p.activeTab === tab.key ? "bg-indigo-600 text-white shadow" : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
               }`}
             >
               {tab.label}
@@ -105,10 +105,10 @@ export default function ServicesPage() {
           ))}
         </div>
 
-        {/* Global Search bar — not shown for service-requirements, variant-elements, or notes (they have their own search) */}
+        {/* Global Search bar */}
         {p.activeTab !== "service-requirements" && p.activeTab !== "variant-elements" && p.activeTab !== "notes" && (
           <div className="relative w-64">
-            <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-500" />
+            <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400 dark:text-slate-500" />
             <input
               type="text"
               placeholder={`Search ${p.activeTab}...`}
@@ -126,7 +126,7 @@ export default function ServicesPage() {
                 else if (p.activeTab === "requirements") { p.setRequirementsSearch(val); p.setRequirementsPage(1); }
                 else if (p.activeTab === "elements") { p.setElementsSearch(val); p.setElementsPage(1); }
               }}
-              className="w-full pl-9 pr-3 py-1.5 bg-slate-950 border border-slate-900 rounded-xl text-xs text-white focus:outline-none focus:border-indigo-500"
+              className="w-full pl-9 pr-3 py-1.5 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500"
             />
           </div>
         )}

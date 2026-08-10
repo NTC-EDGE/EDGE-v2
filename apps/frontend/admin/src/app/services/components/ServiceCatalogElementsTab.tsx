@@ -96,7 +96,7 @@ export function ServiceCatalogElementsTab({
       accessorKey: "code",
       header: "Code",
       cell: (val) => (
-        <span className="font-mono font-semibold text-indigo-400 bg-indigo-950/40 px-2 py-0.5 rounded border border-indigo-900/50 text-[11px]">
+        <span className="font-mono font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 rounded border border-indigo-200 dark:border-indigo-900/50 text-[11px]">
           {String(val)}
         </span>
       ),
@@ -105,7 +105,7 @@ export function ServiceCatalogElementsTab({
       accessorKey: "description",
       header: "Description",
       cell: (val) => (
-        <span className="text-slate-400 text-xs max-w-[200px] block truncate" title={val !== null && val !== undefined ? String(val) : undefined}>
+        <span className="text-slate-600 dark:text-slate-400 text-xs max-w-[200px] block truncate" title={val !== null && val !== undefined ? String(val) : undefined}>
           {val !== null && val !== undefined && String(val).trim().length > 0 ? String(val) : "—"}
         </span>
       ),
@@ -113,7 +113,7 @@ export function ServiceCatalogElementsTab({
   ];
 
   const emptyState = {
-    icon: <Layers className="w-8 h-8 mx-auto text-slate-650 mb-2" />,
+    icon: <Layers className="w-8 h-8 mx-auto text-slate-400 dark:text-slate-650 mb-2" />,
     title: "No elements linked",
     description: "Link elements to this variant.",
   };
@@ -123,45 +123,45 @@ export function ServiceCatalogElementsTab({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
         {/* 1. Services Column */}
-        <div className="lg:col-span-4 flex flex-col space-y-3 bg-slate-950 p-4 rounded-2xl border border-slate-855">
-          <div className="flex items-center justify-between pb-2 border-b border-slate-850">
-            <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">1. Select Service</span>
-            <span className="px-2 py-0.5 bg-slate-900 border border-slate-800 rounded text-[10px] text-slate-400 font-mono">
+        <div className="lg:col-span-4 flex flex-col space-y-3 bg-white dark:bg-slate-950 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm transition-colors duration-200">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-850">
+            <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">1. Select Service</span>
+            <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded text-[10px] text-slate-600 dark:text-slate-400 font-mono">
               {scopedServices.length} Total
             </span>
           </div>
 
           {/* Category Filter */}
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-              <Folder className="w-3 h-3 text-indigo-400" />
+            <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1">
+              <Folder className="w-3 h-3 text-indigo-500 dark:text-indigo-400" />
               Filter by Category
             </label>
             <select
               value={selectedCategoryId}
               onChange={(e) => handleCategoryChange(e.target.value)}
-              className="w-full px-2.5 py-2 bg-slate-900 text-slate-100 border border-slate-800 rounded-xl text-xs focus:outline-none focus:border-indigo-500 cursor-pointer"
+              className="w-full px-2.5 py-2 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:outline-none focus:border-indigo-500 cursor-pointer"
             >
-              <option value="" className="bg-slate-900 text-slate-100 py-1">
+              <option value="" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 py-1">
                 All Categories
               </option>
               {categories.map((cat) => (
-                <option key={cat.id} value={cat.id} className="bg-slate-900 text-slate-100 py-1">
+                <option key={cat.id} value={cat.id} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 py-1">
                   {cat.name}
                 </option>
               ))}
             </select>
           </div>
 
-          {/* Service Search (calls backend GET /services?searchTerm=...) */}
+          {/* Service Search */}
           <div className="relative">
-            <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-500" />
+            <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400 dark:text-slate-500" />
             <input
               type="text"
               placeholder="Search services..."
               value={servicesSearch}
               onChange={(e) => onServicesSearchChange(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 bg-slate-900 text-slate-100 border border-slate-800 rounded-xl text-xs focus:outline-none focus:border-indigo-500"
+              className="w-full pl-9 pr-3 py-1.5 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:outline-none focus:border-indigo-500"
             />
           </div>
 
@@ -175,7 +175,7 @@ export function ServiceCatalogElementsTab({
                 className={`w-full text-left p-2.5 rounded-xl text-xs transition-all flex items-center justify-between group ${
                   mappingServiceId === s.id
                     ? "bg-indigo-600 text-white font-semibold shadow-lg shadow-indigo-600/10"
-                    : "text-slate-300 hover:bg-slate-900/50 hover:text-white"
+                    : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-900/50 hover:text-slate-900 dark:hover:text-white"
                 }`}
               >
                 <div className="truncate mr-2 flex flex-col">
@@ -185,7 +185,7 @@ export function ServiceCatalogElementsTab({
                   </span>
                 </div>
                 <span className={`text-[9px] uppercase font-mono px-1.5 py-0.5 rounded shrink-0 ${
-                  mappingServiceId === s.id ? "bg-indigo-700 text-white" : "bg-slate-900 text-slate-400 group-hover:bg-slate-800/80"
+                  mappingServiceId === s.id ? "bg-indigo-700 text-white" : "bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 group-hover:bg-slate-200 dark:group-hover:bg-slate-800/80"
                 }`}>
                   {s.code || "SVC"}
                 </span>
@@ -195,13 +195,11 @@ export function ServiceCatalogElementsTab({
               <div className="text-center py-8 text-slate-500 text-xs">No services found.</div>
             )}
           </div>
-        </div>
-
-        {/* 2. Variants Column */}
-        <div className="lg:col-span-3 flex flex-col space-y-3 bg-slate-950 p-4 rounded-2xl border border-slate-855">
-          <div className="flex items-center justify-between pb-2 border-b border-slate-850">
-            <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">2. Select Variant</span>
-            <span className="px-2 py-0.5 bg-slate-900 border border-slate-800 rounded text-[10px] text-slate-400 font-mono">
+        </div>        {/* 2. Variants Column */}
+        <div className="lg:col-span-3 flex flex-col space-y-3 bg-white dark:bg-slate-950 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm transition-colors duration-200">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-850">
+            <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">2. Select Variant</span>
+            <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded text-[10px] text-slate-600 dark:text-slate-400 font-mono">
               {displayVariants.length} Active
             </span>
           </div>
@@ -211,16 +209,16 @@ export function ServiceCatalogElementsTab({
                 key={v.id}
                 type="button"
                 onClick={() => onSelectMappingVariantId(v.id)}
-                className={`w-full text-left p-3 rounded-xl text-xs transition-all flex flex-col text-slate-300 border ${
+                className={`w-full text-left p-3 rounded-xl text-xs transition-all flex flex-col border ${
                   mappingVariantId === v.id
                     ? "bg-indigo-600 border-indigo-500 text-white font-semibold shadow-lg shadow-indigo-600/10"
-                    : "bg-slate-900/20 border-slate-850 hover:bg-slate-900/50 hover:text-white"
+                    : "bg-slate-50 dark:bg-slate-900/20 border-slate-200 dark:border-slate-850 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-900/50 hover:text-slate-900 dark:hover:text-white"
                 }`}
               >
                 <div className="flex items-center justify-between w-full">
                   <span>{v.type}</span>
                   <span className={`text-[8px] font-mono uppercase px-1 rounded ${
-                    mappingVariantId === v.id ? "bg-indigo-700" : "bg-slate-800 text-slate-500"
+                    mappingVariantId === v.id ? "bg-indigo-700 text-white" : "bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-500"
                   }`}>
                     Variant
                   </span>
@@ -243,9 +241,9 @@ export function ServiceCatalogElementsTab({
         </div>
 
         {/* 3. Elements Column */}
-        <div className="lg:col-span-5 flex flex-col space-y-3 bg-slate-950 p-4 rounded-2xl border border-slate-855 min-h-[300px]">
-          <div className="flex items-center justify-between pb-2 border-b border-slate-850">
-            <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">3. Exam Elements</span>
+        <div className="lg:col-span-5 flex flex-col space-y-3 bg-white dark:bg-slate-950 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm transition-colors duration-200 min-h-[300px]">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-850">
+            <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">3. Elements</span>
             {mappingVariantId && canManage && (
               <button
                 type="button"
@@ -257,16 +255,16 @@ export function ServiceCatalogElementsTab({
             )}
           </div>
 
-          {/* Exam Elements Search (calls backend query) */}
+          {/* Elements Search */}
           {mappingVariantId && (
             <div className="relative">
-              <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-500" />
+              <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400 dark:text-slate-500" />
               <input
                 type="text"
                 placeholder="Search variant elements..."
                 value={elementsSearch}
                 onChange={(e) => onElementsSearchChange(e.target.value)}
-                className="w-full pl-9 pr-3 py-1.5 bg-slate-900 text-slate-100 border border-slate-800 rounded-xl text-xs focus:outline-none focus:border-indigo-500"
+                className="w-full pl-9 pr-3 py-1.5 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:outline-none focus:border-indigo-500"
               />
             </div>
           )}

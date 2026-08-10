@@ -37,7 +37,7 @@ export function ServiceElementsTab({
       key: "code",
       header: "Code",
       cell: (item) => (
-        <span className="font-mono font-semibold text-indigo-400 bg-indigo-950/40 px-2 py-0.5 rounded border border-indigo-900/50 text-[11px]">
+        <span className="font-mono font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 rounded border border-indigo-200 dark:border-indigo-900/50 text-[11px]">
           {item.code}
         </span>
       ),
@@ -46,14 +46,14 @@ export function ServiceElementsTab({
       key: "name",
       header: "Name",
       cell: (item) => (
-        <span className="font-semibold text-slate-200">{item.name ?? "—"}</span>
+        <span className="font-semibold text-slate-900 dark:text-slate-200">{item.name ?? "—"}</span>
       ),
     },
     {
       key: "description",
       header: "Description",
       cell: (item) => (
-        <span className="text-slate-400 text-xs max-w-md block truncate">
+        <span className="text-slate-600 dark:text-slate-400 text-xs max-w-md block truncate">
           {item.description ?? "—"}
         </span>
       ),
@@ -61,7 +61,7 @@ export function ServiceElementsTab({
   ];
 
   const emptyState = {
-    icon: <Layers className="w-10 h-10 mx-auto text-slate-650 mb-2" />,
+    icon: <Layers className="w-10 h-10 mx-auto text-slate-400 dark:text-slate-650 mb-2" />,
     title: "No exam elements configured",
     description: "Exam elements define what a candidate must complete per variant.",
   };
@@ -78,11 +78,11 @@ export function ServiceElementsTab({
     <div className="p-4 md:p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-sm font-bold text-white flex items-center gap-2">
-            <Layers className="w-4 h-4 text-indigo-400" />
+          <h2 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <Layers className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
             Elements Catalog
           </h2>
-          <p className="text-xs text-slate-505 mt-0.5">
+          <p className="text-xs text-slate-600 dark:text-slate-500 mt-0.5">
             Manage global exam elements catalog in the system.
           </p>
         </div>

@@ -101,8 +101,8 @@ export function ServiceRequirementsTab({
       accessorKey: "serviceName",
       cell: (_, row) => (
         <div className="flex flex-col gap-0.5">
-          <span className="font-bold text-white text-xs block">{row.serviceName || "Global Service"}</span>
-          <span className="text-[10px] text-indigo-400 font-medium block">
+          <span className="font-bold text-slate-900 dark:text-white text-xs block">{row.serviceName || "Global Service"}</span>
+          <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-medium block">
             {row.serviceVariantType && row.serviceVariantType !== "NA" ? `${row.serviceVariantType} Variant` : "Standard Scope"}
           </span>
         </div>
@@ -113,9 +113,9 @@ export function ServiceRequirementsTab({
       accessorKey: "requirement",
       cell: (_, row) => (
         <div className="flex flex-col gap-0.5 max-w-md">
-          <span className="font-bold text-slate-200 text-xs block">{row.requirement?.name || "Requirement"}</span>
+          <span className="font-bold text-slate-900 dark:text-slate-200 text-xs block">{row.requirement?.name || "Requirement"}</span>
           {row.requirement?.description && (
-            <span className="text-[10px] text-slate-400 line-clamp-1 block">{row.requirement.description}</span>
+            <span className="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-1 block">{row.requirement.description}</span>
           )}
         </div>
       ),
@@ -125,7 +125,7 @@ export function ServiceRequirementsTab({
       accessorKey: "contextKey",
       cell: (val) =>
         val ? (
-          <span className="px-2 py-0.5 bg-slate-950 border border-slate-800 text-indigo-300 rounded inline-block font-mono text-[10px]">
+          <span className="px-2 py-0.5 bg-indigo-50 dark:bg-slate-950 border border-indigo-200 dark:border-slate-800 text-indigo-600 dark:text-indigo-300 rounded inline-block font-mono text-[10px]">
             {String(val)}
           </span>
         ) : (
@@ -139,8 +139,8 @@ export function ServiceRequirementsTab({
         <span
           className={`text-[9px] font-bold px-2 py-0.5 rounded border uppercase inline-block ${
             val
-              ? "bg-rose-500/10 text-rose-400 border-rose-500/20"
-              : "bg-slate-800 text-slate-400 border-slate-700"
+              ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20"
+              : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700"
           }`}
         >
           {val ? "Mandatory" : "Optional"}
@@ -152,27 +152,27 @@ export function ServiceRequirementsTab({
   return (
     <div className="p-4 md:p-6 space-y-6">
       {/* Header Toolbar with View Mode Switcher */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-slate-900">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-900">
         <div>
-          <h2 className="text-sm font-bold text-white flex items-center gap-2">
-            <Link2 className="w-4 h-4 text-indigo-400" />
+          <h2 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <Link2 className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
             Checklist Requirements Mappings
           </h2>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="text-xs text-slate-600 dark:text-slate-500 mt-0.5">
             Link and map mandatory compliance documents to specific services and application variants.
           </p>
         </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end flex-wrap">
           {/* View Mode Toggle */}
-          <div className="flex items-center bg-slate-900 border border-slate-800 p-1 rounded-xl">
+          <div className="flex items-center bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-1 rounded-xl">
             <button
               type="button"
               onClick={() => setViewMode("navigator")}
               className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
                 viewMode === "navigator"
                   ? "bg-indigo-600 text-white shadow"
-                  : "text-slate-400 hover:text-white"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
               }`}
             >
               <LayoutGrid className="w-3.5 h-3.5" />
@@ -184,7 +184,7 @@ export function ServiceRequirementsTab({
               className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
                 viewMode === "table"
                   ? "bg-indigo-600 text-white shadow"
-                  : "text-slate-400 hover:text-white"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
               }`}
             >
               <TableProperties className="w-3.5 h-3.5" />
@@ -210,28 +210,28 @@ export function ServiceRequirementsTab({
       {viewMode === "navigator" && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* 1. Services Column */}
-          <div className="lg:col-span-4 flex flex-col space-y-3 bg-slate-950 p-4 rounded-2xl border border-slate-855">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-850">
-              <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">1. Select Service</span>
-              <span className="px-2 py-0.5 bg-slate-900 border border-slate-800 rounded text-[10px] text-slate-400 font-mono">
+          <div className="lg:col-span-4 flex flex-col space-y-3 bg-white dark:bg-slate-950 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm transition-colors duration-200">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-850">
+              <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">1. Select Service</span>
+              <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded text-[10px] text-slate-600 dark:text-slate-400 font-mono">
                 {scopedServices.length} Total
               </span>
             </div>
 
             {/* Category Filter */}
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                <Folder className="w-3 h-3 text-indigo-400" />
+              <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                <Folder className="w-3 h-3 text-indigo-500 dark:text-indigo-400" />
                 Filter by Category
               </label>
               <select
                 value={selectedCategoryId}
                 onChange={(e) => handleCategoryChange(e.target.value)}
-                className="w-full px-2.5 py-1.5 bg-slate-900 text-slate-100 border border-slate-800 rounded-xl text-xs focus:outline-none focus:border-indigo-500 cursor-pointer"
+                className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:outline-none focus:border-indigo-500 cursor-pointer"
               >
-                <option value="" className="bg-slate-900 text-slate-100 py-1">All Categories</option>
+                <option value="" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 py-1">All Categories</option>
                 {categories.map((cat) => (
-                  <option key={cat.id} value={cat.id} className="bg-slate-900 text-slate-100 py-1">
+                  <option key={cat.id} value={cat.id} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 py-1">
                     {cat.name}
                   </option>
                 ))}
@@ -240,13 +240,13 @@ export function ServiceRequirementsTab({
 
             {/* Service Search */}
             <div className="relative">
-              <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-500" />
+              <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400 dark:text-slate-500" />
               <input
                 type="text"
                 placeholder="Search services..."
                 value={servicesSearch}
                 onChange={(e) => onServicesSearchChange(e.target.value)}
-                className="w-full pl-9 pr-3 py-1.5 bg-slate-900 text-slate-100 border border-slate-800 rounded-xl text-xs focus:outline-none focus:border-indigo-500"
+                className="w-full pl-9 pr-3 py-1.5 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:outline-none focus:border-indigo-500"
               />
             </div>
 
@@ -260,7 +260,7 @@ export function ServiceRequirementsTab({
                   className={`w-full text-left p-2.5 rounded-xl text-xs transition-all flex items-center justify-between group ${
                     mappingServiceId === s.id
                       ? "bg-indigo-600 text-white font-semibold shadow-lg shadow-indigo-600/10"
-                      : "text-slate-300 hover:bg-slate-900/50 hover:text-white"
+                      : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-900/50 hover:text-slate-900 dark:hover:text-white"
                   }`}
                 >
                   <div className="truncate mr-2 flex flex-col">
@@ -270,7 +270,7 @@ export function ServiceRequirementsTab({
                     </span>
                   </div>
                   <span className={`text-[9px] uppercase font-mono px-1.5 py-0.5 rounded shrink-0 ${
-                    mappingServiceId === s.id ? "bg-indigo-700 text-white" : "bg-slate-900 text-slate-400 group-hover:bg-slate-800/80"
+                    mappingServiceId === s.id ? "bg-indigo-700 text-white" : "bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 group-hover:bg-slate-200 dark:group-hover:bg-slate-800/80"
                   }`}>
                     {s.code || "SVC"}
                   </span>
@@ -283,10 +283,10 @@ export function ServiceRequirementsTab({
           </div>
 
           {/* 2. Variants Column */}
-          <div className="lg:col-span-3 flex flex-col space-y-3 bg-slate-950 p-4 rounded-2xl border border-slate-855">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-850">
-              <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">2. Select Variant</span>
-              <span className="px-2 py-0.5 bg-slate-900 border border-slate-800 rounded text-[10px] text-slate-400 font-mono">
+          <div className="lg:col-span-3 flex flex-col space-y-3 bg-white dark:bg-slate-950 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm transition-colors duration-200">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-850">
+              <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">2. Select Variant</span>
+              <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded text-[10px] text-slate-600 dark:text-slate-400 font-mono">
                 {mappingVariants.length} Active
               </span>
             </div>
@@ -296,10 +296,10 @@ export function ServiceRequirementsTab({
                   key={v.id}
                   type="button"
                   onClick={() => onSelectMappingVariantId(v.id)}
-                  className={`w-full text-left p-3 rounded-xl text-xs transition-all flex flex-col text-slate-300 border ${
+                  className={`w-full text-left p-3 rounded-xl text-xs transition-all flex flex-col border ${
                     mappingVariantId === v.id
                       ? "bg-indigo-600 border-indigo-500 text-white font-semibold shadow-lg shadow-indigo-600/10"
-                      : "bg-slate-900/20 border-slate-850 hover:bg-slate-900/50 hover:text-white"
+                      : "bg-slate-50 dark:bg-slate-900/20 border-slate-200 dark:border-slate-850 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-900/50 hover:text-slate-900 dark:hover:text-white"
                   }`}
                 >
                   <div className="flex items-center justify-between w-full">
@@ -307,7 +307,7 @@ export function ServiceRequirementsTab({
                       {v.type === "NA" ? "Standard" : v.type === "FirstTaker" ? "First-taker" : v.type === "CivicActionGroup" ? "Civic Action Group" : v.type}
                     </span>
                     <span className={`text-[8px] font-mono uppercase px-1 rounded ${
-                      mappingVariantId === v.id ? "bg-indigo-700" : "bg-slate-800 text-slate-500"
+                      mappingVariantId === v.id ? "bg-indigo-700 text-white" : "bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-500"
                     }`}>
                       Variant
                     </span>
@@ -328,7 +328,7 @@ export function ServiceRequirementsTab({
                     <button
                       type="button"
                       onClick={() => onOpenCreateVariant(mappingServiceId)}
-                      className="px-2.5 py-1.5 bg-slate-900 hover:bg-slate-850 text-[10px] text-indigo-400 rounded-lg border border-slate-800 transition-colors font-medium"
+                      className="px-2.5 py-1.5 bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-850 text-[10px] text-indigo-600 dark:text-indigo-400 rounded-lg border border-slate-300 dark:border-slate-800 transition-colors font-medium"
                     >
                       Create Variant
                     </button>
@@ -339,9 +339,9 @@ export function ServiceRequirementsTab({
           </div>
 
           {/* 3. Requirements Checklist Pane */}
-          <div className="lg:col-span-5 flex flex-col space-y-3 bg-slate-950 p-4 rounded-2xl border border-slate-855 min-h-[300px]">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-850">
-              <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">3. Documentary Checklist</span>
+          <div className="lg:col-span-5 flex flex-col space-y-3 bg-white dark:bg-slate-950 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm transition-colors duration-200 min-h-[300px]">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-850">
+              <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">3. Documentary Checklist</span>
               {mappingVariantId && canManage && (
                 <button
                   type="button"
@@ -380,13 +380,13 @@ export function ServiceRequirementsTab({
                 serviceRequirements.map((mr) => (
                   <div
                     key={mr.serviceVariantRequirementId || mr.requirementId}
-                    className="p-3 bg-slate-900 border border-slate-855 hover:border-slate-800 rounded-xl transition-all flex flex-col space-y-2"
+                    className="p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 rounded-xl transition-all flex flex-col space-y-2"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
-                        <h4 className="text-xs font-bold text-white leading-normal truncate">{mr.name}</h4>
+                        <h4 className="text-xs font-bold text-slate-900 dark:text-white leading-normal truncate">{mr.name}</h4>
                         {mr.description && (
-                          <p className="text-[10px] text-slate-400 mt-0.5 leading-relaxed line-clamp-2">
+                          <p className="text-[10px] text-slate-600 dark:text-slate-400 mt-0.5 leading-relaxed line-clamp-2">
                             {mr.description}
                           </p>
                         )}
@@ -397,7 +397,7 @@ export function ServiceRequirementsTab({
                           <button
                             type="button"
                             onClick={() => onEditRequirement(mr)}
-                            className="p-1.5 rounded-lg border border-slate-800 hover:bg-slate-800 hover:text-white transition-colors"
+                            className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                             title="Edit Requirement"
                           >
                             <Edit className="w-3.5 h-3.5" />
@@ -405,7 +405,7 @@ export function ServiceRequirementsTab({
                           <button
                             type="button"
                             onClick={() => onDeleteMapping(mr.serviceVariantRequirementId)}
-                            className="p-1.5 rounded-lg border border-slate-800 hover:bg-slate-805 hover:text-rose-400 transition-colors"
+                            className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-500 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
                             title="Remove Requirement from Variant"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -414,12 +414,12 @@ export function ServiceRequirementsTab({
                       )}
                     </div>
 
-                    <div className="flex items-center gap-2 pt-1 border-t border-slate-800/60">
+                    <div className="flex items-center gap-2 pt-1 border-t border-slate-200 dark:border-slate-800/60">
                       <span
                         className={`text-[8px] font-bold px-1.5 py-0.5 rounded border uppercase shrink-0 ${
                           mr.isRequired
-                            ? "bg-rose-500/10 text-rose-400 border-rose-500/20"
-                            : "bg-slate-800 text-slate-400 border-slate-700"
+                            ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20"
+                            : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700"
                         }`}
                       >
                         {mr.isRequired ? "Mandatory" : "Optional"}
@@ -428,7 +428,7 @@ export function ServiceRequirementsTab({
                       <span className="text-[9px] font-medium text-slate-500 font-mono truncate">
                         Context:{" "}
                         {mr.contextKey ? (
-                          <span className="text-indigo-400 bg-slate-950 px-1 py-0.5 rounded border border-slate-855 font-bold ml-1">
+                          <span className="text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-slate-950 px-1 py-0.5 rounded border border-indigo-200 dark:border-slate-800 font-bold ml-1">
                             {mr.contextKey}
                           </span>
                         ) : (

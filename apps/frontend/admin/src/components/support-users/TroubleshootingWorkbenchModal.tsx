@@ -37,6 +37,7 @@ interface TroubleshootingWorkbenchModalProps {
   actionTag: string;
   onActionTagChange: (tag: string) => void;
   onAddNoteSubmit: (e: React.FormEvent) => void;
+  onUserUpdated?: (updated: { firstName: string; lastName: string; isSuperAdmin: boolean }) => void;
 }
 
 export function TroubleshootingWorkbenchModal({
@@ -57,14 +58,15 @@ export function TroubleshootingWorkbenchModal({
   actionTag,
   onActionTagChange,
   onAddNoteSubmit,
+  onUserUpdated,
 }: TroubleshootingWorkbenchModalProps) {
   return (
     <Dialog open={selectedUser !== null} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] overflow-y-auto bg-slate-950 border-slate-800 text-white p-0 rounded-2xl shadow-2xl">
+      <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white p-0 rounded-2xl shadow-2xl transition-colors duration-200">
         {selectedUser !== null && diagnosticData !== null && (
           <div className="flex flex-col min-h-[600px]">
             {/* Modal Header Bar */}
-            <div className="p-6 bg-gradient-to-r from-slate-900 via-slate-900 to-cyan-950/80 border-b border-slate-800">
+            <div className="p-6 bg-slate-50 dark:bg-gradient-to-r dark:from-slate-900 dark:via-slate-900 dark:to-cyan-950/80 border-b border-slate-200 dark:border-slate-800">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                   <div className="h-12 w-12 rounded-full bg-gradient-to-tr from-cyan-500 to-indigo-600 flex items-center justify-center text-white font-extrabold text-lg shadow-lg shrink-0">
@@ -72,13 +74,13 @@ export function TroubleshootingWorkbenchModal({
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <h2 className="text-xl font-bold text-white">{selectedUser.firstName} {selectedUser.lastName}</h2>
+                      <h2 className="text-xl font-bold text-slate-900 dark:text-white">{selectedUser.firstName} {selectedUser.lastName}</h2>
                       <StatusBadge status={selectedUser.status} isLocked={selectedUser.isLockedOut} />
                     </div>
-                    <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-3 flex-wrap">
-                      <span>Email: <strong className="text-slate-200">{selectedUser.email}</strong></span>
-                      <span>Region: <strong className="text-cyan-300">{selectedUser.regionName}</strong></span>
-                      <span>Auth Provider: <strong className="text-indigo-300">{selectedUser.authProvider}</strong></span>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5 flex items-center gap-3 flex-wrap">
+                      <span>Email: <strong className="text-slate-900 dark:text-slate-200">{selectedUser.email}</strong></span>
+                      <span>Region: <strong className="text-cyan-600 dark:text-cyan-300">{selectedUser.regionName}</strong></span>
+                      <span>Auth Provider: <strong className="text-indigo-600 dark:text-indigo-300">{selectedUser.authProvider}</strong></span>
                     </p>
                   </div>
                 </div>
@@ -100,29 +102,29 @@ export function TroubleshootingWorkbenchModal({
               {actionFeedback !== null && (
                 <div className={`mt-4 p-3 rounded-xl border text-xs flex items-center gap-2 ${
                   actionFeedback.type === "success"
-                    ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
-                    : "bg-rose-500/10 border-rose-500/30 text-rose-300"
+                    ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300"
+                    : "bg-rose-500/10 border-rose-500/30 text-rose-700 dark:text-rose-300"
                 }`}>
                   {actionFeedback.type === "success" ? (
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
                   ) : (
-                    <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+                    <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0" />
                   )}
                   <span>{actionFeedback.msg}</span>
                 </div>
               )}
 
               {/* Workbench Navigation Tabs */}
-              <div className="flex items-center gap-1 mt-6 border-b border-slate-800 overflow-x-auto pb-0">
+              <div className="flex items-center gap-1 mt-6 border-b border-slate-200 dark:border-slate-800 overflow-x-auto pb-0">
                 <button
                   onClick={() => onTabChange("health")}
                   className={`px-4 py-2 text-xs font-semibold rounded-t-xl transition-all flex items-center gap-2 border-b-2 -mb-px ${
                     activeTab === "health"
-                      ? "border-cyan-400 bg-slate-900 text-white shadow-sm"
-                      : "border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-900/50"
+                      ? "border-cyan-500 bg-white dark:bg-slate-900 text-cyan-600 dark:text-white shadow-sm"
+                      : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-900/50"
                   }`}
                 >
-                  <ShieldCheck className="w-4 h-4 text-cyan-400" />
+                  <ShieldCheck className="w-4 h-4 text-cyan-500 dark:text-cyan-400" />
                   <span>Account Health & Overrides</span>
                 </button>
 
@@ -130,11 +132,11 @@ export function TroubleshootingWorkbenchModal({
                   onClick={() => onTabChange("access")}
                   className={`px-4 py-2 text-xs font-semibold rounded-t-xl transition-all flex items-center gap-2 border-b-2 -mb-px ${
                     activeTab === "access"
-                      ? "border-cyan-400 bg-slate-900 text-white shadow-sm"
-                      : "border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-900/50"
+                      ? "border-cyan-500 bg-white dark:bg-slate-900 text-cyan-600 dark:text-white shadow-sm"
+                      : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-900/50"
                   }`}
                 >
-                  <Globe className="w-4 h-4 text-emerald-400" />
+                  <Globe className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
                   <span>Regional & Scope Diagnostics</span>
                 </button>
 
@@ -142,11 +144,11 @@ export function TroubleshootingWorkbenchModal({
                   onClick={() => onTabChange("audit")}
                   className={`px-4 py-2 text-xs font-semibold rounded-t-xl transition-all flex items-center gap-2 border-b-2 -mb-px ${
                     activeTab === "audit"
-                      ? "border-cyan-400 bg-slate-900 text-white shadow-sm"
-                      : "border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-900/50"
+                      ? "border-cyan-500 bg-white dark:bg-slate-900 text-cyan-600 dark:text-white shadow-sm"
+                      : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-900/50"
                   }`}
                 >
-                  <FileText className="w-4 h-4 text-indigo-400" />
+                  <FileText className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
                   <span>Login & Audit Logs</span>
                 </button>
 
@@ -154,11 +156,11 @@ export function TroubleshootingWorkbenchModal({
                   onClick={() => onTabChange("sessions")}
                   className={`px-4 py-2 text-xs font-semibold rounded-t-xl transition-all flex items-center gap-2 border-b-2 -mb-px ${
                     activeTab === "sessions"
-                      ? "border-cyan-400 bg-slate-900 text-white shadow-sm"
-                      : "border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-900/50"
+                      ? "border-cyan-500 bg-white dark:bg-slate-900 text-cyan-600 dark:text-white shadow-sm"
+                      : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-900/50"
                   }`}
                 >
-                  <Laptop className="w-4 h-4 text-amber-400" />
+                  <Laptop className="w-4 h-4 text-amber-500 dark:text-amber-400" />
                   <span>Active Sessions ({diagnosticData.activeSessions.length})</span>
                 </button>
 
@@ -166,18 +168,18 @@ export function TroubleshootingWorkbenchModal({
                   onClick={() => onTabChange("tickets")}
                   className={`px-4 py-2 text-xs font-semibold rounded-t-xl transition-all flex items-center gap-2 border-b-2 -mb-px ${
                     activeTab === "tickets"
-                      ? "border-cyan-400 bg-slate-900 text-white shadow-sm"
-                      : "border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-900/50"
+                      ? "border-cyan-500 bg-white dark:bg-slate-900 text-cyan-600 dark:text-white shadow-sm"
+                      : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-900/50"
                   }`}
                 >
-                  <Ticket className="w-4 h-4 text-purple-400" />
+                  <Ticket className="w-4 h-4 text-purple-500 dark:text-purple-400" />
                   <span>Support Notes & Tickets</span>
                 </button>
               </div>
             </div>
 
             {/* Tab Content Body */}
-            <div className="p-6 space-y-6 flex-1 bg-slate-950">
+            <div className="p-6 space-y-6 flex-1 bg-white dark:bg-slate-950 transition-colors duration-200">
               {activeTab === "health" && (
                 <HealthTab
                   user={selectedUser}
@@ -190,7 +192,11 @@ export function TroubleshootingWorkbenchModal({
               )}
 
               {activeTab === "access" && (
-                <AccessTab user={selectedUser} diagnosticData={diagnosticData} />
+                <AccessTab
+                  user={selectedUser}
+                  diagnosticData={diagnosticData}
+                  onUserUpdated={onUserUpdated}
+                />
               )}
 
               {activeTab === "audit" && (

@@ -32,9 +32,9 @@ export function ServiceVariantRequirementsTab({
       accessorKey: "serviceName",
       cell: (_, row) => (
         <div className="flex flex-col">
-          <span className="font-bold text-white block">{row.serviceName || "Global Service"}</span>
+          <span className="font-bold text-slate-900 dark:text-white block">{row.serviceName || "Global Service"}</span>
           {row.serviceVariantType !== "NA" && (
-            <span className="text-[10px] text-indigo-400 mt-0.5 font-medium block">{row.serviceVariantType || "Standard"} Variant</span>
+            <span className="text-[10px] text-indigo-600 dark:text-indigo-400 mt-0.5 font-medium block">{row.serviceVariantType || "Standard"} Variant</span>
           )}
         </div>
       ),
@@ -42,13 +42,13 @@ export function ServiceVariantRequirementsTab({
     {
       header: "Mapped Requirement",
       accessorKey: "requirement",
-      cell: (_, row) => <span className="font-bold text-white block">{row.requirement?.name || "Requirement"}</span>,
+      cell: (_, row) => <span className="font-bold text-slate-900 dark:text-white block">{row.requirement?.name || "Requirement"}</span>,
     },
     {
       header: "Context Key (Applicant Type)",
       accessorKey: "contextKey",
       cell: (val) => val ? (
-        <span className="px-2 py-0.5 bg-slate-950 border border-slate-855 text-indigo-400 rounded inline-block font-mono text-[10px]">
+        <span className="px-2 py-0.5 bg-indigo-50 dark:bg-slate-950 border border-indigo-200 dark:border-slate-800 text-indigo-600 dark:text-indigo-400 rounded inline-block font-mono text-[10px]">
           {String(val)}
         </span>
       ) : (

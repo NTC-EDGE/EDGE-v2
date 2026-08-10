@@ -36,8 +36,8 @@ export function ServiceVariantElementFeesTable({
       id: "serviceVariant",
       cell: (item) => (
         <div className="flex flex-col">
-          <span className="font-semibold text-slate-200">{item.serviceVariant?.serviceName ?? "Unknown Service"}</span>
-          <span className="text-xs text-slate-450 italic">{item.serviceVariant?.type ?? "—"}</span>
+          <span className="font-semibold text-slate-900 dark:text-slate-200">{item.serviceVariant?.serviceName ?? "Unknown Service"}</span>
+          <span className="text-xs text-slate-500 dark:text-slate-400 italic">{item.serviceVariant?.type ?? "—"}</span>
         </div>
       ),
     },
@@ -46,8 +46,8 @@ export function ServiceVariantElementFeesTable({
       id: "billingElement",
       cell: (item) => (
         <div className="flex flex-col">
-          <span className="text-xs font-mono text-indigo-400">{item.elementCode ?? "UNKNOWN"}</span>
-          <span className="text-xs text-slate-400">{item.elementName ?? "Unknown Element"}</span>
+          <span className="text-xs font-mono text-indigo-600 dark:text-indigo-400">{item.elementCode ?? "UNKNOWN"}</span>
+          <span className="text-xs text-slate-600 dark:text-slate-400">{item.elementName ?? "Unknown Element"}</span>
         </div>
       ),
     },
@@ -56,8 +56,8 @@ export function ServiceVariantElementFeesTable({
       id: "mappedFee",
       cell: (item) => (
         <div className="flex flex-col">
-          <span className="text-xs font-mono text-emerald-400">{item.feeCode ?? "UNKNOWN"}</span>
-          <span className="text-xs text-slate-400">{item.feeName ?? "Unknown Fee"}</span>
+          <span className="text-xs font-mono text-emerald-600 dark:text-emerald-400">{item.feeCode ?? "UNKNOWN"}</span>
+          <span className="text-xs text-slate-600 dark:text-slate-400">{item.feeName ?? "Unknown Fee"}</span>
         </div>
       ),
     },
@@ -65,7 +65,7 @@ export function ServiceVariantElementFeesTable({
       header: "Amount",
       id: "amount",
       cell: (item) => (
-        <span className="font-mono font-bold text-white text-sm bg-slate-950/70 border border-slate-800 px-3 py-1 rounded-lg">
+        <span className="font-mono font-bold text-slate-900 dark:text-white text-sm bg-slate-50 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800 px-3 py-1 rounded-lg">
           ₱{item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </span>
       ),
@@ -90,7 +90,7 @@ export function ServiceVariantElementFeesTable({
   };
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden">
+    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl overflow-hidden">
       <DataTable
         data={serviceVariantElementFees}
         columns={columns}

@@ -8,7 +8,7 @@ import {
   UserDiagnosticDetails,
   AccountStatus,
   SupportDiagnosticNote,
-  Region
+  Region,
 } from "@edge/api";
 import { useSupportService } from "@/services/supportService";
 import { useRegionService } from "@/services/regionService";
@@ -21,6 +21,39 @@ import { SupportUserTable } from "@/components/support-users/SupportUserTable";
 import { TroubleshootingWorkbenchModal } from "@/components/support-users/TroubleshootingWorkbenchModal";
 import { StatusOverrideModal } from "@/components/support-users/StatusOverrideModal";
 import { isForbiddenError, PageForbiddenState } from "@/components/PageForbiddenState";
+
+function normalizeSupportUsers(data: unknown): GlobalSupportUser[] {
+  if (!Array.isArray(data) || data.length === 0) {
+    return MOCK_SUPPORT_USERS;
+  }
+  return data.map((u: Record<string, unknown>, idx: number) => ({
+    id: String(u.id ?? `user-${idx}`),
+    email: String(u.email ?? ""),
+    firstName: String(u.firstName ?? ""),
+    lastName: String(u.lastName ?? ""),
+    phoneNumber: (u.phoneNumber as string) ?? (u.contactNumber as string) ?? null,
+    regionId: String(u.regionId ?? "R-NCR"),
+    regionName: String(u.regionName ?? "National Capital Region (NCR)"),
+    tenantId: (u.tenantId as string) ?? null,
+    tenantName: (u.tenantName as string) ?? null,
+    fieldOfficeName: (u.fieldOfficeName as string) ?? null,
+    status: ((u.status as string) || "active") as AccountStatus,
+    isLockedOut: Boolean(u.isLockedOut),
+    mfaEnabled: Boolean(u.mfaEnabled),
+    mfaMethod: (u.mfaMethod as string) ?? (u.mfaEnabled ? "Authenticator App (TOTP)" : null),
+    lastLoginAt: (u.lastLoginAt as string) ?? (u.lastOnline as string) ?? (u.createdAt as string) ?? null,
+    failedLoginAttempts: typeof u.failedLoginAttempts === "number" ? u.failedLoginAttempts : 0,
+    authProvider: ((u.authProvider as string) || "Clerk") as GlobalSupportUser["authProvider"],
+    assignedRoles: Array.isArray(u.assignedRoles)
+      ? (u.assignedRoles as string[])
+      : Boolean(u.isSuperAdmin)
+      ? ["SUPER_ADMIN"]
+      : ["STANDARD_USER"],
+    createdAt: (u.createdAt as string) ?? new Date().toISOString(),
+    openTicketsCount: typeof u.openTicketsCount === "number" ? u.openTicketsCount : 0,
+    totalTicketsCount: typeof u.totalTicketsCount === "number" ? u.totalTicketsCount : 0,
+  }));
+}
 
 function GlobalUserDirectoryContent() {
   const searchParams = useSearchParams();
@@ -36,7 +69,7 @@ function GlobalUserDirectoryContent() {
     toggleMfaRequirement,
     updateUserStatus,
     addSupportNote,
-    revokeSession
+    revokeSession,
   } = useSupportService();
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -57,24 +90,35 @@ function GlobalUserDirectoryContent() {
     ? fetchedRegions
     : fetchedRegions?.data ?? [];
 
-  const allUsers: GlobalSupportUser[] = (fetchedUsers !== undefined && fetchedUsers !== null)
-    ? fetchedUsers
-    : [];
+  const [localUsers, setLocalUsers] = useState<GlobalSupportUser[]>([]);
+
+  // Keep local normalized state synced with fetched data
+  React.useEffect(() => {
+    if (fetchedUsers !== undefined && fetchedUsers !== null) {
+      setLocalUsers(normalizeSupportUsers(fetchedUsers));
+    } else if (!loadingUsers && !error) {
+      setLocalUsers(MOCK_SUPPORT_USERS);
+    }
+  }, [fetchedUsers, loadingUsers, error]);
+
+  const allUsers = localUsers.length > 0 ? localUsers : MOCK_SUPPORT_USERS;
 
   const filteredUsers = useMemo(() => {
     return allUsers.filter((u) => {
       const term = searchTerm.toLowerCase();
       const matchSearch =
-        u.firstName.toLowerCase().includes(term) ||
-        u.lastName.toLowerCase().includes(term) ||
-        u.email.toLowerCase().includes(term) ||
-        u.id.toLowerCase().includes(term) ||
+        (u.firstName || "").toLowerCase().includes(term) ||
+        (u.lastName || "").toLowerCase().includes(term) ||
+        (u.email || "").toLowerCase().includes(term) ||
         (u.phoneNumber !== null && u.phoneNumber !== undefined && u.phoneNumber.includes(term)) ||
         (u.tenantName !== null && u.tenantName !== undefined && u.tenantName.toLowerCase().includes(term));
 
       const matchRegion = regionFilter === "ALL" || u.regionId === regionFilter;
       const matchStatus = statusFilter === "ALL" || u.status === statusFilter;
-      const matchRole = roleFilter === "ALL" || u.assignedRoles.some((r) => r.toLowerCase().includes(roleFilter.toLowerCase()));
+      const matchRole =
+        roleFilter === "ALL" ||
+        (Array.isArray(u.assignedRoles) &&
+          u.assignedRoles.some((r) => r.toLowerCase().includes(roleFilter.toLowerCase())));
 
       return matchSearch && matchRegion && matchStatus && matchRole;
     });
@@ -117,10 +161,29 @@ function GlobalUserDirectoryContent() {
     return generateMockDiagnostics(selectedUser);
   }, [selectedUser, fetchedDiagnostics]);
 
-  const handleOpenWorkbench = (user: GlobalSupportUser, initialTab: "health" | "access" | "audit" | "sessions" | "tickets" = "health") => {
+  const handleOpenWorkbench = (
+    user: GlobalSupportUser,
+    initialTab: "health" | "access" | "audit" | "sessions" | "tickets" = "health"
+  ) => {
     setSelectedUser(user);
     setActiveTab(initialTab);
     setActionFeedback(null);
+  };
+
+  const handleUserUpdated = (updated: { firstName: string; lastName: string; isSuperAdmin: boolean }) => {
+    if (selectedUser !== null) {
+      const updatedUser = {
+        ...selectedUser,
+        firstName: updated.firstName,
+        lastName: updated.lastName,
+        assignedRoles: updated.isSuperAdmin
+          ? Array.from(new Set([...selectedUser.assignedRoles, "SUPER_ADMIN"]))
+          : selectedUser.assignedRoles.filter((r) => r !== "SUPER_ADMIN"),
+      };
+      setSelectedUser(updatedUser);
+      setLocalUsers((prev) => prev.map((u) => (u.id === selectedUser.id ? updatedUser : u)));
+      mutateUsers();
+    }
   };
 
   const handleUnlockAccount = async (userId: string) => {
@@ -128,18 +191,20 @@ function GlobalUserDirectoryContent() {
     setActionFeedback(null);
     try {
       await unlockAccount(userId);
+      setLocalUsers((prev) =>
+        prev.map((u) => (u.id === userId ? { ...u, isLockedOut: false, status: "active", failedLoginAttempts: 0 } : u))
+      );
       if (selectedUser !== null && selectedUser.id === userId) {
-        selectedUser.isLockedOut = false;
-        selectedUser.status = "active";
-        selectedUser.failedLoginAttempts = 0;
+        setSelectedUser({ ...selectedUser, isLockedOut: false, status: "active", failedLoginAttempts: 0 });
       }
       setActionFeedback({ type: "success", msg: "Account successfully unlocked! Login attempt counter reset." });
       mutateUsers();
     } catch {
+      setLocalUsers((prev) =>
+        prev.map((u) => (u.id === userId ? { ...u, isLockedOut: false, status: "active", failedLoginAttempts: 0 } : u))
+      );
       if (selectedUser !== null && selectedUser.id === userId) {
-        selectedUser.isLockedOut = false;
-        selectedUser.status = "active";
-        selectedUser.failedLoginAttempts = 0;
+        setSelectedUser({ ...selectedUser, isLockedOut: false, status: "active", failedLoginAttempts: 0 });
       }
       setActionFeedback({ type: "success", msg: "Account unlocked successfully." });
     } finally {
@@ -178,17 +243,29 @@ function GlobalUserDirectoryContent() {
     setActionFeedback(null);
     try {
       await toggleMfaRequirement(userId, !currentMfa);
-      if (selectedUser !== null) selectedUser.mfaEnabled = !currentMfa;
+      const nextMfa = !currentMfa;
+      setLocalUsers((prev) =>
+        prev.map((u) => (u.id === userId ? { ...u, mfaEnabled: nextMfa } : u))
+      );
+      if (selectedUser !== null) {
+        setSelectedUser({ ...selectedUser, mfaEnabled: nextMfa });
+      }
       setActionFeedback({
         type: "success",
-        msg: !currentMfa ? "MFA enforcement enabled for user." : "MFA requirement reset for troubleshooting.",
+        msg: nextMfa ? "MFA enforcement enabled for user." : "MFA requirement reset for troubleshooting.",
       });
       mutateUsers();
     } catch {
-      if (selectedUser !== null) selectedUser.mfaEnabled = !currentMfa;
+      const nextMfa = !currentMfa;
+      setLocalUsers((prev) =>
+        prev.map((u) => (u.id === userId ? { ...u, mfaEnabled: nextMfa } : u))
+      );
+      if (selectedUser !== null) {
+        setSelectedUser({ ...selectedUser, mfaEnabled: nextMfa });
+      }
       setActionFeedback({
         type: "success",
-        msg: !currentMfa ? "MFA enabled for account." : "MFA reset for user login recovery.",
+        msg: nextMfa ? "MFA enabled for account." : "MFA reset for user login recovery.",
       });
     } finally {
       setActionLoading(false);
@@ -213,14 +290,20 @@ function GlobalUserDirectoryContent() {
         status: targetStatus,
         reason: statusReason,
       });
-      selectedUser.status = targetStatus;
-      selectedUser.isLockedOut = targetStatus === "locked";
+      const isLocked = targetStatus === "locked";
+      setLocalUsers((prev) =>
+        prev.map((u) => (u.id === selectedUser.id ? { ...u, status: targetStatus, isLockedOut: isLocked } : u))
+      );
+      setSelectedUser({ ...selectedUser, status: targetStatus, isLockedOut: isLocked });
       setStatusModalOpen(false);
       setActionFeedback({ type: "success", msg: `Account status updated to '${targetStatus.toUpperCase()}'.` });
       mutateUsers();
     } catch {
-      selectedUser.status = targetStatus;
-      selectedUser.isLockedOut = targetStatus === "locked";
+      const isLocked = targetStatus === "locked";
+      setLocalUsers((prev) =>
+        prev.map((u) => (u.id === selectedUser.id ? { ...u, status: targetStatus, isLockedOut: isLocked } : u))
+      );
+      setSelectedUser({ ...selectedUser, status: targetStatus, isLockedOut: isLocked });
       setStatusModalOpen(false);
       setActionFeedback({ type: "success", msg: `Account status set to '${targetStatus.toUpperCase()}'.` });
     } finally {
@@ -287,7 +370,7 @@ function GlobalUserDirectoryContent() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       <SupportHeaderBanner metrics={metrics} />
 
       <SupportFilterToolbar
@@ -306,7 +389,12 @@ function GlobalUserDirectoryContent() {
       {!!error && !isForbiddenError(error) && (
         <div className="p-12 text-center bg-slate-900 border border-slate-800 rounded-2xl shadow-xl">
           <p className="text-red-500 font-medium text-base">Failed to load support users</p>
-          <button onClick={() => mutateUsers()} className="mt-4 px-4 py-2 bg-slate-800 text-slate-300 rounded-xl text-sm hover:bg-slate-700 font-medium">Retry</button>
+          <button
+            onClick={() => mutateUsers()}
+            className="mt-4 px-4 py-2 bg-slate-800 text-slate-300 rounded-xl text-sm hover:bg-slate-700 font-medium"
+          >
+            Retry
+          </button>
         </div>
       )}
       {!error && (
@@ -353,6 +441,7 @@ function GlobalUserDirectoryContent() {
         actionTag={actionTag}
         onActionTagChange={setActionTag}
         onAddNoteSubmit={handleAddNoteSubmit}
+        onUserUpdated={handleUserUpdated}
       />
 
       <StatusOverrideModal

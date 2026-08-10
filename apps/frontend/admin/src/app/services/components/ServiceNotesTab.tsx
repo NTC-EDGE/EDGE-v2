@@ -98,14 +98,14 @@ export function ServiceNotesTab({
       header: "Service & Variant Scope",
       cell: (item) => (
         <div className="flex flex-col gap-1.5 py-0.5">
-          <span className="font-semibold text-slate-200 text-xs max-w-[260px] truncate block">
+          <span className="font-bold text-slate-900 dark:text-slate-200 text-xs max-w-[260px] truncate block">
             {item.serviceName ?? "Global"}
           </span>
           <span
             className={`text-[10px] w-fit px-2 py-0.5 rounded-lg border font-semibold tracking-wide ${
               item.serviceVariantName
-                ? "text-emerald-300 bg-emerald-500/10 border-emerald-500/20"
-                : "text-amber-300 bg-amber-500/10 border-amber-500/20"
+                ? "text-emerald-600 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20"
+                : "text-amber-600 dark:text-amber-300 bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20"
             }`}
           >
             {item.serviceVariantName ?? "All Variants"}
@@ -129,9 +129,9 @@ export function ServiceNotesTab({
                 {lines.map((line: string, idx: number) => {
                   const hasPrefix = /^\d+\./.test(line);
                   return (
-                    <li key={idx} className="text-slate-300 text-xs leading-relaxed flex gap-2">
+                    <li key={idx} className="text-slate-700 dark:text-slate-300 text-xs leading-relaxed flex gap-2">
                       {!hasPrefix && (
-                        <span className="text-indigo-400 font-bold select-none">•</span>
+                        <span className="text-indigo-600 dark:text-indigo-400 font-bold select-none">•</span>
                       )}
                       <span>{line}</span>
                     </li>
@@ -139,7 +139,7 @@ export function ServiceNotesTab({
                 })}
               </ul>
             ) : (
-              <p className="text-slate-300 text-xs leading-relaxed whitespace-pre-wrap">
+              <p className="text-slate-700 dark:text-slate-300 text-xs leading-relaxed whitespace-pre-wrap">
                 {item.notes}
               </p>
             )}
@@ -150,7 +150,7 @@ export function ServiceNotesTab({
   ];
 
   const emptyState = {
-    icon: <BookOpen className="w-10 h-10 mx-auto text-slate-600 mb-2" />,
+    icon: <BookOpen className="w-10 h-10 mx-auto text-slate-400 dark:text-slate-600 mb-2" />,
     title: "No service notes configured",
     description: "Add regulatory and procedural notes to services and their variants.",
   };
@@ -165,11 +165,11 @@ export function ServiceNotesTab({
       {/* Toolbar */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-sm font-bold text-white flex items-center gap-2">
-            <BookOpen className="w-4 h-4 text-indigo-400" />
+          <h2 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <BookOpen className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
             Service Notes
           </h2>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="text-xs text-slate-600 dark:text-slate-500 mt-0.5">
             Regulatory and procedural notes scoped to services or specific variants.
           </p>
         </div>
@@ -177,13 +177,13 @@ export function ServiceNotesTab({
         <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap sm:flex-nowrap">
           {/* Search */}
           <div className="relative flex-1 sm:flex-none sm:w-56">
-            <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-500" />
+            <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400 dark:text-slate-500" />
             <input
               type="text"
               placeholder="Search notes..."
               value={searchTerm}
               onChange={(e) => onSearchChange(e.target.value)}
-              className="w-full pl-8 pr-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-indigo-500"
+              className="w-full pl-8 pr-3 py-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500"
             />
           </div>
 
@@ -193,8 +193,8 @@ export function ServiceNotesTab({
             onClick={() => setShowFilters((v) => !v)}
             className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-colors ${
               hasActiveFilters
-                ? "bg-indigo-600/20 border-indigo-500/40 text-indigo-300"
-                : "bg-slate-900 border-slate-800 text-slate-400 hover:text-white"
+                ? "bg-indigo-50 dark:bg-indigo-600/20 border-indigo-200 dark:border-indigo-500/40 text-indigo-600 dark:text-indigo-300"
+                : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
             }`}
           >
             <Filter className="w-3.5 h-3.5" />

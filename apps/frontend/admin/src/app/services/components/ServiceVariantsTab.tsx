@@ -81,7 +81,7 @@ export function ServiceVariantsTab({
       header: "Service",
       accessorKey: "serviceName",
       cell: (val) => (
-        <span className="font-semibold text-slate-300 max-w-xs truncate block">
+        <span className="font-semibold text-slate-900 dark:text-slate-300 max-w-xs truncate block">
           {val !== null && val !== undefined && String(val).trim().length > 0 ? String(val) : "Global Service"}
         </span>
       ),
@@ -98,16 +98,16 @@ export function ServiceVariantsTab({
 
         let label = typeStr;
         if (typeStr === "FirstTaker") label = "First-taker";
-        else if (typeStr === "CivicActionGroup") label = "Civic Action Group";
+        if (typeStr === "CivicActionGroup") label = "Civic Action Group";
 
         return (
           <span
             className={`text-[10px] px-2.5 py-0.5 rounded-lg border uppercase inline-block font-bold tracking-wide ${
               isNewStyle
-                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
                 : isRenewalStyle
-                ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
-                : "bg-sky-500/10 text-sky-400 border-sky-500/20"
+                ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
+                : "bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20"
             }`}
           >
             {label}
@@ -119,7 +119,7 @@ export function ServiceVariantsTab({
       header: "Description",
       accessorKey: "description",
       cell: (val) => (
-        <span className="text-slate-400 max-w-sm truncate block text-xs">
+        <span className="text-slate-600 dark:text-slate-400 max-w-sm truncate block text-xs">
           {val !== null && val !== undefined && String(val).trim().length > 0 ? String(val) : "No description."}
         </span>
       ),
@@ -131,11 +131,11 @@ export function ServiceVariantsTab({
       {/* Header & Quick Controls Toolbar */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-sm font-bold text-white flex items-center gap-2">
-            <Settings2 className="w-4 h-4 text-indigo-400" />
+          <h2 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <Settings2 className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
             Service Variants
           </h2>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="text-xs text-slate-600 dark:text-slate-500 mt-0.5">
             Configure application types, pricing parameters, and requirements per service.
           </p>
         </div>
@@ -146,12 +146,12 @@ export function ServiceVariantsTab({
             <select
               value={selectedCategoryId}
               onChange={(e) => handleCategoryChange(e.target.value)}
-              className="w-full px-3 py-1.5 bg-slate-900 text-slate-100 border border-slate-800 rounded-xl text-xs focus:outline-none focus:border-indigo-500 cursor-pointer"
+              className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:outline-none focus:border-indigo-500 cursor-pointer"
               aria-label="Filter services by category"
             >
-              <option value="" className="bg-slate-900 text-slate-100 py-1">All Categories</option>
+              <option value="" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 py-1">All Categories</option>
               {categories.map((cat) => (
-                <option key={cat.id} value={cat.id} className="bg-slate-900 text-slate-100 py-1">
+                <option key={cat.id} value={cat.id} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 py-1">
                   {cat.name}
                 </option>
               ))}
@@ -163,14 +163,14 @@ export function ServiceVariantsTab({
             <select
               value={filterServiceId}
               onChange={(e) => onFilterServiceChange(e.target.value)}
-              className="w-full px-3 py-1.5 bg-slate-900 text-slate-100 border border-slate-800 rounded-xl text-xs focus:outline-none focus:border-indigo-500 cursor-pointer"
+              className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:outline-none focus:border-indigo-500 cursor-pointer"
               aria-label="Filter variants by service"
             >
-              <option value="" className="bg-slate-900 text-slate-100 py-1">
+              <option value="" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 py-1">
                 {selectedCategoryId ? `All in Category (${filteredServices.length})` : "All Services"}
               </option>
               {filteredServices.map((s) => (
-                <option key={s.id} value={s.id} className="bg-slate-900 text-slate-100 py-1">
+                <option key={s.id} value={s.id} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 py-1">
                   {s.name}
                 </option>
               ))}
@@ -183,8 +183,8 @@ export function ServiceVariantsTab({
             onClick={() => setShowFilters((v) => !v)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors shrink-0 ${
               hasActiveFilters
-                ? "bg-indigo-600/20 border-indigo-500/40 text-indigo-300"
-                : "bg-slate-900 border-slate-800 text-slate-400 hover:text-white"
+                ? "bg-indigo-50 dark:bg-indigo-600/20 border-indigo-200 dark:border-indigo-500/40 text-indigo-600 dark:text-indigo-300"
+                : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
             }`}
           >
             <Filter className="w-3.5 h-3.5" />

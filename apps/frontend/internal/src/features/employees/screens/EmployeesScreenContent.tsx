@@ -423,43 +423,43 @@ export function EmployeesScreenContent({
       <View style={styles.topSection}>
         {/* Breadcrumb Navigation: ADMIN -> DASHBOARD -> EMPLOYEE ACCOUNTS */}
         <View style={styles.breadcrumb}>
-          <Text style={styles.breadcrumbText}>Admin</Text>
-          <Lucide name="chevron-right" size={12} color={COLORS.neutral[400]} style={styles.breadcrumbDivider} />
-          <Text style={styles.breadcrumbText}>Dashboard</Text>
-          <Lucide name="chevron-right" size={12} color={COLORS.neutral[400]} style={styles.breadcrumbDivider} />
-          <Text style={[styles.breadcrumbText, styles.breadcrumbActive]}>Employee Accounts</Text>
+          <Text style={[styles.breadcrumbText, { color: colors.textMuted }]}>Admin</Text>
+          <Lucide name="chevron-right" size={12} color={colors.textMuted} style={styles.breadcrumbDivider} />
+          <Text style={[styles.breadcrumbText, { color: colors.textMuted }]}>Dashboard</Text>
+          <Lucide name="chevron-right" size={12} color={colors.textMuted} style={styles.breadcrumbDivider} />
+          <Text style={[styles.breadcrumbText, { color: isDark ? colors.brand[400] : colors.brand[700] }]}>Employee Accounts</Text>
         </View>
 
         {/* Header Banner Section */}
         <View style={[styles.headerBanner, isMobile && styles.headerBannerMobile]}>
           <View style={styles.headerTitleArea}>
-            <Text style={styles.headerTitle}>Employee Accounts</Text>
-            <Text style={styles.headerSubtitle}>
+            <Text style={[styles.headerTitle, { color: colors.text }]}>Employee Accounts</Text>
+            <Text style={[styles.headerSubtitle, { color: colors.textMuted }]}>
               Manage staff roles, evaluator assignments, and system administrative access.
             </Text>
           </View>
 
           <View style={[styles.headerActions, isMobile && styles.headerActionsMobile]}>
             {/* View Mode Toggle */}
-            <View style={styles.viewToggleGroup}>
+            <View style={[styles.viewToggleGroup, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100], borderColor: colors.border }]}>
               <Pressable
-                style={[styles.toggleBtn, viewMode === 'cards' && styles.toggleBtnActive]}
+                style={[styles.toggleBtn, viewMode === 'cards' && [styles.toggleBtnActive, { backgroundColor: isDark ? colors.neutral[700] : colors.cardBg }]]}
                 onPress={() => setViewMode('cards')}
               >
                 <Lucide
                   name="grid"
                   size={16}
-                  color={viewMode === 'cards' ? COLORS.brand[800] : COLORS.neutral[500]}
+                  color={viewMode === 'cards' ? (isDark ? colors.brand[400] : colors.brand[800]) : colors.textMuted}
                 />
               </Pressable>
               <Pressable
-                style={[styles.toggleBtn, viewMode === 'table' && styles.toggleBtnActive]}
+                style={[styles.toggleBtn, viewMode === 'table' && [styles.toggleBtnActive, { backgroundColor: isDark ? colors.neutral[700] : colors.cardBg }]]}
                 onPress={() => setViewMode('table')}
               >
                 <Lucide
                   name="list"
                   size={16}
-                  color={viewMode === 'table' ? COLORS.brand[800] : COLORS.neutral[500]}
+                  color={viewMode === 'table' ? (isDark ? colors.brand[400] : colors.brand[800]) : colors.textMuted}
                 />
               </Pressable>
             </View>
@@ -474,109 +474,109 @@ export function EmployeesScreenContent({
 
         {/* KPI Stats Strip */}
         <View style={[styles.statsStrip, isMobile && styles.statsStripMobile]}>
-          <View style={[styles.statCard, SHADOWS.card]}>
-            <View style={[styles.statIconBadge, { backgroundColor: COLORS.neutral[100] }]}>
-              <Lucide name="users" size={18} color={COLORS.brand[700]} />
+          <View style={[styles.statCard, SHADOWS.card, { backgroundColor: isDark ? colors.neutral[900] : colors.cardBg, borderColor: colors.border }]}>
+            <View style={[styles.statIconBadge, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100] }]}>
+              <Lucide name="users" size={18} color={isDark ? colors.brand[400] : colors.brand[700]} />
             </View>
             <View>
-              <Text style={styles.statValue}>{stats.total}</Text>
-              <Text style={styles.statLabel}>Total Staff</Text>
+              <Text style={[styles.statValue, { color: colors.text }]}>{stats.total}</Text>
+              <Text style={[styles.statLabel, { color: colors.textMuted }]}>Total Staff</Text>
             </View>
           </View>
 
-          <View style={[styles.statCard, SHADOWS.card]}>
-            <View style={[styles.statIconBadge, { backgroundColor: COLORS.neutral[100] }]}>
-              <Lucide name="briefcase" size={18} color={COLORS.brand[700]} />
+          <View style={[styles.statCard, SHADOWS.card, { backgroundColor: isDark ? colors.neutral[900] : colors.cardBg, borderColor: colors.border }]}>
+            <View style={[styles.statIconBadge, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100] }]}>
+              <Lucide name="briefcase" size={18} color={isDark ? colors.brand[400] : colors.brand[700]} />
             </View>
             <View>
-              <Text style={styles.statValue}>{stats.departments}</Text>
-              <Text style={styles.statLabel}>Departments</Text>
+              <Text style={[styles.statValue, { color: colors.text }]}>{stats.departments}</Text>
+              <Text style={[styles.statLabel, { color: colors.textMuted }]}>Departments</Text>
             </View>
           </View>
 
-          <View style={[styles.statCard, SHADOWS.card]}>
-            <View style={[styles.statIconBadge, { backgroundColor: COLORS.neutral[100] }]}>
-              <Lucide name="award" size={18} color={COLORS.brand[700]} />
+          <View style={[styles.statCard, SHADOWS.card, { backgroundColor: isDark ? colors.neutral[900] : colors.cardBg, borderColor: colors.border }]}>
+            <View style={[styles.statIconBadge, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100] }]}>
+              <Lucide name="award" size={18} color={isDark ? colors.brand[400] : colors.brand[700]} />
             </View>
             <View>
-              <Text style={styles.statValue}>{stats.evaluators}</Text>
-              <Text style={styles.statLabel}>Evaluators</Text>
+              <Text style={[styles.statValue, { color: colors.text }]}>{stats.evaluators}</Text>
+              <Text style={[styles.statLabel, { color: colors.textMuted }]}>Evaluators</Text>
             </View>
           </View>
 
-          <View style={[styles.statCard, SHADOWS.card]}>
-            <View style={[styles.statIconBadge, { backgroundColor: COLORS.semantic.warningBg }]}>
-              <Lucide name="shield" size={18} color={COLORS.semantic.warning} />
+          <View style={[styles.statCard, SHADOWS.card, { backgroundColor: isDark ? colors.neutral[900] : colors.cardBg, borderColor: colors.border }]}>
+            <View style={[styles.statIconBadge, { backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : COLORS.semantic.warningBg }]}>
+              <Lucide name="shield" size={18} color={isDark ? '#FBBF24' : COLORS.semantic.warning} />
             </View>
             <View>
-              <Text style={styles.statValue}>{stats.admins}</Text>
-              <Text style={styles.statLabel}>Admins & Managers</Text>
+              <Text style={[styles.statValue, { color: colors.text }]}>{stats.admins}</Text>
+              <Text style={[styles.statLabel, { color: colors.textMuted }]}>Admins & Managers</Text>
             </View>
           </View>
         </View>
 
         {/* Toolbar: Search and Dropdown Filter Row */}
-        <View style={[styles.toolbarCard, SHADOWS.card]}>
+        <View style={[styles.toolbarCard, SHADOWS.card, { backgroundColor: isDark ? colors.neutral[900] : colors.cardBg, borderColor: colors.border }]}>
           <View style={[styles.toolbarRow, isMobile && styles.toolbarRowMobile]}>
             {/* Search Bar */}
-            <View style={styles.searchBox}>
-              <Lucide name="search" size={16} color={COLORS.neutral[400]} style={styles.searchIcon} />
+            <View style={[styles.searchBox, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[50], borderColor: colors.border }]}>
+              <Lucide name="search" size={16} color={colors.textMuted} style={styles.searchIcon} />
               <TextInput
-                style={styles.searchInput}
+                style={[styles.searchInput, { color: colors.text }]}
                 placeholder="Search employees by name, email, or department..."
-                placeholderTextColor={COLORS.neutral[400]}
+                placeholderTextColor={colors.textMuted}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
               />
               {searchQuery.length > 0 && (
                 <Pressable onPress={() => setSearchQuery('')} style={styles.clearSearchBtn}>
-                  <Lucide name="x" size={14} color={COLORS.neutral[500]} />
+                  <Lucide name="x" size={14} color={colors.textMuted} />
                 </Pressable>
               )}
             </View>
 
             {/* Role Dropdown */}
             <View style={styles.dropdownContainer}>
-              <Text style={styles.dropdownLabel}>Role:</Text>
+              <Text style={[styles.dropdownLabel, { color: colors.textMuted }]}>Role:</Text>
               <Pressable
-                style={[styles.dropdownTrigger, isRoleDropdownOpen && styles.dropdownTriggerActive]}
+                style={[styles.dropdownTrigger, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[50], borderColor: colors.border }, isRoleDropdownOpen && { borderColor: isDark ? colors.brand[400] : colors.brand[700] }]}
                 onPress={() => {
                   setIsRoleDropdownOpen((prev) => !prev);
                 }}
               >
-                <Text style={styles.dropdownTriggerText} numberOfLines={1}>
+                <Text style={[styles.dropdownTriggerText, { color: colors.text }]} numberOfLines={1}>
                   {selectedRole === 'All' ? 'All Roles' : selectedRole}
                 </Text>
                 <Lucide
                   name={isRoleDropdownOpen ? 'chevron-up' : 'chevron-down'}
                   size={14}
-                  color={COLORS.neutral[600]}
+                  color={colors.textMuted}
                 />
               </Pressable>
 
               {isRoleDropdownOpen && (
-                <View style={[styles.dropdownMenu, SHADOWS.modal]}>
+                <View style={[styles.dropdownMenu, SHADOWS.modal, { backgroundColor: isDark ? colors.neutral[800] : colors.cardBg, borderColor: colors.border }]}>
                   <Pressable
-                    style={[styles.dropdownOption, selectedRole === 'All' && styles.dropdownOptionActive]}
+                    style={[styles.dropdownOption, selectedRole === 'All' && { backgroundColor: isDark ? colors.brand[800] : colors.brand[500] }]}
                     onPress={() => {
                       setSelectedRole('All');
                       setIsRoleDropdownOpen(false);
                     }}
                   >
-                    <Text style={[styles.dropdownOptionText, selectedRole === 'All' && styles.dropdownOptionTextActive]}>
+                    <Text style={[styles.dropdownOptionText, { color: selectedRole === 'All' ? '#FFFFFF' : colors.text }]}>
                       All Roles
                     </Text>
                   </Pressable>
                   {ROLES_LIST.map((r) => (
                     <Pressable
                       key={r}
-                      style={[styles.dropdownOption, selectedRole === r && styles.dropdownOptionActive]}
+                      style={[styles.dropdownOption, selectedRole === r && { backgroundColor: isDark ? colors.brand[800] : colors.brand[500] }]}
                       onPress={() => {
                         setSelectedRole(r);
                         setIsRoleDropdownOpen(false);
                       }}
                     >
-                      <Text style={[styles.dropdownOptionText, selectedRole === r && styles.dropdownOptionTextActive]}>
+                      <Text style={[styles.dropdownOptionText, { color: selectedRole === r ? '#FFFFFF' : colors.text }]}>
                         {r}
                       </Text>
                     </Pressable>
@@ -588,15 +588,15 @@ export function EmployeesScreenContent({
             {/* Reset Filters Option */}
             {(selectedRole !== 'All' || searchQuery.length > 0) && (
               <Pressable
-                style={styles.resetFiltersBtn}
+                style={[styles.resetFiltersBtn, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100], borderColor: colors.border }]}
                 onPress={() => {
                   setSelectedRole('All');
                   setSearchQuery('');
                   setIsRoleDropdownOpen(false);
                 }}
               >
-                <Lucide name="rotate-ccw" size={13} color={COLORS.brand[700]} style={{ marginRight: 4 }} />
-                <Text style={styles.resetFiltersText}>Reset</Text>
+                <Lucide name="rotate-ccw" size={13} color={isDark ? colors.brand[400] : colors.brand[700]} style={{ marginRight: 4 }} />
+                <Text style={[styles.resetFiltersText, { color: isDark ? colors.brand[400] : colors.brand[700] }]}>Reset</Text>
               </Pressable>
             )}
           </View>
@@ -618,20 +618,20 @@ export function EmployeesScreenContent({
                 />
               ))
             ) : (
-              <View style={styles.emptyState}>
-                <Lucide name="users" size={40} color={COLORS.neutral[300]} style={{ marginBottom: 12 }} />
-                <Text style={styles.emptyTitle}>No Employees Found</Text>
-                <Text style={styles.emptyText}>
+              <View style={[styles.emptyState, { backgroundColor: isDark ? colors.neutral[900] : colors.cardBg, borderColor: colors.border }]}>
+                <Lucide name="users" size={40} color={colors.textMuted} style={{ marginBottom: 12 }} />
+                <Text style={[styles.emptyTitle, { color: colors.text }]}>No Employees Found</Text>
+                <Text style={[styles.emptyText, { color: colors.textMuted }]}>
                   No employee records match your search criteria. Try adjusting your search query or filters.
                 </Text>
                 <Pressable
-                  style={styles.resetFilterBtn}
+                  style={[styles.resetFilterBtn, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100], borderColor: colors.border }]}
                   onPress={() => {
                     setSearchQuery('');
                     setSelectedRole('All');
                   }}
                 >
-                  <Text style={styles.resetFilterText}>Reset Filters</Text>
+                  <Text style={[styles.resetFilterText, { color: isDark ? colors.brand[400] : colors.brand[700] }]}>Reset Filters</Text>
                 </Pressable>
               </View>
             )}
@@ -649,11 +649,11 @@ export function EmployeesScreenContent({
 
       {/* BOTTOM FOOTER SECTION (PAGINATION BAR) */}
       {viewMode === 'cards' && filteredEmployees.length > 0 && (
-        <View style={[styles.bottomPagination, SHADOWS.card]}>
-          <Text style={styles.paginationText}>
-            Showing <Text style={styles.boldText}>{startIndex + 1}</Text> to{' '}
-            <Text style={styles.boldText}>{endIndex}</Text> of{' '}
-            <Text style={styles.boldText}>{filteredEmployees.length}</Text> employees (Page{' '}
+        <View style={[styles.bottomPagination, SHADOWS.card, { backgroundColor: isDark ? colors.neutral[900] : colors.cardBg, borderColor: colors.border }]}>
+          <Text style={[styles.paginationText, { color: colors.textMuted }]}>
+            Showing <Text style={[styles.boldText, { color: colors.text }]}>{startIndex + 1}</Text> to{' '}
+            <Text style={[styles.boldText, { color: colors.text }]}>{endIndex}</Text> of{' '}
+            <Text style={[styles.boldText, { color: colors.text }]}>{filteredEmployees.length}</Text> employees (Page{' '}
             {currentPage} of {totalPages})
           </Text>
 
@@ -661,14 +661,14 @@ export function EmployeesScreenContent({
             <Pressable
               disabled={currentPage <= 1}
               onPress={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-              style={[styles.pageBtn, currentPage <= 1 && styles.pageBtnDisabled]}
+              style={[styles.pageBtn, { backgroundColor: isDark ? colors.neutral[800] : colors.cardBg, borderColor: colors.border }, currentPage <= 1 && styles.pageBtnDisabled]}
             >
               <Lucide
                 name="chevron-left"
                 size={16}
-                color={currentPage > 1 ? COLORS.neutral[700] : COLORS.neutral[300]}
+                color={currentPage > 1 ? colors.text : colors.textMuted}
               />
-              <Text style={[styles.pageBtnText, currentPage <= 1 && styles.pageBtnTextDisabled]}>
+              <Text style={[styles.pageBtnText, { color: colors.text }, currentPage <= 1 && styles.pageBtnTextDisabled]}>
                 Previous
               </Text>
             </Pressable>
@@ -676,15 +676,15 @@ export function EmployeesScreenContent({
             <Pressable
               disabled={currentPage >= totalPages}
               onPress={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-              style={[styles.pageBtn, currentPage >= totalPages && styles.pageBtnDisabled]}
+              style={[styles.pageBtn, { backgroundColor: isDark ? colors.neutral[800] : colors.cardBg, borderColor: colors.border }, currentPage >= totalPages && styles.pageBtnDisabled]}
             >
-              <Text style={[styles.pageBtnText, currentPage >= totalPages && styles.pageBtnTextDisabled]}>
+              <Text style={[styles.pageBtnText, { color: colors.text }, currentPage >= totalPages && styles.pageBtnTextDisabled]}>
                 Next
               </Text>
               <Lucide
                 name="chevron-right"
                 size={16}
-                color={currentPage < totalPages ? COLORS.neutral[700] : COLORS.neutral[300]}
+                color={currentPage < totalPages ? colors.text : colors.textMuted}
               />
             </Pressable>
           </View>

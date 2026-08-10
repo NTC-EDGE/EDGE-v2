@@ -39,10 +39,10 @@ export function NotesTable({
       header: "Service & Variant Scope",
       cell: (item) => (
         <div className="flex flex-col gap-1.5 py-0.5">
-          <span className="font-semibold text-slate-200 text-xs max-w-[260px] truncate block">
+          <span className="font-semibold text-slate-900 dark:text-slate-200 text-xs max-w-[260px] truncate block">
             {item.serviceName ?? "Global"}
           </span>
-          <span className={`text-[10px] w-fit px-2 py-0.5 rounded-lg border font-semibold tracking-wide ${item.serviceVariantName ? "text-emerald-300 bg-emerald-500/10 border-emerald-500/20" : "text-amber-300 bg-amber-500/10 border-amber-500/20"}`}>
+          <span className={`text-[10px] w-fit px-2 py-0.5 rounded-lg border font-semibold tracking-wide ${item.serviceVariantName ? "text-emerald-600 dark:text-emerald-300 bg-emerald-500/10 border-emerald-500/20" : "text-amber-600 dark:text-amber-300 bg-amber-500/10 border-amber-500/20"}`}>
             {item.serviceVariantName ?? "All Variants"}
           </span>
         </div>
@@ -66,15 +66,15 @@ export function NotesTable({
                   // If it already starts with a number like "1.", let it show normally, otherwise prefix with bullet
                   const hasPrefix = /^\d+\./.test(line);
                   return (
-                    <li key={idx} className="text-slate-300 text-xs leading-relaxed flex gap-2">
-                      {!hasPrefix && <span className="text-indigo-400 font-bold select-none">•</span>}
+                    <li key={idx} className="text-slate-700 dark:text-slate-300 text-xs leading-relaxed flex gap-2">
+                      {!hasPrefix && <span className="text-indigo-600 dark:text-indigo-400 font-bold select-none">•</span>}
                       <span>{line}</span>
                     </li>
                   );
                 })}
               </ul>
             ) : (
-              <p className="text-slate-300 text-xs leading-relaxed whitespace-pre-wrap">{item.notes}</p>
+              <p className="text-slate-700 dark:text-slate-300 text-xs leading-relaxed whitespace-pre-wrap">{item.notes}</p>
             )}
           </div>
         );

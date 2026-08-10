@@ -327,7 +327,13 @@ export function DashboardScreen(): React.ReactElement {
 
         {/* Table rows */}
         {MOCK_QUEUE.map((row, idx) => {
-          const statusStyle = STATUS_COLORS[row.status];
+          const statusStyle = isDark ? (
+            row.status === 'Pending' ? { text: '#FBBF24', bg: 'rgba(245, 158, 11, 0.15)' } :
+            row.status === 'In Review' ? { text: '#60A5FA', bg: 'rgba(59, 130, 246, 0.15)' } :
+            row.status === 'Approved' ? { text: '#34D399', bg: 'rgba(16, 185, 129, 0.15)' } :
+            { text: '#F87171', bg: 'rgba(239, 68, 68, 0.15)' }
+          ) : STATUS_COLORS[row.status];
+
           return (
             <View
               key={row.id}
@@ -337,7 +343,7 @@ export function DashboardScreen(): React.ReactElement {
                 idx === MOCK_QUEUE.length - 1 && { borderBottomWidth: 0 },
               ]}
             >
-              <Text style={[styles.tableCell, styles.colId, styles.monoCell, { color: isDark ? colors.brand[500] : colors.brand[700] }]}>
+              <Text style={[styles.tableCell, styles.colId, styles.monoCell, { color: isDark ? colors.brand[400] : colors.brand[700] }]}>
                 {row.id}
               </Text>
               <Text style={[styles.tableCell, styles.colDefault, { color: textColor }]} numberOfLines={1}>

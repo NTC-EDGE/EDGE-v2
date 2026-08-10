@@ -52,7 +52,7 @@ export function ProvincesTable({
       key: "code",
       header: "Province Code",
       cell: (item) => (
-        <span className="font-mono text-indigo-400 font-bold text-sm bg-indigo-500/10 px-2.5 py-1 rounded border border-indigo-500/20">
+        <span className="font-mono text-indigo-600 dark:text-indigo-400 font-bold text-sm bg-indigo-50 dark:bg-indigo-500/10 px-2.5 py-1 rounded border border-indigo-200 dark:border-indigo-500/20">
           {item.code}
         </span>
       ),
@@ -60,7 +60,7 @@ export function ProvincesTable({
     {
       key: "name",
       header: "Province Name",
-      cell: (item) => <span className="font-semibold text-white">{item.name}</span>,
+      cell: (item) => <span className="font-semibold text-slate-900 dark:text-white">{item.name}</span>,
     },
     {
       key: "region",
@@ -68,9 +68,9 @@ export function ProvincesTable({
       cell: (item) => {
         const parentRegion = regions.find((r) => r.id === item.regionId);
         return (
-          <span className="text-slate-300 font-medium">
+          <span className="text-slate-700 dark:text-slate-300 font-medium">
             {parentRegion ? (
-              <span className="px-2 py-0.5 rounded bg-slate-800 text-xs border border-slate-700 text-slate-400">
+              <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400">
                 {parentRegion.code} - {parentRegion.name}
               </span>
             ) : (
@@ -89,18 +89,18 @@ export function ProvincesTable({
           disabled={!canManage}
           className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border transition-all ${
             item.isActive
-              ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/25"
-              : "bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700"
+              ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/25"
+              : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700"
           }`}
         >
           {item.isActive ? (
             <>
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400" />
               Active
             </>
           ) : (
             <>
-              <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
+              <span className="w-1.5 h-1.5 rounded-full bg-slate-400 dark:bg-slate-500" />
               Inactive
             </>
           )}

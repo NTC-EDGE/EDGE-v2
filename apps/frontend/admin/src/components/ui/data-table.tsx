@@ -127,10 +127,10 @@ export function DataTable<T>({
     <div className={`space-y-4 ${className}`}>
       {/* Header & Title Section */}
       {hasHeader && (
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl bg-slate-900/90 border border-slate-800">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800">
           <div>
-            {title && <h3 className="text-lg font-bold text-white flex items-center gap-2">{title}</h3>}
-            {description && <p className="text-xs text-slate-400 mt-0.5">{description}</p>}
+            {title && <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">{title}</h3>}
+            {description && <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{description}</p>}
           </div>
           {headerBadge && <div>{headerBadge}</div>}
         </div>
@@ -140,10 +140,10 @@ export function DataTable<T>({
       {toolbar && <div>{toolbar}</div>}
 
       {/* Table Container */}
-      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+      <div className="bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-xl transition-colors duration-200">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-slate-300">
-            <thead className="bg-slate-950/90 text-xs uppercase text-slate-400 font-semibold tracking-wider border-b border-slate-800">
+          <table className="w-full text-left text-sm text-slate-700 dark:text-slate-300">
+            <thead className="bg-slate-50 dark:bg-slate-950/90 text-xs uppercase text-slate-500 dark:text-slate-400 font-semibold tracking-wider border-b border-slate-200 dark:border-slate-800">
               <tr>
                 {columns.map((col, colIdx) => {
                   const alignClass =
@@ -162,26 +162,26 @@ export function DataTable<T>({
                 {hasActions && <th className="px-6 py-4 text-right">{actionsHeaderLabel}</th>}
               </tr>
             </thead>
- 
-            <tbody className="divide-y divide-slate-800/60">
+
+            <tbody className="divide-y divide-slate-200/80 dark:divide-slate-800/60">
               {loading ? (
                 <tr>
-                  <td colSpan={columns.length + (hasActions ? 1 : 0)} className="px-6 py-12 text-center text-slate-400">
+                  <td colSpan={columns.length + (hasActions ? 1 : 0)} className="px-6 py-12 text-center text-slate-500 dark:text-slate-400">
                     <div className="flex items-center justify-center gap-2">
-                      <Loader2 className="w-5 h-5 animate-spin text-cyan-400" />
+                      <Loader2 className="w-5 h-5 animate-spin text-cyan-500 dark:text-cyan-400" />
                       <span>Loading dataset...</span>
                     </div>
                   </td>
                 </tr>
               ) : displayData.length === 0 ? (
                 <tr>
-                  <td colSpan={columns.length + (hasActions ? 1 : 0)} className="px-6 py-12 text-center text-slate-400">
+                  <td colSpan={columns.length + (hasActions ? 1 : 0)} className="px-6 py-12 text-center text-slate-500 dark:text-slate-400">
                     {renderEmptyState()}
                   </td>
                 </tr>
               ) : (
                 displayData.map((item, idx) => (
-                  <tr key={resolveItemKey(item, idx)} className="hover:bg-slate-800/40 transition-colors group">
+                  <tr key={resolveItemKey(item, idx)} className="hover:bg-slate-100/70 dark:hover:bg-slate-800/40 transition-colors group">
                     {columns.map((col, colIdx) => {
                       const alignClass =
                         col.align === "center"

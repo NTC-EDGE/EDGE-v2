@@ -175,22 +175,22 @@ export function CreateRecordDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md bg-slate-900 border border-slate-800 text-slate-200">
+      <DialogContent className="sm:max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white">
         <DialogHeader>
-          <DialogTitle className="text-lg font-bold text-white">
+          <DialogTitle className="text-lg font-bold text-slate-900 dark:text-white">
             {activeTab === "fees" && "Register New Fee Code"}
             {activeTab === "service-fees" && "Configure Service Fee"}
             {activeTab === "service-variant-fees" && "Map Variant Fee"}
             {activeTab === "service-variant-element-fees" && "Map Variant Element Fee"}
           </DialogTitle>
-          <DialogDescription className="text-xs text-slate-400">
+          <DialogDescription className="text-xs text-slate-600 dark:text-slate-400">
             Create and store new configurations. All fields marked with * are required.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 py-2">
           {errorMsg !== null && (
-            <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs rounded-xl flex items-center gap-2">
+            <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs rounded-xl flex items-center gap-2">
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
               <span>{errorMsg}</span>
             </div>
@@ -199,34 +199,34 @@ export function CreateRecordDialog({
           {activeTab === "fees" && (
             <>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300">Code *</label>
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Code *</label>
                 <input
                   type="text"
                   required
                   placeholder={activeTab === "fees" ? "e.g. FILING_FEE" : "e.g. ELEM_TRANS"}
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300">Name *</label>
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Name *</label>
                 <input
                   type="text"
                   required
                   placeholder={activeTab === "fees" ? "e.g. Licensing Application Filing Fee" : "e.g. Transmitter Element"}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300">Description (Optional)</label>
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Description (Optional)</label>
                 <textarea
                   placeholder="Provide context about what this applies to."
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 min-h-[80px]"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 min-h-[80px]"
                 />
               </div>
             </>
@@ -235,14 +235,14 @@ export function CreateRecordDialog({
           {activeTab === "service-fees" && (
             <>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300">Service Standard *</label>
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Service Standard *</label>
                 <select
                   value={serviceId}
                   onChange={(e) => handleServiceChange(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                 >
                   {services.map((s) => (
-                    <option key={s.id} value={s.id}>
+                    <option key={s.id} value={s.id} className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">
                       {s.name}
                     </option>
                   ))}
@@ -251,29 +251,29 @@ export function CreateRecordDialog({
 
               <div className="space-y-2.5">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block">Service Fees & Amounts *</label>
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">Service Fees & Amounts *</label>
                   <Button
                     type="button"
                     variant="outline"
                     onClick={handleAddFeeEntry}
-                    className="h-7 px-2.5 border-dashed border-slate-700 bg-slate-900 text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg text-[11px] flex items-center gap-1 shrink-0"
+                    className="h-7 px-2.5 border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-[11px] flex items-center gap-1 shrink-0"
                   >
                     <Plus className="w-3 h-3" /> Add Fee Code
                   </Button>
                 </div>
                 <div className="space-y-3 h-[260px] overflow-y-auto pr-1">
                   {feeEntries.map((entry, index) => (
-                    <div key={index} className="flex gap-2 items-center bg-slate-950 p-3.5 rounded-xl border border-slate-800/80">
+                    <div key={index} className="flex gap-2 items-center bg-slate-50 dark:bg-slate-950 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800/80">
                       <div className="flex-1 space-y-1.5 min-w-0">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase">Fee Code</label>
+                        <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">Fee Code</label>
                         <select
                           value={entry.feeId}
                           onChange={(e) => handleUpdateFeeEntry(index, "feeId", e.target.value)}
-                          className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                          className="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-lg text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                         >
-                          <option value="" disabled>Select Fee Code...</option>
+                          <option value="" disabled className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">Select Fee Code...</option>
                           {fees.map((f) => (
-                            <option key={f.id} value={f.id}>
+                            <option key={f.id} value={f.id} className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">
                               [{f.code}] {f.name}
                             </option>
                           ))}
@@ -281,7 +281,7 @@ export function CreateRecordDialog({
                       </div>
 
                       <div className="w-28 space-y-1.5 shrink-0">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase">Amount</label>
+                        <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">Amount</label>
                         <div className="relative">
                           <span className="absolute left-2.5 top-1.5 text-slate-400 text-xs font-semibold pointer-events-none">₱</span>
                           <input
@@ -292,7 +292,7 @@ export function CreateRecordDialog({
                             placeholder="0.00"
                             value={entry.amount}
                             onChange={(e) => handleUpdateFeeEntry(index, "amount", Number(e.target.value))}
-                            className="w-full pl-6 pr-2 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
+                            className="w-full pl-6 pr-2 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-lg text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
                           />
                         </div>
                       </div>
@@ -302,7 +302,7 @@ export function CreateRecordDialog({
                           type="button"
                           variant="ghost"
                           onClick={() => handleRemoveFeeEntry(index)}
-                          className="h-8 w-8 p-0 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg shrink-0 self-end mb-0.5"
+                          className="h-8 w-8 p-0 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg shrink-0 self-end mb-0.5"
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
@@ -317,14 +317,14 @@ export function CreateRecordDialog({
           {(activeTab === "service-variant-fees" || activeTab === "service-variant-element-fees") && (
             <>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300">Service Standard *</label>
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Service Standard *</label>
                 <select
                   value={serviceId}
                   onChange={(e) => handleServiceChange(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                 >
                   {services.map((s) => (
-                    <option key={s.id} value={s.id}>
+                    <option key={s.id} value={s.id} className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">
                       {s.name}
                     </option>
                   ))}
@@ -332,18 +332,18 @@ export function CreateRecordDialog({
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300">Service Variant Type *</label>
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Service Variant Type *</label>
                 <select
                   value={serviceVariantId}
                   onChange={(e) => setServiceVariantId(e.target.value)}
                   required
-                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                 >
                   {variants.length === 0 ? (
-                    <option value="">No variants available for this service</option>
+                    <option value="" className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">No variants available for this service</option>
                   ) : (
                     variants.map((v) => (
-                      <option key={v.id} value={v.id}>
+                      <option key={v.id} value={v.id} className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">
                         {v.type} {v.description ? `(${v.description})` : ""}
                       </option>
                     ))
@@ -353,15 +353,15 @@ export function CreateRecordDialog({
 
               {activeTab === "service-variant-element-fees" && (
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-300">Billing Element *</label>
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Billing Element *</label>
                   <select
                     value={elementId}
                     onChange={(e) => setElementId(e.target.value)}
                     required
-                    className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                   >
                     {elements.map((elem) => (
-                      <option key={elem.id} value={elem.id}>
+                      <option key={elem.id} value={elem.id} className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">
                         [{elem.code}] {elem.name}
                       </option>
                     ))}
@@ -370,15 +370,15 @@ export function CreateRecordDialog({
               )}
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300">Mapped Fee Code *</label>
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Mapped Fee Code *</label>
                 <select
                   value={feeId}
                   onChange={(e) => setFeeId(e.target.value)}
                   required
-                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                 >
                   {fees.map((f) => (
-                    <option key={f.id} value={f.id}>
+                    <option key={f.id} value={f.id} className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">
                       [{f.code}] {f.name}
                     </option>
                   ))}
@@ -386,7 +386,7 @@ export function CreateRecordDialog({
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300">Amount *</label>
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Amount *</label>
                 <div className="relative">
                   <span className="absolute left-3.5 top-2.5 text-slate-400 text-sm font-semibold pointer-events-none">₱</span>
                   <input
@@ -397,7 +397,7 @@ export function CreateRecordDialog({
                     placeholder="0.00"
                     value={amount}
                     onChange={(e) => setAmount(Number(e.target.value))}
-                    className="w-full pl-8 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full pl-8 pr-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
               </div>
@@ -409,7 +409,7 @@ export function CreateRecordDialog({
               type="button"
               variant="ghost"
               onClick={() => onOpenChange(false)}
-              className="text-slate-400 hover:text-white"
+              className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
             >
               Cancel
             </Button>

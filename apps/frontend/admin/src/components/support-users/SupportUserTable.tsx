@@ -44,26 +44,23 @@ export function SupportUserTable({
   const columns: ColumnDef<GlobalSupportUser>[] = [
     {
       key: "user",
-      header: "User & Account ID",
+      header: "User",
       cell: (usr) => (
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-full bg-gradient-to-tr from-cyan-600 to-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow shrink-0">
             {usr.firstName.charAt(0)}{usr.lastName.charAt(0)}
           </div>
           <div>
-            <div className="font-semibold text-white text-sm flex items-center gap-2">
+            <div className="font-semibold text-slate-900 dark:text-white text-sm">
               <span>{usr.firstName} {usr.lastName}</span>
-              <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-800 text-slate-400 font-mono border border-slate-700">
-                {usr.id}
-              </span>
             </div>
-            <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
+            <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400 mt-0.5">
               <span className="flex items-center gap-1">
-                <Mail className="w-3 h-3 text-slate-500" /> {usr.email}
+                <Mail className="w-3 h-3 text-slate-400 dark:text-slate-500" /> {usr.email}
               </span>
               {usr.phoneNumber && (
                 <span className="flex items-center gap-1 text-slate-500">
-                  • <Phone className="w-3 h-3 text-slate-500" /> {usr.phoneNumber}
+                  • <Phone className="w-3 h-3 text-slate-400 dark:text-slate-500" /> {usr.phoneNumber}
                 </span>
               )}
             </div>
@@ -76,17 +73,17 @@ export function SupportUserTable({
       header: "Global Region & Tenant",
       cell: (usr) => (
         <div className="space-y-1">
-          <div className="flex items-center gap-1.5 text-xs text-cyan-300 font-medium">
-            <Globe className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+          <div className="flex items-center gap-1.5 text-xs text-cyan-600 dark:text-cyan-300 font-medium">
+            <Globe className="w-3.5 h-3.5 text-cyan-500 dark:text-cyan-400 shrink-0" />
             <span className="max-w-[180px] truncate">{usr.regionName}</span>
           </div>
           {usr.tenantName ? (
-            <div className="flex items-center gap-1 text-[11px] text-slate-400">
-              <Building2 className="w-3 h-3 text-slate-500 shrink-0" />
+            <div className="flex items-center gap-1 text-[11px] text-slate-600 dark:text-slate-400">
+              <Building2 className="w-3 h-3 text-slate-400 dark:text-slate-500 shrink-0" />
               <span className="max-w-[170px] truncate">{usr.tenantName}</span>
             </div>
           ) : (
-            <div className="text-[11px] text-slate-500 italic">No direct tenant binding</div>
+            <div className="text-[11px] text-slate-400 dark:text-slate-500 italic">No direct tenant binding</div>
           )}
         </div>
       ),
@@ -99,11 +96,11 @@ export function SupportUserTable({
           <div><StatusBadge status={usr.status} isLocked={usr.isLockedOut} /></div>
           <div className="flex items-center gap-1.5 text-[11px]">
             {usr.mfaEnabled ? (
-              <span className="text-emerald-400 flex items-center gap-1">
+              <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
                 <ShieldCheck className="w-3 h-3" /> MFA: {usr.mfaMethod ?? "Enrolled"}
               </span>
             ) : (
-              <span className="text-amber-400/80 flex items-center gap-1">
+              <span className="text-amber-600 dark:text-amber-400/80 flex items-center gap-1">
                 <ShieldAlert className="w-3 h-3" /> MFA Disabled
               </span>
             )}
@@ -116,13 +113,13 @@ export function SupportUserTable({
       header: "Auth Activity",
       cell: (usr) => (
         <div className="space-y-1 text-xs">
-          <div className="text-slate-300 flex items-center gap-1">
-            <Clock className="w-3 h-3 text-slate-500" />
+          <div className="text-slate-700 dark:text-slate-300 flex items-center gap-1">
+            <Clock className="w-3 h-3 text-slate-400 dark:text-slate-500" />
             {usr.lastLoginAt ? new Date(usr.lastLoginAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', month: 'short', day: 'numeric' }) : "Never logged in"}
           </div>
           <div className="flex items-center gap-1 text-[11px]">
             <span className="text-slate-500">Failed attempts:</span>
-            <span className={`font-mono font-bold ${usr.failedLoginAttempts > 0 ? "text-rose-400" : "text-slate-400"}`}>
+            <span className={`font-mono font-bold ${usr.failedLoginAttempts > 0 ? "text-rose-500 dark:text-rose-400" : "text-slate-500 dark:text-slate-400"}`}>
               {usr.failedLoginAttempts}
             </span>
           </div>
@@ -135,8 +132,8 @@ export function SupportUserTable({
       cell: (usr) => (
         <div className="space-y-1 text-xs">
           {usr.openTicketsCount > 0 ? (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 font-semibold border border-amber-500/30 text-[11px]">
-              <Ticket className="w-3 h-3 text-amber-400" /> {usr.openTicketsCount} Open Ticket{usr.openTicketsCount > 1 ? "s" : ""}
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-700 dark:text-amber-300 font-semibold border border-amber-500/30 text-[11px]">
+              <Ticket className="w-3 h-3 text-amber-500 dark:text-amber-400" /> {usr.openTicketsCount} Open Ticket{usr.openTicketsCount > 1 ? "s" : ""}
             </span>
           ) : (
             <span className="text-slate-500 text-[11px]">No active tickets</span>

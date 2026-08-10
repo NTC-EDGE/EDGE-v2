@@ -30,12 +30,12 @@ export function RequirementsCatalogTab({
     {
       header: "Requirement Name",
       accessorKey: "name",
-      cell: (val) => <span className="font-bold text-white max-w-md block">{String(val)}</span>,
+      cell: (val) => <span className="font-bold text-slate-900 dark:text-white max-w-md block">{String(val)}</span>,
     },
     {
       header: "Description",
       accessorKey: "description",
-      cell: (val) => <span className="max-w-lg leading-relaxed block">{val ? String(val) : "-"}</span>,
+      cell: (val) => <span className="max-w-lg leading-relaxed text-slate-600 dark:text-slate-400 block">{val ? String(val) : "-"}</span>,
     },
 
   ];
