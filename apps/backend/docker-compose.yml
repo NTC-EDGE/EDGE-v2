@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  ntc-edge-api:
+    image: ${IMAGE_NAME}:${GITHUB_SHA}
+    container_name: ${CONTAINER_NAME}
+    restart: unless-stopped
+    ports:
+      - '${TARGET_PORT}:8080'
+    environment:
+      - ConnectionStrings__DefaultConnection
+      - Clerk__SecretKey
+      - Clerk__WebhookSecret
+      - CloudflareR2__AccountId
+      - CloudflareR2__AccessKeyId
+      - CloudflareR2__SecretAccessKey
+      - CloudflareR2__BucketName
+      - StorageEncryption__MasterEncryptionKey
+      - ASPNETCORE_ENVIRONMENT
+    networks:
+      - edge-network
+
+networks:
+  edge-network:
+    external: true

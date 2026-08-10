@@ -93,36 +93,43 @@ jobs:
             ssh-add ~/.ssh/id_rsa
           fi
   
-          # Secure Copy Compressed Archive to Remote Host
-          scp -o StrictHostKeyChecking=no backend-image-dev.tar.gz $SSH_USER@$SSH_HOST:/tmp/backend-image-dev.tar.gz
-  
-          # Execute Deployment Commands on Remote Host
-          ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST << EOF
-            # Export environment variables safely using bash @Q quoting
-            export ConnectionStrings__DefaultConnection=${DB_CONNECTION_STRING@Q}
-            export Clerk__SecretKey=${CLERK_SECRET_KEY@Q}
-            export Clerk__WebhookSecret=${CLERK_WEBHOOK_SECRET@Q}
-            export CloudflareR2__AccountId=${CLOUDFLARE_R2_ACCOUNT_ID@Q}
-            export CloudflareR2__AccessKeyId=${CLOUDFLARE_R2_ACCESS_KEY_ID@Q}
-            export CloudflareR2__SecretAccessKey=${CLOUDFLARE_R2_SECRET_ACCESS_KEY@Q}
-            export CloudflareR2__BucketName=${CLOUDFLARE_R2_BUCKET_NAME@Q}
-            export StorageEncryption__MasterEncryptionKey=${STORAGE_ENCRYPTION_MASTER_KEY@Q}
-            export TARGET_PORT=${TARGET_PORT@Q}
+            # Secure Copy docker-compose.yml to Remote Host
+            ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST "mkdir -p /opt/docker-stack/ntc-edge-api-dev"
+            scp -o StrictHostKeyChecking=no apps/backend/docker-compose.yml $SSH_USER@$SSH_HOST:/opt/docker-stack/ntc-edge-api-dev/docker-compose.yml
 
-            # Unzip and load image in stream
-            gunzip -c /tmp/backend-image-dev.tar.gz | docker load
-            docker stop edge-backend-development || true
-            docker rm edge-backend-development || true
-            docker run -d --name edge-backend-development -p "\$TARGET_PORT":8080 \
-              -e ConnectionStrings__DefaultConnection \
-              -e Clerk__SecretKey \
-              -e Clerk__WebhookSecret \
-              -e CloudflareR2__AccountId \
-              -e CloudflareR2__AccessKeyId \
-              -e CloudflareR2__SecretAccessKey \
-              -e CloudflareR2__BucketName \
-              -e StorageEncryption__MasterEncryptionKey \
-              -e ASPNETCORE_ENVIRONMENT="Development" \
-              edge-backend-dev:${{ github.sha }}
-            rm /tmp/backend-image-dev.tar.gz
-          EOF
+            # Secure Copy Compressed Archive to Remote Host
+            scp -o StrictHostKeyChecking=no backend-image-dev.tar.gz $SSH_USER@$SSH_HOST:/tmp/backend-image-dev.tar.gz
+  
+            # Execute Deployment Commands on Remote Host
+            ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST << EOF
+              # Export environment variables safely using bash @Q quoting
+              export ConnectionStrings__DefaultConnection=${DB_CONNECTION_STRING@Q}
+              export Clerk__SecretKey=${CLERK_SECRET_KEY@Q}
+              export Clerk__WebhookSecret=${CLERK_WEBHOOK_SECRET@Q}
+              export CloudflareR2__AccountId=${CLOUDFLARE_R2_ACCOUNT_ID@Q}
+              export CloudflareR2__AccessKeyId=${CLOUDFLARE_R2_ACCESS_KEY_ID@Q}
+              export CloudflareR2__SecretAccessKey=${CLOUDFLARE_R2_SECRET_ACCESS_KEY@Q}
+              export CloudflareR2__BucketName=${CLOUDFLARE_R2_BUCKET_NAME@Q}
+              export StorageEncryption__MasterEncryptionKey=${STORAGE_ENCRYPTION_MASTER_KEY@Q}
+              export TARGET_PORT=${TARGET_PORT@Q}
+              export GITHUB_SHA=${{ github.sha }}
+              export IMAGE_NAME="edge-backend-dev"
+              export CONTAINER_NAME="ntc-edge-api-dev"
+              export ASPNETCORE_ENVIRONMENT="Development"
+
+              # Unzip and load image in stream
+              gunzip -c /tmp/backend-image-dev.tar.gz | docker load
+              
+              # Ensure the external network exists on the server first
+              docker network create edge-network || true
+
+              # Spin up using docker-compose
+              cd /opt/docker-stack/ntc-edge-api-dev
+              docker compose down || true
+              docker compose up -d
+
+              
+              # Clean up temporary archive file
+              rm /tmp/backend-image-dev.tar.gz
+            EOF
+
