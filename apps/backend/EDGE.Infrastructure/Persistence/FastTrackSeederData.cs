@@ -406,6 +406,39 @@ public static class FastTrackSeederData
         ""entityType"": ""Application""
     }";
 
+    public static readonly string NtcReqComplaintsContract = @"
+    {
+        ""formNo"": ""NTC-REQ-01"",
+        ""revisionNo"": ""01"",
+        ""revisionDate"": ""2023-03-31"",
+        ""serviceCategory"": ""Requests and Complaints"",
+        ""group"": ""Requests and Complaints of Consumers/Subscribers"",
+        ""applicationTypes"": [
+            ""Requests for Blocking of IMEI and SIM of Lost/Stolen Mobile Phone"",
+            ""Requests for Unblocking of IMEI and SIM of Lost/Stolen Mobile Phone"",
+            ""Complaints on Text Spam, Text Scam, or Illegal/Obscene/Threat/Other Similar Text Messages"",
+            ""Complaints on Services Offered by Telecommunications or Broadcast Service Providers"",
+            ""Request for Mandatory Tape Preservation""
+        ],
+        ""elements"": [],
+        ""requiredSections"": [
+            { ""key"": ""applicant"", ""required"": true },
+            { ""key"": ""details"", ""required"": true },
+            { ""key"": ""declaration"", ""required"": true }
+        ],
+        ""allowsBulkSubmission"": false,
+        ""categorySpecific"": {
+            ""applicationType"": [
+                ""Requests for Blocking of IMEI and SIM of Lost/Stolen Mobile Phone"",
+                ""Requests for Unblocking of IMEI and SIM of Lost/Stolen Mobile Phone"",
+                ""Complaints on Text Spam, Text Scam, or Illegal/Obscene/Threat/Other Similar Text Messages"",
+                ""Complaints on Services Offered by Telecommunications or Broadcast Service Providers"",
+                ""Request for Mandatory Tape Preservation""
+            ]
+        },
+        ""entityType"": ""Application""
+    }";
+
     public static Dictionary<string, string> GetContractMap()
     {
         return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -427,7 +460,8 @@ public static class FastTrackSeederData
             ["NTC_1_19"] = Ntc119Contract,
             ["NTC_1_20"] = Ntc120Contract,
             ["NTC_1_21"] = Ntc121Contract,
-            ["NTC_1_22"] = Ntc122Contract
+            ["NTC_1_22"] = Ntc122Contract,
+            ["NTC_REQ_COMPLAINTS"] = NtcReqComplaintsContract
         };
     }
 
@@ -466,7 +500,10 @@ public static class FastTrackSeederData
             ("NTC_FLM_LICENSES", Guid.Parse("50000000-0000-0000-0000-000000000073"), categoryIds["Licenses"], "LICENSES FOR GOVERNMENT AND PRIVATE RADIO STATIONS IN THE FIXED AND LAND MOBILE SERVICE", null, "NTC_FLM_LICENSES", "LICENSES FOR GOVERNMENT AND PRIVATE RADIO STATIONS IN THE FIXED AND LAND MOBILE SERVICE", Ntc111Contract),
             ("NTC_OTHER_LICENSES", Guid.Parse("50000000-0000-0000-0000-000000000074"), categoryIds["Licenses"], "OTHER RADIO STATION LICENSES/SERVICES", null, "NTC_OTHER_LICENSES", "OTHER RADIO STATION LICENSES/SERVICES", Ntc111Contract),
             ("NTC_TVRO_CATV_LICENSES", Guid.Parse("50000000-0000-0000-0000-000000000075"), categoryIds["Licenses"], "TVRO/CATV STATION LICENSE", null, "NTC_TVRO_CATV_LICENSES", "TVRO/CATV STATION LICENSE", Ntc122Contract),
-            ("NTC_COPY_LICENSES", Guid.Parse("50000000-0000-0000-0000-000000000076"), categoryIds["Licenses"], "COPY OF LICENSES", null, "NTC_COPY_LICENSES", "COPY OF LICENSES", Ntc121Contract)
+            ("NTC_COPY_LICENSES", Guid.Parse("50000000-0000-0000-0000-000000000076"), categoryIds["Licenses"], "COPY OF LICENSES", null, "NTC_COPY_LICENSES", "COPY OF LICENSES", Ntc121Contract),
+
+            // Requests and Complaints of Consumers/Subscribers
+            ("NTC_REQ_COMPLAINTS", Guid.Parse("50000000-0000-0000-0000-000000000080"), categoryIds["RequestsAndComplaints"], "REQUESTS AND COMPLAINTS OF CONSUMERS/SUBSCRIBERS", "Requests and Complaints of Consumers/Subscribers", "NTC_REQ_COMPLAINTS", "REQUESTS AND COMPLAINTS OF CONSUMERS/SUBSCRIBERS", NtcReqComplaintsContract)
         };
     }
 
@@ -501,6 +538,9 @@ public static class FastTrackSeederData
         var svcLicOther = Guid.Parse("50000000-0000-0000-0000-000000000074");
         var svcLicTvroCatv = Guid.Parse("50000000-0000-0000-0000-000000000075");
         var svcLicCopy = Guid.Parse("50000000-0000-0000-0000-000000000076");
+
+        // Requests and Complaints Service GUID
+        var svcReqComp = Guid.Parse("50000000-0000-0000-0000-000000000080");
 
         return new List<(Guid, Guid, ServiceVariantType, string)>
         {
@@ -708,7 +748,14 @@ public static class FastTrackSeederData
 
             // --- COPY OF LICENSES (svcLicCopy) ---
             (Guid.Parse("60000000-0000-0000-0000-000000000280"), svcLicCopy, ServiceVariantType.NA, "Certified True Copy"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000281"), svcLicCopy, ServiceVariantType.NA, "Duplicate Copy")
+            (Guid.Parse("60000000-0000-0000-0000-000000000281"), svcLicCopy, ServiceVariantType.NA, "Duplicate Copy"),
+
+            // --- REQUESTS AND COMPLAINTS OF CONSUMERS/SUBSCRIBERS (svcReqComp) ---
+            (Guid.Parse("60000000-0000-0000-0000-000000000401"), svcReqComp, ServiceVariantType.NA, "Requests for Blocking of IMEI and SIM of Lost/Stolen Mobile Phone"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000402"), svcReqComp, ServiceVariantType.NA, "Requests for Unblocking of IMEI and SIM of Lost/Stolen Mobile Phone"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000403"), svcReqComp, ServiceVariantType.NA, "Complaints on Text Spam, Text Scam, or Illegal/Obscene/Threat/Other Similar Text Messages"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000404"), svcReqComp, ServiceVariantType.NA, "Complaints on Services Offered by Telecommunications or Broadcast Service Providers"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000405"), svcReqComp, ServiceVariantType.NA, "Request for Mandatory Tape Preservation")
         };
     }
 
@@ -1049,7 +1096,17 @@ public static class FastTrackSeederData
             ["ECE_PECE_EMPLOYMENT_DOCS"] = (Guid.Parse("70000000-0000-0000-0000-000000000305"), "Certificate of Employment and valid license of supervising Electronics Engineer (ECE) OR PECE", "Certificate of Employment and copy of valid license of supervising Electronics Engineer (ECE) OR Professional Electronics Engineer (PECE)*"),
             ["CPE_SUPPLIER_ACCREDITATION_DOC"] = (Guid.Parse("70000000-0000-0000-0000-000000000306"), "CPE Supplier Accreditation", "CPE Supplier Accreditation*"),
             ["BUSINESS_MAYORS_PERMIT"] = (Guid.Parse("70000000-0000-0000-0000-000000000307"), "Business/Mayor's Permit", "Business/Mayor's Permit*"),
-            ["TYPE_APPROVAL_NOT_PREVIOUSLY_INDICATED"] = (Guid.Parse("70000000-0000-0000-0000-000000000308"), "For equipment not previously indicated: Copy of Type Approval Certificate OR Grant of Equipment Conformity", "For equipment not previously indicated in the CPE Supplier Accreditation:\nCopy of Type Approval Certificate OR Copy of Grant of Equipment Conformity for CPE to be sold")
+            ["TYPE_APPROVAL_NOT_PREVIOUSLY_INDICATED"] = (Guid.Parse("70000000-0000-0000-0000-000000000308"), "For equipment not previously indicated: Copy of Type Approval Certificate OR Grant of Equipment Conformity", "For equipment not previously indicated in the CPE Supplier Accreditation:\nCopy of Type Approval Certificate OR Copy of Grant of Equipment Conformity for CPE to be sold"),
+
+            // New Requests and Complaints requirements
+            ["REQ_PROOF_OF_OWNERSHIP"] = (Guid.Parse("70000000-0000-0000-0000-000000000401"), "Proof of ownership (Official Receipt, Box with IMEI, or Police Blotter)", "Proof of ownership, ANY of the following:*\n• Official Receipt of the mobile phone\n• Box of the mobile phone with International Mobile Equipment Identity (IMEI)\n• Police Blotter"),
+            ["REQ_VALID_ID_STUDENT_PASSPORT"] = (Guid.Parse("70000000-0000-0000-0000-000000000402"), "Copy of valid Identification (Government ID, Passport, School ID, Birth Certificate, or NBI Clearance)", "Copy of valid Identification:*\n• Any government-issued ID OR Passport\n• For students, School ID\n• For cases when ID is not available, Birth Certificate OR NBI Clearance"),
+            ["REQ_BLOCKING_FORM_PROOF"] = (Guid.Parse("70000000-0000-0000-0000-000000000403"), "Blocking Form OR Proof of Blocking", "ANY of the following:*\n• Blocking Form\n• Proof of Blocking"),
+            ["REQ_VALID_ID_SIMPLE"] = (Guid.Parse("70000000-0000-0000-0000-000000000404"), "Valid ID", "Valid ID*"),
+            ["REQ_SCREENSHOT_TEXT_MSG"] = (Guid.Parse("70000000-0000-0000-0000-000000000405"), "Screenshot of text message", "Screenshot of text message*"),
+            ["REQ_NOTARIZED_COMPLAINT"] = (Guid.Parse("70000000-0000-0000-0000-000000000406"), "If complaint proceeds to administrative case: Copy of duly notarized Complaint", "If complaint proceeds to administrative case:\nCopy of duly notarized Complaint"),
+            ["REQ_TELCO_SERVICE_DOCS"] = (Guid.Parse("70000000-0000-0000-0000-000000000407"), "Service Contract, Billing Statement, OR Document indicating services availed by the complainant", "ANY of the following:*\n• Service Contract\n• Billing Statement\n• Document indicating services availed by the complainant"),
+            ["REQ_LETTER_REQUEST_MANDATORY_TAPE"] = (Guid.Parse("70000000-0000-0000-0000-000000000408"), "Letter Request", "Letter Request*")
         };
     }
 
@@ -1949,7 +2006,29 @@ public static class FastTrackSeederData
 
             // Non-Mobile Phones - MODIFICATION (60000000-0000-0000-0000-000000000306)
             (Guid.Parse("60000000-0000-0000-0000-000000000306"), Guid.Parse("70000000-0000-0000-0000-000000000306"), true, null), // CPE_SUPPLIER_ACCREDITATION_DOC
-            (Guid.Parse("60000000-0000-0000-0000-000000000306"), Guid.Parse("70000000-0000-0000-0000-000000000308"), true, null)  // TYPE_APPROVAL_NOT_PREVIOUSLY_INDICATED
+            (Guid.Parse("60000000-0000-0000-0000-000000000306"), Guid.Parse("70000000-0000-0000-0000-000000000308"), true, null),  // TYPE_APPROVAL_NOT_PREVIOUSLY_INDICATED
+
+            // --- REQUESTS AND COMPLAINTS OF CONSUMERS/SUBSCRIBERS (svcReqComp) ---
+            // 1. Requests for Blocking of IMEI and SIM of Lost/Stolen Mobile Phone (60000000-0000-0000-0000-000000000401)
+            (Guid.Parse("60000000-0000-0000-0000-000000000401"), Guid.Parse("70000000-0000-0000-0000-000000000401"), true, null), // REQ_PROOF_OF_OWNERSHIP
+            (Guid.Parse("60000000-0000-0000-0000-000000000401"), Guid.Parse("70000000-0000-0000-0000-000000000402"), true, null), // REQ_VALID_ID_STUDENT_PASSPORT
+
+            // 2. Requests for Unblocking of IMEI and SIM of Lost/Stolen Mobile Phone (60000000-0000-0000-0000-000000000402)
+            (Guid.Parse("60000000-0000-0000-0000-000000000402"), Guid.Parse("70000000-0000-0000-0000-000000000403"), true, null), // REQ_BLOCKING_FORM_PROOF
+            (Guid.Parse("60000000-0000-0000-0000-000000000402"), Guid.Parse("70000000-0000-0000-0000-000000000404"), true, null), // REQ_VALID_ID_SIMPLE
+
+            // 3. Complaints on Text Spam, Text Scam, or Illegal/Obscene/Threat/Other Similar Text Messages (60000000-0000-0000-0000-000000000403)
+            (Guid.Parse("60000000-0000-0000-0000-000000000403"), Guid.Parse("70000000-0000-0000-0000-000000000402"), true, null), // REQ_VALID_ID_STUDENT_PASSPORT
+            (Guid.Parse("60000000-0000-0000-0000-000000000403"), Guid.Parse("70000000-0000-0000-0000-000000000405"), true, null), // REQ_SCREENSHOT_TEXT_MSG
+            (Guid.Parse("60000000-0000-0000-0000-000000000403"), Guid.Parse("70000000-0000-0000-0000-000000000406"), false, null), // REQ_NOTARIZED_COMPLAINT (Conditional on admin case)
+
+            // 4. Complaints on Services Offered by Telecommunications or Broadcast Service Providers (60000000-0000-0000-0000-000000000404)
+            (Guid.Parse("60000000-0000-0000-0000-000000000404"), Guid.Parse("70000000-0000-0000-0000-000000000402"), true, null), // REQ_VALID_ID_STUDENT_PASSPORT
+            (Guid.Parse("60000000-0000-0000-0000-000000000404"), Guid.Parse("70000000-0000-0000-0000-000000000407"), true, null), // REQ_TELCO_SERVICE_DOCS
+            (Guid.Parse("60000000-0000-0000-0000-000000000404"), Guid.Parse("70000000-0000-0000-0000-000000000406"), false, null), // REQ_NOTARIZED_COMPLAINT (Conditional on admin case)
+
+            // 5. Request for Mandatory Tape Preservation (60000000-0000-0000-0000-000000000405)
+            (Guid.Parse("60000000-0000-0000-0000-000000000405"), Guid.Parse("70000000-0000-0000-0000-000000000408"), true, null)  // REQ_LETTER_REQUEST_MANDATORY_TAPE
         };
     }
 }

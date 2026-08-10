@@ -19,7 +19,6 @@ import { CatalogServicesTab } from "./components/CatalogServicesTab";
 import { ServiceVariantsTab } from "./components/ServiceVariantsTab";
 import { RequirementsCatalogTab } from "./components/RequirementsCatalogTab";
 import { ServiceRequirementsTab } from "./components/ServiceRequirementsTab";
-import { ServiceVariantRequirementsTab } from "./components/ServiceVariantRequirementsTab";
 import { ServiceCatalogElementsTab } from "./components/ServiceCatalogElementsTab";
 import { ServiceElementsTab } from "./components/ServiceElementsTab";
 import { VariantElementDialog } from "./components/VariantElementDialog";
@@ -34,12 +33,11 @@ export default function ServicesPage() {
 
   const allTabs: { key: TabType; label: string }[] = [
     { key: "services", label: "Services Catalog" },
-    { key: "variants", label: "Variants" },
+    { key: "variants", label: "Service Variants" },
     { key: "requirements", label: "Master Requirements" },
-    { key: "service-requirements", label: "Service Checklist Mappings" },
-    { key: "service-variant-requirements", label: "Flat Checklist Mappings" },
-    { key: "elements", label: "Elements Catalog" },
-    { key: "variant-elements", label: "Variant Elements" },
+    { key: "service-requirements", label: "Checklist Mappings" },
+    { key: "elements", label: "Exam Elements Catalog" },
+    { key: "variant-elements", label: "Variant Exam Elements" },
     { key: "notes", label: "Service Notes" },
   ];
 
@@ -74,7 +72,7 @@ export default function ServicesPage() {
               <ClipboardList className="h-3.5 w-3.5 mr-1" /> New Catalog Requirement
             </Button>
           )}
-          {p.activeTab === "service-variant-requirements" && (
+          {p.activeTab === "service-requirements" && (
             <Button onClick={() => { p.setEditingMapping(null); p.setIsMappingFormOpen(true); }} className="bg-indigo-600 text-xs py-1.5 h-auto">
               <Link2 className="h-3.5 w-3.5 mr-1" /> Link Master Requirement
             </Button>
@@ -107,8 +105,8 @@ export default function ServicesPage() {
           ))}
         </div>
 
-        {/* Global Search bar — not shown for service-requirements or notes (notes has its own search) */}
-        {p.activeTab !== "service-requirements" && p.activeTab !== "notes" && (
+        {/* Global Search bar — not shown for service-requirements, variant-elements, or notes (they have their own search) */}
+        {p.activeTab !== "service-requirements" && p.activeTab !== "variant-elements" && p.activeTab !== "notes" && (
           <div className="relative w-64">
             <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-500" />
             <input
@@ -118,7 +116,6 @@ export default function ServicesPage() {
                 p.activeTab === "services" ? p.servicesSearch
                 : p.activeTab === "variants" ? p.variantsSearch
                 : p.activeTab === "requirements" ? p.requirementsSearch
-                : p.activeTab === "service-variant-requirements" ? p.flatMappingsSearch
                 : p.activeTab === "elements" ? p.elementsSearch
                 : ""
               }
@@ -127,7 +124,6 @@ export default function ServicesPage() {
                 if (p.activeTab === "services") { p.setServicesSearch(val); p.setServicesPage(1); }
                 else if (p.activeTab === "variants") { p.setVariantsSearch(val); p.setVariantsPage(1); }
                 else if (p.activeTab === "requirements") { p.setRequirementsSearch(val); p.setRequirementsPage(1); }
-                else if (p.activeTab === "service-variant-requirements") { p.setFlatMappingsSearch(val); p.setFlatMappingsPage(1); }
                 else if (p.activeTab === "elements") { p.setElementsSearch(val); p.setElementsPage(1); }
               }}
               className="w-full pl-9 pr-3 py-1.5 bg-slate-950 border border-slate-900 rounded-xl text-xs text-white focus:outline-none focus:border-indigo-500"
@@ -177,21 +173,33 @@ export default function ServicesPage() {
 
       {p.activeTab === "service-requirements" && (
         <ServiceRequirementsTab
-          services={p.services} filteredServices={p.filteredServices} servicesSearch={p.servicesSearch} onServicesSearchChange={p.setServicesSearch}
-          mappingServiceId={p.mappingServiceId} onSelectMappingServiceId={p.setMappingServiceId}
-          mappingVariants={p.mappingVariants} mappingVariantId={p.mappingVariantId} onSelectMappingVariantId={p.setMappingVariantId}
-          requirements={p.requirements} onOpenLinkMapping={() => { p.setEditingMapping(null); p.setIsMappingFormOpen(true); }}
+          categories={p.categories}
+          services={p.services}
+          filteredServices={p.filteredServices}
+          servicesSearch={p.servicesSearch}
+          onServicesSearchChange={p.setServicesSearch}
+          mappingServiceId={p.mappingServiceId}
+          onSelectMappingServiceId={p.setMappingServiceId}
+          mappingVariants={p.mappingVariants}
+          mappingVariantId={p.mappingVariantId}
+          onSelectMappingVariantId={p.setMappingVariantId}
+          requirements={p.requirements}
+          onOpenLinkMapping={() => { p.setEditingMapping(null); p.setIsMappingFormOpen(true); }}
           onOpenCreateVariant={(svcId) => { p.setEditingVariant(null); p.setMappingServiceId(svcId); p.setIsVariantModalOpen(true); }}
-          loadingServiceReqs={p.loadingServiceReqs} serviceRequirements={p.serviceRequirements}
-          onEditMapping={p.handleOpenEditMapping} onDeleteMapping={p.setDeletingMappingId}
-        />
-      )}
-
-      {p.activeTab === "service-variant-requirements" && (
-        <ServiceVariantRequirementsTab
-          loadingAllMapped={p.loadingAllMapped} pagedFlatMappings={p.pagedFlatMappings} filteredFlatMappings={p.filteredFlatMappings}
-          flatMappingsPage={p.flatMappingsPage} pageSize={p.pageSize} onPageChange={p.setFlatMappingsPage} onPageSizeChange={p.setPageSize}
-          onEditMapping={p.handleOpenEditMapping} onDeleteMapping={p.setDeletingMappingId}
+          loadingServiceReqs={p.loadingServiceReqs}
+          serviceRequirements={p.serviceRequirements}
+          onEditRequirement={p.handleOpenEditRequirement}
+          onDeleteMapping={p.setDeletingMappingId}
+          loadingAllMapped={p.loadingAllMapped}
+          pagedFlatMappings={p.pagedFlatMappings}
+          filteredFlatMappings={p.filteredFlatMappings}
+          flatMappingsPage={p.flatMappingsPage}
+          flatMappingsSearch={p.flatMappingsSearch}
+          onFlatMappingsSearchChange={p.setFlatMappingsSearch}
+          pageSize={p.pageSize}
+          onPageChange={p.setFlatMappingsPage}
+          onPageSizeChange={p.setPageSize}
+          canManage={!p.forbidden}
         />
       )}
 

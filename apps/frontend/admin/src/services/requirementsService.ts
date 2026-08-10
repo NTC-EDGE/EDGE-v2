@@ -18,7 +18,7 @@ export interface PaginatedApiResponse<T> {
 }
 
 export function useRequirementsService() {
-  const { useQuery, post, put, del } = useApi();
+  const { useQuery, get, post, put, del } = useApi();
 
   // --- REQUIREMENTS CRUD ---
   const useRequirements = (
@@ -40,6 +40,11 @@ export function useRequirementsService() {
       data: query.data?.data !== undefined && query.data?.data !== null ? query.data.data : [],
       totalCount: query.data?.totalCount || 0
     };
+  };
+
+  const getRequirementById = async (id: string): Promise<Requirement> => {
+    const response = await get<{ succeeded: boolean; data: Requirement }>(`/api/v2/requirements/${id}`);
+    return response.data;
   };
 
   const createRequirement = async (data: Omit<Requirement, 'id'>): Promise<Requirement> => {
@@ -186,6 +191,7 @@ export function useRequirementsService() {
 
   return {
     useRequirements,
+    getRequirementById,
     createRequirement,
     updateRequirement,
     deleteRequirement,

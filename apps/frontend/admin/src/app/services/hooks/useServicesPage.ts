@@ -22,7 +22,7 @@ export function useServicesPage() {
 
   const { useTenants } = useTenantService();
   const {
-    useRequirements, createRequirement, updateRequirement, deleteRequirement,
+    useRequirements, getRequirementById, createRequirement, updateRequirement, deleteRequirement,
     useServiceVariants, createServiceVariant, updateServiceVariant, deleteServiceVariant,
     useServiceVariantRequirements, createServiceVariantRequirement, updateServiceVariantRequirement, deleteServiceVariantRequirement,
     useServiceRequirements, attachServiceVariantRequirement, unlinkServiceVariantRequirement
@@ -167,7 +167,7 @@ export function useServicesPage() {
   );
   const { data: flatMappings = [], error: mapErr, isLoading: loadingAllMapped, mutate: mutFlatMap } = useServiceVariantRequirements(
     undefined,
-    activeTab === "service-variant-requirements"
+    activeTab === "service-requirements" || activeTab === "service-variant-requirements"
   );
 
   // Service Variant Specific Checklist (Tab 4)
@@ -317,7 +317,25 @@ export function useServicesPage() {
   const handleOpenEditCategory = (cat: ServiceCategory) => { setEditingCategory(cat); setIsCategoryModalOpen(true); };
   const handleOpenEditService = (s: any) => { setEditingService(s); setIsServiceModalOpen(true); };
   const handleOpenEditVariant = (v: ServiceVariant) => { setEditingVariant(v); setIsVariantModalOpen(true); };
-  const handleOpenEditRequirement = (r: Requirement) => { setEditingReq(r); setIsReqModalOpen(true); };
+  const handleOpenEditRequirement = async (r: any) => {
+    const reqId = r.requirementId || r.requirement?.id || r.id;
+    if (!reqId) return;
+
+    // Fetch the freshest requirement details from GET /api/v2/requirements/{id}
+    const [fetched, err] = await safeAsync(getRequirementById(reqId));
+    if (fetched) {
+      setEditingReq(fetched);
+    } else {
+      // Fallback
+      setEditingReq({
+        id: reqId,
+        name: r.name || r.requirement?.name || "",
+        description: r.description || r.requirement?.description || null,
+      });
+    }
+    setIsReqModalOpen(true);
+  };
+
   const handleOpenEditMapping = (mr: any) => { setEditingMapping(mr); setIsMappingFormOpen(true); };
   const handleOpenEditElement = (el: Element) => { setEditingElement(el); setIsElementModalOpen(true); };
   const handleOpenEditVarElement = (el: ServiceVariantElement) => { setEditingVarElement(el); setIsVarElementModalOpen(true); };
@@ -376,7 +394,10 @@ export function useServicesPage() {
       showToast(`Requirement ${editingReq ? "updated" : "created"} successfully.`);
       mutReq();
       mutPagedReq();
+      mutSvcReq();
+      mutFlatMap();
       invalidatePrefix("/api/v2/requirements");
+      invalidatePrefix("/api/v2/services");
       setIsReqModalOpen(false);
     } else {
       showToast(getErrorMessage(err, "Failed to save requirement."), "error");
