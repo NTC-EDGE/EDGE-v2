@@ -117,3 +117,22 @@ jobs:
 
             # Clean up upload archive
             rm -f backend-image-staging.tar.gz
+
+            # Post-Deployment Health Check (Fail if not up within 15s)
+            echo "Waiting for container startup (15s)..."
+            sleep 15
+
+            if [ "$(docker inspect -f '{{.State.Running}}' $CONTAINER_NAME)" != "true" ]; then
+              echo "❌ Error: Container $CONTAINER_NAME is not running!"
+              docker logs $CONTAINER_NAME
+              exit 1
+            fi
+
+            echo "🔍 Checking API port connectivity..."
+            if docker exec $CONTAINER_NAME wget --spider -q http://localhost:8080/ || docker exec $CONTAINER_NAME curl -s http://localhost:8080/ > /dev/null; then
+              echo "✅ Success: API is up and responding!"
+            else
+              echo "❌ Error: API is not responding on port 8080!"
+              docker logs $CONTAINER_NAME
+              exit 1
+            fi
