@@ -1,0 +1,10 @@
+version: '3.8'
+
+services:
+  ntc-edge-api:
+    networks:
+      - npm-default
+
+networks:
+  npm-default:
+    external: true

@@ -15,9 +15,3 @@ services:
       - CloudflareR2__BucketName
       - StorageEncryption__MasterEncryptionKey
       - ASPNETCORE_ENVIRONMENT
-    networks:
-      - edge-network
-
-networks:
-  edge-network:
-    external: true
