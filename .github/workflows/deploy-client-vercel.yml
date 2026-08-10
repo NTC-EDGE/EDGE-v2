@@ -8,6 +8,7 @@ on:
       - 'client-v*'
   pull_request:
     branches:
+      - main
       - develop
     paths:
       - 'apps/frontend/client/**'
@@ -25,6 +26,18 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch all history so merge-base can find ancestors
+
+      - name: Verify Tag is on Main Branch
+        if: github.ref_type == 'tag'
+        run: |
+          git fetch origin main
+          if ! git merge-base --is-ancestor ${{ github.sha }} origin/main; then
+            echo "❌ Error: Production deployments are only allowed from tags on the main branch!"
+            exit 1
+          fi
+          echo "✅ Tag is verified to be on the main branch."
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
