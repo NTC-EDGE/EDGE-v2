@@ -103,11 +103,11 @@ jobs:
             # Load the Docker image
             gunzip -c /opt/docker-stack/$CONTAINER_NAME/backend-image-dev.tar.gz | docker load
             
-            # Ensure Docker network exists
-            docker network create edge-network || true
+            # Map edge-network to dev NPM's npm-default network (Standard Linux Bash Sed)
+            cd /opt/docker-stack/$CONTAINER_NAME
+            sed -i 's/edge-network/npm-default/g' docker-compose.yml
 
             # Restart the Compose stack
-            cd /opt/docker-stack/$CONTAINER_NAME
             docker compose down || true
             docker compose up -d
 
