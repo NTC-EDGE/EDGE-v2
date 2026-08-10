@@ -3,15 +3,15 @@ name: Deploy Internal - Vercel
 on:
   push:
     branches:
-      - main
       - develop
+    tags:
+      - 'internal-v*'
     paths:
       - 'apps/frontend/internal/**'
       - 'packages/api/**'
       - '.github/workflows/deploy-internal-vercel.yml'
   pull_request:
     branches:
-      - main
       - develop
     paths:
       - 'apps/frontend/internal/**'

@@ -3,15 +3,15 @@ name: Deploy Client - Vercel
 on:
   push:
     branches:
-      - main
       - develop
+    tags:
+      - 'client-v*'
     paths:
       - 'apps/frontend/client/**'
       - 'packages/api/**'
       - '.github/workflows/deploy-client-vercel.yml'
   pull_request:
     branches:
-      - main
       - develop
     paths:
       - 'apps/frontend/client/**'

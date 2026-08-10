@@ -3,7 +3,7 @@ name: Deploy Backend - Production
 on:
   push:
     tags:
-      - 'v*'
+      - 'backend-v*'
     paths:
       - 'apps/backend/**'
       - '.github/workflows/deploy-backend-prod.yml'

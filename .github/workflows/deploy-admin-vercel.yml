@@ -3,15 +3,15 @@ name: Deploy Admin - Vercel
 on:
   push:
     branches:
-      - main
       - develop
+    tags:
+      - 'admin-v*'
     paths:
       - 'apps/frontend/admin/**'
       - 'packages/api/**'
       - '.github/workflows/deploy-admin-vercel.yml'
   pull_request:
     branches:
-      - main
       - develop
     paths:
       - 'apps/frontend/admin/**'
