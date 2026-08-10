@@ -906,12 +906,6 @@ public static class FastTrackSeederData
         list.Add((svc102Id, svc102NewVariantId, "Apply for Duplicate Copy if Original is lost/mutilated/destroyed or not available."));
         list.Add((svc102Id, svc102NewVariantId, "For Foreign Pilots: The applicant has to show the original pilot license."));
 
-        // Add Customer Premises Equipment Supplier Accreditation (svc118) notes from spreadsheet
-        var svc118Id = Guid.Parse("50000000-0000-0000-0000-000000000018");
-        list.Add((svc118Id, null, "The purpose of the company as indicated in its registration document must include information related to the accreditation applied for."));
-        list.Add((svc118Id, null, "Proof of Paid-Up Capital: Minimum of PHP 250,000.00, duly certified by the Treasurer of the Corporation or by the partners in a partnership or by the owner in a sole proprietorship."));
-        list.Add((svc118Id, null, "For equipment not previously indicated in the CPE Supplier Accreditation: Copy of Type Approval Certificate OR Copy of Grant of Equipment Conformity for CPE to be sold."));
-
         return list;
     }
 
