@@ -89,7 +89,7 @@ jobs:
             export CloudflareR2__SecretAccessKey="$CLOUDFLARE_R2_SECRET_ACCESS_KEY"
             export CloudflareR2__BucketName="$CLOUDFLARE_R2_BUCKET_NAME"
             export StorageEncryption__MasterEncryptionKey="$STORAGE_ENCRYPTION_MASTER_KEY"
-            export GITHUB_SHA="${{ github.sha }}"
+            export IMAGE_TAG="${{ github.sha }}"
             export IMAGE_NAME="edge-backend-prod"
             export CONTAINER_NAME="ntc-edge-api"
             export ASPNETCORE_ENVIRONMENT="Production"
