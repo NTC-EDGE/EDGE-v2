@@ -4,7 +4,10 @@ services:
   ntc-edge-api:
     networks:
       - npm-default
+      - data-network
 
 networks:
   npm-default:
+    external: true
+  data-network:
     external: true
