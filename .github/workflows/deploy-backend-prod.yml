@@ -103,9 +103,6 @@ jobs:
             # Load the Docker image
             gunzip -c /opt/docker-stack/$CONTAINER_NAME/backend-image-prod.tar.gz | docker load
             
-            # Ensure Docker network exists
-            docker network create edge-network || true
-
             # Restart the Compose stack
             cd /opt/docker-stack/$CONTAINER_NAME
             docker compose down || true
