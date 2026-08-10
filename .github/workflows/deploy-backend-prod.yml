@@ -126,4 +126,4 @@ jobs:
               
               # Clean up temporary archive file
               rm /tmp/backend-image-prod.tar.gz
-            EOF
+EOF
