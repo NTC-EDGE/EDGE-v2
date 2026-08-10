@@ -114,8 +114,8 @@ export function ServiceCatalogElementsTab({
 
   const emptyState = {
     icon: <Layers className="w-8 h-8 mx-auto text-slate-650 mb-2" />,
-    title: "No exam elements linked",
-    description: "Link exam elements (e.g. elements 1 to 4) to this variant.",
+    title: "No elements linked",
+    description: "Link elements to this variant.",
   };
 
   return (

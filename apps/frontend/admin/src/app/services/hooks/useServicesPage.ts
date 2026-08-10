@@ -233,6 +233,11 @@ export function useServicesPage() {
     setVariantsPage(1);
   }, [variantsFilterServiceId]);
 
+  // Reset notes page when notes filter or search changes
+  useEffect(() => {
+    setNotesPage(1);
+  }, [notesFilterServiceId, notesFilterVariantId, notesSearch]);
+
   // Forbidden Check
   const forbidden = isForbiddenError(catErr) || isForbiddenError(svcErr) || isForbiddenError(varErr) || isForbiddenError(reqErr) || isForbiddenError(mapErr) || isForbiddenError(svcReqErr);
 

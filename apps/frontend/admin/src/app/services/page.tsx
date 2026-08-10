@@ -36,8 +36,8 @@ export default function ServicesPage() {
     { key: "variants", label: "Service Variants" },
     { key: "requirements", label: "Master Requirements" },
     { key: "service-requirements", label: "Checklist Mappings" },
-    { key: "elements", label: "Exam Elements Catalog" },
-    { key: "variant-elements", label: "Variant Exam Elements" },
+    { key: "elements", label: "Master Elements" },
+    { key: "variant-elements", label: "Variant Elements" },
     { key: "notes", label: "Service Notes" },
   ];
 
