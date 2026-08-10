@@ -60,9 +60,8 @@ jobs:
           CLOUDFLARE_R2_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_R2_ACCOUNT_ID }}
           CLOUDFLARE_R2_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_R2_ACCESS_KEY_ID }}
           CLOUDFLARE_R2_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
-          CLOUDFLARE_R2_BUCKET_NAME: ${{ secrets.CLOUDFLARE_R2_BUCKET_NAME }}
+          CLOUDFLARE_R2_BUCKET_NAME: ${{ vars.CLOUDFLARE_R2_BUCKET_NAME }}
           STORAGE_ENCRYPTION_MASTER_KEY: ${{ secrets.STORAGE_ENCRYPTION_MASTER_KEY }}
-          TARGET_PORT: ${{ vars.PORT }}
         run: |
           # Write SSH Private Key to file
           mkdir -p ~/.ssh
@@ -105,7 +104,6 @@ jobs:
               export CloudflareR2__SecretAccessKey=${CLOUDFLARE_R2_SECRET_ACCESS_KEY@Q}
               export CloudflareR2__BucketName=${CLOUDFLARE_R2_BUCKET_NAME@Q}
               export StorageEncryption__MasterEncryptionKey=${STORAGE_ENCRYPTION_MASTER_KEY@Q}
-              export TARGET_PORT=${TARGET_PORT@Q}
               export GITHUB_SHA=${{ github.sha }}
               export IMAGE_NAME="edge-backend-prod"
               export CONTAINER_NAME="ntc-edge-api"
@@ -126,7 +124,3 @@ jobs:
               # Clean up temporary archive file
               rm /tmp/backend-image-prod.tar.gz
             EOF
-
-
-
-
