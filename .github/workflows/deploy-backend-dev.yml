@@ -49,6 +49,9 @@ jobs:
       name: development
 
     steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
       - name: Download Compressed Image
         uses: actions/download-artifact@v4
         with:
