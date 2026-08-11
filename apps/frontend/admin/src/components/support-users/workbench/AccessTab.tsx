@@ -14,6 +14,7 @@ import {
 import { GlobalSupportUser, UserDiagnosticDetails } from "@edge/api";
 import { useUserService } from "@/services/userService";
 import { Button } from "@/components/ui/button";
+import { ConfirmActionDialog } from "@/components/ui/confirm-action-dialog";
 
 interface AccessTabProps {
   user: GlobalSupportUser;
@@ -22,15 +23,21 @@ interface AccessTabProps {
 }
 
 export function AccessTab({ user, diagnosticData, onUserUpdated }: AccessTabProps) {
-  const { updateUser } = useUserService();
+  const { updateUser, updateUserSuperAdmin } = useUserService();
 
   // Edit profile state
   const [editing, setEditing] = useState(false);
   const [firstName, setFirstName] = useState(user.firstName);
   const [lastName, setLastName] = useState(user.lastName);
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(
+    user.assignedRoles?.includes("SUPER_ADMIN") || (user as any).isSuperAdmin === true
+  );
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; msg: string } | null>(null);
+
+  // SuperAdmin toggle confirmation modal state
+  const [confirmSuperAdminOpen, setConfirmSuperAdminOpen] = useState(false);
+  const [pendingSuperAdminState, setPendingSuperAdminState] = useState(false);
 
   const handleEdit = () => {
     setFirstName(user.firstName);
@@ -65,24 +72,33 @@ export function AccessTab({ user, diagnosticData, onUserUpdated }: AccessTabProp
     }
   };
 
-  const handleToggleSuperAdmin = async () => {
+  const handleRequestToggleSuperAdmin = () => {
+    const nextState = !isSuperAdmin;
+    setPendingSuperAdminState(nextState);
+    setConfirmSuperAdminOpen(true);
+  };
+
+  const handleConfirmToggleSuperAdmin = async () => {
     setSaving(true);
     setFeedback(null);
     try {
-      await updateUser(user.id, {
-        firstName: user.firstName,
-        lastName: user.lastName,
-      });
-      const next = !isSuperAdmin;
-      setIsSuperAdmin(next);
+      // Invoke equivalent PATCH endpoint: PATCH /api/v2/users/{id}/super-admin
+      await updateUserSuperAdmin(user.id, pendingSuperAdminState);
+      
+      setIsSuperAdmin(pendingSuperAdminState);
+      if (onUserUpdated !== undefined) {
+        onUserUpdated({ firstName: user.firstName, lastName: user.lastName, isSuperAdmin: pendingSuperAdminState });
+      }
+
       setFeedback({
         type: "success",
-        msg: next
-          ? "Super Admin privilege granted. User now has elevated platform access."
-          : "Super Admin privilege revoked.",
+        msg: pendingSuperAdminState
+          ? `Super Admin privilege granted to ${user.firstName} ${user.lastName}. User now has elevated platform access.`
+          : `Super Admin privilege revoked for ${user.firstName} ${user.lastName}.`,
       });
+      setConfirmSuperAdminOpen(false);
     } catch {
-      setFeedback({ type: "error", msg: "Failed to update Super Admin status." });
+      setFeedback({ type: "error", msg: "Failed to update Super Admin status via PATCH endpoint." });
     } finally {
       setSaving(false);
     }
@@ -90,6 +106,22 @@ export function AccessTab({ user, diagnosticData, onUserUpdated }: AccessTabProp
 
   return (
     <div className="space-y-5">
+      {/* Super Admin Confirmation Dialog */}
+      <ConfirmActionDialog
+        isOpen={confirmSuperAdminOpen}
+        onClose={() => setConfirmSuperAdminOpen(false)}
+        onConfirm={handleConfirmToggleSuperAdmin}
+        title={pendingSuperAdminState ? "Grant Super Admin Privilege" : "Revoke Super Admin Privilege"}
+        description={
+          pendingSuperAdminState
+            ? `Are you sure you want to grant Super Admin privileges to ${user.firstName} ${user.lastName}? This user will receive unrestricted system-wide CRUD access across all endpoints and tenants.`
+            : `Are you sure you want to revoke Super Admin privileges from ${user.firstName} ${user.lastName}? Access will revert to their standard tenant-scoped permissions.`
+        }
+        confirmLabel={pendingSuperAdminState ? "Grant SuperAdmin" : "Revoke SuperAdmin"}
+        cancelLabel="Cancel"
+        loading={saving}
+      />
+
       {/* Feedback Banner */}
       {feedback !== null && (
         <div
@@ -207,7 +239,7 @@ export function AccessTab({ user, diagnosticData, onUserUpdated }: AccessTabProp
             </p>
           </div>
           <button
-            onClick={handleToggleSuperAdmin}
+            onClick={handleRequestToggleSuperAdmin}
             disabled={saving}
             className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 transition-colors focus:outline-none ${
               isSuperAdmin ? "bg-amber-500 border-amber-500" : "bg-slate-300 dark:bg-slate-700 border-slate-400 dark:border-slate-600"

@@ -1,6 +1,7 @@
 "use client";
 
-import { Boxes, Plus, Search, Settings2, Link2, ClipboardList, FolderPlus, Layers, BookOpen } from "lucide-react";
+import { Suspense } from "react";
+import { Boxes, Plus, Search, Settings2, Link2, ClipboardList, FolderPlus, Layers, BookOpen, Loader2 } from "lucide-react";
 import { ConfirmActionDialog } from "@/components/ui/confirm-action-dialog";
 import { ToastNotification } from "@/components/ui/toast-notification";
 import { PageForbiddenState } from "@/components/PageForbiddenState";
@@ -26,7 +27,7 @@ import { ServiceNotesTab } from "./components/ServiceNotesTab";
 import { ElementDialog } from "./components/ElementDialog";
 import { NoteDialog } from "./components/NoteDialog";
 
-export default function ServicesPage() {
+function ServicesPageContent() {
   const p = useServicesPage();
 
   if (p.forbidden) return <PageForbiddenState />;
@@ -295,5 +296,20 @@ export default function ServicesPage() {
 
       {p.toast && <ToastNotification toast={p.toast} onClose={() => p.setToast(null)} />}
     </div>
+  );
+}
+
+export default function ServicesPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="p-12 text-center text-slate-400 flex items-center justify-center gap-2">
+          <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
+          <span>Loading Services Catalog...</span>
+        </div>
+      }
+    >
+      <ServicesPageContent />
+    </Suspense>
   );
 }

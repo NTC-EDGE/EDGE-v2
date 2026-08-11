@@ -30,15 +30,15 @@ export function PageForbiddenState({
       </div>
 
       {/* Status code badge */}
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-800 border border-slate-700 text-[10px] font-mono text-slate-400 mb-4 tracking-widest">
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[10px] font-mono text-slate-600 dark:text-slate-400 mb-4 tracking-widest">
         HTTP 403 &mdash; FORBIDDEN
       </span>
 
       {/* Title */}
-      <h2 className="text-xl font-extrabold text-white mb-2">{title}</h2>
+      <h2 className="text-xl font-extrabold text-slate-900 dark:text-white mb-2">{title}</h2>
 
       {/* Message */}
-      <p className="text-sm text-slate-400 max-w-md leading-relaxed">{message}</p>
+      <p className="text-sm text-slate-600 dark:text-slate-400 max-w-md leading-relaxed">{message}</p>
     </div>
   );
 }
