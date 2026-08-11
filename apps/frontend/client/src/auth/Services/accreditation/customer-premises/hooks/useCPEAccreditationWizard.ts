@@ -59,25 +59,8 @@ export function useCPEAccreditationWizard({
   const { user: clerkUser } = useUser();
   const USE_MOCKS = false;
 
+  // Form fields schema mapping
   const [formFields, setFormFields] = useState<any[]>([]);
-
-  React.useEffect(() => {
-    let active = true;
-    const fetchForm = async () => {
-      if (!serviceId) return;
-      try {
-        const res = await api.get<any>(`/api/v2/services/${serviceId}/form`);
-        if (active && res && res.data && res.data.sections) {
-          const fields = res.data.sections.flatMap((s: any) => s.fields || []);
-          setFormFields(fields);
-        }
-      } catch (err) {
-        console.warn("Failed to fetch CPE form schema:", err);
-      }
-    };
-    fetchForm();
-    return () => { active = false; };
-  }, [serviceId]);
 
   // Auto-fill applicant with Clerk user details
   React.useEffect(() => {

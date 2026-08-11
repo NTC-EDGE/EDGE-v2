@@ -30,6 +30,13 @@ interface GeneralFilingDetailsStepProps {
   updateActiveApplicant: (fields: Partial<GeneralApplicantData>) => void;
 }
 
+const deriveAppTypeFromStep3 = (variantStr?: string): "NEW" | "RENEWAL" | "MODIFICATION" => {
+  const upper = (variantStr || "").toUpperCase();
+  if (upper.includes("RENEWAL") || upper.includes("REN")) return "RENEWAL";
+  if (upper.includes("MODIFICATION") || upper.includes("MOD")) return "MODIFICATION";
+  return "NEW";
+};
+
 export function GeneralFilingDetailsStep({
   service,
   activeApplicant,
@@ -39,13 +46,23 @@ export function GeneralFilingDetailsStep({
   const serviceTitle = (service.title || "").toUpperCase();
   const serviceCategory = (service.category || "").toUpperCase();
 
+  const step3AppType = deriveAppTypeFromStep3(activeApplicant.selectedVariantId);
+
   // 1. Lifetime Amateur Radio Station License for Class A
   if (
     serviceTitle.includes("LIFETIME") ||
     serviceCode.includes("LIFETIME") ||
     (activeApplicant.selectedVariantId && activeApplicant.selectedVariantId.toLowerCase().includes("life"))
   ) {
-    const lifetimeData = activeApplicant.lifetimeLicenseData || initialLifetimeAmateurLicenseData(activeApplicant.id);
+    const rawData = activeApplicant.lifetimeLicenseData || initialLifetimeAmateurLicenseData(activeApplicant.id);
+    const lifetimeData = {
+      ...rawData,
+      firstName: activeApplicant.firstName || rawData.firstName,
+      lastName: activeApplicant.lastName || rawData.lastName,
+      email: activeApplicant.email || rawData.email,
+      contactNo: activeApplicant.contactNo || rawData.contactNo,
+      address: activeApplicant.address || rawData.address,
+    };
     return (
       <LifetimeAmateurLicenseForm
         data={lifetimeData}
@@ -72,7 +89,17 @@ export function GeneralFilingDetailsStep({
     serviceCode.includes("LICENSE") ||
     serviceCode === "NTC_AMA_STATION_LICENSE"
   ) {
-    const amateurData = activeApplicant.amateurLicenseData || initialAmateurRadioStationLicenseData(activeApplicant.id);
+    const rawData = activeApplicant.amateurLicenseData || initialAmateurRadioStationLicenseData(activeApplicant.id);
+    const amateurData = {
+      ...rawData,
+      appType: step3AppType,
+      firstName: activeApplicant.firstName || rawData.firstName,
+      lastName: activeApplicant.lastName || rawData.lastName,
+      email: activeApplicant.email || rawData.email,
+      contactNo: activeApplicant.contactNo || rawData.contactNo,
+      address: activeApplicant.address || rawData.address,
+    };
+
     return (
       <AmateurRadioStationLicenseForm
         data={amateurData}
@@ -92,7 +119,8 @@ export function GeneralFilingDetailsStep({
 
   // 3. NTC 1-02: Commercial Radio Operator Certificates
   if (serviceCode === "NTC_1_02" || serviceTitle.includes("RADIO OPERATOR CERTIFICATES (ROC)")) {
-    const radioData = activeApplicant.radioCertData || initialRadioOperatorCertData(activeApplicant.id);
+    const rawData = activeApplicant.radioCertData || initialRadioOperatorCertData(activeApplicant.id);
+    const radioData = { ...rawData, appType: step3AppType };
     return (
       <RadioOperatorCertForm
         data={radioData}
@@ -113,7 +141,8 @@ export function GeneralFilingDetailsStep({
 
   // 4. NTC 1-03: Certificates in the Amateur Service
   if (serviceCode === "NTC_1_03" || serviceCode === "NTC_AMA_LICENSES" || serviceTitle.includes("CERTIFICATES IN THE AMATEUR SERVICE")) {
-    const radioData = activeApplicant.radioCertData || initialRadioOperatorCertData(activeApplicant.id);
+    const rawData = activeApplicant.radioCertData || initialRadioOperatorCertData(activeApplicant.id);
+    const radioData = { ...rawData, appType: step3AppType };
     return (
       <RadioOperatorCertForm
         data={radioData}
@@ -132,8 +161,8 @@ export function GeneralFilingDetailsStep({
     );
   }
 
-  // 5. NTC 1-19: RFID, SRD, WDN Devices - Indoor
-  if (serviceCode === "NTC_1_19" || serviceTitle.includes("RFID") || serviceTitle.includes("WDN")) {
+  // 5. NTC 1-07: Registration of Radio Transceivers / Receiver
+  if (serviceCode === "NTC_1_07" || serviceTitle.includes("RADIO TRANSCEIVER") || serviceTitle.includes("RECEIVER")) {
     const deviceData = activeApplicant.deviceRegData || initialDeviceRegistrationData(activeApplicant.id);
     return (
       <DeviceRegistrationForm
@@ -141,7 +170,8 @@ export function GeneralFilingDetailsStep({
         onChange={(fields) =>
           updateActiveApplicant({
             deviceRegData: { ...deviceData, ...fields },
-            firstName: fields.businessName !== undefined ? fields.businessName : activeApplicant.firstName,
+            firstName: fields.applicantName !== undefined ? fields.applicantName.split(" ")[0] || "" : activeApplicant.firstName,
+            lastName: fields.applicantName !== undefined ? fields.applicantName.split(" ").slice(1).join(" ") : activeApplicant.lastName,
             email: fields.email !== undefined ? fields.email : activeApplicant.email,
             contactNo: fields.contactNo !== undefined ? fields.contactNo : activeApplicant.contactNo,
             address: fields.address !== undefined ? fields.address : activeApplicant.address,
@@ -151,8 +181,8 @@ export function GeneralFilingDetailsStep({
     );
   }
 
-  // 6. NTC 1-22: TVRO Registration Certificate
-  if (serviceCode === "NTC_1_22" || serviceCode === "NTC_TVRO_CATV_LICENSES" || serviceTitle.includes("TVRO")) {
+  // 6. NTC 1-13: TVRO Station Registration
+  if (serviceCode === "NTC_1_13" || serviceTitle.includes("TVRO")) {
     const tvroData = activeApplicant.tvroRegData || initialTVRORegistrationData(activeApplicant.id);
     return (
       <TVRORegistrationForm
@@ -160,7 +190,7 @@ export function GeneralFilingDetailsStep({
         onChange={(fields) =>
           updateActiveApplicant({
             tvroRegData: { ...tvroData, ...fields },
-            firstName: fields.applicantName !== undefined ? fields.applicantName : activeApplicant.firstName,
+            firstName: fields.applicantName !== undefined ? fields.applicantName.split(" ")[0] || "" : activeApplicant.firstName,
             email: fields.email !== undefined ? fields.email : activeApplicant.email,
             contactNo: fields.contactNo !== undefined ? fields.contactNo : activeApplicant.contactNo,
             address: fields.address !== undefined ? fields.address : activeApplicant.address,
@@ -170,8 +200,8 @@ export function GeneralFilingDetailsStep({
     );
   }
 
-  // 7. NTC 1-20: VAS Provider Registration
-  if (serviceCode === "NTC_1_20" || serviceTitle.includes("VALUE-ADDED") || serviceTitle.includes("VAS")) {
+  // 7. NTC 1-14: Value Added Services (VAS) Registration
+  if (serviceCode === "NTC_1_14" || serviceTitle.includes("VALUE ADDED") || serviceTitle.includes("VAS")) {
     const vasData = activeApplicant.vasData || initialVASProviderData(activeApplicant.id);
     return (
       <VASProviderForm
@@ -179,7 +209,6 @@ export function GeneralFilingDetailsStep({
         onChange={(fields) =>
           updateActiveApplicant({
             vasData: { ...vasData, ...fields },
-            firstName: fields.businessName !== undefined ? fields.businessName : activeApplicant.firstName,
             email: fields.email !== undefined ? fields.email : activeApplicant.email,
             contactNo: fields.contactNo !== undefined ? fields.contactNo : activeApplicant.contactNo,
             address: fields.address !== undefined ? fields.address : activeApplicant.address,
@@ -189,8 +218,8 @@ export function GeneralFilingDetailsStep({
     );
   }
 
-  // 8. NTC 1-21: Copy of Certificates / Licenses
-  if (serviceCode === "NTC_1_21" || serviceTitle.includes("COPY OF CERTIFICATES")) {
+  // 8. NTC 1-19: Duplicate / Certified True Copy of Permit / License
+  if (serviceCode === "NTC_1_19" || serviceTitle.includes("DUPLICATE") || serviceTitle.includes("CERTIFIED TRUE COPY")) {
     const copyData = activeApplicant.copyOfCertData || initialCopyOfCertificateData(activeApplicant.id);
     return (
       <CopyOfCertificateForm
@@ -209,21 +238,40 @@ export function GeneralFilingDetailsStep({
     );
   }
 
-  // Generic Fallback Form with Amateur Station License structure
-  const fallbackAmateurData = activeApplicant.amateurLicenseData || initialAmateurRadioStationLicenseData(activeApplicant.id);
+  // Fallback Generic Form
   return (
-    <AmateurRadioStationLicenseForm
-      data={fallbackAmateurData}
-      onChange={(fields) =>
-        updateActiveApplicant({
-          amateurLicenseData: { ...fallbackAmateurData, ...fields },
-          firstName: fields.firstName !== undefined ? fields.firstName : activeApplicant.firstName,
-          lastName: fields.lastName !== undefined ? fields.lastName : activeApplicant.lastName,
-          email: fields.email !== undefined ? fields.email : activeApplicant.email,
-          contactNo: fields.contactNo !== undefined ? fields.contactNo : activeApplicant.contactNo,
-          address: fields.address !== undefined ? fields.address : activeApplicant.address,
-        })
-      }
-    />
+    <View style={{ gap: 14 }}>
+      <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: COLORS.neutral[600] }}>
+        Generic Application Form for {service.title} ({service.code})
+      </Text>
+      <ValidatedInput
+        label="First Name"
+        placeholder="First Name"
+        value={activeApplicant.firstName}
+        onChangeText={(val) => updateActiveApplicant({ firstName: val })}
+        required
+      />
+      <ValidatedInput
+        label="Last Name"
+        placeholder="Last Name"
+        value={activeApplicant.lastName}
+        onChangeText={(val) => updateActiveApplicant({ lastName: val })}
+        required
+      />
+      <ValidatedInput
+        label="Email Address"
+        placeholder="email@example.com"
+        value={activeApplicant.email}
+        onChangeText={(val) => updateActiveApplicant({ email: val })}
+        required
+      />
+      <ValidatedInput
+        label="Contact Number"
+        placeholder="0917XXXXXXX"
+        value={activeApplicant.contactNo}
+        onChangeText={(val) => updateActiveApplicant({ contactNo: val })}
+        required
+      />
+    </View>
   );
 }

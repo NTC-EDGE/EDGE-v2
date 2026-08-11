@@ -10,6 +10,8 @@ import {
 } from "react-native";
 import { COLORS, Icon, TYPOGRAPHY } from "@edge/ui";
 import { styles } from "./CategoryGrid.styles";
+import { CategorySkeletonGrid } from "./CategorySkeletonGrid";
+import { ServerUnavailableBanner } from "../../../../shared/components/ServerUnavailableBanner";
 
 const ACCREDITATIONS_PNG = require("../../../../../assets/services/Accreditations.png");
 const CERTIFICATES_PNG = require("../../../../../assets/services/Certificates.png");
@@ -61,6 +63,8 @@ export function CategoryGrid({
   }, []);
 
   const displayName = user?.name ?? "Guest";
+
+  const isLoadingCategories = backendCategories === null;
 
   const visibleCategories = useMemo(() => {
     if (!backendCategories) return [];
@@ -114,6 +118,9 @@ export function CategoryGrid({
 
   return (
     <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      {/* Server Offline / Network Error Banner */}
+      <ServerUnavailableBanner />
+
       {/* Column Header */}
       <View style={styles.panelHeader}>
         <Text style={styles.panelTitle}>Services</Text>
@@ -165,10 +172,6 @@ export function CategoryGrid({
       <View style={styles.greetingBanner}>
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
           <View style={{ flex: 1, minWidth: 260 }}>
-            <View style={styles.greetingHeaderBadge}>
-              <Icon name="award" size={12} color="#FCD34D" />
-              <Text style={styles.greetingBadgeText}>REPUBLIC OF THE PHILIPPINES · NTC E-SERVICES</Text>
-            </View>
             <Text style={styles.greetingText}>
               {greeting}, <Text style={styles.greetingName}>{displayName}!</Text>
             </Text>
@@ -176,105 +179,97 @@ export function CategoryGrid({
               Welcome to the official NTC Online Services Portal. Choose a regulatory category below to file licenses, permits, examinations, or accreditations.
             </Text>
           </View>
-
-          <Image
-            source={require("../../../../../assets/logo.jpg")}
-            style={{
-              width: 68,
-              height: 68,
-              borderRadius: 34,
-              borderWidth: 3,
-              borderColor: "#F59E0B",
-            }}
-            resizeMode="cover"
-          />
         </View>
       </View>
 
-      {/* Grid of Categories */}
-      <View style={styles.gridContainer}>
-        {visibleCategories.map((category) => {
-          const staticId = category.staticId || category.id;
-          const theme = getCategoryTheme(staticId);
-          const isActive = selectedCategoryId === category.id;
-          const categoryDraftsCount = drafts.filter((d) =>
-            d.service?.serviceCategoryId === category.id || d.service?.category === category.title
-          ).length;
+      {/* Grid of Categories or Skeleton Loader */}
+      {isLoadingCategories ? (
+        <CategorySkeletonGrid />
+      ) : (
+        <View style={styles.gridContainer}>
+          {visibleCategories.map((category) => {
+            const staticId = category.staticId || category.id;
+            const theme = getCategoryTheme(staticId);
+            const isActive = selectedCategoryId === category.id;
+            const categoryDraftsCount = drafts.filter((d) =>
+              d.service?.serviceCategoryId === category.id || d.service?.category === category.title
+            ).length;
 
-          return (
-            <TouchableOpacity
-              key={category.id}
-              onPress={() => onCategorySelect(category.id)}
-              style={[
-                styles.categoryCard,
-                isActive && styles.categoryCardActive,
-              ]}
-            >
-              {CATEGORY_IMAGES[staticId] !== undefined ? (
-                <Image
-                  source={CATEGORY_IMAGES[staticId]}
-                  style={styles.categoryImage}
-                  resizeMode="contain"
-                />
-              ) : (
-                <View style={[styles.iconBadge, { backgroundColor: theme.bg, borderColor: theme.border }]}>
-                  <Icon name={category.icon} size={22} color={theme.icon} />
-                </View>
-              )}
-              <Text style={styles.categoryCardTitle}>{category.title}</Text>
-              {(() => {
-                const backendCat = backendCategories?.find((bc: any) => {
-                  const code = bc.code?.toUpperCase();
-                  if (category.id === "exams" && code === "EXAM") return true;
-                  if (category.id === "certificates" && code === "CERT") return true;
-                  if (category.id === "licenses" && code === "LIC") return true;
-                  if (category.id === "permits" && code === "PRM") return true;
-                  if (category.id === "accreditations" && code === "ACCR") return true;
-                  if (category.id === "complaints" && (code === "REQ" || bc.type === "RequestsAndComplaints")) return true;
-                  return false;
-                });
-                const servicesCount = category.totalServices !== undefined
-                  ? category.totalServices
-                  : (allBackendServices && backendCat
-                      ? allBackendServices.filter((s: any) => s.serviceCategoryId === backendCat.id).length
-                      : category.services.length);
+            return (
+              <TouchableOpacity
+                key={category.id}
+                onPress={() => onCategorySelect(category.id)}
+                style={[
+                  styles.categoryCard,
+                  isActive && styles.categoryCardActive,
+                ]}
+              >
+                {CATEGORY_IMAGES[staticId] !== undefined ? (
+                  <Image
+                    source={CATEGORY_IMAGES[staticId]}
+                    style={styles.categoryImage}
+                    resizeMode="contain"
+                  />
+                ) : (
+                  <View style={[styles.iconBadge, { backgroundColor: theme.bg, borderColor: theme.border }]}>
+                    <Icon name={category.icon} size={22} color={theme.icon} />
+                  </View>
+                )}
+                <Text style={styles.categoryCardTitle}>{category.title}</Text>
+                {(() => {
+                  const backendCat = backendCategories?.find((bc: any) => {
+                    const code = bc.code?.toUpperCase();
+                    if (category.id === "exams" && code === "EXAM") return true;
+                    if (category.id === "certificates" && code === "CERT") return true;
+                    if (category.id === "licenses" && code === "LIC") return true;
+                    if (category.id === "permits" && code === "PRM") return true;
+                    if (category.id === "accreditations" && code === "ACCR") return true;
+                    if (category.id === "complaints" && (code === "REQ" || bc.type === "RequestsAndComplaints")) return true;
+                    return false;
+                  });
+                  const servicesCount = category.totalServices !== undefined
+                    ? category.totalServices
+                    : (allBackendServices && backendCat
+                        ? allBackendServices.filter((s: any) => s.serviceCategoryId === backendCat.id).length
+                        : category.services.length);
 
-                return (
-                  <Text style={styles.categoryCardCount}>
-                    {servicesCount} {servicesCount === 1 ? "Service" : "Services"}
-                  </Text>
-                );
-              })()}
+                  return (
+                    <Text style={styles.categoryCardCount}>
+                      {servicesCount} {servicesCount === 1 ? "Service" : "Services"}
+                    </Text>
+                  );
+                })()}
 
-              {categoryDraftsCount > 0 && (
-                <TouchableOpacity
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    onViewDrafts(category.id);
-                  }}
-                  style={{
-                    marginTop: 8,
-                    flexDirection: "row",
-                    alignItems: "center",
-                    backgroundColor: "#eff6ff",
-                    borderColor: "#bfdbfe",
-                    borderWidth: 1,
-                    borderRadius: 12,
-                    paddingVertical: 4,
-                    paddingHorizontal: 8,
-                    gap: 4,
-                  }}
-                >
-                  <Icon name="file-text" size={12} color="#1d4ed8" />
-                  <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, color: "#1d4ed8", fontWeight: "600" }}>
-                    {categoryDraftsCount} {categoryDraftsCount === 1 ? "Draft" : "Drafts"}
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </TouchableOpacity>
-          );
-        })}
-      </View>
+                {categoryDraftsCount > 0 && (
+                  <TouchableOpacity
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      onViewDrafts(category.id);
+                    }}
+                    style={{
+                      marginTop: 8,
+                      flexDirection: "row",
+                      alignItems: "center",
+                      backgroundColor: "#eff6ff",
+                      borderColor: "#bfdbfe",
+                      borderWidth: 1,
+                      borderRadius: 12,
+                      paddingVertical: 4,
+                      paddingHorizontal: 8,
+                      gap: 4,
+                    }}
+                  >
+                    <Icon name="file-text" size={12} color="#1d4ed8" />
+                    <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, color: "#1d4ed8", fontWeight: "600" }}>
+                      {categoryDraftsCount} {categoryDraftsCount === 1 ? "Draft" : "Drafts"}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
     </ScrollView>
   );
 }

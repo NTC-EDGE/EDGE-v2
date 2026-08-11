@@ -180,7 +180,7 @@ export function MyApplications() {
         <View style={styles.logoWrapper}>
           <Image
             source={ntcLogo}
-            style={{ width: 140, height: 36, marginRight: 6 }}
+            style={{ width: 50, height: 36, marginRight: 6 }}
             resizeMode="contain"
           />
           <View style={{ flexDirection: "column" }}>

@@ -3,6 +3,7 @@ import { View, Text } from "react-native";
 import { Icon } from "@edge/ui";
 import { Select } from "../../../../shared/components/Select";
 import { ValidatedInput } from "../../../../shared/components/ValidatedInput";
+import { DatePickerInput } from "../../../../shared/components/DatePickerInput";
 import { LifetimeAmateurLicenseData } from "../types/licenseTypes";
 import { licenseStyles } from "./LicenseFormStyles";
 
@@ -120,7 +121,7 @@ export function LifetimeAmateurLicenseForm({
           </View>
 
           <View style={licenseStyles.formCol12}>
-            <Text style={licenseStyles.selectLabel}>Date of Birth* (Applicant must be $\ge$ 60 years old)</Text>
+            <Text style={licenseStyles.selectLabel}>Date of Birth* (Applicant must be at least 60 years old)</Text>
             <View style={{ flexDirection: "row", gap: 8 }}>
               <View style={{ flex: 2 }}>
                 <Select
@@ -238,7 +239,7 @@ export function LifetimeAmateurLicenseForm({
             />
           </View>
           <View style={licenseStyles.formCol6}>
-            <ValidatedInput
+            <DatePickerInput
               label="License Date of Expiry"
               placeholder="MM/DD/YYYY"
               value={data.licenseExpiryDate}

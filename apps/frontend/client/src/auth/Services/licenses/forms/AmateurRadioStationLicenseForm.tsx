@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity } from "react-native";
 import { Icon } from "@edge/ui";
 import { Select } from "../../../../shared/components/Select";
 import { ValidatedInput } from "../../../../shared/components/ValidatedInput";
+import { DatePickerInput } from "../../../../shared/components/DatePickerInput";
 import { AmateurRadioStationLicenseData, EquipmentMakeModelGroup, SerialFrequencyItem } from "../types/licenseTypes";
 import { licenseStyles } from "./LicenseFormStyles";
 
@@ -12,13 +13,6 @@ interface AmateurRadioStationLicenseFormProps {
   errors?: Record<string, string>;
   touched?: Record<string, boolean>;
 }
-
-const months = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December"
-];
-const days = Array.from({ length: 31 }, (_, i) => String(i + 1));
-const years = Array.from({ length: 100 }, (_, i) => String(new Date().getFullYear() - i));
 
 export function AmateurRadioStationLicenseForm({
   data,
@@ -106,43 +100,47 @@ export function AmateurRadioStationLicenseForm({
 
   return (
     <View style={licenseStyles.container}>
-      {/* Section 1: Application Transaction & License Options */}
+      {/* Section 1: Application Transaction & License Options (Read-only Step 3 Selections) */}
       <View style={licenseStyles.formSection}>
         <View style={licenseStyles.formSectionHeaderRow}>
           <Text style={licenseStyles.formSectionHeading}>1. Transaction & License Options</Text>
           <View style={licenseStyles.formSectionBadge}>
-            <Text style={licenseStyles.formSectionBadgeText}>Station License</Text>
+            <Text style={licenseStyles.formSectionBadgeText}>Selected in Step 3</Text>
           </View>
         </View>
 
         <View style={licenseStyles.formGrid}>
+          {/* Read-only Application Type Badge */}
           <View style={licenseStyles.formCol4}>
-            <Text style={licenseStyles.selectLabel}>Application Type*</Text>
-            <Select
-              value={data.appType}
-              onValueChange={(val) => onChange({ appType: val as any })}
-              options={[
-                { label: "New Application (NEW)", value: "NEW" },
-                { label: "Renewal (RENEWAL)", value: "RENEWAL" },
-                { label: "Modification (MODIFICATION)", value: "MODIFICATION" },
-              ]}
-            />
+            <Text style={{ fontFamily: "System", fontSize: 13, fontWeight: "600", color: "#334155", marginBottom: 6 }}>
+              Application Type
+            </Text>
+            <View style={{ height: 44, backgroundColor: "#F1F5F9", borderColor: "#CBD5E1", borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, justifyContent: "center" }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <Icon name="check-circle" size={14} color="#0F2C59" />
+                <Text style={{ fontFamily: "System", fontSize: 13, fontWeight: "700", color: "#0F2C59" }}>
+                  {data.appType === "NEW" ? "New Application (NEW)" : data.appType === "RENEWAL" ? "Renewal (RENEWAL)" : "Modification (MODIFICATION)"}
+                </Text>
+              </View>
+            </View>
           </View>
 
+          {/* Read-only Class of Station Badge */}
           <View style={licenseStyles.formCol4}>
-            <Text style={licenseStyles.selectLabel}>Class of Station*</Text>
-            <Select
-              value={data.classOfStation}
-              onValueChange={(val) => onChange({ classOfStation: val })}
-              options={[
-                { label: "Class A (Advanced)", value: "Class A" },
-                { label: "Class B (General)", value: "Class B" },
-                { label: "Class C (Novice)", value: "Class C" },
-                { label: "Class D (Foundation)", value: "Class D" },
-              ]}
-            />
+            <Text style={{ fontFamily: "System", fontSize: 13, fontWeight: "600", color: "#334155", marginBottom: 6 }}>
+              Class of Station
+            </Text>
+            <View style={{ height: 44, backgroundColor: "#F1F5F9", borderColor: "#CBD5E1", borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, justifyContent: "center" }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <Icon name="shield" size={14} color="#1E40AF" />
+                <Text style={{ fontFamily: "System", fontSize: 13, fontWeight: "700", color: "#1E40AF" }}>
+                  {data.classOfStation || "Class A (Advanced)"}
+                </Text>
+              </View>
+            </View>
           </View>
 
+          {/* Editable License Duration */}
           <View style={licenseStyles.formCol4}>
             <Text style={licenseStyles.selectLabel}>Number of Years*</Text>
             <Select
@@ -177,7 +175,7 @@ export function AmateurRadioStationLicenseForm({
                 </View>
 
                 <View style={licenseStyles.formCol6}>
-                  <ValidatedInput
+                  <DatePickerInput
                     label="Date of Expiry*"
                     placeholder="MM/DD/YYYY"
                     value={data.dateOfExpiry}
@@ -261,7 +259,10 @@ export function AmateurRadioStationLicenseForm({
                   placeholder="Month"
                   value={data.birthMonth}
                   onValueChange={(val) => onChange({ birthMonth: val })}
-                  options={months.map((m) => ({ label: m, value: m }))}
+                  options={[
+                    "January", "February", "March", "April", "May", "June",
+                    "July", "August", "September", "October", "November", "December"
+                  ].map((m) => ({ label: m, value: m }))}
                 />
               </View>
               <View style={{ flex: 1.2 }}>
@@ -269,7 +270,7 @@ export function AmateurRadioStationLicenseForm({
                   placeholder="Day"
                   value={data.birthDay}
                   onValueChange={(val) => onChange({ birthDay: val })}
-                  options={days.map((d) => ({ label: d, value: d }))}
+                  options={Array.from({ length: 31 }, (_, i) => String(i + 1)).map((d) => ({ label: d, value: d }))}
                 />
               </View>
               <View style={{ flex: 1.5 }}>
@@ -277,7 +278,7 @@ export function AmateurRadioStationLicenseForm({
                   placeholder="Year"
                   value={data.birthYear}
                   onValueChange={(val) => onChange({ birthYear: val })}
-                  options={years.map((y) => ({ label: y, value: y }))}
+                  options={Array.from({ length: 100 }, (_, i) => String(new Date().getFullYear() - i)).map((y) => ({ label: y, value: y }))}
                 />
               </View>
             </View>
@@ -363,7 +364,7 @@ export function AmateurRadioStationLicenseForm({
             />
           </View>
           <View style={licenseStyles.formCol6}>
-            <ValidatedInput
+            <DatePickerInput
               label="Date of Exam / Seminar"
               placeholder="MM/DD/YYYY"
               value={data.dateOfExamSeminar}

@@ -32,6 +32,7 @@ export function useExamFilingQueries({
 }: UseExamFilingQueriesProps) {
   const api = useApi();
   const { user: clerkUser } = useUser();
+  // Form fields schema mapping
   const [formFields, setFormFields] = useState<any[]>([]);
   const [tenants, setTenants] = useState<Array<{ id: string; name: string }>>([]);
   const [loadingTenants, setLoadingTenants] = useState(false);
@@ -39,25 +40,6 @@ export function useExamFilingQueries({
   const [loadingOffices, setLoadingOffices] = useState(false);
   const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
   const [loadingSchedules, setLoadingSchedules] = useState(false);
-
-  // Fetch form schema
-  React.useEffect(() => {
-    let active = true;
-    const fetchForm = async () => {
-      if (!serviceId) return;
-      try {
-        const res = await api.get<any>(`/api/v2/services/${serviceId}/form`);
-        if (active && res && res.data && res.data.sections) {
-          const fields = res.data.sections.flatMap((s: any) => s.fields || []);
-          setFormFields(fields);
-        }
-      } catch (err) {
-        console.warn("Failed to fetch service form schema, using fallback mapping:", err);
-      }
-    };
-    fetchForm();
-    return () => { active = false; };
-  }, [serviceId]);
 
   // Clerk auto-fill
   React.useEffect(() => {

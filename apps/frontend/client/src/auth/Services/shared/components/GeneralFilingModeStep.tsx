@@ -160,7 +160,7 @@ export function GeneralFilingModeStep({
         {
           id: "class-a-lifetime",
           title: "Class A — Lifetime Radio Station License",
-          desc: "For Class A Radio Amateurs >= 60 years old with 15+ consecutive years of service.",
+          desc: "For Class A Radio Amateurs at least 60 years old with 15+ consecutive years of service.",
         },
       ]
     : [
@@ -185,6 +185,8 @@ export function GeneralFilingModeStep({
           desc: "Foundation entry-level VHF amateur station license.",
         },
       ];
+
+  const hasElementsToDisplay = (variantElements && variantElements.length > 0) || serviceTitle.includes("AMATEUR") || serviceTitle.includes("STATION");
 
   const handleDownloadTemplate = () => {
     const csvContent = generateCsvContent(templateConfig);
@@ -252,21 +254,41 @@ export function GeneralFilingModeStep({
 
   return (
     <View style={{ gap: 20 }}>
-      {/* ── 1. Select Application Variant / Service Type* (Dropdown) ── */}
-      <View style={{ backgroundColor: "#FFFFFF", borderRadius: 14, padding: 20, borderWidth: 1, borderColor: "#E2E8F0" }}>
+      {/* ── 1. Select Application Variant / Service Type* (Card 1) ── */}
+      <View
+        style={{
+          backgroundColor: "#FFFFFF",
+          borderRadius: 14,
+          padding: 20,
+          borderWidth: 1,
+          borderColor: "#CBD5E1",
+          borderLeftWidth: 5,
+          borderLeftColor: "#0F2C59",
+          shadowColor: "#0F2C59",
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.05,
+          shadowRadius: 6,
+          elevation: 2,
+        }}
+      >
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-          <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 15, fontWeight: "700", color: "#0F2C59" }}>
-            1. Select Application Variant / Service Type*
-          </Text>
-          <View style={{ backgroundColor: "#FEF3C7", borderColor: "#F59E0B", borderWidth: 1, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: "#EFF6FF", justifyContent: "center", alignItems: "center" }}>
+              <Icon name="file-text" size={15} color="#0F2C59" />
+            </View>
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 15, fontWeight: "700", color: "#0F2C59" }}>
+              1. Select Application Variant / Service Type*
+            </Text>
+          </View>
+          <View style={{ backgroundColor: "#FEF3C7", borderColor: "#F59E0B", borderWidth: 1, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 }}>
             <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 10, fontWeight: "800", color: "#92400E" }}>
-              REQUIRED
+              CARD 1 • TRANSACTION
             </Text>
           </View>
         </View>
 
         <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: "#64748B", marginBottom: 14 }}>
-          Select the transaction concern from the dropdown menu:
+          Select the transaction concern from the dropdown menu below:
         </Text>
 
         <Select
@@ -313,15 +335,36 @@ export function GeneralFilingModeStep({
         )}
       </View>
 
-      {/* ── 2. Select Service Variant Element / Class Option* (Radio Card Options) ── */}
-      <View style={{ backgroundColor: "#FFFFFF", borderRadius: 14, padding: 20, borderWidth: 1, borderColor: "#E2E8F0" }}>
+      {/* ── 2. Select Service Variant Element / Class Option* (Card 2) ── */}
+      {hasElementsToDisplay && (
+      <View
+        style={{
+          backgroundColor: "#FFFFFF",
+          borderRadius: 14,
+          padding: 20,
+          borderWidth: 1,
+          borderColor: "#CBD5E1",
+          borderLeftWidth: 5,
+          borderLeftColor: "#3B82F6",
+          shadowColor: "#3B82F6",
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.05,
+          shadowRadius: 6,
+          elevation: 2,
+        }}
+      >
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-          <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 15, fontWeight: "700", color: "#0F2C59" }}>
-            2. Select Service Variant Element / Class Option*
-          </Text>
-          <View style={{ backgroundColor: "#EFF6FF", borderColor: "#3B82F6", borderWidth: 1, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: "#EFF6FF", justifyContent: "center", alignItems: "center" }}>
+              <Icon name="shield" size={15} color="#1D4ED8" />
+            </View>
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 15, fontWeight: "700", color: "#0F2C59" }}>
+              2. Select Service Variant Element / Class Option*
+            </Text>
+          </View>
+          <View style={{ backgroundColor: "#EFF6FF", borderColor: "#3B82F6", borderWidth: 1, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 }}>
             <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 10, fontWeight: "800", color: "#1E40AF" }}>
-              STATION CLASS
+              CARD 2 • STATION CLASS
             </Text>
           </View>
         </View>
@@ -378,12 +421,35 @@ export function GeneralFilingModeStep({
           })}
         </View>
       </View>
+      )}
 
-      {/* ── 3. Mandatory Requirements Checklist Preview ── */}
-      <View style={{ backgroundColor: "#F8FAFC", borderRadius: 14, padding: 18, borderWidth: 1, borderColor: "#E2E8F0" }}>
-        <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 14, fontWeight: "700", color: "#0F2C59", marginBottom: 10 }}>
-          3. Mandatory Requirements Checklist Preview
-        </Text>
+      {/* ── 3. Mandatory Requirements Checklist Preview (Card 3) ── */}
+      <View
+        style={{
+          backgroundColor: "#F8FAFC",
+          borderRadius: 14,
+          padding: 18,
+          borderWidth: 1,
+          borderColor: "#CBD5E1",
+          borderLeftWidth: 5,
+          borderLeftColor: "#F59E0B",
+        }}
+      >
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: "#FEF3C7", justifyContent: "center", alignItems: "center" }}>
+              <Icon name="check-square" size={15} color="#92400E" />
+            </View>
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 14, fontWeight: "700", color: "#0F2C59" }}>
+              3. Mandatory Requirements Checklist Preview
+            </Text>
+          </View>
+          <View style={{ backgroundColor: "#FEF3C7", borderColor: "#F59E0B", borderWidth: 1, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 }}>
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 10, fontWeight: "800", color: "#92400E" }}>
+              CARD 3 • CHECKLIST
+            </Text>
+          </View>
+        </View>
 
         {isLifetime ? (
           <View style={{ gap: 6 }}>
@@ -418,11 +484,38 @@ export function GeneralFilingModeStep({
         )}
       </View>
 
-      {/* ── 4. Select Filing Mode* (Positioned DIRECTLY BELOW Variant & Elements) ── */}
-      <View style={{ backgroundColor: "#FFFFFF", borderRadius: 14, padding: 20, borderWidth: 1, borderColor: "#E2E8F0" }}>
-        <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 15, fontWeight: "700", color: "#0F2C59", marginBottom: 12 }}>
-          4. Select Filing Mode*
-        </Text>
+      {/* ── 4. Select Filing Mode* (Card 4 — Positioned DIRECTLY BELOW Variant & Elements) ── */}
+      <View
+        style={{
+          backgroundColor: "#FFFFFF",
+          borderRadius: 14,
+          padding: 20,
+          borderWidth: 1,
+          borderColor: "#CBD5E1",
+          borderLeftWidth: 5,
+          borderLeftColor: "#10B981",
+          shadowColor: "#10B981",
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.05,
+          shadowRadius: 6,
+          elevation: 2,
+        }}
+      >
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: "#ECFDF5", justifyContent: "center", alignItems: "center" }}>
+              <Icon name="users" size={15} color="#047857" />
+            </View>
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 15, fontWeight: "700", color: "#0F2C59" }}>
+              4. Select Filing Mode*
+            </Text>
+          </View>
+          <View style={{ backgroundColor: "#ECFDF5", borderColor: "#10B981", borderWidth: 1, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 }}>
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 10, fontWeight: "800", color: "#047857" }}>
+              CARD 4 • FILING MODE
+            </Text>
+          </View>
+        </View>
 
         <Select
           label="Filing Mode*"

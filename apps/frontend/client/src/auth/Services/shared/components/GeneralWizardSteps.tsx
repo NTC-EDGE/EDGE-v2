@@ -12,6 +12,7 @@ interface GeneralWizardStepsProps {
   step: number;
   service: NTCService;
   variants?: any[];
+  variantElements?: any[];
   selectedVariantId?: string;
   onSelectVariant?: (variantId: string, variantName: string) => void;
   selectedRegionId: string;
@@ -41,6 +42,7 @@ export function GeneralWizardSteps({
   step,
   service,
   variants = [],
+  variantElements = [],
   selectedVariantId,
   onSelectVariant,
   selectedRegionId,
@@ -84,6 +86,7 @@ export function GeneralWizardSteps({
         <GeneralFilingModeStep
           service={service}
           variants={variants}
+          variantElements={variantElements}
           selectedVariantId={selectedVariantId}
           onSelectVariant={onSelectVariant}
           appMode={appMode}

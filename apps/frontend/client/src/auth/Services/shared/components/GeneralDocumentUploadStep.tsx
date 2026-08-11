@@ -1,6 +1,6 @@
 import React from "react";
 import { View, Text } from "react-native";
-import { TYPOGRAPHY, COLORS } from "@edge/ui";
+import { TYPOGRAPHY, COLORS, Icon } from "@edge/ui";
 import { NTCService } from "../../data/servicesData";
 import { GeneralApplicantData } from "../hooks/useGeneralServiceWizard";
 import { SharedDocumentUpload } from "../../../../shared/components/SharedDocumentUpload";
@@ -78,13 +78,13 @@ export function GeneralDocumentUploadStep({
           required: true,
         },
         {
-          key: "req-proof-paid-dues",
-          label: "Proof of Paid Annual Dues / NTC Official Receipt*",
+          key: "req-annual-dues-or",
+          label: "Proof of Paid Annual Dues / Official Receipt*",
           required: true,
         },
         {
           key: "req-1x1-photo",
-          label: "1x1 ID Picture taken within the last 6 months*",
+          label: "Clear 1x1 ID Picture taken within the last 6 months*",
           required: true,
         },
       ];
@@ -96,8 +96,8 @@ export function GeneralDocumentUploadStep({
           required: true,
         },
         {
-          key: "req-mod-justification-docs",
-          label: "Proof / Documents Supporting Requested Modification (Location Move / Equipment Specs / Class Upgrade)*",
+          key: "req-modification-proof",
+          label: "Proof / Supporting Documents for Requested Modification*",
           required: true,
         },
         {
@@ -107,15 +107,14 @@ export function GeneralDocumentUploadStep({
         },
         {
           key: "req-1x1-photo",
-          label: "1x1 ID Picture taken within the last 6 months*",
+          label: "Clear 1x1 ID Picture taken within the last 6 months*",
           required: true,
         },
       ];
     } else {
-      // NEW Application
       reqList = [
         {
-          key: "req-exam-seminar-cert",
+          key: "req-cert-exam-seminar",
           label: "Certificate of Passing Examination / Seminar*",
           required: true,
         },
@@ -146,6 +145,40 @@ export function GeneralDocumentUploadStep({
 
   return (
     <View style={{ gap: 16 }}>
+      {/* Header Indicator Card */}
+      <View
+        style={{
+          backgroundColor: "#FFFFFF",
+          borderRadius: 14,
+          padding: 18,
+          borderWidth: 1,
+          borderColor: "#CBD5E1",
+          borderLeftWidth: 5,
+          borderLeftColor: "#0F2C59",
+          shadowColor: "#0F2C59",
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.05,
+          shadowRadius: 6,
+          elevation: 2,
+        }}
+      >
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: "#EFF6FF", justifyContent: "center", alignItems: "center" }}>
+              <Icon name="paperclip" size={15} color="#0F2C59" />
+            </View>
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 16, fontWeight: "700", color: "#0F2C59" }}>
+              Mandatory Document Uploads
+            </Text>
+          </View>
+          <View style={{ backgroundColor: "#EFF6FF", borderColor: "#3B82F6", borderWidth: 1, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 12 }}>
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 10, fontWeight: "800", color: "#1E40AF" }}>
+              STEP 5 • {reqList.length} ATTACHMENTS
+            </Text>
+          </View>
+        </View>
+      </View>
+
       {isLifetime && (
         <View style={{ backgroundColor: "#FEF3C7", borderColor: "#F59E0B", borderWidth: 1, borderRadius: 10, padding: 14 }}>
           <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: "#92400E", marginBottom: 4 }}>
