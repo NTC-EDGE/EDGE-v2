@@ -57,4 +57,13 @@ public class ServiceCategoryRepository : IServiceCategoryRepository
     {
         return await _context.Services.AnyAsync(s => s.ServiceCategoryId == categoryId, cancellationToken);
     }
+
+    public async Task<Dictionary<Guid, int>> GetServiceCountsAsync(CancellationToken cancellationToken = default)
+    {
+        return await _context.Services
+            .AsNoTracking()
+            .GroupBy(s => s.ServiceCategoryId)
+            .Select(g => new { CategoryId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.CategoryId, x => x.Count, cancellationToken);
+    }
 }

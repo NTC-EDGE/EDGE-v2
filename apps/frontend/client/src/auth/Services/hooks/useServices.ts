@@ -509,9 +509,21 @@ export function useServices() {
   };
 
   const confirmSwitchService = (onConfirm: () => void) => {
-    if (hasUnsavedChanges()) {
-      setPendingConfirmAction(() => onConfirm);
-      setConfirmModalVisible(true);
+    if (activeWizardService !== null) {
+      if (hasUnsavedChanges()) {
+        setPendingConfirmAction(() => () => {
+          resetWizardState();
+          setActiveWizardService(null);
+          setSelectedService(null);
+          onConfirm();
+        });
+        setConfirmModalVisible(true);
+      } else {
+        resetWizardState();
+        setActiveWizardService(null);
+        setSelectedService(null);
+        onConfirm();
+      }
     } else {
       onConfirm();
     }

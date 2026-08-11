@@ -14,4 +14,5 @@ public interface IServiceCategoryRepository
     void Delete(ServiceCategory category);
     Task<bool> IsCodeUniqueAsync(string code, Guid? excludeId = null, CancellationToken cancellationToken = default);
     Task<bool> HasServicesAsync(Guid categoryId, CancellationToken cancellationToken = default);
+    Task<Dictionary<Guid, int>> GetServiceCountsAsync(CancellationToken cancellationToken = default);
 }
