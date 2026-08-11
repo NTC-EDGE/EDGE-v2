@@ -150,7 +150,7 @@ public static class UserEndpoints
     [HasPermission(Permissions.ManageUsers)]
     public static async Task<IResult> UpdateUserSuperAdmin(
         Guid id,
-        [Microsoft.AspNetCore.Mvc.FromBody] UpdateUserSuperAdminRequest request,
+        UpdateUserSuperAdminRequest request,
         EDGE.Application.Common.Interfaces.IUserAuthorizationService userAuthorizationService,
         IMediator mediator)
     {
@@ -167,6 +167,20 @@ public static class UserEndpoints
         if (existingUser is null)
         {
             return Results.NotFound(new { message = $"User with ID '{id}' was not found." });
+        }
+
+        // Prevent self-revocation/accidental lockout if this is the last SuperAdmin on the system
+        if (existingUser.IsSuperAdmin && request.IsSuperAdmin == false)
+        {
+            var allUsers = await mediator.Send(new GetUsersQuery());
+            var superAdminCount = allUsers.Count(u => u.IsSuperAdmin);
+            if (superAdminCount <= 1)
+            {
+                return Results.BadRequest(new
+                {
+                    message = "Operation failed: Cannot revoke SuperAdmin privilege from the sole remaining SuperAdmin in the system."
+                });
+            }
         }
 
         var command = new AdminUpdateUserCommand(id, existingUser.FirstName, existingUser.LastName, request.IsSuperAdmin);
