@@ -1,5 +1,8 @@
-import { StyleSheet, Platform } from "react-native";
+import { StyleSheet, Platform, Dimensions } from "react-native";
 import { COLORS, TYPOGRAPHY } from "@edge/ui";
+
+const windowWidth = Dimensions.get("window").width;
+const isMobileScreen = windowWidth < 640;
 
 export const licenseStyles = StyleSheet.create({
   container: {
@@ -52,19 +55,24 @@ export const licenseStyles = StyleSheet.create({
     width: "100%",
   },
   formCol6: {
-    width: "48%",
-    minWidth: 160,
+    width: isMobileScreen ? "100%" : "48%",
+    minWidth: isMobileScreen ? undefined : 160,
     flexGrow: 1,
   },
   formCol4: {
-    width: "31%",
-    minWidth: 110,
+    width: isMobileScreen ? "100%" : "31%",
+    minWidth: isMobileScreen ? undefined : 110,
     flexGrow: 1,
   },
   formCol3: {
-    width: "23%",
+    width: isMobileScreen ? "48%" : "23%",
     minWidth: 90,
     flexGrow: 1,
+  },
+  formColCompact: {
+    width: "48%",
+    minWidth: 90,
+    flexGrow: 0,
   },
   selectLabel: {
     fontFamily: TYPOGRAPHY.fonts.primary,

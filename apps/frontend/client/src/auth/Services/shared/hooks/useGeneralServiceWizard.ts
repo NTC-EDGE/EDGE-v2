@@ -243,14 +243,17 @@ export function useGeneralServiceWizard(
       setLoadingTenants(true);
       try {
         const res = await api.get<ApiResponseEnvelope<TenantInfo[]> | TenantInfo[]>("/api/v2/tenants");
+        let list: TenantInfo[] = [];
         if (res && !Array.isArray(res) && res.succeeded && Array.isArray(res.data)) {
-          setTenants(res.data);
+          list = res.data;
         } else if (Array.isArray(res)) {
-          setTenants(res);
+          list = res;
         } else if (res && !Array.isArray(res) && Array.isArray(res.items)) {
-          setTenants(res.items);
-        } else {
-          setTenants([]);
+          list = res.items;
+        }
+        setTenants(list);
+        if (list.length > 0 && !selectedRegionId) {
+          setSelectedRegionId(list[0].id);
         }
       } catch (err) {
         console.error("Failed to fetch tenants from API:", err);
@@ -270,15 +273,23 @@ export function useGeneralServiceWizard(
       }
       setLoadingOffices(true);
       try {
-        const res = await api.get<ApiResponseEnvelope<OfficeInfo[]> | OfficeInfo[]>(`/api/v2/tenants/${selectedRegionId}/field-offices`);
+        const res = await api
+          .get<ApiResponseEnvelope<OfficeInfo[]> | OfficeInfo[]>(`/api/v2/tenants/${selectedRegionId}/field-offices`)
+          .catch(async () => {
+            return await api.get<ApiResponseEnvelope<OfficeInfo[]> | OfficeInfo[]>(`/api/v2/field-offices?tenantId=${selectedRegionId}`).catch(() => null);
+          });
+
+        let officeList: OfficeInfo[] = [];
         if (res && !Array.isArray(res) && res.succeeded && Array.isArray(res.data)) {
-          setOffices(res.data);
+          officeList = res.data;
         } else if (Array.isArray(res)) {
-          setOffices(res);
+          officeList = res;
         } else if (res && !Array.isArray(res) && Array.isArray(res.items)) {
-          setOffices(res.items);
-        } else {
-          setOffices([]);
+          officeList = res.items;
+        }
+        setOffices(officeList);
+        if (officeList.length > 0 && !selectedOfficeId) {
+          setSelectedOfficeId(officeList[0].id);
         }
       } catch (err) {
         console.error("Failed to fetch offices from API:", err);

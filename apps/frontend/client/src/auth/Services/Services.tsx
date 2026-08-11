@@ -7,6 +7,7 @@ import { ContentColumn } from "./components/ContentColumn";
 import { DetailsColumn } from "./components/DetailsColumn";
 import { DraftsModal } from "./components/DraftsModal";
 import { ConfirmationDialog } from "../../shared/components/ConfirmationDialog";
+import { ClientFooter } from "../../shared/components/ClientFooter";
 import { styles } from "./Services.styles";
 
 const ntcLogo = require("../../../assets/ntc-logo.png");
@@ -170,15 +171,8 @@ export function Services() {
         )}
       </View>
 
-      {/* Footer Banner */}
-      <View style={styles.footerBanner}>
-        <Text style={styles.footerText}>
-          National Telecommunications Commission
-        </Text>
-        <TouchableOpacity onPress={handleSignOut} style={styles.footerDoneBtn}>
-          <Text style={styles.footerButtonText}>I'm done!</Text>
-        </TouchableOpacity>
-      </View>
+      {/* Real Footer Banner */}
+      <ClientFooter />
 
       {/* Application Form Modal */}
       {selectedService !== null && (
