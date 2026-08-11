@@ -8,7 +8,7 @@ public class CreateElementCommandValidator : AbstractValidator<CreateElementComm
     {
         RuleFor(x => x.Name)
             .NotEmpty().WithMessage("Element Name is required.")
-            .MaximumLength(150).WithMessage("Element Name must not exceed 150 characters.");
+            .MaximumLength(500).WithMessage("Element Name must not exceed 500 characters.");
 
         RuleFor(x => x.Code)
             .NotEmpty().WithMessage("Element Code is required.")

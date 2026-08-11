@@ -9,6 +9,8 @@ import { ForbiddenAccessToast } from "@/components/ForbiddenAccessToast";
 import { ThemeProvider, themeInitScript } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
+import { AdminAppLayout } from "@/components/AdminAppLayout";
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -39,33 +41,10 @@ export default function RootLayout({
         <head>
           <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
         </head>
-        <body className="h-full bg-background text-foreground antialiased flex flex-col md:flex-row overflow-hidden transition-colors duration-200">
+        <body className="h-full bg-background text-foreground antialiased flex flex-col overflow-hidden transition-colors duration-200">
           <ThemeProvider>
             <AdminScopeProvider>
-              {/* Sidebar Navigation */}
-              <SidebarNav />
-
-              {/* Global 403 Forbidden Toast */}
-              <ForbiddenAccessToast />
-
-              {/* Main Area */}
-              <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-                {/* Top Header */}
-                <header className="h-16 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 md:px-6 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md flex-shrink-0 transition-colors duration-200">
-                  <BackendStatusIndicator />
-                  <div className="flex items-center gap-4">
-                    <ThemeToggle />
-                    <UserButton />
-                  </div>
-                </header>
-
-                {/* Content Area */}
-                <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-background">
-                  <div className="w-full space-y-6">
-                    {children}
-                  </div>
-                </main>
-              </div>
+              <AdminAppLayout>{children}</AdminAppLayout>
             </AdminScopeProvider>
           </ThemeProvider>
         </body>

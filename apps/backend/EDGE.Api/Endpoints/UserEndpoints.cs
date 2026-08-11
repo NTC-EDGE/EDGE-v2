@@ -18,6 +18,12 @@ public static class UserEndpoints
     {
         var group = app.MapGroup("/users").WithTags("Users");
 
+        group.MapGet("/me", GetCurrentUser)
+            .WithName("GetCurrentUser")
+            .WithSummary("Get authenticated user's own profile")
+            .WithDescription("Returns the database profile of the currently authenticated user, including IsSuperAdmin flag.")
+            .RequireAuthorization();
+
         group.MapGet("/", GetUsers)
             .WithName("GetUsers")
             .WithSummary("Get list of platform users")
@@ -33,10 +39,19 @@ public static class UserEndpoints
             .WithSummary("Update user profile")
             .WithDescription("Updates user name, email, or active state.");
 
+        group.MapPatch("/{id:guid}/super-admin", UpdateUserSuperAdmin)
+            .WithName("UpdateUserSuperAdmin")
+            .WithSummary("Update user super admin status")
+            .WithDescription("Toggles or updates the IsSuperAdmin privilege of a user account.")
+            .Produces<EDGE.Domain.Entities.User>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound)
+            .RequireAuthorization();
+
         group.MapDelete("/{id:guid}", DeleteUser)
             .WithName("DeleteUser")
             .WithSummary("Delete user account")
             .WithDescription("Deletes user account.");
+
 
         // Tech Support Global User Directory & Troubleshooting Endpoints
         var supportGroup = app.MapGroup("/support/users").WithTags("Tech Support");
@@ -67,6 +82,31 @@ public static class UserEndpoints
 
         supportGroup.MapDelete("/{id}/sessions/{sessionId}", RevokeUserSessionById)
             .WithName("RevokeUserSessionById");
+    }
+
+    public static async Task<IResult> GetCurrentUser(
+        IMediator mediator,
+        EDGE.Application.Common.Interfaces.ICurrentUserService currentUserService)
+    {
+        var authUserId = currentUserService.UserId;
+        if (string.IsNullOrEmpty(authUserId))
+            return Results.Unauthorized();
+
+        var user = await mediator.Send(
+            new EDGE.Application.Users.Queries.GetUserByAuthUserId.GetUserByAuthUserIdQuery(authUserId));
+
+        if (user is null)
+            return Results.NotFound(new { message = "User profile not found." });
+
+        return Results.Ok(new
+        {
+            id = user.Id,
+            authUserId = user.AuthUserId,
+            email = user.Email,
+            firstName = user.FirstName,
+            lastName = user.LastName,
+            isSuperAdmin = user.IsSuperAdmin,
+        });
     }
 
     [HasPermission(Permissions.ReadUsers)]
@@ -101,6 +141,49 @@ public static class UserEndpoints
             return Results.ValidationProblem(validationResult.ToDictionary());
         }
 
+        var result = await mediator.Send(command);
+        return result is not null ? Results.Ok(result) : Results.NotFound();
+    }
+
+    public record UpdateUserSuperAdminRequest(bool IsSuperAdmin);
+
+    [HasPermission(Permissions.ManageUsers)]
+    public static async Task<IResult> UpdateUserSuperAdmin(
+        Guid id,
+        UpdateUserSuperAdminRequest request,
+        EDGE.Application.Common.Interfaces.IUserAuthorizationService userAuthorizationService,
+        IMediator mediator)
+    {
+        var isCallerSuperAdmin = await userAuthorizationService.HasRoleAsync("superadmin");
+        if (!isCallerSuperAdmin)
+        {
+            return Results.Json(
+                new { message = "Forbidden: Only SuperAdmins can grant or revoke SuperAdmin privileges." },
+                statusCode: StatusCodes.Status403Forbidden
+            );
+        }
+
+        var existingUser = await mediator.Send(new GetUserByIdQuery(id));
+        if (existingUser is null)
+        {
+            return Results.NotFound(new { message = $"User with ID '{id}' was not found." });
+        }
+
+        // Prevent self-revocation/accidental lockout if this is the last SuperAdmin on the system
+        if (existingUser.IsSuperAdmin && request.IsSuperAdmin == false)
+        {
+            var allUsers = await mediator.Send(new GetUsersQuery());
+            var superAdminCount = allUsers.Count(u => u.IsSuperAdmin);
+            if (superAdminCount <= 1)
+            {
+                return Results.BadRequest(new
+                {
+                    message = "Operation failed: Cannot revoke SuperAdmin privilege from the sole remaining SuperAdmin in the system."
+                });
+            }
+        }
+
+        var command = new AdminUpdateUserCommand(id, existingUser.FirstName, existingUser.LastName, request.IsSuperAdmin);
         var result = await mediator.Send(command);
         return result is not null ? Results.Ok(result) : Results.NotFound();
     }

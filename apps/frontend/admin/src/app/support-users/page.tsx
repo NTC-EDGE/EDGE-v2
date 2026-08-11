@@ -38,6 +38,7 @@ function normalizeSupportUsers(data: unknown): GlobalSupportUser[] {
     tenantName: (u.tenantName as string) ?? null,
     fieldOfficeName: (u.fieldOfficeName as string) ?? null,
     status: ((u.status as string) || "active") as AccountStatus,
+    isSuperAdmin: Boolean(u.isSuperAdmin),
     isLockedOut: Boolean(u.isLockedOut),
     mfaEnabled: Boolean(u.mfaEnabled),
     mfaMethod: (u.mfaMethod as string) ?? (u.mfaEnabled ? "Authenticator App (TOTP)" : null),

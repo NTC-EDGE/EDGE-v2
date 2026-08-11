@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { setTokenProvider } from "@edge/api";
+import { useUserService, CurrentUserProfile } from "@/services/userService";
 
 export type AdminRoleType = "system_admin";
 
@@ -13,6 +14,9 @@ export interface AdminScopeContextType {
   setSelectedRegionId: (regionId: string | null) => void;
   selectedTenantId: string | null;
   setSelectedTenantId: (tenantId: string | null) => void;
+  currentUser: CurrentUserProfile | null;
+  isLoadingUser: boolean;
+  isSuperAdmin: boolean;
   isSystemAdmin: boolean;
   isRegionAdmin: boolean;
   isTenantAdmin: boolean;
@@ -29,27 +33,25 @@ export function AdminScopeProvider({ children }: { children: ReactNode }) {
   const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
 
   const clerkAuth = useAuth();
+  const { useCurrentUserProfile } = useUserService();
+  const { data: currentUser, isLoading: isLoadingUser } = useCurrentUserProfile();
 
-  // Register Clerk's getToken callback with the API tokenManager service so that
-  // all outgoing apiClient requests automatically receive the correct Bearer token in headers.
-  // NOTE: We always register getToken regardless of isSignedIn state. Clerk's own SDK returns
-  // null from getToken when there is no active session, so we let it handle that gracefully.
-  // Clearing the provider when isSignedIn is false/undefined causes a race condition where
-  // the first API calls (which SWR fires immediately on mount) go out without auth headers
-  // while Clerk is still hydrating the session from its cookie — resulting in spurious 401s.
   useEffect(() => {
     if (clerkAuth.getToken) {
       setTokenProvider(clerkAuth.getToken);
     }
   }, [clerkAuth.getToken]);
 
-  const isSystemAdmin = true;
-  const isRegionAdmin = true;
-  const isTenantAdmin = true;
+  const isSuperAdmin = !!currentUser?.isSuperAdmin;
 
-  const canManageTenants = true;
-  const canManageTenantMembers = true;
-  const canManageRegionSettings = true;
+  // Real permission evaluation based on super admin or active admin role
+  const isSystemAdmin = isSuperAdmin || activeRole === "system_admin";
+  const isRegionAdmin = isSuperAdmin || isSystemAdmin;
+  const isTenantAdmin = isSuperAdmin || isSystemAdmin;
+
+  const canManageTenants = isSuperAdmin || isSystemAdmin;
+  const canManageTenantMembers = isSuperAdmin || isSystemAdmin;
+  const canManageRegionSettings = isSuperAdmin || isSystemAdmin;
 
   return (
     <AdminScopeContext.Provider
@@ -60,6 +62,9 @@ export function AdminScopeProvider({ children }: { children: ReactNode }) {
         setSelectedRegionId,
         selectedTenantId,
         setSelectedTenantId,
+        currentUser: currentUser ?? null,
+        isLoadingUser,
+        isSuperAdmin,
         isSystemAdmin,
         isRegionAdmin,
         isTenantAdmin,
@@ -80,3 +85,4 @@ export function useAdminScope() {
   }
   return context;
 }
+

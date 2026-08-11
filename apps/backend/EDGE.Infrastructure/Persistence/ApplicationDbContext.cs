@@ -98,7 +98,7 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
         modelBuilder.Entity<Tenant>(entity =>
         {
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.Name).IsRequired().HasMaxLength(150);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(500);
             entity.Property(e => e.Code).HasMaxLength(50);
             entity.Property(e => e.Description).HasMaxLength(500);
         });
@@ -178,7 +178,7 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
         modelBuilder.Entity<FieldOffice>(entity =>
         {
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.Name).IsRequired().HasMaxLength(150);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(500);
             entity.Property(e => e.Code).IsRequired().HasMaxLength(50);
             entity.Property(e => e.Category)
                   .HasConversion<string>()
@@ -333,7 +333,7 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
 
         modelBuilder.Entity<CompanyDetail>(entity =>
         {
-            entity.Property(e => e.Name).HasMaxLength(150);
+            entity.Property(e => e.Name).HasMaxLength(500);
             entity.Property(e => e.RegistrationNumber).HasMaxLength(50);
             entity.Property(e => e.EntityType).HasConversion<string>();
             entity.HasOne(d => d.Barangay)
@@ -493,7 +493,7 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
         {
             entity.HasIndex(e => e.Code).IsUnique();
             entity.Property(e => e.Code).IsRequired().HasMaxLength(50);
-            entity.Property(e => e.Name).IsRequired().HasMaxLength(150);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(500);
             entity.Property(e => e.Description).HasMaxLength(500);
         });
 
@@ -527,7 +527,7 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
         {
             entity.HasIndex(e => e.Code).IsUnique();
             entity.Property(e => e.Code).IsRequired().HasMaxLength(50);
-            entity.Property(e => e.Name).IsRequired().HasMaxLength(150);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(500);
             entity.Property(e => e.Description).HasMaxLength(500);
         });
 
@@ -581,7 +581,7 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
         modelBuilder.Entity<Requirement>(entity =>
         {
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.Name).IsRequired().HasMaxLength(150);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(500);
             entity.Property(e => e.Description).HasMaxLength(500);
         });
 
