@@ -1,0 +1,116 @@
+name: Deploy Admin - Vercel
+
+on:
+  push:
+    branches:
+      - develop
+    tags:
+      - 'admin-v*'
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'apps/frontend/admin/**'
+      - 'packages/api/**'
+      - '.github/workflows/deploy-admin-vercel.yml'
+
+jobs:
+  deploy:
+    name: Deploy to Vercel
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch all history so merge-base can find ancestors
+
+      - name: Verify Tag is on Main Branch
+        if: github.ref_type == 'tag'
+        run: |
+          git fetch origin main
+          if ! git merge-base --is-ancestor ${{ github.sha }} origin/main; then
+            echo "❌ Error: Production deployments are only allowed from tags on the main branch!"
+            exit 1
+          fi
+          echo "✅ Tag is verified to be on the main branch."
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.14'
+
+      - name: Install Dependencies
+        run: bun install
+
+      - name: Resolve Vercel Environment
+        id: resolve
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/main" || "${{ github.ref_type }}" == "tag" ]]; then
+            echo "vercel_env=production" >> $GITHUB_OUTPUT
+            echo "prod_flag=--prod" >> $GITHUB_OUTPUT
+          else
+            echo "vercel_env=preview" >> $GITHUB_OUTPUT
+            echo "prod_flag=" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Pull Vercel Environment Information
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_ADMIN_PROJECT_ID }}
+        run: npx vercel pull --yes --environment=${{ steps.resolve.outputs.vercel_env }} --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build Project Artifacts
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_ADMIN_PROJECT_ID }}
+        run: npx vercel build ${{ steps.resolve.outputs.prod_flag }} --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy Project Artifacts to Vercel
+        id: deploy
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_ADMIN_PROJECT_ID }}
+        run: |
+          DEPLOY_URL=$(npx vercel deploy --prebuilt ${{ steps.resolve.outputs.prod_flag }} --token=${{ secrets.VERCEL_TOKEN }})
+          echo "url=$DEPLOY_URL" >> $GITHUB_OUTPUT
+
+      - name: Comment Preview URL on PR
+        if: github.event_name == 'pull_request' && steps.deploy.outputs.url != ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const previewUrl = '${{ steps.deploy.outputs.url }}';
+            const issue_number = context.issue.number;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const body = `🚀 **Vercel Preview Deployment Ready!**\n\n- **Preview URL:** [${previewUrl}](${previewUrl})\n- **Deployed commit:** ${context.sha}`;
+            
+            const { data: comments } = await github.rest.issues.listComments({
+              owner,
+              repo,
+              issue_number
+            });
+            const botComment = comments.find(comment => 
+              comment.user.type === 'Bot' && comment.body.includes('Vercel Preview Deployment Ready!')
+            );
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: botComment.id,
+                body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number,
+                body
+              });
+            }

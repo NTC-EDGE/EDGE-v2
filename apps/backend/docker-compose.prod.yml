@@ -1,0 +1,10 @@
+version: '3.8'
+
+services:
+  ntc-edge-api:
+    networks:
+      - edge-network
+
+networks:
+  edge-network:
+    external: true

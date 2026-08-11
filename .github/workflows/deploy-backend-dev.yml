@@ -7,11 +7,6 @@ on:
     paths:
       - 'apps/backend/**'
       - '.github/workflows/deploy-backend-dev.yml'
-  pull_request:
-    branches:
-      - develop
-    paths:
-      - 'apps/backend/**'
 
 jobs:
   build:
@@ -47,19 +42,36 @@ jobs:
     if: github.event_name != 'pull_request'
     environment:
       name: development
+    env:
+      CONTAINER_NAME: "ntc-edge-api-dev"
 
     steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
       - name: Download Compressed Image
         uses: actions/download-artifact@v4
         with:
           name: backend-image-dev
 
-      - name: Deploy to Server via SCP & SSH
+      - name: Copy docker-compose files to workspace root
+        run: |
+          cp apps/backend/docker-compose.yml ./docker-compose.yml
+          cp apps/backend/docker-compose.dev.yml ./docker-compose.override.yml
+
+      - name: Copy Files via SCP
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          passphrase: ${{ secrets.SSH_PASSPHRASE }}
+          source: "docker-compose.yml,docker-compose.override.yml,backend-image-dev.tar.gz"
+          target: "/opt/docker-stack/${{ env.CONTAINER_NAME }}"
+
+      - name: Deploy and Restart Stack via SSH
+        uses: appleboy/ssh-action@v1.0.3
         env:
-          SSH_HOST: ${{ secrets.SSH_HOST }}
-          SSH_USER: ${{ secrets.SSH_USER }}
-          SSH_KEY: ${{ secrets.SSH_KEY }}
-          SSH_PASSPHRASE: ${{ secrets.SSH_PASSPHRASE }}
           DB_CONNECTION_STRING: ${{ secrets.DB_CONNECTION_STRING }}
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
           CLERK_WEBHOOK_SECRET: ${{ secrets.CLERK_WEBHOOK_SECRET }}
@@ -68,68 +80,57 @@ jobs:
           CLOUDFLARE_R2_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
           CLOUDFLARE_R2_BUCKET_NAME: ${{ vars.CLOUDFLARE_R2_BUCKET_NAME }}
           STORAGE_ENCRYPTION_MASTER_KEY: ${{ secrets.STORAGE_ENCRYPTION_MASTER_KEY }}
-          TARGET_PORT: ${{ vars.PORT }}
-        run: |
-          # Write SSH Private Key to file
-          mkdir -p ~/.ssh
-          echo "$SSH_KEY" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-  
-          # Start SSH Agent
-          eval $(ssh-agent -s)
-  
-          # Add Key to Agent depending on passphrase presence
-          if [ -n "$SSH_PASSPHRASE" ]; then
-            echo "SSH passphrase provided. Adding key via expect..."
-            sudo apt-get update && sudo apt-get install -y expect
-            expect -c "
-              spawn ssh-add $HOME/.ssh/id_rsa
-              expect \"Enter passphrase\"
-              send \"$SSH_PASSPHRASE\r\"
-              expect eof
-            "
-          else
-            echo "No SSH passphrase provided. Adding key directly..."
-            ssh-add ~/.ssh/id_rsa
-          fi
-  
-            # Secure Copy docker-compose.yml to Remote Host
-            ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST "mkdir -p /opt/docker-stack/ntc-edge-api-dev"
-            scp -o StrictHostKeyChecking=no apps/backend/docker-compose.yml $SSH_USER@$SSH_HOST:/opt/docker-stack/ntc-edge-api-dev/docker-compose.yml
+          CONTAINER_NAME: ${{ env.CONTAINER_NAME }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          passphrase: ${{ secrets.SSH_PASSPHRASE }}
+          envs: DB_CONNECTION_STRING,CLERK_SECRET_KEY,CLERK_WEBHOOK_SECRET,CLOUDFLARE_R2_ACCOUNT_ID,CLOUDFLARE_R2_ACCESS_KEY_ID,CLOUDFLARE_R2_SECRET_ACCESS_KEY,CLOUDFLARE_R2_BUCKET_NAME,STORAGE_ENCRYPTION_MASTER_KEY,CONTAINER_NAME
+          script: |
+            # Export environment variables for Docker Compose
+            export ConnectionStrings__DefaultConnection="$DB_CONNECTION_STRING"
+            export Clerk__SecretKey="$CLERK_SECRET_KEY"
+            export Clerk__WebhookSecret="$CLERK_WEBHOOK_SECRET"
+            export CloudflareR2__AccountId="$CLOUDFLARE_R2_ACCOUNT_ID"
+            export CloudflareR2__AccessKeyId="$CLOUDFLARE_R2_ACCESS_KEY_ID"
+            export CloudflareR2__SecretAccessKey="$CLOUDFLARE_R2_SECRET_ACCESS_KEY"
+            export CloudflareR2__BucketName="$CLOUDFLARE_R2_BUCKET_NAME"
+            export StorageEncryption__MasterEncryptionKey="$STORAGE_ENCRYPTION_MASTER_KEY"
+            export IMAGE_TAG="${{ github.sha }}"
+            export IMAGE_NAME="edge-backend-dev"
+            export CONTAINER_NAME="$CONTAINER_NAME"
+            export ASPNETCORE_ENVIRONMENT="Development"
 
-            # Secure Copy Compressed Archive to Remote Host
-            scp -o StrictHostKeyChecking=no backend-image-dev.tar.gz $SSH_USER@$SSH_HOST:/tmp/backend-image-dev.tar.gz
-  
-            # Execute Deployment Commands on Remote Host
-            ssh -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST << EOF
-              # Export environment variables safely using bash @Q quoting
-              export ConnectionStrings__DefaultConnection=${DB_CONNECTION_STRING@Q}
-              export Clerk__SecretKey=${CLERK_SECRET_KEY@Q}
-              export Clerk__WebhookSecret=${CLERK_WEBHOOK_SECRET@Q}
-              export CloudflareR2__AccountId=${CLOUDFLARE_R2_ACCOUNT_ID@Q}
-              export CloudflareR2__AccessKeyId=${CLOUDFLARE_R2_ACCESS_KEY_ID@Q}
-              export CloudflareR2__SecretAccessKey=${CLOUDFLARE_R2_SECRET_ACCESS_KEY@Q}
-              export CloudflareR2__BucketName=${CLOUDFLARE_R2_BUCKET_NAME@Q}
-              export StorageEncryption__MasterEncryptionKey=${STORAGE_ENCRYPTION_MASTER_KEY@Q}
-              export TARGET_PORT=${TARGET_PORT@Q}
-              export GITHUB_SHA=${{ github.sha }}
-              export IMAGE_NAME="edge-backend-dev"
-              export CONTAINER_NAME="ntc-edge-api-dev"
-              export ASPNETCORE_ENVIRONMENT="Development"
+            # Load the Docker image
+            gunzip -c /opt/docker-stack/$CONTAINER_NAME/backend-image-dev.tar.gz | docker load
+            
+            # Restart the Compose stack (Docker Compose merges docker-compose.yml and docker-compose.override.yml automatically)
+            cd /opt/docker-stack/$CONTAINER_NAME
+            docker compose down || true
+            docker compose up -d
 
-              # Unzip and load image in stream
-              gunzip -c /tmp/backend-image-dev.tar.gz | docker load
-              
-              # Ensure the external network exists on the server first
-              docker network create edge-network || true
+            # Clean up upload archive
+            rm -f backend-image-dev.tar.gz
 
-              # Spin up using docker-compose
-              cd /opt/docker-stack/ntc-edge-api-dev
-              docker compose down || true
-              docker compose up -d
+            # Post-Deployment Health Check (Fail if not up within 15s)
+            echo "Waiting for container startup (15s)..."
+            sleep 15
 
-              
-              # Clean up temporary archive file
-              rm /tmp/backend-image-dev.tar.gz
-            EOF
+            if [ "$(docker inspect -f '{{.State.Running}}' $CONTAINER_NAME)" != "true" ]; then
+              echo "❌ Error: Container $CONTAINER_NAME is not running!"
+              docker logs $CONTAINER_NAME
+              exit 1
+            fi
 
+            # Retrieve internal IP address of container
+            CONTAINER_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}} {{end}}' $CONTAINER_NAME | awk '{print $1}')
+
+            echo "🔍 Checking API port connectivity on $CONTAINER_IP:8080..."
+            if curl -s --max-time 5 http://$CONTAINER_IP:8080/ > /dev/null; then
+              echo "✅ Success: API is up and responding!"
+            else
+              echo "❌ Error: API is not responding on port 8080!"
+              docker logs $CONTAINER_NAME
+              exit 1
+            fi
