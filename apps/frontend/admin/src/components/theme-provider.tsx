@@ -14,11 +14,17 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 const STORAGE_KEY = "@edge/admin/theme_mode";
 
+function getSystemTheme(): "light" | "dark" {
+  if (typeof window === "undefined") return "dark";
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>("system");
+  const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">("dark");
   const [mounted, setMounted] = useState(false);
 
-  // Read theme from localStorage on mount
+  // Read saved theme setting on client mount
   useEffect(() => {
     const savedTheme = localStorage.getItem(STORAGE_KEY) as Theme | null;
     if (savedTheme === "light" || savedTheme === "dark" || savedTheme === "system") {
@@ -27,18 +33,16 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setMounted(true);
   }, []);
 
-  // Update theme class on HTML element
+  // Update DOM classes & resolved theme dynamically
   useEffect(() => {
     const root = window.document.documentElement;
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
 
     const updateTheme = () => {
-      let isDark = false;
-      if (theme === "system") {
-        isDark = mediaQuery.matches;
-      } else {
-        isDark = theme === "dark";
-      }
+      const isDark = theme === "system" ? mediaQuery.matches : theme === "dark";
+      const resolved = isDark ? "dark" : "light";
+      
+      setResolvedTheme(resolved);
 
       if (isDark) {
         root.classList.add("dark");
@@ -62,35 +66,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem(STORAGE_KEY, newTheme);
   };
 
-  // Determine resolved theme (default to dark if not mounted to prevent mismatch)
-  const resolvedTheme = useMemoResolvedTheme(theme, mounted);
-
   return (
     <ThemeContext.Provider value={{ theme, resolvedTheme, setTheme }}>
       {children}
     </ThemeContext.Provider>
   );
-}
-
-function useMemoResolvedTheme(theme: Theme, mounted: boolean): "light" | "dark" {
-  const [resolved, setResolved] = useState<"light" | "dark">("dark");
-
-  useEffect(() => {
-    if (!mounted) return;
-    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-    const handler = () => {
-      if (theme === "system") {
-        setResolved(mediaQuery.matches ? "dark" : "light");
-      } else {
-        setResolved(theme);
-      }
-    };
-    handler();
-    mediaQuery.addEventListener("change", handler);
-    return () => mediaQuery.removeEventListener("change", handler);
-  }, [theme, mounted]);
-
-  return resolved;
 }
 
 export function useTheme() {
@@ -109,11 +89,12 @@ export const themeInitScript = `
     try {
       var saved = localStorage.getItem('${STORAGE_KEY}');
       var isDark = false;
-      if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      if (saved === 'dark') {
         isDark = true;
-      }
-      if (saved === 'light') {
+      } else if (saved === 'light') {
         isDark = false;
+      } else {
+        isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
       }
       if (isDark) {
         document.documentElement.classList.add('dark');
@@ -125,3 +106,4 @@ export const themeInitScript = `
     } catch (e) {}
   })();
 `;
+

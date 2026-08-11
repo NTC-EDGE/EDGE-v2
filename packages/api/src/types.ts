@@ -331,6 +331,7 @@ export interface GlobalSupportUser {
   tenantName?: string | null;
   fieldOfficeName?: string | null;
   status: AccountStatus;
+  isSuperAdmin?: boolean;
   isLockedOut: boolean;
   mfaEnabled: boolean;
   mfaMethod?: string | null;

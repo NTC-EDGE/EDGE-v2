@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { safeAsync } from "@edge/api";
 import { useCatalogService, ServiceCategory } from "@/services/catalogService";
 import { useTenantService } from "@/services/tenantService";
@@ -13,7 +14,30 @@ import { useSWRConfig } from "swr";
 
 export type TabType = "services" | "variants" | "requirements" | "service-requirements" | "service-variant-requirements" | "elements" | "variant-elements" | "notes";
 
+export const VALID_SERVICE_TABS: readonly TabType[] = [
+  "services",
+  "variants",
+  "requirements",
+  "service-requirements",
+  "service-variant-requirements",
+  "elements",
+  "variant-elements",
+  "notes",
+];
+
+const isValidServiceTab = (val: string | null): val is TabType => {
+  if (val === null) return false;
+  return VALID_SERVICE_TABS.some((t) => t === val);
+};
+
 export function useServicesPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const tabQuery = searchParams ? searchParams.get("tab") : null;
+  const initialTab: TabType = isValidServiceTab(tabQuery) ? tabQuery : "services";
+
   const { mutate: globalMutate } = useSWRConfig();
   const {
     useServiceCategories, createServiceCategory, updateServiceCategory, deleteServiceCategory,
@@ -37,7 +61,24 @@ export function useServicesPage() {
   } = useFeesService();
 
   const [toast, setToast] = useState<ToastMessage | null>(null);
-  const [activeTab, setActiveTab] = useState<TabType>("services");
+  const [activeTab, setActiveTabState] = useState<TabType>(initialTab);
+
+  useEffect(() => {
+    if (!searchParams) return;
+    const currentTabParam = searchParams.get("tab");
+    if (isValidServiceTab(currentTabParam) && currentTabParam !== activeTab) {
+      setActiveTabState(currentTabParam);
+    }
+  }, [searchParams]);
+
+  const setActiveTab = (newTab: TabType) => {
+    setActiveTabState(newTab);
+    if (searchParams && router && pathname) {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("tab", newTab);
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    }
+  };
   
   // Search & Pagination states
   const [servicesSearch, setServicesSearch] = useState("");

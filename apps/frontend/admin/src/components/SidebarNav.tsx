@@ -31,13 +31,13 @@ import { useAdminScope, AdminRoleType } from "@/lib/admin-scope-context";
 
 export function SidebarNav() {
   const pathname = usePathname();
-  const { activeRole, isSystemAdmin, isRegionAdmin } = useAdminScope();
+  const { activeRole, isSystemAdmin, isRegionAdmin, isSuperAdmin, currentUser } = useAdminScope();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const isActive = (path: string) => pathname === path || (path !== "/" && pathname.startsWith(path));
 
   const roleLabel: Record<AdminRoleType, string> = {
-    system_admin: "System Admin Settings",
+    system_admin: isSuperAdmin ? "Super Admin (Full Access)" : "System Admin Settings",
   };
 
   const activeLinkClass =
@@ -86,8 +86,12 @@ export function SidebarNav() {
               className="h-8 w-auto object-contain"
               priority
             />
-            <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded">
-              Admin
+            <span className={`text-[10px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded ${
+              isSuperAdmin
+                ? "text-amber-500 dark:text-amber-400 bg-amber-500/10 border border-amber-500/30"
+                : "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20"
+            }`}>
+              {isSuperAdmin ? "SuperAdmin" : "Admin"}
             </span>
           </div>
         </div>
@@ -334,7 +338,9 @@ export function SidebarNav() {
             <UserButton />
             <div className="text-left overflow-hidden">
               <p className="text-xs font-semibold text-slate-900 dark:text-white truncate">{roleLabel[activeRole]}</p>
-              <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono truncate">NTC EDGE Portal</p>
+              <p className={`text-[10px] font-mono truncate ${isSuperAdmin ? "text-amber-600 dark:text-amber-400 font-semibold" : "text-emerald-600 dark:text-emerald-400"}`}>
+                {isSuperAdmin ? "⚡ Full CRUD Access" : "NTC EDGE Portal"}
+              </p>
             </div>
           </div>
         </div>

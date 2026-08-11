@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { CircleDollarSign, Plus, Search, Coins, Tag, CheckCircle2, Blocks, Scale } from "lucide-react";
+import React, { useState, useEffect, Suspense } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { CircleDollarSign, Plus, Search, Coins, Tag, CheckCircle2, Blocks, Scale, Loader2 } from "lucide-react";
 import { useFeesService } from "@/services/feesService";
 import { useAdminScope } from "@/lib/admin-scope-context";
 import { useSWRConfig } from "swr";
@@ -18,6 +19,18 @@ import { isForbiddenError, PageForbiddenState } from "@/components/PageForbidden
 
 type TabType = "fees" | "service-fees" | "service-variant-fees" | "service-variant-element-fees";
 
+const VALID_FEE_TABS: readonly TabType[] = [
+  "fees",
+  "service-fees",
+  "service-variant-fees",
+  "service-variant-element-fees",
+];
+
+const isValidFeeTab = (val: string | null): val is TabType => {
+  if (val === null) return false;
+  return VALID_FEE_TABS.some((t) => t === val);
+};
+
 interface ConfirmConfig {
   title: string;
   description: string;
@@ -25,7 +38,14 @@ interface ConfirmConfig {
   payload: any;
 }
 
-export default function FeesNotesPage() {
+function FeesNotesContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const tabQuery = searchParams.get("tab");
+  const initialTab: TabType = isValidFeeTab(tabQuery) ? tabQuery : "fees";
+
   const { isSystemAdmin } = useAdminScope();
   const canManage = isSystemAdmin;
   const { mutate: globalMutate } = useSWRConfig();
@@ -38,7 +58,21 @@ export default function FeesNotesPage() {
     useElements, useServices,
   } = useFeesService();
 
-  const [activeTab, setActiveTab] = useState<TabType>("fees");
+  const [activeTab, setActiveTabState] = useState<TabType>(initialTab);
+
+  useEffect(() => {
+    const currentTabParam = searchParams.get("tab");
+    if (isValidFeeTab(currentTabParam) && currentTabParam !== activeTab) {
+      setActiveTabState(currentTabParam);
+    }
+  }, [searchParams]);
+
+  const setActiveTab = (newTab: TabType) => {
+    setActiveTabState(newTab);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", newTab);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
   const [searchTerm, setSearchTerm] = useState("");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -300,9 +334,9 @@ export default function FeesNotesPage() {
       <div className="animate-fade-in">
         {!!error && isForbiddenError(error) && <PageForbiddenState />}
         {!!error && !isForbiddenError(error) && (
-          <div className="p-12 text-center bg-slate-900 border border-slate-800 rounded-2xl shadow-xl">
+          <div className="p-12 text-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm dark:shadow-xl">
             <p className="text-red-500 font-medium text-base">Failed to load data</p>
-            <button onClick={() => window.location.reload()} className="mt-4 px-4 py-2 bg-slate-800 text-slate-300 rounded-xl text-sm hover:bg-slate-700 font-medium">Retry</button>
+            <button onClick={() => window.location.reload()} className="mt-4 px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-sm hover:bg-slate-200 dark:hover:bg-slate-700 font-medium">Retry</button>
           </div>
         )}
         {!error && (
@@ -401,5 +435,20 @@ export default function FeesNotesPage() {
         loading={isProcessing}
       />
     </div>
+  );
+}
+
+export default function FeesNotesPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="p-12 text-center text-slate-400 flex items-center justify-center gap-2">
+          <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
+          <span>Loading Fee Management...</span>
+        </div>
+      }
+    >
+      <FeesNotesContent />
+    </Suspense>
   );
 }
