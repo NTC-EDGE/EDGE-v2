@@ -12,7 +12,7 @@ public class CreateFeeCommandValidator : AbstractValidator<CreateFeeCommand>
 
         RuleFor(x => x.Name)
             .NotEmpty().WithMessage("Fee Name is required.")
-            .MaximumLength(150).WithMessage("Fee Name must not exceed 150 characters.");
+            .MaximumLength(500).WithMessage("Fee Name must not exceed 500 characters.");
 
         RuleFor(x => x.Description)
             .MaximumLength(500).WithMessage("Description must not exceed 500 characters.");
