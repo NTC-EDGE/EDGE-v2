@@ -215,7 +215,7 @@ export function AccessTab({ user, diagnosticData, onUserUpdated }: AccessTabProp
           <div className="space-y-1.5">
             <label className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Assigned Roles</label>
             <div className="flex flex-wrap gap-1.5 px-3 py-2 bg-white dark:bg-slate-950 rounded-lg border border-slate-200 dark:border-slate-800 min-h-9">
-              {user.assignedRoles.length > 0
+              {Array.isArray(user.assignedRoles) && user.assignedRoles.length > 0
                 ? user.assignedRoles.map((r) => (
                     <span key={r} className="text-[10px] px-2 py-0.5 rounded-md bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 border border-indigo-500/25 font-mono">
                       {r}

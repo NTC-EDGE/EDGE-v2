@@ -28,8 +28,8 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
 
   if (loadingTenant || !tenantResponse) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[400px] text-slate-400 bg-slate-950 p-6">
-        <Loader2 className="w-10 h-10 animate-spin text-emerald-400 mb-4" />
+      <div className="flex flex-col items-center justify-center min-h-[400px] text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm dark:shadow-xl">
+        <Loader2 className="w-10 h-10 animate-spin text-emerald-500 dark:text-emerald-400 mb-4" />
         <span className="text-sm font-semibold">Loading tenant details from live API...</span>
       </div>
     );

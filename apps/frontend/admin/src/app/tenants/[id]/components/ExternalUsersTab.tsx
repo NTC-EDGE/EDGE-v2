@@ -8,8 +8,10 @@ import {
   CheckCircle2,
   Calendar,
   Building,
-  UserCheck
+  UserCheck,
+  Loader2,
 } from "lucide-react";
+import { isForbiddenError, PageForbiddenState } from "@/components/PageForbiddenState";
 import { ActionMenu } from "@/components/ui/action-menu";
 import { Pagination } from "@/components/ui/pagination";
 import {
@@ -48,11 +50,29 @@ export function ExternalUsersTab({ currentTenant, getRegionName, getRegionCode }
   const [isExternalUserModalOpen, setIsExternalUserModalOpen] = useState(false);
 
   const { useGlobalUsers } = useSupportService();
-  const { data: globalUsers, isLoading: loadingUsers } = useGlobalUsers(
+  const { data: globalUsers, isLoading: loadingUsers, error } = useGlobalUsers(
     externalSearchTerm,
     currentTenant.regionId,
     "ALL"
   );
+
+  if (error && isForbiddenError(error)) {
+    return (
+      <PageForbiddenState
+        title="Client Directory Access Denied"
+        message="You do not have permission to view regional client accounts for this tenant."
+      />
+    );
+  }
+
+  if (loadingUsers && !globalUsers) {
+    return (
+      <div className="p-12 text-center text-slate-500 dark:text-slate-400 flex flex-col items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-purple-500 mb-3" />
+        <span className="text-xs font-semibold">Loading regional client permits...</span>
+      </div>
+    );
+  }
 
   const usersArray: GlobalSupportUser[] = Array.isArray(globalUsers)
     ? globalUsers
@@ -63,7 +83,7 @@ export function ExternalUsersTab({ currentTenant, getRegionName, getRegionCode }
     name: `${usr.firstName} ${usr.lastName}`.trim() || usr.email,
     email: usr.email,
     organization: usr.tenantName || usr.fieldOfficeName || "Client Entity",
-    licenseCategory: usr.assignedRoles.length > 0 ? usr.assignedRoles.join(", ") : "Public Telecommunications Entity (PTE)",
+    licenseCategory: Array.isArray(usr.assignedRoles) && usr.assignedRoles.length > 0 ? usr.assignedRoles.join(", ") : "Public Telecommunications Entity (PTE)",
     status: usr.isLockedOut ? "Locked Out" : usr.status === "active" ? "Active License" : "Under Review",
     registeredDate: usr.createdAt ? usr.createdAt.slice(0, 10) : "2026-01-15",
   }));
