@@ -10,6 +10,7 @@ import {
   Alert,
   Platform,
   Animated,
+  useWindowDimensions,
 } from "react-native";
 import {
   useTheme,
@@ -1013,6 +1014,8 @@ export function ApplicationReviewScreenContent({
   isCollapsed,
 }: ApplicationReviewScreenProps) {
   const { colors, isDark } = useTheme();
+  const { width } = useWindowDimensions();
+  const isNarrow = width < 900;
   const {
     applications,
     selectedApplication,
@@ -1031,6 +1034,56 @@ export function ApplicationReviewScreenContent({
   const [showCashier, setShowCashier] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(1)).current;
+  const tabScrollRef = useRef<ScrollView>(null);
+
+  // Mouse drag-to-scroll for the tab bar on web
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !isNarrow) return;
+    const node = tabScrollRef.current?.getScrollableNode();
+    if (!(node instanceof HTMLElement)) return;
+
+    node.style.cursor = 'grab';
+
+    let dragging = false;
+    let startX = 0;
+    let originScrollLeft = 0;
+
+    const onMouseDown = (e: MouseEvent) => {
+      dragging = true;
+      startX = e.pageX - node.offsetLeft;
+      originScrollLeft = node.scrollLeft;
+      node.style.cursor = 'grabbing';
+      node.style.userSelect = 'none';
+    };
+
+    const onMouseMove = (e: MouseEvent) => {
+      if (!dragging) return;
+      e.preventDefault();
+      const x = e.pageX - node.offsetLeft;
+      node.scrollLeft = originScrollLeft - (x - startX);
+    };
+
+    const stopDrag = () => {
+      if (!dragging) return;
+      dragging = false;
+      node.style.cursor = 'grab';
+      node.style.userSelect = '';
+    };
+
+    node.addEventListener('mousedown', onMouseDown);
+    node.addEventListener('mousemove', onMouseMove);
+    node.addEventListener('mouseup', stopDrag);
+    node.addEventListener('mouseleave', stopDrag);
+
+    return () => {
+      node.removeEventListener('mousedown', onMouseDown);
+      node.removeEventListener('mousemove', onMouseMove);
+      node.removeEventListener('mouseup', stopDrag);
+      node.removeEventListener('mouseleave', stopDrag);
+      node.style.cursor = '';
+      node.style.userSelect = '';
+    };
+  }, [isNarrow]);
 
   useEffect(() => {
     fadeAnim.setValue(0);
@@ -1272,74 +1325,126 @@ export function ApplicationReviewScreenContent({
   return (
     <Animated.View style={[styles.panel, { backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white, opacity: fadeAnim }]}>
       {/* ── Inner Tab Bar ── */}
-      <View style={[styles.innerTabBar, { borderBottomColor: isDark ? colors.neutral[700] : colors.neutral[200], backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white, }]}>
-        {INNER_TABS.map((tab) => {
-          const isActive = innerTab === tab.key;
-          return (
-            <Pressable
-              key={tab.key}
-              style={styles.innerTabItem}
-              onPress={() => setInnerTab(tab.key)}
+      <View style={[
+        styles.innerTabBarWrapper,
+        {
+          borderBottomColor: isDark ? colors.neutral[700] : colors.neutral[200],
+          backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+        },
+      ]}>
+        {isNarrow ? (
+          // ── Narrow: two rows ──
+          <>
+            {/* Row 1: Scrollable tabs */}
+            <ScrollView
+              ref={tabScrollRef}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.innerTabScrollContent}
+              style={styles.innerTabScroll}
             >
-              <Lucide
-                name={tab.icon}
-                size={13}
-                color={isActive ? (isDark ? colors.brand[500] : COLORS.brand[700]) : (isDark ? colors.neutral[500] : COLORS.neutral[400])}
-              />
-              <Text
-                style={[
-                  styles.innerTabText,
-                  { color: isActive ? (isDark ? colors.brand[500] : COLORS.brand[700]) : (isDark ? colors.neutral[400] : COLORS.neutral[500]) },
-                ]}
-              >
-                {tab.label}
-              </Text>
-              {isActive && <View style={[styles.innerTabUnderline, { backgroundColor: isDark ? colors.brand[500] : colors.brand[700] }]} />}
+              {INNER_TABS.map((tab) => {
+                const isActive = innerTab === tab.key;
+                return (
+                  <Pressable
+                    key={tab.key}
+                    style={styles.innerTabItem}
+                    onPress={() => setInnerTab(tab.key)}
+                  >
+                    <Lucide
+                      name={tab.icon}
+                      size={13}
+                      color={isActive ? (isDark ? colors.brand[500] : COLORS.brand[700]) : (isDark ? colors.neutral[500] : COLORS.neutral[400])}
+                    />
+                    <Text
+                      style={[
+                        styles.innerTabText,
+                        { color: isActive ? (isDark ? colors.brand[500] : COLORS.brand[700]) : (isDark ? colors.neutral[400] : COLORS.neutral[500]) },
+                      ]}
+                    >
+                      {tab.label}
+                    </Text>
+                    {isActive && <View style={[styles.innerTabUnderline, { backgroundColor: isDark ? colors.brand[500] : colors.brand[700] }]} />}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+
+            {/* Row 2: Actions — always visible */}
+            <View style={[styles.innerTabActionsRow, { borderTopColor: isDark ? colors.neutral[700] : colors.neutral[100] }]}>
+              <View style={styles.headerActionRow}>
+                <Pressable style={styles.headerActionLink} onPress={() => handleTopAction("View")}>
+                  <Lucide name="eye" size={14} color={isDark ? colors.brand[500] : COLORS.brand[700]} />
+                  <Text style={[styles.headerActionLinkText, { color: isDark ? colors.brand[500] : colors.brand[700] }]}>View</Text>
+                </Pressable>
+                <View style={[styles.headerActionDivider, { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[200] }]} />
+                <Pressable style={styles.headerActionLink} onPress={() => handleTopAction("Print")}>
+                  <Lucide name="printer" size={14} color={isDark ? colors.brand[500] : COLORS.brand[700]} />
+                  <Text style={[styles.headerActionLinkText, { color: isDark ? colors.brand[500] : colors.brand[700] }]}>Print</Text>
+                </Pressable>
+              </View>
+              <View style={styles.innerTabSpacer} />
+              {onCollapse !== undefined && (
+                <Pressable style={[styles.iconBtn, Platform.select({ web: { cursor: "pointer" } })]} onPress={onCollapse}>
+                  <Lucide name={isCollapsed ? "minimize-2" : "maximize-2"} size={14} color={isDark ? colors.neutral[400] : colors.neutral[500]} />
+                </Pressable>
+              )}
+              <Pressable style={[styles.iconBtn, Platform.select({ web: { cursor: "pointer" } })]} onPress={handleCloseAnimated}>
+                <Lucide name="x" size={16} color={isDark ? colors.neutral[400] : colors.neutral[500]} />
+              </Pressable>
+            </View>
+          </>
+        ) : (
+          // ── Wide: single row ──
+          <View style={styles.innerTabBar}>
+            {INNER_TABS.map((tab) => {
+              const isActive = innerTab === tab.key;
+              return (
+                <Pressable
+                  key={tab.key}
+                  style={styles.innerTabItem}
+                  onPress={() => setInnerTab(tab.key)}
+                >
+                  <Lucide
+                    name={tab.icon}
+                    size={13}
+                    color={isActive ? (isDark ? colors.brand[500] : COLORS.brand[700]) : (isDark ? colors.neutral[500] : COLORS.neutral[400])}
+                  />
+                  <Text
+                    style={[
+                      styles.innerTabText,
+                      { color: isActive ? (isDark ? colors.brand[500] : COLORS.brand[700]) : (isDark ? colors.neutral[400] : COLORS.neutral[500]) },
+                    ]}
+                  >
+                    {tab.label}
+                  </Text>
+                  {isActive && <View style={[styles.innerTabUnderline, { backgroundColor: isDark ? colors.brand[500] : colors.brand[700] }]} />}
+                </Pressable>
+              );
+            })}
+            <View style={styles.innerTabSpacer} />
+            <View style={styles.headerActionRow}>
+              <Pressable style={styles.headerActionLink} onPress={() => handleTopAction("View")}>
+                <Lucide name="eye" size={14} color={isDark ? colors.brand[500] : COLORS.brand[700]} />
+                <Text style={[styles.headerActionLinkText, { color: isDark ? colors.brand[500] : colors.brand[700] }]}>View</Text>
+              </Pressable>
+              <View style={[styles.headerActionDivider, { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[200] }]} />
+              <Pressable style={styles.headerActionLink} onPress={() => handleTopAction("Print")}>
+                <Lucide name="printer" size={14} color={isDark ? colors.brand[500] : COLORS.brand[700]} />
+                <Text style={[styles.headerActionLinkText, { color: isDark ? colors.brand[500] : colors.brand[700] }]}>Print</Text>
+              </Pressable>
+            </View>
+            <View style={{ width: SPACING[16] }} />
+            {onCollapse !== undefined && (
+              <Pressable style={[styles.iconBtn, Platform.select({ web: { cursor: "pointer" } })]} onPress={onCollapse}>
+                <Lucide name={isCollapsed ? "minimize-2" : "maximize-2"} size={14} color={isDark ? colors.neutral[400] : colors.neutral[500]} />
+              </Pressable>
+            )}
+            <Pressable style={[styles.iconBtn, Platform.select({ web: { cursor: "pointer" } })]} onPress={handleCloseAnimated}>
+              <Lucide name="x" size={16} color={isDark ? colors.neutral[400] : colors.neutral[500]} />
             </Pressable>
-          );
-        })}
-        <View style={styles.innerTabSpacer} />
-
-        {/* View / Print links */}
-        <View style={styles.headerActionRow}>
-          <Pressable
-            style={styles.headerActionLink}
-            onPress={() => handleTopAction("View")}
-          >
-            <Lucide name="eye" size={14} color={isDark ? colors.brand[500] : COLORS.brand[700]} />
-            <Text style={[styles.headerActionLinkText, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>View</Text>
-          </Pressable>
-          <View style={[styles.headerActionDivider, { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[200], }]} />
-          <Pressable
-            style={styles.headerActionLink}
-            onPress={() => handleTopAction("Print")}
-          >
-            <Lucide name="printer" size={14} color={isDark ? colors.brand[500] : COLORS.brand[700]} />
-            <Text style={[styles.headerActionLinkText, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>Print</Text>
-          </Pressable>
-        </View>
-
-        <View style={styles.innerTabSpacerSmall} />
-
-        {/* Collapse + Close */}
-        {onCollapse !== undefined && (
-          <Pressable
-            style={[styles.iconBtn, Platform.select({ web: { cursor: "pointer" } })]}
-            onPress={onCollapse}
-          >
-            <Lucide
-              name={isCollapsed ? "minimize-2" : "maximize-2"}
-              size={14}
-              color={isDark ? colors.neutral[400] : colors.neutral[500]}
-            />
-          </Pressable>
+          </View>
         )}
-        <Pressable
-          style={[styles.iconBtn, Platform.select({ web: { cursor: "pointer" } })]}
-          onPress={handleCloseAnimated}
-        >
-          <Lucide name="x" size={16} color={isDark ? colors.neutral[400] : colors.neutral[500]} />
-        </Pressable>
       </View>
 
       {/* Read-only banner */}
@@ -1589,11 +1694,29 @@ const styles = StyleSheet.create({
   },
 
   // Inner tab bar
+  innerTabBarWrapper: {
+    borderBottomWidth: 1,
+  },
   innerTabBar: {
     flexDirection: "row",
     alignItems: "center",
-    borderBottomWidth: 1,
     paddingHorizontal: SPACING[8],
+  },
+  innerTabScroll: {
+    flexGrow: 0,
+  },
+  innerTabScrollContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: SPACING[8],
+  },
+  innerTabActionsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingLeft: SPACING[8] + SPACING[12],
+    paddingRight: SPACING[8] + SPACING[12],
+    paddingVertical: SPACING[4],
+    borderTopWidth: 1,
   },
   innerTabItem: {
     flexDirection: "row",
@@ -1620,9 +1743,6 @@ const styles = StyleSheet.create({
   },
   innerTabSpacer: {
     flex: 1,
-  },
-  innerTabSpacerSmall: {
-    width: SPACING[16],
   },
   headerActionRow: {
     flexDirection: "row",
