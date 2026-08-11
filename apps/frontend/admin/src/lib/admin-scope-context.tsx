@@ -44,14 +44,14 @@ export function AdminScopeProvider({ children }: { children: ReactNode }) {
 
   const isSuperAdmin = !!currentUser?.isSuperAdmin;
 
-  // SuperAdmin has full system-wide permissions across all admin features
-  const isSystemAdmin = isSuperAdmin || true;
-  const isRegionAdmin = isSuperAdmin || true;
-  const isTenantAdmin = isSuperAdmin || true;
+  // Real permission evaluation based on super admin or active admin role
+  const isSystemAdmin = isSuperAdmin || activeRole === "system_admin";
+  const isRegionAdmin = isSuperAdmin || isSystemAdmin;
+  const isTenantAdmin = isSuperAdmin || isSystemAdmin;
 
-  const canManageTenants = isSuperAdmin || true;
-  const canManageTenantMembers = isSuperAdmin || true;
-  const canManageRegionSettings = isSuperAdmin || true;
+  const canManageTenants = isSuperAdmin || isSystemAdmin;
+  const canManageTenantMembers = isSuperAdmin || isSystemAdmin;
+  const canManageRegionSettings = isSuperAdmin || isSystemAdmin;
 
   return (
     <AdminScopeContext.Provider

@@ -30,7 +30,7 @@ export function AccessTab({ user, diagnosticData, onUserUpdated }: AccessTabProp
   const [firstName, setFirstName] = useState(user.firstName);
   const [lastName, setLastName] = useState(user.lastName);
   const [isSuperAdmin, setIsSuperAdmin] = useState(
-    user.assignedRoles?.includes("SUPER_ADMIN") || (user as any).isSuperAdmin === true
+    Boolean(user.isSuperAdmin || user.assignedRoles?.includes("SUPER_ADMIN"))
   );
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; msg: string } | null>(null);

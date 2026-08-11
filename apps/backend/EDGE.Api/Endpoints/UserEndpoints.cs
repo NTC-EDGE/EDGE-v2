@@ -146,12 +146,22 @@ public static class UserEndpoints
 
     public record UpdateUserSuperAdminRequest(bool IsSuperAdmin);
 
-    [HasPermission(Permissions.UpdateUsers)]
+    [HasPermission(Permissions.ManageUsers)]
     public static async Task<IResult> UpdateUserSuperAdmin(
         Guid id,
         [Microsoft.AspNetCore.Mvc.FromBody] UpdateUserSuperAdminRequest request,
+        EDGE.Application.Common.Interfaces.IUserAuthorizationService userAuthorizationService,
         IMediator mediator)
     {
+        var isCallerSuperAdmin = await userAuthorizationService.HasRoleAsync("superadmin");
+        if (!isCallerSuperAdmin)
+        {
+            return Results.Json(
+                new { message = "Forbidden: Only SuperAdmins can grant or revoke SuperAdmin privileges." },
+                statusCode: StatusCodes.Status403Forbidden
+            );
+        }
+
         var existingUser = await mediator.Send(new GetUserByIdQuery(id));
         if (existingUser is null)
         {
