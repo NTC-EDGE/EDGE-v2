@@ -18,6 +18,12 @@ import {
   initialCopyOfCertificateData,
   serializeCertificateApplicant,
 } from "../../certificates";
+import {
+  AmateurRadioStationLicenseData,
+  LifetimeAmateurLicenseData,
+  initialAmateurRadioStationLicenseData,
+  initialLifetimeAmateurLicenseData,
+} from "../../licenses";
 
 export interface TenantInfo {
   id: string;
@@ -40,13 +46,16 @@ export interface GeneralApplicantData {
   birthDay: string;
   birthYear: string;
   notes: string;
+  selectedVariantId?: string;
   uploads: Record<string, { name: string; uri: string } | string>;
-  // Specialized Certificate Models
+  // Specialized Certificate & License Models
   radioCertData?: RadioOperatorCertData;
   deviceRegData?: DeviceRegistrationData;
   tvroRegData?: TVRORegistrationData;
   vasData?: VASProviderData;
   copyOfCertData?: CopyOfCertificateData;
+  amateurLicenseData?: AmateurRadioStationLicenseData;
+  lifetimeLicenseData?: LifetimeAmateurLicenseData;
 }
 
 export const initialGeneralApplicant = (id: number): GeneralApplicantData => ({
@@ -60,12 +69,15 @@ export const initialGeneralApplicant = (id: number): GeneralApplicantData => ({
   birthDay: "1",
   birthYear: "2000",
   notes: "",
+  selectedVariantId: "",
   uploads: {},
   radioCertData: initialRadioOperatorCertData(id),
   deviceRegData: initialDeviceRegistrationData(id),
   tvroRegData: initialTVRORegistrationData(id),
   vasData: initialVASProviderData(id),
   copyOfCertData: initialCopyOfCertificateData(id),
+  amateurLicenseData: initialAmateurRadioStationLicenseData(id),
+  lifetimeLicenseData: initialLifetimeAmateurLicenseData(id),
 });
 
 interface UseGeneralServiceWizardProps {
@@ -102,22 +114,39 @@ export function useGeneralServiceWizard({
   const [loadingOffices, setLoadingOffices] = useState(false);
 
   const [formFields, setFormFields] = useState<any[]>([]);
+  const [variants, setVariants] = useState<any[]>([]);
+  const [loadingVariants, setLoadingVariants] = useState(false);
 
   React.useEffect(() => {
     let active = true;
-    const fetchForm = async () => {
+    const fetchFormAndVariants = async () => {
       if (!service.id) return;
       try {
-        const res = await api.get<any>(`/api/v2/services/${service.id}/form`);
-        if (active && res && res.data && res.data.sections) {
-          const fields = res.data.sections.flatMap((s: any) => s.fields || []);
-          setFormFields(fields);
+        setLoadingVariants(true);
+        const [formRes, varRes] = await Promise.all([
+          api.get<any>(`/api/v2/services/${service.id}/form`).catch(() => null),
+          api.get<any>(`/api/v2/services/${service.id}/variants`).catch(() => null),
+        ]);
+
+        if (active) {
+          if (formRes && formRes.data && formRes.data.sections) {
+            const fields = formRes.data.sections.flatMap((s: any) => s.fields || []);
+            setFormFields(fields);
+          }
+
+          if (varRes && varRes.succeeded && Array.isArray(varRes.data)) {
+            setVariants(varRes.data);
+          } else if (Array.isArray(varRes)) {
+            setVariants(varRes);
+          }
         }
       } catch (err) {
-        console.warn("Failed to fetch general service form schema:", err);
+        console.warn("Failed to fetch general service form or variants:", err);
+      } finally {
+        if (active) setLoadingVariants(false);
       }
     };
-    fetchForm();
+    fetchFormAndVariants();
     return () => { active = false; };
   }, [service.id]);
 
@@ -236,7 +265,7 @@ export function useGeneralServiceWizard({
       submissionMode: "Single",
       serviceId: service.id,
       fieldOfficeId: selectedOfficeId,
-      serviceVariantId: null,
+      serviceVariantId: activeApplicant.selectedVariantId || (variants.length > 0 ? variants[0].id : null),
       serviceVariantElementIds: [],
       isDraft: isDraft,
       applicants: mappedApplicants,
@@ -252,6 +281,8 @@ export function useGeneralServiceWizard({
     loadingTenants,
     offices,
     loadingOffices,
+    variants,
+    loadingVariants,
     isConfirmModalOpen,
     setIsConfirmModalOpen,
     isAgreedToTerms,

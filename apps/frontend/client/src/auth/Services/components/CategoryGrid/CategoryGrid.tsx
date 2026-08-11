@@ -37,6 +37,7 @@ interface CategoryGridProps {
   onViewDrafts: (categoryId: string) => void;
   backendCategories: any[] | null;
   allBackendServices: any[] | null;
+  isWizardActive?: boolean;
 }
 
 export function CategoryGrid({
@@ -49,6 +50,7 @@ export function CategoryGrid({
   onViewDrafts,
   backendCategories,
   allBackendServices,
+  isWizardActive = false,
 }: CategoryGridProps) {
   // Derive time of day greeting
   const greeting = useMemo(() => {
@@ -117,6 +119,31 @@ export function CategoryGrid({
         <Text style={styles.panelTitle}>Services</Text>
       </View>
 
+      {/* Transaction Active Lock Banner */}
+      {isWizardActive && (
+        <View style={{
+          backgroundColor: "#fffbebf",
+          borderColor: "#fde68a",
+          borderWidth: 1,
+          borderRadius: 12,
+          padding: 12,
+          marginBottom: 16,
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 10,
+        }}>
+          <Icon name="lock" size={18} color="#d97706" />
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, fontWeight: "700", color: "#92400e" }}>
+              Application Transaction Active
+            </Text>
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, color: "#b45309", marginTop: 2 }}>
+              Category & service switching is locked until you cancel or complete the current transaction.
+            </Text>
+          </View>
+        </View>
+      )}
+
       {/* Search Input */}
       <View style={styles.searchContainer}>
         <Icon name="search" size={16} color="#9ca3af" style={styles.searchIcon} />
@@ -134,12 +161,34 @@ export function CategoryGrid({
         )}
       </View>
 
-      {/* Greeting banner */}
+      {/* NTC e-Services Citizen Welcome Hero Banner */}
       <View style={styles.greetingBanner}>
-        <Text style={styles.greetingText}>
-          {greeting}, <Text style={styles.greetingName}>{displayName}!</Text>
-        </Text>
-        <Text style={styles.greetingSubtext}>Select a service category below to get started.</Text>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
+          <View style={{ flex: 1, minWidth: 260 }}>
+            <View style={styles.greetingHeaderBadge}>
+              <Icon name="award" size={12} color="#FCD34D" />
+              <Text style={styles.greetingBadgeText}>REPUBLIC OF THE PHILIPPINES · NTC E-SERVICES</Text>
+            </View>
+            <Text style={styles.greetingText}>
+              {greeting}, <Text style={styles.greetingName}>{displayName}!</Text>
+            </Text>
+            <Text style={styles.greetingSubtext}>
+              Welcome to the official NTC Online Services Portal. Choose a regulatory category below to file licenses, permits, examinations, or accreditations.
+            </Text>
+          </View>
+
+          <Image
+            source={require("../../../../../assets/logo.jpg")}
+            style={{
+              width: 68,
+              height: 68,
+              borderRadius: 34,
+              borderWidth: 3,
+              borderColor: "#F59E0B",
+            }}
+            resizeMode="cover"
+          />
+        </View>
       </View>
 
       {/* Grid of Categories */}

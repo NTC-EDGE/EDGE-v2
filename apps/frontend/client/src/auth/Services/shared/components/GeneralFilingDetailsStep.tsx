@@ -17,19 +17,18 @@ import {
   initialVASProviderData,
   initialCopyOfCertificateData,
 } from "../../certificates";
+import {
+  AmateurRadioStationLicenseForm,
+  LifetimeAmateurLicenseForm,
+  initialAmateurRadioStationLicenseData,
+  initialLifetimeAmateurLicenseData,
+} from "../../licenses";
 
 interface GeneralFilingDetailsStepProps {
   service: NTCService;
   activeApplicant: GeneralApplicantData;
   updateActiveApplicant: (fields: Partial<GeneralApplicantData>) => void;
 }
-
-const months = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December"
-];
-const days = Array.from({ length: 31 }, (_, i) => String(i + 1));
-const years = Array.from({ length: 100 }, (_, i) => String(new Date().getFullYear() - i));
 
 export function GeneralFilingDetailsStep({
   service,
@@ -38,8 +37,60 @@ export function GeneralFilingDetailsStep({
 }: GeneralFilingDetailsStepProps) {
   const serviceCode = (service.code || "").toUpperCase();
   const serviceTitle = (service.title || "").toUpperCase();
+  const serviceCategory = (service.category || "").toUpperCase();
 
-  // 1. NTC 1-02: Commercial Radio Operator Certificates
+  // 1. Lifetime Amateur Radio Station License for Class A
+  if (
+    serviceTitle.includes("LIFETIME") ||
+    serviceCode.includes("LIFETIME") ||
+    (activeApplicant.selectedVariantId && activeApplicant.selectedVariantId.toLowerCase().includes("life"))
+  ) {
+    const lifetimeData = activeApplicant.lifetimeLicenseData || initialLifetimeAmateurLicenseData(activeApplicant.id);
+    return (
+      <LifetimeAmateurLicenseForm
+        data={lifetimeData}
+        onChange={(fields) =>
+          updateActiveApplicant({
+            lifetimeLicenseData: { ...lifetimeData, ...fields },
+            firstName: fields.firstName !== undefined ? fields.firstName : activeApplicant.firstName,
+            lastName: fields.lastName !== undefined ? fields.lastName : activeApplicant.lastName,
+            email: fields.email !== undefined ? fields.email : activeApplicant.email,
+            contactNo: fields.contactNo !== undefined ? fields.contactNo : activeApplicant.contactNo,
+            address: fields.address !== undefined ? fields.address : activeApplicant.address,
+          })
+        }
+      />
+    );
+  }
+
+  // 2. Amateur Radio Station License (NEW, RENEWAL, MODIFICATION)
+  if (
+    serviceTitle.includes("AMATEUR") ||
+    serviceTitle.includes("STATION") ||
+    serviceTitle.includes("LICENSE") ||
+    serviceCategory.includes("LICENSE") ||
+    serviceCode.includes("LICENSE") ||
+    serviceCode === "NTC_AMA_STATION_LICENSE"
+  ) {
+    const amateurData = activeApplicant.amateurLicenseData || initialAmateurRadioStationLicenseData(activeApplicant.id);
+    return (
+      <AmateurRadioStationLicenseForm
+        data={amateurData}
+        onChange={(fields) =>
+          updateActiveApplicant({
+            amateurLicenseData: { ...amateurData, ...fields },
+            firstName: fields.firstName !== undefined ? fields.firstName : activeApplicant.firstName,
+            lastName: fields.lastName !== undefined ? fields.lastName : activeApplicant.lastName,
+            email: fields.email !== undefined ? fields.email : activeApplicant.email,
+            contactNo: fields.contactNo !== undefined ? fields.contactNo : activeApplicant.contactNo,
+            address: fields.address !== undefined ? fields.address : activeApplicant.address,
+          })
+        }
+      />
+    );
+  }
+
+  // 3. NTC 1-02: Commercial Radio Operator Certificates
   if (serviceCode === "NTC_1_02" || serviceTitle.includes("RADIO OPERATOR CERTIFICATES (ROC)")) {
     const radioData = activeApplicant.radioCertData || initialRadioOperatorCertData(activeApplicant.id);
     return (
@@ -60,7 +111,7 @@ export function GeneralFilingDetailsStep({
     );
   }
 
-  // 2. NTC 1-03: Certificates in the Amateur Service
+  // 4. NTC 1-03: Certificates in the Amateur Service
   if (serviceCode === "NTC_1_03" || serviceCode === "NTC_AMA_LICENSES" || serviceTitle.includes("CERTIFICATES IN THE AMATEUR SERVICE")) {
     const radioData = activeApplicant.radioCertData || initialRadioOperatorCertData(activeApplicant.id);
     return (
@@ -81,7 +132,7 @@ export function GeneralFilingDetailsStep({
     );
   }
 
-  // 3. NTC 1-19: RFID, SRD, WDN Devices - Indoor
+  // 5. NTC 1-19: RFID, SRD, WDN Devices - Indoor
   if (serviceCode === "NTC_1_19" || serviceTitle.includes("RFID") || serviceTitle.includes("WDN")) {
     const deviceData = activeApplicant.deviceRegData || initialDeviceRegistrationData(activeApplicant.id);
     return (
@@ -100,7 +151,7 @@ export function GeneralFilingDetailsStep({
     );
   }
 
-  // 4. NTC 1-22: TVRO Registration Certificate
+  // 6. NTC 1-22: TVRO Registration Certificate
   if (serviceCode === "NTC_1_22" || serviceCode === "NTC_TVRO_CATV_LICENSES" || serviceTitle.includes("TVRO")) {
     const tvroData = activeApplicant.tvroRegData || initialTVRORegistrationData(activeApplicant.id);
     return (
@@ -119,7 +170,7 @@ export function GeneralFilingDetailsStep({
     );
   }
 
-  // 5. NTC 1-20: Value-Added Service (VAS) Provider
+  // 7. NTC 1-20: VAS Provider Registration
   if (serviceCode === "NTC_1_20" || serviceTitle.includes("VALUE-ADDED") || serviceTitle.includes("VAS")) {
     const vasData = activeApplicant.vasData || initialVASProviderData(activeApplicant.id);
     return (
@@ -138,8 +189,8 @@ export function GeneralFilingDetailsStep({
     );
   }
 
-  // 6. NTC 1-21: Copy of Certificates
-  if (serviceCode === "NTC_1_21" || serviceTitle.includes("COPY OF CERTIFICATES") || serviceTitle.includes("COPY OF LICENSES")) {
+  // 8. NTC 1-21: Copy of Certificates / Licenses
+  if (serviceCode === "NTC_1_21" || serviceTitle.includes("COPY OF CERTIFICATES")) {
     const copyData = activeApplicant.copyOfCertData || initialCopyOfCertificateData(activeApplicant.id);
     return (
       <CopyOfCertificateForm
@@ -147,7 +198,8 @@ export function GeneralFilingDetailsStep({
         onChange={(fields) =>
           updateActiveApplicant({
             copyOfCertData: { ...copyData, ...fields },
-            firstName: fields.applicantName !== undefined ? fields.applicantName : activeApplicant.firstName,
+            firstName: fields.applicantName !== undefined ? fields.applicantName.split(" ")[0] || "" : activeApplicant.firstName,
+            lastName: fields.applicantName !== undefined ? fields.applicantName.split(" ").slice(1).join(" ") : activeApplicant.lastName,
             email: fields.email !== undefined ? fields.email : activeApplicant.email,
             contactNo: fields.contactNo !== undefined ? fields.contactNo : activeApplicant.contactNo,
             address: fields.address !== undefined ? fields.address : activeApplicant.address,
@@ -157,87 +209,21 @@ export function GeneralFilingDetailsStep({
     );
   }
 
-  // Default Generic Form
+  // Generic Fallback Form with Amateur Station License structure
+  const fallbackAmateurData = activeApplicant.amateurLicenseData || initialAmateurRadioStationLicenseData(activeApplicant.id);
   return (
-    <View>
-      <ValidatedInput
-        label="First Name"
-        value={activeApplicant.firstName}
-        onChangeText={(text) => updateActiveApplicant({ firstName: text })}
-        required
-      />
-      <ValidatedInput
-        label="Last Name"
-        value={activeApplicant.lastName}
-        onChangeText={(text) => updateActiveApplicant({ lastName: text })}
-        required
-      />
-      <ValidatedInput
-        label="Email Address"
-        value={activeApplicant.email}
-        onChangeText={(text) => updateActiveApplicant({ email: text })}
-        keyboardType="email-address"
-        required
-      />
-      <ValidatedInput
-        label="Contact Number"
-        value={activeApplicant.contactNo}
-        onChangeText={(text) => updateActiveApplicant({ contactNo: text })}
-        keyboardType="phone-pad"
-        required
-      />
-      <ValidatedInput
-        label="Physical Address"
-        value={activeApplicant.address}
-        onChangeText={(text) => updateActiveApplicant({ address: text })}
-      />
-
-      <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 14, color: COLORS.neutral[700], marginTop: 16, marginBottom: 8 }}>Birth Date</Text>
-      <View style={{ flexDirection: "row", gap: 8 }}>
-        <View style={{ flex: 2 }}>
-          <Select
-            placeholder="Month"
-            value={activeApplicant.birthMonth}
-            onValueChange={(val) => updateActiveApplicant({ birthMonth: val })}
-            options={months.map((m) => ({ label: m, value: m }))}
-          />
-        </View>
-        <View style={{ flex: 1.2 }}>
-          <Select
-            placeholder="Day"
-            value={activeApplicant.birthDay}
-            onValueChange={(val) => updateActiveApplicant({ birthDay: val })}
-            options={days.map((d) => ({ label: d, value: d }))}
-          />
-        </View>
-        <View style={{ flex: 1.5 }}>
-          <Select
-            placeholder="Year"
-            value={activeApplicant.birthYear}
-            onValueChange={(val) => updateActiveApplicant({ birthYear: val })}
-            options={years.map((y) => ({ label: y, value: y }))}
-          />
-        </View>
-      </View>
-
-      <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 14, color: COLORS.neutral[700], marginTop: 20, marginBottom: 8 }}>Filing Notes / Special Concerns</Text>
-      <TextInput
-        style={{
-          borderWidth: 1,
-          borderColor: COLORS.neutral[300],
-          borderRadius: 8,
-          padding: 12,
-          fontFamily: TYPOGRAPHY.fonts.primary,
-          fontSize: 14,
-          backgroundColor: COLORS.neutral.white,
-          minHeight: 80,
-          textAlignVertical: "top",
-        }}
-        placeholder="Provide specifications or support queries here..."
-        multiline
-        value={activeApplicant.notes}
-        onChangeText={(text) => updateActiveApplicant({ notes: text })}
-      />
-    </View>
+    <AmateurRadioStationLicenseForm
+      data={fallbackAmateurData}
+      onChange={(fields) =>
+        updateActiveApplicant({
+          amateurLicenseData: { ...fallbackAmateurData, ...fields },
+          firstName: fields.firstName !== undefined ? fields.firstName : activeApplicant.firstName,
+          lastName: fields.lastName !== undefined ? fields.lastName : activeApplicant.lastName,
+          email: fields.email !== undefined ? fields.email : activeApplicant.email,
+          contactNo: fields.contactNo !== undefined ? fields.contactNo : activeApplicant.contactNo,
+          address: fields.address !== undefined ? fields.address : activeApplicant.address,
+        })
+      }
+    />
   );
 }

@@ -92,9 +92,9 @@ export function Select({
               cursor: 'pointer',
             }}
           >
-            <option value="" disabled hidden>{placeholder}</option>
+            <option value="" disabled hidden style={{ color: COLORS.neutral[400], backgroundColor: COLORS.neutral.white }}>{placeholder}</option>
             {options.map((opt) => (
-              <option key={opt.value} value={opt.value}>
+              <option key={opt.value} value={opt.value} style={{ color: COLORS.neutral[900], backgroundColor: COLORS.neutral.white }}>
                 {opt.label}
               </option>
             ))}

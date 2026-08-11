@@ -55,7 +55,69 @@ export function serializeCertificateApplicant(
     });
   };
 
-  // 1. Radio Operator Certificates (NTC 1-02 / 1-03)
+  // 1. Lifetime Amateur Radio Station License for Class A
+  if (serviceTitle.includes("LIFETIME AMATEUR") || serviceCode.includes("LIFETIME")) {
+    const data = app.lifetimeLicenseData;
+    if (data) {
+      addField("Application Type", "LIFETIME");
+      addField("Call Sign", data.callSign);
+      addField("Years of Active Service", data.yearsOfAmateurService);
+      addField("Existing Class A License No", data.existingClassALicenseNo);
+      addField("License Expiry Date", data.licenseExpiryDate);
+      addField("Registered Amateur Club", data.memberClubName);
+      addField("Cert of Good Standing Control No", data.certOfGoodStandingNo);
+      addField("Station Location", data.location);
+
+      return {
+        firstName: data.firstName || app.firstName,
+        lastName: data.lastName || app.lastName,
+        email: data.email || app.email,
+        contactNumber: data.contactNo || app.contactNo,
+        address: data.address || app.address,
+        birthDate: birthDate,
+        formFieldValues,
+      };
+    }
+  }
+
+  // 2. Amateur Radio Station License (NEW / RENEWAL / MODIFICATION)
+  if (
+    serviceTitle.includes("AMATEUR RADIO STATION LICENSE") ||
+    serviceTitle.includes("STATION LICENSE") ||
+    serviceCode === "NTC_AMA_STATION_LICENSE"
+  ) {
+    const data = app.amateurLicenseData;
+    if (data) {
+      addField("Application Type", data.appType);
+      addField("Class of Station", data.classOfStation);
+      addField("Number of Years", data.noOfYears);
+      if (data.appType === "RENEWAL" || data.appType === "MODIFICATION") {
+        addField("Existing License No", data.licenseNo);
+        addField("License Expiry Date", data.dateOfExpiry);
+      }
+      if (data.appType === "MODIFICATION") {
+        addField("Modification Due To", data.modificationDueTo);
+      }
+      addField("Call Sign", data.callSign);
+      addField("Station Location", data.location);
+      addField("Place of Exam/Seminar", data.placeOfExamSeminar);
+      addField("Date of Exam/Seminar", data.dateOfExamSeminar);
+      addField("Ratings", data.ratings);
+      addField("Particulars of Equipment", JSON.stringify(data.particularsEquipment));
+
+      return {
+        firstName: data.firstName || app.firstName,
+        lastName: data.lastName || app.lastName,
+        email: data.email || app.email,
+        contactNumber: data.contactNo || app.contactNo,
+        address: data.address || app.address,
+        birthDate: birthDate,
+        formFieldValues,
+      };
+    }
+  }
+
+  // 3. Radio Operator Certificates (NTC 1-02 / 1-03)
   if (
     serviceCode === "NTC_1_02" ||
     serviceCode === "NTC_1_03" ||

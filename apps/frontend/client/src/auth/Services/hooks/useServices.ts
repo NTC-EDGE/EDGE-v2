@@ -510,7 +510,18 @@ export function useServices() {
 
   const confirmSwitchService = (onConfirm: () => void) => {
     if (activeWizardService !== null) {
-      if (hasUnsavedChanges()) {
+      // Check if wizard is on final success screen
+      const isSuccessStep =
+        (activeWizardService === "cpe-accreditation" && wizardStep >= 8) ||
+        (activeWizardService === "radio-operator-exam" && examWizardStep >= 7) ||
+        (activeWizardService === "general-service" && wizardStep >= 6);
+
+      if (isSuccessStep) {
+        resetWizardState();
+        setActiveWizardService(null);
+        setSelectedService(null);
+        onConfirm();
+      } else {
         setPendingConfirmAction(() => () => {
           resetWizardState();
           setActiveWizardService(null);
@@ -518,11 +529,6 @@ export function useServices() {
           onConfirm();
         });
         setConfirmModalVisible(true);
-      } else {
-        resetWizardState();
-        setActiveWizardService(null);
-        setSelectedService(null);
-        onConfirm();
       }
     } else {
       onConfirm();

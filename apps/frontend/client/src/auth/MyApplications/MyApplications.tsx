@@ -6,12 +6,15 @@ import {
   TouchableOpacity,
   ScrollView,
   useWindowDimensions,
+  Image,
 } from "react-native";
 import { Icon } from "@edge/ui";
 import { useAppNavigation } from "../../navigation";
 import { useUser, useAuth } from "@clerk/expo";
 import { Modal } from "react-native";
 import { ConfirmationDialog } from "../../shared/components/ConfirmationDialog";
+
+const ntcLogo = require("../../../assets/ntc-logo.png");
 import {
   mockApplications,
   Application,
@@ -175,11 +178,23 @@ export function MyApplications() {
       {/* ── Top Header ─────────────────────────────────────────────────── */}
       <View style={styles.topHeader}>
         <View style={styles.logoWrapper}>
-          <View style={styles.circularLogo}>
-            <Icon name="globe" size={16} color="#1E40AF" />
+          <Image
+            source={ntcLogo}
+            style={{ width: 140, height: 36, marginRight: 6 }}
+            resizeMode="contain"
+          />
+          <View style={{ flexDirection: "column" }}>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <View style={styles.goldBadgePill}>
+                <Text style={styles.goldBadgeText}>PORTAL</Text>
+              </View>
+            </View>
+            {!isMobile && (
+              <Text style={styles.brandAgencySubtext}>
+                National Telecommunications Commission · Republic of the Philippines
+              </Text>
+            )}
           </View>
-          <Text style={styles.brandTitle}>NTC EDGE</Text>
-          <Text style={styles.brandSubtitle}>PORTAL</Text>
         </View>
 
         {userProfile !== null && (
@@ -241,7 +256,7 @@ export function MyApplications() {
                 onPress={() => navigation.navigate("Services")}
                 style={styles.sidebarItem}
               >
-                <Icon name="radio" size={20} color="#94A3B8" />
+                <Icon name="radio" size={20} color="#64748B" />
                 {!isSidebarCollapsed && (
                   <Text style={styles.sidebarItemText}>Services</Text>
                 )}
@@ -250,7 +265,7 @@ export function MyApplications() {
               <TouchableOpacity
                 style={[styles.sidebarItem, styles.sidebarItemActive]}
               >
-                <Icon name="credit-card" size={20} color="#1D4ED8" />
+                <Icon name="credit-card" size={20} color="#FFFFFF" />
                 {!isSidebarCollapsed && (
                   <Text style={styles.sidebarItemTextActive}>
                     My Applications

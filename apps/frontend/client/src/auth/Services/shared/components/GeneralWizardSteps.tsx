@@ -11,6 +11,9 @@ import { GeneralReviewSubmitStep } from "./GeneralReviewSubmitStep";
 interface GeneralWizardStepsProps {
   step: number;
   service: NTCService;
+  variants?: any[];
+  selectedVariantId?: string;
+  onSelectVariant?: (variantId: string, variantName: string) => void;
   selectedRegionId: string;
   setSelectedRegionId: (val: string) => void;
   selectedOfficeId: string;
@@ -37,6 +40,9 @@ interface GeneralWizardStepsProps {
 export function GeneralWizardSteps({
   step,
   service,
+  variants = [],
+  selectedVariantId,
+  onSelectVariant,
   selectedRegionId,
   setSelectedRegionId,
   selectedOfficeId,
@@ -77,6 +83,9 @@ export function GeneralWizardSteps({
       return (
         <GeneralFilingModeStep
           service={service}
+          variants={variants}
+          selectedVariantId={selectedVariantId}
+          onSelectVariant={onSelectVariant}
           appMode={appMode}
           onAppModeChange={(val) => {
             setAppMode(val);

@@ -92,6 +92,8 @@ export function GeneralServiceWizard({
     loadingTenants,
     offices,
     loadingOffices,
+    variants,
+    loadingVariants,
     isConfirmModalOpen,
     setIsConfirmModalOpen,
     isAgreedToTerms,
@@ -140,7 +142,23 @@ export function GeneralServiceWizard({
     });
   };
 
+  const handleSelectVariant = (variantId: string, variantName: string) => {
+    const isRenewal = variantName.toUpperCase().includes("RENEWAL");
+    const isModification = variantName.toUpperCase().includes("MODIFICATION");
 
+    let appType: "NEW" | "RENEWAL" | "MODIFICATION" = "NEW";
+    if (isRenewal) appType = "RENEWAL";
+    if (isModification) appType = "MODIFICATION";
+
+    const currentAmateur = activeApplicant.amateurLicenseData;
+
+    updateActiveApplicant({
+      selectedVariantId: variantId,
+      amateurLicenseData: currentAmateur
+        ? { ...currentAmateur, appType }
+        : undefined,
+    });
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
@@ -149,12 +167,15 @@ export function GeneralServiceWizard({
           {service.title}
         </Text>
         <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: COLORS.neutral[500], marginBottom: 24 }}>
-          Step {step} of 6 — {step === 1 ? "Information" : step === 2 ? "Region & Office" : step === 3 ? "Application Mode" : step === 4 ? "Filing Details" : step === 5 ? "Upload Documents" : "Review & Submit"}
+          Step {step} of 6 — {step === 1 ? "Information & Variant" : step === 2 ? "Region & Office" : step === 3 ? "Application Mode" : step === 4 ? "Filing Details" : step === 5 ? "Upload Documents" : "Review & Submit"}
         </Text>
 
         <GeneralWizardSteps
           step={step}
           service={service}
+          variants={variants}
+          selectedVariantId={activeApplicant.selectedVariantId}
+          onSelectVariant={handleSelectVariant}
           selectedRegionId={selectedRegionId}
           setSelectedRegionId={setSelectedRegionId}
           selectedOfficeId={selectedOfficeId}

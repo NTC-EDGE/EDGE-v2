@@ -129,8 +129,9 @@ export function ContentColumn({ servicesState }: ContentColumnProps) {
               }
             });
           }}
-          onBack={handleClearSearch}
+          onBack={() => confirmSwitchService(handleClearSearch)}
           isMobile={isMobile}
+          isWizardActive={activeWizardService !== null}
         />
       ) : selectedCategoryId !== null ? (
         <ServiceList
@@ -142,14 +143,21 @@ export function ContentColumn({ servicesState }: ContentColumnProps) {
               setSelectedService(service);
             });
           }}
-          onBack={handleBackToCategories}
+          onBack={() => confirmSwitchService(handleBackToCategories)}
           isMobile={isMobile}
+          isWizardActive={activeWizardService !== null}
         />
       ) : (
         <CategoryGrid
           user={userProfile}
           searchQuery={searchQuery}
-          onSearchQueryChange={setSearchQuery}
+          onSearchQueryChange={(query) => {
+            if (activeWizardService !== null) {
+              confirmSwitchService(() => setSearchQuery(query));
+            } else {
+              setSearchQuery(query);
+            }
+          }}
           selectedCategoryId={selectedCategoryId}
           onCategorySelect={(catId) => {
             confirmSwitchService(() => {
@@ -161,6 +169,7 @@ export function ContentColumn({ servicesState }: ContentColumnProps) {
           onViewDrafts={setViewingDraftsCategory}
           backendCategories={backendCategories}
           allBackendServices={allBackendServices}
+          isWizardActive={activeWizardService !== null}
         />
       )}
     </View>

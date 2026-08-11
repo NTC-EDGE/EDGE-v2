@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, Modal } from "react-native";
+import { View, Text, TouchableOpacity, Modal, Image } from "react-native";
 import { useState } from "react";
 import { useUser } from "@clerk/expo";
 import { Icon, ServiceFormModal } from "@edge/ui";
@@ -8,6 +8,8 @@ import { DetailsColumn } from "./components/DetailsColumn";
 import { DraftsModal } from "./components/DraftsModal";
 import { ConfirmationDialog } from "../../shared/components/ConfirmationDialog";
 import { styles } from "./Services.styles";
+
+const ntcLogo = require("../../../assets/ntc-logo.png");
 
 export type { DraftApplication };
 
@@ -59,11 +61,23 @@ export function Services() {
       {/* Top Banner / Brand Header */}
       <View style={styles.topHeader}>
         <View style={styles.logoWrapper}>
-          <View style={styles.circularLogo}>
-            <Icon name="globe" size={16} color="#1e40af" />
+          <Image
+            source={ntcLogo}
+            style={{ width: 140, height: 36, marginRight: 6 }}
+            resizeMode="contain"
+          />
+          <View style={{ flexDirection: "column" }}>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <View style={styles.goldBadgePill}>
+                <Text style={styles.goldBadgeText}>PORTAL</Text>
+              </View>
+            </View>
+            {!isMobile && (
+              <Text style={styles.brandAgencySubtext}>
+                National Telecommunications Commission · Republic of the Philippines
+              </Text>
+            )}
           </View>
-          <Text style={styles.brandTitle}>NTC EDGE</Text>
-          <Text style={styles.brandSubtitle}>PORTAL</Text>
         </View>
         {userProfile !== null && (
           <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
@@ -78,7 +92,7 @@ export function Services() {
                 </Text>
               </View>
               {!isMobile && (
-                <Text style={{ color: "#ffffff", fontSize: 14, fontWeight: "500" }}>{userProfile.name}</Text>
+                <Text style={{ color: "#ffffff", fontSize: 13, fontWeight: "600" }}>{userProfile.name}</Text>
               )}
             </TouchableOpacity>
             <TouchableOpacity onPress={handleSignOutPress} style={styles.topLogoutBtn}>
@@ -102,16 +116,18 @@ export function Services() {
             marginHorizontal: 0,
             marginTop: 0,
             borderRadius: 0,
-            borderLeftWidth: 0,
+            borderLeftWidth: 4,
+            borderLeftColor: "#D97706",
             borderRightWidth: 0,
+            borderTopWidth: 0,
           },
         ]}
       >
-        <Icon name="info" size={16} color="#ca8a04" style={styles.noticeIcon} />
+        <Icon name="info" size={16} color="#d97706" style={styles.noticeIcon} />
         <Text style={styles.noticeText}>
-          Note: Applications are processed on weekdays, 8:00 AM–5:00 PM.
-          Submissions outside these hours will be processed on the next business
-          day.
+          <Text style={{ fontWeight: "700", color: "#0F2C59" }}>Official NTC Processing Hours: </Text>
+          Applications are processed on business weekdays, 8:00 AM–5:00 PM PST.
+          Submissions outside operating hours will be queued for the next business day.
         </Text>
       </View>
 
@@ -124,7 +140,7 @@ export function Services() {
               <TouchableOpacity
                 style={[styles.sidebarItem, styles.sidebarItemActive]}
               >
-                <Icon name="radio" size={20} color="#1d4ed8" />
+                <Icon name="radio" size={20} color="#FFFFFF" />
                 <Text style={styles.sidebarItemTextActive}>Services</Text>
               </TouchableOpacity>
 
@@ -136,7 +152,7 @@ export function Services() {
                 }}
                 style={styles.sidebarItem}
               >
-                <Icon name="credit-card" size={20} color="#9ca3af" />
+                <Icon name="credit-card" size={20} color="#64748B" />
                 <Text style={styles.sidebarItemText}>My Applications</Text>
               </TouchableOpacity>
             </View>
@@ -178,12 +194,23 @@ export function Services() {
       {/* Navigation Confirm Modal */}
       <ConfirmationDialog
         visible={confirmModalVisible}
-        title="Ongoing Application"
-        message="You have an ongoing application. What would you like to do with your changes?"
+        title="Transaction in Progress"
+        message="You currently have an active application transaction. Selecting another service or category is locked until you cancel or save your current transaction."
         onClose={() => setConfirmModalVisible(false)}
         actions={[
           {
-            text: "Save & Continue Later",
+            text: "Cancel Transaction & Discard",
+            style: "destructive",
+            onPress: () => {
+              resetWizardState();
+              setActiveWizardService(null);
+              setSelectedService(null);
+              setConfirmModalVisible(false);
+              if (pendingConfirmAction) pendingConfirmAction();
+            },
+          },
+          {
+            text: "Save Draft & Exit",
             style: "default",
             onPress: () => {
               saveActiveAsDraft();
@@ -195,18 +222,7 @@ export function Services() {
             },
           },
           {
-            text: "Discard Changes",
-            style: "destructive",
-            onPress: () => {
-              resetWizardState();
-              setActiveWizardService(null);
-              setSelectedService(null);
-              setConfirmModalVisible(false);
-              if (pendingConfirmAction) pendingConfirmAction();
-            },
-          },
-          {
-            text: "Cancel",
+            text: "Continue Application",
             style: "cancel",
             onPress: () => setConfirmModalVisible(false),
           },
