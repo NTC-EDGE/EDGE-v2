@@ -3,6 +3,8 @@ import { ComponentProps } from "react";
 
 export interface NTCService {
   id?: string;
+  code?: string;
+  formNo?: string;
   category?: string;
   serviceCategoryId?: string;
   title: string;

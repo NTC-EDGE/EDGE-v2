@@ -19,11 +19,15 @@ public class GetServiceCategoryByIdQueryHandler(IServiceCategoryRepository repos
             return ApiResponse<ServiceCategoryDto>.Fail("Service category not found.");
         }
 
+        var counts = await repository.GetServiceCountsAsync(cancellationToken);
+        var count = counts.TryGetValue(category.Id, out var c) ? c : 0;
+
         var dto = new ServiceCategoryDto(
             category.Id,
             category.Name,
             category.Code,
-            category.Type.ToString()
+            category.Type.ToString(),
+            count
         );
 
         return ApiResponse<ServiceCategoryDto>.Success(dto);

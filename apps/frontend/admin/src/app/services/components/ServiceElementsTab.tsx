@@ -1,0 +1,128 @@
+"use client";
+
+import { Layers, Edit, Trash2, Plus } from "lucide-react";
+import { Element } from "@edge/api";
+import { DataTable, ColumnDef } from "@/components/ui/data-table";
+
+interface ServiceElementsTabProps {
+  elements: Element[];
+  totalCount: number;
+  currentPage: number;
+  pageSize: number;
+  onPageChange: (page: number) => void;
+  onPageSizeChange: (size: number) => void;
+  loading: boolean;
+  canManage: boolean;
+  onEdit: (item: Element) => void;
+  onDelete: (item: Element) => void;
+  onAdd: () => void;
+}
+
+export function ServiceElementsTab({
+  elements,
+  totalCount,
+  currentPage,
+  pageSize,
+  onPageChange,
+  onPageSizeChange,
+  loading,
+  canManage,
+  onEdit,
+  onDelete,
+  onAdd,
+}: ServiceElementsTabProps) {
+  
+  const columns: ColumnDef<Element>[] = [
+    {
+      key: "code",
+      header: "Code",
+      cell: (item) => (
+        <span className="font-mono font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 rounded border border-indigo-200 dark:border-indigo-900/50 text-[11px]">
+          {item.code}
+        </span>
+      ),
+    },
+    {
+      key: "name",
+      header: "Name",
+      cell: (item) => (
+        <span className="font-semibold text-slate-900 dark:text-slate-200">{item.name ?? "—"}</span>
+      ),
+    },
+    {
+      key: "description",
+      header: "Description",
+      cell: (item) => (
+        <span className="text-slate-600 dark:text-slate-400 text-xs max-w-md block truncate">
+          {item.description ?? "—"}
+        </span>
+      ),
+    },
+  ];
+
+  const emptyState = {
+    icon: <Layers className="w-10 h-10 mx-auto text-slate-400 dark:text-slate-650 mb-2" />,
+    title: "No exam elements configured",
+    description: "Exam elements define what a candidate must complete per variant.",
+  };
+
+  const pagination = elements.length > 0 ? {
+    currentPage,
+    totalItems: totalCount,
+    pageSize,
+    onPageChange,
+    onPageSizeChange,
+  } : undefined;
+
+  return (
+    <div className="p-4 md:p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <Layers className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
+            Elements Catalog
+          </h2>
+          <p className="text-xs text-slate-600 dark:text-slate-500 mt-0.5">
+            Manage global exam elements catalog in the system.
+          </p>
+        </div>
+        {canManage && (
+          <button
+            onClick={onAdd}
+            className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold transition-all text-xs shadow shadow-indigo-600/20 flex items-center gap-1.5"
+          >
+            <Plus className="w-4 h-4" /> Add Element
+          </button>
+        )}
+      </div>
+
+      <div className="overflow-x-auto">
+        <DataTable
+          columns={columns}
+          data={elements}
+          getItemKey={(item) => item.id}
+          loading={loading}
+          emptyState={emptyState}
+          pagination={pagination}
+          rowActionMenu={
+            canManage
+              ? (item) => [
+                  {
+                    label: "Edit Element",
+                    icon: Edit,
+                    onClick: () => onEdit(item),
+                  },
+                  {
+                    label: "Delete Element",
+                    icon: Trash2,
+                    onClick: () => onDelete(item),
+                    variant: "destructive" as const,
+                  },
+                ]
+              : undefined
+          }
+        />
+      </div>
+    </div>
+  );
+}

@@ -26,7 +26,7 @@ public static class ServiceVariantEndpoints
             .WithName("GetAllServiceVariants")
             .WithSummary("Get all service variants")
             .WithDescription("Retrieves a list of service variants, optionally filtered by ServiceId.")
-            .Produces<ApiResponse<List<ServiceVariantDto>>>(StatusCodes.Status200OK);
+            .Produces<PaginatedApiResponse<ServiceVariantDto>>(StatusCodes.Status200OK);
 
         variants.MapGet("/{id:guid}", GetServiceVariantById)
             .WithName("GetServiceVariantById")
@@ -147,9 +147,12 @@ public static class ServiceVariantEndpoints
     [HasPermission(Permissions.SystemAdmin)]
     public static async Task<IResult> GetServiceVariants(
         Guid? serviceId,
+        int? pageNumber,
+        int? pageSize,
+        string? searchTerm,
         IMediator mediator)
     {
-        var result = await mediator.Send(new GetServiceVariantsQuery(serviceId));
+        var result = await mediator.Send(new GetServiceVariantsQuery(serviceId, pageNumber, pageSize, searchTerm));
         return Results.Ok(result);
     }
 }

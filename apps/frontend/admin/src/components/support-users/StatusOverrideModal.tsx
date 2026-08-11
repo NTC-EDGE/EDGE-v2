@@ -36,23 +36,23 @@ export function StatusOverrideModal({
 }: StatusOverrideModalProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[480px] bg-slate-900 border-slate-800 text-white">
+      <DialogContent className="sm:max-w-[480px] bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white">
         <DialogHeader>
-          <DialogTitle className="text-lg font-bold flex items-center gap-2">
-            <UserX className="w-5 h-5 text-amber-400" /> Change User Account Status
+          <DialogTitle className="text-lg font-bold flex items-center gap-2 text-slate-900 dark:text-white">
+            <UserX className="w-5 h-5 text-amber-500 dark:text-amber-400" /> Change User Account Status
           </DialogTitle>
-          <DialogDescription className="text-xs text-slate-400">
+          <DialogDescription className="text-xs text-slate-600 dark:text-slate-400">
             Override status for account {selectedUser?.email}. A support reason is mandatory.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={onSubmit} className="space-y-4 py-2">
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-slate-300">Target Status *</label>
+            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Target Status *</label>
             <select
               value={targetStatus}
               onChange={(e) => onTargetStatusChange(e.target.value as AccountStatus)}
-              className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 cursor-pointer"
+              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 cursor-pointer"
             >
               <option value="active">Active (Normal Access)</option>
               <option value="locked">Locked Out (Security Lock)</option>
@@ -62,23 +62,23 @@ export function StatusOverrideModal({
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-slate-300">Reason for Support Log *</label>
+            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Reason for Support Log *</label>
             <textarea
               required
               rows={3}
               placeholder="Provide justification (e.g. Identity verified via government ID, Security hold)..."
               value={statusReason}
               onChange={(e) => onStatusReasonChange(e.target.value)}
-              className="w-full p-3 bg-slate-950 border border-slate-800 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              className="w-full p-3 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
             />
           </div>
 
-          <DialogFooter className="pt-4 border-t border-slate-800 flex gap-2">
+          <DialogFooter className="pt-4 border-t border-slate-200 dark:border-slate-800 flex gap-2">
             <Button
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
-              className="border-slate-800 text-slate-300"
+              className="border-slate-300 dark:border-slate-800 text-slate-700 dark:text-slate-300"
             >
               Cancel
             </Button>

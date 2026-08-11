@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import useSWR from "swr";
 import {
   Megaphone,
   Plus,
@@ -154,25 +153,25 @@ export default function AnnouncementsPage() {
     switch (announcementType) {
       case "Warning":
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
             <AlertTriangle className="h-3 w-3" /> Warning
           </span>
         );
       case "Maintenance":
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-500/10 text-purple-400 border border-purple-500/20">
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-500/10 text-purple-700 dark:text-purple-400 border border-purple-500/20">
             <Wrench className="h-3 w-3" /> Maintenance
           </span>
         );
       case "Emergency":
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20">
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20">
             <AlertOctagon className="h-3 w-3" /> Emergency
           </span>
         );
       default:
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-cyan-500/10 text-cyan-700 dark:text-cyan-400 border border-cyan-500/20">
             <Info className="h-3 w-3" /> Info
           </span>
         );
@@ -180,16 +179,16 @@ export default function AnnouncementsPage() {
   };
 
   return (
-    <div className="p-6 md:p-8 space-y-8 max-w-[1400px] mx-auto">
+    <div className="p-6 md:p-8 space-y-8 max-w-[1400px] mx-auto transition-colors duration-200">
       {/* Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900/60 p-6 rounded-2xl border border-slate-800 backdrop-blur-md">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/90 dark:bg-slate-900/60 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 backdrop-blur-md shadow-sm">
         <div className="flex items-center gap-4">
-          <div className="p-3 bg-indigo-500/10 text-indigo-400 rounded-xl border border-indigo-500/20">
+          <div className="p-3 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-xl border border-indigo-500/20">
             <Megaphone className="h-8 w-8" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-white">System Announcements</h1>
-            <p className="text-sm text-slate-400">
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-white">System Announcements</h1>
+            <p className="text-sm text-slate-600 dark:text-slate-400">
               Create and publish global advisories, maintenance notices, and emergency banners for all portal users.
             </p>
           </div>
@@ -212,7 +211,7 @@ export default function AnnouncementsPage() {
             placeholder="Search announcements..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-sm text-white focus:outline-none focus:border-indigo-500"
+            className="w-full pl-9 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-xl text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition-colors"
           />
         </div>
         <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto">
@@ -222,8 +221,8 @@ export default function AnnouncementsPage() {
               onClick={() => setFilterType(t)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                 filterType === t
-                  ? "bg-indigo-600 text-white"
-                  : "bg-slate-900 border border-slate-800 text-slate-400 hover:text-white"
+                  ? "bg-indigo-600 text-white shadow-sm"
+                  : "bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
               }`}
             >
               {t}
@@ -235,10 +234,10 @@ export default function AnnouncementsPage() {
       {/* Grid of Announcements */}
       {!!error && isForbiddenError(error) && <PageForbiddenState />}
       {!!error && !isForbiddenError(error) && (
-        <div className="p-12 text-center bg-slate-900/40 rounded-2xl border border-slate-800">
-          <AlertTriangle className="h-10 w-10 text-red-500 mx-auto mb-3" />
-          <p className="text-red-500 font-medium text-base">Failed to load announcements</p>
-          <button onClick={() => mutate()} className="mt-4 px-4 py-2 bg-slate-800 text-slate-300 rounded-xl text-sm hover:bg-slate-700 font-medium">Retry</button>
+        <div className="p-12 text-center bg-white dark:bg-slate-900/40 rounded-2xl border border-slate-200 dark:border-slate-800">
+          <AlertTriangle className="h-10 w-10 text-rose-500 mx-auto mb-3" />
+          <p className="text-rose-500 font-medium text-base">Failed to load announcements</p>
+          <button onClick={() => mutate()} className="mt-4 px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-sm hover:bg-slate-200 dark:hover:bg-slate-700 font-medium">Retry</button>
         </div>
       )}
       {!error && (
@@ -246,17 +245,17 @@ export default function AnnouncementsPage() {
           {isLoading ? (
             <div className="p-12 text-center text-slate-500 font-mono text-sm">Loading system announcements...</div>
           ) : filteredAnnouncements.length === 0 ? (
-            <div className="p-12 text-center bg-slate-900/40 rounded-2xl border border-slate-800">
-              <Megaphone className="h-10 w-10 text-slate-600 mx-auto mb-3" />
-              <p className="text-white font-medium text-base">No announcements found</p>
-              <p className="text-slate-400 text-xs mt-1">Create an announcement banner to notify operational users.</p>
+            <div className="p-12 text-center bg-white dark:bg-slate-900/40 rounded-2xl border border-slate-200 dark:border-slate-800">
+              <Megaphone className="h-10 w-10 text-slate-400 dark:text-slate-600 mx-auto mb-3" />
+              <p className="text-slate-900 dark:text-white font-medium text-base">No announcements found</p>
+              <p className="text-slate-600 dark:text-slate-400 text-xs mt-1">Create an announcement banner to notify operational users.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredAnnouncements.map((a) => (
                 <div
                   key={a.id}
-                  className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col justify-between hover:border-slate-700 transition-all group"
+                  className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 flex flex-col justify-between hover:border-indigo-500/40 dark:hover:border-slate-700 transition-all shadow-sm group"
                 >
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
@@ -265,21 +264,21 @@ export default function AnnouncementsPage() {
                         onClick={() => handleTogglePublish(a)}
                         className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
                           a.isActive
-                            ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                            : "bg-slate-800 text-slate-400 border border-slate-700"
+                            ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
+                            : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700"
                         }`}
                       >
                         {a.isActive ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
                         {a.isActive ? "Published" : "Draft"}
                       </button>
                     </div>
-                    <h3 className="font-bold text-white text-lg group-hover:text-indigo-400 transition-colors">
+                    <h3 className="font-bold text-slate-900 dark:text-white text-lg group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
                       {a.title}
                     </h3>
-                    <p className="text-slate-400 text-sm line-clamp-3 leading-relaxed">{a.message}</p>
+                    <p className="text-slate-600 dark:text-slate-400 text-sm line-clamp-3 leading-relaxed">{a.message}</p>
                   </div>
 
-                  <div className="pt-5 mt-5 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-500">
+                  <div className="pt-5 mt-5 border-t border-slate-200 dark:border-slate-800/80 flex items-center justify-between text-xs text-slate-500">
                     <div className="flex items-center gap-1.5">
                       <Globe className="h-3.5 w-3.5 text-slate-400" />
                       <span>Audience: {a.targetAudience}</span>
@@ -287,14 +286,14 @@ export default function AnnouncementsPage() {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => handleOpenEditModal(a)}
-                        className="p-1.5 text-slate-400 hover:text-indigo-400 hover:bg-slate-800 rounded-lg transition-all"
+                        className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all"
                         title="Edit"
                       >
                         <Edit className="h-4 w-4" />
                       </button>
                       <button
                         onClick={() => setDeletingId(a.id)}
-                        className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition-all"
+                        className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all"
                         title="Delete"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -310,31 +309,31 @@ export default function AnnouncementsPage() {
 
       {/* Create / Edit Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="bg-slate-900 border border-slate-800 text-white max-w-lg">
+        <DialogContent className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white max-w-lg">
           <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-white">
+            <DialogTitle className="text-xl font-bold text-slate-900 dark:text-white">
               {editingAnnouncement ? "Edit Announcement" : "New System Announcement"}
             </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4 mt-2">
             <div>
-              <label className="block text-xs font-semibold text-slate-400 mb-1">Announcement Title</label>
+              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Announcement Title</label>
               <input
                 type="text"
                 required
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="e.g. Scheduled System Maintenance"
-                className="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white focus:outline-none focus:border-indigo-500"
+                className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500"
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">Type</label>
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Type</label>
                 <select
                   value={type}
                   onChange={(e) => setType(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white focus:outline-none focus:border-indigo-500"
+                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 cursor-pointer"
                 >
                   <option value="Info">Info</option>
                   <option value="Warning">Warning</option>
@@ -343,11 +342,11 @@ export default function AnnouncementsPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">Target Audience</label>
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Target Audience</label>
                 <select
                   value={targetAudience}
                   onChange={(e) => setTargetAudience(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white focus:outline-none focus:border-indigo-500"
+                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 cursor-pointer"
                 >
                   <option value="All">All Users</option>
                   <option value="Clients">Clients / Applicants</option>
@@ -356,14 +355,14 @@ export default function AnnouncementsPage() {
               </div>
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-400 mb-1">Announcement Message</label>
+              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Announcement Message</label>
               <textarea
                 required
                 rows={4}
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 placeholder="Detailed notification message text..."
-                className="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white focus:outline-none focus:border-indigo-500"
+                className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500"
               />
             </div>
             <div className="flex items-center gap-2 pt-2">
@@ -372,17 +371,17 @@ export default function AnnouncementsPage() {
                 id="isActive"
                 checked={isActive}
                 onChange={(e) => setIsActive(e.target.checked)}
-                className="rounded border-slate-800 bg-slate-950 text-indigo-600 focus:ring-indigo-500"
+                className="rounded border-slate-300 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-indigo-600 focus:ring-indigo-500"
               />
-              <label htmlFor="isActive" className="text-xs text-slate-300">
+              <label htmlFor="isActive" className="text-xs text-slate-700 dark:text-slate-300">
                 Publish immediately upon saving
               </label>
             </div>
-            <div className="flex justify-end gap-3 pt-4 border-t border-slate-800">
+            <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-800">
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="px-4 py-2 bg-slate-800 text-slate-300 rounded-xl text-sm hover:bg-slate-700 font-medium"
+                className="px-4 py-2 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 rounded-xl text-sm hover:bg-slate-100 dark:hover:bg-slate-700 font-medium"
               >
                 Cancel
               </button>

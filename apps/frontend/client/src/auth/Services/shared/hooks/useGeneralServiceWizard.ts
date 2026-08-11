@@ -5,6 +5,19 @@ import * as ImagePicker from "expo-image-picker";
 import { useUser } from "@clerk/expo";
 import { useApi } from "../../../../shared/hooks/useApi";
 import { NTCService } from "../../data/servicesData";
+import {
+  RadioOperatorCertData,
+  DeviceRegistrationData,
+  TVRORegistrationData,
+  VASProviderData,
+  CopyOfCertificateData,
+  initialRadioOperatorCertData,
+  initialDeviceRegistrationData,
+  initialTVRORegistrationData,
+  initialVASProviderData,
+  initialCopyOfCertificateData,
+  serializeCertificateApplicant,
+} from "../../certificates";
 
 export interface TenantInfo {
   id: string;
@@ -28,6 +41,12 @@ export interface GeneralApplicantData {
   birthYear: string;
   notes: string;
   uploads: Record<string, { name: string; uri: string } | string>;
+  // Specialized Certificate Models
+  radioCertData?: RadioOperatorCertData;
+  deviceRegData?: DeviceRegistrationData;
+  tvroRegData?: TVRORegistrationData;
+  vasData?: VASProviderData;
+  copyOfCertData?: CopyOfCertificateData;
 }
 
 export const initialGeneralApplicant = (id: number): GeneralApplicantData => ({
@@ -42,6 +61,11 @@ export const initialGeneralApplicant = (id: number): GeneralApplicantData => ({
   birthYear: "2000",
   notes: "",
   uploads: {},
+  radioCertData: initialRadioOperatorCertData(id),
+  deviceRegData: initialDeviceRegistrationData(id),
+  tvroRegData: initialTVRORegistrationData(id),
+  vasData: initialVASProviderData(id),
+  copyOfCertData: initialCopyOfCertificateData(id),
 });
 
 interface UseGeneralServiceWizardProps {
@@ -203,55 +227,9 @@ export function useGeneralServiceWizard({
       December: "12",
     };
 
-    const mappedApplicants = applicants.map((app) => {
-      const address = app.address || "N/A";
-      const birthDate = `${app.birthYear}-${monthMap[app.birthMonth] || "01"}-${app.birthDay.padStart(2, "0")}T00:00:00Z`;
-
-      const formFieldValues: Array<{ fieldId: string; value: string }> = [];
-
-      if (formFields.length > 0) {
-        const mappings = [
-          { terms: ["full name", "applicant name", "name"], value: `${app.firstName} ${app.lastName}` },
-          { terms: ["birth date", "date of birth", "dob"], value: `${app.birthYear}-${monthMap[app.birthMonth] || "01"}-${app.birthDay.padStart(2, "0")}` },
-          { terms: ["address", "street", "residence"], value: address },
-          { terms: ["contact no", "contact number", "phone", "mobile"], value: app.contactNo },
-          { terms: ["email address", "email"], value: app.email },
-          { terms: ["notes", "remarks"], value: app.notes || "N/A" },
-        ];
-
-        formFields.forEach((field: any) => {
-          const labelLower = (field.label || "").toLowerCase();
-          const id = field.fieldId;
-          const match = mappings.find(m => m.terms.some(t => labelLower.includes(t)));
-          if (match) {
-            formFieldValues.push({
-              fieldId: id,
-              value: match.value
-            });
-          } else {
-            formFieldValues.push({
-              fieldId: id,
-              value: field.type === "checkbox" ? "false" : ""
-            });
-          }
-        });
-      } else {
-        formFieldValues.push({
-          fieldId: "f0100000-0000-0000-0000-000000000001",
-          value: app.notes || "N/A"
-        });
-      }
-
-      return {
-        firstName: app.firstName,
-        lastName: app.lastName,
-        email: app.email,
-        contactNumber: app.contactNo,
-        address: address,
-        birthDate: birthDate,
-        formFieldValues,
-      };
-    });
+    const mappedApplicants = applicants.map((app) =>
+      serializeCertificateApplicant(app, service, formFields)
+    );
 
     const payload = {
       tenantId: selectedRegionId,

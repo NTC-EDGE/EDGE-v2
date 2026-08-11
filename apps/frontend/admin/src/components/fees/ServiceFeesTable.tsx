@@ -34,15 +34,15 @@ export function ServiceFeesTable({
     {
       header: "Service Standard",
       id: "serviceName",
-      cell: (item) => <span className="font-semibold text-slate-200">{item.serviceName ?? "Unknown Service"}</span>,
+      cell: (item) => <span className="font-semibold text-slate-900 dark:text-slate-200">{item.serviceName ?? "Unknown Service"}</span>,
     },
     {
       header: "Mapped Fee",
       id: "mappedFee",
       cell: (item) => (
         <div className="flex flex-col">
-          <span className="text-xs font-mono text-emerald-400">{item.feeCode ?? "UNKNOWN"}</span>
-          <span className="text-xs text-slate-400">{item.feeName ?? "Unknown Fee"}</span>
+          <span className="text-xs font-mono text-emerald-600 dark:text-emerald-400">{item.feeCode ?? "UNKNOWN"}</span>
+          <span className="text-xs text-slate-600 dark:text-slate-400">{item.feeName ?? "Unknown Fee"}</span>
         </div>
       ),
     },
@@ -50,7 +50,7 @@ export function ServiceFeesTable({
       header: "Charge Amount",
       id: "amount",
       cell: (item) => (
-        <span className="font-mono font-bold text-white text-sm bg-slate-950/70 border border-slate-800 px-3 py-1 rounded-lg">
+        <span className="font-mono font-bold text-slate-900 dark:text-white text-sm bg-slate-50 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800 px-3 py-1 rounded-lg">
           ₱{item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </span>
       ),
@@ -75,7 +75,7 @@ export function ServiceFeesTable({
   };
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden">
+    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl overflow-hidden">
       <DataTable
         data={serviceFees}
         columns={columns}

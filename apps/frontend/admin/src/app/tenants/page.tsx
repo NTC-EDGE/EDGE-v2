@@ -223,23 +223,23 @@ export default function TenantsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 transition-colors duration-200">
       {/* Header Banner */}
-      <div className="p-5 md:p-6 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-900/90 to-indigo-950/60 border border-slate-800 shadow-xl relative overflow-hidden">
+      <div className="p-5 md:p-6 rounded-2xl bg-white dark:bg-gradient-to-r dark:from-slate-900 dark:via-slate-900/90 dark:to-indigo-950/60 border border-slate-200 dark:border-slate-800 shadow-md dark:shadow-xl relative overflow-hidden transition-colors duration-200">
         <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
-          <Building2 className="w-64 h-64 text-indigo-400" />
+          <Building2 className="w-64 h-64 text-indigo-600 dark:text-indigo-400" />
         </div>
         <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <span className="px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 text-xs font-semibold border border-indigo-500/30 flex items-center gap-1.5">
+              <span className="px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 text-xs font-semibold border border-indigo-500/30 flex items-center gap-1.5">
                 <Building className="w-3.5 h-3.5" /> System & Regional Branches
               </span>
             </div>
-            <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
+            <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
               Tenants & Regional Offices Directory
             </h1>
-            <p className="text-sm text-slate-400 mt-1 max-w-2xl">
+            <p className="text-sm text-slate-600 dark:text-slate-400 mt-1 max-w-2xl">
               Register organizational tenant branches, map regional ownership, and manage staff & client access controls.
             </p>
           </div>
@@ -257,9 +257,9 @@ export default function TenantsPage() {
       </div>
 
       {/* Search and Filters Bar */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow-xl">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl shadow-sm dark:shadow-xl transition-colors duration-200">
         <div className="relative w-full sm:w-80">
-          <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-500" />
+          <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400 dark:text-slate-500" />
           <input
             type="text"
             placeholder="Search tenant name or code..."
@@ -268,20 +268,20 @@ export default function TenantsPage() {
               setSearchTerm(e.target.value);
               setCurrentPage(1);
             }}
-            className="w-full pl-10 pr-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
         </div>
 
         <div className="flex items-center gap-3 w-full sm:w-auto">
           <div className="flex items-center gap-2 w-full sm:w-auto">
-            <Filter className="w-4 h-4 text-slate-400" />
+            <Filter className="w-4 h-4 text-slate-500 dark:text-slate-400" />
             <select
               value={selectedRegionFilter}
               onChange={(e) => {
                 setSelectedRegionFilter(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full sm:w-auto px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+              className="w-full sm:w-auto px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
             >
               <option value="ALL">All Regions ({tenants.length})</option>
               {regions.map((reg) => (
@@ -298,9 +298,9 @@ export default function TenantsPage() {
       {!!error && isForbiddenError(error) ? (
         <PageForbiddenState />
       ) : !!error && !isForbiddenError(error) ? (
-        <div className="p-12 text-center bg-slate-900 border border-slate-800 rounded-2xl shadow-xl">
-          <p className="text-red-500 font-medium text-base">Failed to load tenants</p>
-          <button onClick={() => mutate()} className="mt-4 px-4 py-2 bg-slate-800 text-slate-300 rounded-xl text-sm hover:bg-slate-700 font-medium">Retry</button>
+        <div className="p-12 text-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl">
+          <p className="text-rose-500 font-medium text-base">Failed to load tenants</p>
+          <button onClick={() => mutate()} className="mt-4 px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-sm hover:bg-slate-200 dark:hover:bg-slate-700 font-medium">Retry</button>
         </div>
       ) : (
         <DataTable
@@ -310,17 +310,17 @@ export default function TenantsPage() {
               header: "Tenant Name & Code",
               cell: (tenant) => (
                 <div className="flex items-center gap-3">
-                  <div className="bg-indigo-500/10 border border-indigo-500/20 p-2.5 rounded-xl text-indigo-400 group-hover:bg-indigo-500/20 transition-colors">
+                  <div className="bg-indigo-500/10 border border-indigo-500/20 p-2.5 rounded-xl text-indigo-600 dark:text-indigo-400 group-hover:bg-indigo-500/20 transition-colors">
                     <Building2 className="w-5 h-5" />
                   </div>
                   <div>
                     <Link
                       href={`/tenants/${tenant.id}`}
-                      className="font-bold text-white hover:text-indigo-400 transition-colors text-sm"
+                      className="font-bold text-slate-900 dark:text-white hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors text-sm"
                     >
                       {tenant.name}
                     </Link>
-                    <p className="text-xs text-slate-400 font-mono mt-0.5">{tenant.code}</p>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 font-mono mt-0.5">{tenant.code}</p>
                   </div>
                 </div>
               ),
@@ -329,7 +329,7 @@ export default function TenantsPage() {
               key: "region",
               header: "Region Assigned",
               cell: (tenant) => (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-950 border border-slate-800 text-emerald-400">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-emerald-700 dark:text-emerald-400">
                   <MapPin className="w-3.5 h-3.5" />
                   {getRegionName(tenant.regionId)}
                 </span>
@@ -339,11 +339,11 @@ export default function TenantsPage() {
               key: "status",
               header: "Status",
               cell: (tenant) => tenant.isActive ? (
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
                   <CheckCircle2 className="w-3.5 h-3.5" /> Operational
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-800 text-slate-400 border border-slate-700">
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
                   Disabled
                 </span>
               ),
@@ -351,7 +351,7 @@ export default function TenantsPage() {
             {
               key: "created",
               header: "Created Date",
-              cell: (tenant) => <span className="text-xs font-mono text-slate-400">{tenant.createdAt ? new Date(tenant.createdAt).toLocaleDateString() : "2026-01-15"}</span>,
+              cell: (tenant) => <span className="text-xs font-mono text-slate-600 dark:text-slate-400">{tenant.createdAt ? new Date(tenant.createdAt).toLocaleDateString() : "2026-01-15"}</span>,
             },
           ]}
           data={filteredTenants}
@@ -402,7 +402,7 @@ export default function TenantsPage() {
             }
           } : undefined}
           emptyState={{
-            icon: <Building2 className="w-10 h-10 text-slate-600 mb-2" />,
+            icon: <Building2 className="w-10 h-10 text-slate-400 dark:text-slate-600 mb-2" />,
             title: "No tenants found",
             description: "Try adjusting your search query or region filter.",
           }}
@@ -411,56 +411,56 @@ export default function TenantsPage() {
 
       {/* Create Tenant Modal */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="sm:max-w-[500px] bg-slate-900 border-slate-800 text-white">
+        <DialogContent className="sm:max-w-[500px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white">
           <DialogHeader>
-            <DialogTitle className="text-xl font-extrabold text-white flex items-center gap-2">
-              <Building2 className="w-5 h-5 text-indigo-400" /> Register New Tenant Branch
+            <DialogTitle className="text-xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+              <Building2 className="w-5 h-5 text-indigo-500 dark:text-indigo-400" /> Register New Tenant Branch
             </DialogTitle>
-            <DialogDescription className="text-slate-400 text-xs">
+            <DialogDescription className="text-slate-600 dark:text-slate-400 text-xs">
               Add a new regional administrative tenant to the platform ecosystem.
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleCreateSubmit} className="space-y-4 pt-2">
             {errorMsg !== null && (
-              <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+              <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
                 <span>{errorMsg}</span>
               </div>
             )}
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300">Tenant Name *</label>
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Tenant Name *</label>
               <input
                 type="text"
                 required
                 placeholder="e.g. NTC Bicol Regional Office"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300">Tenant Code *</label>
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Tenant Code *</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. NTC-R5-01"
                   value={formData.code}
                   onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
-                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-sm text-slate-900 dark:text-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300">Assigned Region *</label>
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Assigned Region *</label>
                 <select
                   required
                   value={formData.regionId}
                   onChange={(e) => setFormData({ ...formData, regionId: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                 >
                   {regions.map((reg) => (
                     <option key={reg.id} value={reg.id}>
@@ -472,22 +472,22 @@ export default function TenantsPage() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300">Description</label>
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Description</label>
               <textarea
                 rows={3}
                 placeholder="Operational purpose or regional scope details..."
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
               />
             </div>
 
-            <DialogFooter className="pt-4 border-t border-slate-800">
+            <DialogFooter className="pt-4 border-t border-slate-200 dark:border-slate-800">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => setIsCreateOpen(false)}
-                className="border-slate-800 text-slate-300 hover:bg-slate-800"
+                className="border-slate-300 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
               >
                 Cancel
               </Button>
@@ -506,47 +506,47 @@ export default function TenantsPage() {
 
       {/* Edit Tenant Modal */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="sm:max-w-[500px] bg-slate-900 border-slate-800 text-white">
+        <DialogContent className="sm:max-w-[500px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white">
           <DialogHeader>
-            <DialogTitle className="text-xl font-extrabold text-white flex items-center gap-2">
-              <Edit2 className="w-5 h-5 text-indigo-400" /> Edit Tenant Details
+            <DialogTitle className="text-xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+              <Edit2 className="w-5 h-5 text-indigo-500 dark:text-indigo-400" /> Edit Tenant Details
             </DialogTitle>
-            <DialogDescription className="text-slate-400 text-xs">
+            <DialogDescription className="text-slate-600 dark:text-slate-400 text-xs">
               Update tenant registration details and operational status.
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleEditSubmit} className="space-y-4 pt-2">
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300">Tenant Name *</label>
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Tenant Name *</label>
               <input
                 type="text"
                 required
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300">Tenant Code *</label>
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Tenant Code *</label>
                 <input
                   type="text"
                   required
                   value={formData.code}
                   onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
-                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-sm text-slate-900 dark:text-white font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300">Assigned Region *</label>
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Assigned Region *</label>
                 <select
                   required
                   value={formData.regionId}
                   onChange={(e) => setFormData({ ...formData, regionId: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                 >
                   {regions.map((reg) => (
                     <option key={reg.id} value={reg.id}>
@@ -558,34 +558,34 @@ export default function TenantsPage() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300">Description</label>
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Description</label>
               <textarea
                 rows={3}
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
               />
             </div>
 
-            <div className="flex items-center gap-3 p-3 bg-slate-950 rounded-xl border border-slate-800">
+            <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800">
               <input
                 type="checkbox"
                 id="isActive"
                 checked={formData.isActive}
                 onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-                className="h-4 w-4 rounded border-slate-800 text-indigo-600 focus:ring-indigo-500 bg-slate-900 cursor-pointer"
+                className="h-4 w-4 rounded border-slate-300 dark:border-slate-800 text-indigo-600 focus:ring-indigo-500 bg-slate-100 dark:bg-slate-900 cursor-pointer"
               />
-              <label htmlFor="isActive" className="text-xs font-semibold text-slate-200 cursor-pointer">
+              <label htmlFor="isActive" className="text-xs font-semibold text-slate-700 dark:text-slate-200 cursor-pointer">
                 Operational Active (Enable tenant access for members & clients)
               </label>
             </div>
 
-            <DialogFooter className="pt-4 border-t border-slate-800">
+            <DialogFooter className="pt-4 border-t border-slate-200 dark:border-slate-800">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => setIsEditOpen(false)}
-                className="border-slate-800 text-slate-300 hover:bg-slate-800"
+                className="border-slate-300 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
               >
                 Cancel
               </Button>
@@ -604,22 +604,22 @@ export default function TenantsPage() {
 
       {/* Delete Tenant Modal */}
       <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
-        <DialogContent className="sm:max-w-[440px] bg-slate-900 border-slate-800 text-white">
+        <DialogContent className="sm:max-w-[440px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white">
           <DialogHeader>
-            <DialogTitle className="text-xl font-extrabold text-white flex items-center gap-2 text-rose-400">
+            <DialogTitle className="text-xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2 text-rose-500 dark:text-rose-400">
               <Trash2 className="w-5 h-5" /> Delete Tenant Confirmation
             </DialogTitle>
-            <DialogDescription className="text-slate-400 text-xs">
-              Are you sure you want to delete <span className="text-white font-bold">{selectedTenant?.name}</span>? This action cannot be undone.
+            <DialogDescription className="text-slate-600 dark:text-slate-400 text-xs">
+              Are you sure you want to delete <span className="text-slate-900 dark:text-white font-bold">{selectedTenant?.name}</span>? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
 
-          <DialogFooter className="pt-4 border-t border-slate-800">
+          <DialogFooter className="pt-4 border-t border-slate-200 dark:border-slate-800">
             <Button
               type="button"
               variant="outline"
               onClick={() => setIsDeleteOpen(false)}
-              className="border-slate-800 text-slate-300 hover:bg-slate-800"
+              className="border-slate-300 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
             >
               Cancel
             </Button>

@@ -2,17 +2,28 @@ import { useApi } from './api';
 
 export interface AuditLog {
   id: string;
-  userId?: string;
-  userEmail?: string;
+  event?: string;
   action: string;
   entityName: string;
   entityId?: string;
-  details?: string;
+  actor?: string;
+  userId?: string;
+  userEmail?: string;
+  resource?: string;
   ipAddress?: string;
-  createdAt: string;
+  status?: string;
+  type?: string;
+  changes?: string;
+  keyValues?: string | null;
+  oldValues?: string | null;
+  newValues?: string | null;
+  timestamp?: string;
+  createdAt?: string;
+  details?: string;
 }
 
 export interface AuditLogsResponse {
+  succeeded?: boolean;
   data?: AuditLog[];
   items?: AuditLog[];
   totalCount?: number;

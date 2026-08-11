@@ -178,31 +178,31 @@ export default function MunicipalitiesPage() {
 
   return (
     <div className="space-y-6">
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      {/* Header Bar */}
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-5 md:p-6 rounded-2xl bg-white dark:bg-gradient-to-r dark:from-slate-900 dark:via-slate-900/90 dark:to-indigo-950/60 border border-slate-200 dark:border-slate-800 shadow-md dark:shadow-xl transition-colors duration-200">
         <div>
-          <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-            <Building2 className="h-6 w-6 text-primary" /> Municipalities / Cities Directory
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <Building2 className="h-6 w-6 text-indigo-600 dark:text-indigo-400" /> Municipalities / Cities Directory
           </h2>
-          <p className="text-xs text-slate-400 mt-0.5">Configure local cities, municipalities, or township zones.</p>
+          <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">Configure local cities, municipalities, or township zones.</p>
         </div>
-        <Button onClick={handleOpenCreate} className="flex items-center gap-2 font-semibold">
+        <Button onClick={handleOpenCreate} className="flex items-center gap-2 font-semibold bg-indigo-600 hover:bg-indigo-500 text-white">
           <Plus className="h-4 w-4" /> Add Municipality
         </Button>
       </div>
 
       {/* Filter Toolbar */}
-      <div className="flex flex-col md:flex-row items-center gap-4 bg-slate-900/40 p-4 rounded-xl border border-slate-800/80">
+      <div className="flex flex-col md:flex-row items-center gap-4 bg-white dark:bg-slate-900/40 p-4 rounded-xl border border-slate-200 dark:border-slate-800/80 shadow-sm transition-colors duration-200">
         
         {/* Search */}
         <div className="relative w-full md:max-w-xs">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400 dark:text-slate-500" />
           <input
             type="text"
             placeholder="Search municipalities..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+            className="w-full pl-9 pr-4 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
           />
         </div>
 
@@ -211,11 +211,11 @@ export default function MunicipalitiesPage() {
           <select
             value={selectedProvinceFilter}
             onChange={(e) => setSelectedProvinceFilter(e.target.value)}
-            className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-slate-300 focus:outline-none focus:ring-2 focus:ring-primary text-sm cursor-pointer"
+            className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm cursor-pointer"
           >
-            <option value="">All Provinces</option>
+            <option value="" className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">All Provinces</option>
             {provinces.map((prov) => (
-              <option key={prov.id} value={prov.id}>{prov.name} ({prov.code})</option>
+              <option key={prov.id} value={prov.id} className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">{prov.name} ({prov.code})</option>
             ))}
           </select>
         </div>
@@ -248,16 +248,16 @@ export default function MunicipalitiesPage() {
 
       {/* Main Content Pane */}
       {isLoading ? (
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 overflow-hidden shadow-lg flex flex-col items-center justify-center py-20 gap-3">
-          <Loader2 className="h-8 w-8 text-primary animate-spin" />
-          <p className="text-xs text-slate-400">Loading municipalities database...</p>
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 overflow-hidden shadow-lg flex flex-col items-center justify-center py-20 gap-3">
+          <Loader2 className="h-8 w-8 text-indigo-600 dark:text-indigo-400 animate-spin" />
+          <p className="text-xs text-slate-600 dark:text-slate-400">Loading municipalities database...</p>
         </div>
       ) : !!error && isForbiddenError(error) ? (
         <PageForbiddenState />
       ) : error ? (
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 overflow-hidden shadow-lg text-center py-16 px-4">
-          <p className="text-sm font-semibold text-red-500">Failed to load municipalities.</p>
-          <p className="text-xs text-slate-400 mt-1">Please check your backend service connections.</p>
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 overflow-hidden shadow-lg text-center py-16 px-4">
+          <p className="text-sm font-semibold text-rose-500">Failed to load municipalities.</p>
+          <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">Please check your backend service connections.</p>
           <Button onClick={() => mutate()} className="mt-4" size="sm" variant="outline">Retry</Button>
         </div>
       ) : (
@@ -266,27 +266,27 @@ export default function MunicipalitiesPage() {
             {
               key: "code",
               header: "Code",
-              cell: (muni) => <span className="font-mono font-bold text-white text-xs">{muni.code}</span>,
+              cell: (muni) => <span className="font-mono font-bold text-slate-900 dark:text-white text-xs">{muni.code}</span>,
             },
             {
               key: "name",
               header: "Name",
-              cell: (muni) => <span className="text-slate-200">{muni.name}</span>,
+              cell: (muni) => <span className="font-semibold text-slate-900 dark:text-slate-200">{muni.name}</span>,
             },
             {
               key: "province",
               header: "Parent Province",
-              cell: (muni) => <span className="text-slate-400 text-xs">{muni.province?.name || "Loading parent province..."}</span>,
+              cell: (muni) => <span className="text-slate-600 dark:text-slate-400 text-xs">{muni.province?.name || "Loading parent province..."}</span>,
             },
             {
               key: "status",
               header: "Status",
               cell: (muni) => muni.isActive ? (
-                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-400 bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-800/40">
+                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
                   <CheckCircle className="h-3 w-3" /> Active
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-950 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-800">
                   <XCircle className="h-3 w-3" /> Inactive
                 </span>
               ),
@@ -326,54 +326,54 @@ export default function MunicipalitiesPage() {
 
       {/* CREATE DIALOG */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent>
+        <DialogContent className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white">
           <DialogHeader>
-            <DialogTitle>Add New Municipality</DialogTitle>
-            <DialogDescription>Define a new municipality linked to an active province.</DialogDescription>
+            <DialogTitle className="text-slate-900 dark:text-white">Add New Municipality</DialogTitle>
+            <DialogDescription className="text-slate-600 dark:text-slate-400 text-xs">Define a new municipality linked to an active province.</DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleCreateSubmit} className="space-y-4 py-2">
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300">Parent Province</label>
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Parent Province</label>
               <select
                 value={provinceId}
                 onChange={(e) => setProvinceId(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary text-sm cursor-pointer"
+                className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm cursor-pointer"
               >
-                <option value="" disabled>Select a Province</option>
+                <option value="" disabled className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">Select a Province</option>
                 {provinces.map((p) => (
-                  <option key={p.id} value={p.id}>{p.name} ({p.code})</option>
+                  <option key={p.id} value={p.id} className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">{p.name} ({p.code})</option>
                 ))}
               </select>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300">Municipality Code</label>
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Municipality Code</label>
               <input
                 type="text"
                 placeholder="e.g. CDO"
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300">Municipality Name</label>
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Municipality Name</label>
               <input
                 type="text"
                 placeholder="e.g. Cagayan de Oro City"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
               />
             </div>
 
-            {formError && <p className="text-xs font-semibold text-red-500">{formError}</p>}
+            {formError && <p className="text-xs font-semibold text-rose-500">{formError}</p>}
 
-            <DialogFooter className="pt-2">
+            <DialogFooter className="pt-2 border-t border-slate-200 dark:border-slate-800">
               <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={isSubmitting}>
+              <Button type="submit" disabled={isSubmitting} className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold">
                 {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save Municipality"}
               </Button>
             </DialogFooter>
@@ -383,43 +383,43 @@ export default function MunicipalitiesPage() {
 
       {/* EDIT DIALOG */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent>
+        <DialogContent className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white">
           <DialogHeader>
-            <DialogTitle>Edit Municipality</DialogTitle>
-            <DialogDescription>Modify parameters for municipality configuration.</DialogDescription>
+            <DialogTitle className="text-slate-900 dark:text-white">Edit Municipality</DialogTitle>
+            <DialogDescription className="text-slate-600 dark:text-slate-400 text-xs">Modify parameters for municipality configuration.</DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleEditSubmit} className="space-y-4 py-2">
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300">Parent Province</label>
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Parent Province</label>
               <select
                 value={provinceId}
                 onChange={(e) => setProvinceId(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary text-sm cursor-pointer"
+                className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm cursor-pointer"
               >
                 {provinces.map((p) => (
-                  <option key={p.id} value={p.id}>{p.name} ({p.code})</option>
+                  <option key={p.id} value={p.id} className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">{p.name} ({p.code})</option>
                 ))}
               </select>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300">Municipality Code</label>
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Municipality Code</label>
               <input
                 type="text"
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300">Municipality Name</label>
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Municipality Name</label>
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
               />
             </div>
 
@@ -429,18 +429,18 @@ export default function MunicipalitiesPage() {
                 id="isActive"
                 checked={isActive}
                 onChange={(e) => setIsActive(e.target.checked)}
-                className="rounded border-slate-800 bg-slate-900 text-primary focus:ring-primary focus:ring-offset-slate-950"
+                className="rounded border-slate-300 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
               />
-              <label htmlFor="isActive" className="text-xs font-semibold text-slate-300 cursor-pointer">
+              <label htmlFor="isActive" className="text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer">
                 Municipality is Active
               </label>
             </div>
 
-            {formError && <p className="text-xs font-semibold text-red-500">{formError}</p>}
+            {formError && <p className="text-xs font-semibold text-rose-500">{formError}</p>}
 
-            <DialogFooter className="pt-2">
+            <DialogFooter className="pt-2 border-t border-slate-200 dark:border-slate-800">
               <Button type="button" variant="outline" onClick={() => setIsEditOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={isSubmitting}>
+              <Button type="submit" disabled={isSubmitting} className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold">
                 {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save Changes"}
               </Button>
             </DialogFooter>
@@ -450,17 +450,17 @@ export default function MunicipalitiesPage() {
 
       {/* DELETE DIALOG */}
       <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
-        <DialogContent>
+        <DialogContent className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white">
           <DialogHeader>
-            <DialogTitle className="text-red-500">Delete Municipality</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete <span className="font-bold text-white">{name}</span>? This action is permanent.
+            <DialogTitle className="text-rose-600 dark:text-rose-500">Delete Municipality</DialogTitle>
+            <DialogDescription className="text-slate-600 dark:text-slate-400 text-xs">
+              Are you sure you want to delete <span className="font-bold text-slate-900 dark:text-white">{name}</span>? This action is permanent.
             </DialogDescription>
           </DialogHeader>
 
-          {formError && <p className="text-xs font-semibold text-red-500 py-1">{formError}</p>}
+          {formError && <p className="text-xs font-semibold text-rose-500 py-1">{formError}</p>}
 
-          <DialogFooter className="pt-2">
+          <DialogFooter className="pt-2 border-t border-slate-200 dark:border-slate-800">
             <Button type="button" variant="outline" onClick={() => setIsDeleteOpen(false)}>Cancel</Button>
             <Button type="button" variant="destructive" disabled={isSubmitting} onClick={handleDeleteSubmit}>
               {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete"}

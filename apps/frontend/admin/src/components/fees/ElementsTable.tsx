@@ -34,17 +34,17 @@ export function ElementsTable({
     {
       key: "code",
       header: "Code",
-      cell: (item) => <span className="font-mono font-semibold text-indigo-400">{item.code}</span>,
+      cell: (item) => <span className="font-mono font-semibold text-indigo-600 dark:text-indigo-400">{item.code}</span>,
     },
     {
       key: "name",
       header: "Name",
-      cell: (item) => <span className="font-semibold text-slate-200">{item.name}</span>,
+      cell: (item) => <span className="font-semibold text-slate-900 dark:text-slate-200">{item.name}</span>,
     },
     {
       key: "description",
       header: "Description",
-      cell: (item) => <span className="text-slate-400">{item.description ?? "—"}</span>,
+      cell: (item) => <span className="text-slate-600 dark:text-slate-400">{item.description ?? "—"}</span>,
     },
   ];
 

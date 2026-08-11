@@ -96,7 +96,7 @@ export function ActionMenu({ items }: ActionMenuProps) {
         ref={buttonRef}
         type="button"
         onClick={toggleMenu}
-        className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        className="p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500"
         aria-label="Actions menu"
       >
         <MoreVertical className="w-4 h-4" />
@@ -106,7 +106,7 @@ export function ActionMenu({ items }: ActionMenuProps) {
         <div
           ref={menuRef}
           style={menuStyle}
-          className="rounded-xl bg-slate-900 border border-slate-800 shadow-2xl py-1.5 animate-in fade-in-50 zoom-in-95"
+          className="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl py-1.5 animate-in fade-in-50 zoom-in-95"
         >
           {items.map((item, index) => {
             const Icon = item.icon;
@@ -121,12 +121,12 @@ export function ActionMenu({ items }: ActionMenuProps) {
                 }}
                 className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium transition-colors text-left ${
                   isDestructive
-                    ? "text-rose-400 hover:bg-rose-500/10 hover:text-rose-300"
-                    : "text-slate-200 hover:bg-slate-800 hover:text-white"
+                    ? "text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 hover:text-rose-700 dark:hover:text-rose-300"
+                    : "text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
                 }`}
               >
                 {Icon !== undefined && Icon !== null && (
-                  <Icon className={`w-4 h-4 ${isDestructive ? "text-rose-400" : "text-slate-400"}`} />
+                  <Icon className={`w-4 h-4 ${isDestructive ? "text-rose-500 dark:text-rose-400" : "text-slate-500 dark:text-slate-400"}`} />
                 )}
                 <span>{item.label}</span>
               </button>

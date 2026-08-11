@@ -8,5 +8,8 @@ namespace EDGE.Application.Services.Queries.GetServices;
 
 public record GetServicesQuery(
     Guid? ServiceCategoryId = null,
-    Guid? TenantId = null
-) : IRequest<ApiResponse<List<ServiceDto>>>;
+    Guid? TenantId = null,
+    int? PageNumber = null,
+    int? PageSize = null,
+    string? SearchTerm = null
+) : IRequest<PaginatedApiResponse<ServiceDto>>;

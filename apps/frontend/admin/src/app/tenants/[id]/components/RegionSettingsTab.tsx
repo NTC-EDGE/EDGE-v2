@@ -61,10 +61,10 @@ export function RegionSettingsTab({ currentTenant, getRegionName, getRegionCode,
 
   return (
     <form onSubmit={handleSaveRegionSettings} className="space-y-6">
-      <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+      <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
         <div>
-          <h3 className="text-base font-bold text-white">Region Settings & Regulatory Fee Schedules</h3>
-          <p className="text-xs text-slate-400">Configure application processing fees, inspection rates, and regional director contacts.</p>
+          <h3 className="text-base font-bold text-slate-900 dark:text-white">Region Settings & Regulatory Fee Schedules</h3>
+          <p className="text-xs text-slate-600 dark:text-slate-400">Configure application processing fees, inspection rates, and regional director contacts.</p>
         </div>
         <Button
           type="submit"
@@ -77,8 +77,8 @@ export function RegionSettingsTab({ currentTenant, getRegionName, getRegionCode,
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="space-y-1.5 bg-slate-950/60 p-4 rounded-xl border border-slate-800">
-          <label className="text-xs font-semibold text-slate-300">Application Processing Fee (₱)</label>
+        <div className="space-y-1.5 bg-slate-50 dark:bg-slate-950/60 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
+          <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Application Processing Fee (₱)</label>
           <input
             type="number"
             value={regionSettingsData.fees.applicationFee}
@@ -88,12 +88,12 @@ export function RegionSettingsTab({ currentTenant, getRegionName, getRegionCode,
                 fees: { ...regionSettingsData.fees, applicationFee: parseFloat(e.target.value) || 0 },
               })
             }
-            className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-lg text-xs font-mono text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+            className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-lg text-xs font-mono text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
           />
         </div>
 
-        <div className="space-y-1.5 bg-slate-950/60 p-4 rounded-xl border border-slate-800">
-          <label className="text-xs font-semibold text-slate-300">Inspection & Testing Fee (₱)</label>
+        <div className="space-y-1.5 bg-slate-50 dark:bg-slate-950/60 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
+          <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Inspection & Testing Fee (₱)</label>
           <input
             type="number"
             value={regionSettingsData.fees.inspectionFee}
@@ -103,12 +103,12 @@ export function RegionSettingsTab({ currentTenant, getRegionName, getRegionCode,
                 fees: { ...regionSettingsData.fees, inspectionFee: parseFloat(e.target.value) || 0 },
               })
             }
-            className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-lg text-xs font-mono text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+            className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-lg text-xs font-mono text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
           />
         </div>
 
-        <div className="space-y-1.5 bg-slate-950/60 p-4 rounded-xl border border-slate-800">
-          <label className="text-xs font-semibold text-slate-300">Permit Renewal Fee (₱)</label>
+        <div className="space-y-1.5 bg-slate-50 dark:bg-slate-950/60 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
+          <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Permit Renewal Fee (₱)</label>
           <input
             type="number"
             value={regionSettingsData.fees.permitRenewalFee}
@@ -118,29 +118,29 @@ export function RegionSettingsTab({ currentTenant, getRegionName, getRegionCode,
                 fees: { ...regionSettingsData.fees, permitRenewalFee: parseFloat(e.target.value) || 0 },
               })
             }
-            className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-lg text-xs font-mono text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+            className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-lg text-xs font-mono text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
           />
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
         <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-slate-300">Regional Director Name</label>
+          <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Regional Director Name</label>
           <input
             type="text"
             value={regionSettingsData.regionalDirector}
             onChange={(e) => setRegionSettingsData({ ...regionSettingsData, regionalDirector: e.target.value })}
-            className="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+            className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
           />
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-slate-300">Official Contact Email</label>
+          <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Official Contact Email</label>
           <input
             type="email"
             value={regionSettingsData.contactEmail}
             onChange={(e) => setRegionSettingsData({ ...regionSettingsData, contactEmail: e.target.value })}
-            className="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+            className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
           />
         </div>
       </div>

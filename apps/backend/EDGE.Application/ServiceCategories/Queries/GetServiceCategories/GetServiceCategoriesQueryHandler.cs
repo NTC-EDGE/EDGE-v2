@@ -15,12 +15,14 @@ public class GetServiceCategoriesQueryHandler(IServiceCategoryRepository reposit
     public async Task<ApiResponse<List<ServiceCategoryDto>>> Handle(GetServiceCategoriesQuery request, CancellationToken cancellationToken)
     {
         var categories = await repository.GetAllAsync(cancellationToken);
+        var counts = await repository.GetServiceCountsAsync(cancellationToken);
 
         var dtos = categories.Select(r => new ServiceCategoryDto(
             r.Id,
             r.Name,
             r.Code,
-            r.Type.ToString()
+            r.Type.ToString(),
+            counts.TryGetValue(r.Id, out var count) ? count : 0
         )).ToList();
 
         return ApiResponse<List<ServiceCategoryDto>>.Success(dtos);

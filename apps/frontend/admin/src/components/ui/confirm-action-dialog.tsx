@@ -33,13 +33,13 @@ export function ConfirmActionDialog({
 }: ConfirmActionDialogProps) {
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[400px] bg-slate-900 border-slate-800 text-white">
+      <DialogContent className="sm:max-w-[400px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white">
         <DialogHeader>
-          <DialogTitle className="text-lg font-bold text-white flex items-center gap-2">
+          <DialogTitle className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
             <AlertTriangle className="w-5 h-5 text-amber-500" />
             {title}
           </DialogTitle>
-          <DialogDescription className="text-slate-400 text-xs pt-1.5 leading-relaxed">
+          <DialogDescription className="text-slate-600 dark:text-slate-400 text-xs pt-1.5 leading-relaxed">
             {description}
           </DialogDescription>
         </DialogHeader>
@@ -50,7 +50,7 @@ export function ConfirmActionDialog({
             variant="outline"
             onClick={onClose}
             disabled={loading}
-            className="border-slate-800 text-slate-300 hover:bg-slate-800 hover:text-white"
+            className="border-slate-300 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
           >
             {cancelLabel}
           </Button>

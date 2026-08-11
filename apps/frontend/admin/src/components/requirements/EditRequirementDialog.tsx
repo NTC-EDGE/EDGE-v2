@@ -57,11 +57,14 @@ export function EditRequirementDialog({
   const [selectedServiceId, setSelectedServiceId] = useState("");
   const [selectedVariantId, setSelectedVariantId] = useState("");
   const [selectedReqId, setSelectedReqId] = useState("");
-  const [contextKey, setContextKey] = useState("NEW");
+  const [contextKey, setContextKey] = useState("");
   const [isRequired, setIsRequired] = useState(true);
 
   // Fetch variants for selected service
   const { data: variants = [] } = useServiceVariants(
+    1,
+    9999,
+    undefined,
     selectedServiceId !== "" ? selectedServiceId : null
   );
 
@@ -86,7 +89,7 @@ export function EditRequirementDialog({
         setSelectedServiceId(matchedService?.id ?? "");
         setSelectedVariantId(selectedSvr.serviceVariantId);
         setSelectedReqId(selectedSvr.requirementId);
-        setContextKey(selectedSvr.contextKey ?? "ALL");
+        setContextKey(selectedSvr.contextKey ?? "");
         setIsRequired(selectedSvr.isRequired);
       }
     }
@@ -116,7 +119,7 @@ export function EditRequirementDialog({
         description,
         requirementId: selectedReqId,
         serviceVariantId: selectedVariantId,
-        contextKey: contextKey === "ALL" ? null : contextKey,
+        contextKey: contextKey.trim() === "" ? null : contextKey.trim().toUpperCase(),
         isRequired,
       });
       onOpenChange(false);
@@ -228,19 +231,15 @@ export function EditRequirementDialog({
               </div>
 
               <div className="flex items-center justify-between gap-4 pt-2">
-                <div className="flex items-center gap-2 flex-1">
+                <div className="flex items-center gap-2 flex-1 animate-pulse-once">
                   <label className="text-xs font-semibold text-slate-300">Context Key</label>
-                  <select
+                  <input
+                    type="text"
+                    placeholder="e.g. NEW, RENEW (leave blank for Any)"
                     value={contextKey}
                     onChange={(e) => setContextKey(e.target.value)}
-                    className="px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-                  >
-                    <option value="NEW">NEW</option>
-                    <option value="RENEWAL">RENEWAL</option>
-                    <option value="MODIFICATION">MODIFICATION</option>
-                    <option value="DUPLICATE">DUPLICATE</option>
-                    <option value="ALL">ALL</option>
-                  </select>
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 uppercase font-mono"
+                  />
                 </div>
 
                 <label className="flex items-center gap-2 cursor-pointer select-none self-end pb-2">

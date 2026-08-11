@@ -70,12 +70,12 @@ export function useServices() {
   const backendCategories = categoriesApiResponse?.succeeded ? categoriesApiResponse.data : null;
 
   // Backend Services Query (all services for counting)
-  const { data: allServicesApiResponse } = api.useQuery<{ succeeded: boolean; data: any[] }>("/api/v2/services");
+  const { data: allServicesApiResponse } = api.useQuery<{ succeeded: boolean; data: any[] }>("/api/v2/services?pageSize=9999");
   const allBackendServices = allServicesApiResponse?.succeeded ? allServicesApiResponse.data : null;
 
   // Backend Services Query (filtered by selected category's serviceId as serviceCategoryId)
   const { data: servicesApiResponse } = api.useQuery<{ succeeded: boolean; data: any[] }>(
-    serviceId ? `/api/v2/services?serviceCategoryId=${serviceId}` : null
+    serviceId ? `/api/v2/services?serviceCategoryId=${serviceId}&pageSize=9999` : null
   );
   const backendServices = servicesApiResponse?.succeeded ? servicesApiResponse.data : null;
 
@@ -509,9 +509,21 @@ export function useServices() {
   };
 
   const confirmSwitchService = (onConfirm: () => void) => {
-    if (hasUnsavedChanges()) {
-      setPendingConfirmAction(() => onConfirm);
-      setConfirmModalVisible(true);
+    if (activeWizardService !== null) {
+      if (hasUnsavedChanges()) {
+        setPendingConfirmAction(() => () => {
+          resetWizardState();
+          setActiveWizardService(null);
+          setSelectedService(null);
+          onConfirm();
+        });
+        setConfirmModalVisible(true);
+      } else {
+        resetWizardState();
+        setActiveWizardService(null);
+        setSelectedService(null);
+        onConfirm();
+      }
     } else {
       onConfirm();
     }

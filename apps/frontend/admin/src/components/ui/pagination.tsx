@@ -72,13 +72,13 @@ export function Pagination({
   const pageNumbers = getPageNumbers();
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 py-3 bg-slate-950/80 border-t border-slate-800/80 rounded-b-2xl text-xs text-slate-400">
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 py-3 bg-slate-50/90 dark:bg-slate-950/80 border-t border-slate-200 dark:border-slate-800/80 rounded-b-2xl text-xs text-slate-600 dark:text-slate-400">
       {/* Item Range Counter & Page Size Selector */}
       <div className="flex flex-wrap items-center gap-4 w-full sm:w-auto justify-between sm:justify-start">
         <div>
-          Showing <span className="font-semibold text-slate-200">{startItem}</span> to{" "}
-          <span className="font-semibold text-slate-200">{endItem}</span> of{" "}
-          <span className="font-semibold text-slate-200">{totalItems}</span> entries
+          Showing <span className="font-semibold text-slate-900 dark:text-slate-200">{startItem}</span> to{" "}
+          <span className="font-semibold text-slate-900 dark:text-slate-200">{endItem}</span> of{" "}
+          <span className="font-semibold text-slate-900 dark:text-slate-200">{totalItems}</span> entries
         </div>
 
         {onPageSizeChange !== undefined && (
@@ -87,7 +87,7 @@ export function Pagination({
             <select
               value={pageSize}
               onChange={(e) => onPageSizeChange(Number(e.target.value))}
-              className="bg-slate-900 border border-slate-800 rounded-lg px-2 py-1 text-xs text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+              className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-lg px-2 py-1 text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
             >
               {pageSizeOptions.map((option) => (
                 <option key={option} value={option}>
@@ -105,7 +105,7 @@ export function Pagination({
           type="button"
           onClick={handleFirst}
           disabled={safePage <= 1}
-          className="p-1.5 rounded-lg border border-slate-800 bg-slate-900 hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed text-slate-300 transition-colors"
+          className="p-1.5 rounded-lg border border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed text-slate-700 dark:text-slate-300 transition-colors"
           title="First Page"
         >
           <ChevronsLeft className="w-4 h-4" />
@@ -115,7 +115,7 @@ export function Pagination({
           type="button"
           onClick={handlePrevious}
           disabled={safePage <= 1}
-          className="p-1.5 rounded-lg border border-slate-800 bg-slate-900 hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed text-slate-300 transition-colors"
+          className="p-1.5 rounded-lg border border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed text-slate-700 dark:text-slate-300 transition-colors"
           title="Previous Page"
         >
           <ChevronLeft className="w-4 h-4" />
@@ -130,7 +130,7 @@ export function Pagination({
               className={`min-w-[2rem] h-8 px-2 rounded-lg text-xs font-semibold transition-all ${
                 num === safePage
                   ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
-                  : "bg-slate-900 text-slate-400 hover:bg-slate-800 hover:text-white border border-slate-800"
+                  : "bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white border border-slate-300 dark:border-slate-800"
               }`}
             >
               {num}
@@ -142,7 +142,7 @@ export function Pagination({
           type="button"
           onClick={handleNext}
           disabled={safePage >= totalPages}
-          className="p-1.5 rounded-lg border border-slate-800 bg-slate-900 hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed text-slate-300 transition-colors"
+          className="p-1.5 rounded-lg border border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed text-slate-700 dark:text-slate-300 transition-colors"
           title="Next Page"
         >
           <ChevronRight className="w-4 h-4" />
@@ -152,7 +152,7 @@ export function Pagination({
           type="button"
           onClick={handleLast}
           disabled={safePage >= totalPages}
-          className="p-1.5 rounded-lg border border-slate-800 bg-slate-900 hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed text-slate-300 transition-colors"
+          className="p-1.5 rounded-lg border border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed text-slate-700 dark:text-slate-300 transition-colors"
           title="Last Page"
         >
           <ChevronsRight className="w-4 h-4" />

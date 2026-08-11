@@ -41,7 +41,7 @@ export function CatalogServicesTab({
       header: "Category",
       accessorKey: "serviceCategoryType",
       cell: (val, row) => (
-        <span className="text-[10px] bg-slate-950 text-indigo-400 px-2 py-0.5 rounded font-bold border border-indigo-950 uppercase">
+        <span className="text-[10px] bg-indigo-50 dark:bg-slate-950 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded font-bold border border-indigo-200 dark:border-indigo-950 uppercase">
           {String(val) || row.serviceCategoryCode || "Service"}
         </span>
       ),
@@ -49,12 +49,12 @@ export function CatalogServicesTab({
     {
       header: "Service Name",
       accessorKey: "name",
-      cell: (val) => <span className="font-bold text-white">{String(val)}</span>,
+      cell: (val) => <span className="font-bold text-slate-900 dark:text-white">{String(val)}</span>,
     },
     {
       header: "Code",
       accessorKey: "code",
-      cell: (val) => <span className="font-mono text-[10px]">{val ? String(val) : "-"}</span>,
+      cell: (val) => <span className="font-mono text-[10px] text-slate-700 dark:text-slate-300">{val ? String(val) : "-"}</span>,
     },
     {
       header: "Group",
@@ -64,28 +64,7 @@ export function CatalogServicesTab({
     {
       header: "Description",
       accessorKey: "description",
-      cell: (val) => <span className="max-w-sm truncate block">{val ? String(val) : "No description."}</span>,
-    },
-    {
-      header: "Actions",
-      accessorKey: "id",
-      cell: (_, row) => (
-        <div className="flex items-center justify-end gap-1.5">
-          <button
-            onClick={() => onEditService(row)}
-            className="p-1.5 rounded-lg border border-slate-800 hover:bg-slate-850 hover:text-white transition-colors"
-          >
-            <Edit className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={() => onDeleteService(row.id)}
-            className="p-1.5 rounded-lg border border-slate-800 hover:bg-slate-850 hover:text-rose-400 transition-colors"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      ),
-      className: "text-right",
+      cell: (val) => <span className="max-w-sm truncate block text-slate-600 dark:text-slate-400">{val ? String(val) : "No description."}</span>,
     },
   ];
 
@@ -97,7 +76,7 @@ export function CatalogServicesTab({
           className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all whitespace-nowrap ${
             selectedCategoryId === "ALL"
               ? "bg-indigo-600 text-white"
-              : "bg-slate-950 border border-slate-800 text-slate-500 hover:text-slate-300"
+              : "bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
           }`}
         >
           All Categories
@@ -109,22 +88,22 @@ export function CatalogServicesTab({
               className={`px-3 py-1.5 rounded-l-lg text-[10px] font-bold uppercase transition-all whitespace-nowrap border-y border-l ${
                 selectedCategoryId === cat.id
                   ? "bg-indigo-600 text-white border-indigo-600"
-                  : "bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200"
+                  : "bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
               }`}
             >
               {cat.name} {cat.code ? `(${cat.code})` : ""}
             </button>
-            <div className="flex items-center bg-slate-950 border-y border-r border-slate-850 rounded-r-lg px-0.5">
+            <div className="flex items-center bg-slate-100 dark:bg-slate-950 border-y border-r border-slate-200 dark:border-slate-800 rounded-r-lg px-0.5">
               <button
                 onClick={() => onEditCategory(cat)}
-                className="p-1 text-slate-500 hover:text-indigo-400"
+                className="p-1 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400"
                 title="Edit Category"
               >
                 <Edit className="h-2.5 w-2.5" />
               </button>
               <button
                 onClick={() => onDeleteCategory(cat.id)}
-                className="p-1 text-slate-500 hover:text-rose-400"
+                className="p-1 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400"
                 title="Delete Category"
               >
                 <Trash2 className="h-2.5 w-2.5" />
@@ -140,6 +119,19 @@ export function CatalogServicesTab({
           columns={columns}
           loading={loadingServices}
           emptyState={<div>No services registered.</div>}
+          rowActionMenu={(row) => [
+            {
+              label: "Edit Service",
+              icon: Edit,
+              onClick: () => onEditService(row),
+            },
+            {
+              label: "Delete Service",
+              icon: Trash2,
+              onClick: () => onDeleteService(row.id),
+              variant: "destructive" as const,
+            },
+          ]}
           pagination={
             filteredServices.length > 0
               ? {

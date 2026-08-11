@@ -26,6 +26,16 @@ export interface ApiResponse<T> {
   errors?: string[];
 }
 
+export interface PaginatedApiResponse<T> {
+  succeeded: boolean;
+  message?: string;
+  data: T[];
+  pageNumber: number;
+  pageSize: number;
+  totalPages: number;
+  totalCount: number;
+}
+
 export interface CreateServiceCategoryRequest {
   name: string;
   code?: string;
@@ -79,14 +89,33 @@ export function useCatalogService() {
     return del<ApiResponse<string>>(`/api/v2/service-categories/${id}`);
   };
 
-  const useServices = (serviceCategoryId?: string) => {
-    const query = serviceCategoryId ? `?serviceCategoryId=${serviceCategoryId}` : '';
-    return useQuery<ApiResponse<ServiceItem[]>>(`/api/v2/services${query}`);
+  const useServices = (
+    serviceCategoryId?: string,
+    pageNumber: number = 1,
+    pageSize: number = 10,
+    searchTerm: string = ''
+  ) => {
+    const params = new URLSearchParams();
+    if (serviceCategoryId) params.append('serviceCategoryId', serviceCategoryId);
+    params.append('pageNumber', pageNumber.toString());
+    params.append('pageSize', pageSize.toString());
+    if (searchTerm) params.append('searchTerm', searchTerm);
+    return useQuery<PaginatedApiResponse<ServiceItem>>(`/api/v2/services?${params.toString()}`);
   };
 
-  const useTenantServices = (tenantId: string, serviceCategoryId?: string) => {
-    const query = serviceCategoryId ? `?serviceCategoryId=${serviceCategoryId}` : '';
-    return useQuery<ApiResponse<ServiceItem[]>>(`/api/v2/tenants/${tenantId}/services${query}`);
+  const useTenantServices = (
+    tenantId: string,
+    serviceCategoryId?: string,
+    pageNumber: number = 1,
+    pageSize: number = 10,
+    searchTerm: string = ''
+  ) => {
+    const params = new URLSearchParams();
+    if (serviceCategoryId) params.append('serviceCategoryId', serviceCategoryId);
+    params.append('pageNumber', pageNumber.toString());
+    params.append('pageSize', pageSize.toString());
+    if (searchTerm) params.append('searchTerm', searchTerm);
+    return useQuery<PaginatedApiResponse<ServiceItem>>(`/api/v2/tenants/${tenantId}/services?${params.toString()}`);
   };
 
   const createService = async (tenantId: string | undefined | null, request: CreateServiceRequest): Promise<ApiResponse<string>> => {

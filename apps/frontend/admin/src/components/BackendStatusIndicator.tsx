@@ -41,8 +41,8 @@ export function BackendStatusIndicator() {
     <div
       className={`fixed bottom-6 right-6 z-[9999] flex items-center gap-3 px-4 py-3.5 rounded-xl border shadow-2xl transition-all duration-300 transform translate-y-0 ${
         isOffline
-          ? "bg-slate-900 border-rose-800 text-rose-200 animate-bounce"
-          : "bg-slate-900 border-emerald-800 text-emerald-200"
+          ? "bg-white dark:bg-slate-900 border-rose-300 dark:border-rose-800 text-rose-700 dark:text-rose-200 animate-bounce"
+          : "bg-white dark:bg-slate-900 border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-200"
       }`}
     >
       {isOffline ? (
@@ -54,7 +54,7 @@ export function BackendStatusIndicator() {
         <span className="text-xs font-bold uppercase tracking-wider">
           {isOffline ? "Connection Lost" : "Connection Restored"}
         </span>
-        <span className="text-[11px] text-slate-400">
+        <span className="text-[11px] text-slate-600 dark:text-slate-400">
           {isOffline
             ? "The backend server is currently unavailable. Requests are suspended."
             : "The connection to the backend server has been re-established."}
@@ -71,7 +71,7 @@ export function BackendStatusIndicator() {
             isOffline ? "bg-rose-500" : "bg-emerald-500"
           }`}
         ></span>
-        <span className="text-xs text-slate-300 font-medium transition-colors duration-300">
+        <span className="text-xs text-slate-700 dark:text-slate-300 font-medium transition-colors duration-300">
           {isOffline
             ? "System Configuration Service Offline"
             : "System Configuration Service Connected"}

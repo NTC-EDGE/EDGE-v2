@@ -9,7 +9,7 @@ export function useScheduleService() {
   const { useQuery, post, put, del } = useApi();
 
   const useServices = () => {
-    const query = useQuery<{ succeeded: boolean; data: { id: string; name: string; code: string }[] }>('/api/v2/services');
+    const query = useQuery<{ succeeded: boolean; data: { id: string; name: string; code: string }[] }>('/api/v2/services?pageSize=9999');
     return {
       ...query,
       data: query.data?.data !== undefined && query.data?.data !== null ? query.data.data : []

@@ -1,5 +1,7 @@
 using FluentValidation;
 using MediatR;
+using EDGE.Application.Common.Models;
+using EDGE.Application.Requirements.Dtos;
 using EDGE.Domain.Authorization;
 using EDGE.Infrastructure.Authorization;
 using EDGE.Application.Requirements.Commands.AttachServiceVariantRequirement;
@@ -44,7 +46,8 @@ public static class RequirementEndpoints
         requirements.MapGet("/", GetRequirements)
             .WithName("GetRequirements")
             .WithSummary("Get all requirements")
-            .WithDescription("Retrieves a list of all requirement records.");
+            .WithDescription("Retrieves a list of all requirement records.")
+            .Produces<PaginatedApiResponse<RequirementDto>>(StatusCodes.Status200OK);
 
         // 2. Service Variant Requirement Rules Configuration & Citizen Query APIs
         var services = group.MapGroup("services")
@@ -141,10 +144,13 @@ public static class RequirementEndpoints
 
     [HasPermission(Permissions.ReadRequirements)]
     public static async Task<IResult> GetRequirements(
+        int? pageNumber,
+        int? pageSize,
+        string? searchTerm,
         IValidator<GetRequirementsQuery> validator,
         IMediator mediator)
     {
-        var query = new GetRequirementsQuery();
+        var query = new GetRequirementsQuery(pageNumber, pageSize, searchTerm);
         var validationResult = await validator.ValidateAsync(query);
         if (!validationResult.IsValid)
         {
@@ -152,7 +158,7 @@ public static class RequirementEndpoints
         }
 
         var result = await mediator.Send(query);
-        return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
+        return Results.Ok(result);
     }
 
     [HasPermission(Permissions.CreateRequirements)]
