@@ -44,7 +44,8 @@ public static class UserEndpoints
             .WithSummary("Update user super admin status")
             .WithDescription("Toggles or updates the IsSuperAdmin privilege of a user account.")
             .Produces<EDGE.Domain.Entities.User>(StatusCodes.Status200OK)
-            .Produces(StatusCodes.Status404NotFound);
+            .Produces(StatusCodes.Status404NotFound)
+            .RequireAuthorization();
 
         group.MapDelete("/{id:guid}", DeleteUser)
             .WithName("DeleteUser")
