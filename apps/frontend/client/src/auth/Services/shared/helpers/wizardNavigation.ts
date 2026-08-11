@@ -16,6 +16,54 @@ interface NavigationContext {
   setIsConfirmModalOpen: (open: boolean) => void;
 }
 
+export function getRequiredDocumentKeys(service: NTCService, activeApplicant: GeneralApplicantData): string[] {
+  const serviceTitle = (service.title || "").toUpperCase();
+  const amateurData = activeApplicant.amateurLicenseData;
+  const isLifetime =
+    serviceTitle.includes("LIFETIME AMATEUR") ||
+    activeApplicant.lifetimeLicenseData !== undefined ||
+    (activeApplicant.selectedVariantId && activeApplicant.selectedVariantId.includes("life"));
+
+  if (isLifetime) {
+    return [
+      "req-letter-request",
+      "req-cert-good-standing",
+      "req-gov-id-attachments",
+      "req-class-a-license",
+      "req-proof-15-years-service",
+      "req-1x1-id-picture",
+    ];
+  }
+
+  if (serviceTitle.includes("AMATEUR") || serviceTitle.includes("LICENSE")) {
+    const appType = amateurData?.appType || "NEW";
+    if (appType === "RENEWAL") {
+      return [
+        "req-existing-arsl-copy",
+        "req-cert-good-standing-club",
+        "req-annual-dues-or",
+        "req-1x1-photo",
+      ];
+    }
+    if (appType === "MODIFICATION") {
+      return [
+        "req-existing-arsl-copy",
+        "req-modification-proof",
+        "req-cert-good-standing-club",
+        "req-1x1-photo",
+      ];
+    }
+    return [
+      "req-cert-exam-seminar",
+      "req-cert-good-standing-club",
+      "req-gov-id",
+      "req-1x1-photo",
+    ];
+  }
+
+  return (service.requirements || []).map((_, idx) => `req-gen-${idx}`);
+}
+
 export function handleWizardNext({
   step,
   setStep,
@@ -62,8 +110,16 @@ export function handleWizardNext({
     return;
   }
   if (step === 5) {
-    const missingDocs = service.requirements.filter((req) => !activeApplicant.uploads[req]);
-    if (missingDocs.length > 0) {
+    const requiredKeys = getRequiredDocumentKeys(service, activeApplicant);
+    const isComplete = requiredKeys.every((key, idx) => {
+      if (activeApplicant.uploads && activeApplicant.uploads[key]) return true;
+      const title = service.requirements?.[idx];
+      if (title && activeApplicant.uploads && activeApplicant.uploads[title]) return true;
+      return false;
+    });
+
+    const uploadedCount = Object.keys(activeApplicant.uploads || {}).length;
+    if (!isComplete && uploadedCount < requiredKeys.length) {
       Alert.alert("Incomplete", "Please upload all mandatory documents before proceeding.");
       return;
     }

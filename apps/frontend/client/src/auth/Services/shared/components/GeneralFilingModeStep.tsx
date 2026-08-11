@@ -155,36 +155,43 @@ export function GeneralFilingModeStep({
   const isRenewal = safeUpper(activeVariantName).includes("RENEWAL");
   const isModification = safeUpper(activeVariantName).includes("MODIFICATION");
 
-  const classOptions = isLifetime
-    ? [
-        {
-          id: "class-a-lifetime",
-          title: "Class A — Lifetime Radio Station License",
-          desc: "For Class A Radio Amateurs at least 60 years old with 15+ consecutive years of service.",
-        },
-      ]
-    : [
-        {
-          id: "class-a",
-          title: "Class A — Advanced Amateur Station (VHF/UHF/HF)",
-          desc: "Full privilege amateur station license for Advanced class operators.",
-        },
-        {
-          id: "class-b",
-          title: "Class B — General Amateur Station",
-          desc: "General class station license with HF/VHF privileges.",
-        },
-        {
-          id: "class-c",
-          title: "Class C — Novice Amateur Station",
-          desc: "Novice class station license for VHF and limited HF bands.",
-        },
-        {
-          id: "class-d",
-          title: "Class D — Foundation Amateur Station (VHF Only)",
-          desc: "Foundation entry-level VHF amateur station license.",
-        },
-      ];
+  const classOptions =
+    variantElements && variantElements.length > 0
+      ? variantElements.map((elem) => ({
+          id: elem.id,
+          title: elem.code ? `${elem.code} — ${elem.description}` : elem.description,
+          desc: elem.description || "",
+        }))
+      : isLifetime
+      ? [
+          {
+            id: "class-a-lifetime",
+            title: "Class A — Lifetime Radio Station License",
+            desc: "For Class A Radio Amateurs at least 60 years old with 15+ consecutive years of service.",
+          },
+        ]
+      : [
+          {
+            id: "class-a",
+            title: "Class A — Advanced Amateur Station (VHF/UHF/HF)",
+            desc: "Full privilege amateur station license for Advanced class operators.",
+          },
+          {
+            id: "class-b",
+            title: "Class B — General Amateur Station",
+            desc: "General class station license with HF/VHF privileges.",
+          },
+          {
+            id: "class-c",
+            title: "Class C — Novice Amateur Station",
+            desc: "Novice class station license for VHF and limited HF bands.",
+          },
+          {
+            id: "class-d",
+            title: "Class D — Foundation Amateur Station (VHF Only)",
+            desc: "Foundation entry-level VHF amateur station license.",
+          },
+        ];
 
   const hasElementsToDisplay = (variantElements && variantElements.length > 0) || serviceTitle.includes("AMATEUR") || serviceTitle.includes("STATION");
 

@@ -50,15 +50,18 @@ public class GetServiceRequirementsQueryHandler : IRequestHandler<GetServiceRequ
 
         var rules = await _repository.GetServiceVariantRequirementsAsync(request.ServiceId, request.VariantId, request.ContextKey, cancellationToken);
 
-        var result = rules.Select(svr => new ServiceRequirementItemDto
-        {
-            RequirementId = svr.RequirementId,
-            ServiceVariantRequirementId = svr.Id,
-            Name = svr.Requirement?.Name ?? string.Empty,
-            Description = svr.Requirement?.Description,
-            ContextKey = svr.ContextKey,
-            IsRequired = svr.IsRequired
-        }).ToList();
+        var result = rules
+            .GroupBy(svr => svr.RequirementId)
+            .Select(g => g.First())
+            .Select(svr => new ServiceRequirementItemDto
+            {
+                RequirementId = svr.RequirementId,
+                ServiceVariantRequirementId = svr.Id,
+                Name = svr.Requirement?.Name ?? string.Empty,
+                Description = svr.Requirement?.Description,
+                ContextKey = svr.ContextKey,
+                IsRequired = svr.IsRequired
+            }).ToList();
 
         return ApiResponse<List<ServiceRequirementItemDto>>.Success(result, "Service requirements retrieved successfully.");
     }

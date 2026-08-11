@@ -183,7 +183,16 @@ export function useExamFilingQueries({
   const { data: elementsResponse } = api.useQuery<any[]>(
     selectedVariantId ? `/api/v2/service-variant-elements?serviceVariantId=${selectedVariantId}` : null
   );
-  const variantElements = Array.isArray(elementsResponse) ? elementsResponse : [];
+  const rawElements = Array.isArray(elementsResponse) ? elementsResponse : [];
+  // Deduplicate by element id — the backend may return the same element linked
+  // to multiple variants (e.g. "Proof of Rating" appears across Retaker/Upgrader rows)
+  const seen = new Set<string>();
+  const variantElements = rawElements.filter((elem) => {
+    const key = typeof elem.id === "string" ? elem.id : String(elem.id);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
   const isLoadingElements = !!selectedVariantId && elementsResponse === undefined;
 
   // Requirements API Query

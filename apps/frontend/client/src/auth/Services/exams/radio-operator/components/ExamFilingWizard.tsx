@@ -1,6 +1,7 @@
 import React, { useRef } from "react";
 import * as DocumentPicker from "expo-document-picker";
-import { ScrollView, View, Alert } from "react-native";
+import { ScrollView, View, Text, Alert } from "react-native";
+import { COLORS, TYPOGRAPHY } from "@edge/ui";
 import { useExamFilingWizard } from "../hooks/useExamFilingWizard";
 import { ExamSteps1To2 } from "./wizard/ExamSteps1To2";
 import { ExamStep3TypeSelection } from "./wizard/ExamStep3TypeSelection";
@@ -143,8 +144,12 @@ export function ExamFilingWizard(props: ExamFilingWizardProps) {
       }
       props.setStep(props.bulkMethod === "EXCEL" ? 6 : 3);
     } else if (props.step === 3) {
-      if (!wizard.activeApplicant.selectedOption) {
-        Alert.alert("Error", "Please select a certificate/element option.");
+      if (!wizard.activeApplicant.selectedVariantId) {
+        Alert.alert("Error", "Please select an Examinee Type.");
+        return;
+      }
+      if (wizard.variantElements && wizard.variantElements.length > 0 && !wizard.activeApplicant.selectedElementId && !wizard.activeApplicant.selectedOption) {
+        Alert.alert("Error", "Please select an element / option for your exam.");
         return;
       }
       props.setStep(4);
@@ -259,18 +264,87 @@ export function ExamFilingWizard(props: ExamFilingWizardProps) {
     }
   };
 
+  const TOTAL_STEPS = props.appMode === "BULK" ? 7 : 6;
+  const stepLabels: Record<number, string> = {
+    1: "Region, Office & Schedule",
+    2: "Bulk Entry Method",
+    3: "Examinee Type & Elements",
+    4: "Personal Information",
+    5: "Upload Documents",
+    6: "Review & Submit",
+    7: "Confirmed",
+  };
+
   return (
     <View style={styles.container}>
-      <ExamSteps1To2 {...props} {...wizard} step={props.step} handleMockCSVUpload={handleMockCSVUpload} selectedScheduleId={selectedScheduleId} setSelectedScheduleId={setSelectedScheduleId} />
-      <ScrollView ref={scrollViewRef} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} scrollEventThrottle={16} onScroll={handleScroll}>
+      {/* Step Header — matches GeneralServiceWizard design */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <View>
+            <Text style={styles.headerTitle}>
+              {props.serviceName || "Radio Operator Examination"}
+            </Text>
+            <Text style={{
+              fontFamily: TYPOGRAPHY.fonts.primary,
+              fontSize: 12,
+              color: COLORS.neutral[500],
+              marginTop: 2,
+            }}>
+              Step {props.step} of {TOTAL_STEPS} — {stepLabels[props.step] ?? ""}
+            </Text>
+          </View>
+        </View>
+        <View style={styles.progressContainer}>
+          {Array.from({ length: TOTAL_STEPS }, (_, i) => (
+            <View
+              key={i}
+              style={[styles.progressDash, i + 1 <= props.step && styles.progressDashActive]}
+            />
+          ))}
+        </View>
+      </View>
+
+      <ScrollView
+        ref={scrollViewRef}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={handleScroll}
+      >
+        {(props.step === 1 || props.step === 2) && (
+          <ExamSteps1To2
+            {...props}
+            {...wizard}
+            step={props.step}
+            handleMockCSVUpload={handleMockCSVUpload}
+            selectedScheduleId={selectedScheduleId}
+            setSelectedScheduleId={setSelectedScheduleId}
+          />
+        )}
         {props.step === 3 && <ExamStep3TypeSelection {...props} {...wizard} />}
         {props.step === 4 && <ExamStep4Form {...props} {...wizard} handleScrollToSection={handleScrollToSection} sectionOffsets={sectionOffsets} />}
         {props.step === 5 && <ExamStep5Upload {...props} {...wizard} requirementsList={requirementsList} handleDocumentPick={handleDocumentPick} isWeb={false} />}
         {props.step === 6 && <ExamStep6Review {...props} {...wizard} />}
         {props.step === 7 && <ExamStep7Confirmed applicantsCount={props.applicants.length} handleAddAnotherApplicant={handleAddAnotherApplicant} />}
       </ScrollView>
-      <ExamWizardNavigation {...props} {...wizard} isNextDisabled={props.step === 1 ? (!props.selectedRegionId || !props.selectedOfficeId) : props.step === 2 && props.bulkMethod === "EXCEL" ? !props.isFileUploaded : false} handleBack={handleBack} handleNext={handleNext} getNextBtnText={() => props.step === 5 ? "Review" : props.step === 6 ? (props.appMode === "BULK" ? "Confirm" : "Submit") : "Next"} />
-      <ExamWizardModals {...props} {...wizard} applicantsCount={props.applicants.length} handleConfirmCSVImport={handleConfirmCSVImport} handleFinalSubmit={handleFinalSubmit} handleConfirmApplicantInBulk={handleConfirmApplicantInBulk} handleBulkFinalSubmit={handleBulkFinalSubmit} />
+
+      <ExamWizardNavigation
+        {...props}
+        {...wizard}
+        isNextDisabled={props.step === 1 ? (!props.selectedRegionId || !props.selectedOfficeId) : props.step === 2 && props.bulkMethod === "EXCEL" ? !props.isFileUploaded : false}
+        handleBack={handleBack}
+        handleNext={handleNext}
+        getNextBtnText={() => props.step === 5 ? "Review" : props.step === 6 ? (props.appMode === "BULK" ? "Confirm" : "Submit") : "Next"}
+      />
+      <ExamWizardModals
+        {...props}
+        {...wizard}
+        applicantsCount={props.applicants.length}
+        handleConfirmCSVImport={handleConfirmCSVImport}
+        handleFinalSubmit={handleFinalSubmit}
+        handleConfirmApplicantInBulk={handleConfirmApplicantInBulk}
+        handleBulkFinalSubmit={handleBulkFinalSubmit}
+      />
     </View>
   );
 }

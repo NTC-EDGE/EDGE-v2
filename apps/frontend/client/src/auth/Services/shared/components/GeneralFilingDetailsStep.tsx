@@ -1,10 +1,12 @@
 import React from "react";
-import { View, Text, TextInput } from "react-native";
+import { View, Text, TextInput, ActivityIndicator } from "react-native";
 import { COLORS, TYPOGRAPHY } from "@edge/ui";
 import { NTCService } from "../../data/servicesData";
 import { GeneralApplicantData } from "../hooks/useGeneralServiceWizard";
 import { ValidatedInput } from "../../../../shared/components/ValidatedInput";
 import { Select } from "../../../../shared/components/Select";
+import { DynamicFormRenderer } from "../../../../shared/components/DynamicFormRenderer";
+import { useServiceForm } from "../hooks/useServiceForm";
 import {
   RadioOperatorCertForm,
   DeviceRegistrationForm,
@@ -42,11 +44,49 @@ export function GeneralFilingDetailsStep({
   activeApplicant,
   updateActiveApplicant,
 }: GeneralFilingDetailsStepProps) {
+  const { form, loading } = useServiceForm(service?.id, activeApplicant.selectedVariantId);
+
   const serviceCode = (service.code || "").toUpperCase();
   const serviceTitle = (service.title || "").toUpperCase();
   const serviceCategory = (service.category || "").toUpperCase();
 
   const step3AppType = deriveAppTypeFromStep3(activeApplicant.selectedVariantId);
+
+  if (loading) {
+    return (
+      <View style={{ padding: 24, alignItems: "center", justifyContent: "center" }}>
+        <ActivityIndicator size="large" color="#0F2C59" />
+        <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: "#64748B", marginTop: 8 }}>
+          Loading application form layout...
+        </Text>
+      </View>
+    );
+  }
+
+  // Render Dynamic Form from Backend DB configuration when present
+  if (form && form.sections && Array.isArray(form.sections) && form.sections.length > 0) {
+    const valuesRecord: Record<string, string> = {};
+    if (activeApplicant.formFieldValues) {
+      activeApplicant.formFieldValues.forEach((fv) => {
+        valuesRecord[fv.fieldId] = fv.value;
+      });
+    }
+
+    const handleDynamicFieldChange = (fieldId: string, fieldLabel: string, value: string) => {
+      const currentArr = activeApplicant.formFieldValues || [];
+      const filtered = currentArr.filter((item) => item.fieldId !== fieldId);
+      const updatedArr = [...filtered, { fieldId, fieldLabel, value }];
+      updateActiveApplicant({ formFieldValues: updatedArr });
+    };
+
+    return (
+      <DynamicFormRenderer
+        form={form}
+        values={valuesRecord}
+        onChange={handleDynamicFieldChange}
+      />
+    );
+  }
 
   // 1. Lifetime Amateur Radio Station License for Class A
   if (

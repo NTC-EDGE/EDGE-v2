@@ -189,7 +189,7 @@ public static class ServiceEndpoints
     [HasPermission(Permissions.ReadServices)]
     public static async Task<IResult> GetServiceVariants(Guid id, IMediator mediator)
     {
-        var result = await mediator.Send(new GetServiceVariantsQuery(id));
+        var result = await mediator.Send(new GetServiceVariantsQuery(id, 1, 100));
         return Results.Ok(result);
     }
 
@@ -204,6 +204,6 @@ public static class ServiceEndpoints
     public static async Task<IResult> GetServiceFormLayout(Guid id, IMediator mediator)
     {
         var result = await mediator.Send(new GetFormByServiceIdQuery(id));
-        return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
+        return result.Succeeded ? Results.Ok(result) : Results.NotFound(result);
     }
 }

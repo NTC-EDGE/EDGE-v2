@@ -163,90 +163,101 @@ export function ExamSteps1To2({
 
   if (step === 1) {
     return (
-      <View>
-        <Text style={styles.stepSubtitle}>Select from which region you intend to apply:</Text>
+      <View style={{ gap: 16 }}>
+        {/* Region & Office Card */}
+        <View style={styles.formSection}>
+          <Text style={styles.formSectionHeading}>Region & Office Selection</Text>
+          <Text style={styles.stepSubtitle}>Select from which region you intend to apply:</Text>
 
-        <Text style={styles.selectLabel}>Region</Text>
-        <Select
-          placeholder={loadingTenants ? "Loading Regions..." : "Region"}
-          value={selectedRegionId}
-          onValueChange={(val: string) => {
-            setSelectedRegionId(val);
-            setSelectedOfficeId("");
-          }}
-          options={tenants.map((t) => ({ label: t.name, value: t.id }))}
-        />
+          <Text style={styles.selectLabel}>Region</Text>
+          <Select
+            placeholder={loadingTenants ? "Loading Regions..." : "Region"}
+            value={selectedRegionId}
+            onValueChange={(val: string) => {
+              setSelectedRegionId(val);
+              setSelectedOfficeId("");
+            }}
+            options={tenants.map((t) => ({ label: t.name, value: t.id }))}
+          />
 
-        <Text style={styles.selectLabel}>Select Office:</Text>
-        <Select
-          placeholder={loadingOffices ? "Loading Offices..." : "Offices*"}
-          value={selectedOfficeId}
-          onValueChange={(val: string) => setSelectedOfficeId(val)}
-          options={offices.map((o) => ({ label: o.name, value: o.id }))}
-        />
+          <Text style={styles.selectLabel}>Select Office:</Text>
+          <Select
+            placeholder={loadingOffices ? "Loading Offices..." : "Offices*"}
+            value={selectedOfficeId}
+            onValueChange={(val: string) => setSelectedOfficeId(val)}
+            options={offices.map((o) => ({ label: o.name, value: o.id }))}
+          />
+        </View>
 
-        <Text style={styles.selectLabel}>Select how you would like to process your application:</Text>
-        <Select
-          placeholder="Application Mode"
-          value={appMode}
-          onValueChange={(val: string) => setAppMode(val as "SINGLE" | "BULK")}
-          options={[
-            { label: "Single Application", value: "SINGLE" },
-            { label: "Bulk Application", value: "BULK" },
-          ]}
-        />
+        {/* Application Mode Card */}
+        <View style={styles.formSection}>
+          <Text style={styles.formSectionHeading}>Application Mode</Text>
+          <Text style={styles.selectLabel}>Select how you would like to process your application:</Text>
+          <Select
+            placeholder="Application Mode"
+            value={appMode}
+            onValueChange={(val: string) => setAppMode(val as "SINGLE" | "BULK")}
+            options={[
+              { label: "Single Application", value: "SINGLE" },
+              { label: "Bulk Application", value: "BULK" },
+            ]}
+          />
 
-        {appMode === "BULK" && (
-          <View style={[styles.alertContainer, { marginTop: 20 }]}>
-            <Icon name="info" size={16} color={COLORS.brand[700]} />
-            <Text style={styles.alertText}>
-              <Text style={{ fontWeight: "700" }}>Bulk Filing Workflow Mode Engaged{"\n"}</Text>
-              After setting up the regional and office pathways, click Next to choose your document upload workspace method.
-            </Text>
-          </View>
-        )}
+          {appMode === "BULK" && (
+            <View style={[styles.alertContainer, { marginTop: 16 }]}>
+              <Icon name="info" size={16} color={COLORS.brand[700]} />
+              <Text style={styles.alertText}>
+                <Text style={{ fontWeight: "700" }}>Bulk Filing Workflow Mode Engaged{"\n"}</Text>
+                After setting up the regional and office pathways, click Next to choose your document upload workspace method.
+              </Text>
+            </View>
+          )}
+        </View>
 
-        <Text style={styles.scheduleTitle}>Scheduled Dates</Text>
-        {loadingSchedules ? (
-          <Text style={{ marginVertical: 10, color: COLORS.neutral[500] }}>Loading schedules...</Text>
-        ) : schedules.length === 0 ? (
-          <Text style={{ marginVertical: 10, color: COLORS.neutral[500] }}>No schedules available for the selected region.</Text>
-        ) : (
-          schedules.map((sched, index) => {
-            const isSelected = selectedScheduleId === sched.id;
-            const d = new Date(sched.scheduledDate);
-            const dateStr = !isNaN(d.getTime()) 
-              ? d.toLocaleDateString('en-US', { weekday: 'short', day: '2-digit', month: 'long', year: 'numeric' })
-              : sched.scheduledDate;
-            
-            return (
-              <TouchableOpacity
-                key={sched.id || index}
-                onPress={() => setSelectedScheduleId(sched.id)}
-                style={[styles.dateCard, isSelected && styles.dateCardSelected]}
-              >
-                <View style={styles.dateItem}>
-                  <Icon name="calendar" size={16} color={COLORS.brand[600]} />
-                  <Text style={styles.dateText}>DATE: {dateStr}</Text>
-                </View>
-                <View style={styles.dateItem}>
-                  <Icon name="clock" size={16} color={COLORS.brand[600]} />
-                  <Text style={styles.dateText}>TIME: {sched.startTime || 'TBA'} - {sched.endTime || 'TBA'}</Text>
-                </View>
-                <View style={styles.dateItem}>
-                  <Icon name="map-pin" size={16} color={COLORS.brand[600]} />
-                  <Text style={styles.dateText}>VENUE: {sched.venue || "NTC Office"}</Text>
-                </View>
-                {sched.maximumSlots !== null && sched.maximumSlots !== undefined && (
+        {/* Scheduled Dates Card */}
+        <View style={styles.formSection}>
+          <Text style={styles.formSectionHeading}>Scheduled Exam Dates</Text>
+          {loadingSchedules ? (
+            <Text style={{ marginVertical: 10, color: COLORS.neutral[500] }}>Loading schedules...</Text>
+          ) : schedules.length === 0 ? (
+            <Text style={{ marginVertical: 10, color: COLORS.neutral[500] }}>No schedules available for the selected region.</Text>
+          ) : (
+            schedules.map((sched, index) => {
+              const isSelected = selectedScheduleId === sched.id;
+              const d = new Date(sched.scheduledDate);
+              const dateStr = !isNaN(d.getTime())
+                ? d.toLocaleDateString('en-US', { weekday: 'short', day: '2-digit', month: 'long', year: 'numeric' })
+                : sched.scheduledDate;
+
+              return (
+                <TouchableOpacity
+                  key={sched.id || index}
+                  onPress={() => setSelectedScheduleId(sched.id)}
+                  style={[styles.dateCard, isSelected && styles.dateCardSelected]}
+                >
                   <View style={styles.dateItem}>
-                    <Icon name="users" size={16} color={COLORS.brand[600]} />
-                    <Text style={styles.dateText}>SLOTS: {sched.maximumSlots} Maximum Slots</Text>
+                    <Icon name="calendar" size={16} color={COLORS.brand[600]} />
+                    <Text style={styles.dateText}>DATE: {dateStr}</Text>
                   </View>
-                )}
-              </TouchableOpacity>
-            );
-          })
-        )}
+                  <View style={styles.dateItem}>
+                    <Icon name="clock" size={16} color={COLORS.brand[600]} />
+                    <Text style={styles.dateText}>TIME: {sched.startTime || 'TBA'} - {sched.endTime || 'TBA'}</Text>
+                  </View>
+                  <View style={styles.dateItem}>
+                    <Icon name="map-pin" size={16} color={COLORS.brand[600]} />
+                    <Text style={styles.dateText}>VENUE: {sched.venue || "NTC Office"}</Text>
+                  </View>
+                  {sched.maximumSlots !== null && sched.maximumSlots !== undefined && (
+                    <View style={styles.dateItem}>
+                      <Icon name="users" size={16} color={COLORS.brand[600]} />
+                      <Text style={styles.dateText}>SLOTS: {sched.maximumSlots} Maximum Slots</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            })
+          )}
+        </View>
       </View>
     );
   }

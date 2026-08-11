@@ -43,6 +43,17 @@ export function serializeCertificateApplicant(
   const birthDate = `${app.birthYear}-${monthMap[app.birthMonth] || "01"}-${app.birthDay.padStart(2, "0")}`;
   const formFieldValues: FormFieldValuePayload[] = [];
 
+  // Append dynamic form field values if present
+  if (app.formFieldValues && Array.isArray(app.formFieldValues)) {
+    app.formFieldValues.forEach((fv) => {
+      formFieldValues.push({
+        fieldId: fv.fieldId,
+        fieldLabel: fv.fieldLabel,
+        value: fv.value,
+      });
+    });
+  }
+
   // Helper to append field
   const addField = (label: string, val: string) => {
     const matched = formFields.find(

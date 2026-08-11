@@ -48,6 +48,7 @@ export interface GeneralApplicantData {
   notes: string;
   selectedVariantId?: string;
   uploads: Record<string, { name: string; uri: string } | string>;
+  formFieldValues?: Array<{ fieldId: string; fieldLabel: string; value: string }>;
   // Specialized Certificate & License Models
   radioCertData?: RadioOperatorCertData;
   deviceRegData?: DeviceRegistrationData;
@@ -183,9 +184,9 @@ export function useGeneralServiceWizard(
       try {
         setLoadingElements(true);
         const elRes = await api
-          .get<any>(`/api/v2/services/${service.id}/variants/${activeVariantId}/elements`)
+          .get<any>(`/api/v2/service-variant-elements?serviceVariantId=${activeVariantId}`)
           .catch(async () => {
-            return await api.get<any>(`/api/v2/variants/${activeVariantId}/elements`).catch(() => null);
+            return await api.get<any>(`/api/v2/services/${service.id}/variants/${activeVariantId}/elements`).catch(() => null);
           });
 
         if (active) {
