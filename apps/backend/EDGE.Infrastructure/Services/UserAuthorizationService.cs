@@ -101,9 +101,13 @@ public class UserAuthorizationService : IUserAuthorizationService
         var user = await GetCurrentUserAsync(cancellationToken);
         if (user == null) return false;
 
-        if (user.IsSuperAdmin && role.Equals("superadmin", StringComparison.OrdinalIgnoreCase))
+        if (user.IsSuperAdmin)
         {
-            return true;
+            var normalizedRole = role.Replace("_", "").Replace("-", "").Trim();
+            if (normalizedRole.Equals("superadmin", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
         }
 
         var tenantId = _tenantContextService.TenantId;

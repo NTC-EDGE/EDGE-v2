@@ -8,8 +8,17 @@ export interface AdminUpdateUserRequest {
   isSuperAdmin?: boolean;
 }
 
+export interface CurrentUserProfile {
+  id: string;
+  authUserId: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  isSuperAdmin: boolean;
+}
+
 export function useUserService() {
-  const { useQuery, put, del } = useApi();
+  const { useQuery, put, patch, del } = useApi();
 
   const useUsers = () => {
     return useQuery<User[]>('/api/v2/users');
@@ -17,6 +26,10 @@ export function useUserService() {
 
   const useUser = (id: string | null) => {
     return useQuery<User>(id !== null && id.length > 0 ? `/api/v2/users/${id}` : null);
+  };
+
+  const useCurrentUserProfile = () => {
+    return useQuery<CurrentUserProfile>('/api/v2/users/me');
   };
 
   /**
@@ -27,6 +40,13 @@ export function useUserService() {
     return put<User, AdminUpdateUserRequest>(`/api/v2/users/${id}`, { id, ...data });
   };
 
+  /**
+   * Updates SuperAdmin status via PATCH /api/v2/users/{id}/super-admin
+   */
+  const updateUserSuperAdmin = async (id: string, isSuperAdmin: boolean): Promise<User> => {
+    return patch<User, { isSuperAdmin: boolean }>(`/api/v2/users/${id}/super-admin`, { isSuperAdmin });
+  };
+
   const deleteUser = async (id: string): Promise<void> => {
     return del<void>(`/api/v2/users/${id}`);
   };
@@ -34,7 +54,9 @@ export function useUserService() {
   return {
     useUsers,
     useUser,
+    useCurrentUserProfile,
     updateUser,
+    updateUserSuperAdmin,
     deleteUser,
   };
 }
