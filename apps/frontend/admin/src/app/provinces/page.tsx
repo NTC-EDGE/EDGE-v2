@@ -183,12 +183,12 @@ export default function ProvincesPage() {
       )}
 
       {/* Header section */}
-      <div className="p-5 md:p-6 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-900/90 to-indigo-950/60 border border-slate-800 shadow-xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none"><Building className="w-64 h-64 text-indigo-400" /></div>
+      <div className="p-5 md:p-6 rounded-2xl bg-white dark:bg-gradient-to-r dark:from-slate-900 dark:via-slate-900/90 dark:to-indigo-950/60 border border-slate-200 dark:border-slate-800 shadow-md dark:shadow-xl relative overflow-hidden transition-colors duration-200">
+        <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none"><Building className="w-64 h-64 text-indigo-600 dark:text-indigo-400" /></div>
         <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">Provinces Directory</h1>
-            <p className="text-sm text-slate-400 mt-1 max-w-2xl">Configure provinces mapped to regional administrative boundaries.</p>
+            <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Provinces Directory</h1>
+            <p className="text-sm text-slate-600 dark:text-slate-400 mt-1 max-w-2xl">Configure provinces mapped to regional administrative boundaries.</p>
           </div>
           <Button onClick={() => setIsCreateOpen(true)} className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-5 py-2.5 rounded-xl shadow-lg flex items-center gap-2 shrink-0">
             <Plus className="w-4 h-4" />
@@ -198,35 +198,35 @@ export default function ProvincesPage() {
       </div>
 
       {/* Search and Filters */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow-xl">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl shadow-sm dark:shadow-xl transition-colors duration-200">
         <div className="flex flex-wrap gap-2">
           <select
             value={selectedRegionFilter}
             onChange={(e) => setSelectedRegionFilter(e.target.value)}
-            className="px-4 py-2 text-xs font-semibold rounded-xl bg-slate-950 border border-slate-800 text-slate-350 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="px-4 py-2 text-xs font-semibold rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
-            <option value="">Filter by Region (All)</option>
+            <option value="" className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">Filter by Region (All)</option>
             {regions.map((r) => (
-              <option key={r.id} value={r.id}>
+              <option key={r.id} value={r.id} className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">
                 {r.code} - {r.name}
               </option>
             ))}
           </select>
-          <button onClick={() => setActiveFilter("all")} className={`px-4 py-2 text-xs font-semibold rounded-xl transition-all ${activeFilter === "all" ? "bg-indigo-600 text-white" : "text-slate-400 hover:text-white"}`}>All Provinces</button>
-          <button onClick={() => setActiveFilter("active")} className={`px-4 py-2 text-xs font-semibold rounded-xl transition-all ${activeFilter === "active" ? "bg-indigo-600 text-white" : "text-slate-400 hover:text-white"}`}>Active Only</button>
-          <button onClick={() => setActiveFilter("inactive")} className={`px-4 py-2 text-xs font-semibold rounded-xl transition-all ${activeFilter === "inactive" ? "bg-indigo-600 text-white" : "text-slate-400 hover:text-white"}`}>Inactive Only</button>
+          <button onClick={() => setActiveFilter("all")} className={`px-4 py-2 text-xs font-semibold rounded-xl transition-all ${activeFilter === "all" ? "bg-indigo-600 text-white shadow-sm" : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"}`}>All Provinces</button>
+          <button onClick={() => setActiveFilter("active")} className={`px-4 py-2 text-xs font-semibold rounded-xl transition-all ${activeFilter === "active" ? "bg-indigo-600 text-white shadow-sm" : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"}`}>Active Only</button>
+          <button onClick={() => setActiveFilter("inactive")} className={`px-4 py-2 text-xs font-semibold rounded-xl transition-all ${activeFilter === "inactive" ? "bg-indigo-600 text-white shadow-sm" : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"}`}>Inactive Only</button>
         </div>
         <div className="relative w-full md:w-80">
-          <Search className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-500" />
-          <input type="text" placeholder="Search provinces..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none" />
+          <Search className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400 dark:text-slate-500" />
+          <input type="text" placeholder="Search provinces..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
         </div>
       </div>
 
       {/* Error state */}
       {!!error && isForbiddenError(error) && <PageForbiddenState />}
       {!!error && !isForbiddenError(error) && (
-        <div className="text-center py-16 px-4 bg-slate-900 border border-slate-800 rounded-2xl">
-          <p className="text-sm font-semibold text-red-500">Failed to load provinces database.</p>
+        <div className="text-center py-16 px-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl">
+          <p className="text-sm font-semibold text-rose-500">Failed to load provinces database.</p>
           <Button onClick={() => mutate()} className="mt-4" size="sm" variant="outline">Retry</Button>
         </div>
       )}

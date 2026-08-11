@@ -4,11 +4,21 @@ import { Fee, ServiceFee, Note, Element, ServiceVariant, ServiceVariantFee, Serv
 export interface ServiceCatalogItem {
   id: string;
   name: string;
+  serviceCategoryId?: string;
 }
 
 export interface ServiceCategoryItem {
   id: string;
   name: string;
+}
+
+export interface ServiceVariantElement {
+  id: string;
+  serviceVariantId: string;
+  serviceVariantDescription?: string | null;
+  code: string;
+  description: string;
+  createdAt?: string;
 }
 
 export interface PaginatedApiResponse<T> {
@@ -22,7 +32,7 @@ export interface PaginatedApiResponse<T> {
 }
 
 
-export function useFeesNotesService() {
+export function useFeesService() {
   const { useQuery, post, put, patch, del } = useApi();
 
   // --- FEES CRUD ---
@@ -226,6 +236,46 @@ export function useFeesNotesService() {
     await del<void>(`/api/v2/notes/${id}`);
   };
 
+  // --- SERVICE VARIANT ELEMENTS CRUD ---
+  const useServiceVariantElements = (
+    serviceVariantId?: string | null,
+    serviceId?: string | null,
+    pageNumber = 1,
+    pageSize = 50,
+    searchTerm?: string,
+    enabled = true
+  ) => {
+    let url: string | null = null;
+    if (enabled) {
+      const params = new URLSearchParams();
+      if (serviceId) params.append('serviceId', serviceId);
+      if (serviceVariantId) params.append('serviceVariantId', serviceVariantId);
+      params.append('pageNumber', pageNumber.toString());
+      params.append('pageSize', pageSize.toString());
+      if (searchTerm) params.append('searchTerm', searchTerm);
+      url = `/api/v2/service-variant-elements?${params.toString()}`;
+    }
+    const query = useQuery<PaginatedApiResponse<ServiceVariantElement>>(url);
+    return {
+      ...query,
+      data: query.data?.data !== undefined && query.data?.data !== null ? query.data.data : [],
+      totalCount: query.data?.totalCount ?? 0,
+      totalPages: query.data?.totalPages ?? 0
+    };
+  };
+
+  const createServiceVariantElement = async (data: { serviceVariantId: string; code: string; description: string }): Promise<ServiceVariantElement> => {
+    return await post<ServiceVariantElement, { serviceVariantId: string; code: string; description: string }>('/api/v2/service-variant-elements', data);
+  };
+
+  const updateServiceVariantElement = async (id: string, data: { code: string; description: string }): Promise<ServiceVariantElement> => {
+    return await put<ServiceVariantElement, { id: string; code: string; description: string }>(`/api/v2/service-variant-elements/${id}`, { id, ...data });
+  };
+
+  const deleteServiceVariantElement = async (id: string): Promise<void> => {
+    await del<void>(`/api/v2/service-variant-elements/${id}`);
+  };
+
   return {
     useFees,
     createFee,
@@ -252,15 +302,19 @@ export function useFeesNotesService() {
     createNote,
     updateNote,
     deleteNote,
+    useServiceVariantElements,
+    createServiceVariantElement,
+    updateServiceVariantElement,
+    deleteServiceVariantElement,
     useServices: (enabled = true) => {
-      const query = useQuery<{ succeeded: boolean; data: ServiceCatalogItem[] }>(enabled ? '/api/v2/services' : null);
+      const query = useQuery<{ succeeded: boolean; data: ServiceCatalogItem[] }>(enabled ? '/api/v2/services?pageSize=9999' : null);
       return {
         ...query,
         data: query.data?.data !== undefined && query.data?.data !== null ? query.data.data : []
       };
     },
-    useServiceVariants: (serviceId: string) => {
-      const query = useQuery<{ succeeded: boolean; data: ServiceVariant[] }>(serviceId ? `/api/v2/services/${serviceId}/variants` : null);
+    useServiceVariants: (serviceId: string, enabled = true) => {
+      const query = useQuery<{ succeeded: boolean; data: ServiceVariant[] }>((enabled && serviceId) ? `/api/v2/services/${serviceId}/variants` : null);
       return {
         ...query,
         data: query.data?.data !== undefined && query.data?.data !== null ? query.data.data : []

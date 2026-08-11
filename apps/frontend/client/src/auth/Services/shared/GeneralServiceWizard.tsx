@@ -33,6 +33,12 @@ interface GeneralServiceWizardProps {
   setSelectedOfficeId: (id: string) => void;
   appMode: "SINGLE" | "BULK" | "";
   setAppMode: (mode: "SINGLE" | "BULK" | "") => void;
+  bulkMethod?: "MANUAL" | "EXCEL";
+  setBulkMethod?: (method: "MANUAL" | "EXCEL") => void;
+  isFileUploaded?: boolean;
+  setIsFileUploaded?: (val: boolean) => void;
+  uploadedFileName?: string;
+  setUploadedFileName?: (name: string) => void;
   applicants: GeneralApplicantData[];
   setApplicants: React.Dispatch<React.SetStateAction<GeneralApplicantData[]>>;
   currentApplicantIndex: number;
@@ -53,6 +59,12 @@ export function GeneralServiceWizard({
   setSelectedOfficeId,
   appMode,
   setAppMode,
+  bulkMethod: propBulkMethod,
+  setBulkMethod: propSetBulkMethod,
+  isFileUploaded: propIsFileUploaded,
+  setIsFileUploaded: propSetIsFileUploaded,
+  uploadedFileName: propUploadedFileName,
+  setUploadedFileName: propSetUploadedFileName,
   applicants,
   setApplicants,
   currentApplicantIndex,
@@ -60,6 +72,17 @@ export function GeneralServiceWizard({
 }: GeneralServiceWizardProps) {
   const { width } = useWindowDimensions();
   const isWeb = width > 768;
+
+  const [localBulkMethod, setLocalBulkMethod] = useState<"MANUAL" | "EXCEL">("MANUAL");
+  const [localIsFileUploaded, setLocalIsFileUploaded] = useState(false);
+  const [localUploadedFileName, setLocalUploadedFileName] = useState("");
+
+  const bulkMethod = propBulkMethod !== undefined ? propBulkMethod : localBulkMethod;
+  const setBulkMethod = propSetBulkMethod !== undefined ? propSetBulkMethod : setLocalBulkMethod;
+  const isFileUploaded = propIsFileUploaded !== undefined ? propIsFileUploaded : localIsFileUploaded;
+  const setIsFileUploaded = propSetIsFileUploaded !== undefined ? propSetIsFileUploaded : setLocalIsFileUploaded;
+  const uploadedFileName = propUploadedFileName !== undefined ? propUploadedFileName : localUploadedFileName;
+  const setUploadedFileName = propSetUploadedFileName !== undefined ? propSetUploadedFileName : setLocalUploadedFileName;
 
 
   const {
@@ -140,6 +163,12 @@ export function GeneralServiceWizard({
           offices={offices}
           appMode={appMode}
           setAppMode={setAppMode}
+          bulkMethod={bulkMethod}
+          setBulkMethod={setBulkMethod}
+          isFileUploaded={isFileUploaded}
+          setIsFileUploaded={setIsFileUploaded}
+          uploadedFileName={uploadedFileName}
+          setUploadedFileName={setUploadedFileName}
           setApplicants={setApplicants}
           setCurrentApplicantIndex={setCurrentApplicantIndex}
           activeApplicant={activeApplicant}

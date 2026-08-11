@@ -15,7 +15,7 @@ public class CreateServiceCommandValidator : AbstractValidator<CreateServiceComm
 
         RuleFor(x => x.Name)
             .NotEmpty().WithMessage("Service Name is required.")
-            .MaximumLength(150).WithMessage("Service Name must not exceed 150 characters.");
+            .MaximumLength(500).WithMessage("Service Name must not exceed 500 characters.");
 
         RuleFor(x => x.Code)
             .MaximumLength(50).WithMessage("Service Code must not exceed 50 characters.")

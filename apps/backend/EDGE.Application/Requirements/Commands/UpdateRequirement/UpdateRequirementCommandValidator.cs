@@ -12,7 +12,7 @@ public class UpdateRequirementCommandValidator : AbstractValidator<UpdateRequire
 
         RuleFor(x => x.Name)
             .NotEmpty().WithMessage("Name is required.")
-            .MaximumLength(150).WithMessage("Name must not exceed 150 characters.")
+            .MaximumLength(500).WithMessage("Name must not exceed 500 characters.")
             .MustAsync(async (model, name, token) => await repository.IsNameUniqueAsync(name, model.Id, token))
             .WithMessage("Requirement Name must be unique.");
 

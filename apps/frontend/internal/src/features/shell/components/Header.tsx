@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Text,
   View,
+  ViewStyle,
 } from 'react-native';
 import {
   COLORS,
@@ -97,7 +98,7 @@ export function Header({
   onMenuPress,
   onNavigate,
 }: HeaderProps) {
-  const { isDark } = useTheme();
+  const { colors, isDark } = useTheme();
   const [profileOpen, setProfileOpen] = useState(false);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
 
@@ -109,22 +110,52 @@ export function Header({
   // Unread notifications mock count
   const notifCount = 3;
 
-  const dropdownBg = isDark ? '#1E293B' : '#FFFFFF';
-  const dropdownBorder = isDark ? '#334155' : '#E2E8F0';
-  const dropdownText = isDark ? '#CBD5E1' : '#334155';
+  const dropdownBg = isDark ? colors.neutral[900] : colors.cardBg;
+  const dropdownBorder = isDark ? colors.neutral[800] : colors.border;
+  const dropdownText = colors.text;
+
+  const headerBorderColor = isDark ? 'rgba(255,255,255,0.08)' : colors.border;
+  const iconColor = isDark ? COLORS.neutral.white : colors.text;
+  const iconBtnBg = isDark ? 'rgba(255,255,255,0.07)' : colors.neutral[100];
+  const breadcrumbGroupColor = isDark ? 'rgba(255,255,255,0.45)' : colors.textMuted;
+  const breadcrumbChevronColor = isDark ? 'rgba(255,255,255,0.4)' : colors.textMuted;
+  const breadcrumbScreenColor = isDark ? 'rgba(255,255,255,0.85)' : colors.text;
+  const dividerColor = isDark ? 'rgba(255,255,255,0.15)' : colors.border;
+  const avatarBg = isDark ? 'rgba(255,255,255,0.15)' : colors.brand[100];
+  const avatarBorder = isDark ? 'rgba(255,255,255,0.25)' : colors.brand[300];
+  const avatarTextColor = isDark ? '#FFFFFF' : colors.brand[700];
+  const nameColor = isDark ? '#FFFFFF' : colors.text;
+  const roleColor = isDark ? 'rgba(255,255,255,0.55)' : colors.textMuted;
+  const chevronColor = isDark ? 'rgba(255,255,255,0.5)' : colors.textMuted;
+
+  const headerDynamicStyle: ViewStyle = Platform.select({
+    web: {
+      backgroundImage: isDark
+        ? `linear-gradient(to right, #0E1B61 0%, #1E3A8A 50%, #1E293B 100%)`
+        : `linear-gradient(to right, #FFFFFF 0%, #F8FAFC 50%, #EFF6FF 100%)`,
+      boxShadow: isDark ? '0 1px 3px 0 rgba(0,0,0,0.25)' : '0 1px 3px 0 rgba(0,0,0,0.05)',
+      borderBottomColor: headerBorderColor,
+      flexShrink: 0,
+    },
+    default: {
+      backgroundColor: isDark ? '#1E3A8A' : colors.cardBg,
+      borderBottomColor: headerBorderColor,
+    },
+  }) as ViewStyle;
 
   return (
     <View
       style={[
         styles.header,
+        headerDynamicStyle,
         isMobile && styles.headerMobile,
       ]}
     >
       {/* ── Left: Hamburger (mobile) + Logo ─────────────────────────────── */}
       <View style={styles.left}>
         {isMobile && onMenuPress !== undefined && (
-          <Pressable onPress={onMenuPress} style={styles.iconBtn}>
-            <Lucide name="menu" size={18} color={COLORS.neutral.white} />
+          <Pressable onPress={onMenuPress} style={[styles.iconBtn, { backgroundColor: iconBtnBg }]}>
+            <Lucide name="menu" size={18} color={iconColor} />
           </Pressable>
         )}
         <Image
@@ -137,13 +168,13 @@ export function Header({
       {/* ── Center: Breadcrumb ───────────────────────────────────────────── */}
       {!isMobile && breadcrumb !== null && (
         <View style={styles.breadcrumb} pointerEvents="none">
-          <Text style={styles.breadcrumbGroup}>{breadcrumb.group}</Text>
+          <Text style={[styles.breadcrumbGroup, { color: breadcrumbGroupColor }]}>{breadcrumb.group}</Text>
           <Lucide
             name="chevron-right"
             size={12}
-            color="rgba(255,255,255,0.4)"
+            color={breadcrumbChevronColor}
           />
-          <Text style={styles.breadcrumbScreen}>{breadcrumb.screen}</Text>
+          <Text style={[styles.breadcrumbScreen, { color: breadcrumbScreenColor }]}>{breadcrumb.screen}</Text>
         </View>
       )}
 
@@ -154,8 +185,8 @@ export function Header({
 
         {/* Notifications bell */}
         <View style={styles.bellWrap}>
-          <Pressable style={styles.iconBtn}>
-            <Lucide name="bell" size={16} color={COLORS.neutral.white} />
+          <Pressable style={[styles.iconBtn, { backgroundColor: iconBtnBg }]}>
+            <Lucide name="bell" size={16} color={iconColor} />
           </Pressable>
           {notifCount > 0 && (
             <View style={styles.badge}>
@@ -167,7 +198,7 @@ export function Header({
         </View>
 
         {/* Vertical divider */}
-        <View style={styles.divider} />
+        <View style={[styles.divider, { backgroundColor: dividerColor }]} />
 
         {/* Profile */}
         {!isMobile ? (
@@ -176,21 +207,21 @@ export function Header({
               onPress={() => setProfileOpen((v) => !v)}
               style={styles.profileBtn}
             >
-              <View style={styles.profileAvatar}>
-                <Text style={styles.profileAvatarText}>{initials}</Text>
+              <View style={[styles.profileAvatar, { backgroundColor: avatarBg, borderColor: avatarBorder }]}>
+                <Text style={[styles.profileAvatarText, { color: avatarTextColor }]}>{initials}</Text>
               </View>
               <View style={styles.profileInfo}>
-                <Text style={styles.profileName} numberOfLines={1}>
+                <Text style={[styles.profileName, { color: nameColor }]} numberOfLines={1}>
                   {profileName}
                 </Text>
-                <Text style={styles.profileRole} numberOfLines={1}>
+                <Text style={[styles.profileRole, { color: roleColor }]} numberOfLines={1}>
                   {currentRole}
                 </Text>
               </View>
               <Lucide
                 name={profileOpen ? 'chevron-up' : 'chevron-down'}
                 size={13}
-                color="rgba(255,255,255,0.5)"
+                color={chevronColor}
               />
             </Pressable>
 
@@ -294,8 +325,8 @@ export function Header({
               }
             }}
           >
-            <View style={[styles.profileAvatar, styles.profileAvatarMobile]}>
-              <Text style={styles.profileAvatarText}>{initials}</Text>
+            <View style={[styles.profileAvatar, styles.profileAvatarMobile, { backgroundColor: avatarBg, borderColor: avatarBorder }]}>
+              <Text style={[styles.profileAvatarText, { color: avatarTextColor }]}>{initials}</Text>
             </View>
           </Pressable>
         )}
@@ -321,16 +352,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255,255,255,0.08)',
     gap: SPACING[12],
-    ...Platform.select({
-      web: {
-        backgroundImage: `linear-gradient(to right, #0E1B61 0%, #1E3A8A 50%, #2563EB 100%)`,
-        boxShadow: '0 1px 3px 0 rgba(0,0,0,0.15)',
-        flexShrink: 0,
-      },
-      default: {
-        backgroundColor: '#1E3A8A',
-      },
-    }),
   },
   headerMobile: {
     paddingHorizontal: SPACING[12],
@@ -360,13 +381,11 @@ const styles = StyleSheet.create({
   breadcrumbGroup: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: TYPOGRAPHY.sizes.caption,
-    color: 'rgba(255,255,255,0.45)',
     fontWeight: TYPOGRAPHY.weights.medium,
   },
   breadcrumbScreen: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: TYPOGRAPHY.sizes.caption,
-    color: 'rgba(255,255,255,0.85)',
     fontWeight: TYPOGRAPHY.weights.semibold,
   },
   right: {
@@ -381,7 +400,6 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.sm,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.07)',
     ...Platform.select({
       web: {
         cursor: 'pointer',
@@ -414,7 +432,6 @@ const styles = StyleSheet.create({
   divider: {
     width: 1,
     height: 20,
-    backgroundColor: 'rgba(255,255,255,0.15)',
     marginHorizontal: 4,
   },
   profileBtn: {
@@ -435,9 +452,7 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: RADIUS.sm,
-    backgroundColor: 'rgba(255,255,255,0.15)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.25)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -450,7 +465,6 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 11,
     fontWeight: TYPOGRAPHY.weights.bold,
-    color: '#FFFFFF',
   },
   profileInfo: {
     alignItems: 'flex-start',
@@ -459,14 +473,12 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 12,
     fontWeight: TYPOGRAPHY.weights.semibold,
-    color: '#FFFFFF',
     maxWidth: 100,
   },
   profileRole: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 10,
     fontWeight: TYPOGRAPHY.weights.regular,
-    color: 'rgba(255,255,255,0.55)',
   },
   dropdown: {
     position: 'absolute',
@@ -510,3 +522,4 @@ const styles = StyleSheet.create({
     fontWeight: TYPOGRAPHY.weights.medium,
   },
 });
+

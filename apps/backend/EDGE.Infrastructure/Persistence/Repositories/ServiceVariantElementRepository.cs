@@ -36,6 +36,30 @@ public class ServiceVariantElementRepository : IServiceVariantElementRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<List<ServiceVariantElement>> GetAllAsync(
+        Guid? serviceId,
+        Guid? serviceVariantId,
+        CancellationToken cancellationToken = default)
+    {
+        var query = _context.ServiceVariantElements
+            .Include(e => e.ServiceVariant)
+            .AsQueryable();
+
+        if (serviceId.HasValue)
+        {
+            query = query.Where(e => e.ServiceVariant != null && e.ServiceVariant.ServiceId == serviceId.Value);
+        }
+
+        if (serviceVariantId.HasValue)
+        {
+            query = query.Where(e => e.ServiceVariantId == serviceVariantId.Value);
+        }
+
+        return await query
+            .OrderBy(e => e.Code)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task AddAsync(
         ServiceVariantElement element,
         CancellationToken cancellationToken = default)

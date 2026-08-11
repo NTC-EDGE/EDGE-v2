@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { FileText } from "lucide-react";
+import { FileText, Calendar } from "lucide-react";
 import { UserDiagnosticDetails } from "@edge/api";
 import { DataTable, ColumnDef } from "@/components/ui/data-table";
 
@@ -9,12 +9,32 @@ interface AuditTabProps {
 
 type LoginLog = UserDiagnosticDetails["loginHistory"][number];
 
+function formatLogTimestamp(ts?: string): string {
+  if (!ts) return "Recent";
+  const date = new Date(ts);
+  if (isNaN(date.getTime())) return ts;
+  return date.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+  });
+}
+
 export function AuditTab({ diagnosticData }: AuditTabProps) {
   const columns = useMemo<ColumnDef<LoginLog>[]>(() => [
     {
       header: "Timestamp",
       id: "timestamp",
-      cell: (item) => <span className="font-mono text-slate-400">{item.timestamp}</span>,
+      cell: (item) => (
+        <div className="flex items-center gap-1.5 whitespace-nowrap text-xs font-mono text-slate-400">
+          <Calendar className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+          <span>{formatLogTimestamp(item.timestamp)}</span>
+        </div>
+      ),
     },
     {
       header: "Outcome",
@@ -35,23 +55,23 @@ export function AuditTab({ diagnosticData }: AuditTabProps) {
       header: "IP & Location",
       id: "ipLocation",
       cell: (item) => (
-        <>
-          <div className="font-mono text-white">{item.ipAddress}</div>
-          <div className="text-[10px] text-slate-500">{item.location}</div>
-        </>
+        <div>
+          <div className="font-mono text-white text-xs">{item.ipAddress}</div>
+          <div className="text-[10px] text-slate-400">{item.location}</div>
+        </div>
       ),
     },
     {
       header: "Device / Agent",
       id: "deviceInfo",
-      cell: (item) => <span className="text-slate-300">{item.deviceInfo}</span>,
+      cell: (item) => <span className="text-slate-300 text-xs">{item.deviceInfo}</span>,
     },
     {
       header: "Failure Reason / Notes",
       id: "failureReason",
       cell: (item) => (
-        <span className="text-slate-400">
-          {item.failureReason ?? <span className="text-slate-600">N/A</span>}
+        <span className="text-slate-400 text-xs">
+          {item.failureReason ?? <span className="text-slate-600">None</span>}
         </span>
       ),
     },

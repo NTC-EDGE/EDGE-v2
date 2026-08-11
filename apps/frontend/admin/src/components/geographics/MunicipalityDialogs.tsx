@@ -64,24 +64,24 @@ export function CreateMunicipalityDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-slate-900 border-slate-800 text-white">
+      <DialogContent className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white">
         <DialogHeader>
-          <DialogTitle>Add New City/Municipality</DialogTitle>
-          <DialogDescription className="text-slate-400 text-xs">
+          <DialogTitle className="text-slate-900 dark:text-white">Add New City/Municipality</DialogTitle>
+          <DialogDescription className="text-slate-600 dark:text-slate-400 text-xs">
             Define a new city or municipality scoped under a province.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 py-2">
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-slate-300">Province Scope</label>
+            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Province Scope</label>
             <select
               value={provinceId}
               onChange={(e) => setProvinceId(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-850 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+              className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
             >
               {provinces.map((p) => (
-                <option key={p.id} value={p.id} className="bg-slate-950">
+                <option key={p.id} value={p.id} className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">
                   {p.code} - {p.name}
                 </option>
               ))}
@@ -89,24 +89,24 @@ export function CreateMunicipalityDialog({
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-slate-300">Municipality Code</label>
+            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Municipality Code</label>
             <input
               type="text"
               placeholder="e.g. MAL"
               value={code}
               onChange={(e) => setCode(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-850 text-white placeholder-slate-650 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+              className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-slate-300">Municipality Name</label>
+            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Municipality Name</label>
             <input
               type="text"
               placeholder="e.g. Malaybalay"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-850 text-white placeholder-slate-650 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+              className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
             />
           </div>
 
@@ -117,7 +117,7 @@ export function CreateMunicipalityDialog({
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
-              className="border-slate-800 text-slate-300 hover:bg-slate-800 hover:text-white"
+              className="border-slate-300 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
             >
               Cancel
             </Button>
@@ -189,24 +189,24 @@ export function EditMunicipalityDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-slate-900 border-slate-800 text-white">
+      <DialogContent className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white">
         <DialogHeader>
-          <DialogTitle>Edit City/Municipality</DialogTitle>
-          <DialogDescription className="text-slate-400 text-xs">
+          <DialogTitle className="text-slate-900 dark:text-white">Edit City/Municipality</DialogTitle>
+          <DialogDescription className="text-slate-600 dark:text-slate-400 text-xs">
             Modify parameters for city or municipality configuration.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 py-2">
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-slate-300">Province Scope</label>
+            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Province Scope</label>
             <select
               value={provinceId}
               onChange={(e) => setProvinceId(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-850 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+              className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
             >
               {provinces.map((p) => (
-                <option key={p.id} value={p.id} className="bg-slate-950">
+                <option key={p.id} value={p.id} className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">
                   {p.code} - {p.name}
                 </option>
               ))}
@@ -214,22 +214,22 @@ export function EditMunicipalityDialog({
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-slate-300">Municipality Code</label>
+            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Municipality Code</label>
             <input
               type="text"
               value={code}
               onChange={(e) => setCode(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-850 text-white placeholder-slate-650 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+              className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-slate-300">Municipality Name</label>
+            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Municipality Name</label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-850 text-white placeholder-slate-650 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+              className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
             />
           </div>
 
@@ -240,7 +240,7 @@ export function EditMunicipalityDialog({
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
-              className="border-slate-800 text-slate-300 hover:bg-slate-800 hover:text-white"
+              className="border-slate-300 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
             >
               Cancel
             </Button>

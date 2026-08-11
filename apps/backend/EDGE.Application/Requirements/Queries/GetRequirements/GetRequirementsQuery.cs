@@ -5,4 +5,8 @@ using EDGE.Application.Requirements.Dtos;
 
 namespace EDGE.Application.Requirements.Queries.GetRequirements;
 
-public record GetRequirementsQuery : IRequest<ApiResponse<List<RequirementDto>>>;
+public record GetRequirementsQuery(
+    int? PageNumber = 1,
+    int? PageSize = 10,
+    string? SearchTerm = null
+) : IRequest<PaginatedApiResponse<RequirementDto>>;

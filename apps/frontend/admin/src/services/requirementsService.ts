@@ -7,16 +7,44 @@ export interface ServiceCatalogItem {
   code: string;
 }
 
+export interface PaginatedApiResponse<T> {
+  succeeded: boolean;
+  message?: string;
+  data: T[];
+  pageNumber: number;
+  pageSize: number;
+  totalPages: number;
+  totalCount: number;
+}
+
 export function useRequirementsService() {
-  const { useQuery, post, put, del } = useApi();
+  const { useQuery, get, post, put, del } = useApi();
 
   // --- REQUIREMENTS CRUD ---
-  const useRequirements = () => {
-    const query = useQuery<{ succeeded: boolean; data: Requirement[] }>('/api/v2/requirements');
+  const useRequirements = (
+    pageNumber = 1,
+    pageSize = 50,
+    searchTerm?: string,
+    enabled = true
+  ) => {
+    const params = new URLSearchParams();
+    params.append('pageNumber', pageNumber.toString());
+    params.append('pageSize', pageSize.toString());
+    if (searchTerm !== undefined && searchTerm !== null && searchTerm.trim().length > 0) {
+      params.append('searchTerm', searchTerm.trim());
+    }
+    const endpoint = `/api/v2/requirements?${params.toString()}`;
+    const query = useQuery<PaginatedApiResponse<Requirement>>(enabled ? endpoint : null);
     return {
       ...query,
-      data: query.data?.data !== undefined && query.data?.data !== null ? query.data.data : []
+      data: query.data?.data !== undefined && query.data?.data !== null ? query.data.data : [],
+      totalCount: query.data?.totalCount || 0
     };
+  };
+
+  const getRequirementById = async (id: string): Promise<Requirement> => {
+    const response = await get<{ succeeded: boolean; data: Requirement }>(`/api/v2/requirements/${id}`);
+    return response.data;
   };
 
   const createRequirement = async (data: Omit<Requirement, 'id'>): Promise<Requirement> => {
@@ -34,12 +62,12 @@ export function useRequirementsService() {
   };
 
   // --- SERVICE VARIANT REQUIREMENTS CRUD ---
-  const useServiceVariantRequirements = (serviceVariantId?: string) => {
+  const useServiceVariantRequirements = (serviceVariantId?: string, enabled = true) => {
     const endpoint = serviceVariantId 
       ? `/api/v2/service-variant-requirements?serviceVariantId=${serviceVariantId}` 
       : '/api/v2/service-variant-requirements';
     
-    const query = useQuery<{ succeeded: boolean; data: ServiceVariantRequirement[] }>(endpoint);
+    const query = useQuery<{ succeeded: boolean; data: ServiceVariantRequirement[] }>(enabled ? endpoint : null);
     return {
       ...query,
       data: query.data?.data !== undefined && query.data?.data !== null ? query.data.data : []
@@ -79,21 +107,35 @@ export function useRequirementsService() {
 
   // --- SERVICES & VARIANTS QUERY ---
   const useServices = () => {
-    const query = useQuery<{ succeeded: boolean; data: ServiceCatalogItem[] }>('/api/v2/services');
+    const query = useQuery<{ succeeded: boolean; data: ServiceCatalogItem[] }>('/api/v2/services?pageSize=9999');
     return {
       ...query,
       data: query.data?.data !== undefined && query.data?.data !== null ? query.data.data : []
     };
   };
 
-  const useServiceVariants = (serviceId?: string | null) => {
-    const endpoint = serviceId 
-      ? `/api/v2/service-variants?serviceId=${serviceId}` 
-      : '/api/v2/service-variants';
-    const query = useQuery<{ succeeded: boolean; data: ServiceVariant[] }>(endpoint);
+  const useServiceVariants = (
+    pageNumber = 1,
+    pageSize = 50,
+    searchTerm?: string,
+    serviceId?: string | null,
+    enabled = true
+  ) => {
+    const params = new URLSearchParams();
+    params.append('pageNumber', pageNumber.toString());
+    params.append('pageSize', pageSize.toString());
+    if (searchTerm !== undefined && searchTerm !== null && searchTerm.trim().length > 0) {
+      params.append('searchTerm', searchTerm.trim());
+    }
+    if (serviceId) {
+      params.append('serviceId', serviceId);
+    }
+    const endpoint = `/api/v2/service-variants?${params.toString()}`;
+    const query = useQuery<PaginatedApiResponse<ServiceVariant>>(enabled ? endpoint : null);
     return {
       ...query,
-      data: query.data?.data !== undefined && query.data?.data !== null ? query.data.data : []
+      data: query.data?.data !== undefined && query.data?.data !== null ? query.data.data : [],
+      totalCount: query.data?.totalCount || 0
     };
   };
 
@@ -113,7 +155,7 @@ export function useRequirementsService() {
   };
 
   // --- SERVICE REQUIREMENTS (citizen/dynamic mapping) ---
-  const useServiceRequirements = (serviceId?: string, variantId?: string | null, contextKey?: string | null) => {
+  const useServiceRequirements = (serviceId?: string, variantId?: string | null, contextKey?: string | null, enabled = true) => {
     let endpoint = `/api/v2/services/${serviceId}/requirements`;
     const params = [];
     if (variantId) params.push(`variantId=${variantId}`);
@@ -121,7 +163,7 @@ export function useRequirementsService() {
     if (params.length > 0) {
       endpoint += `?${params.join('&')}`;
     }
-    const query = useQuery<{ succeeded: boolean; data: any[] }>(serviceId ? endpoint : null);
+    const query = useQuery<{ succeeded: boolean; data: any[] }>((enabled && serviceId) ? endpoint : null);
     return {
       ...query,
       data: query.data?.data !== undefined && query.data?.data !== null ? query.data.data : []
@@ -149,6 +191,7 @@ export function useRequirementsService() {
 
   return {
     useRequirements,
+    getRequirementById,
     createRequirement,
     updateRequirement,
     deleteRequirement,

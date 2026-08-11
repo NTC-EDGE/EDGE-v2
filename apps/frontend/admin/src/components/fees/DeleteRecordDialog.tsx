@@ -12,7 +12,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { ServiceCatalogItem, ServiceCategoryItem } from "@/services/feesNotesService";
+import { ServiceCatalogItem, ServiceCategoryItem } from "@/services/feesService";
 
 export interface DeleteRecordDialogProps {
   open: boolean;
@@ -63,18 +63,18 @@ export function DeleteRecordDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-slate-900 border border-slate-800 text-slate-200">
+      <DialogContent className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-200">
         <DialogHeader>
-          <DialogTitle className="text-lg font-bold text-rose-400">Confirm Deletion</DialogTitle>
-          <DialogDescription className="text-xs text-slate-400">
+          <DialogTitle className="text-lg font-bold text-rose-600 dark:text-rose-400">Confirm Deletion</DialogTitle>
+          <DialogDescription className="text-xs text-slate-600 dark:text-slate-400">
             Are you sure you want to permanently delete this configuration? This action is irreversible.
           </DialogDescription>
         </DialogHeader>
 
         {activeTab === "fees" && selectedFee !== null && (
-          <div className="py-2 space-y-2">
+          <div className="py-2 space-y-2 text-slate-700 dark:text-slate-300">
             <p className="text-sm">
-              Deleting fee code <strong className="text-white">{selectedFee.code}</strong> (
+              Deleting fee code <strong className="text-slate-900 dark:text-white">{selectedFee.code}</strong> (
               {selectedFee.name}) will also cascade-delete any Service Fee charge mappings associated
               with it.
             </p>
@@ -82,11 +82,11 @@ export function DeleteRecordDialog({
         )}
 
         {activeTab === "service-fees" && selectedServiceFee !== null && (
-          <div className="py-2 space-y-2">
+          <div className="py-2 space-y-2 text-slate-700 dark:text-slate-300">
             <p className="text-sm">
               Are you sure you want to delete the mapping fee rule for:
               <br />
-              <strong className="text-white">
+              <strong className="text-slate-900 dark:text-white">
                 {services.find((s) => s.id === selectedServiceFee.serviceId)?.name}
               </strong>
               ?
@@ -95,11 +95,11 @@ export function DeleteRecordDialog({
         )}
 
         {activeTab === "notes" && selectedNote !== null && (
-          <div className="py-2 space-y-2">
+          <div className="py-2 space-y-2 text-slate-700 dark:text-slate-300">
             <p className="text-sm">
               Are you sure you want to delete the regulatory guideline note for service:
               <br />
-              <strong className="text-indigo-300">
+              <strong className="text-indigo-600 dark:text-indigo-300">
                 {selectedNote.serviceName ?? "Global"} {selectedNote.serviceVariantName ? `(${selectedNote.serviceVariantName})` : ""}
               </strong>
               ?
@@ -108,18 +108,18 @@ export function DeleteRecordDialog({
         )}
 
         {errorMsg !== null && (
-          <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs rounded-xl flex items-center gap-2">
+          <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs rounded-xl flex items-center gap-2">
             <AlertCircle className="w-4 h-4" />
             <span>{errorMsg}</span>
           </div>
         )}
 
-        <DialogFooter className="pt-4">
+        <DialogFooter className="pt-4 border-t border-slate-200 dark:border-slate-800">
           <Button
             type="button"
-            variant="ghost"
+            variant="outline"
             onClick={() => onOpenChange(false)}
-            className="text-slate-400 hover:text-white"
+            className="text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
           >
             Cancel
           </Button>

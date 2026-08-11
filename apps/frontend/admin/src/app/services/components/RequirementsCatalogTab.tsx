@@ -30,39 +30,14 @@ export function RequirementsCatalogTab({
     {
       header: "Requirement Name",
       accessorKey: "name",
-      cell: (val) => <span className="font-bold text-white max-w-md block">{String(val)}</span>,
+      cell: (val) => <span className="font-bold text-slate-900 dark:text-white max-w-md block">{String(val)}</span>,
     },
     {
       header: "Description",
       accessorKey: "description",
-      cell: (val) => <span className="max-w-lg leading-relaxed block">{val ? String(val) : "-"}</span>,
+      cell: (val) => <span className="max-w-lg leading-relaxed text-slate-600 dark:text-slate-400 block">{val ? String(val) : "-"}</span>,
     },
-    {
-      header: "System ID",
-      accessorKey: "id",
-      cell: (val) => <span className="font-mono text-[10px] text-slate-500">{String(val)}</span>,
-    },
-    {
-      header: "Actions",
-      accessorKey: "id",
-      cell: (_, row) => (
-        <div className="flex items-center justify-end gap-1.5">
-          <button
-            onClick={() => onEditRequirement(row)}
-            className="p-1.5 rounded-lg border border-slate-800 hover:bg-slate-850 hover:text-white transition-colors"
-          >
-            <Edit className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={() => onDeleteRequirement(row.id)}
-            className="p-1.5 rounded-lg border border-slate-800 hover:bg-slate-850 hover:text-rose-400 transition-colors"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      ),
-      className: "text-right",
-    },
+
   ];
 
   return (
@@ -73,6 +48,19 @@ export function RequirementsCatalogTab({
           columns={columns}
           loading={loadingReqs}
           emptyState={<div>No master catalog requirements registered.</div>}
+          rowActionMenu={(row) => [
+            {
+              label: "Edit Requirement",
+              icon: Edit,
+              onClick: () => onEditRequirement(row),
+            },
+            {
+              label: "Delete Requirement",
+              icon: Trash2,
+              onClick: () => onDeleteRequirement(row.id),
+              variant: "destructive" as const,
+            },
+          ]}
           pagination={
             filteredRequirements.length > 0
               ? {

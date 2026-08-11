@@ -50,7 +50,9 @@ export function SchedulesTab({ currentTenant, showToast }: SchedulesTabProps) {
     description: "",
   });
 
-  const schedulesList: ExamSchedule[] = fetchedSchedules ?? [];
+  const schedulesList: ExamSchedule[] = Array.isArray(fetchedSchedules)
+    ? fetchedSchedules
+    : (fetchedSchedules as { data?: ExamSchedule[] } | undefined)?.data ?? [];
 
   const handleToggleSchedPublish = async (sched: ExamSchedule) => {
     try {
@@ -97,10 +99,10 @@ export function SchedulesTab({ currentTenant, showToast }: SchedulesTabProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+      <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
         <div>
-          <h3 className="text-base font-bold text-white">Regional Exam Schedules</h3>
-          <p className="text-xs text-slate-400">Licensure examination schedules and publish toggle control.</p>
+          <h3 className="text-base font-bold text-slate-900 dark:text-white">Regional Exam Schedules</h3>
+          <p className="text-xs text-slate-600 dark:text-slate-400">Licensure examination schedules and publish toggle control.</p>
         </div>
         {!isSystemAdmin && (
           <Button
@@ -126,92 +128,98 @@ export function SchedulesTab({ currentTenant, showToast }: SchedulesTabProps) {
         )}
       </div>
 
-      <div className="divide-y divide-slate-800 border border-slate-800 rounded-xl overflow-hidden bg-slate-950/60">
-        {schedulesList.map((sched) => {
-          const displayTitle = sched.serviceName || sched.title || "Schedule Slot";
-          const displayType = sched.serviceCode || sched.examType || "Service";
-          const displayDate = sched.startDate || sched.examDate;
+      <div className="divide-y divide-slate-200 dark:divide-slate-800 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-white dark:bg-slate-950/60 transition-colors duration-200">
+        {schedulesList.length === 0 ? (
+          <div className="p-8 text-center text-sm text-slate-500 dark:text-slate-400">
+            No regional exam schedules found for this branch.
+          </div>
+        ) : (
+          schedulesList.map((sched) => {
+            const displayTitle = sched.serviceName || sched.title || "Schedule Slot";
+            const displayType = sched.serviceCode || sched.examType || "Service";
+            const displayDate = sched.startDate || sched.examDate;
 
-          return (
-            <div key={sched.id} className="p-4 flex items-center justify-between hover:bg-slate-800/40 transition-colors">
-              <div className="space-y-1 max-w-xl">
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-white text-sm">{displayTitle}</span>
-                  <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-purple-500/10 text-purple-300 border border-purple-500/20">
-                    {displayType}
-                  </span>
+            return (
+              <div key={sched.id} className="p-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                <div className="space-y-1 max-w-xl">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-slate-900 dark:text-white text-sm">{displayTitle}</span>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-300 border border-purple-200 dark:border-purple-500/20">
+                      {displayType}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                    <span className="flex items-center gap-1 text-slate-700 dark:text-slate-300"><MapPin className="w-3 h-3 text-emerald-500 dark:text-emerald-400" /> {sched.venue}</span>
+                    <span>•</span>
+                    <span className="flex items-center gap-1 text-indigo-600 dark:text-indigo-300"><Calendar className="w-3 h-3 text-indigo-500 dark:text-indigo-400" /> Exam Date: {displayDate ? new Date(displayDate).toLocaleDateString() : "N/A"}</span>
+                  </p>
                 </div>
-                <p className="text-xs text-slate-400 flex items-center gap-2">
-                  <span className="flex items-center gap-1 text-slate-300"><MapPin className="w-3 h-3 text-emerald-400" /> {sched.venue}</span>
-                  <span>•</span>
-                  <span className="flex items-center gap-1 text-indigo-300"><Calendar className="w-3 h-3 text-indigo-400" /> Exam Date: {displayDate ? new Date(displayDate).toLocaleDateString() : "N/A"}</span>
-                </p>
-              </div>
 
-              <div className="flex items-center gap-4">
-                {isSystemAdmin ? (
-                  <span
-                    className={`px-3 py-1 rounded-full text-xs font-semibold border inline-flex items-center gap-1.5 ${
-                      sched.isPublished
-                        ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                        : "bg-slate-800 text-slate-400 border-slate-700"
-                    }`}
-                  >
-                    {sched.isPublished ? (
-                      <><Eye className="w-3.5 h-3.5 text-emerald-400" /> Published</>
-                    ) : (
-                      <><EyeOff className="w-3.5 h-3.5 text-slate-400" /> Draft / Hidden</>
-                    )}
-                  </span>
-                ) : (
-                  <button
-                    onClick={() => handleToggleSchedPublish(sched)}
-                    className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all inline-flex items-center gap-1.5 cursor-pointer ${
-                      sched.isPublished
-                        ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20"
-                        : "bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700"
-                    }`}
-                  >
-                    {sched.isPublished ? (
-                      <><Eye className="w-3.5 h-3.5 text-emerald-400" /> Published</>
-                    ) : (
-                      <><EyeOff className="w-3.5 h-3.5 text-slate-400" /> Draft / Hidden</>
-                    )}
-                  </button>
-                )}
+                <div className="flex items-center gap-4">
+                  {isSystemAdmin ? (
+                    <span
+                      className={`px-3 py-1 rounded-full text-xs font-semibold border inline-flex items-center gap-1.5 ${
+                        sched.isPublished
+                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+                          : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700"
+                      }`}
+                    >
+                      {sched.isPublished ? (
+                        <><Eye className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" /> Published</>
+                      ) : (
+                        <><EyeOff className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" /> Draft / Hidden</>
+                      )}
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => handleToggleSchedPublish(sched)}
+                      className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all inline-flex items-center gap-1.5 cursor-pointer ${
+                        sched.isPublished
+                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20"
+                          : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700"
+                      }`}
+                    >
+                      {sched.isPublished ? (
+                        <><Eye className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" /> Published</>
+                      ) : (
+                        <><EyeOff className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" /> Draft / Hidden</>
+                      )}
+                    </button>
+                  )}
 
-                {!isSystemAdmin && (
-                  <ActionMenu
-                    items={[
-                      {
-                        label: sched.isPublished ? "Unpublish Schedule" : "Publish Schedule",
-                        icon: sched.isPublished ? EyeOff : Eye,
-                        onClick: () => handleToggleSchedPublish(sched),
-                      },
-                    ]}
-                  />
-                )}
+                  {!isSystemAdmin && (
+                    <ActionMenu
+                      items={[
+                        {
+                          label: sched.isPublished ? "Unpublish Schedule" : "Publish Schedule",
+                          icon: sched.isPublished ? EyeOff : Eye,
+                          onClick: () => handleToggleSchedPublish(sched),
+                        },
+                      ]}
+                    />
+                  )}
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })
+        )}
       </div>
 
       {/* Create Schedule Modal */}
       <Dialog open={isCreateSchedOpen} onOpenChange={setIsCreateSchedOpen}>
-        <DialogContent className="sm:max-w-[500px] bg-slate-900 border-slate-800 text-white">
+        <DialogContent className="sm:max-w-[500px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white">
           <DialogHeader>
-            <DialogTitle className="text-xl font-extrabold text-white flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-indigo-400" /> Create Exam Schedule
+            <DialogTitle className="text-xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-indigo-500 dark:text-indigo-400" /> Create Exam Schedule
             </DialogTitle>
-            <DialogDescription className="text-slate-400 text-xs">
+            <DialogDescription className="text-slate-600 dark:text-slate-400 text-xs">
               Publish a new licensure examination schedule for amateur or commercial radio operators.
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleCreateSchedSubmit} className="space-y-4 pt-2">
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300">Catalog Service *</label>
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Catalog Service *</label>
               <select
                 required
                 value={schedFormData.serviceId}
@@ -224,11 +232,11 @@ export function SchedulesTab({ currentTenant, showToast }: SchedulesTabProps) {
                     title: `${selectedService?.name} Examination`
                   });
                 }}
-                className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
               >
-                <option value="" disabled>Select Service...</option>
+                <option value="" disabled className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">Select Service...</option>
                 {services.map((s: { id: string; name: string; code: string }) => (
-                  <option key={s.id} value={s.id}>
+                  <option key={s.id} value={s.id} className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">
                     {s.name} ({s.code})
                   </option>
                 ))}
@@ -237,77 +245,77 @@ export function SchedulesTab({ currentTenant, showToast }: SchedulesTabProps) {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300">Examination Title *</label>
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Examination Title *</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. 3rd Quarter Amateur Radio Licensure Examination"
                   value={schedFormData.title}
                   onChange={(e) => setSchedFormData({ ...schedFormData, title: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300">Maximum Slots *</label>
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Maximum Slots *</label>
                 <input
                   type="number"
                   required
                   min={1}
                   value={schedFormData.maxSlots}
                   onChange={(e) => setSchedFormData({ ...schedFormData, maxSlots: parseInt(e.target.value) || 50 })}
-                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300">Testing Venue *</label>
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Testing Venue *</label>
               <input
                 type="text"
                 required
                 placeholder="e.g. NTC Multi-Purpose Hall, Regional Office"
                 value={schedFormData.venue}
                 onChange={(e) => setSchedFormData({ ...schedFormData, venue: e.target.value })}
-                className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300">Exam Date & Time *</label>
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Exam Date & Time *</label>
                 <input
                   type="datetime-local"
                   required
                   value={schedFormData.examDate}
                   onChange={(e) => setSchedFormData({ ...schedFormData, examDate: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300">Application Deadline *</label>
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Application Deadline *</label>
                 <input
                   type="datetime-local"
                   required
                   value={schedFormData.applicationDeadline}
                   onChange={(e) => setSchedFormData({ ...schedFormData, applicationDeadline: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                 />
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300">Additional Instructions</label>
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Additional Instructions</label>
               <textarea
                 placeholder="Applicants must bring black ballpens, 2x2 ID pictures, and copy of paid application receipt..."
                 value={schedFormData.description}
                 onChange={(e) => setSchedFormData({ ...schedFormData, description: e.target.value })}
-                className="w-full h-20 px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full h-20 px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
 
-            <DialogFooter className="pt-4 border-t border-slate-800">
+            <DialogFooter className="pt-4 border-t border-slate-200 dark:border-slate-800">
               <Button type="button" variant="outline" onClick={() => setIsCreateSchedOpen(false)}>Cancel</Button>
               <Button type="submit" className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold">Create Schedule</Button>
             </DialogFooter>

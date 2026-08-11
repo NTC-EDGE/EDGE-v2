@@ -12,6 +12,6 @@ public class CreateDocumentTypeCommandValidator : AbstractValidator<CreateDocume
 
         RuleFor(x => x.Name)
             .NotEmpty().WithMessage("Document type name is required.")
-            .MaximumLength(150).WithMessage("Name cannot exceed 150 characters.");
+            .MaximumLength(500).WithMessage("Name cannot exceed 500 characters.");
     }
 }

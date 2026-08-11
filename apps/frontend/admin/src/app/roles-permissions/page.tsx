@@ -114,17 +114,17 @@ function RoleFormDialog({
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         onClick={onClose}
       />
-      <div className="relative bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6 animate-in fade-in zoom-in-95 duration-200">
+      <div className="relative bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6 animate-in fade-in zoom-in-95 duration-200 text-slate-900 dark:text-white">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2.5">
             <div className="p-1.5 rounded-lg bg-purple-500/10 border border-purple-500/20">
-              <KeyRound className="w-4 h-4 text-purple-400" />
+              <KeyRound className="w-4 h-4 text-purple-600 dark:text-purple-400" />
             </div>
-            <h2 className="text-base font-bold text-white">{title}</h2>
+            <h2 className="text-base font-bold text-slate-900 dark:text-white">{title}</h2>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-slate-800 transition-colors"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -133,21 +133,21 @@ function RoleFormDialog({
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Name */}
           <div>
-            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
-              Role Name <span className="text-red-400">*</span>
+            <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-widest mb-1.5">
+              Role Name <span className="text-rose-500">*</span>
             </label>
             <input
               value={name}
               onChange={(e) => handleNameChange(e.target.value)}
               placeholder="e.g. Regional Manager"
-              className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 transition-colors"
+              className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-purple-500 transition-colors"
             />
           </div>
 
           {/* Key */}
           <div>
-            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
-              Role Key <span className="text-red-400">*</span>
+            <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-widest mb-1.5">
+              Role Key <span className="text-rose-500">*</span>
             </label>
             <input
               value={key}
@@ -156,16 +156,16 @@ function RoleFormDialog({
                 setKeyManuallyEdited(true);
               }}
               placeholder="e.g. regional.manager"
-              className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 font-mono transition-colors"
+              className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-purple-500 font-mono transition-colors"
             />
-            <p className="text-[10px] text-slate-600 mt-1">
+            <p className="text-[10px] text-slate-500 mt-1">
               Unique identifier — lowercase letters, numbers, dots, underscores only.
             </p>
           </div>
 
           {/* Description */}
           <div>
-            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
+            <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-widest mb-1.5">
               Description
             </label>
             <textarea
@@ -173,24 +173,24 @@ function RoleFormDialog({
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Optional description of this role's purpose..."
               rows={3}
-              className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 resize-none transition-colors"
+              className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-purple-500 resize-none transition-colors"
             />
           </div>
 
           {/* System Role toggle */}
-          <div className="flex items-center gap-3 p-3.5 bg-slate-950/60 border border-slate-800 rounded-xl">
+          <div className="flex items-center gap-3 p-3.5 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-xl">
             <button
               type="button"
               onClick={() => setIsSystemRole(!isSystemRole)}
-              className={`relative w-10 h-5 rounded-full transition-colors shrink-0 ${isSystemRole ? "bg-purple-600" : "bg-slate-700"}`}
+              className={`relative w-10 h-5 rounded-full transition-colors shrink-0 ${isSystemRole ? "bg-purple-600" : "bg-slate-300 dark:bg-slate-700"}`}
             >
               <span
                 className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${isSystemRole ? "translate-x-5" : "translate-x-0"}`}
               />
             </button>
             <div>
-              <p className="text-xs font-semibold text-white flex items-center gap-1.5">
-                <Lock className="w-3 h-3 text-amber-400" />
+              <p className="text-xs font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
+                <Lock className="w-3 h-3 text-amber-500 dark:text-amber-400" />
                 System Role
               </p>
               <p className="text-[10px] text-slate-500">
@@ -516,30 +516,30 @@ export default function RolesPermissionsPage() {
       )}
 
       {/* Page header */}
-      <div className="p-5 md:p-6 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-900/90 to-purple-950/60 border border-slate-800 shadow-xl relative overflow-hidden">
+      <div className="p-5 md:p-6 rounded-2xl bg-white dark:bg-gradient-to-r dark:from-slate-900 dark:via-slate-900/90 dark:to-purple-950/60 border border-slate-200 dark:border-slate-800 shadow-md dark:shadow-xl relative overflow-hidden transition-colors duration-200">
         <div className="absolute top-0 right-0 p-8 opacity-[0.04] pointer-events-none select-none">
-          <KeyRound className="w-64 h-64 text-purple-400" />
+          <KeyRound className="w-64 h-64 text-purple-600 dark:text-purple-400" />
         </div>
         <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <div className="flex items-center gap-3 mb-1">
               <div className="p-2 rounded-xl bg-purple-500/10 border border-purple-500/20">
-                <KeyRound className="w-5 h-5 text-purple-400" />
+                <KeyRound className="w-5 h-5 text-purple-600 dark:text-purple-400" />
               </div>
-              <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
+              <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
                 Roles &amp; Permissions
               </h1>
             </div>
-            <p className="text-sm text-slate-400 max-w-2xl">
+            <p className="text-sm text-slate-600 dark:text-slate-400 max-w-2xl">
               Define access roles and assign granular permissions to control what
               each role can do throughout the system.
             </p>
           </div>
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-3 shrink-0 flex-wrap sm:flex-nowrap">
             <Button
               onClick={() => setIsResetConfirmOpen(true)}
               variant="outline"
-              className="border-slate-700 text-slate-300 hover:text-white px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2"
+              className="px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               Reset Defaults
@@ -557,9 +557,9 @@ export default function RolesPermissionsPage() {
 
       {/* Generic error (non-403) */}
       {rolesError !== null && rolesError !== undefined && !isForbiddenError(rolesError) && (
-        <div className="text-center py-16 px-4 bg-slate-900 border border-slate-800 rounded-2xl">
-          <AlertCircle className="w-8 h-8 text-red-400 mx-auto mb-3" />
-          <p className="text-sm font-semibold text-red-400">Failed to load roles.</p>
+        <div className="text-center py-16 px-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl">
+          <AlertCircle className="w-8 h-8 text-rose-500 mx-auto mb-3" />
+          <p className="text-sm font-semibold text-rose-500">Failed to load roles.</p>
           <Button onClick={() => mutateRoles()} className="mt-4" size="sm" variant="outline">
             Retry
           </Button>
@@ -572,18 +572,18 @@ export default function RolesPermissionsPage() {
           {/* ─── Left: Roles panel ─────────────────────────────────────── */}
           <div className="w-72 xl:w-80 shrink-0 flex flex-col gap-3">
             {/* Search + filter */}
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3 space-y-2.5">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3 space-y-2.5 shadow-sm">
               <div className="relative">
-                <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-500" />
+                <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400 dark:text-slate-500" />
                 <input
                   type="text"
                   placeholder="Search roles..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-8 pr-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 transition-colors"
+                  className="w-full pl-8 pr-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-purple-500 transition-colors"
                 />
               </div>
-              <div className="flex gap-1 bg-slate-950/60 p-1 rounded-xl border border-slate-800">
+              <div className="flex gap-1 bg-slate-100 dark:bg-slate-950/60 p-1 rounded-xl border border-slate-200 dark:border-slate-800">
                 {(["all", "system", "tenant"] as const).map((f) => (
                   <button
                     key={f}
@@ -591,7 +591,7 @@ export default function RolesPermissionsPage() {
                     className={`flex-1 py-1.5 text-[10px] font-bold uppercase rounded-lg transition-colors ${
                       roleFilter === f
                         ? "bg-purple-600 text-white shadow"
-                        : "text-slate-500 hover:text-white"
+                        : "text-slate-600 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white"
                     }`}
                   >
                     {f}
@@ -601,13 +601,13 @@ export default function RolesPermissionsPage() {
             </div>
 
             {/* Roles list */}
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden flex flex-col">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden flex flex-col shadow-sm">
               {rolesLoading ? (
                 <div className="flex items-center justify-center h-48">
-                  <Loader2 className="w-6 h-6 animate-spin text-purple-400" />
+                  <Loader2 className="w-6 h-6 animate-spin text-purple-600 dark:text-purple-400" />
                 </div>
               ) : filteredRoles.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-48 text-slate-600 px-4 text-center">
+                <div className="flex flex-col items-center justify-center h-48 text-slate-500 px-4 text-center">
                   <KeyRound className="w-8 h-8 mb-2 opacity-20" />
                   <p className="text-xs">No roles found.</p>
                 </div>
@@ -626,27 +626,27 @@ export default function RolesPermissionsPage() {
                         }
                       }}
                       className={`w-full text-left px-4 py-3.5 transition-all group relative cursor-pointer select-none ${
-                        idx < filteredRoles.length - 1 ? "border-b border-slate-800/60" : ""
+                        idx < filteredRoles.length - 1 ? "border-b border-slate-200 dark:border-slate-800/60" : ""
                       } ${
                         selectedRoleId === role.id
-                          ? "bg-purple-600/10 border-l-[3px] border-l-purple-500 pl-[13px]"
-                          : "hover:bg-slate-800/40 border-l-[3px] border-l-transparent"
+                          ? "bg-purple-500/10 border-l-[3px] border-l-purple-500 pl-[13px]"
+                          : "hover:bg-slate-50 dark:hover:bg-slate-800/40 border-l-[3px] border-l-transparent"
                       }`}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5 flex-wrap mb-1">
-                            <span className="text-sm font-semibold text-white leading-tight">
+                            <span className="text-sm font-semibold text-slate-900 dark:text-white leading-tight">
                               {role.name}
                             </span>
                             {role.isSystemRole && (
-                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-[9px] font-bold text-amber-400 uppercase shrink-0">
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-[9px] font-bold text-amber-700 dark:text-amber-400 uppercase shrink-0">
                                 <Lock className="w-2.5 h-2.5" />
                                 System
                               </span>
                             )}
                           </div>
-                          <span className="font-mono text-[10px] text-slate-500 bg-slate-950/80 border border-slate-800/80 px-1.5 py-0.5 rounded inline-block max-w-full truncate">
+                          <span className="font-mono text-[10px] text-slate-600 dark:text-slate-500 bg-slate-100 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800/80 px-1.5 py-0.5 rounded inline-block max-w-full truncate">
                             {role.key}
                           </span>
                           {role.description !== null &&
@@ -701,14 +701,14 @@ export default function RolesPermissionsPage() {
           <div className="flex-1 min-w-0">
             {selectedRole === null ? (
               /* Empty state */
-              <div className="h-[500px] bg-slate-900 border border-slate-800 rounded-2xl flex flex-col items-center justify-center text-center p-8">
-                <div className="p-5 rounded-2xl bg-slate-800/60 border border-slate-700/60 mb-4">
-                  <ShieldCheck className="w-10 h-10 text-slate-600" />
+              <div className="h-[500px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col items-center justify-center text-center p-8 shadow-sm">
+                <div className="p-5 rounded-2xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 mb-4">
+                  <ShieldCheck className="w-10 h-10 text-slate-400 dark:text-slate-600" />
                 </div>
-                <p className="text-sm font-semibold text-slate-400">
+                <p className="text-sm font-semibold text-slate-700 dark:text-slate-400">
                   Select a role to manage permissions
                 </p>
-                <p className="text-xs text-slate-600 mt-1.5 max-w-xs leading-relaxed">
+                <p className="text-xs text-slate-500 dark:text-slate-600 mt-1.5 max-w-xs leading-relaxed">
                   Click any role in the left panel to view and modify its
                   permission assignments.
                 </p>
@@ -716,26 +716,26 @@ export default function RolesPermissionsPage() {
             ) : (
               <div className="flex flex-col gap-4">
                 {/* Role info + action bar */}
-                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
                   <div>
                     <div className="flex items-center gap-2.5 flex-wrap">
-                      <ShieldCheck className="w-5 h-5 text-purple-400 shrink-0" />
-                      <h2 className="text-base font-bold text-white">
+                      <ShieldCheck className="w-5 h-5 text-purple-600 dark:text-purple-400 shrink-0" />
+                      <h2 className="text-base font-bold text-slate-900 dark:text-white">
                         {selectedRole.name}
                       </h2>
                       {selectedRole.isSystemRole && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-[10px] font-bold text-amber-400 uppercase tracking-wider shrink-0">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-[10px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider shrink-0">
                           <Lock className="w-3 h-3" />
                           System Role
                         </span>
                       )}
                     </div>
                     <div className="flex items-center gap-3 mt-2 flex-wrap">
-                      <span className="font-mono text-[11px] text-slate-400 bg-slate-950 border border-slate-800 px-2 py-0.5 rounded">
+                      <span className="font-mono text-[11px] text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 px-2 py-0.5 rounded">
                         {selectedRole.key}
                       </span>
                       {pendingChangesCount > 0 && (
-                        <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-0.5 rounded-full animate-pulse">
+                        <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-0.5 rounded-full animate-pulse">
                           {pendingChangesCount} unsaved change
                           {pendingChangesCount !== 1 ? "s" : ""}
                         </span>
@@ -748,7 +748,7 @@ export default function RolesPermissionsPage() {
                       <Button
                         onClick={handleDiscardChanges}
                         variant="outline"
-                        className="border-slate-700 text-slate-400 hover:text-white text-xs px-3 py-2 rounded-xl flex items-center gap-1.5"
+                        className="border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white text-xs px-3 py-2 rounded-xl flex items-center gap-1.5"
                       >
                         <X className="w-3.5 h-3.5" />
                         Discard
@@ -770,13 +770,13 @@ export default function RolesPermissionsPage() {
                 </div>
 
                 {/* Permissions catalog */}
-                <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
                   {rolePermsLoading || permsLoading ? (
                     <div className="flex items-center justify-center h-48">
-                      <Loader2 className="w-6 h-6 animate-spin text-purple-400" />
+                      <Loader2 className="w-6 h-6 animate-spin text-purple-600 dark:text-purple-400" />
                     </div>
                   ) : allPermissions.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-48 text-slate-600">
+                    <div className="flex flex-col items-center justify-center h-48 text-slate-500">
                       <p className="text-xs">No permissions available.</p>
                     </div>
                   ) : (
@@ -796,20 +796,20 @@ export default function RolesPermissionsPage() {
                           return (
                             <div
                               key={category}
-                              className="border-b border-slate-800 last:border-0"
+                              className="border-b border-slate-200 dark:border-slate-800 last:border-0"
                             >
                               {/* Category header row */}
-                              <div className="flex items-center justify-between px-5 py-3.5 bg-slate-800/30 hover:bg-slate-800/50 transition-colors">
+                              <div className="flex items-center justify-between px-5 py-3.5 bg-slate-50 dark:bg-slate-800/30 hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors">
                                 <button
                                   onClick={() => toggleExpandCategory(category)}
                                   className="flex items-center gap-2.5 flex-1 text-left"
                                 >
                                   {isExpanded ? (
-                                    <ChevronDown className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                                    <ChevronDown className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 shrink-0" />
                                   ) : (
-                                    <ChevronRight className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                                    <ChevronRight className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 shrink-0" />
                                   )}
-                                  <span className="text-xs font-bold text-slate-200 uppercase tracking-widest">
+                                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-widest">
                                     {category}
                                   </span>
                                   <span className="text-[10px] font-mono text-slate-500 ml-1">
@@ -830,7 +830,7 @@ export default function RolesPermissionsPage() {
                                       ? "bg-purple-600"
                                       : someChecked
                                       ? "bg-purple-600/40"
-                                      : "bg-slate-700"
+                                      : "bg-slate-300 dark:bg-slate-700"
                                   }`}
                                 >
                                   <span
@@ -853,7 +853,7 @@ export default function RolesPermissionsPage() {
                                       <button
                                         key={perm.key}
                                         onClick={() => togglePermission(perm.key)}
-                                        className={`w-full flex items-center gap-4 px-5 py-3 text-left transition-colors hover:bg-slate-800/30 group border-t border-slate-800/40 ${
+                                        className={`w-full flex items-center gap-4 px-5 py-3 text-left transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/30 group border-t border-slate-200 dark:border-slate-800/40 ${
                                           isDirty ? "bg-amber-500/5" : ""
                                         }`}
                                       >
@@ -862,7 +862,7 @@ export default function RolesPermissionsPage() {
                                           className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-all ${
                                             isChecked
                                               ? "bg-purple-600 border-purple-600"
-                                              : "border-slate-600 group-hover:border-slate-400"
+                                              : "border-slate-300 dark:border-slate-600 group-hover:border-slate-400"
                                           }`}
                                         >
                                           {isChecked && (
@@ -873,28 +873,28 @@ export default function RolesPermissionsPage() {
                                         {/* Permission info */}
                                         <div className="flex-1 min-w-0">
                                           <div className="flex items-center gap-2 flex-wrap">
-                                            <span className="text-xs font-semibold text-white leading-snug">
+                                            <span className="text-xs font-semibold text-slate-900 dark:text-white leading-snug">
                                               {perm.label}
                                             </span>
                                             {isDirty && (
                                               <span
                                                 className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide border ${
                                                   isChecked
-                                                    ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                                                    : "bg-red-500/10 text-red-400 border-red-500/20"
+                                                    ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20"
+                                                    : "bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20"
                                                 }`}
                                               >
                                                 {isChecked ? "+ Added" : "− Removed"}
                                               </span>
                                             )}
                                           </div>
-                                          <span className="font-mono text-[10px] text-slate-500">
+                                          <span className="font-mono text-[10px] text-slate-500 dark:text-slate-500">
                                             {perm.key}
                                           </span>
                                           {perm.description !== null &&
                                             perm.description !== undefined &&
                                             perm.description.length > 0 && (
-                                              <p className="text-[10px] text-slate-600 mt-0.5 truncate">
+                                              <p className="text-[10px] text-slate-600 dark:text-slate-400 mt-0.5 truncate">
                                                 {perm.description}
                                               </p>
                                             )}
@@ -904,8 +904,8 @@ export default function RolesPermissionsPage() {
                                         <span
                                           className={`shrink-0 text-[9px] font-mono font-bold px-2 py-0.5 rounded border uppercase tracking-wider ${
                                             perm.scope === "system"
-                                              ? "text-amber-400 border-amber-500/20 bg-amber-500/5"
-                                              : "text-slate-500 border-slate-700/50 bg-slate-800/30"
+                                              ? "text-amber-700 dark:text-amber-400 border-amber-500/20 bg-amber-500/5"
+                                              : "text-slate-600 dark:text-slate-500 border-slate-300 dark:border-slate-700/50 bg-slate-100 dark:bg-slate-800/30"
                                           }`}
                                         >
                                           {perm.scope}

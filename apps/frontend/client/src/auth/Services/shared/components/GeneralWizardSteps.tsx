@@ -19,6 +19,12 @@ interface GeneralWizardStepsProps {
   offices: OfficeInfo[];
   appMode: "SINGLE" | "BULK" | "";
   setAppMode: (val: "SINGLE" | "BULK" | "") => void;
+  bulkMethod: "MANUAL" | "EXCEL";
+  setBulkMethod: (method: "MANUAL" | "EXCEL") => void;
+  isFileUploaded: boolean;
+  setIsFileUploaded: (val: boolean) => void;
+  uploadedFileName: string;
+  setUploadedFileName: (name: string) => void;
   setApplicants: React.Dispatch<React.SetStateAction<GeneralApplicantData[]>>;
   setCurrentApplicantIndex: (idx: number) => void;
   activeApplicant: GeneralApplicantData;
@@ -39,6 +45,12 @@ export function GeneralWizardSteps({
   offices,
   appMode,
   setAppMode,
+  bulkMethod,
+  setBulkMethod,
+  isFileUploaded,
+  setIsFileUploaded,
+  uploadedFileName,
+  setUploadedFileName,
   setApplicants,
   setCurrentApplicantIndex,
   activeApplicant,
@@ -64,10 +76,23 @@ export function GeneralWizardSteps({
     case 3:
       return (
         <GeneralFilingModeStep
+          service={service}
           appMode={appMode}
           onAppModeChange={(val) => {
             setAppMode(val);
-            setApplicants([initialGeneralApplicant(1)]);
+            if (val === "SINGLE") {
+              setApplicants([initialGeneralApplicant(1)]);
+              setCurrentApplicantIndex(0);
+            }
+          }}
+          bulkMethod={bulkMethod}
+          setBulkMethod={setBulkMethod}
+          isFileUploaded={isFileUploaded}
+          setIsFileUploaded={setIsFileUploaded}
+          uploadedFileName={uploadedFileName}
+          setUploadedFileName={setUploadedFileName}
+          onApplicantsImported={(newApps) => {
+            setApplicants(newApps);
             setCurrentApplicantIndex(0);
           }}
         />
@@ -75,6 +100,7 @@ export function GeneralWizardSteps({
     case 4:
       return (
         <GeneralFilingDetailsStep
+          service={service}
           activeApplicant={activeApplicant}
           updateActiveApplicant={updateActiveApplicant}
         />

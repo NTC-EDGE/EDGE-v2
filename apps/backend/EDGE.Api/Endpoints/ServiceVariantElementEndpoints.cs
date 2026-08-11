@@ -12,6 +12,7 @@ using EDGE.Application.ServiceVariantElements.Queries.GetServiceVariantElements;
 using EDGE.Application.ServiceVariantElements.Queries.GetServiceVariantElementById;
 using EDGE.Domain.Authorization;
 using EDGE.Infrastructure.Authorization;
+using EDGE.Application.Common.Models;
 
 namespace EDGE.Api.Endpoints;
 
@@ -26,7 +27,7 @@ public static class ServiceVariantElementEndpoints
             .WithName("GetServiceVariantElements")
             .WithSummary("Get all elements for a service variant")
             .WithDescription("Retrieves all exam elements (code + description) belonging to a given ServiceVariant.")
-            .Produces<List<ServiceVariantElementDto>>(StatusCodes.Status200OK)
+            .Produces<PaginatedApiResponse<ServiceVariantElementDto>>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status401Unauthorized)
             .Produces(StatusCodes.Status403Forbidden);
@@ -73,11 +74,15 @@ public static class ServiceVariantElementEndpoints
 
     [HasPermission(Permissions.ReadServiceVariantElements)]
     public static async Task<IResult> GetServiceVariantElements(
-        Guid serviceVariantId,
+        Guid? serviceId,
+        Guid? serviceVariantId,
+        int? pageNumber,
+        int? pageSize,
+        string? searchTerm,
         IValidator<GetServiceVariantElementsQuery> validator,
         IMediator mediator)
     {
-        var query = new GetServiceVariantElementsQuery(serviceVariantId);
+        var query = new GetServiceVariantElementsQuery(serviceId, serviceVariantId, pageNumber, pageSize, searchTerm);
         var validationResult = await validator.ValidateAsync(query);
         if (!validationResult.IsValid)
         {

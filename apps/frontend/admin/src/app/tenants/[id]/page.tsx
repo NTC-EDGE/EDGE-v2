@@ -133,19 +133,19 @@ function TenantDetailPageContent({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3.5">
           <Link href="/tenants">
-            <Button variant="outline" className="border-slate-800 bg-slate-900 text-slate-300 hover:text-white rounded-xl h-10 w-10 p-0 flex items-center justify-center shrink-0">
+            <Button variant="outline" className="border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white rounded-xl h-10 w-10 p-0 flex items-center justify-center shrink-0">
               <ArrowLeft className="w-4 h-4" />
             </Button>
           </Link>
           <div>
-            <div className="flex items-center gap-2 text-xs text-slate-400">
-              <Link href="/tenants" className="hover:text-indigo-400">Tenants</Link>
+            <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+              <Link href="/tenants" className="hover:text-indigo-600 dark:hover:text-indigo-400 font-medium">Tenants</Link>
               <span>/</span>
-              <span className="text-white font-semibold">{currentTenant.name}</span>
+              <span className="text-slate-900 dark:text-white font-semibold">{currentTenant.name}</span>
             </div>
-            <h1 className="text-2xl font-extrabold text-white mt-0.5 flex items-center gap-3">
+            <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white mt-0.5 flex items-center gap-3">
               <span>{currentTenant.name}</span>
-              <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${currentTenant.isActive ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-slate-800 text-slate-400 border border-slate-700"}`}>
+              <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${currentTenant.isActive ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20" : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700"}`}>
                 {currentTenant.isActive ? "Active" : "Inactive"}
               </span>
             </h1>
@@ -158,8 +158,8 @@ function TenantDetailPageContent({
           variant="outline"
           className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border shadow-lg shrink-0 ${
             currentTenant.isActive
-              ? "border-rose-500/20 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 hover:text-rose-300 shadow-rose-500/5"
-              : "border-emerald-500/20 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-300 shadow-emerald-500/5"
+              ? "border-rose-500/20 bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 hover:text-rose-500 dark:hover:text-rose-300 shadow-rose-500/5"
+              : "border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-500 dark:hover:text-emerald-300 shadow-emerald-500/5"
           }`}
         >
           {isToggling ? (
@@ -172,39 +172,39 @@ function TenantDetailPageContent({
         </Button>
       </div>
 
-      <div className="p-6 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-900/95 to-indigo-950/60 border border-slate-800 shadow-xl space-y-4">
+      <div className="p-6 rounded-2xl bg-white dark:bg-gradient-to-r dark:from-slate-900 dark:via-slate-900/95 dark:to-indigo-950/60 border border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-xl space-y-4 transition-colors duration-200">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
           <div className="flex items-start gap-4">
-            <div className="p-3.5 rounded-2xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 shrink-0">
+            <div className="p-3.5 rounded-2xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/20 shrink-0">
               <Building2 className="w-8 h-8" />
             </div>
             <div className="space-y-1">
               <div className="flex items-center gap-3">
-                <span className="font-mono text-xs text-indigo-300 bg-slate-950 px-2.5 py-1 rounded-md border border-slate-800">{currentTenant.code}</span>
-                <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1">
+                <span className="font-mono text-xs text-indigo-600 dark:text-indigo-300 bg-indigo-50 dark:bg-slate-950 px-2.5 py-1 rounded-md border border-indigo-200 dark:border-slate-800 font-semibold">{currentTenant.code}</span>
+                <span className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
                   <MapPin className="w-3.5 h-3.5" /> {getRegionName(currentTenant.regionId)}
                 </span>
               </div>
-              <p className="text-sm text-slate-300 max-w-3xl leading-relaxed pt-1">{currentTenant.description ?? "Regional organizational tenant branch."}</p>
+              <p className="text-sm text-slate-600 dark:text-slate-300 max-w-3xl leading-relaxed pt-1">{currentTenant.description ?? "Regional organizational tenant branch."}</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 bg-slate-950/80 border border-slate-800/80 p-3.5 rounded-xl shrink-0 font-sans">
-            <div className="text-center px-3 border-r border-slate-800">
-              <p className="text-[10px] uppercase font-bold text-slate-400">Staff</p>
-              <p className="text-lg font-extrabold text-sky-400">
+          <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800/80 p-3.5 rounded-xl shrink-0 font-sans">
+            <div className="text-center px-3 border-r border-slate-200 dark:border-slate-800">
+              <p className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400">Staff</p>
+              <p className="text-lg font-extrabold text-sky-600 dark:text-sky-400">
                 {staffCount}
               </p>
             </div>
-            <div className="text-center px-3 border-r border-slate-800">
-              <p className="text-[10px] uppercase font-bold text-slate-400">Clients</p>
-              <p className="text-lg font-extrabold text-purple-400">
+            <div className="text-center px-3 border-r border-slate-200 dark:border-slate-800">
+              <p className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400">Clients</p>
+              <p className="text-lg font-extrabold text-purple-600 dark:text-purple-400">
                 {clientCount.toLocaleString()}
               </p>
             </div>
             <div className="text-center px-3">
-              <p className="text-[10px] uppercase font-bold text-slate-400">Offices</p>
-              <p className="text-lg font-extrabold text-emerald-400">
+              <p className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400">Offices</p>
+              <p className="text-lg font-extrabold text-emerald-600 dark:text-emerald-400">
                 {officesCount}
               </p>
             </div>
@@ -212,31 +212,31 @@ function TenantDetailPageContent({
         </div>
       </div>
 
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-2 flex items-center gap-2 overflow-x-auto">
-        <button onClick={() => handleTabChange("members")} className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shrink-0 ${activeTab === "members" ? "bg-indigo-600 text-white" : "text-slate-400"}`}>
-          <Users className="w-4 h-4 text-sky-400" /> Staff ({staffCount})
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-2 flex items-center gap-2 overflow-x-auto shadow-sm dark:shadow-xl transition-colors duration-200">
+        <button onClick={() => handleTabChange("members")} className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shrink-0 ${activeTab === "members" ? "bg-indigo-600 text-white" : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"}`}>
+          <Users className="w-4 h-4 text-sky-500 dark:text-sky-400" /> Staff ({staffCount})
         </button>
-        <button onClick={() => handleTabChange("external_users")} className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shrink-0 ${activeTab === "external_users" ? "bg-indigo-600 text-white" : "text-slate-400"}`}>
-          <UserCheck className="w-4 h-4 text-purple-400" /> Clients ({clientCount.toLocaleString()})
+        <button onClick={() => handleTabChange("external_users")} className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shrink-0 ${activeTab === "external_users" ? "bg-indigo-600 text-white" : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"}`}>
+          <UserCheck className="w-4 h-4 text-purple-500 dark:text-purple-400" /> Clients ({clientCount.toLocaleString()})
         </button>
-        <button onClick={() => handleTabChange("field_offices")} className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shrink-0 ${activeTab === "field_offices" ? "bg-indigo-600 text-white" : "text-slate-400"}`}>
-          <Building2 className="w-4 h-4 text-emerald-400" /> Offices ({officesCount})
+        <button onClick={() => handleTabChange("field_offices")} className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shrink-0 ${activeTab === "field_offices" ? "bg-indigo-600 text-white" : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"}`}>
+          <Building2 className="w-4 h-4 text-emerald-500 dark:text-emerald-400" /> Offices ({officesCount})
         </button>
-        <button onClick={() => handleTabChange("schedules")} className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shrink-0 ${activeTab === "schedules" ? "bg-indigo-600 text-white" : "text-slate-400"}`}>
-          <Calendar className="w-4 h-4 text-amber-400" /> Schedules
+        <button onClick={() => handleTabChange("schedules")} className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shrink-0 ${activeTab === "schedules" ? "bg-indigo-600 text-white" : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"}`}>
+          <Calendar className="w-4 h-4 text-amber-500 dark:text-amber-400" /> Schedules
         </button>
-        <button onClick={() => handleTabChange("region_settings")} className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shrink-0 ${activeTab === "region_settings" ? "bg-indigo-600 text-white" : "text-slate-400"}`}>
+        <button onClick={() => handleTabChange("region_settings")} className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shrink-0 ${activeTab === "region_settings" ? "bg-indigo-600 text-white" : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"}`}>
           <Sliders className="w-4 h-4 text-amber-500" /> Settings
         </button>
-        <button onClick={() => handleTabChange("roles_permissions")} className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shrink-0 ${activeTab === "roles_permissions" ? "bg-indigo-600 text-white" : "text-slate-400"}`}>
-          <KeyRound className="w-4 h-4 text-purple-400" /> Roles
+        <button onClick={() => handleTabChange("roles_permissions")} className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shrink-0 ${activeTab === "roles_permissions" ? "bg-indigo-600 text-white" : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"}`}>
+          <KeyRound className="w-4 h-4 text-purple-500 dark:text-purple-400" /> Roles
         </button>
-        <button onClick={() => handleTabChange("transactions")} className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shrink-0 ${activeTab === "transactions" ? "bg-indigo-600 text-white" : "text-slate-400"}`}>
-          <Receipt className="w-4 h-4 text-teal-400" /> Transactions
+        <button onClick={() => handleTabChange("transactions")} className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shrink-0 ${activeTab === "transactions" ? "bg-indigo-600 text-white" : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"}`}>
+          <Receipt className="w-4 h-4 text-teal-500 dark:text-teal-400" /> Transactions
         </button>
       </div>
 
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm dark:shadow-xl transition-colors duration-200">
         {activeTab === "members" && <MembersTab currentTenant={currentTenant} fieldOfficesList={fieldOfficesList} showToast={showToast} />}
         {activeTab === "external_users" && <ExternalUsersTab currentTenant={currentTenant} getRegionName={getRegionName} getRegionCode={getRegionCode} />}
         {activeTab === "field_offices" && <FieldOfficesTab currentTenant={currentTenant} getRegionName={getRegionName} getRegionCode={getRegionCode} showToast={showToast} />}
