@@ -721,10 +721,26 @@ function ApplicationDetailsTab({
     : app.requirements;
 
   return (
-    <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
-      {/* Top Applicant Selector Bar for Bulk Applications */}
+    <View style={{ flex: 1 }}>
+      {/* Fixed Sticky Top Applicant Selector Bar for Bulk Applications */}
       {applicants.length > 0 && (
-        <View style={[styles.applicantSelectorBar, { backgroundColor: isDark ? colors.neutral[900] : colors.brand[50], borderColor: isDark ? colors.neutral[700] : colors.brand[200], marginBottom: SPACING[12] }]}>
+        <View
+          style={[
+            styles.applicantSelectorBar,
+            {
+              backgroundColor: isDark ? colors.neutral[900] : colors.brand[50],
+              borderColor: isDark ? colors.neutral[700] : colors.brand[200],
+              marginTop: SPACING[8],
+              marginBottom: SPACING[4],
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.08,
+              shadowRadius: 3,
+              elevation: 3,
+              zIndex: 10,
+            },
+          ]}
+        >
           <Pressable
             disabled={activeIdx === 0}
             onPress={() => onSelectApplicantIndex?.(Math.max(0, activeIdx - 1))}
@@ -754,6 +770,8 @@ function ApplicationDetailsTab({
           </Pressable>
         </View>
       )}
+
+      <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
 
       {/* Evaluator Verdict & Remarks Box */}
       {activeApplicant && (
@@ -1034,7 +1052,8 @@ function ApplicationDetailsTab({
 
       <View style={{ height: 80 }} />
     </ScrollView>
-  );
+  </View>
+);
 }
 
 function RequirementsTab({ app }: { app: ApplicationData }) {
