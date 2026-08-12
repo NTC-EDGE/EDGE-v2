@@ -43,6 +43,24 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
             UserId = app.UserId,
             IsGuest = app.IsGuest,
             CreatedAt = app.CreatedAt,
+            FilingUser = app.User != null ? new FilingUserDto
+            {
+                Id = app.User.Id,
+                Name = (app.User.FirstName + " " + app.User.LastName).Trim(),
+                Email = app.User.Email,
+                AccountType = app.User.AccountType.ToString(),
+                Company = app.User.CompanyDetail != null ? new CompanyDetailDto
+                {
+                    Id = app.User.CompanyDetail.Id,
+                    BarangayId = app.User.CompanyDetail.BarangayId,
+                    Address = app.User.CompanyDetail.Address,
+                    Name = app.User.CompanyDetail.Name,
+                    RegistrationNumber = app.User.CompanyDetail.RegistrationNumber,
+                    ContactNumber = app.User.CompanyDetail.ContactNumber,
+                    Email = app.User.CompanyDetail.Email,
+                    EntityType = app.User.CompanyDetail.EntityType?.ToString()
+                } : null
+            } : null,
             Services = app.ApplicationServices.Select(s => new ApplicationServiceDto
             {
                 Id = s.Id,

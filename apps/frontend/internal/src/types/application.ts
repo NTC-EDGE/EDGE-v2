@@ -116,7 +116,7 @@ export interface ApplicantItem {
 export interface ApplicationData {
   id: string;
   referenceNumber: string;
-  permitNumber: string;
+  applicationNumber: string;
   applicant: string;
   applicantType: ApplicantType;
   permitTitle: string;

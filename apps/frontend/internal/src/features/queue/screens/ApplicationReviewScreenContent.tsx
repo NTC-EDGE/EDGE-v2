@@ -43,10 +43,10 @@ const INNER_TABS: {
   label: string;
   icon: "file-text" | "user" | "credit-card";
 }[] = [
-  { key: "details", label: "Application Details", icon: "file-text" },
-  { key: "applicant-record", label: "Applicant Record", icon: "user" },
-  { key: "soa", label: "SOA & Payment", icon: "credit-card" },
-];
+    { key: "details", label: "Application Details", icon: "file-text" },
+    { key: "applicant-record", label: "Applicant Record", icon: "user" },
+    { key: "soa", label: "SOA & Payment", icon: "credit-card" },
+  ];
 
 function getStatusStyle(status: string): { bg: string; text: string } {
   const s = status.toLowerCase();
@@ -283,7 +283,7 @@ function ApplicationDetailsTab({
   const [isEditingRoster, setIsEditingRoster] = useState(false);
 
   const [refDraft, setRefDraft] = useState(app.referenceNumber);
-  const [permitDraft, setPermitDraft] = useState(app.permitNumber);
+  const [applicationDraft, setApplicationDraft] = useState(app.applicationNumber);
   const [noteDraft, setNoteDraft] = useState(app.note);
   const [applicantDraft, setApplicantDraft] = useState(app.applicant);
   const [accountTypeDraft, setAccountTypeDraft] = useState(app.applicantType);
@@ -396,7 +396,7 @@ function ApplicationDetailsTab({
     const numHeight = parseFloat(heightDraft);
     updateApplication(app.id, {
       referenceNumber: refDraft,
-      permitNumber: permitDraft,
+      applicationNumber: applicationDraft,
       applicant: applicantDraft,
       applicantType: accountTypeDraft as 'Individual' | 'Company',
       contactDetails: { ...app.contactDetails, email: emailDraft },
@@ -521,11 +521,11 @@ function ApplicationDetailsTab({
           DOCUMENT NUMBER
         </Text>
         <InfoRow
-          label="Permit Number:"
-          value={app.permitNumber}
+          label="Application Number:"
+          value={app.applicationNumber}
           isEditing={isEditingSection}
-          editValue={permitDraft}
-          onEditChange={setPermitDraft}
+          editValue={applicationDraft}
+          onEditChange={setApplicationDraft}
         />
       </View>
 

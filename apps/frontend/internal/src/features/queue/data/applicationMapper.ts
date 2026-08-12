@@ -51,38 +51,38 @@ export function mapApplicationDtoToUI(dto: ApplicationDto | ApplicationSummaryDt
 
   const companyDetails = companyObj
     ? {
-        name: companyObj.name ?? '',
-        registrationNumber: companyObj.registrationNumber ?? '',
-        address: companyObj.address ?? '',
-        contactNumber: companyObj.contactNumber ?? '',
-        email: companyObj.email ?? '',
-      }
+      name: companyObj.name ?? '',
+      registrationNumber: companyObj.registrationNumber ?? '',
+      address: companyObj.address ?? '',
+      contactNumber: companyObj.contactNumber ?? '',
+      email: companyObj.email ?? '',
+    }
     : undefined;
 
   const filingUser = rawFilingUser
     ? {
-        id: rawFilingUser.id,
-        name: rawFilingUser.name ?? '',
-        email: rawFilingUser.email ?? '',
-        accountType: (rawFilingUser.accountType as 'Individual' | 'Company') ?? 'Individual',
-        company: rawFilingUser.company
-          ? {
-              name: rawFilingUser.company.name ?? '',
-              registrationNumber: rawFilingUser.company.registrationNumber ?? '',
-              address: rawFilingUser.company.address ?? '',
-              contactNumber: rawFilingUser.company.contactNumber ?? '',
-              email: rawFilingUser.company.email ?? '',
-            }
-          : undefined,
-      }
+      id: rawFilingUser.id,
+      name: rawFilingUser.name ?? '',
+      email: rawFilingUser.email ?? '',
+      accountType: (rawFilingUser.accountType as 'Individual' | 'Company') ?? 'Individual',
+      company: rawFilingUser.company
+        ? {
+          name: rawFilingUser.company.name ?? '',
+          registrationNumber: rawFilingUser.company.registrationNumber ?? '',
+          address: rawFilingUser.company.address ?? '',
+          contactNumber: rawFilingUser.company.contactNumber ?? '',
+          email: rawFilingUser.company.email ?? '',
+        }
+        : undefined,
+    }
     : undefined;
 
   // Rule: If submission is individual, filing user IS the applicant. Copy filing user details to applicant.
   const applicantName = primaryDetail
     ? `${primaryDetail.firstName} ${primaryDetail.lastName}`.trim()
     : isCompanySubmission
-    ? (companyDetails?.name ?? rawFilingUser?.name ?? '')
-    : (rawFilingUser?.name ?? '');
+      ? (companyDetails?.name ?? rawFilingUser?.name ?? '')
+      : (rawFilingUser?.name ?? '');
 
   const contactEmail = primaryDetail?.email ?? rawFilingUser?.email ?? '';
   const contactPhone = primaryDetail?.contactNumber ?? '';
@@ -96,12 +96,12 @@ export function mapApplicationDtoToUI(dto: ApplicationDto | ApplicationSummaryDt
     const itemComp = appItem.company ?? ad?.company;
     const itemCompanyDetails = itemComp
       ? {
-          name: itemComp.name ?? '',
-          registrationNumber: itemComp.registrationNumber ?? '',
-          address: itemComp.address ?? '',
-          contactNumber: itemComp.contactNumber ?? '',
-          email: itemComp.email ?? '',
-        }
+        name: itemComp.name ?? '',
+        registrationNumber: itemComp.registrationNumber ?? '',
+        address: itemComp.address ?? '',
+        contactNumber: itemComp.contactNumber ?? '',
+        email: itemComp.email ?? '',
+      }
       : undefined;
 
     return {
@@ -145,7 +145,7 @@ export function mapApplicationDtoToUI(dto: ApplicationDto | ApplicationSummaryDt
   return {
     id: dto.id,
     referenceNumber: dto.referenceNumber ?? dto.id.slice(0, 8),
-    permitNumber: dto.applicationNumber ?? '',
+    applicationNumber: dto.applicationNumber ?? '',
     filingUser,
     applicant: applicantName,
     applicantType: isCompanySubmission ? 'Company' : 'Individual',
