@@ -65,6 +65,85 @@ public static class ApplicationDataSeeder
         if (app17Existing != null) app17Existing.UserId = liaisonUserId;
         await context.SaveChangesAsync();
 
+        // ── Backfill FormSubmissions for existing database records ──────────
+        if (await context.FormSubmissions.CountAsync() == 0)
+        {
+            var app1Id = Guid.Parse("a1000000-0000-0000-0000-000000000001");
+            var app2Id = Guid.Parse("a2000000-0000-0000-0000-000000000002");
+            var app3Id = Guid.Parse("a3000000-0000-0000-0000-000000000003");
+
+            var exApp1 = await context.Applications.Include(a => a.ApplicationApplicants).ThenInclude(aa => aa.Applicant).FirstOrDefaultAsync(a => a.Id == app1Id);
+            var exApp2 = await context.Applications.Include(a => a.ApplicationApplicants).ThenInclude(aa => aa.Applicant).FirstOrDefaultAsync(a => a.Id == app2Id);
+            var exApp3 = await context.Applications.Include(a => a.ApplicationApplicants).ThenInclude(aa => aa.Applicant).FirstOrDefaultAsync(a => a.Id == app3Id);
+            var exApp16 = await context.Applications.Include(a => a.ApplicationApplicants).ThenInclude(aa => aa.Applicant).FirstOrDefaultAsync(a => a.Id == app16Id);
+            var exApp17 = await context.Applications.Include(a => a.ApplicationApplicants).ThenInclude(aa => aa.Applicant).FirstOrDefaultAsync(a => a.Id == app17Id);
+
+            if (exApp1 != null && exApp1.ApplicationApplicants.FirstOrDefault()?.Applicant != null)
+            {
+                AddFormSubmission(exApp1, exApp1.ApplicationApplicants.First().Applicant!, new()
+                {
+                    ("Call Sign / Station Name", "DX-101 Manila Relay"),
+                    ("Equipment Manufacturer", "Motorola Solutions"),
+                    ("Equipment Model", "XPR 7550e"),
+                    ("Transmitter Power (Watts)", "50W"),
+                    ("Frequency Band", "VHF 136-174 MHz"),
+                    ("Station Installation Address", "Building 4, Port Area, Manila"),
+                    ("Intended Usage", "Commercial Fleet Operations"),
+                });
+            }
+
+            if (exApp2 != null && exApp2.ApplicationApplicants.FirstOrDefault()?.Applicant != null)
+            {
+                AddFormSubmission(exApp2, exApp2.ApplicationApplicants.First().Applicant!, new()
+                {
+                    ("License Number", "NTC-LIC-2023-88219"),
+                    ("Radio Station Category", "Land Mobile Base Station"),
+                    ("Antenna Height (Meters)", "24.5m"),
+                    ("Antenna Type", "Omni-directional Fiber Dipole"),
+                    ("Operating Hours", "24/7 Continuous Operation"),
+                });
+            }
+
+            if (exApp3 != null && exApp3.ApplicationApplicants.FirstOrDefault()?.Applicant != null)
+            {
+                AddFormSubmission(exApp3, exApp3.ApplicationApplicants.First().Applicant!, new()
+                {
+                    ("Certificate Applied For", "General Radio Operator Certificate (GROC)"),
+                    ("NTC Examination Rating", "88.5%"),
+                    ("Examination Date", "2025-11-14"),
+                    ("School / Training Center", "Philippine Maritime & Radio Academy"),
+                    ("Highest Educational Attainment", "BS Electronics Engineering"),
+                });
+            }
+
+            if (exApp16 != null && exApp16.ApplicationApplicants.FirstOrDefault()?.Applicant != null)
+            {
+                AddFormSubmission(exApp16, exApp16.ApplicationApplicants.First().Applicant!, new()
+                {
+                    ("Liaison Representative", "Engr. Ricardo Dizon"),
+                    ("Authorization Letter No.", "AUTH-2026-APEX-09"),
+                    ("Commercial Operator ID", "COP-2024-5512"),
+                    ("Station Location", "Unit 402 Sampaloc Manila"),
+                    ("Equipment Power Rating", "100W PEP"),
+                });
+            }
+
+            if (exApp17 != null && exApp17.ApplicationApplicants.FirstOrDefault()?.Applicant != null)
+            {
+                AddFormSubmission(exApp17, exApp17.ApplicationApplicants.First().Applicant!, new()
+                {
+                    ("Public Trunkline Network Name", "Apex Metro-Trunk System"),
+                    ("Base Station Location", "Tower 2, IT Park, Lahug, Cebu City"),
+                    ("Number of Transceivers", "12 Units"),
+                    ("RF Radiation Compliance Certificate", "EMF-CERT-2025-0981"),
+                    ("Safety Officer In-Charge", "Engr. Manuel Roxas (PECE #4412)"),
+                    ("Emergency Power Source", "250 kVA Standby Generator Set"),
+                });
+            }
+
+            await context.SaveChangesAsync();
+        }
+
         if (await context.Applications.CountAsync() >= 17)
             return;
 

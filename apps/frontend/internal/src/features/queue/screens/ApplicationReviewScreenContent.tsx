@@ -712,7 +712,7 @@ function ApplicationDetailsTab({
         occupation: app.basicInfo.occupation,
       } : undefined,
       requirements: app.requirements,
-      formFields: [],
+      formFields: app.applicantsList?.[0]?.formFields ?? [],
     }];
   }, [app]);
 
