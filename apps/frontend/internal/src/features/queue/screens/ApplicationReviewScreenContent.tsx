@@ -702,18 +702,32 @@ function ApplicationDetailsTab({
     Alert.alert("View Requirement Document", `Viewing submitted document: ${label}`);
   };
 
+  const targetList = (app.applicantsList && app.applicantsList.length > 0)
+    ? app.applicantsList
+    : applicants;
+
+  const [localRemarks, setLocalRemarks] = useState(activeApplicant?.evaluationRemarks ?? '');
+
+  useEffect(() => {
+    setLocalRemarks(activeApplicant?.evaluationRemarks ?? '');
+  }, [activeApplicant?.id, activeApplicant?.evaluationRemarks]);
+
   const handleSetStatus = (idx: number, newStatus: 'Complete' | 'Incomplete' | 'ForEndorsement') => {
-    if (!updateApplication || !app.applicantsList) return;
-    const updated = [...app.applicantsList];
-    updated[idx] = { ...updated[idx], status: newStatus };
-    updateApplication(app.id, { applicantsList: updated });
+    if (!updateApplication || targetList.length === 0) return;
+    const updated = [...targetList];
+    if (updated[idx]) {
+      updated[idx] = { ...updated[idx], status: newStatus };
+      updateApplication(app.id, { applicantsList: updated });
+    }
   };
 
   const handleSetRemarks = (idx: number, text: string) => {
-    if (!updateApplication || !app.applicantsList) return;
-    const updated = [...app.applicantsList];
-    updated[idx] = { ...updated[idx], evaluationRemarks: text };
-    updateApplication(app.id, { applicantsList: updated });
+    if (!updateApplication || targetList.length === 0) return;
+    const updated = [...targetList];
+    if (updated[idx]) {
+      updated[idx] = { ...updated[idx], evaluationRemarks: text };
+      updateApplication(app.id, { applicantsList: updated });
+    }
   };
 
   const applicantRequirements = (activeApplicant?.requirements && activeApplicant.requirements.length > 0)
@@ -1143,8 +1157,11 @@ function ApplicationDetailsTab({
               }]}
               placeholder="Add notes or remarks..."
               placeholderTextColor={isDark ? colors.neutral[600] : colors.neutral[400]}
-              value={activeApplicant.evaluationRemarks ?? ''}
-              onChangeText={(text) => handleSetRemarks(activeIdx, text)}
+              value={localRemarks}
+              onChangeText={(text) => {
+                setLocalRemarks(text);
+                handleSetRemarks(activeIdx, text);
+              }}
               multiline
               numberOfLines={2}
             />
@@ -2940,7 +2957,8 @@ const styles = StyleSheet.create({
     gap: SPACING[8],
     paddingVertical: SPACING[8],
     borderRadius: RADIUS.button,
-    maxWidth: 200,
+    minWidth: 140,
+    maxWidth: 180,
   },
   actionBtnPrimaryText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
@@ -2954,7 +2972,8 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING[8],
     borderRadius: RADIUS.button,
     borderWidth: 1.5,
-    maxWidth: 160,
+    minWidth: 140,
+    maxWidth: 180,
   },
   actionBtnOutlineText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
