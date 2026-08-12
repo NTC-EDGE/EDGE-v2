@@ -170,22 +170,17 @@ public class ApplicationFullRepository : IApplicationFullRepository
             .Select(app => new EDGE.Application.Applications.Dtos.ApplicationSummaryDto
             {
                 Id = app.Id,
-                TenantId = app.TenantId,
-                ScheduleId = app.ScheduleId,
-                RegionId = app.RegionId,
-                Office = app.Office,
                 ApplicationNumber = app.ApplicationNumber,
                 ReferenceNumber = app.ReferenceNumber,
                 Status = app.Status.ToString(),
                 SubmissionMode = app.SubmissionMode.ToString(),
-                DataEntryMethod = app.DataEntryMethod != null ? app.DataEntryMethod.Value.ToString() : null,
+                Office = app.Office,
                 Remarks = app.Remarks,
-                UserId = app.UserId,
                 IsGuest = app.IsGuest,
                 IsPinned = app.IsPinned,
                 IsArchived = app.IsArchived,
                 CreatedAt = app.CreatedAt,
-                FilingUser = app.User != null ? new EDGE.Application.Applications.Dtos.FilingUserDto
+                FilingUser = app.User != null ? new EDGE.Application.Applications.Dtos.FilingUserSummaryDto
                 {
                     Id = app.User.Id,
                     Name = (app.User.FirstName + " " + app.User.LastName).Trim(),
@@ -203,29 +198,22 @@ public class ApplicationFullRepository : IApplicationFullRepository
                         EntityType = app.User.CompanyDetail.EntityType != null ? app.User.CompanyDetail.EntityType.Value.ToString() : null
                     } : null
                 } : null,
-                Services = app.ApplicationServices.Select(s => new EDGE.Application.Applications.Dtos.ApplicationServiceDto
+                Services = app.ApplicationServices.Select(s => new EDGE.Application.Applications.Dtos.ServiceSummaryDto
                 {
                     Id = s.Id,
                     ServiceCategoryId = s.ServiceCategoryId,
                     ServiceId = s.ServiceId,
                     ServiceVariantId = s.ServiceVariantId,
-                    ApplicationTypeKey = s.ApplicationTypeKey,
-                    DynamicDataJson = s.DynamicDataJson
+                    ApplicationTypeKey = s.ApplicationTypeKey
                 }).ToList(),
                 Applicants = app.ApplicationApplicants.Select(aa => new EDGE.Application.Applications.Dtos.ApplicantSummaryDto
                 {
                     Id = aa.Applicant != null ? aa.Applicant.Id : Guid.Empty,
-                    TenantId = aa.Applicant != null ? aa.Applicant.TenantId : Guid.Empty,
-                    UserId = aa.Applicant != null ? aa.Applicant.UserId : null,
-                    IsGuest = aa.Applicant != null ? aa.Applicant.IsGuest : true,
                     ApplicantType = aa.Applicant != null ? aa.Applicant.ApplicantType.ToString() : "Individual",
                     Status = aa.Applicant != null ? aa.Applicant.Status.ToString() : "Incomplete",
-                    EvaluationRemarks = aa.Applicant != null ? aa.Applicant.EvaluationRemarks : null,
                     Name = aa.Applicant != null && aa.Applicant.ApplicantDetail != null
                         ? (aa.Applicant.ApplicantDetail.FirstName + " " + aa.Applicant.ApplicantDetail.LastName).Trim()
                         : (aa.Applicant != null && aa.Applicant.CompanyDetail != null ? aa.Applicant.CompanyDetail.Name : "Applicant"),
-                    ContactNumber = aa.Applicant != null && aa.Applicant.ApplicantDetail != null ? aa.Applicant.ApplicantDetail.ContactNumber : null,
-                    EmailAddress = aa.Applicant != null && aa.Applicant.ApplicantDetail != null ? aa.Applicant.ApplicantDetail.EmailAddress : null,
                     Company = (aa.Applicant != null && aa.Applicant.CompanyDetail != null)
                         ? new EDGE.Application.Applicants.Dtos.CompanyDetailDto
                         {
@@ -251,24 +239,6 @@ public class ApplicationFullRepository : IApplicationFullRepository
                             EntityType = aa.Applicant.ApplicantDetail.CompanyDetail.EntityType != null ? aa.Applicant.ApplicantDetail.CompanyDetail.EntityType.Value.ToString() : null
                         }
                         : null
-                }).ToList(),
-                StatementsOfAccount = app.StatementsOfAccount.Select(s => new EDGE.Application.Applications.Dtos.StatementOfAccountSummaryDto
-                {
-                    Id = s.Id,
-                    SoaNumber = s.SoaNumber,
-                    Status = s.Status.ToString(),
-                    TotalAmount = s.TotalAmount,
-                    DueDate = s.DueDate
-                }).ToList(),
-                OrdersOfPayment = app.OrdersOfPayment.Select(op => new EDGE.Application.Applications.Dtos.OrderOfPaymentSummaryDto
-                {
-                    Id = op.Id,
-                    OpNumber = op.OpNumber,
-                    Status = op.Status.ToString(),
-                    AmountDue = op.AmountDue,
-                    AmountReceived = op.AmountReceived,
-                    OfficialReceiptNumber = op.OfficialReceiptNumber,
-                    PaidAt = op.PaidAt
                 }).ToList()
             })
             .ToListAsync(cancellationToken);
