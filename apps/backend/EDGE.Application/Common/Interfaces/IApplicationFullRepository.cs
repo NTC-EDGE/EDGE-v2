@@ -14,7 +14,8 @@ public interface IApplicationFullRepository
     Task<Domain.Entities.Application?> GetByIdWithDetailsAsync(Guid id, CancellationToken cancellationToken = default);
     Task<List<Domain.Entities.Application>> GetUserDraftsAsync(Guid userId, CancellationToken cancellationToken = default);
     Task<List<Domain.Entities.Application>> GetUserApplicationsAsync(Guid userId, ApplicationStatus? status = null, CancellationToken cancellationToken = default);
-    Task<List<Domain.Entities.Application>> GetAllApplicationsAsync(ApplicationStatus? status = null, CancellationToken cancellationToken = default);
+    Task<List<Domain.Entities.Application>> GetAllApplicationsAsync(ApplicationStatus? status = null, string? queueTab = null, string? scope = null, CancellationToken cancellationToken = default);
+    Task<List<EDGE.Application.Applications.Dtos.ApplicationDto>> GetApplicationDtosAsync(ApplicationStatus? status = null, string? queueTab = null, string? scope = null, CancellationToken cancellationToken = default);
     Task<List<Domain.Entities.Application>> GetByApplicantIdAsync(Guid applicantId, CancellationToken cancellationToken = default);
 
 
@@ -28,4 +29,12 @@ public interface IApplicationFullRepository
     Task AddApplicationStatusHistoryAsync(ApplicationStatusHistory statusHistory, CancellationToken cancellationToken = default);
     Task AddFormSubmissionAsync(FormSubmission formSubmission, CancellationToken cancellationToken = default);
     Task AddFormFieldValueAsync(FormFieldValue fieldValue, CancellationToken cancellationToken = default);
+
+    Task<StatementOfAccount?> GetSoaByIdAsync(Guid soaId, CancellationToken cancellationToken = default);
+    Task AddSoaAsync(StatementOfAccount soa, CancellationToken cancellationToken = default);
+    Task<OrderOfPayment?> GetOpByIdAsync(Guid opId, CancellationToken cancellationToken = default);
+    Task AddOpAsync(OrderOfPayment op, CancellationToken cancellationToken = default);
+    Task AddApplicationHistoryAsync(ApplicationHistory history, CancellationToken cancellationToken = default);
+    Task AddSoaHistoryAsync(SoaHistory history, CancellationToken cancellationToken = default);
+    Task<bool> UserExistsAsync(Guid userId, CancellationToken cancellationToken = default);
 }

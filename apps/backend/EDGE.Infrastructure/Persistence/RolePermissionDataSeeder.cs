@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using EDGE.Domain.Authorization;
 using EDGE.Domain.Entities;
+using EDGE.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 
@@ -158,10 +159,18 @@ public static class RolePermissionDataSeeder
             targetRolePermissions.Add((actualAdminRoleId, permKey));
         }
 
-        foreach (var (roleId, permKey) in targetRolePermissions)
+        var uniqueTargetRolePermissions = targetRolePermissions.Distinct().ToList();
+
+        var existingInDb = (await context.RolePermissions
+            .IgnoreQueryFilters()
+            .Select(rp => new { rp.RoleId, rp.PermissionKey })
+            .ToListAsync())
+            .Select(rp => (rp.RoleId, rp.PermissionKey))
+            .ToHashSet();
+
+        foreach (var (roleId, permKey) in uniqueTargetRolePermissions)
         {
-            var exists = await context.RolePermissions.AnyAsync(rp => rp.RoleId == roleId && rp.PermissionKey == permKey);
-            if (!exists)
+            if (!existingInDb.Contains((roleId, permKey)))
             {
                 var rpEntity = new RolePermission
                 {
@@ -170,22 +179,16 @@ public static class RolePermissionDataSeeder
                     PermissionKey = permKey,
                     CreatedAt = staticDate
                 };
-                try
-                {
-                    await context.RolePermissions.AddAsync(rpEntity);
-                    await context.SaveChangesAsync();
-                }
-                catch (Exception ex) when (ex is DbUpdateException || ex.InnerException is PostgresException)
-                {
-                    context.Entry(rpEntity).State = EntityState.Detached;
-                }
+                context.RolePermissions.Add(rpEntity);
             }
         }
+        await context.SaveChangesAsync();
 
         // ── 4. Seed Users ─────────────────────────────────────────────────────────
         var defaultUsers = new List<User>
         {
-            new() { Id = Guid.Parse("11111111-1111-1111-1111-111111111111"), AuthUserId = "user_client123", Email = "client@ntcedge.com", FirstName = "John", LastName = "Client", IsSuperAdmin = false, CreatedAt = staticDate },
+            new() { Id = Guid.Parse("11111111-1111-1111-1111-111111111111"), AuthUserId = "user_client123", Email = "client@ntcedge.com", FirstName = "John", LastName = "Client", AccountType = ApplicantType.Individual, IsSuperAdmin = false, CreatedAt = staticDate },
+            new() { Id = Guid.Parse("11111111-1111-1111-1111-222222222222"), AuthUserId = "user_liaison123", Email = "rdizon@apexconsulting.ph", FirstName = "Engr. Ricardo", LastName = "Dizon (Liaison Representative)", AccountType = ApplicantType.Company, IsSuperAdmin = false, CreatedAt = staticDate },
             new() { Id = Guid.Parse("22222222-2222-2222-2222-222222222222"), AuthUserId = "user_evaluator123", Email = "evaluator@ntcedge.com", FirstName = "Jane", LastName = "Evaluator", IsSuperAdmin = false, CreatedAt = staticDate },
             new() { Id = Guid.Parse("33333333-3333-3333-3333-333333333333"), AuthUserId = "user_higherups123", Email = "higherups@ntcedge.com", FirstName = "Chief", LastName = "Officer", IsSuperAdmin = false, CreatedAt = staticDate },
             new() { Id = Guid.Parse("44444444-4444-4444-4444-444444444444"), AuthUserId = "user_accountant123", Email = "accountant@ntcedge.com", FirstName = "Alice", LastName = "Accountant", IsSuperAdmin = false, CreatedAt = staticDate },

@@ -121,7 +121,20 @@ public class DatabaseInitializerHostedService : IHostedService
             _logger.LogWarning(ex, "Notification Templates seed data encountered an issue.");
         }
 
-        // 8. Seed Service Information entries
+        // 8. Seed Application dev data (Applications, SOAs, OPs, Histories)
+        try
+        {
+            _logger.LogInformation("Seeding Application dev data...");
+            await ApplicationDataSeeder.SeedAsync(context);
+            _logger.LogInformation("Application dev data seeded successfully.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Application dev data seed encountered an issue.");
+            throw;
+        }
+
+        // 9. Seed Service Information entries
         try
         {
             _logger.LogInformation("Seeding Service Information entries...");

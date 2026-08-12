@@ -1,13 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { StyleSheet, View, Animated } from 'react-native';
-import { useTheme, PageHeader, AnimatedCard, SPACING } from '@edge/ui';
+import { useTheme, PageHeader, AnimatedCard, SPACING, AlertToast } from '@edge/ui';
 import { ApplicationProvider, useApplications } from '../context/ApplicationContext';
 import { ActivitiesFeedPane } from '../components/ActivitiesFeedPane';
 import { ApplicationReviewScreen } from './ApplicationReviewScreen';
 
 function DesktopActivitiesContent() {
   const { colors } = useTheme();
-  const { setSelectedId } = useApplications();
+  const { setSelectedId, toast, dismissToast } = useApplications();
   const [isPanelCollapsed, setIsPanelCollapsed] = useState(false);
   const collapseAnim = useRef(new Animated.Value(0)).current;
 
@@ -34,6 +34,15 @@ function DesktopActivitiesContent() {
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.bg }]}>
+      {toast !== null && (
+        <View style={styles.toastContainer}>
+          <AlertToast
+            message={toast.message}
+            variant={toast.variant}
+            onDismiss={dismissToast}
+          />
+        </View>
+      )}
       <View style={styles.headerWrapper}>
         <PageHeader
           title="Queue Command Center"
@@ -109,5 +118,11 @@ const styles = StyleSheet.create({
   },
   detailPane: {
     flex: 1,
+  },
+  toastContainer: {
+    position: 'absolute',
+    top: 16,
+    right: 24,
+    zIndex: 999,
   },
 });

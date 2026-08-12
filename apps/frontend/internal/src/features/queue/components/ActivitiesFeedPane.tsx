@@ -22,7 +22,7 @@ import {
   ApplicationData,
   ApplicationStatus,
   ApplicationCategory,
-} from "../data/mockApplications";
+} from "../../../types/application";
 import { ActivityCard } from "./ActivityCard";
 import { useApplications } from "../context/ApplicationContext";
 import {
@@ -36,7 +36,7 @@ type SortOrder = "newest" | "oldest";
 
 type FilterStatus = Extract<
   ApplicationStatus,
-  "Approved" | "Declined" | "Completed"
+  "Approved" | "Returned" | "Completed"
 >;
 
 // ─── Static config ───────────────────────────────────────────────────────────
@@ -47,7 +47,7 @@ const FILTER_STATUSES: {
   icon: "check-circle" | "x-circle" | "calendar";
 }[] = [
   { label: "Approved", value: "Approved", icon: "check-circle" },
-  { label: "Declined", value: "Declined", icon: "x-circle" },
+  { label: "Returned", value: "Returned", icon: "x-circle" },
   { label: "Completed", value: "Completed", icon: "calendar" },
 ];
 
@@ -115,6 +115,9 @@ export function ActivitiesFeedPane() {
     setSelectedId,
     activeQueueTab,
     setActiveQueueTab,
+    togglePinApplication,
+    toggleArchiveApplication,
+    evaluateApplication,
     resetStore,
   } = useApplications();
   const { visibleTabs } = usePermissions();
@@ -185,6 +188,7 @@ export function ActivitiesFeedPane() {
   // ── Filtered data ───────────────────────────────────────────────────────────
   const filteredGroups = useMemo(() => {
     const filtered = applications.filter((app) => {
+      if (app.status === "Draft" || app.isArchived) return false;
       if (activeQueueTab !== "activity" && app.queueTab !== activeQueueTab) return false;
       if (
         searchQuery.trim().length > 0 &&
@@ -435,7 +439,13 @@ export function ActivitiesFeedPane() {
                       isActive={selectedId === app.id}
                       onPress={() => setSelectedId(app.id)}
                       onMenuAction={(action, id) => {
-                        console.log(`[Menu] ${action} on ${id}`);
+                        if (action === "evaluate") {
+                          void evaluateApplication(id);
+                        } else if (action === "pin") {
+                          void togglePinApplication(id);
+                        } else if (action === "archive") {
+                          void toggleArchiveApplication(id);
+                        }
                       }}
                     />
                   ))}

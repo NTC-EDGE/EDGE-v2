@@ -27,3 +27,5 @@ export * from './hooks/usePermissionsCatalog';
 export * from './hooks/useAdminServices';
 export * from './features/services';
 export * from './utils/safeAsync';
+export * from './services/applicationService';
+export * from './hooks/useAdminApplications';

@@ -627,3 +627,243 @@ export interface ActivityLogDto {
   ipAddress: string;
   timestamp: string;
 }
+
+// ─── Application Domain DTOs ───────────────────────────────────────────────
+
+export type ApplicationStatusDto =
+  | 'Draft'
+  | 'Submitted'
+  | 'Evaluating'
+  | 'Returned'
+  | 'Approved'
+  | 'Completed';
+
+export type SoaStatusDto = 'Pending' | 'Approved' | 'Returned';
+export type OpStatusDto = 'Billed' | 'Processing' | 'Returned' | 'Paid';
+export type IssuedToTypeDto = 'Individual' | 'Company' | 'AccountOwner';
+export type PaymentMethodDto = 'Cash' | 'Check' | 'Online';
+
+export interface SoaLineItemDto {
+  id: string;
+  particular: string;
+  itemCode: string;
+  description?: string;
+  periodOfCoverageStart?: string;
+  periodOfCoverageEnd?: string;
+  validityYears: number;
+  noOfUnits: number;
+  feeRate: number;
+  amount: number;
+}
+
+export interface SoaHistoryDto {
+  id: string;
+  action: string;
+  fromStatus?: SoaStatusDto;
+  toStatus: SoaStatusDto;
+  staffName: string;
+  staffRole: string;
+  remarks?: string;
+  timestamp: string;
+}
+
+export interface StatementOfAccountDto {
+  id: string;
+  applicationId: string;
+  applicantId?: string;
+  soaNumber: string;
+  status: SoaStatusDto;
+  issuedToType: IssuedToTypeDto;
+  issuedToName: string;
+  issuedToAddress?: string;
+  totalAmount: number;
+  dueDate: string;
+  preparedByUserId?: string;
+  approvedByUserId?: string;
+  approvedAt?: string;
+  remarks?: string;
+  lineItems: SoaLineItemDto[];
+  histories: SoaHistoryDto[];
+}
+
+export interface OpHistoryDto {
+  id: string;
+  action: string;
+  fromStatus?: OpStatusDto;
+  toStatus: OpStatusDto;
+  staffName: string;
+  staffRole: string;
+  officialReceiptNumber?: string;
+  remarks?: string;
+  timestamp: string;
+}
+
+export interface OrderOfPaymentDto {
+  id: string;
+  applicationId: string;
+  statementOfAccountId: string;
+  opNumber: string;
+  status: OpStatusDto;
+  amountDue: number;
+  amountReceived: number;
+  paymentMethod?: PaymentMethodDto;
+  officialReceiptNumber?: string;
+  checkNumber?: string;
+  checkName?: string;
+  checkBank?: string;
+  checkDate?: string;
+  verifiedByCashierId?: string;
+  paidAt?: string;
+  remarks?: string;
+  histories: OpHistoryDto[];
+}
+
+export interface ApplicationHistoryDto {
+  id: string;
+  action: string;
+  fromStatus?: ApplicationStatusDto;
+  toStatus: ApplicationStatusDto;
+  staffName: string;
+  staffRole: string;
+  remarks?: string;
+  timestamp: string;
+}
+
+export interface CorrectionAuditTrailDto {
+  id: string;
+  category: string;
+  fieldName: string;
+  oldValue: string;
+  newValue: string;
+  correctedByStaff: string;
+  correctedAt: string;
+}
+
+export interface ApplicationServiceDto {
+  id: string;
+  serviceCategoryId: string;
+  serviceId: string;
+  serviceVariantId?: string;
+  applicationTypeKey?: string;
+  dynamicDataJson?: string;
+}
+
+export interface FormFieldValueDto {
+  fieldId: string;
+  fieldLabel: string;
+  value?: string;
+}
+
+export interface CompanyDetailDto {
+  id: string;
+  barangayId?: string;
+  barangayName?: string;
+  address: string;
+  name: string;
+  registrationNumber: string;
+  contactNumber: string;
+  email?: string;
+  entityType?: string;
+}
+
+export interface ApplicantDetailDto {
+  id: string;
+  barangayId?: string;
+  address: string;
+  firstName: string;
+  middleName?: string;
+  lastName: string;
+  suffix?: string;
+  nationality: string;
+  sex: string;
+  height?: number;
+  weight?: number;
+  birthDate?: string;
+  contactNumber: string;
+  email?: string;
+  zipCode?: string;
+  company?: CompanyDetailDto;
+}
+
+export interface ApplicantDto {
+  id: string;
+  tenantId: string;
+  userId?: string;
+  isGuest: boolean;
+  applicantType: string;
+  details?: ApplicantDetailDto;
+  company?: CompanyDetailDto;
+  formFieldValues?: FormFieldValueDto[];
+}
+
+export interface FilingUserDto {
+  id: string;
+  name: string;
+  email: string;
+  accountType: string;
+  company?: CompanyDetailDto;
+}
+
+export interface ApplicationDto {
+  id: string;
+  tenantId: string;
+  scheduleId?: string;
+  regionId?: string;
+  userId?: string;
+  office?: string;
+  applicationNumber?: string;
+  referenceNumber?: string;
+  remarks?: string;
+  status: ApplicationStatusDto;
+  submissionMode: string;
+  dataEntryMethod?: string;
+  isGuest: boolean;
+  isPinned?: boolean;
+  isArchived?: boolean;
+  createdAt: string;
+  filingUser?: FilingUserDto;
+  services: ApplicationServiceDto[];
+  applicants: ApplicantDto[];
+  statementsOfAccount: StatementOfAccountDto[];
+  ordersOfPayment: OrderOfPaymentDto[];
+  histories: ApplicationHistoryDto[];
+  correctionAuditTrails: CorrectionAuditTrailDto[];
+}
+
+export interface UpdateApplicationStatusRequest {
+  status: string;
+  remarks?: string;
+}
+
+export interface CreateSoaLineItemRequest {
+  particular: string;
+  itemCode: string;
+  description?: string;
+  periodOfCoverageStart?: string;
+  periodOfCoverageEnd?: string;
+  validityYears: number;
+  noOfUnits: number;
+  feeRate: number;
+  amount: number;
+}
+
+export interface CreateSoaRequest {
+  applicantId?: string;
+  issuedToType: IssuedToTypeDto;
+  issuedToName: string;
+  issuedToAddress?: string;
+  dueDate: string;
+  lineItems: CreateSoaLineItemRequest[];
+}
+
+export interface VerifyPaymentRequest {
+  officialReceiptNumber: string;
+  amountReceived: number;
+}
+
+export type ReturnTargetDto = 'Accountant' | 'Evaluator';
+
+export interface ReturnOpRequest {
+  remarks: string;
+  returnTo: ReturnTargetDto;
+}

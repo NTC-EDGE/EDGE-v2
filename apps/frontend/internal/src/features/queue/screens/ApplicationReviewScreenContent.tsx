@@ -10,6 +10,7 @@ import {
   Alert,
   Platform,
   Animated,
+  useWindowDimensions,
 } from "react-native";
 import {
   useTheme,
@@ -23,7 +24,7 @@ import {
 import {
   ApplicationData,
   ApplicationFormAttachment,
-} from "../data/mockApplications";
+} from "../../../types/application";
 import { useRole } from "../../shell/context/RoleContext";
 import { usePermissions } from "../../shell/context/PermissionContext";
 import { ApproveModal } from "../components/modals/ApproveModal";
@@ -292,7 +293,7 @@ function BasicInfoTab({
             style={[styles.statusPill, { backgroundColor: statusStyle.bg }]}
           >
             <Text style={[styles.statusPillText, { color: statusStyle.text }]}>
-              {app.status.toUpperCase()}
+              {app.status.toLowerCase() === "submitted" ? "FOR EVALUATION" : app.status.toUpperCase()}
             </Text>
           </View>
           <Text style={[styles.statusActor, { color: isDark ? colors.neutral[500] : colors.neutral[400], }]}>by ADMIN EDGE</Text>
@@ -345,30 +346,59 @@ function BasicInfoTab({
         />
       </View>
 
-      <SectionHeader title="ADDRESS" />
-      <View style={styles.infoBlock}>
-        <InfoRow label="Barangay:" value={app.address.barangay} />
-        <InfoRow label="Province:" value={app.address.province} />
-        <InfoRow label="City/Municipality:" value={app.address.city} />
-        <InfoRow label="Zip Code:" value={app.address.zipCode} />
-      </View>
+      {app.filingUser?.accountType === 'Company' ? (
+        <>
+          <SectionHeader title="FILING USER / SUBMITTER DETAILS" />
+          <View style={styles.infoBlock}>
+            <InfoRow label="Submitted By:" value={app.filingUser.name} />
+            <InfoRow label="User Email:" value={app.filingUser.email} />
+            <InfoRow label="User Account Type:" value={app.filingUser.accountType} />
+            {app.filingUser.company && (
+              <>
+                <InfoRow label="Filing Company Name:" value={app.filingUser.company.name} />
+                <InfoRow label="Filing Company Reg No:" value={app.filingUser.company.registrationNumber} />
+                <InfoRow label="Filing Company Address:" value={app.filingUser.company.address} />
+              </>
+            )}
+          </View>
 
-      <SectionHeader title="CONTACT DETAILS" />
-      <View style={styles.infoBlock}>
-        <InfoRow
-          label="Contact Number:"
-          value={app.contactDetails.contactNumber}
-        />
-        <InfoRow label="Email:" value={app.contactDetails.email} />
-      </View>
+          <SectionHeader title="APPLICANT / PERMIT HOLDER DETAILS" />
+          <View style={styles.infoBlock}>
+            <InfoRow label="Applicant Name:" value={app.applicant} />
+            <InfoRow label="Applicant Type:" value={app.applicantType} />
+            <InfoRow label="Barangay:" value={app.address.barangay} />
+            <InfoRow label="Province:" value={app.address.province} />
+            <InfoRow label="City/Municipality:" value={app.address.city} />
+            <InfoRow label="Zip Code:" value={app.address.zipCode} />
+          </View>
+        </>
+      ) : (
+        <>
+          <SectionHeader title="APPLICANT & ACCOUNT INFORMATION" />
+          <View style={styles.infoBlock}>
+            <InfoRow label="Filing User / Applicant:" value={app.applicant} />
+            <InfoRow label="Account Type:" value="Individual" />
+            <InfoRow label="Email Address:" value={app.contactDetails.email} />
+            <InfoRow label="Barangay:" value={app.address.barangay} />
+            <InfoRow label="Province:" value={app.address.province} />
+            <InfoRow label="City/Municipality:" value={app.address.city} />
+            <InfoRow label="Zip Code:" value={app.address.zipCode} />
+          </View>
+        </>
+      )}
 
-      <SectionHeader title="APPLICATION DETAILS" />
-      <View style={styles.infoBlock}>
-        <InfoRow
-          label="No Of Years:"
-          value={String(app.applicationDetails.noOfYears)}
-        />
-      </View>
+      {(app.applicantType === "Company" || app.companyDetails !== undefined) && (
+        <>
+          <SectionHeader title="APPLICANT COMPANY DETAILS" />
+          <View style={styles.infoBlock}>
+            <InfoRow label="Company Name:" value={app.companyDetails?.name ?? app.applicant} />
+            <InfoRow label="Registration No:" value={app.companyDetails?.registrationNumber ?? ""} />
+            <InfoRow label="Company Address:" value={app.companyDetails?.address ?? app.address.barangay} />
+            <InfoRow label="Contact Number:" value={app.companyDetails?.contactNumber ?? app.contactDetails.contactNumber} />
+            <InfoRow label="Email Address:" value={app.companyDetails?.email ?? app.contactDetails.email} />
+          </View>
+        </>
+      )}
 
       <SectionHeader title="BASIC INFORMATION" />
       <View style={styles.infoBlock}>
@@ -1013,6 +1043,8 @@ export function ApplicationReviewScreenContent({
   isCollapsed,
 }: ApplicationReviewScreenProps) {
   const { colors, isDark } = useTheme();
+  const { width } = useWindowDimensions();
+  const isNarrow = width < 900;
   const {
     applications,
     selectedApplication,
@@ -1031,6 +1063,56 @@ export function ApplicationReviewScreenContent({
   const [showCashier, setShowCashier] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(1)).current;
+  const tabScrollRef = useRef<ScrollView>(null);
+
+  // Mouse drag-to-scroll for the tab bar on web
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !isNarrow) return;
+    const node = tabScrollRef.current?.getScrollableNode();
+    if (!(node instanceof HTMLElement)) return;
+
+    node.style.cursor = 'grab';
+
+    let dragging = false;
+    let startX = 0;
+    let originScrollLeft = 0;
+
+    const onMouseDown = (e: MouseEvent) => {
+      dragging = true;
+      startX = e.pageX - node.offsetLeft;
+      originScrollLeft = node.scrollLeft;
+      node.style.cursor = 'grabbing';
+      node.style.userSelect = 'none';
+    };
+
+    const onMouseMove = (e: MouseEvent) => {
+      if (!dragging) return;
+      e.preventDefault();
+      const x = e.pageX - node.offsetLeft;
+      node.scrollLeft = originScrollLeft - (x - startX);
+    };
+
+    const stopDrag = () => {
+      if (!dragging) return;
+      dragging = false;
+      node.style.cursor = 'grab';
+      node.style.userSelect = '';
+    };
+
+    node.addEventListener('mousedown', onMouseDown);
+    node.addEventListener('mousemove', onMouseMove);
+    node.addEventListener('mouseup', stopDrag);
+    node.addEventListener('mouseleave', stopDrag);
+
+    return () => {
+      node.removeEventListener('mousedown', onMouseDown);
+      node.removeEventListener('mousemove', onMouseMove);
+      node.removeEventListener('mouseup', stopDrag);
+      node.removeEventListener('mouseleave', stopDrag);
+      node.style.cursor = '';
+      node.style.userSelect = '';
+    };
+  }, [isNarrow]);
 
   useEffect(() => {
     fadeAnim.setValue(0);
@@ -1054,7 +1136,11 @@ export function ApplicationReviewScreenContent({
 
   if (selectedApplication === null) {
     return (
-      <View style={[styles.emptyPanel, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50], }]}>
+      <ScrollView
+        style={[styles.emptyPanelScroll, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50], }]}
+        contentContainerStyle={styles.emptyPanelContainer}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={[styles.summaryCard, { backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white, }]}>
           <View style={[styles.summaryHeader, { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100], }]}>
             <Lucide name="layout" size={20} color={isDark ? colors.brand[500] : COLORS.brand[700]} />
@@ -1067,11 +1153,11 @@ export function ApplicationReviewScreenContent({
                 {
                   applications.filter(
                     (a: ApplicationData) =>
-                      a.queueTab === "pending" && a.status === "For Approval",
+                      a.queueTab === "pending" && (a.status === "Evaluating" || a.status === "Submitted"),
                   ).length
                 }
               </Text>
-              <Text style={[styles.statLabel, { color: isDark ? colors.neutral[400] : colors.neutral[500], }]}>To Approve</Text>
+              <Text style={[styles.statLabel, { color: isDark ? colors.neutral[400] : colors.neutral[500], }]}>Evaluating</Text>
             </View>
             <View style={styles.statBox}>
               <Text style={[styles.statValue, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>
@@ -1079,7 +1165,7 @@ export function ApplicationReviewScreenContent({
                   applications.filter(
                     (a: ApplicationData) =>
                       a.queueTab === "pending" &&
-                      a.status === "For Verification",
+                      a.status === "Approved",
                   ).length
                 }
               </Text>
@@ -1120,7 +1206,7 @@ export function ApplicationReviewScreenContent({
             items requiring attention.
           </Text>
         </View>
-      </View>
+      </ScrollView>
     );
   }
 
@@ -1176,7 +1262,7 @@ export function ApplicationReviewScreenContent({
       hour12: true,
     });
     updateApplication(app.id, {
-      status: "Declined",
+      status: "Returned",
       queueTab: "history",
       note: notice,
       history: [
@@ -1251,7 +1337,7 @@ export function ApplicationReviewScreenContent({
     });
     updateApplication(app.id, {
       payment: { ...app.payment, ...data },
-      status: "For Approval",
+      status: "Approved",
       queueTab: "history",
       assignedTo: "ADMIN EDGE",
       history: [
@@ -1272,74 +1358,126 @@ export function ApplicationReviewScreenContent({
   return (
     <Animated.View style={[styles.panel, { backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white, opacity: fadeAnim }]}>
       {/* ── Inner Tab Bar ── */}
-      <View style={[styles.innerTabBar, { borderBottomColor: isDark ? colors.neutral[700] : colors.neutral[200], backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white, }]}>
-        {INNER_TABS.map((tab) => {
-          const isActive = innerTab === tab.key;
-          return (
-            <Pressable
-              key={tab.key}
-              style={styles.innerTabItem}
-              onPress={() => setInnerTab(tab.key)}
+      <View style={[
+        styles.innerTabBarWrapper,
+        {
+          borderBottomColor: isDark ? colors.neutral[700] : colors.neutral[200],
+          backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+        },
+      ]}>
+        {isNarrow ? (
+          // ── Narrow: two rows ──
+          <>
+            {/* Row 1: Scrollable tabs */}
+            <ScrollView
+              ref={tabScrollRef}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.innerTabScrollContent}
+              style={styles.innerTabScroll}
             >
-              <Lucide
-                name={tab.icon}
-                size={13}
-                color={isActive ? (isDark ? colors.brand[500] : COLORS.brand[700]) : (isDark ? colors.neutral[500] : COLORS.neutral[400])}
-              />
-              <Text
-                style={[
-                  styles.innerTabText,
-                  { color: isActive ? (isDark ? colors.brand[500] : COLORS.brand[700]) : (isDark ? colors.neutral[400] : COLORS.neutral[500]) },
-                ]}
-              >
-                {tab.label}
-              </Text>
-              {isActive && <View style={[styles.innerTabUnderline, { backgroundColor: isDark ? colors.brand[500] : colors.brand[700] }]} />}
+              {INNER_TABS.map((tab) => {
+                const isActive = innerTab === tab.key;
+                return (
+                  <Pressable
+                    key={tab.key}
+                    style={styles.innerTabItem}
+                    onPress={() => setInnerTab(tab.key)}
+                  >
+                    <Lucide
+                      name={tab.icon}
+                      size={13}
+                      color={isActive ? (isDark ? colors.brand[500] : COLORS.brand[700]) : (isDark ? colors.neutral[500] : COLORS.neutral[400])}
+                    />
+                    <Text
+                      style={[
+                        styles.innerTabText,
+                        { color: isActive ? (isDark ? colors.brand[500] : COLORS.brand[700]) : (isDark ? colors.neutral[400] : COLORS.neutral[500]) },
+                      ]}
+                    >
+                      {tab.label}
+                    </Text>
+                    {isActive && <View style={[styles.innerTabUnderline, { backgroundColor: isDark ? colors.brand[500] : colors.brand[700] }]} />}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+
+            {/* Row 2: Actions — always visible */}
+            <View style={[styles.innerTabActionsRow, { borderTopColor: isDark ? colors.neutral[700] : colors.neutral[100] }]}>
+              <View style={styles.headerActionRow}>
+                <Pressable style={styles.headerActionLink} onPress={() => handleTopAction("View")}>
+                  <Lucide name="eye" size={14} color={isDark ? colors.brand[500] : COLORS.brand[700]} />
+                  <Text style={[styles.headerActionLinkText, { color: isDark ? colors.brand[500] : colors.brand[700] }]}>View</Text>
+                </Pressable>
+                <View style={[styles.headerActionDivider, { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[200] }]} />
+                <Pressable style={styles.headerActionLink} onPress={() => handleTopAction("Print")}>
+                  <Lucide name="printer" size={14} color={isDark ? colors.brand[500] : COLORS.brand[700]} />
+                  <Text style={[styles.headerActionLinkText, { color: isDark ? colors.brand[500] : colors.brand[700] }]}>Print</Text>
+                </Pressable>
+              </View>
+              <View style={styles.innerTabSpacer} />
+              {onCollapse !== undefined && (
+                <Pressable style={[styles.iconBtn, Platform.select({ web: { cursor: "pointer" } })]} onPress={onCollapse}>
+                  <Lucide name={isCollapsed ? "minimize-2" : "maximize-2"} size={14} color={isDark ? colors.neutral[400] : colors.neutral[500]} />
+                </Pressable>
+              )}
+              <Pressable style={[styles.iconBtn, Platform.select({ web: { cursor: "pointer" } })]} onPress={handleCloseAnimated}>
+                <Lucide name="x" size={16} color={isDark ? colors.neutral[400] : colors.neutral[500]} />
+              </Pressable>
+            </View>
+          </>
+        ) : (
+          // ── Wide: single row ──
+          <View style={styles.innerTabBar}>
+            {INNER_TABS.map((tab) => {
+              const isActive = innerTab === tab.key;
+              return (
+                <Pressable
+                  key={tab.key}
+                  style={styles.innerTabItem}
+                  onPress={() => setInnerTab(tab.key)}
+                >
+                  <Lucide
+                    name={tab.icon}
+                    size={13}
+                    color={isActive ? (isDark ? colors.brand[500] : COLORS.brand[700]) : (isDark ? colors.neutral[500] : COLORS.neutral[400])}
+                  />
+                  <Text
+                    style={[
+                      styles.innerTabText,
+                      { color: isActive ? (isDark ? colors.brand[500] : COLORS.brand[700]) : (isDark ? colors.neutral[400] : COLORS.neutral[500]) },
+                    ]}
+                  >
+                    {tab.label}
+                  </Text>
+                  {isActive && <View style={[styles.innerTabUnderline, { backgroundColor: isDark ? colors.brand[500] : colors.brand[700] }]} />}
+                </Pressable>
+              );
+            })}
+            <View style={styles.innerTabSpacer} />
+            <View style={styles.headerActionRow}>
+              <Pressable style={styles.headerActionLink} onPress={() => handleTopAction("View")}>
+                <Lucide name="eye" size={14} color={isDark ? colors.brand[500] : COLORS.brand[700]} />
+                <Text style={[styles.headerActionLinkText, { color: isDark ? colors.brand[500] : colors.brand[700] }]}>View</Text>
+              </Pressable>
+              <View style={[styles.headerActionDivider, { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[200] }]} />
+              <Pressable style={styles.headerActionLink} onPress={() => handleTopAction("Print")}>
+                <Lucide name="printer" size={14} color={isDark ? colors.brand[500] : COLORS.brand[700]} />
+                <Text style={[styles.headerActionLinkText, { color: isDark ? colors.brand[500] : colors.brand[700] }]}>Print</Text>
+              </Pressable>
+            </View>
+            <View style={{ width: SPACING[16] }} />
+            {onCollapse !== undefined && (
+              <Pressable style={[styles.iconBtn, Platform.select({ web: { cursor: "pointer" } })]} onPress={onCollapse}>
+                <Lucide name={isCollapsed ? "minimize-2" : "maximize-2"} size={14} color={isDark ? colors.neutral[400] : colors.neutral[500]} />
+              </Pressable>
+            )}
+            <Pressable style={[styles.iconBtn, Platform.select({ web: { cursor: "pointer" } })]} onPress={handleCloseAnimated}>
+              <Lucide name="x" size={16} color={isDark ? colors.neutral[400] : colors.neutral[500]} />
             </Pressable>
-          );
-        })}
-        <View style={styles.innerTabSpacer} />
-
-        {/* View / Print links */}
-        <View style={styles.headerActionRow}>
-          <Pressable
-            style={styles.headerActionLink}
-            onPress={() => handleTopAction("View")}
-          >
-            <Lucide name="eye" size={14} color={isDark ? colors.brand[500] : COLORS.brand[700]} />
-            <Text style={[styles.headerActionLinkText, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>View</Text>
-          </Pressable>
-          <View style={[styles.headerActionDivider, { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[200], }]} />
-          <Pressable
-            style={styles.headerActionLink}
-            onPress={() => handleTopAction("Print")}
-          >
-            <Lucide name="printer" size={14} color={isDark ? colors.brand[500] : COLORS.brand[700]} />
-            <Text style={[styles.headerActionLinkText, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>Print</Text>
-          </Pressable>
-        </View>
-
-        <View style={styles.innerTabSpacerSmall} />
-
-        {/* Collapse + Close */}
-        {onCollapse !== undefined && (
-          <Pressable
-            style={[styles.iconBtn, Platform.select({ web: { cursor: "pointer" } })]}
-            onPress={onCollapse}
-          >
-            <Lucide
-              name={isCollapsed ? "minimize-2" : "maximize-2"}
-              size={14}
-              color={isDark ? colors.neutral[400] : colors.neutral[500]}
-            />
-          </Pressable>
+          </View>
         )}
-        <Pressable
-          style={[styles.iconBtn, Platform.select({ web: { cursor: "pointer" } })]}
-          onPress={handleCloseAnimated}
-        >
-          <Lucide name="x" size={16} color={isDark ? colors.neutral[400] : colors.neutral[500]} />
-        </Pressable>
       </View>
 
       {/* Read-only banner */}
@@ -1506,63 +1644,76 @@ export function ApplicationReviewScreenContent({
 
 const styles = StyleSheet.create({
   // Empty state
-  emptyPanel: {
+  emptyPanelScroll: {
     flex: 1,
+  },
+  emptyPanelContainer: {
+    flexGrow: 1,
     alignItems: "center",
     justifyContent: "center",
-    padding: SPACING[40],
+    paddingHorizontal: SPACING[16],
+    paddingVertical: SPACING[24],
   },
   summaryCard: {
     borderRadius: RADIUS.card,
-    padding: SPACING[24],
+    padding: SPACING[16],
     width: "100%",
     maxWidth: 500,
     ...SHADOWS.card,
-    marginBottom: SPACING[40],
+    marginBottom: SPACING[24],
   },
   summaryHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: SPACING[12],
-    marginBottom: SPACING[20],
+    gap: SPACING[10],
+    marginBottom: SPACING[16],
     borderBottomWidth: 1,
     paddingBottom: SPACING[12],
   },
   summaryTitle: {
+    flex: 1,
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   statsRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: SPACING[24],
+    alignItems: "flex-start",
+    marginBottom: SPACING[20],
+    gap: SPACING[6],
   },
   statBox: {
     alignItems: "center",
+    justifyContent: "center",
     flex: 1,
+    minWidth: 0,
+    paddingHorizontal: 2,
   },
   statValue: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: TYPOGRAPHY.weights.bold,
+    textAlign: "center",
   },
   statLabel: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.label,
+    fontSize: 11,
     marginTop: 4,
+    textAlign: "center",
+    lineHeight: 14,
   },
   guideBox: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: SPACING[12],
-    padding: SPACING[16],
+    alignItems: "flex-start",
+    gap: SPACING[10],
+    padding: SPACING[12],
     borderRadius: RADIUS.input,
   },
   guideText: {
     flex: 1,
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.body,
+    fontSize: 13,
     lineHeight: 18,
   },
   actionPrompt: {
@@ -1573,6 +1724,7 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 18,
     fontWeight: TYPOGRAPHY.weights.semibold,
+    textAlign: "center",
   },
   emptyPanelSub: {
     fontFamily: TYPOGRAPHY.fonts.primary,
@@ -1589,11 +1741,29 @@ const styles = StyleSheet.create({
   },
 
   // Inner tab bar
+  innerTabBarWrapper: {
+    borderBottomWidth: 1,
+  },
   innerTabBar: {
     flexDirection: "row",
     alignItems: "center",
-    borderBottomWidth: 1,
     paddingHorizontal: SPACING[8],
+  },
+  innerTabScroll: {
+    flexGrow: 0,
+  },
+  innerTabScrollContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: SPACING[8],
+  },
+  innerTabActionsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingLeft: SPACING[8] + SPACING[12],
+    paddingRight: SPACING[8] + SPACING[12],
+    paddingVertical: SPACING[4],
+    borderTopWidth: 1,
   },
   innerTabItem: {
     flexDirection: "row",
@@ -1620,9 +1790,6 @@ const styles = StyleSheet.create({
   },
   innerTabSpacer: {
     flex: 1,
-  },
-  innerTabSpacerSmall: {
-    width: SPACING[16],
   },
   headerActionRow: {
     flexDirection: "row",

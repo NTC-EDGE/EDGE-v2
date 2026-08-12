@@ -193,8 +193,8 @@ export function useRoleManagement() {
     setDraftRolePermissions((prev) => ({ ...prev, [selectedRole.id]: [...templatePerms] }));
   };
 
-  const savePermissions = async (): Promise<boolean> => {
-    if (selectedRole === null || !hasUnsavedChanges || isSubmitting) return false;
+  const savePermissions = async (): Promise<{ ok: boolean; error: string | null }> => {
+    if (selectedRole === null || !hasUnsavedChanges || isSubmitting) return { ok: false, error: null };
     setIsSubmitting(true);
     const roleId = selectedRole.id;
     const currentDraft = draftRolePermissions[roleId] ?? [];
@@ -208,26 +208,26 @@ export function useRoleManagement() {
       refetchPermissions();
     }
     setIsSubmitting(false);
-    return isSuccess;
+    return { ok: isSuccess, error: err };
   };
 
-  const updateRole = async (roleId: string, newName: string): Promise<boolean> => {
+  const updateRole = async (roleId: string, newName: string): Promise<{ ok: boolean; error: string | null }> => {
     const trimmedName = newName.trim();
-    if (!trimmedName) return false;
+    if (!trimmedName) return { ok: false, error: 'Role name cannot be empty.' };
     const key = trimmedName.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
     const [res, err] = await roleService.updateRole(roleId, { id: roleId, name: trimmedName, key });
     const isSuccess = !err && Boolean(res);
     if (isSuccess) {
       refetchRoles();
     }
-    return isSuccess;
+    return { ok: isSuccess, error: err };
   };
 
   const createRole = async (
     name: string,
     description?: string,
     initialPermissionIds?: string[],
-  ): Promise<boolean> => {
+  ): Promise<{ ok: boolean; error: string | null }> => {
     const key = name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
     const [res, err] = await roleService.createRole({ name, key, description });
     const isSuccess = !err && Boolean(res);
@@ -238,10 +238,10 @@ export function useRoleManagement() {
       refetchRoles();
       setSelectedRoleId(res.id);
     }
-    return isSuccess;
+    return { ok: isSuccess, error: err };
   };
 
-  const deleteRole = async (roleId: string): Promise<boolean> => {
+  const deleteRole = async (roleId: string): Promise<{ ok: boolean; error: string | null }> => {
     const [ok, err] = await roleService.deleteRole(roleId);
     const isSuccess = !err && Boolean(ok);
     if (isSuccess) {
@@ -250,7 +250,7 @@ export function useRoleManagement() {
         setSelectedRoleId('');
       }
     }
-    return isSuccess;
+    return { ok: isSuccess, error: err };
   };
 
   return {
