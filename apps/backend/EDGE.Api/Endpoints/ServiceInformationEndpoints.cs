@@ -118,13 +118,25 @@ public static class ServiceInformationEndpoints
         }
 
         var result = await mediator.Send(command);
-        return result.Succeeded ? Results.Ok(result) : Results.NotFound(result);
+        if (!result.Succeeded)
+        {
+            return result.Message.Contains("not found", StringComparison.OrdinalIgnoreCase)
+                ? Results.NotFound(result)
+                : Results.BadRequest(result);
+        }
+        return Results.Ok(result);
     }
 
     [HasPermission(Permissions.DeleteServices)]
     public static async Task<IResult> DeleteServiceInformation(Guid id, IMediator mediator)
     {
         var result = await mediator.Send(new DeleteServiceInformationCommand(id));
-        return result.Succeeded ? Results.Ok(result) : Results.NotFound(result);
+        if (!result.Succeeded)
+        {
+            return result.Message.Contains("not found", StringComparison.OrdinalIgnoreCase)
+                ? Results.NotFound(result)
+                : Results.BadRequest(result);
+        }
+        return Results.Ok(result);
     }
 }

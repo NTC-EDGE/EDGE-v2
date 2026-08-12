@@ -187,9 +187,14 @@ public static class ServiceEndpoints
     }
 
     [HasPermission(Permissions.ReadServices)]
-    public static async Task<IResult> GetServiceVariants(Guid id, IMediator mediator)
+    public static async Task<IResult> GetServiceVariants(
+        Guid id,
+        IMediator mediator,
+        int pageNumber = 1,
+        int pageSize = 50,
+        string? searchTerm = null)
     {
-        var result = await mediator.Send(new GetServiceVariantsQuery(id, 1, 100));
+        var result = await mediator.Send(new GetServiceVariantsQuery(id, pageNumber, pageSize, searchTerm));
         return Results.Ok(result);
     }
 
