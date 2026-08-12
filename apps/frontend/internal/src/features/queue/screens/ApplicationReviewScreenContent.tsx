@@ -751,6 +751,7 @@ function ApplicationDetailsTab({
   }, [activeApplicant?.id, activeApplicant?.evaluationRemarks]);
 
   const handleSetStatus = (idx: number, newStatus: 'Complete' | 'Incomplete' | 'ForEndorsement') => {
+    if (!isEditable) return;
     const updated = [...localApplicants];
     if (updated[idx]) {
       updated[idx] = { ...updated[idx], status: newStatus };
@@ -762,6 +763,7 @@ function ApplicationDetailsTab({
   };
 
   const handleSetRemarks = (idx: number, text: string) => {
+    if (!isEditable) return;
     const updated = [...localApplicants];
     if (updated[idx]) {
       updated[idx] = { ...updated[idx], evaluationRemarks: text };
@@ -1096,6 +1098,7 @@ function ApplicationDetailsTab({
             <View style={styles.evalChipRow}>
               {/* Complete chip */}
               <Pressable
+                disabled={!isEditable}
                 style={[
                   styles.evalChip,
                   {
@@ -1106,7 +1109,8 @@ function ApplicationDetailsTab({
                       ? '#22C55E'
                       : (isDark ? colors.neutral[700] : colors.neutral[200]),
                   },
-                  Platform.select({ web: { cursor: 'pointer' } as object }),
+                  !isEditable && { opacity: 0.5 },
+                  Platform.select({ web: { cursor: isEditable ? 'pointer' : 'not-allowed' } as object }),
                 ]}
                 onPress={() => handleSetStatus(activeIdx, 'Complete')}
               >
@@ -1125,6 +1129,7 @@ function ApplicationDetailsTab({
 
               {/* Incomplete chip */}
               <Pressable
+                disabled={!isEditable}
                 style={[
                   styles.evalChip,
                   {
@@ -1135,7 +1140,8 @@ function ApplicationDetailsTab({
                       ? '#EF4444'
                       : (isDark ? colors.neutral[700] : colors.neutral[200]),
                   },
-                  Platform.select({ web: { cursor: 'pointer' } as object }),
+                  !isEditable && { opacity: 0.5 },
+                  Platform.select({ web: { cursor: isEditable ? 'pointer' : 'not-allowed' } as object }),
                 ]}
                 onPress={() => handleSetStatus(activeIdx, 'Incomplete')}
               >
@@ -1154,6 +1160,7 @@ function ApplicationDetailsTab({
 
               {/* For Endorsement chip */}
               <Pressable
+                disabled={!isEditable}
                 style={[
                   styles.evalChip,
                   {
@@ -1164,7 +1171,8 @@ function ApplicationDetailsTab({
                       ? '#A855F7'
                       : (isDark ? colors.neutral[700] : colors.neutral[200]),
                   },
-                  Platform.select({ web: { cursor: 'pointer' } as object }),
+                  !isEditable && { opacity: 0.5 },
+                  Platform.select({ web: { cursor: isEditable ? 'pointer' : 'not-allowed' } as object }),
                 ]}
                 onPress={() => handleSetStatus(activeIdx, 'ForEndorsement')}
               >
@@ -1192,11 +1200,12 @@ function ApplicationDetailsTab({
               REMARKS
             </Text>
             <TextInput
+              editable={isEditable}
               style={[styles.remarksInputCompact, {
                 color: isDark ? colors.neutral[100] : colors.neutral[900],
-                backgroundColor: isDark ? colors.neutral[800] : colors.neutral[50],
+                backgroundColor: isDark ? colors.neutral[800] : (isEditable ? colors.neutral[50] : colors.neutral[100]),
                 borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
-              }]}
+              }, !isEditable && { opacity: 0.6 }]}
               placeholder="Add notes or remarks..."
               placeholderTextColor={isDark ? colors.neutral[600] : colors.neutral[400]}
               value={localRemarks}
