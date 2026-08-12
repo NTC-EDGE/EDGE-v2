@@ -18,17 +18,13 @@ public static class SoaEndpoints
 {
     public static IEndpointRouteBuilder MapSoaEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/soas").WithTags("StatementOfAccount");
-
-        group.MapPost("/applications/{id:guid}", CreateSoa)
+        app.MapPost("/applications/{id:guid}/soas", CreateSoa)
+            .WithTags("StatementOfAccount")
             .WithName("CreateSoa")
             .WithSummary("Create Statement of Account")
             .WithDescription("Generates an SOA for the given application.");
 
-        group.MapPost("/applications/{id:guid}/soas", CreateSoa)
-            .WithName("CreateSoaAlt")
-            .WithSummary("Create Statement of Account (Alt)")
-            .WithDescription("Generates an SOA for the given application.");
+        var group = app.MapGroup("/soas").WithTags("StatementOfAccount");
 
         group.MapPatch("/{soaId:guid}/approve", ApproveSoa)
             .WithName("ApproveSoa")
