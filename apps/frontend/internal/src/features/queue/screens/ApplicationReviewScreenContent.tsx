@@ -3247,6 +3247,7 @@ const styles = StyleSheet.create({
   },
   evalDockLeft: {
     flex: 1,
+    alignItems: 'center' as const,
   },
   evalDockRight: {
     flex: 1,
@@ -3263,10 +3264,12 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
     marginBottom: SPACING[4],
     textTransform: 'uppercase' as const,
+    textAlign: 'center' as const,
   },
   evalChipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap' as const,
+    justifyContent: 'center' as const,
     gap: SPACING[4],
   },
   evalChip: {
