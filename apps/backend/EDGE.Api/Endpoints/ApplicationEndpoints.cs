@@ -11,6 +11,9 @@ using Microsoft.AspNetCore.Routing;
 using EDGE.Domain.Authorization;
 using EDGE.Infrastructure.Authorization;
 using EDGE.Application.Applications.Commands.AddApplicantToApplication;
+using EDGE.Application.Applications.Commands.AdminUpdateApplication;
+using EDGE.Application.Applications.Commands.AdminUpdateApplicantProfile;
+using EDGE.Application.Applications.Commands.AdminUpdateFormValues;
 using EDGE.Application.Applications.Commands.DeleteDraftApplication;
 using EDGE.Application.Applications.Commands.FinalizeApplicationSubmission;
 using EDGE.Application.Applications.Commands.PreviewCsvImport;
@@ -58,6 +61,7 @@ public static class ApplicationEndpoints
             .WithDescription("Initiates a draft bulk application under the selected service catalog, establishing the application shell.");
 
         group.MapGet("/", GetAllApplications)
+            .AllowAnonymous()
             .WithName("GetAllApplications")
             .WithSummary("Retrieve all applications")
             .WithDescription("Retrieves all applications for the current user, optionally filtered by status.");
@@ -81,6 +85,21 @@ public static class ApplicationEndpoints
             .WithName("UpdateApplicationStatus")
             .WithSummary("Update application status")
             .WithDescription("Updates status of the application (e.g. UnderEvaluation, Approved) and logs history.");
+
+        group.MapPatch("/{id:guid}/admin-update", AdminUpdateApplicationEndpoint)
+            .WithName("AdminUpdateApplication")
+            .WithSummary("Agency administrative correction update")
+            .WithDescription("Updates application fields during review and records CorrectionAuditTrail entries.");
+
+        group.MapPatch("/{id:guid}/applicants/{applicantId:guid}/admin-update", AdminUpdateApplicantProfileEndpoint)
+            .WithName("AdminUpdateApplicantProfile")
+            .WithSummary("Agency administrative update for applicant profile")
+            .WithDescription("Updates applicant profile details during review and records CorrectionAuditTrail entries.");
+
+        group.MapPatch("/{id:guid}/applicants/{applicantId:guid}/form-values/admin-update", AdminUpdateFormValuesEndpoint)
+            .WithName("AdminUpdateFormValues")
+            .WithSummary("Agency administrative update for form field values")
+            .WithDescription("Updates form field values during review and records CorrectionAuditTrail entries.");
 
         group.MapPatch("/{id:guid}/evaluate", EvaluateApplicationEndpoint)
             .WithName("EvaluateApplication")
@@ -386,6 +405,44 @@ public static class ApplicationEndpoints
             Remarks = request?.Remarks ?? "Started evaluation process."
         };
         var result = await mediator.Send(command, cancellationToken);
+        if (!result.Succeeded) return Results.BadRequest(result);
+        return Results.Ok(result);
+    }
+
+    [HasPermission(Permissions.EvaluateApplication)]
+    public static async Task<IResult> AdminUpdateApplicationEndpoint(
+        Guid id,
+        [FromBody] AdminUpdateApplicationCommand command,
+        IMediator mediator,
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(command with { Id = id }, cancellationToken);
+        if (!result.Succeeded) return Results.BadRequest(result);
+        return Results.Ok(result);
+    }
+
+    [HasPermission(Permissions.EvaluateApplication)]
+    public static async Task<IResult> AdminUpdateApplicantProfileEndpoint(
+        Guid id,
+        Guid applicantId,
+        [FromBody] AdminUpdateApplicantProfileCommand command,
+        IMediator mediator,
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(command with { ApplicationId = id, ApplicantId = applicantId }, cancellationToken);
+        if (!result.Succeeded) return Results.BadRequest(result);
+        return Results.Ok(result);
+    }
+
+    [HasPermission(Permissions.EvaluateApplication)]
+    public static async Task<IResult> AdminUpdateFormValuesEndpoint(
+        Guid id,
+        Guid applicantId,
+        [FromBody] AdminUpdateFormValuesCommand command,
+        IMediator mediator,
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(command with { ApplicationId = id, ApplicantId = applicantId }, cancellationToken);
         if (!result.Succeeded) return Results.BadRequest(result);
         return Results.Ok(result);
     }

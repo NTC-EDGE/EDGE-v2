@@ -38,10 +38,14 @@ public class ApplicationFullRepository : IApplicationFullRepository
                 .ThenInclude(aa => aa.Applicant)
                     .ThenInclude(app => app!.ApplicantDetail)
                         .ThenInclude(ad => ad!.CompanyDetail)
+            .Include(a => a.ApplicationApplicants)
+                .ThenInclude(aa => aa.Applicant)
+                    .ThenInclude(app => app!.CompanyDetail)
             .Include(a => a.ApplicationRequirements)
             .Include(a => a.FormSubmissions)
                 .ThenInclude(fs => fs.FieldValues)
                     .ThenInclude(fv => fv.Field)
+            .Include(a => a.CorrectionAuditTrails)
             .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
     }
 
@@ -217,6 +221,31 @@ public class ApplicationFullRepository : IApplicationFullRepository
                     ApplicantType = aa.Applicant != null ? aa.Applicant.ApplicantType.ToString() : "Individual",
                     Status = aa.Applicant != null ? aa.Applicant.Status.ToString() : "Incomplete",
                     EvaluationRemarks = aa.Applicant != null ? aa.Applicant.EvaluationRemarks : null,
+                    Company = (aa.Applicant != null && aa.Applicant.CompanyDetail != null)
+                        ? new EDGE.Application.Applicants.Dtos.CompanyDetailDto
+                        {
+                            Id = aa.Applicant.CompanyDetail.Id,
+                            BarangayId = aa.Applicant.CompanyDetail.BarangayId,
+                            Address = aa.Applicant.CompanyDetail.Address,
+                            Name = aa.Applicant.CompanyDetail.Name,
+                            RegistrationNumber = aa.Applicant.CompanyDetail.RegistrationNumber,
+                            ContactNumber = aa.Applicant.CompanyDetail.ContactNumber,
+                            Email = aa.Applicant.CompanyDetail.Email,
+                            EntityType = aa.Applicant.CompanyDetail.EntityType != null ? aa.Applicant.CompanyDetail.EntityType.Value.ToString() : null
+                        }
+                        : (aa.Applicant != null && aa.Applicant.ApplicantDetail != null && aa.Applicant.ApplicantDetail.CompanyDetail != null)
+                        ? new EDGE.Application.Applicants.Dtos.CompanyDetailDto
+                        {
+                            Id = aa.Applicant.ApplicantDetail.CompanyDetail.Id,
+                            BarangayId = aa.Applicant.ApplicantDetail.CompanyDetail.BarangayId,
+                            Address = aa.Applicant.ApplicantDetail.CompanyDetail.Address,
+                            Name = aa.Applicant.ApplicantDetail.CompanyDetail.Name,
+                            RegistrationNumber = aa.Applicant.ApplicantDetail.CompanyDetail.RegistrationNumber,
+                            ContactNumber = aa.Applicant.ApplicantDetail.ContactNumber,
+                            Email = aa.Applicant.ApplicantDetail.CompanyDetail.Email,
+                            EntityType = aa.Applicant.ApplicantDetail.CompanyDetail.EntityType != null ? aa.Applicant.ApplicantDetail.CompanyDetail.EntityType.Value.ToString() : null
+                        }
+                        : null,
                     Details = aa.Applicant != null && aa.Applicant.ApplicantDetail != null ? new EDGE.Application.Applicants.Dtos.ApplicantDetailDto
                     {
                         Id = aa.Applicant.ApplicantDetail.Id,
@@ -232,11 +261,23 @@ public class ApplicationFullRepository : IApplicationFullRepository
                         Weight = aa.Applicant.ApplicantDetail.Weight,
                         BirthDate = aa.Applicant.ApplicantDetail.BirthDate,
                         ContactNumber = aa.Applicant.ApplicantDetail.ContactNumber,
+                        EmailAddress = aa.Applicant.ApplicantDetail.EmailAddress,
                         ZipCode = aa.Applicant.ApplicantDetail.ZipCode,
                         SchoolAttended = aa.Applicant.ApplicantDetail.SchoolAttended,
                         CourseTaken = aa.Applicant.ApplicantDetail.CourseTaken,
                         YearGraduated = aa.Applicant.ApplicantDetail.YearGraduated,
-                        ESignature = aa.Applicant.ApplicantDetail.ESignature
+                        ESignature = aa.Applicant.ApplicantDetail.ESignature,
+                        Company = aa.Applicant.ApplicantDetail.CompanyDetail != null ? new EDGE.Application.Applicants.Dtos.CompanyDetailDto
+                        {
+                            Id = aa.Applicant.ApplicantDetail.CompanyDetail.Id,
+                            BarangayId = aa.Applicant.ApplicantDetail.CompanyDetail.BarangayId,
+                            Address = aa.Applicant.ApplicantDetail.CompanyDetail.Address,
+                            Name = aa.Applicant.ApplicantDetail.CompanyDetail.Name,
+                            RegistrationNumber = aa.Applicant.ApplicantDetail.CompanyDetail.RegistrationNumber,
+                            ContactNumber = aa.Applicant.ApplicantDetail.ContactNumber,
+                            Email = aa.Applicant.ApplicantDetail.CompanyDetail.Email,
+                            EntityType = aa.Applicant.ApplicantDetail.CompanyDetail.EntityType != null ? aa.Applicant.ApplicantDetail.CompanyDetail.EntityType.Value.ToString() : null
+                        } : null
                     } : null,
                     FormFieldValues = app.FormSubmissions
                         .Where(fs => aa.Applicant != null && fs.ApplicantId == aa.Applicant.Id)
@@ -452,6 +493,16 @@ public class ApplicationFullRepository : IApplicationFullRepository
     public async Task AddSoaHistoryAsync(SoaHistory history, CancellationToken cancellationToken = default)
     {
         await _context.SoaHistories.AddAsync(history, cancellationToken);
+    }
+
+    public async Task AddCorrectionAuditTrailAsync(CorrectionAuditTrail trail, CancellationToken cancellationToken = default)
+    {
+        await _context.CorrectionAuditTrails.AddAsync(trail, cancellationToken);
+    }
+
+    public async Task AddCompanyDetailAsync(CompanyDetail companyDetail, CancellationToken cancellationToken = default)
+    {
+        await _context.CompanyDetails.AddAsync(companyDetail, cancellationToken);
     }
 
     public async Task<bool> UserExistsAsync(Guid userId, CancellationToken cancellationToken = default)

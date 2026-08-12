@@ -781,6 +781,7 @@ export interface ApplicantDetailDto {
   birthDate?: string;
   contactNumber: string;
   email?: string;
+  emailAddress?: string;
   zipCode?: string;
   company?: CompanyDetailDto;
 }

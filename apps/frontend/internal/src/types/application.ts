@@ -98,6 +98,13 @@ export interface ApplicantItem {
     employmentStatus: string;
     occupation: string;
   };
+  companyDetails?: {
+    name: string;
+    registrationNumber?: string;
+    address?: string;
+    contactNumber?: string;
+    email?: string;
+  };
   formFields?: Array<{
     fieldId: string;
     fieldLabel: string;

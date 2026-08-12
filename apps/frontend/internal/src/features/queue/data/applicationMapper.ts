@@ -95,7 +95,18 @@ export function mapApplicationDtoToUI(dto: ApplicationDto): ApplicationData {
     const ad = appItem.details;
     const name = ad
       ? `${ad.firstName} ${ad.lastName}`.trim()
-      : `Applicant ${idx + 1}`;
+      : (appItem.company?.name || `Applicant ${idx + 1}`);
+
+    const itemComp = appItem.company ?? ad?.company;
+    const itemCompanyDetails = itemComp
+      ? {
+          name: itemComp.name ?? '',
+          registrationNumber: itemComp.registrationNumber ?? '',
+          address: itemComp.address ?? '',
+          contactNumber: itemComp.contactNumber ?? '',
+          email: itemComp.email ?? '',
+        }
+      : undefined;
 
     return {
       id: appItem.id || `app-${idx}`,
@@ -106,12 +117,13 @@ export function mapApplicationDtoToUI(dto: ApplicationDto): ApplicationData {
         : ('Complete' as const),
       evaluationRemarks: appItem.evaluationRemarks ?? '',
       contactNumber: ad?.contactNumber ?? '',
-      email: ad?.email ?? '',
+      email: ad?.emailAddress ?? ad?.email ?? '',
       address: ad?.address ?? '',
       barangay: ad?.address ?? '',
       city: '',
       province: '',
       zipCode: ad?.zipCode ?? '',
+      companyDetails: itemCompanyDetails,
       basicInfo: ad ? {
         lastName: ad.lastName ?? '',
         firstName: ad.firstName ?? '',

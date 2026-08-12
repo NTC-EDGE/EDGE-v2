@@ -925,6 +925,9 @@ namespace EDGE.Infrastructure.Migrations
                     b.Property<Guid>("FieldId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("CustomLabel")
+                        .HasColumnType("text");
+
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
 

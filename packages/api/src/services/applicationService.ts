@@ -43,6 +43,46 @@ export const applicationService = {
     });
   },
 
+  async updateApplication(id: string, data: Record<string, unknown>) {
+    return safeAsync(async () => {
+      const response = await apiClient.put<ApiResponse<ApplicationDto>>(
+        `/api/v2/applications/${id}`,
+        data
+      );
+      return response.data;
+    });
+  },
+
+  async adminUpdateApplication(id: string, data: Record<string, unknown>) {
+    return safeAsync(async () => {
+      const response = await apiClient.patch<ApiResponse<ApplicationDto>>(
+        `/api/v2/applications/${id}/admin-update`,
+        data
+      );
+      return response.data;
+    });
+  },
+
+  async adminUpdateApplicantProfile(applicationId: string, applicantId: string, data: Record<string, unknown>) {
+    return safeAsync(async () => {
+      const response = await apiClient.patch<ApiResponse<ApplicationDto>>(
+        `/api/v2/applications/${applicationId}/applicants/${applicantId}/admin-update`,
+        data
+      );
+      return response.data;
+    });
+  },
+
+  async adminUpdateFormValues(applicationId: string, applicantId: string, formFields: Array<{ fieldId: string; fieldLabel: string; value?: string }>) {
+    return safeAsync(async () => {
+      const response = await apiClient.patch<ApiResponse<ApplicationDto>>(
+        `/api/v2/applications/${applicationId}/applicants/${applicantId}/form-values/admin-update`,
+        { formFields }
+      );
+      return response.data;
+    });
+  },
+
   async createSoa(applicationId: string, body: CreateSoaRequest) {
     return safeAsync(async () => {
       const response = await apiClient.post(

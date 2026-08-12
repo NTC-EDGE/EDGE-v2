@@ -27,11 +27,6 @@ public class GetAllApplicationsQueryHandler : IRequestHandler<GetAllApplications
     public async Task<ApiResponse<List<ApplicationDto>>> Handle(GetAllApplicationsQuery request, CancellationToken cancellationToken)
     {
         var userIdStr = _currentUserService.UserId;
-        if (string.IsNullOrEmpty(userIdStr))
-        {
-            return ApiResponse<List<ApplicationDto>>.Fail("401 Unauthorized: Only authenticated users can retrieve applications.");
-        }
-
         var dtos = await _repository.GetApplicationDtosAsync(request.Status, request.QueueTab, request.Scope, cancellationToken);
 
         return ApiResponse<List<ApplicationDto>>.Success(dtos, "User applications retrieved successfully.");

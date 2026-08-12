@@ -80,6 +80,13 @@ export function ApplicationProvider({ children }: { children: ReactNode }) {
       }
       setToast({ message: 'Application status updated successfully.', variant: 'success' });
       refetch();
+    } else {
+      const [res, err] = await applicationService.adminUpdateApplication(id, patch as Record<string, unknown>);
+      if (err !== null) {
+        setToast({ message: err, variant: 'error' });
+        return;
+      }
+      setToast({ message: 'Application details updated successfully.', variant: 'success' });
     }
   }, [refetch]);
 

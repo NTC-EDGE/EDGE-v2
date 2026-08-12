@@ -1167,6 +1167,7 @@ namespace EDGE.Infrastructure.Migrations
                 {
                     FormSubmissionId = table.Column<Guid>(type: "uuid", nullable: false),
                     FieldId = table.Column<Guid>(type: "uuid", nullable: false),
+                    CustomLabel = table.Column<string>(type: "text", nullable: true),
                     Value = table.Column<string>(type: "text", nullable: false),
                     Id = table.Column<Guid>(type: "uuid", nullable: false)
                 },

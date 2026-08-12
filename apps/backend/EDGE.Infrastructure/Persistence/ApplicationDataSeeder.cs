@@ -33,6 +33,34 @@ public static class ApplicationDataSeeder
         var now = DateTime.UtcNow;
         var defaultBarangay = await context.Barangays.FirstOrDefaultAsync();
 
+        var defaultForm = await context.Forms.FirstOrDefaultAsync();
+        if (defaultForm == null)
+        {
+            var service = await context.Services.FirstOrDefaultAsync();
+            defaultForm = new Form
+            {
+                Id = Guid.NewGuid(),
+                ServiceId = service?.Id ?? ServiceLicenseId,
+                Version = "1.0",
+                CategorySelectionRequired = false
+            };
+            context.Forms.Add(defaultForm);
+            await context.SaveChangesAsync();
+        }
+        var defaultFormId = defaultForm.Id;
+
+        var availableFields = await context.Fields.ToListAsync();
+        if (availableFields.Count == 0)
+        {
+            var pool = FastTrackSeederData.GetFieldsPool();
+            foreach (var f in pool.Values)
+            {
+                context.Fields.Add(f);
+            }
+            await context.SaveChangesAsync();
+            availableFields = pool.Values.ToList();
+        }
+
         // ── Ensure Liaison User & Company Detail are linked ─────────────────
         var liaisonUserId = Guid.Parse("11111111-1111-1111-1111-222222222222");
         var liaisonUser = await context.Users.Include(u => u.CompanyDetail).FirstOrDefaultAsync(u => u.Id == liaisonUserId);
@@ -89,7 +117,7 @@ public static class ApplicationDataSeeder
                     ("Frequency Band", "VHF 136-174 MHz"),
                     ("Station Installation Address", "Building 4, Port Area, Manila"),
                     ("Intended Usage", "Commercial Fleet Operations"),
-                });
+                }, defaultFormId, availableFields);
             }
 
             if (exApp2 != null && exApp2.ApplicationApplicants.FirstOrDefault()?.Applicant != null)
@@ -101,7 +129,7 @@ public static class ApplicationDataSeeder
                     ("Antenna Height (Meters)", "24.5m"),
                     ("Antenna Type", "Omni-directional Fiber Dipole"),
                     ("Operating Hours", "24/7 Continuous Operation"),
-                });
+                }, defaultFormId, availableFields);
             }
 
             if (exApp3 != null && exApp3.ApplicationApplicants.FirstOrDefault()?.Applicant != null)
@@ -113,7 +141,7 @@ public static class ApplicationDataSeeder
                     ("Examination Date", "2025-11-14"),
                     ("School / Training Center", "Philippine Maritime & Radio Academy"),
                     ("Highest Educational Attainment", "BS Electronics Engineering"),
-                });
+                }, defaultFormId, availableFields);
             }
 
             if (exApp16 != null && exApp16.ApplicationApplicants.FirstOrDefault()?.Applicant != null)
@@ -125,7 +153,7 @@ public static class ApplicationDataSeeder
                     ("Commercial Operator ID", "COP-2024-5512"),
                     ("Station Location", "Unit 402 Sampaloc Manila"),
                     ("Equipment Power Rating", "100W PEP"),
-                });
+                }, defaultFormId, availableFields);
             }
 
             if (exApp17 != null && exApp17.ApplicationApplicants.FirstOrDefault()?.Applicant != null)
@@ -138,7 +166,7 @@ public static class ApplicationDataSeeder
                     ("RF Radiation Compliance Certificate", "EMF-CERT-2025-0981"),
                     ("Safety Officer In-Charge", "Engr. Manuel Roxas (PECE #4412)"),
                     ("Emergency Power Source", "250 kVA Standby Generator Set"),
-                });
+                }, defaultFormId, availableFields);
             }
 
             await context.SaveChangesAsync();
@@ -184,7 +212,7 @@ public static class ApplicationDataSeeder
             ("Frequency Band", "VHF 136-174 MHz"),
             ("Station Installation Address", "Building 4, Port Area, Manila"),
             ("Intended Usage", "Commercial Fleet Operations"),
-        });
+        }, defaultFormId, availableFields);
 
         applications.Add(app1);
 
@@ -206,7 +234,7 @@ public static class ApplicationDataSeeder
             ("Antenna Height (Meters)", "24.5m"),
             ("Antenna Type", "Omni-directional Fiber Dipole"),
             ("Operating Hours", "24/7 Continuous Operation"),
-        });
+        }, defaultFormId, availableFields);
 
         applications.Add(app2);
 
@@ -233,7 +261,7 @@ public static class ApplicationDataSeeder
             ("Examination Date", "2025-11-14"),
             ("School / Training Center", "Philippine Maritime & Radio Academy"),
             ("Highest Educational Attainment", "BS Electronics Engineering"),
-        });
+        }, defaultFormId, availableFields);
 
         applications.Add(app3);
 
@@ -389,42 +417,25 @@ public static class ApplicationDataSeeder
         AddSoaHistory(soaBulk2, "SOA created for applicant 2 (Sofia Ramos).", null, SoaStatus.Pending,
             EvaluatorUserId, "Jane Evaluator", "Evaluator", now.AddDays(-8));
 
-        var formSub7_1 = new FormSubmission
+        AddFormSubmission(app7, applicants[6], new()
         {
-            Id = Guid.NewGuid(),
-            ApplicationId = app7.Id,
-            FormId = Guid.Parse("f0100000-0000-0000-0000-000000000001"),
-            ApplicantId = applicants[6].Id,
-            CreatedAt = now.AddDays(-10),
-            FieldValues = new List<FormFieldValue>
-            {
-                new FormFieldValue { Id = Guid.NewGuid(), FieldId = Guid.NewGuid(), CustomLabel = "Examinee Class", Value = "Class B (General)" },
-                new FormFieldValue { Id = Guid.NewGuid(), FieldId = Guid.NewGuid(), CustomLabel = "Exam Type", Value = "First Time Examinee" },
-                new FormFieldValue { Id = Guid.NewGuid(), FieldId = Guid.NewGuid(), CustomLabel = "Preferred Exam Language", Value = "English" },
-                new FormFieldValue { Id = Guid.NewGuid(), FieldId = Guid.NewGuid(), CustomLabel = "PRC License Status", Value = "None" },
-                new FormFieldValue { Id = Guid.NewGuid(), FieldId = Guid.NewGuid(), CustomLabel = "Station Call Sign", Value = "DU7MLP" },
-                new FormFieldValue { Id = Guid.NewGuid(), FieldId = Guid.NewGuid(), CustomLabel = "Vessel Name", Value = "M/V Ocean Sentinel" },
-            }
-        };
-        var formSub7_2 = new FormSubmission
+            ("Examinee Class", "Class B (General)"),
+            ("Exam Type", "First Time Examinee"),
+            ("Preferred Exam Language", "English"),
+            ("PRC License Status", "None"),
+            ("Station Call Sign", "DU7MLP"),
+            ("Vessel Name", "M/V Ocean Sentinel"),
+        }, defaultFormId, availableFields);
+
+        AddFormSubmission(app7, applicants[7], new()
         {
-            Id = Guid.NewGuid(),
-            ApplicationId = app7.Id,
-            FormId = Guid.Parse("f0100000-0000-0000-0000-000000000001"),
-            ApplicantId = applicants[7].Id,
-            CreatedAt = now.AddDays(-10),
-            FieldValues = new List<FormFieldValue>
-            {
-                new FormFieldValue { Id = Guid.NewGuid(), FieldId = Guid.NewGuid(), CustomLabel = "Examinee Class", Value = "Class A (Advanced)" },
-                new FormFieldValue { Id = Guid.NewGuid(), FieldId = Guid.NewGuid(), CustomLabel = "Exam Type", Value = "Renewal Examinee" },
-                new FormFieldValue { Id = Guid.NewGuid(), FieldId = Guid.NewGuid(), CustomLabel = "Preferred Exam Language", Value = "English" },
-                new FormFieldValue { Id = Guid.NewGuid(), FieldId = Guid.NewGuid(), CustomLabel = "PRC License Status", Value = "Licensed Engineer" },
-                new FormFieldValue { Id = Guid.NewGuid(), FieldId = Guid.NewGuid(), CustomLabel = "Station Call Sign", Value = "DU7SFR" },
-                new FormFieldValue { Id = Guid.NewGuid(), FieldId = Guid.NewGuid(), CustomLabel = "Vessel Name", Value = "M/V Visayas Trader" },
-            }
-        };
-        app7.FormSubmissions.Add(formSub7_1);
-        app7.FormSubmissions.Add(formSub7_2);
+            ("Examinee Class", "Class A (Advanced)"),
+            ("Exam Type", "Renewal Examinee"),
+            ("Preferred Exam Language", "English"),
+            ("PRC License Status", "Licensed Engineer"),
+            ("Station Call Sign", "DU7SFR"),
+            ("Vessel Name", "M/V Visayas Trader"),
+        }, defaultFormId, availableFields);
 
         app7.StatementsOfAccount.Add(soaBulk1);
         app7.StatementsOfAccount.Add(soaBulk2);
@@ -710,7 +721,7 @@ public static class ApplicationDataSeeder
             ("Commercial Operator ID", "COP-2024-5512"),
             ("Station Location", "Unit 402 Sampaloc Manila"),
             ("Equipment Power Rating", "100W PEP"),
-        });
+        }, defaultFormId, availableFields);
 
         applications.Add(app16);
 
@@ -735,7 +746,7 @@ public static class ApplicationDataSeeder
             ("RF Radiation Compliance Certificate", "EMF-CERT-2025-0981"),
             ("Safety Officer In-Charge", "Engr. Manuel Roxas (PECE #4412)"),
             ("Emergency Power Source", "250 kVA Standby Generator Set"),
-        });
+        }, defaultFormId, availableFields);
 
         var soa17 = MakeSoa(Guid.Parse("b1700000-0000-0000-0000-000000000001"), app17,
             applicants[6].Id, IssuedToType.Individual, FullName(applicants[6]),
@@ -987,24 +998,28 @@ public static class ApplicationDataSeeder
 
     private static void AddFormSubmission(
         DomainApplication app, Applicant applicant,
-        List<(string label, string value)> fields)
+        List<(string label, string value)> fields,
+        Guid defaultFormId,
+        List<Field> availableFields)
     {
         var submission = new FormSubmission
         {
             Id = Guid.NewGuid(),
             ApplicationId = app.Id,
             ApplicantId = applicant.Id,
-            FormId = Guid.NewGuid(),
+            FormId = defaultFormId,
             CreatedAt = app.CreatedAt,
         };
 
-        foreach (var (label, val) in fields)
+        for (int i = 0; i < fields.Count; i++)
         {
+            var (label, val) = fields[i];
+            var fieldObj = availableFields.Count > 0 ? availableFields[i % availableFields.Count] : null;
             submission.FieldValues.Add(new FormFieldValue
             {
                 Id = Guid.NewGuid(),
                 FormSubmissionId = submission.Id,
-                FieldId = Guid.NewGuid(),
+                FieldId = fieldObj?.Id ?? Guid.NewGuid(),
                 CustomLabel = label,
                 Value = val,
             });

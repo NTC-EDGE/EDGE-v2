@@ -28,6 +28,7 @@ import {
 } from "../../../types/application";
 import { useRole } from "../../shell/context/RoleContext";
 import { usePermissions } from "../../shell/context/PermissionContext";
+import { applicationService } from "@edge/api";
 import { ApproveModal } from "../components/modals/ApproveModal";
 import { DeclineModal } from "../components/modals/DeclineModal";
 import { EndorseModal } from "../components/modals/EndorseModal";
@@ -35,17 +36,17 @@ import { CashierVerificationModal } from "../components/modals/CashierVerificati
 import { UserRole } from "../../shell/context/RoleContext";
 import { useApplications } from "../context/ApplicationContext";
 
-type InnerTab = "basic" | "details" | "requirements" | "soa";
+type InnerTab = "details" | "applicant-record" | "soa";
 
 const INNER_TABS: {
   key: InnerTab;
   label: string;
-  icon: "user" | "clipboard" | "credit-card";
+  icon: "file-text" | "user" | "credit-card";
 }[] = [
-    { key: "basic", label: "Basic Informations", icon: "user" },
-    { key: "details", label: "Application Records", icon: "clipboard" },
-    { key: "soa", label: "SOA & Payment", icon: "credit-card" },
-  ];
+  { key: "details", label: "Application Details", icon: "file-text" },
+  { key: "applicant-record", label: "Applicant Record", icon: "user" },
+  { key: "soa", label: "SOA & Payment", icon: "credit-card" },
+];
 
 function getStatusStyle(status: string): { bg: string; text: string } {
   const s = status.toLowerCase();
@@ -124,12 +125,14 @@ function amountToWords(n: number): string {
 
 interface SectionHeaderProps {
   title: string;
+  rightAction?: React.ReactNode;
 }
-function SectionHeader({ title }: SectionHeaderProps) {
+function SectionHeader({ title, rightAction }: SectionHeaderProps) {
   const { colors, isDark } = useTheme();
   return (
-    <View style={[sectionStyles.header, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100], }]}>
-      <Text style={[sectionStyles.title, { color: isDark ? colors.neutral[400] : colors.neutral[500], }]}>{title}</Text>
+    <View style={[sectionStyles.header, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100], flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
+      <Text style={[sectionStyles.title, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>{title}</Text>
+      {rightAction}
     </View>
   );
 }
@@ -157,6 +160,7 @@ interface InfoRowProps {
   editValue?: string;
   onEditChange?: (v: string) => void;
   onEditDone?: () => void;
+  showRowSaveButton?: boolean;
 }
 function InfoRow({
   label,
@@ -166,6 +170,7 @@ function InfoRow({
   editValue,
   onEditChange,
   onEditDone,
+  showRowSaveButton = false,
 }: InfoRowProps) {
   const { colors, isDark } = useTheme();
   return (
@@ -178,11 +183,12 @@ function InfoRow({
             value={editValue}
             onChangeText={onEditChange}
             onBlur={onEditDone}
-            autoFocus
           />
-          <Pressable style={[infoStyles.saveBtn, { backgroundColor: isDark ? colors.brand[500] : colors.brand[700], }]} onPress={onEditDone}>
-            <Text style={[infoStyles.saveBtnText, { color: isDark ? colors.neutral[800] : COLORS.neutral.white, }]}>Save</Text>
-          </Pressable>
+          {showRowSaveButton && onEditDone && (
+            <Pressable style={[infoStyles.saveBtn, { backgroundColor: isDark ? colors.brand[500] : colors.brand[700], }]} onPress={onEditDone}>
+              <Text style={[infoStyles.saveBtnText, { color: isDark ? colors.neutral[800] : COLORS.neutral.white, }]}>Save</Text>
+            </Pressable>
+          )}
         </View>
       ) : (
         <View style={infoStyles.valueRow}>
@@ -257,7 +263,7 @@ const infoStyles = StyleSheet.create({
 
 // ─── Tabs ────────────────────────────────────────────────────────────────────
 
-function BasicInfoTab({
+function ApplicationDetailsTab({
   app,
   isEditable,
   updateApplication,
@@ -273,20 +279,65 @@ function BasicInfoTab({
   onInspectApplicant?: (index: number) => void;
 }) {
   const { colors, isDark } = useTheme();
-  const [editingRef, setEditingRef] = useState(false);
-  const [editingPermit, setEditingPermit] = useState(false);
-  const [editingNote, setEditingNote] = useState(false);
-  const [editingLastName, setEditingLastName] = useState(false);
-  const [editingFirstName, setEditingFirstName] = useState(false);
-  const [editingMiddleName, setEditingMiddleName] = useState(false);
-  const [editingDob, setEditingDob] = useState(false);
+  const [isEditingSection, setIsEditingSection] = useState(false);
+  const [isEditingRoster, setIsEditingRoster] = useState(false);
+
   const [refDraft, setRefDraft] = useState(app.referenceNumber);
   const [permitDraft, setPermitDraft] = useState(app.permitNumber);
   const [noteDraft, setNoteDraft] = useState(app.note);
-  const [lnDraft, setLnDraft] = useState(app.basicInfo.lastName);
-  const [fnDraft, setFnDraft] = useState(app.basicInfo.firstName);
-  const [mnDraft, setMnDraft] = useState(app.basicInfo.middleName);
-  const [dobDraft, setDobDraft] = useState(app.basicInfo.dob);
+  const [applicantDraft, setApplicantDraft] = useState(app.applicant);
+  const [accountTypeDraft, setAccountTypeDraft] = useState(app.applicantType);
+  const [emailDraft, setEmailDraft] = useState(app.contactDetails?.email ?? '');
+  const [barangayDraft, setBarangayDraft] = useState(app.address?.barangay ?? '');
+  const [provinceDraft, setProvinceDraft] = useState(app.address?.province ?? '');
+  const [cityDraft, setCityDraft] = useState(app.address?.city ?? '');
+  const [zipCodeDraft, setZipCodeDraft] = useState(app.address?.zipCode ?? '');
+
+  const [compNameDraft, setCompNameDraft] = useState(app.companyDetails?.name ?? app.applicant);
+  const [compRegNoDraft, setCompRegNoDraft] = useState(app.companyDetails?.registrationNumber ?? '');
+  const [compAddrDraft, setCompAddrDraft] = useState(app.companyDetails?.address ?? '');
+  const [compContactDraft, setCompContactDraft] = useState(app.companyDetails?.contactNumber ?? app.contactDetails?.contactNumber ?? '');
+  const [compEmailDraft, setCompEmailDraft] = useState(app.companyDetails?.email ?? app.contactDetails?.email ?? '');
+
+  const [lnDraft, setLnDraft] = useState(app.basicInfo?.lastName ?? '');
+  const [fnDraft, setFnDraft] = useState(app.basicInfo?.firstName ?? '');
+  const [mnDraft, setMnDraft] = useState(app.basicInfo?.middleName ?? '');
+  const [extDraft, setExtDraft] = useState(app.basicInfo?.extensionName ?? '');
+  const [pobDraft, setPobDraft] = useState(app.basicInfo?.placeOfBirth ?? '');
+  const [dobDraft, setDobDraft] = useState(app.basicInfo?.dob ?? '');
+  const [sexDraft, setSexDraft] = useState(app.basicInfo?.sex ?? '');
+  const [weightDraft, setWeightDraft] = useState(String(app.basicInfo?.weight ?? ''));
+  const [heightDraft, setHeightDraft] = useState(String(app.basicInfo?.height ?? ''));
+  const [natDraft, setNatDraft] = useState(app.basicInfo?.nationality ?? '');
+  const [empStatusDraft, setEmpStatusDraft] = useState(app.basicInfo?.employmentStatus ?? '');
+
+  const [editingRef, setEditingRef] = useState(false);
+  const [editingPermit, setEditingPermit] = useState(false);
+  const [editingNote, setEditingNote] = useState(false);
+  const [editingApplicant, setEditingApplicant] = useState(false);
+  const [editingAccountType, setEditingAccountType] = useState(false);
+  const [editingEmail, setEditingEmail] = useState(false);
+  const [editingBarangay, setEditingBarangay] = useState(false);
+  const [editingProvince, setEditingProvince] = useState(false);
+  const [editingCity, setEditingCity] = useState(false);
+  const [editingZipCode, setEditingZipCode] = useState(false);
+  const [editingCompName, setEditingCompName] = useState(false);
+  const [editingCompRegNo, setEditingCompRegNo] = useState(false);
+  const [editingCompAddr, setEditingCompAddr] = useState(false);
+  const [editingCompContact, setEditingCompContact] = useState(false);
+  const [editingCompEmail, setEditingCompEmail] = useState(false);
+  const [editingLastName, setEditingLastName] = useState(false);
+  const [editingFirstName, setEditingFirstName] = useState(false);
+  const [editingMiddleName, setEditingMiddleName] = useState(false);
+  const [editingExtName, setEditingExtName] = useState(false);
+  const [editingPob, setEditingPob] = useState(false);
+  const [editingDob, setEditingDob] = useState(false);
+  const [editingSex, setEditingSex] = useState(false);
+  const [editingWeight, setEditingWeight] = useState(false);
+  const [editingHeight, setEditingHeight] = useState(false);
+  const [editingNationality, setEditingNationality] = useState(false);
+  const [editingEmpStatus, setEditingEmpStatus] = useState(false);
+
   const [localApplicants, setLocalApplicants] = useState<ApplicantItem[]>(app.applicantsList ?? []);
 
   useEffect(() => {
@@ -299,54 +350,171 @@ function BasicInfoTab({
     const updated = [...localApplicants];
     updated[idx] = { ...updated[idx], status: newStatus };
     setLocalApplicants(updated);
-    updateApplication(app.id, { applicantsList: updated });
+    if (!isEditingRoster) {
+      updateApplication(app.id, { applicantsList: updated });
+    }
   };
 
-  const handleSetRemarks = (idx: number, text: string) => {
+  const handleUpdateRosterRow = (idx: number, patch: Partial<ApplicantItem>) => {
     const updated = [...localApplicants];
-    updated[idx] = { ...updated[idx], evaluationRemarks: text };
+    let newApplicant = { ...updated[idx], ...patch };
+
+    // Synchronize basicInfo.firstName and basicInfo.lastName when full name changes for Individuals
+    if (patch.name !== undefined && newApplicant.applicantType === 'Individual') {
+      const parts = patch.name.trim().split(/\s+/);
+      const firstName = parts[0] || '';
+      const lastName = parts.length > 1 ? parts.slice(1).join(' ') : '';
+      newApplicant.basicInfo = {
+        ...(newApplicant.basicInfo ?? {
+          lastName: '',
+          firstName: '',
+          middleName: '',
+          extensionName: '',
+          dob: '',
+          placeOfBirth: '',
+          sex: '',
+          weight: 0,
+          height: 0,
+          nationality: '',
+          employmentStatus: '',
+          occupation: '',
+        }),
+        firstName,
+        lastName,
+      };
+    }
+
+    updated[idx] = newApplicant;
     setLocalApplicants(updated);
-    updateApplication(app.id, { applicantsList: updated });
+    if (!isEditingRoster) {
+      updateApplication(app.id, { applicantsList: updated });
+    }
+  };
+
+  const handleSaveAllBasicInfo = () => {
+    const numWeight = parseFloat(weightDraft);
+    const numHeight = parseFloat(heightDraft);
+    updateApplication(app.id, {
+      referenceNumber: refDraft,
+      permitNumber: permitDraft,
+      applicant: applicantDraft,
+      applicantType: accountTypeDraft as 'Individual' | 'Company',
+      contactDetails: { ...app.contactDetails, email: emailDraft },
+      address: { ...app.address, barangay: barangayDraft, province: provinceDraft, city: cityDraft, zipCode: zipCodeDraft },
+      companyDetails: (app.companyDetails !== undefined || app.applicantType === 'Company') ? {
+        ...(app.companyDetails ?? { name: '', registrationNumber: '', address: '', contactNumber: '', email: '' }),
+        name: compNameDraft,
+        registrationNumber: compRegNoDraft,
+        address: compAddrDraft,
+        contactNumber: compContactDraft,
+        email: compEmailDraft,
+      } : undefined,
+      basicInfo: {
+        ...app.basicInfo,
+        lastName: lnDraft,
+        firstName: fnDraft,
+        middleName: mnDraft,
+        extensionName: extDraft,
+        placeOfBirth: pobDraft,
+        dob: dobDraft,
+        sex: sexDraft,
+        weight: isNaN(numWeight) ? app.basicInfo.weight : numWeight,
+        height: isNaN(numHeight) ? app.basicInfo.height : numHeight,
+        nationality: natDraft,
+        employmentStatus: empStatusDraft,
+      },
+    });
+    setIsEditingSection(false);
+  };
+
+  const handleSaveAllRoster = () => {
+    // Synchronize basicInfo.firstName and basicInfo.lastName for all Individual applicants
+    const synchronized = localApplicants.map((item) => {
+      if (item.applicantType === 'Individual' && item.name) {
+        const parts = item.name.trim().split(/\s+/);
+        const firstName = parts[0] || '';
+        const lastName = parts.length > 1 ? parts.slice(1).join(' ') : '';
+        return {
+          ...item,
+          basicInfo: {
+            ...(item.basicInfo ?? {
+              lastName: '',
+              firstName: '',
+              middleName: '',
+              extensionName: '',
+              dob: '',
+              placeOfBirth: '',
+              sex: '',
+              weight: 0,
+              height: 0,
+              nationality: '',
+              employmentStatus: '',
+              occupation: '',
+            }),
+            firstName,
+            lastName,
+          },
+        };
+      }
+      return item;
+    });
+    setLocalApplicants(synchronized);
+    updateApplication(app.id, { applicantsList: synchronized });
+    setIsEditingRoster(false);
   };
 
   const statusStyle = getStatusStyle(app.status);
 
   return (
     <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
-      {/* Status */}
-      <View style={[styles.statusBlock, { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100], }]}>
-        <View style={styles.statusRow}>
-          <View
-            style={[styles.statusPill, { backgroundColor: statusStyle.bg }]}
-          >
+      {/* Top Section Header with Global Section Edit Mode Toggle */}
+      <View style={[styles.statusBlock, { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100], flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
+        <View style={[styles.statusRow, { gap: SPACING[12], alignItems: 'center' }]}>
+          <View style={[styles.statusPill, { backgroundColor: statusStyle.bg }]}>
             <Text style={[styles.statusPillText, { color: statusStyle.text }]}>
               {app.status.toLowerCase() === "submitted" ? "FOR EVALUATION" : app.status.toUpperCase()}
             </Text>
           </View>
-          <Text style={[styles.statusActor, { color: isDark ? colors.neutral[500] : colors.neutral[400], }]}>by ADMIN EDGE</Text>
+          <Text style={[styles.statusActor, { color: isDark ? colors.neutral[500] : colors.neutral[400] }]}>by ADMIN EDGE</Text>
         </View>
+
+        {isEditable && (
+          <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+            {isEditingSection ? (
+              <>
+                <Pressable
+                  style={[styles.inspectBtn, { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[200], paddingHorizontal: 10 }]}
+                  onPress={() => setIsEditingSection(false)}
+                >
+                  <Text style={[styles.inspectBtnText, { color: isDark ? colors.neutral[200] : colors.neutral[800] }]}>Cancel</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.inspectBtn, { backgroundColor: isDark ? colors.brand[500] : colors.brand[700], paddingHorizontal: 12 }]}
+                  onPress={handleSaveAllBasicInfo}
+                >
+                  <Text style={[styles.inspectBtnText, { color: COLORS.neutral.white, fontWeight: '700' }]}>Save</Text>
+                </Pressable>
+              </>
+            ) : (
+              <Pressable
+                style={[styles.inspectBtn, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100], borderColor: isDark ? colors.brand[500] : colors.brand[600], borderWidth: 1, paddingHorizontal: 12 }]}
+                onPress={() => setIsEditingSection(true)}
+              >
+                <Text style={[styles.inspectBtnText, { color: isDark ? colors.brand[400] : colors.brand[800], fontWeight: '600' }]}>Edit</Text>
+              </Pressable>
+            )}
+          </View>
+        )}
       </View>
 
       <View style={styles.infoBlock}>
-        <Text style={[styles.fieldGroupLabel, { color: isDark ? colors.neutral[500] : colors.neutral[400], }]}>REFERENCE NUMBER</Text>
+        <Text style={[styles.fieldGroupLabel, { color: isDark ? colors.neutral[500] : colors.neutral[400] }]}>REFERENCE NUMBER</Text>
         <InfoRow
           label="Reference Number:"
           value={app.referenceNumber}
-          onEdit={
-            isEditable
-              ? () => {
-                setRefDraft(app.referenceNumber);
-                setEditingRef(true);
-              }
-              : undefined
-          }
-          isEditing={editingRef}
+          isEditing={isEditingSection}
           editValue={refDraft}
           onEditChange={setRefDraft}
-          onEditDone={() => {
-            setEditingRef(false);
-            updateApplication(app.id, { referenceNumber: refDraft });
-          }}
         />
 
         <Text style={[styles.fieldGroupLabel, { marginTop: SPACING[12], color: isDark ? colors.neutral[500] : colors.neutral[400] }]}>
@@ -355,276 +523,305 @@ function BasicInfoTab({
         <InfoRow
           label="Permit Number:"
           value={app.permitNumber}
-          onEdit={
-            isEditable
-              ? () => {
-                setPermitDraft(app.permitNumber);
-                setEditingPermit(true);
-              }
-              : undefined
-          }
-          isEditing={editingPermit}
+          isEditing={isEditingSection}
           editValue={permitDraft}
           onEditChange={setPermitDraft}
-          onEditDone={() => {
-            setEditingPermit(false);
-            updateApplication(app.id, { permitNumber: permitDraft });
-          }}
         />
       </View>
 
-      {app.applicationType === 'BULK' && localApplicants.length > 0 ? (
+      {/* ALWAYS SHOW FILING ENTITY & SUBMITTER DETAILS FOR ALL APPLICATION/ACCOUNT TYPES */}
+      <SectionHeader title="FILING ENTITY & SUBMITTER DETAILS" />
+      <View style={styles.infoBlock}>
+        <InfoRow label="Submitted By:" value={app.filingUser?.name ?? app.applicant} />
+        <InfoRow
+          label="User Email:"
+          value={app.filingUser?.email ?? app.contactDetails?.email ?? "—"}
+          isEditing={isEditingSection}
+          editValue={emailDraft}
+          onEditChange={setEmailDraft}
+        />
+        <View style={[infoStyles.row, { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100] }]}>
+          <Text style={[infoStyles.label, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>User Account Type:</Text>
+          {isEditingSection ? (
+            <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+              <Pressable
+                style={{
+                  backgroundColor: accountTypeDraft === 'Individual'
+                    ? (isDark ? colors.brand[500] : colors.brand[700])
+                    : (isDark ? colors.neutral[800] : colors.neutral[100]),
+                  borderColor: isDark ? colors.brand[500] : colors.brand[600],
+                  borderWidth: 1,
+                  paddingHorizontal: 16,
+                  paddingVertical: 6,
+                  borderRadius: RADIUS.button,
+                }}
+                onPress={() => setAccountTypeDraft('Individual')}
+              >
+                <Text style={{
+                  color: accountTypeDraft === 'Individual' ? COLORS.neutral.white : (isDark ? colors.neutral[300] : colors.neutral[700]),
+                  fontWeight: '600',
+                  fontSize: TYPOGRAPHY.sizes.body,
+                }}>
+                  Individual
+                </Text>
+              </Pressable>
+              <Pressable
+                style={{
+                  backgroundColor: accountTypeDraft === 'Company'
+                    ? (isDark ? colors.brand[500] : colors.brand[700])
+                    : (isDark ? colors.neutral[800] : colors.neutral[100]),
+                  borderColor: isDark ? colors.brand[500] : colors.brand[600],
+                  borderWidth: 1,
+                  paddingHorizontal: 16,
+                  paddingVertical: 6,
+                  borderRadius: RADIUS.button,
+                }}
+                onPress={() => setAccountTypeDraft('Company')}
+              >
+                <Text style={{
+                  color: accountTypeDraft === 'Company' ? COLORS.neutral.white : (isDark ? colors.neutral[300] : colors.neutral[700]),
+                  fontWeight: '600',
+                  fontSize: TYPOGRAPHY.sizes.body,
+                }}>
+                  Company
+                </Text>
+              </Pressable>
+            </View>
+          ) : (
+            <Text style={[infoStyles.value, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>
+              {app.filingUser?.accountType ?? app.applicantType ?? "Individual"}
+            </Text>
+          )}
+        </View>
+        {(app.filingUser?.company || app.companyDetails) && (
+          <>
+            <InfoRow
+              label="Filing Company Name:"
+              value={app.companyDetails?.name ?? app.filingUser?.company?.name ?? app.applicant}
+              isEditing={isEditingSection}
+              editValue={compNameDraft}
+              onEditChange={setCompNameDraft}
+            />
+            <InfoRow
+              label="Filing Company Reg No:"
+              value={app.companyDetails?.registrationNumber ?? app.filingUser?.company?.registrationNumber ?? "—"}
+              isEditing={isEditingSection}
+              editValue={compRegNoDraft}
+              onEditChange={setCompRegNoDraft}
+            />
+            <InfoRow
+              label="Filing Company Address:"
+              value={app.companyDetails?.address ?? app.filingUser?.company?.address ?? app.address.barangay}
+              isEditing={isEditingSection}
+              editValue={compAddrDraft}
+              onEditChange={setCompAddrDraft}
+            />
+          </>
+        )}
+      </View>
+
+      {/* BULK BATCH SUMMARY TABLE */}
+      {app.applicationType === 'BULK' && localApplicants.length > 0 && (
         <>
-          {app.filingUser && (
-            <>
-              <SectionHeader title="FILING ENTITY & SUBMITTER DETAILS" />
-              <View style={styles.infoBlock}>
-                <InfoRow label="Submitted By:" value={app.filingUser.name} />
-                <InfoRow label="User Email:" value={app.filingUser.email} />
-                <InfoRow label="User Account Type:" value={app.filingUser.accountType} />
-              </View>
-            </>
-          )}
-
-          {(app.companyDetails !== undefined || app.filingUser?.company !== undefined || app.applicantType === 'Company') && (
-            <>
-              <SectionHeader title="APPLICANT COMPANY DETAILS" />
-              <View style={styles.infoBlock}>
-                <InfoRow label="Company Name:" value={app.companyDetails?.name ?? app.filingUser?.company?.name ?? app.applicant} />
-                <InfoRow label="Registration No:" value={app.companyDetails?.registrationNumber ?? app.filingUser?.company?.registrationNumber ?? "—"} />
-                <InfoRow label="Company Address:" value={app.companyDetails?.address ?? app.filingUser?.company?.address ?? app.address.barangay} />
-                <InfoRow label="Contact Number:" value={app.companyDetails?.contactNumber ?? app.filingUser?.company?.contactNumber ?? app.contactDetails.contactNumber ?? "—"} />
-                <InfoRow label="Email Address:" value={app.companyDetails?.email ?? app.filingUser?.company?.email ?? app.contactDetails.email ?? "—"} />
-              </View>
-            </>
-          )}
-
-          <SectionHeader title={`APPLICANTS BATCH SUMMARY (${localApplicants.length} APPLICANTS)`} />
+          {/* BULK BATCH APPLICANTS TABLE WITH FULL-TABLE TOGGLE EDIT */}
+          <SectionHeader
+            title={`APPLICANTS BATCH SUMMARY (${localApplicants.length} APPLICANTS)`}
+            rightAction={
+              isEditable ? (
+                <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+                  {isEditingRoster ? (
+                    <>
+                      <Pressable
+                        style={[styles.inspectBtn, { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[300], paddingHorizontal: 10 }]}
+                        onPress={() => setIsEditingRoster(false)}
+                      >
+                        <Text style={[styles.inspectBtnText, { color: isDark ? colors.neutral[200] : colors.neutral[800] }]}>Cancel</Text>
+                      </Pressable>
+                      <Pressable
+                        style={[styles.inspectBtn, { backgroundColor: isDark ? colors.brand[500] : colors.brand[700], paddingHorizontal: 12 }]}
+                        onPress={handleSaveAllRoster}
+                      >
+                        <Text style={[styles.inspectBtnText, { color: COLORS.neutral.white, fontWeight: '700' }]}>💾 Save Roster Changes</Text>
+                      </Pressable>
+                    </>
+                  ) : (
+                    <Pressable
+                      style={[styles.inspectBtn, { backgroundColor: isDark ? colors.brand[600] : colors.brand[700], paddingHorizontal: 10 }]}
+                      onPress={() => setIsEditingRoster(true)}
+                    >
+                      <Text style={[styles.inspectBtnText, { color: COLORS.neutral.white }]}>✏️ Edit Batch Roster</Text>
+                    </Pressable>
+                  )}
+                </View>
+              ) : null
+            }
+          />
           <View style={[styles.denseTableContainer, { backgroundColor: isDark ? colors.neutral[900] : COLORS.neutral.white, borderColor: isDark ? colors.neutral[700] : colors.neutral[200] }]}>
             {/* Table Header */}
             <View style={[styles.denseTableHeader, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100], borderBottomColor: isDark ? colors.neutral[700] : colors.neutral[200] }]}>
-              <Text style={[styles.denseHeaderCell, { width: 40, textAlign: 'center', color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>#</Text>
+              <Text style={[styles.denseHeaderCell, { width: 35, textAlign: 'center', color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>#</Text>
               <Text style={[styles.denseHeaderCell, { flex: 2, color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>APPLICANT NAME</Text>
               <Text style={[styles.denseHeaderCell, { flex: 1, color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>TYPE</Text>
               <Text style={[styles.denseHeaderCell, { flex: 1.2, color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>STATUS VERDICT</Text>
               <Text style={[styles.denseHeaderCell, { flex: 2, color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>EVALUATION REMARKS</Text>
-              <Text style={[styles.denseHeaderCell, { width: 150, textAlign: 'right', color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>ACTION</Text>
+              <Text style={[styles.denseHeaderCell, { width: 100, textAlign: 'right', color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>ACTION</Text>
             </View>
 
             {/* Table Body Rows */}
             {localApplicants.map((item, idx) => {
+              const isRowEditing = isEditingRoster;
               return (
                 <View
                   key={item.id || idx}
                   style={[
                     styles.denseTableRow,
-                    { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[200] }
+                    { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[200] },
+                    isRowEditing && { backgroundColor: isDark ? colors.neutral[800] : colors.brand[50] }
                   ]}
                 >
-                  <Text style={[styles.denseRowIndex, { width: 40, textAlign: 'center', color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>#{idx + 1}</Text>
-                  <View style={{ flex: 2 }}>
-                    <Text style={[styles.denseRowName, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]} numberOfLines={1}>
-                      {item.name}
-                    </Text>
-                    {item.email ? <Text style={[styles.denseRowSub, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]} numberOfLines={1}>{item.email}</Text> : null}
-                  </View>
-                  <Text style={[styles.denseRowType, { flex: 1, color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>
-                    {item.applicantType}
-                  </Text>
-                  <View style={{ flex: 1.2 }}>
-                    {item.status === 'Incomplete' ? (
-                      <View style={[styles.miniStatusBadge, { backgroundColor: '#FEE2E2', alignSelf: 'flex-start' }]}>
-                        <Text style={[styles.miniStatusText, { color: '#991B1B' }]}>INCOMPLETE</Text>
+                  <Text style={[styles.denseRowIndex, { width: 35, textAlign: 'center', color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>#{idx + 1}</Text>
+
+                  {isRowEditing ? (
+                    <>
+                      <View style={{ flex: 2 }}>
+                        <Text style={[styles.denseRowName, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]} numberOfLines={1}>
+                          {item.name}
+                        </Text>
+                        {item.email ? <Text style={[styles.denseRowSub, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]} numberOfLines={1}>{item.email}</Text> : null}
                       </View>
-                    ) : item.status === 'ForEndorsement' ? (
-                      <View style={[styles.miniStatusBadge, { backgroundColor: '#F3E8FF', alignSelf: 'flex-start' }]}>
-                        <Text style={[styles.miniStatusText, { color: '#6B21A8' }]}>FOR ENDORSEMENT</Text>
+                      <View style={{ flex: 1, paddingRight: 6 }}>
+                        <Pressable
+                          style={[styles.miniStatusBadge, { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[200], paddingVertical: 6, alignItems: 'center' }]}
+                          onPress={() => handleUpdateRosterRow(idx, { applicantType: item.applicantType === 'Individual' ? 'Company' : 'Individual' })}
+                        >
+                          <Text style={[styles.miniStatusText, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>{item.applicantType || 'Individual'}</Text>
+                        </Pressable>
                       </View>
-                    ) : (
-                      <View style={[styles.miniStatusBadge, { backgroundColor: '#DCFCE7', alignSelf: 'flex-start' }]}>
-                        <Text style={[styles.miniStatusText, { color: '#166534' }]}>COMPLETE</Text>
+                      <View style={{ flex: 1.2 }}>
+                        <View style={{ flexDirection: 'row', gap: 4 }}>
+                          <Pressable
+                            style={[styles.miniStatusBadge, { backgroundColor: item.status === 'Complete' ? '#DCFCE7' : (isDark ? colors.neutral[700] : colors.neutral[200]), paddingHorizontal: 6 }]}
+                            onPress={() => handleSetStatus(idx, 'Complete')}
+                          >
+                            <Text style={[styles.miniStatusText, { color: item.status === 'Complete' ? '#166534' : colors.neutral[500] }]}>C</Text>
+                          </Pressable>
+                          <Pressable
+                            style={[styles.miniStatusBadge, { backgroundColor: item.status === 'Incomplete' ? '#FEE2E2' : (isDark ? colors.neutral[700] : colors.neutral[200]), paddingHorizontal: 6 }]}
+                            onPress={() => handleSetStatus(idx, 'Incomplete')}
+                          >
+                            <Text style={[styles.miniStatusText, { color: item.status === 'Incomplete' ? '#991B1B' : colors.neutral[500] }]}>INC</Text>
+                          </Pressable>
+                          <Pressable
+                            style={[styles.miniStatusBadge, { backgroundColor: item.status === 'ForEndorsement' ? '#F3E8FF' : (isDark ? colors.neutral[700] : colors.neutral[200]), paddingHorizontal: 6 }]}
+                            onPress={() => handleSetStatus(idx, 'ForEndorsement')}
+                          >
+                            <Text style={[styles.miniStatusText, { color: item.status === 'ForEndorsement' ? '#6B21A8' : colors.neutral[500] }]}>END</Text>
+                          </Pressable>
+                        </View>
                       </View>
-                    )}
-                  </View>
-                  <Text style={[styles.denseRowRemarks, { flex: 2, color: isDark ? colors.neutral[400] : colors.neutral[600] }]} numberOfLines={1}>
-                    {item.evaluationRemarks || '—'}
-                  </Text>
-                  <View style={{ width: 150, alignItems: 'flex-end' }}>
-                    <Pressable
-                      style={[styles.inspectBtn, { backgroundColor: isDark ? colors.brand[600] : colors.brand[700] }]}
-                      onPress={() => onInspectApplicant?.(idx)}
-                    >
-                      <Text style={[styles.inspectBtnText, { color: COLORS.neutral.white }]}>
-                        Inspect Record ►
+                      <View style={{ flex: 2, paddingRight: 6 }}>
+                        <TextInput
+                          style={[infoStyles.editInput, { color: isDark ? colors.neutral[100] : colors.neutral[900], backgroundColor: isDark ? colors.neutral[900] : COLORS.neutral.white }]}
+                          value={item.evaluationRemarks || ''}
+                          onChangeText={(val) => handleUpdateRosterRow(idx, { evaluationRemarks: val })}
+                          placeholder="Remarks..."
+                          placeholderTextColor={COLORS.neutral[400]}
+                        />
+                      </View>
+                      <View style={{ width: 100, flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center' }}>
+                        <Pressable
+                          style={[styles.inspectBtn, { backgroundColor: isDark ? colors.brand[600] : colors.brand[700] }]}
+                          onPress={() => onInspectApplicant?.(idx)}
+                        >
+                          <Text style={[styles.inspectBtnText, { color: COLORS.neutral.white }]}>
+                            Inspect ►
+                          </Text>
+                        </Pressable>
+                      </View>
+                    </>
+                  ) : (
+                    <>
+                      <View style={{ flex: 2 }}>
+                        <Text style={[styles.denseRowName, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]} numberOfLines={1}>
+                          {item.name}
+                        </Text>
+                        {item.email ? <Text style={[styles.denseRowSub, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]} numberOfLines={1}>{item.email}</Text> : null}
+                      </View>
+                      <Text style={[styles.denseRowType, { flex: 1, color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>
+                        {item.applicantType}
                       </Text>
-                    </Pressable>
-                  </View>
+                      <View style={{ flex: 1.2 }}>
+                        {item.status === 'Incomplete' ? (
+                          <View style={[styles.miniStatusBadge, { backgroundColor: '#FEE2E2', alignSelf: 'flex-start' }]}>
+                            <Text style={[styles.miniStatusText, { color: '#991B1B' }]}>INCOMPLETE</Text>
+                          </View>
+                        ) : item.status === 'ForEndorsement' ? (
+                          <View style={[styles.miniStatusBadge, { backgroundColor: '#F3E8FF', alignSelf: 'flex-start' }]}>
+                            <Text style={[styles.miniStatusText, { color: '#6B21A8' }]}>FOR ENDORSEMENT</Text>
+                          </View>
+                        ) : (
+                          <View style={[styles.miniStatusBadge, { backgroundColor: '#DCFCE7', alignSelf: 'flex-start' }]}>
+                            <Text style={[styles.miniStatusText, { color: '#166534' }]}>COMPLETE</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={[styles.denseRowRemarks, { flex: 2, color: isDark ? colors.neutral[400] : colors.neutral[600] }]} numberOfLines={1}>
+                        {item.evaluationRemarks || '—'}
+                      </Text>
+                      <View style={{ width: 100, flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center' }}>
+                        <Pressable
+                          style={[styles.inspectBtn, { backgroundColor: isDark ? colors.brand[600] : colors.brand[700] }]}
+                          onPress={() => onInspectApplicant?.(idx)}
+                        >
+                          <Text style={[styles.inspectBtnText, { color: COLORS.neutral.white }]}>
+                            Inspect ►
+                          </Text>
+                        </Pressable>
+                      </View>
+                    </>
+                  )}
                 </View>
               );
             })}
           </View>
         </>
-      ) : app.filingUser?.accountType === 'Company' ? (
-        <>
-          <SectionHeader title="FILING USER / SUBMITTER DETAILS" />
-          <View style={styles.infoBlock}>
-            <InfoRow label="Submitted By:" value={app.filingUser.name} />
-            <InfoRow label="User Email:" value={app.filingUser.email} />
-            <InfoRow label="User Account Type:" value={app.filingUser.accountType} />
-            {app.filingUser.company && (
-              <>
-                <InfoRow label="Filing Company Name:" value={app.filingUser.company.name} />
-                <InfoRow label="Filing Company Reg No:" value={app.filingUser.company.registrationNumber} />
-                <InfoRow label="Filing Company Address:" value={app.filingUser.company.address} />
-              </>
-            )}
-          </View>
-
-          <SectionHeader title="APPLICANT / PERMIT HOLDER DETAILS" />
-          <View style={styles.infoBlock}>
-            <InfoRow label="Applicant Name:" value={app.applicant} />
-            <InfoRow label="Applicant Type:" value={app.applicantType} />
-            <InfoRow label="Barangay:" value={app.address.barangay} />
-            <InfoRow label="Province:" value={app.address.province} />
-            <InfoRow label="City/Municipality:" value={app.address.city} />
-            <InfoRow label="Zip Code:" value={app.address.zipCode} />
-          </View>
-        </>
-      ) : (
-        <>
-          <SectionHeader title="APPLICANT & ACCOUNT INFORMATION" />
-          <View style={styles.infoBlock}>
-            <InfoRow label="Filing User / Applicant:" value={app.applicant} />
-            <InfoRow label="Account Type:" value="Individual" />
-            <InfoRow label="Email Address:" value={app.contactDetails.email} />
-            <InfoRow label="Barangay:" value={app.address.barangay} />
-            <InfoRow label="Province:" value={app.address.province} />
-            <InfoRow label="City/Municipality:" value={app.address.city} />
-            <InfoRow label="Zip Code:" value={app.address.zipCode} />
-          </View>
-        </>
       )}
 
-      {!(app.applicationType === 'BULK' && app.applicantsList && app.applicantsList.length > 1) && (
+      {/* Application History section */}
+      {app.history && app.history.length > 0 && (
         <>
-          {(app.applicantType === "Company" || app.companyDetails !== undefined) && (
-            <>
-              <SectionHeader title="APPLICANT COMPANY DETAILS" />
-              <View style={styles.infoBlock}>
-                <InfoRow label="Company Name:" value={app.companyDetails?.name ?? app.applicant} />
-                <InfoRow label="Registration No:" value={app.companyDetails?.registrationNumber ?? ""} />
-                <InfoRow label="Company Address:" value={app.companyDetails?.address ?? app.address.barangay} />
-                <InfoRow label="Contact Number:" value={app.companyDetails?.contactNumber ?? app.contactDetails.contactNumber} />
-                <InfoRow label="Email Address:" value={app.companyDetails?.email ?? app.contactDetails.email} />
-              </View>
-            </>
-          )}
-
-          <SectionHeader title="BASIC INFORMATION" />
+          <SectionHeader title="APPLICATION HISTORY" />
           <View style={styles.infoBlock}>
-            <InfoRow
-              label="Last Name:"
-              value={app.basicInfo.lastName}
-              onEdit={
-                isEditable
-                  ? () => {
-                    setLnDraft(app.basicInfo.lastName);
-                    setEditingLastName(true);
-                  }
-                  : undefined
-              }
-              isEditing={editingLastName}
-              editValue={lnDraft}
-              onEditChange={setLnDraft}
-              onEditDone={() => {
-                setEditingLastName(false);
-                updateApplication(app.id, {
-                  basicInfo: { ...app.basicInfo, lastName: lnDraft },
-                });
-              }}
-            />
-            <InfoRow
-              label="First Name:"
-              value={app.basicInfo.firstName}
-              onEdit={
-                isEditable
-                  ? () => {
-                    setFnDraft(app.basicInfo.firstName);
-                    setEditingFirstName(true);
-                  }
-                  : undefined
-              }
-              isEditing={editingFirstName}
-              editValue={fnDraft}
-              onEditChange={setFnDraft}
-              onEditDone={() => {
-                setEditingFirstName(false);
-                updateApplication(app.id, {
-                  basicInfo: { ...app.basicInfo, firstName: fnDraft },
-                });
-              }}
-            />
-            <InfoRow
-              label="Middle Name:"
-              value={app.basicInfo.middleName}
-              onEdit={
-                isEditable
-                  ? () => {
-                    setMnDraft(app.basicInfo.middleName);
-                    setEditingMiddleName(true);
-                  }
-                  : undefined
-              }
-              isEditing={editingMiddleName}
-              editValue={mnDraft}
-              onEditChange={setMnDraft}
-              onEditDone={() => {
-                setEditingMiddleName(false);
-                updateApplication(app.id, {
-                  basicInfo: { ...app.basicInfo, middleName: mnDraft },
-                });
-              }}
-            />
-            <InfoRow label="Extension Name:" value={app.basicInfo.extensionName} />
-            <InfoRow label="Place Of Birth:" value={app.basicInfo.placeOfBirth} />
-            <InfoRow
-              label="Date Of Birth:"
-              value={app.basicInfo.dob}
-              onEdit={
-                isEditable
-                  ? () => {
-                    setDobDraft(app.basicInfo.dob);
-                    setEditingDob(true);
-                  }
-                  : undefined
-              }
-              isEditing={editingDob}
-              editValue={dobDraft}
-              onEditChange={setDobDraft}
-              onEditDone={() => {
-                setEditingDob(false);
-                updateApplication(app.id, {
-                  basicInfo: { ...app.basicInfo, dob: dobDraft },
-                });
-              }}
-            />
-            <InfoRow label="Sex:" value={app.basicInfo.sex} />
-            <InfoRow label="Weight:" value={String(app.basicInfo.weight)} />
-            <InfoRow label="Height:" value={String(app.basicInfo.height)} />
-            <InfoRow label="Nationality:" value={app.basicInfo.nationality} />
-          </View>
-
-          <SectionHeader title="EMPLOYMENT" />
-          <View style={styles.infoBlock}>
-            <InfoRow label="Status:" value={app.basicInfo.employmentStatus} />
+            <View style={styles.historyList}>
+              {app.history.map((entry, idx) => (
+                <View key={entry.id} style={styles.historyItem}>
+                  <View style={styles.historyLeft}>
+                    <View
+                      style={[
+                        styles.historyCircle,
+                        idx === 0 && styles.historyCircleActive,
+                      ]}
+                    />
+                    {idx !== app.history.length - 1 && (
+                      <View style={[styles.historyLine, { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[200], }]} />
+                    )}
+                  </View>
+                  <View style={styles.historyRight}>
+                    <Text style={[styles.historyAction, { color: isDark ? colors.neutral[100] : colors.neutral[900], }]}>{entry.action}</Text>
+                    <Text style={[styles.historyStaff, { color: isDark ? colors.neutral[500] : colors.neutral[400], }]}>by {entry.staff}</Text>
+                    <Text style={[styles.historyDate, { color: isDark ? colors.neutral[500] : colors.neutral[400], }]}>{entry.timestamp}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
           </View>
         </>
       )}
 
       {/* NOTE */}
-      <View style={[styles.noteBlock, { borderColor: isDark ? colors.neutral[700] : colors.neutral[200], }]}>
+      <View style={[styles.noteBlock, { borderColor: isDark ? colors.neutral[700] : colors.neutral[200] }]}>
         <View style={styles.noteHeader}>
-          <Text style={[styles.fieldGroupLabel, { color: isDark ? colors.neutral[500] : colors.neutral[400], }]}>NOTE</Text>
+          <Text style={[styles.fieldGroupLabel, { color: isDark ? colors.neutral[500] : colors.neutral[400] }]}>NOTE</Text>
           {isEditable && !editingNote && (
             <Pressable
               onPress={() => {
@@ -632,14 +829,14 @@ function BasicInfoTab({
                 setEditingNote(true);
               }}
             >
-              <Text style={[styles.editLinkBlue, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>EDIT</Text>
+              <Text style={[styles.editLinkBlue, { color: isDark ? colors.brand[500] : colors.brand[700] }]}>EDIT</Text>
             </Pressable>
           )}
         </View>
         {editingNote ? (
           <View style={{ gap: SPACING[8] }}>
             <TextInput
-              style={[styles.noteInput, { color: isDark ? colors.neutral[100] : colors.neutral[900], backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50], borderColor: isDark ? colors.brand[500] : colors.brand[500], }]}
+              style={[styles.noteInput, { color: isDark ? colors.neutral[100] : colors.neutral[900], backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50], borderColor: isDark ? colors.brand[500] : colors.brand[500] }]}
               multiline
               value={noteDraft}
               onChangeText={setNoteDraft}
@@ -647,17 +844,17 @@ function BasicInfoTab({
               autoFocus
             />
             <Pressable
-              style={[styles.saveNoteBtn, { backgroundColor: isDark ? colors.brand[500] : colors.brand[700], }]}
+              style={[styles.saveNoteBtn, { backgroundColor: isDark ? colors.brand[500] : colors.brand[700] }]}
               onPress={() => {
                 setEditingNote(false);
                 updateApplication(app.id, { note: noteDraft });
               }}
             >
-              <Text style={[styles.saveNoteBtnText, { color: isDark ? colors.neutral[800] : COLORS.neutral.white, }]}>Save Note</Text>
+              <Text style={[styles.saveNoteBtnText, { color: isDark ? colors.neutral[800] : COLORS.neutral.white }]}>Save Note</Text>
             </Pressable>
           </View>
         ) : (
-          <Text style={[styles.noteText, { color: isDark ? colors.neutral[300] : colors.neutral[600], }]}>{app.note}</Text>
+          <Text style={[styles.noteText, { color: isDark ? colors.neutral[300] : colors.neutral[600] }]}>{app.note}</Text>
         )}
       </View>
 
@@ -666,7 +863,7 @@ function BasicInfoTab({
   );
 }
 
-function ApplicationDetailsTab({
+function ApplicantRecordTab({
   app,
   selectedApplicantIndex,
   onSelectApplicantIndex,
@@ -726,6 +923,116 @@ function ApplicationDetailsTab({
   const activeIdx = Math.min(selectedApplicantIndex ?? 0, Math.max(0, applicants.length - 1));
   const activeApplicant = applicants[activeIdx];
   const bi = activeApplicant?.basicInfo;
+
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [isEditingForm, setIsEditingForm] = useState(false);
+
+  const [fnProfileDraft, setFnProfileDraft] = useState('');
+  const [lnProfileDraft, setLnProfileDraft] = useState('');
+  const [mnProfileDraft, setMnProfileDraft] = useState('');
+  const [extProfileDraft, setExtProfileDraft] = useState('');
+  const [editingType, setEditingType] = useState(false);
+  const [typeDraft, setTypeDraft] = useState('');
+  const [editingContact, setEditingContact] = useState(false);
+  const [contactDraft, setContactDraft] = useState('');
+  const [editingEmail, setEditingEmail] = useState(false);
+  const [emailDraft, setEmailDraft] = useState('');
+  const [editingAddress, setEditingAddress] = useState(false);
+  const [addressDraft, setAddressDraft] = useState('');
+  const [editingZip, setEditingZip] = useState(false);
+  const [zipDraft, setZipDraft] = useState('');
+
+  const [compNameProfileDraft, setCompNameProfileDraft] = useState('');
+  const [compRegNoProfileDraft, setCompRegNoProfileDraft] = useState('');
+  const [compAddressProfileDraft, setCompAddressProfileDraft] = useState('');
+  const [compContactProfileDraft, setCompContactProfileDraft] = useState('');
+  const [compEmailProfileDraft, setCompEmailProfileDraft] = useState('');
+
+  const [editingFieldId, setEditingFieldId] = useState<string | null>(null);
+  const [fieldValueDraft, setFieldValueDraft] = useState('');
+
+  const handleSaveProfile = () => {
+    const updated = [...localApplicants];
+    if (updated[activeIdx]) {
+      const compiledName = [fnProfileDraft, mnProfileDraft, lnProfileDraft, extProfileDraft].filter(Boolean).join(' ').trim();
+      const finalName = compiledName || updated[activeIdx].name;
+      updated[activeIdx] = {
+        ...updated[activeIdx],
+        name: finalName,
+        applicantType: (typeDraft as 'Individual' | 'Company') || updated[activeIdx].applicantType,
+        contactNumber: contactDraft || updated[activeIdx].contactNumber,
+        email: emailDraft || updated[activeIdx].email,
+        address: addressDraft || updated[activeIdx].address,
+        zipCode: zipDraft || updated[activeIdx].zipCode,
+        companyDetails: typeDraft === 'Company' ? {
+          name: compNameProfileDraft,
+          registrationNumber: compRegNoProfileDraft,
+          address: compAddressProfileDraft,
+          contactNumber: compContactProfileDraft,
+          email: compEmailProfileDraft,
+        } : updated[activeIdx].companyDetails,
+        basicInfo: {
+          ...(updated[activeIdx].basicInfo ?? {
+            lastName: '',
+            firstName: '',
+            middleName: '',
+            extensionName: '',
+            dob: '',
+            placeOfBirth: '',
+            sex: '',
+            weight: 0,
+            height: 0,
+            nationality: '',
+            employmentStatus: '',
+            occupation: '',
+          }),
+          firstName: fnProfileDraft,
+          lastName: lnProfileDraft,
+          middleName: mnProfileDraft,
+          extensionName: extProfileDraft,
+        },
+      };
+      setLocalApplicants(updated);
+      if (activeApplicant?.id) {
+        applicationService.adminUpdateApplicantProfile(app.id, activeApplicant.id, {
+          firstName: fnProfileDraft,
+          lastName: lnProfileDraft,
+          middleName: mnProfileDraft,
+          suffix: extProfileDraft,
+          contactNumber: contactDraft || updated[activeIdx].contactNumber,
+          email: emailDraft || updated[activeIdx].email,
+          address: addressDraft || updated[activeIdx].address,
+          zipCode: zipDraft || updated[activeIdx].zipCode,
+          applicantType: typeDraft || updated[activeIdx].applicantType,
+          companyName: typeDraft === 'Company' ? compNameProfileDraft : undefined,
+          companyRegistrationNumber: typeDraft === 'Company' ? compRegNoProfileDraft : undefined,
+          companyAddress: typeDraft === 'Company' ? compAddressProfileDraft : undefined,
+          companyContactNumber: typeDraft === 'Company' ? compContactProfileDraft : undefined,
+          companyEmail: typeDraft === 'Company' ? compEmailProfileDraft : undefined,
+        });
+      }
+    }
+    setIsEditingProfile(false);
+  };
+
+  const handleSaveFormFields = () => {
+    const updated = [...localApplicants];
+    if (updated[activeIdx] && updated[activeIdx].formFields) {
+      setLocalApplicants(updated);
+      if (activeApplicant?.id && activeApplicant.formFields) {
+        applicationService.adminUpdateFormValues(
+          app.id,
+          activeApplicant.id,
+          activeApplicant.formFields.map((f) => ({
+            fieldId: f.fieldId,
+            fieldLabel: f.fieldLabel,
+            value: f.value,
+          }))
+        );
+      }
+    }
+    setIsEditingForm(false);
+  };
 
   const accountableForms = app.forms.filter(
     (f) => f.section === "ACCOUNTABLE FORM",
@@ -832,165 +1139,377 @@ function ApplicationDetailsTab({
       {/* Scrollable Content Area */}
       <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
 
-      {/* Section 1: Personal & Profile Info */}
-      <SectionHeader title={activeApplicant ? `1. APPLICANT PROFILE DETAILS (${activeApplicant.name.toUpperCase()})` : "APPLICATION FORM"} />
-      <View style={styles.infoBlock}>
-        {activeApplicant ? (
-          <>
-            <InfoRow label="Full Name:" value={activeApplicant.name} />
-            <InfoRow label="Applicant Type:" value={activeApplicant.applicantType} />
-            <InfoRow label="Contact Number:" value={activeApplicant.contactNumber || '—'} />
-            <InfoRow label="Email Address:" value={activeApplicant.email || '—'} />
-            <InfoRow label="Address / Barangay:" value={activeApplicant.address || '—'} />
-            {activeApplicant.zipCode ? <InfoRow label="Zip Code:" value={activeApplicant.zipCode} /> : null}
-            {bi ? (
-              <>
-                {bi.dob ? <InfoRow label="Date of Birth:" value={bi.dob} /> : null}
-                {bi.sex ? <InfoRow label="Sex:" value={bi.sex} /> : null}
-                {bi.nationality ? <InfoRow label="Nationality:" value={bi.nationality} /> : null}
-                {bi.height > 0 ? <InfoRow label="Height:" value={`${bi.height} cm`} /> : null}
-                {bi.weight > 0 ? <InfoRow label="Weight:" value={`${bi.weight} kg`} /> : null}
-              </>
-            ) : null}
-          </>
-        ) : (
-          <>
-            <Text style={[styles.submittedText, { color: isDark ? colors.neutral[500] : colors.neutral[400] }]}>
-              {app.applicationDetails.submittedAt}
-            </Text>
-            <Text style={[styles.permitCategoryText, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>{app.permitTitle}</Text>
-            <Text style={[styles.formTypeText, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
-              {app.applicationDetails.formType}
-            </Text>
-          </>
-        )}
-      </View>
-
-      {/* Section 2: Completed Service Form Submissions */}
-      {activeApplicant?.formFields && activeApplicant.formFields.length > 0 && (
-        <>
-          <SectionHeader title="2. COMPLETED SERVICE FORM SUBMISSIONS" />
-          <View style={styles.infoBlock}>
-            {activeApplicant.formFields.map((ff) => (
-              <InfoRow key={ff.fieldId} label={`${ff.fieldLabel}:`} value={ff.value || '—'} />
-            ))}
-          </View>
-        </>
-      )}
-
-      {/* Section 3: Requirements & Submitted Documents per Applicant */}
-      <SectionHeader title="3. SUBMITTED REQUIREMENTS & DOCUMENT ATTACHMENTS" />
-      <View style={styles.infoBlock}>
-        {applicantRequirements.length === 0 ? (
-          <View style={styles.emptyReqs}>
-            <Lucide name="folder" size={24} color={isDark ? colors.neutral[600] : colors.neutral[300]} />
-            <Text style={[styles.emptyReqsText, { color: isDark ? colors.neutral[500] : colors.neutral[400] }]}>No requirement documents submitted</Text>
-          </View>
-        ) : (
-          applicantRequirements.map((req, idx) => (
-            <View key={idx} style={[styles.reqItem, { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100] }]}>
-              <Text style={[styles.reqLabel, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>{req.label}</Text>
-              {req.note !== undefined && req.note.length > 0 && (
-                <Text style={[styles.reqNote, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>{req.note}</Text>
-              )}
-              <View style={styles.reqFileRow}>
-                <Lucide name="file-text" size={14} color={isDark ? colors.brand[400] : colors.brand[700]} />
-                <Text style={[styles.reqFilename, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]} numberOfLines={1}>
-                  {req.filename}
-                </Text>
-                <Pressable onPress={() => handleViewRequirement(req.label)}>
-                  <Text style={[styles.reqViewLink, { color: isDark ? colors.brand[400] : colors.brand[700] }]}>View Document</Text>
-                </Pressable>
-              </View>
-            </View>
-          ))
-        )}
-      </View>
-
-      {/* Accountable Form */}
-      {accountableForms.length > 0 && (
-        <>
-          <SectionHeader title="ACCOUNTABLE FORM" />
-          <View style={styles.infoBlock}>
-            {accountableForms.map((form) => (
-              <View key={form.name} style={[styles.formCard, { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100], borderLeftColor: isDark ? colors.brand[500] : colors.brand[700], backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white, }]}>
-                <View style={styles.formCardLeft}>
-                  <View style={[styles.formDocIcon, { backgroundColor: isDark ? colors.neutral[800] : '#EFF6FF', }]}>
-                    <Lucide
-                      name="file-text"
-                      size={18}
-                      color={isDark ? colors.brand[500] : COLORS.brand[700]}
-                    />
-                  </View>
-                  <View>
-                    <Text style={[styles.formDocLabel, { color: isDark ? colors.neutral[500] : colors.neutral[400], }]}>DOCUMENT ATTACHMENT</Text>
-                    <Text style={[styles.formDocName, { color: isDark ? colors.neutral[100] : colors.neutral[900], }]}>{form.name}</Text>
-                    <View style={styles.formActions}>
-                      {form.canView && (
-                        <Pressable onPress={() => handleAction(form, "View")}>
-                          <Text style={[styles.formActionLink, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>View</Text>
-                        </Pressable>
-                      )}
-                      {form.canPrint && (
-                        <Pressable onPress={() => handleAction(form, "Print")}>
-                          <Text style={[styles.formActionLink, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>Print</Text>
-                        </Pressable>
-                      )}
-                    </View>
-                  </View>
-                </View>
-                {form.canDownload && (
+        {/* Section 1: Personal & Profile Info */}
+        <SectionHeader
+          title={activeApplicant ? `1. APPLICANT PROFILE DETAILS (${activeApplicant.name.toUpperCase()})` : "APPLICATION FORM"}
+          rightAction={
+            isEditable && activeApplicant ? (
+              <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+                {isEditingProfile ? (
+                  <>
+                    <Pressable
+                      style={[styles.inspectBtn, { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[300], paddingHorizontal: 10 }]}
+                      onPress={() => setIsEditingProfile(false)}
+                    >
+                      <Text style={[styles.inspectBtnText, { color: isDark ? colors.neutral[200] : colors.neutral[800] }]}>Cancel</Text>
+                    </Pressable>
+                    <Pressable
+                      style={[styles.inspectBtn, { backgroundColor: isDark ? colors.brand[500] : colors.brand[700], paddingHorizontal: 12 }]}
+                      onPress={handleSaveProfile}
+                    >
+                      <Text style={[styles.inspectBtnText, { color: COLORS.neutral.white, fontWeight: '700' }]}>Save</Text>
+                    </Pressable>
+                  </>
+                ) : (
                   <Pressable
-                    style={[styles.downloadBtn, { borderColor: isDark ? colors.neutral[700] : colors.neutral[200], }]}
-                    onPress={() => handleAction(form, "Download")}
+                    style={[styles.inspectBtn, { backgroundColor: isDark ? colors.brand[600] : colors.brand[700], paddingHorizontal: 10 }]}
+                    onPress={() => {
+                      const biData = activeApplicant.basicInfo;
+                      if (biData?.firstName || biData?.lastName) {
+                        setFnProfileDraft(biData.firstName || '');
+                        setLnProfileDraft(biData.lastName || '');
+                        setMnProfileDraft(biData.middleName || '');
+                        setExtProfileDraft(biData.extensionName || '');
+                      } else {
+                        const parts = activeApplicant.name.trim().split(/\s+/);
+                        setFnProfileDraft(parts[0] || '');
+                        setLnProfileDraft(parts.length > 1 ? parts.slice(1).join(' ') : '');
+                        setMnProfileDraft('');
+                        setExtProfileDraft('');
+                      }
+                      setTypeDraft(activeApplicant.applicantType);
+                      setContactDraft(activeApplicant.contactNumber || '');
+                      setEmailDraft(activeApplicant.email || '');
+                      setAddressDraft(activeApplicant.address || '');
+                      setZipDraft(activeApplicant.zipCode || '');
+                      const compData = activeApplicant.companyDetails;
+                      setCompNameProfileDraft(compData?.name || app.companyDetails?.name || app.filingUser?.company?.name || '');
+                      setCompRegNoProfileDraft(compData?.registrationNumber || app.companyDetails?.registrationNumber || app.filingUser?.company?.registrationNumber || '');
+                      setCompAddressProfileDraft(compData?.address || app.companyDetails?.address || app.filingUser?.company?.address || '');
+                      setCompContactProfileDraft(compData?.contactNumber || app.companyDetails?.contactNumber || app.filingUser?.company?.contactNumber || '');
+                      setCompEmailProfileDraft(compData?.email || app.companyDetails?.email || app.filingUser?.company?.email || '');
+                      setIsEditingProfile(true);
+                    }}
                   >
-                    <Lucide
-                      name="download"
-                      size={14}
-                      color={isDark ? colors.neutral[400] : colors.neutral[600]}
-                    />
-                    <Text style={[styles.downloadBtnText, { color: isDark ? colors.neutral[300] : colors.neutral[600], }]}>Download</Text>
+                    <Text style={[styles.inspectBtnText, { color: COLORS.neutral.white }]}>Edit</Text>
                   </Pressable>
                 )}
               </View>
-            ))}
-          </View>
-        </>
-      )}
-
-      {/* Download Form */}
-      {downloadForms.length > 0 && (
-        <>
-          <SectionHeader title="DOWNLOAD FORM" />
-          <View style={styles.infoBlock}>
-            {downloadForms.map((form) => (
-              <View key={form.name} style={[styles.formCard, { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100], borderLeftColor: isDark ? colors.brand[500] : colors.brand[700], backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white, }]}>
-                <View style={styles.formCardLeft}>
-                  <View style={[styles.formDocIcon, { backgroundColor: isDark ? colors.neutral[800] : '#EFF6FF', }]}>
-                    <Lucide
-                      name="file-text"
-                      size={18}
-                      color={isDark ? colors.brand[500] : COLORS.brand[700]}
-                    />
+            ) : null
+          }
+        />
+        <View style={styles.infoBlock}>
+          {activeApplicant ? (
+            <>
+              {isEditingProfile ? (
+                <>
+                  <InfoRow
+                    label="First Name:"
+                    value={bi?.firstName || ''}
+                    isEditing={true}
+                    editValue={fnProfileDraft}
+                    onEditChange={setFnProfileDraft}
+                  />
+                  <InfoRow
+                    label="Middle Name:"
+                    value={bi?.middleName || ''}
+                    isEditing={true}
+                    editValue={mnProfileDraft}
+                    onEditChange={setMnProfileDraft}
+                  />
+                  <InfoRow
+                    label="Last Name:"
+                    value={bi?.lastName || ''}
+                    isEditing={true}
+                    editValue={lnProfileDraft}
+                    onEditChange={setLnProfileDraft}
+                  />
+                  <InfoRow
+                    label="Suffix:"
+                    value={bi?.extensionName || ''}
+                    isEditing={true}
+                    editValue={extProfileDraft}
+                    onEditChange={setExtProfileDraft}
+                  />
+                </>
+              ) : (
+                <InfoRow
+                  label="Full Name:"
+                  value={activeApplicant.name}
+                  isEditing={false}
+                />
+              )}
+              <View style={[infoStyles.row, { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100] }]}>
+                <Text style={[infoStyles.label, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>Applicant Type:</Text>
+                {isEditingProfile ? (
+                  <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+                    <Pressable
+                      style={{
+                        backgroundColor: typeDraft === 'Individual'
+                          ? (isDark ? colors.brand[500] : colors.brand[700])
+                          : (isDark ? colors.neutral[800] : colors.neutral[100]),
+                        borderColor: isDark ? colors.brand[500] : colors.brand[600],
+                        borderWidth: 1,
+                        paddingHorizontal: 16,
+                        paddingVertical: 6,
+                        borderRadius: RADIUS.button,
+                      }}
+                      onPress={() => setTypeDraft('Individual')}
+                    >
+                      <Text style={{
+                        color: typeDraft === 'Individual' ? COLORS.neutral.white : (isDark ? colors.neutral[300] : colors.neutral[700]),
+                        fontWeight: '600',
+                        fontSize: TYPOGRAPHY.sizes.body,
+                      }}>
+                        Individual
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      style={{
+                        backgroundColor: typeDraft === 'Company'
+                          ? (isDark ? colors.brand[500] : colors.brand[700])
+                          : (isDark ? colors.neutral[800] : colors.neutral[100]),
+                        borderColor: isDark ? colors.brand[500] : colors.brand[600],
+                        borderWidth: 1,
+                        paddingHorizontal: 16,
+                        paddingVertical: 6,
+                        borderRadius: RADIUS.button,
+                      }}
+                      onPress={() => setTypeDraft('Company')}
+                    >
+                      <Text style={{
+                        color: typeDraft === 'Company' ? COLORS.neutral.white : (isDark ? colors.neutral[300] : colors.neutral[700]),
+                        fontWeight: '600',
+                        fontSize: TYPOGRAPHY.sizes.body,
+                      }}>
+                        Company
+                      </Text>
+                    </Pressable>
                   </View>
-                  <View>
-                    <Text style={[styles.formDocLabel, { color: isDark ? colors.neutral[500] : colors.neutral[400], }]}>DOCUMENT ATTACHMENT</Text>
-                    <Text style={[styles.formDocName, { color: isDark ? colors.neutral[100] : colors.neutral[900], }]}>{form.name}</Text>
-                    <View style={styles.formActions}>
-                      {form.canView && (
-                        <Pressable onPress={() => handleAction(form, "View")}>
-                          <Text style={[styles.formActionLink, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>View</Text>
-                        </Pressable>
-                      )}
-                      {form.canPrint && (
-                        <Pressable onPress={() => handleAction(form, "Print")}>
-                          <Text style={[styles.formActionLink, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>Print</Text>
-                        </Pressable>
-                      )}
+                ) : (
+                  <Text style={[infoStyles.value, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>
+                    {activeApplicant.applicantType}
+                  </Text>
+                )}
+              </View>
+              {(isEditingProfile ? typeDraft === 'Company' : activeApplicant.applicantType === 'Company') && (
+                <>
+                  <InfoRow
+                    label="Company Name:"
+                    value={activeApplicant.companyDetails?.name ?? app.companyDetails?.name ?? app.filingUser?.company?.name ?? '—'}
+                    isEditing={isEditingProfile}
+                    editValue={compNameProfileDraft}
+                    onEditChange={setCompNameProfileDraft}
+                  />
+                  <InfoRow
+                    label="Company Reg No:"
+                    value={activeApplicant.companyDetails?.registrationNumber ?? app.companyDetails?.registrationNumber ?? app.filingUser?.company?.registrationNumber ?? '—'}
+                    isEditing={isEditingProfile}
+                    editValue={compRegNoProfileDraft}
+                    onEditChange={setCompRegNoProfileDraft}
+                  />
+                  <InfoRow
+                    label="Company Address:"
+                    value={activeApplicant.companyDetails?.address ?? app.companyDetails?.address ?? app.filingUser?.company?.address ?? '—'}
+                    isEditing={isEditingProfile}
+                    editValue={compAddressProfileDraft}
+                    onEditChange={setCompAddressProfileDraft}
+                  />
+                  <InfoRow
+                    label="Company Contact:"
+                    value={activeApplicant.companyDetails?.contactNumber ?? app.companyDetails?.contactNumber ?? app.filingUser?.company?.contactNumber ?? '—'}
+                    isEditing={isEditingProfile}
+                    editValue={compContactProfileDraft}
+                    onEditChange={setCompContactProfileDraft}
+                  />
+                  <InfoRow
+                    label="Company Email:"
+                    value={activeApplicant.companyDetails?.email ?? app.companyDetails?.email ?? app.filingUser?.company?.email ?? '—'}
+                    isEditing={isEditingProfile}
+                    editValue={compEmailProfileDraft}
+                    onEditChange={setCompEmailProfileDraft}
+                  />
+                </>
+              )}
+              <InfoRow
+                label="Contact Number:"
+                value={activeApplicant.contactNumber || '—'}
+                isEditing={isEditingProfile}
+                editValue={contactDraft}
+                onEditChange={setContactDraft}
+              />
+              <InfoRow
+                label="Email Address:"
+                value={activeApplicant.email || '—'}
+                isEditing={isEditingProfile}
+                editValue={emailDraft}
+                onEditChange={setEmailDraft}
+              />
+              <InfoRow
+                label="Address / Barangay:"
+                value={activeApplicant.address || '—'}
+                isEditing={isEditingProfile}
+                editValue={addressDraft}
+                onEditChange={setAddressDraft}
+              />
+              <InfoRow
+                label="Zip Code:"
+                value={activeApplicant.zipCode || '—'}
+                isEditing={isEditingProfile}
+                editValue={zipDraft}
+                onEditChange={setZipDraft}
+              />
+              {bi ? (
+                <>
+                  {bi.dob ? <InfoRow label="Date of Birth:" value={bi.dob} /> : null}
+                  {bi.sex ? <InfoRow label="Sex:" value={bi.sex} /> : null}
+                  {bi.nationality ? <InfoRow label="Nationality:" value={bi.nationality} /> : null}
+                  {bi.height > 0 ? <InfoRow label="Height:" value={`${bi.height} cm`} /> : null}
+                  {bi.weight > 0 ? <InfoRow label="Weight:" value={`${bi.weight} kg`} /> : null}
+                </>
+              ) : null}
+            </>
+          ) : (
+            <>
+              <Text style={[styles.submittedText, { color: isDark ? colors.neutral[500] : colors.neutral[400] }]}>
+                {app.applicationDetails.submittedAt}
+              </Text>
+              <Text style={[styles.permitCategoryText, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>{app.permitTitle}</Text>
+              <Text style={[styles.formTypeText, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
+                {app.applicationDetails.formType}
+              </Text>
+            </>
+          )}
+        </View>
+
+        {/* Section 2: Completed Service Form Submissions */}
+        <SectionHeader
+          title="2. COMPLETED SERVICE FORM SUBMISSIONS"
+          rightAction={
+            isEditable && activeApplicant?.formFields && activeApplicant.formFields.length > 0 ? (
+              <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+                {isEditingForm ? (
+                  <>
+                    <Pressable
+                      style={[styles.inspectBtn, { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[300], paddingHorizontal: 10 }]}
+                      onPress={() => setIsEditingForm(false)}
+                    >
+                      <Text style={[styles.inspectBtnText, { color: isDark ? colors.neutral[200] : colors.neutral[800] }]}>Cancel</Text>
+                    </Pressable>
+                    <Pressable
+                      style={[styles.inspectBtn, { backgroundColor: isDark ? colors.brand[500] : colors.brand[700], paddingHorizontal: 12 }]}
+                      onPress={handleSaveFormFields}
+                    >
+                      <Text style={[styles.inspectBtnText, { color: COLORS.neutral.white, fontWeight: '700' }]}>Save</Text>
+                    </Pressable>
+                  </>
+                ) : (
+                  <Pressable
+                    style={[styles.inspectBtn, { backgroundColor: isDark ? colors.brand[600] : colors.brand[700], paddingHorizontal: 10 }]}
+                    onPress={() => setIsEditingForm(true)}
+                  >
+                    <Text style={[styles.inspectBtnText, { color: COLORS.neutral.white }]}>Edit</Text>
+                  </Pressable>
+                )}
+              </View>
+            ) : null
+          }
+        />
+        <View style={styles.infoBlock}>
+          {activeApplicant?.formFields && activeApplicant.formFields.length > 0 ? (
+            activeApplicant.formFields.map((ff, ffIdx) => (
+              <InfoRow
+                key={ff.fieldId}
+                label={`${ff.fieldLabel}:`}
+                value={ff.value || '—'}
+                isEditing={isEditingForm}
+                editValue={isEditingForm ? ff.value : fieldValueDraft}
+                onEditChange={(newVal) => {
+                  if (isEditingForm) {
+                    const updated = [...localApplicants];
+                    if (updated[activeIdx] && updated[activeIdx].formFields) {
+                      const newFormFields = [...updated[activeIdx].formFields!];
+                      newFormFields[ffIdx] = { ...newFormFields[ffIdx], value: newVal };
+                      updated[activeIdx] = { ...updated[activeIdx], formFields: newFormFields };
+                      setLocalApplicants(updated);
+                    }
+                  } else {
+                    setFieldValueDraft(newVal);
+                  }
+                }}
+              />
+            ))
+          ) : (
+            <View style={styles.emptyReqs}>
+              <Lucide name="file-text" size={24} color={isDark ? colors.neutral[600] : colors.neutral[300]} />
+              <Text style={[styles.emptyReqsText, { color: isDark ? colors.neutral[500] : colors.neutral[400] }]}>
+                No service form field submissions recorded
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* Section 3: Requirements & Submitted Documents per Applicant */}
+        <SectionHeader title="3. SUBMITTED REQUIREMENTS & DOCUMENT ATTACHMENTS" />
+        <View style={styles.infoBlock}>
+          {applicantRequirements.length === 0 ? (
+            <View style={styles.emptyReqs}>
+              <Lucide name="folder" size={24} color={isDark ? colors.neutral[600] : colors.neutral[300]} />
+              <Text style={[styles.emptyReqsText, { color: isDark ? colors.neutral[500] : colors.neutral[400] }]}>No requirement documents submitted</Text>
+            </View>
+          ) : (
+            applicantRequirements.map((req, idx) => (
+              <View key={idx} style={[styles.reqItem, { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100] }]}>
+                <Text style={[styles.reqLabel, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>{req.label}</Text>
+                {req.note !== undefined && req.note.length > 0 && (
+                  <Text style={[styles.reqNote, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>{req.note}</Text>
+                )}
+                <View style={styles.reqFileRow}>
+                  <Lucide name="file-text" size={14} color={isDark ? colors.brand[400] : colors.brand[700]} />
+                  <Text style={[styles.reqFilename, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]} numberOfLines={1}>
+                    {req.filename}
+                  </Text>
+                  <Pressable onPress={() => handleViewRequirement(req.label)}>
+                    <Text style={[styles.reqViewLink, { color: isDark ? colors.brand[400] : colors.brand[700] }]}>View Document</Text>
+                  </Pressable>
+                </View>
+              </View>
+            ))
+          )}
+        </View>
+
+        {/* Accountable Form */}
+        {accountableForms.length > 0 && (
+          <>
+            <SectionHeader title="ACCOUNTABLE FORM" />
+            <View style={styles.infoBlock}>
+              {accountableForms.map((form) => (
+                <View key={form.name} style={[styles.formCard, { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100], borderLeftColor: isDark ? colors.brand[500] : colors.brand[700], backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white, }]}>
+                  <View style={styles.formCardLeft}>
+                    <View style={[styles.formDocIcon, { backgroundColor: isDark ? colors.neutral[800] : '#EFF6FF', }]}>
+                      <Lucide
+                        name="file-text"
+                        size={18}
+                        color={isDark ? colors.brand[500] : COLORS.brand[700]}
+                      />
+                    </View>
+                    <View>
+                      <Text style={[styles.formDocLabel, { color: isDark ? colors.neutral[500] : colors.neutral[400], }]}>DOCUMENT ATTACHMENT</Text>
+                      <Text style={[styles.formDocName, { color: isDark ? colors.neutral[100] : colors.neutral[900], }]}>{form.name}</Text>
+                      <View style={styles.formActions}>
+                        {form.canView && (
+                          <Pressable onPress={() => handleAction(form, "View")}>
+                            <Text style={[styles.formActionLink, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>View</Text>
+                          </Pressable>
+                        )}
+                        {form.canPrint && (
+                          <Pressable onPress={() => handleAction(form, "Print")}>
+                            <Text style={[styles.formActionLink, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>Print</Text>
+                          </Pressable>
+                        )}
+                      </View>
                     </View>
                   </View>
-                </View>
-                <View style={styles.formBtnGroup}>
                   {form.canDownload && (
                     <Pressable
                       style={[styles.downloadBtn, { borderColor: isDark ? colors.neutral[700] : colors.neutral[200], }]}
@@ -1004,224 +1523,247 @@ function ApplicationDetailsTab({
                       <Text style={[styles.downloadBtnText, { color: isDark ? colors.neutral[300] : colors.neutral[600], }]}>Download</Text>
                     </Pressable>
                   )}
-                  {form.canRefresh && (
-                    <Pressable
-                      style={[styles.refreshBtn, { borderColor: isDark ? colors.neutral[700] : colors.neutral[200], }]}
-                      onPress={() => handleAction(form, "Refresh")}
-                    >
-                      <Lucide
-                        name="refresh-cw"
-                        size={14}
-                        color={isDark ? colors.neutral[400] : colors.neutral[600]}
-                      />
-                      <Text style={[styles.downloadBtnText, { color: isDark ? colors.neutral[300] : colors.neutral[600], }]}>Refresh</Text>
-                    </Pressable>
-                  )}
                 </View>
-              </View>
-            ))}
-          </View>
-        </>
-      )}
+              ))}
+            </View>
+          </>
+        )}
 
-      {/* Application History section */}
-      {app.history && app.history.length > 0 && (
-        <>
-          <SectionHeader title="APPLICATION HISTORY" />
-          <View style={styles.infoBlock}>
-            <View style={styles.historyList}>
-              {app.history.map((entry, idx) => (
-                <View key={entry.id} style={styles.historyItem}>
-                  <View style={styles.historyLeft}>
-                    <View
-                      style={[
-                        styles.historyCircle,
-                        idx === 0 && styles.historyCircleActive,
-                      ]}
-                    />
-                    {idx !== app.history.length - 1 && (
-                      <View style={[styles.historyLine, { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[200], }]} />
-                    )}
+        {/* Download Form */}
+        {downloadForms.length > 0 && (
+          <>
+            <SectionHeader title="DOWNLOAD FORM" />
+            <View style={styles.infoBlock}>
+              {downloadForms.map((form) => (
+                <View key={form.name} style={[styles.formCard, { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100], borderLeftColor: isDark ? colors.brand[500] : colors.brand[700], backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white, }]}>
+                  <View style={styles.formCardLeft}>
+                    <View style={[styles.formDocIcon, { backgroundColor: isDark ? colors.neutral[800] : '#EFF6FF', }]}>
+                      <Lucide
+                        name="file-text"
+                        size={18}
+                        color={isDark ? colors.brand[500] : COLORS.brand[700]}
+                      />
+                    </View>
+                    <View>
+                      <Text style={[styles.formDocLabel, { color: isDark ? colors.neutral[500] : colors.neutral[400], }]}>DOCUMENT ATTACHMENT</Text>
+                      <Text style={[styles.formDocName, { color: isDark ? colors.neutral[100] : colors.neutral[900], }]}>{form.name}</Text>
+                      <View style={styles.formActions}>
+                        {form.canView && (
+                          <Pressable onPress={() => handleAction(form, "View")}>
+                            <Text style={[styles.formActionLink, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>View</Text>
+                          </Pressable>
+                        )}
+                        {form.canPrint && (
+                          <Pressable onPress={() => handleAction(form, "Print")}>
+                            <Text style={[styles.formActionLink, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>Print</Text>
+                          </Pressable>
+                        )}
+                      </View>
+                    </View>
                   </View>
-                  <View style={styles.historyRight}>
-                    <Text style={[styles.historyAction, { color: isDark ? colors.neutral[100] : colors.neutral[900], }]}>{entry.action}</Text>
-                    <Text style={[styles.historyStaff, { color: isDark ? colors.neutral[500] : colors.neutral[400], }]}>by {entry.staff}</Text>
-                    <Text style={[styles.historyDate, { color: isDark ? colors.neutral[500] : colors.neutral[400], }]}>{entry.timestamp}</Text>
+                  <View style={styles.formBtnGroup}>
+                    {form.canDownload && (
+                      <Pressable
+                        style={[styles.downloadBtn, { borderColor: isDark ? colors.neutral[700] : colors.neutral[200], }]}
+                        onPress={() => handleAction(form, "Download")}
+                      >
+                        <Lucide
+                          name="download"
+                          size={14}
+                          color={isDark ? colors.neutral[400] : colors.neutral[600]}
+                        />
+                        <Text style={[styles.downloadBtnText, { color: isDark ? colors.neutral[300] : colors.neutral[600], }]}>Download</Text>
+                      </Pressable>
+                    )}
+                    {form.canRefresh && (
+                      <Pressable
+                        style={[styles.refreshBtn, { borderColor: isDark ? colors.neutral[700] : colors.neutral[200], }]}
+                        onPress={() => handleAction(form, "Refresh")}
+                      >
+                        <Lucide
+                          name="refresh-cw"
+                          size={14}
+                          color={isDark ? colors.neutral[400] : colors.neutral[600]}
+                        />
+                        <Text style={[styles.downloadBtnText, { color: isDark ? colors.neutral[300] : colors.neutral[600], }]}>Refresh</Text>
+                      </Pressable>
+                    )}
                   </View>
                 </View>
               ))}
             </View>
-          </View>
-        </>
-      )}
+          </>
+        )}
 
-      <View style={{ height: 20 }} />
-    </ScrollView>
 
-    {/* Fixed Sticky Bottom Dock — Evaluator Panel */}
-    {activeApplicant && (
-      <View
-        style={[
-          styles.evaluatorControlBoxSticky,
-          {
-            backgroundColor: isDark ? colors.neutral[900] : COLORS.neutral.white,
-            borderTopColor: isDark ? colors.neutral[700] : colors.neutral[200],
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: -4 },
-            shadowOpacity: isDark ? 0.3 : 0.07,
-            shadowRadius: 8,
-            elevation: 10,
-          },
-        ]}
-      >
-        {/* Accent stripe at top — full-width via absolute positioning */}
+
+        <View style={{ height: 20 }} />
+      </ScrollView>
+
+      {/* Fixed Sticky Bottom Dock — Evaluator Panel */}
+      {activeApplicant && (
         <View
-          pointerEvents="none"
           style={[
-            styles.evalAccentStripe,
+            styles.evaluatorControlBoxSticky,
             {
-              backgroundColor: activeApplicant.status === 'Incomplete'
-                ? '#EF4444'
-                : activeApplicant.status === 'ForEndorsement'
-                  ? '#A855F7'
-                  : '#22C55E',
+              backgroundColor: isDark ? colors.neutral[900] : COLORS.neutral.white,
+              borderTopColor: isDark ? colors.neutral[700] : colors.neutral[200],
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: -4 },
+              shadowOpacity: isDark ? 0.3 : 0.07,
+              shadowRadius: 8,
+              elevation: 10,
             },
           ]}
-        />
+        >
+          {/* Accent stripe at top — full-width via absolute positioning */}
+          <View
+            pointerEvents="none"
+            style={[
+              styles.evalAccentStripe,
+              {
+                backgroundColor: activeApplicant.status === 'Incomplete'
+                  ? '#EF4444'
+                  : activeApplicant.status === 'ForEndorsement'
+                    ? '#A855F7'
+                    : '#22C55E',
+              },
+            ]}
+          />
 
-        <View style={styles.evalDockRow}>
-          {/* Left — Verdict chips */}
-          <View style={styles.evalDockLeft}>
-            <Text style={[styles.evalDockLabel, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
-              VERDICT — {activeApplicant.name.split(' ')[0].toUpperCase()}
-            </Text>
-            <View style={styles.evalChipRow}>
-              {/* Complete chip */}
-              <Pressable
-                disabled={!isEditable}
-                style={[
-                  styles.evalChip,
-                  {
-                    backgroundColor: (activeApplicant.status === 'Complete' || !activeApplicant.status)
-                      ? (isDark ? '#14532D' : '#DCFCE7')
-                      : (isDark ? colors.neutral[800] : colors.neutral[100]),
-                    borderColor: (activeApplicant.status === 'Complete' || !activeApplicant.status)
-                      ? '#22C55E'
-                      : (isDark ? colors.neutral[700] : colors.neutral[200]),
-                  },
-                  !isEditable && { opacity: 0.5 },
-                  Platform.select({ web: { cursor: isEditable ? 'pointer' : 'not-allowed' } as object }),
-                ]}
-                onPress={() => handleSetStatus(activeIdx, 'Complete')}
-              >
-                <Lucide
-                  name="check-circle"
-                  size={13}
-                  color={(activeApplicant.status === 'Complete' || !activeApplicant.status) ? '#22C55E' : (isDark ? colors.neutral[500] : colors.neutral[400])}
-                />
-                <Text style={[styles.evalChipText, {
-                  color: (activeApplicant.status === 'Complete' || !activeApplicant.status)
-                    ? '#16A34A'
-                    : (isDark ? colors.neutral[400] : colors.neutral[500]),
-                  fontWeight: (activeApplicant.status === 'Complete' || !activeApplicant.status) ? TYPOGRAPHY.weights.bold : TYPOGRAPHY.weights.medium,
-                }]}>Complete</Text>
-              </Pressable>
+          <View style={styles.evalDockRow}>
+            {/* Left — Verdict chips */}
+            <View style={styles.evalDockLeft}>
+              <Text style={[styles.evalDockLabel, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
+                VERDICT — {activeApplicant.name.split(' ')[0].toUpperCase()}
+              </Text>
+              <View style={styles.evalChipRow}>
+                {/* Complete chip */}
+                <Pressable
+                  disabled={!isEditable}
+                  style={[
+                    styles.evalChip,
+                    {
+                      backgroundColor: (activeApplicant.status === 'Complete' || !activeApplicant.status)
+                        ? (isDark ? '#14532D' : '#DCFCE7')
+                        : (isDark ? colors.neutral[800] : colors.neutral[100]),
+                      borderColor: (activeApplicant.status === 'Complete' || !activeApplicant.status)
+                        ? '#22C55E'
+                        : (isDark ? colors.neutral[700] : colors.neutral[200]),
+                    },
+                    !isEditable && { opacity: 0.5 },
+                    Platform.select({ web: { cursor: isEditable ? 'pointer' : 'not-allowed' } as object }),
+                  ]}
+                  onPress={() => handleSetStatus(activeIdx, 'Complete')}
+                >
+                  <Lucide
+                    name="check-circle"
+                    size={13}
+                    color={(activeApplicant.status === 'Complete' || !activeApplicant.status) ? '#22C55E' : (isDark ? colors.neutral[500] : colors.neutral[400])}
+                  />
+                  <Text style={[styles.evalChipText, {
+                    color: (activeApplicant.status === 'Complete' || !activeApplicant.status)
+                      ? '#16A34A'
+                      : (isDark ? colors.neutral[400] : colors.neutral[500]),
+                    fontWeight: (activeApplicant.status === 'Complete' || !activeApplicant.status) ? TYPOGRAPHY.weights.bold : TYPOGRAPHY.weights.medium,
+                  }]}>Complete</Text>
+                </Pressable>
 
-              {/* Incomplete chip */}
-              <Pressable
-                disabled={!isEditable}
-                style={[
-                  styles.evalChip,
-                  {
-                    backgroundColor: activeApplicant.status === 'Incomplete'
-                      ? (isDark ? '#7F1D1D' : '#FEE2E2')
-                      : (isDark ? colors.neutral[800] : colors.neutral[100]),
-                    borderColor: activeApplicant.status === 'Incomplete'
-                      ? '#EF4444'
-                      : (isDark ? colors.neutral[700] : colors.neutral[200]),
-                  },
-                  !isEditable && { opacity: 0.5 },
-                  Platform.select({ web: { cursor: isEditable ? 'pointer' : 'not-allowed' } as object }),
-                ]}
-                onPress={() => handleSetStatus(activeIdx, 'Incomplete')}
-              >
-                <Lucide
-                  name="x-circle"
-                  size={13}
-                  color={activeApplicant.status === 'Incomplete' ? '#EF4444' : (isDark ? colors.neutral[500] : colors.neutral[400])}
-                />
-                <Text style={[styles.evalChipText, {
-                  color: activeApplicant.status === 'Incomplete'
-                    ? '#DC2626'
-                    : (isDark ? colors.neutral[400] : colors.neutral[500]),
-                  fontWeight: activeApplicant.status === 'Incomplete' ? TYPOGRAPHY.weights.bold : TYPOGRAPHY.weights.medium,
-                }]}>Incomplete</Text>
-              </Pressable>
+                {/* Incomplete chip */}
+                <Pressable
+                  disabled={!isEditable}
+                  style={[
+                    styles.evalChip,
+                    {
+                      backgroundColor: activeApplicant.status === 'Incomplete'
+                        ? (isDark ? '#7F1D1D' : '#FEE2E2')
+                        : (isDark ? colors.neutral[800] : colors.neutral[100]),
+                      borderColor: activeApplicant.status === 'Incomplete'
+                        ? '#EF4444'
+                        : (isDark ? colors.neutral[700] : colors.neutral[200]),
+                    },
+                    !isEditable && { opacity: 0.5 },
+                    Platform.select({ web: { cursor: isEditable ? 'pointer' : 'not-allowed' } as object }),
+                  ]}
+                  onPress={() => handleSetStatus(activeIdx, 'Incomplete')}
+                >
+                  <Lucide
+                    name="x-circle"
+                    size={13}
+                    color={activeApplicant.status === 'Incomplete' ? '#EF4444' : (isDark ? colors.neutral[500] : colors.neutral[400])}
+                  />
+                  <Text style={[styles.evalChipText, {
+                    color: activeApplicant.status === 'Incomplete'
+                      ? '#DC2626'
+                      : (isDark ? colors.neutral[400] : colors.neutral[500]),
+                    fontWeight: activeApplicant.status === 'Incomplete' ? TYPOGRAPHY.weights.bold : TYPOGRAPHY.weights.medium,
+                  }]}>Incomplete</Text>
+                </Pressable>
 
-              {/* For Endorsement chip */}
-              <Pressable
-                disabled={!isEditable}
-                style={[
-                  styles.evalChip,
-                  {
-                    backgroundColor: activeApplicant.status === 'ForEndorsement'
-                      ? (isDark ? '#3B0764' : '#F3E8FF')
-                      : (isDark ? colors.neutral[800] : colors.neutral[100]),
-                    borderColor: activeApplicant.status === 'ForEndorsement'
-                      ? '#A855F7'
-                      : (isDark ? colors.neutral[700] : colors.neutral[200]),
-                  },
-                  !isEditable && { opacity: 0.5 },
-                  Platform.select({ web: { cursor: isEditable ? 'pointer' : 'not-allowed' } as object }),
-                ]}
-                onPress={() => handleSetStatus(activeIdx, 'ForEndorsement')}
-              >
-                <Lucide
-                  name="send"
-                  size={12}
-                  color={activeApplicant.status === 'ForEndorsement' ? '#A855F7' : (isDark ? colors.neutral[500] : colors.neutral[400])}
-                />
-                <Text style={[styles.evalChipText, {
-                  color: activeApplicant.status === 'ForEndorsement'
-                    ? '#9333EA'
-                    : (isDark ? colors.neutral[400] : colors.neutral[500]),
-                  fontWeight: activeApplicant.status === 'ForEndorsement' ? TYPOGRAPHY.weights.bold : TYPOGRAPHY.weights.medium,
-                }]}>For Endorsement</Text>
-              </Pressable>
+                {/* For Endorsement chip */}
+                <Pressable
+                  disabled={!isEditable}
+                  style={[
+                    styles.evalChip,
+                    {
+                      backgroundColor: activeApplicant.status === 'ForEndorsement'
+                        ? (isDark ? '#3B0764' : '#F3E8FF')
+                        : (isDark ? colors.neutral[800] : colors.neutral[100]),
+                      borderColor: activeApplicant.status === 'ForEndorsement'
+                        ? '#A855F7'
+                        : (isDark ? colors.neutral[700] : colors.neutral[200]),
+                    },
+                    !isEditable && { opacity: 0.5 },
+                    Platform.select({ web: { cursor: isEditable ? 'pointer' : 'not-allowed' } as object }),
+                  ]}
+                  onPress={() => handleSetStatus(activeIdx, 'ForEndorsement')}
+                >
+                  <Lucide
+                    name="send"
+                    size={12}
+                    color={activeApplicant.status === 'ForEndorsement' ? '#A855F7' : (isDark ? colors.neutral[500] : colors.neutral[400])}
+                  />
+                  <Text style={[styles.evalChipText, {
+                    color: activeApplicant.status === 'ForEndorsement'
+                      ? '#9333EA'
+                      : (isDark ? colors.neutral[400] : colors.neutral[500]),
+                    fontWeight: activeApplicant.status === 'ForEndorsement' ? TYPOGRAPHY.weights.bold : TYPOGRAPHY.weights.medium,
+                  }]}>For Endorsement</Text>
+                </Pressable>
+              </View>
+            </View>
+
+            {/* Divider */}
+            <View style={[styles.evalDockDivider, { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[200] }]} />
+
+            {/* Right — Remarks */}
+            <View style={styles.evalDockRight}>
+              <Text style={[styles.evalDockLabel, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
+                REMARKS
+              </Text>
+              <TextInput
+                editable={isEditable}
+                style={[styles.remarksInputCompact, {
+                  color: isDark ? colors.neutral[100] : colors.neutral[900],
+                  backgroundColor: isDark ? colors.neutral[800] : (isEditable ? colors.neutral[50] : colors.neutral[100]),
+                  borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
+                }, !isEditable && { opacity: 0.6 }]}
+                placeholder="Add notes or remarks..."
+                placeholderTextColor={isDark ? colors.neutral[600] : colors.neutral[400]}
+                value={localRemarks}
+                onChangeText={(text) => {
+                  setLocalRemarks(text);
+                  handleSetRemarks(activeIdx, text);
+                }}
+                multiline
+                numberOfLines={2}
+              />
             </View>
           </View>
-
-          {/* Divider */}
-          <View style={[styles.evalDockDivider, { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[200] }]} />
-
-          {/* Right — Remarks */}
-          <View style={styles.evalDockRight}>
-            <Text style={[styles.evalDockLabel, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
-              REMARKS
-            </Text>
-            <TextInput
-              editable={isEditable}
-              style={[styles.remarksInputCompact, {
-                color: isDark ? colors.neutral[100] : colors.neutral[900],
-                backgroundColor: isDark ? colors.neutral[800] : (isEditable ? colors.neutral[50] : colors.neutral[100]),
-                borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
-              }, !isEditable && { opacity: 0.6 }]}
-              placeholder="Add notes or remarks..."
-              placeholderTextColor={isDark ? colors.neutral[600] : colors.neutral[400]}
-              value={localRemarks}
-              onChangeText={(text) => {
-                setLocalRemarks(text);
-                handleSetRemarks(activeIdx, text);
-              }}
-              multiline
-              numberOfLines={2}
-            />
-          </View>
         </View>
-      </View>
-    )}
-  </View>
-);
+      )}
+    </View>
+  );
 }
 
 function RequirementsTab({ app }: { app: ApplicationData }) {
@@ -1554,7 +2096,7 @@ export function ApplicationReviewScreenContent({
   const { canApprove, canDecline, canEndorse, canVerifyCashier } =
     usePermissions();
 
-  const [innerTab, setInnerTab] = useState<InnerTab>("basic");
+  const [innerTab, setInnerTab] = useState<InnerTab>("details");
   const [selectedApplicantIndex, setSelectedApplicantIndex] = useState(0);
   const [showApprove, setShowApprove] = useState(false);
   const [showDecline, setShowDecline] = useState(false);
@@ -1715,19 +2257,9 @@ export function ApplicationReviewScreenContent({
 
   const app = selectedApplication;
 
-  const EDITABLE_STATUSES: ReadonlyArray<string> = [
-    "Submitted",
-    "Under Evaluation",
-    "Evaluating",
-    "For Evaluation",
-    "For Approval",
-    "For Verification",
-    "Returned",
-    "Draft",
-    "Pending",
-  ];
-
   const isEditable =
+    activeQueueTab !== "history" &&
+    app.queueTab !== "history" &&
     app.status !== "Completed" &&
     app.status !== "Approved";
 
@@ -2001,11 +2533,9 @@ export function ApplicationReviewScreenContent({
         </View>
       )}
 
-
-
       {/* ── Tab Content ── */}
-      {innerTab === "basic" && (
-        <BasicInfoTab
+      {innerTab === "details" && (
+        <ApplicationDetailsTab
           app={app}
           isEditable={isEditable}
           updateApplication={updateApplication}
@@ -2013,12 +2543,12 @@ export function ApplicationReviewScreenContent({
           onSelectApplicantIndex={(idx) => setSelectedApplicantIndex(idx)}
           onInspectApplicant={(idx) => {
             setSelectedApplicantIndex(idx);
-            setInnerTab("details");
+            setInnerTab("applicant-record");
           }}
         />
       )}
-      {innerTab === "details" && (
-        <ApplicationDetailsTab
+      {innerTab === "applicant-record" && (
+        <ApplicantRecordTab
           app={app}
           selectedApplicantIndex={selectedApplicantIndex}
           onSelectApplicantIndex={(idx) => setSelectedApplicantIndex(idx)}
@@ -2026,7 +2556,6 @@ export function ApplicationReviewScreenContent({
           isEditable={isEditable}
         />
       )}
-      {innerTab === "requirements" && <RequirementsTab app={app} />}
       {innerTab === "soa" && (
         <SoaPaymentTab
           app={app}
@@ -2041,23 +2570,32 @@ export function ApplicationReviewScreenContent({
           <Pressable
             style={[
               styles.actionBtnPrimary,
-              !isEditable && [styles.actionBtnDisabled, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[100] }],
+              {
+                backgroundColor: (isEditable && (currentRole === "Cashier" || canVerifyCashier))
+                  ? (isDark ? colors.brand[500] : colors.brand[700])
+                  : (isDark ? '#1E293B' : '#E2E8F0'),
+                borderColor: (isEditable && (currentRole === "Cashier" || canVerifyCashier))
+                  ? 'transparent'
+                  : (isDark ? '#334155' : '#CBD5E1'),
+                borderWidth: 1,
+              },
+              (!isEditable || !(currentRole === "Cashier" || canVerifyCashier)) && styles.actionBtnDisabled,
               Platform.select({
-                web: { cursor: isEditable ? "pointer" : "not-allowed" } as object,
+                web: { cursor: (isEditable && (currentRole === "Cashier" || canVerifyCashier)) ? "pointer" : "not-allowed" } as object,
               }),
             ]}
-            onPress={() => isEditable && setShowCashier(true)}
-            disabled={!isEditable}
+            onPress={() => isEditable && (currentRole === "Cashier" || canVerifyCashier) && setShowCashier(true)}
+            disabled={!isEditable || !(currentRole === "Cashier" || canVerifyCashier)}
           >
             <Lucide
               name="credit-card"
               size={15}
-              color={isEditable ? COLORS.neutral.white : (isDark ? colors.neutral[500] : COLORS.neutral[400])}
+              color={(isEditable && (currentRole === "Cashier" || canVerifyCashier)) ? COLORS.neutral.white : (isDark ? '#64748B' : '#94A3B8')}
             />
             <Text
               style={[
                 styles.actionBtnPrimaryText,
-                !isEditable && { color: isDark ? colors.neutral[500] : COLORS.neutral[400] },
+                { color: (isEditable && (currentRole === "Cashier" || canVerifyCashier)) ? COLORS.neutral.white : (isDark ? '#64748B' : '#94A3B8') },
               ]}
             >
               Cashier Verification
@@ -2065,55 +2603,69 @@ export function ApplicationReviewScreenContent({
           </Pressable>
         ) : (
           <>
-            <Pressable
-              style={[
-                styles.actionBtnPrimary,
-                (!isEditable || !canApprove) && [styles.actionBtnDisabled, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[100] }],
-                Platform.select({
-                  web: { cursor: (isEditable && canApprove) ? "pointer" : "not-allowed" } as object,
-                }),
-              ]}
-              onPress={() => {
-                if (!isEditable || !canApprove) return;
-                const incompleteApplicants = app.applicantsList?.filter(a => a.status === 'Incomplete') ?? [];
-                if (incompleteApplicants.length > 0) {
-                  const names = incompleteApplicants.map(a => a.name).join(", ");
-                  Alert.alert(
-                    "Action Blocked — Incomplete Applicants",
-                    `Cannot approve application: ${incompleteApplicants.length} applicant(s) are marked as Incomplete (${names}). All applicants must be complete before approval.`,
-                    [{ text: "OK" }]
-                  );
-                  return;
-                }
-                const endorseApplicants = app.applicantsList?.filter(a => a.status === 'ForEndorsement') ?? [];
-                if (endorseApplicants.length > 0) {
-                  const names = endorseApplicants.map(a => a.name).join(", ");
-                  Alert.alert(
-                    "Endorsement Required",
-                    `Application cannot be directly approved: ${endorseApplicants.length} applicant(s) are marked For Endorsement (${names}). Please use the Endorse action to forward for review.`,
-                    [{ text: "OK" }]
-                  );
-                  return;
-                }
-                setShowApprove(true);
-              }}
-              disabled={!isEditable || !canApprove}
-            >
-              <Text
-                style={[
-                  styles.actionBtnPrimaryText,
-                  (!isEditable || !canApprove) && { color: isDark ? colors.neutral[500] : COLORS.neutral[400] },
-                ]}
-              >
-                Approve
-              </Text>
-            </Pressable>
+            {(() => {
+              const hasIncompleteApplicants = app.applicantsList?.some(a => a.status === 'Incomplete') ?? false;
+              const isApproveEnabled = isEditable && canApprove && !hasIncompleteApplicants;
+
+              return (
+                <Pressable
+                  style={[
+                    styles.actionBtnPrimary,
+                    {
+                      backgroundColor: isApproveEnabled
+                        ? (isDark ? '#166534' : '#15803D')
+                        : (isDark ? '#1E293B' : '#E2E8F0'),
+                      borderColor: isApproveEnabled
+                        ? 'transparent'
+                        : (isDark ? '#334155' : '#CBD5E1'),
+                      borderWidth: 1,
+                    },
+                    !isApproveEnabled && styles.actionBtnDisabled,
+                    Platform.select({
+                      web: { cursor: isApproveEnabled ? "pointer" : "not-allowed" } as object,
+                    }),
+                  ]}
+                  onPress={() => {
+                    if (!isApproveEnabled) return;
+                    const endorseApplicants = app.applicantsList?.filter(a => a.status === 'ForEndorsement') ?? [];
+                    if (endorseApplicants.length > 0) {
+                      const names = endorseApplicants.map(a => a.name).join(", ");
+                      Alert.alert(
+                        "Endorsement Required",
+                        `Application cannot be directly approved: ${endorseApplicants.length} applicant(s) are marked For Endorsement (${names}). Please use the Endorse action to forward for review.`,
+                        [{ text: "OK" }]
+                      );
+                      return;
+                    }
+                    setShowApprove(true);
+                  }}
+                  disabled={!isApproveEnabled}
+                >
+                  <Text
+                    style={[
+                      styles.actionBtnPrimaryText,
+                      { color: isApproveEnabled ? COLORS.neutral.white : (isDark ? '#64748B' : '#94A3B8') },
+                    ]}
+                  >
+                    Approve
+                  </Text>
+                </Pressable>
+              );
+            })()}
 
             <Pressable
               style={[
                 styles.actionBtnOutline,
-                { borderColor: isDark ? colors.neutral[600] : COLORS.neutral[300] },
-                (!isEditable || !canDecline) && [styles.actionBtnDisabled, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[100], borderColor: isDark ? colors.neutral[800] : colors.neutral[200] }],
+                {
+                  backgroundColor: (isEditable && canDecline)
+                    ? (isDark ? colors.neutral[800] : COLORS.neutral.white)
+                    : (isDark ? '#1E293B' : '#F8FAFC'),
+                  borderColor: (isEditable && canDecline)
+                    ? (isDark ? colors.neutral[300] : COLORS.neutral[900])
+                    : (isDark ? '#334155' : '#E2E8F0'),
+                  borderWidth: 1.5,
+                },
+                (!isEditable || !canDecline) && styles.actionBtnDisabled,
                 Platform.select({
                   web: { cursor: (isEditable && canDecline) ? "pointer" : "not-allowed" } as object,
                 }),
@@ -2124,8 +2676,7 @@ export function ApplicationReviewScreenContent({
               <Text
                 style={[
                   styles.actionBtnOutlineText,
-                  { color: isDark ? colors.neutral[200] : COLORS.neutral[700] },
-                  (!isEditable || !canDecline) && { color: isDark ? colors.neutral[500] : COLORS.neutral[400] },
+                  { color: (isEditable && canDecline) ? (isDark ? colors.neutral[100] : COLORS.neutral[900]) : (isDark ? '#64748B' : '#94A3B8') },
                 ]}
               >
                 Return
@@ -2135,8 +2686,16 @@ export function ApplicationReviewScreenContent({
             <Pressable
               style={[
                 styles.actionBtnOutline,
-                { borderColor: isDark ? colors.neutral[600] : COLORS.neutral[300] },
-                (!isEditable || !canEndorse) && [styles.actionBtnDisabled, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[100], borderColor: isDark ? colors.neutral[800] : colors.neutral[200] }],
+                {
+                  backgroundColor: (isEditable && canEndorse)
+                    ? (isDark ? colors.neutral[800] : COLORS.neutral.white)
+                    : (isDark ? '#1E293B' : '#F8FAFC'),
+                  borderColor: (isEditable && canEndorse)
+                    ? (isDark ? colors.brand[400] : colors.brand[600])
+                    : (isDark ? '#334155' : '#E2E8F0'),
+                  borderWidth: 1.5,
+                },
+                (!isEditable || !canEndorse) && styles.actionBtnDisabled,
                 Platform.select({
                   web: { cursor: (isEditable && canEndorse) ? "pointer" : "not-allowed" } as object,
                 }),
@@ -2147,8 +2706,7 @@ export function ApplicationReviewScreenContent({
               <Text
                 style={[
                   styles.actionBtnOutlineText,
-                  { color: isDark ? colors.neutral[200] : COLORS.neutral[700] },
-                  (!isEditable || !canEndorse) && { color: isDark ? colors.neutral[500] : COLORS.neutral[400] },
+                  { color: (isEditable && canEndorse) ? (isDark ? colors.brand[400] : colors.brand[600]) : (isDark ? '#64748B' : '#94A3B8') },
                 ]}
               >
                 Endorse →
@@ -3036,7 +3594,7 @@ const styles = StyleSheet.create({
     fontWeight: TYPOGRAPHY.weights.medium,
   },
   actionBtnDisabled: {
-    opacity: 0.6,
+    opacity: 0.45,
   },
   actionBtnDisabledText: {
   },
