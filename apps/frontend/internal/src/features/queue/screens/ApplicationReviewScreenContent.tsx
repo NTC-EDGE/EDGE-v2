@@ -2128,7 +2128,7 @@ export function ApplicationReviewScreenContent({
                   (!isEditable || !canDecline) && { color: isDark ? colors.neutral[500] : COLORS.neutral[400] },
                 ]}
               >
-                Decline
+                Return
               </Text>
             </Pressable>
 
