@@ -104,9 +104,6 @@ export function AmateurRadioStationLicenseForm({
       <View style={licenseStyles.formSection}>
         <View style={licenseStyles.formSectionHeaderRow}>
           <Text style={licenseStyles.formSectionHeading}>1. Transaction & License Options</Text>
-          <View style={licenseStyles.formSectionBadge}>
-            <Text style={licenseStyles.formSectionBadgeText}>Selected in Step 3</Text>
-          </View>
         </View>
 
         <View style={licenseStyles.formGrid}>

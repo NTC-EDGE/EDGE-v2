@@ -51,6 +51,7 @@ export interface ApplicantData {
   expiryDate: string;
   expiryYear: string;
   uploads: Record<string, string | { name: string; uri: string }>;
+  formFieldValues?: Array<{ fieldId: string; fieldLabel: string; value: string }>;
 }
 
 export const initialApplicant = (id: number): ApplicantData => ({

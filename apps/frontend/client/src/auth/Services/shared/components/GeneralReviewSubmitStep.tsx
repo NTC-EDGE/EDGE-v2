@@ -1,8 +1,9 @@
-import React from "react";
-import { View, Text, ScrollView } from "react-native";
+import React, { useState } from "react";
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { COLORS, TYPOGRAPHY, Icon } from "@edge/ui";
 import { NTCService } from "../../data/servicesData";
 import { TenantInfo, OfficeInfo, GeneralApplicantData } from "../hooks/useGeneralServiceWizard";
+import { DocumentPreviewModal } from "../../../../shared/components/DocumentPreviewModal";
 
 interface GeneralReviewSubmitStepProps {
   service: NTCService;
@@ -15,13 +16,14 @@ interface GeneralReviewSubmitStepProps {
   variants?: Array<{ id: string; name?: string; description?: string }>;
 }
 
-// ─── Small reusable summary row ─────────────────────────────────────────────
-function SummaryRow({ label, value }: { label: string; value: string }) {
+// ─── Reusable Summary Row ──────────────────────────────────────────────────
+function SummaryRow({ label, value }: { label: string; value?: string | null }) {
+  if (!value || value.trim() === "") return null;
   return (
     <View
       style={{
         backgroundColor: "#F8FAFC",
-        padding: 14,
+        padding: 12,
         borderRadius: 10,
         borderWidth: 1,
         borderColor: "#E2E8F0",
@@ -44,28 +46,26 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
       <Text
         style={{
           fontFamily: TYPOGRAPHY.fonts.primary,
-          fontSize: 14,
+          fontSize: 13,
           fontWeight: "600",
           color: "#0F172A",
         }}
       >
-        {value || "—"}
+        {value}
       </Text>
     </View>
   );
 }
 
-// ─── Section card wrapper ────────────────────────────────────────────────────
+// ─── Reusable Section Card Wrapper ─────────────────────────────────────────
 function SectionCard({
   icon,
   title,
-  badge,
   accentColor = "#0F2C59",
   children,
 }: {
   icon: React.ComponentProps<typeof Icon>["name"];
   title: string;
-  badge?: string;
   accentColor?: string;
   children: React.ReactNode;
 }) {
@@ -74,7 +74,7 @@ function SectionCard({
       style={{
         backgroundColor: "#FFFFFF",
         borderRadius: 14,
-        padding: 20,
+        padding: 18,
         borderWidth: 1,
         borderColor: "#CBD5E1",
         borderLeftWidth: 5,
@@ -87,72 +87,43 @@ function SectionCard({
         marginBottom: 0,
       }}
     >
-      {/* Card header */}
       <View
         style={{
           flexDirection: "row",
           alignItems: "center",
-          justifyContent: "space-between",
-          flexWrap: "wrap",
           gap: 8,
-          marginBottom: 16,
+          marginBottom: 14,
         }}
       >
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 1 }}>
-          <View
-            style={{
-              width: 28,
-              height: 28,
-              borderRadius: 14,
-              backgroundColor: "#EFF6FF",
-              justifyContent: "center",
-              alignItems: "center",
-            }}
-          >
-            <Icon name={icon} size={14} color={accentColor} />
-          </View>
-          <Text
-            style={{
-              fontFamily: TYPOGRAPHY.fonts.primary,
-              fontSize: 14,
-              fontWeight: "700",
-              color: "#0F2C59",
-            }}
-          >
-            {title}
-          </Text>
+        <View
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: 14,
+            backgroundColor: `${accentColor}12`,
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          <Icon name={icon} size={14} color={accentColor} />
         </View>
-        {badge !== undefined && badge.length > 0 && (
-          <View
-            style={{
-              backgroundColor: "#ECFDF5",
-              borderColor: "#10B981",
-              borderWidth: 1,
-              paddingHorizontal: 8,
-              paddingVertical: 3,
-              borderRadius: 10,
-            }}
-          >
-            <Text
-              style={{
-                fontFamily: TYPOGRAPHY.fonts.primary,
-                fontSize: 9,
-                fontWeight: "800",
-                color: "#047857",
-              }}
-            >
-              {badge}
-            </Text>
-          </View>
-        )}
+        <Text
+          style={{
+            fontFamily: TYPOGRAPHY.fonts.primary,
+            fontSize: 14,
+            fontWeight: "700",
+            color: "#0F2C59",
+          }}
+        >
+          {title}
+        </Text>
       </View>
-
       {children}
     </View>
   );
 }
 
-// ─── Main component ──────────────────────────────────────────────────────────
+// ─── Main Component ────────────────────────────────────────────────────────
 export function GeneralReviewSubmitStep({
   service,
   tenants,
@@ -163,6 +134,10 @@ export function GeneralReviewSubmitStep({
   appMode,
   variants = [],
 }: GeneralReviewSubmitStepProps) {
+  const [previewFile, setPreviewFile] = useState<{ name: string; uri?: string } | string | null>(null);
+  const [previewLabel, setPreviewLabel] = useState<string>("");
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+
   const regionName =
     tenants.find((t) => t.id === selectedRegionId)?.name ||
     selectedRegionId ||
@@ -186,7 +161,7 @@ export function GeneralReviewSubmitStep({
   const uploadedEntries = Object.entries(activeApplicant.uploads || {});
   const uploadCount = uploadedEntries.length;
 
-  // Dynamic form field values (from DB-seeded form)
+  // Dynamic form field values (from DB-seeded forms)
   const formFieldValues = activeApplicant.formFieldValues ?? [];
 
   // Derived full name from applicant base fields
@@ -199,14 +174,32 @@ export function GeneralReviewSubmitStep({
       ? `${activeApplicant.birthMonth} ${activeApplicant.birthDay}, ${activeApplicant.birthYear}`
       : null;
 
+  // Specialized Models
+  const amateur = activeApplicant.amateurLicenseData;
+  const lifetime = activeApplicant.lifetimeLicenseData;
+  const radioCert = activeApplicant.radioCertData;
+  const deviceReg = activeApplicant.deviceRegData;
+  const tvroReg = activeApplicant.tvroRegData;
+  const vasData = activeApplicant.vasData;
+  const copyOfCert = activeApplicant.copyOfCertData;
+
+  const hasSpecializedData =
+    Boolean(amateur) ||
+    Boolean(lifetime) ||
+    Boolean(radioCert) ||
+    Boolean(deviceReg) ||
+    Boolean(tvroReg) ||
+    Boolean(vasData) ||
+    Boolean(copyOfCert);
+
   return (
     <View style={{ gap: 16 }}>
-      {/* ── Hero header ── */}
+      {/* ── Hero Header ── */}
       <View
         style={{
           backgroundColor: "#0F2C59",
           borderRadius: 14,
-          padding: 20,
+          padding: 18,
           flexDirection: "row",
           alignItems: "center",
           gap: 14,
@@ -214,9 +207,9 @@ export function GeneralReviewSubmitStep({
       >
         <View
           style={{
-            width: 44,
-            height: 44,
-            borderRadius: 22,
+            width: 42,
+            height: 42,
+            borderRadius: 21,
             backgroundColor: "rgba(255,255,255,0.15)",
             justifyContent: "center",
             alignItems: "center",
@@ -234,7 +227,7 @@ export function GeneralReviewSubmitStep({
               marginBottom: 2,
             }}
           >
-            Final Application Review
+            Final Application Review & Summary
           </Text>
           <Text
             style={{
@@ -243,32 +236,13 @@ export function GeneralReviewSubmitStep({
               color: "rgba(255,255,255,0.7)",
             }}
           >
-            Please verify all details before submitting. NTC officers will review upon receipt.
-          </Text>
-        </View>
-        <View
-          style={{
-            backgroundColor: "#10B981",
-            paddingHorizontal: 10,
-            paddingVertical: 4,
-            borderRadius: 20,
-          }}
-        >
-          <Text
-            style={{
-              fontFamily: TYPOGRAPHY.fonts.primary,
-              fontSize: 10,
-              fontWeight: "800",
-              color: "#FFFFFF",
-            }}
-          >
-            STEP 6
+            Please verify all filled-out particulars and parameters before official submission.
           </Text>
         </View>
       </View>
 
-      {/* ── Section 1: Service & Filing Parameters ── */}
-      <SectionCard icon="layers" title="Service & Filing Parameters" badge="SECTION 1">
+      {/* ── Section 1: Service & Jurisdiction Parameters ── */}
+      <SectionCard icon="layers" title="Service & Jurisdiction Parameters" accentColor="#0F2C59">
         <SummaryRow label="Service Name" value={service.title} />
         <View style={{ flexDirection: "row", gap: 8 }}>
           <View style={{ flex: 1 }}>
@@ -280,25 +254,21 @@ export function GeneralReviewSubmitStep({
         </View>
         <View style={{ flexDirection: "row", gap: 8 }}>
           <View style={{ flex: 1 }}>
-            <SummaryRow label="Application Mode" value={appModeLabel} />
+            <SummaryRow label="Filing Mode" value={appModeLabel} />
           </View>
           <View style={{ flex: 1 }}>
-            <SummaryRow label="Variant / Type" value={variantLabel} />
+            <SummaryRow label="Application Variant / Type" value={variantLabel} />
           </View>
         </View>
       </SectionCard>
 
-      {/* ── Section 2: Applicant Personal Details ── */}
+      {/* ── Section 2: Applicant & Contact Particulars ── */}
       {(fullName !== null ||
         activeApplicant.email ||
         activeApplicant.contactNo ||
-        activeApplicant.address) && (
-        <SectionCard
-          icon="user"
-          title="Applicant Personal Details"
-          badge="SECTION 2"
-          accentColor="#1D4ED8"
-        >
+        activeApplicant.address ||
+        activeApplicant.notes) && (
+        <SectionCard icon="user" title="Applicant & Contact Particulars" accentColor="#1D4ED8">
           {fullName !== null && <SummaryRow label="Full Name" value={fullName} />}
           <View style={{ flexDirection: "row", gap: 8 }}>
             {activeApplicant.email.length > 0 && (
@@ -313,33 +283,291 @@ export function GeneralReviewSubmitStep({
             )}
           </View>
           {activeApplicant.address.length > 0 && (
-            <SummaryRow label="Address" value={activeApplicant.address} />
+            <SummaryRow label="Residential / Office Address" value={activeApplicant.address} />
           )}
           {birthDate !== null && <SummaryRow label="Date of Birth" value={birthDate} />}
+          {activeApplicant.notes ? <SummaryRow label="Special Notes / Remarks" value={activeApplicant.notes} /> : null}
         </SectionCard>
       )}
 
-      {/* ── Section 3: Dynamic / Form Field Values ── */}
+      {/* ── Section 3: Specialized Application Details & License/Cert Particulars ── */}
+      {hasSpecializedData && (
+        <SectionCard icon="file-text" title="Application & License Particulars" accentColor="#7C3AED">
+          {/* Amateur Radio Station License Data */}
+          {amateur && (
+            <View style={{ gap: 4 }}>
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                <View style={{ flex: 1 }}>
+                  <SummaryRow label="Station Class" value={amateur.classOfStation} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <SummaryRow label="Call Sign" value={amateur.callSign} />
+                </View>
+              </View>
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                <View style={{ flex: 1 }}>
+                  <SummaryRow label="License Validity / Years" value={amateur.noOfYears ? `${amateur.noOfYears} Year(s)` : null} />
+                </View>
+                {amateur.licenseNo ? (
+                  <View style={{ flex: 1 }}>
+                    <SummaryRow label="Existing License No." value={amateur.licenseNo} />
+                  </View>
+                ) : null}
+              </View>
+              {amateur.dateOfExpiry ? <SummaryRow label="License Expiry Date" value={amateur.dateOfExpiry} /> : null}
+              {amateur.modificationDueTo ? <SummaryRow label="Reason for Modification" value={amateur.modificationDueTo} /> : null}
+              {amateur.location ? <SummaryRow label="Station Location / Address" value={amateur.location} /> : null}
+              {amateur.placeOfExamSeminar || amateur.dateOfExamSeminar || amateur.ratings ? (
+                <View style={{ backgroundColor: "#F1F5F9", padding: 10, borderRadius: 8, marginTop: 4 }}>
+                  <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: "700", color: "#475569", marginBottom: 4 }}>
+                    EXAMINATION / SEMINAR RECORD
+                  </Text>
+                  <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: "#1E293B" }}>
+                    {[amateur.placeOfExamSeminar, amateur.dateOfExamSeminar, amateur.ratings ? `Rating: ${amateur.ratings}` : null]
+                      .filter(Boolean)
+                      .join(" • ")}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+          )}
+
+          {/* Lifetime Amateur License Data */}
+          {lifetime && (
+            <View style={{ gap: 4 }}>
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                <View style={{ flex: 1 }}>
+                  <SummaryRow label="Call Sign" value={lifetime.callSign} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <SummaryRow label="Years of Amateur Service" value={lifetime.yearsOfAmateurService ? `${lifetime.yearsOfAmateurService} Years` : null} />
+                </View>
+              </View>
+              <SummaryRow label="Affiliated Amateur Club" value={lifetime.memberClubName} />
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                <View style={{ flex: 1 }}>
+                  <SummaryRow label="Cert of Good Standing No." value={lifetime.certOfGoodStandingNo} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <SummaryRow label="Class A License No." value={lifetime.existingClassALicenseNo} />
+                </View>
+              </View>
+              {lifetime.licenseExpiryDate ? <SummaryRow label="Class A License Expiry" value={lifetime.licenseExpiryDate} /> : null}
+              {lifetime.location ? <SummaryRow label="Station Location" value={lifetime.location} /> : null}
+            </View>
+          )}
+
+          {/* Radio Operator Certificate Data */}
+          {radioCert && (
+            <View style={{ gap: 4 }}>
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                <View style={{ flex: 1 }}>
+                  <SummaryRow label="Certificate Type" value={radioCert.typeOfCertificate} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <SummaryRow label="Validity Years" value={radioCert.years ? `${radioCert.years} Year(s)` : null} />
+                </View>
+              </View>
+              {radioCert.certificateNo ? (
+                <View style={{ flexDirection: "row", gap: 8 }}>
+                  <View style={{ flex: 1 }}>
+                    <SummaryRow label="Certificate No." value={radioCert.certificateNo} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <SummaryRow label="Expiry Date" value={radioCert.dateOfExpiry} />
+                  </View>
+                </View>
+              ) : null}
+              {radioCert.modificationDueTo ? <SummaryRow label="Reason for Modification" value={radioCert.modificationDueTo} /> : null}
+              {radioCert.employmentStatus || radioCert.employmentType || radioCert.employmentLocation ? (
+                <View style={{ flexDirection: "row", gap: 8 }}>
+                  <View style={{ flex: 1 }}>
+                    <SummaryRow label="Employment Status" value={radioCert.employmentStatus} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <SummaryRow label="Employment Type / Location" value={[radioCert.employmentType, radioCert.employmentLocation].filter(Boolean).join(" - ")} />
+                  </View>
+                </View>
+              ) : null}
+              {radioCert.heightCm || radioCert.weightKg ? (
+                <View style={{ flexDirection: "row", gap: 8 }}>
+                  <View style={{ flex: 1 }}>
+                    <SummaryRow label="Height" value={radioCert.heightCm ? `${radioCert.heightCm} cm` : null} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <SummaryRow label="Weight" value={radioCert.weightKg ? `${radioCert.weightKg} kg` : null} />
+                  </View>
+                </View>
+              ) : null}
+              {radioCert.clubName ? <SummaryRow label="Amateur Club & Call Sign" value={[radioCert.clubName, radioCert.clubCallSign].filter(Boolean).join(" (") + (radioCert.clubCallSign ? ")" : "")} /> : null}
+            </View>
+          )}
+
+          {/* Device Registration Data */}
+          {deviceReg && (
+            <View style={{ gap: 4 }}>
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                <View style={{ flex: 1 }}>
+                  <SummaryRow label="Registration Type" value={deviceReg.registrationType} />
+                </View>
+                {deviceReg.invoiceNo ? (
+                  <View style={{ flex: 1 }}>
+                    <SummaryRow label="Invoice No." value={deviceReg.invoiceNo} />
+                  </View>
+                ) : null}
+              </View>
+              {deviceReg.businessName ? <SummaryRow label="Business Name" value={deviceReg.businessName} /> : null}
+              {deviceReg.dtiSecNo ? <SummaryRow label="DTI / SEC Reg No." value={deviceReg.dtiSecNo} /> : null}
+            </View>
+          )}
+
+          {/* TVRO Registration Data */}
+          {tvroReg && (
+            <View style={{ gap: 4 }}>
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                <View style={{ flex: 1 }}>
+                  <SummaryRow label="Classification" value={tvroReg.classification} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <SummaryRow label="Validity Years" value={tvroReg.years ? `${tvroReg.years} Year(s)` : null} />
+                </View>
+              </View>
+              {tvroReg.bsdNumber ? <SummaryRow label="Assigned BSD Number" value={tvroReg.bsdNumber} /> : null}
+              {tvroReg.businessName ? <SummaryRow label="Business Name" value={tvroReg.businessName} /> : null}
+            </View>
+          )}
+
+          {/* VAS Provider Data */}
+          {vasData && (
+            <View style={{ gap: 4 }}>
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                <View style={{ flex: 1 }}>
+                  <SummaryRow label="Entity Service Type" value={vasData.serviceType} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <SummaryRow label="Validity Years" value={vasData.years ? `${vasData.years} Year(s)` : null} />
+                </View>
+              </View>
+              {vasData.certificateNumber ? <SummaryRow label="VAS Certificate No." value={vasData.certificateNumber} /> : null}
+              {vasData.serviceNo ? <SummaryRow label="CPCN / PA / CA Number" value={vasData.serviceNo} /> : null}
+              {vasData.otherTradeName ? <SummaryRow label="Other Trade Name" value={vasData.otherTradeName} /> : null}
+              {vasData.valueAddedServices && vasData.valueAddedServices.length > 0 ? (
+                <SummaryRow label="Registered Value Added Services" value={vasData.valueAddedServices.join(", ")} />
+              ) : null}
+            </View>
+          )}
+
+          {/* Copy of Certificate Data */}
+          {copyOfCert && (
+            <View style={{ gap: 4 }}>
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                <View style={{ flex: 1 }}>
+                  <SummaryRow label="Copy Request Type" value={copyOfCert.copyType === "CERTIFIED_TRUE_COPY" ? "Certified True Copy" : "Duplicate Replacement"} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <SummaryRow label="Certificate No." value={copyOfCert.certificateNo} />
+                </View>
+              </View>
+              {copyOfCert.targetService ? <SummaryRow label="Target Permit / License" value={copyOfCert.targetService} /> : null}
+              {copyOfCert.numberOfCopies ? <SummaryRow label="Number of Copies" value={copyOfCert.numberOfCopies} /> : null}
+              {copyOfCert.circumstancesOfLoss ? <SummaryRow label="Circumstances of Loss / Affidavit Details" value={copyOfCert.circumstancesOfLoss} /> : null}
+            </View>
+          )}
+        </SectionCard>
+      )}
+
+      {/* ── Section 4: Equipment & Technical Particulars (Nested Tables / Lists) ── */}
+      {amateur && amateur.particularsEquipment && amateur.particularsEquipment.length > 0 && amateur.particularsEquipment.some((g) => g.makeTypeModel || g.equipments.length > 0) && (
+        <SectionCard icon="cpu" title="Radio Equipment Particulars" accentColor="#0284C7">
+          {amateur.particularsEquipment.map((group, gIdx) => (
+            <View key={group.id || gIdx} style={{ backgroundColor: "#F8FAFC", borderRadius: 10, padding: 12, borderWidth: 1, borderColor: "#E2E8F0", marginBottom: 10 }}>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: "#0F2C59", marginBottom: 6 }}>
+                Equipment Model Group #{gIdx + 1}: {group.makeTypeModel || "Standard Model"}
+              </Text>
+              {group.equipments.map((eq, eqIdx) => (
+                <View key={eq.id || eqIdx} style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, backgroundColor: "#FFFFFF", padding: 8, borderRadius: 6, marginTop: 4, borderWidth: 1, borderColor: "#CBD5E1" }}>
+                  <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, color: "#334155" }}>
+                    • Serial No: <Text style={{ fontWeight: "700" }}>{eq.serialNo || "N/A"}</Text>
+                  </Text>
+                  {eq.frequencyRange ? (
+                    <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, color: "#334155" }}>
+                      | Freq: <Text style={{ fontWeight: "700" }}>{eq.frequencyRange}</Text>
+                    </Text>
+                  ) : null}
+                  {eq.powerOutput ? (
+                    <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, color: "#334155" }}>
+                      | Power: <Text style={{ fontWeight: "700" }}>{eq.powerOutput}</Text>
+                    </Text>
+                  ) : null}
+                </View>
+              ))}
+            </View>
+          ))}
+        </SectionCard>
+      )}
+
+      {deviceReg && deviceReg.particulars && deviceReg.particulars.length > 0 && (
+        <SectionCard icon="cpu" title="Registered Device Particulars" accentColor="#0284C7">
+          {deviceReg.particulars.map((item, pIdx) => (
+            <View key={item.id || pIdx} style={{ backgroundColor: "#F8FAFC", borderRadius: 10, padding: 12, borderWidth: 1, borderColor: "#E2E8F0", marginBottom: 8 }}>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: "#0F2C59", marginBottom: 4 }}>
+                {item.typeOfEquipmentDevice || "Device"} — {item.nameTypeModel || "Particulars"}
+              </Text>
+              {item.equipmentSerials && item.equipmentSerials.length > 0 ? (
+                <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: "#475569" }}>
+                  Serials: {item.equipmentSerials.map((s) => s.serialNumber).filter(Boolean).join(", ") || "N/A"}
+                </Text>
+              ) : null}
+            </View>
+          ))}
+        </SectionCard>
+      )}
+
+      {tvroReg && (
+        <>
+          {tvroReg.particularsEquipment && tvroReg.particularsEquipment.length > 0 && (
+            <SectionCard icon="tv" title="TVRO Equipment Particulars" accentColor="#0284C7">
+              {tvroReg.particularsEquipment.map((item, idx) => (
+                <View key={item.id || idx} style={{ backgroundColor: "#F8FAFC", borderRadius: 8, padding: 10, marginBottom: 6, borderWidth: 1, borderColor: "#E2E8F0" }}>
+                  <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, fontWeight: "700", color: "#0F172A" }}>
+                    {item.type} — {item.makeTypeModel}
+                  </Text>
+                  <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, color: "#64748B" }}>
+                    Serial: {item.serialNo || "N/A"} | Freq: {item.frequencyRange || "N/A"}
+                  </Text>
+                </View>
+              ))}
+            </SectionCard>
+          )}
+
+          {tvroReg.particularsOfAntennaSystem && tvroReg.particularsOfAntennaSystem.length > 0 && (
+            <SectionCard icon="radio" title="Antenna System Particulars" accentColor="#0284C7">
+              {tvroReg.particularsOfAntennaSystem.map((ant, idx) => (
+                <View key={ant.id || idx} style={{ backgroundColor: "#F8FAFC", borderRadius: 8, padding: 10, marginBottom: 6, borderWidth: 1, borderColor: "#E2E8F0" }}>
+                  <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, fontWeight: "700", color: "#0F172A" }}>
+                    {ant.makeTypeModel}
+                  </Text>
+                  <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, color: "#64748B" }}>
+                    Dish Dia: {ant.dishDiameter} | Polar: {ant.polarization} | Azimuth: {ant.azimuth}
+                  </Text>
+                </View>
+              ))}
+            </SectionCard>
+          )}
+        </>
+      )}
+
+      {/* ── Section 5: Dynamic Form Field Values (DB Seeded) ── */}
       {formFieldValues.length > 0 && (
-        <SectionCard
-          icon="file-text"
-          title="Filing Details"
-          badge="SECTION 3"
-          accentColor="#7C3AED"
-        >
+        <SectionCard icon="edit-3" title="Dynamic Filing Form Fields" accentColor="#D97706">
           {formFieldValues.map((fv) => (
             <SummaryRow key={fv.fieldId} label={fv.fieldLabel} value={fv.value} />
           ))}
         </SectionCard>
       )}
 
-      {/* ── Section 4: Uploaded Documents ── */}
-      <SectionCard
-        icon="paperclip"
-        title="Uploaded Supporting Documents"
-        badge={`${uploadCount} ATTACHMENT${uploadCount !== 1 ? "S" : ""}`}
-        accentColor="#059669"
-      >
+      {/* ── Section 6: Uploaded Documents Summary ── */}
+      <SectionCard icon="paperclip" title="Uploaded Supporting Documents" accentColor="#059669">
         {uploadCount === 0 ? (
           <View
             style={{
@@ -362,7 +590,7 @@ export function GeneralReviewSubmitStep({
                 flex: 1,
               }}
             >
-              No documents attached. Please go back to Step 5 to upload required attachments.
+              No documents attached. Please upload the required attachments before submitting.
             </Text>
           </View>
         ) : (
@@ -386,9 +614,9 @@ export function GeneralReviewSubmitStep({
                 >
                   <View
                     style={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: 14,
+                      width: 26,
+                      height: 26,
+                      borderRadius: 13,
                       backgroundColor: "#DCFCE7",
                       justifyContent: "center",
                       alignItems: "center",
@@ -421,7 +649,7 @@ export function GeneralReviewSubmitStep({
                       style={{
                         fontFamily: TYPOGRAPHY.fonts.primary,
                         fontSize: 10,
-                        color: "#4ADE80",
+                        color: "#15803D",
                         marginTop: 1,
                       }}
                     >
@@ -429,11 +657,34 @@ export function GeneralReviewSubmitStep({
                     </Text>
                   </View>
                   <Icon name="check-circle" size={16} color="#16A34A" />
+                  <TouchableOpacity
+                    onPress={() => {
+                      setPreviewFile(file);
+                      setPreviewLabel(key.replace(/^req-/, "").replace(/-/g, " ").toUpperCase());
+                      setIsPreviewOpen(true);
+                    }}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      backgroundColor: "#EFF6FF",
+                      borderWidth: 1,
+                      borderColor: "#BFDBFE",
+                      paddingVertical: 5,
+                      paddingHorizontal: 10,
+                      borderRadius: 8,
+                      marginLeft: 4,
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Icon name="eye" size={13} color="#1D4ED8" style={{ marginRight: 4 }} />
+                    <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: "700", color: "#1D4ED8" }}>
+                      View
+                    </Text>
+                  </TouchableOpacity>
                 </View>
               );
             })}
 
-            {/* Total badge */}
             <View
               style={{
                 flexDirection: "row",
@@ -463,7 +714,7 @@ export function GeneralReviewSubmitStep({
                     color: "#166534",
                   }}
                 >
-                  {uploadCount} document{uploadCount !== 1 ? "s" : ""} ready
+                  {uploadCount} document{uploadCount !== 1 ? "s" : ""} attached & verified
                 </Text>
               </View>
             </View>
@@ -471,7 +722,7 @@ export function GeneralReviewSubmitStep({
         )}
       </SectionCard>
 
-      {/* ── Declaration notice ── */}
+      {/* ── Declaration & Legal Notice ── */}
       <View
         style={{
           backgroundColor: "#EFF6FF",
@@ -495,11 +746,17 @@ export function GeneralReviewSubmitStep({
           }}
         >
           By clicking{" "}
-          <Text style={{ fontWeight: "700" }}>Submit</Text>, you confirm that all provided information
-          is true and correct. Submission of false documents may result in rejection or legal
-          consequences under existing NTC regulations.
+          <Text style={{ fontWeight: "700" }}>Submit</Text>, you certify that all provided particulars
+          and attached documents are true and accurate. Official evaluation will proceed upon submission.
         </Text>
       </View>
+
+      <DocumentPreviewModal
+        visible={isPreviewOpen}
+        onClose={() => setIsPreviewOpen(false)}
+        file={previewFile}
+        label={previewLabel}
+      />
     </View>
   );
 }

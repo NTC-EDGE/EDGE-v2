@@ -60,7 +60,7 @@ export function ServiceDetails({
           {/* 1. Official Service Information Card */}
           <View style={localStyles.infoCard}>
             <View style={localStyles.cardHeader}>
-              <Icon name="info" size={16} color="#0F2C59" style={{ marginRight: 8 }} />
+              <Icon name="info" size={16} color="#031A6E" style={{ marginRight: 8 }} />
               <Text style={localStyles.cardHeaderTitle}>Service Information</Text>
             </View>
             <Text style={localStyles.infoBodyText}>{displayInformation}</Text>
@@ -99,7 +99,7 @@ const localStyles = StyleSheet.create({
     borderColor: "#E2E8F0",
     borderWidth: 1,
     borderLeftWidth: 4,
-    borderLeftColor: "#0F2C59",
+    borderLeftColor: "#031A6E",
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
@@ -123,7 +123,7 @@ const localStyles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 14,
     fontWeight: "700",
-    color: "#0F2C59",
+    color: "#031A6E",
   },
   availHeaderTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,

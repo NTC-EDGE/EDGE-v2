@@ -99,6 +99,7 @@ export function GeneralServiceWizard({
     loadingOffices,
     variants,
     loadingVariants,
+    variantElements,
     isConfirmModalOpen,
     setIsConfirmModalOpen,
     isAgreedToTerms,
@@ -178,13 +179,14 @@ export function GeneralServiceWizard({
           {service.title}
         </Text>
         <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: COLORS.neutral[500], marginBottom: 24 }}>
-          Step {step} of 5 — {step === 1 ? "Region & Office" : step === 2 ? "Application Mode & Variant" : step === 3 ? "Filing Details" : step === 4 ? "Upload Documents" : "Review & Submit"}
+          {step === 1 ? "Region & Office Selection" : step === 2 ? "Application Variant & Filing Mode" : step === 3 ? "Filing Details" : step === 4 ? "Upload Documents" : "Review & Submit"}
         </Text>
 
         <GeneralWizardSteps
           step={step}
           service={service}
           variants={variants}
+          variantElements={variantElements}
           selectedVariantId={activeApplicant.selectedVariantId}
           onSelectVariant={handleSelectVariant}
           selectedRegionId={selectedRegionId}

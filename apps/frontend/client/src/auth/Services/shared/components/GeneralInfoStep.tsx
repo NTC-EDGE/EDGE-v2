@@ -27,20 +27,13 @@ export function GeneralInfoStep({ service }: GeneralInfoStepProps) {
           elevation: 2,
         }}
       >
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 1, minWidth: 200 }}>
-            <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: "#EFF6FF", justifyContent: "center", alignItems: "center" }}>
-              <Icon name="info" size={15} color="#0F2C59" />
-            </View>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 16, fontWeight: "700", color: "#0F2C59" }}>
-              Service Overview & Specifications
-            </Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12 }}>
+          <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: "#EFF6FF", justifyContent: "center", alignItems: "center" }}>
+            <Icon name="info" size={15} color="#0F2C59" />
           </View>
-          <View style={{ backgroundColor: "#EFF6FF", borderColor: "#3B82F6", borderWidth: 1, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 12, alignSelf: "flex-start" }}>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 10, fontWeight: "800", color: "#1E40AF" }}>
-              SECTION 1 • OVERVIEW
-            </Text>
-          </View>
+          <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 16, fontWeight: "700", color: "#0F2C59" }}>
+            Service Overview & Specifications
+          </Text>
         </View>
 
         <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 14, color: "#334155", lineHeight: 22, marginBottom: 16 }}>
@@ -85,26 +78,19 @@ export function GeneralInfoStep({ service }: GeneralInfoStepProps) {
           elevation: 2,
         }}
       >
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 1, minWidth: 200 }}>
-            <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: "#FEF3C7", justifyContent: "center", alignItems: "center" }}>
-              <Icon name="file-text" size={15} color="#92400E" />
-            </View>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 15, fontWeight: "700", color: "#0F2C59" }}>
-              Filing Instructions & Next Steps
-            </Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 }}>
+          <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: "#FEF3C7", justifyContent: "center", alignItems: "center" }}>
+            <Icon name="file-text" size={15} color="#92400E" />
           </View>
-          <View style={{ backgroundColor: "#FEF3C7", borderColor: "#F59E0B", borderWidth: 1, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 12, alignSelf: "flex-start" }}>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 10, fontWeight: "800", color: "#92400E" }}>
-              SECTION 2 • GUIDELINES
-            </Text>
-          </View>
+          <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 15, fontWeight: "700", color: "#0F2C59" }}>
+            Filing Instructions & Next Steps
+          </Text>
         </View>
 
         <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: "#475569", lineHeight: 22 }}>
-          1. Click <Text style={{ fontWeight: "700", color: "#0F2C59" }}>Next</Text> to proceed to Step 2 for NTC Regional & Field Office Jurisdiction selection.{"\n"}
-          2. In Step 3, choose your exact <Text style={{ fontWeight: "700", color: "#0F2C59" }}>Application Variant</Text> (NEW, RENEWAL, MODIFICATION, or LIFETIME), station class option, and filing mode.{"\n"}
-          3. Complete Step 4 details, upload mandatory requirements in Step 5, and submit for official review.
+          1. Select your target NTC Regional & Field Office Jurisdiction.{"\n"}
+          2. Choose your <Text style={{ fontWeight: "700", color: "#0F2C59" }}>Application Variant</Text> (NEW, RENEWAL, MODIFICATION, or LIFETIME), station class option, and filing mode.{"\n"}
+          3. Complete application details, upload mandatory requirements, and submit for official review.
         </Text>
       </View>
     </View>

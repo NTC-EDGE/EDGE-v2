@@ -155,45 +155,13 @@ export function GeneralFilingModeStep({
   const isRenewal = safeUpper(activeVariantName).includes("RENEWAL");
   const isModification = safeUpper(activeVariantName).includes("MODIFICATION");
 
-  const classOptions =
-    variantElements && variantElements.length > 0
-      ? variantElements.map((elem) => ({
-          id: elem.id,
-          title: elem.code ? `${elem.code} — ${elem.description}` : elem.description,
-          desc: elem.description || "",
-        }))
-      : isLifetime
-      ? [
-          {
-            id: "class-a-lifetime",
-            title: "Class A — Lifetime Radio Station License",
-            desc: "For Class A Radio Amateurs at least 60 years old with 15+ consecutive years of service.",
-          },
-        ]
-      : [
-          {
-            id: "class-a",
-            title: "Class A — Advanced Amateur Station (VHF/UHF/HF)",
-            desc: "Full privilege amateur station license for Advanced class operators.",
-          },
-          {
-            id: "class-b",
-            title: "Class B — General Amateur Station",
-            desc: "General class station license with HF/VHF privileges.",
-          },
-          {
-            id: "class-c",
-            title: "Class C — Novice Amateur Station",
-            desc: "Novice class station license for VHF and limited HF bands.",
-          },
-          {
-            id: "class-d",
-            title: "Class D — Foundation Amateur Station (VHF Only)",
-            desc: "Foundation entry-level VHF amateur station license.",
-          },
-        ];
+  const classOptions = (variantElements || []).map((elem) => ({
+    id: elem.id,
+    title: elem.code ? `${elem.code} — ${elem.description}` : elem.description,
+    desc: elem.description || "",
+  }));
 
-  const hasElementsToDisplay = (variantElements && variantElements.length > 0) || serviceTitle.includes("AMATEUR") || serviceTitle.includes("STATION");
+  const hasElementsToDisplay = classOptions.length > 0;
 
   const handleDownloadTemplate = () => {
     const csvContent = generateCsvContent(templateConfig);
@@ -261,7 +229,7 @@ export function GeneralFilingModeStep({
 
   return (
     <View style={{ gap: 20 }}>
-      {/* ── 1. Select Application Variant / Service Type* (Card 1) ── */}
+      {/* ── 1. Select Application Variant / Service Type* ── */}
       <View
         style={{
           backgroundColor: "#FFFFFF",
@@ -278,24 +246,17 @@ export function GeneralFilingModeStep({
           elevation: 2,
         }}
       >
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 1, minWidth: 200 }}>
-            <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: "#EFF6FF", justifyContent: "center", alignItems: "center" }}>
-              <Icon name="file-text" size={15} color="#0F2C59" />
-            </View>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 15, fontWeight: "700", color: "#0F2C59" }}>
-              1. Select Application Variant / Service Type*
-            </Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 }}>
+          <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: "#EFF6FF", justifyContent: "center", alignItems: "center" }}>
+            <Icon name="file-text" size={15} color="#0F2C59" />
           </View>
-          <View style={{ backgroundColor: "#FEF3C7", borderColor: "#F59E0B", borderWidth: 1, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, alignSelf: "flex-start" }}>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 10, fontWeight: "800", color: "#92400E" }}>
-              CARD 1 • TRANSACTION
-            </Text>
-          </View>
+          <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 15, fontWeight: "700", color: "#0F2C59" }}>
+            Application Variant & Service Type*
+          </Text>
         </View>
 
         <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: "#64748B", marginBottom: 14 }}>
-          Select the transaction concern from the dropdown menu below:
+          Select the transaction concern from the options below:
         </Text>
 
         <Select
@@ -325,13 +286,6 @@ export function GeneralFilingModeStep({
               <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: "#0F2C59" }}>
                 Selected Concern: {activeVariant.name || activeVariant.description || "Variant Selected"}
               </Text>
-              {activeVariant.type && (
-                <View style={{ backgroundColor: "#EFF6FF", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
-                  <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 10, fontWeight: "700", color: "#1E40AF" }}>
-                    {safeUpper(activeVariant.type)}
-                  </Text>
-                </View>
-              )}
             </View>
             {activeVariant.description && (
               <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: "#475569", lineHeight: 17 }}>
@@ -342,7 +296,7 @@ export function GeneralFilingModeStep({
         )}
       </View>
 
-      {/* ── 2. Select Service Variant Element / Class Option* (Card 2) ── */}
+      {/* ── 2. Select Service Variant Element / Class Option* ── */}
       {hasElementsToDisplay && (
       <View
         style={{
@@ -360,20 +314,13 @@ export function GeneralFilingModeStep({
           elevation: 2,
         }}
       >
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 1, minWidth: 200 }}>
-            <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: "#EFF6FF", justifyContent: "center", alignItems: "center" }}>
-              <Icon name="shield" size={15} color="#1D4ED8" />
-            </View>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 15, fontWeight: "700", color: "#0F2C59" }}>
-              2. Select Service Variant Element / Class Option*
-            </Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 }}>
+          <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: "#EFF6FF", justifyContent: "center", alignItems: "center" }}>
+            <Icon name="shield" size={15} color="#1D4ED8" />
           </View>
-          <View style={{ backgroundColor: "#EFF6FF", borderColor: "#3B82F6", borderWidth: 1, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, alignSelf: "flex-start" }}>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 10, fontWeight: "800", color: "#1E40AF" }}>
-              CARD 2 • STATION CLASS
-            </Text>
-          </View>
+          <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 15, fontWeight: "700", color: "#0F2C59" }}>
+            Service Variant & Station Class*
+          </Text>
         </View>
 
         <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: "#64748B", marginBottom: 14 }}>
@@ -430,7 +377,7 @@ export function GeneralFilingModeStep({
       </View>
       )}
 
-      {/* ── 3. Mandatory Requirements Checklist Preview (Card 3) ── */}
+      {/* ── 3. Mandatory Requirements Checklist Preview ── */}
       <View
         style={{
           backgroundColor: "#F8FAFC",
@@ -442,20 +389,13 @@ export function GeneralFilingModeStep({
           borderLeftColor: "#F59E0B",
         }}
       >
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 1, minWidth: 200 }}>
-            <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: "#FEF3C7", justifyContent: "center", alignItems: "center" }}>
-              <Icon name="check-square" size={15} color="#92400E" />
-            </View>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 14, fontWeight: "700", color: "#0F2C59" }}>
-              3. Mandatory Requirements Checklist Preview
-            </Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 }}>
+          <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: "#FEF3C7", justifyContent: "center", alignItems: "center" }}>
+            <Icon name="check-square" size={15} color="#92400E" />
           </View>
-          <View style={{ backgroundColor: "#FEF3C7", borderColor: "#F59E0B", borderWidth: 1, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, alignSelf: "flex-start" }}>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 10, fontWeight: "800", color: "#92400E" }}>
-              CARD 3 • CHECKLIST
-            </Text>
-          </View>
+          <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 14, fontWeight: "700", color: "#0F2C59" }}>
+            Mandatory Requirements Checklist
+          </Text>
         </View>
 
         {isLifetime ? (
@@ -508,20 +448,13 @@ export function GeneralFilingModeStep({
           elevation: 2,
         }}
       >
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 1, minWidth: 200 }}>
-            <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: "#ECFDF5", justifyContent: "center", alignItems: "center" }}>
-              <Icon name="users" size={15} color="#047857" />
-            </View>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 15, fontWeight: "700", color: "#0F2C59" }}>
-              4. Select Filing Mode*
-            </Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12 }}>
+          <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: "#ECFDF5", justifyContent: "center", alignItems: "center" }}>
+            <Icon name="users" size={15} color="#047857" />
           </View>
-          <View style={{ backgroundColor: "#ECFDF5", borderColor: "#10B981", borderWidth: 1, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, alignSelf: "flex-start" }}>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 10, fontWeight: "800", color: "#047857" }}>
-              CARD 4 • FILING MODE
-            </Text>
-          </View>
+          <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 15, fontWeight: "700", color: "#0F2C59" }}>
+            Filing Mode*
+          </Text>
         </View>
 
         <Select

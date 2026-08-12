@@ -77,6 +77,7 @@ export function CPEAccreditationWizard({
   } = useCPEAccreditationWizard({
     selectedRegionId,
     setSelectedRegionId,
+    selectedOfficeId,
     setSelectedOfficeId,
     setAppMode,
     setBulkMethod,
@@ -95,7 +96,7 @@ export function CPEAccreditationWizard({
           <TouchableOpacity onPress={onToggleExpand}>
             <Icon name={isDetailsExpanded ? "minimize" : "maximize"} size={16} color={COLORS.brand[700]} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>[{STEP_TITLES[step] || "Filing Wizard"}]</Text>
+          <Text style={styles.headerTitle}>{STEP_TITLES[step] || "Filing Wizard"}</Text>
         </View>
         {step < 6 && (
           <View style={styles.progressContainer}>

@@ -161,7 +161,7 @@ export function useGeneralServiceWizard(
   React.useEffect(() => {
     let active = true;
     const fetchStep3Variants = async () => {
-      if (currentStep !== 3 || !service?.id) return;
+      if ((currentStep !== 2 && currentStep !== 3) || !service?.id) return;
       try {
         setLoadingVariants(true);
         const varRes = await api.get<any>(`/api/v2/services/${service.id}/variants`).catch(() => null);
@@ -193,7 +193,7 @@ export function useGeneralServiceWizard(
           }
         }
       } catch (err) {
-        console.warn("Failed to fetch service variants on Step 3:", err);
+        console.warn("Failed to fetch service variants on Step 2/3:", err);
       } finally {
         if (active) setLoadingVariants(false);
       }
@@ -202,14 +202,14 @@ export function useGeneralServiceWizard(
     return () => { active = false; };
   }, [currentStep, service?.id]);
 
-  // Fetch variant elements when a variant is selected in Step 3
+  // Fetch variant elements when a variant is selected in Step 2/3
   const activeApplicant = applicants[currentApplicantIndex] || initialGeneralApplicant(1);
   const effectiveVariantId = activeApplicant.selectedVariantId || (variants[0] ? variants[0].id : null);
 
   React.useEffect(() => {
     let active = true;
     const fetchVariantElements = async () => {
-      if (currentStep !== 3 || !effectiveVariantId || !service?.id) {
+      if ((currentStep !== 2 && currentStep !== 3) || !effectiveVariantId || !service?.id) {
         if (active) setVariantElements([]);
         return;
       }

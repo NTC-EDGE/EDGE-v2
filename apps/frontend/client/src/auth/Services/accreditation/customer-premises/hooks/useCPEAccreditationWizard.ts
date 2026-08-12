@@ -9,6 +9,7 @@ import { ApplicantData } from "../types/cpeTypes";
 interface UseCPEAccreditationWizardProps {
   selectedRegionId: string;
   setSelectedRegionId: (id: string) => void;
+  selectedOfficeId?: string;
   setSelectedOfficeId: (id: string) => void;
   setAppMode: (mode: "SINGLE" | "BULK" | "") => void;
   setBulkMethod: (method: "MANUAL" | "EXCEL") => void;
@@ -23,6 +24,7 @@ interface UseCPEAccreditationWizardProps {
 export function useCPEAccreditationWizard({
   selectedRegionId,
   setSelectedRegionId,
+  selectedOfficeId,
   setSelectedOfficeId,
   setAppMode,
   setBulkMethod,

@@ -303,7 +303,7 @@ export function ExamFilingWizard(props: ExamFilingWizardProps) {
               color: COLORS.neutral[500],
               marginTop: 2,
             }}>
-              Step {props.step} of {TOTAL_STEPS} — {stepLabels[props.step] ?? ""}
+              {stepLabels[props.step] ?? ""}
             </Text>
           </View>
         </View>

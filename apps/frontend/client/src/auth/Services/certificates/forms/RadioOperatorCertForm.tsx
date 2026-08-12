@@ -33,13 +33,8 @@ export function RadioOperatorCertForm({
     <View style={certStyles.container}>
       {/* Application Details */}
       <View style={certStyles.formSection}>
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+        <View style={{ marginBottom: 12 }}>
           <Text style={certStyles.formSectionHeading}>Application Details</Text>
-          <View style={{ backgroundColor: "#EFF6FF", borderColor: "#3B82F6", borderWidth: 1, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 }}>
-            <Text style={{ fontFamily: "System", fontSize: 10, fontWeight: "700", color: "#1E40AF" }}>
-              Selected in Step 3
-            </Text>
-          </View>
         </View>
 
         <View style={certStyles.formGrid}>
