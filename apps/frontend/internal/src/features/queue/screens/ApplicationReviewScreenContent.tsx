@@ -1000,70 +1000,147 @@ function ApplicationDetailsTab({
       <View style={{ height: 20 }} />
     </ScrollView>
 
-    {/* Fixed Sticky Bottom Dock for Evaluator Verdict & Remarks */}
+    {/* Fixed Sticky Bottom Dock — Evaluator Panel */}
     {activeApplicant && (
       <View
         style={[
           styles.evaluatorControlBoxSticky,
           {
-            backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50],
-            borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
+            backgroundColor: isDark ? colors.neutral[900] : COLORS.neutral.white,
+            borderTopColor: isDark ? colors.neutral[700] : colors.neutral[200],
             shadowColor: "#000",
-            shadowOffset: { width: 0, height: -2 },
-            shadowOpacity: 0.08,
-            shadowRadius: 3,
-            elevation: 4,
+            shadowOffset: { width: 0, height: -4 },
+            shadowOpacity: isDark ? 0.3 : 0.07,
+            shadowRadius: 8,
+            elevation: 10,
           },
         ]}
       >
-        <Text style={[styles.expandedSubTitle, { color: isDark ? colors.neutral[200] : colors.neutral[800] }]}>
-          Evaluator Verdict & Remarks for {activeApplicant.name}:
-        </Text>
-        <View style={{ flexDirection: 'row', gap: SPACING[8], marginVertical: SPACING[6] }}>
-          <Pressable
-            style={[
-              styles.evalStatusBtn,
-              (activeApplicant.status === 'Complete' || !activeApplicant.status) && { backgroundColor: isDark ? '#14532D' : '#DCFCE7', borderColor: '#166534' }
-            ]}
-            onPress={() => handleSetStatus(activeIdx, 'Complete')}
-          >
-            <Text style={[styles.evalStatusBtnText, { color: (activeApplicant.status === 'Complete' || !activeApplicant.status) ? '#166534' : colors.neutral[500] }]}>
-              ✓ Complete
-            </Text>
-          </Pressable>
+        {/* Accent stripe at top */}
+        <View style={[styles.evalAccentStripe, {
+          backgroundColor: activeApplicant.status === 'Incomplete'
+            ? '#EF4444'
+            : activeApplicant.status === 'ForEndorsement'
+              ? '#A855F7'
+              : '#22C55E',
+        }]} />
 
-          <Pressable
-            style={[
-              styles.evalStatusBtn,
-              activeApplicant.status === 'Incomplete' && { backgroundColor: isDark ? '#7F1D1D' : '#FEE2E2', borderColor: '#991B1B' }
-            ]}
-            onPress={() => handleSetStatus(activeIdx, 'Incomplete')}
-          >
-            <Text style={[styles.evalStatusBtnText, { color: activeApplicant.status === 'Incomplete' ? '#991B1B' : colors.neutral[500] }]}>
-              ✕ Incomplete
+        <View style={styles.evalDockRow}>
+          {/* Left — Verdict chips */}
+          <View style={styles.evalDockLeft}>
+            <Text style={[styles.evalDockLabel, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
+              VERDICT — {activeApplicant.name.split(' ')[0].toUpperCase()}
             </Text>
-          </Pressable>
+            <View style={styles.evalChipRow}>
+              {/* Complete chip */}
+              <Pressable
+                style={[
+                  styles.evalChip,
+                  {
+                    backgroundColor: (activeApplicant.status === 'Complete' || !activeApplicant.status)
+                      ? (isDark ? '#14532D' : '#DCFCE7')
+                      : (isDark ? colors.neutral[800] : colors.neutral[100]),
+                    borderColor: (activeApplicant.status === 'Complete' || !activeApplicant.status)
+                      ? '#22C55E'
+                      : (isDark ? colors.neutral[700] : colors.neutral[200]),
+                  }
+                ]}
+                onPress={() => handleSetStatus(activeIdx, 'Complete')}
+              >
+                <Lucide
+                  name="check-circle"
+                  size={13}
+                  color={(activeApplicant.status === 'Complete' || !activeApplicant.status) ? '#22C55E' : (isDark ? colors.neutral[500] : colors.neutral[400])}
+                />
+                <Text style={[styles.evalChipText, {
+                  color: (activeApplicant.status === 'Complete' || !activeApplicant.status)
+                    ? '#16A34A'
+                    : (isDark ? colors.neutral[400] : colors.neutral[500]),
+                  fontWeight: (activeApplicant.status === 'Complete' || !activeApplicant.status) ? TYPOGRAPHY.weights.bold : TYPOGRAPHY.weights.medium,
+                }]}>Complete</Text>
+              </Pressable>
 
-          <Pressable
-            style={[
-              styles.evalStatusBtn,
-              activeApplicant.status === 'ForEndorsement' && { backgroundColor: isDark ? '#581C87' : '#F3E8FF', borderColor: '#6B21A8' }
-            ]}
-            onPress={() => handleSetStatus(activeIdx, 'ForEndorsement')}
-          >
-            <Text style={[styles.evalStatusBtnText, { color: activeApplicant.status === 'ForEndorsement' ? '#6B21A8' : colors.neutral[500] }]}>
-              ⚡ For Endorsement
+              {/* Incomplete chip */}
+              <Pressable
+                style={[
+                  styles.evalChip,
+                  {
+                    backgroundColor: activeApplicant.status === 'Incomplete'
+                      ? (isDark ? '#7F1D1D' : '#FEE2E2')
+                      : (isDark ? colors.neutral[800] : colors.neutral[100]),
+                    borderColor: activeApplicant.status === 'Incomplete'
+                      ? '#EF4444'
+                      : (isDark ? colors.neutral[700] : colors.neutral[200]),
+                  }
+                ]}
+                onPress={() => handleSetStatus(activeIdx, 'Incomplete')}
+              >
+                <Lucide
+                  name="x-circle"
+                  size={13}
+                  color={activeApplicant.status === 'Incomplete' ? '#EF4444' : (isDark ? colors.neutral[500] : colors.neutral[400])}
+                />
+                <Text style={[styles.evalChipText, {
+                  color: activeApplicant.status === 'Incomplete'
+                    ? '#DC2626'
+                    : (isDark ? colors.neutral[400] : colors.neutral[500]),
+                  fontWeight: activeApplicant.status === 'Incomplete' ? TYPOGRAPHY.weights.bold : TYPOGRAPHY.weights.medium,
+                }]}>Incomplete</Text>
+              </Pressable>
+
+              {/* For Endorsement chip */}
+              <Pressable
+                style={[
+                  styles.evalChip,
+                  {
+                    backgroundColor: activeApplicant.status === 'ForEndorsement'
+                      ? (isDark ? '#3B0764' : '#F3E8FF')
+                      : (isDark ? colors.neutral[800] : colors.neutral[100]),
+                    borderColor: activeApplicant.status === 'ForEndorsement'
+                      ? '#A855F7'
+                      : (isDark ? colors.neutral[700] : colors.neutral[200]),
+                  }
+                ]}
+                onPress={() => handleSetStatus(activeIdx, 'ForEndorsement')}
+              >
+                <Lucide
+                  name="send"
+                  size={12}
+                  color={activeApplicant.status === 'ForEndorsement' ? '#A855F7' : (isDark ? colors.neutral[500] : colors.neutral[400])}
+                />
+                <Text style={[styles.evalChipText, {
+                  color: activeApplicant.status === 'ForEndorsement'
+                    ? '#9333EA'
+                    : (isDark ? colors.neutral[400] : colors.neutral[500]),
+                  fontWeight: activeApplicant.status === 'ForEndorsement' ? TYPOGRAPHY.weights.bold : TYPOGRAPHY.weights.medium,
+                }]}>For Endorsement</Text>
+              </Pressable>
+            </View>
+          </View>
+
+          {/* Divider */}
+          <View style={[styles.evalDockDivider, { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[200] }]} />
+
+          {/* Right — Remarks */}
+          <View style={styles.evalDockRight}>
+            <Text style={[styles.evalDockLabel, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
+              REMARKS
             </Text>
-          </Pressable>
+            <TextInput
+              style={[styles.remarksInputCompact, {
+                color: isDark ? colors.neutral[100] : colors.neutral[900],
+                backgroundColor: isDark ? colors.neutral[800] : colors.neutral[50],
+                borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
+              }]}
+              placeholder="Add notes or remarks..."
+              placeholderTextColor={isDark ? colors.neutral[600] : colors.neutral[400]}
+              value={activeApplicant.evaluationRemarks ?? ''}
+              onChangeText={(text) => handleSetRemarks(activeIdx, text)}
+              multiline
+              numberOfLines={2}
+            />
+          </View>
         </View>
-
-        <TextInput
-          style={[styles.remarksInput, { color: isDark ? colors.neutral[100] : colors.neutral[900], backgroundColor: isDark ? colors.neutral[900] : COLORS.neutral.white, borderColor: isDark ? colors.neutral[700] : colors.neutral[300] }]}
-          placeholder="Enter evaluation remarks for this applicant..."
-          placeholderTextColor={isDark ? colors.neutral[500] : colors.neutral[400]}
-          value={activeApplicant.evaluationRemarks ?? ''}
-          onChangeText={(text) => handleSetRemarks(activeIdx, text)}
-        />
       </View>
     )}
   </View>
@@ -3078,9 +3155,69 @@ const styles = StyleSheet.create({
   },
   evaluatorControlBoxSticky: {
     paddingHorizontal: SPACING[16],
-    paddingVertical: SPACING[10],
+    paddingTop: 0,
+    paddingBottom: SPACING[10],
     borderTopWidth: 1,
     zIndex: 10,
+    overflow: 'hidden',
+  },
+  evalAccentStripe: {
+    height: 3,
+    borderRadius: 2,
+    marginBottom: SPACING[8],
+    marginHorizontal: -SPACING[16],
+  },
+  evalDockRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: SPACING[12],
+  },
+  evalDockLeft: {
+    flex: 1,
+  },
+  evalDockRight: {
+    flex: 1,
+  },
+  evalDockDivider: {
+    width: 1,
+    alignSelf: 'stretch',
+    marginVertical: SPACING[4],
+  },
+  evalDockLabel: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 9,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    letterSpacing: 0.8,
+    marginBottom: SPACING[4],
+    textTransform: 'uppercase' as const,
+  },
+  evalChipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap' as const,
+    gap: SPACING[4],
+  },
+  evalChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING[4],
+    paddingHorizontal: SPACING[8],
+    paddingVertical: SPACING[4],
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  evalChipText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+  },
+  remarksInputCompact: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    borderWidth: 1,
+    borderRadius: RADIUS.input,
+    paddingHorizontal: SPACING[10],
+    paddingVertical: SPACING[6],
+    minHeight: 44,
+    textAlignVertical: 'top' as const,
   },
 
   // Master-Detail Split Workspace styles
