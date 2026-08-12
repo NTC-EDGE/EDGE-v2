@@ -49,8 +49,8 @@ public class ReturnSoaCommandHandler : IRequestHandler<ReturnSoaCommand, ApiResp
                 staffName = $"{user.FirstName} {user.LastName}".Trim();
                 if (string.IsNullOrEmpty(staffName)) staffName = user.Email;
 
-                var memberRole = user.TenantMemberships.FirstOrDefault()?.Role?.Name 
-                              ?? user.TenantMemberships.FirstOrDefault()?.Position;
+                var memberRole = user.TenantMemberships?.FirstOrDefault()?.Role?.Name 
+                              ?? user.TenantMemberships?.FirstOrDefault()?.Position;
                 if (!string.IsNullOrWhiteSpace(memberRole))
                 {
                     staffRole = memberRole;
