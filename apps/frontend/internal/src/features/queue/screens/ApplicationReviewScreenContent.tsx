@@ -24,6 +24,7 @@ import {
 import {
   ApplicationData,
   ApplicationFormAttachment,
+  ApplicantItem,
 } from "../../../types/application";
 import { useRole } from "../../shell/context/RoleContext";
 import { usePermissions } from "../../shell/context/PermissionContext";
@@ -262,12 +263,14 @@ function BasicInfoTab({
   isEditable,
   updateApplication,
   selectedApplicantIndex,
+  onSelectApplicantIndex,
   onInspectApplicant,
 }: {
   app: ApplicationData;
   isEditable: boolean;
   updateApplication: (id: string, patch: Partial<ApplicationData>) => void;
   selectedApplicantIndex?: number;
+  onSelectApplicantIndex?: (index: number) => void;
   onInspectApplicant?: (index: number) => void;
 }) {
   const { colors, isDark } = useTheme();
@@ -285,7 +288,27 @@ function BasicInfoTab({
   const [fnDraft, setFnDraft] = useState(app.basicInfo.firstName);
   const [mnDraft, setMnDraft] = useState(app.basicInfo.middleName);
   const [dobDraft, setDobDraft] = useState(app.basicInfo.dob);
-  const [expandedApplicantIndex, setExpandedApplicantIndex] = useState<number | null>(null);
+  const [localApplicants, setLocalApplicants] = useState<ApplicantItem[]>(app.applicantsList ?? []);
+
+  useEffect(() => {
+    if (app.applicantsList) {
+      setLocalApplicants(app.applicantsList);
+    }
+  }, [app.applicantsList]);
+
+  const handleSetStatus = (idx: number, newStatus: 'Complete' | 'Incomplete' | 'ForEndorsement') => {
+    const updated = [...localApplicants];
+    updated[idx] = { ...updated[idx], status: newStatus };
+    setLocalApplicants(updated);
+    updateApplication(app.id, { applicantsList: updated });
+  };
+
+  const handleSetRemarks = (idx: number, text: string) => {
+    const updated = [...localApplicants];
+    updated[idx] = { ...updated[idx], evaluationRemarks: text };
+    setLocalApplicants(updated);
+    updateApplication(app.id, { applicantsList: updated });
+  };
 
   const statusStyle = getStatusStyle(app.status);
 
@@ -351,7 +374,7 @@ function BasicInfoTab({
         />
       </View>
 
-      {app.applicationType === 'BULK' && app.applicantsList && app.applicantsList.length > 0 ? (
+      {app.applicationType === 'BULK' && localApplicants.length > 0 ? (
         <>
           {app.filingUser && (
             <>
@@ -377,19 +400,19 @@ function BasicInfoTab({
             </>
           )}
 
-          <SectionHeader title={`APPLICANTS BATCH WORKSPACE (${app.applicantsList.length} APPLICANTS)`} />
+          <SectionHeader title={`APPLICANTS BATCH WORKSPACE (${localApplicants.length} APPLICANTS)`} />
           <View style={styles.masterDetailWrapper}>
             {/* Left Sidebar: Applicant Cards List */}
             <View style={[styles.rosterSidebarContainer, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50], borderColor: isDark ? colors.neutral[700] : colors.neutral[200] }]}>
               <View style={[styles.rosterSidebarHeader, { borderBottomColor: isDark ? colors.neutral[700] : colors.neutral[200] }]}>
                 <Lucide name="users" size={14} color={isDark ? colors.brand[400] : colors.brand[700]} />
                 <Text style={[styles.rosterSidebarTitleText, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>
-                  Applicants List ({app.applicantsList.length})
+                  Applicants List ({localApplicants.length})
                 </Text>
               </View>
 
               <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-                {app.applicantsList.map((item, idx) => {
+                {localApplicants.map((item, idx) => {
                   const isSelected = (selectedApplicantIndex ?? 0) === idx;
                   return (
                     <Pressable
@@ -399,7 +422,7 @@ function BasicInfoTab({
                         { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[200] },
                         isSelected && { backgroundColor: isDark ? colors.brand[900] : colors.brand[50], borderLeftWidth: 4, borderLeftColor: colors.brand[500] }
                       ]}
-                      onPress={() => onInspectApplicant?.(idx)}
+                      onPress={() => onSelectApplicantIndex?.(idx)}
                     >
                       <View style={styles.rosterCardTop}>
                         <Text style={[styles.rosterCardIndex, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>#{idx + 1}</Text>
@@ -433,9 +456,11 @@ function BasicInfoTab({
 
             {/* Right Pane: Active Applicant Focus Workspace */}
             {(() => {
-              const activeIdx = Math.min(selectedApplicantIndex ?? 0, app.applicantsList.length - 1);
-              const activeApplicant = app.applicantsList[activeIdx] || app.applicantsList[0];
-              const bi = activeApplicant.basicInfo;
+              const activeIdx = Math.min(selectedApplicantIndex ?? 0, localApplicants.length - 1);
+              const activeApplicant = localApplicants[activeIdx] || localApplicants[0];
+              const bi = activeApplicant?.basicInfo;
+
+              if (!activeApplicant) return null;
 
               return (
                 <View style={[styles.focusWorkspacePane, { backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white, borderColor: isDark ? colors.neutral[700] : colors.neutral[200] }]}>
@@ -443,7 +468,7 @@ function BasicInfoTab({
                   <View style={[styles.focusNavHeader, { borderBottomColor: isDark ? colors.neutral[700] : colors.neutral[200], backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50] }]}>
                     <Pressable
                       disabled={activeIdx === 0}
-                      onPress={() => onInspectApplicant?.(Math.max(0, activeIdx - 1))}
+                      onPress={() => onSelectApplicantIndex?.(Math.max(0, activeIdx - 1))}
                       style={[styles.focusNavBtn, activeIdx === 0 && { opacity: 0.3 }]}
                     >
                       <Lucide name="chevron-left" size={14} color={isDark ? colors.brand[400] : colors.brand[800]} />
@@ -452,7 +477,7 @@ function BasicInfoTab({
 
                     <View style={styles.focusNavTitleBox}>
                       <Text style={[styles.focusNavSub, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
-                        Applicant {activeIdx + 1} of {app.applicantsList.length}:
+                        Applicant {activeIdx + 1} of {localApplicants.length}:
                       </Text>
                       <Text style={[styles.focusNavTitle, { color: isDark ? colors.brand[300] : colors.brand[900] }]}>
                         {activeApplicant.name}
@@ -460,9 +485,9 @@ function BasicInfoTab({
                     </View>
 
                     <Pressable
-                      disabled={activeIdx >= ((app.applicantsList?.length ?? 0) - 1)}
-                      onPress={() => onInspectApplicant?.(Math.min((app.applicantsList?.length ?? 0) - 1, activeIdx + 1))}
-                      style={[styles.focusNavBtn, activeIdx >= ((app.applicantsList?.length ?? 0) - 1) && { opacity: 0.3 }]}
+                      disabled={activeIdx >= (localApplicants.length - 1)}
+                      onPress={() => onSelectApplicantIndex?.(Math.min(localApplicants.length - 1, activeIdx + 1))}
+                      style={[styles.focusNavBtn, activeIdx >= (localApplicants.length - 1) && { opacity: 0.3 }]}
                     >
                       <Text style={[styles.focusNavBtnText, { color: isDark ? colors.brand[400] : colors.brand[800] }]}>Next</Text>
                       <Lucide name="chevron-right" size={14} color={isDark ? colors.brand[400] : colors.brand[800]} />
@@ -481,11 +506,7 @@ function BasicInfoTab({
                             styles.evalStatusBtn,
                             (activeApplicant.status === 'Complete' || !activeApplicant.status) && { backgroundColor: isDark ? '#14532D' : '#DCFCE7', borderColor: '#166534' }
                           ]}
-                          onPress={() => {
-                            const updated = [...app.applicantsList!];
-                            updated[activeIdx] = { ...updated[activeIdx], status: 'Complete' };
-                            updateApplication(app.id, { applicantsList: updated });
-                          }}
+                          onPress={() => handleSetStatus(activeIdx, 'Complete')}
                         >
                           <Text style={[styles.evalStatusBtnText, { color: (activeApplicant.status === 'Complete' || !activeApplicant.status) ? '#166534' : colors.neutral[500] }]}>
                             ✓ Complete
@@ -497,11 +518,7 @@ function BasicInfoTab({
                             styles.evalStatusBtn,
                             activeApplicant.status === 'Incomplete' && { backgroundColor: isDark ? '#7F1D1D' : '#FEE2E2', borderColor: '#991B1B' }
                           ]}
-                          onPress={() => {
-                            const updated = [...app.applicantsList!];
-                            updated[activeIdx] = { ...updated[activeIdx], status: 'Incomplete' };
-                            updateApplication(app.id, { applicantsList: updated });
-                          }}
+                          onPress={() => handleSetStatus(activeIdx, 'Incomplete')}
                         >
                           <Text style={[styles.evalStatusBtnText, { color: activeApplicant.status === 'Incomplete' ? '#991B1B' : colors.neutral[500] }]}>
                             ✕ Incomplete
@@ -513,11 +530,7 @@ function BasicInfoTab({
                             styles.evalStatusBtn,
                             activeApplicant.status === 'ForEndorsement' && { backgroundColor: isDark ? '#581C87' : '#F3E8FF', borderColor: '#6B21A8' }
                           ]}
-                          onPress={() => {
-                            const updated = [...app.applicantsList!];
-                            updated[activeIdx] = { ...updated[activeIdx], status: 'ForEndorsement' };
-                            updateApplication(app.id, { applicantsList: updated });
-                          }}
+                          onPress={() => handleSetStatus(activeIdx, 'ForEndorsement')}
                         >
                           <Text style={[styles.evalStatusBtnText, { color: activeApplicant.status === 'ForEndorsement' ? '#6B21A8' : colors.neutral[500] }]}>
                             ⚡ For Endorsement
@@ -530,11 +543,7 @@ function BasicInfoTab({
                         placeholder="Enter evaluation remarks for this applicant..."
                         placeholderTextColor={isDark ? colors.neutral[500] : colors.neutral[400]}
                         value={activeApplicant.evaluationRemarks ?? ''}
-                        onChangeText={(text) => {
-                          const updated = [...app.applicantsList!];
-                          updated[activeIdx] = { ...updated[activeIdx], evaluationRemarks: text };
-                          updateApplication(app.id, { applicantsList: updated });
-                        }}
+                        onChangeText={(text) => handleSetRemarks(activeIdx, text)}
                       />
                     </View>
 
@@ -581,7 +590,7 @@ function BasicInfoTab({
                           2. Completed Service Form Field Values
                         </Text>
                         <View style={styles.infoBlock}>
-                          {activeApplicant.formFields.map(ff => (
+                          {activeApplicant.formFields.map((ff: { fieldId: string; fieldLabel: string; value?: string }) => (
                             <InfoRow key={ff.fieldId} label={`${ff.fieldLabel}:`} value={ff.value || '—'} />
                           ))}
                         </View>
@@ -1787,6 +1796,7 @@ export function ApplicationReviewScreenContent({
           isEditable={isEditable}
           updateApplication={updateApplication}
           selectedApplicantIndex={selectedApplicantIndex}
+          onSelectApplicantIndex={(idx) => setSelectedApplicantIndex(idx)}
           onInspectApplicant={(idx) => {
             setSelectedApplicantIndex(idx);
             setInnerTab("details");
