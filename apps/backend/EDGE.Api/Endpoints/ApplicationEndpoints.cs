@@ -24,6 +24,13 @@ using EDGE.Application.Applications.Queries.GetAllApplications;
 using EDGE.Application.Applications.Queries.GetApplicationById;
 using EDGE.Application.Applications.Queries.GetApplicationsByApplicant;
 using EDGE.Application.Applications.Queries.GetDraftApplications;
+using EDGE.Application.Applications.Commands.CreateSoa;
+using EDGE.Application.Applications.Commands.ApproveSoa;
+using EDGE.Application.Applications.Commands.ReturnSoa;
+using EDGE.Application.Applications.Commands.VerifyPayment;
+using EDGE.Application.Applications.Commands.ReturnOp;
+using EDGE.Application.Applications.Commands.TogglePinApplication;
+using EDGE.Application.Applications.Commands.ToggleArchiveApplication;
 
 using EDGE.Domain.Enums;
 using Microsoft.AspNetCore.Mvc;
@@ -74,6 +81,21 @@ public static class ApplicationEndpoints
             .WithName("UpdateApplicationStatus")
             .WithSummary("Update application status")
             .WithDescription("Updates status of the application (e.g. UnderEvaluation, Approved) and logs history.");
+
+        group.MapPatch("/{id:guid}/evaluate", EvaluateApplicationEndpoint)
+            .WithName("EvaluateApplication")
+            .WithSummary("Evaluate application")
+            .WithDescription("Transitions application status to Evaluating and logs status history.");
+
+        group.MapPatch("/{id:guid}/pin", TogglePinApplicationEndpoint)
+            .WithName("TogglePinApplication")
+            .WithSummary("Toggle pin status")
+            .WithDescription("Pins or unpins an application for top-of-feed display.");
+
+        group.MapPatch("/{id:guid}/archive", ToggleArchiveApplicationEndpoint)
+            .WithName("ToggleArchiveApplication")
+            .WithSummary("Toggle archive status")
+            .WithDescription("Archives or unarchives an application.");
 
         group.MapDelete("/{id:guid}", DeleteDraftApplication)
             .WithName("DeleteDraftApplication")
@@ -136,6 +158,36 @@ public static class ApplicationEndpoints
             .WithName("GetServiceCsvTemplate")
             .WithSummary("Get service CSV import template")
             .WithDescription("Downloads the CSV file template format matching the required input schema for the specified service.");
+
+        // New endpoints for SOA & OP
+        group.MapPost("/{id:guid}/soas", CreateSoa)
+            .WithName("CreateSoa")
+            .WithSummary("Create Statement of Account")
+            .WithDescription("Generates an SOA for the given application.");
+
+        app.MapPatch("/api/v2/soas/{soaId:guid}/approve", ApproveSoa)
+            .WithTags("Application")
+            .WithName("ApproveSoa")
+            .WithSummary("Approve SOA")
+            .WithDescription("Approves the SOA and generates an Order of Payment.");
+
+        app.MapPatch("/api/v2/soas/{soaId:guid}/return", ReturnSoa)
+            .WithTags("Application")
+            .WithName("ReturnSoa")
+            .WithSummary("Return SOA")
+            .WithDescription("Returns a pending SOA back to evaluator.");
+
+        app.MapPatch("/api/v2/ops/{opId:guid}/verify-payment", VerifyPayment)
+            .WithTags("Application")
+            .WithName("VerifyPayment")
+            .WithSummary("Verify OP Payment")
+            .WithDescription("Marks Order of Payment as Paid and completes application.");
+
+        app.MapPatch("/api/v2/ops/{opId:guid}/return", ReturnOp)
+            .WithTags("Application")
+            .WithName("ReturnOp")
+            .WithSummary("Return OP")
+            .WithDescription("Returns an Order of Payment.");
 
         return app;
     }
@@ -324,5 +376,93 @@ public static class ApplicationEndpoints
         return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
     }
 
+    [HasPermission(Permissions.UpdateApplication)]
+    public static async Task<IResult> CreateSoa(Guid id, CreateSoaCommand command, IMediator mediator)
+    {
+        var cmd = command with { ApplicationId = id };
+        var result = await mediator.Send(cmd);
+        if (!result.Succeeded) return Results.BadRequest(result);
+        return Results.Created($"/api/v2/soas/{result.Data}", result);
+    }
+
+    [HasPermission(Permissions.EvaluateApplication)]
+    public static async Task<IResult> ApproveSoa(Guid soaId, ApproveSoaCommand command, IMediator mediator)
+    {
+        var result = await mediator.Send(command with { SoaId = soaId });
+        if (!result.Succeeded) return Results.BadRequest(result);
+        return Results.Ok(result);
+    }
+
+    [HasPermission(Permissions.EvaluateApplication)]
+    public static async Task<IResult> ReturnSoa(Guid soaId, ReturnSoaCommand command, IMediator mediator)
+    {
+        var result = await mediator.Send(command with { SoaId = soaId });
+        if (!result.Succeeded) return Results.BadRequest(result);
+        return Results.Ok(result);
+    }
+
+    [HasPermission(Permissions.EvaluateApplication)]
+    public static async Task<IResult> VerifyPayment(Guid opId, VerifyPaymentCommand command, IMediator mediator)
+    {
+        var result = await mediator.Send(command with { OpId = opId });
+        if (!result.Succeeded) return Results.BadRequest(result);
+        return Results.Ok(result);
+    }
+
+    [HasPermission(Permissions.EvaluateApplication)]
+    public static async Task<IResult> ReturnOp(Guid opId, ReturnOpCommand command, IMediator mediator)
+    {
+        var result = await mediator.Send(command with { OpId = opId });
+        if (!result.Succeeded) return Results.BadRequest(result);
+        return Results.Ok(result);
+    }
+
+    [HasPermission(Permissions.EvaluateApplication)]
+    public static async Task<IResult> TogglePinApplicationEndpoint(
+        Guid id,
+        [FromBody] TogglePinRequest? request,
+        IMediator mediator,
+        CancellationToken cancellationToken)
+    {
+        var command = new TogglePinApplicationCommand(id, request?.IsPinned);
+        var result = await mediator.Send(command, cancellationToken);
+        if (!result.Succeeded) return Results.BadRequest(result);
+        return Results.Ok(result);
+    }
+
+    [HasPermission(Permissions.EvaluateApplication)]
+    public static async Task<IResult> ToggleArchiveApplicationEndpoint(
+        Guid id,
+        [FromBody] ToggleArchiveRequest? request,
+        IMediator mediator,
+        CancellationToken cancellationToken)
+    {
+        var command = new ToggleArchiveApplicationCommand(id, request?.IsArchived);
+        var result = await mediator.Send(command, cancellationToken);
+        if (!result.Succeeded) return Results.BadRequest(result);
+        return Results.Ok(result);
+    }
+
+    [HasPermission(Permissions.EvaluateApplication)]
+    public static async Task<IResult> EvaluateApplicationEndpoint(
+        Guid id,
+        [FromBody] EvaluateApplicationRequest? request,
+        IMediator mediator,
+        CancellationToken cancellationToken)
+    {
+        var command = new UpdateApplicationStatusCommand
+        {
+            Id = id,
+            Status = ApplicationStatus.Evaluating.ToString(),
+            Remarks = request?.Remarks ?? "Started evaluation process."
+        };
+        var result = await mediator.Send(command, cancellationToken);
+        if (!result.Succeeded) return Results.BadRequest(result);
+        return Results.Ok(result);
+    }
 }
+
+public record TogglePinRequest(bool? IsPinned);
+public record ToggleArchiveRequest(bool? IsArchived);
+public record EvaluateApplicationRequest(string? Remarks);
 

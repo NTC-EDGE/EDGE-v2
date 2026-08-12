@@ -44,9 +44,11 @@ public class UpdateApplicationStatusCommandHandler : IRequestHandler<UpdateAppli
         Guid? actingUserId = null;
         if (!string.IsNullOrEmpty(currentUserIdStr))
         {
-            actingUserId = Guid.TryParse(currentUserIdStr, out var parsed)
-                ? parsed
-                : CreateGuidFromString(currentUserIdStr);
+            var parsed = Guid.TryParse(currentUserIdStr, out var g) ? g : CreateGuidFromString(currentUserIdStr);
+            if (await _applicationRepository.UserExistsAsync(parsed, cancellationToken))
+            {
+                actingUserId = parsed;
+            }
         }
 
         app.Status = newStatus;

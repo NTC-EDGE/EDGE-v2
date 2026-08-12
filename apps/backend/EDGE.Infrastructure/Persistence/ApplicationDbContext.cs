@@ -80,6 +80,14 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
     public DbSet<StoredFile> StoredFiles => Set<StoredFile>();
     public DbSet<ApplicationStatusHistory> ApplicationStatusHistories => Set<ApplicationStatusHistory>();
 
+    public DbSet<StatementOfAccount> StatementsOfAccount => Set<StatementOfAccount>();
+    public DbSet<SoaLineItem> SoaLineItems => Set<SoaLineItem>();
+    public DbSet<OrderOfPayment> OrdersOfPayment => Set<OrderOfPayment>();
+    public DbSet<ApplicationHistory> ApplicationHistories => Set<ApplicationHistory>();
+    public DbSet<SoaHistory> SoaHistories => Set<SoaHistory>();
+    public DbSet<OpHistory> OpHistories => Set<OpHistory>();
+    public DbSet<CorrectionAuditTrail> CorrectionAuditTrails => Set<CorrectionAuditTrail>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -342,6 +350,15 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
                   .OnDelete(DeleteBehavior.Restrict);
         });
 
+        modelBuilder.Entity<User>(entity =>
+        {
+            entity.Property(e => e.AccountType).HasConversion<string>();
+            entity.HasOne(u => u.CompanyDetail)
+                  .WithMany()
+                  .HasForeignKey(u => u.CompanyDetailId)
+                  .OnDelete(DeleteBehavior.SetNull);
+        });
+
         modelBuilder.Entity<Applicant>(entity =>
         {
             entity.Property(e => e.ApplicantType).HasConversion<string>();
@@ -600,6 +617,28 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
                   .WithMany(sv => sv.ServiceVariantRequirements)
                   .HasForeignKey(e => e.ServiceVariantId)
                   .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Domain Composite Entities configuration
+        modelBuilder.Entity<StatementOfAccount>(entity =>
+        {
+            entity.Property(e => e.TotalAmount).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.Status).HasConversion<string>();
+            entity.Property(e => e.IssuedToType).HasConversion<string>();
+        });
+
+        modelBuilder.Entity<SoaLineItem>(entity =>
+        {
+            entity.Property(e => e.FeeRate).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.Amount).HasColumnType("decimal(18,2)");
+        });
+
+        modelBuilder.Entity<OrderOfPayment>(entity =>
+        {
+            entity.Property(e => e.AmountDue).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.AmountReceived).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.Status).HasConversion<string>();
+            entity.Property(e => e.PaymentMethod).HasConversion<string>();
         });
     }
 

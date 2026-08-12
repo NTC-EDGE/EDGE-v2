@@ -310,6 +310,49 @@ namespace EDGE.Infrastructure.Migrations
                     b.ToTable("ApplicationApplicants", "public");
                 });
 
+            modelBuilder.Entity("EDGE.Domain.Entities.ApplicationHistory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ApplicationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int?>("FromStatus")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("PerformedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Remarks")
+                        .HasColumnType("text");
+
+                    b.Property<string>("StaffName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("StaffRole")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("Timestamp")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("ToStatus")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApplicationId");
+
+                    b.ToTable("ApplicationHistories", "public");
+                });
+
             modelBuilder.Entity("EDGE.Domain.Entities.ApplicationRequirement", b =>
                 {
                     b.Property<Guid>("Id")
@@ -542,7 +585,7 @@ namespace EDGE.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<Guid>("BarangayId")
+                    b.Property<Guid?>("BarangayId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("ContactNumber")
@@ -589,6 +632,45 @@ namespace EDGE.Infrastructure.Migrations
                     b.HasIndex("BarangayId");
 
                     b.ToTable("CompanyDetails", "public");
+                });
+
+            modelBuilder.Entity("EDGE.Domain.Entities.CorrectionAuditTrail", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ApplicationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CorrectedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CorrectedByStaff")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("FieldName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("NewValue")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("OldValue")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApplicationId");
+
+                    b.ToTable("CorrectionAuditTrails", "public");
                 });
 
             modelBuilder.Entity("EDGE.Domain.Entities.DocumentType", b =>
@@ -1268,6 +1350,133 @@ namespace EDGE.Infrastructure.Migrations
                     b.ToTable("NotificationTemplates", "public");
                 });
 
+            modelBuilder.Entity("EDGE.Domain.Entities.OpHistory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int?>("FromStatus")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("OfficialReceiptNumber")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("OrderOfPaymentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("PerformedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Remarks")
+                        .HasColumnType("text");
+
+                    b.Property<string>("StaffName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("StaffRole")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("Timestamp")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("ToStatus")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrderOfPaymentId");
+
+                    b.ToTable("OpHistories", "public");
+                });
+
+            modelBuilder.Entity("EDGE.Domain.Entities.OrderOfPayment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("AmountDue")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("AmountReceived")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<Guid>("ApplicationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CheckBank")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("CheckDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CheckName")
+                        .HasColumnType("text");
+
+                    b.Property<string>("CheckNumber")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("IsDeletedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("OfficialReceiptNumber")
+                        .HasColumnType("text");
+
+                    b.Property<string>("OpNumber")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("PaidAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PaymentMethod")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Remarks")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("StatementOfAccountId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("VerifiedByCashierId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApplicationId");
+
+                    b.HasIndex("StatementOfAccountId");
+
+                    b.ToTable("OrdersOfPayment", "public");
+                });
+
             modelBuilder.Entity("EDGE.Domain.Entities.Province", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1935,6 +2144,171 @@ namespace EDGE.Infrastructure.Migrations
                     b.ToTable("ServiceVariantRequirements", "public");
                 });
 
+            modelBuilder.Entity("EDGE.Domain.Entities.SoaHistory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int?>("FromStatus")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("PerformedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Remarks")
+                        .HasColumnType("text");
+
+                    b.Property<string>("StaffName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("StaffRole")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("StatementOfAccountId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("Timestamp")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("ToStatus")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StatementOfAccountId");
+
+                    b.ToTable("SoaHistories", "public");
+                });
+
+            modelBuilder.Entity("EDGE.Domain.Entities.SoaLineItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text");
+
+                    b.Property<decimal>("FeeRate")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("ItemCode")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("NoOfUnits")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Particular")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("PeriodOfCoverageEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("PeriodOfCoverageStart")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("StatementOfAccountId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ValidityYears")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StatementOfAccountId");
+
+                    b.ToTable("SoaLineItems", "public");
+                });
+
+            modelBuilder.Entity("EDGE.Domain.Entities.StatementOfAccount", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ApplicantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ApplicationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ApprovedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ApprovedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("DueDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("IsDeletedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("IssuedToAddress")
+                        .HasColumnType("text");
+
+                    b.Property<string>("IssuedToName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("IssuedToType")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("PreparedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Remarks")
+                        .HasColumnType("text");
+
+                    b.Property<string>("SoaNumber")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<decimal>("TotalAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApplicantId");
+
+                    b.HasIndex("ApplicationId");
+
+                    b.ToTable("StatementsOfAccount", "public");
+                });
+
             modelBuilder.Entity("EDGE.Domain.Entities.StoredFile", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2285,11 +2659,18 @@ namespace EDGE.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("AccountType")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<string>("AuthUserId")
                         .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<Guid?>("BarangayId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("CompanyDetailId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("ContactNumber")
@@ -2378,6 +2759,8 @@ namespace EDGE.Infrastructure.Migrations
                         .HasColumnType("text");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CompanyDetailId");
 
                     b.ToTable("Users", "public");
                 });
@@ -2478,6 +2861,17 @@ namespace EDGE.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Applicant");
+
+                    b.Navigation("Application");
+                });
+
+            modelBuilder.Entity("EDGE.Domain.Entities.ApplicationHistory", b =>
+                {
+                    b.HasOne("EDGE.Domain.Entities.Application", "Application")
+                        .WithMany("Histories")
+                        .HasForeignKey("ApplicationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("Application");
                 });
@@ -2594,10 +2988,20 @@ namespace EDGE.Infrastructure.Migrations
                     b.HasOne("EDGE.Domain.Entities.Barangay", "Barangay")
                         .WithMany()
                         .HasForeignKey("BarangayId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Barangay");
+                });
+
+            modelBuilder.Entity("EDGE.Domain.Entities.CorrectionAuditTrail", b =>
+                {
+                    b.HasOne("EDGE.Domain.Entities.Application", "Application")
+                        .WithMany("CorrectionAuditTrails")
+                        .HasForeignKey("ApplicationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Application");
                 });
 
             modelBuilder.Entity("EDGE.Domain.Entities.ExaminationSchedule", b =>
@@ -2739,6 +3143,36 @@ namespace EDGE.Infrastructure.Migrations
                     b.Navigation("Service");
 
                     b.Navigation("ServiceVariant");
+                });
+
+            modelBuilder.Entity("EDGE.Domain.Entities.OpHistory", b =>
+                {
+                    b.HasOne("EDGE.Domain.Entities.OrderOfPayment", "OrderOfPayment")
+                        .WithMany("Histories")
+                        .HasForeignKey("OrderOfPaymentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("OrderOfPayment");
+                });
+
+            modelBuilder.Entity("EDGE.Domain.Entities.OrderOfPayment", b =>
+                {
+                    b.HasOne("EDGE.Domain.Entities.Application", "Application")
+                        .WithMany("OrdersOfPayment")
+                        .HasForeignKey("ApplicationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("EDGE.Domain.Entities.StatementOfAccount", "StatementOfAccount")
+                        .WithMany()
+                        .HasForeignKey("StatementOfAccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Application");
+
+                    b.Navigation("StatementOfAccount");
                 });
 
             modelBuilder.Entity("EDGE.Domain.Entities.Province", b =>
@@ -2949,6 +3383,45 @@ namespace EDGE.Infrastructure.Migrations
                     b.Navigation("ServiceVariant");
                 });
 
+            modelBuilder.Entity("EDGE.Domain.Entities.SoaHistory", b =>
+                {
+                    b.HasOne("EDGE.Domain.Entities.StatementOfAccount", "StatementOfAccount")
+                        .WithMany("Histories")
+                        .HasForeignKey("StatementOfAccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("StatementOfAccount");
+                });
+
+            modelBuilder.Entity("EDGE.Domain.Entities.SoaLineItem", b =>
+                {
+                    b.HasOne("EDGE.Domain.Entities.StatementOfAccount", "StatementOfAccount")
+                        .WithMany("LineItems")
+                        .HasForeignKey("StatementOfAccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("StatementOfAccount");
+                });
+
+            modelBuilder.Entity("EDGE.Domain.Entities.StatementOfAccount", b =>
+                {
+                    b.HasOne("EDGE.Domain.Entities.Applicant", "Applicant")
+                        .WithMany()
+                        .HasForeignKey("ApplicantId");
+
+                    b.HasOne("EDGE.Domain.Entities.Application", "Application")
+                        .WithMany("StatementsOfAccount")
+                        .HasForeignKey("ApplicationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Applicant");
+
+                    b.Navigation("Application");
+                });
+
             modelBuilder.Entity("EDGE.Domain.Entities.StoredFile", b =>
                 {
                     b.HasOne("EDGE.Domain.Entities.Tenant", "Tenant")
@@ -3005,6 +3478,16 @@ namespace EDGE.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("EDGE.Domain.Entities.User", b =>
+                {
+                    b.HasOne("EDGE.Domain.Entities.CompanyDetail", "CompanyDetail")
+                        .WithMany()
+                        .HasForeignKey("CompanyDetailId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("CompanyDetail");
+                });
+
             modelBuilder.Entity("EDGE.Domain.Entities.Application", b =>
                 {
                     b.Navigation("ApplicationApplicants");
@@ -3013,7 +3496,15 @@ namespace EDGE.Infrastructure.Migrations
 
                     b.Navigation("ApplicationServices");
 
+                    b.Navigation("CorrectionAuditTrails");
+
                     b.Navigation("FormSubmissions");
+
+                    b.Navigation("Histories");
+
+                    b.Navigation("OrdersOfPayment");
+
+                    b.Navigation("StatementsOfAccount");
                 });
 
             modelBuilder.Entity("EDGE.Domain.Entities.Fee", b =>
@@ -3044,6 +3535,11 @@ namespace EDGE.Infrastructure.Migrations
             modelBuilder.Entity("EDGE.Domain.Entities.Municipality", b =>
                 {
                     b.Navigation("Barangays");
+                });
+
+            modelBuilder.Entity("EDGE.Domain.Entities.OrderOfPayment", b =>
+                {
+                    b.Navigation("Histories");
                 });
 
             modelBuilder.Entity("EDGE.Domain.Entities.Province", b =>
@@ -3084,6 +3580,13 @@ namespace EDGE.Infrastructure.Migrations
                     b.Navigation("ServiceVariantElements");
 
                     b.Navigation("ServiceVariantRequirements");
+                });
+
+            modelBuilder.Entity("EDGE.Domain.Entities.StatementOfAccount", b =>
+                {
+                    b.Navigation("Histories");
+
+                    b.Navigation("LineItems");
                 });
 
             modelBuilder.Entity("EDGE.Domain.Entities.Tenant", b =>

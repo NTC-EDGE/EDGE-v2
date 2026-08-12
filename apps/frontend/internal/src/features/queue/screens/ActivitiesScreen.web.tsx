@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { StyleSheet, View, Animated, useWindowDimensions } from 'react-native';
-import { useTheme, PageHeader, AnimatedCard, SPACING } from '@edge/ui';
+import { useTheme, PageHeader, AnimatedCard, SPACING, AlertToast } from '@edge/ui';
 import { ApplicationProvider, useApplications } from '../context/ApplicationContext';
 import { ActivitiesFeedPane } from '../components/ActivitiesFeedPane';
 import { ApplicationReviewScreen } from './ApplicationReviewScreen';
@@ -9,7 +9,7 @@ import { ApplicationReviewScreen } from './ApplicationReviewScreen';
 
 function WebActivitiesContent() {
   const { colors, isDark } = useTheme();
-  const { selectedId, setSelectedId } = useApplications();
+  const { selectedId, setSelectedId, toast, dismissToast } = useApplications();
   const { width } = useWindowDimensions();
 
   const [isPanelCollapsed, setIsPanelCollapsed] = useState(false);
@@ -47,6 +47,15 @@ function WebActivitiesContent() {
 
   return (
     <View style={[styles.screen, { backgroundColor: canvasBg }]}>
+      {toast !== null && (
+        <View style={styles.toastContainer}>
+          <AlertToast
+            message={toast.message}
+            variant={toast.variant}
+            onDismiss={dismissToast}
+          />
+        </View>
+      )}
       {/* Page header — wide only; narrow relies on bottom nav + Feed card label for context */}
       {!isNarrow && (
         <View style={styles.headerWrapper}>
@@ -185,5 +194,11 @@ const styles = StyleSheet.create({
   cardNarrow: {
     borderRadius: 0,
     borderWidth: 0,
+  },
+  toastContainer: {
+    position: 'absolute',
+    top: 16,
+    right: 24,
+    zIndex: 999,
   },
 });

@@ -17,7 +17,7 @@ import {
   Icon as Lucide,
   useTheme,
 } from "@edge/ui";
-import { ApplicationData } from "../data/mockApplications";
+import { ApplicationData } from "../../../types/application";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -25,7 +25,7 @@ interface ActivityCardProps {
   application: ApplicationData;
   isActive: boolean;
   onPress: () => void;
-  onMenuAction: (action: "process" | "pin" | "archive", id: string) => void;
+  onMenuAction: (action: "evaluate" | "pin" | "archive", id: string) => void;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -42,13 +42,19 @@ function getAvatarInitials(name: string): string {
   return (parts[0]?.[0] ?? "?").toUpperCase();
 }
 
+function formatStatusDisplay(status: string): string {
+  const s = status.toLowerCase();
+  if (s === "submitted") return "FOR EVALUATION";
+  return status.toUpperCase();
+}
+
 function getStatusStyle(status: string): { bg: string; text: string } {
   const s = status.toLowerCase();
-  if (s === "completed" || s === "approved")  return { bg: COLORS.brand[800],          text: COLORS.neutral.white };
-  if (s === "for approval")                   return { bg: COLORS.semantic.warning,     text: COLORS.neutral.white };
-  if (s === "for verification")               return { bg: COLORS.semantic.info,        text: COLORS.neutral.white };
-  if (s === "returned" || s === "declined")   return { bg: COLORS.semantic.error,       text: COLORS.neutral.white };
-  if (s === "in process")                     return { bg: COLORS.brand.purple,         text: COLORS.neutral.white };
+  if (s === "completed" || s === "approved") return { bg: COLORS.brand[800],    text: COLORS.neutral.white };
+  if (s === "evaluating")                   return { bg: COLORS.semantic.warning, text: COLORS.neutral.white };
+  if (s === "submitted")                    return { bg: COLORS.semantic.info,    text: COLORS.neutral.white };
+  if (s === "returned")                     return { bg: COLORS.semantic.error,   text: COLORS.neutral.white };
+  if (s === "draft")                        return { bg: COLORS.neutral[400],    text: COLORS.neutral.white };
   return { bg: COLORS.neutral[200], text: COLORS.neutral[700] };
 }
 
@@ -85,7 +91,17 @@ export function ActivityCard({
   const menuBg         = isDark ? colors.neutral[800] : COLORS.neutral.white;
   const menuBorder     = isDark ? colors.neutral[700] : colors.neutral[200];
 
-  const initials    = getAvatarInitials(application.applicant);
+  const brandBg        = isDark ? colors.neutral[700] : '#EFF6FF';
+
+  const displayFilingName =
+    application.filingUser?.accountType === "Company"
+      ? (application.filingUser.company?.name || application.companyDetails?.name || application.filingUser.name || application.applicant)
+      : (application.filingUser?.name || application.applicant);
+
+  const displayAccountType =
+    application.filingUser?.accountType || application.applicantType;
+
+  const initials    = getAvatarInitials(displayFilingName);
   const statusStyle = getStatusStyle(application.status);
   const timestamp   = formatTimestamp(application.createdAt);
 
@@ -114,7 +130,7 @@ export function ActivityCard({
       {isActive && <View style={[styles.activeBar, { backgroundColor: brandColor }]} />}
 
       <View style={styles.cardContent}>
-        {/* Top row: Avatar + Name + Timestamp */}
+        {/* Top row: Avatar + Name + Application Number Tag + Timestamp */}
         <View style={styles.topRow}>
           <View style={styles.avatarContainer}>
             <View style={[styles.avatar, { backgroundColor: colors.brand[900] }]}>
@@ -130,11 +146,20 @@ export function ActivityCard({
           <View style={styles.nameBlock}>
             <View style={styles.nameRow}>
               <Text style={[styles.applicantName, { color: text }]} numberOfLines={1}>
-                {application.applicant}
+                {displayFilingName}
               </Text>
               <Text style={[styles.timestamp, { color: textMuted }]}>{timestamp}</Text>
             </View>
-            <Text style={[styles.entityType, { color: textMuted }]}>{application.applicantType}</Text>
+            <View style={styles.subHeaderRow}>
+              <Text style={[styles.entityType, { color: textMuted }]}>{displayAccountType}</Text>
+              <Text style={[styles.dotSeparator, { color: textMuted }]}>•</Text>
+              <View style={[styles.appNumBadge, { backgroundColor: brandBg }]}>
+                <Lucide name="hash" size={10} color={brandColor} />
+                <Text style={[styles.appNumText, { color: brandColor }]}>
+                  {application.permitNumber || application.referenceNumber}
+                </Text>
+              </View>
+            </View>
           </View>
         </View>
 
@@ -149,7 +174,7 @@ export function ActivityCard({
           <View style={styles.rightActions}>
             <View style={[styles.statusPill, { backgroundColor: statusStyle.bg }]}>
               <Text style={[styles.statusPillText, { color: statusStyle.text }]}>
-                {application.status.toUpperCase()}
+                {formatStatusDisplay(application.status)}
               </Text>
             </View>
             <View ref={kebabRef}>
@@ -182,6 +207,11 @@ export function ActivityCard({
                 <Lucide name="alert-circle" size={10} color={COLORS.semantic.error} />
               </View>
             )}
+            {application.isPinned && (
+              <View style={[styles.typePill, { backgroundColor: brandBg }]}>
+                <Lucide name="map-pin" size={10} color={brandColor} />
+              </View>
+            )}
             <View style={[styles.typePill, { backgroundColor: pillBg }]}>
               <Text style={[styles.typePillText, { color: textSub }]}>
                 {application.applicationType}
@@ -206,9 +236,11 @@ export function ActivityCard({
             ]}
           >
             {[
-              { action: "process" as const, icon: "settings"  as const, label: "Process",    isPrimary: true  },
-              { action: "pin"     as const, icon: "map-pin"   as const, label: "Pin to top", isPrimary: false },
-              { action: "archive" as const, icon: "archive"   as const, label: "Archive",    isPrimary: false },
+              ...(application.status.toLowerCase() === "submitted"
+                ? [{ action: "evaluate" as const, icon: "settings" as const, label: "Evaluate", isPrimary: true }]
+                : []),
+              { action: "pin"      as const, icon: "map-pin"   as const, label: application.isPinned ? "Unpin" : "Pin to top", isPrimary: false },
+              { action: "archive"  as const, icon: "archive"   as const, label: application.isArchived ? "Unarchive" : "Archive", isPrimary: false },
             ].map(({ action, icon, label, isPrimary }) => (
               <Pressable
                 key={action}
@@ -305,7 +337,28 @@ const styles = StyleSheet.create({
   entityType: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: TYPOGRAPHY.sizes.caption,
-    marginTop: 1,
+  },
+  subHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 2,
+  },
+  dotSeparator: {
+    fontSize: 10,
+  },
+  appNumBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: RADIUS.sm,
+  },
+  appNumText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 10,
+    fontWeight: TYPOGRAPHY.weights.semibold,
   },
   middleRow: {
     flexDirection: "row",

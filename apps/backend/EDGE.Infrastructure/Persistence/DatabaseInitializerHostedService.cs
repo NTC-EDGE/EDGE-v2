@@ -39,6 +39,20 @@ public class DatabaseInitializerHostedService : IHostedService
             _logger.LogInformation("Applying database migrations...");
             await context.Database.MigrateAsync(cancellationToken);
             _logger.LogInformation("Database migrations applied successfully.");
+
+            _logger.LogInformation("Ensuring new Application columns and normalizing status values in database...");
+            try
+            {
+                await context.Database.ExecuteSqlRawAsync(@"ALTER TABLE public.""Applications"" ADD COLUMN IF NOT EXISTS ""IsPinned"" boolean NOT NULL DEFAULT false;", cancellationToken);
+                await context.Database.ExecuteSqlRawAsync(@"ALTER TABLE public.""Applications"" ADD COLUMN IF NOT EXISTS ""IsArchived"" boolean NOT NULL DEFAULT false;", cancellationToken);
+                await context.Database.ExecuteSqlRawAsync(@"UPDATE public.""Applications"" SET ""Status"" = 'Evaluating' WHERE ""Status"" IN ('ForApproval', 'Endorsed');", cancellationToken);
+                await context.Database.ExecuteSqlRawAsync(@"UPDATE public.""Applications"" SET ""Status"" = 'Approved' WHERE ""Status"" = 'ForVerification';", cancellationToken);
+                await context.Database.ExecuteSqlRawAsync(@"UPDATE public.""Applications"" SET ""Status"" = 'Returned' WHERE ""Status"" = 'Declined';", cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Could not adjust columns or normalize status strings in database, continuing initialization.");
+            }
         }
         catch (Exception ex)
         {
@@ -119,6 +133,19 @@ public class DatabaseInitializerHostedService : IHostedService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Notification Templates seed data encountered an issue.");
+        }
+
+        // 8. Seed Application dev data (Applications, SOAs, OPs, Histories)
+        try
+        {
+            _logger.LogInformation("Seeding Application dev data...");
+            await ApplicationDataSeeder.SeedAsync(context);
+            _logger.LogInformation("Application dev data seeded successfully.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Application dev data seed encountered an issue.");
+            throw;
         }
     }
 

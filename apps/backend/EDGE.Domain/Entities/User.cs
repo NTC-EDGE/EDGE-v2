@@ -10,6 +10,10 @@ public class User : AuditableEntity
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
 
+    public ApplicantType AccountType { get; set; } = ApplicantType.Individual;
+    public Guid? CompanyDetailId { get; set; }
+    public CompanyDetail? CompanyDetail { get; set; }
+
     public bool IsSuperAdmin { get; set; } = false;
     public virtual List<TenantMember> TenantMemberships { get; set; } = [];
 

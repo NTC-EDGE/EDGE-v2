@@ -7,11 +7,8 @@ public enum ApplicationStatus
 {
     Draft,
     Submitted,
-    ForApproval,
-    Approved,
-    Endorsed,
-    Declined,
-    ForVerification,
+    Evaluating,
     Returned,
+    Approved,
     Completed
 }

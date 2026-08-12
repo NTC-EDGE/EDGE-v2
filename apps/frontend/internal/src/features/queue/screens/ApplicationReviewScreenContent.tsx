@@ -24,7 +24,7 @@ import {
 import {
   ApplicationData,
   ApplicationFormAttachment,
-} from "../data/mockApplications";
+} from "../../../types/application";
 import { useRole } from "../../shell/context/RoleContext";
 import { usePermissions } from "../../shell/context/PermissionContext";
 import { ApproveModal } from "../components/modals/ApproveModal";
@@ -293,7 +293,7 @@ function BasicInfoTab({
             style={[styles.statusPill, { backgroundColor: statusStyle.bg }]}
           >
             <Text style={[styles.statusPillText, { color: statusStyle.text }]}>
-              {app.status.toUpperCase()}
+              {app.status.toLowerCase() === "submitted" ? "FOR EVALUATION" : app.status.toUpperCase()}
             </Text>
           </View>
           <Text style={[styles.statusActor, { color: isDark ? colors.neutral[500] : colors.neutral[400], }]}>by ADMIN EDGE</Text>
@@ -346,30 +346,59 @@ function BasicInfoTab({
         />
       </View>
 
-      <SectionHeader title="ADDRESS" />
-      <View style={styles.infoBlock}>
-        <InfoRow label="Barangay:" value={app.address.barangay} />
-        <InfoRow label="Province:" value={app.address.province} />
-        <InfoRow label="City/Municipality:" value={app.address.city} />
-        <InfoRow label="Zip Code:" value={app.address.zipCode} />
-      </View>
+      {app.filingUser?.accountType === 'Company' ? (
+        <>
+          <SectionHeader title="FILING USER / SUBMITTER DETAILS" />
+          <View style={styles.infoBlock}>
+            <InfoRow label="Submitted By:" value={app.filingUser.name} />
+            <InfoRow label="User Email:" value={app.filingUser.email} />
+            <InfoRow label="User Account Type:" value={app.filingUser.accountType} />
+            {app.filingUser.company && (
+              <>
+                <InfoRow label="Filing Company Name:" value={app.filingUser.company.name} />
+                <InfoRow label="Filing Company Reg No:" value={app.filingUser.company.registrationNumber} />
+                <InfoRow label="Filing Company Address:" value={app.filingUser.company.address} />
+              </>
+            )}
+          </View>
 
-      <SectionHeader title="CONTACT DETAILS" />
-      <View style={styles.infoBlock}>
-        <InfoRow
-          label="Contact Number:"
-          value={app.contactDetails.contactNumber}
-        />
-        <InfoRow label="Email:" value={app.contactDetails.email} />
-      </View>
+          <SectionHeader title="APPLICANT / PERMIT HOLDER DETAILS" />
+          <View style={styles.infoBlock}>
+            <InfoRow label="Applicant Name:" value={app.applicant} />
+            <InfoRow label="Applicant Type:" value={app.applicantType} />
+            <InfoRow label="Barangay:" value={app.address.barangay} />
+            <InfoRow label="Province:" value={app.address.province} />
+            <InfoRow label="City/Municipality:" value={app.address.city} />
+            <InfoRow label="Zip Code:" value={app.address.zipCode} />
+          </View>
+        </>
+      ) : (
+        <>
+          <SectionHeader title="APPLICANT & ACCOUNT INFORMATION" />
+          <View style={styles.infoBlock}>
+            <InfoRow label="Filing User / Applicant:" value={app.applicant} />
+            <InfoRow label="Account Type:" value="Individual" />
+            <InfoRow label="Email Address:" value={app.contactDetails.email} />
+            <InfoRow label="Barangay:" value={app.address.barangay} />
+            <InfoRow label="Province:" value={app.address.province} />
+            <InfoRow label="City/Municipality:" value={app.address.city} />
+            <InfoRow label="Zip Code:" value={app.address.zipCode} />
+          </View>
+        </>
+      )}
 
-      <SectionHeader title="APPLICATION DETAILS" />
-      <View style={styles.infoBlock}>
-        <InfoRow
-          label="No Of Years:"
-          value={String(app.applicationDetails.noOfYears)}
-        />
-      </View>
+      {(app.applicantType === "Company" || app.companyDetails !== undefined) && (
+        <>
+          <SectionHeader title="APPLICANT COMPANY DETAILS" />
+          <View style={styles.infoBlock}>
+            <InfoRow label="Company Name:" value={app.companyDetails?.name ?? app.applicant} />
+            <InfoRow label="Registration No:" value={app.companyDetails?.registrationNumber ?? ""} />
+            <InfoRow label="Company Address:" value={app.companyDetails?.address ?? app.address.barangay} />
+            <InfoRow label="Contact Number:" value={app.companyDetails?.contactNumber ?? app.contactDetails.contactNumber} />
+            <InfoRow label="Email Address:" value={app.companyDetails?.email ?? app.contactDetails.email} />
+          </View>
+        </>
+      )}
 
       <SectionHeader title="BASIC INFORMATION" />
       <View style={styles.infoBlock}>
@@ -1107,7 +1136,11 @@ export function ApplicationReviewScreenContent({
 
   if (selectedApplication === null) {
     return (
-      <View style={[styles.emptyPanel, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50], }]}>
+      <ScrollView
+        style={[styles.emptyPanelScroll, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50], }]}
+        contentContainerStyle={styles.emptyPanelContainer}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={[styles.summaryCard, { backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white, }]}>
           <View style={[styles.summaryHeader, { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100], }]}>
             <Lucide name="layout" size={20} color={isDark ? colors.brand[500] : COLORS.brand[700]} />
@@ -1120,11 +1153,11 @@ export function ApplicationReviewScreenContent({
                 {
                   applications.filter(
                     (a: ApplicationData) =>
-                      a.queueTab === "pending" && a.status === "For Approval",
+                      a.queueTab === "pending" && (a.status === "Evaluating" || a.status === "Submitted"),
                   ).length
                 }
               </Text>
-              <Text style={[styles.statLabel, { color: isDark ? colors.neutral[400] : colors.neutral[500], }]}>To Approve</Text>
+              <Text style={[styles.statLabel, { color: isDark ? colors.neutral[400] : colors.neutral[500], }]}>Evaluating</Text>
             </View>
             <View style={styles.statBox}>
               <Text style={[styles.statValue, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>
@@ -1132,7 +1165,7 @@ export function ApplicationReviewScreenContent({
                   applications.filter(
                     (a: ApplicationData) =>
                       a.queueTab === "pending" &&
-                      a.status === "For Verification",
+                      a.status === "Approved",
                   ).length
                 }
               </Text>
@@ -1173,7 +1206,7 @@ export function ApplicationReviewScreenContent({
             items requiring attention.
           </Text>
         </View>
-      </View>
+      </ScrollView>
     );
   }
 
@@ -1229,7 +1262,7 @@ export function ApplicationReviewScreenContent({
       hour12: true,
     });
     updateApplication(app.id, {
-      status: "Declined",
+      status: "Returned",
       queueTab: "history",
       note: notice,
       history: [
@@ -1304,7 +1337,7 @@ export function ApplicationReviewScreenContent({
     });
     updateApplication(app.id, {
       payment: { ...app.payment, ...data },
-      status: "For Approval",
+      status: "Approved",
       queueTab: "history",
       assignedTo: "ADMIN EDGE",
       history: [
@@ -1611,63 +1644,76 @@ export function ApplicationReviewScreenContent({
 
 const styles = StyleSheet.create({
   // Empty state
-  emptyPanel: {
+  emptyPanelScroll: {
     flex: 1,
+  },
+  emptyPanelContainer: {
+    flexGrow: 1,
     alignItems: "center",
     justifyContent: "center",
-    padding: SPACING[40],
+    paddingHorizontal: SPACING[16],
+    paddingVertical: SPACING[24],
   },
   summaryCard: {
     borderRadius: RADIUS.card,
-    padding: SPACING[24],
+    padding: SPACING[16],
     width: "100%",
     maxWidth: 500,
     ...SHADOWS.card,
-    marginBottom: SPACING[40],
+    marginBottom: SPACING[24],
   },
   summaryHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: SPACING[12],
-    marginBottom: SPACING[20],
+    gap: SPACING[10],
+    marginBottom: SPACING[16],
     borderBottomWidth: 1,
     paddingBottom: SPACING[12],
   },
   summaryTitle: {
+    flex: 1,
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   statsRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: SPACING[24],
+    alignItems: "flex-start",
+    marginBottom: SPACING[20],
+    gap: SPACING[6],
   },
   statBox: {
     alignItems: "center",
+    justifyContent: "center",
     flex: 1,
+    minWidth: 0,
+    paddingHorizontal: 2,
   },
   statValue: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: TYPOGRAPHY.weights.bold,
+    textAlign: "center",
   },
   statLabel: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.label,
+    fontSize: 11,
     marginTop: 4,
+    textAlign: "center",
+    lineHeight: 14,
   },
   guideBox: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: SPACING[12],
-    padding: SPACING[16],
+    alignItems: "flex-start",
+    gap: SPACING[10],
+    padding: SPACING[12],
     borderRadius: RADIUS.input,
   },
   guideText: {
     flex: 1,
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.body,
+    fontSize: 13,
     lineHeight: 18,
   },
   actionPrompt: {
@@ -1678,6 +1724,7 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 18,
     fontWeight: TYPOGRAPHY.weights.semibold,
+    textAlign: "center",
   },
   emptyPanelSub: {
     fontFamily: TYPOGRAPHY.fonts.primary,
