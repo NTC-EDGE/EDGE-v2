@@ -651,18 +651,21 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
         {
             entity.Property(e => e.FromStatus).HasConversion<string>();
             entity.Property(e => e.ToStatus).HasConversion<string>();
+            entity.Property(e => e.PerformedByUserId).IsRequired(false);
         });
 
         modelBuilder.Entity<SoaHistory>(entity =>
         {
             entity.Property(e => e.FromStatus).HasConversion<string>();
             entity.Property(e => e.ToStatus).HasConversion<string>();
+            entity.Property(e => e.PerformedByUserId).IsRequired(false);
         });
 
         modelBuilder.Entity<OpHistory>(entity =>
         {
             entity.Property(e => e.FromStatus).HasConversion<string>();
             entity.Property(e => e.ToStatus).HasConversion<string>();
+            entity.Property(e => e.PerformedByUserId).IsRequired(false);
         });
     }
 
