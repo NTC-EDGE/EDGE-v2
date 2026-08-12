@@ -447,117 +447,121 @@ function BasicInfoTab({
         </>
       )}
 
-      {(app.applicantType === "Company" || app.companyDetails !== undefined) && (
+      {!(app.applicationType === 'BULK' && app.applicantsList && app.applicantsList.length > 1) && (
         <>
-          <SectionHeader title="APPLICANT COMPANY DETAILS" />
+          {(app.applicantType === "Company" || app.companyDetails !== undefined) && (
+            <>
+              <SectionHeader title="APPLICANT COMPANY DETAILS" />
+              <View style={styles.infoBlock}>
+                <InfoRow label="Company Name:" value={app.companyDetails?.name ?? app.applicant} />
+                <InfoRow label="Registration No:" value={app.companyDetails?.registrationNumber ?? ""} />
+                <InfoRow label="Company Address:" value={app.companyDetails?.address ?? app.address.barangay} />
+                <InfoRow label="Contact Number:" value={app.companyDetails?.contactNumber ?? app.contactDetails.contactNumber} />
+                <InfoRow label="Email Address:" value={app.companyDetails?.email ?? app.contactDetails.email} />
+              </View>
+            </>
+          )}
+
+          <SectionHeader title="BASIC INFORMATION" />
           <View style={styles.infoBlock}>
-            <InfoRow label="Company Name:" value={app.companyDetails?.name ?? app.applicant} />
-            <InfoRow label="Registration No:" value={app.companyDetails?.registrationNumber ?? ""} />
-            <InfoRow label="Company Address:" value={app.companyDetails?.address ?? app.address.barangay} />
-            <InfoRow label="Contact Number:" value={app.companyDetails?.contactNumber ?? app.contactDetails.contactNumber} />
-            <InfoRow label="Email Address:" value={app.companyDetails?.email ?? app.contactDetails.email} />
+            <InfoRow
+              label="Last Name:"
+              value={app.basicInfo.lastName}
+              onEdit={
+                isEditable
+                  ? () => {
+                      setLnDraft(app.basicInfo.lastName);
+                      setEditingLastName(true);
+                    }
+                  : undefined
+              }
+              isEditing={editingLastName}
+              editValue={lnDraft}
+              onEditChange={setLnDraft}
+              onEditDone={() => {
+                setEditingLastName(false);
+                updateApplication(app.id, {
+                  basicInfo: { ...app.basicInfo, lastName: lnDraft },
+                });
+              }}
+            />
+            <InfoRow
+              label="First Name:"
+              value={app.basicInfo.firstName}
+              onEdit={
+                isEditable
+                  ? () => {
+                      setFnDraft(app.basicInfo.firstName);
+                      setEditingFirstName(true);
+                    }
+                  : undefined
+              }
+              isEditing={editingFirstName}
+              editValue={fnDraft}
+              onEditChange={setFnDraft}
+              onEditDone={() => {
+                setEditingFirstName(false);
+                updateApplication(app.id, {
+                  basicInfo: { ...app.basicInfo, firstName: fnDraft },
+                });
+              }}
+            />
+            <InfoRow
+              label="Middle Name:"
+              value={app.basicInfo.middleName}
+              onEdit={
+                isEditable
+                  ? () => {
+                      setMnDraft(app.basicInfo.middleName);
+                      setEditingMiddleName(true);
+                    }
+                  : undefined
+              }
+              isEditing={editingMiddleName}
+              editValue={mnDraft}
+              onEditChange={setMnDraft}
+              onEditDone={() => {
+                setEditingMiddleName(false);
+                updateApplication(app.id, {
+                  basicInfo: { ...app.basicInfo, middleName: mnDraft },
+                });
+              }}
+            />
+            <InfoRow label="Extension Name:" value={app.basicInfo.extensionName} />
+            <InfoRow label="Place Of Birth:" value={app.basicInfo.placeOfBirth} />
+            <InfoRow
+              label="Date Of Birth:"
+              value={app.basicInfo.dob}
+              onEdit={
+                isEditable
+                  ? () => {
+                      setDobDraft(app.basicInfo.dob);
+                      setEditingDob(true);
+                    }
+                  : undefined
+              }
+              isEditing={editingDob}
+              editValue={dobDraft}
+              onEditChange={setDobDraft}
+              onEditDone={() => {
+                setEditingDob(false);
+                updateApplication(app.id, {
+                  basicInfo: { ...app.basicInfo, dob: dobDraft },
+                });
+              }}
+            />
+            <InfoRow label="Sex:" value={app.basicInfo.sex} />
+            <InfoRow label="Weight:" value={String(app.basicInfo.weight)} />
+            <InfoRow label="Height:" value={String(app.basicInfo.height)} />
+            <InfoRow label="Nationality:" value={app.basicInfo.nationality} />
+          </View>
+
+          <SectionHeader title="EMPLOYMENT" />
+          <View style={styles.infoBlock}>
+            <InfoRow label="Status:" value={app.basicInfo.employmentStatus} />
           </View>
         </>
       )}
-
-      <SectionHeader title="BASIC INFORMATION" />
-      <View style={styles.infoBlock}>
-        <InfoRow
-          label="Last Name:"
-          value={app.basicInfo.lastName}
-          onEdit={
-            isEditable
-              ? () => {
-                  setLnDraft(app.basicInfo.lastName);
-                  setEditingLastName(true);
-                }
-              : undefined
-          }
-          isEditing={editingLastName}
-          editValue={lnDraft}
-          onEditChange={setLnDraft}
-          onEditDone={() => {
-            setEditingLastName(false);
-            updateApplication(app.id, {
-              basicInfo: { ...app.basicInfo, lastName: lnDraft },
-            });
-          }}
-        />
-        <InfoRow
-          label="First Name:"
-          value={app.basicInfo.firstName}
-          onEdit={
-            isEditable
-              ? () => {
-                  setFnDraft(app.basicInfo.firstName);
-                  setEditingFirstName(true);
-                }
-              : undefined
-          }
-          isEditing={editingFirstName}
-          editValue={fnDraft}
-          onEditChange={setFnDraft}
-          onEditDone={() => {
-            setEditingFirstName(false);
-            updateApplication(app.id, {
-              basicInfo: { ...app.basicInfo, firstName: fnDraft },
-            });
-          }}
-        />
-        <InfoRow
-          label="Middle Name:"
-          value={app.basicInfo.middleName}
-          onEdit={
-            isEditable
-              ? () => {
-                  setMnDraft(app.basicInfo.middleName);
-                  setEditingMiddleName(true);
-                }
-              : undefined
-          }
-          isEditing={editingMiddleName}
-          editValue={mnDraft}
-          onEditChange={setMnDraft}
-          onEditDone={() => {
-            setEditingMiddleName(false);
-            updateApplication(app.id, {
-              basicInfo: { ...app.basicInfo, middleName: mnDraft },
-            });
-          }}
-        />
-        <InfoRow label="Extension Name:" value={app.basicInfo.extensionName} />
-        <InfoRow label="Place Of Birth:" value={app.basicInfo.placeOfBirth} />
-        <InfoRow
-          label="Date Of Birth:"
-          value={app.basicInfo.dob}
-          onEdit={
-            isEditable
-              ? () => {
-                  setDobDraft(app.basicInfo.dob);
-                  setEditingDob(true);
-                }
-              : undefined
-          }
-          isEditing={editingDob}
-          editValue={dobDraft}
-          onEditChange={setDobDraft}
-          onEditDone={() => {
-            setEditingDob(false);
-            updateApplication(app.id, {
-              basicInfo: { ...app.basicInfo, dob: dobDraft },
-            });
-          }}
-        />
-        <InfoRow label="Sex:" value={app.basicInfo.sex} />
-        <InfoRow label="Weight:" value={String(app.basicInfo.weight)} />
-        <InfoRow label="Height:" value={String(app.basicInfo.height)} />
-        <InfoRow label="Nationality:" value={app.basicInfo.nationality} />
-      </View>
-
-      <SectionHeader title="EMPLOYMENT" />
-      <View style={styles.infoBlock}>
-        <InfoRow label="Status:" value={app.basicInfo.employmentStatus} />
-      </View>
 
       {/* NOTE */}
       <View style={[styles.noteBlock, { borderColor: isDark ? colors.neutral[700] : colors.neutral[200], }]}>
