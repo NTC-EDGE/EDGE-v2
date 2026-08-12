@@ -1016,14 +1016,20 @@ function ApplicationDetailsTab({
           },
         ]}
       >
-        {/* Accent stripe at top */}
-        <View style={[styles.evalAccentStripe, {
-          backgroundColor: activeApplicant.status === 'Incomplete'
-            ? '#EF4444'
-            : activeApplicant.status === 'ForEndorsement'
-              ? '#A855F7'
-              : '#22C55E',
-        }]} />
+        {/* Accent stripe at top — full-width via absolute positioning */}
+        <View
+          pointerEvents="none"
+          style={[
+            styles.evalAccentStripe,
+            {
+              backgroundColor: activeApplicant.status === 'Incomplete'
+                ? '#EF4444'
+                : activeApplicant.status === 'ForEndorsement'
+                  ? '#A855F7'
+                  : '#22C55E',
+            },
+          ]}
+        />
 
         <View style={styles.evalDockRow}>
           {/* Left — Verdict chips */}
@@ -1043,7 +1049,8 @@ function ApplicationDetailsTab({
                     borderColor: (activeApplicant.status === 'Complete' || !activeApplicant.status)
                       ? '#22C55E'
                       : (isDark ? colors.neutral[700] : colors.neutral[200]),
-                  }
+                  },
+                  Platform.select({ web: { cursor: 'pointer' } as object }),
                 ]}
                 onPress={() => handleSetStatus(activeIdx, 'Complete')}
               >
@@ -1071,7 +1078,8 @@ function ApplicationDetailsTab({
                     borderColor: activeApplicant.status === 'Incomplete'
                       ? '#EF4444'
                       : (isDark ? colors.neutral[700] : colors.neutral[200]),
-                  }
+                  },
+                  Platform.select({ web: { cursor: 'pointer' } as object }),
                 ]}
                 onPress={() => handleSetStatus(activeIdx, 'Incomplete')}
               >
@@ -1099,7 +1107,8 @@ function ApplicationDetailsTab({
                     borderColor: activeApplicant.status === 'ForEndorsement'
                       ? '#A855F7'
                       : (isDark ? colors.neutral[700] : colors.neutral[200]),
-                  }
+                  },
+                  Platform.select({ web: { cursor: 'pointer' } as object }),
                 ]}
                 onPress={() => handleSetStatus(activeIdx, 'ForEndorsement')}
               >
@@ -1651,7 +1660,6 @@ export function ApplicationReviewScreenContent({
   ];
 
   const isEditable =
-    (activeQueueTab === "pending" || app.queueTab === "pending" || !app.queueTab) &&
     app.status !== "Completed" &&
     app.status !== "Approved";
 
@@ -3155,17 +3163,17 @@ const styles = StyleSheet.create({
   },
   evaluatorControlBoxSticky: {
     paddingHorizontal: SPACING[16],
-    paddingTop: 0,
+    paddingTop: SPACING[12],
     paddingBottom: SPACING[10],
     borderTopWidth: 1,
     zIndex: 10,
-    overflow: 'hidden',
   },
   evalAccentStripe: {
+    position: 'absolute' as const,
+    top: 0,
+    left: 0,
+    right: 0,
     height: 3,
-    borderRadius: 2,
-    marginBottom: SPACING[8],
-    marginHorizontal: -SPACING[16],
   },
   evalDockRow: {
     flexDirection: 'row',
