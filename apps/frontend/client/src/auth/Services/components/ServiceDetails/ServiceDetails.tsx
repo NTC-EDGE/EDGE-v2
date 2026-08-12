@@ -28,26 +28,33 @@ export function ServiceDetails({
 
   return (
     <View style={{ flex: 1 }}>
-      {/* Mobile Navbar Back Button Header */}
-      {isMobile && (
-        <View style={originalStyles.mobileNavbar}>
-          <TouchableOpacity onPress={onBackToServices} style={originalStyles.mobileBackBtn}>
-            <Icon name="arrow-left" size={18} color="#1f2937" style={{ marginRight: 6 }} />
-            <Text style={originalStyles.mobileBackBtnText}>Back to Services</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+      {/* Back to Services Navigation Button (Mobile, iPad & Desktop Views) */}
+      <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4, backgroundColor: "#FFFFFF" }}>
+        <TouchableOpacity
+          onPress={onBackToServices}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 6,
+            alignSelf: "flex-start",
+            paddingVertical: 8,
+            paddingHorizontal: 14,
+            borderRadius: 8,
+            backgroundColor: "#EFF6FF",
+            borderColor: "#BFDBFE",
+            borderWidth: 1,
+          }}
+          activeOpacity={0.7}
+        >
+          <Icon name="arrow-left" size={16} color="#1E40AF" />
+          <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: "#1E40AF" }}>
+            Back to Services
+          </Text>
+        </TouchableOpacity>
+      </View>
 
       <ScrollView contentContainerStyle={originalStyles.detailsContent} showsVerticalScrollIndicator={false}>
         <View style={originalStyles.detailsCard}>
-          {/* Back button (Web only) */}
-          {!isMobile && (
-            <TouchableOpacity onPress={onBackToServices} style={originalStyles.backLink}>
-              <Icon name="chevron-left" size={14} color="#1d4ed8" />
-              <Text style={originalStyles.backLinkText}>Back to Services List</Text>
-            </TouchableOpacity>
-          )}
-
           <Text style={originalStyles.detailsTitle}>{selectedService.title}</Text>
 
           {/* 1. Official Service Information Card */}

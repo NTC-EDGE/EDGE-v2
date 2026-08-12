@@ -82,12 +82,14 @@ export function DetailsColumn({ servicesState }: DetailsColumnProps) {
   const handleClose = () => {
     setActiveWizardService(null);
     setIsDetailsExpanded(false);
-    setSelectedService(null);
     resetWizardState();
   };
 
   const handleSuccess = () => {
-    handleClose();
+    setActiveWizardService(null);
+    setIsDetailsExpanded(false);
+    setSelectedService(null);
+    resetWizardState();
     navigation.navigate("MyApplications");
   };
 

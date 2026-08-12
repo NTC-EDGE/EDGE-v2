@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import {
   Text,
   View,
@@ -28,6 +29,17 @@ export function ServiceList({
   isWizardActive = false,
 }: ServiceListProps) {
   const isSearchActive = searchQuery.trim() !== "";
+  const [showActiveBanner, setShowActiveBanner] = useState(true);
+
+  useEffect(() => {
+    if (isWizardActive) {
+      setShowActiveBanner(true);
+      const timer = setTimeout(() => {
+        setShowActiveBanner(false);
+      }, 60000);
+      return () => clearTimeout(timer);
+    }
+  }, [isWizardActive]);
 
   return (
     <View style={{ flex: 1 }}>
@@ -45,7 +57,7 @@ export function ServiceList({
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Transaction Active Lock Banner */}
-        {isWizardActive && (
+        {isWizardActive && showActiveBanner && (
           <View style={{
             backgroundColor: "#fffbebf",
             borderColor: "#fde68a",

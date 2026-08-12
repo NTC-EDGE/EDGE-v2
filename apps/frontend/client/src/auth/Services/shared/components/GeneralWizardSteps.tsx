@@ -1,7 +1,6 @@
 import React from "react";
 import { NTCService } from "../../data/servicesData";
 import { TenantInfo, OfficeInfo, GeneralApplicantData, initialGeneralApplicant } from "../hooks/useGeneralServiceWizard";
-import { GeneralInfoStep } from "./GeneralInfoStep";
 import { GeneralRegionOfficeStep } from "./GeneralRegionOfficeStep";
 import { GeneralFilingModeStep } from "./GeneralFilingModeStep";
 import { GeneralFilingDetailsStep } from "./GeneralFilingDetailsStep";
@@ -36,7 +35,6 @@ interface GeneralWizardStepsProps {
   isWeb: boolean;
   onUploadPress: (req: string, file: { name: string; uri: string }) => void;
   onRemoveUpload: (req: string) => void;
-  /** Notified with required field IDs once the step-4 form layout resolves. */
   onRequiredFieldsChange?: (requiredFieldIds: string[]) => void;
   errors?: Record<string, string>;
 }
@@ -74,8 +72,6 @@ export function GeneralWizardSteps({
 }: GeneralWizardStepsProps) {
   switch (step) {
     case 1:
-      return <GeneralInfoStep service={service} />;
-    case 2:
       return (
         <GeneralRegionOfficeStep
           selectedRegionId={selectedRegionId}
@@ -86,7 +82,7 @@ export function GeneralWizardSteps({
           offices={offices}
         />
       );
-    case 3:
+    case 2:
       return (
         <GeneralFilingModeStep
           service={service}
@@ -114,7 +110,7 @@ export function GeneralWizardSteps({
           }}
         />
       );
-    case 4:
+    case 3:
       return (
         <GeneralFilingDetailsStep
           service={service}
@@ -124,7 +120,7 @@ export function GeneralWizardSteps({
           errors={errors}
         />
       );
-    case 5:
+    case 4:
       return (
         <GeneralDocumentUploadStep
           service={service}
@@ -134,7 +130,7 @@ export function GeneralWizardSteps({
           onRemoveUpload={onRemoveUpload}
         />
       );
-    case 6:
+    case 5:
       return (
         <GeneralReviewSubmitStep
           service={service}

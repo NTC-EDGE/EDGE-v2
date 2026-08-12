@@ -14,6 +14,7 @@ interface NavigationContext {
   setCurrentApplicantIndex: (idx: number) => void;
   service: NTCService;
   setIsConfirmModalOpen: (open: boolean) => void;
+  onClose?: () => void;
   /** IDs of fields marked isRequired in the active dynamic form (empty when no dynamic form). */
   dynamicRequiredFieldIds?: string[];
   setFormErrors?: (errors: Record<string, string>) => void;
@@ -83,31 +84,26 @@ export function handleWizardNext({
   setFormErrors,
 }: NavigationContext) {
   if (step === 1) {
+    if (!selectedRegionId || !selectedOfficeId) {
+      Alert.alert("Warning", "Please select a region and field office.");
+      return;
+    }
     setStep(2);
     return;
   }
   if (step === 2) {
-    if (!selectedRegionId || !selectedOfficeId) {
-      Alert.alert("Warning", "Please select a region and field office.");
+    if (!appMode) {
+      Alert.alert("Warning", "Please select an application mode.");
       return;
     }
     setStep(3);
     return;
   }
   if (step === 3) {
-    if (!appMode) {
-      Alert.alert("Warning", "Please select an application mode.");
-      return;
-    }
-    setStep(4);
-    return;
-  }
-  if (step === 4) {
     const hasDynamicForm =
       dynamicRequiredFieldIds !== undefined && dynamicRequiredFieldIds.length > 0;
 
     if (hasDynamicForm) {
-      // Validate every required dynamic field has a non-empty value
       const filledIds = new Set(
         (activeApplicant.formFieldValues || []).map((fv) => fv.fieldId)
       );
@@ -125,7 +121,6 @@ export function handleWizardNext({
       }
       setFormErrors?.({});
     } else {
-      // Fall back to base applicant field check for hardcoded forms
       const fieldErrors: Record<string, string> = {};
       if (!activeApplicant.firstName) fieldErrors.firstName = "First Name is required.";
       if (!activeApplicant.lastName) fieldErrors.lastName = "Last Name is required.";
@@ -144,10 +139,10 @@ export function handleWizardNext({
       setCurrentApplicantIndex(currentApplicantIndex + 1);
       return;
     }
-    setStep(5);
+    setStep(4);
     return;
   }
-  if (step === 5) {
+  if (step === 4) {
     const requiredKeys = getRequiredDocumentKeys(service, activeApplicant);
     const isComplete = requiredKeys.every((key, idx) => {
       if (activeApplicant.uploads && activeApplicant.uploads[key]) return true;
@@ -161,10 +156,10 @@ export function handleWizardNext({
       Alert.alert("Incomplete", "Please upload all mandatory documents before proceeding.");
       return;
     }
-    setStep(6);
+    setStep(5);
     return;
   }
-  if (step === 6) {
+  if (step === 5) {
     setIsConfirmModalOpen(true);
   }
 }
@@ -175,13 +170,18 @@ export function handleWizardBack({
   appMode,
   currentApplicantIndex,
   setCurrentApplicantIndex,
-}: Pick<NavigationContext, "step" | "setStep" | "appMode" | "currentApplicantIndex" | "setCurrentApplicantIndex">) {
-  if (step === 4) {
+  onClose,
+}: Pick<NavigationContext, "step" | "setStep" | "appMode" | "currentApplicantIndex" | "setCurrentApplicantIndex" | "onClose">) {
+  if (step === 1) {
+    onClose?.();
+    return;
+  }
+  if (step === 3) {
     if (appMode === "BULK" && currentApplicantIndex > 0) {
       setCurrentApplicantIndex(currentApplicantIndex - 1);
       return;
     }
-    setStep(3);
+    setStep(2);
     return;
   }
   setStep(step - 1);

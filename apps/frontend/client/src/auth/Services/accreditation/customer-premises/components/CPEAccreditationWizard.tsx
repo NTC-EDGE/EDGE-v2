@@ -10,13 +10,11 @@ import { handleCPENext, handleCPEBack } from "../helpers/cpeWizardNavigation";
 import { ApplicantData, initialApplicant, CPEAccreditationWizardProps } from "../types/cpeTypes";
 
 const STEP_TITLES: Record<number, string> = {
-  1: "Information",
-  2: "Region",
-  3: "Application Type & Requirements",
-  4: "Filing Data Configuration",
-  5: "Application Form",
-  6: "Upload Requirements",
-  7: "Review & Submit",
+  1: "Region & Office Jurisdiction",
+  2: "Application Type & Data Entry Method",
+  3: "Application Form",
+  4: "Upload Requirements",
+  5: "Review & Submit",
 };
 
 export function CPEAccreditationWizard({
@@ -94,35 +92,14 @@ export function CPEAccreditationWizard({
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <TouchableOpacity
-            onPress={onClose}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 6,
-              marginRight: 10,
-              paddingVertical: 5,
-              paddingHorizontal: 10,
-              borderRadius: 8,
-              backgroundColor: "#EFF6FF",
-              borderColor: "#BFDBFE",
-              borderWidth: 1,
-            }}
-            activeOpacity={0.7}
-          >
-            <Icon name="arrow-left" size={14} color="#1E40AF" />
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, fontWeight: "700", color: "#1E40AF" }}>
-              Back to Services
-            </Text>
-          </TouchableOpacity>
           <TouchableOpacity onPress={onToggleExpand}>
             <Icon name={isDetailsExpanded ? "minimize" : "maximize"} size={16} color={COLORS.brand[700]} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>[{STEP_TITLES[step] || "Filing Wizard"}]</Text>
         </View>
-        {step < 8 && (
+        {step < 6 && (
           <View style={styles.progressContainer}>
-            {[1, 2, 3, 4, 5, 6, 7].map((s) => (
+            {[1, 2, 3, 4, 5].map((s) => (
               <View
                 key={s}
                 style={[
@@ -199,8 +176,8 @@ export function CPEAccreditationWizard({
           });
         }}
         isNextDisabled={
-          step === 2 ? (!selectedRegionId || !selectedOfficeId) :
-          (step === 4 && appMode === "BULK" && bulkMethod === "EXCEL") ? !isFileUploaded :
+          step === 1 ? (!selectedRegionId || !selectedOfficeId) :
+          (step === 2 && appMode === "BULK" && bulkMethod === "EXCEL") ? !isFileUploaded :
           false
         }
         styles={styles}

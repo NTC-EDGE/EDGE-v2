@@ -293,28 +293,6 @@ export function ExamFilingWizard(props: ExamFilingWizardProps) {
       {/* Step Header — matches GeneralServiceWizard design */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <TouchableOpacity
-            onPress={props.onClose}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 6,
-              marginBottom: 10,
-              alignSelf: "flex-start",
-              paddingVertical: 5,
-              paddingHorizontal: 10,
-              borderRadius: 8,
-              backgroundColor: "#EFF6FF",
-              borderColor: "#BFDBFE",
-              borderWidth: 1,
-            }}
-            activeOpacity={0.7}
-          >
-            <Icon name="arrow-left" size={14} color="#1E40AF" />
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, fontWeight: "700", color: "#1E40AF" }}>
-              Back to Services
-            </Text>
-          </TouchableOpacity>
           <View>
             <Text style={styles.headerTitle}>
               {props.serviceName || "Radio Operator Examination"}

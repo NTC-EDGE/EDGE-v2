@@ -149,6 +149,7 @@ export function GeneralServiceWizard({
       appMode,
       currentApplicantIndex,
       setCurrentApplicantIndex,
+      onClose,
     });
   };
 
@@ -173,35 +174,11 @@ export function GeneralServiceWizard({
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
       <ScrollView contentContainerStyle={{ padding: 24 }}>
-        {/* Back to Services Button in Upper Left Corner */}
-        <TouchableOpacity
-          onPress={onClose}
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 6,
-            marginBottom: 12,
-            alignSelf: "flex-start",
-            paddingVertical: 6,
-            paddingHorizontal: 12,
-            borderRadius: 8,
-            backgroundColor: "#EFF6FF",
-            borderColor: "#BFDBFE",
-            borderWidth: 1,
-          }}
-          activeOpacity={0.7}
-        >
-          <Icon name="arrow-left" size={14} color="#1E40AF" />
-          <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: "#1E40AF" }}>
-            Back to Services
-          </Text>
-        </TouchableOpacity>
-
         <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 20, fontWeight: "700", color: COLORS.neutral[900], marginBottom: 4 }}>
           {service.title}
         </Text>
         <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: COLORS.neutral[500], marginBottom: 24 }}>
-          Step {step} of 6 — {step === 1 ? "Information & Variant" : step === 2 ? "Region & Office" : step === 3 ? "Application Mode" : step === 4 ? "Filing Details" : step === 5 ? "Upload Documents" : "Review & Submit"}
+          Step {step} of 5 — {step === 1 ? "Region & Office" : step === 2 ? "Application Mode & Variant" : step === 3 ? "Filing Details" : step === 4 ? "Upload Documents" : "Review & Submit"}
         </Text>
 
         <GeneralWizardSteps

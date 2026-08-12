@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import {
   Text,
   View,
@@ -54,6 +54,17 @@ export function CategoryGrid({
   allBackendServices,
   isWizardActive = false,
 }: CategoryGridProps) {
+  const [showActiveBanner, setShowActiveBanner] = useState(true);
+
+  useEffect(() => {
+    if (isWizardActive) {
+      setShowActiveBanner(true);
+      const timer = setTimeout(() => {
+        setShowActiveBanner(false);
+      }, 60000);
+      return () => clearTimeout(timer);
+    }
+  }, [isWizardActive]);
   // Derive time of day greeting
   const greeting = useMemo(() => {
     const hours = new Date().getHours();
@@ -127,7 +138,7 @@ export function CategoryGrid({
       </View>
 
       {/* Transaction Active Lock Banner */}
-      {isWizardActive && (
+      {isWizardActive && showActiveBanner && (
         <View style={{
           backgroundColor: "#fffbebf",
           borderColor: "#fde68a",
