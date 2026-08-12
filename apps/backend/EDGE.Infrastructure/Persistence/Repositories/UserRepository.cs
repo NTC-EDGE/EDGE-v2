@@ -47,6 +47,28 @@ public class UserRepository : IUserRepository
         return await _context.Users.ToListAsync(cancellationToken);
     }
 
+    public async Task<StaffUserContext> GetStaffUserContextAsync(string? userIdStr, string defaultRole, CancellationToken cancellationToken = default)
+    {
+        if (!string.IsNullOrEmpty(userIdStr) && Guid.TryParse(userIdStr, out var parsedUserId))
+        {
+            var user = await GetByIdAsync(parsedUserId, cancellationToken);
+            if (user != null)
+            {
+                var staffName = $"{user.FirstName} {user.LastName}".Trim();
+                if (string.IsNullOrEmpty(staffName)) staffName = user.Email;
+
+                var memberRole = user.TenantMemberships?.FirstOrDefault()?.Role?.Name 
+                              ?? user.TenantMemberships?.FirstOrDefault()?.Position;
+
+                var staffRole = !string.IsNullOrWhiteSpace(memberRole) ? memberRole : defaultRole;
+
+                return new StaffUserContext(user.Id, staffName, staffRole);
+            }
+        }
+
+        return new StaffUserContext(null, "System Staff", defaultRole);
+    }
+
     public void Delete(User user)
     {
         _context.Users.Remove(user);

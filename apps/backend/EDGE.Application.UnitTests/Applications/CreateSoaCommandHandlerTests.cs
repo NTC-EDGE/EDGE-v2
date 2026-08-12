@@ -22,6 +22,10 @@ public class CreateSoaCommandHandlerTests
 
     public CreateSoaCommandHandlerTests()
     {
+        _userRepositoryMock
+            .Setup(u => u.GetStaffUserContextAsync(It.IsAny<string?>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string? id, string defaultRole, CancellationToken _) => new StaffUserContext(null, "Test Staff", defaultRole));
+
         _handler = new CreateSoaCommandHandler(
             _repositoryMock.Object,
             _unitOfWorkMock.Object,

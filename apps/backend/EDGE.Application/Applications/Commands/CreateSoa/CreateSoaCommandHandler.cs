@@ -39,28 +39,7 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
             return ApiResponse<Guid>.Fail("Invalid IssuedToType.");
         }
 
-        Guid? actingUserId = null;
-        string staffName = "Evaluator";
-        string staffRole = "Evaluator";
-
-        var currentUserIdStr = _currentUserService.UserId;
-        if (!string.IsNullOrEmpty(currentUserIdStr) && Guid.TryParse(currentUserIdStr, out var parsedUserId))
-        {
-            var user = await _userRepository.GetByIdAsync(parsedUserId, cancellationToken);
-            if (user != null)
-            {
-                actingUserId = user.Id;
-                staffName = $"{user.FirstName} {user.LastName}".Trim();
-                if (string.IsNullOrEmpty(staffName)) staffName = user.Email;
-
-                var memberRole = user.TenantMemberships?.FirstOrDefault()?.Role?.Name 
-                              ?? user.TenantMemberships?.FirstOrDefault()?.Position;
-                if (!string.IsNullOrWhiteSpace(memberRole))
-                {
-                    staffRole = memberRole;
-                }
-            }
-        }
+        var userContext = await _userRepository.GetStaffUserContextAsync(_currentUserService.UserId, "Evaluator", cancellationToken);
 
         var soa = new StatementOfAccount
         {
@@ -73,7 +52,7 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
             IssuedToName = request.IssuedToName,
             IssuedToAddress = request.IssuedToAddress,
             DueDate = request.DueDate,
-            PreparedByUserId = actingUserId
+            PreparedByUserId = userContext.UserId
         };
 
         foreach (var item in request.LineItems)
@@ -106,9 +85,9 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
             StatementOfAccountId = soa.Id,
             Action = "SOA created by Evaluator",
             ToStatus = SoaStatus.Pending,
-            PerformedByUserId = actingUserId,
-            StaffName = staffName,
-            StaffRole = staffRole,
+            PerformedByUserId = userContext.UserId,
+            StaffName = userContext.StaffName,
+            StaffRole = userContext.StaffRole,
             Timestamp = DateTime.UtcNow
         });
 

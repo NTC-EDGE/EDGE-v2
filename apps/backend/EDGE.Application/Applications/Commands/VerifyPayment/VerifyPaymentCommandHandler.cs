@@ -41,34 +41,13 @@ public class VerifyPaymentCommandHandler : IRequestHandler<VerifyPaymentCommand,
             return ApiResponse<bool>.Fail($"Amount received ({request.AmountReceived:F2}) is less than the required amount due ({op.AmountDue:F2}).");
         }
 
-        Guid? actingUserId = null;
-        string staffName = "Cashier";
-        string staffRole = "Cashier";
-
-        var currentUserIdStr = _currentUserService.UserId;
-        if (!string.IsNullOrEmpty(currentUserIdStr) && Guid.TryParse(currentUserIdStr, out var parsedUserId))
-        {
-            var user = await _userRepository.GetByIdAsync(parsedUserId, cancellationToken);
-            if (user != null)
-            {
-                actingUserId = user.Id;
-                staffName = $"{user.FirstName} {user.LastName}".Trim();
-                if (string.IsNullOrEmpty(staffName)) staffName = user.Email;
-
-                var memberRole = user.TenantMemberships?.FirstOrDefault()?.Role?.Name 
-                              ?? user.TenantMemberships?.FirstOrDefault()?.Position;
-                if (!string.IsNullOrWhiteSpace(memberRole))
-                {
-                    staffRole = memberRole;
-                }
-            }
-        }
+        var userContext = await _userRepository.GetStaffUserContextAsync(_currentUserService.UserId, "Cashier", cancellationToken);
 
         var prevOpStatus = op.Status;
         op.Status = OpStatus.Paid;
         op.OfficialReceiptNumber = request.OfficialReceiptNumber;
         op.AmountReceived = request.AmountReceived;
-        op.VerifiedByCashierId = actingUserId;
+        op.VerifiedByCashierId = userContext.UserId;
         op.PaidAt = DateTime.UtcNow;
 
         if (op.Application != null)
@@ -83,9 +62,9 @@ public class VerifyPaymentCommandHandler : IRequestHandler<VerifyPaymentCommand,
                 Action = "Application completed. Payment received.",
                 FromStatus = prevAppStatus,
                 ToStatus = ApplicationStatus.Completed,
-                PerformedByUserId = actingUserId,
-                StaffName = staffName,
-                StaffRole = staffRole,
+                PerformedByUserId = userContext.UserId,
+                StaffName = userContext.StaffName,
+                StaffRole = userContext.StaffRole,
                 Timestamp = DateTime.UtcNow
             }, cancellationToken);
         }
@@ -97,9 +76,9 @@ public class VerifyPaymentCommandHandler : IRequestHandler<VerifyPaymentCommand,
             Action = $"Payment verified. OR: {request.OfficialReceiptNumber}",
             FromStatus = prevOpStatus,
             ToStatus = OpStatus.Paid,
-            PerformedByUserId = actingUserId,
-            StaffName = staffName,
-            StaffRole = staffRole,
+            PerformedByUserId = userContext.UserId,
+            StaffName = userContext.StaffName,
+            StaffRole = userContext.StaffRole,
             OfficialReceiptNumber = request.OfficialReceiptNumber,
             Timestamp = DateTime.UtcNow
         });

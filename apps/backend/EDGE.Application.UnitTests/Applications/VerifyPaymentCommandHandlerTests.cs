@@ -21,6 +21,10 @@ public class VerifyPaymentCommandHandlerTests
 
     public VerifyPaymentCommandHandlerTests()
     {
+        _userRepositoryMock
+            .Setup(u => u.GetStaffUserContextAsync(It.IsAny<string?>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string? id, string defaultRole, CancellationToken _) => new StaffUserContext(null, "Test Staff", defaultRole));
+
         _handler = new VerifyPaymentCommandHandler(
             _repositoryMock.Object,
             _unitOfWorkMock.Object,

@@ -35,28 +35,7 @@ public class ReturnSoaCommandHandler : IRequestHandler<ReturnSoaCommand, ApiResp
         if (soa == null) return ApiResponse<bool>.Fail("SOA not found.");
         if (soa.Status != SoaStatus.Pending) return ApiResponse<bool>.Fail("SOA must be Pending to return.");
 
-        Guid? actingUserId = null;
-        string staffName = "Accountant";
-        string staffRole = "Accountant";
-
-        var currentUserIdStr = _currentUserService.UserId;
-        if (!string.IsNullOrEmpty(currentUserIdStr) && Guid.TryParse(currentUserIdStr, out var parsedUserId))
-        {
-            var user = await _userRepository.GetByIdAsync(parsedUserId, cancellationToken);
-            if (user != null)
-            {
-                actingUserId = user.Id;
-                staffName = $"{user.FirstName} {user.LastName}".Trim();
-                if (string.IsNullOrEmpty(staffName)) staffName = user.Email;
-
-                var memberRole = user.TenantMemberships?.FirstOrDefault()?.Role?.Name 
-                              ?? user.TenantMemberships?.FirstOrDefault()?.Position;
-                if (!string.IsNullOrWhiteSpace(memberRole))
-                {
-                    staffRole = memberRole;
-                }
-            }
-        }
+        var userContext = await _userRepository.GetStaffUserContextAsync(_currentUserService.UserId, "Accountant", cancellationToken);
 
         soa.Status = SoaStatus.Returned;
         soa.Remarks = request.Remarks;
@@ -68,9 +47,9 @@ public class ReturnSoaCommandHandler : IRequestHandler<ReturnSoaCommand, ApiResp
             Action = $"SOA returned. Reason: {request.Remarks}",
             FromStatus = SoaStatus.Pending,
             ToStatus = SoaStatus.Returned,
-            PerformedByUserId = actingUserId,
-            StaffName = staffName,
-            StaffRole = staffRole,
+            PerformedByUserId = userContext.UserId,
+            StaffName = userContext.StaffName,
+            StaffRole = userContext.StaffRole,
             Remarks = request.Remarks,
             Timestamp = DateTime.UtcNow
         });
