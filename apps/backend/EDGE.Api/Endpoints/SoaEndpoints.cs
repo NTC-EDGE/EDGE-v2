@@ -38,27 +38,49 @@ public static class SoaEndpoints
     }
 
     [HasPermission(Permissions.UpdateApplication)]
-    public static async Task<IResult> CreateSoa(Guid id, CreateSoaCommand command, IMediator mediator)
+    public static async Task<IResult> CreateSoa(Guid id, CreateSoaRequest request, IMediator mediator)
     {
-        var cmd = command with { ApplicationId = id };
-        var result = await mediator.Send(cmd);
+        var command = new CreateSoaCommand(
+            id,
+            request.ApplicantId,
+            request.IssuedToType,
+            request.IssuedToName,
+            request.IssuedToAddress,
+            request.DueDate,
+            request.LineItems);
+
+        var result = await mediator.Send(command);
         if (!result.Succeeded) return Results.BadRequest(result);
         return Results.Created($"/api/v2/soas/{result.Data}", result);
     }
 
     [HasPermission(Permissions.EvaluateApplication)]
-    public static async Task<IResult> ApproveSoa(Guid soaId, ApproveSoaCommand command, IMediator mediator)
+    public static async Task<IResult> ApproveSoa(Guid soaId, ApproveSoaRequest? request, IMediator mediator)
     {
-        var result = await mediator.Send(command with { SoaId = soaId });
+        var command = new ApproveSoaCommand(soaId, request?.Remarks);
+        var result = await mediator.Send(command);
         if (!result.Succeeded) return Results.BadRequest(result);
         return Results.Ok(result);
     }
 
     [HasPermission(Permissions.EvaluateApplication)]
-    public static async Task<IResult> ReturnSoa(Guid soaId, ReturnSoaCommand command, IMediator mediator)
+    public static async Task<IResult> ReturnSoa(Guid soaId, ReturnSoaRequest request, IMediator mediator)
     {
-        var result = await mediator.Send(command with { SoaId = soaId });
+        var command = new ReturnSoaCommand(soaId, request.Remarks);
+        var result = await mediator.Send(command);
         if (!result.Succeeded) return Results.BadRequest(result);
         return Results.Ok(result);
     }
 }
+
+public record CreateSoaRequest(
+    Guid? ApplicantId,
+    string IssuedToType,
+    string IssuedToName,
+    string? IssuedToAddress,
+    DateTime DueDate,
+    System.Collections.Generic.List<CreateSoaLineItemRequest> LineItems);
+
+public record ApproveSoaRequest(string? Remarks);
+
+public record ReturnSoaRequest(string Remarks);

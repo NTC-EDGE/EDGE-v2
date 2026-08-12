@@ -15,15 +15,18 @@ public class ApproveSoaCommandHandler : IRequestHandler<ApproveSoaCommand, ApiRe
     private readonly IApplicationFullRepository _repository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IUserRepository _userRepository;
 
     public ApproveSoaCommandHandler(
         IApplicationFullRepository repository,
         IUnitOfWork unitOfWork,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        IUserRepository userRepository)
     {
         _repository = repository;
         _unitOfWork = unitOfWork;
         _currentUserService = currentUserService;
+        _userRepository = userRepository;
     }
 
     public async Task<ApiResponse<Guid>> Handle(ApproveSoaCommand request, CancellationToken cancellationToken)
@@ -34,12 +37,18 @@ public class ApproveSoaCommandHandler : IRequestHandler<ApproveSoaCommand, ApiRe
         if (soa.Status != SoaStatus.Pending) return ApiResponse<Guid>.Fail("SOA must be Pending to approve.");
 
         Guid? actingUserId = null;
+        string staffName = "Accountant";
+        string staffRole = "Accountant";
+
         var currentUserIdStr = _currentUserService.UserId;
         if (!string.IsNullOrEmpty(currentUserIdStr) && Guid.TryParse(currentUserIdStr, out var parsedUserId))
         {
-            if (await _repository.UserExistsAsync(parsedUserId, cancellationToken))
+            var user = await _userRepository.GetByIdAsync(parsedUserId, cancellationToken);
+            if (user != null)
             {
-                actingUserId = parsedUserId;
+                actingUserId = user.Id;
+                staffName = $"{user.FirstName} {user.LastName}".Trim();
+                if (string.IsNullOrEmpty(staffName)) staffName = user.Email;
             }
         }
 
@@ -64,6 +73,10 @@ public class ApproveSoaCommandHandler : IRequestHandler<ApproveSoaCommand, ApiRe
             Action = "SOA approved by Accountant. Order of Payment generated.",
             FromStatus = SoaStatus.Pending,
             ToStatus = SoaStatus.Approved,
+            PerformedByUserId = actingUserId,
+            StaffName = staffName,
+            StaffRole = staffRole,
+            Remarks = request.Remarks,
             Timestamp = DateTime.UtcNow
         });
 
@@ -73,6 +86,9 @@ public class ApproveSoaCommandHandler : IRequestHandler<ApproveSoaCommand, ApiRe
             OrderOfPaymentId = op.Id,
             Action = "Order of Payment issued.",
             ToStatus = OpStatus.Billed,
+            PerformedByUserId = actingUserId,
+            StaffName = staffName,
+            StaffRole = staffRole,
             Timestamp = DateTime.UtcNow
         });
 

@@ -43,6 +43,7 @@ public class SoaHistoryDto
     public string Action { get; set; } = string.Empty;
     public string? FromStatus { get; set; }
     public string ToStatus { get; set; } = string.Empty;
+    public Guid? PerformedByUserId { get; set; }
     public string StaffName { get; set; } = string.Empty;
     public string StaffRole { get; set; } = string.Empty;
     public string? Remarks { get; set; }

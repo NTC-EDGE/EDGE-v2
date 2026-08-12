@@ -14,15 +14,18 @@ public class VerifyPaymentCommandHandler : IRequestHandler<VerifyPaymentCommand,
     private readonly IApplicationFullRepository _repository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IUserRepository _userRepository;
 
     public VerifyPaymentCommandHandler(
         IApplicationFullRepository repository,
         IUnitOfWork unitOfWork,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        IUserRepository userRepository)
     {
         _repository = repository;
         _unitOfWork = unitOfWork;
         _currentUserService = currentUserService;
+        _userRepository = userRepository;
     }
 
     public async Task<ApiResponse<bool>> Handle(VerifyPaymentCommand request, CancellationToken cancellationToken)
@@ -39,12 +42,18 @@ public class VerifyPaymentCommandHandler : IRequestHandler<VerifyPaymentCommand,
         }
 
         Guid? actingUserId = null;
+        string staffName = "Cashier";
+        string staffRole = "Cashier";
+
         var currentUserIdStr = _currentUserService.UserId;
         if (!string.IsNullOrEmpty(currentUserIdStr) && Guid.TryParse(currentUserIdStr, out var parsedUserId))
         {
-            if (await _repository.UserExistsAsync(parsedUserId, cancellationToken))
+            var user = await _userRepository.GetByIdAsync(parsedUserId, cancellationToken);
+            if (user != null)
             {
-                actingUserId = parsedUserId;
+                actingUserId = user.Id;
+                staffName = $"{user.FirstName} {user.LastName}".Trim();
+                if (string.IsNullOrEmpty(staffName)) staffName = user.Email;
             }
         }
 
@@ -55,8 +64,24 @@ public class VerifyPaymentCommandHandler : IRequestHandler<VerifyPaymentCommand,
         op.VerifiedByCashierId = actingUserId;
         op.PaidAt = DateTime.UtcNow;
 
-        var prevAppStatus = op.Application.Status;
-        op.Application.Status = ApplicationStatus.Completed;
+        if (op.Application != null)
+        {
+            var prevAppStatus = op.Application.Status;
+            op.Application.Status = ApplicationStatus.Completed;
+
+            await _repository.AddApplicationHistoryAsync(new ApplicationHistory
+            {
+                Id = Guid.NewGuid(),
+                ApplicationId = op.ApplicationId,
+                Action = "Application completed. Payment received.",
+                FromStatus = prevAppStatus,
+                ToStatus = ApplicationStatus.Completed,
+                PerformedByUserId = actingUserId,
+                StaffName = staffName,
+                StaffRole = staffRole,
+                Timestamp = DateTime.UtcNow
+            }, cancellationToken);
+        }
 
         op.Histories.Add(new OpHistory
         {
@@ -65,18 +90,12 @@ public class VerifyPaymentCommandHandler : IRequestHandler<VerifyPaymentCommand,
             Action = $"Payment verified. OR: {request.OfficialReceiptNumber}",
             FromStatus = prevOpStatus,
             ToStatus = OpStatus.Paid,
+            PerformedByUserId = actingUserId,
+            StaffName = staffName,
+            StaffRole = staffRole,
+            OfficialReceiptNumber = request.OfficialReceiptNumber,
             Timestamp = DateTime.UtcNow
         });
-
-        await _repository.AddApplicationHistoryAsync(new ApplicationHistory
-        {
-            Id = Guid.NewGuid(),
-            ApplicationId = op.ApplicationId,
-            Action = "Application completed. Payment received.",
-            FromStatus = prevAppStatus,
-            ToStatus = ApplicationStatus.Completed,
-            Timestamp = DateTime.UtcNow
-        }, cancellationToken);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         return ApiResponse<bool>.Success(true);

@@ -11,7 +11,7 @@ public class ApplicationHistory : BaseEntity
     public string Action { get; set; } = string.Empty;
     public ApplicationStatus? FromStatus { get; set; }
     public ApplicationStatus ToStatus { get; set; }
-    public Guid PerformedByUserId { get; set; }
+    public Guid? PerformedByUserId { get; set; }
     public string StaffName { get; set; } = string.Empty;
     public string StaffRole { get; set; } = string.Empty;
     public string? Remarks { get; set; }

@@ -31,18 +31,24 @@ public static class OpEndpoints
     }
 
     [HasPermission(Permissions.EvaluateApplication)]
-    public static async Task<IResult> VerifyPayment(Guid opId, VerifyPaymentCommand command, IMediator mediator)
+    public static async Task<IResult> VerifyPayment(Guid opId, VerifyPaymentRequest request, IMediator mediator)
     {
-        var result = await mediator.Send(command with { OpId = opId });
+        var command = new VerifyPaymentCommand(opId, request.OfficialReceiptNumber, request.AmountReceived);
+        var result = await mediator.Send(command);
         if (!result.Succeeded) return Results.BadRequest(result);
         return Results.Ok(result);
     }
 
     [HasPermission(Permissions.EvaluateApplication)]
-    public static async Task<IResult> ReturnOp(Guid opId, ReturnOpCommand command, IMediator mediator)
+    public static async Task<IResult> ReturnOp(Guid opId, ReturnOpRequest request, IMediator mediator)
     {
-        var result = await mediator.Send(command with { OpId = opId });
+        var command = new ReturnOpCommand(opId, request.Remarks, request.ReturnTo);
+        var result = await mediator.Send(command);
         if (!result.Succeeded) return Results.BadRequest(result);
         return Results.Ok(result);
     }
 }
+
+public record VerifyPaymentRequest(string OfficialReceiptNumber, decimal AmountReceived);
+
+public record ReturnOpRequest(string Remarks, EDGE.Domain.Enums.ReturnTarget ReturnTo);

@@ -13,11 +13,19 @@ public class ReturnOpCommandHandler : IRequestHandler<ReturnOpCommand, ApiRespon
 {
     private readonly IApplicationFullRepository _repository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICurrentUserService _currentUserService;
+    private readonly IUserRepository _userRepository;
 
-    public ReturnOpCommandHandler(IApplicationFullRepository repository, IUnitOfWork unitOfWork)
+    public ReturnOpCommandHandler(
+        IApplicationFullRepository repository,
+        IUnitOfWork unitOfWork,
+        ICurrentUserService currentUserService,
+        IUserRepository userRepository)
     {
         _repository = repository;
         _unitOfWork = unitOfWork;
+        _currentUserService = currentUserService;
+        _userRepository = userRepository;
     }
 
     public async Task<ApiResponse<bool>> Handle(ReturnOpCommand request, CancellationToken cancellationToken)
@@ -25,6 +33,22 @@ public class ReturnOpCommandHandler : IRequestHandler<ReturnOpCommand, ApiRespon
         var op = await _repository.GetOpByIdAsync(request.OpId, cancellationToken);
 
         if (op == null) return ApiResponse<bool>.Fail("Order of Payment not found.");
+
+        Guid? actingUserId = null;
+        string staffName = "Cashier";
+        string staffRole = "Cashier";
+
+        var currentUserIdStr = _currentUserService.UserId;
+        if (!string.IsNullOrEmpty(currentUserIdStr) && Guid.TryParse(currentUserIdStr, out var parsedUserId))
+        {
+            var user = await _userRepository.GetByIdAsync(parsedUserId, cancellationToken);
+            if (user != null)
+            {
+                actingUserId = user.Id;
+                staffName = $"{user.FirstName} {user.LastName}".Trim();
+                if (string.IsNullOrEmpty(staffName)) staffName = user.Email;
+            }
+        }
 
         op.Status = OpStatus.Returned;
         op.Remarks = request.Remarks;
@@ -35,10 +59,14 @@ public class ReturnOpCommandHandler : IRequestHandler<ReturnOpCommand, ApiRespon
             OrderOfPaymentId = op.Id,
             Action = $"OP returned to {request.ReturnTo}. Reason: {request.Remarks}",
             ToStatus = OpStatus.Returned,
+            PerformedByUserId = actingUserId,
+            StaffName = staffName,
+            StaffRole = staffRole,
+            Remarks = request.Remarks,
             Timestamp = DateTime.UtcNow
         });
 
-        if (request.ReturnTo == ReturnTarget.Evaluator)
+        if (request.ReturnTo == ReturnTarget.Evaluator && op.StatementOfAccount != null)
         {
             var soa = op.StatementOfAccount;
             var prevSoaStatus = soa.Status;
@@ -51,6 +79,10 @@ public class ReturnOpCommandHandler : IRequestHandler<ReturnOpCommand, ApiRespon
                 Action = $"SOA returned along with OP. Reason: {request.Remarks}",
                 FromStatus = prevSoaStatus,
                 ToStatus = SoaStatus.Returned,
+                PerformedByUserId = actingUserId,
+                StaffName = staffName,
+                StaffRole = staffRole,
+                Remarks = request.Remarks,
                 Timestamp = DateTime.UtcNow
             }, cancellationToken);
         }

@@ -13,11 +13,19 @@ public class ReturnSoaCommandHandler : IRequestHandler<ReturnSoaCommand, ApiResp
 {
     private readonly IApplicationFullRepository _repository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICurrentUserService _currentUserService;
+    private readonly IUserRepository _userRepository;
 
-    public ReturnSoaCommandHandler(IApplicationFullRepository repository, IUnitOfWork unitOfWork)
+    public ReturnSoaCommandHandler(
+        IApplicationFullRepository repository,
+        IUnitOfWork unitOfWork,
+        ICurrentUserService currentUserService,
+        IUserRepository userRepository)
     {
         _repository = repository;
         _unitOfWork = unitOfWork;
+        _currentUserService = currentUserService;
+        _userRepository = userRepository;
     }
 
     public async Task<ApiResponse<bool>> Handle(ReturnSoaCommand request, CancellationToken cancellationToken)
@@ -26,6 +34,22 @@ public class ReturnSoaCommandHandler : IRequestHandler<ReturnSoaCommand, ApiResp
 
         if (soa == null) return ApiResponse<bool>.Fail("SOA not found.");
         if (soa.Status != SoaStatus.Pending) return ApiResponse<bool>.Fail("SOA must be Pending to return.");
+
+        Guid? actingUserId = null;
+        string staffName = "Accountant";
+        string staffRole = "Accountant";
+
+        var currentUserIdStr = _currentUserService.UserId;
+        if (!string.IsNullOrEmpty(currentUserIdStr) && Guid.TryParse(currentUserIdStr, out var parsedUserId))
+        {
+            var user = await _userRepository.GetByIdAsync(parsedUserId, cancellationToken);
+            if (user != null)
+            {
+                actingUserId = user.Id;
+                staffName = $"{user.FirstName} {user.LastName}".Trim();
+                if (string.IsNullOrEmpty(staffName)) staffName = user.Email;
+            }
+        }
 
         soa.Status = SoaStatus.Returned;
         soa.Remarks = request.Remarks;
@@ -37,6 +61,10 @@ public class ReturnSoaCommandHandler : IRequestHandler<ReturnSoaCommand, ApiResp
             Action = $"SOA returned. Reason: {request.Remarks}",
             FromStatus = SoaStatus.Pending,
             ToStatus = SoaStatus.Returned,
+            PerformedByUserId = actingUserId,
+            StaffName = staffName,
+            StaffRole = staffRole,
+            Remarks = request.Remarks,
             Timestamp = DateTime.UtcNow
         });
 

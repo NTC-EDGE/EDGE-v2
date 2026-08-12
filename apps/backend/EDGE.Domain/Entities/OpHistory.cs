@@ -11,7 +11,7 @@ public class OpHistory : BaseEntity
     public string Action { get; set; } = string.Empty;
     public OpStatus? FromStatus { get; set; }
     public OpStatus ToStatus { get; set; }
-    public Guid PerformedByUserId { get; set; }
+    public Guid? PerformedByUserId { get; set; }
     public string StaffName { get; set; } = string.Empty;
     public string StaffRole { get; set; } = string.Empty;
     public string? OfficialReceiptNumber { get; set; }

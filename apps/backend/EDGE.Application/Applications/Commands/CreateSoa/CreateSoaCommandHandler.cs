@@ -15,15 +15,18 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
     private readonly IApplicationFullRepository _repository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IUserRepository _userRepository;
 
     public CreateSoaCommandHandler(
         IApplicationFullRepository repository,
         IUnitOfWork unitOfWork,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        IUserRepository userRepository)
     {
         _repository = repository;
         _unitOfWork = unitOfWork;
         _currentUserService = currentUserService;
+        _userRepository = userRepository;
     }
 
     public async Task<ApiResponse<Guid>> Handle(CreateSoaCommand request, CancellationToken cancellationToken)
@@ -37,12 +40,18 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
         }
 
         Guid? actingUserId = null;
+        string staffName = "Evaluator";
+        string staffRole = "Evaluator";
+
         var currentUserIdStr = _currentUserService.UserId;
         if (!string.IsNullOrEmpty(currentUserIdStr) && Guid.TryParse(currentUserIdStr, out var parsedUserId))
         {
-            if (await _repository.UserExistsAsync(parsedUserId, cancellationToken))
+            var user = await _userRepository.GetByIdAsync(parsedUserId, cancellationToken);
+            if (user != null)
             {
-                actingUserId = parsedUserId;
+                actingUserId = user.Id;
+                staffName = $"{user.FirstName} {user.LastName}".Trim();
+                if (string.IsNullOrEmpty(staffName)) staffName = user.Email;
             }
         }
 
@@ -90,6 +99,9 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
             StatementOfAccountId = soa.Id,
             Action = "SOA created by Evaluator",
             ToStatus = SoaStatus.Pending,
+            PerformedByUserId = actingUserId,
+            StaffName = staffName,
+            StaffRole = staffRole,
             Timestamp = DateTime.UtcNow
         });
 
