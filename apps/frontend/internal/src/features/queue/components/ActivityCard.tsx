@@ -156,7 +156,7 @@ export function ActivityCard({
               <View style={[styles.appNumBadge, { backgroundColor: brandBg }]}>
                 <Lucide name="hash" size={10} color={brandColor} />
                 <Text style={[styles.appNumText, { color: brandColor }]}>
-                  {application.permitNumber || application.referenceNumber}
+                  {application.referenceNumber}
                 </Text>
               </View>
             </View>
