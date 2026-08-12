@@ -281,6 +281,43 @@ public static class ApplicationDataSeeder
         AddSoaHistory(soaBulk2, "SOA created for applicant 2 (Sofia Ramos).", null, SoaStatus.Pending,
             EvaluatorUserId, "Jane Evaluator", "Evaluator", now.AddDays(-8));
 
+        var formSub7_1 = new FormSubmission
+        {
+            Id = Guid.NewGuid(),
+            ApplicationId = app7.Id,
+            FormId = Guid.Parse("f0100000-0000-0000-0000-000000000001"),
+            ApplicantId = applicants[6].Id,
+            CreatedAt = now.AddDays(-10),
+            FieldValues = new List<FormFieldValue>
+            {
+                new FormFieldValue { Id = Guid.NewGuid(), FieldId = Guid.NewGuid(), CustomLabel = "Examinee Class", Value = "Class B (General)" },
+                new FormFieldValue { Id = Guid.NewGuid(), FieldId = Guid.NewGuid(), CustomLabel = "Exam Type", Value = "First Time Examinee" },
+                new FormFieldValue { Id = Guid.NewGuid(), FieldId = Guid.NewGuid(), CustomLabel = "Preferred Exam Language", Value = "English" },
+                new FormFieldValue { Id = Guid.NewGuid(), FieldId = Guid.NewGuid(), CustomLabel = "PRC License Status", Value = "None" },
+                new FormFieldValue { Id = Guid.NewGuid(), FieldId = Guid.NewGuid(), CustomLabel = "Station Call Sign", Value = "DU7MLP" },
+                new FormFieldValue { Id = Guid.NewGuid(), FieldId = Guid.NewGuid(), CustomLabel = "Vessel Name", Value = "M/V Ocean Sentinel" },
+            }
+        };
+        var formSub7_2 = new FormSubmission
+        {
+            Id = Guid.NewGuid(),
+            ApplicationId = app7.Id,
+            FormId = Guid.Parse("f0100000-0000-0000-0000-000000000001"),
+            ApplicantId = applicants[7].Id,
+            CreatedAt = now.AddDays(-10),
+            FieldValues = new List<FormFieldValue>
+            {
+                new FormFieldValue { Id = Guid.NewGuid(), FieldId = Guid.NewGuid(), CustomLabel = "Examinee Class", Value = "Class A (Advanced)" },
+                new FormFieldValue { Id = Guid.NewGuid(), FieldId = Guid.NewGuid(), CustomLabel = "Exam Type", Value = "Renewal Examinee" },
+                new FormFieldValue { Id = Guid.NewGuid(), FieldId = Guid.NewGuid(), CustomLabel = "Preferred Exam Language", Value = "English" },
+                new FormFieldValue { Id = Guid.NewGuid(), FieldId = Guid.NewGuid(), CustomLabel = "PRC License Status", Value = "Licensed Engineer" },
+                new FormFieldValue { Id = Guid.NewGuid(), FieldId = Guid.NewGuid(), CustomLabel = "Station Call Sign", Value = "DU7SFR" },
+                new FormFieldValue { Id = Guid.NewGuid(), FieldId = Guid.NewGuid(), CustomLabel = "Vessel Name", Value = "M/V Visayas Trader" },
+            }
+        };
+        app7.FormSubmissions.Add(formSub7_1);
+        app7.FormSubmissions.Add(formSub7_2);
+
         app7.StatementsOfAccount.Add(soaBulk1);
         app7.StatementsOfAccount.Add(soaBulk2);
         applications.Add(app7);

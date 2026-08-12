@@ -237,7 +237,16 @@ public class ApplicationFullRepository : IApplicationFullRepository
                         CourseTaken = aa.Applicant.ApplicantDetail.CourseTaken,
                         YearGraduated = aa.Applicant.ApplicantDetail.YearGraduated,
                         ESignature = aa.Applicant.ApplicantDetail.ESignature
-                    } : null
+                    } : null,
+                    FormFieldValues = app.FormSubmissions
+                        .Where(fs => aa.Applicant != null && fs.ApplicantId == aa.Applicant.Id)
+                        .SelectMany(fs => fs.FieldValues)
+                        .Select(fv => new EDGE.Application.Applicants.Dtos.FormFieldValueDto
+                        {
+                            FieldId = fv.FieldId,
+                            FieldLabel = fv.Field != null ? fv.Field.Label : (fv.CustomLabel ?? "Field"),
+                            Value = fv.Value
+                        }).ToList()
                 }).ToList(),
                 StatementsOfAccount = app.StatementsOfAccount.Select(s => new EDGE.Application.Applications.Dtos.StatementOfAccountDto
                 {
