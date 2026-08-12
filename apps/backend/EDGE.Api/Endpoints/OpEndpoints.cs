@@ -9,6 +9,8 @@ using EDGE.Application.Applications.Commands.ReturnOp;
 using EDGE.Domain.Authorization;
 using EDGE.Infrastructure.Authorization;
 
+using EDGE.Api.Endpoints.Ops.DTOs;
+
 namespace EDGE.Api.Endpoints;
 
 public static class OpEndpoints
@@ -48,7 +50,3 @@ public static class OpEndpoints
         return Results.Ok(result);
     }
 }
-
-public record VerifyPaymentRequest(string OfficialReceiptNumber, decimal AmountReceived);
-
-public record ReturnOpRequest(string Remarks, EDGE.Domain.Enums.ReturnTarget ReturnTo);

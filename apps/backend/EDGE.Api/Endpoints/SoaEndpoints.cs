@@ -10,6 +10,8 @@ using EDGE.Application.Applications.Commands.ReturnSoa;
 using EDGE.Domain.Authorization;
 using EDGE.Infrastructure.Authorization;
 
+using EDGE.Api.Endpoints.Soas.DTOs;
+
 namespace EDGE.Api.Endpoints;
 
 public static class SoaEndpoints
@@ -72,15 +74,3 @@ public static class SoaEndpoints
         return Results.Ok(result);
     }
 }
-
-public record CreateSoaRequest(
-    Guid? ApplicantId,
-    string IssuedToType,
-    string IssuedToName,
-    string? IssuedToAddress,
-    DateTime DueDate,
-    System.Collections.Generic.List<CreateSoaLineItemRequest> LineItems);
-
-public record ApproveSoaRequest(string? Remarks);
-
-public record ReturnSoaRequest(string Remarks);
