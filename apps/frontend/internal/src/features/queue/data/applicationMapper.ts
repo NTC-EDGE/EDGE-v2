@@ -224,21 +224,12 @@ export function mapApplicationDtoToUI(dto: ApplicationDto | ApplicationSummaryDt
       staff: c.correctedByStaff,
       timestamp: c.correctedAt,
     })) ?? [],
-    history: dto.histories && dto.histories.length > 0
-      ? dto.histories.map((h) => ({
-          id: h.id,
-          action: h.action || `Status: ${h.toStatus}`,
-          staff: h.staffName || 'System',
-          timestamp: h.timestamp ? new Date(h.timestamp).toLocaleString() : '',
-        }))
-      : [
-          {
-            id: 'initial-submission',
-            action: `Application Submitted via ${dto.submissionMode || 'Online'}`,
-            staff: rawFilingUser?.name || 'Applicant',
-            timestamp: dto.createdAt ? new Date(dto.createdAt).toLocaleString() : '',
-          },
-        ],
+    history: dto.histories?.map((h) => ({
+      id: h.id,
+      action: h.action || `Status: ${h.toStatus}`,
+      staff: h.staffName || 'System',
+      timestamp: h.timestamp ? new Date(h.timestamp).toLocaleString() : '',
+    })) ?? [],
     note: dto.remarks ?? '',
   };
 }
