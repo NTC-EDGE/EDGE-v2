@@ -771,61 +771,8 @@ function ApplicationDetailsTab({
         </View>
       )}
 
+      {/* Scrollable Content Area */}
       <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
-
-      {/* Evaluator Verdict & Remarks Box */}
-      {activeApplicant && (
-        <View style={[styles.evaluatorControlBox, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50], borderColor: isDark ? colors.neutral[700] : colors.neutral[200], marginBottom: SPACING[16] }]}>
-          <Text style={[styles.expandedSubTitle, { color: isDark ? colors.neutral[200] : colors.neutral[800] }]}>
-            Evaluator Verdict & Remarks for {activeApplicant.name}:
-          </Text>
-          <View style={{ flexDirection: 'row', gap: SPACING[8], marginVertical: SPACING[8] }}>
-            <Pressable
-              style={[
-                styles.evalStatusBtn,
-                (activeApplicant.status === 'Complete' || !activeApplicant.status) && { backgroundColor: isDark ? '#14532D' : '#DCFCE7', borderColor: '#166534' }
-              ]}
-              onPress={() => handleSetStatus(activeIdx, 'Complete')}
-            >
-              <Text style={[styles.evalStatusBtnText, { color: (activeApplicant.status === 'Complete' || !activeApplicant.status) ? '#166534' : colors.neutral[500] }]}>
-                ✓ Complete
-              </Text>
-            </Pressable>
-
-            <Pressable
-              style={[
-                styles.evalStatusBtn,
-                activeApplicant.status === 'Incomplete' && { backgroundColor: isDark ? '#7F1D1D' : '#FEE2E2', borderColor: '#991B1B' }
-              ]}
-              onPress={() => handleSetStatus(activeIdx, 'Incomplete')}
-            >
-              <Text style={[styles.evalStatusBtnText, { color: activeApplicant.status === 'Incomplete' ? '#991B1B' : colors.neutral[500] }]}>
-                ✕ Incomplete
-              </Text>
-            </Pressable>
-
-            <Pressable
-              style={[
-                styles.evalStatusBtn,
-                activeApplicant.status === 'ForEndorsement' && { backgroundColor: isDark ? '#581C87' : '#F3E8FF', borderColor: '#6B21A8' }
-              ]}
-              onPress={() => handleSetStatus(activeIdx, 'ForEndorsement')}
-            >
-              <Text style={[styles.evalStatusBtnText, { color: activeApplicant.status === 'ForEndorsement' ? '#6B21A8' : colors.neutral[500] }]}>
-                ⚡ For Endorsement
-              </Text>
-            </Pressable>
-          </View>
-
-          <TextInput
-            style={[styles.remarksInput, { color: isDark ? colors.neutral[100] : colors.neutral[900], backgroundColor: isDark ? colors.neutral[900] : COLORS.neutral.white, borderColor: isDark ? colors.neutral[700] : colors.neutral[300] }]}
-            placeholder="Enter evaluation remarks for this applicant..."
-            placeholderTextColor={isDark ? colors.neutral[500] : colors.neutral[400]}
-            value={activeApplicant.evaluationRemarks ?? ''}
-            onChangeText={(text) => handleSetRemarks(activeIdx, text)}
-          />
-        </View>
-      )}
 
       {/* Section 1: Personal & Profile Info */}
       <SectionHeader title={activeApplicant ? `1. APPLICANT PROFILE DETAILS (${activeApplicant.name.toUpperCase()})` : "APPLICATION FORM"} />
@@ -1050,8 +997,75 @@ function ApplicationDetailsTab({
         </>
       )}
 
-      <View style={{ height: 80 }} />
+      <View style={{ height: 20 }} />
     </ScrollView>
+
+    {/* Fixed Sticky Bottom Dock for Evaluator Verdict & Remarks */}
+    {activeApplicant && (
+      <View
+        style={[
+          styles.evaluatorControlBoxSticky,
+          {
+            backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50],
+            borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: -2 },
+            shadowOpacity: 0.08,
+            shadowRadius: 3,
+            elevation: 4,
+          },
+        ]}
+      >
+        <Text style={[styles.expandedSubTitle, { color: isDark ? colors.neutral[200] : colors.neutral[800] }]}>
+          Evaluator Verdict & Remarks for {activeApplicant.name}:
+        </Text>
+        <View style={{ flexDirection: 'row', gap: SPACING[8], marginVertical: SPACING[6] }}>
+          <Pressable
+            style={[
+              styles.evalStatusBtn,
+              (activeApplicant.status === 'Complete' || !activeApplicant.status) && { backgroundColor: isDark ? '#14532D' : '#DCFCE7', borderColor: '#166534' }
+            ]}
+            onPress={() => handleSetStatus(activeIdx, 'Complete')}
+          >
+            <Text style={[styles.evalStatusBtnText, { color: (activeApplicant.status === 'Complete' || !activeApplicant.status) ? '#166534' : colors.neutral[500] }]}>
+              ✓ Complete
+            </Text>
+          </Pressable>
+
+          <Pressable
+            style={[
+              styles.evalStatusBtn,
+              activeApplicant.status === 'Incomplete' && { backgroundColor: isDark ? '#7F1D1D' : '#FEE2E2', borderColor: '#991B1B' }
+            ]}
+            onPress={() => handleSetStatus(activeIdx, 'Incomplete')}
+          >
+            <Text style={[styles.evalStatusBtnText, { color: activeApplicant.status === 'Incomplete' ? '#991B1B' : colors.neutral[500] }]}>
+              ✕ Incomplete
+            </Text>
+          </Pressable>
+
+          <Pressable
+            style={[
+              styles.evalStatusBtn,
+              activeApplicant.status === 'ForEndorsement' && { backgroundColor: isDark ? '#581C87' : '#F3E8FF', borderColor: '#6B21A8' }
+            ]}
+            onPress={() => handleSetStatus(activeIdx, 'ForEndorsement')}
+          >
+            <Text style={[styles.evalStatusBtnText, { color: activeApplicant.status === 'ForEndorsement' ? '#6B21A8' : colors.neutral[500] }]}>
+              ⚡ For Endorsement
+            </Text>
+          </Pressable>
+        </View>
+
+        <TextInput
+          style={[styles.remarksInput, { color: isDark ? colors.neutral[100] : colors.neutral[900], backgroundColor: isDark ? colors.neutral[900] : COLORS.neutral.white, borderColor: isDark ? colors.neutral[700] : colors.neutral[300] }]}
+          placeholder="Enter evaluation remarks for this applicant..."
+          placeholderTextColor={isDark ? colors.neutral[500] : colors.neutral[400]}
+          value={activeApplicant.evaluationRemarks ?? ''}
+          onChangeText={(text) => handleSetRemarks(activeIdx, text)}
+        />
+      </View>
+    )}
   </View>
 );
 }
@@ -3061,6 +3075,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING[10],
     paddingVertical: SPACING[6],
     marginTop: SPACING[4],
+  },
+  evaluatorControlBoxSticky: {
+    paddingHorizontal: SPACING[16],
+    paddingVertical: SPACING[10],
+    borderTopWidth: 1,
+    zIndex: 10,
   },
 
   // Master-Detail Split Workspace styles
