@@ -114,7 +114,6 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                             EntityType = cd.EntityType?.ToString()
                         };
                         applicantDto.Company = companyDto;
-                        applicantDto.Details.Company = companyDto;
                     }
                 }
 

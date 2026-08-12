@@ -373,18 +373,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
                         SchoolAttended = aa.Applicant.ApplicantDetail.SchoolAttended,
                         CourseTaken = aa.Applicant.ApplicantDetail.CourseTaken,
                         YearGraduated = aa.Applicant.ApplicantDetail.YearGraduated,
-                        ESignature = aa.Applicant.ApplicantDetail.ESignature,
-                        Company = aa.Applicant.ApplicantDetail.CompanyDetail != null ? new EDGE.Application.Applicants.Dtos.CompanyDetailDto
-                        {
-                            Id = aa.Applicant.ApplicantDetail.CompanyDetail.Id,
-                            BarangayId = aa.Applicant.ApplicantDetail.CompanyDetail.BarangayId,
-                            Address = aa.Applicant.ApplicantDetail.CompanyDetail.Address,
-                            Name = aa.Applicant.ApplicantDetail.CompanyDetail.Name,
-                            RegistrationNumber = aa.Applicant.ApplicantDetail.CompanyDetail.RegistrationNumber,
-                            ContactNumber = aa.Applicant.ApplicantDetail.ContactNumber,
-                            Email = aa.Applicant.ApplicantDetail.CompanyDetail.Email,
-                            EntityType = aa.Applicant.ApplicantDetail.CompanyDetail.EntityType != null ? aa.Applicant.ApplicantDetail.CompanyDetail.EntityType.Value.ToString() : null
-                        } : null
+                        ESignature = aa.Applicant.ApplicantDetail.ESignature
                     } : null,
                     FormFieldValues = app.FormSubmissions
                         .Where(fs => aa.Applicant != null && fs.ApplicantId == aa.Applicant.Id)

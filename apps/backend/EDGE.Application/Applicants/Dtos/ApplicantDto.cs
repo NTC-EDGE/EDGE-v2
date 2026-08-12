@@ -45,7 +45,6 @@ public class ApplicantDetailDto
     public string? CourseTaken { get; set; }
     public string? YearGraduated { get; set; }
     public string? ESignature { get; set; }
-    public CompanyDetailDto? Company { get; set; }
 }
 
 public class CompanyDetailDto

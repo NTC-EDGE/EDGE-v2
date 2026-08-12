@@ -84,7 +84,7 @@ export function ApplicationProvider({ children }: { children: ReactNode }) {
     const override = localOverrides[selectedId];
 
     const merged = cachedDetail
-      ? { ...cachedDetail, ...(baseSummary ?? {}) }
+      ? { ...(baseSummary ?? {}), ...cachedDetail }
       : baseSummary;
 
     return merged && override ? { ...merged, ...override } : merged;

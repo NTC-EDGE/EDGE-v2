@@ -203,11 +203,7 @@ public class UpdateApplicantDetailCommandHandler : IRequestHandler<UpdateApplica
 
         if (applicant.CompanyDetail != null)
         {
-            if (dto.Details == null)
-            {
-                dto.Details = new ApplicantDetailDto();
-            }
-            dto.Details.Company = new CompanyDetailDto
+            dto.Company = new CompanyDetailDto
             {
                 Id = applicant.CompanyDetail.Id,
                 BarangayId = applicant.CompanyDetail.BarangayId,
