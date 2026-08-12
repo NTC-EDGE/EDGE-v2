@@ -4,8 +4,9 @@ import {
   View,
   ScrollView,
   useWindowDimensions,
+  TouchableOpacity,
 } from "react-native";
-import { COLORS, TYPOGRAPHY } from "@edge/ui";
+import { COLORS, TYPOGRAPHY, Icon } from "@edge/ui";
 import { NTCService } from "../data/servicesData";
 import { GeneralWizardNavigation } from "./components/GeneralWizardNavigation";
 import { GeneralWizardModals } from "./components/GeneralWizardModals";
@@ -70,12 +71,15 @@ export function GeneralServiceWizard({
   currentApplicantIndex,
   setCurrentApplicantIndex,
 }: GeneralServiceWizardProps) {
+  if (!service) return null;
+
   const { width } = useWindowDimensions();
   const isWeb = width > 768;
 
   const [localBulkMethod, setLocalBulkMethod] = useState<"MANUAL" | "EXCEL">("MANUAL");
   const [localIsFileUploaded, setLocalIsFileUploaded] = useState(false);
   const [localUploadedFileName, setLocalUploadedFileName] = useState("");
+  const [dynamicRequiredFieldIds, setDynamicRequiredFieldIds] = useState<string[]>([]);
 
   const bulkMethod = propBulkMethod !== undefined ? propBulkMethod : localBulkMethod;
   const setBulkMethod = propSetBulkMethod !== undefined ? propSetBulkMethod : setLocalBulkMethod;
@@ -109,8 +113,11 @@ export function GeneralServiceWizard({
     submitApplicationPayload,
   } = useGeneralServiceWizard({
     service,
+    step,
     selectedRegionId,
+    setSelectedRegionId,
     selectedOfficeId,
+    setSelectedOfficeId,
     applicants,
     setApplicants,
     currentApplicantIndex,
@@ -129,6 +136,7 @@ export function GeneralServiceWizard({
       setCurrentApplicantIndex,
       service,
       setIsConfirmModalOpen,
+      dynamicRequiredFieldIds,
     });
   };
 
@@ -163,7 +171,31 @@ export function GeneralServiceWizard({
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
       <ScrollView contentContainerStyle={{ padding: 24 }}>
-        <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 20, fontWeight: "700", color: COLORS.neutral[900], marginBottom: 8 }}>
+        {/* Back to Services Button in Upper Left Corner */}
+        <TouchableOpacity
+          onPress={onClose}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 6,
+            marginBottom: 12,
+            alignSelf: "flex-start",
+            paddingVertical: 6,
+            paddingHorizontal: 12,
+            borderRadius: 8,
+            backgroundColor: "#EFF6FF",
+            borderColor: "#BFDBFE",
+            borderWidth: 1,
+          }}
+          activeOpacity={0.7}
+        >
+          <Icon name="arrow-left" size={14} color="#1E40AF" />
+          <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: "#1E40AF" }}>
+            Back to Services
+          </Text>
+        </TouchableOpacity>
+
+        <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 20, fontWeight: "700", color: COLORS.neutral[900], marginBottom: 4 }}>
           {service.title}
         </Text>
         <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: COLORS.neutral[500], marginBottom: 24 }}>
@@ -206,6 +238,7 @@ export function GeneralServiceWizard({
             delete cur[req];
             updateActiveApplicant({ uploads: cur });
           }}
+          onRequiredFieldsChange={setDynamicRequiredFieldIds}
         />
 
         <GeneralWizardNavigation

@@ -2,6 +2,7 @@ import React from "react";
 import { Modal, View, Text, TouchableOpacity, TextInput, Alert } from "react-native";
 import { Icon, COLORS, TYPOGRAPHY } from "@edge/ui";
 import { ApplicantData } from "../../types/cpeTypes";
+import { useToast } from "../../../../../../shared/components/Toast";
 
 interface CPEWizardModalsProps {
   isConfirmModalOpen: boolean;
@@ -50,6 +51,8 @@ export function CPEWizardModals({
   handleConfirmCSVImport,
   isSubmitting,
 }: CPEWizardModalsProps) {
+  const toast = useToast();
+
   return (
     <>
 
@@ -206,10 +209,15 @@ export function CPEWizardModals({
                 setIsSubmitting(true);
                 try {
                   await submitApplicationPayload();
+                  toast.success(
+                    "Application Submitted",
+                    "Your CPE accreditation application has been received and is now under review."
+                  );
                   setIsFeedbackModalOpen(true);
-                } catch (err) {
+                } catch (err: unknown) {
                   console.error("Failed to submit CPE application:", err);
-                  Alert.alert("Error", "Filing submission failed. Please try again.");
+                  const msg = err instanceof Error && err.message.length > 0 ? err.message : "Filing submission failed. Please try again.";
+                  toast.error("Submission Failed", msg);
                 } finally {
                   setIsSubmitting(false);
                 }

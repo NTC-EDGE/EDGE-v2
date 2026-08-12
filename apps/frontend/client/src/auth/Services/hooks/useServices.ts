@@ -1,9 +1,10 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import axios from "axios";
-import { Alert, useWindowDimensions, Platform } from "react-native";
+import { Alert, useWindowDimensions, Platform, BackHandler } from "react-native";
 import { useAppNavigation } from "../../../navigation";
 import { useUser, useAuth } from "@clerk/expo";
 import { useApi } from "../../../shared/hooks/useApi";
+import { useToast, extractApiErrorMessage } from "../../../shared/components/Toast";
 import { NTCService } from "../data/servicesData";
 import { initialDrafts } from "../data/initialDrafts";
 import {
@@ -44,6 +45,7 @@ export function useServices() {
   const isMobile = width < 640;
   const navigation = useAppNavigation();
   const api = useApi();
+  const toast = useToast();
 
   // Clerk Contexts
   const { user: clerkUser } = useUser();
@@ -126,8 +128,191 @@ export function useServices() {
     setCurrentExamApplicantIndex(0);
     setCurrentGeneralApplicantIndex(0);
     setIsBulkSubmitOpen(false);
+    setIsBulkSubmitOpen(false);
     setServiceId(null);
+
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      if (window.sessionStorage) {
+        window.sessionStorage.removeItem("edge_active_wizard_session");
+      }
+      const params = new URLSearchParams(window.location.search);
+      params.delete("step");
+      params.delete("wizard");
+      params.delete("serviceId");
+      const newUrl = params.toString() ? `${window.location.pathname}?${params.toString()}` : window.location.pathname;
+      window.history.replaceState(null, "", newUrl);
+    }
   };
+
+  // Restore wizard & form entries from URL / sessionStorage on page reload / refresh
+  const isHydrated = useRef(false);
+
+  useEffect(() => {
+    if (isHydrated.current) return;
+    if (Platform.OS !== "web" || typeof window === "undefined") return;
+
+    const params = new URLSearchParams(window.location.search);
+    const urlServiceId = params.get("serviceId");
+    const urlWizard = params.get("wizard");
+    const urlStep = params.get("step");
+
+    if (urlServiceId || urlWizard || urlStep) {
+      try {
+        const savedRaw = window.sessionStorage.getItem("edge_active_wizard_session");
+        if (savedRaw) {
+          const saved = JSON.parse(savedRaw);
+          if (saved.service && (saved.service.id === urlServiceId || !urlServiceId)) {
+            setSelectedService(saved.service);
+            if (saved.activeWizardService) setActiveWizardService(saved.activeWizardService);
+            if (saved.wizardStep) setWizardStep(saved.wizardStep);
+            if (saved.examWizardStep) setExamWizardStep(saved.examWizardStep);
+            if (saved.selectedRegionId) setSelectedRegionId(saved.selectedRegionId);
+            if (saved.selectedOfficeId) setSelectedOfficeId(saved.selectedOfficeId);
+            if (saved.appMode) setAppMode(saved.appMode);
+            if (saved.bulkMethod) setBulkMethod(saved.bulkMethod);
+            if (Array.isArray(saved.generalApplicants) && saved.generalApplicants.length > 0) {
+              setGeneralApplicants(saved.generalApplicants);
+            }
+            if (Array.isArray(saved.examApplicants) && saved.examApplicants.length > 0) {
+              setExamApplicants(saved.examApplicants);
+            }
+            if (Array.isArray(saved.applicants) && saved.applicants.length > 0) {
+              setApplicants(saved.applicants);
+            }
+            isHydrated.current = true;
+            return;
+          }
+        }
+      } catch {
+        // Fallback to service list matching below
+      }
+
+      if (allBackendServices && urlServiceId) {
+        const matched = allBackendServices.find((s: any) => s.id === urlServiceId);
+        if (matched) {
+          setSelectedService(matched);
+          const wizType = urlWizard || (
+            matched.title?.toLowerCase().includes("premises") ? "cpe-accreditation" :
+            matched.title?.toLowerCase().includes("exam") || matched.title?.toLowerCase().includes("operator") ? "radio-operator-exam" :
+            "general-service"
+          );
+          setActiveWizardService(wizType);
+          const stepNum = parseInt(urlStep || "1", 10);
+          if (!isNaN(stepNum) && stepNum > 0) {
+            setWizardStep(stepNum);
+            setExamWizardStep(stepNum);
+          }
+          isHydrated.current = true;
+        }
+      }
+    }
+  }, [allBackendServices]);
+
+  // Persist current wizard form entries to sessionStorage on change
+  useEffect(() => {
+    if (Platform.OS !== "web" || typeof window === "undefined" || !window.sessionStorage) return;
+
+    if (activeWizardService && selectedService) {
+      const sessionData = {
+        service: selectedService,
+        activeWizardService,
+        wizardStep,
+        examWizardStep,
+        selectedRegionId,
+        selectedOfficeId,
+        appMode,
+        bulkMethod,
+        generalApplicants,
+        examApplicants,
+        applicants,
+      };
+      try {
+        window.sessionStorage.setItem("edge_active_wizard_session", JSON.stringify(sessionData));
+      } catch {
+        // ignore storage quota / circular errors
+      }
+    }
+  }, [
+    activeWizardService,
+    selectedService,
+    wizardStep,
+    examWizardStep,
+    selectedRegionId,
+    selectedOfficeId,
+    appMode,
+    bulkMethod,
+    generalApplicants,
+    examApplicants,
+    applicants,
+  ]);
+
+  // Compute active step across all wizard types
+  const currentActiveStep = useMemo(() => {
+    if (activeWizardService === "radio-operator-exam") return examWizardStep;
+    if (activeWizardService === "cpe-accreditation" || activeWizardService === "general-service") return wizardStep;
+    return 1;
+  }, [activeWizardService, wizardStep, examWizardStep]);
+
+  // Sync URL history state on Web when wizard step or service changes
+  useEffect(() => {
+    if (Platform.OS !== "web" || typeof window === "undefined") return;
+
+    const params = new URLSearchParams(window.location.search);
+    const currentServiceId = selectedService?.id || serviceId;
+
+    if (activeWizardService && currentServiceId) {
+      params.set("serviceId", currentServiceId);
+      params.set("wizard", activeWizardService);
+      params.set("step", String(currentActiveStep));
+      const newUrl = `${window.location.pathname}?${params.toString()}`;
+      if (window.location.search !== `?${params.toString()}`) {
+        window.history.pushState({ serviceId: currentServiceId, wizard: activeWizardService, step: currentActiveStep }, "", newUrl);
+      }
+    }
+  }, [activeWizardService, selectedService?.id, serviceId, currentActiveStep]);
+
+  // Handle Hardware Back (Android) and Browser Back (PopState) for wizard steps
+  useEffect(() => {
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      const handlePopState = () => {
+        if (activeWizardService !== null) {
+          if (currentActiveStep > 1) {
+            if (activeWizardService === "radio-operator-exam") {
+              setExamWizardStep((prev) => Math.max(1, prev - 1));
+            } else {
+              setWizardStep((prev) => Math.max(1, prev - 1));
+            }
+          } else {
+            setActiveWizardService(null);
+            setSelectedService(null);
+          }
+        }
+      };
+
+      window.addEventListener("popstate", handlePopState);
+      return () => window.removeEventListener("popstate", handlePopState);
+    } else if (Platform.OS !== "web") {
+      const backHandler = BackHandler.addEventListener("hardwareBackPress", () => {
+        if (activeWizardService !== null) {
+          if (currentActiveStep > 1) {
+            if (activeWizardService === "radio-operator-exam") {
+              setExamWizardStep((prev) => Math.max(1, prev - 1));
+            } else {
+              setWizardStep((prev) => Math.max(1, prev - 1));
+            }
+            return true;
+          } else {
+            setActiveWizardService(null);
+            setSelectedService(null);
+            return true;
+          }
+        }
+        return false;
+      });
+
+      return () => backHandler.remove();
+    }
+  }, [activeWizardService, currentActiveStep]);
 
   const saveActiveAsDraft = async () => {
     if (!activeWizardService) return;
@@ -243,10 +428,10 @@ export function useServices() {
       };
 
       await api.post(`/api/v2/tenants/${selectedRegionId}/applications`, payload);
-      Alert.alert("Success", "Draft saved to server successfully.");
+      toast.success("Draft Saved", "Draft saved to server successfully.");
     } catch (err) {
       console.error("Failed to save draft to backend:", err);
-      Alert.alert("Partial Success", "Draft saved locally, but failed to sync to server.");
+      toast.error("Sync Failed", extractApiErrorMessage(err));
     }
   };
 
@@ -341,7 +526,7 @@ export function useServices() {
     isMobile && (selectedService !== null || activeWizardService !== null);
 
   const isWizardActive = activeWizardService !== null;
-  const hideSidebar = isMobile || (isWizardActive && width < 1024);
+  const hideSidebar = isMobile;
   const hideCategories =
     (isWizardActive && isDetailsExpanded) ||
     (isWizardActive && width < 1024) ||
@@ -553,26 +738,13 @@ export function useServices() {
         }
       );
       setIsModalOpen(false);
-      Alert.alert(
-        "Success",
-        "Your application has been submitted successfully.",
+      toast.success(
+        "Application Submitted",
+        "Your application has been submitted successfully."
       );
     } catch (err: unknown) {
       console.error(err);
-      let errMsg = "Failed to submit application.";
-      if (axios.isAxiosError(err)) {
-        const responseData = err.response?.data;
-        if (
-          responseData &&
-          typeof responseData === "object" &&
-          "message" in responseData
-        ) {
-          errMsg = String(responseData.message);
-        }
-      } else if (err instanceof Error) {
-        errMsg = err.message;
-      }
-      Alert.alert("Error", errMsg);
+      toast.error("Submission Failed", extractApiErrorMessage(err));
     } finally {
       setSubmitting(false);
     }

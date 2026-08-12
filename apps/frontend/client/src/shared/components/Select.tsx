@@ -23,6 +23,7 @@ export interface SelectOption {
 interface SelectProps {
   label?: string;
   placeholder?: string;
+  emptyText?: string;
   value: string;
   onValueChange: (value: string) => void;
   options: SelectOption[];
@@ -34,6 +35,7 @@ interface SelectProps {
 export function Select({
   label,
   placeholder = 'Select an option...',
+  emptyText = 'No data found.',
   value,
   onValueChange,
   options,
@@ -73,29 +75,29 @@ export function Select({
             </View>
           ) : null}
           <select
-            value={value}
+            value={value || ''}
             onChange={(e) => onValueChange(e.target.value)}
             style={{
               width: '100%',
-              height: '44px',
-              paddingLeft: iconName ? '40px' : '14px',
-              paddingRight: '36px',
-              borderRadius: '10px',
-              border: error ? '1.5px solid #EF4444' : '1px solid #CBD5E1',
+              height: 44,
+              paddingLeft: iconName ? 40 : 14,
+              paddingRight: 36,
+              borderRadius: 10,
+              borderWidth: error ? 1.5 : 1,
+              borderStyle: 'solid',
+              borderColor: error ? '#EF4444' : '#CBD5E1',
               backgroundColor: '#FFFFFF',
-              fontSize: '14px',
-              fontFamily: 'System, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+              fontSize: 14,
               color: value ? '#0F172A' : '#94A3B8',
+              outlineStyle: 'none',
+              cursor: 'pointer',
+              // Suppress the browser's native dropdown arrow so only our custom chevron shows
               appearance: 'none',
               WebkitAppearance: 'none',
-              MozAppearance: 'none',
-              outline: 'none',
-              cursor: 'pointer',
-              boxSizing: 'border-box',
             }}
           >
-            <option value="" disabled hidden style={{ color: '#94A3B8', backgroundColor: '#FFFFFF' }}>
-              {placeholder}
+            <option value="" disabled style={{ color: '#94A3B8', backgroundColor: '#FFFFFF' }}>
+              {options.length === 0 ? emptyText : placeholder}
             </option>
             {options.map((opt) => (
               <option
@@ -144,7 +146,11 @@ export function Select({
             selectedOption === undefined ? styles.placeholderText : styles.selectedText,
           ]}
         >
-          {selectedOption !== undefined ? selectedOption.label : placeholder}
+          {selectedOption !== undefined
+            ? selectedOption.label
+            : options.length === 0
+            ? emptyText
+            : placeholder}
         </Text>
         <Lucide name="chevron-down" size={16} color="#64748B" />
       </TouchableOpacity>
@@ -178,6 +184,14 @@ export function Select({
                   data={options}
                   keyExtractor={(item) => item.value}
                   showsVerticalScrollIndicator={true}
+                  ListEmptyComponent={
+                    <View style={{ padding: 28, alignItems: 'center', justifyContent: 'center' }}>
+                      <Lucide name="inbox" size={26} color="#94A3B8" style={{ marginBottom: 6 }} />
+                      <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: '#64748B', fontStyle: 'italic' }}>
+                        {emptyText}
+                      </Text>
+                    </View>
+                  }
                   renderItem={({ item }) => {
                     const isSelected = item.value === value;
                     return (

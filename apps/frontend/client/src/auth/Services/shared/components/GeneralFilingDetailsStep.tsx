@@ -30,6 +30,8 @@ interface GeneralFilingDetailsStepProps {
   service: NTCService;
   activeApplicant: GeneralApplicantData;
   updateActiveApplicant: (fields: Partial<GeneralApplicantData>) => void;
+  /** Called once after the form layout resolves with the IDs of required fields (empty for hardcoded forms). */
+  onRequiredFieldsChange?: (requiredFieldIds: string[]) => void;
 }
 
 const deriveAppTypeFromStep3 = (variantStr?: string): "NEW" | "RENEWAL" | "MODIFICATION" => {
@@ -43,8 +45,23 @@ export function GeneralFilingDetailsStep({
   service,
   activeApplicant,
   updateActiveApplicant,
+  onRequiredFieldsChange,
 }: GeneralFilingDetailsStepProps) {
   const { form, loading } = useServiceForm(service?.id, activeApplicant.selectedVariantId);
+
+  // Notify parent of required field IDs whenever the dynamic form resolves
+  React.useEffect(() => {
+    if (loading) return;
+    if (form && Array.isArray(form.sections) && form.sections.length > 0) {
+      const requiredIds = form.sections
+        .flatMap((section) => section.fields)
+        .filter((field) => field.isRequired === true)
+        .map((field) => field.id);
+      onRequiredFieldsChange?.(requiredIds);
+    } else {
+      onRequiredFieldsChange?.([]);
+    }
+  }, [loading, form]);
 
   const serviceCode = (service.code || "").toUpperCase();
   const serviceTitle = (service.title || "").toUpperCase();

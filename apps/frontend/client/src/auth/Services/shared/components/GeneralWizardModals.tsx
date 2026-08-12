@@ -1,8 +1,8 @@
 import React from "react";
-import { Alert } from "react-native";
 import { DeclarationModal } from "./DeclarationModal";
 import { FeedbackModal } from "./FeedbackModal";
 import { GeneralLoadingOverlay } from "./GeneralLoadingOverlay";
+import { useToast } from "../../../../shared/components/Toast";
 
 interface GeneralWizardModalsProps {
   isConfirmModalOpen: boolean;
@@ -37,9 +37,10 @@ export function GeneralWizardModals({
   setIsSubmitting,
   onSuccess,
 }: GeneralWizardModalsProps) {
+  const toast = useToast();
+
   return (
     <>
-
       <DeclarationModal
         visible={isConfirmModalOpen}
         onClose={() => setIsConfirmModalOpen(false)}
@@ -50,9 +51,17 @@ export function GeneralWizardModals({
           setIsSubmitting(true);
           try {
             await submitApplicationPayload();
+            toast.success(
+              "Application Submitted",
+              "Your application has been received and is now under review by NTC officers."
+            );
             setIsFeedbackModalOpen(true);
-          } catch (err) {
-            Alert.alert("Error", "Submission failed.");
+          } catch (err: unknown) {
+            const message =
+              err instanceof Error && err.message.length > 0
+                ? err.message
+                : "Submission failed. Please try again.";
+            toast.error("Submission Failed", message);
           } finally {
             setIsSubmitting(false);
           }

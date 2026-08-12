@@ -14,6 +14,8 @@ interface NavigationContext {
   setCurrentApplicantIndex: (idx: number) => void;
   service: NTCService;
   setIsConfirmModalOpen: (open: boolean) => void;
+  /** IDs of fields marked isRequired in the active dynamic form (empty when no dynamic form). */
+  dynamicRequiredFieldIds?: string[];
 }
 
 export function getRequiredDocumentKeys(service: NTCService, activeApplicant: GeneralApplicantData): string[] {
@@ -76,8 +78,9 @@ export function handleWizardNext({
   setCurrentApplicantIndex,
   service,
   setIsConfirmModalOpen,
+  dynamicRequiredFieldIds,
 }: NavigationContext) {
-  if (step === 1 && !selectedRegionId) {
+  if (step === 1) {
     setStep(2);
     return;
   }
@@ -98,10 +101,34 @@ export function handleWizardNext({
     return;
   }
   if (step === 4) {
-    if (!activeApplicant.firstName || !activeApplicant.lastName || !activeApplicant.email || !activeApplicant.contactNo) {
-      Alert.alert("Warning", "Please fill in all mandatory applicant details.");
-      return;
+    const hasDynamicForm =
+      dynamicRequiredFieldIds !== undefined && dynamicRequiredFieldIds.length > 0;
+
+    if (hasDynamicForm) {
+      // Validate every required dynamic field has a non-empty value
+      const filledIds = new Set(
+        (activeApplicant.formFieldValues || []).map((fv) => fv.fieldId)
+      );
+      const missingFields = dynamicRequiredFieldIds.filter(
+        (id) => !filledIds.has(id) || !(activeApplicant.formFieldValues ?? []).find((fv) => fv.fieldId === id && fv.value.trim() !== "")
+      );
+      if (missingFields.length > 0) {
+        Alert.alert("Incomplete", "Please fill in all required fields before proceeding.");
+        return;
+      }
+    } else {
+      // Fall back to base applicant field check for hardcoded forms
+      if (
+        !activeApplicant.firstName ||
+        !activeApplicant.lastName ||
+        !activeApplicant.email ||
+        !activeApplicant.contactNo
+      ) {
+        Alert.alert("Warning", "Please fill in all mandatory applicant details.");
+        return;
+      }
     }
+
     if (appMode === "BULK" && currentApplicantIndex < applicants.length - 1) {
       setCurrentApplicantIndex(currentApplicantIndex + 1);
       return;

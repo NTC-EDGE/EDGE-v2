@@ -1,9 +1,9 @@
 import React, { useState } from "react";
-import { Alert } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import { useUser } from "@clerk/expo";
 import { useApi } from "../../../../shared/hooks/useApi";
+import { extractApiErrorMessage } from "../../../../shared/components/Toast";
 import { NTCService } from "../../data/servicesData";
 import {
   RadioOperatorCertData,
@@ -84,7 +84,9 @@ export const initialGeneralApplicant = (id: number): GeneralApplicantData => ({
 export interface UseGeneralServiceWizardOptions {
   service: NTCService;
   selectedRegionId?: string | null;
+  setSelectedRegionId?: (id: string) => void;
   selectedOfficeId?: string | null;
+  setSelectedOfficeId?: (id: string) => void;
   applicants?: GeneralApplicantData[];
   setApplicants?: React.Dispatch<React.SetStateAction<GeneralApplicantData[]>>;
   currentApplicantIndex?: number;
@@ -119,12 +121,24 @@ export function useGeneralServiceWizard(
     ? (optionsOrService as UseGeneralServiceWizardOptions).setApplicants!
     : setLocalApplicants;
 
-  const [selectedRegionId, setSelectedRegionId] = useState<string | null>(
-    isOptionsObject ? (optionsOrService as UseGeneralServiceWizardOptions).selectedRegionId || null : null
-  );
-  const [selectedOfficeId, setSelectedOfficeId] = useState<string | null>(
-    isOptionsObject ? (optionsOrService as UseGeneralServiceWizardOptions).selectedOfficeId || null : null
-  );
+  const [localRegionId, setLocalRegionId] = useState<string>("");
+  const [localOfficeId, setLocalOfficeId] = useState<string>("");
+
+  const selectedRegionId = isOptionsObject && (optionsOrService as UseGeneralServiceWizardOptions).selectedRegionId !== undefined
+    ? ((optionsOrService as UseGeneralServiceWizardOptions).selectedRegionId || "")
+    : localRegionId;
+
+  const setSelectedRegionId = isOptionsObject && (optionsOrService as UseGeneralServiceWizardOptions).setSelectedRegionId !== undefined
+    ? (optionsOrService as UseGeneralServiceWizardOptions).setSelectedRegionId!
+    : setLocalRegionId;
+
+  const selectedOfficeId = isOptionsObject && (optionsOrService as UseGeneralServiceWizardOptions).selectedOfficeId !== undefined
+    ? ((optionsOrService as UseGeneralServiceWizardOptions).selectedOfficeId || "")
+    : localOfficeId;
+
+  const setSelectedOfficeId = isOptionsObject && (optionsOrService as UseGeneralServiceWizardOptions).setSelectedOfficeId !== undefined
+    ? (optionsOrService as UseGeneralServiceWizardOptions).setSelectedOfficeId!
+    : setLocalOfficeId;
 
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [isAgreedToTerms, setIsAgreedToTerms] = useState(false);
@@ -152,12 +166,30 @@ export function useGeneralServiceWizard(
         setLoadingVariants(true);
         const varRes = await api.get<any>(`/api/v2/services/${service.id}/variants`).catch(() => null);
         if (active) {
+          let fetchedVariants: any[] = [];
           if (varRes && varRes.succeeded && Array.isArray(varRes.data)) {
-            setVariants(varRes.data);
+            fetchedVariants = varRes.data;
           } else if (Array.isArray(varRes)) {
-            setVariants(varRes);
-          } else {
-            setVariants([]);
+            fetchedVariants = varRes;
+          } else if (varRes && Array.isArray(varRes.items)) {
+            fetchedVariants = varRes.items;
+          }
+          setVariants(fetchedVariants);
+
+          // Auto-select initial variant if applicant has no variant selected yet
+          if (fetchedVariants.length > 0) {
+            const firstVariant = fetchedVariants[0];
+            setApplicants((prev) =>
+              prev.map((app, idx) =>
+                idx === currentApplicantIndex && !app.selectedVariantId
+                  ? {
+                      ...app,
+                      selectedVariantId: firstVariant.id,
+                      selectedVariantName: firstVariant.name || firstVariant.description || "",
+                    }
+                  : app
+              )
+            );
           }
         }
       } catch (err) {
@@ -172,21 +204,21 @@ export function useGeneralServiceWizard(
 
   // Fetch variant elements when a variant is selected in Step 3
   const activeApplicant = applicants[currentApplicantIndex] || initialGeneralApplicant(1);
-  const activeVariantId = activeApplicant.selectedVariantId || (variants[0] ? variants[0].id : null);
+  const effectiveVariantId = activeApplicant.selectedVariantId || (variants[0] ? variants[0].id : null);
 
   React.useEffect(() => {
     let active = true;
     const fetchVariantElements = async () => {
-      if (currentStep !== 3 || !activeVariantId || !service?.id) {
+      if (currentStep !== 3 || !effectiveVariantId || !service?.id) {
         if (active) setVariantElements([]);
         return;
       }
       try {
         setLoadingElements(true);
         const elRes = await api
-          .get<any>(`/api/v2/service-variant-elements?serviceVariantId=${activeVariantId}`)
+          .get<any>(`/api/v2/service-variant-elements?serviceVariantId=${effectiveVariantId}`)
           .catch(async () => {
-            return await api.get<any>(`/api/v2/services/${service.id}/variants/${activeVariantId}/elements`).catch(() => null);
+            return await api.get<any>(`/api/v2/services/${service.id}/variants/${effectiveVariantId}/elements`).catch(() => null);
           });
 
         if (active) {
@@ -209,7 +241,7 @@ export function useGeneralServiceWizard(
     };
     fetchVariantElements();
     return () => { active = false; };
-  }, [currentStep, activeVariantId, service?.id]);
+  }, [currentStep, effectiveVariantId, service?.id, variants]);
 
   // Pre-fill user profile
   React.useEffect(() => {
@@ -243,7 +275,7 @@ export function useGeneralServiceWizard(
     async function fetchTenants() {
       setLoadingTenants(true);
       try {
-        const res = await api.get<ApiResponseEnvelope<TenantInfo[]> | TenantInfo[]>("/api/v2/tenants");
+        const res = await api.get<ApiResponseEnvelope<TenantInfo[]> | TenantInfo[]>("/api/v2/tenants?pageSize=100");
         let list: TenantInfo[] = [];
         if (res && !Array.isArray(res) && res.succeeded && Array.isArray(res.data)) {
           list = res.data;
@@ -264,7 +296,7 @@ export function useGeneralServiceWizard(
       }
     }
     fetchTenants();
-  }, []);
+  }, [selectedRegionId, setSelectedRegionId]);
 
   React.useEffect(() => {
     async function fetchOffices() {
@@ -289,8 +321,10 @@ export function useGeneralServiceWizard(
           officeList = res.items;
         }
         setOffices(officeList);
-        if (officeList.length > 0 && !selectedOfficeId) {
+        if (officeList.length > 0) {
           setSelectedOfficeId(officeList[0].id);
+        } else {
+          setSelectedOfficeId("");
         }
       } catch (err) {
         console.error("Failed to fetch offices from API:", err);
@@ -324,7 +358,11 @@ export function useGeneralServiceWizard(
       applicants: mappedApplicants,
     };
 
-    await api.post(`/api/v2/tenants/${selectedRegionId}/applications`, payload);
+    try {
+      await api.post(`/api/v2/tenants/${selectedRegionId}/applications`, payload);
+    } catch (err: unknown) {
+      throw new Error(extractApiErrorMessage(err));
+    }
   };
 
   return {

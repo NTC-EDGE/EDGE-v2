@@ -36,6 +36,8 @@ interface GeneralWizardStepsProps {
   isWeb: boolean;
   onUploadPress: (req: string, file: { name: string; uri: string }) => void;
   onRemoveUpload: (req: string) => void;
+  /** Notified with required field IDs once the step-4 form layout resolves. */
+  onRequiredFieldsChange?: (requiredFieldIds: string[]) => void;
 }
 
 export function GeneralWizardSteps({
@@ -66,6 +68,7 @@ export function GeneralWizardSteps({
   isWeb,
   onUploadPress,
   onRemoveUpload,
+  onRequiredFieldsChange,
 }: GeneralWizardStepsProps) {
   switch (step) {
     case 1:
@@ -115,6 +118,7 @@ export function GeneralWizardSteps({
           service={service}
           activeApplicant={activeApplicant}
           updateActiveApplicant={updateActiveApplicant}
+          onRequiredFieldsChange={onRequiredFieldsChange}
         />
       );
     case 5:
@@ -135,6 +139,9 @@ export function GeneralWizardSteps({
           offices={offices}
           selectedRegionId={selectedRegionId}
           selectedOfficeId={selectedOfficeId}
+          activeApplicant={activeApplicant}
+          appMode={appMode}
+          variants={variants}
         />
       );
     default:

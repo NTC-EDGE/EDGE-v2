@@ -1,6 +1,6 @@
 import React, { useRef } from "react";
 import { View, ScrollView, TouchableOpacity, Text } from "react-native";
-import { Icon, COLORS } from "@edge/ui";
+import { Icon, COLORS, TYPOGRAPHY } from "@edge/ui";
 import { styles } from "./CPEAccreditationWizard.styles";
 import { useCPEAccreditationWizard } from "../hooks/useCPEAccreditationWizard";
 import { CPEWizardSteps } from "./wizard/CPEWizardSteps";
@@ -94,6 +94,27 @@ export function CPEAccreditationWizard({
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
+          <TouchableOpacity
+            onPress={onClose}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 6,
+              marginRight: 10,
+              paddingVertical: 5,
+              paddingHorizontal: 10,
+              borderRadius: 8,
+              backgroundColor: "#EFF6FF",
+              borderColor: "#BFDBFE",
+              borderWidth: 1,
+            }}
+            activeOpacity={0.7}
+          >
+            <Icon name="arrow-left" size={14} color="#1E40AF" />
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, fontWeight: "700", color: "#1E40AF" }}>
+              Back to Services
+            </Text>
+          </TouchableOpacity>
           <TouchableOpacity onPress={onToggleExpand}>
             <Icon name={isDetailsExpanded ? "minimize" : "maximize"} size={16} color={COLORS.brand[700]} />
           </TouchableOpacity>

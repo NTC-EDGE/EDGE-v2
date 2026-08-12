@@ -8,6 +8,7 @@ import { useEffect } from "react";
 import { ThemeProvider } from "@edge/ui";
 import { setTokenProvider } from "@edge/api";
 import { UnauthNavigation, AuthNavigation, clientLinking } from "./src/routes";
+import { ToastProvider } from "./src/shared/components/Toast";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -60,8 +61,10 @@ export default function App() {
   return (
     <ThemeProvider>
       <ClerkProvider tokenCache={tokenCache} publishableKey={publishableKey}>
-        <AppContent />
-        <StatusBar style="dark" />
+        <ToastProvider>
+          <AppContent />
+          <StatusBar style="dark" />
+        </ToastProvider>
       </ClerkProvider>
     </ThemeProvider>
   );

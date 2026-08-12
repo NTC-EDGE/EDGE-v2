@@ -15,9 +15,9 @@ namespace EDGE.Api.Endpoints;
 
 public static class ServiceCategoryEndpoints
 {
-    public static IEndpointRouteBuilder MapServiceCategoryEndpoints(this IEndpointRouteBuilder app)
+    public static RouteGroupBuilder MapServiceCategoryEndpoints(this RouteGroupBuilder app)
     {
-        var group = app.MapGroup("/service-categories").WithTags("ServiceCategories");
+        var group = app.MapGroup("service-categories").WithTags("ServiceCategories");
 
         group.MapGet("/", GetServiceCategories)
             .WithName("GetServiceCategories")

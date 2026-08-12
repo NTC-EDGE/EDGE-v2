@@ -84,7 +84,10 @@ export function GeneralRegionOfficeStep({
         <Select
           placeholder="Select NTC Region..."
           value={selectedRegionId}
-          onValueChange={setSelectedRegionId}
+          onValueChange={(val: string) => {
+            setSelectedRegionId(val);
+            setSelectedOfficeId("");
+          }}
           options={tenants.map((t) => ({ label: t.name, value: t.id }))}
           iconName="map-pin"
         />

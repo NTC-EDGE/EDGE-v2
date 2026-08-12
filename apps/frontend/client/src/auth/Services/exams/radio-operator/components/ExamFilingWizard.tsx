@@ -1,7 +1,8 @@
 import React, { useRef } from "react";
 import * as DocumentPicker from "expo-document-picker";
-import { ScrollView, View, Text, Alert } from "react-native";
-import { COLORS, TYPOGRAPHY } from "@edge/ui";
+import { ScrollView, View, Text, Alert, TouchableOpacity } from "react-native";
+import { COLORS, TYPOGRAPHY, Icon } from "@edge/ui";
+import { useToast } from "../../../../../shared/components/Toast";
 import { useExamFilingWizard } from "../hooks/useExamFilingWizard";
 import { ExamSteps1To2 } from "./wizard/ExamSteps1To2";
 import { ExamStep3TypeSelection } from "./wizard/ExamStep3TypeSelection";
@@ -235,15 +236,22 @@ export function ExamFilingWizard(props: ExamFilingWizardProps) {
     props.setStep(3);
   };
 
+  const toast = useToast();
+
   const handleFinalSubmit = async () => {
     wizard.setIsSubmitting(true);
     try {
       await wizard.submitApplicationPayload();
+      toast.success(
+        "Application Submitted",
+        "Your radio operator exam application has been submitted successfully."
+      );
       wizard.setIsConfirmModalOpen(false);
       props.onSuccess();
-    } catch (err) {
+    } catch (err: unknown) {
       console.error(err);
-      Alert.alert("Error", "Failed to submit application.");
+      const msg = err instanceof Error && err.message.length > 0 ? err.message : "Failed to submit application.";
+      toast.error("Submission Failed", msg);
     } finally {
       wizard.setIsSubmitting(false);
     }
@@ -254,11 +262,16 @@ export function ExamFilingWizard(props: ExamFilingWizardProps) {
     wizard.setIsSubmitting(true);
     try {
       await wizard.submitApplicationPayload();
+      toast.success(
+        "Applications Submitted",
+        "Your bulk radio operator exam applications have been submitted successfully."
+      );
       props.setIsBulkSubmitOpen(false);
       props.onSuccess();
-    } catch (err) {
+    } catch (err: unknown) {
       console.error(err);
-      Alert.alert("Error", "Failed to submit applications.");
+      const msg = err instanceof Error && err.message.length > 0 ? err.message : "Failed to submit applications.";
+      toast.error("Submission Failed", msg);
     } finally {
       wizard.setIsSubmitting(false);
     }
@@ -280,6 +293,28 @@ export function ExamFilingWizard(props: ExamFilingWizardProps) {
       {/* Step Header — matches GeneralServiceWizard design */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
+          <TouchableOpacity
+            onPress={props.onClose}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 6,
+              marginBottom: 10,
+              alignSelf: "flex-start",
+              paddingVertical: 5,
+              paddingHorizontal: 10,
+              borderRadius: 8,
+              backgroundColor: "#EFF6FF",
+              borderColor: "#BFDBFE",
+              borderWidth: 1,
+            }}
+            activeOpacity={0.7}
+          >
+            <Icon name="arrow-left" size={14} color="#1E40AF" />
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, fontWeight: "700", color: "#1E40AF" }}>
+              Back to Services
+            </Text>
+          </TouchableOpacity>
           <View>
             <Text style={styles.headerTitle}>
               {props.serviceName || "Radio Operator Examination"}
