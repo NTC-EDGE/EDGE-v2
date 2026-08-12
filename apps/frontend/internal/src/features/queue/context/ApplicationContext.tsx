@@ -11,6 +11,8 @@ interface ApplicationContextType {
   activeQueueTab: QueueTab;
   setActiveQueueTab: (tab: QueueTab) => void;
   selectedApplication: ApplicationData | null;
+  isDetailsLoading: boolean;
+  fetchApplicationDetails: (id: string) => Promise<ApplicationData | null>;
   updateApplication: (id: string, patch: Partial<ApplicationData>) => Promise<void>;
   togglePinApplication: (id: string) => Promise<void>;
   toggleArchiveApplication: (id: string) => Promise<void>;
@@ -29,6 +31,8 @@ export function ApplicationProvider({ children }: { children: ReactNode }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [activeQueueTab, setActiveQueueTab] = useState<QueueTab>('activity');
   const [toast, setToast] = useState<{ message: string; variant: 'success' | 'error' } | null>(null);
+  const [detailsCache, setDetailsCache] = useState<Record<string, ApplicationData>>({});
+  const [isDetailsLoading, setIsDetailsLoading] = useState<boolean>(false);
 
   const showToast = useCallback((message: string, variant: 'success' | 'error' = 'success') => {
     setToast({ message, variant });
@@ -53,10 +57,38 @@ export function ApplicationProvider({ children }: { children: ReactNode }) {
     });
   }, [rawDtos, localOverrides]);
 
-  const selectedApplication =
-    selectedId !== null
-      ? applications.find((app) => app.id === selectedId) ?? null
-      : null;
+  const fetchApplicationDetails = useCallback(async (id: string): Promise<ApplicationData | null> => {
+    setIsDetailsLoading(true);
+    const [fullDto, err] = await applicationService.getApplicationById(id);
+    setIsDetailsLoading(false);
+    if (err !== null || !fullDto) {
+      if (err) showToast(err, 'error');
+      return null;
+    }
+    const fullApp = mapApplicationDtoToUI(fullDto);
+    setDetailsCache((prev) => ({ ...prev, [id]: fullApp }));
+    return fullApp;
+  }, [showToast]);
+
+  const handleSelectId = useCallback((id: string | null) => {
+    setSelectedId(id);
+    if (id && !detailsCache[id]) {
+      fetchApplicationDetails(id);
+    }
+  }, [detailsCache, fetchApplicationDetails]);
+
+  const selectedApplication = useMemo(() => {
+    if (selectedId === null) return null;
+    const baseSummary = applications.find((app) => app.id === selectedId) ?? null;
+    const cachedDetail = detailsCache[selectedId];
+    const override = localOverrides[selectedId];
+
+    const merged = cachedDetail
+      ? { ...cachedDetail, ...(baseSummary ?? {}) }
+      : baseSummary;
+
+    return merged && override ? { ...merged, ...override } : merged;
+  }, [selectedId, applications, detailsCache, localOverrides]);
 
   const handleSetActiveQueueTab = useCallback((tab: QueueTab) => {
     setActiveQueueTab(tab);
@@ -138,10 +170,12 @@ export function ApplicationProvider({ children }: { children: ReactNode }) {
       value={{
         applications,
         selectedId,
-        setSelectedId,
+        setSelectedId: handleSelectId,
         activeQueueTab,
         setActiveQueueTab: handleSetActiveQueueTab,
         selectedApplication,
+        isDetailsLoading,
+        fetchApplicationDetails,
         updateApplication,
         togglePinApplication,
         toggleArchiveApplication,

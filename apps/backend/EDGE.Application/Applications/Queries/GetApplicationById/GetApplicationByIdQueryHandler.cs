@@ -91,6 +91,7 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                         Weight = ad.Weight,
                         BirthDate = ad.BirthDate,
                         ContactNumber = ad.ContactNumber,
+                        EmailAddress = ad.EmailAddress,
                         ZipCode = ad.ZipCode,
                         SchoolAttended = ad.SchoolAttended,
                         CourseTaken = ad.CourseTaken,
@@ -98,12 +99,12 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                         ESignature = ad.ESignature
                     };
 
-                    if (ad.CompanyDetail != null)
+                    if (a?.CompanyDetail != null || ad.CompanyDetail != null)
                     {
-                        var cd = ad.CompanyDetail;
-                        applicantDto.Details.Company = new CompanyDetailDto
+                        var cd = a?.CompanyDetail ?? ad.CompanyDetail;
+                        var companyDto = new CompanyDetailDto
                         {
-                            Id = cd.Id,
+                            Id = cd!.Id,
                             BarangayId = cd.BarangayId,
                             Address = cd.Address,
                             Name = cd.Name,
@@ -112,6 +113,8 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                             Email = cd.Email,
                             EntityType = cd.EntityType?.ToString()
                         };
+                        applicantDto.Company = companyDto;
+                        applicantDto.Details.Company = companyDto;
                     }
                 }
 
@@ -133,6 +136,99 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                 }
 
                 return applicantDto;
+            }).ToList(),
+            StatementsOfAccount = app.StatementsOfAccount.Select(s => new StatementOfAccountDto
+            {
+                Id = s.Id,
+                ApplicationId = s.ApplicationId,
+                ApplicantId = s.ApplicantId,
+                SoaNumber = s.SoaNumber,
+                Status = s.Status.ToString(),
+                IssuedToType = s.IssuedToType.ToString(),
+                IssuedToName = s.IssuedToName,
+                IssuedToAddress = s.IssuedToAddress,
+                TotalAmount = s.TotalAmount,
+                DueDate = s.DueDate,
+                PreparedByUserId = s.PreparedByUserId,
+                ApprovedByUserId = s.ApprovedByUserId,
+                ApprovedAt = s.ApprovedAt,
+                Remarks = s.Remarks,
+                LineItems = s.LineItems.Select(li => new SoaLineItemDto
+                {
+                    Id = li.Id,
+                    Particular = li.Particular,
+                    ItemCode = li.ItemCode,
+                    Description = li.Description,
+                    PeriodOfCoverageStart = li.PeriodOfCoverageStart,
+                    PeriodOfCoverageEnd = li.PeriodOfCoverageEnd,
+                    ValidityYears = li.ValidityYears,
+                    NoOfUnits = li.NoOfUnits,
+                    FeeRate = li.FeeRate,
+                    Amount = li.Amount
+                }).ToList(),
+                Histories = s.Histories.Select(sh => new SoaHistoryDto
+                {
+                    Id = sh.Id,
+                    Action = sh.Action,
+                    FromStatus = sh.FromStatus?.ToString(),
+                    ToStatus = sh.ToStatus.ToString(),
+                    StaffName = sh.StaffName,
+                    StaffRole = sh.StaffRole,
+                    Remarks = sh.Remarks,
+                    Timestamp = sh.Timestamp
+                }).ToList()
+            }).ToList(),
+            OrdersOfPayment = app.OrdersOfPayment.Select(op => new OrderOfPaymentDto
+            {
+                Id = op.Id,
+                ApplicationId = op.ApplicationId,
+                StatementOfAccountId = op.StatementOfAccountId,
+                OpNumber = op.OpNumber,
+                Status = op.Status.ToString(),
+                AmountDue = op.AmountDue,
+                AmountReceived = op.AmountReceived,
+                PaymentMethod = op.PaymentMethod?.ToString(),
+                OfficialReceiptNumber = op.OfficialReceiptNumber,
+                CheckNumber = op.CheckNumber,
+                CheckName = op.CheckName,
+                CheckBank = op.CheckBank,
+                CheckDate = op.CheckDate,
+                VerifiedByCashierId = op.VerifiedByCashierId,
+                PaidAt = op.PaidAt,
+                Remarks = op.Remarks,
+                Histories = op.Histories.Select(oh => new OpHistoryDto
+                {
+                    Id = oh.Id,
+                    Action = oh.Action,
+                    FromStatus = oh.FromStatus?.ToString(),
+                    ToStatus = oh.ToStatus.ToString(),
+                    StaffName = oh.StaffName,
+                    StaffRole = oh.StaffRole,
+                    OfficialReceiptNumber = oh.OfficialReceiptNumber,
+                    Remarks = oh.Remarks,
+                    Timestamp = oh.Timestamp
+                }).ToList()
+            }).ToList(),
+            Histories = app.Histories.Select(h => new ApplicationHistoryDto
+            {
+                Id = h.Id,
+                Action = h.Action,
+                FromStatus = h.FromStatus?.ToString(),
+                ToStatus = h.ToStatus.ToString(),
+                StaffName = h.StaffName,
+                StaffRole = h.StaffRole,
+                Remarks = h.Remarks,
+                Timestamp = h.Timestamp
+            }).ToList(),
+            CorrectionAuditTrails = app.CorrectionAuditTrails.Select(c => new CorrectionAuditTrailDto
+            {
+                Id = c.Id,
+                Category = c.Category,
+                FieldName = c.FieldName,
+                OldValue = c.OldValue,
+                NewValue = c.NewValue,
+                CorrectedByStaff = c.CorrectedByStaff,
+                CorrectedAt = c.CorrectedAt
             }).ToList()
         };
 

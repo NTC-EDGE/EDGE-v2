@@ -1,4 +1,4 @@
-import { ApplicationDto } from '@edge/api';
+import { ApplicationDto, ApplicationSummaryDto } from '@edge/api';
 import {
   ApplicationData,
   ApplicationStatus,
@@ -36,9 +36,9 @@ function deriveQueueTab(status: ApplicationStatus): QueueTab {
   return 'activity';
 }
 
-export function mapApplicationDtoToUI(dto: ApplicationDto): ApplicationData {
+export function mapApplicationDtoToUI(dto: ApplicationDto | ApplicationSummaryDto): ApplicationData {
   const primaryApplicant = dto.applicants[0];
-  const primaryDetail = primaryApplicant?.details;
+  const primaryDetail = (primaryApplicant as any)?.details;
   const primaryService = dto.services[0];
 
   const rawFilingUser = dto.filingUser;

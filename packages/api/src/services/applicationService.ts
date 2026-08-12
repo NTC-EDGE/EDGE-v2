@@ -3,6 +3,7 @@ import { safeAsync } from '../utils/safeAsync';
 import {
   ApiResponse,
   ApplicationDto,
+  ApplicationSummaryDto,
   UpdateApplicationStatusRequest,
   CreateSoaRequest,
   VerifyPaymentRequest,
@@ -16,7 +17,7 @@ export const applicationService = {
     status?: string;
   }) {
     return safeAsync(async () => {
-      const response = await apiClient.get<ApiResponse<ApplicationDto[]>>(
+      const response = await apiClient.get<ApiResponse<ApplicationSummaryDto[]>>(
         '/api/v2/applications',
         { params }
       );

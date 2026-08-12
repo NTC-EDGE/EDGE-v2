@@ -13,7 +13,7 @@ using EDGE.Application.Common.Models;
 
 namespace EDGE.Application.Applications.Queries.GetAllApplications;
 
-public class GetAllApplicationsQueryHandler : IRequestHandler<GetAllApplicationsQuery, ApiResponse<List<ApplicationDto>>>
+public class GetAllApplicationsQueryHandler : IRequestHandler<GetAllApplicationsQuery, ApiResponse<List<ApplicationSummaryDto>>>
 {
     private readonly IApplicationFullRepository _repository;
     private readonly ICurrentUserService _currentUserService;
@@ -24,12 +24,12 @@ public class GetAllApplicationsQueryHandler : IRequestHandler<GetAllApplications
         _currentUserService = currentUserService;
     }
 
-    public async Task<ApiResponse<List<ApplicationDto>>> Handle(GetAllApplicationsQuery request, CancellationToken cancellationToken)
+    public async Task<ApiResponse<List<ApplicationSummaryDto>>> Handle(GetAllApplicationsQuery request, CancellationToken cancellationToken)
     {
         var userIdStr = _currentUserService.UserId;
-        var dtos = await _repository.GetApplicationDtosAsync(request.Status, request.QueueTab, request.Scope, cancellationToken);
+        var dtos = await _repository.GetApplicationSummaryDtosAsync(request.Status, request.QueueTab, request.Scope, cancellationToken);
 
-        return ApiResponse<List<ApplicationDto>>.Success(dtos, "User applications retrieved successfully.");
+        return ApiResponse<List<ApplicationSummaryDto>>.Success(dtos, "User applications retrieved successfully.");
     }
 
     private static Guid CreateGuidFromString(string input)

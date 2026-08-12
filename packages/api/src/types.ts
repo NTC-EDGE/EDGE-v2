@@ -833,6 +833,62 @@ export interface ApplicationDto {
   correctionAuditTrails: CorrectionAuditTrailDto[];
 }
 
+export interface ApplicantSummaryDto {
+  id: string;
+  tenantId: string;
+  userId?: string;
+  isGuest: boolean;
+  applicantType: string;
+  status?: string;
+  evaluationRemarks?: string;
+  name: string;
+  contactNumber?: string;
+  emailAddress?: string;
+  company?: CompanyDetailDto;
+}
+
+export interface StatementOfAccountSummaryDto {
+  id: string;
+  soaNumber: string;
+  status: string;
+  totalAmount: number;
+  dueDate: string;
+}
+
+export interface OrderOfPaymentSummaryDto {
+  id: string;
+  opNumber: string;
+  status: string;
+  amountDue: number;
+  amountReceived: number;
+  officialReceiptNumber?: string;
+  paidAt?: string;
+}
+
+export interface ApplicationSummaryDto {
+  id: string;
+  tenantId: string;
+  scheduleId?: string;
+  regionId?: string;
+  office?: string;
+  applicationNumber?: string;
+  referenceNumber?: string;
+  status: ApplicationStatusDto;
+  submissionMode: string;
+  dataEntryMethod?: string;
+  remarks?: string;
+  userId?: string;
+  isGuest: boolean;
+  isPinned?: boolean;
+  isArchived?: boolean;
+  createdAt: string;
+  filingUser?: FilingUserDto;
+  services: ApplicationServiceDto[];
+  applicants: ApplicantSummaryDto[];
+  statementsOfAccount: StatementOfAccountSummaryDto[];
+  ordersOfPayment: OrderOfPaymentSummaryDto[];
+}
+
 export interface UpdateApplicationStatusRequest {
   status: string;
   remarks?: string;

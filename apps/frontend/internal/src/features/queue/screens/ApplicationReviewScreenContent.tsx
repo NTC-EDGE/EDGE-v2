@@ -2091,6 +2091,7 @@ export function ApplicationReviewScreenContent({
     activeQueueTab,
     updateApplication,
     setSelectedId,
+    isDetailsLoading,
   } = useApplications();
   const { currentRole } = useRole();
   const { canApprove, canDecline, canEndorse, canVerifyCashier } =
