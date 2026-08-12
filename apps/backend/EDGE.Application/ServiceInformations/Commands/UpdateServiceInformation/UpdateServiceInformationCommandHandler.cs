@@ -17,7 +17,7 @@ public class UpdateServiceInformationCommandHandler(
         var entity = await repository.GetByIdAsync(request.Id, cancellationToken);
         if (entity == null)
         {
-            return ApiResponse<Guid>.Fail($"ServiceInformation with ID '{request.Id}' was not found.");
+            return ApiResponse<Guid>.NotFound($"ServiceInformation with ID '{request.Id}' was not found.");
         }
 
         entity.ServiceId = request.ServiceId;

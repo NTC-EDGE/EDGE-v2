@@ -120,7 +120,7 @@ public static class ServiceInformationEndpoints
         var result = await mediator.Send(command);
         if (!result.Succeeded)
         {
-            return result.Message.Contains("not found", StringComparison.OrdinalIgnoreCase)
+            return result.IsNotFound
                 ? Results.NotFound(result)
                 : Results.BadRequest(result);
         }
@@ -133,7 +133,7 @@ public static class ServiceInformationEndpoints
         var result = await mediator.Send(new DeleteServiceInformationCommand(id));
         if (!result.Succeeded)
         {
-            return result.Message.Contains("not found", StringComparison.OrdinalIgnoreCase)
+            return result.IsNotFound
                 ? Results.NotFound(result)
                 : Results.BadRequest(result);
         }
