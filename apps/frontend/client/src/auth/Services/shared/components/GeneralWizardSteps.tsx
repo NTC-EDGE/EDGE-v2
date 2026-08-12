@@ -12,6 +12,7 @@ interface GeneralWizardStepsProps {
   service: NTCService;
   variants?: any[];
   variantElements?: any[];
+  variantRequirements?: string[];
   selectedVariantId?: string;
   onSelectVariant?: (variantId: string, variantName: string) => void;
   selectedRegionId: string;
@@ -28,7 +29,9 @@ interface GeneralWizardStepsProps {
   setIsFileUploaded: (val: boolean) => void;
   uploadedFileName: string;
   setUploadedFileName: (name: string) => void;
+  applicants?: GeneralApplicantData[];
   setApplicants: React.Dispatch<React.SetStateAction<GeneralApplicantData[]>>;
+  currentApplicantIndex?: number;
   setCurrentApplicantIndex: (idx: number) => void;
   activeApplicant: GeneralApplicantData;
   updateActiveApplicant: (fields: Partial<GeneralApplicantData>) => void;
@@ -44,6 +47,7 @@ export function GeneralWizardSteps({
   service,
   variants = [],
   variantElements = [],
+  variantRequirements = [],
   selectedVariantId,
   onSelectVariant,
   selectedRegionId,
@@ -60,7 +64,9 @@ export function GeneralWizardSteps({
   setIsFileUploaded,
   uploadedFileName,
   setUploadedFileName,
+  applicants = [],
   setApplicants,
+  currentApplicantIndex = 0,
   setCurrentApplicantIndex,
   activeApplicant,
   updateActiveApplicant,
@@ -88,6 +94,7 @@ export function GeneralWizardSteps({
           service={service}
           variants={variants}
           variantElements={variantElements}
+          variantRequirements={variantRequirements}
           selectedVariantId={selectedVariantId}
           onSelectVariant={onSelectVariant}
           appMode={appMode}
@@ -116,6 +123,10 @@ export function GeneralWizardSteps({
           service={service}
           activeApplicant={activeApplicant}
           updateActiveApplicant={updateActiveApplicant}
+          appMode={appMode}
+          applicants={applicants}
+          currentApplicantIndex={currentApplicantIndex}
+          setCurrentApplicantIndex={setCurrentApplicantIndex}
           onRequiredFieldsChange={onRequiredFieldsChange}
           errors={errors}
         />
@@ -125,6 +136,11 @@ export function GeneralWizardSteps({
         <GeneralDocumentUploadStep
           service={service}
           activeApplicant={activeApplicant}
+          variantRequirements={variantRequirements}
+          appMode={appMode}
+          applicants={applicants}
+          currentApplicantIndex={currentApplicantIndex}
+          setCurrentApplicantIndex={setCurrentApplicantIndex}
           isWeb={isWeb}
           onUploadPress={onUploadPress}
           onRemoveUpload={onRemoveUpload}
@@ -139,6 +155,8 @@ export function GeneralWizardSteps({
           selectedRegionId={selectedRegionId}
           selectedOfficeId={selectedOfficeId}
           activeApplicant={activeApplicant}
+          applicants={applicants}
+          currentApplicantIndex={currentApplicantIndex}
           appMode={appMode}
           variants={variants}
         />

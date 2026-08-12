@@ -29,6 +29,7 @@ interface GeneralFilingModeStepProps {
   service: NTCService;
   variants?: ServiceVariantItem[];
   variantElements?: ServiceVariantElementItem[];
+  variantRequirements?: string[];
   selectedVariantId?: string;
   onSelectVariant?: (variantId: string, variantName: string) => void;
   appMode: "SINGLE" | "BULK" | "";
@@ -52,6 +53,7 @@ export function GeneralFilingModeStep({
   service,
   variants = [],
   variantElements = [],
+  variantRequirements = [],
   selectedVariantId = "",
   onSelectVariant,
   appMode,
@@ -95,7 +97,7 @@ export function GeneralFilingModeStep({
           {
             id: "v-life-4",
             name: "Lifetime Amateur Radio Station License for Class A",
-            type: "NA",
+            type: "Lifetime",
             description: "For Class A Radio Amateurs at least 60 years old with 15+ consecutive years of service.",
           },
         ]
@@ -130,11 +132,26 @@ export function GeneralFilingModeStep({
 
   const formatVariantLabel = (v: any): string => {
     if (!v) return "Application Variant";
-    if (v.name && typeof v.name === "string" && v.name.trim().length > 0) return v.name;
-    if (v.description && typeof v.description === "string" && v.description.includes("(")) return v.description;
-    if (v.serviceName && v.type) return `${v.serviceName} (${safeUpper(v.type)})`;
-    if (v.type) return `${service?.title || "Application"} (${safeUpper(v.type)})`;
-    return v.description || "Application Variant";
+
+    const cleanStr = (s: string) =>
+      s.replace(/\s*\(\s*N\/?A\s*\)/gi, "")
+       .replace(/\bN\/?A\b/gi, "")
+       .trim();
+
+    let rawLabel = "";
+    if (v.name && typeof v.name === "string" && v.name.trim().length > 0) {
+      rawLabel = v.name;
+    } else if (v.description && typeof v.description === "string" && v.description.includes("(")) {
+      rawLabel = v.description;
+    } else if (v.serviceName && v.type && v.type.toUpperCase() !== "NA" && v.type.toUpperCase() !== "N/A") {
+      rawLabel = `${v.serviceName} (${safeUpper(v.type)})`;
+    } else if (v.type && v.type.toUpperCase() !== "NA" && v.type.toUpperCase() !== "N/A") {
+      rawLabel = `${service?.title || "Application"} (${safeUpper(v.type)})`;
+    } else {
+      rawLabel = v.description || service?.title || "Application Variant";
+    }
+
+    return cleanStr(rawLabel);
   };
 
   const variantDropdownOptions = displayVariants.map((v) => ({
@@ -398,37 +415,37 @@ export function GeneralFilingModeStep({
           </Text>
         </View>
 
-        {isLifetime ? (
-          <View style={{ gap: 6 }}>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: "#475569" }}>1. Letter request for Issuance of a Lifetime Radio Station License.</Text>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: "#475569" }}>2. Certificate of Good Standing from an NTC-registered amateur club.*</Text>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: "#475569" }}>3. Valid Government ID (Birth Cert / Passport / PRC / Driver's License — Applicant at least 60 years old).*</Text>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: "#475569" }}>4. Copy of active Amateur Class 'A' Radio Station License.*</Text>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: "#475569" }}>5. Proof of amateur service of at least 15 consecutive years.*</Text>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: "#475569" }}>6. Clear 1x1 ID picture taken within the last 6 months.*</Text>
-          </View>
-        ) : isRenewal ? (
-          <View style={{ gap: 6 }}>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: "#475569" }}>1. Copy of Existing Amateur Radio Station License.*</Text>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: "#475569" }}>2. Certificate of Good Standing from an NTC-Registered Amateur Club.*</Text>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: "#475569" }}>3. Proof of Paid Annual Dues / Official Receipt.*</Text>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: "#475569" }}>4. Clear 1x1 ID picture taken within the last 6 months.*</Text>
-          </View>
-        ) : isModification ? (
-          <View style={{ gap: 6 }}>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: "#475569" }}>1. Copy of Existing Amateur Radio Station License.*</Text>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: "#475569" }}>2. Proof / Documents Supporting Requested Modification.*</Text>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: "#475569" }}>3. Certificate of Good Standing from an NTC-Registered Amateur Club.*</Text>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: "#475569" }}>4. Clear 1x1 ID picture taken within the last 6 months.*</Text>
-          </View>
-        ) : (
-          <View style={{ gap: 6 }}>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: "#475569" }}>1. Certificate of Passing Examination / Seminar.*</Text>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: "#475569" }}>2. Certificate of Good Standing from an NTC-Registered Amateur Club.*</Text>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: "#475569" }}>3. Valid Government Issued ID.*</Text>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: "#475569" }}>4. Clear 1x1 ID picture taken within the last 6 months.*</Text>
-          </View>
-        )}
+        {(() => {
+          const displayRequirements =
+            variantRequirements && variantRequirements.length > 0
+              ? variantRequirements
+              : service.requirements && service.requirements.length > 0
+              ? service.requirements
+              : [];
+
+          if (displayRequirements.length === 0) {
+            return (
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: "#64748B" }}>
+                No mandatory requirements checklist specified for this service variant.
+              </Text>
+            );
+          }
+
+          return (
+            <View style={{ gap: 6 }}>
+              {displayRequirements.map((reqItem, idx) => (
+                <View key={idx} style={{ flexDirection: "row", alignItems: "flex-start", gap: 6 }}>
+                  <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, fontWeight: "700", color: "#92400E" }}>
+                    {idx + 1}.
+                  </Text>
+                  <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: "#475569", flex: 1, lineHeight: 18 }}>
+                    {reqItem}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          );
+        })()}
       </View>
 
       {/* ── 4. Select Filing Mode* (Card 4 — Positioned DIRECTLY BELOW Variant & Elements) ── */}
@@ -473,55 +490,20 @@ export function GeneralFilingModeStep({
           iconName="users"
         />
 
-        {/* Bulk Import Buttons */}
         {appMode === "BULK" && (
-          <View style={{ marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderColor: COLORS.neutral[200] }}>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 14, fontWeight: "600", color: COLORS.neutral[800], marginBottom: 12 }}>
-              Bulk Spreadsheet Import
+          <View
+            style={{
+              marginTop: 12,
+              backgroundColor: "#EFF6FF",
+              borderRadius: 10,
+              padding: 12,
+              borderWidth: 1,
+              borderColor: "#BFDBFE",
+            }}
+          >
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: "#1E40AF", lineHeight: 18 }}>
+              ✓ You selected Bulk Application. Click <Text style={{ fontWeight: "700" }}>Next</Text> to open the cohort management screen where you can import a spreadsheet or add applicants manually.
             </Text>
-
-            <View style={{ flexDirection: "row", gap: 12, flexWrap: "wrap" }}>
-              <TouchableOpacity
-                onPress={handleDownloadTemplate}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  backgroundColor: COLORS.brand[800],
-                  borderRadius: 8,
-                  paddingVertical: 10,
-                  paddingHorizontal: 16,
-                }}
-              >
-                <Icon name="download" size={16} color="#ffffff" style={{ marginRight: 8 }} />
-                <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "600", color: "#ffffff" }}>
-                  Download Template (.csv)
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={handleUploadSpreadsheet}
-                disabled={loading}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  backgroundColor: COLORS.neutral.white,
-                  borderWidth: 1,
-                  borderColor: COLORS.neutral[300],
-                  borderRadius: 8,
-                  paddingVertical: 10,
-                  paddingHorizontal: 16,
-                }}
-              >
-                {loading ? (
-                  <ActivityIndicator size="small" color={COLORS.brand[800]} style={{ marginRight: 8 }} />
-                ) : (
-                  <Icon name="upload" size={16} color={COLORS.neutral[800]} style={{ marginRight: 8 }} />
-                )}
-                <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "600", color: COLORS.neutral[800] }}>
-                  {isFileUploaded ? `Uploaded (${uploadedFileName || "Spreadsheet"}) ✔` : "Upload Spreadsheet (.csv / Excel)"}
-                </Text>
-              </TouchableOpacity>
-            </View>
           </View>
         )}
       </View>

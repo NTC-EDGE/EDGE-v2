@@ -146,6 +146,7 @@ export function DetailsColumn({ servicesState }: DetailsColumnProps) {
             appMode={appMode} setAppMode={setAppMode}
             applicants={generalApplicants} setApplicants={setGeneralApplicants}
             currentApplicantIndex={currentGeneralApplicantIndex} setCurrentApplicantIndex={setCurrentGeneralApplicantIndex}
+            triggerOpenApplicant={servicesState.triggerOpenApplicant}
           />
         ) : selectedService !== null ? (
           <ServiceDetails

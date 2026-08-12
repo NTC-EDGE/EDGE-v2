@@ -66,7 +66,7 @@ export function ContentColumn({ servicesState }: ContentColumnProps) {
     >
       {activeWizardService === "cpe-accreditation" &&
       appMode === "BULK" &&
-      wizardStep >= 4 ? (
+      wizardStep >= 3 ? (
         <BulkApplicantsPanel
           applicants={applicants}
           currentApplicantIndex={currentApplicantIndex}
@@ -97,12 +97,16 @@ export function ContentColumn({ servicesState }: ContentColumnProps) {
         />
       ) : activeWizardService === "general-service" &&
         appMode === "BULK" &&
-        wizardStep >= 4 &&
+        wizardStep >= 3 &&
         selectedService !== null ? (
         <GeneralBulkApplicantsPanel
           applicants={generalApplicants}
           currentApplicantIndex={currentGeneralApplicantIndex}
-          onSelectApplicant={setCurrentGeneralApplicantIndex}
+          onSelectApplicant={(idx) => {
+            setCurrentGeneralApplicantIndex(idx);
+            setWizardStep(3);
+            servicesState.setTriggerOpenApplicant((prev: number) => prev + 1);
+          }}
           setStep={setWizardStep}
           resetWizardState={resetWizardState}
           onCancel={() => {
@@ -114,7 +118,12 @@ export function ContentColumn({ servicesState }: ContentColumnProps) {
           }}
           onRemoveApplicant={handleRemoveGeneralApplicant}
           onAddApplicant={handleAddGeneralApplicant}
+          onApplicantsImported={(imported) => {
+            servicesState.setGeneralApplicants(imported);
+            setCurrentGeneralApplicantIndex(0);
+          }}
           service={selectedService}
+          variantRequirements={servicesState.variantRequirements}
         />
       ) : searchQuery.trim() !== "" ? (
         <ServiceList
@@ -133,7 +142,7 @@ export function ContentColumn({ servicesState }: ContentColumnProps) {
           isMobile={isMobile}
           isWizardActive={activeWizardService !== null}
         />
-      ) : selectedCategoryId !== null ? (
+      ) : selectedCategoryId !== null || selectedService !== null ? (
         <ServiceList
           searchQuery=""
           activeCategory={activeCategory}

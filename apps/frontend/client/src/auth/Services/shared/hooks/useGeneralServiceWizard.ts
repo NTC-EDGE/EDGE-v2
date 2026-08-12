@@ -243,6 +243,47 @@ export function useGeneralServiceWizard(
     return () => { active = false; };
   }, [currentStep, effectiveVariantId, service?.id, variants]);
 
+  // Fetch variant requirements when variant or service changes
+  const [variantRequirements, setVariantRequirements] = useState<string[]>([]);
+  const [loadingRequirements, setLoadingRequirements] = useState(false);
+
+  React.useEffect(() => {
+    let active = true;
+    const fetchVariantRequirements = async () => {
+      if (!service?.id) return;
+      try {
+        setLoadingRequirements(true);
+        const reqRes = await api
+          .get<any>(`/api/v2/services/${service.id}/requirements?variantId=${effectiveVariantId || ""}`)
+          .catch(async () => {
+            return await api.get<any>(`/api/v2/service-variant-requirements?serviceVariantId=${effectiveVariantId || ""}`).catch(() => null);
+          });
+
+        if (active) {
+          let list: string[] = [];
+          if (reqRes && reqRes.succeeded && Array.isArray(reqRes.data)) {
+            list = reqRes.data.map((r: any) => typeof r === "string" ? r : r.name || r.title || r.description || "");
+          } else if (Array.isArray(reqRes)) {
+            list = reqRes.map((r: any) => typeof r === "string" ? r : r.name || r.title || r.description || "");
+          } else if (reqRes && Array.isArray(reqRes.items)) {
+            list = reqRes.items.map((r: any) => typeof r === "string" ? r : r.name || r.title || r.description || "");
+          }
+
+          if (list.length === 0 && service.requirements && Array.isArray(service.requirements) && service.requirements.length > 0) {
+            list = service.requirements;
+          }
+          setVariantRequirements(list.filter(Boolean));
+        }
+      } catch (err) {
+        console.warn("Failed to fetch variant requirements:", err);
+      } finally {
+        if (active) setLoadingRequirements(false);
+      }
+    };
+    fetchVariantRequirements();
+    return () => { active = false; };
+  }, [effectiveVariantId, service?.id, service?.requirements]);
+
   // Pre-fill user profile
   React.useEffect(() => {
     if (clerkUser && applicants.length === 1) {
@@ -376,6 +417,8 @@ export function useGeneralServiceWizard(
     loadingVariants,
     variantElements,
     loadingElements,
+    variantRequirements,
+    loadingRequirements,
     isConfirmModalOpen,
     setIsConfirmModalOpen,
     isAgreedToTerms,

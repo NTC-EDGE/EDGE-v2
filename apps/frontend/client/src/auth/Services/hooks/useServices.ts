@@ -112,6 +112,8 @@ export function useServices() {
     initialGeneralApplicant(1),
   ]);
   const [currentGeneralApplicantIndex, setCurrentGeneralApplicantIndex] = useState(0);
+  const [triggerOpenApplicant, setTriggerOpenApplicant] = useState(0);
+  const [variantRequirements, setVariantRequirements] = useState<string[]>([]);
 
   const [drafts, setDrafts] = useState<DraftApplication[]>(initialDrafts);
   const [viewingDraftsCategory, setViewingDraftsCategory] = useState<string | null>(null);
@@ -274,6 +276,45 @@ export function useServices() {
       }
     }
   }, [activeWizardService, selectedService?.id, serviceId, currentActiveStep]);
+
+  // Fetch dynamic variant requirements for selected service
+  useEffect(() => {
+    let active = true;
+    const fetchRequirements = async () => {
+      if (!selectedService?.id) {
+        setVariantRequirements([]);
+        return;
+      }
+      const effectiveVariantId = generalApplicants[0]?.selectedVariantId || "";
+      try {
+        const reqRes = await api
+          .get<any>(`/api/v2/services/${selectedService.id}/requirements?variantId=${effectiveVariantId || ""}`)
+          .catch(async () => {
+            return await api.get<any>(`/api/v2/service-variant-requirements?serviceVariantId=${effectiveVariantId || ""}`).catch(() => null);
+          });
+
+        if (active) {
+          let list: string[] = [];
+          if (reqRes && reqRes.succeeded && Array.isArray(reqRes.data)) {
+            list = reqRes.data.map((r: any) => typeof r === "string" ? r : r.name || r.title || r.description || "");
+          } else if (Array.isArray(reqRes)) {
+            list = reqRes.map((r: any) => typeof r === "string" ? r : r.name || r.title || r.description || "");
+          } else if (reqRes && Array.isArray(reqRes.items)) {
+            list = reqRes.items.map((r: any) => typeof r === "string" ? r : r.name || r.title || r.description || "");
+          }
+
+          if (list.length === 0 && selectedService.requirements && Array.isArray(selectedService.requirements) && selectedService.requirements.length > 0) {
+            list = selectedService.requirements;
+          }
+          setVariantRequirements(list.filter(Boolean));
+        }
+      } catch (err) {
+        console.warn("Failed to fetch requirements in useServices:", err);
+      }
+    };
+    fetchRequirements();
+    return () => { active = false; };
+  }, [selectedService?.id, generalApplicants[0]?.selectedVariantId, selectedService?.requirements]);
 
   // Handle Hardware Back (Android) and Browser Back (PopState) for wizard steps
   useEffect(() => {
@@ -554,8 +595,12 @@ export function useServices() {
   };
 
   const activeCategory = useMemo(() => {
-    if (selectedCategoryId === null || !backendCategories) return null;
-    const category = backendCategories.find((c: any) => c.id === selectedCategoryId);
+    let catId = selectedCategoryId;
+    if (catId === null && selectedService) {
+      catId = (selectedService as any).serviceCategoryId || (selectedService as any).categoryId || null;
+    }
+    if (catId === null || !backendCategories) return null;
+    const category = backendCategories.find((c: any) => c.id === catId || c.code?.toLowerCase() === catId?.toLowerCase());
     if (!category) return null;
 
     const servicesList = backendServices ? backendServices.map((bs: any) => {
@@ -817,6 +862,9 @@ export function useServices() {
     setGeneralApplicants,
     currentGeneralApplicantIndex,
     setCurrentGeneralApplicantIndex,
+    triggerOpenApplicant,
+    setTriggerOpenApplicant,
+    variantRequirements,
     drafts,
     setDrafts,
     viewingDraftsCategory,

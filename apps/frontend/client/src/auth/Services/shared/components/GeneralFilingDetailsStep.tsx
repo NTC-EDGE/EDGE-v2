@@ -1,6 +1,6 @@
 import React from "react";
-import { View, Text, TextInput, ActivityIndicator } from "react-native";
-import { COLORS, TYPOGRAPHY } from "@edge/ui";
+import { View, Text, TextInput, ActivityIndicator, TouchableOpacity } from "react-native";
+import { COLORS, TYPOGRAPHY, Icon } from "@edge/ui";
 import { NTCService } from "../../data/servicesData";
 import { GeneralApplicantData } from "../hooks/useGeneralServiceWizard";
 import { ValidatedInput } from "../../../../shared/components/ValidatedInput";
@@ -30,6 +30,10 @@ interface GeneralFilingDetailsStepProps {
   service: NTCService;
   activeApplicant: GeneralApplicantData;
   updateActiveApplicant: (fields: Partial<GeneralApplicantData>) => void;
+  appMode?: "SINGLE" | "BULK" | "";
+  applicants?: GeneralApplicantData[];
+  currentApplicantIndex?: number;
+  setCurrentApplicantIndex?: (idx: number) => void;
   /** Called once after the form layout resolves with the IDs of required fields (empty for hardcoded forms). */
   onRequiredFieldsChange?: (requiredFieldIds: string[]) => void;
   errors?: Record<string, string>;
@@ -46,6 +50,10 @@ export function GeneralFilingDetailsStep({
   service,
   activeApplicant,
   updateActiveApplicant,
+  appMode,
+  applicants = [],
+  currentApplicantIndex = 0,
+  setCurrentApplicantIndex,
   onRequiredFieldsChange,
   errors = {},
 }: GeneralFilingDetailsStepProps) {
@@ -82,6 +90,68 @@ export function GeneralFilingDetailsStep({
     );
   }
 
+  const renderBulkCohortBanner = () => {
+    if (appMode !== "BULK" || !applicants || applicants.length === 0) return null;
+    const activeName = [activeApplicant.firstName, activeApplicant.lastName].filter(Boolean).join(" ") || `Applicant #${currentApplicantIndex + 1}`;
+    return (
+      <View
+        style={{
+          backgroundColor: "#EFF6FF",
+          borderWidth: 1,
+          borderColor: "#93C5FD",
+          borderRadius: 12,
+          padding: 14,
+          marginBottom: 16,
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 10, flex: 1 }}>
+          <View
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 16,
+              backgroundColor: "#1D4ED8",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <Icon name="users" size={16} color="#FFFFFF" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: "#1E40AF" }}>
+              BULK FILING COHORT — Applicant {currentApplicantIndex + 1} of {applicants.length}
+            </Text>
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, color: "#2563EB", marginTop: 1 }} numberOfLines={1}>
+              Active Profile: {activeName}
+            </Text>
+          </View>
+        </View>
+
+        <View style={{ flexDirection: "row", gap: 6 }}>
+          {currentApplicantIndex > 0 && setCurrentApplicantIndex && (
+            <TouchableOpacity
+              onPress={() => setCurrentApplicantIndex(currentApplicantIndex - 1)}
+              style={{ backgroundColor: "#FFFFFF", paddingVertical: 6, paddingHorizontal: 10, borderRadius: 6, borderWidth: 1, borderColor: "#93C5FD" }}
+            >
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: "700", color: "#1D4ED8" }}>← Prev</Text>
+            </TouchableOpacity>
+          )}
+          {currentApplicantIndex < applicants.length - 1 && setCurrentApplicantIndex && (
+            <TouchableOpacity
+              onPress={() => setCurrentApplicantIndex(currentApplicantIndex + 1)}
+              style={{ backgroundColor: "#FFFFFF", paddingVertical: 6, paddingHorizontal: 10, borderRadius: 6, borderWidth: 1, borderColor: "#93C5FD" }}
+            >
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: "700", color: "#1D4ED8" }}>Next →</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+    );
+  };
+
   // Render Dynamic Form from Backend DB configuration when present
   if (form && form.sections && Array.isArray(form.sections) && form.sections.length > 0) {
     const valuesRecord: Record<string, string> = {};
@@ -99,12 +169,15 @@ export function GeneralFilingDetailsStep({
     };
 
     return (
-      <DynamicFormRenderer
-        form={form}
-        values={valuesRecord}
-        onChange={handleDynamicFieldChange}
-        errors={errors}
-      />
+      <View>
+        {renderBulkCohortBanner()}
+        <DynamicFormRenderer
+          form={form}
+          values={valuesRecord}
+          onChange={handleDynamicFieldChange}
+          errors={errors}
+        />
+      </View>
     );
   }
 
@@ -301,6 +374,7 @@ export function GeneralFilingDetailsStep({
   // Fallback Generic Form
   return (
     <View style={{ gap: 14 }}>
+      {renderBulkCohortBanner()}
       <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: COLORS.neutral[600] }}>
         Generic Application Form for {service.title} ({service.code})
       </Text>

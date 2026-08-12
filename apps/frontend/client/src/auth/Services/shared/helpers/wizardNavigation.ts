@@ -13,6 +13,7 @@ interface NavigationContext {
   currentApplicantIndex: number;
   setCurrentApplicantIndex: (idx: number) => void;
   service: NTCService;
+  variantRequirements?: string[];
   setIsConfirmModalOpen: (open: boolean) => void;
   onClose?: () => void;
   /** IDs of fields marked isRequired in the active dynamic form (empty when no dynamic form). */
@@ -20,51 +21,10 @@ interface NavigationContext {
   setFormErrors?: (errors: Record<string, string>) => void;
 }
 
-export function getRequiredDocumentKeys(service: NTCService, activeApplicant: GeneralApplicantData): string[] {
-  const serviceTitle = (service.title || "").toUpperCase();
-  const amateurData = activeApplicant.amateurLicenseData;
-  const isLifetime =
-    serviceTitle.includes("LIFETIME AMATEUR") ||
-    activeApplicant.lifetimeLicenseData !== undefined ||
-    (activeApplicant.selectedVariantId && activeApplicant.selectedVariantId.includes("life"));
-
-  if (isLifetime) {
-    return [
-      "req-letter-request",
-      "req-cert-good-standing",
-      "req-gov-id-attachments",
-      "req-class-a-license",
-      "req-proof-15-years-service",
-      "req-1x1-id-picture",
-    ];
+export function getRequiredDocumentKeys(service: NTCService, variantRequirements?: string[]): string[] {
+  if (variantRequirements && variantRequirements.length > 0) {
+    return variantRequirements.map((_, idx) => `req-${idx}`);
   }
-
-  if (serviceTitle.includes("AMATEUR") || serviceTitle.includes("LICENSE")) {
-    const appType = amateurData?.appType || "NEW";
-    if (appType === "RENEWAL") {
-      return [
-        "req-existing-arsl-copy",
-        "req-cert-good-standing-club",
-        "req-annual-dues-or",
-        "req-1x1-photo",
-      ];
-    }
-    if (appType === "MODIFICATION") {
-      return [
-        "req-existing-arsl-copy",
-        "req-modification-proof",
-        "req-cert-good-standing-club",
-        "req-1x1-photo",
-      ];
-    }
-    return [
-      "req-cert-exam-seminar",
-      "req-cert-good-standing-club",
-      "req-gov-id",
-      "req-1x1-photo",
-    ];
-  }
-
   return (service.requirements || []).map((_, idx) => `req-gen-${idx}`);
 }
 
@@ -79,6 +39,7 @@ export function handleWizardNext({
   currentApplicantIndex,
   setCurrentApplicantIndex,
   service,
+  variantRequirements,
   setIsConfirmModalOpen,
   dynamicRequiredFieldIds,
   setFormErrors,
@@ -143,7 +104,7 @@ export function handleWizardNext({
     return;
   }
   if (step === 4) {
-    const requiredKeys = getRequiredDocumentKeys(service, activeApplicant);
+    const requiredKeys = getRequiredDocumentKeys(service, variantRequirements);
     const isComplete = requiredKeys.every((key, idx) => {
       if (activeApplicant.uploads && activeApplicant.uploads[key]) return true;
       const title = service.requirements?.[idx];

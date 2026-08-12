@@ -11,6 +11,7 @@ import { NTCService } from "../data/servicesData";
 import { GeneralWizardNavigation } from "./components/GeneralWizardNavigation";
 import { GeneralWizardModals } from "./components/GeneralWizardModals";
 import { GeneralWizardSteps } from "./components/GeneralWizardSteps";
+import { GeneralBulkApplicationFlow } from "./components/GeneralBulkApplicationFlow";
 import {
   useGeneralServiceWizard,
   GeneralApplicantData,
@@ -44,6 +45,8 @@ interface GeneralServiceWizardProps {
   setApplicants: React.Dispatch<React.SetStateAction<GeneralApplicantData[]>>;
   currentApplicantIndex: number;
   setCurrentApplicantIndex: (idx: number) => void;
+  /** Incremented each time a user selects an applicant from the left panel to open Filing Details */
+  triggerOpenApplicant?: number;
 }
 
 export function GeneralServiceWizard({
@@ -70,6 +73,7 @@ export function GeneralServiceWizard({
   setApplicants,
   currentApplicantIndex,
   setCurrentApplicantIndex,
+  triggerOpenApplicant = 0,
 }: GeneralServiceWizardProps) {
   if (!service) return null;
 
@@ -100,6 +104,7 @@ export function GeneralServiceWizard({
     variants,
     loadingVariants,
     variantElements,
+    variantRequirements,
     isConfirmModalOpen,
     setIsConfirmModalOpen,
     isAgreedToTerms,
@@ -137,6 +142,7 @@ export function GeneralServiceWizard({
       currentApplicantIndex,
       setCurrentApplicantIndex,
       service,
+      variantRequirements,
       setIsConfirmModalOpen,
       dynamicRequiredFieldIds,
       setFormErrors,
@@ -172,6 +178,45 @@ export function GeneralServiceWizard({
     });
   };
 
+  // When BULK mode is confirmed and user has moved past step 2, hand off to the
+  // dedicated Bulk Application Flow (cohort list → per-applicant details + upload).
+  if (appMode === "BULK" && step >= 3) {
+    return (
+      <View style={{ flex: 1 }}>
+        <GeneralBulkApplicationFlow
+          service={service}
+          applicants={applicants}
+          setApplicants={setApplicants}
+          currentApplicantIndex={currentApplicantIndex}
+          setCurrentApplicantIndex={setCurrentApplicantIndex}
+          triggerOpenApplicant={triggerOpenApplicant}
+          variantRequirements={variantRequirements}
+          isWeb={isWeb}
+          dynamicRequiredFieldIds={dynamicRequiredFieldIds}
+          setDynamicRequiredFieldIds={setDynamicRequiredFieldIds}
+          onBack={() => setStep(2)}
+          onSubmitAll={() => setIsConfirmModalOpen(true)}
+        />
+        <GeneralWizardModals
+          isConfirmModalOpen={isConfirmModalOpen}
+          setIsConfirmModalOpen={setIsConfirmModalOpen}
+          isAgreedToTerms={isAgreedToTerms}
+          setIsAgreedToTerms={setIsAgreedToTerms}
+          submitApplicationPayload={submitApplicationPayload}
+          isFeedbackModalOpen={isFeedbackModalOpen}
+          setIsFeedbackModalOpen={setIsFeedbackModalOpen}
+          feedbackRating={feedbackRating}
+          setFeedbackRating={setFeedbackRating}
+          feedbackComment={feedbackComment}
+          setFeedbackComment={setFeedbackComment}
+          isSubmitting={isSubmitting}
+          setIsSubmitting={setIsSubmitting}
+          onSuccess={onSuccess}
+        />
+      </View>
+    );
+  }
+
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
       <ScrollView contentContainerStyle={{ padding: 24 }}>
@@ -179,7 +224,7 @@ export function GeneralServiceWizard({
           {service.title}
         </Text>
         <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: COLORS.neutral[500], marginBottom: 24 }}>
-          {step === 1 ? "Region & Office Selection" : step === 2 ? "Application Variant & Filing Mode" : step === 3 ? "Filing Details" : step === 4 ? "Upload Documents" : "Review & Submit"}
+          {step === 1 ? "Region & Office Selection" : "Application Variant & Filing Mode"}
         </Text>
 
         <GeneralWizardSteps
@@ -187,6 +232,7 @@ export function GeneralServiceWizard({
           service={service}
           variants={variants}
           variantElements={variantElements}
+          variantRequirements={variantRequirements}
           selectedVariantId={activeApplicant.selectedVariantId}
           onSelectVariant={handleSelectVariant}
           selectedRegionId={selectedRegionId}
@@ -204,6 +250,8 @@ export function GeneralServiceWizard({
           uploadedFileName={uploadedFileName}
           setUploadedFileName={setUploadedFileName}
           setApplicants={setApplicants}
+          applicants={applicants}
+          currentApplicantIndex={currentApplicantIndex}
           setCurrentApplicantIndex={setCurrentApplicantIndex}
           activeApplicant={activeApplicant}
           updateActiveApplicant={updateActiveApplicant}
