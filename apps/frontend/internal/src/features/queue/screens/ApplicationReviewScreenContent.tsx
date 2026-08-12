@@ -41,11 +41,11 @@ const INNER_TABS: {
   label: string;
   icon: "user" | "clipboard" | "list" | "credit-card";
 }[] = [
-  { key: "basic", label: "Basic Info", icon: "user" },
-  { key: "details", label: "Application Details", icon: "clipboard" },
-  { key: "requirements", label: "Requirements", icon: "list" },
-  { key: "soa", label: "SOA & Payment", icon: "credit-card" },
-];
+    { key: "basic", label: "Basic Informations", icon: "user" },
+    { key: "details", label: "Application Records", icon: "clipboard" },
+    { key: "requirements", label: "Requirements", icon: "list" },
+    { key: "soa", label: "SOA & Payment", icon: "credit-card" },
+  ];
 
 function getStatusStyle(status: string): { bg: string; text: string } {
   const s = status.toLowerCase();
@@ -285,6 +285,7 @@ function BasicInfoTab({
   const [fnDraft, setFnDraft] = useState(app.basicInfo.firstName);
   const [mnDraft, setMnDraft] = useState(app.basicInfo.middleName);
   const [dobDraft, setDobDraft] = useState(app.basicInfo.dob);
+  const [expandedApplicantIndex, setExpandedApplicantIndex] = useState<number | null>(null);
 
   const statusStyle = getStatusStyle(app.status);
 
@@ -312,9 +313,9 @@ function BasicInfoTab({
           onEdit={
             isEditable
               ? () => {
-                  setRefDraft(app.referenceNumber);
-                  setEditingRef(true);
-                }
+                setRefDraft(app.referenceNumber);
+                setEditingRef(true);
+              }
               : undefined
           }
           isEditing={editingRef}
@@ -335,9 +336,9 @@ function BasicInfoTab({
           onEdit={
             isEditable
               ? () => {
-                  setPermitDraft(app.permitNumber);
-                  setEditingPermit(true);
-                }
+                setPermitDraft(app.permitNumber);
+                setEditingPermit(true);
+              }
               : undefined
           }
           isEditing={editingPermit}
@@ -359,13 +360,19 @@ function BasicInfoTab({
                 <InfoRow label="Submitted By:" value={app.filingUser.name} />
                 <InfoRow label="User Email:" value={app.filingUser.email} />
                 <InfoRow label="User Account Type:" value={app.filingUser.accountType} />
-                {app.filingUser.company && (
-                  <>
-                    <InfoRow label="Filing Company Name:" value={app.filingUser.company.name} />
-                    <InfoRow label="Filing Company Reg No:" value={app.filingUser.company.registrationNumber} />
-                    <InfoRow label="Filing Company Address:" value={app.filingUser.company.address} />
-                  </>
-                )}
+              </View>
+            </>
+          )}
+
+          {(app.companyDetails !== undefined || app.filingUser?.company !== undefined || app.applicantType === 'Company') && (
+            <>
+              <SectionHeader title="APPLICANT COMPANY DETAILS" />
+              <View style={styles.infoBlock}>
+                <InfoRow label="Company Name:" value={app.companyDetails?.name ?? app.filingUser?.company?.name ?? app.applicant} />
+                <InfoRow label="Registration No:" value={app.companyDetails?.registrationNumber ?? app.filingUser?.company?.registrationNumber ?? "—"} />
+                <InfoRow label="Company Address:" value={app.companyDetails?.address ?? app.filingUser?.company?.address ?? app.address.barangay} />
+                <InfoRow label="Contact Number:" value={app.companyDetails?.contactNumber ?? app.filingUser?.company?.contactNumber ?? app.contactDetails.contactNumber ?? "—"} />
+                <InfoRow label="Email Address:" value={app.companyDetails?.email ?? app.filingUser?.company?.email ?? app.contactDetails.email ?? "—"} />
               </View>
             </>
           )}
@@ -377,33 +384,95 @@ function BasicInfoTab({
               <Text style={[styles.bulkCellHeader, { flex: 2, color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>Applicant Name</Text>
               <Text style={[styles.bulkCellHeader, { flex: 1, color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>Type</Text>
               <Text style={[styles.bulkCellHeader, { flex: 2, color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>Contact / Location</Text>
-              <Text style={[styles.bulkCellHeader, { width: 100, textAlign: 'center', color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>Action</Text>
+              <Text style={[styles.bulkCellHeader, { width: 110, textAlign: 'center', color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>Action</Text>
             </View>
-            {app.applicantsList.map((item, idx) => (
-              <View
-                key={item.id || idx}
-                style={[
-                  styles.bulkItemRow,
-                  { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100] },
-                  idx % 2 === 1 && { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50] },
-                ]}
-              >
-                <Text style={[styles.bulkCellText, { width: 36, color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>{idx + 1}</Text>
-                <Text style={[styles.bulkCellText, { flex: 2, fontWeight: '600', color: isDark ? colors.brand[400] : colors.brand[800] }]}>{item.name}</Text>
-                <Text style={[styles.bulkCellText, { flex: 1, color: isDark ? colors.neutral[300] : colors.neutral[600] }]}>{item.applicantType}</Text>
-                <Text style={[styles.bulkCellText, { flex: 2, color: isDark ? colors.neutral[400] : colors.neutral[500] }]} numberOfLines={1}>
-                  {item.contactNumber ? `${item.contactNumber} • ` : ''}{item.address || '—'}
-                </Text>
-                <View style={{ width: 100, alignItems: 'center' }}>
+            {app.applicantsList.map((item, idx) => {
+              const isExpanded = expandedApplicantIndex === idx;
+              const bi = item.basicInfo;
+
+              return (
+                <View key={item.id || idx} style={{ borderBottomWidth: 1, borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100] }}>
                   <Pressable
-                    style={[styles.inspectBtn, { backgroundColor: isDark ? colors.brand[900] : COLORS.brand[100] }]}
-                    onPress={() => onInspectApplicant?.(idx)}
+                    style={[
+                      styles.bulkItemRow,
+                      idx % 2 === 1 && { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50] },
+                      isExpanded && { backgroundColor: isDark ? colors.brand[900] + '33' : colors.brand[50] }
+                    ]}
+                    onPress={() => setExpandedApplicantIndex(isExpanded ? null : idx)}
                   >
-                    <Text style={[styles.inspectBtnText, { color: isDark ? colors.brand[300] : COLORS.brand[800] }]}>Inspect ►</Text>
+                    <Text style={[styles.bulkCellText, { width: 36, color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>{idx + 1}</Text>
+                    <Text style={[styles.bulkCellText, { flex: 2, fontWeight: '600', color: isDark ? colors.brand[400] : colors.brand[800] }]}>{item.name}</Text>
+                    <Text style={[styles.bulkCellText, { flex: 1, color: isDark ? colors.neutral[300] : colors.neutral[600] }]}>{item.applicantType}</Text>
+                    <Text style={[styles.bulkCellText, { flex: 2, color: isDark ? colors.neutral[400] : colors.neutral[500] }]} numberOfLines={1}>
+                      {item.contactNumber ? `${item.contactNumber} • ` : ''}{item.address || '—'}
+                    </Text>
+                    <View style={{ width: 110, alignItems: 'center' }}>
+                      <Pressable
+                        style={[styles.inspectBtn, { backgroundColor: isExpanded ? (isDark ? colors.brand[800] : colors.brand[200]) : (isDark ? colors.brand[900] : COLORS.brand[100]) }]}
+                        onPress={() => setExpandedApplicantIndex(isExpanded ? null : idx)}
+                      >
+                        <Text style={[styles.inspectBtnText, { color: isDark ? colors.brand[300] : COLORS.brand[800] }]}>
+                          {isExpanded ? 'Hide Details ▲' : 'Full Details ▼'}
+                        </Text>
+                      </Pressable>
+                    </View>
                   </Pressable>
+
+                  {/* Inline Expanded Full Profile Card */}
+                  {isExpanded && (
+                    <View style={[styles.applicantExpandedCard, { backgroundColor: isDark ? colors.neutral[900] : COLORS.neutral.white, borderColor: isDark ? colors.brand[700] : colors.brand[200] }]}>
+                      <View style={styles.expandedHeader}>
+                        <Lucide name="user-check" size={16} color={isDark ? colors.brand[400] : colors.brand[700]} />
+                        <Text style={[styles.expandedTitle, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>
+                          Applicant Full Profile: {item.name}
+                        </Text>
+                      </View>
+
+                      <View style={styles.expandedGrid}>
+                        <InfoRow label="Full Name:" value={item.name} />
+                        <InfoRow label="Applicant Type:" value={item.applicantType} />
+                        <InfoRow label="Contact Number:" value={item.contactNumber || '—'} />
+                        <InfoRow label="Email Address:" value={item.email || '—'} />
+                        <InfoRow label="Address / Barangay:" value={item.address || '—'} />
+                        {item.zipCode ? <InfoRow label="Zip Code:" value={item.zipCode} /> : null}
+
+                        {bi ? (
+                          <>
+                            {bi.dob ? <InfoRow label="Date of Birth:" value={bi.dob} /> : null}
+                            {bi.sex ? <InfoRow label="Sex:" value={bi.sex} /> : null}
+                            {bi.nationality ? <InfoRow label="Nationality:" value={bi.nationality} /> : null}
+                            {bi.height > 0 ? <InfoRow label="Height:" value={`${bi.height} cm`} /> : null}
+                            {bi.weight > 0 ? <InfoRow label="Weight:" value={`${bi.weight} kg`} /> : null}
+                          </>
+                        ) : null}
+                      </View>
+
+                      {item.formFields && item.formFields.length > 0 && (
+                        <View style={{ marginTop: 12 }}>
+                          <Text style={[styles.expandedSubTitle, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>Submitted Form Values:</Text>
+                          {item.formFields.map(ff => (
+                            <InfoRow key={ff.fieldId} label={`${ff.fieldLabel}:`} value={ff.value || '—'} />
+                          ))}
+                        </View>
+                      )}
+
+                      <View style={{ marginTop: 12, alignItems: 'flex-end' }}>
+                        <Pressable
+                          style={[styles.inspectBtn, { backgroundColor: isDark ? colors.brand[600] : colors.brand[700] }]}
+                          onPress={() => {
+                            onInspectApplicant?.(idx);
+                          }}
+                        >
+                          <Text style={[styles.inspectBtnText, { color: COLORS.neutral.white }]}>
+                            View Submitted Files & Requirements ►
+                          </Text>
+                        </Pressable>
+                      </View>
+                    </View>
+                  )}
                 </View>
-              </View>
-            ))}
+              );
+            })}
           </View>
         </>
       ) : app.filingUser?.accountType === 'Company' ? (
@@ -470,9 +539,9 @@ function BasicInfoTab({
               onEdit={
                 isEditable
                   ? () => {
-                      setLnDraft(app.basicInfo.lastName);
-                      setEditingLastName(true);
-                    }
+                    setLnDraft(app.basicInfo.lastName);
+                    setEditingLastName(true);
+                  }
                   : undefined
               }
               isEditing={editingLastName}
@@ -491,9 +560,9 @@ function BasicInfoTab({
               onEdit={
                 isEditable
                   ? () => {
-                      setFnDraft(app.basicInfo.firstName);
-                      setEditingFirstName(true);
-                    }
+                    setFnDraft(app.basicInfo.firstName);
+                    setEditingFirstName(true);
+                  }
                   : undefined
               }
               isEditing={editingFirstName}
@@ -512,9 +581,9 @@ function BasicInfoTab({
               onEdit={
                 isEditable
                   ? () => {
-                      setMnDraft(app.basicInfo.middleName);
-                      setEditingMiddleName(true);
-                    }
+                    setMnDraft(app.basicInfo.middleName);
+                    setEditingMiddleName(true);
+                  }
                   : undefined
               }
               isEditing={editingMiddleName}
@@ -535,9 +604,9 @@ function BasicInfoTab({
               onEdit={
                 isEditable
                   ? () => {
-                      setDobDraft(app.basicInfo.dob);
-                      setEditingDob(true);
-                    }
+                    setDobDraft(app.basicInfo.dob);
+                    setEditingDob(true);
+                  }
                   : undefined
               }
               isEditing={editingDob}
@@ -2668,5 +2737,37 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 12,
     fontWeight: TYPOGRAPHY.weights.semibold,
+  },
+
+  // Expanded applicant card styles
+  applicantExpandedCard: {
+    marginHorizontal: SPACING[12],
+    marginVertical: SPACING[8],
+    padding: SPACING[12],
+    borderRadius: RADIUS.card,
+    borderWidth: 1,
+  },
+  expandedHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACING[8],
+    marginBottom: SPACING[8],
+    paddingBottom: SPACING[6],
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.neutral[200],
+  },
+  expandedTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  expandedGrid: {
+    gap: 2,
+  },
+  expandedSubTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    marginBottom: 4,
   },
 });
