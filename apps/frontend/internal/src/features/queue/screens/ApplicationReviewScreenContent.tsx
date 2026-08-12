@@ -40,11 +40,10 @@ type InnerTab = "basic" | "details" | "requirements" | "soa";
 const INNER_TABS: {
   key: InnerTab;
   label: string;
-  icon: "user" | "clipboard" | "list" | "credit-card";
+  icon: "user" | "clipboard" | "credit-card";
 }[] = [
     { key: "basic", label: "Basic Informations", icon: "user" },
     { key: "details", label: "Application Records", icon: "clipboard" },
-    { key: "requirements", label: "Requirements", icon: "list" },
     { key: "soa", label: "SOA & Payment", icon: "credit-card" },
   ];
 
@@ -1542,11 +1541,9 @@ export function ApplicationReviewScreenContent({
   ];
 
   const isEditable =
-    activeQueueTab === "pending" &&
-    (EDITABLE_STATUSES.includes(app.status) ||
-      app.status.toLowerCase() === "submitted" ||
-      app.status.toLowerCase() === "evaluating" ||
-      app.status.toLowerCase() === "under evaluation");
+    (activeQueueTab === "pending" || app.queueTab === "pending" || !app.queueTab) &&
+    app.status !== "Completed" &&
+    app.status !== "Approved";
 
   const handleApprove = () => {
     setShowApprove(false);
@@ -1814,38 +1811,7 @@ export function ApplicationReviewScreenContent({
         </View>
       )}
 
-      {/* ── Applicant Selector Bar for Bulk Applications ── */}
-      {app.applicationType === "BULK" && app.applicantsList && app.applicantsList.length > 0 && (innerTab === "details" || innerTab === "requirements") && (
-        <View style={[styles.applicantSelectorBar, { backgroundColor: isDark ? colors.neutral[900] : colors.brand[50], borderColor: isDark ? colors.neutral[700] : colors.brand[200] }]}>
-          <Pressable
-            disabled={selectedApplicantIndex === 0}
-            onPress={() => setSelectedApplicantIndex(prev => Math.max(0, prev - 1))}
-            style={[styles.selectorNavBtn, selectedApplicantIndex === 0 && { opacity: 0.3 }]}
-          >
-            <Lucide name="chevron-left" size={14} color={isDark ? colors.brand[400] : colors.brand[800]} />
-            <Text style={[styles.selectorNavBtnText, { color: isDark ? colors.brand[400] : colors.brand[800] }]}>Previous</Text>
-          </Pressable>
 
-          <View style={styles.selectorCenter}>
-            <Lucide name="user" size={14} color={isDark ? colors.brand[400] : colors.brand[800]} />
-            <Text style={[styles.selectorTitleText, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>
-              Viewing Applicant {selectedApplicantIndex + 1} of {app.applicantsList.length}:
-            </Text>
-            <Text style={[styles.selectorNameText, { color: isDark ? colors.brand[300] : colors.brand[900] }]}>
-              {app.applicantsList[selectedApplicantIndex]?.name}
-            </Text>
-          </View>
-
-          <Pressable
-            disabled={selectedApplicantIndex >= app.applicantsList.length - 1}
-            onPress={() => setSelectedApplicantIndex(prev => Math.min(app.applicantsList!.length - 1, prev + 1))}
-            style={[styles.selectorNavBtn, selectedApplicantIndex >= app.applicantsList.length - 1 && { opacity: 0.3 }]}
-          >
-            <Text style={[styles.selectorNavBtnText, { color: isDark ? colors.brand[400] : colors.brand[800] }]}>Next</Text>
-            <Lucide name="chevron-right" size={14} color={isDark ? colors.brand[400] : colors.brand[800]} />
-          </Pressable>
-        </View>
-      )}
 
       {/* ── Tab Content ── */}
       {innerTab === "basic" && (
