@@ -80,6 +80,7 @@ export function GeneralServiceWizard({
   const [localIsFileUploaded, setLocalIsFileUploaded] = useState(false);
   const [localUploadedFileName, setLocalUploadedFileName] = useState("");
   const [dynamicRequiredFieldIds, setDynamicRequiredFieldIds] = useState<string[]>([]);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   const bulkMethod = propBulkMethod !== undefined ? propBulkMethod : localBulkMethod;
   const setBulkMethod = propSetBulkMethod !== undefined ? propSetBulkMethod : setLocalBulkMethod;
@@ -137,6 +138,7 @@ export function GeneralServiceWizard({
       service,
       setIsConfirmModalOpen,
       dynamicRequiredFieldIds,
+      setFormErrors,
     });
   };
 
@@ -239,6 +241,7 @@ export function GeneralServiceWizard({
             updateActiveApplicant({ uploads: cur });
           }}
           onRequiredFieldsChange={setDynamicRequiredFieldIds}
+          errors={formErrors}
         />
 
         <GeneralWizardNavigation

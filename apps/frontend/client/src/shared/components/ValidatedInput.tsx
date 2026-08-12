@@ -17,7 +17,7 @@ export function ValidatedInput({
   style,
   ...props
 }: ValidatedInputProps) {
-  const hasError = touched && error !== undefined && error !== "";
+  const hasError = (touched !== false) && error !== undefined && error !== "";
 
   return (
     <View style={styles.container}>

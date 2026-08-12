@@ -1711,6 +1711,49 @@ namespace EDGE.Infrastructure.Migrations
                     b.ToTable("ServiceFees", "public");
                 });
 
+            modelBuilder.Entity("EDGE.Domain.Entities.ServiceInformation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Information")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("IsDeletedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ServiceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("WhoMayAvail")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ServiceId");
+
+                    b.ToTable("ServiceInformations", "public");
+                });
+
             modelBuilder.Entity("EDGE.Domain.Entities.ServiceVariant", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2860,6 +2903,17 @@ namespace EDGE.Infrastructure.Migrations
                     b.Navigation("ServiceVariant");
 
                     b.Navigation("ServiceVariantElement");
+                });
+
+            modelBuilder.Entity("EDGE.Domain.Entities.ServiceInformation", b =>
+                {
+                    b.HasOne("EDGE.Domain.Entities.Service", "Service")
+                        .WithMany()
+                        .HasForeignKey("ServiceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Service");
                 });
 
             modelBuilder.Entity("EDGE.Domain.Entities.ServiceVariant", b =>

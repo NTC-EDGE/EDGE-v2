@@ -21,7 +21,7 @@ export function DatePickerInput({
   touched,
   required,
 }: DatePickerInputProps) {
-  const showError = Boolean(touched && error);
+  const showError = Boolean((touched !== false) && error);
 
   // Helper to format HTML5 yyyy-mm-dd to MM/DD/YYYY
   const formatIsoToUs = (isoStr: string): string => {

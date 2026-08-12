@@ -249,34 +249,6 @@ export function useCPEAccreditationWizard({
     const expiryDateStr = `${activeApplicant.expiryYear}-${expiryMonthNum}-${String(activeApplicant.expiryDate).padStart(2, "0")}`;
     const address = `${activeApplicant.unitBldgNo || ""}, ${activeApplicant.street}, ${activeApplicant.barangay}, ${activeApplicant.city}, ${activeApplicant.province}, ${activeApplicant.zipCode}`;
 
-    if (formFields.length > 0) {
-      const formFieldValues: Array<{ fieldId: string; value: string }> = [];
-      const mappings = [
-        { terms: ["application type", "app type", "type"], value: activeApplicant.appType },
-        { terms: ["years", "no of years", "number of years"], value: activeApplicant.years },
-        { terms: ["variation"], value: activeApplicant.variation },
-        { terms: ["accreditation no", "accreditation number"], value: activeApplicant.accreditationNo || "N/A" },
-        { terms: ["business name", "company name", "name"], value: activeApplicant.businessName },
-        { terms: ["entity type", "business type"], value: activeApplicant.entityType },
-        { terms: ["dti", "sec", "dti/sec"], value: activeApplicant.dtiNo },
-        { terms: ["address", "street", "residence"], value: address },
-        { terms: ["contact no", "contact number", "phone", "mobile"], value: activeApplicant.contactNo },
-        { terms: ["email address", "email"], value: activeApplicant.email },
-        { terms: ["engineer", "ece"], value: `${activeApplicant.engineerName} (ECE: ${activeApplicant.eceNo})` },
-        { terms: ["technician", "ect"], value: `${activeApplicant.technicianName} (ECT: ${activeApplicant.ectNo})` },
-        { terms: ["expiry", "expiration"], value: expiryDateStr },
-      ];
-
-      formFields.forEach((field: any) => {
-        const labelLower = (field.label || "").toLowerCase();
-        const id = field.fieldId;
-        const match = mappings.find(m => m.terms.some(t => labelLower.includes(t)));
-        if (match) {
-          formFieldValues.push({
-            fieldId: id,
-            value: String(match.value)
-          });
-        } else {
     try {
       if (serviceId) {
         let formFieldValues: Array<{ fieldId: string; fieldLabel: string; value: string }> = [];
@@ -284,10 +256,10 @@ export function useCPEAccreditationWizard({
           formFieldValues = activeApplicant.formFieldValues;
         }
 
-        let address = [activeApplicant.street, activeApplicant.barangay, activeApplicant.city, activeApplicant.province]
+        let formattedAddress = [activeApplicant.street, activeApplicant.barangay, activeApplicant.city, activeApplicant.province]
           .filter(Boolean)
           .join(", ");
-        if (!address) address = "N/A";
+        if (!formattedAddress) formattedAddress = "N/A";
 
         const payload = {
           tenantId: selectedRegionId,
@@ -303,7 +275,7 @@ export function useCPEAccreditationWizard({
               lastName: activeApplicant.entityType || "N/A",
               email: activeApplicant.email || "applicant@example.com",
               contactNumber: activeApplicant.contactNo,
-              address: address,
+              address: formattedAddress,
               birthDate: "1990-01-01T00:00:00Z",
               formFieldValues: formFieldValues
             }

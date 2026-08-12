@@ -79,6 +79,7 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
     public DbSet<ApplicationRequirement> ApplicationRequirements => Set<ApplicationRequirement>();
     public DbSet<StoredFile> StoredFiles => Set<StoredFile>();
     public DbSet<ApplicationStatusHistory> ApplicationStatusHistories => Set<ApplicationStatusHistory>();
+    public DbSet<ServiceInformation> ServiceInformations => Set<ServiceInformation>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

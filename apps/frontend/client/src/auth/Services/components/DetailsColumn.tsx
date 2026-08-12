@@ -150,14 +150,7 @@ export function DetailsColumn({ servicesState }: DetailsColumnProps) {
             selectedService={selectedService}
             onBackToServices={handleBackToServices}
             onApplyPress={() => {
-              const titleLower = selectedService.title.toLowerCase();
-              if (titleLower.includes("premises")) {
-                setActiveWizardService("cpe-accreditation");
-              } else if (titleLower.includes("radio operator") || titleLower.includes("exam") || titleLower.includes("examination")) {
-                setActiveWizardService("radio-operator-exam");
-              } else {
-                setActiveWizardService("general-service");
-              }
+              setActiveWizardService("general-service");
             }}
             isMobile={isMobile}
           />

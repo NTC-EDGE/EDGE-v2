@@ -32,6 +32,7 @@ interface GeneralFilingDetailsStepProps {
   updateActiveApplicant: (fields: Partial<GeneralApplicantData>) => void;
   /** Called once after the form layout resolves with the IDs of required fields (empty for hardcoded forms). */
   onRequiredFieldsChange?: (requiredFieldIds: string[]) => void;
+  errors?: Record<string, string>;
 }
 
 const deriveAppTypeFromStep3 = (variantStr?: string): "NEW" | "RENEWAL" | "MODIFICATION" => {
@@ -46,6 +47,7 @@ export function GeneralFilingDetailsStep({
   activeApplicant,
   updateActiveApplicant,
   onRequiredFieldsChange,
+  errors = {},
 }: GeneralFilingDetailsStepProps) {
   const { form, loading } = useServiceForm(service?.id, activeApplicant.selectedVariantId);
 
@@ -101,6 +103,7 @@ export function GeneralFilingDetailsStep({
         form={form}
         values={valuesRecord}
         onChange={handleDynamicFieldChange}
+        errors={errors}
       />
     );
   }

@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using EDGE.Domain.Entities;
 using EDGE.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
+using static EDGE.Infrastructure.Persistence.ServiceInformationDataSeeder;
 
 namespace EDGE.Infrastructure.Persistence;
 
@@ -23,6 +24,7 @@ public static class FastTrackSeeder
             await BackfillNewServicesAsync(context);      // 1. Seed new Services first (so variants FK matches)
             await UpdateVariantsAsync(context);          // 2. Update/upsert all variants
             await BackfillNewCatalogDetailsAsync(context); // 3. Backfill elements, notes, requirements, and fees
+            await ServiceInformationDataSeeder.SeedAsync(context);  // 4. Seed ServiceInformations entity records
             return;
         }
 
@@ -668,5 +670,6 @@ public static class FastTrackSeeder
             });
         }
         await context.SaveChangesAsync();
+        await ServiceInformationDataSeeder.SeedAsync(context);
     }
 }

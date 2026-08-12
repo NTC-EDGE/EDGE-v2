@@ -16,6 +16,7 @@ interface NavigationContext {
   setIsConfirmModalOpen: (open: boolean) => void;
   /** IDs of fields marked isRequired in the active dynamic form (empty when no dynamic form). */
   dynamicRequiredFieldIds?: string[];
+  setFormErrors?: (errors: Record<string, string>) => void;
 }
 
 export function getRequiredDocumentKeys(service: NTCService, activeApplicant: GeneralApplicantData): string[] {
@@ -79,6 +80,7 @@ export function handleWizardNext({
   service,
   setIsConfirmModalOpen,
   dynamicRequiredFieldIds,
+  setFormErrors,
 }: NavigationContext) {
   if (step === 1) {
     setStep(2);
@@ -113,20 +115,29 @@ export function handleWizardNext({
         (id) => !filledIds.has(id) || !(activeApplicant.formFieldValues ?? []).find((fv) => fv.fieldId === id && fv.value.trim() !== "")
       );
       if (missingFields.length > 0) {
-        Alert.alert("Incomplete", "Please fill in all required fields before proceeding.");
+        const fieldErrors: Record<string, string> = {};
+        missingFields.forEach((fieldId) => {
+          fieldErrors[fieldId] = "This required field cannot be left blank.";
+        });
+        setFormErrors?.(fieldErrors);
+        Alert.alert("Incomplete", "Please fill in all required fields marked in red before proceeding.");
         return;
       }
+      setFormErrors?.({});
     } else {
       // Fall back to base applicant field check for hardcoded forms
-      if (
-        !activeApplicant.firstName ||
-        !activeApplicant.lastName ||
-        !activeApplicant.email ||
-        !activeApplicant.contactNo
-      ) {
-        Alert.alert("Warning", "Please fill in all mandatory applicant details.");
+      const fieldErrors: Record<string, string> = {};
+      if (!activeApplicant.firstName) fieldErrors.firstName = "First Name is required.";
+      if (!activeApplicant.lastName) fieldErrors.lastName = "Last Name is required.";
+      if (!activeApplicant.email) fieldErrors.email = "Email Address is required.";
+      if (!activeApplicant.contactNo) fieldErrors.contactNo = "Contact Number is required.";
+
+      if (Object.keys(fieldErrors).length > 0) {
+        setFormErrors?.(fieldErrors);
+        Alert.alert("Warning", "Please fill in all mandatory applicant details marked in red.");
         return;
       }
+      setFormErrors?.({});
     }
 
     if (appMode === "BULK" && currentApplicantIndex < applicants.length - 1) {

@@ -81,6 +81,10 @@ export function useServices() {
   );
   const backendServices = servicesApiResponse?.succeeded ? servicesApiResponse.data : null;
 
+  // Backend Service Informations Query (Paginated API)
+  const { data: serviceInfosApiResponse } = api.useQuery<{ succeeded: boolean; data: any[]; totalCount: number }>("/api/v2/service-informations?pageSize=9999");
+  const backendServiceInfos = serviceInfosApiResponse?.data ?? [];
+
   // Shared Wizard States
   const [wizardStep, setWizardStep] = useState(1);
   const [selectedRegionId, setSelectedRegionId] = useState("");
@@ -555,17 +559,21 @@ export function useServices() {
     if (!category) return null;
 
     const servicesList = backendServices ? backendServices.map((bs: any) => {
+      const backendInfo = (backendServiceInfos || []).find(
+        (x: any) => x.serviceId === bs.id ||
+                    x.serviceTitle?.toLowerCase() === bs.name.toLowerCase() ||
+                    bs.name.toLowerCase().includes((x.serviceTitle || "").toLowerCase()) ||
+                    (x.serviceTitle || "").toLowerCase().includes(bs.name.toLowerCase())
+      );
+
       return {
         id: bs.id,
         serviceCategoryId: category.id,
         category: category.name,
         title: bs.name,
-        description: bs.description || bs.name,
-        requirements: bs.requirements?.map((r: any) => r.name) || [
-          "Duly accomplished Application Form",
-          "Valid Government-issued ID",
-          "Proof of payment of fees"
-        ],
+        description: backendInfo?.information || bs.description || bs.name,
+        whoMayAvail: backendInfo?.whoMayAvail || undefined,
+        requirements: bs.requirements?.map((r: any) => r.name) || [],
         fee: bs.feeDescription || "Varies",
         time: bs.estimatedDuration || "3-5 Working Days"
       };
@@ -586,7 +594,7 @@ export function useServices() {
       description: category.description || `NTC ${category.name} services.`,
       services: servicesList
     };
-  }, [selectedCategoryId, backendCategories, backendServices]);
+  }, [selectedCategoryId, backendCategories, backendServices, backendServiceInfos]);
 
   const searchResults = useMemo(() => {
     if (searchQuery.trim() === "" || !allBackendServices) return null;
@@ -599,6 +607,13 @@ export function useServices() {
         (bs.description && bs.description.toLowerCase().includes(query))
       ) {
         const cat = backendCategories?.find((c: any) => c.id === bs.serviceCategoryId);
+        const backendInfo = (backendServiceInfos || []).find(
+          (x: any) => x.serviceId === bs.id ||
+                      x.serviceTitle?.toLowerCase() === bs.name.toLowerCase() ||
+                      bs.name.toLowerCase().includes((x.serviceTitle || "").toLowerCase()) ||
+                      (x.serviceTitle || "").toLowerCase().includes(bs.name.toLowerCase())
+        );
+
         results.push({
           categoryTitle: cat?.name || "Services",
           service: {
@@ -606,12 +621,9 @@ export function useServices() {
             serviceCategoryId: bs.serviceCategoryId,
             category: cat?.name || "Services",
             title: bs.name,
-            description: bs.description || bs.name,
-            requirements: bs.requirements?.map((r: any) => r.name) || [
-              "Duly accomplished Application Form",
-              "Valid Government-issued ID",
-              "Proof of payment of fees"
-            ],
+            description: backendInfo?.information || bs.description || bs.name,
+            whoMayAvail: backendInfo?.whoMayAvail || undefined,
+            requirements: bs.requirements?.map((r: any) => r.name) || [],
             fee: bs.feeDescription || "Varies",
             time: bs.estimatedDuration || "3-5 Working Days"
           }
@@ -619,7 +631,7 @@ export function useServices() {
       }
     });
     return results;
-  }, [searchQuery, allBackendServices, backendCategories]);
+  }, [searchQuery, allBackendServices, backendCategories, backendServiceInfos]);
 
   const handleBackToCategories = () => {
     setSelectedCategoryId(null);

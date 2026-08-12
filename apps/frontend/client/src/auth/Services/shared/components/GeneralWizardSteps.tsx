@@ -38,6 +38,7 @@ interface GeneralWizardStepsProps {
   onRemoveUpload: (req: string) => void;
   /** Notified with required field IDs once the step-4 form layout resolves. */
   onRequiredFieldsChange?: (requiredFieldIds: string[]) => void;
+  errors?: Record<string, string>;
 }
 
 export function GeneralWizardSteps({
@@ -69,6 +70,7 @@ export function GeneralWizardSteps({
   onUploadPress,
   onRemoveUpload,
   onRequiredFieldsChange,
+  errors = {},
 }: GeneralWizardStepsProps) {
   switch (step) {
     case 1:
@@ -119,6 +121,7 @@ export function GeneralWizardSteps({
           activeApplicant={activeApplicant}
           updateActiveApplicant={updateActiveApplicant}
           onRequiredFieldsChange={onRequiredFieldsChange}
+          errors={errors}
         />
       );
     case 5:

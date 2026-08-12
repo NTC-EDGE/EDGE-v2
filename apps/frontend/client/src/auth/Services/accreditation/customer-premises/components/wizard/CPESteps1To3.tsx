@@ -171,14 +171,105 @@ export function CPESteps1To3({
 }: CPESteps1To3Props) {
   if (step === 1) {
     return (
-      <View>
-        <Text style={styles.infoTitle}>Customer Premises Equipment Supplier Accreditation</Text>
-        <Text style={styles.infoDesc}>
-          An Accreditation for Customer Premises Equipment Supplier is a written authority issued by the Commission to a person, firm, company, association or corporation authorizing the holder thereof to engage in the acquisition, servicing, maintenance, purchase or sale of equipment located in the premises of a customer which is not part of but connected to the system or network of a public telecommunications entity.
-        </Text>
-        <View style={styles.availCard}>
-          <Text style={styles.availHeading}>WHO MAY AVAIL:</Text>
-          <Text style={styles.availItem}>1. Individuals and Private Entities</Text>
+      <View style={{ gap: 20 }}>
+        {/* Card 1: Service Overview Card */}
+        <View
+          style={{
+            backgroundColor: "#FFFFFF",
+            borderRadius: 14,
+            padding: 20,
+            borderWidth: 1,
+            borderColor: "#CBD5E1",
+            borderLeftWidth: 5,
+            borderLeftColor: "#0F2C59",
+            shadowColor: "#0F2C59",
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.05,
+            shadowRadius: 6,
+            elevation: 2,
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 1, minWidth: 200 }}>
+              <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: "#EFF6FF", justifyContent: "center", alignItems: "center" }}>
+                <Icon name="info" size={15} color="#0F2C59" />
+              </View>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 16, fontWeight: "700", color: "#0F2C59" }}>
+                CPE Supplier Accreditation Specifications
+              </Text>
+            </View>
+            <View style={{ backgroundColor: "#EFF6FF", borderColor: "#3B82F6", borderWidth: 1, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 12, alignSelf: "flex-start" }}>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 10, fontWeight: "800", color: "#1E40AF" }}>
+                SECTION 1 • OVERVIEW
+              </Text>
+            </View>
+          </View>
+
+          <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 14, color: "#334155", lineHeight: 22, marginBottom: 16 }}>
+            Written authority issued by the NTC authorizing a person, firm, company, or corporation to acquire, service, maintain, purchase, or sell equipment connected to public telecommunications networks.
+          </Text>
+
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12, marginBottom: 16 }}>
+            <View style={{ backgroundColor: "#EFF6FF", borderColor: "#BFDBFE", borderWidth: 1, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10, flex: 1, minWidth: 140 }}>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 10, fontWeight: "800", color: "#1E40AF", marginBottom: 2 }}>
+                WHO MAY AVAIL
+              </Text>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: "#0F2C59" }}>
+                Individuals & Private Entities
+              </Text>
+            </View>
+
+            <View style={{ backgroundColor: "#FEF3C7", borderColor: "#FDE68A", borderWidth: 1, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10, flex: 1, minWidth: 140 }}>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 10, fontWeight: "800", color: "#92400E", marginBottom: 2 }}>
+                PROCESSING TIME
+              </Text>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: "#78350F" }}>
+                3-5 Business Days
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Card 2: Guidelines & Step-by-Step Instructions Card */}
+        <View
+          style={{
+            backgroundColor: "#FAFAFC",
+            borderRadius: 14,
+            padding: 20,
+            borderWidth: 1,
+            borderColor: "#CBD5E1",
+            borderLeftWidth: 5,
+            borderLeftColor: "#F59E0B",
+            shadowColor: "#F59E0B",
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.05,
+            shadowRadius: 6,
+            elevation: 2,
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 1, minWidth: 200 }}>
+              <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: "#FEF3C7", justifyContent: "center", alignItems: "center" }}>
+                <Icon name="file-text" size={15} color="#92400E" />
+              </View>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 15, fontWeight: "700", color: "#0F2C59" }}>
+                Filing Instructions & Step-by-Step Guide
+              </Text>
+            </View>
+            <View style={{ backgroundColor: "#FEF3C7", borderColor: "#F59E0B", borderWidth: 1, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 12, alignSelf: "flex-start" }}>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 10, fontWeight: "800", color: "#92400E" }}>
+                GUIDELINES
+              </Text>
+            </View>
+          </View>
+
+          <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: "#475569", lineHeight: 22 }}>
+            1. Click <Text style={{ fontWeight: "700", color: "#0F2C59" }}>Next</Text> to select your NTC Regional & Field Office jurisdiction.{"\n"}
+            2. Choose your <Text style={{ fontWeight: "700", color: "#0F2C59" }}>Application Type</Text> (NEW, RENEWAL, MODIFICATION) and view mandatory document requirements.{"\n"}
+            3. Configure your filing mode (<Text style={{ fontWeight: "700", color: "#0F2C59" }}>Single</Text> or <Text style={{ fontWeight: "700", color: "#0F2C59" }}>Bulk CSV</Text> import).{"\n"}
+            4. Complete the required applicant details form in Step 5 and upload mandatory attachments in Step 6.{"\n"}
+            5. Review your summary in Step 7 and submit for official regional review.
+          </Text>
         </View>
       </View>
     );

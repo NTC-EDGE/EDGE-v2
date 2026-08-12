@@ -120,6 +120,18 @@ public class DatabaseInitializerHostedService : IHostedService
         {
             _logger.LogWarning(ex, "Notification Templates seed data encountered an issue.");
         }
+
+        // 8. Seed Service Information entries
+        try
+        {
+            _logger.LogInformation("Seeding Service Information entries...");
+            await ServiceInformationDataSeeder.SeedAsync(context);
+            _logger.LogInformation("Service Information entries seeded successfully.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Service Information seed data encountered an issue.");
+        }
     }
 
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;

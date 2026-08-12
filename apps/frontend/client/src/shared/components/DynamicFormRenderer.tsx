@@ -72,6 +72,7 @@ export function DynamicFormRenderer({
                       value={val}
                       onValueChange={(v) => onChange(field.id, field.label, v)}
                       options={field.options || []}
+                      error={err}
                     />
                   ) : field.fieldType === "date" ? (
                     <DatePickerInput
