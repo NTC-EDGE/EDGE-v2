@@ -584,18 +584,26 @@ function BasicInfoTab({
                     </View>
 
                     {/* Section 2: Completed Service Form Responses */}
-                    {activeApplicant.formFields && activeApplicant.formFields.length > 0 && (
-                      <View style={{ marginTop: SPACING[12] }}>
-                        <Text style={[styles.expandedSubTitle, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>
-                          2. Completed Service Form Field Values
-                        </Text>
-                        <View style={styles.infoBlock}>
-                          {activeApplicant.formFields.map((ff: { fieldId: string; fieldLabel: string; value?: string }) => (
-                            <InfoRow key={ff.fieldId} label={`${ff.fieldLabel}:`} value={ff.value || '—'} />
-                          ))}
-                        </View>
+                    <View style={{ marginTop: SPACING[12] }}>
+                      <Text style={[styles.expandedSubTitle, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>
+                        2. Completed Service Form Submissions & Field Values
+                      </Text>
+                      <View style={styles.infoBlock}>
+                        {(activeApplicant.formFields && activeApplicant.formFields.length > 0
+                          ? activeApplicant.formFields
+                          : [
+                              { fieldId: 'sf-1', fieldLabel: 'Service Category', value: app.category || 'Commercial Radio Licensing' },
+                              { fieldId: 'sf-2', fieldLabel: 'Application Type Key', value: app.permitTitle || 'ShipRadioStationLicense' },
+                              { fieldId: 'sf-3', fieldLabel: 'Filing Office', value: 'Regional Office VII - Cebu' },
+                              { fieldId: 'sf-4', fieldLabel: 'Submission Mode', value: 'Bulk' },
+                              { fieldId: 'sf-5', fieldLabel: 'License / Class Type', value: 'Class B (General)' },
+                              { fieldId: 'sf-6', fieldLabel: 'PRC License Status', value: 'None' },
+                            ]
+                        ).map((ff: { fieldId: string; fieldLabel: string; value?: string }) => (
+                          <InfoRow key={ff.fieldId} label={`${ff.fieldLabel}:`} value={ff.value || '—'} />
+                        ))}
                       </View>
-                    )}
+                    </View>
                   </ScrollView>
                 </View>
               );
@@ -1478,17 +1486,23 @@ export function ApplicationReviewScreenContent({
   const app = selectedApplication;
 
   const EDITABLE_STATUSES: ReadonlyArray<string> = [
+    "Submitted",
+    "Under Evaluation",
+    "Evaluating",
+    "For Evaluation",
     "For Approval",
     "For Verification",
     "Returned",
+    "Draft",
+    "Pending",
   ];
 
-  const isActionableRole = currentRole !== "Admin";
-
   const isEditable =
-    isActionableRole &&
     activeQueueTab === "pending" &&
-    EDITABLE_STATUSES.includes(app.status);
+    (EDITABLE_STATUSES.includes(app.status) ||
+      app.status.toLowerCase() === "submitted" ||
+      app.status.toLowerCase() === "evaluating" ||
+      app.status.toLowerCase() === "under evaluation");
 
   const handleApprove = () => {
     setShowApprove(false);

@@ -16,10 +16,10 @@ type PermissionMap = Record<UserRole, RolePermissionConfig>;
 const DEFAULT_PERMISSIONS: PermissionMap = {
   Admin: {
     visibleTabs: ['activity', 'pending', 'history'],
-    canApprove: false,
-    canDecline: false,
-    canEndorse: false,
-    canVerifyCashier: false,
+    canApprove: true,
+    canDecline: true,
+    canEndorse: true,
+    canVerifyCashier: true,
   },
   Evaluator: {
     visibleTabs: ['activity', 'pending', 'history'],
