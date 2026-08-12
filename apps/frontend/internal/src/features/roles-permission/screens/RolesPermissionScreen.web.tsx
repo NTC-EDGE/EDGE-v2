@@ -94,10 +94,12 @@ export function RolesPermissionScreen() {
       setIsEditingRoleName(false);
       return;
     }
-    const ok = await updateRole(selectedRole.id, trimmed);
-    if (ok) {
+    const res = await updateRole(selectedRole.id, trimmed);
+    if (res.ok) {
       showToast(`Role renamed to "${trimmed}"`);
       setIsEditingRoleName(false);
+    } else if (res.error) {
+      showToast(res.error);
     }
   };
 
@@ -117,24 +119,34 @@ export function RolesPermissionScreen() {
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
-    setTimeout(() => setToastMsg(null), 3000);
+    setTimeout(() => setToastMsg(null), 4000);
   };
 
   const handleSave = async () => {
-    const ok = await savePermissions();
-    if (ok && selectedRole) {
+    const res = await savePermissions();
+    if (res.ok && selectedRole) {
       showToast(`Permissions saved for "${selectedRole.name}"`);
+    } else if (res.error) {
+      showToast(res.error);
     }
   };
 
   const handleAddRole = async (data: { name: string; initialPermissionIds: string[] }) => {
-    const ok = await createRole(data.name, undefined, data.initialPermissionIds);
-    if (ok) showToast(`Role "${data.name}" created.`);
+    const res = await createRole(data.name, undefined, data.initialPermissionIds);
+    if (res.ok) {
+      showToast(`Role "${data.name}" created.`);
+    } else if (res.error) {
+      showToast(res.error);
+    }
   };
 
   const handleDeleteRole = async (roleId: string) => {
-    const ok = await deleteRole(roleId);
-    if (ok) showToast('Role deleted.');
+    const res = await deleteRole(roleId);
+    if (res.ok) {
+      showToast('Role deleted.');
+    } else if (res.error) {
+      showToast(res.error);
+    }
   };
 
   // Scope filter counts

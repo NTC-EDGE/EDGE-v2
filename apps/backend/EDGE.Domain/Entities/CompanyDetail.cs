@@ -5,7 +5,7 @@ namespace EDGE.Domain.Entities;
 
 public class CompanyDetail : AuditableEntity
 {
-    public Guid BarangayId { get; set; }
+    public Guid? BarangayId { get; set; }
     public Barangay? Barangay { get; set; }
     public string Address { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;

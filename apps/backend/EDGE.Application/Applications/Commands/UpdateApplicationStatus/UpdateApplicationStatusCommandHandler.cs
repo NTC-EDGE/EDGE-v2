@@ -9,6 +9,8 @@ using EDGE.Domain.Enums;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.Common.Models;
 
+using Microsoft.Extensions.Logging;
+
 namespace EDGE.Application.Applications.Commands.UpdateApplicationStatus;
 
 public class UpdateApplicationStatusCommandHandler : IRequestHandler<UpdateApplicationStatusCommand, ApiResponse<Guid>>
@@ -16,15 +18,18 @@ public class UpdateApplicationStatusCommandHandler : IRequestHandler<UpdateAppli
     private readonly IApplicationFullRepository _applicationRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUserService _currentUserService;
+    private readonly ILogger<UpdateApplicationStatusCommandHandler> _logger;
 
     public UpdateApplicationStatusCommandHandler(
         IApplicationFullRepository applicationRepository,
         IUnitOfWork unitOfWork,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        ILogger<UpdateApplicationStatusCommandHandler> logger)
     {
         _applicationRepository = applicationRepository;
         _unitOfWork = unitOfWork;
         _currentUserService = currentUserService;
+        _logger = logger;
     }
 
     public async Task<ApiResponse<Guid>> Handle(UpdateApplicationStatusCommand request, CancellationToken cancellationToken)
@@ -44,9 +49,15 @@ public class UpdateApplicationStatusCommandHandler : IRequestHandler<UpdateAppli
         Guid? actingUserId = null;
         if (!string.IsNullOrEmpty(currentUserIdStr))
         {
-            actingUserId = Guid.TryParse(currentUserIdStr, out var parsed)
-                ? parsed
-                : CreateGuidFromString(currentUserIdStr);
+            var parsed = Guid.TryParse(currentUserIdStr, out var g) ? g : CreateGuidFromString(currentUserIdStr);
+            if (await _applicationRepository.UserExistsAsync(parsed, cancellationToken))
+            {
+                actingUserId = parsed;
+            }
+            else
+            {
+                _logger.LogWarning("Acting user ID '{UserIdRaw}' (parsed as '{ParsedUserId}') was provided in current context but could not be found in user database. History entry logged without user association.", currentUserIdStr, parsed);
+            }
         }
 
         app.Status = newStatus;

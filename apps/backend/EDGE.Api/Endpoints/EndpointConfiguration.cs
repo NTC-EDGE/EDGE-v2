@@ -22,6 +22,8 @@ public static class EndpointConfiguration
         apiV2Group.MapTenantEndpoints();
         apiV2Group.MapTenantMemberEndpoints();
         apiV2Group.MapApplicationEndpoints();
+        apiV2Group.MapSoaEndpoints();
+        apiV2Group.MapOpEndpoints();
         apiV2Group.MapUserEndpoints();
         apiV2Group.MapRoleEndpoints();
         apiV2Group.MapPermissionEndpoints();

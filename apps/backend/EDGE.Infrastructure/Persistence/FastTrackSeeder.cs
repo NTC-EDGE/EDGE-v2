@@ -542,11 +542,13 @@ public static class FastTrackSeeder
 
         // 2. Seed ServiceVariantElements
         var elementsToSeed = FastTrackSeederData.GetBackfillElements();
+        var existingSve = (await context.ServiceVariantElements.AsNoTracking().Select(e => new { e.ServiceVariantId, e.Code }).ToListAsync())
+            .Select(e => (e.ServiceVariantId, e.Code)).ToHashSet();
 
         foreach (var el in elementsToSeed)
         {
             Guid actualVariantId = ResolveVariantId(el.VariantId);
-            if (!await context.ServiceVariantElements.AnyAsync(e => e.ServiceVariantId == actualVariantId && e.Code == el.Code))
+            if (!existingSve.Contains((actualVariantId, el.Code)))
             {
                 context.ServiceVariantElements.Add(new ServiceVariantElement
                 {
@@ -565,9 +567,11 @@ public static class FastTrackSeeder
             .Select(g => g.First())
             .ToList();
 
+        var existingElements = (await context.Elements.AsNoTracking().Select(e => e.Code.ToLower()).ToListAsync()).ToHashSet();
+
         foreach (var el in uniqueElementCodes)
         {
-            if (!await context.Elements.AnyAsync(e => e.Code.ToLower() == el.Code.ToLower()))
+            if (!existingElements.Contains(el.Code.ToLower()))
             {
                 context.Elements.Add(new Element
                 {
@@ -582,11 +586,13 @@ public static class FastTrackSeeder
 
         // 3. Seed Notes
         var notesToSeed = FastTrackSeederData.GetBackfillNotes(svc101);
+        var existingNotes = (await context.Notes.AsNoTracking().Select(n => new { n.ServiceId, n.ServiceVariantId, n.Notes }).ToListAsync())
+            .Select(n => (n.ServiceId, n.ServiceVariantId, n.Notes)).ToHashSet();
 
         foreach (var note in notesToSeed)
         {
             Guid? actualVariantId = note.ServiceVariantId.HasValue ? ResolveVariantId(note.ServiceVariantId.Value) : null;
-            if (!await context.Notes.AnyAsync(n => n.ServiceId == note.ServiceId && n.ServiceVariantId == actualVariantId && n.Notes == note.Content))
+            if (!existingNotes.Contains((note.ServiceId, actualVariantId, note.Content)))
             {
                 context.Notes.Add(new Note
                 {
@@ -601,10 +607,11 @@ public static class FastTrackSeeder
 
         // 4. Seed Requirements
         var reqs = FastTrackSeederData.GetBackfillRequirements();
+        var existingReqIds = (await context.Requirements.AsNoTracking().Select(r => r.Id).ToListAsync()).ToHashSet();
 
         foreach (var req in reqs.Values)
         {
-            if (!await context.Requirements.AnyAsync(r => r.Id == req.Id))
+            if (!existingReqIds.Contains(req.Id))
             {
                 context.Requirements.Add(new Requirement
                 {
@@ -616,25 +623,27 @@ public static class FastTrackSeeder
         }
         await context.SaveChangesAsync();
 
-         // 5. Seed ServiceVariantRequirements
-         var variantReqsToSeed = FastTrackSeederData.GetBackfillVariantRequirements();
- 
-         foreach (var vr in variantReqsToSeed)
-         {
-             Guid actualVariantId = ResolveVariantId(vr.VariantId);
-             if (!await context.ServiceVariantRequirements.AnyAsync(r => r.ServiceVariantId == actualVariantId && r.RequirementId == vr.ReqId && r.ContextKey == vr.ContextKey))
-             {
-                 context.ServiceVariantRequirements.Add(new ServiceVariantRequirement
-                 {
-                     Id = Guid.NewGuid(),
-                     ServiceVariantId = actualVariantId,
-                     RequirementId = vr.ReqId,
-                     IsRequired = vr.IsRequired,
-                     ContextKey = vr.ContextKey
-                 });
-             }
-         }
-         await context.SaveChangesAsync();
+        // 5. Seed ServiceVariantRequirements
+        var variantReqsToSeed = FastTrackSeederData.GetBackfillVariantRequirements();
+        var existingSvr = (await context.ServiceVariantRequirements.AsNoTracking().Select(r => new { r.ServiceVariantId, r.RequirementId, r.ContextKey }).ToListAsync())
+            .Select(r => (r.ServiceVariantId, r.RequirementId, r.ContextKey)).ToHashSet();
+
+        foreach (var vr in variantReqsToSeed)
+        {
+            Guid actualVariantId = ResolveVariantId(vr.VariantId);
+            if (!existingSvr.Contains((actualVariantId, vr.ReqId, vr.ContextKey)))
+            {
+                context.ServiceVariantRequirements.Add(new ServiceVariantRequirement
+                {
+                    Id = Guid.NewGuid(),
+                    ServiceVariantId = actualVariantId,
+                    RequirementId = vr.ReqId,
+                    IsRequired = vr.IsRequired,
+                    ContextKey = vr.ContextKey
+                });
+            }
+        }
+        await context.SaveChangesAsync();
 
         // 6. Seed ServiceFees
         var examFeeId = Guid.Parse("f0000000-0000-0000-0000-000000000005"); // Operator Competency Exam Fee

@@ -24,6 +24,13 @@ using EDGE.Application.Applications.Queries.GetAllApplications;
 using EDGE.Application.Applications.Queries.GetApplicationById;
 using EDGE.Application.Applications.Queries.GetApplicationsByApplicant;
 using EDGE.Application.Applications.Queries.GetDraftApplications;
+using EDGE.Application.Applications.Commands.CreateSoa;
+using EDGE.Application.Applications.Commands.ApproveSoa;
+using EDGE.Application.Applications.Commands.ReturnSoa;
+using EDGE.Application.Applications.Commands.VerifyPayment;
+using EDGE.Application.Applications.Commands.ReturnOp;
+using EDGE.Application.Applications.Commands.TogglePinApplication;
+using EDGE.Application.Applications.Commands.ToggleArchiveApplication;
 
 using EDGE.Domain.Enums;
 using Microsoft.AspNetCore.Mvc;
@@ -74,6 +81,21 @@ public static class ApplicationEndpoints
             .WithName("UpdateApplicationStatus")
             .WithSummary("Update application status")
             .WithDescription("Updates status of the application (e.g. UnderEvaluation, Approved) and logs history.");
+
+        group.MapPatch("/{id:guid}/evaluate", EvaluateApplicationEndpoint)
+            .WithName("EvaluateApplication")
+            .WithSummary("Evaluate application")
+            .WithDescription("Transitions application status to Evaluating and logs status history.");
+
+        group.MapPatch("/{id:guid}/pin", TogglePinApplicationEndpoint)
+            .WithName("TogglePinApplication")
+            .WithSummary("Toggle pin status")
+            .WithDescription("Pins or unpins an application for top-of-feed display.");
+
+        group.MapPatch("/{id:guid}/archive", ToggleArchiveApplicationEndpoint)
+            .WithName("ToggleArchiveApplication")
+            .WithSummary("Toggle archive status")
+            .WithDescription("Archives or unarchives an application.");
 
         group.MapDelete("/{id:guid}", DeleteDraftApplication)
             .WithName("DeleteDraftApplication")
@@ -324,5 +346,52 @@ public static class ApplicationEndpoints
         return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
     }
 
+    [HasPermission(Permissions.EvaluateApplication)]
+    public static async Task<IResult> TogglePinApplicationEndpoint(
+        Guid id,
+        [FromBody] TogglePinRequest? request,
+        IMediator mediator,
+        CancellationToken cancellationToken)
+    {
+        var command = new TogglePinApplicationCommand(id, request?.IsPinned);
+        var result = await mediator.Send(command, cancellationToken);
+        if (!result.Succeeded) return Results.BadRequest(result);
+        return Results.Ok(result);
+    }
+
+    [HasPermission(Permissions.EvaluateApplication)]
+    public static async Task<IResult> ToggleArchiveApplicationEndpoint(
+        Guid id,
+        [FromBody] ToggleArchiveRequest? request,
+        IMediator mediator,
+        CancellationToken cancellationToken)
+    {
+        var command = new ToggleArchiveApplicationCommand(id, request?.IsArchived);
+        var result = await mediator.Send(command, cancellationToken);
+        if (!result.Succeeded) return Results.BadRequest(result);
+        return Results.Ok(result);
+    }
+
+    [HasPermission(Permissions.EvaluateApplication)]
+    public static async Task<IResult> EvaluateApplicationEndpoint(
+        Guid id,
+        [FromBody] EvaluateApplicationRequest? request,
+        IMediator mediator,
+        CancellationToken cancellationToken)
+    {
+        var command = new UpdateApplicationStatusCommand
+        {
+            Id = id,
+            Status = ApplicationStatus.Evaluating.ToString(),
+            Remarks = request?.Remarks ?? "Started evaluation process."
+        };
+        var result = await mediator.Send(command, cancellationToken);
+        if (!result.Succeeded) return Results.BadRequest(result);
+        return Results.Ok(result);
+    }
 }
+
+public record TogglePinRequest(bool? IsPinned);
+public record ToggleArchiveRequest(bool? IsArchived);
+public record EvaluateApplicationRequest(string? Remarks);
 

@@ -39,6 +39,7 @@ public static class GeographicDataSeeder
         var regionsData = JsonSerializer.Deserialize<List<RegionSeedModel>>(json, options);
         if (regionsData == null) return;
 
+        int counter = 0;
         foreach (var rData in regionsData)
         {
             var region = new Region
@@ -95,6 +96,11 @@ public static class GeographicDataSeeder
                                     };
 
                                     await context.Barangays.AddAsync(barangay);
+                                    counter++;
+                                    if (counter % 1000 == 0)
+                                    {
+                                        await context.SaveChangesAsync();
+                                    }
                                 }
                             }
                         }

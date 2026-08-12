@@ -221,7 +221,13 @@ export function AdminSettingsScreen(): React.ReactElement {
       itemTitle: name,
       itemType: 'Field Office',
       onConfirm: async () => {
-        await safeAsync(deleteFieldOffice(id));
+        const [res, err] = await safeAsync(deleteFieldOffice(id));
+        if (err !== null) {
+          showToast(err, 'error');
+          setDeleteModal((prev) => ({ ...prev, visible: false }));
+          return;
+        }
+        showToast('Field Office deleted successfully!', 'success');
         refetch();
         setDeleteModal((prev) => ({ ...prev, visible: false }));
       },

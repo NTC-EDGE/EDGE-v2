@@ -19,11 +19,29 @@ public class ApplicationDto
     public string? Remarks { get; set; }
     public Guid? UserId { get; set; }
     public bool IsGuest { get; set; }
+    public bool IsPinned { get; set; }
+    public bool IsArchived { get; set; }
     public DateTime CreatedAt { get; set; }
+
+    public FilingUserDto? FilingUser { get; set; }
 
     public List<ApplicationServiceDto> Services { get; set; } = new();
     public List<ApplicantDto> Applicants { get; set; } = new();
     public List<ApplicationRequirementDto> Requirements { get; set; } = new();
+    
+    public List<StatementOfAccountDto> StatementsOfAccount { get; set; } = new();
+    public List<OrderOfPaymentDto> OrdersOfPayment { get; set; } = new();
+    public List<ApplicationHistoryDto> Histories { get; set; } = new();
+    public List<CorrectionAuditTrailDto> CorrectionAuditTrails { get; set; } = new();
+}
+
+public class FilingUserDto
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public string AccountType { get; set; } = "Individual";
+    public CompanyDetailDto? Company { get; set; }
 }
 
 public class ApplicationServiceDto
