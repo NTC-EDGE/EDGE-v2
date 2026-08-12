@@ -59,16 +59,12 @@ export function mapApplicationDtoToUI(dto: ApplicationDto | ApplicationSummaryDt
       }
     : undefined;
 
-  const filingAccountType: 'Individual' | 'Company' = isCompanySubmission
-    ? 'Company'
-    : 'Individual';
-
   const filingUser = rawFilingUser
     ? {
         id: rawFilingUser.id,
         name: rawFilingUser.name ?? '',
         email: rawFilingUser.email ?? '',
-        accountType: filingAccountType,
+        accountType: (rawFilingUser.accountType as 'Individual' | 'Company') ?? 'Individual',
         company: rawFilingUser.company
           ? {
               name: rawFilingUser.company.name ?? '',

@@ -532,10 +532,10 @@ function ApplicationDetailsTab({
       {/* ALWAYS SHOW FILING ENTITY & SUBMITTER DETAILS FOR ALL APPLICATION/ACCOUNT TYPES */}
       <SectionHeader title="FILING ENTITY & SUBMITTER DETAILS" />
       <View style={styles.infoBlock}>
-        <InfoRow label="Submitted By:" value={app.filingUser?.name ?? app.applicant} />
+        <InfoRow label="Submitted By:" value={app.filingUser?.name ?? "—"} />
         <InfoRow
           label="User Email:"
-          value={app.filingUser?.email ?? app.contactDetails?.email ?? "—"}
+          value={app.filingUser?.email ?? "—"}
           isEditing={isEditingSection}
           editValue={emailDraft}
           onEditChange={setEmailDraft}
@@ -589,29 +589,29 @@ function ApplicationDetailsTab({
             </View>
           ) : (
             <Text style={[infoStyles.value, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>
-              {app.filingUser?.accountType ?? app.applicantType ?? "Individual"}
+              {app.filingUser?.accountType ?? "Individual"}
             </Text>
           )}
         </View>
-        {((isEditingSection ? accountTypeDraft === 'Company' : (app.filingUser?.accountType ?? app.applicantType) === 'Company')) && (
+        {((isEditingSection ? accountTypeDraft === 'Company' : app.filingUser?.accountType === 'Company')) && (
           <>
             <InfoRow
               label="Filing Company Name:"
-              value={app.companyDetails?.name ?? app.filingUser?.company?.name ?? app.applicant}
+              value={app.filingUser?.company?.name ?? "—"}
               isEditing={isEditingSection}
               editValue={compNameDraft}
               onEditChange={setCompNameDraft}
             />
             <InfoRow
               label="Filing Company Reg No:"
-              value={app.companyDetails?.registrationNumber ?? app.filingUser?.company?.registrationNumber ?? "—"}
+              value={app.filingUser?.company?.registrationNumber ?? "—"}
               isEditing={isEditingSection}
               editValue={compRegNoDraft}
               onEditChange={setCompRegNoDraft}
             />
             <InfoRow
               label="Filing Company Address:"
-              value={app.companyDetails?.address ?? app.filingUser?.company?.address ?? app.address.barangay}
+              value={app.filingUser?.company?.address ?? "—"}
               isEditing={isEditingSection}
               editValue={compAddrDraft}
               onEditChange={setCompAddrDraft}
