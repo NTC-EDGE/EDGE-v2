@@ -593,7 +593,7 @@ function ApplicationDetailsTab({
             </Text>
           )}
         </View>
-        {(app.filingUser?.company || app.companyDetails) && (
+        {((isEditingSection ? accountTypeDraft === 'Company' : (app.filingUser?.accountType ?? app.applicantType) === 'Company')) && (
           <>
             <InfoRow
               label="Filing Company Name:"
