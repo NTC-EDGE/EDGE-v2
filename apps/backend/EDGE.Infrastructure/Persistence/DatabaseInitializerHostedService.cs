@@ -39,21 +39,6 @@ public class DatabaseInitializerHostedService : IHostedService
             _logger.LogInformation("Applying database migrations...");
             await context.Database.MigrateAsync(cancellationToken);
             _logger.LogInformation("Database migrations applied successfully.");
-
-            _logger.LogInformation("Ensuring new Application columns and normalizing status values in database...");
-            try
-            {
-                await context.Database.ExecuteSqlRawAsync(@"ALTER TABLE public.""Applications"" ADD COLUMN IF NOT EXISTS ""IsPinned"" boolean NOT NULL DEFAULT false;", cancellationToken);
-                await context.Database.ExecuteSqlRawAsync(@"ALTER TABLE public.""Applications"" ADD COLUMN IF NOT EXISTS ""IsArchived"" boolean NOT NULL DEFAULT false;", cancellationToken);
-                await context.Database.ExecuteSqlRawAsync(@"ALTER TABLE public.""StatementsOfAccount"" ALTER COLUMN ""PreparedByUserId"" DROP NOT NULL;", cancellationToken);
-                await context.Database.ExecuteSqlRawAsync(@"UPDATE public.""Applications"" SET ""Status"" = 'Evaluating' WHERE ""Status"" IN ('ForApproval', 'Endorsed');", cancellationToken);
-                await context.Database.ExecuteSqlRawAsync(@"UPDATE public.""Applications"" SET ""Status"" = 'Approved' WHERE ""Status"" = 'ForVerification';", cancellationToken);
-                await context.Database.ExecuteSqlRawAsync(@"UPDATE public.""Applications"" SET ""Status"" = 'Returned' WHERE ""Status"" = 'Declined';", cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Could not adjust columns or normalize status strings in database, continuing initialization.");
-            }
         }
         catch (Exception ex)
         {

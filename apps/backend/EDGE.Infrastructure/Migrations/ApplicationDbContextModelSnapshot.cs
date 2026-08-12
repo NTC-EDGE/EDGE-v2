@@ -231,6 +231,9 @@ namespace EDGE.Infrastructure.Migrations
                     b.Property<string>("DataEntryMethod")
                         .HasColumnType("text");
 
+                    b.Property<bool>("IsArchived")
+                        .HasColumnType("boolean");
+
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
@@ -239,6 +242,9 @@ namespace EDGE.Infrastructure.Migrations
                         .HasColumnType("text");
 
                     b.Property<bool>("IsGuest")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsPinned")
                         .HasColumnType("boolean");
 
                     b.Property<DateTime?>("LastModifiedAt")
@@ -323,8 +329,8 @@ namespace EDGE.Infrastructure.Migrations
                     b.Property<Guid>("ApplicationId")
                         .HasColumnType("uuid");
 
-                    b.Property<int?>("FromStatus")
-                        .HasColumnType("integer");
+                    b.Property<string>("FromStatus")
+                        .HasColumnType("text");
 
                     b.Property<Guid>("PerformedByUserId")
                         .HasColumnType("uuid");
@@ -343,8 +349,9 @@ namespace EDGE.Infrastructure.Migrations
                     b.Property<DateTime>("Timestamp")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int>("ToStatus")
-                        .HasColumnType("integer");
+                    b.Property<string>("ToStatus")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.HasKey("Id");
 
@@ -1360,8 +1367,8 @@ namespace EDGE.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int?>("FromStatus")
-                        .HasColumnType("integer");
+                    b.Property<string>("FromStatus")
+                        .HasColumnType("text");
 
                     b.Property<string>("OfficialReceiptNumber")
                         .HasColumnType("text");
@@ -1386,8 +1393,9 @@ namespace EDGE.Infrastructure.Migrations
                     b.Property<DateTime>("Timestamp")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int>("ToStatus")
-                        .HasColumnType("integer");
+                    b.Property<string>("ToStatus")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.HasKey("Id");
 
@@ -2154,8 +2162,8 @@ namespace EDGE.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int?>("FromStatus")
-                        .HasColumnType("integer");
+                    b.Property<string>("FromStatus")
+                        .HasColumnType("text");
 
                     b.Property<Guid>("PerformedByUserId")
                         .HasColumnType("uuid");
@@ -2177,8 +2185,9 @@ namespace EDGE.Infrastructure.Migrations
                     b.Property<DateTime>("Timestamp")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int>("ToStatus")
-                        .HasColumnType("integer");
+                    b.Property<string>("ToStatus")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.HasKey("Id");
 
@@ -2283,7 +2292,7 @@ namespace EDGE.Infrastructure.Migrations
                     b.Property<string>("LastModifiedBy")
                         .HasColumnType("text");
 
-                    b.Property<Guid>("PreparedByUserId")
+                    b.Property<Guid?>("PreparedByUserId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("Remarks")
