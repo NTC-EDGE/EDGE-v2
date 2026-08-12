@@ -27,6 +27,11 @@ public class GetAllApplicationsQueryHandler : IRequestHandler<GetAllApplications
     public async Task<ApiResponse<List<ApplicationSummaryDto>>> Handle(GetAllApplicationsQuery request, CancellationToken cancellationToken)
     {
         var userIdStr = _currentUserService.UserId;
+        if (string.IsNullOrEmpty(userIdStr))
+        {
+            return ApiResponse<List<ApplicationSummaryDto>>.Fail("401 Unauthorized: User authentication context missing.");
+        }
+
         var dtos = await _repository.GetApplicationSummaryDtosAsync(request.Status, request.QueueTab, request.Scope, cancellationToken);
 
         return ApiResponse<List<ApplicationSummaryDto>>.Success(dtos, "User applications retrieved successfully.");

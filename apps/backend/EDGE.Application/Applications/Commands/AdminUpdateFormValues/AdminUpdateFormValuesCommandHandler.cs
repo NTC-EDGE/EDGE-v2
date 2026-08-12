@@ -35,37 +35,37 @@ public class AdminUpdateFormValuesCommandHandler : IRequestHandler<AdminUpdateFo
 
         var staffName = _currentUserService.UserId ?? "NTC Agency Staff";
 
-        // Find form submission for applicant
-        var submission = app.FormSubmissions.FirstOrDefault(fs => fs.ApplicantId == request.ApplicantId);
-        if (submission != null && request.FormFields != null)
-        {
-            foreach (var fieldDto in request.FormFields)
-            {
-                if (Guid.TryParse(fieldDto.FieldId, out var fieldId))
-                {
-                    var existingVal = submission.FieldValues.FirstOrDefault(fv => fv.FieldId == fieldId);
-                    if (existingVal != null && existingVal.Value != fieldDto.Value)
-                    {
-                        await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
-                        {
-                            ApplicationId = app.Id,
-                            Category = "Form Submissions",
-                            FieldName = fieldDto.FieldLabel,
-                            OldValue = existingVal.Value ?? string.Empty,
-                            NewValue = fieldDto.Value ?? string.Empty,
-                            CorrectedByStaff = staffName,
-                            CorrectedAt = DateTime.UtcNow
-                        }, cancellationToken);
-
-                        existingVal.Value = fieldDto.Value;
-                    }
-                }
-            }
-        }
-
         await _unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
+            // Find form submission for applicant
+            var submission = app.FormSubmissions.FirstOrDefault(fs => fs.ApplicantId == request.ApplicantId);
+            if (submission != null && request.FormFields != null)
+            {
+                foreach (var fieldDto in request.FormFields)
+                {
+                    if (Guid.TryParse(fieldDto.FieldId, out var fieldId))
+                    {
+                        var existingVal = submission.FieldValues.FirstOrDefault(fv => fv.FieldId == fieldId);
+                        if (existingVal != null && existingVal.Value != fieldDto.Value)
+                        {
+                            await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
+                            {
+                                ApplicationId = app.Id,
+                                Category = "Form Submissions",
+                                FieldName = fieldDto.FieldLabel,
+                                OldValue = existingVal.Value ?? string.Empty,
+                                NewValue = fieldDto.Value ?? string.Empty,
+                                CorrectedByStaff = staffName,
+                                CorrectedAt = DateTime.UtcNow
+                            }, cancellationToken);
+
+                            existingVal.Value = fieldDto.Value;
+                        }
+                    }
+                }
+            }
+
             await _applicationRepository.UpdateAsync(app, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             await _unitOfWork.CommitTransactionAsync(cancellationToken);

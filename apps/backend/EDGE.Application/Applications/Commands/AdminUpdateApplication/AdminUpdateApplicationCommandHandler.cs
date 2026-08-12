@@ -35,73 +35,73 @@ public class AdminUpdateApplicationCommandHandler : IRequestHandler<AdminUpdateA
 
         var staffName = _currentUserService.UserId ?? "NTC Agency Staff";
 
-        // Audit & update ReferenceNumber
-        if (!string.IsNullOrEmpty(request.ReferenceNumber) && request.ReferenceNumber != app.ReferenceNumber)
-        {
-            await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
-            {
-                ApplicationId = app.Id,
-                Category = "Application Header",
-                FieldName = "ReferenceNumber",
-                OldValue = app.ReferenceNumber ?? string.Empty,
-                NewValue = request.ReferenceNumber,
-                CorrectedByStaff = staffName,
-                CorrectedAt = DateTime.UtcNow
-            }, cancellationToken);
-            app.ReferenceNumber = request.ReferenceNumber;
-        }
-
-        // Audit & update ApplicationNumber (Permit Number)
-        if (!string.IsNullOrEmpty(request.PermitNumber) && request.PermitNumber != app.ApplicationNumber)
-        {
-            await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
-            {
-                ApplicationId = app.Id,
-                Category = "Application Header",
-                FieldName = "ApplicationNumber",
-                OldValue = app.ApplicationNumber ?? string.Empty,
-                NewValue = request.PermitNumber,
-                CorrectedByStaff = staffName,
-                CorrectedAt = DateTime.UtcNow
-            }, cancellationToken);
-            app.ApplicationNumber = request.PermitNumber;
-        }
-
-        // Audit & update Remarks / Note
-        if (request.Note != null && request.Note != app.Remarks)
-        {
-            await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
-            {
-                ApplicationId = app.Id,
-                Category = "Application Header",
-                FieldName = "Remarks",
-                OldValue = app.Remarks ?? string.Empty,
-                NewValue = request.Note,
-                CorrectedByStaff = staffName,
-                CorrectedAt = DateTime.UtcNow
-            }, cancellationToken);
-            app.Remarks = request.Note;
-        }
-
-        // Audit & update Office
-        if (!string.IsNullOrEmpty(request.Office) && request.Office != app.Office)
-        {
-            await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
-            {
-                ApplicationId = app.Id,
-                Category = "Application Header",
-                FieldName = "Office",
-                OldValue = app.Office ?? string.Empty,
-                NewValue = request.Office,
-                CorrectedByStaff = staffName,
-                CorrectedAt = DateTime.UtcNow
-            }, cancellationToken);
-            app.Office = request.Office;
-        }
-
         await _unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
+            // Audit & update ReferenceNumber
+            if (!string.IsNullOrEmpty(request.ReferenceNumber) && request.ReferenceNumber != app.ReferenceNumber)
+            {
+                await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
+                {
+                    ApplicationId = app.Id,
+                    Category = "Application Header",
+                    FieldName = "ReferenceNumber",
+                    OldValue = app.ReferenceNumber ?? string.Empty,
+                    NewValue = request.ReferenceNumber,
+                    CorrectedByStaff = staffName,
+                    CorrectedAt = DateTime.UtcNow
+                }, cancellationToken);
+                app.ReferenceNumber = request.ReferenceNumber;
+            }
+
+            // Audit & update ApplicationNumber (Permit Number)
+            if (!string.IsNullOrEmpty(request.PermitNumber) && request.PermitNumber != app.ApplicationNumber)
+            {
+                await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
+                {
+                    ApplicationId = app.Id,
+                    Category = "Application Header",
+                    FieldName = "ApplicationNumber",
+                    OldValue = app.ApplicationNumber ?? string.Empty,
+                    NewValue = request.PermitNumber,
+                    CorrectedByStaff = staffName,
+                    CorrectedAt = DateTime.UtcNow
+                }, cancellationToken);
+                app.ApplicationNumber = request.PermitNumber;
+            }
+
+            // Audit & update Remarks / Note
+            if (request.Note != null && request.Note != app.Remarks)
+            {
+                await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
+                {
+                    ApplicationId = app.Id,
+                    Category = "Application Header",
+                    FieldName = "Remarks",
+                    OldValue = app.Remarks ?? string.Empty,
+                    NewValue = request.Note,
+                    CorrectedByStaff = staffName,
+                    CorrectedAt = DateTime.UtcNow
+                }, cancellationToken);
+                app.Remarks = request.Note;
+            }
+
+            // Audit & update Office
+            if (!string.IsNullOrEmpty(request.Office) && request.Office != app.Office)
+            {
+                await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
+                {
+                    ApplicationId = app.Id,
+                    Category = "Application Header",
+                    FieldName = "Office",
+                    OldValue = app.Office ?? string.Empty,
+                    NewValue = request.Office,
+                    CorrectedByStaff = staffName,
+                    CorrectedAt = DateTime.UtcNow
+                }, cancellationToken);
+                app.Office = request.Office;
+            }
+
             await _applicationRepository.UpdateAsync(app, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             await _unitOfWork.CommitTransactionAsync(cancellationToken);

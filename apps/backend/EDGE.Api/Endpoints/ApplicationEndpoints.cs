@@ -61,7 +61,7 @@ public static class ApplicationEndpoints
             .WithDescription("Initiates a draft bulk application under the selected service catalog, establishing the application shell.");
 
         group.MapGet("/", GetAllApplications)
-            .AllowAnonymous()
+            .RequireAuthorization(new HasPermissionAttribute(Permissions.ViewOwnApplications))
             .WithName("GetAllApplications")
             .WithSummary("Retrieve all applications")
             .WithDescription("Retrieves all applications for the current user, optionally filtered by status.");
@@ -87,31 +87,37 @@ public static class ApplicationEndpoints
             .WithDescription("Updates status of the application (e.g. UnderEvaluation, Approved) and logs history.");
 
         group.MapPatch("/{id:guid}/admin-update", AdminUpdateApplicationEndpoint)
+            .RequireAuthorization(new HasPermissionAttribute(Permissions.EvaluateApplication))
             .WithName("AdminUpdateApplication")
             .WithSummary("Agency administrative correction update")
             .WithDescription("Updates application fields during review and records CorrectionAuditTrail entries.");
 
         group.MapPatch("/{id:guid}/applicants/{applicantId:guid}/admin-update", AdminUpdateApplicantProfileEndpoint)
+            .RequireAuthorization(new HasPermissionAttribute(Permissions.EvaluateApplication))
             .WithName("AdminUpdateApplicantProfile")
             .WithSummary("Agency administrative update for applicant profile")
             .WithDescription("Updates applicant profile details during review and records CorrectionAuditTrail entries.");
 
         group.MapPatch("/{id:guid}/applicants/{applicantId:guid}/form-values/admin-update", AdminUpdateFormValuesEndpoint)
+            .RequireAuthorization(new HasPermissionAttribute(Permissions.EvaluateApplication))
             .WithName("AdminUpdateFormValues")
             .WithSummary("Agency administrative update for form field values")
             .WithDescription("Updates form field values during review and records CorrectionAuditTrail entries.");
 
         group.MapPatch("/{id:guid}/evaluate", EvaluateApplicationEndpoint)
+            .RequireAuthorization(new HasPermissionAttribute(Permissions.EvaluateApplication))
             .WithName("EvaluateApplication")
             .WithSummary("Evaluate application")
             .WithDescription("Transitions application status to Evaluating and logs status history.");
 
         group.MapPatch("/{id:guid}/pin", TogglePinApplicationEndpoint)
+            .RequireAuthorization(new HasPermissionAttribute(Permissions.EvaluateApplication))
             .WithName("TogglePinApplication")
             .WithSummary("Toggle pin status")
             .WithDescription("Pins or unpins an application for top-of-feed display.");
 
         group.MapPatch("/{id:guid}/archive", ToggleArchiveApplicationEndpoint)
+            .RequireAuthorization(new HasPermissionAttribute(Permissions.EvaluateApplication))
             .WithName("ToggleArchiveApplication")
             .WithSummary("Toggle archive status")
             .WithDescription("Archives or unarchives an application.");
