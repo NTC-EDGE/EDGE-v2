@@ -20,10 +20,14 @@ public static class SoaEndpoints
     {
         var group = app.MapGroup("/soas").WithTags("StatementOfAccount");
 
-        app.MapPost("/applications/{id:guid}/soas", CreateSoa)
-            .WithTags("StatementOfAccount")
+        group.MapPost("/applications/{id:guid}", CreateSoa)
             .WithName("CreateSoa")
             .WithSummary("Create Statement of Account")
+            .WithDescription("Generates an SOA for the given application.");
+
+        group.MapPost("/applications/{id:guid}/soas", CreateSoa)
+            .WithName("CreateSoaAlt")
+            .WithSummary("Create Statement of Account (Alt)")
             .WithDescription("Generates an SOA for the given application.");
 
         group.MapPatch("/{soaId:guid}/approve", ApproveSoa)

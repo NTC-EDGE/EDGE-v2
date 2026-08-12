@@ -102,6 +102,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
                 .ThenInclude(s => s.LineItems)
             .Include(a => a.OrdersOfPayment)
             .Include(a => a.Histories)
+            .Include(a => a.CorrectionAuditTrails)
             .AsNoTracking()
             .AsQueryable();
 
