@@ -845,6 +845,8 @@ export interface ApplicantSummaryDto {
   contactNumber?: string;
   emailAddress?: string;
   company?: CompanyDetailDto;
+  details?: ApplicantDetailDto;
+  formFieldValues?: FormFieldValueDto[];
 }
 
 export interface StatementOfAccountSummaryDto {
@@ -853,6 +855,7 @@ export interface StatementOfAccountSummaryDto {
   status: string;
   totalAmount: number;
   dueDate: string;
+  lineItems?: SoaLineItemDto[];
 }
 
 export interface OrderOfPaymentSummaryDto {
@@ -862,6 +865,9 @@ export interface OrderOfPaymentSummaryDto {
   amountDue: number;
   amountReceived: number;
   officialReceiptNumber?: string;
+  paymentMethod?: string;
+  checkNumber?: string;
+  checkName?: string;
   paidAt?: string;
 }
 
@@ -887,6 +893,8 @@ export interface ApplicationSummaryDto {
   applicants: ApplicantSummaryDto[];
   statementsOfAccount: StatementOfAccountSummaryDto[];
   ordersOfPayment: OrderOfPaymentSummaryDto[];
+  histories?: ApplicationHistoryDto[];
+  correctionAuditTrails?: CorrectionAuditTrailDto[];
 }
 
 export interface UpdateApplicationStatusRequest {
