@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import {
   StyleSheet,
   View,
@@ -680,7 +680,49 @@ function ApplicationDetailsTab({
   isEditable?: boolean;
 }) {
   const { colors, isDark } = useTheme();
-  const applicants = app.applicantsList && app.applicantsList.length > 0 ? app.applicantsList : [];
+  const effectiveApplicants = useMemo(() => {
+    if (app.applicantsList && app.applicantsList.length > 0) {
+      return app.applicantsList;
+    }
+    return [{
+      id: app.id,
+      name: app.applicant || `${app.basicInfo?.firstName ?? ''} ${app.basicInfo?.lastName ?? ''}`.trim() || "Applicant 1",
+      applicantType: 'Individual' as const,
+      status: 'Complete' as const,
+      evaluationRemarks: '',
+      contactNumber: app.contactDetails?.contactNumber || '',
+      email: app.contactDetails?.email || '',
+      address: typeof app.address === 'string' ? app.address : `${app.address?.city ?? ''}, ${app.address?.province ?? ''}`.trim(),
+      barangay: '',
+      city: '',
+      province: '',
+      zipCode: '',
+      basicInfo: app.basicInfo ? {
+        lastName: app.basicInfo.lastName,
+        firstName: app.basicInfo.firstName,
+        middleName: app.basicInfo.middleName,
+        extensionName: app.basicInfo.extensionName,
+        dob: app.basicInfo.dob,
+        placeOfBirth: app.basicInfo.placeOfBirth,
+        sex: app.basicInfo.sex,
+        weight: app.basicInfo.weight,
+        height: app.basicInfo.height,
+        nationality: app.basicInfo.nationality,
+        employmentStatus: app.basicInfo.employmentStatus,
+        occupation: app.basicInfo.occupation,
+      } : undefined,
+      requirements: app.requirements,
+      formFields: [],
+    }];
+  }, [app]);
+
+  const [localApplicants, setLocalApplicants] = useState<ApplicantItem[]>(effectiveApplicants);
+
+  useEffect(() => {
+    setLocalApplicants(effectiveApplicants);
+  }, [effectiveApplicants]);
+
+  const applicants = localApplicants;
   const activeIdx = Math.min(selectedApplicantIndex ?? 0, Math.max(0, applicants.length - 1));
   const activeApplicant = applicants[activeIdx];
   const bi = activeApplicant?.basicInfo;
@@ -702,10 +744,6 @@ function ApplicationDetailsTab({
     Alert.alert("View Requirement Document", `Viewing submitted document: ${label}`);
   };
 
-  const targetList = (app.applicantsList && app.applicantsList.length > 0)
-    ? app.applicantsList
-    : applicants;
-
   const [localRemarks, setLocalRemarks] = useState(activeApplicant?.evaluationRemarks ?? '');
 
   useEffect(() => {
@@ -713,20 +751,24 @@ function ApplicationDetailsTab({
   }, [activeApplicant?.id, activeApplicant?.evaluationRemarks]);
 
   const handleSetStatus = (idx: number, newStatus: 'Complete' | 'Incomplete' | 'ForEndorsement') => {
-    if (!updateApplication || targetList.length === 0) return;
-    const updated = [...targetList];
+    const updated = [...localApplicants];
     if (updated[idx]) {
       updated[idx] = { ...updated[idx], status: newStatus };
-      updateApplication(app.id, { applicantsList: updated });
+      setLocalApplicants(updated);
+      if (updateApplication) {
+        updateApplication(app.id, { applicantsList: updated });
+      }
     }
   };
 
   const handleSetRemarks = (idx: number, text: string) => {
-    if (!updateApplication || targetList.length === 0) return;
-    const updated = [...targetList];
+    const updated = [...localApplicants];
     if (updated[idx]) {
       updated[idx] = { ...updated[idx], evaluationRemarks: text };
-      updateApplication(app.id, { applicantsList: updated });
+      setLocalApplicants(updated);
+      if (updateApplication) {
+        updateApplication(app.id, { applicantsList: updated });
+      }
     }
   };
 

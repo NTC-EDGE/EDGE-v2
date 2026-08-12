@@ -43,9 +43,15 @@ export function ApplicationProvider({ children }: { children: ReactNode }) {
     scope: 'queue',
   });
 
+  const [localOverrides, setLocalOverrides] = useState<Record<string, Partial<ApplicationData>>>({});
+
   const applications = useMemo(() => {
-    return rawDtos.map(mapApplicationDtoToUI);
-  }, [rawDtos]);
+    return rawDtos.map((dto) => {
+      const app = mapApplicationDtoToUI(dto);
+      const override = localOverrides[dto.id];
+      return override ? { ...app, ...override } : app;
+    });
+  }, [rawDtos, localOverrides]);
 
   const selectedApplication =
     selectedId !== null
@@ -58,6 +64,11 @@ export function ApplicationProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const updateApplication = useCallback(async (id: string, patch: Partial<ApplicationData>) => {
+    setLocalOverrides((prev) => ({
+      ...prev,
+      [id]: { ...(prev[id] ?? {}), ...patch },
+    }));
+
     if (patch.status) {
       const [res, err] = await applicationService.updateStatus(id, {
         status: patch.status,
