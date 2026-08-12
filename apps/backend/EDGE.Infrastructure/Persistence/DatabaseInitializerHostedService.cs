@@ -45,6 +45,7 @@ public class DatabaseInitializerHostedService : IHostedService
             {
                 await context.Database.ExecuteSqlRawAsync(@"ALTER TABLE public.""Applications"" ADD COLUMN IF NOT EXISTS ""IsPinned"" boolean NOT NULL DEFAULT false;", cancellationToken);
                 await context.Database.ExecuteSqlRawAsync(@"ALTER TABLE public.""Applications"" ADD COLUMN IF NOT EXISTS ""IsArchived"" boolean NOT NULL DEFAULT false;", cancellationToken);
+                await context.Database.ExecuteSqlRawAsync(@"ALTER TABLE public.""StatementsOfAccount"" ALTER COLUMN ""PreparedByUserId"" DROP NOT NULL;", cancellationToken);
                 await context.Database.ExecuteSqlRawAsync(@"UPDATE public.""Applications"" SET ""Status"" = 'Evaluating' WHERE ""Status"" IN ('ForApproval', 'Endorsed');", cancellationToken);
                 await context.Database.ExecuteSqlRawAsync(@"UPDATE public.""Applications"" SET ""Status"" = 'Approved' WHERE ""Status"" = 'ForVerification';", cancellationToken);
                 await context.Database.ExecuteSqlRawAsync(@"UPDATE public.""Applications"" SET ""Status"" = 'Returned' WHERE ""Status"" = 'Declined';", cancellationToken);

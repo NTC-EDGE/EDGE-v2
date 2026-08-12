@@ -678,7 +678,7 @@ export interface StatementOfAccountDto {
   issuedToAddress?: string;
   totalAmount: number;
   dueDate: string;
-  preparedByUserId: string;
+  preparedByUserId?: string;
   approvedByUserId?: string;
   approvedAt?: string;
   remarks?: string;

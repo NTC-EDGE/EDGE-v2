@@ -640,6 +640,24 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
             entity.Property(e => e.Status).HasConversion<string>();
             entity.Property(e => e.PaymentMethod).HasConversion<string>();
         });
+
+        modelBuilder.Entity<ApplicationHistory>(entity =>
+        {
+            entity.Property(e => e.FromStatus).HasConversion<string>();
+            entity.Property(e => e.ToStatus).HasConversion<string>();
+        });
+
+        modelBuilder.Entity<SoaHistory>(entity =>
+        {
+            entity.Property(e => e.FromStatus).HasConversion<string>();
+            entity.Property(e => e.ToStatus).HasConversion<string>();
+        });
+
+        modelBuilder.Entity<OpHistory>(entity =>
+        {
+            entity.Property(e => e.FromStatus).HasConversion<string>();
+            entity.Property(e => e.ToStatus).HasConversion<string>();
+        });
     }
 
     private static System.Linq.Expressions.LambdaExpression ConvertFilterExpression(Type type)

@@ -9,10 +9,12 @@ namespace EDGE.Application.Applications.Commands.TogglePinApplication;
 public class TogglePinApplicationCommandHandler : IRequestHandler<TogglePinApplicationCommand, ApiResponse<bool>>
 {
     private readonly IApplicationFullRepository _repository;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public TogglePinApplicationCommandHandler(IApplicationFullRepository repository)
+    public TogglePinApplicationCommandHandler(IApplicationFullRepository repository, IUnitOfWork unitOfWork)
     {
         _repository = repository;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<ApiResponse<bool>> Handle(TogglePinApplicationCommand request, CancellationToken cancellationToken)
@@ -25,6 +27,7 @@ public class TogglePinApplicationCommandHandler : IRequestHandler<TogglePinAppli
 
         app.IsPinned = request.IsPinned ?? !app.IsPinned;
         await _repository.UpdateAsync(app, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return ApiResponse<bool>.Success(app.IsPinned, $"Application pin status set to {app.IsPinned}.");
     }

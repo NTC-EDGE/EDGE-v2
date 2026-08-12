@@ -57,7 +57,7 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
             IssuedToName = request.IssuedToName,
             IssuedToAddress = request.IssuedToAddress,
             DueDate = request.DueDate,
-            PreparedByUserId = actingUserId ?? Guid.Empty
+            PreparedByUserId = actingUserId
         };
 
         foreach (var item in request.LineItems)
