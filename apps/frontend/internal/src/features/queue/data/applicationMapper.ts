@@ -91,7 +91,44 @@ export function mapApplicationDtoToUI(dto: ApplicationDto): ApplicationData {
   const contactEmail = primaryDetail?.email ?? rawFilingUser?.email ?? '';
   const contactPhone = primaryDetail?.contactNumber ?? '';
 
+  const applicantsList = (dto.applicants ?? []).map((appItem, idx) => {
+    const ad = appItem.details;
+    const name = ad
+      ? `${ad.firstName} ${ad.lastName}`.trim()
+      : `Applicant ${idx + 1}`;
+
+    return {
+      id: appItem.id || `app-${idx}`,
+      name,
+      applicantType: (appItem.applicantType as any) === 'Company' ? ('Company' as const) : ('Individual' as const),
+      contactNumber: ad?.contactNumber ?? '',
+      email: ad?.email ?? '',
+      address: ad?.address ?? '',
+      barangay: ad?.address ?? '',
+      city: '',
+      province: '',
+      zipCode: ad?.zipCode ?? '',
+      basicInfo: ad ? {
+        lastName: ad.lastName ?? '',
+        firstName: ad.firstName ?? '',
+        middleName: ad.middleName ?? '',
+        extensionName: ad.suffix ?? '',
+        dob: ad.birthDate ?? '',
+        placeOfBirth: '',
+        sex: ad.sex ?? '',
+        weight: ad.weight ?? 0,
+        height: ad.height ?? 0,
+        nationality: ad.nationality ?? '',
+        employmentStatus: '',
+        occupation: '',
+      } : undefined,
+      formFields: appItem.formFieldValues,
+      requirements: [],
+    };
+  });
+
   const feStatus = mapBEStatusToFE(dto.status);
+  const isBulk = dto.submissionMode === 'Bulk' || applicantsList.length > 1;
 
   return {
     id: dto.id,
@@ -104,7 +141,8 @@ export function mapApplicationDtoToUI(dto: ApplicationDto): ApplicationData {
     category: 'Permits',
     status: feStatus,
     queueTab: deriveQueueTab(feStatus),
-    applicationType: dto.submissionMode === 'Bulk' ? 'BULK' : 'SINGLE',
+    applicationType: isBulk ? 'BULK' : 'SINGLE',
+    applicantsList,
     createdAt: dto.createdAt,
     dateLabel: formatDateLabel(dto.createdAt),
     assignedTo: dto.office ?? '',

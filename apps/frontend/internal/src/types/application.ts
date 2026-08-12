@@ -71,6 +71,39 @@ export interface FilingUserData {
   };
 }
 
+export interface ApplicantItem {
+  id: string;
+  name: string;
+  applicantType: ApplicantType;
+  contactNumber: string;
+  email: string;
+  address: string;
+  barangay: string;
+  city: string;
+  province: string;
+  zipCode: string;
+  basicInfo?: {
+    lastName: string;
+    firstName: string;
+    middleName: string;
+    extensionName: string;
+    dob: string;
+    placeOfBirth: string;
+    sex: string;
+    weight: number;
+    height: number;
+    nationality: string;
+    employmentStatus: string;
+    occupation: string;
+  };
+  formFields?: Array<{
+    fieldId: string;
+    fieldLabel: string;
+    value?: string;
+  }>;
+  requirements?: RequirementDocument[];
+}
+
 export interface ApplicationData {
   id: string;
   referenceNumber: string;
@@ -85,6 +118,7 @@ export interface ApplicationData {
   dateLabel: string;
   assignedTo: string;
   applicationType: 'SINGLE' | 'BULK';
+  applicantsList?: ApplicantItem[];
   isBeingViewed: boolean;
   isUrgent: boolean;
   isPinned: boolean;

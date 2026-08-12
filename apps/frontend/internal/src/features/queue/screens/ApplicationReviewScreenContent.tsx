@@ -261,10 +261,14 @@ function BasicInfoTab({
   app,
   isEditable,
   updateApplication,
+  selectedApplicantIndex,
+  onInspectApplicant,
 }: {
   app: ApplicationData;
   isEditable: boolean;
   updateApplication: (id: string, patch: Partial<ApplicationData>) => void;
+  selectedApplicantIndex?: number;
+  onInspectApplicant?: (index: number) => void;
 }) {
   const { colors, isDark } = useTheme();
   const [editingRef, setEditingRef] = useState(false);
@@ -346,7 +350,63 @@ function BasicInfoTab({
         />
       </View>
 
-      {app.filingUser?.accountType === 'Company' ? (
+      {app.applicationType === 'BULK' && app.applicantsList && app.applicantsList.length > 0 ? (
+        <>
+          {app.filingUser && (
+            <>
+              <SectionHeader title="FILING USER / SUBMITTER DETAILS" />
+              <View style={styles.infoBlock}>
+                <InfoRow label="Submitted By:" value={app.filingUser.name} />
+                <InfoRow label="User Email:" value={app.filingUser.email} />
+                <InfoRow label="User Account Type:" value={app.filingUser.accountType} />
+                {app.filingUser.company && (
+                  <>
+                    <InfoRow label="Filing Company Name:" value={app.filingUser.company.name} />
+                    <InfoRow label="Filing Company Reg No:" value={app.filingUser.company.registrationNumber} />
+                    <InfoRow label="Filing Company Address:" value={app.filingUser.company.address} />
+                  </>
+                )}
+              </View>
+            </>
+          )}
+
+          <SectionHeader title={`APPLICANTS BATCH ROSTER (${app.applicantsList.length} APPLICANTS)`} />
+          <View style={[styles.infoBlock, { padding: 0, overflow: 'hidden' }]}>
+            <View style={[styles.bulkHeaderRow, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100] }]}>
+              <Text style={[styles.bulkCellHeader, { width: 36, color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>#</Text>
+              <Text style={[styles.bulkCellHeader, { flex: 2, color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>Applicant Name</Text>
+              <Text style={[styles.bulkCellHeader, { flex: 1, color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>Type</Text>
+              <Text style={[styles.bulkCellHeader, { flex: 2, color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>Contact / Location</Text>
+              <Text style={[styles.bulkCellHeader, { width: 100, textAlign: 'center', color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>Action</Text>
+            </View>
+            {app.applicantsList.map((item, idx) => (
+              <View
+                key={item.id || idx}
+                style={[
+                  styles.bulkItemRow,
+                  { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100] },
+                  idx % 2 === 1 && { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50] },
+                ]}
+              >
+                <Text style={[styles.bulkCellText, { width: 36, color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>{idx + 1}</Text>
+                <Text style={[styles.bulkCellText, { flex: 2, fontWeight: '600', color: isDark ? colors.brand[400] : colors.brand[800] }]}>{item.name}</Text>
+                <Text style={[styles.bulkCellText, { flex: 1, color: isDark ? colors.neutral[300] : colors.neutral[600] }]}>{item.applicantType}</Text>
+                <Text style={[styles.bulkCellText, { flex: 2, color: isDark ? colors.neutral[400] : colors.neutral[500] }]} numberOfLines={1}>
+                  {item.contactNumber ? `${item.contactNumber} • ` : ''}{item.address || '—'}
+                </Text>
+                <View style={{ width: 100, alignItems: 'center' }}>
+                  <Pressable
+                    style={[styles.inspectBtn, { backgroundColor: isDark ? colors.brand[900] : COLORS.brand[100] }]}
+                    onPress={() => onInspectApplicant?.(idx)}
+                  >
+                    <Text style={[styles.inspectBtnText, { color: isDark ? colors.brand[300] : COLORS.brand[800] }]}>Inspect ►</Text>
+                  </Pressable>
+                </View>
+              </View>
+            ))}
+          </View>
+        </>
+      ) : app.filingUser?.accountType === 'Company' ? (
         <>
           <SectionHeader title="FILING USER / SUBMITTER DETAILS" />
           <View style={styles.infoBlock}>
@@ -1057,10 +1117,15 @@ export function ApplicationReviewScreenContent({
     usePermissions();
 
   const [innerTab, setInnerTab] = useState<InnerTab>("basic");
+  const [selectedApplicantIndex, setSelectedApplicantIndex] = useState(0);
   const [showApprove, setShowApprove] = useState(false);
   const [showDecline, setShowDecline] = useState(false);
   const [showEndorse, setShowEndorse] = useState(false);
   const [showCashier, setShowCashier] = useState(false);
+
+  useEffect(() => {
+    setSelectedApplicantIndex(0);
+  }, [selectedApplication?.id]);
 
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const tabScrollRef = useRef<ScrollView>(null);
@@ -1491,12 +1556,50 @@ export function ApplicationReviewScreenContent({
         </View>
       )}
 
+      {/* ── Applicant Selector Bar for Bulk Applications ── */}
+      {app.applicationType === "BULK" && app.applicantsList && app.applicantsList.length > 0 && (innerTab === "details" || innerTab === "requirements") && (
+        <View style={[styles.applicantSelectorBar, { backgroundColor: isDark ? colors.neutral[900] : colors.brand[50], borderColor: isDark ? colors.neutral[700] : colors.brand[200] }]}>
+          <Pressable
+            disabled={selectedApplicantIndex === 0}
+            onPress={() => setSelectedApplicantIndex(prev => Math.max(0, prev - 1))}
+            style={[styles.selectorNavBtn, selectedApplicantIndex === 0 && { opacity: 0.3 }]}
+          >
+            <Lucide name="chevron-left" size={14} color={isDark ? colors.brand[400] : colors.brand[800]} />
+            <Text style={[styles.selectorNavBtnText, { color: isDark ? colors.brand[400] : colors.brand[800] }]}>Previous</Text>
+          </Pressable>
+
+          <View style={styles.selectorCenter}>
+            <Lucide name="user" size={14} color={isDark ? colors.brand[400] : colors.brand[800]} />
+            <Text style={[styles.selectorTitleText, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>
+              Viewing Applicant {selectedApplicantIndex + 1} of {app.applicantsList.length}:
+            </Text>
+            <Text style={[styles.selectorNameText, { color: isDark ? colors.brand[300] : colors.brand[900] }]}>
+              {app.applicantsList[selectedApplicantIndex]?.name}
+            </Text>
+          </View>
+
+          <Pressable
+            disabled={selectedApplicantIndex >= app.applicantsList.length - 1}
+            onPress={() => setSelectedApplicantIndex(prev => Math.min(app.applicantsList!.length - 1, prev + 1))}
+            style={[styles.selectorNavBtn, selectedApplicantIndex >= app.applicantsList.length - 1 && { opacity: 0.3 }]}
+          >
+            <Text style={[styles.selectorNavBtnText, { color: isDark ? colors.brand[400] : colors.brand[800] }]}>Next</Text>
+            <Lucide name="chevron-right" size={14} color={isDark ? colors.brand[400] : colors.brand[800]} />
+          </Pressable>
+        </View>
+      )}
+
       {/* ── Tab Content ── */}
       {innerTab === "basic" && (
         <BasicInfoTab
           app={app}
           isEditable={isEditable}
           updateApplication={updateApplication}
+          selectedApplicantIndex={selectedApplicantIndex}
+          onInspectApplicant={(idx) => {
+            setSelectedApplicantIndex(idx);
+            setInnerTab("details");
+          }}
         />
       )}
       {innerTab === "details" && <ApplicationDetailsTab app={app} />}
@@ -2488,5 +2591,78 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   actionBtnDisabledText: {
+  },
+
+  // Bulk Roster & Applicant Selector
+  applicantSelectorBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: SPACING[16],
+    paddingVertical: SPACING[10],
+    marginHorizontal: SPACING[16],
+    marginTop: SPACING[12],
+    borderRadius: RADIUS.card,
+    borderWidth: 1,
+  },
+  selectorNavBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: SPACING[8],
+    paddingVertical: SPACING[4],
+    borderRadius: RADIUS.button,
+  },
+  selectorNavBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: TYPOGRAPHY.sizes.label,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+  },
+  selectorCenter: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACING[6],
+  },
+  selectorTitleText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: TYPOGRAPHY.sizes.label,
+  },
+  selectorNameText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: TYPOGRAPHY.sizes.label,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  bulkHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: SPACING[12],
+    paddingVertical: SPACING[8],
+  },
+  bulkItemRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: SPACING[12],
+    paddingVertical: SPACING[10],
+    borderBottomWidth: 1,
+  },
+  bulkCellHeader: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    textTransform: "uppercase",
+  },
+  bulkCellText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+  },
+  inspectBtn: {
+    paddingHorizontal: SPACING[8],
+    paddingVertical: SPACING[4],
+    borderRadius: RADIUS.button,
+  },
+  inspectBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.semibold,
   },
 });
