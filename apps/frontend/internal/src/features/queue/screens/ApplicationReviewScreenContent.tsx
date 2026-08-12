@@ -1680,6 +1680,10 @@ export function ApplicationReviewScreenContent({
     app.status !== "Completed" &&
     app.status !== "Approved";
 
+  const showCashierBtn =
+    currentRole === "Cashier" ||
+    (canVerifyCashier && innerTab === "soa");
+
   const handleApprove = () => {
     setShowApprove(false);
     const dateStr = new Date().toLocaleString("en-US", {
@@ -1982,7 +1986,7 @@ export function ApplicationReviewScreenContent({
 
       {/* ── Bottom Action Bar ── */}
       <View style={[styles.actionBar, { borderTopColor: isDark ? colors.neutral[700] : colors.neutral[200], backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white, }]}>
-        {canVerifyCashier ? (
+        {showCashierBtn ? (
           <Pressable
             style={[
               styles.actionBtnPrimary,
