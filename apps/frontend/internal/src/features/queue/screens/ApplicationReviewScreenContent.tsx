@@ -379,12 +379,12 @@ function BasicInfoTab({
 
           <SectionHeader title={`APPLICANTS BATCH WORKSPACE (${app.applicantsList.length} APPLICANTS)`} />
           <View style={styles.masterDetailWrapper}>
-            {/* Left Sidebar: Applicant Roster Cards */}
+            {/* Left Sidebar: Applicant Cards List */}
             <View style={[styles.rosterSidebarContainer, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50], borderColor: isDark ? colors.neutral[700] : colors.neutral[200] }]}>
               <View style={[styles.rosterSidebarHeader, { borderBottomColor: isDark ? colors.neutral[700] : colors.neutral[200] }]}>
                 <Lucide name="users" size={14} color={isDark ? colors.brand[400] : colors.brand[700]} />
                 <Text style={[styles.rosterSidebarTitleText, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>
-                  Roster ({app.applicantsList.length})
+                  Applicants List ({app.applicantsList.length})
                 </Text>
               </View>
 
@@ -471,74 +471,86 @@ function BasicInfoTab({
 
                   <ScrollView style={{ flex: 1, padding: SPACING[12] }} showsVerticalScrollIndicator={false}>
                     {/* Evaluator Verification & Remarks Controls */}
-                    {isEditable && (
-                      <View style={[styles.evaluatorControlBox, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50], borderColor: isDark ? colors.neutral[700] : colors.neutral[200], marginBottom: SPACING[12] }]}>
-                        <Text style={[styles.expandedSubTitle, { color: isDark ? colors.neutral[200] : colors.neutral[800] }]}>
-                          Evaluator Verdict & Remarks for {activeApplicant.name}:
-                        </Text>
-                        <View style={{ flexDirection: 'row', gap: SPACING[8], marginVertical: SPACING[8] }}>
-                          <Pressable
-                            style={[
-                              styles.evalStatusBtn,
-                              (activeApplicant.status === 'Complete' || !activeApplicant.status) && { backgroundColor: isDark ? '#14532D' : '#DCFCE7', borderColor: '#166534' }
-                            ]}
-                            onPress={() => {
-                              const updated = [...app.applicantsList!];
-                              updated[activeIdx] = { ...updated[activeIdx], status: 'Complete' };
-                              updateApplication(app.id, { applicantsList: updated });
-                            }}
-                          >
-                            <Text style={[styles.evalStatusBtnText, { color: (activeApplicant.status === 'Complete' || !activeApplicant.status) ? '#166534' : colors.neutral[500] }]}>
-                              ✓ Complete
-                            </Text>
-                          </Pressable>
-
-                          <Pressable
-                            style={[
-                              styles.evalStatusBtn,
-                              activeApplicant.status === 'Incomplete' && { backgroundColor: isDark ? '#7F1D1D' : '#FEE2E2', borderColor: '#991B1B' }
-                            ]}
-                            onPress={() => {
-                              const updated = [...app.applicantsList!];
-                              updated[activeIdx] = { ...updated[activeIdx], status: 'Incomplete' };
-                              updateApplication(app.id, { applicantsList: updated });
-                            }}
-                          >
-                            <Text style={[styles.evalStatusBtnText, { color: activeApplicant.status === 'Incomplete' ? '#991B1B' : colors.neutral[500] }]}>
-                              ✕ Incomplete
-                            </Text>
-                          </Pressable>
-
-                          <Pressable
-                            style={[
-                              styles.evalStatusBtn,
-                              activeApplicant.status === 'ForEndorsement' && { backgroundColor: isDark ? '#581C87' : '#F3E8FF', borderColor: '#6B21A8' }
-                            ]}
-                            onPress={() => {
-                              const updated = [...app.applicantsList!];
-                              updated[activeIdx] = { ...updated[activeIdx], status: 'ForEndorsement' };
-                              updateApplication(app.id, { applicantsList: updated });
-                            }}
-                          >
-                            <Text style={[styles.evalStatusBtnText, { color: activeApplicant.status === 'ForEndorsement' ? '#6B21A8' : colors.neutral[500] }]}>
-                              ⚡ For Endorsement
-                            </Text>
-                          </Pressable>
-                        </View>
-
-                        <TextInput
-                          style={[styles.remarksInput, { color: isDark ? colors.neutral[100] : colors.neutral[900], backgroundColor: isDark ? colors.neutral[900] : COLORS.neutral.white, borderColor: isDark ? colors.neutral[700] : colors.neutral[300] }]}
-                          placeholder="Enter evaluation remarks for this applicant..."
-                          placeholderTextColor={isDark ? colors.neutral[500] : colors.neutral[400]}
-                          value={activeApplicant.evaluationRemarks ?? ''}
-                          onChangeText={(text) => {
+                    <View style={[styles.evaluatorControlBox, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50], borderColor: isDark ? colors.neutral[700] : colors.neutral[200], marginBottom: SPACING[12] }]}>
+                      <Text style={[styles.expandedSubTitle, { color: isDark ? colors.neutral[200] : colors.neutral[800] }]}>
+                        Evaluator Verdict & Remarks for {activeApplicant.name}:
+                      </Text>
+                      <View style={{ flexDirection: 'row', gap: SPACING[8], marginVertical: SPACING[8] }}>
+                        <Pressable
+                          style={[
+                            styles.evalStatusBtn,
+                            (activeApplicant.status === 'Complete' || !activeApplicant.status) && { backgroundColor: isDark ? '#14532D' : '#DCFCE7', borderColor: '#166534' }
+                          ]}
+                          onPress={() => {
                             const updated = [...app.applicantsList!];
-                            updated[activeIdx] = { ...updated[activeIdx], evaluationRemarks: text };
+                            updated[activeIdx] = { ...updated[activeIdx], status: 'Complete' };
                             updateApplication(app.id, { applicantsList: updated });
                           }}
-                        />
+                        >
+                          <Text style={[styles.evalStatusBtnText, { color: (activeApplicant.status === 'Complete' || !activeApplicant.status) ? '#166534' : colors.neutral[500] }]}>
+                            ✓ Complete
+                          </Text>
+                        </Pressable>
+
+                        <Pressable
+                          style={[
+                            styles.evalStatusBtn,
+                            activeApplicant.status === 'Incomplete' && { backgroundColor: isDark ? '#7F1D1D' : '#FEE2E2', borderColor: '#991B1B' }
+                          ]}
+                          onPress={() => {
+                            const updated = [...app.applicantsList!];
+                            updated[activeIdx] = { ...updated[activeIdx], status: 'Incomplete' };
+                            updateApplication(app.id, { applicantsList: updated });
+                          }}
+                        >
+                          <Text style={[styles.evalStatusBtnText, { color: activeApplicant.status === 'Incomplete' ? '#991B1B' : colors.neutral[500] }]}>
+                            ✕ Incomplete
+                          </Text>
+                        </Pressable>
+
+                        <Pressable
+                          style={[
+                            styles.evalStatusBtn,
+                            activeApplicant.status === 'ForEndorsement' && { backgroundColor: isDark ? '#581C87' : '#F3E8FF', borderColor: '#6B21A8' }
+                          ]}
+                          onPress={() => {
+                            const updated = [...app.applicantsList!];
+                            updated[activeIdx] = { ...updated[activeIdx], status: 'ForEndorsement' };
+                            updateApplication(app.id, { applicantsList: updated });
+                          }}
+                        >
+                          <Text style={[styles.evalStatusBtnText, { color: activeApplicant.status === 'ForEndorsement' ? '#6B21A8' : colors.neutral[500] }]}>
+                            ⚡ For Endorsement
+                          </Text>
+                        </Pressable>
                       </View>
-                    )}
+
+                      <TextInput
+                        style={[styles.remarksInput, { color: isDark ? colors.neutral[100] : colors.neutral[900], backgroundColor: isDark ? colors.neutral[900] : COLORS.neutral.white, borderColor: isDark ? colors.neutral[700] : colors.neutral[300] }]}
+                        placeholder="Enter evaluation remarks for this applicant..."
+                        placeholderTextColor={isDark ? colors.neutral[500] : colors.neutral[400]}
+                        value={activeApplicant.evaluationRemarks ?? ''}
+                        onChangeText={(text) => {
+                          const updated = [...app.applicantsList!];
+                          updated[activeIdx] = { ...updated[activeIdx], evaluationRemarks: text };
+                          updateApplication(app.id, { applicantsList: updated });
+                        }}
+                      />
+                    </View>
+
+                    {/* View Full Application Records Button */}
+                    <View style={{ marginBottom: SPACING[12], alignItems: 'flex-end' }}>
+                      <Pressable
+                        style={[styles.inspectBtn, { backgroundColor: isDark ? colors.brand[600] : colors.brand[700], paddingHorizontal: 12, paddingVertical: 8 }]}
+                        onPress={() => {
+                          onInspectApplicant?.(activeIdx);
+                        }}
+                      >
+                        <Text style={[styles.inspectBtnText, { color: COLORS.neutral.white }]}>
+                          View Full Application Records for {activeApplicant.name} ►
+                        </Text>
+                      </Pressable>
+                    </View>
 
                     {/* Section 1: Personal & Account Profile */}
                     <Text style={[styles.expandedSubTitle, { color: isDark ? colors.neutral[300] : colors.neutral[700], marginTop: 4 }]}>
