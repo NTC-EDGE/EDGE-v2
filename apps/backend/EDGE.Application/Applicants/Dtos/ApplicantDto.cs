@@ -9,6 +9,8 @@ public class ApplicantDto
     public Guid? UserId { get; set; }
     public bool IsGuest { get; set; }
     public string ApplicantType { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
+    public string? EvaluationRemarks { get; set; }
     public ApplicantDetailDto? Details { get; set; }
     public List<FormFieldValueDto> FormFieldValues { get; set; } = new();
 }

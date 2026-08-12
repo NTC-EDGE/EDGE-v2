@@ -101,6 +101,10 @@ export function mapApplicationDtoToUI(dto: ApplicationDto): ApplicationData {
       id: appItem.id || `app-${idx}`,
       name,
       applicantType: (appItem.applicantType as any) === 'Company' ? ('Company' as const) : ('Individual' as const),
+      status: (appItem.status === 'Incomplete' || appItem.status === 'ForEndorsement')
+        ? (appItem.status as 'Incomplete' | 'ForEndorsement')
+        : ('Complete' as const),
+      evaluationRemarks: appItem.evaluationRemarks ?? '',
       contactNumber: ad?.contactNumber ?? '',
       email: ad?.email ?? '',
       address: ad?.address ?? '',

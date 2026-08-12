@@ -401,7 +401,22 @@ function BasicInfoTab({
                     onPress={() => setExpandedApplicantIndex(isExpanded ? null : idx)}
                   >
                     <Text style={[styles.bulkCellText, { width: 36, color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>{idx + 1}</Text>
-                    <Text style={[styles.bulkCellText, { flex: 2, fontWeight: '600', color: isDark ? colors.brand[400] : colors.brand[800] }]}>{item.name}</Text>
+                    <View style={{ flex: 2, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={[styles.bulkCellText, { fontWeight: '600', color: isDark ? colors.brand[400] : colors.brand[800] }]}>{item.name}</Text>
+                      {item.status === 'Incomplete' ? (
+                        <View style={[styles.miniStatusBadge, { backgroundColor: '#FEE2E2' }]}>
+                          <Text style={[styles.miniStatusText, { color: '#991B1B' }]}>INCOMPLETE</Text>
+                        </View>
+                      ) : item.status === 'ForEndorsement' ? (
+                        <View style={[styles.miniStatusBadge, { backgroundColor: '#F3E8FF' }]}>
+                          <Text style={[styles.miniStatusText, { color: '#6B21A8' }]}>FOR ENDORSEMENT</Text>
+                        </View>
+                      ) : (
+                        <View style={[styles.miniStatusBadge, { backgroundColor: '#DCFCE7' }]}>
+                          <Text style={[styles.miniStatusText, { color: '#166534' }]}>COMPLETE</Text>
+                        </View>
+                      )}
+                    </View>
                     <Text style={[styles.bulkCellText, { flex: 1, color: isDark ? colors.neutral[300] : colors.neutral[600] }]}>{item.applicantType}</Text>
                     <Text style={[styles.bulkCellText, { flex: 2, color: isDark ? colors.neutral[400] : colors.neutral[500] }]} numberOfLines={1}>
                       {item.contactNumber ? `${item.contactNumber} • ` : ''}{item.address || '—'}
@@ -449,10 +464,80 @@ function BasicInfoTab({
 
                       {item.formFields && item.formFields.length > 0 && (
                         <View style={{ marginTop: 12 }}>
-                          <Text style={[styles.expandedSubTitle, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>Submitted Form Values:</Text>
+                          <Text style={[styles.expandedSubTitle, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>Completed Service Form Values:</Text>
                           {item.formFields.map(ff => (
                             <InfoRow key={ff.fieldId} label={`${ff.fieldLabel}:`} value={ff.value || '—'} />
                           ))}
+                        </View>
+                      )}
+
+                      {/* Interactive Evaluator Controls */}
+                      {isEditable && (
+                        <View style={[styles.evaluatorControlBox, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[50], borderColor: isDark ? colors.neutral[700] : colors.neutral[200] }]}>
+                          <Text style={[styles.expandedSubTitle, { color: isDark ? colors.neutral[200] : colors.neutral[800] }]}>
+                            Evaluator Verification & Remarks:
+                          </Text>
+                          <View style={{ flexDirection: 'row', gap: SPACING[8], marginVertical: SPACING[6] }}>
+                            <Pressable
+                              style={[
+                                styles.evalStatusBtn,
+                                (item.status === 'Complete' || !item.status) && { backgroundColor: isDark ? '#14532D' : '#DCFCE7', borderColor: '#166534' }
+                              ]}
+                              onPress={() => {
+                                const updated = [...(app.applicantsList ?? [])];
+                                updated[idx] = { ...updated[idx], status: 'Complete' };
+                                updateApplication(app.id, { applicantsList: updated });
+                              }}
+                            >
+                              <Text style={[styles.evalStatusBtnText, { color: (item.status === 'Complete' || !item.status) ? '#166534' : colors.neutral[500] }]}>
+                                ✓ Complete
+                              </Text>
+                            </Pressable>
+
+                            <Pressable
+                              style={[
+                                styles.evalStatusBtn,
+                                item.status === 'Incomplete' && { backgroundColor: isDark ? '#7F1D1D' : '#FEE2E2', borderColor: '#991B1B' }
+                              ]}
+                              onPress={() => {
+                                const updated = [...(app.applicantsList ?? [])];
+                                updated[idx] = { ...updated[idx], status: 'Incomplete' };
+                                updateApplication(app.id, { applicantsList: updated });
+                              }}
+                            >
+                              <Text style={[styles.evalStatusBtnText, { color: item.status === 'Incomplete' ? '#991B1B' : colors.neutral[500] }]}>
+                                ✕ Incomplete
+                              </Text>
+                            </Pressable>
+
+                            <Pressable
+                              style={[
+                                styles.evalStatusBtn,
+                                item.status === 'ForEndorsement' && { backgroundColor: isDark ? '#581C87' : '#F3E8FF', borderColor: '#6B21A8' }
+                              ]}
+                              onPress={() => {
+                                const updated = [...(app.applicantsList ?? [])];
+                                updated[idx] = { ...updated[idx], status: 'ForEndorsement' };
+                                updateApplication(app.id, { applicantsList: updated });
+                              }}
+                            >
+                              <Text style={[styles.evalStatusBtnText, { color: item.status === 'ForEndorsement' ? '#6B21A8' : colors.neutral[500] }]}>
+                                ⚡ For Endorsement
+                              </Text>
+                            </Pressable>
+                          </View>
+
+                          <TextInput
+                            style={[styles.remarksInput, { color: isDark ? colors.neutral[100] : colors.neutral[900], backgroundColor: isDark ? colors.neutral[900] : COLORS.neutral.white, borderColor: isDark ? colors.neutral[700] : colors.neutral[300] }]}
+                            placeholder="Enter evaluation remarks for this applicant..."
+                            placeholderTextColor={isDark ? colors.neutral[500] : colors.neutral[400]}
+                            value={item.evaluationRemarks ?? ''}
+                            onChangeText={(text) => {
+                              const updated = [...(app.applicantsList ?? [])];
+                              updated[idx] = { ...updated[idx], evaluationRemarks: text };
+                              updateApplication(app.id, { applicantsList: updated });
+                            }}
+                          />
                         </View>
                       )}
 
@@ -1723,7 +1808,30 @@ export function ApplicationReviewScreenContent({
                   web: { cursor: (isEditable && canApprove) ? "pointer" : "not-allowed" } as object,
                 }),
               ]}
-              onPress={() => isEditable && canApprove && setShowApprove(true)}
+              onPress={() => {
+                if (!isEditable || !canApprove) return;
+                const incompleteApplicants = app.applicantsList?.filter(a => a.status === 'Incomplete') ?? [];
+                if (incompleteApplicants.length > 0) {
+                  const names = incompleteApplicants.map(a => a.name).join(", ");
+                  Alert.alert(
+                    "Action Blocked — Incomplete Applicants",
+                    `Cannot approve application: ${incompleteApplicants.length} applicant(s) are marked as Incomplete (${names}). All applicants must be complete before approval.`,
+                    [{ text: "OK" }]
+                  );
+                  return;
+                }
+                const endorseApplicants = app.applicantsList?.filter(a => a.status === 'ForEndorsement') ?? [];
+                if (endorseApplicants.length > 0) {
+                  const names = endorseApplicants.map(a => a.name).join(", ");
+                  Alert.alert(
+                    "Endorsement Required",
+                    `Application cannot be directly approved: ${endorseApplicants.length} applicant(s) are marked For Endorsement (${names}). Please use the Endorse action to forward for review.`,
+                    [{ text: "OK" }]
+                  );
+                  return;
+                }
+                setShowApprove(true);
+              }}
               disabled={!isEditable || !canApprove}
             >
               <Text
@@ -2769,5 +2877,42 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: TYPOGRAPHY.weights.semibold,
     marginBottom: 4,
+  },
+  miniStatusBadge: {
+    paddingHorizontal: SPACING[6],
+    paddingVertical: 2,
+    borderRadius: RADIUS.button,
+  },
+  miniStatusText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 10,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  evaluatorControlBox: {
+    marginTop: SPACING[12],
+    padding: SPACING[10],
+    borderRadius: RADIUS.input,
+    borderWidth: 1,
+  },
+  evalStatusBtn: {
+    paddingHorizontal: SPACING[10],
+    paddingVertical: SPACING[6],
+    borderRadius: RADIUS.button,
+    borderWidth: 1,
+    borderColor: "transparent",
+  },
+  evalStatusBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+  },
+  remarksInput: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    borderWidth: 1,
+    borderRadius: RADIUS.input,
+    paddingHorizontal: SPACING[10],
+    paddingVertical: SPACING[6],
+    marginTop: SPACING[4],
   },
 });

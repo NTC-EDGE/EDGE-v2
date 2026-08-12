@@ -146,7 +146,7 @@ public class UpdateApplicantDetailCommandHandler : IRequestHandler<UpdateApplica
             }
             else
             {
-                applicant.Status = ApplicantStatus.Draft;
+                applicant.Status = ApplicantStatus.Incomplete;
             }
         }
         else if (applicant.ApplicantType == ApplicantType.Company)
@@ -163,7 +163,7 @@ public class UpdateApplicantDetailCommandHandler : IRequestHandler<UpdateApplica
             }
             else
             {
-                applicant.Status = ApplicantStatus.Draft;
+                applicant.Status = ApplicantStatus.Incomplete;
             }
         }
 

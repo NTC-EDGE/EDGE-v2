@@ -75,6 +75,8 @@ export interface ApplicantItem {
   id: string;
   name: string;
   applicantType: ApplicantType;
+  status?: 'Complete' | 'Incomplete' | 'ForEndorsement';
+  evaluationRemarks?: string;
   contactNumber: string;
   email: string;
   address: string;

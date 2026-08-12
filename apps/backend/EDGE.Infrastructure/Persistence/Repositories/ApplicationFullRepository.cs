@@ -215,6 +215,8 @@ public class ApplicationFullRepository : IApplicationFullRepository
                     UserId = aa.Applicant != null ? aa.Applicant.UserId : null,
                     IsGuest = aa.Applicant != null ? aa.Applicant.IsGuest : true,
                     ApplicantType = aa.Applicant != null ? aa.Applicant.ApplicantType.ToString() : "Individual",
+                    Status = aa.Applicant != null ? aa.Applicant.Status.ToString() : "Incomplete",
+                    EvaluationRemarks = aa.Applicant != null ? aa.Applicant.EvaluationRemarks : null,
                     Details = aa.Applicant != null && aa.Applicant.ApplicantDetail != null ? new EDGE.Application.Applicants.Dtos.ApplicantDetailDto
                     {
                         Id = aa.Applicant.ApplicantDetail.Id,

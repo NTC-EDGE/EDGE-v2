@@ -791,6 +791,8 @@ export interface ApplicantDto {
   userId?: string;
   isGuest: boolean;
   applicantType: string;
+  status?: string;
+  evaluationRemarks?: string;
   details?: ApplicantDetailDto;
   company?: CompanyDetailDto;
   formFieldValues?: FormFieldValueDto[];
