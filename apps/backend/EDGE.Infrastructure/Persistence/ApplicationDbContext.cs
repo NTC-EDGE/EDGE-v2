@@ -10,6 +10,12 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
 {
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) { }
 
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+    {
+        base.ConfigureConventions(configurationBuilder);
+        configurationBuilder.Properties<Enum>().HaveConversion<string>();
+    }
+
     public async Task BeginTransactionAsync(CancellationToken cancellationToken = default)
     {
         await Database.BeginTransactionAsync(cancellationToken);
