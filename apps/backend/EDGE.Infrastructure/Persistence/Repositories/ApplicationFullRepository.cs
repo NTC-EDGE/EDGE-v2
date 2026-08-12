@@ -33,6 +33,8 @@ public class ApplicationFullRepository : IApplicationFullRepository
     public async Task<Domain.Entities.Application?> GetByIdWithDetailsAsync(Guid id, CancellationToken cancellationToken = default)
     {
         return await _context.Applications
+            .Include(a => a.User)
+                .ThenInclude(u => u!.CompanyDetail)
             .Include(a => a.ApplicationServices)
             .Include(a => a.ApplicationApplicants)
                 .ThenInclude(aa => aa.Applicant)
@@ -45,6 +47,13 @@ public class ApplicationFullRepository : IApplicationFullRepository
             .Include(a => a.FormSubmissions)
                 .ThenInclude(fs => fs.FieldValues)
                     .ThenInclude(fv => fv.Field)
+            .Include(a => a.StatementsOfAccount)
+                .ThenInclude(s => s.LineItems)
+            .Include(a => a.StatementsOfAccount)
+                .ThenInclude(s => s.Histories)
+            .Include(a => a.OrdersOfPayment)
+                .ThenInclude(o => o.Histories)
+            .Include(a => a.Histories)
             .Include(a => a.CorrectionAuditTrails)
             .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
     }
