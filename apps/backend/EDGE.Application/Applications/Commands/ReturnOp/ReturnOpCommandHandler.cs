@@ -38,7 +38,7 @@ public class ReturnOpCommandHandler : IRequestHandler<ReturnOpCommand, ApiRespon
             Timestamp = DateTime.UtcNow
         });
 
-        if (request.ReturnTo == "Evaluator")
+        if (request.ReturnTo == ReturnTarget.Evaluator)
         {
             var soa = op.StatementOfAccount;
             var prevSoaStatus = soa.Status;

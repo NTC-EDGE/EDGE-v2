@@ -159,36 +159,6 @@ public static class ApplicationEndpoints
             .WithSummary("Get service CSV import template")
             .WithDescription("Downloads the CSV file template format matching the required input schema for the specified service.");
 
-        // New endpoints for SOA & OP
-        group.MapPost("/{id:guid}/soas", CreateSoa)
-            .WithName("CreateSoa")
-            .WithSummary("Create Statement of Account")
-            .WithDescription("Generates an SOA for the given application.");
-
-        app.MapPatch("/api/v2/soas/{soaId:guid}/approve", ApproveSoa)
-            .WithTags("Application")
-            .WithName("ApproveSoa")
-            .WithSummary("Approve SOA")
-            .WithDescription("Approves the SOA and generates an Order of Payment.");
-
-        app.MapPatch("/api/v2/soas/{soaId:guid}/return", ReturnSoa)
-            .WithTags("Application")
-            .WithName("ReturnSoa")
-            .WithSummary("Return SOA")
-            .WithDescription("Returns a pending SOA back to evaluator.");
-
-        app.MapPatch("/api/v2/ops/{opId:guid}/verify-payment", VerifyPayment)
-            .WithTags("Application")
-            .WithName("VerifyPayment")
-            .WithSummary("Verify OP Payment")
-            .WithDescription("Marks Order of Payment as Paid and completes application.");
-
-        app.MapPatch("/api/v2/ops/{opId:guid}/return", ReturnOp)
-            .WithTags("Application")
-            .WithName("ReturnOp")
-            .WithSummary("Return OP")
-            .WithDescription("Returns an Order of Payment.");
-
         return app;
     }
 
@@ -374,47 +344,6 @@ public static class ApplicationEndpoints
     {
         var result = await mediator.Send(new GetApplicationsByApplicantQuery(applicantId));
         return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
-    }
-
-    [HasPermission(Permissions.UpdateApplication)]
-    public static async Task<IResult> CreateSoa(Guid id, CreateSoaCommand command, IMediator mediator)
-    {
-        var cmd = command with { ApplicationId = id };
-        var result = await mediator.Send(cmd);
-        if (!result.Succeeded) return Results.BadRequest(result);
-        return Results.Created($"/api/v2/soas/{result.Data}", result);
-    }
-
-    [HasPermission(Permissions.EvaluateApplication)]
-    public static async Task<IResult> ApproveSoa(Guid soaId, ApproveSoaCommand command, IMediator mediator)
-    {
-        var result = await mediator.Send(command with { SoaId = soaId });
-        if (!result.Succeeded) return Results.BadRequest(result);
-        return Results.Ok(result);
-    }
-
-    [HasPermission(Permissions.EvaluateApplication)]
-    public static async Task<IResult> ReturnSoa(Guid soaId, ReturnSoaCommand command, IMediator mediator)
-    {
-        var result = await mediator.Send(command with { SoaId = soaId });
-        if (!result.Succeeded) return Results.BadRequest(result);
-        return Results.Ok(result);
-    }
-
-    [HasPermission(Permissions.EvaluateApplication)]
-    public static async Task<IResult> VerifyPayment(Guid opId, VerifyPaymentCommand command, IMediator mediator)
-    {
-        var result = await mediator.Send(command with { OpId = opId });
-        if (!result.Succeeded) return Results.BadRequest(result);
-        return Results.Ok(result);
-    }
-
-    [HasPermission(Permissions.EvaluateApplication)]
-    public static async Task<IResult> ReturnOp(Guid opId, ReturnOpCommand command, IMediator mediator)
-    {
-        var result = await mediator.Send(command with { OpId = opId });
-        if (!result.Succeeded) return Results.BadRequest(result);
-        return Results.Ok(result);
     }
 
     [HasPermission(Permissions.EvaluateApplication)]

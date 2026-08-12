@@ -861,7 +861,9 @@ export interface VerifyPaymentRequest {
   amountReceived: number;
 }
 
+export type ReturnTargetDto = 'Accountant' | 'Evaluator';
+
 export interface ReturnOpRequest {
   remarks: string;
-  returnTo: 'Accountant' | 'Evaluator';
+  returnTo: ReturnTargetDto;
 }

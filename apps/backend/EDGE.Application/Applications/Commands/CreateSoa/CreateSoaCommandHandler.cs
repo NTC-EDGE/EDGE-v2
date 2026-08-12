@@ -14,22 +14,36 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
 {
     private readonly IApplicationFullRepository _repository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICurrentUserService _currentUserService;
 
-    public CreateSoaCommandHandler(IApplicationFullRepository repository, IUnitOfWork unitOfWork)
+    public CreateSoaCommandHandler(
+        IApplicationFullRepository repository,
+        IUnitOfWork unitOfWork,
+        ICurrentUserService currentUserService)
     {
         _repository = repository;
         _unitOfWork = unitOfWork;
+        _currentUserService = currentUserService;
     }
 
     public async Task<ApiResponse<Guid>> Handle(CreateSoaCommand request, CancellationToken cancellationToken)
     {
         var app = await _repository.GetByIdAsync(request.ApplicationId, cancellationToken);
         if (app == null) return ApiResponse<Guid>.Fail("Application not found.");
-        // Validate ApplicationId exists and is in Approved status (depending on exact business logic, maybe UnderEvaluation)
 
         if (!Enum.TryParse<IssuedToType>(request.IssuedToType, true, out var issuedToType))
         {
             return ApiResponse<Guid>.Fail("Invalid IssuedToType.");
+        }
+
+        Guid? actingUserId = null;
+        var currentUserIdStr = _currentUserService.UserId;
+        if (!string.IsNullOrEmpty(currentUserIdStr) && Guid.TryParse(currentUserIdStr, out var parsedUserId))
+        {
+            if (await _repository.UserExistsAsync(parsedUserId, cancellationToken))
+            {
+                actingUserId = parsedUserId;
+            }
         }
 
         var soa = new StatementOfAccount
@@ -43,12 +57,14 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
             IssuedToName = request.IssuedToName,
             IssuedToAddress = request.IssuedToAddress,
             DueDate = request.DueDate,
-            TotalAmount = request.LineItems.Sum(li => li.Amount),
-            PreparedByUserId = Guid.Empty
+            PreparedByUserId = actingUserId ?? Guid.Empty
         };
 
         foreach (var item in request.LineItems)
         {
+            // Server-side calculation: Recalculate line item amount rather than trusting client-provided values
+            var calculatedAmount = item.NoOfUnits * item.FeeRate;
+
             soa.LineItems.Add(new SoaLineItem
             {
                 Id = Guid.NewGuid(),
@@ -61,9 +77,12 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
                 ValidityYears = item.ValidityYears,
                 NoOfUnits = item.NoOfUnits,
                 FeeRate = item.FeeRate,
-                Amount = item.Amount
+                Amount = calculatedAmount
             });
         }
+
+        // Calculate total SOA amount on the server from validated line items
+        soa.TotalAmount = soa.LineItems.Sum(li => li.Amount);
 
         soa.Histories.Add(new SoaHistory
         {

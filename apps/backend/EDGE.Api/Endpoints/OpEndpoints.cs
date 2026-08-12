@@ -1,0 +1,48 @@
+using System;
+using System.Threading.Tasks;
+using MediatR;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
+using EDGE.Application.Applications.Commands.VerifyPayment;
+using EDGE.Application.Applications.Commands.ReturnOp;
+using EDGE.Domain.Authorization;
+using EDGE.Infrastructure.Authorization;
+
+namespace EDGE.Api.Endpoints;
+
+public static class OpEndpoints
+{
+    public static IEndpointRouteBuilder MapOpEndpoints(this IEndpointRouteBuilder app)
+    {
+        var group = app.MapGroup("/ops").WithTags("OrderOfPayment");
+
+        group.MapPatch("/{opId:guid}/verify-payment", VerifyPayment)
+            .WithName("VerifyPayment")
+            .WithSummary("Verify OP Payment")
+            .WithDescription("Marks Order of Payment as Paid and completes application.");
+
+        group.MapPatch("/{opId:guid}/return", ReturnOp)
+            .WithName("ReturnOp")
+            .WithSummary("Return OP")
+            .WithDescription("Returns an Order of Payment.");
+
+        return app;
+    }
+
+    [HasPermission(Permissions.EvaluateApplication)]
+    public static async Task<IResult> VerifyPayment(Guid opId, VerifyPaymentCommand command, IMediator mediator)
+    {
+        var result = await mediator.Send(command with { OpId = opId });
+        if (!result.Succeeded) return Results.BadRequest(result);
+        return Results.Ok(result);
+    }
+
+    [HasPermission(Permissions.EvaluateApplication)]
+    public static async Task<IResult> ReturnOp(Guid opId, ReturnOpCommand command, IMediator mediator)
+    {
+        var result = await mediator.Send(command with { OpId = opId });
+        if (!result.Succeeded) return Results.BadRequest(result);
+        return Results.Ok(result);
+    }
+}

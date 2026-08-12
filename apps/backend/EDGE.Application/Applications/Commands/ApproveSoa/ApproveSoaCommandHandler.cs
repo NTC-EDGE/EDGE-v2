@@ -14,11 +14,16 @@ public class ApproveSoaCommandHandler : IRequestHandler<ApproveSoaCommand, ApiRe
 {
     private readonly IApplicationFullRepository _repository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICurrentUserService _currentUserService;
 
-    public ApproveSoaCommandHandler(IApplicationFullRepository repository, IUnitOfWork unitOfWork)
+    public ApproveSoaCommandHandler(
+        IApplicationFullRepository repository,
+        IUnitOfWork unitOfWork,
+        ICurrentUserService currentUserService)
     {
         _repository = repository;
         _unitOfWork = unitOfWork;
+        _currentUserService = currentUserService;
     }
 
     public async Task<ApiResponse<Guid>> Handle(ApproveSoaCommand request, CancellationToken cancellationToken)
@@ -28,8 +33,18 @@ public class ApproveSoaCommandHandler : IRequestHandler<ApproveSoaCommand, ApiRe
         if (soa == null) return ApiResponse<Guid>.Fail("SOA not found.");
         if (soa.Status != SoaStatus.Pending) return ApiResponse<Guid>.Fail("SOA must be Pending to approve.");
 
+        Guid? actingUserId = null;
+        var currentUserIdStr = _currentUserService.UserId;
+        if (!string.IsNullOrEmpty(currentUserIdStr) && Guid.TryParse(currentUserIdStr, out var parsedUserId))
+        {
+            if (await _repository.UserExistsAsync(parsedUserId, cancellationToken))
+            {
+                actingUserId = parsedUserId;
+            }
+        }
+
         soa.Status = SoaStatus.Approved;
-        soa.ApprovedByUserId = Guid.Empty; // Current user id
+        soa.ApprovedByUserId = actingUserId;
         soa.ApprovedAt = DateTime.UtcNow;
 
         var op = new OrderOfPayment
