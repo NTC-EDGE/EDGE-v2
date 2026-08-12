@@ -981,6 +981,7 @@ namespace EDGE.Infrastructure.Migrations
                     ApplicantDetailId = table.Column<Guid>(type: "uuid", nullable: true),
                     CompanyDetailId = table.Column<Guid>(type: "uuid", nullable: true),
                     Status = table.Column<string>(type: "text", nullable: false),
+                    EvaluationRemarks = table.Column<string>(type: "text", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     CreatedBy = table.Column<string>(type: "text", nullable: true),
                     LastModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
