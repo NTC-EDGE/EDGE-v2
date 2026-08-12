@@ -80,9 +80,12 @@ public static class Permissions
     public const string UpdateNotes = "notes.update";
     public const string DeleteNotes = "notes.delete";
 
-    // Billing
+    // Billing & Fees
     public const string CreateBilling = "billing.create";
+    public const string ApproveSoa = "billing.soa_approve";
+    public const string ReturnSoa = "billing.soa_return";
     public const string CollectPayment = "billing.collect";
+    public const string ReturnOp = "billing.op_return";
 
     // System
     public const string SystemAdmin = "system.admin";
@@ -153,7 +156,10 @@ public static class Permissions
 
         // Billing
         new(CreateBilling, "Billing & Fees", "Create Billing", PermissionScope.Internal, "Allows generating fee order of payment"),
+        new(ApproveSoa, "Billing & Fees", "Approve SOA", PermissionScope.Internal, "Allows approving Statements of Account"),
+        new(ReturnSoa, "Billing & Fees", "Return SOA", PermissionScope.Internal, "Allows returning Statements of Account to evaluator"),
         new(CollectPayment, "Billing & Fees", "Collect Payment", PermissionScope.Internal, "Allows processing fee payments"),
+        new(ReturnOp, "Billing & Fees", "Return OP", PermissionScope.Internal, "Allows returning Orders of Payment"),
 
         // System
         new(SystemAdmin, "System", "System Administrator", PermissionScope.SystemAdmin, "Full system administration access")

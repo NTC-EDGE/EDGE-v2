@@ -32,7 +32,7 @@ public static class OpEndpoints
         return app;
     }
 
-    [HasPermission(Permissions.EvaluateApplication)]
+    [HasPermission(Permissions.CollectPayment)]
     public static async Task<IResult> VerifyPayment(Guid opId, VerifyPaymentRequest request, IMediator mediator)
     {
         var command = new VerifyPaymentCommand(opId, request.OfficialReceiptNumber, request.AmountReceived);
@@ -41,7 +41,7 @@ public static class OpEndpoints
         return Results.Ok(result);
     }
 
-    [HasPermission(Permissions.EvaluateApplication)]
+    [HasPermission(Permissions.ReturnOp)]
     public static async Task<IResult> ReturnOp(Guid opId, ReturnOpRequest request, IMediator mediator)
     {
         var command = new ReturnOpCommand(opId, request.Remarks, request.ReturnTo);

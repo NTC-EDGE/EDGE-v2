@@ -39,7 +39,7 @@ public static class SoaEndpoints
         return app;
     }
 
-    [HasPermission(Permissions.UpdateApplication)]
+    [HasPermission(Permissions.CreateBilling)]
     public static async Task<IResult> CreateSoa(Guid id, CreateSoaRequest request, IMediator mediator)
     {
         var command = new CreateSoaCommand(
@@ -56,7 +56,7 @@ public static class SoaEndpoints
         return Results.Created($"/api/v2/soas/{result.Data}", result);
     }
 
-    [HasPermission(Permissions.EvaluateApplication)]
+    [HasPermission(Permissions.ApproveSoa)]
     public static async Task<IResult> ApproveSoa(Guid soaId, ApproveSoaRequest? request, IMediator mediator)
     {
         var command = new ApproveSoaCommand(soaId, request?.Remarks);
@@ -65,7 +65,7 @@ public static class SoaEndpoints
         return Results.Ok(result);
     }
 
-    [HasPermission(Permissions.EvaluateApplication)]
+    [HasPermission(Permissions.ReturnSoa)]
     public static async Task<IResult> ReturnSoa(Guid soaId, ReturnSoaRequest request, IMediator mediator)
     {
         var command = new ReturnSoaCommand(soaId, request.Remarks);
