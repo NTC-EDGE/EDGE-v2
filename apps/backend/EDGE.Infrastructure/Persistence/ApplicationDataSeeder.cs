@@ -96,6 +96,17 @@ public static class ApplicationDataSeeder
         AddHistory(app1, "Application submitted by client.", null, ApplicationStatus.Submitted,
             ClientUserId, "Juan Santos", "Client", now.AddDays(-5));
 
+        AddFormSubmission(app1, applicants[0], new()
+        {
+            ("Call Sign / Station Name", "DX-101 Manila Relay"),
+            ("Equipment Manufacturer", "Motorola Solutions"),
+            ("Equipment Model", "XPR 7550e"),
+            ("Transmitter Power (Watts)", "50W"),
+            ("Frequency Band", "VHF 136-174 MHz"),
+            ("Station Installation Address", "Building 4, Port Area, Manila"),
+            ("Intended Usage", "Commercial Fleet Operations"),
+        });
+
         applications.Add(app1);
 
         // ── 2. ForApproval — Evaluator is reviewing ───────────────────────────
@@ -108,6 +119,15 @@ public static class ApplicationDataSeeder
             ClientUserId, "Maria Dela Cruz", "Client", now.AddDays(-8));
         AddHistory(app2, "Application received and under evaluation.", ApplicationStatus.Submitted, ApplicationStatus.Evaluating,
             EvaluatorUserId, "Jane Evaluator", "Evaluator", now.AddDays(-7));
+
+        AddFormSubmission(app2, applicants[1], new()
+        {
+            ("License Number", "NTC-LIC-2023-88219"),
+            ("Radio Station Category", "Land Mobile Base Station"),
+            ("Antenna Height (Meters)", "24.5m"),
+            ("Antenna Type", "Omni-directional Fiber Dipole"),
+            ("Operating Hours", "24/7 Continuous Operation"),
+        });
 
         applications.Add(app2);
 
@@ -126,6 +146,15 @@ public static class ApplicationDataSeeder
 
         AddCorrection(app3, "Requirements", "NTC Form 103", "Not submitted", "Submitted",
             "Jane Evaluator", now.AddDays(-10));
+
+        AddFormSubmission(app3, applicants[2], new()
+        {
+            ("Certificate Applied For", "General Radio Operator Certificate (GROC)"),
+            ("NTC Examination Rating", "88.5%"),
+            ("Examination Date", "2025-11-14"),
+            ("School / Training Center", "Philippine Maritime & Radio Academy"),
+            ("Highest Educational Attainment", "BS Electronics Engineering"),
+        });
 
         applications.Add(app3);
 
@@ -595,6 +624,15 @@ public static class ApplicationDataSeeder
         AddCorrection(app16, "Form Submission", "Station Location", "Block 4 Lot 1", "Unit 402 Sampaloc Manila", "Jane Evaluator", now.AddDays(-4));
         AddCorrection(app16, "Service Category", "ApplicationTypeKey", "RENEWAL", "NEW", "Jane Evaluator", now.AddDays(-4));
 
+        AddFormSubmission(app16, applicants[5], new()
+        {
+            ("Liaison Representative", "Engr. Ricardo Dizon"),
+            ("Authorization Letter No.", "AUTH-2026-APEX-09"),
+            ("Commercial Operator ID", "COP-2024-5512"),
+            ("Station Location", "Unit 402 Sampaloc Manila"),
+            ("Equipment Power Rating", "100W PEP"),
+        });
+
         applications.Add(app16);
 
         // ── 17. Multi-Item Complex SOA with 5 Fee Lines — Filed by Third-Party Liaison ─
@@ -609,6 +647,16 @@ public static class ApplicationDataSeeder
             EvaluatorUserId, "Jane Evaluator", "Evaluator", now.AddDays(-7));
         AddHistory(app17, "Comprehensive multi-item SOA prepared.", ApplicationStatus.Evaluating, ApplicationStatus.Approved,
             EvaluatorUserId, "Jane Evaluator", "Evaluator", now.AddDays(-5));
+
+        AddFormSubmission(app17, applicants[6], new()
+        {
+            ("Public Trunkline Network Name", "Apex Metro-Trunk System"),
+            ("Base Station Location", "Tower 2, IT Park, Lahug, Cebu City"),
+            ("Number of Transceivers", "12 Units"),
+            ("RF Radiation Compliance Certificate", "EMF-CERT-2025-0981"),
+            ("Safety Officer In-Charge", "Engr. Manuel Roxas (PECE #4412)"),
+            ("Emergency Power Source", "250 kVA Standby Generator Set"),
+        });
 
         var soa17 = MakeSoa(Guid.Parse("b1700000-0000-0000-0000-000000000001"), app17,
             applicants[6].Id, IssuedToType.Individual, FullName(applicants[6]),
@@ -856,5 +904,33 @@ public static class ApplicationDataSeeder
             CorrectedByStaff = correctedBy,
             CorrectedAt = correctedAt,
         });
+    }
+
+    private static void AddFormSubmission(
+        DomainApplication app, Applicant applicant,
+        List<(string label, string value)> fields)
+    {
+        var submission = new FormSubmission
+        {
+            Id = Guid.NewGuid(),
+            ApplicationId = app.Id,
+            ApplicantId = applicant.Id,
+            FormId = Guid.NewGuid(),
+            CreatedAt = app.CreatedAt,
+        };
+
+        foreach (var (label, val) in fields)
+        {
+            submission.FieldValues.Add(new FormFieldValue
+            {
+                Id = Guid.NewGuid(),
+                FormSubmissionId = submission.Id,
+                FieldId = Guid.NewGuid(),
+                CustomLabel = label,
+                Value = val,
+            });
+        }
+
+        app.FormSubmissions.Add(submission);
     }
 }
