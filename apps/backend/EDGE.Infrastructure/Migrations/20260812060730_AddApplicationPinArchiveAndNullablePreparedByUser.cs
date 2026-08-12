@@ -58,8 +58,21 @@ namespace EDGE.Infrastructure.Migrations
                 oldType: "integer",
                 oldNullable: true);
 
-            migrationBuilder.Sql(@"ALTER TABLE public.""Applications"" ADD COLUMN IF NOT EXISTS ""IsArchived"" boolean NOT NULL DEFAULT false;");
-            migrationBuilder.Sql(@"ALTER TABLE public.""Applications"" ADD COLUMN IF NOT EXISTS ""IsPinned"" boolean NOT NULL DEFAULT false;");
+            migrationBuilder.AddColumn<bool>(
+                name: "IsArchived",
+                schema: "public",
+                table: "Applications",
+                type: "boolean",
+                nullable: false,
+                defaultValue: false);
+
+            migrationBuilder.AddColumn<bool>(
+                name: "IsPinned",
+                schema: "public",
+                table: "Applications",
+                type: "boolean",
+                nullable: false,
+                defaultValue: false);
 
             migrationBuilder.AlterColumn<string>(
                 name: "ToStatus",
