@@ -3242,12 +3242,13 @@ const styles = StyleSheet.create({
   },
   evalDockRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: SPACING[12],
   },
   evalDockLeft: {
     flex: 1,
     alignItems: 'center' as const,
+    justifyContent: 'center' as const,
   },
   evalDockRight: {
     flex: 1,
