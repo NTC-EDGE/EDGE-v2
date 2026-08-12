@@ -837,6 +837,7 @@ export interface ApplicantSummaryDto {
   id: string;
   applicantType: string;
   status?: string;
+  evaluationRemarks?: string;
   name: string;
   company?: CompanyDetailDto;
   details?: ApplicantDetailDto;
