@@ -332,7 +332,7 @@ namespace EDGE.Infrastructure.Migrations
                     b.Property<string>("FromStatus")
                         .HasColumnType("text");
 
-                    b.Property<Guid>("PerformedByUserId")
+                    b.Property<Guid?>("PerformedByUserId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("Remarks")
@@ -1376,7 +1376,7 @@ namespace EDGE.Infrastructure.Migrations
                     b.Property<Guid>("OrderOfPaymentId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("PerformedByUserId")
+                    b.Property<Guid?>("PerformedByUserId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("Remarks")
@@ -2165,7 +2165,7 @@ namespace EDGE.Infrastructure.Migrations
                     b.Property<string>("FromStatus")
                         .HasColumnType("text");
 
-                    b.Property<Guid>("PerformedByUserId")
+                    b.Property<Guid?>("PerformedByUserId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("Remarks")

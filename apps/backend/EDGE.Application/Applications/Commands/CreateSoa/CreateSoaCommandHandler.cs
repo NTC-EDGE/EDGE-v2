@@ -52,6 +52,13 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
                 actingUserId = user.Id;
                 staffName = $"{user.FirstName} {user.LastName}".Trim();
                 if (string.IsNullOrEmpty(staffName)) staffName = user.Email;
+
+                var memberRole = user.TenantMemberships.FirstOrDefault()?.Role?.Name 
+                              ?? user.TenantMemberships.FirstOrDefault()?.Position;
+                if (!string.IsNullOrWhiteSpace(memberRole))
+                {
+                    staffRole = memberRole;
+                }
             }
         }
 

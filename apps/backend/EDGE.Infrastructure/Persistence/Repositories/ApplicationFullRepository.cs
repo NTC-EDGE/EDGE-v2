@@ -202,6 +202,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
     {
         return await _context.StatementsOfAccount
             .Include(s => s.Application)
+            .Include(s => s.LineItems)
             .Include(s => s.Histories)
             .FirstOrDefaultAsync(s => s.Id == soaId, cancellationToken);
     }
@@ -216,6 +217,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
         return await _context.OrdersOfPayment
             .Include(o => o.Application)
             .Include(o => o.StatementOfAccount)
+                .ThenInclude(s => s.LineItems)
             .Include(o => o.Histories)
             .FirstOrDefaultAsync(o => o.Id == opId, cancellationToken);
     }

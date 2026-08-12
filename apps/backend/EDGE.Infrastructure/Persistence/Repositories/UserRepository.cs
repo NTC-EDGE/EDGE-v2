@@ -30,7 +30,10 @@ public class UserRepository : IUserRepository
 
     public async Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        return await _context.Users.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        return await _context.Users
+            .Include(x => x.TenantMemberships)
+                .ThenInclude(tm => tm.Role)
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
     }
 
     public async Task<List<User>> GetAllAsync(CancellationToken cancellationToken = default)
