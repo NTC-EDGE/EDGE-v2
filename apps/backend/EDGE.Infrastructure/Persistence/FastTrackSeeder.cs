@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using EDGE.Domain.Entities;
 using EDGE.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
+using static EDGE.Infrastructure.Persistence.ServiceInformationDataSeeder;
 
 namespace EDGE.Infrastructure.Persistence;
 
@@ -23,6 +24,7 @@ public static class FastTrackSeeder
             await BackfillNewServicesAsync(context);      // 1. Seed new Services first (so variants FK matches)
             await UpdateVariantsAsync(context);          // 2. Update/upsert all variants
             await BackfillNewCatalogDetailsAsync(context); // 3. Backfill elements, notes, requirements, and fees
+            await ServiceInformationDataSeeder.SeedAsync(context);  // 4. Seed ServiceInformations entity records
             return;
         }
 
@@ -527,11 +529,15 @@ public static class FastTrackSeeder
 
         Guid ResolveVariantId(Guid hardcodedVariantId)
         {
+            var matchingById = allVariantsInDb.FirstOrDefault(v => v.Id == hardcodedVariantId);
+            if (matchingById != null) return matchingById.Id;
+
             var def = allVariantsByDef.FirstOrDefault(d => d.Id == hardcodedVariantId);
             if (def != default)
             {
-                var matchingDbVariant = allVariantsInDb.FirstOrDefault(v => 
-                    v.Id == hardcodedVariantId || (v.ServiceId == def.ServiceId && v.Type == def.Type));
+                var matchingDbVariant = allVariantsInDb.FirstOrDefault(v =>
+                    v.ServiceId == def.ServiceId && v.Type == def.Type &&
+                    (string.IsNullOrEmpty(def.Description) || v.Description == def.Description));
                 if (matchingDbVariant != null)
                 {
                     return matchingDbVariant.Id;
@@ -645,6 +651,19 @@ public static class FastTrackSeeder
         }
         await context.SaveChangesAsync();
 
+         // Deduplicate any existing duplicate database records
+         var allSvr = await context.ServiceVariantRequirements.ToListAsync();
+         var duplicatesToRemove = allSvr
+             .GroupBy(r => new { r.ServiceVariantId, r.RequirementId, r.ContextKey })
+             .SelectMany(g => g.Skip(1))
+             .ToList();
+
+         if (duplicatesToRemove.Any())
+         {
+             context.ServiceVariantRequirements.RemoveRange(duplicatesToRemove);
+             await context.SaveChangesAsync();
+         }
+
         // 6. Seed ServiceFees
         var examFeeId = Guid.Parse("f0000000-0000-0000-0000-000000000005"); // Operator Competency Exam Fee
 
@@ -660,5 +679,6 @@ public static class FastTrackSeeder
             });
         }
         await context.SaveChangesAsync();
+        await ServiceInformationDataSeeder.SeedAsync(context);
     }
 }

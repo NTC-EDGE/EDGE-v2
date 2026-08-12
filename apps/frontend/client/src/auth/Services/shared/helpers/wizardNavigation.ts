@@ -13,7 +13,19 @@ interface NavigationContext {
   currentApplicantIndex: number;
   setCurrentApplicantIndex: (idx: number) => void;
   service: NTCService;
+  variantRequirements?: string[];
   setIsConfirmModalOpen: (open: boolean) => void;
+  onClose?: () => void;
+  /** IDs of fields marked isRequired in the active dynamic form (empty when no dynamic form). */
+  dynamicRequiredFieldIds?: string[];
+  setFormErrors?: (errors: Record<string, string>) => void;
+}
+
+export function getRequiredDocumentKeys(service: NTCService, variantRequirements?: string[]): string[] {
+  if (variantRequirements && variantRequirements.length > 0) {
+    return variantRequirements.map((_, idx) => `req-${idx}`);
+  }
+  return (service.requirements || []).map((_, idx) => `req-gen-${idx}`);
 }
 
 export function handleWizardNext({
@@ -27,50 +39,88 @@ export function handleWizardNext({
   currentApplicantIndex,
   setCurrentApplicantIndex,
   service,
+  variantRequirements,
   setIsConfirmModalOpen,
+  dynamicRequiredFieldIds,
+  setFormErrors,
 }: NavigationContext) {
-  if (step === 1 && !selectedRegionId) {
+  if (step === 1) {
+    if (!selectedRegionId || !selectedOfficeId) {
+      Alert.alert("Warning", "Please select a region and field office.");
+      return;
+    }
     setStep(2);
     return;
   }
   if (step === 2) {
-    if (!selectedRegionId || !selectedOfficeId) {
-      Alert.alert("Warning", "Please select a region and field office.");
+    if (!appMode) {
+      Alert.alert("Warning", "Please select an application mode.");
       return;
     }
     setStep(3);
     return;
   }
   if (step === 3) {
-    if (!appMode) {
-      Alert.alert("Warning", "Please select an application mode.");
+    const hasDynamicForm =
+      dynamicRequiredFieldIds !== undefined && dynamicRequiredFieldIds.length > 0;
+
+    if (hasDynamicForm) {
+      const filledIds = new Set(
+        (activeApplicant.formFieldValues || []).map((fv) => fv.fieldId)
+      );
+      const missingFields = dynamicRequiredFieldIds.filter(
+        (id) => !filledIds.has(id) || !(activeApplicant.formFieldValues ?? []).find((fv) => fv.fieldId === id && fv.value.trim() !== "")
+      );
+      if (missingFields.length > 0) {
+        const fieldErrors: Record<string, string> = {};
+        missingFields.forEach((fieldId) => {
+          fieldErrors[fieldId] = "This required field cannot be left blank.";
+        });
+        setFormErrors?.(fieldErrors);
+        Alert.alert("Incomplete", "Please fill in all required fields marked in red before proceeding.");
+        return;
+      }
+      setFormErrors?.({});
+    } else {
+      const fieldErrors: Record<string, string> = {};
+      if (!activeApplicant.firstName) fieldErrors.firstName = "First Name is required.";
+      if (!activeApplicant.lastName) fieldErrors.lastName = "Last Name is required.";
+      if (!activeApplicant.email) fieldErrors.email = "Email Address is required.";
+      if (!activeApplicant.contactNo) fieldErrors.contactNo = "Contact Number is required.";
+
+      if (Object.keys(fieldErrors).length > 0) {
+        setFormErrors?.(fieldErrors);
+        Alert.alert("Warning", "Please fill in all mandatory applicant details marked in red.");
+        return;
+      }
+      setFormErrors?.({});
+    }
+
+    if (appMode === "BULK" && currentApplicantIndex < applicants.length - 1) {
+      setCurrentApplicantIndex(currentApplicantIndex + 1);
       return;
     }
     setStep(4);
     return;
   }
   if (step === 4) {
-    if (!activeApplicant.firstName || !activeApplicant.lastName || !activeApplicant.email || !activeApplicant.contactNo) {
-      Alert.alert("Warning", "Please fill in all mandatory applicant details.");
-      return;
-    }
-    if (appMode === "BULK" && currentApplicantIndex < applicants.length - 1) {
-      setCurrentApplicantIndex(currentApplicantIndex + 1);
+    const requiredKeys = getRequiredDocumentKeys(service, variantRequirements);
+    const isComplete = requiredKeys.every((key, idx) => {
+      if (activeApplicant.uploads && activeApplicant.uploads[key]) return true;
+      const title = service.requirements?.[idx];
+      if (title && activeApplicant.uploads && activeApplicant.uploads[title]) return true;
+      return false;
+    });
+
+    const uploadedCount = Object.keys(activeApplicant.uploads || {}).length;
+    if (!isComplete && uploadedCount < requiredKeys.length) {
+      Alert.alert("Incomplete", "Please upload all mandatory documents before proceeding.");
       return;
     }
     setStep(5);
     return;
   }
   if (step === 5) {
-    const missingDocs = service.requirements.filter((req) => !activeApplicant.uploads[req]);
-    if (missingDocs.length > 0) {
-      Alert.alert("Incomplete", "Please upload all mandatory documents before proceeding.");
-      return;
-    }
-    setStep(6);
-    return;
-  }
-  if (step === 6) {
     setIsConfirmModalOpen(true);
   }
 }
@@ -81,13 +131,18 @@ export function handleWizardBack({
   appMode,
   currentApplicantIndex,
   setCurrentApplicantIndex,
-}: Pick<NavigationContext, "step" | "setStep" | "appMode" | "currentApplicantIndex" | "setCurrentApplicantIndex">) {
-  if (step === 4) {
+  onClose,
+}: Pick<NavigationContext, "step" | "setStep" | "appMode" | "currentApplicantIndex" | "setCurrentApplicantIndex" | "onClose">) {
+  if (step === 1) {
+    onClose?.();
+    return;
+  }
+  if (step === 3) {
     if (appMode === "BULK" && currentApplicantIndex > 0) {
       setCurrentApplicantIndex(currentApplicantIndex - 1);
       return;
     }
-    setStep(3);
+    setStep(2);
     return;
   }
   setStep(step - 1);

@@ -4,12 +4,14 @@ import {
   View,
   ScrollView,
   useWindowDimensions,
+  TouchableOpacity,
 } from "react-native";
-import { COLORS, TYPOGRAPHY } from "@edge/ui";
+import { COLORS, TYPOGRAPHY, Icon } from "@edge/ui";
 import { NTCService } from "../data/servicesData";
 import { GeneralWizardNavigation } from "./components/GeneralWizardNavigation";
 import { GeneralWizardModals } from "./components/GeneralWizardModals";
 import { GeneralWizardSteps } from "./components/GeneralWizardSteps";
+import { GeneralBulkApplicationFlow } from "./components/GeneralBulkApplicationFlow";
 import {
   useGeneralServiceWizard,
   GeneralApplicantData,
@@ -43,6 +45,8 @@ interface GeneralServiceWizardProps {
   setApplicants: React.Dispatch<React.SetStateAction<GeneralApplicantData[]>>;
   currentApplicantIndex: number;
   setCurrentApplicantIndex: (idx: number) => void;
+  /** Incremented each time a user selects an applicant from the left panel to open Filing Details */
+  triggerOpenApplicant?: number;
 }
 
 export function GeneralServiceWizard({
@@ -69,13 +73,18 @@ export function GeneralServiceWizard({
   setApplicants,
   currentApplicantIndex,
   setCurrentApplicantIndex,
+  triggerOpenApplicant = 0,
 }: GeneralServiceWizardProps) {
+  if (!service) return null;
+
   const { width } = useWindowDimensions();
   const isWeb = width > 768;
 
   const [localBulkMethod, setLocalBulkMethod] = useState<"MANUAL" | "EXCEL">("MANUAL");
   const [localIsFileUploaded, setLocalIsFileUploaded] = useState(false);
   const [localUploadedFileName, setLocalUploadedFileName] = useState("");
+  const [dynamicRequiredFieldIds, setDynamicRequiredFieldIds] = useState<string[]>([]);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   const bulkMethod = propBulkMethod !== undefined ? propBulkMethod : localBulkMethod;
   const setBulkMethod = propSetBulkMethod !== undefined ? propSetBulkMethod : setLocalBulkMethod;
@@ -92,6 +101,10 @@ export function GeneralServiceWizard({
     loadingTenants,
     offices,
     loadingOffices,
+    variants,
+    loadingVariants,
+    variantElements,
+    variantRequirements,
     isConfirmModalOpen,
     setIsConfirmModalOpen,
     isAgreedToTerms,
@@ -107,8 +120,11 @@ export function GeneralServiceWizard({
     submitApplicationPayload,
   } = useGeneralServiceWizard({
     service,
+    step,
     selectedRegionId,
+    setSelectedRegionId,
     selectedOfficeId,
+    setSelectedOfficeId,
     applicants,
     setApplicants,
     currentApplicantIndex,
@@ -126,7 +142,10 @@ export function GeneralServiceWizard({
       currentApplicantIndex,
       setCurrentApplicantIndex,
       service,
+      variantRequirements,
       setIsConfirmModalOpen,
+      dynamicRequiredFieldIds,
+      setFormErrors,
     });
   };
 
@@ -137,24 +156,85 @@ export function GeneralServiceWizard({
       appMode,
       currentApplicantIndex,
       setCurrentApplicantIndex,
+      onClose,
     });
   };
 
+  const handleSelectVariant = (variantId: string, variantName: string) => {
+    const isRenewal = variantName.toUpperCase().includes("RENEWAL");
+    const isModification = variantName.toUpperCase().includes("MODIFICATION");
 
+    let appType: "NEW" | "RENEWAL" | "MODIFICATION" = "NEW";
+    if (isRenewal) appType = "RENEWAL";
+    if (isModification) appType = "MODIFICATION";
+
+    const currentAmateur = activeApplicant.amateurLicenseData;
+
+    updateActiveApplicant({
+      selectedVariantId: variantId,
+      amateurLicenseData: currentAmateur
+        ? { ...currentAmateur, appType }
+        : undefined,
+    });
+  };
+
+  // When BULK mode is confirmed and user has moved past step 2, hand off to the
+  // dedicated Bulk Application Flow (cohort list → per-applicant details + upload).
+  if (appMode === "BULK" && step >= 3) {
+    return (
+      <View style={{ flex: 1 }}>
+        <GeneralBulkApplicationFlow
+          service={service}
+          applicants={applicants}
+          setApplicants={setApplicants}
+          currentApplicantIndex={currentApplicantIndex}
+          setCurrentApplicantIndex={setCurrentApplicantIndex}
+          triggerOpenApplicant={triggerOpenApplicant}
+          variantRequirements={variantRequirements}
+          isWeb={isWeb}
+          dynamicRequiredFieldIds={dynamicRequiredFieldIds}
+          setDynamicRequiredFieldIds={setDynamicRequiredFieldIds}
+          onBack={() => setStep(2)}
+          onSubmitAll={() => setIsConfirmModalOpen(true)}
+        />
+        <GeneralWizardModals
+          isConfirmModalOpen={isConfirmModalOpen}
+          setIsConfirmModalOpen={setIsConfirmModalOpen}
+          isAgreedToTerms={isAgreedToTerms}
+          setIsAgreedToTerms={setIsAgreedToTerms}
+          submitApplicationPayload={submitApplicationPayload}
+          isFeedbackModalOpen={isFeedbackModalOpen}
+          setIsFeedbackModalOpen={setIsFeedbackModalOpen}
+          feedbackRating={feedbackRating}
+          setFeedbackRating={setFeedbackRating}
+          feedbackComment={feedbackComment}
+          setFeedbackComment={setFeedbackComment}
+          isSubmitting={isSubmitting}
+          setIsSubmitting={setIsSubmitting}
+          onSuccess={onSuccess}
+        />
+      </View>
+    );
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
       <ScrollView contentContainerStyle={{ padding: 24 }}>
-        <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 20, fontWeight: "700", color: COLORS.neutral[900], marginBottom: 8 }}>
+        <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 20, fontWeight: "700", color: COLORS.neutral[900], marginBottom: 4 }}>
           {service.title}
         </Text>
         <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: COLORS.neutral[500], marginBottom: 24 }}>
-          Step {step} of 6 — {step === 1 ? "Information" : step === 2 ? "Region & Office" : step === 3 ? "Application Mode" : step === 4 ? "Filing Details" : step === 5 ? "Upload Documents" : "Review & Submit"}
+          {step === 1 ? "Region & Office Selection" : "Application Variant & Filing Mode"}
         </Text>
 
         <GeneralWizardSteps
           step={step}
           service={service}
+          variants={variants}
+          variantElements={variantElements}
+          variantRequirements={variantRequirements}
+          selectedVariantId={activeApplicant.selectedVariantId}
+          onSelectVariant={handleSelectVariant}
           selectedRegionId={selectedRegionId}
           setSelectedRegionId={setSelectedRegionId}
           selectedOfficeId={selectedOfficeId}
@@ -170,6 +250,8 @@ export function GeneralServiceWizard({
           uploadedFileName={uploadedFileName}
           setUploadedFileName={setUploadedFileName}
           setApplicants={setApplicants}
+          applicants={applicants}
+          currentApplicantIndex={currentApplicantIndex}
           setCurrentApplicantIndex={setCurrentApplicantIndex}
           activeApplicant={activeApplicant}
           updateActiveApplicant={updateActiveApplicant}
@@ -185,6 +267,8 @@ export function GeneralServiceWizard({
             delete cur[req];
             updateActiveApplicant({ uploads: cur });
           }}
+          onRequiredFieldsChange={setDynamicRequiredFieldIds}
+          errors={formErrors}
         />
 
         <GeneralWizardNavigation

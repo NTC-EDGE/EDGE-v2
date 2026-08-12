@@ -2,12 +2,14 @@ import React, { useState } from "react";
 import { Alert } from "react-native";
 import { useUser } from "@clerk/expo";
 import { useApi } from "../../../../../shared/hooks/useApi";
+import { extractApiErrorMessage } from "../../../../../shared/components/Toast";
 import { NTCOffice } from "../data/mockRegionData";
 import { ApplicantData } from "../types/cpeTypes";
 
 interface UseCPEAccreditationWizardProps {
   selectedRegionId: string;
   setSelectedRegionId: (id: string) => void;
+  selectedOfficeId?: string;
   setSelectedOfficeId: (id: string) => void;
   setAppMode: (mode: "SINGLE" | "BULK" | "") => void;
   setBulkMethod: (method: "MANUAL" | "EXCEL") => void;
@@ -22,6 +24,7 @@ interface UseCPEAccreditationWizardProps {
 export function useCPEAccreditationWizard({
   selectedRegionId,
   setSelectedRegionId,
+  selectedOfficeId,
   setSelectedOfficeId,
   setAppMode,
   setBulkMethod,
@@ -59,25 +62,8 @@ export function useCPEAccreditationWizard({
   const { user: clerkUser } = useUser();
   const USE_MOCKS = false;
 
+  // Form fields schema mapping
   const [formFields, setFormFields] = useState<any[]>([]);
-
-  React.useEffect(() => {
-    let active = true;
-    const fetchForm = async () => {
-      if (!serviceId) return;
-      try {
-        const res = await api.get<any>(`/api/v2/services/${serviceId}/form`);
-        if (active && res && res.data && res.data.sections) {
-          const fields = res.data.sections.flatMap((s: any) => s.fields || []);
-          setFormFields(fields);
-        }
-      } catch (err) {
-        console.warn("Failed to fetch CPE form schema:", err);
-      }
-    };
-    fetchForm();
-    return () => { active = false; };
-  }, [serviceId]);
 
   // Auto-fill applicant with Clerk user details
   React.useEffect(() => {
@@ -109,15 +95,18 @@ export function useCPEAccreditationWizard({
     async function fetchTenants() {
       setLoadingTenants(true);
       try {
-        const res = await api.get<ApiResponseEnvelope<Array<{ id: string; name: string }>> | Array<{ id: string; name: string }>>("/api/v2/tenants");
+        const res = await api.get<ApiResponseEnvelope<Array<{ id: string; name: string }>> | Array<{ id: string; name: string }>>("/api/v2/tenants?pageSize=100");
+        let list: Array<{ id: string; name: string }> = [];
         if (res && !Array.isArray(res) && res.succeeded && Array.isArray(res.data)) {
-          setTenants(res.data);
+          list = res.data;
         } else if (Array.isArray(res)) {
-          setTenants(res);
+          list = res;
         } else if (res && !Array.isArray(res) && Array.isArray(res.items)) {
-          setTenants(res.items);
-        } else {
-          setTenants([]);
+          list = res.items;
+        }
+        setTenants(list);
+        if (list.length > 0 && !selectedRegionId) {
+          setSelectedRegionId(list[0].id);
         }
       } catch (err) {
         console.error("Failed to fetch tenants from API:", err);
@@ -127,7 +116,7 @@ export function useCPEAccreditationWizard({
       }
     }
     fetchTenants();
-  }, []);
+  }, [selectedRegionId, setSelectedRegionId]);
 
   const selectedTenant = tenants.find((t) => t.id === selectedRegionId);
   const activeRegionObj = selectedTenant 
@@ -152,12 +141,16 @@ export function useCPEAccreditationWizard({
         const res = await api.get<ApiResponseEnvelope<NTCOffice[]> | NTCOffice[]>(`/api/v2/tenants/${selectedRegionId}/field-offices`);
         if (res && !Array.isArray(res) && res.succeeded && Array.isArray(res.data)) {
           setOffices(res.data);
+          if (res.data.length > 0) setSelectedOfficeId(res.data[0].id);
         } else if (Array.isArray(res)) {
           setOffices(res);
+          if (res.length > 0) setSelectedOfficeId(res[0].id);
         } else if (res && !Array.isArray(res) && Array.isArray(res.items)) {
           setOffices(res.items);
+          if (res.items.length > 0) setSelectedOfficeId(res.items[0].id);
         } else {
           setOffices([]);
+          setSelectedOfficeId("");
         }
       } catch (err) {
         console.error("Failed to fetch offices from API:", err);
@@ -258,107 +251,86 @@ export function useCPEAccreditationWizard({
     const expiryDateStr = `${activeApplicant.expiryYear}-${expiryMonthNum}-${String(activeApplicant.expiryDate).padStart(2, "0")}`;
     const address = `${activeApplicant.unitBldgNo || ""}, ${activeApplicant.street}, ${activeApplicant.barangay}, ${activeApplicant.city}, ${activeApplicant.province}, ${activeApplicant.zipCode}`;
 
-    if (formFields.length > 0) {
-      const formFieldValues: Array<{ fieldId: string; value: string }> = [];
-      const mappings = [
-        { terms: ["application type", "app type", "type"], value: activeApplicant.appType },
-        { terms: ["years", "no of years", "number of years"], value: activeApplicant.years },
-        { terms: ["variation"], value: activeApplicant.variation },
-        { terms: ["accreditation no", "accreditation number"], value: activeApplicant.accreditationNo || "N/A" },
-        { terms: ["business name", "company name", "name"], value: activeApplicant.businessName },
-        { terms: ["entity type", "business type"], value: activeApplicant.entityType },
-        { terms: ["dti", "sec", "dti/sec"], value: activeApplicant.dtiNo },
-        { terms: ["address", "street", "residence"], value: address },
-        { terms: ["contact no", "contact number", "phone", "mobile"], value: activeApplicant.contactNo },
-        { terms: ["email address", "email"], value: activeApplicant.email },
-        { terms: ["engineer", "ece"], value: `${activeApplicant.engineerName} (ECE: ${activeApplicant.eceNo})` },
-        { terms: ["technician", "ect"], value: `${activeApplicant.technicianName} (ECT: ${activeApplicant.ectNo})` },
-        { terms: ["expiry", "expiration"], value: expiryDateStr },
-      ];
-
-      formFields.forEach((field: any) => {
-        const labelLower = (field.label || "").toLowerCase();
-        const id = field.fieldId;
-        const match = mappings.find(m => m.terms.some(t => labelLower.includes(t)));
-        if (match) {
-          formFieldValues.push({
-            fieldId: id,
-            value: String(match.value)
-          });
-        } else {
-          formFieldValues.push({
-            fieldId: id,
-            value: field.type === "checkbox" ? "false" : ""
-          });
+    try {
+      if (serviceId) {
+        let formFieldValues: Array<{ fieldId: string; fieldLabel: string; value: string }> = [];
+        if (activeApplicant.formFieldValues && Array.isArray(activeApplicant.formFieldValues)) {
+          formFieldValues = activeApplicant.formFieldValues;
         }
-      });
+
+        let formattedAddress = [activeApplicant.street, activeApplicant.barangay, activeApplicant.city, activeApplicant.province]
+          .filter(Boolean)
+          .join(", ");
+        if (!formattedAddress) formattedAddress = "N/A";
+
+        const payload = {
+          tenantId: selectedRegionId,
+          submissionMode: "Single",
+          serviceId: serviceId,
+          fieldOfficeId: selectedOfficeId || null,
+          serviceVariantId: null,
+          serviceVariantElementIds: [],
+          isDraft: isDraft,
+          applicants: [
+            {
+              firstName: activeApplicant.businessName || activeApplicant.engineerName || "Applicant",
+              lastName: activeApplicant.entityType || "N/A",
+              email: activeApplicant.email || "applicant@example.com",
+              contactNumber: activeApplicant.contactNo,
+              address: formattedAddress,
+              birthDate: "1990-01-01T00:00:00Z",
+              formFieldValues: formFieldValues
+            }
+          ]
+        };
+
+        await api.post(`/api/v2/tenants/${selectedRegionId}/applications`, payload);
+        return;
+      }
 
       const payload = {
-        tenantId: selectedRegionId,
-        submissionMode: "Single",
-        serviceId: serviceId,
-        scheduleId: null,
-        fieldOfficeId: null,
-        serviceVariantId: null,
-        serviceVariantElementIds: [],
-        isDraft: isDraft,
-        applicants: [
-          {
-            firstName: "CPE Supplier",
-            lastName: activeApplicant.businessName,
-            email: activeApplicant.email,
-            contactNumber: activeApplicant.contactNo,
-            address: address,
-            birthDate: "1990-01-01T00:00:00Z",
-            formFieldValues: formFieldValues
-          }
-        ]
+        applicationType: "CPE_SUPPLIER_ACCREDITATION",
+        appType: activeApplicant.appType,
+        years: parseInt(activeApplicant.years),
+        variation: activeApplicant.variation,
+        accreditationNo: activeApplicant.accreditationNo || null,
+        businessName: activeApplicant.businessName,
+        entityType: activeApplicant.entityType,
+        dtiNo: activeApplicant.dtiNo,
+        province: activeApplicant.province,
+        city: activeApplicant.city,
+        barangay: activeApplicant.barangay,
+        street: activeApplicant.street,
+        zone: activeApplicant.zone,
+        unitBldgNo: activeApplicant.unitBldgNo,
+        zipCode: activeApplicant.zipCode,
+        contactNo: activeApplicant.contactNo,
+        email: activeApplicant.email,
+        engineerName: activeApplicant.engineerName,
+        eceNo: activeApplicant.eceNo,
+        technicianName: activeApplicant.technicianName,
+        ectNo: activeApplicant.ectNo,
+        expiryMonth: activeApplicant.expiryMonth,
+        expiryDate: parseInt(activeApplicant.expiryDate),
+        expiryYear: parseInt(activeApplicant.expiryYear),
+        attachments: Object.keys(activeApplicant.uploads).map((key) => {
+          const uploadObj = activeApplicant.uploads[key];
+          const fileName = typeof uploadObj === "string"
+            ? uploadObj
+            : uploadObj !== null && uploadObj !== undefined
+            ? uploadObj.name
+            : "";
+          return {
+            requirementIndex: parseInt(key),
+            fileName,
+          };
+        }),
       };
 
       await api.post(`/api/v2/tenants/${selectedRegionId}/applications`, payload);
-      return;
+    } catch (err: unknown) {
+      throw new Error(extractApiErrorMessage(err));
     }
-
-    const payload = {
-      applicationType: "CPE_SUPPLIER_ACCREDITATION",
-      appType: activeApplicant.appType,
-      years: parseInt(activeApplicant.years),
-      variation: activeApplicant.variation,
-      accreditationNo: activeApplicant.accreditationNo || null,
-      businessName: activeApplicant.businessName,
-      entityType: activeApplicant.entityType,
-      dtiNo: activeApplicant.dtiNo,
-      province: activeApplicant.province,
-      city: activeApplicant.city,
-      barangay: activeApplicant.barangay,
-      street: activeApplicant.street,
-      zone: activeApplicant.zone,
-      unitBldgNo: activeApplicant.unitBldgNo,
-      zipCode: activeApplicant.zipCode,
-      contactNo: activeApplicant.contactNo,
-      email: activeApplicant.email,
-      engineerName: activeApplicant.engineerName,
-      eceNo: activeApplicant.eceNo,
-      technicianName: activeApplicant.technicianName,
-      ectNo: activeApplicant.ectNo,
-      expiryMonth: activeApplicant.expiryMonth,
-      expiryDate: parseInt(activeApplicant.expiryDate),
-      expiryYear: parseInt(activeApplicant.expiryYear),
-      attachments: Object.keys(activeApplicant.uploads).map((key) => {
-        const uploadObj = activeApplicant.uploads[key];
-        const fileName = typeof uploadObj === "string"
-          ? uploadObj
-          : uploadObj !== null && uploadObj !== undefined
-          ? uploadObj.name
-          : "";
-        return {
-          requirementIndex: parseInt(key),
-          fileName,
-        };
-      }),
-    };
-
-    await api.post(`/api/v2/tenants/${selectedRegionId}/applications`, payload);
   };
 
   const [errors, setErrors] = useState<Record<string, string>>({});

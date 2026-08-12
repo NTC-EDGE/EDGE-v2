@@ -1,9 +1,9 @@
 import React, { useState } from "react";
-import { Alert } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import { useUser } from "@clerk/expo";
 import { useApi } from "../../../../shared/hooks/useApi";
+import { extractApiErrorMessage } from "../../../../shared/components/Toast";
 import { NTCService } from "../../data/servicesData";
 import {
   RadioOperatorCertData,
@@ -18,6 +18,12 @@ import {
   initialCopyOfCertificateData,
   serializeCertificateApplicant,
 } from "../../certificates";
+import {
+  AmateurRadioStationLicenseData,
+  LifetimeAmateurLicenseData,
+  initialAmateurRadioStationLicenseData,
+  initialLifetimeAmateurLicenseData,
+} from "../../licenses";
 
 export interface TenantInfo {
   id: string;
@@ -40,13 +46,17 @@ export interface GeneralApplicantData {
   birthDay: string;
   birthYear: string;
   notes: string;
+  selectedVariantId?: string;
   uploads: Record<string, { name: string; uri: string } | string>;
-  // Specialized Certificate Models
+  formFieldValues?: Array<{ fieldId: string; fieldLabel: string; value: string }>;
+  // Specialized Certificate & License Models
   radioCertData?: RadioOperatorCertData;
   deviceRegData?: DeviceRegistrationData;
   tvroRegData?: TVRORegistrationData;
   vasData?: VASProviderData;
   copyOfCertData?: CopyOfCertificateData;
+  amateurLicenseData?: AmateurRadioStationLicenseData;
+  lifetimeLicenseData?: LifetimeAmateurLicenseData;
 }
 
 export const initialGeneralApplicant = (id: number): GeneralApplicantData => ({
@@ -60,34 +70,75 @@ export const initialGeneralApplicant = (id: number): GeneralApplicantData => ({
   birthDay: "1",
   birthYear: "2000",
   notes: "",
+  selectedVariantId: "",
   uploads: {},
   radioCertData: initialRadioOperatorCertData(id),
   deviceRegData: initialDeviceRegistrationData(id),
   tvroRegData: initialTVRORegistrationData(id),
   vasData: initialVASProviderData(id),
   copyOfCertData: initialCopyOfCertificateData(id),
+  amateurLicenseData: initialAmateurRadioStationLicenseData(id),
+  lifetimeLicenseData: initialLifetimeAmateurLicenseData(id),
 });
 
-interface UseGeneralServiceWizardProps {
+export interface UseGeneralServiceWizardOptions {
   service: NTCService;
-  selectedRegionId: string;
-  selectedOfficeId: string;
-  applicants: GeneralApplicantData[];
-  setApplicants: React.Dispatch<React.SetStateAction<GeneralApplicantData[]>>;
-  currentApplicantIndex: number;
+  selectedRegionId?: string | null;
+  setSelectedRegionId?: (id: string) => void;
+  selectedOfficeId?: string | null;
+  setSelectedOfficeId?: (id: string) => void;
+  applicants?: GeneralApplicantData[];
+  setApplicants?: React.Dispatch<React.SetStateAction<GeneralApplicantData[]>>;
+  currentApplicantIndex?: number;
+  step?: number;
 }
 
-export function useGeneralServiceWizard({
-  service,
-  selectedRegionId,
-  selectedOfficeId,
-  applicants,
-  setApplicants,
-  currentApplicantIndex,
-}: UseGeneralServiceWizardProps) {
+export function useGeneralServiceWizard(
+  optionsOrService: UseGeneralServiceWizardOptions | NTCService,
+  stepArg: number = 1
+) {
   const api = useApi();
   const { user: clerkUser } = useUser();
-  const USE_MOCKS = false;
+
+  const isOptionsObject = typeof optionsOrService === "object" && "service" in optionsOrService;
+  const service = isOptionsObject ? (optionsOrService as UseGeneralServiceWizardOptions).service : (optionsOrService as NTCService);
+  const currentStep = isOptionsObject ? ((optionsOrService as UseGeneralServiceWizardOptions).step || 1) : stepArg;
+
+  const [localApplicantIndex, setLocalApplicantIndex] = useState(0);
+  const [localApplicants, setLocalApplicants] = useState<GeneralApplicantData[]>([
+    initialGeneralApplicant(1),
+  ]);
+
+  const currentApplicantIndex = isOptionsObject && (optionsOrService as UseGeneralServiceWizardOptions).currentApplicantIndex !== undefined
+    ? (optionsOrService as UseGeneralServiceWizardOptions).currentApplicantIndex!
+    : localApplicantIndex;
+
+  const applicants = isOptionsObject && (optionsOrService as UseGeneralServiceWizardOptions).applicants !== undefined
+    ? (optionsOrService as UseGeneralServiceWizardOptions).applicants!
+    : localApplicants;
+
+  const setApplicants = isOptionsObject && (optionsOrService as UseGeneralServiceWizardOptions).setApplicants !== undefined
+    ? (optionsOrService as UseGeneralServiceWizardOptions).setApplicants!
+    : setLocalApplicants;
+
+  const [localRegionId, setLocalRegionId] = useState<string>("");
+  const [localOfficeId, setLocalOfficeId] = useState<string>("");
+
+  const selectedRegionId = isOptionsObject && (optionsOrService as UseGeneralServiceWizardOptions).selectedRegionId !== undefined
+    ? ((optionsOrService as UseGeneralServiceWizardOptions).selectedRegionId || "")
+    : localRegionId;
+
+  const setSelectedRegionId = isOptionsObject && (optionsOrService as UseGeneralServiceWizardOptions).setSelectedRegionId !== undefined
+    ? (optionsOrService as UseGeneralServiceWizardOptions).setSelectedRegionId!
+    : setLocalRegionId;
+
+  const selectedOfficeId = isOptionsObject && (optionsOrService as UseGeneralServiceWizardOptions).selectedOfficeId !== undefined
+    ? ((optionsOrService as UseGeneralServiceWizardOptions).selectedOfficeId || "")
+    : localOfficeId;
+
+  const setSelectedOfficeId = isOptionsObject && (optionsOrService as UseGeneralServiceWizardOptions).setSelectedOfficeId !== undefined
+    ? (optionsOrService as UseGeneralServiceWizardOptions).setSelectedOfficeId!
+    : setLocalOfficeId;
 
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [isAgreedToTerms, setIsAgreedToTerms] = useState(false);
@@ -101,25 +152,137 @@ export function useGeneralServiceWizard({
   const [offices, setOffices] = useState<OfficeInfo[]>([]);
   const [loadingOffices, setLoadingOffices] = useState(false);
 
-  const [formFields, setFormFields] = useState<any[]>([]);
+  const [variants, setVariants] = useState<any[]>([]);
+  const [loadingVariants, setLoadingVariants] = useState(false);
+  const [variantElements, setVariantElements] = useState<any[]>([]);
+  const [loadingElements, setLoadingElements] = useState(false);
+
+  // Lazy fetch variants when opening Step 3
+  React.useEffect(() => {
+    let active = true;
+    const fetchStep3Variants = async () => {
+      if ((currentStep !== 2 && currentStep !== 3) || !service?.id) return;
+      try {
+        setLoadingVariants(true);
+        const varRes = await api.get<any>(`/api/v2/services/${service.id}/variants`).catch(() => null);
+        if (active) {
+          let fetchedVariants: any[] = [];
+          if (varRes && varRes.succeeded && Array.isArray(varRes.data)) {
+            fetchedVariants = varRes.data;
+          } else if (Array.isArray(varRes)) {
+            fetchedVariants = varRes;
+          } else if (varRes && Array.isArray(varRes.items)) {
+            fetchedVariants = varRes.items;
+          }
+          setVariants(fetchedVariants);
+
+          // Auto-select initial variant if applicant has no variant selected yet
+          if (fetchedVariants.length > 0) {
+            const firstVariant = fetchedVariants[0];
+            setApplicants((prev) =>
+              prev.map((app, idx) =>
+                idx === currentApplicantIndex && !app.selectedVariantId
+                  ? {
+                      ...app,
+                      selectedVariantId: firstVariant.id,
+                      selectedVariantName: firstVariant.name || firstVariant.description || "",
+                    }
+                  : app
+              )
+            );
+          }
+        }
+      } catch (err) {
+        console.warn("Failed to fetch service variants on Step 2/3:", err);
+      } finally {
+        if (active) setLoadingVariants(false);
+      }
+    };
+    fetchStep3Variants();
+    return () => { active = false; };
+  }, [currentStep, service?.id]);
+
+  // Fetch variant elements when a variant is selected in Step 2/3
+  const activeApplicant = applicants[currentApplicantIndex] || initialGeneralApplicant(1);
+  const effectiveVariantId = activeApplicant.selectedVariantId || (variants[0] ? variants[0].id : null);
 
   React.useEffect(() => {
     let active = true;
-    const fetchForm = async () => {
-      if (!service.id) return;
+    const fetchVariantElements = async () => {
+      if ((currentStep !== 2 && currentStep !== 3) || !effectiveVariantId || !service?.id) {
+        if (active) setVariantElements([]);
+        return;
+      }
       try {
-        const res = await api.get<any>(`/api/v2/services/${service.id}/form`);
-        if (active && res && res.data && res.data.sections) {
-          const fields = res.data.sections.flatMap((s: any) => s.fields || []);
-          setFormFields(fields);
+        setLoadingElements(true);
+        const elRes = await api
+          .get<any>(`/api/v2/service-variant-elements?serviceVariantId=${effectiveVariantId}`)
+          .catch(async () => {
+            return await api.get<any>(`/api/v2/services/${service.id}/variants/${effectiveVariantId}/elements`).catch(() => null);
+          });
+
+        if (active) {
+          if (elRes && elRes.succeeded && Array.isArray(elRes.data)) {
+            setVariantElements(elRes.data);
+          } else if (Array.isArray(elRes)) {
+            setVariantElements(elRes);
+          } else if (elRes && Array.isArray(elRes.items)) {
+            setVariantElements(elRes.items);
+          } else {
+            setVariantElements([]);
+          }
         }
       } catch (err) {
-        console.warn("Failed to fetch general service form schema:", err);
+        console.warn("Failed to fetch variant elements:", err);
+        if (active) setVariantElements([]);
+      } finally {
+        if (active) setLoadingElements(false);
       }
     };
-    fetchForm();
+    fetchVariantElements();
     return () => { active = false; };
-  }, [service.id]);
+  }, [currentStep, effectiveVariantId, service?.id, variants]);
+
+  // Fetch variant requirements when variant or service changes
+  const [variantRequirements, setVariantRequirements] = useState<string[]>([]);
+  const [loadingRequirements, setLoadingRequirements] = useState(false);
+
+  React.useEffect(() => {
+    let active = true;
+    const fetchVariantRequirements = async () => {
+      if (!service?.id) return;
+      try {
+        setLoadingRequirements(true);
+        const reqRes = await api
+          .get<any>(`/api/v2/services/${service.id}/requirements?variantId=${effectiveVariantId || ""}`)
+          .catch(async () => {
+            return await api.get<any>(`/api/v2/service-variant-requirements?serviceVariantId=${effectiveVariantId || ""}`).catch(() => null);
+          });
+
+        if (active) {
+          let list: string[] = [];
+          if (reqRes && reqRes.succeeded && Array.isArray(reqRes.data)) {
+            list = reqRes.data.map((r: any) => typeof r === "string" ? r : r.name || r.title || r.description || "");
+          } else if (Array.isArray(reqRes)) {
+            list = reqRes.map((r: any) => typeof r === "string" ? r : r.name || r.title || r.description || "");
+          } else if (reqRes && Array.isArray(reqRes.items)) {
+            list = reqRes.items.map((r: any) => typeof r === "string" ? r : r.name || r.title || r.description || "");
+          }
+
+          if (list.length === 0 && service.requirements && Array.isArray(service.requirements) && service.requirements.length > 0) {
+            list = service.requirements;
+          }
+          setVariantRequirements(list.filter(Boolean));
+        }
+      } catch (err) {
+        console.warn("Failed to fetch variant requirements:", err);
+      } finally {
+        if (active) setLoadingRequirements(false);
+      }
+    };
+    fetchVariantRequirements();
+    return () => { active = false; };
+  }, [effectiveVariantId, service?.id, service?.requirements]);
 
   // Pre-fill user profile
   React.useEffect(() => {
@@ -153,15 +316,18 @@ export function useGeneralServiceWizard({
     async function fetchTenants() {
       setLoadingTenants(true);
       try {
-        const res = await api.get<ApiResponseEnvelope<TenantInfo[]> | TenantInfo[]>("/api/v2/tenants");
+        const res = await api.get<ApiResponseEnvelope<TenantInfo[]> | TenantInfo[]>("/api/v2/tenants?pageSize=100");
+        let list: TenantInfo[] = [];
         if (res && !Array.isArray(res) && res.succeeded && Array.isArray(res.data)) {
-          setTenants(res.data);
+          list = res.data;
         } else if (Array.isArray(res)) {
-          setTenants(res);
+          list = res;
         } else if (res && !Array.isArray(res) && Array.isArray(res.items)) {
-          setTenants(res.items);
-        } else {
-          setTenants([]);
+          list = res.items;
+        }
+        setTenants(list);
+        if (list.length > 0 && !selectedRegionId) {
+          setSelectedRegionId(list[0].id);
         }
       } catch (err) {
         console.error("Failed to fetch tenants from API:", err);
@@ -171,7 +337,7 @@ export function useGeneralServiceWizard({
       }
     }
     fetchTenants();
-  }, []);
+  }, [selectedRegionId, setSelectedRegionId]);
 
   React.useEffect(() => {
     async function fetchOffices() {
@@ -181,15 +347,25 @@ export function useGeneralServiceWizard({
       }
       setLoadingOffices(true);
       try {
-        const res = await api.get<ApiResponseEnvelope<OfficeInfo[]> | OfficeInfo[]>(`/api/v2/tenants/${selectedRegionId}/field-offices`);
+        const res = await api
+          .get<ApiResponseEnvelope<OfficeInfo[]> | OfficeInfo[]>(`/api/v2/tenants/${selectedRegionId}/field-offices`)
+          .catch(async () => {
+            return await api.get<ApiResponseEnvelope<OfficeInfo[]> | OfficeInfo[]>(`/api/v2/field-offices?tenantId=${selectedRegionId}`).catch(() => null);
+          });
+
+        let officeList: OfficeInfo[] = [];
         if (res && !Array.isArray(res) && res.succeeded && Array.isArray(res.data)) {
-          setOffices(res.data);
+          officeList = res.data;
         } else if (Array.isArray(res)) {
-          setOffices(res);
+          officeList = res;
         } else if (res && !Array.isArray(res) && Array.isArray(res.items)) {
-          setOffices(res.items);
+          officeList = res.items;
+        }
+        setOffices(officeList);
+        if (officeList.length > 0) {
+          setSelectedOfficeId(officeList[0].id);
         } else {
-          setOffices([]);
+          setSelectedOfficeId("");
         }
       } catch (err) {
         console.error("Failed to fetch offices from API:", err);
@@ -201,34 +377,15 @@ export function useGeneralServiceWizard({
     fetchOffices();
   }, [selectedRegionId]);
 
-  const activeApplicant = applicants[currentApplicantIndex] || initialGeneralApplicant(1);
-
   const updateActiveApplicant = (fields: Partial<GeneralApplicantData>) => {
     setApplicants((prev) =>
       prev.map((app, idx) => (idx === currentApplicantIndex ? { ...app, ...fields } : app))
     );
   };
 
-
-
   const submitApplicationPayload = async (isDraft = false) => {
-    const monthMap: Record<string, string> = {
-      January: "01",
-      February: "02",
-      March: "03",
-      April: "04",
-      May: "05",
-      June: "06",
-      July: "07",
-      August: "08",
-      September: "09",
-      October: "10",
-      November: "11",
-      December: "12",
-    };
-
     const mappedApplicants = applicants.map((app) =>
-      serializeCertificateApplicant(app, service, formFields)
+      serializeCertificateApplicant(app, service, [])
     );
 
     const payload = {
@@ -236,13 +393,17 @@ export function useGeneralServiceWizard({
       submissionMode: "Single",
       serviceId: service.id,
       fieldOfficeId: selectedOfficeId,
-      serviceVariantId: null,
+      serviceVariantId: activeApplicant.selectedVariantId || (variants.length > 0 ? variants[0].id : null),
       serviceVariantElementIds: [],
       isDraft: isDraft,
       applicants: mappedApplicants,
     };
 
-    await api.post(`/api/v2/tenants/${selectedRegionId}/applications`, payload);
+    try {
+      await api.post(`/api/v2/tenants/${selectedRegionId}/applications`, payload);
+    } catch (err: unknown) {
+      throw new Error(extractApiErrorMessage(err));
+    }
   };
 
   return {
@@ -252,6 +413,12 @@ export function useGeneralServiceWizard({
     loadingTenants,
     offices,
     loadingOffices,
+    variants,
+    loadingVariants,
+    variantElements,
+    loadingElements,
+    variantRequirements,
+    loadingRequirements,
     isConfirmModalOpen,
     setIsConfirmModalOpen,
     isAgreedToTerms,

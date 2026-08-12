@@ -5,6 +5,7 @@ import { COLORS, TYPOGRAPHY } from "../theme/tokens";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import { UploadChoiceDialog } from "../../auth/Services/shared/components/UploadChoiceDialog";
+import { DocumentPreviewModal } from "./DocumentPreviewModal";
 
 export interface DocumentRequirement {
   key: string;       // Unique lookup key in uploads object
@@ -30,6 +31,10 @@ export function SharedDocumentUpload({
   const [selectedReqIndex, setSelectedReqIndex] = useState(0);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [activeSlotKey, setActiveSlotKey] = useState<string | null>(null);
+
+  const [previewFile, setPreviewFile] = useState<{ name: string; uri?: string } | string | null>(null);
+  const [previewLabel, setPreviewLabel] = useState<string>("");
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   // Safely clamp selected index in case requirements list changes dynamically
   const activeIndex = Math.max(0, Math.min(selectedReqIndex, requirements.length - 1));
@@ -162,13 +167,39 @@ export function SharedDocumentUpload({
                       <Text style={styles.fileNameText} numberOfLines={1}>
                         {fileName}
                       </Text>
-                      <TouchableOpacity
-                        onPress={() => onRemove(activeReq.key)}
-                        style={styles.removeBtn}
-                      >
-                        <Icon name="trash-2" size={16} color={COLORS.semantic.error} style={{ marginRight: 6 }} />
-                        <Text style={styles.removeBtnText}>Remove Upload</Text>
-                      </TouchableOpacity>
+                      <View style={{ flexDirection: "row", gap: 10, marginTop: 8 }}>
+                        <TouchableOpacity
+                          onPress={() => {
+                            setPreviewFile(uploadData);
+                            setPreviewLabel(activeReq.label);
+                            setIsPreviewOpen(true);
+                          }}
+                          style={{
+                            flexDirection: "row",
+                            alignItems: "center",
+                            backgroundColor: "#EFF6FF",
+                            borderWidth: 1,
+                            borderColor: "#BFDBFE",
+                            paddingVertical: 8,
+                            paddingHorizontal: 14,
+                            borderRadius: 20,
+                          }}
+                          activeOpacity={0.7}
+                        >
+                          <Icon name="eye" size={15} color="#1D4ED8" style={{ marginRight: 6 }} />
+                          <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: "#1D4ED8" }}>
+                            View Document
+                          </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          onPress={() => onRemove(activeReq.key)}
+                          style={styles.removeBtn}
+                        >
+                          <Icon name="trash-2" size={16} color={COLORS.semantic.error} style={{ marginRight: 6 }} />
+                          <Text style={styles.removeBtnText}>Remove Upload</Text>
+                        </TouchableOpacity>
+                      </View>
                     </View>
                   ) : (
                     <TouchableOpacity
@@ -230,6 +261,32 @@ export function SharedDocumentUpload({
                         Uploaded ✓
                       </Text>
                     </View>
+
+                    <TouchableOpacity
+                      onPress={() => {
+                        setPreviewFile(uploadData);
+                        setPreviewLabel(req.label);
+                        setIsPreviewOpen(true);
+                      }}
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        backgroundColor: "#EFF6FF",
+                        borderWidth: 1,
+                        borderColor: "#BFDBFE",
+                        paddingVertical: 5,
+                        paddingHorizontal: 10,
+                        borderRadius: 8,
+                        marginRight: 6,
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Icon name="eye" size={13} color="#1D4ED8" style={{ marginRight: 4 }} />
+                      <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: "700", color: "#1D4ED8" }}>
+                        View
+                      </Text>
+                    </TouchableOpacity>
+
                     <TouchableOpacity onPress={() => onRemove(req.key)} style={styles.mobileTrashBtn}>
                       <Icon name="trash-2" size={16} color={COLORS.semantic.error} />
                     </TouchableOpacity>
@@ -257,6 +314,14 @@ export function SharedDocumentUpload({
         onClose={() => setIsSheetOpen(false)}
         onDocumentPick={handleDocumentPick}
         onCameraLaunch={handleCameraLaunch}
+      />
+
+      {/* Document Preview Modal */}
+      <DocumentPreviewModal
+        visible={isPreviewOpen}
+        onClose={() => setIsPreviewOpen(false)}
+        file={previewFile}
+        label={previewLabel}
       />
     </View>
   );

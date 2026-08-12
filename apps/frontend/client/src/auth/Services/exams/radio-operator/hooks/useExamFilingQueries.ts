@@ -32,6 +32,7 @@ export function useExamFilingQueries({
 }: UseExamFilingQueriesProps) {
   const api = useApi();
   const { user: clerkUser } = useUser();
+  // Form fields schema mapping
   const [formFields, setFormFields] = useState<any[]>([]);
   const [tenants, setTenants] = useState<Array<{ id: string; name: string }>>([]);
   const [loadingTenants, setLoadingTenants] = useState(false);
@@ -39,25 +40,6 @@ export function useExamFilingQueries({
   const [loadingOffices, setLoadingOffices] = useState(false);
   const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
   const [loadingSchedules, setLoadingSchedules] = useState(false);
-
-  // Fetch form schema
-  React.useEffect(() => {
-    let active = true;
-    const fetchForm = async () => {
-      if (!serviceId) return;
-      try {
-        const res = await api.get<any>(`/api/v2/services/${serviceId}/form`);
-        if (active && res && res.data && res.data.sections) {
-          const fields = res.data.sections.flatMap((s: any) => s.fields || []);
-          setFormFields(fields);
-        }
-      } catch (err) {
-        console.warn("Failed to fetch service form schema, using fallback mapping:", err);
-      }
-    };
-    fetchForm();
-    return () => { active = false; };
-  }, [serviceId]);
 
   // Clerk auto-fill
   React.useEffect(() => {
@@ -85,15 +67,18 @@ export function useExamFilingQueries({
     async function fetchTenants() {
       setLoadingTenants(true);
       try {
-        const res = await api.get<ApiResponseEnvelope<Array<{ id: string; name: string }>> | Array<{ id: string; name: string }>>('/api/v2/tenants');
+        const res = await api.get<ApiResponseEnvelope<Array<{ id: string; name: string }>> | Array<{ id: string; name: string }>>('/api/v2/tenants?pageSize=100');
+        let list: Array<{ id: string; name: string }> = [];
         if (res && !Array.isArray(res) && res.succeeded && Array.isArray(res.data)) {
-          setTenants(res.data);
+          list = res.data;
         } else if (Array.isArray(res)) {
-          setTenants(res);
+          list = res;
         } else if (res && !Array.isArray(res) && Array.isArray(res.items)) {
-          setTenants(res.items);
-        } else {
-          setTenants([]);
+          list = res.items;
+        }
+        setTenants(list);
+        if (list.length > 0 && !selectedRegionId) {
+          setSelectedRegionId(list[0].id);
         }
       } catch (err) {
         console.error("Failed to fetch tenants from API:", err);
@@ -103,30 +88,37 @@ export function useExamFilingQueries({
       }
     }
     fetchTenants();
-  }, []);
+  }, [selectedRegionId, setSelectedRegionId]);
 
   // Fetch offices
   React.useEffect(() => {
     async function fetchOffices() {
       if (!selectedRegionId) {
         setOffices([]);
+        setSelectedOfficeId("");
         return;
       }
       setLoadingOffices(true);
       try {
         const res = await api.get<ApiResponseEnvelope<Array<{ id: string; name: string }>> | Array<{ id: string; name: string }>>(`/api/v2/tenants/${selectedRegionId}/field-offices`);
+        let list: Array<{ id: string; name: string }> = [];
         if (res && !Array.isArray(res) && res.succeeded && Array.isArray(res.data)) {
-          setOffices(res.data);
+          list = res.data;
         } else if (Array.isArray(res)) {
-          setOffices(res);
+          list = res;
         } else if (res && !Array.isArray(res) && Array.isArray(res.items)) {
-          setOffices(res.items);
+          list = res.items;
+        }
+        setOffices(list);
+        if (list.length > 0) {
+          setSelectedOfficeId(list[0].id);
         } else {
-          setOffices([]);
+          setSelectedOfficeId("");
         }
       } catch (err) {
         console.error("Failed to fetch offices from API:", err);
         setOffices([]);
+        setSelectedOfficeId("");
       } finally {
         setLoadingOffices(false);
       }
@@ -201,7 +193,16 @@ export function useExamFilingQueries({
   const { data: elementsResponse } = api.useQuery<any[]>(
     selectedVariantId ? `/api/v2/service-variant-elements?serviceVariantId=${selectedVariantId}` : null
   );
-  const variantElements = Array.isArray(elementsResponse) ? elementsResponse : [];
+  const rawElements = Array.isArray(elementsResponse) ? elementsResponse : [];
+  // Deduplicate by element id — the backend may return the same element linked
+  // to multiple variants (e.g. "Proof of Rating" appears across Retaker/Upgrader rows)
+  const seen = new Set<string>();
+  const variantElements = rawElements.filter((elem) => {
+    const key = typeof elem.id === "string" ? elem.id : String(elem.id);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
   const isLoadingElements = !!selectedVariantId && elementsResponse === undefined;
 
   // Requirements API Query

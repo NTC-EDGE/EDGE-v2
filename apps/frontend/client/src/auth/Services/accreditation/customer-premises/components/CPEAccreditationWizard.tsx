@@ -1,6 +1,6 @@
 import React, { useRef } from "react";
 import { View, ScrollView, TouchableOpacity, Text } from "react-native";
-import { Icon, COLORS } from "@edge/ui";
+import { Icon, COLORS, TYPOGRAPHY } from "@edge/ui";
 import { styles } from "./CPEAccreditationWizard.styles";
 import { useCPEAccreditationWizard } from "../hooks/useCPEAccreditationWizard";
 import { CPEWizardSteps } from "./wizard/CPEWizardSteps";
@@ -10,13 +10,11 @@ import { handleCPENext, handleCPEBack } from "../helpers/cpeWizardNavigation";
 import { ApplicantData, initialApplicant, CPEAccreditationWizardProps } from "../types/cpeTypes";
 
 const STEP_TITLES: Record<number, string> = {
-  1: "Information",
-  2: "Region",
-  3: "Application Type & Requirements",
-  4: "Filing Data Configuration",
-  5: "Application Form",
-  6: "Upload Requirements",
-  7: "Review & Submit",
+  1: "Region & Office Jurisdiction",
+  2: "Application Type & Data Entry Method",
+  3: "Application Form",
+  4: "Upload Requirements",
+  5: "Review & Submit",
 };
 
 export function CPEAccreditationWizard({
@@ -79,6 +77,7 @@ export function CPEAccreditationWizard({
   } = useCPEAccreditationWizard({
     selectedRegionId,
     setSelectedRegionId,
+    selectedOfficeId,
     setSelectedOfficeId,
     setAppMode,
     setBulkMethod,
@@ -97,11 +96,11 @@ export function CPEAccreditationWizard({
           <TouchableOpacity onPress={onToggleExpand}>
             <Icon name={isDetailsExpanded ? "minimize" : "maximize"} size={16} color={COLORS.brand[700]} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>[{STEP_TITLES[step] || "Filing Wizard"}]</Text>
+          <Text style={styles.headerTitle}>{STEP_TITLES[step] || "Filing Wizard"}</Text>
         </View>
-        {step < 8 && (
+        {step < 6 && (
           <View style={styles.progressContainer}>
-            {[1, 2, 3, 4, 5, 6, 7].map((s) => (
+            {[1, 2, 3, 4, 5].map((s) => (
               <View
                 key={s}
                 style={[
@@ -178,8 +177,8 @@ export function CPEAccreditationWizard({
           });
         }}
         isNextDisabled={
-          step === 2 ? (!selectedRegionId || !selectedOfficeId) :
-          (step === 4 && appMode === "BULK" && bulkMethod === "EXCEL") ? !isFileUploaded :
+          step === 1 ? (!selectedRegionId || !selectedOfficeId) :
+          (step === 2 && appMode === "BULK" && bulkMethod === "EXCEL") ? !isFileUploaded :
           false
         }
         styles={styles}

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Alert } from "react-native";
 import { useApi } from "../../../../../shared/hooks/useApi";
+import { extractApiErrorMessage } from "../../../../../shared/components/Toast";
 import { ExamApplicantData } from "../types/examTypes";
 import { useExamFilingQueries } from "./useExamFilingQueries";
 import { getFieldValidationError, mapApplicantsPayload } from "../helpers/examMapping";
@@ -168,7 +169,11 @@ export function useExamFilingWizard({
       isDraft: isDraft,
       applicants: mapped,
     };
-    await api.post(`/api/v2/tenants/${selectedRegionId}/applications`, payload);
+    try {
+      await api.post(`/api/v2/tenants/${selectedRegionId}/applications`, payload);
+    } catch (err: unknown) {
+      throw new Error(extractApiErrorMessage(err));
+    }
   };
 
   return {

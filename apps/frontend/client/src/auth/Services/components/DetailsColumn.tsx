@@ -14,16 +14,17 @@ interface DetailsColumnProps {
 function EmptyPlaceholder({ title, description }: { title: string; description: string }) {
   return (
     <View style={styles.emptyPlaceholder}>
-      <View style={styles.placeholderIllustration}>
-        <Icon name="file" size={48} color="#d1d5db" />
-        <Icon
-          name="mouse-pointer"
-          size={24}
-          color="#1d4ed8"
-          style={styles.pointerOverlay}
-        />
+      <View style={[styles.placeholderIllustration, { backgroundColor: "#EFF6FF", borderWidth: 2, borderColor: "rgba(15, 44, 89, 0.1)" }]}>
+        <Icon name="globe" size={42} color="#0F2C59" />
+        <View style={{ position: "absolute", bottom: -2, right: -2, backgroundColor: "#D97706", borderRadius: 12, padding: 4 }}>
+          <Icon
+            name="mouse-pointer"
+            size={14}
+            color="#FFFFFF"
+          />
+        </View>
       </View>
-      <Text style={styles.placeholderTitleText}>{title}</Text>
+      <Text style={[styles.placeholderTitleText, { color: "#0F2C59" }]}>{title}</Text>
       <Text style={styles.placeholderSubtitleText}>{description}</Text>
     </View>
   );
@@ -81,12 +82,14 @@ export function DetailsColumn({ servicesState }: DetailsColumnProps) {
   const handleClose = () => {
     setActiveWizardService(null);
     setIsDetailsExpanded(false);
-    setSelectedService(null);
     resetWizardState();
   };
 
   const handleSuccess = () => {
-    handleClose();
+    setActiveWizardService(null);
+    setIsDetailsExpanded(false);
+    setSelectedService(null);
+    resetWizardState();
     navigation.navigate("MyApplications");
   };
 
@@ -143,20 +146,14 @@ export function DetailsColumn({ servicesState }: DetailsColumnProps) {
             appMode={appMode} setAppMode={setAppMode}
             applicants={generalApplicants} setApplicants={setGeneralApplicants}
             currentApplicantIndex={currentGeneralApplicantIndex} setCurrentApplicantIndex={setCurrentGeneralApplicantIndex}
+            triggerOpenApplicant={servicesState.triggerOpenApplicant}
           />
         ) : selectedService !== null ? (
           <ServiceDetails
             selectedService={selectedService}
             onBackToServices={handleBackToServices}
             onApplyPress={() => {
-              const titleLower = selectedService.title.toLowerCase();
-              if (titleLower.includes("premises")) {
-                setActiveWizardService("cpe-accreditation");
-              } else if (titleLower.includes("radio operator") || titleLower.includes("exam") || titleLower.includes("examination")) {
-                setActiveWizardService("radio-operator-exam");
-              } else {
-                setActiveWizardService("general-service");
-              }
+              setActiveWizardService("general-service");
             }}
             isMobile={isMobile}
           />

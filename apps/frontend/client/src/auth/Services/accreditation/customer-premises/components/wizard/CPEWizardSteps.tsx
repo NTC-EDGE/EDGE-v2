@@ -63,10 +63,10 @@ export function CPEWizardSteps({
   activeRegionObj,
   styles,
 }: CPEWizardStepsProps) {
-  if (step >= 1 && step <= 3) {
+  if (step === 1) {
     return (
       <CPESteps1To3
-        step={step}
+        step={1}
         selectedRegionId={selectedRegionId}
         setSelectedRegionId={setSelectedRegionId}
         selectedOfficeId={selectedOfficeId}
@@ -85,21 +85,42 @@ export function CPEWizardSteps({
     );
   }
 
-  if (step === 4) {
+  if (step === 2) {
     return (
-      <CPEStep4BulkMethod
-        appMode={appMode}
-        setAppMode={setAppMode}
-        bulkMethod={bulkMethod}
-        setBulkMethod={setBulkMethod}
-        isFileUploaded={isFileUploaded}
-        handleMockFileUpload={handleMockFileUpload}
-        styles={styles}
-      />
+      <View style={{ gap: 16 }}>
+        <CPESteps1To3
+          step={2}
+          selectedRegionId={selectedRegionId}
+          setSelectedRegionId={setSelectedRegionId}
+          selectedOfficeId={selectedOfficeId}
+          setSelectedOfficeId={setSelectedOfficeId}
+          tenants={tenants}
+          offices={officesList}
+          appMode={appMode}
+          setAppMode={setAppMode}
+          activeApplicant={activeApplicant}
+          updateActiveApplicant={updateActiveApplicant}
+          setApplicants={setApplicants}
+          setCurrentApplicantIndex={setCurrentApplicantIndex}
+          initialApplicant={initialApplicant}
+          styles={styles}
+        />
+        {appMode === "BULK" && (
+          <CPEStep4BulkMethod
+            appMode={appMode}
+            setAppMode={setAppMode}
+            bulkMethod={bulkMethod}
+            setBulkMethod={setBulkMethod}
+            isFileUploaded={isFileUploaded}
+            handleMockFileUpload={handleMockFileUpload}
+            styles={styles}
+          />
+        )}
+      </View>
     );
   }
 
-  if (step === 5) {
+  if (step === 3) {
     return (
       <CPEStep5ApplicationForm
         activeApplicant={activeApplicant}
@@ -113,7 +134,7 @@ export function CPEWizardSteps({
     );
   }
 
-  if (step === 6) {
+  if (step === 4) {
     return (
       <CPEStep6DocumentUpload
         activeApplicant={activeApplicant}
@@ -123,7 +144,7 @@ export function CPEWizardSteps({
     );
   }
 
-  if (step === 7) {
+  if (step === 5) {
     return (
       <CPEStep7Review
         appMode={appMode}
@@ -134,7 +155,7 @@ export function CPEWizardSteps({
     );
   }
 
-  if (step === 8) {
+  if (step === 6) {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center", paddingVertical: 40 }}>
         <Icon name="check-circle" size={64} color="#10b981" style={{ marginBottom: 16 }} />

@@ -1,10 +1,11 @@
+import { useState, useEffect } from "react";
 import {
   Text,
   View,
   TouchableOpacity,
   ScrollView,
 } from "react-native";
-import { Icon } from "@edge/ui";
+import { Icon, TYPOGRAPHY } from "@edge/ui";
 import { NTCService, NTCServiceCategory } from "../../data/servicesData";
 import { styles } from "./ServiceList.styles";
 
@@ -15,6 +16,7 @@ interface ServiceListProps {
   onServiceSelect: (service: NTCService) => void;
   onBack: () => void;
   isMobile: boolean;
+  isWizardActive?: boolean;
 }
 
 export function ServiceList({
@@ -24,8 +26,20 @@ export function ServiceList({
   onServiceSelect,
   onBack,
   isMobile,
+  isWizardActive = false,
 }: ServiceListProps) {
   const isSearchActive = searchQuery.trim() !== "";
+  const [showActiveBanner, setShowActiveBanner] = useState(true);
+
+  useEffect(() => {
+    if (isWizardActive) {
+      setShowActiveBanner(true);
+      const timer = setTimeout(() => {
+        setShowActiveBanner(false);
+      }, 60000);
+      return () => clearTimeout(timer);
+    }
+  }, [isWizardActive]);
 
   return (
     <View style={{ flex: 1 }}>
@@ -42,6 +56,30 @@ export function ServiceList({
       )}
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {/* Transaction Active Lock Banner */}
+        {isWizardActive && showActiveBanner && (
+          <View style={{
+            backgroundColor: "#fffbebf",
+            borderColor: "#fde68a",
+            borderWidth: 1,
+            borderRadius: 12,
+            padding: 12,
+            marginBottom: 16,
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 10,
+          }}>
+            <Icon name="lock" size={18} color="#d97706" />
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, fontWeight: "700", color: "#92400e" }}>
+                Application Transaction Active
+              </Text>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, color: "#b45309", marginTop: 2 }}>
+                Selecting a different service requires canceling your current application transaction.
+              </Text>
+            </View>
+          </View>
+        )}
         {isSearchActive ? (
           /* Search results listing screen */
           <View style={styles.searchResultsWrapper}>

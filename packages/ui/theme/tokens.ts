@@ -40,25 +40,25 @@ const SEMANTIC_DARK: ThemeSemanticColors = {
 
 export const LIGHT_COLORS: ThemeColors = {
   brand: {
-    900: '#0B1953', // Deep Executive Navy
-    800: '#1E3A8A', // Branded Enterprise Blue
-    700: '#2563EB', // Branded Accent Blue (Hover)
-    600: '#3B82F6', // Active Highlight Blue
-    505: '#60A5FA', // Light Focus Blue
+    900: '#031A6E', // Official NTC Executive Navy (app.edge.ntc.gov.ph)
+    800: '#0B1953', // Deep Enterprise Blue
+    700: '#1E3A8A', // Corporate Royal Blue
+    600: '#2563EB', // Branded Accent Blue
+    505: '#3B82F6', // Active Highlight Blue
     500: '#60A5FA', // Light Focus Blue
-    primary: '#1E3A8A',
+    primary: '#1E40AF',
     secondary: '#2563EB',
     accent: '#3B82F6',
     focus: '#60A5FA',
-    dark: '#0B1953',
+    dark: '#1E3A8A',
     light: '#EFF6FF',
     indigo: '#4F46E5',
     indigoLight: '#EEF2FF',
     indigoBorder: '#E0E7FF',
     indigoHover: '#6366F1',
-    navy: '#0B1953',
+    navy: '#031A6E',
     navyDark: '#0B132B',
-    navyGradient: '#0E1B61',
+    navyGradient: '#031A6E',
     royalBlue: '#1D4ED8',
     deepBlue: '#1E40AF',
     brightBlue: '#2B56F0',

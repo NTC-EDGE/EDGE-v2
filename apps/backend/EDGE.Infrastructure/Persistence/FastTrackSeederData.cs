@@ -491,7 +491,7 @@ public static class FastTrackSeederData
             ("NTC_PTE_PERMITS", Guid.Parse("50000000-0000-0000-0000-000000000063"), categoryIds["Permits"], "PERMITS FOR PUBLIC TELECOMMUNICATIONS ENTITIES (PTEs)", null, "NTC_PTE_PERMITS", "PERMITS FOR PTEs", Ntc109Contract),
             ("NTC_EQUIP_PERMITS", Guid.Parse("50000000-0000-0000-0000-000000000064"), categoryIds["Permits"], "PERMITS FOR RADIO COMMUNICATIONS EQUIPMENT", null, "NTC_EQUIP_PERMITS", "PERMITS FOR EQUIPMENT", Ntc109Contract),
             ("NTC_MP_PERMITS", Guid.Parse("50000000-0000-0000-0000-000000000065"), categoryIds["Permits"], "PERMITS FOR MOBILE PHONE", null, "NTC_MP_PERMITS", "PERMITS FOR MOBILE PHONE", Ntc109Contract),
-            ("NTC_COPY_PERMITS", Guid.Parse("50000000-0000-0000-0000-000000000066"), categoryIds["Permits"], "COPYY OF PERMITS", null, "NTC_COPY_PERMITS", "COPY OF PERMITS", Ntc109Contract),
+            ("NTC_COPY_PERMITS", Guid.Parse("50000000-0000-0000-0000-000000000066"), categoryIds["Permits"], "COPY OF PERMITS", null, "NTC_COPY_PERMITS", "COPY OF PERMITS", Ntc109Contract),
 
             // New Licenses Services added from the spreadsheet
             ("NTC_AMA_LICENSES", Guid.Parse("50000000-0000-0000-0000-000000000070"), categoryIds["Licenses"], "LICENSE IN THE AMATEUR SERVICE", "License in the Amateur Service", "NTC_AMA_LICENSES", "LICENSE IN THE AMATEUR SERVICE", Ntc103Contract),

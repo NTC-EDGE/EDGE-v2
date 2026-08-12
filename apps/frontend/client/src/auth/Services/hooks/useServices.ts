@@ -1,9 +1,10 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import axios from "axios";
-import { Alert, useWindowDimensions, Platform } from "react-native";
+import { Alert, useWindowDimensions, Platform, BackHandler } from "react-native";
 import { useAppNavigation } from "../../../navigation";
 import { useUser, useAuth } from "@clerk/expo";
 import { useApi } from "../../../shared/hooks/useApi";
+import { useToast, extractApiErrorMessage } from "../../../shared/components/Toast";
 import { NTCService } from "../data/servicesData";
 import { initialDrafts } from "../data/initialDrafts";
 import {
@@ -44,6 +45,7 @@ export function useServices() {
   const isMobile = width < 640;
   const navigation = useAppNavigation();
   const api = useApi();
+  const toast = useToast();
 
   // Clerk Contexts
   const { user: clerkUser } = useUser();
@@ -79,6 +81,10 @@ export function useServices() {
   );
   const backendServices = servicesApiResponse?.succeeded ? servicesApiResponse.data : null;
 
+  // Backend Service Informations Query (Paginated API)
+  const { data: serviceInfosApiResponse } = api.useQuery<{ succeeded: boolean; data: any[]; totalCount: number }>("/api/v2/service-informations?pageSize=9999");
+  const backendServiceInfos = serviceInfosApiResponse?.data ?? [];
+
   // Shared Wizard States
   const [wizardStep, setWizardStep] = useState(1);
   const [selectedRegionId, setSelectedRegionId] = useState("");
@@ -106,6 +112,8 @@ export function useServices() {
     initialGeneralApplicant(1),
   ]);
   const [currentGeneralApplicantIndex, setCurrentGeneralApplicantIndex] = useState(0);
+  const [triggerOpenApplicant, setTriggerOpenApplicant] = useState(0);
+  const [variantRequirements, setVariantRequirements] = useState<string[]>([]);
 
   const [drafts, setDrafts] = useState<DraftApplication[]>(initialDrafts);
   const [viewingDraftsCategory, setViewingDraftsCategory] = useState<string | null>(null);
@@ -126,8 +134,230 @@ export function useServices() {
     setCurrentExamApplicantIndex(0);
     setCurrentGeneralApplicantIndex(0);
     setIsBulkSubmitOpen(false);
+    setIsBulkSubmitOpen(false);
     setServiceId(null);
+
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      if (window.sessionStorage) {
+        window.sessionStorage.removeItem("edge_active_wizard_session");
+      }
+      const params = new URLSearchParams(window.location.search);
+      params.delete("step");
+      params.delete("wizard");
+      params.delete("serviceId");
+      const newUrl = params.toString() ? `${window.location.pathname}?${params.toString()}` : window.location.pathname;
+      window.history.replaceState(null, "", newUrl);
+    }
   };
+
+  // Restore wizard & form entries from URL / sessionStorage on page reload / refresh
+  const isHydrated = useRef(false);
+
+  useEffect(() => {
+    if (isHydrated.current) return;
+    if (Platform.OS !== "web" || typeof window === "undefined") return;
+
+    const params = new URLSearchParams(window.location.search);
+    const urlServiceId = params.get("serviceId");
+    const urlWizard = params.get("wizard");
+    const urlStep = params.get("step");
+
+    if (urlServiceId || urlWizard || urlStep) {
+      try {
+        const savedRaw = window.sessionStorage.getItem("edge_active_wizard_session");
+        if (savedRaw) {
+          const saved = JSON.parse(savedRaw);
+          if (saved.service && (saved.service.id === urlServiceId || !urlServiceId)) {
+            setSelectedService(saved.service);
+            if (saved.activeWizardService) setActiveWizardService(saved.activeWizardService);
+            if (saved.wizardStep) setWizardStep(saved.wizardStep);
+            if (saved.examWizardStep) setExamWizardStep(saved.examWizardStep);
+            if (saved.selectedRegionId) setSelectedRegionId(saved.selectedRegionId);
+            if (saved.selectedOfficeId) setSelectedOfficeId(saved.selectedOfficeId);
+            if (saved.appMode) setAppMode(saved.appMode);
+            if (saved.bulkMethod) setBulkMethod(saved.bulkMethod);
+            if (Array.isArray(saved.generalApplicants) && saved.generalApplicants.length > 0) {
+              setGeneralApplicants(saved.generalApplicants);
+            }
+            if (Array.isArray(saved.examApplicants) && saved.examApplicants.length > 0) {
+              setExamApplicants(saved.examApplicants);
+            }
+            if (Array.isArray(saved.applicants) && saved.applicants.length > 0) {
+              setApplicants(saved.applicants);
+            }
+            isHydrated.current = true;
+            return;
+          }
+        }
+      } catch {
+        // Fallback to service list matching below
+      }
+
+      if (allBackendServices && urlServiceId) {
+        const matched = allBackendServices.find((s: any) => s.id === urlServiceId);
+        if (matched) {
+          setSelectedService(matched);
+          const wizType = urlWizard || (
+            matched.title?.toLowerCase().includes("premises") ? "cpe-accreditation" :
+            matched.title?.toLowerCase().includes("exam") || matched.title?.toLowerCase().includes("operator") ? "radio-operator-exam" :
+            "general-service"
+          );
+          setActiveWizardService(wizType);
+          const stepNum = parseInt(urlStep || "1", 10);
+          if (!isNaN(stepNum) && stepNum > 0) {
+            setWizardStep(stepNum);
+            setExamWizardStep(stepNum);
+          }
+          isHydrated.current = true;
+        }
+      }
+    }
+  }, [allBackendServices]);
+
+  // Persist current wizard form entries to sessionStorage on change
+  useEffect(() => {
+    if (Platform.OS !== "web" || typeof window === "undefined" || !window.sessionStorage) return;
+
+    if (activeWizardService && selectedService) {
+      const sessionData = {
+        service: selectedService,
+        activeWizardService,
+        wizardStep,
+        examWizardStep,
+        selectedRegionId,
+        selectedOfficeId,
+        appMode,
+        bulkMethod,
+        generalApplicants,
+        examApplicants,
+        applicants,
+      };
+      try {
+        window.sessionStorage.setItem("edge_active_wizard_session", JSON.stringify(sessionData));
+      } catch {
+        // ignore storage quota / circular errors
+      }
+    }
+  }, [
+    activeWizardService,
+    selectedService,
+    wizardStep,
+    examWizardStep,
+    selectedRegionId,
+    selectedOfficeId,
+    appMode,
+    bulkMethod,
+    generalApplicants,
+    examApplicants,
+    applicants,
+  ]);
+
+  // Compute active step across all wizard types
+  const currentActiveStep = useMemo(() => {
+    if (activeWizardService === "radio-operator-exam") return examWizardStep;
+    if (activeWizardService === "cpe-accreditation" || activeWizardService === "general-service") return wizardStep;
+    return 1;
+  }, [activeWizardService, wizardStep, examWizardStep]);
+
+  // Sync URL history state on Web when wizard step or service changes
+  useEffect(() => {
+    if (Platform.OS !== "web" || typeof window === "undefined") return;
+
+    const params = new URLSearchParams(window.location.search);
+    const currentServiceId = selectedService?.id || serviceId;
+
+    if (activeWizardService && currentServiceId) {
+      params.set("serviceId", currentServiceId);
+      params.set("wizard", activeWizardService);
+      params.set("step", String(currentActiveStep));
+      const newUrl = `${window.location.pathname}?${params.toString()}`;
+      if (window.location.search !== `?${params.toString()}`) {
+        window.history.pushState({ serviceId: currentServiceId, wizard: activeWizardService, step: currentActiveStep }, "", newUrl);
+      }
+    }
+  }, [activeWizardService, selectedService?.id, serviceId, currentActiveStep]);
+
+  // Fetch dynamic variant requirements for selected service
+  useEffect(() => {
+    let active = true;
+    const fetchRequirements = async () => {
+      if (!selectedService?.id) {
+        setVariantRequirements([]);
+        return;
+      }
+      const effectiveVariantId = generalApplicants[0]?.selectedVariantId || "";
+      try {
+        const reqRes = await api
+          .get<any>(`/api/v2/services/${selectedService.id}/requirements?variantId=${effectiveVariantId || ""}`)
+          .catch(async () => {
+            return await api.get<any>(`/api/v2/service-variant-requirements?serviceVariantId=${effectiveVariantId || ""}`).catch(() => null);
+          });
+
+        if (active) {
+          let list: string[] = [];
+          if (reqRes && reqRes.succeeded && Array.isArray(reqRes.data)) {
+            list = reqRes.data.map((r: any) => typeof r === "string" ? r : r.name || r.title || r.description || "");
+          } else if (Array.isArray(reqRes)) {
+            list = reqRes.map((r: any) => typeof r === "string" ? r : r.name || r.title || r.description || "");
+          } else if (reqRes && Array.isArray(reqRes.items)) {
+            list = reqRes.items.map((r: any) => typeof r === "string" ? r : r.name || r.title || r.description || "");
+          }
+
+          if (list.length === 0 && selectedService.requirements && Array.isArray(selectedService.requirements) && selectedService.requirements.length > 0) {
+            list = selectedService.requirements;
+          }
+          setVariantRequirements(list.filter(Boolean));
+        }
+      } catch (err) {
+        console.warn("Failed to fetch requirements in useServices:", err);
+      }
+    };
+    fetchRequirements();
+    return () => { active = false; };
+  }, [selectedService?.id, generalApplicants[0]?.selectedVariantId, selectedService?.requirements]);
+
+  // Handle Hardware Back (Android) and Browser Back (PopState) for wizard steps
+  useEffect(() => {
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      const handlePopState = () => {
+        if (activeWizardService !== null) {
+          if (currentActiveStep > 1) {
+            if (activeWizardService === "radio-operator-exam") {
+              setExamWizardStep((prev) => Math.max(1, prev - 1));
+            } else {
+              setWizardStep((prev) => Math.max(1, prev - 1));
+            }
+          } else {
+            setActiveWizardService(null);
+            setSelectedService(null);
+          }
+        }
+      };
+
+      window.addEventListener("popstate", handlePopState);
+      return () => window.removeEventListener("popstate", handlePopState);
+    } else if (Platform.OS !== "web") {
+      const backHandler = BackHandler.addEventListener("hardwareBackPress", () => {
+        if (activeWizardService !== null) {
+          if (currentActiveStep > 1) {
+            if (activeWizardService === "radio-operator-exam") {
+              setExamWizardStep((prev) => Math.max(1, prev - 1));
+            } else {
+              setWizardStep((prev) => Math.max(1, prev - 1));
+            }
+            return true;
+          } else {
+            setActiveWizardService(null);
+            setSelectedService(null);
+            return true;
+          }
+        }
+        return false;
+      });
+
+      return () => backHandler.remove();
+    }
+  }, [activeWizardService, currentActiveStep]);
 
   const saveActiveAsDraft = async () => {
     if (!activeWizardService) return;
@@ -243,10 +473,10 @@ export function useServices() {
       };
 
       await api.post(`/api/v2/tenants/${selectedRegionId}/applications`, payload);
-      Alert.alert("Success", "Draft saved to server successfully.");
+      toast.success("Draft Saved", "Draft saved to server successfully.");
     } catch (err) {
       console.error("Failed to save draft to backend:", err);
-      Alert.alert("Partial Success", "Draft saved locally, but failed to sync to server.");
+      toast.error("Sync Failed", extractApiErrorMessage(err));
     }
   };
 
@@ -341,7 +571,7 @@ export function useServices() {
     isMobile && (selectedService !== null || activeWizardService !== null);
 
   const isWizardActive = activeWizardService !== null;
-  const hideSidebar = isMobile || (isWizardActive && width < 1024);
+  const hideSidebar = isMobile;
   const hideCategories =
     (isWizardActive && isDetailsExpanded) ||
     (isWizardActive && width < 1024) ||
@@ -365,22 +595,30 @@ export function useServices() {
   };
 
   const activeCategory = useMemo(() => {
-    if (selectedCategoryId === null || !backendCategories) return null;
-    const category = backendCategories.find((c: any) => c.id === selectedCategoryId);
+    let catId = selectedCategoryId;
+    if (catId === null && selectedService) {
+      catId = (selectedService as any).serviceCategoryId || (selectedService as any).categoryId || null;
+    }
+    if (catId === null || !backendCategories) return null;
+    const category = backendCategories.find((c: any) => c.id === catId || c.code?.toLowerCase() === catId?.toLowerCase());
     if (!category) return null;
 
     const servicesList = backendServices ? backendServices.map((bs: any) => {
+      const backendInfo = (backendServiceInfos || []).find(
+        (x: any) => x.serviceId === bs.id ||
+                    x.serviceTitle?.toLowerCase() === bs.name.toLowerCase() ||
+                    bs.name.toLowerCase().includes((x.serviceTitle || "").toLowerCase()) ||
+                    (x.serviceTitle || "").toLowerCase().includes(bs.name.toLowerCase())
+      );
+
       return {
         id: bs.id,
         serviceCategoryId: category.id,
         category: category.name,
         title: bs.name,
-        description: bs.description || bs.name,
-        requirements: bs.requirements?.map((r: any) => r.name) || [
-          "Duly accomplished Application Form",
-          "Valid Government-issued ID",
-          "Proof of payment of fees"
-        ],
+        description: backendInfo?.information || bs.description || bs.name,
+        whoMayAvail: backendInfo?.whoMayAvail || undefined,
+        requirements: bs.requirements?.map((r: any) => r.name) || [],
         fee: bs.feeDescription || "Varies",
         time: bs.estimatedDuration || "3-5 Working Days"
       };
@@ -401,7 +639,7 @@ export function useServices() {
       description: category.description || `NTC ${category.name} services.`,
       services: servicesList
     };
-  }, [selectedCategoryId, backendCategories, backendServices]);
+  }, [selectedCategoryId, backendCategories, backendServices, backendServiceInfos]);
 
   const searchResults = useMemo(() => {
     if (searchQuery.trim() === "" || !allBackendServices) return null;
@@ -414,6 +652,13 @@ export function useServices() {
         (bs.description && bs.description.toLowerCase().includes(query))
       ) {
         const cat = backendCategories?.find((c: any) => c.id === bs.serviceCategoryId);
+        const backendInfo = (backendServiceInfos || []).find(
+          (x: any) => x.serviceId === bs.id ||
+                      x.serviceTitle?.toLowerCase() === bs.name.toLowerCase() ||
+                      bs.name.toLowerCase().includes((x.serviceTitle || "").toLowerCase()) ||
+                      (x.serviceTitle || "").toLowerCase().includes(bs.name.toLowerCase())
+        );
+
         results.push({
           categoryTitle: cat?.name || "Services",
           service: {
@@ -421,12 +666,9 @@ export function useServices() {
             serviceCategoryId: bs.serviceCategoryId,
             category: cat?.name || "Services",
             title: bs.name,
-            description: bs.description || bs.name,
-            requirements: bs.requirements?.map((r: any) => r.name) || [
-              "Duly accomplished Application Form",
-              "Valid Government-issued ID",
-              "Proof of payment of fees"
-            ],
+            description: backendInfo?.information || bs.description || bs.name,
+            whoMayAvail: backendInfo?.whoMayAvail || undefined,
+            requirements: bs.requirements?.map((r: any) => r.name) || [],
             fee: bs.feeDescription || "Varies",
             time: bs.estimatedDuration || "3-5 Working Days"
           }
@@ -434,7 +676,7 @@ export function useServices() {
       }
     });
     return results;
-  }, [searchQuery, allBackendServices, backendCategories]);
+  }, [searchQuery, allBackendServices, backendCategories, backendServiceInfos]);
 
   const handleBackToCategories = () => {
     setSelectedCategoryId(null);
@@ -510,7 +752,18 @@ export function useServices() {
 
   const confirmSwitchService = (onConfirm: () => void) => {
     if (activeWizardService !== null) {
-      if (hasUnsavedChanges()) {
+      // Check if wizard is on final success screen
+      const isSuccessStep =
+        (activeWizardService === "cpe-accreditation" && wizardStep >= 8) ||
+        (activeWizardService === "radio-operator-exam" && examWizardStep >= 7) ||
+        (activeWizardService === "general-service" && wizardStep >= 6);
+
+      if (isSuccessStep) {
+        resetWizardState();
+        setActiveWizardService(null);
+        setSelectedService(null);
+        onConfirm();
+      } else {
         setPendingConfirmAction(() => () => {
           resetWizardState();
           setActiveWizardService(null);
@@ -518,11 +771,6 @@ export function useServices() {
           onConfirm();
         });
         setConfirmModalVisible(true);
-      } else {
-        resetWizardState();
-        setActiveWizardService(null);
-        setSelectedService(null);
-        onConfirm();
       }
     } else {
       onConfirm();
@@ -547,26 +795,13 @@ export function useServices() {
         }
       );
       setIsModalOpen(false);
-      Alert.alert(
-        "Success",
-        "Your application has been submitted successfully.",
+      toast.success(
+        "Application Submitted",
+        "Your application has been submitted successfully."
       );
     } catch (err: unknown) {
       console.error(err);
-      let errMsg = "Failed to submit application.";
-      if (axios.isAxiosError(err)) {
-        const responseData = err.response?.data;
-        if (
-          responseData &&
-          typeof responseData === "object" &&
-          "message" in responseData
-        ) {
-          errMsg = String(responseData.message);
-        }
-      } else if (err instanceof Error) {
-        errMsg = err.message;
-      }
-      Alert.alert("Error", errMsg);
+      toast.error("Submission Failed", extractApiErrorMessage(err));
     } finally {
       setSubmitting(false);
     }
@@ -627,6 +862,9 @@ export function useServices() {
     setGeneralApplicants,
     currentGeneralApplicantIndex,
     setCurrentGeneralApplicantIndex,
+    triggerOpenApplicant,
+    setTriggerOpenApplicant,
+    variantRequirements,
     drafts,
     setDrafts,
     viewingDraftsCategory,

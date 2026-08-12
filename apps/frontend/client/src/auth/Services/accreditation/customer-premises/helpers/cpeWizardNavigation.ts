@@ -37,30 +37,22 @@ export function handleCPENext({
   setIsConfirmModalOpen,
 }: NavigationContext) {
   if (step === 1) {
-    setStep(2);
-  } else if (step === 2) {
     if (!selectedRegionId || !selectedOfficeId) {
       Alert.alert("Error", "Please select region and office.");
       return;
     }
-    setStep(3);
-  } else if (step === 3) {
-    if (appMode === "SINGLE") {
-      setStep(5);
-    } else {
-      setStep(4);
-    }
-  } else if (step === 4) {
-    if (bulkMethod === "EXCEL") {
+    setStep(2);
+  } else if (step === 2) {
+    if (appMode === "BULK" && bulkMethod === "EXCEL") {
       if (!isFileUploaded) {
         Alert.alert("Error", "Please upload the CSV/Excel file to proceed.");
         return;
       }
-      setStep(7);
-    } else {
       setStep(5);
+    } else {
+      setStep(3);
     }
-  } else if (step === 5) {
+  } else if (step === 3) {
     const isValid = validateForm(activeApplicant);
     if (!isValid) {
       const fields = [
@@ -76,8 +68,8 @@ export function handleCPENext({
       Alert.alert("Validation Error", "Please fill in all required fields marked with *.");
       return;
     }
-    setStep(6);
-  } else if (step === 6) {
+    setStep(4);
+  } else if (step === 4) {
     const reqList = getRequirementsList(activeApplicant.appType);
     const allUploaded = reqList.every((_, idx) => activeApplicant.uploads[idx.toString()]);
     if (!allUploaded) {
@@ -87,11 +79,11 @@ export function handleCPENext({
 
     if (appMode === "BULK" && bulkMethod === "MANUAL" && currentApplicantIndex < applicants.length - 1) {
       setCurrentApplicantIndex(currentApplicantIndex + 1);
-      setStep(5);
+      setStep(3);
     } else {
-      setStep(7);
+      setStep(5);
     }
-  } else if (step === 7) {
+  } else if (step === 5) {
     setIsConfirmModalOpen(true);
   }
 }
@@ -112,18 +104,10 @@ export function handleCPEBack({
   } else if (step === 4) {
     setStep(3);
   } else if (step === 5) {
-    if (appMode === "SINGLE") {
-      setStep(3);
-    } else {
-      setStep(4);
-    }
-  } else if (step === 6) {
-    setStep(5);
-  } else if (step === 7) {
     if (appMode === "BULK" && bulkMethod === "EXCEL") {
-      setStep(4);
+      setStep(2);
     } else {
-      setStep(6);
+      setStep(4);
     }
   } else {
     setStep(step - 1);

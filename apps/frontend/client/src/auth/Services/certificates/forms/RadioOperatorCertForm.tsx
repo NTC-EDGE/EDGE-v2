@@ -1,7 +1,9 @@
 import React from "react";
 import { View, Text } from "react-native";
+import { Icon } from "@edge/ui";
 import { Select } from "../../../../shared/components/Select";
 import { ValidatedInput } from "../../../../shared/components/ValidatedInput";
+import { DatePickerInput } from "../../../../shared/components/DatePickerInput";
 import { RadioOperatorCertData } from "../types/certificateTypes";
 import { certStyles } from "./CertificateFormStyles";
 
@@ -23,24 +25,35 @@ export function RadioOperatorCertForm({
   const isRenewalOrMod = data.appType === "RENEWAL" || data.appType === "MODIFICATION";
   const isModification = data.appType === "MODIFICATION";
 
+  const certTypeDisplay = isAmateurService
+    ? (data.classOfStation || "Class A (Advanced)")
+    : (data.typeOfCertificate || "GROC - General Radio Operator Certificate");
+
   return (
     <View style={certStyles.container}>
       {/* Application Details */}
       <View style={certStyles.formSection}>
-        <Text style={certStyles.formSectionHeading}>Application Details</Text>
+        <View style={{ marginBottom: 12 }}>
+          <Text style={certStyles.formSectionHeading}>Application Details</Text>
+        </View>
+
         <View style={certStyles.formGrid}>
+          {/* Read-only Application Type Badge */}
           <View style={certStyles.formCol6}>
-            <Text style={certStyles.selectLabel}>Application Type*</Text>
-            <Select
-              value={data.appType}
-              onValueChange={(val) => onChange({ appType: val as any })}
-              options={[
-                { label: "New Application", value: "NEW" },
-                { label: "Renewal", value: "RENEWAL" },
-                { label: "Modification", value: "MODIFICATION" },
-              ]}
-            />
+            <Text style={{ fontFamily: "System", fontSize: 13, fontWeight: "600", color: "#334155", marginBottom: 6 }}>
+              Application Type
+            </Text>
+            <View style={{ height: 44, backgroundColor: "#F1F5F9", borderColor: "#CBD5E1", borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, justifyContent: "center" }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <Icon name="check-circle" size={14} color="#0F2C59" />
+                <Text style={{ fontFamily: "System", fontSize: 13, fontWeight: "700", color: "#0F2C59" }}>
+                  {data.appType === "NEW" ? "New Application" : data.appType === "RENEWAL" ? "Renewal" : "Modification"}
+                </Text>
+              </View>
+            </View>
           </View>
+
+          {/* Editable License / Cert Duration */}
           <View style={certStyles.formCol6}>
             <Text style={certStyles.selectLabel}>Number of Years*</Text>
             <Select
@@ -55,37 +68,19 @@ export function RadioOperatorCertForm({
             />
           </View>
 
+          {/* Read-only Class / Element / Certificate Badge */}
           <View style={certStyles.formCol12}>
-            <Text style={certStyles.selectLabel}>
-              {isAmateurService ? "Class of Station*" : "Type of Certificate*"}
+            <Text style={{ fontFamily: "System", fontSize: 13, fontWeight: "600", color: "#334155", marginBottom: 6 }}>
+              {isAmateurService ? "Class of Station" : "Type of Certificate"}
             </Text>
-            <Select
-              value={isAmateurService ? data.classOfStation : data.typeOfCertificate}
-              onValueChange={(val) =>
-                isAmateurService ? onChange({ classOfStation: val }) : onChange({ typeOfCertificate: val })
-              }
-              options={
-                isAmateurService
-                  ? [
-                      { label: "Class A (Advanced)", value: "Class A" },
-                      { label: "Class B (General)", value: "Class B" },
-                      { label: "Class C (Novice)", value: "Class C" },
-                      { label: "Class D (Foundation)", value: "Class D" },
-                    ]
-                  : [
-                      { label: "1RTG - First Class Radiotelegraph Operator", value: "1RTG" },
-                      { label: "2RTG - Second Class Radiotelegraph Operator", value: "2RTG" },
-                      { label: "3RTG - Third Class Radiotelegraph Operator", value: "3RTG" },
-                      { label: "1PHN - First Class Radiotelephone Operator", value: "1PHN" },
-                      { label: "2PHN - Second Class Radiotelephone Operator", value: "2PHN" },
-                      { label: "3PHN - Third Class Radiotelephone Operator", value: "3PHN" },
-                      { label: "GROC - General Radio Operator Certificate", value: "GROC" },
-                      { label: "SROP - Special Radio Operator Permit", value: "SROP" },
-                      { label: "RROC-Land Mobile", value: "RROC-Land Mobile" },
-                      { label: "RROC-Aircraft", value: "RROC-Aircraft" },
-                    ]
-              }
-            />
+            <View style={{ height: 44, backgroundColor: "#F1F5F9", borderColor: "#CBD5E1", borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, justifyContent: "center" }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <Icon name="award" size={14} color="#1E40AF" />
+                <Text style={{ fontFamily: "System", fontSize: 13, fontWeight: "700", color: "#1E40AF" }}>
+                  {certTypeDisplay}
+                </Text>
+              </View>
+            </View>
           </View>
 
           {/* Conditional Renewal & Modification Fields */}
@@ -103,7 +98,7 @@ export function RadioOperatorCertForm({
                 />
               </View>
               <View style={certStyles.formCol6}>
-                <ValidatedInput
+                <DatePickerInput
                   label="Date of Expiry"
                   placeholder="MM/DD/YYYY"
                   value={data.dateOfExpiry}
@@ -242,7 +237,7 @@ export function RadioOperatorCertForm({
             />
           </View>
           <View style={certStyles.formCol6}>
-            <ValidatedInput
+            <DatePickerInput
               label="Exam / Seminar Date"
               placeholder="MM/DD/YYYY"
               value={data.examDate}

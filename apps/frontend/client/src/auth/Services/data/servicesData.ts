@@ -9,6 +9,7 @@ export interface NTCService {
   serviceCategoryId?: string;
   title: string;
   description: string;
+  whoMayAvail?: string;
   requirements: string[];
   fee: string;
   time: string;

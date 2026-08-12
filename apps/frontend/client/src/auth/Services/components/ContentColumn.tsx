@@ -66,7 +66,7 @@ export function ContentColumn({ servicesState }: ContentColumnProps) {
     >
       {activeWizardService === "cpe-accreditation" &&
       appMode === "BULK" &&
-      wizardStep >= 4 ? (
+      wizardStep >= 3 ? (
         <BulkApplicantsPanel
           applicants={applicants}
           currentApplicantIndex={currentApplicantIndex}
@@ -97,12 +97,16 @@ export function ContentColumn({ servicesState }: ContentColumnProps) {
         />
       ) : activeWizardService === "general-service" &&
         appMode === "BULK" &&
-        wizardStep >= 4 &&
+        wizardStep >= 3 &&
         selectedService !== null ? (
         <GeneralBulkApplicantsPanel
           applicants={generalApplicants}
           currentApplicantIndex={currentGeneralApplicantIndex}
-          onSelectApplicant={setCurrentGeneralApplicantIndex}
+          onSelectApplicant={(idx) => {
+            setCurrentGeneralApplicantIndex(idx);
+            setWizardStep(3);
+            servicesState.setTriggerOpenApplicant((prev: number) => prev + 1);
+          }}
           setStep={setWizardStep}
           resetWizardState={resetWizardState}
           onCancel={() => {
@@ -114,7 +118,12 @@ export function ContentColumn({ servicesState }: ContentColumnProps) {
           }}
           onRemoveApplicant={handleRemoveGeneralApplicant}
           onAddApplicant={handleAddGeneralApplicant}
+          onApplicantsImported={(imported) => {
+            servicesState.setGeneralApplicants(imported);
+            setCurrentGeneralApplicantIndex(0);
+          }}
           service={selectedService}
+          variantRequirements={servicesState.variantRequirements}
         />
       ) : searchQuery.trim() !== "" ? (
         <ServiceList
@@ -129,10 +138,11 @@ export function ContentColumn({ servicesState }: ContentColumnProps) {
               }
             });
           }}
-          onBack={handleClearSearch}
+          onBack={() => confirmSwitchService(handleClearSearch)}
           isMobile={isMobile}
+          isWizardActive={activeWizardService !== null}
         />
-      ) : selectedCategoryId !== null ? (
+      ) : selectedCategoryId !== null || selectedService !== null ? (
         <ServiceList
           searchQuery=""
           activeCategory={activeCategory}
@@ -142,14 +152,21 @@ export function ContentColumn({ servicesState }: ContentColumnProps) {
               setSelectedService(service);
             });
           }}
-          onBack={handleBackToCategories}
+          onBack={() => confirmSwitchService(handleBackToCategories)}
           isMobile={isMobile}
+          isWizardActive={activeWizardService !== null}
         />
       ) : (
         <CategoryGrid
           user={userProfile}
           searchQuery={searchQuery}
-          onSearchQueryChange={setSearchQuery}
+          onSearchQueryChange={(query) => {
+            if (activeWizardService !== null) {
+              confirmSwitchService(() => setSearchQuery(query));
+            } else {
+              setSearchQuery(query);
+            }
+          }}
           selectedCategoryId={selectedCategoryId}
           onCategorySelect={(catId) => {
             confirmSwitchService(() => {
@@ -161,6 +178,7 @@ export function ContentColumn({ servicesState }: ContentColumnProps) {
           onViewDrafts={setViewingDraftsCategory}
           backendCategories={backendCategories}
           allBackendServices={allBackendServices}
+          isWizardActive={activeWizardService !== null}
         />
       )}
     </View>

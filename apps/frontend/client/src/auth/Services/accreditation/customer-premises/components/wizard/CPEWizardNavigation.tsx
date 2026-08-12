@@ -16,14 +16,12 @@ export function CPEWizardNavigation({
   isNextDisabled,
   styles,
 }: CPEWizardNavigationProps) {
-  if (step >= 8) return null;
+  if (step >= 6) return null;
 
   return (
     <View style={styles.footerControls}>
       <TouchableOpacity onPress={onBack} style={styles.backButton}>
-        <Text style={styles.backButtonText}>
-          {step === 1 ? "Cancel" : "Back"}
-        </Text>
+        <Text style={styles.backButtonText}>Back</Text>
       </TouchableOpacity>
 
       <TouchableOpacity
@@ -35,7 +33,7 @@ export function CPEWizardNavigation({
         ]}
       >
         <Text style={[styles.nextButtonText, isNextDisabled && styles.nextButtonTextDisabled]}>
-          {step === 7 ? "Submit" : "Next"}
+          {step === 5 ? "Submit" : "Next"}
         </Text>
       </TouchableOpacity>
     </View>

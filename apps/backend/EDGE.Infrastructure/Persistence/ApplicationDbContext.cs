@@ -85,6 +85,7 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
     public DbSet<ApplicationRequirement> ApplicationRequirements => Set<ApplicationRequirement>();
     public DbSet<StoredFile> StoredFiles => Set<StoredFile>();
     public DbSet<ApplicationStatusHistory> ApplicationStatusHistories => Set<ApplicationStatusHistory>();
+    public DbSet<ServiceInformation> ServiceInformations => Set<ServiceInformation>();
 
     public DbSet<StatementOfAccount> StatementsOfAccount => Set<StatementOfAccount>();
     public DbSet<SoaLineItem> SoaLineItems => Set<SoaLineItem>();

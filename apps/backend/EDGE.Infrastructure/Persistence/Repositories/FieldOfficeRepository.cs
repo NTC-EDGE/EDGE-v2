@@ -31,13 +31,29 @@ public class FieldOfficeRepository : IFieldOfficeRepository
 
     public async Task<List<FieldOffice>> GetByTenantIdAsync(Guid tenantId, CancellationToken cancellationToken = default)
     {
+        var tenantOffices = await _context.FieldOffices
+            .Include(f => f.Tenant)
+            .Include(f => f.Region)
+            .Include(f => f.Province)
+            .Include(f => f.OfficerInCharge)
+                .ThenInclude(o => o.User)
+            .Where(f => f.TenantId == tenantId || (f.RegionId != null && f.RegionId == tenantId))
+            .OrderBy(f => f.Name)
+            .ToListAsync(cancellationToken);
+
+        if (tenantOffices.Count > 0)
+        {
+            return tenantOffices;
+        }
+
+        // Fallback: If no offices are bound to this specific tenant, return all active offices
         return await _context.FieldOffices
             .Include(f => f.Tenant)
             .Include(f => f.Region)
             .Include(f => f.Province)
             .Include(f => f.OfficerInCharge)
                 .ThenInclude(o => o.User)
-            .Where(f => f.TenantId == tenantId)
+            .Where(f => f.IsActive)
             .OrderBy(f => f.Name)
             .ToListAsync(cancellationToken);
     }
