@@ -15,7 +15,7 @@ public class GetServiceInformationByIdQueryHandler(IServiceInformationRepository
         var item = await repository.GetByIdAsync(request.Id, cancellationToken);
         if (item == null)
         {
-            return ApiResponse<ServiceInformationDto>.Fail($"ServiceInformation with ID '{request.Id}' was not found.");
+            return ApiResponse<ServiceInformationDto>.NotFound($"ServiceInformation with ID '{request.Id}' was not found.");
         }
 
         var dto = new ServiceInformationDto(
