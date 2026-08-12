@@ -102,6 +102,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
                 .ThenInclude(s => s.LineItems)
             .Include(a => a.OrdersOfPayment)
             .Include(a => a.Histories)
+            .AsNoTracking()
             .AsQueryable();
 
         // Agency portal feed never shows unsubmitted client Drafts nor archived applications

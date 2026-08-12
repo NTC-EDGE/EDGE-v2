@@ -15,12 +15,18 @@ public class UserRepository : IUserRepository
 
     public async Task<User?> GetByEmailAsync(string email, CancellationToken cancellationToken = default)
     {
-        return await _context.Users.FirstOrDefaultAsync(x => x.Email == email, cancellationToken);
+        return await _context.Users
+            .Include(x => x.TenantMemberships)
+                .ThenInclude(tm => tm.Role)
+            .FirstOrDefaultAsync(x => x.Email == email, cancellationToken);
     }
 
     public async Task<User?> GetByAuthUserIdAsync(string authUserId, CancellationToken cancellationToken = default)
     {
-        return await _context.Users.FirstOrDefaultAsync(x => x.AuthUserId == authUserId, cancellationToken);
+        return await _context.Users
+            .Include(x => x.TenantMemberships)
+                .ThenInclude(tm => tm.Role)
+            .FirstOrDefaultAsync(x => x.AuthUserId == authUserId, cancellationToken);
     }
 
     public async Task AddAsync(User user, CancellationToken cancellationToken = default)
