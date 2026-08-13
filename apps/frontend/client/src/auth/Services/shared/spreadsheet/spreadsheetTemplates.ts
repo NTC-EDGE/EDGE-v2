@@ -203,7 +203,89 @@ export function getSpreadsheetTemplateForService(service: NTCService): Spreadshe
     };
   }
 
-  // 4. RFID, SRD, WDN Devices (NTC 1-19)
+  // 4. Permits in the Amateur Service (NTC 1-09)
+  if (
+    code === "NTC_1_09" ||
+    title.includes("PERMITS IN THE AMATEUR SERVICE") ||
+    (title.includes("PERMIT") && title.includes("AMATEUR"))
+  ) {
+    return {
+      filename: "NTC_Permits_In_The_Amateur_Service_Template.csv",
+      headers: [
+        "Applicant Name",
+        "Call Sign",
+        "Contact Number",
+        "Email",
+        "Region",
+        "Province",
+        "City",
+        "Barangay",
+        "Street",
+        "Room / Unit / Bldg",
+        "Zip Code",
+        "Service Area",
+        "Frequency",
+        "Bandwidth",
+        "Bandwidth Unit",
+        "Emission",
+        "Power Output",
+        "Hours of Operation",
+        "Station Class",
+        "Exact Location",
+        "Longitude",
+        "Latitude",
+        "Configuration",
+        "Data Rate",
+        "Equipment Serial Numbers",
+        "Equipment Frequency Ranges",
+        "Name of Dealer",
+        "Authorized Seller / Buyer",
+        "OR / Invoice No",
+        "Permit / RSL No",
+        "Intended Use",
+        "Storage Location Details",
+      ],
+      sampleRows: [
+        [
+          "Juan Dela Cruz",
+          "DU1ABC",
+          "09171234567",
+          "juandelacruz@example.ph",
+          "NCR",
+          "Metro Manila",
+          "Quezon City",
+          "Central",
+          "123 Agham Road",
+          "Unit 402",
+          "1100",
+          "Nationwide",
+          "144.000 - 146.000 MHz",
+          "25",
+          "MHz",
+          "16K0F3E",
+          "50W",
+          "24 Hours / As Needed",
+          "FX/FB",
+          "Transmitter Site Bldg B, Quezon City",
+          "121.0437 E",
+          "14.6507 N",
+          "Simplex / Duplex",
+          "9600 bps",
+          "SN-IC7300-88192; SN-FT991A-10294",
+          "144-148 MHz; 430-440 MHz",
+          "Manila Amateur Radio Supplies Inc.",
+          "Authorized Distributor",
+          "OR-2024-88910",
+          "RSL-AMA-2023-0091",
+          "Storage At",
+          "Secure Storage Facility, Warehouse 3, Pasig City",
+        ],
+      ],
+      description: "Use this template for bulk filing of applicants under the selected Permit application type.",
+    };
+  }
+
+  // 5. RFID, SRD, WDN Devices (NTC 1-19)
   if (code === "NTC_1_19" || title.includes("RFID") || title.includes("WDN")) {
     return {
       filename: "NTC_Device_Registration_Template.csv",

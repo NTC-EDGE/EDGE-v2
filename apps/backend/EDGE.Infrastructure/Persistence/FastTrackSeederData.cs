@@ -186,7 +186,7 @@ public static class FastTrackSeederData
         ""revisionDate"": ""2023-03-31"",
         ""serviceCategory"": ""Permits"",
         ""group"": ""Permits in the Amateur Service"",
-        ""applicationTypes"": [""Purchase"", ""Possess"", ""Sell/Transfer""],
+        ""applicationTypes"": [""Purchase"", ""Possess"", ""Possess for Storage"", ""Sell/Transfer""],
         ""elements"": [],
         ""requiredSections"": [
             { ""key"": ""applicant"", ""required"": true },
@@ -201,8 +201,8 @@ public static class FastTrackSeederData
         ""categorySpecific"": {
             ""typeOfRadioService"": [""Fixed and Land Mobile"",""Aeronautical"",""Maritime"",""Broadcast"",""Amateur"",""Other""],
             ""natureOfService"": [""CV Private"",""CO Government"",""CP Public Correspondence""],
-            ""classOfStation"": [""RT"",""FX"",""FB"",""ML"",""P"",""BC"",""FC"",""FA"",""MA"",""TC"",""Other""],
-            ""intendedUse"": [""New Radio Station"",""Additional Radio Station"",""Change of Equipment"",""Additional Equipment"",""Storage"",""Other""]
+            ""classOfStation"": [""RT"",""FX"",""FB"",""FX/FB"",""ML"",""P"",""BC"",""FC"",""FA"",""MA"",""TC"",""Other""],
+            ""intendedUse"": [""New Radio Station"",""Additional Radio Equipment"",""Change of Equipment"",""Storage"",""Other""]
         },
         ""entityType"": ""Application""
     }";
@@ -577,7 +577,7 @@ public static class FastTrackSeederData
 
             // --- Permits in the Amateur Service (svc109) ---
             (Guid.Parse("60000000-0000-0000-0000-000000000060"), svc109, ServiceVariantType.New, "Amateur Radio Station Permit to Purchase"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000061"), svc109, ServiceVariantType.NA, "Amateur Radio Station Permit Permit to Possess for Storage"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000061"), svc109, ServiceVariantType.NA, "Amateur Radio Station Permit to Possess for Storage"),
             (Guid.Parse("60000000-0000-0000-0000-000000000062"), svc109, ServiceVariantType.NA, "Amateur Radio Station Permit to Purchase/Possess"),
             (Guid.Parse("60000000-0000-0000-0000-000000000063"), svc109, ServiceVariantType.New, "Amateur Radio Station Permit to Sell/Transfer"),
             (Guid.Parse("60000000-0000-0000-0000-000000000064"), svc109, ServiceVariantType.NA, "Temporary Permit to Operate an Amateur Radio Station - Foreign Visitor"),

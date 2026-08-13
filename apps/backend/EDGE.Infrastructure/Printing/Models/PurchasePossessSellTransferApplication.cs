@@ -4,6 +4,7 @@ public enum TypeOfApplicationSpecific
 {
     Purchase,
     Possess,
+    PossessForStorage,
     SellTransfer
 }
 
