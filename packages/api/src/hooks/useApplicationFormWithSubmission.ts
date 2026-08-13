@@ -1,5 +1,6 @@
 import useSWR from 'swr';
 import { apiClient } from '../apiClient';
+import { applicationService } from '../services/applicationService';
 import { ApiResponse, ApplicationFormSubmissionDto } from '../types';
 
 export function useApplicationFormWithSubmission(
@@ -25,10 +26,46 @@ export function useApplicationFormWithSubmission(
     { revalidateOnFocus: false }
   );
 
+  const createSubmission = async (
+    formId: string,
+    fieldValues: Array<{ fieldId: string; customLabel?: string; value?: string }>
+  ) => {
+    if (!applicationId) return [null, new Error('Application ID is required.')] as const;
+    const result = await applicationService.createFormSubmission(
+      applicationId,
+      formId,
+      fieldValues,
+      applicantId
+    );
+    if (result[0]?.succeeded) {
+      await mutate();
+    }
+    return result;
+  };
+
+  const updateSubmissionValues = async (
+    targetSubmissionId: string,
+    fieldValues: Array<{ fieldId: string; customLabel?: string; value?: string }>
+  ) => {
+    if (!applicationId) return [null, new Error('Application ID is required.')] as const;
+    const result = await applicationService.updateFormSubmissionValues(
+      applicationId,
+      targetSubmissionId,
+      fieldValues,
+      applicantId
+    );
+    if (result[0]?.succeeded) {
+      await mutate();
+    }
+    return result;
+  };
+
   return {
     formData: data?.data ?? null,
     isLoading,
     isError: Boolean(error),
     refetch: mutate,
+    createSubmission,
+    updateSubmissionValues,
   };
 }
