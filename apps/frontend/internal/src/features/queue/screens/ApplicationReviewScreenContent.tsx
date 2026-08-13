@@ -1037,7 +1037,7 @@ function ApplicantRecordTab({
       }))
     );
 
-    const [res, err] = await applicationService.adminUpdateFormValues(app.id, activeApplicant.id, payload);
+    const [res, err] = await applicationService.adminUpdateFormValues(app.id, activeApplicant.id, payload, formData.submissionId ?? undefined);
     if (res && res.succeeded) {
       setIsEditingForm(false);
       refetchForm();

@@ -257,9 +257,10 @@ public static class ApplicationEndpoints
     public static async Task<IResult> GetApplicationFormWithSubmissionEndpoint(
         Guid id,
         [FromQuery] Guid? applicantId,
+        [FromQuery] Guid? submissionId,
         IMediator mediator)
     {
-        var result = await mediator.Send(new EDGE.Application.Applications.Queries.GetApplicationFormWithSubmission.GetApplicationFormWithSubmissionQuery(id, applicantId));
+        var result = await mediator.Send(new EDGE.Application.Applications.Queries.GetApplicationFormWithSubmission.GetApplicationFormWithSubmissionQuery(id, applicantId, submissionId));
         return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
     }
 

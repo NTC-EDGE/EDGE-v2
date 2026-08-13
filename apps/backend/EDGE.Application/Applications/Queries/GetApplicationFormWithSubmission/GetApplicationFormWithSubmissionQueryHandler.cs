@@ -60,7 +60,12 @@ public class GetApplicationFormWithSubmissionQueryHandler : IRequestHandler<GetA
         }
 
         FormSubmission? submission = null;
-        if (request.ApplicantId.HasValue && request.ApplicantId.Value != Guid.Empty)
+        if (request.SubmissionId.HasValue && request.SubmissionId.Value != Guid.Empty)
+        {
+            submission = app.FormSubmissions.FirstOrDefault(fs => fs.Id == request.SubmissionId.Value);
+        }
+
+        if (submission == null && request.ApplicantId.HasValue && request.ApplicantId.Value != Guid.Empty)
         {
             submission = app.FormSubmissions.FirstOrDefault(fs => fs.ApplicantId == request.ApplicantId.Value);
         }
@@ -88,6 +93,7 @@ public class GetApplicationFormWithSubmissionQueryHandler : IRequestHandler<GetA
 
         var dto = new ApplicationFormSubmissionDto
         {
+            SubmissionId = submission?.Id,
             FormId = form.Id,
             ServiceId = form.ServiceId,
             ApplicationId = app.Id,

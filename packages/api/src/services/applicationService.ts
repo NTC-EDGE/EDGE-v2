@@ -75,21 +75,29 @@ export const applicationService = {
     });
   },
 
-  async adminUpdateFormValues(applicationId: string, applicantId: string, formFields: Array<{ fieldId: string; fieldLabel: string; value?: string }>) {
+  async adminUpdateFormValues(
+    applicationId: string,
+    applicantId: string,
+    formFields: Array<{ fieldId: string; fieldLabel: string; value?: string }>,
+    submissionId?: string
+  ) {
     return safeAsync(async () => {
       const response = await apiClient.patch<ApiResponse<ApplicationDto>>(
         `/api/v2/applications/${applicationId}/applicants/${applicantId}/form-values/admin-update`,
-        { formFields }
+        { submissionId, formFields }
       );
       return response.data;
     });
   },
 
-  async getApplicationFormWithSubmission(applicationId: string, applicantId?: string) {
+  async getApplicationFormWithSubmission(applicationId: string, applicantId?: string, submissionId?: string) {
     return safeAsync(async () => {
-      const params = applicantId ? `?applicantId=${applicantId}` : '';
+      const queryParams = new URLSearchParams();
+      if (applicantId) queryParams.set('applicantId', applicantId);
+      if (submissionId) queryParams.set('submissionId', submissionId);
+      const queryString = queryParams.toString();
       const response = await apiClient.get<ApiResponse<ApplicationFormSubmissionDto>>(
-        `/api/v2/applications/${applicationId}/form${params}`
+        `/api/v2/applications/${applicationId}/form${queryString ? `?${queryString}` : ''}`
       );
       return response.data;
     });

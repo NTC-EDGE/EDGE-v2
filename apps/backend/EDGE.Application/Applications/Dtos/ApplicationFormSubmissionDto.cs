@@ -8,6 +8,7 @@ namespace EDGE.Application.Applications.Dtos;
 /// </summary>
 public class ApplicationFormSubmissionDto
 {
+    public Guid? SubmissionId { get; set; }
     public Guid FormId { get; set; }
     public Guid ServiceId { get; set; }
     public Guid ApplicationId { get; set; }

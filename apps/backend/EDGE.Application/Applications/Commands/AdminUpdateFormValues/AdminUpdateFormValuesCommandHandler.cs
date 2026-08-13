@@ -38,9 +38,14 @@ public class AdminUpdateFormValuesCommandHandler : IRequestHandler<AdminUpdateFo
         await _unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
-            // Find form submission strictly for applicant (or application level when single submission)
+            // Find form submission strictly by SubmissionId if provided, or ApplicantId
             FormSubmission? submission = null;
-            if (request.ApplicantId != Guid.Empty)
+            if (request.SubmissionId.HasValue && request.SubmissionId.Value != Guid.Empty)
+            {
+                submission = app.FormSubmissions.FirstOrDefault(fs => fs.Id == request.SubmissionId.Value);
+            }
+
+            if (submission == null && request.ApplicantId != Guid.Empty)
             {
                 submission = app.FormSubmissions.FirstOrDefault(fs => fs.ApplicantId == request.ApplicantId);
             }
@@ -60,7 +65,7 @@ public class AdminUpdateFormValuesCommandHandler : IRequestHandler<AdminUpdateFo
             if (submission == null)
             {
                 await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-                return ApiResponse<Guid>.Fail($"No matching form submission found for Applicant ID {request.ApplicantId}.");
+                return ApiResponse<Guid>.Fail($"No matching form submission found.");
             }
 
             if (submission != null && request.FormFields != null)

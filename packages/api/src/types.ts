@@ -952,6 +952,7 @@ export interface ApplicationFormSectionDto {
 }
 
 export interface ApplicationFormSubmissionDto {
+  submissionId?: string | null;
   formId: string;
   serviceId: string;
   applicationId: string;

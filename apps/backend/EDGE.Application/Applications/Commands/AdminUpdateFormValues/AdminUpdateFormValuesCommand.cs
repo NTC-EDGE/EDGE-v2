@@ -9,6 +9,7 @@ public record AdminUpdateFormValuesCommand : IRequest<ApiResponse<Guid>>
 {
     public Guid ApplicationId { get; init; }
     public Guid ApplicantId { get; init; }
+    public Guid? SubmissionId { get; init; }
     public List<AdminFormFieldValueDto> FormFields { get; init; } = new();
 }
 
