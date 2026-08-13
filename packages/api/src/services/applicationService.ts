@@ -3,10 +3,12 @@ import { safeAsync } from '../utils/safeAsync';
 import {
   ApiResponse,
   ApplicationDto,
+  ApplicationSummaryDto,
   UpdateApplicationStatusRequest,
   CreateSoaRequest,
   VerifyPaymentRequest,
   ReturnOpRequest,
+  ApplicationFormSubmissionDto,
 } from '../types';
 
 export const applicationService = {
@@ -16,7 +18,7 @@ export const applicationService = {
     status?: string;
   }) {
     return safeAsync(async () => {
-      const response = await apiClient.get<ApiResponse<ApplicationDto[]>>(
+      const response = await apiClient.get<ApiResponse<ApplicationSummaryDto[]>>(
         '/api/v2/applications',
         { params }
       );
@@ -38,6 +40,94 @@ export const applicationService = {
       const response = await apiClient.patch(
         `/api/v2/applications/${id}/status`,
         body
+      );
+      return response.data;
+    });
+  },
+
+  async updateApplication(id: string, data: Record<string, unknown>) {
+    return safeAsync(async () => {
+      const response = await apiClient.put<ApiResponse<ApplicationDto>>(
+        `/api/v2/applications/${id}`,
+        data
+      );
+      return response.data;
+    });
+  },
+
+  async adminUpdateApplication(id: string, data: Record<string, unknown>) {
+    return safeAsync(async () => {
+      const response = await apiClient.patch<ApiResponse<ApplicationDto>>(
+        `/api/v2/applications/${id}/admin-update`,
+        data
+      );
+      return response.data;
+    });
+  },
+
+  async adminUpdateApplicantProfile(applicationId: string, applicantId: string, data: Record<string, unknown>) {
+    return safeAsync(async () => {
+      const response = await apiClient.patch<ApiResponse<ApplicationDto>>(
+        `/api/v2/applications/${applicationId}/applicants/${applicantId}/admin-update`,
+        data
+      );
+      return response.data;
+    });
+  },
+
+  async adminUpdateFormValues(
+    applicationId: string,
+    applicantId: string,
+    formFields: Array<{ fieldId: string; fieldLabel: string; value?: string }>,
+    submissionId?: string
+  ) {
+    return safeAsync(async () => {
+      const response = await apiClient.patch<ApiResponse<ApplicationDto>>(
+        `/api/v2/applications/${applicationId}/applicants/${applicantId}/form-values/admin-update`,
+        { submissionId, formFields }
+      );
+      return response.data;
+    });
+  },
+
+  async getApplicationFormWithSubmission(applicationId: string, applicantId?: string, submissionId?: string) {
+    return safeAsync(async () => {
+      const queryParams = new URLSearchParams();
+      if (applicantId) queryParams.set('applicantId', applicantId);
+      if (submissionId) queryParams.set('submissionId', submissionId);
+      const queryString = queryParams.toString();
+      const response = await apiClient.get<ApiResponse<ApplicationFormSubmissionDto>>(
+        `/api/v2/applications/${applicationId}/form${queryString ? `?${queryString}` : ''}`
+      );
+      return response.data;
+    });
+  },
+
+  async createFormSubmission(
+    applicationId: string,
+    formId: string,
+    fieldValues: Array<{ fieldId: string; customLabel?: string; value?: string }>,
+    applicantId?: string
+  ) {
+    return safeAsync(async () => {
+      const response = await apiClient.post<ApiResponse<string>>(
+        `/api/v2/applications/${applicationId}/form-submissions`,
+        { formId, applicantId, fieldValues }
+      );
+      return response.data;
+    });
+  },
+
+  async updateFormSubmissionValues(
+    applicationId: string,
+    submissionId: string,
+    fieldValues: Array<{ fieldId: string; customLabel?: string; value?: string }>,
+    applicantId?: string
+  ) {
+    return safeAsync(async () => {
+      const response = await apiClient.put<ApiResponse<string>>(
+        `/api/v2/applications/${applicationId}/form-submissions/${submissionId}`,
+        { applicantId, fieldValues }
       );
       return response.data;
     });

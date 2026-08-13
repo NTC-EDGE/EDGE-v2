@@ -1,4 +1,4 @@
-import { ApplicationDto } from '@edge/api';
+import { ApplicationDto, ApplicationSummaryDto } from '@edge/api';
 import {
   ApplicationData,
   ApplicationStatus,
@@ -36,9 +36,9 @@ function deriveQueueTab(status: ApplicationStatus): QueueTab {
   return 'activity';
 }
 
-export function mapApplicationDtoToUI(dto: ApplicationDto): ApplicationData {
+export function mapApplicationDtoToUI(dto: ApplicationDto | ApplicationSummaryDto): ApplicationData {
   const primaryApplicant = dto.applicants[0];
-  const primaryDetail = primaryApplicant?.details;
+  const primaryDetail = (primaryApplicant as any)?.details;
   const primaryService = dto.services[0];
 
   const rawFilingUser = dto.filingUser;
@@ -51,52 +51,100 @@ export function mapApplicationDtoToUI(dto: ApplicationDto): ApplicationData {
 
   const companyDetails = companyObj
     ? {
-        name: companyObj.name ?? '',
-        registrationNumber: companyObj.registrationNumber ?? '',
-        address: companyObj.address ?? '',
-        contactNumber: companyObj.contactNumber ?? '',
-        email: companyObj.email ?? '',
-      }
+      name: companyObj.name ?? '',
+      registrationNumber: companyObj.registrationNumber ?? '',
+      address: companyObj.address ?? '',
+      contactNumber: companyObj.contactNumber ?? '',
+      email: companyObj.email ?? '',
+    }
     : undefined;
-
-  const filingAccountType: 'Individual' | 'Company' = isCompanySubmission
-    ? 'Company'
-    : 'Individual';
 
   const filingUser = rawFilingUser
     ? {
-        id: rawFilingUser.id,
-        name: rawFilingUser.name ?? '',
-        email: rawFilingUser.email ?? '',
-        accountType: filingAccountType,
-        company: rawFilingUser.company
-          ? {
-              name: rawFilingUser.company.name ?? '',
-              registrationNumber: rawFilingUser.company.registrationNumber ?? '',
-              address: rawFilingUser.company.address ?? '',
-              contactNumber: rawFilingUser.company.contactNumber ?? '',
-              email: rawFilingUser.company.email ?? '',
-            }
-          : undefined,
-      }
+      id: rawFilingUser.id,
+      name: rawFilingUser.name ?? '',
+      email: rawFilingUser.email ?? '',
+      accountType: (rawFilingUser.accountType as 'Individual' | 'Company') ?? 'Individual',
+      company: rawFilingUser.company
+        ? {
+          name: rawFilingUser.company.name ?? '',
+          registrationNumber: rawFilingUser.company.registrationNumber ?? '',
+          address: rawFilingUser.company.address ?? '',
+          contactNumber: rawFilingUser.company.contactNumber ?? '',
+          email: rawFilingUser.company.email ?? '',
+        }
+        : undefined,
+    }
     : undefined;
 
   // Rule: If submission is individual, filing user IS the applicant. Copy filing user details to applicant.
   const applicantName = primaryDetail
     ? `${primaryDetail.firstName} ${primaryDetail.lastName}`.trim()
     : isCompanySubmission
-    ? (companyDetails?.name ?? rawFilingUser?.name ?? '')
-    : (rawFilingUser?.name ?? '');
+      ? (companyDetails?.name ?? rawFilingUser?.name ?? '')
+      : (rawFilingUser?.name ?? '');
 
   const contactEmail = primaryDetail?.email ?? rawFilingUser?.email ?? '';
   const contactPhone = primaryDetail?.contactNumber ?? '';
 
+  const applicantsList = (dto.applicants ?? []).map((appItem, idx) => {
+    const ad = appItem.details;
+    const name = ad
+      ? `${ad.firstName} ${ad.lastName}`.trim()
+      : (appItem.company?.name || `Applicant ${idx + 1}`);
+
+    const itemComp = appItem.company ?? ad?.company;
+    const itemCompanyDetails = itemComp
+      ? {
+        name: itemComp.name ?? '',
+        registrationNumber: itemComp.registrationNumber ?? '',
+        address: itemComp.address ?? '',
+        contactNumber: itemComp.contactNumber ?? '',
+        email: itemComp.email ?? '',
+      }
+      : undefined;
+
+    return {
+      id: appItem.id || `app-${idx}`,
+      name,
+      applicantType: (appItem.applicantType as any) === 'Company' ? ('Company' as const) : ('Individual' as const),
+      status: (appItem.status === 'Incomplete' || appItem.status === 'ForEndorsement')
+        ? (appItem.status as 'Incomplete' | 'ForEndorsement')
+        : ('Complete' as const),
+      evaluationRemarks: appItem.evaluationRemarks ?? '',
+      contactNumber: ad?.contactNumber ?? '',
+      email: ad?.emailAddress ?? ad?.email ?? '',
+      address: ad?.address ?? '',
+      barangay: ad?.address ?? '',
+      city: '',
+      province: '',
+      zipCode: ad?.zipCode ?? '',
+      companyDetails: itemCompanyDetails,
+      basicInfo: ad ? {
+        lastName: ad.lastName ?? '',
+        firstName: ad.firstName ?? '',
+        middleName: ad.middleName ?? '',
+        extensionName: ad.suffix ?? '',
+        dob: ad.birthDate ?? '',
+        placeOfBirth: '',
+        sex: ad.sex ?? '',
+        weight: ad.weight ?? 0,
+        height: ad.height ?? 0,
+        nationality: ad.nationality ?? '',
+        employmentStatus: '',
+        occupation: '',
+      } : undefined,
+      requirements: [],
+    };
+  });
+
   const feStatus = mapBEStatusToFE(dto.status);
+  const isBulk = dto.submissionMode === 'Bulk' || applicantsList.length > 1;
 
   return {
     id: dto.id,
     referenceNumber: dto.referenceNumber ?? dto.id.slice(0, 8),
-    permitNumber: dto.applicationNumber ?? '',
+    applicationNumber: dto.applicationNumber ?? '',
     filingUser,
     applicant: applicantName,
     applicantType: isCompanySubmission ? 'Company' : 'Individual',
@@ -104,7 +152,8 @@ export function mapApplicationDtoToUI(dto: ApplicationDto): ApplicationData {
     category: 'Permits',
     status: feStatus,
     queueTab: deriveQueueTab(feStatus),
-    applicationType: dto.submissionMode === 'Bulk' ? 'BULK' : 'SINGLE',
+    applicationType: isBulk ? 'BULK' : 'SINGLE',
+    applicantsList,
     createdAt: dto.createdAt,
     dateLabel: formatDateLabel(dto.createdAt),
     assignedTo: dto.office ?? '',
@@ -172,9 +221,9 @@ export function mapApplicationDtoToUI(dto: ApplicationDto): ApplicationData {
     })) ?? [],
     history: dto.histories?.map((h) => ({
       id: h.id,
-      action: h.action,
-      staff: h.staffName,
-      timestamp: h.timestamp,
+      action: h.action || `Status: ${h.toStatus}`,
+      staff: h.staffName || 'System',
+      timestamp: h.timestamp ? new Date(h.timestamp).toLocaleString() : '',
     })) ?? [],
     note: dto.remarks ?? '',
   };

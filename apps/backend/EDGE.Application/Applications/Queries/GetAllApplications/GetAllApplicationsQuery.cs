@@ -10,4 +10,4 @@ public record GetAllApplicationsQuery(
     ApplicationStatus? Status = null,
     string? QueueTab = null,
     string? Scope = null
-) : IRequest<ApiResponse<List<ApplicationDto>>>;
+) : IRequest<ApiResponse<List<ApplicationSummaryDto>>>;

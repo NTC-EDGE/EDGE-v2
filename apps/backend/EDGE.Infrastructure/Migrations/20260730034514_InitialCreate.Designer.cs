@@ -94,6 +94,9 @@ namespace EDGE.Infrastructure.Migrations
                     b.Property<string>("LastModifiedBy")
                         .HasColumnType("text");
 
+                    b.Property<string>("EvaluationRemarks")
+                        .HasColumnType("text");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("text");
@@ -921,6 +924,9 @@ namespace EDGE.Infrastructure.Migrations
 
                     b.Property<Guid>("FieldId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("CustomLabel")
+                        .HasColumnType("text");
 
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");

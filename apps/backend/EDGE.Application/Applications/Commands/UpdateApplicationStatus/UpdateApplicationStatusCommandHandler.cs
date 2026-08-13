@@ -82,6 +82,19 @@ public class UpdateApplicationStatusCommandHandler : IRequestHandler<UpdateAppli
             };
             await _applicationRepository.AddApplicationStatusHistoryAsync(statusHistory, cancellationToken);
 
+            await _applicationRepository.AddApplicationHistoryAsync(new ApplicationHistory
+            {
+                Id = Guid.NewGuid(),
+                ApplicationId = app.Id,
+                Action = $"Status updated to {newStatus}",
+                ToStatus = newStatus,
+                PerformedByUserId = actingUserId ?? Guid.Empty,
+                StaffName = currentUserIdStr ?? "Staff",
+                StaffRole = "NTC Staff",
+                Remarks = request.Remarks,
+                Timestamp = DateTime.UtcNow
+            }, cancellationToken);
+
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             await _unitOfWork.CommitTransactionAsync(cancellationToken);
 

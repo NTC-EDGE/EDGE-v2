@@ -9,6 +9,9 @@ public class ApplicantDto
     public Guid? UserId { get; set; }
     public bool IsGuest { get; set; }
     public string ApplicantType { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
+    public string? EvaluationRemarks { get; set; }
+    public CompanyDetailDto? Company { get; set; }
     public ApplicantDetailDto? Details { get; set; }
     public List<FormFieldValueDto> FormFieldValues { get; set; } = new();
 }
@@ -36,12 +39,12 @@ public class ApplicantDetailDto
     public double? Weight { get; set; }
     public DateOnly BirthDate { get; set; }
     public string ContactNumber { get; set; } = string.Empty;
+    public string? EmailAddress { get; set; }
     public string? ZipCode { get; set; }
     public string? SchoolAttended { get; set; }
     public string? CourseTaken { get; set; }
     public string? YearGraduated { get; set; }
     public string? ESignature { get; set; }
-    public CompanyDetailDto? Company { get; set; }
 }
 
 public class CompanyDetailDto
