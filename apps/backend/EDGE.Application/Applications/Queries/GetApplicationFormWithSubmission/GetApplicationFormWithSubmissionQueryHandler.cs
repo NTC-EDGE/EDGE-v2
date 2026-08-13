@@ -60,11 +60,22 @@ public class GetApplicationFormWithSubmissionQueryHandler : IRequestHandler<GetA
         }
 
         FormSubmission? submission = null;
-        if (request.ApplicantId.HasValue)
+        if (request.ApplicantId.HasValue && request.ApplicantId.Value != Guid.Empty)
         {
             submission = app.FormSubmissions.FirstOrDefault(fs => fs.ApplicantId == request.ApplicantId.Value);
         }
-        submission ??= app.FormSubmissions.FirstOrDefault();
+
+        if (submission == null)
+        {
+            if (app.FormSubmissions.Count == 1)
+            {
+                submission = app.FormSubmissions.First();
+            }
+            else
+            {
+                submission = app.FormSubmissions.FirstOrDefault(fs => fs.FormId == form.Id && fs.ApplicantId == Guid.Empty);
+            }
+        }
 
         var valueMap = submission?.FieldValues
             .GroupBy(fv => fv.FieldId)
