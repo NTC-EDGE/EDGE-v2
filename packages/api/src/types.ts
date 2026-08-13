@@ -902,3 +902,33 @@ export interface ReturnOpRequest {
   remarks: string;
   returnTo: ReturnTargetDto;
 }
+
+// ─── Form Builder & Submitted Layout Types ──────────────────────────
+
+export interface FormFieldDto {
+  fieldId: string;
+  label: string;
+  type: string;
+  isRequired: boolean;
+  orderIndex: number;
+  validationRules?: string | null;
+  visibilityCondition?: string | null;
+  value?: string | null;
+}
+
+export interface FormSectionDto {
+  key: string;
+  title: string;
+  required: boolean;
+  orderIndex: number;
+  fields: FormFieldDto[];
+}
+
+export interface FormDto {
+  formId: string;
+  serviceId: string;
+  applicationId?: string | null;
+  applicantId?: string | null;
+  version: string;
+  sections: FormSectionDto[];
+}

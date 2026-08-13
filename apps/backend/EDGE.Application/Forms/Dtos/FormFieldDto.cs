@@ -14,4 +14,5 @@ public class FormFieldDto
     public int OrderIndex { get; set; }
     public string? ValidationRules { get; set; }
     public string? VisibilityCondition { get; set; }
+    public string? Value { get; set; }
 }

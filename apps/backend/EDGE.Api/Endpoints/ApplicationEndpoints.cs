@@ -76,6 +76,11 @@ public static class ApplicationEndpoints
             .WithSummary("Retrieve application by ID")
             .WithDescription("Retrieves detailed profile, status history, and applicant records for a specific application.");
 
+        group.MapGet("/{id:guid}/form", GetApplicationFormWithSubmissionEndpoint)
+            .WithName("GetApplicationFormWithSubmission")
+            .WithSummary("Retrieve application form schema with submitted values")
+            .WithDescription("Fetches the service form layout schema populated with the applicant's submitted values.");
+
         group.MapPut("/{id:guid}", UpdateApplicationDraft)
             .WithName("UpdateApplicationDraft")
             .WithSummary("Update application draft details")
@@ -246,6 +251,16 @@ public static class ApplicationEndpoints
     {
         var result = await mediator.Send(new GetApplicationByIdQuery(id));
         return result.Succeeded ? Results.Ok(result) : Results.NotFound(result);
+    }
+
+    [HasPermission(Permissions.ReadApplication)]
+    public static async Task<IResult> GetApplicationFormWithSubmissionEndpoint(
+        Guid id,
+        [FromQuery] Guid? applicantId,
+        IMediator mediator)
+    {
+        var result = await mediator.Send(new EDGE.Application.Applications.Queries.GetApplicationFormWithSubmission.GetApplicationFormWithSubmissionQuery(id, applicantId));
+        return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
     }
 
     [HasPermission(Permissions.UpdateApplication)]
