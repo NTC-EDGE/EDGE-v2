@@ -1156,10 +1156,70 @@ function ApplicantRecordTab({
     Alert.alert(title, msg);
   };
 
-  const handleUploadOrReplaceRequirement = async (reqItem: ApplicantRequirementItemDto) => {
-    if (app?.id === undefined || app?.id === null || activeApplicant?.id === undefined || activeApplicant?.id === null) {
+  const uploadAndAttachRequirement = async (
+    fileData: Blob | File,
+    fileName: string,
+    reqItem: ApplicantRequirementItemDto
+  ) => {
+    if (!app?.id || !activeApplicant?.id) return;
+
+    const tenantId = app.tenantId;
+    if (!tenantId?.trim()) {
+      notifyError('Upload Failed', 'Tenant ID is missing on current application context.');
       return;
     }
+
+    setUploadingReqId(reqItem.requirementId);
+    try {
+      const [storageRes, storageErr] = await storageService.uploadFile(
+        fileData,
+        fileName,
+        'requirements',
+        tenantId
+      );
+
+      if (storageErr !== null || !storageRes?.data) {
+        const errText = typeof storageErr === 'object' && storageErr !== null && 'message' in storageErr
+          ? String((storageErr as { message?: unknown }).message)
+          : (storageRes?.message ?? 'Failed to upload document to storage.');
+        notifyError('Upload Failed', errText);
+        setUploadingReqId(null);
+        return;
+      }
+
+      const storedFileId = storageRes.data.id;
+
+      const [reqRes, reqErr] = await applicationService.uploadApplicantRequirement(
+        app.id,
+        activeApplicant.id,
+        {
+          requirementId: reqItem.requirementId,
+          serviceVariantRequirementId: reqItem.serviceVariantRequirementId ?? undefined,
+          storedFileId: storedFileId,
+        }
+      );
+
+      setUploadingReqId(null);
+
+      if (reqErr !== null || !reqRes?.succeeded) {
+        const errText = typeof reqErr === 'object' && reqErr !== null && 'message' in reqErr
+          ? String((reqErr as { message?: unknown }).message)
+          : (reqRes?.message ?? 'Failed to save requirement attachment.');
+        notifyError('Save Failed', errText);
+        return;
+      }
+
+      notifySuccess('Success', 'Requirement document attached successfully.');
+      await fetchApplicantRequirements();
+    } catch (err: unknown) {
+      setUploadingReqId(null);
+      const errorMsg = err instanceof Error ? err.message : 'An error occurred during file upload.';
+      notifyError('Upload Error', errorMsg);
+    }
+  };
+
+  const handleUploadOrReplaceRequirement = async (reqItem: ApplicantRequirementItemDto) => {
+    if (!app?.id || !activeApplicant?.id) return;
 
     if (Platform.OS === 'web') {
       const input = document.createElement('input');
@@ -1169,10 +1229,10 @@ function ApplicantRecordTab({
       input.onchange = async (e: Event) => {
         const target = e.target as HTMLInputElement;
         const files = target.files;
-        if (files === null || files.length === 0) return;
+        if (!files || files.length === 0) return;
 
         const selectedFile = files[0];
-        if (selectedFile === undefined || selectedFile === null) return;
+        if (!selectedFile) return;
 
         const fileName = selectedFile.name.toLowerCase();
         const mimeType = selectedFile.type.toLowerCase();
@@ -1185,69 +1245,11 @@ function ApplicantRecordTab({
           return;
         }
 
-        const tenantId = app.tenantId;
-        if (tenantId === undefined || tenantId === null || tenantId.trim() === '') {
-          notifyError('Upload Failed', 'Tenant ID is missing on current application context.');
-          return;
-        }
-
-        setUploadingReqId(reqItem.requirementId);
-        try {
-          const [storageRes, storageErr] = await storageService.uploadFile(
-            selectedFile,
-            selectedFile.name,
-            'requirements',
-            tenantId
-          );
-
-          if (storageErr !== null || storageRes === null || storageRes.data === undefined || storageRes.data === null) {
-            const errText = typeof storageErr === 'object' && storageErr !== null && 'message' in storageErr
-              ? String((storageErr as { message?: unknown }).message)
-              : (storageRes?.message ?? 'Failed to upload document to storage.');
-            notifyError('Upload Failed', errText);
-            setUploadingReqId(null);
-            return;
-          }
-
-          const storedFileId = storageRes.data.id;
-
-          const [reqRes, reqErr] = await applicationService.uploadApplicantRequirement(
-            app.id,
-            activeApplicant.id,
-            {
-              requirementId: reqItem.requirementId,
-              serviceVariantRequirementId: reqItem.serviceVariantRequirementId ?? undefined,
-              storedFileId: storedFileId,
-            }
-          );
-
-          setUploadingReqId(null);
-
-          if (reqErr !== null || reqRes === null || !reqRes.succeeded) {
-            const errText = typeof reqErr === 'object' && reqErr !== null && 'message' in reqErr
-              ? String((reqErr as { message?: unknown }).message)
-              : (reqRes?.message ?? 'Failed to save requirement attachment.');
-            notifyError('Save Failed', errText);
-            return;
-          }
-
-          notifySuccess('Success', 'Requirement document attached successfully.');
-          await fetchApplicantRequirements();
-        } catch (err: unknown) {
-          setUploadingReqId(null);
-          const errorMsg = err instanceof Error ? err.message : 'An error occurred during file upload.';
-          notifyError('Upload Error', errorMsg);
-        }
+        await uploadAndAttachRequirement(selectedFile, selectedFile.name, reqItem);
       };
 
       input.click();
     } else {
-      const tenantId = app.tenantId;
-      if (tenantId === undefined || tenantId === null || tenantId.trim() === '') {
-        notifyError('Upload Failed', 'Tenant ID is missing on current application context.');
-        return;
-      }
-
       try {
         const DocumentPicker = await import('expo-document-picker');
         const result = await DocumentPicker.getDocumentAsync({
@@ -1257,7 +1259,7 @@ function ApplicantRecordTab({
 
         if (!result.canceled && result.assets && result.assets.length > 0) {
           const selectedAsset = result.assets[0];
-          if (selectedAsset === undefined || selectedAsset === null) return;
+          if (!selectedAsset) return;
 
           const fileName = (selectedAsset.name || `doc_${Date.now()}.pdf`).toLowerCase();
           const mimeType = (selectedAsset.mimeType || '').toLowerCase();
@@ -1270,54 +1272,12 @@ function ApplicantRecordTab({
             return;
           }
 
-          setUploadingReqId(reqItem.requirementId);
-
           const response = await fetch(selectedAsset.uri);
           const fileBlob = await response.blob();
 
-          const [storageRes, storageErr] = await storageService.uploadFile(
-            fileBlob,
-            selectedAsset.name || fileName,
-            'requirements',
-            tenantId
-          );
-
-          if (storageErr !== null || storageRes === null || storageRes.data === undefined || storageRes.data === null) {
-            const errText = typeof storageErr === 'object' && storageErr !== null && 'message' in storageErr
-              ? String((storageErr as { message?: unknown }).message)
-              : (storageRes?.message ?? 'Failed to upload document to storage.');
-            notifyError('Upload Failed', errText);
-            setUploadingReqId(null);
-            return;
-          }
-
-          const storedFileId = storageRes.data.id;
-
-          const [reqRes, reqErr] = await applicationService.uploadApplicantRequirement(
-            app.id,
-            activeApplicant.id,
-            {
-              requirementId: reqItem.requirementId,
-              serviceVariantRequirementId: reqItem.serviceVariantRequirementId ?? undefined,
-              storedFileId: storedFileId,
-            }
-          );
-
-          setUploadingReqId(null);
-
-          if (reqErr !== null || reqRes === null || !reqRes.succeeded) {
-            const errText = typeof reqErr === 'object' && reqErr !== null && 'message' in reqErr
-              ? String((reqErr as { message?: unknown }).message)
-              : (reqRes?.message ?? 'Failed to save requirement attachment.');
-            notifyError('Save Failed', errText);
-            return;
-          }
-
-          notifySuccess('Success', 'Requirement document attached successfully.');
-          await fetchApplicantRequirements();
+          await uploadAndAttachRequirement(fileBlob, selectedAsset.name || fileName, reqItem);
         }
       } catch (err: unknown) {
-        setUploadingReqId(null);
         const errorMsg = err instanceof Error ? err.message : 'An error occurred during mobile document selection.';
         notifyError('Upload Error', errorMsg);
       }

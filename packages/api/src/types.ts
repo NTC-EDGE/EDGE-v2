@@ -877,6 +877,7 @@ export interface ApplicantSummaryDto {
 
 export interface ApplicationSummaryDto {
   id: string;
+  tenantId?: string;
   office?: string;
   applicationNumber?: string;
   referenceNumber?: string;

@@ -150,7 +150,7 @@ export function mapApplicationDtoToUI(dto: ApplicationDto | ApplicationSummaryDt
 
   return {
     id: dto.id,
-    tenantId: 'tenantId' in dto ? (dto as { tenantId?: string }).tenantId : undefined,
+    tenantId: dto.tenantId,
     referenceNumber: dto.referenceNumber ?? dto.id.slice(0, 8),
     applicationNumber: dto.applicationNumber ?? '',
     filingUser,
