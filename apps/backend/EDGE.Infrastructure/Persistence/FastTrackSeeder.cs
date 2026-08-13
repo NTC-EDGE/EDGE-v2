@@ -136,7 +136,12 @@ public static class FastTrackSeeder
 
         async Task SeedFormForService(string serviceKey, Guid formId, Guid sectionGuidPrefix, List<(string Key, string Title, List<string> FieldKeys)> sectionDefs)
         {
-            var service = services[serviceKey];
+            if (!services.TryGetValue(serviceKey, out var service))
+            {
+                service = await context.Services.FirstOrDefaultAsync(s => s.Code == serviceKey);
+                if (service == null) return;
+                services[serviceKey] = service;
+            }
 
             // Check if the form already exists in the DB (no-tracking)
             var formExists = existingForms.Contains(service.Id);
@@ -405,9 +410,16 @@ public static class FastTrackSeeder
             }
         }
 
+        var existingServiceIds = (await context.Services.Select(s => s.Id).ToListAsync()).ToHashSet();
+
         // Upsert seeder variants
         foreach (var def in variantDefs)
         {
+            if (!existingServiceIds.Contains(def.ServiceId))
+            {
+                continue;
+            }
+
             var ev = existingVariants.FirstOrDefault(v => v.Id == def.Id);
             if (ev == null)
             {
