@@ -1223,7 +1223,85 @@ function ApplicantRecordTab({
 
       input.click();
     } else {
-      Alert.alert('Upload Attachment', 'File upload is currently supported on web platform.');
+      const tenantId = app.tenantId;
+      if (tenantId === undefined || tenantId === null || tenantId.trim() === '') {
+        Alert.alert('Upload Failed', 'Tenant ID is missing on current application context.');
+        return;
+      }
+
+      try {
+        const DocumentPicker = await import('expo-document-picker');
+        const result = await DocumentPicker.getDocumentAsync({
+          type: ['image/*', 'application/pdf'],
+          copyToCacheDirectory: true,
+        });
+
+        if (!result.canceled && result.assets && result.assets.length > 0) {
+          const selectedAsset = result.assets[0];
+          if (selectedAsset === undefined || selectedAsset === null) return;
+
+          const fileName = (selectedAsset.name || `doc_${Date.now()}.pdf`).toLowerCase();
+          const mimeType = (selectedAsset.mimeType || '').toLowerCase();
+
+          const isImage = mimeType.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif|bmp)$/i.test(fileName);
+          const isPdf = mimeType === 'application/pdf' || fileName.endsWith('.pdf');
+
+          if (!isImage && !isPdf) {
+            Alert.alert('Invalid File Type', 'Only image files (JPG, PNG, WEBP, GIF, BMP) and PDF documents are allowed.');
+            return;
+          }
+
+          setUploadingReqId(reqItem.requirementId);
+
+          const response = await fetch(selectedAsset.uri);
+          const fileBlob = await response.blob();
+
+          const [storageRes, storageErr] = await storageService.uploadFile(
+            fileBlob,
+            selectedAsset.name || fileName,
+            'requirements',
+            tenantId
+          );
+
+          if (storageErr !== null || storageRes === null || storageRes.data === undefined || storageRes.data === null) {
+            const errText = typeof storageErr === 'object' && storageErr !== null && 'message' in storageErr
+              ? String((storageErr as { message?: unknown }).message)
+              : (storageRes?.message ?? 'Failed to upload document to storage.');
+            Alert.alert('Upload Failed', errText);
+            setUploadingReqId(null);
+            return;
+          }
+
+          const storedFileId = storageRes.data.id;
+
+          const [reqRes, reqErr] = await applicationService.uploadApplicantRequirement(
+            app.id,
+            activeApplicant.id,
+            {
+              requirementId: reqItem.requirementId,
+              serviceVariantRequirementId: reqItem.serviceVariantRequirementId ?? undefined,
+              storedFileId: storedFileId,
+            }
+          );
+
+          setUploadingReqId(null);
+
+          if (reqErr !== null || reqRes === null || !reqRes.succeeded) {
+            const errText = typeof reqErr === 'object' && reqErr !== null && 'message' in reqErr
+              ? String((reqErr as { message?: unknown }).message)
+              : (reqRes?.message ?? 'Failed to save requirement attachment.');
+            Alert.alert('Save Failed', errText);
+            return;
+          }
+
+          Alert.alert('Success', 'Requirement document attached successfully.');
+          await fetchApplicantRequirements();
+        }
+      } catch (err: unknown) {
+        setUploadingReqId(null);
+        const errorMsg = err instanceof Error ? err.message : 'An error occurred during mobile document selection.';
+        Alert.alert('Upload Error', errorMsg);
+      }
     }
   };
 
