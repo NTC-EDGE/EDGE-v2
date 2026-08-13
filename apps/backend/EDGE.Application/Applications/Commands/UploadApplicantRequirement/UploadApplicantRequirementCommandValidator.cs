@@ -21,7 +21,9 @@ public class UploadApplicantRequirementCommandValidator : AbstractValidator<Uplo
         "image/tiff"
     };
 
-    public UploadApplicantRequirementCommandValidator(IStoredFileRepository storedFileRepository)
+    public UploadApplicantRequirementCommandValidator(
+        IStoredFileRepository storedFileRepository,
+        IStorageService? storageService = null)
     {
         RuleFor(x => x.ApplicationId)
             .NotEmpty().WithMessage("ApplicationId is required.");
@@ -42,8 +44,34 @@ public class UploadApplicantRequirementCommandValidator : AbstractValidator<Uplo
                 var isAllowedExt = AllowedExtensions.Contains(ext);
                 var isAllowedMime = AllowedMimeTypes.Contains(contentType) || (contentType.StartsWith("image/") && !contentType.Contains("javascript") && !contentType.Contains("html"));
 
-                // Both file extension and MIME type must strictly match allowed formats to prevent spoofing vulnerabilities
-                return isAllowedExt && isAllowedMime;
+                if (!isAllowedExt || !isAllowedMime)
+                {
+                    return false;
+                }
+
+                // If storage service is available, read the stream header and perform magic byte validation directly in the pipeline
+                if (storageService != null && !string.IsNullOrWhiteSpace(storedFile.StorageKey))
+                {
+                    try
+                    {
+                        using var stream = await storageService.DownloadFileAsync(storedFile.StorageKey, ct);
+                        if (stream != null && stream.CanRead)
+                        {
+                            var headerBytes = new byte[8];
+                            var bytesRead = await stream.ReadAsync(headerBytes.AsMemory(0, 8), ct);
+                            if (bytesRead >= 4)
+                            {
+                                return IsValidMagicHeader(headerBytes);
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        // Fallback to strict extension and MIME verification if stream reading fails
+                    }
+                }
+
+                return true;
             })
             .WithMessage("Only image files (JPG, PNG, WEBP, GIF, BMP) and PDF documents are accepted.");
 

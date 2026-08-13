@@ -43,6 +43,7 @@ import { DeclineModal } from "../components/modals/DeclineModal";
 import { EndorseModal } from "../components/modals/EndorseModal";
 import { CashierVerificationModal } from "../components/modals/CashierVerificationModal";
 import { UserRole } from "../../shell/context/RoleContext";
+import { isAllowedRequirementFileType } from "../../../utils/fileValidation";
 
 type InnerTab = "details" | "applicant-record" | "soa";
 
@@ -1234,13 +1235,10 @@ function ApplicantRecordTab({
         const selectedFile = files[0];
         if (!selectedFile) return;
 
-        const fileName = selectedFile.name.toLowerCase();
-        const mimeType = selectedFile.type.toLowerCase();
+        const fileName = selectedFile.name;
+        const mimeType = selectedFile.type;
 
-        const isImage = mimeType.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif|bmp)$/i.test(fileName);
-        const isPdf = mimeType === 'application/pdf' || fileName.endsWith('.pdf');
-
-        if (!isImage && !isPdf) {
+        if (!isAllowedRequirementFileType(fileName, mimeType)) {
           notifyError('Invalid File Type', 'Only image files (JPG, PNG, WEBP, GIF, BMP) and PDF documents are allowed.');
           return;
         }
@@ -1261,13 +1259,10 @@ function ApplicantRecordTab({
           const selectedAsset = result.assets[0];
           if (!selectedAsset) return;
 
-          const fileName = (selectedAsset.name || `doc_${Date.now()}.pdf`).toLowerCase();
-          const mimeType = (selectedAsset.mimeType || '').toLowerCase();
+          const fileName = selectedAsset.name || `doc_${Date.now()}.pdf`;
+          const mimeType = selectedAsset.mimeType || '';
 
-          const isImage = mimeType.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif|bmp)$/i.test(fileName);
-          const isPdf = mimeType === 'application/pdf' || fileName.endsWith('.pdf');
-
-          if (!isImage && !isPdf) {
+          if (!isAllowedRequirementFileType(fileName, mimeType)) {
             notifyError('Invalid File Type', 'Only image files (JPG, PNG, WEBP, GIF, BMP) and PDF documents are allowed.');
             return;
           }
