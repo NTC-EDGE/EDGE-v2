@@ -131,7 +131,14 @@ public class AdminUpdateFormValuesCommandHandler : IRequestHandler<AdminUpdateFo
         }
         catch (Exception ex)
         {
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+            try
+            {
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+            }
+            catch
+            {
+                // Ignore rollback exceptions to preserve primary exception details
+            }
             return ApiResponse<Guid>.Fail($"Failed to update form values. Error: {ex.Message}");
         }
     }

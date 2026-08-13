@@ -110,7 +110,14 @@ public class AdminUpdateApplicationCommandHandler : IRequestHandler<AdminUpdateA
         }
         catch (Exception ex)
         {
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+            try
+            {
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+            }
+            catch
+            {
+                // Ignore rollback exceptions to preserve primary exception details
+            }
             return ApiResponse<Guid>.Fail($"Failed to record application administrative correction. Error: {ex.Message}");
         }
     }

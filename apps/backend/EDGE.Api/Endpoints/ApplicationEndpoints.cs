@@ -80,6 +80,7 @@ public static class ApplicationEndpoints
             .WithDescription("Retrieves detailed profile, status history, and applicant records for a specific application.");
 
         group.MapGet("/{id:guid}/form", GetApplicationFormWithSubmissionEndpoint)
+            .RequireAuthorization(new HasPermissionAttribute(Permissions.ReadApplication))
             .WithName("GetApplicationFormWithSubmission")
             .WithSummary("Retrieve application form schema with submitted values")
             .WithDescription("Fetches the service form layout schema populated with the applicant's submitted values.");
