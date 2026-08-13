@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace EDGE.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260813042239_InitialCreate")]
+    [Migration("20260813070918_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -97,6 +97,12 @@ namespace EDGE.Infrastructure.Migrations
                     b.Property<string>("LastModifiedBy")
                         .HasColumnType("text");
 
+                    b.Property<Guid?>("ServiceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ServiceVariantId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("text");
@@ -112,6 +118,10 @@ namespace EDGE.Infrastructure.Migrations
                     b.HasIndex("ApplicantDetailId");
 
                     b.HasIndex("CompanyDetailId");
+
+                    b.HasIndex("ServiceId");
+
+                    b.HasIndex("ServiceVariantId");
 
                     b.HasIndex("TenantId");
 
@@ -378,9 +388,6 @@ namespace EDGE.Infrastructure.Migrations
                     b.Property<Guid>("ApplicationId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("ApplicationServiceId")
-                        .HasColumnType("uuid");
-
                     b.Property<string>("ApprovedBy")
                         .HasColumnType("text");
 
@@ -428,8 +435,6 @@ namespace EDGE.Infrastructure.Migrations
 
                     b.HasIndex("ApplicationId");
 
-                    b.HasIndex("ApplicationServiceId");
-
                     b.HasIndex("RequirementId");
 
                     b.HasIndex("ServiceVariantRequirementId");
@@ -439,37 +444,6 @@ namespace EDGE.Infrastructure.Migrations
                     b.HasIndex("TenantId");
 
                     b.ToTable("ApplicationRequirements", "public");
-                });
-
-            modelBuilder.Entity("EDGE.Domain.Entities.ApplicationService", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("ApplicantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("ApplicationId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("ServiceId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("ServiceVariantId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ApplicantId");
-
-                    b.HasIndex("ApplicationId");
-
-                    b.HasIndex("ServiceId");
-
-                    b.HasIndex("ServiceVariantId");
-
-                    b.ToTable("ApplicationServices", "public");
                 });
 
             modelBuilder.Entity("EDGE.Domain.Entities.ApplicationStatusHistory", b =>
@@ -1203,9 +1177,6 @@ namespace EDGE.Infrastructure.Migrations
                     b.Property<Guid>("ApplicationId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("ApplicationServiceId")
-                        .HasColumnType("uuid");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -1230,11 +1201,10 @@ namespace EDGE.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ApplicantId");
+                    b.HasIndex("ApplicantId")
+                        .IsUnique();
 
                     b.HasIndex("ApplicationId");
-
-                    b.HasIndex("ApplicationServiceId");
 
                     b.HasIndex("FormId");
 
@@ -2842,6 +2812,16 @@ namespace EDGE.Infrastructure.Migrations
                         .HasForeignKey("CompanyDetailId")
                         .OnDelete(DeleteBehavior.SetNull);
 
+                    b.HasOne("EDGE.Domain.Entities.Service", "Service")
+                        .WithMany()
+                        .HasForeignKey("ServiceId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("EDGE.Domain.Entities.ServiceVariant", "ServiceVariant")
+                        .WithMany()
+                        .HasForeignKey("ServiceVariantId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("EDGE.Domain.Entities.Tenant", "Tenant")
                         .WithMany()
                         .HasForeignKey("TenantId")
@@ -2856,6 +2836,10 @@ namespace EDGE.Infrastructure.Migrations
                     b.Navigation("ApplicantDetail");
 
                     b.Navigation("CompanyDetail");
+
+                    b.Navigation("Service");
+
+                    b.Navigation("ServiceVariant");
 
                     b.Navigation("Tenant");
 
@@ -2955,11 +2939,6 @@ namespace EDGE.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("EDGE.Domain.Entities.ApplicationService", "ApplicationService")
-                        .WithMany("ApplicationRequirements")
-                        .HasForeignKey("ApplicationServiceId")
-                        .OnDelete(DeleteBehavior.Cascade);
-
                     b.HasOne("EDGE.Domain.Entities.Requirement", "Requirement")
                         .WithMany()
                         .HasForeignKey("RequirementId")
@@ -2984,8 +2963,6 @@ namespace EDGE.Infrastructure.Migrations
 
                     b.Navigation("Application");
 
-                    b.Navigation("ApplicationService");
-
                     b.Navigation("Requirement");
 
                     b.Navigation("ServiceVariantRequirement");
@@ -2993,38 +2970,6 @@ namespace EDGE.Infrastructure.Migrations
                     b.Navigation("StoredFile");
 
                     b.Navigation("Tenant");
-                });
-
-            modelBuilder.Entity("EDGE.Domain.Entities.ApplicationService", b =>
-                {
-                    b.HasOne("EDGE.Domain.Entities.Applicant", "Applicant")
-                        .WithMany("ApplicationServices")
-                        .HasForeignKey("ApplicantId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("EDGE.Domain.Entities.Application", "Application")
-                        .WithMany("ApplicationServices")
-                        .HasForeignKey("ApplicationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("EDGE.Domain.Entities.Service", "Service")
-                        .WithMany()
-                        .HasForeignKey("ServiceId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("EDGE.Domain.Entities.ServiceVariant", "ServiceVariant")
-                        .WithMany()
-                        .HasForeignKey("ServiceVariantId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("Applicant");
-
-                    b.Navigation("Application");
-
-                    b.Navigation("Service");
-
-                    b.Navigation("ServiceVariant");
                 });
 
             modelBuilder.Entity("EDGE.Domain.Entities.ApplicationStatusHistory", b =>
@@ -3165,9 +3110,9 @@ namespace EDGE.Infrastructure.Migrations
             modelBuilder.Entity("EDGE.Domain.Entities.FormSubmission", b =>
                 {
                     b.HasOne("EDGE.Domain.Entities.Applicant", "Applicant")
-                        .WithMany()
-                        .HasForeignKey("ApplicantId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .WithOne("FormSubmission")
+                        .HasForeignKey("EDGE.Domain.Entities.FormSubmission", "ApplicantId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("EDGE.Domain.Entities.Application", "Application")
@@ -3175,11 +3120,6 @@ namespace EDGE.Infrastructure.Migrations
                         .HasForeignKey("ApplicationId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.HasOne("EDGE.Domain.Entities.ApplicationService", "ApplicationService")
-                        .WithMany("FormSubmissions")
-                        .HasForeignKey("ApplicationServiceId")
-                        .OnDelete(DeleteBehavior.Cascade);
 
                     b.HasOne("EDGE.Domain.Entities.Form", "Form")
                         .WithMany()
@@ -3190,8 +3130,6 @@ namespace EDGE.Infrastructure.Migrations
                     b.Navigation("Applicant");
 
                     b.Navigation("Application");
-
-                    b.Navigation("ApplicationService");
 
                     b.Navigation("Form");
                 });
@@ -3581,7 +3519,7 @@ namespace EDGE.Infrastructure.Migrations
 
             modelBuilder.Entity("EDGE.Domain.Entities.Applicant", b =>
                 {
-                    b.Navigation("ApplicationServices");
+                    b.Navigation("FormSubmission");
                 });
 
             modelBuilder.Entity("EDGE.Domain.Entities.Application", b =>
@@ -3589,8 +3527,6 @@ namespace EDGE.Infrastructure.Migrations
                     b.Navigation("ApplicationApplicants");
 
                     b.Navigation("ApplicationRequirements");
-
-                    b.Navigation("ApplicationServices");
 
                     b.Navigation("CorrectionAuditTrails");
 
@@ -3601,13 +3537,6 @@ namespace EDGE.Infrastructure.Migrations
                     b.Navigation("OrdersOfPayment");
 
                     b.Navigation("StatementsOfAccount");
-                });
-
-            modelBuilder.Entity("EDGE.Domain.Entities.ApplicationService", b =>
-                {
-                    b.Navigation("ApplicationRequirements");
-
-                    b.Navigation("FormSubmissions");
                 });
 
             modelBuilder.Entity("EDGE.Domain.Entities.Fee", b =>

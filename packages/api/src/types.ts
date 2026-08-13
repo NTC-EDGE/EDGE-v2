@@ -739,11 +739,20 @@ export interface CorrectionAuditTrailDto {
   correctedAt: string;
 }
 
+export interface FormSubmissionSummaryDto {
+  id: string;
+  formId: string;
+  applicantId: string;
+  applicationServiceId?: string;
+  createdAt?: string;
+}
+
 export interface ApplicationServiceDto {
   id: string;
   applicantId?: string;
   serviceId: string;
   serviceVariantId?: string;
+  submissionId?: string;
 }
 
 export interface FormFieldValueDto {
@@ -792,6 +801,9 @@ export interface ApplicantDto {
   applicantType: string;
   status?: string;
   evaluationRemarks?: string;
+  serviceId?: string;
+  serviceVariantId?: string;
+  submissionId?: string;
   details?: ApplicantDetailDto;
   company?: CompanyDetailDto;
   formFieldValues?: FormFieldValueDto[];
@@ -823,8 +835,9 @@ export interface ApplicationDto {
   isArchived?: boolean;
   createdAt: string;
   filingUser?: FilingUserDto;
-  services: ApplicationServiceDto[];
+  services?: ApplicationServiceDto[];
   applicants: ApplicantDto[];
+  formSubmissions?: FormSubmissionSummaryDto[];
   statementsOfAccount: StatementOfAccountDto[];
   ordersOfPayment: OrderOfPaymentDto[];
   histories: ApplicationHistoryDto[];
@@ -836,6 +849,9 @@ export interface ApplicantSummaryDto {
   applicantType: string;
   status?: string;
   evaluationRemarks?: string;
+  serviceId?: string;
+  serviceVariantId?: string;
+  submissionId?: string;
   name: string;
   company?: CompanyDetailDto;
   details?: ApplicantDetailDto;

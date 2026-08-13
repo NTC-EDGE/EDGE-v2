@@ -5,6 +5,7 @@ import { ApplicationReviewScreen as NativeScreen } from './ApplicationReviewScre
 import { ApplicationReviewScreen as DesktopScreen } from './ApplicationReviewScreen.desktop';
 
 export interface ApplicationReviewScreenProps {
+  applicationId?: string | null;
   onClose: () => void;
   onCollapse?: () => void;
   isCollapsed?: boolean;

@@ -1,27 +1,19 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { StyleSheet, View, SafeAreaView } from 'react-native';
-import { useTheme, PageHeader, AnimatedCard, SPACING, AlertToast } from '@edge/ui';
-import { ApplicationProvider, useApplications } from '../context/ApplicationContext';
+import { useTheme, PageHeader, AnimatedCard, SPACING } from '@edge/ui';
+import { QueueTab } from '../../shell/context/PermissionContext';
 import { ActivitiesFeedPane } from '../components/ActivitiesFeedPane';
 import { ApplicationReviewScreen } from './ApplicationReviewScreen';
 
-function NativeActivitiesContent() {
+export function ActivitiesScreen() {
   const { colors } = useTheme();
-  const { selectedId, setSelectedId, toast, dismissToast } = useApplications();
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [activeQueueTab, setActiveQueueTab] = useState<QueueTab>('activity');
 
   const handleClose = () => setSelectedId(null);
 
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: colors.bg }]}>
-      {toast !== null && (
-        <View style={styles.toastContainer}>
-          <AlertToast
-            message={toast.message}
-            variant={toast.variant}
-            onDismiss={dismissToast}
-          />
-        </View>
-      )}
       <View style={styles.container}>
         <PageHeader
           title="Application Queue"
@@ -30,21 +22,18 @@ function NativeActivitiesContent() {
 
         {selectedId === null ? (
           <AnimatedCard padding={0} style={{ flex: 1, backgroundColor: colors.cardBg, borderColor: colors.border }}>
-            <ActivitiesFeedPane />
+            <ActivitiesFeedPane
+              selectedId={selectedId}
+              onSelectId={setSelectedId}
+              activeQueueTab={activeQueueTab}
+              onSelectQueueTab={setActiveQueueTab}
+            />
           </AnimatedCard>
         ) : (
-          <ApplicationReviewScreen onClose={handleClose} />
+          <ApplicationReviewScreen applicationId={selectedId} onClose={handleClose} />
         )}
       </View>
     </SafeAreaView>
-  );
-}
-
-export function ActivitiesScreen() {
-  return (
-    <ApplicationProvider>
-      <NativeActivitiesContent />
-    </ApplicationProvider>
   );
 }
 

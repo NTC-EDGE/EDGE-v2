@@ -40,7 +40,11 @@ if (typeof window !== 'undefined') {
           if (now - lastForbiddenTime > FORBIDDEN_COOLDOWN) {
             lastForbiddenTime = now;
             const url = error.config?.url ?? '';
-            window.dispatchEvent(new CustomEvent('forbidden-access', { detail: { url } }));
+            const method = error.config?.method ?? '';
+            const rawData = error.response?.data;
+            const data = typeof rawData === 'object' && rawData !== null ? (rawData as Record<string, unknown>) : null;
+            const detail = typeof data?.detail === 'string' ? data.detail : typeof data?.message === 'string' ? data.message : undefined;
+            window.dispatchEvent(new CustomEvent('forbidden-access', { detail: { url, method, detail } }));
           }
         }
 

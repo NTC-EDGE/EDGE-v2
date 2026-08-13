@@ -6,17 +6,12 @@ import { ApiResponse, ApplicationFormSubmissionDto } from '../types';
 export function useApplicationFormWithSubmission(
   applicationId?: string,
   applicantId?: string,
-  submissionId?: string,
-  applicationServiceId?: string
+  variantId?: string
 ) {
-  const queryParams = new URLSearchParams();
-  if (applicantId) queryParams.set('applicantId', applicantId);
-  if (submissionId) queryParams.set('submissionId', submissionId);
-  if (applicationServiceId) queryParams.set('applicationServiceId', applicationServiceId);
-  const queryString = queryParams.toString();
+  const queryString = variantId ? `?variantId=${variantId}` : '';
 
-  const key = applicationId
-    ? `/api/v2/applications/${applicationId}/form${queryString ? `?${queryString}` : ''}`
+  const key = applicationId && applicantId
+    ? `/api/v2/applications/${applicationId}/applicants/${applicantId}/form-submission${queryString}`
     : null;
 
   const { data, error, isLoading, mutate } = useSWR<ApiResponse<ApplicationFormSubmissionDto>>(

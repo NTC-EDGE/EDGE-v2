@@ -1,13 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { StyleSheet, View, Animated } from 'react-native';
-import { useTheme, PageHeader, AnimatedCard, SPACING, AlertToast } from '@edge/ui';
-import { ApplicationProvider, useApplications } from '../context/ApplicationContext';
+import { useTheme, PageHeader, AnimatedCard, SPACING } from '@edge/ui';
+import { QueueTab } from '../../shell/context/PermissionContext';
 import { ActivitiesFeedPane } from '../components/ActivitiesFeedPane';
 import { ApplicationReviewScreen } from './ApplicationReviewScreen';
 
-function DesktopActivitiesContent() {
+export function ActivitiesScreen() {
   const { colors } = useTheme();
-  const { setSelectedId, toast, dismissToast } = useApplications();
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [activeQueueTab, setActiveQueueTab] = useState<QueueTab>('activity');
   const [isPanelCollapsed, setIsPanelCollapsed] = useState(false);
   const collapseAnim = useRef(new Animated.Value(0)).current;
 
@@ -34,15 +35,6 @@ function DesktopActivitiesContent() {
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.bg }]}>
-      {toast !== null && (
-        <View style={styles.toastContainer}>
-          <AlertToast
-            message={toast.message}
-            variant={toast.variant}
-            onDismiss={dismissToast}
-          />
-        </View>
-      )}
       <View style={styles.headerWrapper}>
         <PageHeader
           title="Queue Command Center"
@@ -63,13 +55,19 @@ function DesktopActivitiesContent() {
         >
           <View style={styles.feedPaneInner}>
             <AnimatedCard padding={0} style={{ flex: 1, backgroundColor: colors.cardBg, borderColor: colors.border }}>
-              <ActivitiesFeedPane />
+              <ActivitiesFeedPane
+                selectedId={selectedId}
+                onSelectId={setSelectedId}
+                activeQueueTab={activeQueueTab}
+                onSelectQueueTab={setActiveQueueTab}
+              />
             </AnimatedCard>
           </View>
         </Animated.View>
 
         <View style={styles.detailPane}>
           <ApplicationReviewScreen
+            applicationId={selectedId}
             onClose={handleClose}
             onCollapse={handleCollapse}
             isCollapsed={isPanelCollapsed}
@@ -77,14 +75,6 @@ function DesktopActivitiesContent() {
         </View>
       </View>
     </View>
-  );
-}
-
-export function ActivitiesScreen() {
-  return (
-    <ApplicationProvider>
-      <DesktopActivitiesContent />
-    </ApplicationProvider>
   );
 }
 

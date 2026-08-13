@@ -57,7 +57,7 @@ public class FinalizeApplicationSubmissionCommandHandler : IRequestHandler<Final
 
             // Verify requirement attachments for each applicant if requirements exist
             var reqs = app.ApplicationRequirements.Where(r => r.ApplicantId == a.Id).ToList();
-            if (app.ApplicationServices.Any() && !reqs.Any())
+            if (a.ServiceId.HasValue && !reqs.Any())
             {
                 return ApiResponse<Guid>.Fail($"Submission rejected: Applicant #{aa.SequenceOrder} ({ad.FirstName} {ad.LastName}) is lacking required document uploads.");
             }

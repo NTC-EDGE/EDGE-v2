@@ -28,6 +28,7 @@ public class ApplicationDto
     public List<ApplicationServiceDto> Services { get; set; } = new();
     public List<ApplicantDto> Applicants { get; set; } = new();
     public List<ApplicationRequirementDto> Requirements { get; set; } = new();
+    public List<FormSubmissionSummaryDto> FormSubmissions { get; set; } = new();
     
     public List<StatementOfAccountDto> StatementsOfAccount { get; set; } = new();
     public List<OrderOfPaymentDto> OrdersOfPayment { get; set; } = new();
@@ -50,6 +51,7 @@ public class ApplicationServiceDto
     public Guid? ApplicantId { get; set; }
     public Guid? ServiceId { get; set; }
     public Guid? ServiceVariantId { get; set; }
+    public Guid? SubmissionId { get; set; }
 }
 
 public class ApplicationRequirementDto

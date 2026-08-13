@@ -51,13 +51,6 @@ public class GetDraftApplicationsQueryHandler : IRequestHandler<GetDraftApplicat
             UserId = app.UserId,
             IsGuest = app.IsGuest,
             CreatedAt = app.CreatedAt,
-            Services = app.ApplicationServices.Select(s => new ApplicationServiceDto
-            {
-                Id = s.Id,
-                ApplicantId = s.ApplicantId,
-                ServiceId = s.ServiceId,
-                ServiceVariantId = s.ServiceVariantId
-            }).ToList(),
             Applicants = app.ApplicationApplicants.Select(aa =>
             {
                 var a = aa.Applicant;
@@ -67,7 +60,12 @@ public class GetDraftApplicationsQueryHandler : IRequestHandler<GetDraftApplicat
                     TenantId = a?.TenantId ?? Guid.Empty,
                     UserId = a?.UserId,
                     IsGuest = a?.IsGuest ?? true,
-                    ApplicantType = a?.ApplicantType.ToString() ?? "Individual"
+                    ApplicantType = a?.ApplicantType.ToString() ?? "Individual",
+                    Status = a?.Status.ToString() ?? "Incomplete",
+                    EvaluationRemarks = a?.EvaluationRemarks,
+                    ServiceId = a?.ServiceId,
+                    ServiceVariantId = a?.ServiceVariantId,
+                    SubmissionId = a?.FormSubmission != null ? a.FormSubmission.Id : app.FormSubmissions.FirstOrDefault(fs => fs.ApplicantId == a?.Id)?.Id
                 };
 
                 if (a?.ApplicantDetail != null)

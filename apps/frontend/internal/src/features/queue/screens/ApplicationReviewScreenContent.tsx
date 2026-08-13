@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from "react";
+import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import {
   StyleSheet,
   View,
@@ -20,6 +20,7 @@ import {
   SHADOWS,
   TYPOGRAPHY,
   Icon as Lucide,
+  SkeletonLoader,
 } from "@edge/ui";
 import {
   ApplicationData,
@@ -28,13 +29,13 @@ import {
 } from "../../../types/application";
 import { useRole } from "../../shell/context/RoleContext";
 import { usePermissions } from "../../shell/context/PermissionContext";
-import { applicationService, useApplicationFormWithSubmission } from "@edge/api";
+import { applicationService, useApplicationFormWithSubmission, useAdminApplicationDetails } from "@edge/api";
+import { mapApplicationDtoToUI } from "../data/applicationMapper";
 import { ApproveModal } from "../components/modals/ApproveModal";
 import { DeclineModal } from "../components/modals/DeclineModal";
 import { EndorseModal } from "../components/modals/EndorseModal";
 import { CashierVerificationModal } from "../components/modals/CashierVerificationModal";
 import { UserRole } from "../../shell/context/RoleContext";
-import { useApplications } from "../context/ApplicationContext";
 
 type InnerTab = "details" | "applicant-record" | "soa";
 
@@ -918,7 +919,9 @@ function ApplicantRecordTab({
     setLocalApplicants(effectiveApplicants);
   }, [effectiveApplicants]);
 
-  const applicants = localApplicants;
+  const applicants = (localApplicants.length > 0 && localApplicants[0]?.id === effectiveApplicants[0]?.id)
+    ? localApplicants
+    : effectiveApplicants;
   const activeIdx = Math.min(selectedApplicantIndex ?? 0, Math.max(0, applicants.length - 1));
   const activeApplicant = applicants[activeIdx];
   const bi = activeApplicant?.basicInfo;
@@ -947,7 +950,11 @@ function ApplicantRecordTab({
   const [compContactProfileDraft, setCompContactProfileDraft] = useState('');
   const [compEmailProfileDraft, setCompEmailProfileDraft] = useState('');
 
-  const { formData, isLoading: isLoadingForm, refetch: refetchForm } = useApplicationFormWithSubmission(app.id, activeApplicant?.id);
+  const { formData, isLoading: isLoadingForm, refetch: refetchForm } = useApplicationFormWithSubmission(
+    app.id,
+    activeApplicant?.id,
+    activeApplicant?.serviceVariantId
+  );
   const [formDraftValues, setFormDraftValues] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -2082,15 +2089,148 @@ function SoaPaymentTab({
   );
 }
 
+// ─── Skeleton Loading Component ─────────────────────────────────────────────
+
+export function ApplicationReviewSkeleton({ onClose }: { onClose?: () => void }) {
+  const { colors, isDark } = useTheme();
+
+  return (
+    <View style={{ flex: 1, backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50] }}>
+      {/* Top Bar / Header Banner Skeleton */}
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingHorizontal: SPACING[16],
+          paddingVertical: SPACING[12],
+          borderBottomWidth: 1,
+          borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[200],
+          backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+        }}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING[12] }}>
+          {onClose && <SkeletonLoader width={32} height={32} borderRadius={RADIUS.button} />}
+          <View style={{ gap: 6 }}>
+            <SkeletonLoader width={240} height={20} borderRadius={4} />
+            <SkeletonLoader width={140} height={13} borderRadius={4} />
+          </View>
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING[8] }}>
+          <SkeletonLoader width={80} height={28} borderRadius={14} />
+          <SkeletonLoader width={80} height={28} borderRadius={14} />
+        </View>
+      </View>
+
+      {/* Inner Tabs Bar Skeleton */}
+      <View
+        style={{
+          flexDirection: 'row',
+          gap: SPACING[8],
+          paddingHorizontal: SPACING[16],
+          paddingVertical: SPACING[8],
+          borderBottomWidth: 1,
+          borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[200],
+          backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+        }}
+      >
+        <SkeletonLoader width={140} height={36} borderRadius={6} />
+        <SkeletonLoader width={140} height={36} borderRadius={6} />
+        <SkeletonLoader width={140} height={36} borderRadius={6} />
+      </View>
+
+      {/* Content Workspace Skeleton */}
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: SPACING[16], gap: SPACING[16] }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Section 1: Overview Card */}
+        <View
+          style={{
+            borderRadius: RADIUS.card,
+            borderWidth: 1,
+            borderColor: isDark ? colors.neutral[800] : colors.neutral[200],
+            backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+            padding: SPACING[16],
+            gap: SPACING[12],
+          }}
+        >
+          <SkeletonLoader width={180} height={18} borderRadius={4} />
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING[12] }}>
+            <SkeletonLoader width="48%" height={48} borderRadius={RADIUS.input} />
+            <SkeletonLoader width="48%" height={48} borderRadius={RADIUS.input} />
+            <SkeletonLoader width="48%" height={48} borderRadius={RADIUS.input} />
+            <SkeletonLoader width="48%" height={48} borderRadius={RADIUS.input} />
+          </View>
+        </View>
+
+        {/* Section 2: Applicants Roster & Record */}
+        <View
+          style={{
+            borderRadius: RADIUS.card,
+            borderWidth: 1,
+            borderColor: isDark ? colors.neutral[800] : colors.neutral[200],
+            backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+            padding: SPACING[16],
+            gap: SPACING[12],
+          }}
+        >
+          <SkeletonLoader width={220} height={18} borderRadius={4} />
+          <View style={{ gap: SPACING[8] }}>
+            <SkeletonLoader width="100%" height={52} borderRadius={RADIUS.card} />
+            <SkeletonLoader width="100%" height={52} borderRadius={RADIUS.card} />
+          </View>
+        </View>
+
+        {/* Section 3: Form Submissions / Requirements Table */}
+        <View
+          style={{
+            borderRadius: RADIUS.card,
+            borderWidth: 1,
+            borderColor: isDark ? colors.neutral[800] : colors.neutral[200],
+            backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+            padding: SPACING[16],
+            gap: SPACING[12],
+          }}
+        >
+          <SkeletonLoader width={260} height={18} borderRadius={4} />
+          <SkeletonLoader width="100%" height={100} borderRadius={RADIUS.card} />
+        </View>
+      </ScrollView>
+
+      {/* Bottom Sticky Action Bar Skeleton */}
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'flex-end',
+          gap: SPACING[12],
+          paddingHorizontal: SPACING[16],
+          paddingVertical: SPACING[12],
+          borderTopWidth: 1,
+          borderTopColor: isDark ? colors.neutral[800] : colors.neutral[200],
+          backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+        }}
+      >
+        <SkeletonLoader width={110} height={38} borderRadius={RADIUS.button} />
+        <SkeletonLoader width={130} height={38} borderRadius={RADIUS.button} />
+      </View>
+    </View>
+  );
+}
+
 // ─── Main Content Component ──────────────────────────────────────────────────
 
 export interface ApplicationReviewScreenProps {
+  applicationId?: string | null;
   onClose: () => void;
   onCollapse?: () => void;
   isCollapsed?: boolean;
 }
 
 export function ApplicationReviewScreenContent({
+  applicationId: propApplicationId,
   onClose,
   onCollapse,
   isCollapsed,
@@ -2098,14 +2238,27 @@ export function ApplicationReviewScreenContent({
   const { colors, isDark } = useTheme();
   const { width } = useWindowDimensions();
   const isNarrow = width < 900;
-  const {
-    applications,
-    selectedApplication,
-    activeQueueTab,
-    updateApplication,
-    setSelectedId,
-    isDetailsLoading,
-  } = useApplications();
+  const { applicationDto, isLoading: isDetailsLoading, refetch } = useAdminApplicationDetails(propApplicationId);
+
+  const selectedApplication = useMemo(() => {
+    return applicationDto ? mapApplicationDtoToUI(applicationDto) : null;
+  }, [applicationDto]);
+
+  const updateApplication = useCallback(async (id: string, patch: Partial<ApplicationData>) => {
+    if (patch.status) {
+      await applicationService.updateStatus(id, {
+        status: patch.status,
+        remarks: patch.note,
+      });
+    } else {
+      await applicationService.adminUpdateApplication(id, patch as Record<string, unknown>);
+    }
+    refetch();
+  }, [refetch]);
+
+  const setSelectedId = useCallback((_id: string | null) => {
+    onClose();
+  }, [onClose]);
   const { currentRole } = useRole();
   const { canApprove, canDecline, canEndorse, canVerifyCashier } =
     usePermissions();
@@ -2193,6 +2346,10 @@ export function ApplicationReviewScreenContent({
     });
   };
 
+  if (isDetailsLoading) {
+    return <ApplicationReviewSkeleton onClose={onClose} />;
+  }
+
   if (selectedApplication === null) {
     return (
       <ScrollView
@@ -2204,43 +2361,6 @@ export function ApplicationReviewScreenContent({
           <View style={[styles.summaryHeader, { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100], }]}>
             <Lucide name="layout" size={20} color={isDark ? colors.brand[500] : COLORS.brand[700]} />
             <Text style={[styles.summaryTitle, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>Work Queue Summary</Text>
-          </View>
-
-          <View style={styles.statsRow}>
-            <View style={styles.statBox}>
-              <Text style={[styles.statValue, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>
-                {
-                  applications.filter(
-                    (a: ApplicationData) =>
-                      a.queueTab === "pending" && (a.status === "Evaluating" || a.status === "Submitted"),
-                  ).length
-                }
-              </Text>
-              <Text style={[styles.statLabel, { color: isDark ? colors.neutral[400] : colors.neutral[500], }]}>Evaluating</Text>
-            </View>
-            <View style={styles.statBox}>
-              <Text style={[styles.statValue, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>
-                {
-                  applications.filter(
-                    (a: ApplicationData) =>
-                      a.queueTab === "pending" &&
-                      a.status === "Approved",
-                  ).length
-                }
-              </Text>
-              <Text style={[styles.statLabel, { color: isDark ? colors.neutral[400] : colors.neutral[500], }]}>To Verify</Text>
-            </View>
-            <View style={styles.statBox}>
-              <Text style={[styles.statValue, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>
-                {
-                  applications.filter(
-                    (a: ApplicationData) =>
-                      a.queueTab === "history" && a.status === "Approved",
-                  ).length
-                }
-              </Text>
-              <Text style={[styles.statLabel, { color: isDark ? colors.neutral[400] : colors.neutral[500], }]}>Completed</Text>
-            </View>
           </View>
 
           <View style={[styles.guideBox, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50], }]}>
@@ -2256,13 +2376,7 @@ export function ApplicationReviewScreenContent({
           <Lucide name="mouse-pointer" size={32} color={isDark ? colors.neutral[600] : colors.neutral[300]} />
           <Text style={[styles.emptyPanelTitle, { color: isDark ? colors.neutral[500] : colors.neutral[400], }]}>No Application Selected</Text>
           <Text style={[styles.emptyPanelSub, { color: isDark ? colors.neutral[600] : colors.neutral[300], }]}>
-            Your active queue contains{" "}
-            {
-              applications.filter(
-                (a: ApplicationData) => a.queueTab === "pending",
-              ).length
-            }{" "}
-            items requiring attention.
+            Select an application from the queue to view full details and perform evaluation actions.
           </Text>
         </View>
       </ScrollView>
@@ -2272,7 +2386,6 @@ export function ApplicationReviewScreenContent({
   const app = selectedApplication;
 
   const isEditable =
-    activeQueueTab !== "history" &&
     app.queueTab !== "history" &&
     app.status !== "Completed" &&
     app.status !== "Approved";
@@ -2550,6 +2663,7 @@ export function ApplicationReviewScreenContent({
       {/* ── Tab Content ── */}
       {innerTab === "details" && (
         <ApplicationDetailsTab
+          key={app.id}
           app={app}
           isEditable={isEditable}
           updateApplication={updateApplication}
@@ -2563,6 +2677,7 @@ export function ApplicationReviewScreenContent({
       )}
       {innerTab === "applicant-record" && (
         <ApplicantRecordTab
+          key={app.id}
           app={app}
           selectedApplicantIndex={selectedApplicantIndex}
           onSelectApplicantIndex={(idx) => setSelectedApplicantIndex(idx)}
@@ -2572,6 +2687,7 @@ export function ApplicationReviewScreenContent({
       )}
       {innerTab === "soa" && (
         <SoaPaymentTab
+          key={app.id}
           app={app}
           isEditable={isEditable}
           updateApplication={updateApplication}

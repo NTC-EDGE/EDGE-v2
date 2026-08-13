@@ -35,13 +35,18 @@ public class FilingUserSummaryDto
 public class ServiceSummaryDto
 {
     public Guid Id { get; set; }
+    public Guid? ApplicantId { get; set; }
     public Guid? ServiceId { get; set; }
     public Guid? ServiceVariantId { get; set; }
+    public Guid? SubmissionId { get; set; }
 }
 
 public class ApplicantSummaryDto
 {
     public Guid Id { get; set; }
+    public Guid? ServiceId { get; set; }
+    public Guid? ServiceVariantId { get; set; }
+    public Guid? SubmissionId { get; set; }
     public string ApplicantType { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;

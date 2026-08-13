@@ -104,6 +104,20 @@ export const applicationService = {
     });
   },
 
+  async getApplicantServiceFormSubmission(
+    applicationId: string,
+    applicantId: string,
+    variantId?: string
+  ) {
+    return safeAsync(async () => {
+      const queryString = variantId ? `?variantId=${variantId}` : '';
+      const response = await apiClient.get<ApiResponse<ApplicationFormSubmissionDto>>(
+        `/api/v2/applications/${applicationId}/applicants/${applicantId}/form-submission${queryString}`
+      );
+      return response.data;
+    });
+  },
+
   async createFormSubmission(
     applicationId: string,
     formId: string,

@@ -92,15 +92,14 @@ public class UploadApplicantRequirementCommandHandler
             return ApiResponse<Guid>.Fail(
                 $"Requirement '{resolvedRequirementId}' was not found in the master catalog.");
 
-        // 7. Resolve per-applicant ApplicationService & ContextKey from FormFieldValues + Service.Contract
-        var appService = request.ApplicationServiceId.HasValue
-            ? app.ApplicationServices.FirstOrDefault(s => s.Id == request.ApplicationServiceId.Value)
-            : (app.ApplicationServices.FirstOrDefault(s => s.ApplicantId == request.ApplicantId) ?? app.ApplicationServices.FirstOrDefault());
+        // 7. Resolve per-applicant Service & ContextKey from FormFieldValues + Service.Contract
+        var appApplicant = app.ApplicationApplicants.FirstOrDefault(aa => aa.ApplicantId == request.ApplicantId);
+        var applicant = appApplicant?.Applicant;
 
-        if (appService?.ServiceId != null)
+        if (applicant?.ServiceId != null)
         {
             // Load the service to access its Contract JSON
-            var service = await _serviceRepository.GetByIdAsync(appService.ServiceId.Value, cancellationToken);
+            var service = await _serviceRepository.GetByIdAsync(applicant.ServiceId.Value, cancellationToken);
 
             string? contextKey = null;
 
@@ -114,8 +113,8 @@ public class UploadApplicantRequirementCommandHandler
 
             // Query rules scoped to this applicant's specific context
             var validRules = await _requirementRepository.GetServiceVariantRequirementsAsync(
-                appService.ServiceId.Value,
-                appService.ServiceVariantId,
+                applicant.ServiceId.Value,
+                applicant.ServiceVariantId,
                 contextKey,
                 cancellationToken);
 
@@ -136,7 +135,6 @@ public class UploadApplicantRequirementCommandHandler
         {
             ApplicationId               = request.ApplicationId,
             ApplicantId                 = request.ApplicantId,
-            ApplicationServiceId        = appService?.Id,
             RequirementId               = resolvedRequirementId,
             ServiceVariantRequirementId = request.ServiceVariantRequirementId,
             TenantId                    = app.TenantId,

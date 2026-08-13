@@ -9,7 +9,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { ColumnDef } from '@tanstack/react-table';
-import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, DataTable, Icon as Lucide, useTheme } from '@edge/ui';
+import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, DataTable, Icon as Lucide, useTheme, toast } from '@edge/ui';
 import {
   User,
   INITIAL_USERS,
@@ -130,10 +130,7 @@ export function UsersScreenContent({
   const [activePopoverId, setActivePopoverId] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => {
-      setToastMessage(null);
-    }, 3500);
+    toast.success(msg);
   };
 
   // Reset pagination to page 1 on filter changes
@@ -365,14 +362,6 @@ export function UsersScreenContent({
 
   return (
     <View style={styles.screenContainer}>
-      {/* Toast Notification Banner */}
-      {toastMessage !== null && (
-        <View style={[styles.toastContainer, SHADOWS.card]}>
-          <Lucide name="check-circle" size={16} color={COLORS.semantic.success} style={styles.toastIcon} />
-          <Text style={styles.toastText}>{toastMessage}</Text>
-        </View>
-      )}
-
       {/* Main Header */}
       <View style={[styles.headerSection, isMobile && styles.headerSectionMobile]}>
         <View style={styles.headerTitleGroup}>

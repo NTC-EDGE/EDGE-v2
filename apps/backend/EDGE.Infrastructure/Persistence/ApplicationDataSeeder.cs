@@ -388,31 +388,8 @@ public static class ApplicationDataSeeder
             ApplicantId = applicants[7].Id,
             SequenceOrder = 2,
         });
-        var app7Service1 = new ApplicationService
-        {
-            Id = Guid.Parse("c7000000-0000-0000-0000-000000000001"),
-            ApplicationId = app7.Id,
-            ApplicantId = applicants[6].Id,
-            ServiceId = ServicePermitId
-        };
-        var app7Service2 = new ApplicationService
-        {
-            Id = Guid.Parse("c7000000-0000-0000-0000-000000000002"),
-            ApplicationId = app7.Id,
-            ApplicantId = applicants[6].Id,
-            ServiceId = ServiceCertId
-        };
-        var app7Service3 = new ApplicationService
-        {
-            Id = Guid.Parse("c7000000-0000-0000-0000-000000000003"),
-            ApplicationId = app7.Id,
-            ApplicantId = applicants[7].Id,
-            ServiceId = ServiceLicenseId
-        };
-
-        app7.ApplicationServices.Add(app7Service1);
-        app7.ApplicationServices.Add(app7Service2);
-        app7.ApplicationServices.Add(app7Service3);
+        applicants[6].ServiceId = ServicePermitId;
+        applicants[7].ServiceId = ServiceLicenseId;
 
         AddHistory(app7, "Bulk application submitted.", null, ApplicationStatus.Submitted,
             ClientUserId, "Miguel Lopez", "Client", now.AddDays(-10));
@@ -440,11 +417,7 @@ public static class ApplicationDataSeeder
         {
             ("Examinee Class", "Class B (General)"),
             ("Exam Type", "First Time Examinee"),
-            ("Preferred Exam Language", "English"),
-            ("PRC License Status", "None"),
-            ("Station Call Sign", "DU7MLP-1"),
-            ("Vessel Name", "M/V Ocean Sentinel"),
-        }, defaultFormId, availableFields, app7Service1.Id);
+        }, defaultFormId, availableFields);
 
         // Form submission 2 for Applicant 6 (Certificate Service - Second Service for same applicant)
         AddFormSubmission(app7, applicants[6], new()
@@ -455,7 +428,7 @@ public static class ApplicationDataSeeder
             ("PRC License Status", "Licensed Engineer"),
             ("Station Call Sign", "DU7MLP-CERT"),
             ("Vessel Name", "M/V Ocean Sentinel"),
-        }, defaultFormId, availableFields, app7Service2.Id);
+        }, defaultFormId, availableFields);
 
         // Form submission for Applicant 7 (Permit Service)
         AddFormSubmission(app7, applicants[7], new()
@@ -466,7 +439,7 @@ public static class ApplicationDataSeeder
             ("PRC License Status", "Licensed Engineer"),
             ("Station Call Sign", "DU7SFR"),
             ("Vessel Name", "M/V Visayas Trader"),
-        }, defaultFormId, availableFields, app7Service3.Id);
+        }, defaultFormId, availableFields);
 
         app7.StatementsOfAccount.Add(soaBulk1);
         app7.StatementsOfAccount.Add(soaBulk2);
@@ -628,12 +601,7 @@ public static class ApplicationDataSeeder
             ApplicantId = companyApplicant.Id,
             SequenceOrder = 1,
         });
-        app13.ApplicationServices.Add(new ApplicationService
-        {
-            Id = Guid.NewGuid(),
-            ApplicationId = app13.Id,
-            ServiceId = ServicePermitId,
-        });
+        companyApplicant.ServiceId = ServicePermitId;
 
         AddHistory(app13, "Company bulk application submitted.", null, ApplicationStatus.Submitted,
             ClientUserId, "Carlos Gutierrez", "Client Representative", now.AddDays(-7));
@@ -862,12 +830,7 @@ public static class ApplicationDataSeeder
             ApplicantId = applicant.Id,
             SequenceOrder = 1,
         });
-        app.ApplicationServices.Add(new ApplicationService
-        {
-            Id = Guid.NewGuid(),
-            ApplicationId = id,
-            ServiceId = serviceId,
-        });
+        applicant.ServiceId = serviceId;
         return app;
     }
 
@@ -1026,15 +989,13 @@ public static class ApplicationDataSeeder
         DomainApplication app, Applicant applicant,
         List<(string label, string value)> fields,
         Guid defaultFormId,
-        List<Field> availableFields,
-        Guid? applicationServiceId = null)
+        List<Field> availableFields)
     {
         var submission = new FormSubmission
         {
             Id = Guid.NewGuid(),
             ApplicationId = app.Id,
             ApplicantId = applicant.Id,
-            ApplicationServiceId = applicationServiceId,
             FormId = defaultFormId,
             CreatedAt = app.CreatedAt,
         };
