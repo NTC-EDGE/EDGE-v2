@@ -28,7 +28,7 @@ import {
 } from "../../../types/application";
 import { useRole } from "../../shell/context/RoleContext";
 import { usePermissions } from "../../shell/context/PermissionContext";
-import { applicationService } from "@edge/api";
+import { applicationService, ApplicationFormSubmissionDto } from "@edge/api";
 import { ApproveModal } from "../components/modals/ApproveModal";
 import { DeclineModal } from "../components/modals/DeclineModal";
 import { EndorseModal } from "../components/modals/EndorseModal";
@@ -909,7 +909,6 @@ function ApplicantRecordTab({
         occupation: app.basicInfo.occupation,
       } : undefined,
       requirements: app.requirements,
-      formFields: [],
     }];
   }, [app]);
 
@@ -948,8 +947,35 @@ function ApplicantRecordTab({
   const [compContactProfileDraft, setCompContactProfileDraft] = useState('');
   const [compEmailProfileDraft, setCompEmailProfileDraft] = useState('');
 
-  const [editingFieldId, setEditingFieldId] = useState<string | null>(null);
-  const [fieldValueDraft, setFieldValueDraft] = useState('');
+  const [formData, setFormData] = useState<ApplicationFormSubmissionDto | null>(null);
+  const [isLoadingForm, setIsLoadingForm] = useState(false);
+  const [formDraftValues, setFormDraftValues] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (!app.id) return;
+    let isMounted = true;
+    setIsLoadingForm(true);
+
+    applicationService.getApplicationFormWithSubmission(app.id, activeApplicant?.id).then(([res, err]) => {
+      if (isMounted) {
+        setIsLoadingForm(false);
+        if (res && res.succeeded && res.data) {
+          setFormData(res.data);
+          const initialDrafts: Record<string, string> = {};
+          res.data.sections.forEach((sec) => {
+            sec.fields.forEach((f) => {
+              initialDrafts[f.fieldId] = f.value ?? '';
+            });
+          });
+          setFormDraftValues(initialDrafts);
+        } else {
+          setFormData(null);
+        }
+      }
+    });
+
+    return () => { isMounted = false; };
+  }, [app.id, activeApplicant?.id]);
 
   const handleSaveProfile = () => {
     const updated = [...localApplicants];
@@ -1015,23 +1041,32 @@ function ApplicantRecordTab({
     setIsEditingProfile(false);
   };
 
-  const handleSaveFormFields = () => {
-    const updated = [...localApplicants];
-    if (updated[activeIdx] && updated[activeIdx].formFields) {
-      setLocalApplicants(updated);
-      if (activeApplicant?.id && activeApplicant.formFields) {
-        applicationService.adminUpdateFormValues(
-          app.id,
-          activeApplicant.id,
-          activeApplicant.formFields.map((f) => ({
-            fieldId: f.fieldId,
-            fieldLabel: f.fieldLabel,
-            value: f.value,
-          }))
-        );
+  const handleSaveFormFields = async () => {
+    if (!activeApplicant?.id || !formData) return;
+
+    const payload = formData.sections.flatMap((sec) =>
+      sec.fields.map((f) => ({
+        fieldId: f.fieldId,
+        fieldLabel: f.label,
+        value: formDraftValues[f.fieldId] ?? (f.value || ''),
+      }))
+    );
+
+    const [res, err] = await applicationService.adminUpdateFormValues(app.id, activeApplicant.id, payload);
+    if (res && res.succeeded) {
+      setIsEditingForm(false);
+      const [refreshRes, refreshErr] = await applicationService.getApplicationFormWithSubmission(app.id, activeApplicant.id);
+      if (refreshRes && refreshRes.succeeded && refreshRes.data) {
+        setFormData(refreshRes.data);
+        const updatedDrafts: Record<string, string> = {};
+        refreshRes.data.sections.forEach((sec) => {
+          sec.fields.forEach((f) => {
+            updatedDrafts[f.fieldId] = f.value ?? '';
+          });
+        });
+        setFormDraftValues(updatedDrafts);
       }
     }
-    setIsEditingForm(false);
   };
 
   const accountableForms = app.forms.filter(
@@ -1386,7 +1421,7 @@ function ApplicantRecordTab({
         <SectionHeader
           title="2. COMPLETED SERVICE FORM SUBMISSIONS"
           rightAction={
-            isEditable && activeApplicant?.formFields && activeApplicant.formFields.length > 0 ? (
+            isEditable && formData && formData.sections.length > 0 ? (
               <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
                 {isEditingForm ? (
                   <>
@@ -1416,28 +1451,31 @@ function ApplicantRecordTab({
           }
         />
         <View style={styles.infoBlock}>
-          {activeApplicant?.formFields && activeApplicant.formFields.length > 0 ? (
-            activeApplicant.formFields.map((ff, ffIdx) => (
-              <InfoRow
-                key={ff.fieldId}
-                label={`${ff.fieldLabel}:`}
-                value={ff.value || '—'}
-                isEditing={isEditingForm}
-                editValue={isEditingForm ? ff.value : fieldValueDraft}
-                onEditChange={(newVal) => {
-                  if (isEditingForm) {
-                    const updated = [...localApplicants];
-                    if (updated[activeIdx] && updated[activeIdx].formFields) {
-                      const newFormFields = [...updated[activeIdx].formFields!];
-                      newFormFields[ffIdx] = { ...newFormFields[ffIdx], value: newVal };
-                      updated[activeIdx] = { ...updated[activeIdx], formFields: newFormFields };
-                      setLocalApplicants(updated);
-                    }
-                  } else {
-                    setFieldValueDraft(newVal);
-                  }
-                }}
-              />
+          {isLoadingForm ? (
+            <View style={{ padding: 16, alignItems: 'center' }}>
+              <Text style={{ color: isDark ? colors.neutral[400] : colors.neutral[600], fontSize: 13 }}>
+                Loading form submission...
+              </Text>
+            </View>
+          ) : formData && formData.sections.length > 0 ? (
+            formData.sections.map((sec) => (
+              <View key={sec.key} style={{ marginBottom: 16 }}>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: isDark ? colors.brand[400] : colors.brand[600], marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                  {sec.title}
+                </Text>
+                {sec.fields.map((ff) => (
+                  <InfoRow
+                    key={ff.fieldId}
+                    label={`${ff.label}:`}
+                    value={ff.value || '—'}
+                    isEditing={isEditingForm}
+                    editValue={formDraftValues[ff.fieldId] ?? ''}
+                    onEditChange={(newVal) => {
+                      setFormDraftValues((prev) => ({ ...prev, [ff.fieldId]: newVal }));
+                    }}
+                  />
+                ))}
+              </View>
             ))
           ) : (
             <View style={styles.emptyReqs}>

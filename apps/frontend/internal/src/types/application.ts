@@ -105,11 +105,6 @@ export interface ApplicantItem {
     contactNumber?: string;
     email?: string;
   };
-  formFields?: Array<{
-    fieldId: string;
-    fieldLabel: string;
-    value?: string;
-  }>;
   requirements?: RequirementDocument[];
 }
 

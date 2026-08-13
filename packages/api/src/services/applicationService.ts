@@ -8,6 +8,7 @@ import {
   CreateSoaRequest,
   VerifyPaymentRequest,
   ReturnOpRequest,
+  ApplicationFormSubmissionDto,
 } from '../types';
 
 export const applicationService = {
@@ -79,6 +80,16 @@ export const applicationService = {
       const response = await apiClient.patch<ApiResponse<ApplicationDto>>(
         `/api/v2/applications/${applicationId}/applicants/${applicantId}/form-values/admin-update`,
         { formFields }
+      );
+      return response.data;
+    });
+  },
+
+  async getApplicationFormWithSubmission(applicationId: string, applicantId?: string) {
+    return safeAsync(async () => {
+      const params = applicantId ? `?applicantId=${applicantId}` : '';
+      const response = await apiClient.get<ApiResponse<ApplicationFormSubmissionDto>>(
+        `/api/v2/applications/${applicationId}/form${params}`
       );
       return response.data;
     });

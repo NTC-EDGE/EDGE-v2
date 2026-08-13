@@ -134,7 +134,6 @@ export function mapApplicationDtoToUI(dto: ApplicationDto | ApplicationSummaryDt
         employmentStatus: '',
         occupation: '',
       } : undefined,
-      formFields: appItem.formFieldValues,
       requirements: [],
     };
   });
