@@ -168,6 +168,58 @@ public class AdminUpdateApplicantProfileCommandHandler : IRequestHandler<AdminUp
                 detail.ZipCode = request.ZipCode;
             }
 
+            // Audit & update Date of Birth (Dob / BirthDate)
+            if (request.Dob != null)
+            {
+                var oldDobStr = detail.BirthDate == default ? string.Empty : detail.BirthDate.ToString("yyyy-MM-dd");
+                if (request.Dob != oldDobStr && DateOnly.TryParse(request.Dob, out var parsedDob))
+                {
+                    await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
+                    {
+                        ApplicationId = app.Id,
+                        Category = "Applicant Profile",
+                        FieldName = "BirthDate",
+                        OldValue = oldDobStr,
+                        NewValue = request.Dob,
+                        CorrectedByStaff = staffName,
+                        CorrectedAt = DateTime.UtcNow
+                    }, cancellationToken);
+                    detail.BirthDate = parsedDob;
+                }
+            }
+
+            // Audit & update Sex
+            if (request.Sex != null && request.Sex != detail.Sex)
+            {
+                await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
+                {
+                    ApplicationId = app.Id,
+                    Category = "Applicant Profile",
+                    FieldName = "Sex",
+                    OldValue = detail.Sex ?? string.Empty,
+                    NewValue = request.Sex,
+                    CorrectedByStaff = staffName,
+                    CorrectedAt = DateTime.UtcNow
+                }, cancellationToken);
+                detail.Sex = request.Sex;
+            }
+
+            // Audit & update Nationality
+            if (request.Nationality != null && request.Nationality != detail.Nationality)
+            {
+                await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
+                {
+                    ApplicationId = app.Id,
+                    Category = "Applicant Profile",
+                    FieldName = "Nationality",
+                    OldValue = detail.Nationality ?? string.Empty,
+                    NewValue = request.Nationality,
+                    CorrectedByStaff = staffName,
+                    CorrectedAt = DateTime.UtcNow
+                }, cancellationToken);
+                detail.Nationality = request.Nationality;
+            }
+
             // Audit & update Applicant Type
             if (!string.IsNullOrEmpty(request.ApplicantType) && Enum.TryParse<EDGE.Domain.Enums.ApplicantType>(request.ApplicantType, true, out var parsedType))
             {

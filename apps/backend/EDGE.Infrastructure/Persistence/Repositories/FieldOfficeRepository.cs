@@ -37,7 +37,7 @@ public class FieldOfficeRepository : IFieldOfficeRepository
             .Include(f => f.Province)
             .Include(f => f.OfficerInCharge)
                 .ThenInclude(o => o.User)
-            .Where(f => f.TenantId == tenantId || (f.RegionId != null && f.RegionId == tenantId))
+            .Where(f => f.TenantId == tenantId || (f.RegionId != Guid.Empty && f.RegionId == tenantId))
             .OrderBy(f => f.Name)
             .ToListAsync(cancellationToken);
 

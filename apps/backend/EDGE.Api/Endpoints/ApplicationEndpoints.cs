@@ -28,6 +28,7 @@ using EDGE.Application.Applications.Queries.GetApplicationById;
 using EDGE.Application.Applications.Queries.GetApplicationsByApplicant;
 using EDGE.Application.Applications.Queries.GetDraftApplications;
 using EDGE.Application.Applications.Queries.GetApplicantServiceFormSubmission;
+using EDGE.Application.Applications.Queries.GetApplicantRequirements;
 using EDGE.Application.Applications.Commands.CreateSoa;
 using EDGE.Application.Applications.Commands.ApproveSoa;
 using EDGE.Application.Applications.Commands.ReturnSoa;
@@ -157,6 +158,12 @@ public static class ApplicationEndpoints
             .WithName("UploadApplicantRequirement")
             .WithSummary("Upload applicant requirement attachment")
             .WithDescription("Uploads a specific file attachment satisfying a document requirement for a single applicant.");
+
+        group.MapGet("/{id:guid}/applicants/{applicantId:guid}/requirements", GetApplicantRequirementsEndpoint)
+            .RequireAuthorization(new HasPermissionAttribute(Permissions.ReadApplication))
+            .WithName("GetApplicantRequirements")
+            .WithSummary("Retrieve applicant service variant requirements and submitted documents")
+            .WithDescription("Fetches the required and optional requirements for a specific applicant service variant context alongside submitted file metadata.");
 
         group.MapPatch("/{id:guid}/applicants/{applicantId:guid}", UpdateApplicationApplicant)
             .WithName("UpdateApplicationApplicant")
@@ -325,10 +332,29 @@ public static class ApplicationEndpoints
     }
 
     [HasPermission(Permissions.SubmitApplication)]
-    public static async Task<IResult> UploadApplicantRequirement(Guid id, Guid applicantId, UploadApplicantRequirementCommand command, IMediator mediator)
+    public static async Task<IResult> UploadApplicantRequirement(
+        Guid id,
+        Guid applicantId,
+        UploadApplicantRequirementCommand command,
+        IValidator<UploadApplicantRequirementCommand> validator,
+        IMediator mediator)
     {
-        var result = await mediator.Send(command with { ApplicationId = id, ApplicantId = applicantId });
+        var fullCommand = command with { ApplicationId = id, ApplicantId = applicantId };
+        var validationResult = await validator.ValidateAsync(fullCommand);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
+
+        var result = await mediator.Send(fullCommand);
         return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
+    }
+
+    [HasPermission(Permissions.ReadApplication)]
+    public static async Task<IResult> GetApplicantRequirementsEndpoint(Guid id, Guid applicantId, IMediator mediator)
+    {
+        var result = await mediator.Send(new GetApplicantRequirementsQuery(id, applicantId));
+        return result.Succeeded ? Results.Ok(result) : Results.NotFound(result);
     }
 
     [HasPermission(Permissions.UpdateApplication)]

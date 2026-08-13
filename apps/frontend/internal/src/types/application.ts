@@ -129,6 +129,7 @@ export interface ApplicationServiceItem {
 
 export interface ApplicationData {
   id: string;
+  tenantId?: string;
   referenceNumber: string;
   applicationNumber: string;
   applicant: string;
