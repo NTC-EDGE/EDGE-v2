@@ -21,6 +21,7 @@ import {
   TYPOGRAPHY,
   Icon as Lucide,
   SkeletonLoader,
+  toast,
 } from "@edge/ui";
 import {
   ApplicationData,
@@ -1137,6 +1138,24 @@ function ApplicantRecordTab({
     }
   };
 
+  const notifyError = (title: string, msg: string) => {
+    try {
+      toast.error(`${title}: ${msg}`);
+    } catch {
+      // fallback
+    }
+    Alert.alert(title, msg);
+  };
+
+  const notifySuccess = (title: string, msg: string) => {
+    try {
+      toast.success(`${title}: ${msg}`);
+    } catch {
+      // fallback
+    }
+    Alert.alert(title, msg);
+  };
+
   const handleUploadOrReplaceRequirement = async (reqItem: ApplicantRequirementItemDto) => {
     if (app?.id === undefined || app?.id === null || activeApplicant?.id === undefined || activeApplicant?.id === null) {
       return;
@@ -1162,13 +1181,13 @@ function ApplicantRecordTab({
         const isPdf = mimeType === 'application/pdf' || fileName.endsWith('.pdf');
 
         if (!isImage && !isPdf) {
-          Alert.alert('Invalid File Type', 'Only image files (JPG, PNG, WEBP, GIF, BMP) and PDF documents are allowed.');
+          notifyError('Invalid File Type', 'Only image files (JPG, PNG, WEBP, GIF, BMP) and PDF documents are allowed.');
           return;
         }
 
         const tenantId = app.tenantId;
         if (tenantId === undefined || tenantId === null || tenantId.trim() === '') {
-          Alert.alert('Upload Failed', 'Tenant ID is missing on current application context.');
+          notifyError('Upload Failed', 'Tenant ID is missing on current application context.');
           return;
         }
 
@@ -1185,7 +1204,7 @@ function ApplicantRecordTab({
             const errText = typeof storageErr === 'object' && storageErr !== null && 'message' in storageErr
               ? String((storageErr as { message?: unknown }).message)
               : (storageRes?.message ?? 'Failed to upload document to storage.');
-            Alert.alert('Upload Failed', errText);
+            notifyError('Upload Failed', errText);
             setUploadingReqId(null);
             return;
           }
@@ -1208,16 +1227,16 @@ function ApplicantRecordTab({
             const errText = typeof reqErr === 'object' && reqErr !== null && 'message' in reqErr
               ? String((reqErr as { message?: unknown }).message)
               : (reqRes?.message ?? 'Failed to save requirement attachment.');
-            Alert.alert('Save Failed', errText);
+            notifyError('Save Failed', errText);
             return;
           }
 
-          Alert.alert('Success', 'Requirement document attached successfully.');
+          notifySuccess('Success', 'Requirement document attached successfully.');
           await fetchApplicantRequirements();
         } catch (err: unknown) {
           setUploadingReqId(null);
           const errorMsg = err instanceof Error ? err.message : 'An error occurred during file upload.';
-          Alert.alert('Upload Error', errorMsg);
+          notifyError('Upload Error', errorMsg);
         }
       };
 
@@ -1225,7 +1244,7 @@ function ApplicantRecordTab({
     } else {
       const tenantId = app.tenantId;
       if (tenantId === undefined || tenantId === null || tenantId.trim() === '') {
-        Alert.alert('Upload Failed', 'Tenant ID is missing on current application context.');
+        notifyError('Upload Failed', 'Tenant ID is missing on current application context.');
         return;
       }
 
@@ -1247,7 +1266,7 @@ function ApplicantRecordTab({
           const isPdf = mimeType === 'application/pdf' || fileName.endsWith('.pdf');
 
           if (!isImage && !isPdf) {
-            Alert.alert('Invalid File Type', 'Only image files (JPG, PNG, WEBP, GIF, BMP) and PDF documents are allowed.');
+            notifyError('Invalid File Type', 'Only image files (JPG, PNG, WEBP, GIF, BMP) and PDF documents are allowed.');
             return;
           }
 
@@ -1267,7 +1286,7 @@ function ApplicantRecordTab({
             const errText = typeof storageErr === 'object' && storageErr !== null && 'message' in storageErr
               ? String((storageErr as { message?: unknown }).message)
               : (storageRes?.message ?? 'Failed to upload document to storage.');
-            Alert.alert('Upload Failed', errText);
+            notifyError('Upload Failed', errText);
             setUploadingReqId(null);
             return;
           }
@@ -1290,17 +1309,17 @@ function ApplicantRecordTab({
             const errText = typeof reqErr === 'object' && reqErr !== null && 'message' in reqErr
               ? String((reqErr as { message?: unknown }).message)
               : (reqRes?.message ?? 'Failed to save requirement attachment.');
-            Alert.alert('Save Failed', errText);
+            notifyError('Save Failed', errText);
             return;
           }
 
-          Alert.alert('Success', 'Requirement document attached successfully.');
+          notifySuccess('Success', 'Requirement document attached successfully.');
           await fetchApplicantRequirements();
         }
       } catch (err: unknown) {
         setUploadingReqId(null);
         const errorMsg = err instanceof Error ? err.message : 'An error occurred during mobile document selection.';
-        Alert.alert('Upload Error', errorMsg);
+        notifyError('Upload Error', errorMsg);
       }
     }
   };
