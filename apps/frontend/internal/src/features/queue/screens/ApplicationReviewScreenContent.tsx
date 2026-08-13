@@ -28,7 +28,7 @@ import {
 } from "../../../types/application";
 import { useRole } from "../../shell/context/RoleContext";
 import { usePermissions } from "../../shell/context/PermissionContext";
-import { applicationService, ApplicationFormSubmissionDto } from "@edge/api";
+import { applicationService, useApplicationFormWithSubmission } from "@edge/api";
 import { ApproveModal } from "../components/modals/ApproveModal";
 import { DeclineModal } from "../components/modals/DeclineModal";
 import { EndorseModal } from "../components/modals/EndorseModal";
@@ -947,35 +947,20 @@ function ApplicantRecordTab({
   const [compContactProfileDraft, setCompContactProfileDraft] = useState('');
   const [compEmailProfileDraft, setCompEmailProfileDraft] = useState('');
 
-  const [formData, setFormData] = useState<ApplicationFormSubmissionDto | null>(null);
-  const [isLoadingForm, setIsLoadingForm] = useState(false);
+  const { formData, isLoading: isLoadingForm, refetch: refetchForm } = useApplicationFormWithSubmission(app.id, activeApplicant?.id);
   const [formDraftValues, setFormDraftValues] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    if (!app.id) return;
-    let isMounted = true;
-    setIsLoadingForm(true);
-
-    applicationService.getApplicationFormWithSubmission(app.id, activeApplicant?.id).then(([res, err]) => {
-      if (isMounted) {
-        setIsLoadingForm(false);
-        if (res && res.succeeded && res.data) {
-          setFormData(res.data);
-          const initialDrafts: Record<string, string> = {};
-          res.data.sections.forEach((sec) => {
-            sec.fields.forEach((f) => {
-              initialDrafts[f.fieldId] = f.value ?? '';
-            });
-          });
-          setFormDraftValues(initialDrafts);
-        } else {
-          setFormData(null);
-        }
-      }
-    });
-
-    return () => { isMounted = false; };
-  }, [app.id, activeApplicant?.id]);
+    if (formData) {
+      const initialDrafts: Record<string, string> = {};
+      formData.sections.forEach((sec) => {
+        sec.fields.forEach((f) => {
+          initialDrafts[f.fieldId] = f.value ?? '';
+        });
+      });
+      setFormDraftValues(initialDrafts);
+    }
+  }, [formData]);
 
   const handleSaveProfile = () => {
     const updated = [...localApplicants];
@@ -1055,17 +1040,7 @@ function ApplicantRecordTab({
     const [res, err] = await applicationService.adminUpdateFormValues(app.id, activeApplicant.id, payload);
     if (res && res.succeeded) {
       setIsEditingForm(false);
-      const [refreshRes, refreshErr] = await applicationService.getApplicationFormWithSubmission(app.id, activeApplicant.id);
-      if (refreshRes && refreshRes.succeeded && refreshRes.data) {
-        setFormData(refreshRes.data);
-        const updatedDrafts: Record<string, string> = {};
-        refreshRes.data.sections.forEach((sec) => {
-          sec.fields.forEach((f) => {
-            updatedDrafts[f.fieldId] = f.value ?? '';
-          });
-        });
-        setFormDraftValues(updatedDrafts);
-      }
+      refetchForm();
     }
   };
 
