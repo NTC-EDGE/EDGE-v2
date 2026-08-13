@@ -12,8 +12,6 @@ public class FormSubmission : AuditableEntity
     public Form? Form { get; set; }
     public Guid ApplicantId { get; set; }
     public Applicant? Applicant { get; set; }
-    public Guid? ApplicationServiceId { get; set; }
-    public ApplicationService? ApplicationService { get; set; }
     public ICollection<FormFieldValue> FieldValues { get; set; } = new List<FormFieldValue>();
 }
 

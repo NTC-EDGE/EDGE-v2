@@ -1,15 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { StyleSheet, View, Animated, useWindowDimensions } from 'react-native';
-import { useTheme, PageHeader, AnimatedCard, SPACING, AlertToast } from '@edge/ui';
-import { ApplicationProvider, useApplications } from '../context/ApplicationContext';
+import { useTheme, PageHeader, AnimatedCard, SPACING } from '@edge/ui';
+import { QueueTab } from '../../shell/context/PermissionContext';
 import { ActivitiesFeedPane } from '../components/ActivitiesFeedPane';
 import { ApplicationReviewScreen } from './ApplicationReviewScreen';
 
-// ─── Inner content (needs ApplicationContext) ─────────────────────────────────
-
-function WebActivitiesContent() {
+export function ActivitiesScreen() {
   const { colors, isDark } = useTheme();
-  const { selectedId, setSelectedId, toast, dismissToast } = useApplications();
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [activeQueueTab, setActiveQueueTab] = useState<QueueTab>('activity');
   const { width } = useWindowDimensions();
 
   const [isPanelCollapsed, setIsPanelCollapsed] = useState(false);
@@ -47,15 +46,6 @@ function WebActivitiesContent() {
 
   return (
     <View style={[styles.screen, { backgroundColor: canvasBg }]}>
-      {toast !== null && (
-        <View style={styles.toastContainer}>
-          <AlertToast
-            message={toast.message}
-            variant={toast.variant}
-            onDismiss={dismissToast}
-          />
-        </View>
-      )}
       {/* Page header — wide only; narrow relies on bottom nav + Feed card label for context */}
       {!isNarrow && (
         <View style={styles.headerWrapper}>
@@ -96,7 +86,12 @@ function WebActivitiesContent() {
                   { backgroundColor: cardBackground, borderColor: cardBorderColor },
                 ]}
               >
-                <ActivitiesFeedPane />
+                <ActivitiesFeedPane
+                  selectedId={selectedId}
+                  onSelectId={setSelectedId}
+                  activeQueueTab={activeQueueTab}
+                  onSelectQueueTab={setActiveQueueTab}
+                />
               </AnimatedCard>
             </View>
           </Animated.View>
@@ -106,6 +101,7 @@ function WebActivitiesContent() {
         {(!isNarrow || showDetail) && (
           <View style={[styles.detailPane, isNarrow && styles.detailPaneNarrow]}>
             <ApplicationReviewScreen
+              applicationId={selectedId}
               onClose={handleClose}
               onCollapse={!isNarrow ? handleCollapse : undefined}
               isCollapsed={!isNarrow ? isPanelCollapsed : undefined}
@@ -114,16 +110,6 @@ function WebActivitiesContent() {
         )}
       </View>
     </View>
-  );
-}
-
-// ─── Exported screen (wraps with context provider) ───────────────────────────
-
-export function ActivitiesScreen() {
-  return (
-    <ApplicationProvider>
-      <WebActivitiesContent />
-    </ApplicationProvider>
   );
 }
 

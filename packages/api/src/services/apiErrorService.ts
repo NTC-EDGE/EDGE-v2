@@ -86,8 +86,12 @@ function parseBackendApiResponse(errObj: object): string | null {
   const response = getProperty(errObj, "response");
   if (typeof response !== "object" || response === null) return null;
 
-  const data = getProperty(response, "data");
   const status = getProperty(response, "status");
+  // 403 Forbidden is handled globally by ForbiddenToastProvider.
+  // Suppress local error toast messages to prevent duplicate toasts.
+  if (status === 403) return null;
+
+  const data = getProperty(response, "data");
 
   if (typeof data === "object" && data !== null) {
     // ApiResponse<T> format: { succeeded: false, message: "..." }
@@ -121,7 +125,6 @@ function parseBackendApiResponse(errObj: object): string | null {
 
   // HTTP status code fallbacks (even when response body is empty)
   if (typeof status === "number") {
-    if (status === 403) return "You don't have permission to perform this action.";
     if (status === 409) return "A conflict occurred with the resource state (e.g., duplicate code or active references exist).";
     if (status === 401) return "Session Expired: Please log in again to continue.";
     if (status === 404) return "Resource Not Found: The requested record does not exist.";

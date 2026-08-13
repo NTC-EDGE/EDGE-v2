@@ -37,17 +37,19 @@ function deriveQueueTab(status: ApplicationStatus): QueueTab {
 }
 
 export function mapApplicationDtoToUI(dto: ApplicationDto | ApplicationSummaryDto): ApplicationData {
-  const primaryApplicant = dto.applicants[0];
-  const primaryDetail = (primaryApplicant as any)?.details;
-  const primaryService = dto.services[0];
-
   const rawFilingUser = dto.filingUser;
+  const isGuest = dto.isGuest || !rawFilingUser;
+
+  // Guest fallback: only resolve first applicant details if application is from a guest (no logged-in filing user)
+  const guestApplicant = isGuest ? dto.applicants?.[0] : undefined;
+  const guestDetail = guestApplicant?.details;
+
   const isCompanySubmission =
     rawFilingUser?.accountType === 'Company' ||
-    primaryApplicant?.applicantType === 'Company' ||
+    guestApplicant?.applicantType === 'Company' ||
     dto.submissionMode === 'Bulk';
 
-  const companyObj = primaryDetail?.company ?? primaryApplicant?.company ?? rawFilingUser?.company;
+  const companyObj = rawFilingUser?.company ?? guestDetail?.company ?? guestApplicant?.company;
 
   const companyDetails = companyObj
     ? {
@@ -77,15 +79,17 @@ export function mapApplicationDtoToUI(dto: ApplicationDto | ApplicationSummaryDt
     }
     : undefined;
 
-  // Rule: If submission is individual, filing user IS the applicant. Copy filing user details to applicant.
-  const applicantName = primaryDetail
-    ? `${primaryDetail.firstName} ${primaryDetail.lastName}`.trim()
+  // Summary header display: Filing User is the primary source; fall back to guest applicant details only for guest submissions
+  const applicantName = rawFilingUser?.name
+    ? rawFilingUser.name
     : isCompanySubmission
-      ? (companyDetails?.name ?? rawFilingUser?.name ?? '')
-      : (rawFilingUser?.name ?? '');
+      ? (companyDetails?.name ?? '')
+      : guestDetail
+        ? `${guestDetail.firstName} ${guestDetail.lastName}`.trim()
+        : '';
 
-  const contactEmail = primaryDetail?.email ?? rawFilingUser?.email ?? '';
-  const contactPhone = primaryDetail?.contactNumber ?? '';
+  const contactEmail = rawFilingUser?.email ?? guestDetail?.email ?? '';
+  const contactPhone = guestDetail?.contactNumber ?? rawFilingUser?.company?.contactNumber ?? '';
 
   const applicantsList = (dto.applicants ?? []).map((appItem, idx) => {
     const ad = appItem.details;
@@ -107,11 +111,14 @@ export function mapApplicationDtoToUI(dto: ApplicationDto | ApplicationSummaryDt
     return {
       id: appItem.id || `app-${idx}`,
       name,
-      applicantType: (appItem.applicantType as any) === 'Company' ? ('Company' as const) : ('Individual' as const),
+      applicantType: appItem.applicantType === 'Company' ? ('Company' as const) : ('Individual' as const),
       status: (appItem.status === 'Incomplete' || appItem.status === 'ForEndorsement')
         ? (appItem.status as 'Incomplete' | 'ForEndorsement')
         : ('Complete' as const),
       evaluationRemarks: appItem.evaluationRemarks ?? '',
+      serviceId: appItem.serviceId,
+      serviceVariantId: appItem.serviceVariantId,
+      submissionId: appItem.submissionId,
       contactNumber: ad?.contactNumber ?? '',
       email: ad?.emailAddress ?? ad?.email ?? '',
       address: ad?.address ?? '',
@@ -143,6 +150,7 @@ export function mapApplicationDtoToUI(dto: ApplicationDto | ApplicationSummaryDt
 
   return {
     id: dto.id,
+    tenantId: dto.tenantId,
     referenceNumber: dto.referenceNumber ?? dto.id.slice(0, 8),
     applicationNumber: dto.applicationNumber ?? '',
     filingUser,
@@ -154,6 +162,21 @@ export function mapApplicationDtoToUI(dto: ApplicationDto | ApplicationSummaryDt
     queueTab: deriveQueueTab(feStatus),
     applicationType: isBulk ? 'BULK' : 'SINGLE',
     applicantsList,
+    services: dto.services?.length
+      ? dto.services.map((s) => ({
+          id: s.id,
+          applicantId: s.applicantId,
+          serviceId: s.serviceId,
+          serviceVariantId: s.serviceVariantId,
+          submissionId: s.submissionId,
+        }))
+      : applicantsList.map((a) => ({
+          id: a.id,
+          applicantId: a.id,
+          serviceId: a.serviceId ?? '',
+          serviceVariantId: a.serviceVariantId,
+          submissionId: a.submissionId,
+        })),
     createdAt: dto.createdAt,
     dateLabel: formatDateLabel(dto.createdAt),
     assignedTo: dto.office ?? '',
@@ -162,10 +185,10 @@ export function mapApplicationDtoToUI(dto: ApplicationDto | ApplicationSummaryDt
     isPinned: Boolean(dto.isPinned),
     isArchived: Boolean(dto.isArchived),
     address: {
-      barangay: primaryDetail?.address ?? '',
+      barangay: guestDetail?.address ?? rawFilingUser?.company?.address ?? '',
       province: '',
       city: '',
-      zipCode: primaryDetail?.zipCode ?? '',
+      zipCode: guestDetail?.zipCode ?? '',
     },
     companyDetails,
     contactDetails: {
@@ -173,16 +196,16 @@ export function mapApplicationDtoToUI(dto: ApplicationDto | ApplicationSummaryDt
       email: contactEmail,
     },
     basicInfo: {
-      lastName: primaryDetail?.lastName ?? (rawFilingUser?.name?.split(' ')[1] ?? ''),
-      firstName: primaryDetail?.firstName ?? (rawFilingUser?.name?.split(' ')[0] ?? ''),
-      middleName: primaryDetail?.middleName ?? '',
-      extensionName: primaryDetail?.suffix ?? '',
-      dob: primaryDetail?.birthDate ?? '',
+      lastName: guestDetail?.lastName ?? (rawFilingUser?.name?.split(' ')[1] ?? ''),
+      firstName: guestDetail?.firstName ?? (rawFilingUser?.name?.split(' ')[0] ?? ''),
+      middleName: guestDetail?.middleName ?? '',
+      extensionName: guestDetail?.suffix ?? '',
+      dob: guestDetail?.birthDate ?? '',
       placeOfBirth: '',
-      sex: primaryDetail?.sex ?? '',
-      weight: primaryDetail?.weight ?? 0,
-      height: primaryDetail?.height ?? 0,
-      nationality: primaryDetail?.nationality ?? '',
+      sex: guestDetail?.sex ?? '',
+      weight: guestDetail?.weight ?? 0,
+      height: guestDetail?.height ?? 0,
+      nationality: guestDetail?.nationality ?? '',
       employmentStatus: '',
       occupation: '',
     },

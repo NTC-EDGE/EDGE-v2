@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from "react";
+import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import {
   StyleSheet,
   View,
@@ -20,6 +20,8 @@ import {
   SHADOWS,
   TYPOGRAPHY,
   Icon as Lucide,
+  SkeletonLoader,
+  toast,
 } from "@edge/ui";
 import {
   ApplicationData,
@@ -28,13 +30,20 @@ import {
 } from "../../../types/application";
 import { useRole } from "../../shell/context/RoleContext";
 import { usePermissions } from "../../shell/context/PermissionContext";
-import { applicationService, useApplicationFormWithSubmission } from "@edge/api";
+import {
+  applicationService,
+  storageService,
+  ApplicantRequirementItemDto,
+  useApplicationFormWithSubmission,
+  useAdminApplicationDetails,
+} from "@edge/api";
+import { mapApplicationDtoToUI } from "../data/applicationMapper";
 import { ApproveModal } from "../components/modals/ApproveModal";
 import { DeclineModal } from "../components/modals/DeclineModal";
 import { EndorseModal } from "../components/modals/EndorseModal";
 import { CashierVerificationModal } from "../components/modals/CashierVerificationModal";
 import { UserRole } from "../../shell/context/RoleContext";
-import { useApplications } from "../context/ApplicationContext";
+import { isAllowedRequirementFileType } from "../../../utils/fileValidation";
 
 type InnerTab = "details" | "applicant-record" | "soa";
 
@@ -641,7 +650,7 @@ function ApplicationDetailsTab({
                         style={[styles.inspectBtn, { backgroundColor: isDark ? colors.brand[500] : colors.brand[700], paddingHorizontal: 12 }]}
                         onPress={handleSaveAllRoster}
                       >
-                        <Text style={[styles.inspectBtnText, { color: COLORS.neutral.white, fontWeight: '700' }]}>💾 Save Roster Changes</Text>
+                        <Text style={[styles.inspectBtnText, { color: COLORS.neutral.white, fontWeight: '700' }]}>Save</Text>
                       </Pressable>
                     </>
                   ) : (
@@ -649,7 +658,7 @@ function ApplicationDetailsTab({
                       style={[styles.inspectBtn, { backgroundColor: isDark ? colors.brand[600] : colors.brand[700], paddingHorizontal: 10 }]}
                       onPress={() => setIsEditingRoster(true)}
                     >
-                      <Text style={[styles.inspectBtnText, { color: COLORS.neutral.white }]}>✏️ Edit Batch Roster</Text>
+                      <Text style={[styles.inspectBtnText, { color: COLORS.neutral.white }]}>Edit</Text>
                     </Pressable>
                   )}
                 </View>
@@ -918,7 +927,9 @@ function ApplicantRecordTab({
     setLocalApplicants(effectiveApplicants);
   }, [effectiveApplicants]);
 
-  const applicants = localApplicants;
+  const applicants = (localApplicants.length > 0 && localApplicants[0]?.id === effectiveApplicants[0]?.id)
+    ? localApplicants
+    : effectiveApplicants;
   const activeIdx = Math.min(selectedApplicantIndex ?? 0, Math.max(0, applicants.length - 1));
   const activeApplicant = applicants[activeIdx];
   const bi = activeApplicant?.basicInfo;
@@ -940,6 +951,9 @@ function ApplicantRecordTab({
   const [addressDraft, setAddressDraft] = useState('');
   const [editingZip, setEditingZip] = useState(false);
   const [zipDraft, setZipDraft] = useState('');
+  const [dobDraft, setDobDraft] = useState('');
+  const [sexDraft, setSexDraft] = useState('');
+  const [nationalityDraft, setNationalityDraft] = useState('');
 
   const [compNameProfileDraft, setCompNameProfileDraft] = useState('');
   const [compRegNoProfileDraft, setCompRegNoProfileDraft] = useState('');
@@ -947,7 +961,11 @@ function ApplicantRecordTab({
   const [compContactProfileDraft, setCompContactProfileDraft] = useState('');
   const [compEmailProfileDraft, setCompEmailProfileDraft] = useState('');
 
-  const { formData, isLoading: isLoadingForm, refetch: refetchForm } = useApplicationFormWithSubmission(app.id, activeApplicant?.id);
+  const { formData, isLoading: isLoadingForm, refetch: refetchForm } = useApplicationFormWithSubmission(
+    app.id,
+    activeApplicant?.id,
+    activeApplicant?.serviceVariantId
+  );
   const [formDraftValues, setFormDraftValues] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -1001,6 +1019,9 @@ function ApplicantRecordTab({
           lastName: lnProfileDraft,
           middleName: mnProfileDraft,
           extensionName: extProfileDraft,
+          dob: dobDraft,
+          sex: sexDraft,
+          nationality: nationalityDraft,
         },
       };
       setLocalApplicants(updated);
@@ -1015,6 +1036,9 @@ function ApplicantRecordTab({
           address: addressDraft || updated[activeIdx].address,
           zipCode: zipDraft || updated[activeIdx].zipCode,
           applicantType: typeDraft || updated[activeIdx].applicantType,
+          dob: dobDraft,
+          sex: sexDraft,
+          nationality: nationalityDraft,
           companyName: typeDraft === 'Company' ? compNameProfileDraft : undefined,
           companyRegistrationNumber: typeDraft === 'Company' ? compRegNoProfileDraft : undefined,
           companyAddress: typeDraft === 'Company' ? compAddressProfileDraft : undefined,
@@ -1057,9 +1081,25 @@ function ApplicantRecordTab({
     );
   };
 
-  const handleViewRequirement = (label: string) => {
-    Alert.alert("View Requirement Document", `Viewing submitted document: ${label}`);
-  };
+  const [applicantRequirementsState, setApplicantRequirementsState] = useState<ApplicantRequirementItemDto[]>([]);
+  const [isLoadingRequirements, setIsLoadingRequirements] = useState<boolean>(false);
+  const [uploadingReqId, setUploadingReqId] = useState<string | null>(null);
+
+  const fetchApplicantRequirements = useCallback(async () => {
+    if (app?.id === undefined || app?.id === null || activeApplicant?.id === undefined || activeApplicant?.id === null) {
+      return;
+    }
+    setIsLoadingRequirements(true);
+    const [res, err] = await applicationService.getApplicantRequirements(app.id, activeApplicant.id);
+    setIsLoadingRequirements(false);
+    if (res !== null && res.data !== undefined && res.data !== null) {
+      setApplicantRequirementsState(res.data);
+    }
+  }, [app?.id, activeApplicant?.id]);
+
+  useEffect(() => {
+    fetchApplicantRequirements();
+  }, [fetchApplicantRequirements]);
 
   const [localRemarks, setLocalRemarks] = useState(activeApplicant?.evaluationRemarks ?? '');
 
@@ -1087,6 +1127,154 @@ function ApplicantRecordTab({
       setLocalApplicants(updated);
       if (updateApplication) {
         updateApplication(app.id, { applicantsList: updated });
+      }
+    }
+  };
+
+  const handleViewRequirement = (label: string, fileUrl?: string) => {
+    if (fileUrl !== undefined && fileUrl !== null && Platform.OS === 'web') {
+      window.open(fileUrl, '_blank');
+    } else {
+      Alert.alert("View Requirement Document", `Viewing submitted document: ${label}`);
+    }
+  };
+
+  const notifyError = (title: string, msg: string) => {
+    try {
+      toast.error(`${title}: ${msg}`);
+    } catch {
+      // fallback
+    }
+    Alert.alert(title, msg);
+  };
+
+  const notifySuccess = (title: string, msg: string) => {
+    try {
+      toast.success(`${title}: ${msg}`);
+    } catch {
+      // fallback
+    }
+    Alert.alert(title, msg);
+  };
+
+  const uploadAndAttachRequirement = async (
+    fileData: Blob | File,
+    fileName: string,
+    reqItem: ApplicantRequirementItemDto
+  ) => {
+    if (!app?.id || !activeApplicant?.id) return;
+
+    const tenantId = app.tenantId;
+    if (!tenantId?.trim()) {
+      notifyError('Upload Failed', 'Tenant ID is missing on current application context.');
+      return;
+    }
+
+    setUploadingReqId(reqItem.requirementId);
+    try {
+      const [storageRes, storageErr] = await storageService.uploadFile(
+        fileData,
+        fileName,
+        'requirements',
+        tenantId
+      );
+
+      if (storageErr !== null || !storageRes?.data) {
+        const errText = typeof storageErr === 'object' && storageErr !== null && 'message' in storageErr
+          ? String((storageErr as { message?: unknown }).message)
+          : (storageRes?.message ?? 'Failed to upload document to storage.');
+        notifyError('Upload Failed', errText);
+        setUploadingReqId(null);
+        return;
+      }
+
+      const storedFileId = storageRes.data.id;
+
+      const [reqRes, reqErr] = await applicationService.uploadApplicantRequirement(
+        app.id,
+        activeApplicant.id,
+        {
+          requirementId: reqItem.requirementId,
+          serviceVariantRequirementId: reqItem.serviceVariantRequirementId ?? undefined,
+          storedFileId: storedFileId,
+        }
+      );
+
+      setUploadingReqId(null);
+
+      if (reqErr !== null || !reqRes?.succeeded) {
+        const errText = typeof reqErr === 'object' && reqErr !== null && 'message' in reqErr
+          ? String((reqErr as { message?: unknown }).message)
+          : (reqRes?.message ?? 'Failed to save requirement attachment.');
+        notifyError('Save Failed', errText);
+        return;
+      }
+
+      notifySuccess('Success', 'Requirement document attached successfully.');
+      await fetchApplicantRequirements();
+    } catch (err: unknown) {
+      setUploadingReqId(null);
+      const errorMsg = err instanceof Error ? err.message : 'An error occurred during file upload.';
+      notifyError('Upload Error', errorMsg);
+    }
+  };
+
+  const handleUploadOrReplaceRequirement = async (reqItem: ApplicantRequirementItemDto) => {
+    if (!app?.id || !activeApplicant?.id) return;
+
+    if (Platform.OS === 'web') {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/jpeg,image/jpg,image/png,image/webp,image/gif,image/bmp,application/pdf';
+
+      input.onchange = async (e: Event) => {
+        const target = e.target as HTMLInputElement;
+        const files = target.files;
+        if (!files || files.length === 0) return;
+
+        const selectedFile = files[0];
+        if (!selectedFile) return;
+
+        const fileName = selectedFile.name;
+        const mimeType = selectedFile.type;
+
+        if (!isAllowedRequirementFileType(fileName, mimeType)) {
+          notifyError('Invalid File Type', 'Only image files (JPG, PNG, WEBP, GIF, BMP) and PDF documents are allowed.');
+          return;
+        }
+
+        await uploadAndAttachRequirement(selectedFile, selectedFile.name, reqItem);
+      };
+
+      input.click();
+    } else {
+      try {
+        const DocumentPicker = await import('expo-document-picker');
+        const result = await DocumentPicker.getDocumentAsync({
+          type: ['image/*', 'application/pdf'],
+          copyToCacheDirectory: true,
+        });
+
+        if (!result.canceled && result.assets && result.assets.length > 0) {
+          const selectedAsset = result.assets[0];
+          if (!selectedAsset) return;
+
+          const fileName = selectedAsset.name || `doc_${Date.now()}.pdf`;
+          const mimeType = selectedAsset.mimeType || '';
+
+          if (!isAllowedRequirementFileType(fileName, mimeType)) {
+            notifyError('Invalid File Type', 'Only image files (JPG, PNG, WEBP, GIF, BMP) and PDF documents are allowed.');
+            return;
+          }
+
+          const response = await fetch(selectedAsset.uri);
+          const fileBlob = await response.blob();
+
+          await uploadAndAttachRequirement(fileBlob, selectedAsset.name || fileName, reqItem);
+        }
+      } catch (err: unknown) {
+        const errorMsg = err instanceof Error ? err.message : 'An error occurred during mobile document selection.';
+        notifyError('Upload Error', errorMsg);
       }
     }
   };
@@ -1192,6 +1380,9 @@ function ApplicantRecordTab({
                       setEmailDraft(activeApplicant.email || '');
                       setAddressDraft(activeApplicant.address || '');
                       setZipDraft(activeApplicant.zipCode || '');
+                      setDobDraft(biData?.dob || '');
+                      setSexDraft(biData?.sex || '');
+                      setNationalityDraft(biData?.nationality || '');
                       const compData = activeApplicant.companyDetails;
                       setCompNameProfileDraft(compData?.name || app.companyDetails?.name || app.filingUser?.company?.name || '');
                       setCompRegNoProfileDraft(compData?.registrationNumber || app.companyDetails?.registrationNumber || app.filingUser?.company?.registrationNumber || '');
@@ -1369,11 +1560,29 @@ function ApplicantRecordTab({
                 editValue={zipDraft}
                 onEditChange={setZipDraft}
               />
+              <InfoRow
+                label="Date of Birth:"
+                value={bi?.dob || '—'}
+                isEditing={isEditingProfile}
+                editValue={dobDraft}
+                onEditChange={setDobDraft}
+              />
+              <InfoRow
+                label="Sex:"
+                value={bi?.sex || '—'}
+                isEditing={isEditingProfile}
+                editValue={sexDraft}
+                onEditChange={setSexDraft}
+              />
+              <InfoRow
+                label="Nationality:"
+                value={bi?.nationality || '—'}
+                isEditing={isEditingProfile}
+                editValue={nationalityDraft}
+                onEditChange={setNationalityDraft}
+              />
               {bi ? (
                 <>
-                  {bi.dob ? <InfoRow label="Date of Birth:" value={bi.dob} /> : null}
-                  {bi.sex ? <InfoRow label="Sex:" value={bi.sex} /> : null}
-                  {bi.nationality ? <InfoRow label="Nationality:" value={bi.nationality} /> : null}
                   {bi.height > 0 ? <InfoRow label="Height:" value={`${bi.height} cm`} /> : null}
                   {bi.weight > 0 ? <InfoRow label="Weight:" value={`${bi.weight} kg`} /> : null}
                 </>
@@ -1465,29 +1674,113 @@ function ApplicantRecordTab({
         {/* Section 3: Requirements & Submitted Documents per Applicant */}
         <SectionHeader title="3. SUBMITTED REQUIREMENTS & DOCUMENT ATTACHMENTS" />
         <View style={styles.infoBlock}>
-          {applicantRequirements.length === 0 ? (
+          {isLoadingRequirements ? (
+            <View style={{ padding: SPACING[4] }}>
+              <SkeletonLoader height={24} style={{ marginBottom: 8 }} />
+              <SkeletonLoader height={24} style={{ marginBottom: 8 }} />
+            </View>
+          ) : applicantRequirementsState.length === 0 ? (
             <View style={styles.emptyReqs}>
               <Lucide name="folder" size={24} color={isDark ? colors.neutral[600] : colors.neutral[300]} />
-              <Text style={[styles.emptyReqsText, { color: isDark ? colors.neutral[500] : colors.neutral[400] }]}>No requirement documents submitted</Text>
+              <Text style={[styles.emptyReqsText, { color: isDark ? colors.neutral[500] : colors.neutral[400] }]}>
+                No requirement documents configured or submitted
+              </Text>
             </View>
           ) : (
-            applicantRequirements.map((req, idx) => (
-              <View key={idx} style={[styles.reqItem, { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100] }]}>
-                <Text style={[styles.reqLabel, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>{req.label}</Text>
-                {req.note !== undefined && req.note.length > 0 && (
-                  <Text style={[styles.reqNote, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>{req.note}</Text>
-                )}
-                <View style={styles.reqFileRow}>
-                  <Lucide name="file-text" size={14} color={isDark ? colors.brand[400] : colors.brand[700]} />
-                  <Text style={[styles.reqFilename, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]} numberOfLines={1}>
-                    {req.filename}
-                  </Text>
-                  <Pressable onPress={() => handleViewRequirement(req.label)}>
-                    <Text style={[styles.reqViewLink, { color: isDark ? colors.brand[400] : colors.brand[700] }]}>View Document</Text>
-                  </Pressable>
+            applicantRequirementsState.map((reqItem) => {
+              const isAttached = reqItem.submittedRequirementId !== undefined && reqItem.submittedRequirementId !== null;
+              const isUploading = uploadingReqId === reqItem.requirementId;
+
+              return (
+                <View key={reqItem.requirementId} style={[styles.reqItem, { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100] }]}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <Text style={[styles.reqLabel, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>
+                      {reqItem.requirementName}
+                    </Text>
+                    <View style={{ flexDirection: 'row', gap: 6 }}>
+                      <View style={{
+                        paddingHorizontal: 8,
+                        paddingVertical: 2,
+                        borderRadius: 4,
+                        backgroundColor: reqItem.isRequired
+                          ? (isDark ? 'rgba(239, 68, 68, 0.2)' : '#FEE2E2')
+                          : (isDark ? colors.neutral[800] : colors.neutral[100])
+                      }}>
+                        <Text style={{
+                          fontSize: 10,
+                          fontWeight: '700',
+                          color: reqItem.isRequired ? '#EF4444' : (isDark ? colors.neutral[400] : colors.neutral[600])
+                        }}>
+                          {reqItem.isRequired ? 'REQUIRED' : 'OPTIONAL'}
+                        </Text>
+                      </View>
+                      <View style={{
+                        paddingHorizontal: 8,
+                        paddingVertical: 2,
+                        borderRadius: 4,
+                        backgroundColor: isAttached
+                          ? (isDark ? 'rgba(34, 197, 94, 0.2)' : '#DCFCE7')
+                          : (isDark ? 'rgba(234, 179, 8, 0.2)' : '#FEF9C3')
+                      }}>
+                        <Text style={{
+                          fontSize: 10,
+                          fontWeight: '700',
+                          color: isAttached ? '#22C55E' : (isDark ? '#EAB308' : '#CA8A04')
+                        }}>
+                          {isAttached ? 'ATTACHED' : 'PENDING'}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  {reqItem.description !== undefined && reqItem.description !== null && reqItem.description.length > 0 && (
+                    <Text style={[styles.reqNote, { color: isDark ? colors.neutral[400] : colors.neutral[500], marginBottom: 8 }]}>
+                      {reqItem.description}
+                    </Text>
+                  )}
+
+                  <View style={styles.reqFileRow}>
+                    <Lucide
+                      name={reqItem.contentType?.includes('pdf') || reqItem.fileName?.endsWith('.pdf') ? 'file-text' : 'image'}
+                      size={14}
+                      color={isDark ? colors.brand[400] : colors.brand[700]}
+                    />
+                    <Text style={[styles.reqFilename, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]} numberOfLines={1}>
+                      {reqItem.fileName || 'No document file attached'}
+                    </Text>
+                    {isAttached && reqItem.url !== undefined && reqItem.url !== null && (
+                      <Pressable onPress={() => handleViewRequirement(reqItem.requirementName, reqItem.url ?? undefined)}>
+                        <Text style={[styles.reqViewLink, { color: isDark ? colors.brand[400] : colors.brand[700] }]}>View Document</Text>
+                      </Pressable>
+                    )}
+                    {isEditable && (
+                      <Pressable
+                        disabled={isUploading}
+                        onPress={() => handleUploadOrReplaceRequirement(reqItem)}
+                        style={{
+                          marginLeft: 12,
+                          paddingHorizontal: 10,
+                          paddingVertical: 4,
+                          borderRadius: RADIUS.sm,
+                          backgroundColor: isDark ? colors.brand[900] : colors.brand[50],
+                          borderWidth: 1,
+                          borderColor: isDark ? colors.brand[700] : colors.brand[200],
+                          opacity: isUploading ? 0.6 : 1
+                        }}
+                      >
+                        <Text style={{
+                          fontSize: 11,
+                          fontWeight: '600',
+                          color: isDark ? colors.brand[300] : colors.brand[700]
+                        }}>
+                          {isUploading ? 'Uploading...' : isAttached ? 'Replace File' : 'Upload File'}
+                        </Text>
+                      </Pressable>
+                    )}
+                  </View>
                 </View>
-              </View>
-            ))
+              );
+            })
           )}
         </View>
 
@@ -2082,15 +2375,148 @@ function SoaPaymentTab({
   );
 }
 
+// ─── Skeleton Loading Component ─────────────────────────────────────────────
+
+export function ApplicationReviewSkeleton({ onClose }: { onClose?: () => void }) {
+  const { colors, isDark } = useTheme();
+
+  return (
+    <View style={{ flex: 1, backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50] }}>
+      {/* Top Bar / Header Banner Skeleton */}
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingHorizontal: SPACING[16],
+          paddingVertical: SPACING[12],
+          borderBottomWidth: 1,
+          borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[200],
+          backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+        }}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING[12] }}>
+          {onClose && <SkeletonLoader width={32} height={32} borderRadius={RADIUS.button} />}
+          <View style={{ gap: 6 }}>
+            <SkeletonLoader width={240} height={20} borderRadius={4} />
+            <SkeletonLoader width={140} height={13} borderRadius={4} />
+          </View>
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING[8] }}>
+          <SkeletonLoader width={80} height={28} borderRadius={14} />
+          <SkeletonLoader width={80} height={28} borderRadius={14} />
+        </View>
+      </View>
+
+      {/* Inner Tabs Bar Skeleton */}
+      <View
+        style={{
+          flexDirection: 'row',
+          gap: SPACING[8],
+          paddingHorizontal: SPACING[16],
+          paddingVertical: SPACING[8],
+          borderBottomWidth: 1,
+          borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[200],
+          backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+        }}
+      >
+        <SkeletonLoader width={140} height={36} borderRadius={6} />
+        <SkeletonLoader width={140} height={36} borderRadius={6} />
+        <SkeletonLoader width={140} height={36} borderRadius={6} />
+      </View>
+
+      {/* Content Workspace Skeleton */}
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: SPACING[16], gap: SPACING[16] }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Section 1: Overview Card */}
+        <View
+          style={{
+            borderRadius: RADIUS.card,
+            borderWidth: 1,
+            borderColor: isDark ? colors.neutral[800] : colors.neutral[200],
+            backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+            padding: SPACING[16],
+            gap: SPACING[12],
+          }}
+        >
+          <SkeletonLoader width={180} height={18} borderRadius={4} />
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING[12] }}>
+            <SkeletonLoader width="48%" height={48} borderRadius={RADIUS.input} />
+            <SkeletonLoader width="48%" height={48} borderRadius={RADIUS.input} />
+            <SkeletonLoader width="48%" height={48} borderRadius={RADIUS.input} />
+            <SkeletonLoader width="48%" height={48} borderRadius={RADIUS.input} />
+          </View>
+        </View>
+
+        {/* Section 2: Applicants Roster & Record */}
+        <View
+          style={{
+            borderRadius: RADIUS.card,
+            borderWidth: 1,
+            borderColor: isDark ? colors.neutral[800] : colors.neutral[200],
+            backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+            padding: SPACING[16],
+            gap: SPACING[12],
+          }}
+        >
+          <SkeletonLoader width={220} height={18} borderRadius={4} />
+          <View style={{ gap: SPACING[8] }}>
+            <SkeletonLoader width="100%" height={52} borderRadius={RADIUS.card} />
+            <SkeletonLoader width="100%" height={52} borderRadius={RADIUS.card} />
+          </View>
+        </View>
+
+        {/* Section 3: Form Submissions / Requirements Table */}
+        <View
+          style={{
+            borderRadius: RADIUS.card,
+            borderWidth: 1,
+            borderColor: isDark ? colors.neutral[800] : colors.neutral[200],
+            backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+            padding: SPACING[16],
+            gap: SPACING[12],
+          }}
+        >
+          <SkeletonLoader width={260} height={18} borderRadius={4} />
+          <SkeletonLoader width="100%" height={100} borderRadius={RADIUS.card} />
+        </View>
+      </ScrollView>
+
+      {/* Bottom Sticky Action Bar Skeleton */}
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'flex-end',
+          gap: SPACING[12],
+          paddingHorizontal: SPACING[16],
+          paddingVertical: SPACING[12],
+          borderTopWidth: 1,
+          borderTopColor: isDark ? colors.neutral[800] : colors.neutral[200],
+          backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+        }}
+      >
+        <SkeletonLoader width={110} height={38} borderRadius={RADIUS.button} />
+        <SkeletonLoader width={130} height={38} borderRadius={RADIUS.button} />
+      </View>
+    </View>
+  );
+}
+
 // ─── Main Content Component ──────────────────────────────────────────────────
 
 export interface ApplicationReviewScreenProps {
+  applicationId?: string | null;
   onClose: () => void;
   onCollapse?: () => void;
   isCollapsed?: boolean;
 }
 
 export function ApplicationReviewScreenContent({
+  applicationId: propApplicationId,
   onClose,
   onCollapse,
   isCollapsed,
@@ -2098,14 +2524,27 @@ export function ApplicationReviewScreenContent({
   const { colors, isDark } = useTheme();
   const { width } = useWindowDimensions();
   const isNarrow = width < 900;
-  const {
-    applications,
-    selectedApplication,
-    activeQueueTab,
-    updateApplication,
-    setSelectedId,
-    isDetailsLoading,
-  } = useApplications();
+  const { applicationDto, isLoading: isDetailsLoading, refetch } = useAdminApplicationDetails(propApplicationId);
+
+  const selectedApplication = useMemo(() => {
+    return applicationDto ? mapApplicationDtoToUI(applicationDto) : null;
+  }, [applicationDto]);
+
+  const updateApplication = useCallback(async (id: string, patch: Partial<ApplicationData>) => {
+    if (patch.status) {
+      await applicationService.updateStatus(id, {
+        status: patch.status,
+        remarks: patch.note,
+      });
+    } else {
+      await applicationService.adminUpdateApplication(id, patch as Record<string, unknown>);
+    }
+    refetch();
+  }, [refetch]);
+
+  const setSelectedId = useCallback((_id: string | null) => {
+    onClose();
+  }, [onClose]);
   const { currentRole } = useRole();
   const { canApprove, canDecline, canEndorse, canVerifyCashier } =
     usePermissions();
@@ -2193,6 +2632,10 @@ export function ApplicationReviewScreenContent({
     });
   };
 
+  if (isDetailsLoading) {
+    return <ApplicationReviewSkeleton onClose={onClose} />;
+  }
+
   if (selectedApplication === null) {
     return (
       <ScrollView
@@ -2204,43 +2647,6 @@ export function ApplicationReviewScreenContent({
           <View style={[styles.summaryHeader, { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100], }]}>
             <Lucide name="layout" size={20} color={isDark ? colors.brand[500] : COLORS.brand[700]} />
             <Text style={[styles.summaryTitle, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>Work Queue Summary</Text>
-          </View>
-
-          <View style={styles.statsRow}>
-            <View style={styles.statBox}>
-              <Text style={[styles.statValue, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>
-                {
-                  applications.filter(
-                    (a: ApplicationData) =>
-                      a.queueTab === "pending" && (a.status === "Evaluating" || a.status === "Submitted"),
-                  ).length
-                }
-              </Text>
-              <Text style={[styles.statLabel, { color: isDark ? colors.neutral[400] : colors.neutral[500], }]}>Evaluating</Text>
-            </View>
-            <View style={styles.statBox}>
-              <Text style={[styles.statValue, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>
-                {
-                  applications.filter(
-                    (a: ApplicationData) =>
-                      a.queueTab === "pending" &&
-                      a.status === "Approved",
-                  ).length
-                }
-              </Text>
-              <Text style={[styles.statLabel, { color: isDark ? colors.neutral[400] : colors.neutral[500], }]}>To Verify</Text>
-            </View>
-            <View style={styles.statBox}>
-              <Text style={[styles.statValue, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>
-                {
-                  applications.filter(
-                    (a: ApplicationData) =>
-                      a.queueTab === "history" && a.status === "Approved",
-                  ).length
-                }
-              </Text>
-              <Text style={[styles.statLabel, { color: isDark ? colors.neutral[400] : colors.neutral[500], }]}>Completed</Text>
-            </View>
           </View>
 
           <View style={[styles.guideBox, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50], }]}>
@@ -2256,13 +2662,7 @@ export function ApplicationReviewScreenContent({
           <Lucide name="mouse-pointer" size={32} color={isDark ? colors.neutral[600] : colors.neutral[300]} />
           <Text style={[styles.emptyPanelTitle, { color: isDark ? colors.neutral[500] : colors.neutral[400], }]}>No Application Selected</Text>
           <Text style={[styles.emptyPanelSub, { color: isDark ? colors.neutral[600] : colors.neutral[300], }]}>
-            Your active queue contains{" "}
-            {
-              applications.filter(
-                (a: ApplicationData) => a.queueTab === "pending",
-              ).length
-            }{" "}
-            items requiring attention.
+            Select an application from the queue to view full details and perform evaluation actions.
           </Text>
         </View>
       </ScrollView>
@@ -2272,7 +2672,6 @@ export function ApplicationReviewScreenContent({
   const app = selectedApplication;
 
   const isEditable =
-    activeQueueTab !== "history" &&
     app.queueTab !== "history" &&
     app.status !== "Completed" &&
     app.status !== "Approved";
@@ -2550,6 +2949,7 @@ export function ApplicationReviewScreenContent({
       {/* ── Tab Content ── */}
       {innerTab === "details" && (
         <ApplicationDetailsTab
+          key={app.id}
           app={app}
           isEditable={isEditable}
           updateApplication={updateApplication}
@@ -2563,6 +2963,7 @@ export function ApplicationReviewScreenContent({
       )}
       {innerTab === "applicant-record" && (
         <ApplicantRecordTab
+          key={app.id}
           app={app}
           selectedApplicantIndex={selectedApplicantIndex}
           onSelectApplicantIndex={(idx) => setSelectedApplicantIndex(idx)}
@@ -2572,6 +2973,7 @@ export function ApplicationReviewScreenContent({
       )}
       {innerTab === "soa" && (
         <SoaPaymentTab
+          key={app.id}
           app={app}
           isEditable={isEditable}
           updateApplication={updateApplication}

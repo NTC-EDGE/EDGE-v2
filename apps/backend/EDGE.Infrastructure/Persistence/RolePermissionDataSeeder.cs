@@ -121,6 +121,7 @@ public static class RolePermissionDataSeeder
             // Client
             (actualClientRoleId, Permissions.SubmitApplication),
             (actualClientRoleId, Permissions.ViewOwnApplications),
+            (actualClientRoleId, Permissions.ReadApplication),
             (actualClientRoleId, Permissions.ReadServices),
             (actualClientRoleId, Permissions.ReadRequirements),
             (actualClientRoleId, Permissions.UploadStorage),
@@ -129,6 +130,8 @@ public static class RolePermissionDataSeeder
 
             // Evaluator
             (actualEvaluatorRoleId, Permissions.ViewAllApplications),
+            (actualEvaluatorRoleId, Permissions.ViewOwnApplications),
+            (actualEvaluatorRoleId, Permissions.ReadApplication),
             (actualEvaluatorRoleId, Permissions.EvaluateApplication),
             (actualEvaluatorRoleId, Permissions.ReadServices),
             (actualEvaluatorRoleId, Permissions.ReadRequirements),
@@ -137,17 +140,23 @@ public static class RolePermissionDataSeeder
 
             // Higher-Ups
             (actualHigherUpsRoleId, Permissions.ViewAllApplications),
+            (actualHigherUpsRoleId, Permissions.ViewOwnApplications),
+            (actualHigherUpsRoleId, Permissions.ReadApplication),
             (actualHigherUpsRoleId, Permissions.ApproveApplication),
             (actualHigherUpsRoleId, Permissions.ReadServices),
             (actualHigherUpsRoleId, Permissions.ReadRequirements),
 
             // Accountant
             (actualAccountantRoleId, Permissions.ViewAllApplications),
+            (actualAccountantRoleId, Permissions.ViewOwnApplications),
+            (actualAccountantRoleId, Permissions.ReadApplication),
             (actualAccountantRoleId, Permissions.CreateBilling),
             (actualAccountantRoleId, Permissions.ReadServices),
 
             // Cashier
             (actualCashierRoleId, Permissions.ViewAllApplications),
+            (actualCashierRoleId, Permissions.ViewOwnApplications),
+            (actualCashierRoleId, Permissions.ReadApplication),
             (actualCashierRoleId, Permissions.CollectPayment),
             (actualCashierRoleId, Permissions.ReadServices),
         };

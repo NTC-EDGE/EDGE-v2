@@ -164,6 +164,9 @@ export function extractApiErrorMessage(err: unknown): string {
   // Axios response error — try to pull backend message/errors
   const axiosErr = err as { response?: { data?: unknown; status?: number } };
   if (axiosErr.response !== undefined) {
+    const status = axiosErr.response.status;
+    if (status === 403) return ""; // Handled globally by 403 forbidden listener
+
     const data = axiosErr.response.data;
     if (data !== null && data !== undefined && typeof data === "object") {
       const d = data as Record<string, unknown>;
@@ -183,9 +186,7 @@ export function extractApiErrorMessage(err: unknown): string {
       }
     }
     // HTTP status fallback
-    const status = axiosErr.response.status;
     if (status === 401) return "You are not authorized. Please sign in again.";
-    if (status === 403) return "You don't have permission to perform this action.";
     if (status === 404) return "The requested resource was not found.";
     if (status === 409) return "A conflict occurred. This record may already exist.";
     if (typeof status === "number" && status >= 500) return "A server error occurred. Please try again later.";

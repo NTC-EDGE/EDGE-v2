@@ -83,6 +83,6 @@ public class ServiceRepository : IServiceRepository
 
     public async Task<bool> HasApplicationsAsync(Guid serviceId, CancellationToken cancellationToken = default)
     {
-        return await _context.ApplicationServices.AnyAsync(aps => aps.ServiceId == serviceId, cancellationToken);
+        return await _context.Applicants.AnyAsync(a => a.ServiceId == serviceId, cancellationToken);
     }
 }

@@ -43,7 +43,6 @@ public class CreateFormSubmissionCommandHandler : IRequestHandler<CreateFormSubm
                 Id = Guid.NewGuid(),
                 ApplicationId = app.Id,
                 ApplicantId = request.ApplicantId ?? Guid.Empty,
-                ApplicationServiceId = request.ApplicationServiceId,
                 FormId = request.FormId,
                 FieldValues = new List<FormFieldValue>()
             };

@@ -39,43 +39,56 @@ public class GetApplicationFormWithSubmissionQueryHandler : IRequestHandler<GetA
             return ApiResponse<ApplicationFormSubmissionDto>.Fail($"Application with ID {request.ApplicationId} was not found.");
         }
 
-        var appService = request.ApplicationServiceId.HasValue
-            ? app.ApplicationServices.FirstOrDefault(s => s.Id == request.ApplicationServiceId.Value)
-            : (request.ApplicantId.HasValue ? app.ApplicationServices.FirstOrDefault(s => s.ApplicantId == request.ApplicantId.Value) : app.ApplicationServices.FirstOrDefault());
+        FormSubmission? submission = null;
+        Applicant? applicant = null;
 
-        if (appService == null)
+        // 1. Resolve via explicit SubmissionId if provided
+        if (request.SubmissionId.HasValue && request.SubmissionId.Value != Guid.Empty)
+        {
+            submission = app.FormSubmissions.FirstOrDefault(fs => fs.Id == request.SubmissionId.Value);
+            if (submission != null)
+            {
+                applicant = app.ApplicationApplicants.FirstOrDefault(aa => aa.ApplicantId == submission.ApplicantId)?.Applicant;
+            }
+        }
+
+        // 2. Resolve via explicit ApplicantId if provided
+        if (applicant == null && request.ApplicantId.HasValue && request.ApplicantId.Value != Guid.Empty)
+        {
+            applicant = app.ApplicationApplicants.FirstOrDefault(aa => aa.ApplicantId == request.ApplicantId.Value)?.Applicant;
+            if (submission == null)
+            {
+                submission = applicant?.FormSubmission ?? app.FormSubmissions.FirstOrDefault(fs => fs.ApplicantId == request.ApplicantId.Value);
+            }
+        }
+
+        // 3. Default fallbacks
+        applicant ??= app.ApplicationApplicants.Select(aa => aa.Applicant).FirstOrDefault(a => a != null);
+        if (applicant == null || !applicant.ServiceId.HasValue)
         {
             return ApiResponse<ApplicationFormSubmissionDto>.Fail($"Application {request.ApplicationId} has no associated service catalog item.");
         }
 
-        if (!appService.ServiceId.HasValue)
-        {
-            return ApiResponse<ApplicationFormSubmissionDto>.Fail($"Application {request.ApplicationId} has no associated service catalog item.");
-        }
+        submission ??= applicant.FormSubmission ?? app.FormSubmissions.FirstOrDefault();
 
-        var serviceId = appService.ServiceId.Value;
+        var serviceId = applicant.ServiceId.Value;
         var service = await _serviceRepository.GetByIdAsync(serviceId, cancellationToken);
         var form = await _formRepository.GetFormByServiceIdAsync(serviceId, cancellationToken);
+
+        if (form == null && submission != null && submission.FormId != Guid.Empty)
+        {
+            form = await _formRepository.GetByIdAsync(submission.FormId, cancellationToken);
+        }
+
+        if (form == null)
+        {
+            var allForms = await _formRepository.GetAllAsync(cancellationToken);
+            form = allForms.FirstOrDefault();
+        }
 
         if (form == null)
         {
             return ApiResponse<ApplicationFormSubmissionDto>.Fail($"Form layout for Service ID {serviceId} was not found.");
-        }
-
-        FormSubmission? submission = null;
-        if (request.SubmissionId.HasValue && request.SubmissionId.Value != Guid.Empty)
-        {
-            submission = app.FormSubmissions.FirstOrDefault(fs => fs.Id == request.SubmissionId.Value);
-        }
-
-        if (submission == null && request.ApplicationServiceId.HasValue && request.ApplicationServiceId.Value != Guid.Empty)
-        {
-            submission = app.FormSubmissions.FirstOrDefault(fs => fs.ApplicationServiceId == request.ApplicationServiceId.Value);
-        }
-
-        if (submission == null && request.ApplicantId.HasValue && request.ApplicantId.Value != Guid.Empty)
-        {
-            submission = app.FormSubmissions.FirstOrDefault(fs => fs.ApplicantId == request.ApplicantId.Value);
         }
 
         if (submission == null)
@@ -93,7 +106,7 @@ public class GetApplicationFormWithSubmissionQueryHandler : IRequestHandler<GetA
         var valueMap = submission?.FieldValues
             .GroupBy(fv => fv.FieldId)
             .ToDictionary(g => g.Key, g => g.First().Value)
-            ?? new Dictionary<Guid, string?>();
+            ?? new Dictionary<Guid, string>();
 
         var requiredSectionKeys = service != null && !string.IsNullOrWhiteSpace(service.Contract)
             ? _contractValidator.GetRequiredSectionKeys(service.Contract)

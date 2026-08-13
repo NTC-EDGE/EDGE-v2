@@ -44,36 +44,19 @@ public class UpdateApplicationCommandHandler : IRequestHandler<UpdateApplication
         if (request.ScheduleId.HasValue) app.ScheduleId = request.ScheduleId;
         if (!string.IsNullOrEmpty(request.Office)) app.Office = request.Office;
 
-        if (app.ApplicationServices.Count > 0)
+        foreach (var aa in app.ApplicationApplicants)
         {
-            foreach (var appService in app.ApplicationServices)
+            var applicant = aa.Applicant;
+            if (applicant != null)
             {
                 if (request.ServiceVariantId.HasValue && request.ServiceVariantId.Value != Guid.Empty)
                 {
                     var variant = await _serviceRepository.GetVariantByIdAsync(request.ServiceVariantId.Value, cancellationToken);
-                    if (variant == null || (appService.ServiceId.HasValue && variant.ServiceId != appService.ServiceId))
+                    if (variant == null || (applicant.ServiceId.HasValue && variant.ServiceId != applicant.ServiceId))
                     {
                         return ApiResponse<Guid>.Fail("Validation Error: The selected service variant is invalid or does not belong to the application's service.");
                     }
-                    appService.ServiceVariantId = variant.Id;
-                }
-
-                if (request.ServiceVariantElementIds != null)
-                {
-                    var variantId = appService.ServiceVariantId;
-                    if (!variantId.HasValue)
-                    {
-                        return ApiResponse<Guid>.Fail("Validation Error: Cannot update variant elements without a resolved service variant.");
-                    }
-
-                    var validElements = await _elementRepository.GetAllByVariantAsync(variantId.Value, cancellationToken);
-                    var validElementIds = validElements.Select(e => e.Id).ToHashSet();
-
-                    var invalidElementIds = request.ServiceVariantElementIds.Where(id => !validElementIds.Contains(id)).ToList();
-                    if (invalidElementIds.Any())
-                    {
-                        return ApiResponse<Guid>.Fail($"Validation Error: Element ID(s) '{string.Join(", ", invalidElementIds)}' do not belong to the selected variant.");
-                    }
+                    applicant.ServiceVariantId = variant.Id;
                 }
             }
         }

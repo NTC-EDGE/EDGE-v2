@@ -9,6 +9,7 @@ import {
   VerifyPaymentRequest,
   ReturnOpRequest,
   ApplicationFormSubmissionDto,
+  ApplicantRequirementItemDto,
 } from '../types';
 
 export const applicationService = {
@@ -99,6 +100,20 @@ export const applicationService = {
       const queryString = queryParams.toString();
       const response = await apiClient.get<ApiResponse<ApplicationFormSubmissionDto>>(
         `/api/v2/applications/${applicationId}/form${queryString ? `?${queryString}` : ''}`
+      );
+      return response.data;
+    });
+  },
+
+  async getApplicantServiceFormSubmission(
+    applicationId: string,
+    applicantId: string,
+    variantId?: string
+  ) {
+    return safeAsync(async () => {
+      const queryString = variantId ? `?variantId=${variantId}` : '';
+      const response = await apiClient.get<ApiResponse<ApplicationFormSubmissionDto>>(
+        `/api/v2/applications/${applicationId}/applicants/${applicantId}/form-submission${queryString}`
       );
       return response.data;
     });
@@ -210,6 +225,33 @@ export const applicationService = {
       const response = await apiClient.patch(
         `/api/v2/applications/${id}/evaluate`,
         { remarks }
+      );
+      return response.data;
+    });
+  },
+
+  async getApplicantRequirements(applicationId: string, applicantId: string) {
+    return safeAsync(async () => {
+      const response = await apiClient.get<ApiResponse<ApplicantRequirementItemDto[]>>(
+        `/api/v2/applications/${applicationId}/applicants/${applicantId}/requirements`
+      );
+      return response.data;
+    });
+  },
+
+  async uploadApplicantRequirement(
+    applicationId: string,
+    applicantId: string,
+    payload: {
+      requirementId?: string;
+      serviceVariantRequirementId?: string;
+      storedFileId: string;
+    }
+  ) {
+    return safeAsync(async () => {
+      const response = await apiClient.post<ApiResponse<string>>(
+        `/api/v2/applications/${applicationId}/applicants/${applicantId}/requirements`,
+        payload
       );
       return response.data;
     });

@@ -33,9 +33,10 @@ public class ApplicationFullRepository : IApplicationFullRepository
     public async Task<Domain.Entities.Application?> GetByIdWithDetailsAsync(Guid id, CancellationToken cancellationToken = default)
     {
         return await _context.Applications
+            .AsNoTracking()
+            .AsSplitQuery()
             .Include(a => a.User)
                 .ThenInclude(u => u!.CompanyDetail)
-            .Include(a => a.ApplicationServices)
             .Include(a => a.ApplicationApplicants)
                 .ThenInclude(aa => aa.Applicant)
                     .ThenInclude(app => app!.ApplicantDetail)
@@ -43,6 +44,11 @@ public class ApplicationFullRepository : IApplicationFullRepository
             .Include(a => a.ApplicationApplicants)
                 .ThenInclude(aa => aa.Applicant)
                     .ThenInclude(app => app!.CompanyDetail)
+            .Include(a => a.ApplicationApplicants)
+                .ThenInclude(aa => aa.Applicant)
+                    .ThenInclude(app => app!.FormSubmission)
+                        .ThenInclude(fs => fs!.FieldValues)
+                            .ThenInclude(fv => fv!.Field)
             .Include(a => a.ApplicationRequirements)
             .Include(a => a.FormSubmissions)
                 .ThenInclude(fs => fs.FieldValues)
@@ -61,7 +67,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
     public async Task<List<Domain.Entities.Application>> GetUserDraftsAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         return await _context.Applications
-            .Include(a => a.ApplicationServices)
+            .AsSplitQuery()
             .Include(a => a.ApplicationApplicants)
                 .ThenInclude(aa => aa.Applicant)
                     .ThenInclude(app => app!.ApplicantDetail)
@@ -76,7 +82,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
     public async Task<List<Domain.Entities.Application>> GetUserApplicationsAsync(Guid userId, ApplicationStatus? status = null, CancellationToken cancellationToken = default)
     {
         var query = _context.Applications
-            .Include(a => a.ApplicationServices)
+            .AsSplitQuery()
             .Include(a => a.ApplicationApplicants)
                 .ThenInclude(aa => aa.Applicant)
                     .ThenInclude(app => app!.ApplicantDetail)
@@ -98,9 +104,9 @@ public class ApplicationFullRepository : IApplicationFullRepository
     public async Task<List<Domain.Entities.Application>> GetAllApplicationsAsync(ApplicationStatus? status = null, string? queueTab = null, string? scope = null, CancellationToken cancellationToken = default)
     {
         var query = _context.Applications
+            .AsSplitQuery()
             .Include(a => a.User)
                 .ThenInclude(u => u!.CompanyDetail)
-            .Include(a => a.ApplicationServices)
             .Include(a => a.ApplicationApplicants)
                 .ThenInclude(aa => aa.Applicant)
                     .ThenInclude(app => app!.ApplicantDetail)
@@ -233,15 +239,16 @@ public class ApplicationFullRepository : IApplicationFullRepository
                         EntityType = app.User.CompanyDetail.EntityType != null ? app.User.CompanyDetail.EntityType.Value.ToString() : null
                     } : null
                 } : null,
-                Services = app.ApplicationServices.Select(s => new EDGE.Application.Applications.Dtos.ServiceSummaryDto
-                {
-                    Id = s.Id,
-                    ServiceId = s.ServiceId,
-                    ServiceVariantId = s.ServiceVariantId
-                }).ToList(),
                 Applicants = app.ApplicationApplicants.Select(aa => new EDGE.Application.Applications.Dtos.ApplicantSummaryDto
                 {
                     Id = aa.Applicant != null ? aa.Applicant.Id : Guid.Empty,
+                    ServiceId = aa.Applicant != null ? aa.Applicant.ServiceId : null,
+                    ServiceVariantId = aa.Applicant != null ? aa.Applicant.ServiceVariantId : null,
+                    SubmissionId = aa.Applicant != null
+                        ? (aa.Applicant.FormSubmission != null
+                            ? (Guid?)aa.Applicant.FormSubmission.Id
+                            : app.FormSubmissions.Where(fs => fs.ApplicantId == aa.Applicant.Id).Select(fs => (Guid?)fs.Id).FirstOrDefault())
+                        : null,
                     ApplicantType = aa.Applicant != null ? aa.Applicant.ApplicantType.ToString() : "Individual",
                     Status = aa.Applicant != null ? aa.Applicant.Status.ToString() : "Incomplete",
                     Name = aa.Applicant != null && aa.Applicant.ApplicantDetail != null
@@ -343,13 +350,6 @@ public class ApplicationFullRepository : IApplicationFullRepository
                         EntityType = app.User.CompanyDetail.EntityType != null ? app.User.CompanyDetail.EntityType.Value.ToString() : null
                     } : null
                 } : null,
-                Services = app.ApplicationServices.Select(s => new EDGE.Application.Applications.Dtos.ApplicationServiceDto
-                {
-                    Id = s.Id,
-                    ApplicantId = s.ApplicantId,
-                    ServiceId = s.ServiceId,
-                    ServiceVariantId = s.ServiceVariantId
-                }).ToList(),
                 Applicants = app.ApplicationApplicants.Select(aa => new EDGE.Application.Applicants.Dtos.ApplicantDto
                 {
                     Id = aa.Applicant != null ? aa.Applicant.Id : Guid.Empty,
@@ -359,6 +359,13 @@ public class ApplicationFullRepository : IApplicationFullRepository
                     ApplicantType = aa.Applicant != null ? aa.Applicant.ApplicantType.ToString() : "Individual",
                     Status = aa.Applicant != null ? aa.Applicant.Status.ToString() : "Incomplete",
                     EvaluationRemarks = aa.Applicant != null ? aa.Applicant.EvaluationRemarks : null,
+                    ServiceId = aa.Applicant != null ? aa.Applicant.ServiceId : null,
+                    ServiceVariantId = aa.Applicant != null ? aa.Applicant.ServiceVariantId : null,
+                    SubmissionId = aa.Applicant != null
+                        ? (aa.Applicant.FormSubmission != null
+                            ? (Guid?)aa.Applicant.FormSubmission.Id
+                            : app.FormSubmissions.Where(fs => fs.ApplicantId == aa.Applicant.Id).Select(fs => (Guid?)fs.Id).FirstOrDefault())
+                        : null,
                     Company = (aa.Applicant != null && aa.Applicant.CompanyDetail != null)
                         ? new EDGE.Application.Applicants.Dtos.CompanyDetailDto
                         {
@@ -519,7 +526,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
     public async Task<List<Domain.Entities.Application>> GetByApplicantIdAsync(Guid applicantId, CancellationToken cancellationToken = default)
     {
         return await _context.Applications
-            .Include(a => a.ApplicationServices)
+            .AsSplitQuery()
             .Include(a => a.ApplicationApplicants)
                 .ThenInclude(aa => aa.Applicant)
                     .ThenInclude(app => app!.ApplicantDetail)
@@ -544,11 +551,6 @@ public class ApplicationFullRepository : IApplicationFullRepository
     {
         _context.Applications.Remove(application);
         return Task.CompletedTask;
-    }
-
-    public async Task AddApplicationServiceAsync(ApplicationService appService, CancellationToken cancellationToken = default)
-    {
-        await _context.ApplicationServices.AddAsync(appService, cancellationToken);
     }
 
     public async Task AddApplicationApplicantAsync(ApplicationApplicant appApplicant, CancellationToken cancellationToken = default)

@@ -9,7 +9,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { ColumnDef } from '@tanstack/react-table';
-import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, DataTable, Icon as Lucide, useTheme } from '@edge/ui';
+import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, DataTable, Icon as Lucide, useTheme, toast } from '@edge/ui';
 import {
   Employee,
   EmployeeRole,
@@ -134,14 +134,8 @@ export function EmployeesScreenContent({
   // Active popover row id (to close others when one is open)
   const [activePopoverId, setActivePopoverId] = useState<string | null>(null);
 
-  // Notification Toast message
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
-
   const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => {
-      setToastMessage(null);
-    }, 3500);
+    toast.success(msg);
   };
 
   // Reset pagination to page 1 on filter changes
@@ -368,13 +362,6 @@ export function EmployeesScreenContent({
   if (subView === 'details' && viewingEmployee !== null && viewingEmployee !== undefined) {
     return (
       <View style={styles.container}>
-        {toastMessage !== null && (
-          <View style={[styles.toastContainer, SHADOWS.modal]}>
-            <Lucide name="check-circle" size={16} color={COLORS.semantic.success} style={{ marginRight: 8 }} />
-            <Text style={styles.toastText}>{toastMessage}</Text>
-          </View>
-        )}
-
         <EmployeeDetailsScreen
           employee={viewingEmployee}
           onBack={() => {
@@ -411,13 +398,6 @@ export function EmployeesScreenContent({
   // Main Employee List View
   return (
     <View style={styles.container}>
-      {/* Toast Notification */}
-      {toastMessage !== null && (
-        <View style={[styles.toastContainer, SHADOWS.modal]}>
-          <Lucide name="check-circle" size={16} color={COLORS.semantic.success} style={{ marginRight: 8 }} />
-          <Text style={styles.toastText}>{toastMessage}</Text>
-        </View>
-      )}
 
       {/* TOP SECTION (Breadcrumb, Header, KPI Stats, Toolbar) */}
       <View style={styles.topSection}>

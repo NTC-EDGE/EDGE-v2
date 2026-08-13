@@ -9,7 +9,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { Icon as Lucide, SPACING, TYPOGRAPHY, useTheme, SkeletonLoader, AlertToast } from '@edge/ui';
+import { Icon as Lucide, SPACING, TYPOGRAPHY, useTheme, SkeletonLoader, toast } from '@edge/ui';
 import { useAdminAnnouncements, announcementService, SystemAnnouncementDto } from '@edge/api';
 
 type AnnType = 'Info' | 'Warning' | 'Critical' | 'Maintenance' | 'Emergency';
@@ -32,9 +32,6 @@ export function AnnouncementsScreen() {
   const [annToDelete, setAnnToDelete] = useState<SystemAnnouncementDto | null>(null);
   const [publishModalTarget, setPublishModalTarget] = useState<{ ann: SystemAnnouncementDto; nextState: boolean } | null>(null);
 
-  // Global Page Toast Feedback
-  const [toastMsg, setToastMsg] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
-
   // Modal Error States (Keeps modals open on failure)
   const [formError, setFormError] = useState<string | null>(null);
   const [publishError, setPublishError] = useState<string | null>(null);
@@ -56,10 +53,11 @@ export function AnnouncementsScreen() {
   const inputBg = isDark ? colors.neutral[900] : colors.neutral[50];
 
   const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
-    setToastMsg({ message: msg, type });
-    setTimeout(() => {
-      setToastMsg(null);
-    }, 4000);
+    if (type === 'error') {
+      toast.error(msg);
+    } else {
+      toast.success(msg);
+    }
   };
 
   const filtered = announcements.filter((a) => {
@@ -193,16 +191,7 @@ export function AnnouncementsScreen() {
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-      {/* ── Floating Page Toast Notification ───────────────────────────── */}
-      {toastMsg && (
-        <View style={styles.toastContainer}>
-          <AlertToast
-            message={toastMsg.message}
-            onDismiss={() => setToastMsg(null)}
-            variant={toastMsg.type === 'success' ? 'success' : 'error'}
-          />
-        </View>
-      )}
+      {/* Floating toast notification handles feedback via Sonner */}
 
       {/* ── Page Title ─────────────────────────────────────────────────── */}
       <View style={styles.titleRow}>
