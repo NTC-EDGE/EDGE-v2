@@ -48,7 +48,7 @@ public class GetApplicationsByApplicantQueryHandler : IRequestHandler<GetApplica
 
             var appService = app.ApplicationServices.FirstOrDefault();
             var serviceName = appService?.Service?.Name ?? "NTC Regulatory Service";
-            var serviceCategory = appService?.ServiceCategory?.Name ?? "Licensing & Certification";
+            var serviceCategory = appService?.Service?.ServiceCategory?.Name ?? "Licensing & Certification";
 
             var documents = app.ApplicationRequirements.Select(req => new ApplicantDocumentDto(
                 Id: req.Id.ToString(),

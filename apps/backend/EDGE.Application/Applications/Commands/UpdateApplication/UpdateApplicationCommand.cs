@@ -13,7 +13,6 @@ public record UpdateApplicationCommand : IRequest<ApiResponse<Guid>>
     public string? Office { get; init; }
     public Guid? RegionId { get; init; }
     public Guid? ScheduleId { get; init; }
-    public string? DynamicDataJson { get; init; }
 
     public Guid? ServiceVariantId { get; init; }
     public List<Guid>? ServiceVariantElementIds { get; init; }

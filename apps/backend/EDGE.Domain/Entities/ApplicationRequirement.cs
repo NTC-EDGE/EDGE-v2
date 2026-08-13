@@ -11,6 +11,9 @@ public class ApplicationRequirement : AuditableEntity
     public Guid ApplicantId { get; set; }
     public Applicant? Applicant { get; set; }
 
+    public Guid? ApplicationServiceId { get; set; }
+    public ApplicationService? ApplicationService { get; set; }
+
     public Guid RequirementId { get; set; }
     public Requirement? Requirement { get; set; }
 
@@ -26,3 +29,4 @@ public class ApplicationRequirement : AuditableEntity
     public bool IsApproved { get; set; }
     public string? ApprovedBy { get; set; }
 }
+

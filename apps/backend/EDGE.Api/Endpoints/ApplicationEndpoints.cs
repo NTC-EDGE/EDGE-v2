@@ -274,9 +274,10 @@ public static class ApplicationEndpoints
         Guid id,
         [FromQuery] Guid? applicantId,
         [FromQuery] Guid? submissionId,
+        [FromQuery] Guid? applicationServiceId,
         IMediator mediator)
     {
-        var result = await mediator.Send(new GetApplicationFormWithSubmissionQuery(id, applicantId, submissionId));
+        var result = await mediator.Send(new GetApplicationFormWithSubmissionQuery(id, applicantId, submissionId, applicationServiceId));
         return result.Succeeded ? Results.Ok(result) : Results.NotFound(result);
     }
 

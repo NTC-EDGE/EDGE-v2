@@ -46,40 +46,35 @@ public class UpdateApplicationCommandHandler : IRequestHandler<UpdateApplication
 
         if (app.ApplicationServices.Count > 0)
         {
-            var appService = app.ApplicationServices.First();
-            if (request.ServiceVariantId.HasValue && request.ServiceVariantId.Value != Guid.Empty)
+            foreach (var appService in app.ApplicationServices)
             {
-                var variant = await _serviceRepository.GetVariantByIdAsync(request.ServiceVariantId.Value, cancellationToken);
-                if (variant == null || variant.ServiceId != appService.ServiceId)
+                if (request.ServiceVariantId.HasValue && request.ServiceVariantId.Value != Guid.Empty)
                 {
-                    return ApiResponse<Guid>.Fail("Validation Error: The selected service variant is invalid or does not belong to the application's service.");
-                }
-                appService.ServiceVariantId = variant.Id;
-                appService.ApplicationTypeKey = variant.Type.ToString();
-            }
-
-            if (request.ServiceVariantElementIds != null)
-            {
-                var variantId = appService.ServiceVariantId;
-                if (!variantId.HasValue)
-                {
-                    return ApiResponse<Guid>.Fail("Validation Error: Cannot update variant elements without a resolved service variant.");
+                    var variant = await _serviceRepository.GetVariantByIdAsync(request.ServiceVariantId.Value, cancellationToken);
+                    if (variant == null || (appService.ServiceId.HasValue && variant.ServiceId != appService.ServiceId))
+                    {
+                        return ApiResponse<Guid>.Fail("Validation Error: The selected service variant is invalid or does not belong to the application's service.");
+                    }
+                    appService.ServiceVariantId = variant.Id;
                 }
 
-                var validElements = await _elementRepository.GetAllByVariantAsync(variantId.Value, cancellationToken);
-                var validElementIds = validElements.Select(e => e.Id).ToHashSet();
-
-                var invalidElementIds = request.ServiceVariantElementIds.Where(id => !validElementIds.Contains(id)).ToList();
-                if (invalidElementIds.Any())
+                if (request.ServiceVariantElementIds != null)
                 {
-                    return ApiResponse<Guid>.Fail($"Validation Error: Element ID(s) '{string.Join(", ", invalidElementIds)}' do not belong to the selected variant.");
-                }
+                    var variantId = appService.ServiceVariantId;
+                    if (!variantId.HasValue)
+                    {
+                        return ApiResponse<Guid>.Fail("Validation Error: Cannot update variant elements without a resolved service variant.");
+                    }
 
-                appService.DynamicDataJson = System.Text.Json.JsonSerializer.Serialize(new { selectedElementIds = request.ServiceVariantElementIds });
-            }
-            else if (!string.IsNullOrEmpty(request.DynamicDataJson))
-            {
-                appService.DynamicDataJson = request.DynamicDataJson;
+                    var validElements = await _elementRepository.GetAllByVariantAsync(variantId.Value, cancellationToken);
+                    var validElementIds = validElements.Select(e => e.Id).ToHashSet();
+
+                    var invalidElementIds = request.ServiceVariantElementIds.Where(id => !validElementIds.Contains(id)).ToList();
+                    if (invalidElementIds.Any())
+                    {
+                        return ApiResponse<Guid>.Fail($"Validation Error: Element ID(s) '{string.Join(", ", invalidElementIds)}' do not belong to the selected variant.");
+                    }
+                }
             }
         }
 

@@ -8,5 +8,6 @@ namespace EDGE.Application.Applications.Queries.GetApplicationFormWithSubmission
 public record GetApplicationFormWithSubmissionQuery(
     Guid ApplicationId,
     Guid? ApplicantId = null,
-    Guid? SubmissionId = null
+    Guid? SubmissionId = null,
+    Guid? ApplicationServiceId = null
 ) : IRequest<ApiResponse<ApplicationFormSubmissionDto>>;

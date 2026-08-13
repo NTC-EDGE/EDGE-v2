@@ -148,7 +148,7 @@ export function mapApplicationDtoToUI(dto: ApplicationDto | ApplicationSummaryDt
     filingUser,
     applicant: applicantName,
     applicantType: isCompanySubmission ? 'Company' : 'Individual',
-    permitTitle: primaryService?.applicationTypeKey ?? 'Permit Evaluation',
+    permitTitle: 'Permit Evaluation',
     category: 'Permits',
     status: feStatus,
     queueTab: deriveQueueTab(feStatus),
@@ -188,7 +188,7 @@ export function mapApplicationDtoToUI(dto: ApplicationDto | ApplicationSummaryDt
     },
     applicationDetails: {
       noOfYears: 0,
-      permitCategory: primaryService?.applicationTypeKey ?? '',
+      permitCategory: '',
       formType: '',
       submittedAt: dto.createdAt,
     },

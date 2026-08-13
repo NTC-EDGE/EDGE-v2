@@ -44,7 +44,7 @@ const INNER_TABS: {
   icon: "file-text" | "user" | "credit-card";
 }[] = [
     { key: "details", label: "Application Details", icon: "file-text" },
-    { key: "applicant-record", label: "Applicant Record", icon: "user" },
+    { key: "applicant-record", label: "Applicant Records", icon: "user" },
     { key: "soa", label: "SOA & Payment", icon: "credit-card" },
   ];
 

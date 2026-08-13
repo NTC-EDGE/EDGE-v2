@@ -11,6 +11,8 @@ public record AddApplicantToApplicationCommand : IRequest<ApiResponse<Guid>>
 {
     [JsonIgnore]
     public Guid ApplicationId { get; init; }
+    public Guid? ServiceId { get; init; }
+    public Guid? ServiceVariantId { get; init; }
     public string FirstName { get; init; } = string.Empty;
     public string LastName { get; init; } = string.Empty;
     public string Email { get; init; } = string.Empty;

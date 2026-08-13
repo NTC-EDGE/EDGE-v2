@@ -741,11 +741,9 @@ export interface CorrectionAuditTrailDto {
 
 export interface ApplicationServiceDto {
   id: string;
-  serviceCategoryId: string;
+  applicantId?: string;
   serviceId: string;
   serviceVariantId?: string;
-  applicationTypeKey?: string;
-  dynamicDataJson?: string;
 }
 
 export interface FormFieldValueDto {

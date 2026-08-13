@@ -75,6 +75,9 @@ namespace EDGE.Infrastructure.Migrations
                     b.Property<string>("CreatedBy")
                         .HasColumnType("text");
 
+                    b.Property<string>("EvaluationRemarks")
+                        .HasColumnType("text");
+
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
@@ -372,6 +375,9 @@ namespace EDGE.Infrastructure.Migrations
                     b.Property<Guid>("ApplicationId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("ApplicationServiceId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("ApprovedBy")
                         .HasColumnType("text");
 
@@ -419,6 +425,8 @@ namespace EDGE.Infrastructure.Migrations
 
                     b.HasIndex("ApplicationId");
 
+                    b.HasIndex("ApplicationServiceId");
+
                     b.HasIndex("RequirementId");
 
                     b.HasIndex("ServiceVariantRequirementId");
@@ -436,16 +444,10 @@ namespace EDGE.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("ApplicationId")
+                    b.Property<Guid?>("ApplicantId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("ApplicationTypeKey")
-                        .HasColumnType("text");
-
-                    b.Property<string>("DynamicDataJson")
-                        .HasColumnType("text");
-
-                    b.Property<Guid?>("ServiceCategoryId")
+                    b.Property<Guid>("ApplicationId")
                         .HasColumnType("uuid");
 
                     b.Property<Guid?>("ServiceId")
@@ -456,9 +458,9 @@ namespace EDGE.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ApplicationId");
+                    b.HasIndex("ApplicantId");
 
-                    b.HasIndex("ServiceCategoryId");
+                    b.HasIndex("ApplicationId");
 
                     b.HasIndex("ServiceId");
 
@@ -1122,6 +1124,9 @@ namespace EDGE.Infrastructure.Migrations
                     b.Property<Guid>("FieldId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("CustomLabel")
+                        .HasColumnType("text");
+
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
 
@@ -1195,6 +1200,9 @@ namespace EDGE.Infrastructure.Migrations
                     b.Property<Guid>("ApplicationId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("ApplicationServiceId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -1222,6 +1230,8 @@ namespace EDGE.Infrastructure.Migrations
                     b.HasIndex("ApplicantId");
 
                     b.HasIndex("ApplicationId");
+
+                    b.HasIndex("ApplicationServiceId");
 
                     b.HasIndex("FormId");
 
@@ -2942,6 +2952,11 @@ namespace EDGE.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("EDGE.Domain.Entities.ApplicationService", "ApplicationService")
+                        .WithMany("ApplicationRequirements")
+                        .HasForeignKey("ApplicationServiceId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
                     b.HasOne("EDGE.Domain.Entities.Requirement", "Requirement")
                         .WithMany()
                         .HasForeignKey("RequirementId")
@@ -2966,6 +2981,8 @@ namespace EDGE.Infrastructure.Migrations
 
                     b.Navigation("Application");
 
+                    b.Navigation("ApplicationService");
+
                     b.Navigation("Requirement");
 
                     b.Navigation("ServiceVariantRequirement");
@@ -2977,15 +2994,16 @@ namespace EDGE.Infrastructure.Migrations
 
             modelBuilder.Entity("EDGE.Domain.Entities.ApplicationService", b =>
                 {
+                    b.HasOne("EDGE.Domain.Entities.Applicant", "Applicant")
+                        .WithMany("ApplicationServices")
+                        .HasForeignKey("ApplicantId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("EDGE.Domain.Entities.Application", "Application")
                         .WithMany("ApplicationServices")
                         .HasForeignKey("ApplicationId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.HasOne("EDGE.Domain.Entities.ServiceCategory", "ServiceCategory")
-                        .WithMany()
-                        .HasForeignKey("ServiceCategoryId");
 
                     b.HasOne("EDGE.Domain.Entities.Service", "Service")
                         .WithMany()
@@ -2997,11 +3015,11 @@ namespace EDGE.Infrastructure.Migrations
                         .HasForeignKey("ServiceVariantId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.Navigation("Applicant");
+
                     b.Navigation("Application");
 
                     b.Navigation("Service");
-
-                    b.Navigation("ServiceCategory");
 
                     b.Navigation("ServiceVariant");
                 });
@@ -3155,6 +3173,11 @@ namespace EDGE.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("EDGE.Domain.Entities.ApplicationService", "ApplicationService")
+                        .WithMany("FormSubmissions")
+                        .HasForeignKey("ApplicationServiceId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
                     b.HasOne("EDGE.Domain.Entities.Form", "Form")
                         .WithMany()
                         .HasForeignKey("FormId")
@@ -3164,6 +3187,8 @@ namespace EDGE.Infrastructure.Migrations
                     b.Navigation("Applicant");
 
                     b.Navigation("Application");
+
+                    b.Navigation("ApplicationService");
 
                     b.Navigation("Form");
                 });
@@ -3551,6 +3576,11 @@ namespace EDGE.Infrastructure.Migrations
                     b.Navigation("CompanyDetail");
                 });
 
+            modelBuilder.Entity("EDGE.Domain.Entities.Applicant", b =>
+                {
+                    b.Navigation("ApplicationServices");
+                });
+
             modelBuilder.Entity("EDGE.Domain.Entities.Application", b =>
                 {
                     b.Navigation("ApplicationApplicants");
@@ -3568,6 +3598,13 @@ namespace EDGE.Infrastructure.Migrations
                     b.Navigation("OrdersOfPayment");
 
                     b.Navigation("StatementsOfAccount");
+                });
+
+            modelBuilder.Entity("EDGE.Domain.Entities.ApplicationService", b =>
+                {
+                    b.Navigation("ApplicationRequirements");
+
+                    b.Navigation("FormSubmissions");
                 });
 
             modelBuilder.Entity("EDGE.Domain.Entities.Fee", b =>

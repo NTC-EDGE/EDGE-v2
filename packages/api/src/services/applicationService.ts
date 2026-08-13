@@ -90,11 +90,12 @@ export const applicationService = {
     });
   },
 
-  async getApplicationFormWithSubmission(applicationId: string, applicantId?: string, submissionId?: string) {
+  async getApplicationFormWithSubmission(applicationId: string, applicantId?: string, submissionId?: string, applicationServiceId?: string) {
     return safeAsync(async () => {
       const queryParams = new URLSearchParams();
       if (applicantId) queryParams.set('applicantId', applicantId);
       if (submissionId) queryParams.set('submissionId', submissionId);
+      if (applicationServiceId) queryParams.set('applicationServiceId', applicationServiceId);
       const queryString = queryParams.toString();
       const response = await apiClient.get<ApiResponse<ApplicationFormSubmissionDto>>(
         `/api/v2/applications/${applicationId}/form${queryString ? `?${queryString}` : ''}`
@@ -107,12 +108,13 @@ export const applicationService = {
     applicationId: string,
     formId: string,
     fieldValues: Array<{ fieldId: string; customLabel?: string; value?: string }>,
-    applicantId?: string
+    applicantId?: string,
+    applicationServiceId?: string
   ) {
     return safeAsync(async () => {
       const response = await apiClient.post<ApiResponse<string>>(
         `/api/v2/applications/${applicationId}/form-submissions`,
-        { formId, applicantId, fieldValues }
+        { formId, applicantId, applicationServiceId, fieldValues }
       );
       return response.data;
     });

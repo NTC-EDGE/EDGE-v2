@@ -39,7 +39,10 @@ public class GetApplicationFormWithSubmissionQueryHandler : IRequestHandler<GetA
             return ApiResponse<ApplicationFormSubmissionDto>.Fail($"Application with ID {request.ApplicationId} was not found.");
         }
 
-        var appService = app.ApplicationServices.FirstOrDefault();
+        var appService = request.ApplicationServiceId.HasValue
+            ? app.ApplicationServices.FirstOrDefault(s => s.Id == request.ApplicationServiceId.Value)
+            : (request.ApplicantId.HasValue ? app.ApplicationServices.FirstOrDefault(s => s.ApplicantId == request.ApplicantId.Value) : app.ApplicationServices.FirstOrDefault());
+
         if (appService == null)
         {
             return ApiResponse<ApplicationFormSubmissionDto>.Fail($"Application {request.ApplicationId} has no associated service catalog item.");
@@ -63,6 +66,11 @@ public class GetApplicationFormWithSubmissionQueryHandler : IRequestHandler<GetA
         if (request.SubmissionId.HasValue && request.SubmissionId.Value != Guid.Empty)
         {
             submission = app.FormSubmissions.FirstOrDefault(fs => fs.Id == request.SubmissionId.Value);
+        }
+
+        if (submission == null && request.ApplicationServiceId.HasValue && request.ApplicationServiceId.Value != Guid.Empty)
+        {
+            submission = app.FormSubmissions.FirstOrDefault(fs => fs.ApplicationServiceId == request.ApplicationServiceId.Value);
         }
 
         if (submission == null && request.ApplicantId.HasValue && request.ApplicantId.Value != Guid.Empty)

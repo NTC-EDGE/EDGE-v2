@@ -77,34 +77,55 @@ public class AddApplicantToApplicationCommandHandler : IRequestHandler<AddApplic
         };
         await _applicationRepository.AddApplicationApplicantAsync(appApplicant, cancellationToken);
 
-        // 4. Populate FormSubmission if formFieldValues provided
-        if (request.FormFieldValues != null && request.FormFieldValues.Any())
+        // 4. Create ApplicationService for newly added applicant
+        var defaultAppService = app.ApplicationServices.FirstOrDefault();
+        Guid targetServiceId = request.ServiceId.HasValue && request.ServiceId.Value != Guid.Empty
+            ? request.ServiceId.Value
+            : (defaultAppService?.ServiceId ?? Guid.Empty);
+
+        Guid? targetVariantId = request.ServiceVariantId.HasValue && request.ServiceVariantId.Value != Guid.Empty
+            ? request.ServiceVariantId.Value
+            : defaultAppService?.ServiceVariantId;
+
+        ApplicationService? newAppService = null;
+        if (targetServiceId != Guid.Empty)
         {
-            var appService = app.ApplicationServices.FirstOrDefault();
-            if (appService?.ServiceId != null)
+            newAppService = new ApplicationService
             {
-                var form = await _formRepository.GetFormByServiceIdAsync(appService.ServiceId.Value, cancellationToken);
-                if (form != null)
+                ApplicationId = app.Id,
+                ApplicantId = applicant.Id,
+                ServiceId = targetServiceId,
+                ServiceVariantId = targetVariantId
+            };
+            await _applicationRepository.AddApplicationServiceAsync(newAppService, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+
+        // 5. Populate FormSubmission if formFieldValues provided
+        if (request.FormFieldValues != null && request.FormFieldValues.Any() && targetServiceId != Guid.Empty)
+        {
+            var form = await _formRepository.GetFormByServiceIdAsync(targetServiceId, cancellationToken);
+            if (form != null)
+            {
+                var submission = new FormSubmission
                 {
-                    var submission = new FormSubmission
+                    Id = Guid.NewGuid(),
+                    ApplicationId = app.Id,
+                    ApplicantId = applicant.Id,
+                    ApplicationServiceId = newAppService?.Id,
+                    FormId = form.Id
+                };
+                await _applicationRepository.AddFormSubmissionAsync(submission, cancellationToken);
+
+                foreach (var fv in request.FormFieldValues)
+                {
+                    await _applicationRepository.AddFormFieldValueAsync(new FormFieldValue
                     {
                         Id = Guid.NewGuid(),
-                        ApplicationId = app.Id,
-                        ApplicantId = applicant.Id,
-                        FormId = form.Id
-                    };
-                    await _applicationRepository.AddFormSubmissionAsync(submission, cancellationToken);
-
-                    foreach (var fv in request.FormFieldValues)
-                    {
-                        await _applicationRepository.AddFormFieldValueAsync(new FormFieldValue
-                        {
-                            Id = Guid.NewGuid(),
-                            FormSubmissionId = submission.Id,
-                            FieldId = fv.FieldId,
-                            Value = fv.Value
-                        }, cancellationToken);
-                    }
+                        FormSubmissionId = submission.Id,
+                        FieldId = fv.FieldId,
+                        Value = fv.Value
+                    }, cancellationToken);
                 }
             }
         }

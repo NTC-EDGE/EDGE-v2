@@ -35,10 +35,8 @@ public class FilingUserSummaryDto
 public class ServiceSummaryDto
 {
     public Guid Id { get; set; }
-    public Guid? ServiceCategoryId { get; set; }
     public Guid? ServiceId { get; set; }
     public Guid? ServiceVariantId { get; set; }
-    public string? ApplicationTypeKey { get; set; }
 }
 
 public class ApplicantSummaryDto

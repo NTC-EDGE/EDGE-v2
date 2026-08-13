@@ -54,11 +54,9 @@ public class GetDraftApplicationsQueryHandler : IRequestHandler<GetDraftApplicat
             Services = app.ApplicationServices.Select(s => new ApplicationServiceDto
             {
                 Id = s.Id,
-                ServiceCategoryId = s.ServiceCategoryId,
+                ApplicantId = s.ApplicantId,
                 ServiceId = s.ServiceId,
-                ServiceVariantId = s.ServiceVariantId,
-                ApplicationTypeKey = s.ApplicationTypeKey,
-                DynamicDataJson = s.DynamicDataJson
+                ServiceVariantId = s.ServiceVariantId
             }).ToList(),
             Applicants = app.ApplicationApplicants.Select(aa =>
             {
