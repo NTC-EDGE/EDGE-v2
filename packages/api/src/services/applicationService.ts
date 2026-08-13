@@ -103,6 +103,36 @@ export const applicationService = {
     });
   },
 
+  async createFormSubmission(
+    applicationId: string,
+    formId: string,
+    fieldValues: Array<{ fieldId: string; customLabel?: string; value?: string }>,
+    applicantId?: string
+  ) {
+    return safeAsync(async () => {
+      const response = await apiClient.post<ApiResponse<string>>(
+        `/api/v2/applications/${applicationId}/form-submissions`,
+        { formId, applicantId, fieldValues }
+      );
+      return response.data;
+    });
+  },
+
+  async updateFormSubmissionValues(
+    applicationId: string,
+    submissionId: string,
+    fieldValues: Array<{ fieldId: string; customLabel?: string; value?: string }>,
+    applicantId?: string
+  ) {
+    return safeAsync(async () => {
+      const response = await apiClient.put<ApiResponse<string>>(
+        `/api/v2/applications/${applicationId}/form-submissions/${submissionId}`,
+        { applicantId, fieldValues }
+      );
+      return response.data;
+    });
+  },
+
   async createSoa(applicationId: string, body: CreateSoaRequest) {
     return safeAsync(async () => {
       const response = await apiClient.post(

@@ -35,6 +35,8 @@ using EDGE.Application.Applications.Commands.VerifyPayment;
 using EDGE.Application.Applications.Commands.ReturnOp;
 using EDGE.Application.Applications.Commands.TogglePinApplication;
 using EDGE.Application.Applications.Commands.ToggleArchiveApplication;
+using EDGE.Application.Applications.Commands.CreateFormSubmission;
+using EDGE.Application.Applications.Commands.UpdateFormSubmissionValues;
 
 using EDGE.Domain.Enums;
 using Microsoft.AspNetCore.Mvc;
@@ -81,6 +83,18 @@ public static class ApplicationEndpoints
             .WithName("GetApplicationFormWithSubmission")
             .WithSummary("Retrieve application form schema with submitted values")
             .WithDescription("Fetches the service form layout schema populated with the applicant's submitted values.");
+
+        group.MapPost("/{id:guid}/form-submissions", CreateFormSubmissionEndpoint)
+            .RequireAuthorization(new HasPermissionAttribute(Permissions.SubmitApplication))
+            .WithName("CreateFormSubmission")
+            .WithSummary("Client form submission")
+            .WithDescription("Creates a new form submission with applicant field values.");
+
+        group.MapPut("/{id:guid}/form-submissions/{submissionId:guid}", UpdateFormSubmissionValuesEndpoint)
+            .RequireAuthorization(new HasPermissionAttribute(Permissions.UpdateApplication))
+            .WithName("UpdateFormSubmissionValues")
+            .WithSummary("Client update for submitted form values")
+            .WithDescription("Updates submitted field values on an existing form submission.");
 
         group.MapPut("/{id:guid}", UpdateApplicationDraft)
             .WithName("UpdateApplicationDraft")
@@ -468,6 +482,45 @@ public static class ApplicationEndpoints
         var result = await mediator.Send(command with { ApplicationId = id, ApplicantId = applicantId }, cancellationToken);
         if (!result.Succeeded) return Results.BadRequest(result);
         return Results.Ok(result);
+    }
+
+    [HasPermission(Permissions.SubmitApplication)]
+    public static async Task<IResult> CreateFormSubmissionEndpoint(
+        Guid id,
+        [FromBody] CreateFormSubmissionCommand command,
+        IValidator<CreateFormSubmissionCommand> validator,
+        IMediator mediator,
+        CancellationToken cancellationToken)
+    {
+        var fullCommand = command with { ApplicationId = id };
+        var validationResult = await validator.ValidateAsync(fullCommand, cancellationToken);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
+
+        var result = await mediator.Send(fullCommand, cancellationToken);
+        return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
+    }
+
+    [HasPermission(Permissions.UpdateApplication)]
+    public static async Task<IResult> UpdateFormSubmissionValuesEndpoint(
+        Guid id,
+        Guid submissionId,
+        [FromBody] UpdateFormSubmissionValuesCommand command,
+        IValidator<UpdateFormSubmissionValuesCommand> validator,
+        IMediator mediator,
+        CancellationToken cancellationToken)
+    {
+        var fullCommand = command with { ApplicationId = id, SubmissionId = submissionId };
+        var validationResult = await validator.ValidateAsync(fullCommand, cancellationToken);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
+
+        var result = await mediator.Send(fullCommand, cancellationToken);
+        return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
     }
 }
 
