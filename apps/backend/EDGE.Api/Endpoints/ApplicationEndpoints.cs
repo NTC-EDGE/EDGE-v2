@@ -11,6 +11,9 @@ using Microsoft.AspNetCore.Routing;
 using EDGE.Domain.Authorization;
 using EDGE.Infrastructure.Authorization;
 using EDGE.Application.Applications.Commands.AddApplicantToApplication;
+using EDGE.Application.Applications.Commands.AdminUpdateApplication;
+using EDGE.Application.Applications.Commands.AdminUpdateApplicantProfile;
+using EDGE.Application.Applications.Commands.AdminUpdateFormValues;
 using EDGE.Application.Applications.Commands.DeleteDraftApplication;
 using EDGE.Application.Applications.Commands.FinalizeApplicationSubmission;
 using EDGE.Application.Applications.Commands.PreviewCsvImport;
@@ -24,6 +27,7 @@ using EDGE.Application.Applications.Queries.GetAllApplications;
 using EDGE.Application.Applications.Queries.GetApplicationById;
 using EDGE.Application.Applications.Queries.GetApplicationsByApplicant;
 using EDGE.Application.Applications.Queries.GetDraftApplications;
+using EDGE.Application.Applications.Queries.GetApplicationFormWithSubmission;
 using EDGE.Application.Applications.Commands.CreateSoa;
 using EDGE.Application.Applications.Commands.ApproveSoa;
 using EDGE.Application.Applications.Commands.ReturnSoa;
@@ -31,6 +35,8 @@ using EDGE.Application.Applications.Commands.VerifyPayment;
 using EDGE.Application.Applications.Commands.ReturnOp;
 using EDGE.Application.Applications.Commands.TogglePinApplication;
 using EDGE.Application.Applications.Commands.ToggleArchiveApplication;
+using EDGE.Application.Applications.Commands.CreateFormSubmission;
+using EDGE.Application.Applications.Commands.UpdateFormSubmissionValues;
 
 using EDGE.Domain.Enums;
 using Microsoft.AspNetCore.Mvc;
@@ -58,6 +64,7 @@ public static class ApplicationEndpoints
             .WithDescription("Initiates a draft bulk application under the selected service catalog, establishing the application shell.");
 
         group.MapGet("/", GetAllApplications)
+            .RequireAuthorization(new HasPermissionAttribute(Permissions.ViewOwnApplications))
             .WithName("GetAllApplications")
             .WithSummary("Retrieve all applications")
             .WithDescription("Retrieves all applications for the current user, optionally filtered by status.");
@@ -72,6 +79,24 @@ public static class ApplicationEndpoints
             .WithSummary("Retrieve application by ID")
             .WithDescription("Retrieves detailed profile, status history, and applicant records for a specific application.");
 
+        group.MapGet("/{id:guid}/form", GetApplicationFormWithSubmissionEndpoint)
+            .RequireAuthorization(new HasPermissionAttribute(Permissions.ReadApplication))
+            .WithName("GetApplicationFormWithSubmission")
+            .WithSummary("Retrieve application form schema with submitted values")
+            .WithDescription("Fetches the service form layout schema populated with the applicant's submitted values.");
+
+        group.MapPost("/{id:guid}/form-submissions", CreateFormSubmissionEndpoint)
+            .RequireAuthorization(new HasPermissionAttribute(Permissions.SubmitApplication))
+            .WithName("CreateFormSubmission")
+            .WithSummary("Client form submission")
+            .WithDescription("Creates a new form submission with applicant field values.");
+
+        group.MapPut("/{id:guid}/form-submissions/{submissionId:guid}", UpdateFormSubmissionValuesEndpoint)
+            .RequireAuthorization(new HasPermissionAttribute(Permissions.UpdateApplication))
+            .WithName("UpdateFormSubmissionValues")
+            .WithSummary("Client update for submitted form values")
+            .WithDescription("Updates submitted field values on an existing form submission.");
+
         group.MapPut("/{id:guid}", UpdateApplicationDraft)
             .WithName("UpdateApplicationDraft")
             .WithSummary("Update application draft details")
@@ -82,17 +107,38 @@ public static class ApplicationEndpoints
             .WithSummary("Update application status")
             .WithDescription("Updates status of the application (e.g. UnderEvaluation, Approved) and logs history.");
 
+        group.MapPatch("/{id:guid}/admin-update", AdminUpdateApplicationEndpoint)
+            .RequireAuthorization(new HasPermissionAttribute(Permissions.EvaluateApplication))
+            .WithName("AdminUpdateApplication")
+            .WithSummary("Agency administrative correction update")
+            .WithDescription("Updates application fields during review and records CorrectionAuditTrail entries.");
+
+        group.MapPatch("/{id:guid}/applicants/{applicantId:guid}/admin-update", AdminUpdateApplicantProfileEndpoint)
+            .RequireAuthorization(new HasPermissionAttribute(Permissions.EvaluateApplication))
+            .WithName("AdminUpdateApplicantProfile")
+            .WithSummary("Agency administrative update for applicant profile")
+            .WithDescription("Updates applicant profile details during review and records CorrectionAuditTrail entries.");
+
+        group.MapPatch("/{id:guid}/applicants/{applicantId:guid}/form-values/admin-update", AdminUpdateFormValuesEndpoint)
+            .RequireAuthorization(new HasPermissionAttribute(Permissions.EvaluateApplication))
+            .WithName("AdminUpdateFormValues")
+            .WithSummary("Agency administrative update for form field values")
+            .WithDescription("Updates form field values during review and records CorrectionAuditTrail entries.");
+
         group.MapPatch("/{id:guid}/evaluate", EvaluateApplicationEndpoint)
+            .RequireAuthorization(new HasPermissionAttribute(Permissions.EvaluateApplication))
             .WithName("EvaluateApplication")
             .WithSummary("Evaluate application")
             .WithDescription("Transitions application status to Evaluating and logs status history.");
 
         group.MapPatch("/{id:guid}/pin", TogglePinApplicationEndpoint)
+            .RequireAuthorization(new HasPermissionAttribute(Permissions.EvaluateApplication))
             .WithName("TogglePinApplication")
             .WithSummary("Toggle pin status")
             .WithDescription("Pins or unpins an application for top-of-feed display.");
 
         group.MapPatch("/{id:guid}/archive", ToggleArchiveApplicationEndpoint)
+            .RequireAuthorization(new HasPermissionAttribute(Permissions.EvaluateApplication))
             .WithName("ToggleArchiveApplication")
             .WithSummary("Toggle archive status")
             .WithDescription("Archives or unarchives an application.");
@@ -220,6 +266,17 @@ public static class ApplicationEndpoints
     public static async Task<IResult> GetApplicationById(Guid id, IMediator mediator)
     {
         var result = await mediator.Send(new GetApplicationByIdQuery(id));
+        return result.Succeeded ? Results.Ok(result) : Results.NotFound(result);
+    }
+
+    [HasPermission(Permissions.ReadApplication)]
+    public static async Task<IResult> GetApplicationFormWithSubmissionEndpoint(
+        Guid id,
+        [FromQuery] Guid? applicantId,
+        [FromQuery] Guid? submissionId,
+        IMediator mediator)
+    {
+        var result = await mediator.Send(new GetApplicationFormWithSubmissionQuery(id, applicantId, submissionId));
         return result.Succeeded ? Results.Ok(result) : Results.NotFound(result);
     }
 
@@ -388,6 +445,67 @@ public static class ApplicationEndpoints
         var result = await mediator.Send(command, cancellationToken);
         if (!result.Succeeded) return Results.BadRequest(result);
         return Results.Ok(result);
+    }
+
+    [HasPermission(Permissions.EvaluateApplication)]
+    public static async Task<IResult> AdminUpdateApplicationEndpoint(
+        Guid id,
+        [FromBody] AdminUpdateApplicationCommand command,
+        IMediator mediator,
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(command with { Id = id }, cancellationToken);
+        if (!result.Succeeded) return Results.BadRequest(result);
+        return Results.Ok(result);
+    }
+
+    [HasPermission(Permissions.EvaluateApplication)]
+    public static async Task<IResult> AdminUpdateApplicantProfileEndpoint(
+        Guid id,
+        Guid applicantId,
+        [FromBody] AdminUpdateApplicantProfileCommand command,
+        IMediator mediator,
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(command with { ApplicationId = id, ApplicantId = applicantId }, cancellationToken);
+        if (!result.Succeeded) return Results.BadRequest(result);
+        return Results.Ok(result);
+    }
+
+    [HasPermission(Permissions.EvaluateApplication)]
+    public static async Task<IResult> AdminUpdateFormValuesEndpoint(
+        Guid id,
+        Guid applicantId,
+        [FromBody] AdminUpdateFormValuesCommand command,
+        IMediator mediator,
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(command with { ApplicationId = id, ApplicantId = applicantId }, cancellationToken);
+        if (!result.Succeeded) return Results.BadRequest(result);
+        return Results.Ok(result);
+    }
+
+    [HasPermission(Permissions.SubmitApplication)]
+    public static async Task<IResult> CreateFormSubmissionEndpoint(
+        Guid id,
+        [FromBody] CreateFormSubmissionCommand command,
+        IMediator mediator,
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(command with { ApplicationId = id }, cancellationToken);
+        return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
+    }
+
+    [HasPermission(Permissions.UpdateApplication)]
+    public static async Task<IResult> UpdateFormSubmissionValuesEndpoint(
+        Guid id,
+        Guid submissionId,
+        [FromBody] UpdateFormSubmissionValuesCommand command,
+        IMediator mediator,
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(command with { ApplicationId = id, SubmissionId = submissionId }, cancellationToken);
+        return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
     }
 }
 

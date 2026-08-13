@@ -33,6 +33,34 @@ public static class ApplicationDataSeeder
         var now = DateTime.UtcNow;
         var defaultBarangay = await context.Barangays.FirstOrDefaultAsync();
 
+        var defaultForm = await context.Forms.FirstOrDefaultAsync();
+        if (defaultForm == null)
+        {
+            var service = await context.Services.FirstOrDefaultAsync();
+            defaultForm = new Form
+            {
+                Id = Guid.NewGuid(),
+                ServiceId = service?.Id ?? ServiceLicenseId,
+                Version = "1.0",
+                CategorySelectionRequired = false
+            };
+            context.Forms.Add(defaultForm);
+            await context.SaveChangesAsync();
+        }
+        var defaultFormId = defaultForm.Id;
+
+        var availableFields = await context.Fields.ToListAsync();
+        if (availableFields.Count == 0)
+        {
+            var pool = FastTrackSeederData.GetFieldsPool();
+            foreach (var f in pool.Values)
+            {
+                context.Fields.Add(f);
+            }
+            await context.SaveChangesAsync();
+            availableFields = pool.Values.ToList();
+        }
+
         // ── Ensure Liaison User & Company Detail are linked ─────────────────
         var liaisonUserId = Guid.Parse("11111111-1111-1111-1111-222222222222");
         var liaisonUser = await context.Users.Include(u => u.CompanyDetail).FirstOrDefaultAsync(u => u.Id == liaisonUserId);
@@ -65,6 +93,85 @@ public static class ApplicationDataSeeder
         if (app17Existing != null) app17Existing.UserId = liaisonUserId;
         await context.SaveChangesAsync();
 
+        // ── Backfill FormSubmissions for existing database records ──────────
+        if (await context.FormSubmissions.CountAsync() == 0)
+        {
+            var app1Id = Guid.Parse("a1000000-0000-0000-0000-000000000001");
+            var app2Id = Guid.Parse("a2000000-0000-0000-0000-000000000002");
+            var app3Id = Guid.Parse("a3000000-0000-0000-0000-000000000003");
+
+            var exApp1 = await context.Applications.Include(a => a.ApplicationApplicants).ThenInclude(aa => aa.Applicant).FirstOrDefaultAsync(a => a.Id == app1Id);
+            var exApp2 = await context.Applications.Include(a => a.ApplicationApplicants).ThenInclude(aa => aa.Applicant).FirstOrDefaultAsync(a => a.Id == app2Id);
+            var exApp3 = await context.Applications.Include(a => a.ApplicationApplicants).ThenInclude(aa => aa.Applicant).FirstOrDefaultAsync(a => a.Id == app3Id);
+            var exApp16 = await context.Applications.Include(a => a.ApplicationApplicants).ThenInclude(aa => aa.Applicant).FirstOrDefaultAsync(a => a.Id == app16Id);
+            var exApp17 = await context.Applications.Include(a => a.ApplicationApplicants).ThenInclude(aa => aa.Applicant).FirstOrDefaultAsync(a => a.Id == app17Id);
+
+            if (exApp1 != null && exApp1.ApplicationApplicants.FirstOrDefault()?.Applicant != null)
+            {
+                AddFormSubmission(exApp1, exApp1.ApplicationApplicants.First().Applicant!, new()
+                {
+                    ("Call Sign / Station Name", "DX-101 Manila Relay"),
+                    ("Equipment Manufacturer", "Motorola Solutions"),
+                    ("Equipment Model", "XPR 7550e"),
+                    ("Transmitter Power (Watts)", "50W"),
+                    ("Frequency Band", "VHF 136-174 MHz"),
+                    ("Station Installation Address", "Building 4, Port Area, Manila"),
+                    ("Intended Usage", "Commercial Fleet Operations"),
+                }, defaultFormId, availableFields);
+            }
+
+            if (exApp2 != null && exApp2.ApplicationApplicants.FirstOrDefault()?.Applicant != null)
+            {
+                AddFormSubmission(exApp2, exApp2.ApplicationApplicants.First().Applicant!, new()
+                {
+                    ("License Number", "NTC-LIC-2023-88219"),
+                    ("Radio Station Category", "Land Mobile Base Station"),
+                    ("Antenna Height (Meters)", "24.5m"),
+                    ("Antenna Type", "Omni-directional Fiber Dipole"),
+                    ("Operating Hours", "24/7 Continuous Operation"),
+                }, defaultFormId, availableFields);
+            }
+
+            if (exApp3 != null && exApp3.ApplicationApplicants.FirstOrDefault()?.Applicant != null)
+            {
+                AddFormSubmission(exApp3, exApp3.ApplicationApplicants.First().Applicant!, new()
+                {
+                    ("Certificate Applied For", "General Radio Operator Certificate (GROC)"),
+                    ("NTC Examination Rating", "88.5%"),
+                    ("Examination Date", "2025-11-14"),
+                    ("School / Training Center", "Philippine Maritime & Radio Academy"),
+                    ("Highest Educational Attainment", "BS Electronics Engineering"),
+                }, defaultFormId, availableFields);
+            }
+
+            if (exApp16 != null && exApp16.ApplicationApplicants.FirstOrDefault()?.Applicant != null)
+            {
+                AddFormSubmission(exApp16, exApp16.ApplicationApplicants.First().Applicant!, new()
+                {
+                    ("Liaison Representative", "Engr. Ricardo Dizon"),
+                    ("Authorization Letter No.", "AUTH-2026-APEX-09"),
+                    ("Commercial Operator ID", "COP-2024-5512"),
+                    ("Station Location", "Unit 402 Sampaloc Manila"),
+                    ("Equipment Power Rating", "100W PEP"),
+                }, defaultFormId, availableFields);
+            }
+
+            if (exApp17 != null && exApp17.ApplicationApplicants.FirstOrDefault()?.Applicant != null)
+            {
+                AddFormSubmission(exApp17, exApp17.ApplicationApplicants.First().Applicant!, new()
+                {
+                    ("Public Trunkline Network Name", "Apex Metro-Trunk System"),
+                    ("Base Station Location", "Tower 2, IT Park, Lahug, Cebu City"),
+                    ("Number of Transceivers", "12 Units"),
+                    ("RF Radiation Compliance Certificate", "EMF-CERT-2025-0981"),
+                    ("Safety Officer In-Charge", "Engr. Manuel Roxas (PECE #4412)"),
+                    ("Emergency Power Source", "250 kVA Standby Generator Set"),
+                }, defaultFormId, availableFields);
+            }
+
+            await context.SaveChangesAsync();
+        }
+
         if (await context.Applications.CountAsync() >= 17)
             return;
 
@@ -96,6 +203,17 @@ public static class ApplicationDataSeeder
         AddHistory(app1, "Application submitted by client.", null, ApplicationStatus.Submitted,
             ClientUserId, "Juan Santos", "Client", now.AddDays(-5));
 
+        AddFormSubmission(app1, applicants[0], new()
+        {
+            ("Call Sign / Station Name", "DX-101 Manila Relay"),
+            ("Equipment Manufacturer", "Motorola Solutions"),
+            ("Equipment Model", "XPR 7550e"),
+            ("Transmitter Power (Watts)", "50W"),
+            ("Frequency Band", "VHF 136-174 MHz"),
+            ("Station Installation Address", "Building 4, Port Area, Manila"),
+            ("Intended Usage", "Commercial Fleet Operations"),
+        }, defaultFormId, availableFields);
+
         applications.Add(app1);
 
         // ── 2. ForApproval — Evaluator is reviewing ───────────────────────────
@@ -108,6 +226,15 @@ public static class ApplicationDataSeeder
             ClientUserId, "Maria Dela Cruz", "Client", now.AddDays(-8));
         AddHistory(app2, "Application received and under evaluation.", ApplicationStatus.Submitted, ApplicationStatus.Evaluating,
             EvaluatorUserId, "Jane Evaluator", "Evaluator", now.AddDays(-7));
+
+        AddFormSubmission(app2, applicants[1], new()
+        {
+            ("License Number", "NTC-LIC-2023-88219"),
+            ("Radio Station Category", "Land Mobile Base Station"),
+            ("Antenna Height (Meters)", "24.5m"),
+            ("Antenna Type", "Omni-directional Fiber Dipole"),
+            ("Operating Hours", "24/7 Continuous Operation"),
+        }, defaultFormId, availableFields);
 
         applications.Add(app2);
 
@@ -126,6 +253,15 @@ public static class ApplicationDataSeeder
 
         AddCorrection(app3, "Requirements", "NTC Form 103", "Not submitted", "Submitted",
             "Jane Evaluator", now.AddDays(-10));
+
+        AddFormSubmission(app3, applicants[2], new()
+        {
+            ("Certificate Applied For", "General Radio Operator Certificate (GROC)"),
+            ("NTC Examination Rating", "88.5%"),
+            ("Examination Date", "2025-11-14"),
+            ("School / Training Center", "Philippine Maritime & Radio Academy"),
+            ("Highest Educational Attainment", "BS Electronics Engineering"),
+        }, defaultFormId, availableFields);
 
         applications.Add(app3);
 
@@ -280,6 +416,26 @@ public static class ApplicationDataSeeder
         AddSoaLine(soaBulk2, "Amateur Radio Station Permit (Renewal)", "PRM-AMAT-REN", "Individual renewal", 1, 1, 320.00m);
         AddSoaHistory(soaBulk2, "SOA created for applicant 2 (Sofia Ramos).", null, SoaStatus.Pending,
             EvaluatorUserId, "Jane Evaluator", "Evaluator", now.AddDays(-8));
+
+        AddFormSubmission(app7, applicants[6], new()
+        {
+            ("Examinee Class", "Class B (General)"),
+            ("Exam Type", "First Time Examinee"),
+            ("Preferred Exam Language", "English"),
+            ("PRC License Status", "None"),
+            ("Station Call Sign", "DU7MLP"),
+            ("Vessel Name", "M/V Ocean Sentinel"),
+        }, defaultFormId, availableFields);
+
+        AddFormSubmission(app7, applicants[7], new()
+        {
+            ("Examinee Class", "Class A (Advanced)"),
+            ("Exam Type", "Renewal Examinee"),
+            ("Preferred Exam Language", "English"),
+            ("PRC License Status", "Licensed Engineer"),
+            ("Station Call Sign", "DU7SFR"),
+            ("Vessel Name", "M/V Visayas Trader"),
+        }, defaultFormId, availableFields);
 
         app7.StatementsOfAccount.Add(soaBulk1);
         app7.StatementsOfAccount.Add(soaBulk2);
@@ -558,6 +714,15 @@ public static class ApplicationDataSeeder
         AddCorrection(app16, "Form Submission", "Station Location", "Block 4 Lot 1", "Unit 402 Sampaloc Manila", "Jane Evaluator", now.AddDays(-4));
         AddCorrection(app16, "Service Category", "ApplicationTypeKey", "RENEWAL", "NEW", "Jane Evaluator", now.AddDays(-4));
 
+        AddFormSubmission(app16, applicants[5], new()
+        {
+            ("Liaison Representative", "Engr. Ricardo Dizon"),
+            ("Authorization Letter No.", "AUTH-2026-APEX-09"),
+            ("Commercial Operator ID", "COP-2024-5512"),
+            ("Station Location", "Unit 402 Sampaloc Manila"),
+            ("Equipment Power Rating", "100W PEP"),
+        }, defaultFormId, availableFields);
+
         applications.Add(app16);
 
         // ── 17. Multi-Item Complex SOA with 5 Fee Lines — Filed by Third-Party Liaison ─
@@ -572,6 +737,16 @@ public static class ApplicationDataSeeder
             EvaluatorUserId, "Jane Evaluator", "Evaluator", now.AddDays(-7));
         AddHistory(app17, "Comprehensive multi-item SOA prepared.", ApplicationStatus.Evaluating, ApplicationStatus.Approved,
             EvaluatorUserId, "Jane Evaluator", "Evaluator", now.AddDays(-5));
+
+        AddFormSubmission(app17, applicants[6], new()
+        {
+            ("Public Trunkline Network Name", "Apex Metro-Trunk System"),
+            ("Base Station Location", "Tower 2, IT Park, Lahug, Cebu City"),
+            ("Number of Transceivers", "12 Units"),
+            ("RF Radiation Compliance Certificate", "EMF-CERT-2025-0981"),
+            ("Safety Officer In-Charge", "Engr. Manuel Roxas (PECE #4412)"),
+            ("Emergency Power Source", "250 kVA Standby Generator Set"),
+        }, defaultFormId, availableFields);
 
         var soa17 = MakeSoa(Guid.Parse("b1700000-0000-0000-0000-000000000001"), app17,
             applicants[6].Id, IssuedToType.Individual, FullName(applicants[6]),
@@ -819,5 +994,37 @@ public static class ApplicationDataSeeder
             CorrectedByStaff = correctedBy,
             CorrectedAt = correctedAt,
         });
+    }
+
+    private static void AddFormSubmission(
+        DomainApplication app, Applicant applicant,
+        List<(string label, string value)> fields,
+        Guid defaultFormId,
+        List<Field> availableFields)
+    {
+        var submission = new FormSubmission
+        {
+            Id = Guid.NewGuid(),
+            ApplicationId = app.Id,
+            ApplicantId = applicant.Id,
+            FormId = defaultFormId,
+            CreatedAt = app.CreatedAt,
+        };
+
+        for (int i = 0; i < fields.Count; i++)
+        {
+            var (label, val) = fields[i];
+            var fieldObj = availableFields.Count > 0 ? availableFields[i % availableFields.Count] : null;
+            submission.FieldValues.Add(new FormFieldValue
+            {
+                Id = Guid.NewGuid(),
+                FormSubmissionId = submission.Id,
+                FieldId = fieldObj?.Id ?? Guid.NewGuid(),
+                CustomLabel = label,
+                Value = val,
+            });
+        }
+
+        app.FormSubmissions.Add(submission);
     }
 }

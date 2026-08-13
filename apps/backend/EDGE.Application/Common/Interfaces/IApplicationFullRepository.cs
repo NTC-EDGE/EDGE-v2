@@ -16,6 +16,7 @@ public interface IApplicationFullRepository
     Task<List<Domain.Entities.Application>> GetUserApplicationsAsync(Guid userId, ApplicationStatus? status = null, CancellationToken cancellationToken = default);
     Task<List<Domain.Entities.Application>> GetAllApplicationsAsync(ApplicationStatus? status = null, string? queueTab = null, string? scope = null, CancellationToken cancellationToken = default);
     Task<List<EDGE.Application.Applications.Dtos.ApplicationDto>> GetApplicationDtosAsync(ApplicationStatus? status = null, string? queueTab = null, string? scope = null, CancellationToken cancellationToken = default);
+    Task<List<EDGE.Application.Applications.Dtos.ApplicationSummaryDto>> GetApplicationSummaryDtosAsync(ApplicationStatus? status = null, string? queueTab = null, string? scope = null, CancellationToken cancellationToken = default);
     Task<List<Domain.Entities.Application>> GetByApplicantIdAsync(Guid applicantId, CancellationToken cancellationToken = default);
 
 
@@ -36,5 +37,7 @@ public interface IApplicationFullRepository
     Task AddOpAsync(OrderOfPayment op, CancellationToken cancellationToken = default);
     Task AddApplicationHistoryAsync(ApplicationHistory history, CancellationToken cancellationToken = default);
     Task AddSoaHistoryAsync(SoaHistory history, CancellationToken cancellationToken = default);
+    Task AddCorrectionAuditTrailAsync(CorrectionAuditTrail trail, CancellationToken cancellationToken = default);
+    Task AddCompanyDetailAsync(CompanyDetail companyDetail, CancellationToken cancellationToken = default);
     Task<bool> UserExistsAsync(Guid userId, CancellationToken cancellationToken = default);
 }

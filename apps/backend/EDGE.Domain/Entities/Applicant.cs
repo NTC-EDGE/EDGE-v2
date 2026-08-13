@@ -16,5 +16,6 @@ public class Applicant : AuditableEntity
     public ApplicantDetail? ApplicantDetail { get; set; }
     public Guid? CompanyDetailId { get; set; }
     public CompanyDetail? CompanyDetail { get; set; }
-    public ApplicantStatus Status { get; set; } = ApplicantStatus.Draft;
+    public ApplicantStatus Status { get; set; } = ApplicantStatus.Incomplete;
+    public string? EvaluationRemarks { get; set; }
 }

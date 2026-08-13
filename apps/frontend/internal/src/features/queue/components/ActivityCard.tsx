@@ -156,7 +156,7 @@ export function ActivityCard({
               <View style={[styles.appNumBadge, { backgroundColor: brandBg }]}>
                 <Lucide name="hash" size={10} color={brandColor} />
                 <Text style={[styles.appNumText, { color: brandColor }]}>
-                  {application.permitNumber || application.referenceNumber}
+                  {application.referenceNumber}
                 </Text>
               </View>
             </View>
@@ -212,9 +212,25 @@ export function ActivityCard({
                 <Lucide name="map-pin" size={10} color={brandColor} />
               </View>
             )}
-            <View style={[styles.typePill, { backgroundColor: pillBg }]}>
-              <Text style={[styles.typePillText, { color: textSub }]}>
-                {application.applicationType}
+            <View
+              style={[
+                styles.typePill,
+                application.applicationType === "BULK"
+                  ? { backgroundColor: brandBg, borderColor: brandColor, borderWidth: 1 }
+                  : { backgroundColor: pillBg },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.typePillText,
+                  application.applicationType === "BULK"
+                    ? { color: brandColor, fontWeight: "700" }
+                    : { color: textSub },
+                ]}
+              >
+                {application.applicationType === "BULK" && application.applicantsList && application.applicantsList.length > 0
+                  ? `BULK • ${application.applicantsList.length}`
+                  : application.applicationType}
               </Text>
             </View>
           </View>

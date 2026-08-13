@@ -781,6 +781,7 @@ export interface ApplicantDetailDto {
   birthDate?: string;
   contactNumber: string;
   email?: string;
+  emailAddress?: string;
   zipCode?: string;
   company?: CompanyDetailDto;
 }
@@ -791,6 +792,8 @@ export interface ApplicantDto {
   userId?: string;
   isGuest: boolean;
   applicantType: string;
+  status?: string;
+  evaluationRemarks?: string;
   details?: ApplicantDetailDto;
   company?: CompanyDetailDto;
   formFieldValues?: FormFieldValueDto[];
@@ -830,6 +833,38 @@ export interface ApplicationDto {
   correctionAuditTrails: CorrectionAuditTrailDto[];
 }
 
+export interface ApplicantSummaryDto {
+  id: string;
+  applicantType: string;
+  status?: string;
+  evaluationRemarks?: string;
+  name: string;
+  company?: CompanyDetailDto;
+  details?: ApplicantDetailDto;
+  formFieldValues?: FormFieldValueDto[];
+}
+
+export interface ApplicationSummaryDto {
+  id: string;
+  office?: string;
+  applicationNumber?: string;
+  referenceNumber?: string;
+  status: ApplicationStatusDto;
+  submissionMode: string;
+  remarks?: string;
+  isGuest?: boolean;
+  isPinned?: boolean;
+  isArchived?: boolean;
+  createdAt: string;
+  filingUser?: FilingUserDto;
+  services: ApplicationServiceDto[];
+  applicants: ApplicantSummaryDto[];
+  statementsOfAccount?: StatementOfAccountDto[];
+  ordersOfPayment?: OrderOfPaymentDto[];
+  histories?: ApplicationHistoryDto[];
+  correctionAuditTrails?: CorrectionAuditTrailDto[];
+}
+
 export interface UpdateApplicationStatusRequest {
   status: string;
   remarks?: string;
@@ -866,4 +901,62 @@ export type ReturnTargetDto = 'Accountant' | 'Evaluator';
 export interface ReturnOpRequest {
   remarks: string;
   returnTo: ReturnTargetDto;
+}
+
+// ─── Form Builder Schema Types ──────────────────────────
+
+export interface FormFieldDto {
+  fieldId: string;
+  label: string;
+  type: string;
+  isRequired: boolean;
+  orderIndex: number;
+  validationRules?: string | null;
+  visibilityCondition?: string | null;
+}
+
+export interface FormSectionDto {
+  key: string;
+  title: string;
+  required: boolean;
+  orderIndex: number;
+  fields: FormFieldDto[];
+}
+
+export interface FormDto {
+  formId: string;
+  serviceId: string;
+  version: string;
+  sections: FormSectionDto[];
+}
+
+// ─── Application Form Submission Layout Types ──────────────────────────
+
+export interface ApplicationFormFieldValueDto {
+  fieldId: string;
+  label: string;
+  type: string;
+  isRequired: boolean;
+  orderIndex: number;
+  validationRules?: string | null;
+  visibilityCondition?: string | null;
+  value?: string | null;
+}
+
+export interface ApplicationFormSectionDto {
+  key: string;
+  title: string;
+  required: boolean;
+  orderIndex: number;
+  fields: ApplicationFormFieldValueDto[];
+}
+
+export interface ApplicationFormSubmissionDto {
+  submissionId?: string | null;
+  formId: string;
+  serviceId: string;
+  applicationId: string;
+  applicantId?: string | null;
+  version: string;
+  sections: ApplicationFormSectionDto[];
 }
