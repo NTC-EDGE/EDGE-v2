@@ -7,24 +7,28 @@ import { FormGrid, FormCol } from "./FormGrid";
 import { TYPOGRAPHY, COLORS } from "../theme/tokens";
 
 export interface FieldDto {
-  id: string;
-  fieldType: string; // text | number | date | dropdown | checkbox | signature | file
+  id?: string;
+  fieldId?: string;
+  fieldType?: string; // text | number | date | dropdown | checkbox | signature | file
+  type?: string;
   label: string;
   isRequired?: boolean;
-  options?: Array<{ label: string; value: string }>;
+  options?: Array<{ label: string; value: string }> | string[];
   placeholder?: string;
   isCompact?: boolean;
   validationRules?: string;
 }
 
 export interface FormSectionDto {
-  id: string;
+  id?: string;
+  key?: string;
   title: string;
   fields: FieldDto[];
 }
 
 export interface FormDto {
-  id: string;
+  id?: string;
+  formId?: string;
   version: string;
   sections: FormSectionDto[];
 }
@@ -34,6 +38,31 @@ interface DynamicFormRendererProps {
   values: Record<string, string>; // fieldId -> value
   onChange: (fieldId: string, label: string, value: string) => void;
   errors?: Record<string, string>;
+  hideSections?: string[];
+}
+
+function parseOptions(field: FieldDto): Array<{ label: string; value: string }> {
+  if (field.options !== null && field.options !== undefined && Array.isArray(field.options) && field.options.length > 0) {
+    return field.options.map((opt) =>
+      typeof opt === "string" ? { label: opt, value: opt } : opt
+    );
+  }
+
+  if (field.validationRules !== null && field.validationRules !== undefined && typeof field.validationRules === "string") {
+    try {
+      const parsed: unknown = JSON.parse(field.validationRules);
+      if (Array.isArray(parsed)) {
+        return parsed.map((item) => {
+          const str = typeof item === "string" ? item : String(item);
+          return { label: str, value: str };
+        });
+      }
+    } catch {
+      // Ignored if not JSON array
+    }
+  }
+
+  return [];
 }
 
 export function DynamicFormRenderer({
@@ -41,62 +70,86 @@ export function DynamicFormRenderer({
   values,
   onChange,
   errors = {},
+  hideSections = ["payment"],
 }: DynamicFormRendererProps) {
+  const hiddenKeys = hideSections.map((s) => s.toLowerCase());
+
+  const visibleSections = form.sections.filter((section) => {
+    const key = (section.key || section.id || "").toLowerCase();
+    const title = (section.title || "").toLowerCase();
+    return (
+      !hiddenKeys.includes(key) &&
+      !hiddenKeys.includes(title) &&
+      title !== "payment details"
+    );
+  });
+
   return (
     <View style={styles.container}>
-      {form.sections.map((section, idx) => (
-        <View key={section.id} style={styles.sectionCard}>
-          <View style={styles.sectionHeaderRow}>
-            <View style={styles.sectionTitleRow}>
-              <View style={styles.iconCircle}>
-                <Text style={styles.iconCircleText}>{idx + 1}</Text>
+      {visibleSections.map((section, idx) => {
+        const sectionKey = section.id || section.key || `section-${idx}`;
+        return (
+          <View key={sectionKey} style={styles.sectionCard}>
+            <View style={styles.sectionHeaderRow}>
+              <View style={styles.sectionTitleRow}>
+                <View style={styles.iconCircle}>
+                  <Text style={styles.iconCircleText}>{idx + 1}</Text>
+                </View>
+                <Text style={styles.sectionTitle}>{section.title}</Text>
               </View>
-              <Text style={styles.sectionTitle}>{section.title}</Text>
+              <View style={styles.sectionBadge}>
+                <Text style={styles.sectionBadgeText}>DYNAMIC SECTION {idx + 1}</Text>
+              </View>
             </View>
-            <View style={styles.sectionBadge}>
-              <Text style={styles.sectionBadgeText}>DYNAMIC SECTION {idx + 1}</Text>
-            </View>
+
+            <FormGrid>
+              {section.fields.map((field, fIdx) => {
+                const targetId = field.fieldId || field.id || `field-${fIdx}`;
+                const val = values[targetId] || "";
+                const err = errors[targetId];
+                const rawType = (field.fieldType || field.type || "").toLowerCase();
+                const isDropdown = rawType === "dropdown" || rawType === "select";
+                const isDate = rawType === "date";
+                const isNumber = rawType === "number";
+                const isFile = rawType === "file";
+                const isSignature = rawType === "signature";
+
+                const span = isFile || isSignature ? 12 : 6;
+
+                return (
+                  <FormCol key={targetId} span={span} compact={field.isCompact}>
+                    {isDropdown ? (
+                      <Select
+                        label={`${field.label}${field.isRequired ? " *" : ""}`}
+                        value={val}
+                        onValueChange={(v) => onChange(targetId, field.label, v)}
+                        options={parseOptions(field)}
+                        error={err}
+                      />
+                    ) : isDate ? (
+                      <DatePickerInput
+                        label={`${field.label}${field.isRequired ? " *" : ""}`}
+                        value={val}
+                        onChangeText={(v: string) => onChange(targetId, field.label, v)}
+                        error={err}
+                      />
+                    ) : (
+                      <ValidatedInput
+                        label={`${field.label}${field.isRequired ? " *" : ""}`}
+                        value={val}
+                        onChangeText={(v) => onChange(targetId, field.label, v)}
+                        placeholder={field.placeholder || `Enter ${field.label}...`}
+                        keyboardType={isNumber ? "numeric" : "default"}
+                        error={err}
+                      />
+                    )}
+                  </FormCol>
+                );
+              })}
+            </FormGrid>
           </View>
-
-          <FormGrid>
-            {section.fields.map((field) => {
-              const val = values[field.id] || "";
-              const err = errors[field.id];
-              const span = field.fieldType === "file" || field.fieldType === "signature" ? 12 : 6;
-
-              return (
-                <FormCol key={field.id} span={span} compact={field.isCompact}>
-                  {field.fieldType === "dropdown" ? (
-                    <Select
-                      label={`${field.label}${field.isRequired ? " *" : ""}`}
-                      value={val}
-                      onValueChange={(v) => onChange(field.id, field.label, v)}
-                      options={field.options || []}
-                      error={err}
-                    />
-                  ) : field.fieldType === "date" ? (
-                    <DatePickerInput
-                      label={`${field.label}${field.isRequired ? " *" : ""}`}
-                      value={val}
-                      onChangeText={(v: string) => onChange(field.id, field.label, v)}
-                      error={err}
-                    />
-                  ) : (
-                    <ValidatedInput
-                      label={`${field.label}${field.isRequired ? " *" : ""}`}
-                      value={val}
-                      onChangeText={(v) => onChange(field.id, field.label, v)}
-                      placeholder={field.placeholder || `Enter ${field.label}...`}
-                      keyboardType={field.fieldType === "number" ? "numeric" : "default"}
-                      error={err}
-                    />
-                  )}
-                </FormCol>
-              );
-            })}
-          </FormGrid>
-        </View>
-      ))}
+        );
+      })}
     </View>
   );
 }

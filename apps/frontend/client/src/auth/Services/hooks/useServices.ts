@@ -196,12 +196,17 @@ export function useServices() {
       if (allBackendServices && urlServiceId) {
         const matched = allBackendServices.find((s: any) => s.id === urlServiceId);
         if (matched) {
-          setSelectedService(matched);
-          const wizType = urlWizard || (
-            matched.title?.toLowerCase().includes("premises") ? "cpe-accreditation" :
-            matched.title?.toLowerCase().includes("exam") || matched.title?.toLowerCase().includes("operator") ? "radio-operator-exam" :
-            "general-service"
-          );
+          setSelectedService({
+            id: matched.id,
+            code: matched.code,
+            title: matched.name || matched.title,
+            description: matched.description,
+            serviceCategoryId: matched.serviceCategoryId,
+            requirements: matched.requirements?.map((r: any) => r.name) || [],
+            fee: matched.feeDescription || undefined,
+            time: matched.estimatedDuration || undefined
+          });
+          const wizType = urlWizard || "general-service";
           setActiveWizardService(wizType);
           const stepNum = parseInt(urlStep || "1", 10);
           if (!isNaN(stepNum) && stepNum > 0) {
@@ -456,14 +461,35 @@ export function useServices() {
         mappedApplicants = generalApplicants.map(app => {
           const monthNum = months[app.birthMonth] || "01";
           const day = (app.birthDay || "1").padStart(2, '0');
+
+          const fullNameField = app.formFieldValues?.find(
+            (fv) => fv.fieldId === "fd000000-0000-0000-0000-000000000001"
+          )?.value || "";
+          const addressField = app.formFieldValues?.find(
+            (fv) => fv.fieldId === "fd000000-0000-0000-0000-000000000003"
+          )?.value || "";
+          const contactNoField = app.formFieldValues?.find(
+            (fv) => fv.fieldId === "fd000000-0000-0000-0000-000000000004"
+          )?.value || "";
+          const emailField = app.formFieldValues?.find(
+            (fv) => fv.fieldId === "fd000000-0000-0000-0000-000000000005"
+          )?.value || "";
+
+          const fullName = fullNameField.trim() || `${app.firstName} ${app.lastName}`.trim() || "Applicant";
+          const firstName = fullName.split(" ")[0] || "Applicant";
+          const lastName = fullName.split(" ").slice(1).join(" ") || "Detail";
+
           return {
-            firstName: app.firstName || "Draft",
-            lastName: app.lastName || "Applicant",
-            email: app.email || "draft@example.com",
-            contactNumber: app.contactNo || "",
-            address: app.address || "N/A",
+            firstName,
+            lastName,
+            email: emailField.trim() || app.email || "draft@example.com",
+            contactNumber: contactNoField.trim() || app.contactNo || "",
+            address: addressField.trim() || app.address || "N/A",
             birthDate: app.birthYear ? `${app.birthYear}-${monthNum}-${day}T00:00:00Z` : "1990-01-01T00:00:00Z",
-            formFieldValues: []
+            formFieldValues: (app.formFieldValues || []).map(fv => ({
+              fieldId: fv.fieldId,
+              value: fv.value
+            }))
           };
         });
       }
@@ -633,6 +659,7 @@ export function useServices() {
 
       return {
         id: bs.id,
+        code: bs.code,
         serviceCategoryId: category.id,
         category: category.name,
         title: bs.name,
@@ -683,6 +710,7 @@ export function useServices() {
           categoryTitle: cat?.name || "Services",
           service: {
             id: bs.id,
+            code: bs.code,
             serviceCategoryId: bs.serviceCategoryId,
             category: cat?.name || "Services",
             title: bs.name,

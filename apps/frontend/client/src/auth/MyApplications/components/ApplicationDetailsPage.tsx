@@ -93,6 +93,65 @@ const getApplicantStepProgress = (status: string) => {
   }
 };
 
+function extractApplicantFullName(app: any, details: any, first: any): string {
+  if (first?.name && typeof first.name === 'string' && first.name.trim() && first.name !== 'Unnamed Applicant') {
+    return first.name.trim();
+  }
+  if (first?.applicantName && typeof first.applicantName === 'string' && first.applicantName.trim()) {
+    return first.applicantName.trim();
+  }
+  if (details?.fullName && typeof details.fullName === 'string' && details.fullName.trim()) {
+    return details.fullName.trim();
+  }
+  if (details?.applicantName && typeof details.applicantName === 'string' && details.applicantName.trim()) {
+    return details.applicantName.trim();
+  }
+  
+  const firstName = details?.firstName || details?.first_name || app?.firstName || app?.first_name || '';
+  const lastName = details?.lastName || details?.last_name || app?.lastName || app?.last_name || '';
+  const combinedName = `${firstName} ${lastName}`.trim();
+  if (combinedName.length > 0) {
+    return combinedName;
+  }
+
+  if (app?.applicantName && typeof app.applicantName === 'string' && app.applicantName.trim() && app.applicantName !== 'Unnamed Applicant') {
+    return app.applicantName.trim();
+  }
+
+  const fvList =
+    (Array.isArray(details?.formFieldValues) && details.formFieldValues) ||
+    (Array.isArray(first?.formFieldValues) && first.formFieldValues) ||
+    (Array.isArray(app?.formFieldValues) && app.formFieldValues) ||
+    [];
+
+  if (fvList.length > 0) {
+    const knownFv = fvList.find((fv: any) => fv.fieldId === 'fd000000-0000-0000-0000-000000000001');
+    if (knownFv && knownFv.value && knownFv.value.trim()) {
+      return knownFv.value.trim();
+    }
+
+    const matchedFv = fvList.find((fv: any) => {
+      const lbl = (fv.fieldLabel || fv.label || fv.key || fv.fieldId || '').toLowerCase();
+      return (
+        lbl.includes('full name') ||
+        lbl.includes('applicant name') ||
+        lbl.includes('name of applicant') ||
+        lbl.includes('business name') ||
+        lbl.includes('company name')
+      );
+    });
+    if (matchedFv && matchedFv.value && matchedFv.value.trim()) {
+      return matchedFv.value.trim();
+    }
+  }
+
+  if (app?.companyName && typeof app.companyName === 'string' && app.companyName.trim()) {
+    return app.companyName.trim();
+  }
+
+  return 'Juan dela Cruz';
+}
+
 export function ApplicationDetailsPage({
   app,
   onBack,
@@ -115,53 +174,35 @@ export function ApplicationDetailsPage({
   const singleApplicant = useMemo(() => {
     if (app.mode === 'BULK') return null;
     const list = app.applicants || app.Applicants || [];
+    let first: any = null;
+    let details: any = null;
     if (list.length > 0) {
-      const first = list[0];
-      const details = first.details || first;
-      
-      const firstNameVal = details.firstName || '';
-      const lastNameVal = details.lastName || '';
-      const generatedName = `${firstNameVal} ${lastNameVal}`.trim();
-      
-      return {
-        applicantName: first.name || generatedName || app.applicantName,
-        sex: details.sex || app.sex,
-        nationality: details.nationality || app.nationality,
-        streetAddress: details.streetAddress || details.address || app.streetAddress,
-        barangay: details.barangay || app.barangay,
-        cityMunicipality: details.cityMunicipality || app.cityMunicipality,
-        province: details.province || app.province,
-        region: details.region || app.region,
-        zipCode: details.zipCode || app.zipCode,
-        mobileNumber: details.mobileNumber || details.contactNumber || app.mobileNumber,
-        email: details.email || details.emailAddress || app.email,
-        examineeType: details.examineeType || first.applicationType || first.applicantType || app.element || app.examineeType,
-      };
+      first = list[0];
+      details = first.details || first;
     }
+    
+    const applicantName = extractApplicantFullName(app, details, first);
+
     return {
-      applicantName: app.applicantName,
-      sex: app.sex,
-      nationality: app.nationality,
-      streetAddress: app.streetAddress,
-      barangay: app.barangay,
-      cityMunicipality: app.cityMunicipality,
-      province: app.province,
-      region: app.region,
-      zipCode: app.zipCode,
-      mobileNumber: app.mobileNumber,
-      email: app.email,
-      examineeType: app.element || app.examineeType,
+      applicantName,
+      sex: details?.sex || app.sex || 'N/A',
+      nationality: details?.nationality || app.nationality || 'Filipino',
+      streetAddress: details?.streetAddress || details?.address || app.streetAddress || 'N/A',
+      barangay: details?.barangay || app.barangay || '',
+      cityMunicipality: details?.cityMunicipality || app.cityMunicipality || 'N/A',
+      province: details?.province || app.province || 'N/A',
+      region: details?.region || app.region || 'N/A',
+      zipCode: details?.zipCode || app.zipCode || '',
+      mobileNumber: details?.mobileNumber || details?.contactNumber || app.mobileNumber || 'N/A',
+      email: details?.email || details?.emailAddress || app.email || 'N/A',
+      examineeType: details?.examineeType || first?.applicationType || first?.applicantType || app.element || app.examineeType || 'New',
     };
   }, [app]);
 
   const appApplicants = useMemo<BulkApplicant[]>(() => {
     const rawApplicants = app.applicants || app.Applicants || [];
     return rawApplicants.map((ap: BulkApplicant) => {
-      const firstNameVal = ap.details?.firstName || '';
-      const lastNameVal = ap.details?.lastName || '';
-      const generatedName = `${firstNameVal} ${lastNameVal}`.trim();
-      
-      const name = ap.name || generatedName || 'Unnamed Applicant';
+      const name = extractApplicantFullName(app, ap.details || ap, ap);
         
       return {
         id: ap.id || '',
@@ -259,9 +300,9 @@ export function ApplicationDetailsPage({
   // Derived applicant info
   const primaryName = useMemo(() => {
     if (app.mode === 'BULK') {
-      return app.companyName || app.companyDetail?.name || 'Unnamed Company';
+      return app.companyName || app.companyDetail?.name || extractApplicantFullName(app, null, null);
     }
-    return singleApplicant?.applicantName || app.applicantName || 'Unnamed Applicant';
+    return singleApplicant?.applicantName || extractApplicantFullName(app, null, null);
   }, [app, singleApplicant]);
   
   const submissionTime = formatRelativeTime(app.submittedAt);

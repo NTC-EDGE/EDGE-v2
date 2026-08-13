@@ -74,6 +74,27 @@ export function GeneralFilingModeStep({
   const displayVariants: ServiceVariantItem[] =
     variants.length > 0
       ? variants
+      : serviceTitle.includes("EXAM") || serviceTitle.includes("ADMISSION SLIP") || serviceTitle.includes("OPERATOR")
+      ? [
+          {
+            id: "v-exam-new",
+            name: `${service?.title || "Admission Slip for Radio Operator Examination"} (NEW)`,
+            type: "New",
+            description: "First-time examination filing for Radio Operator License / Admission Slip.",
+          },
+          {
+            id: "v-exam-retake",
+            name: `${service?.title || "Admission Slip for Radio Operator Examination"} (RETAKE)`,
+            type: "Retake",
+            description: "Re-examination / retake filing for previously unpassed radio elements.",
+          },
+          {
+            id: "v-exam-special",
+            name: `${service?.title || "Admission Slip for Radio Operator Examination"} (SPECIAL EXAM)`,
+            type: "Special Exam",
+            description: "Special radio operator examination schedule request.",
+          },
+        ]
       : serviceTitle.includes("AMATEUR") || serviceTitle.includes("LICENSE")
       ? [
           {
@@ -172,7 +193,23 @@ export function GeneralFilingModeStep({
   const isRenewal = safeUpper(activeVariantName).includes("RENEWAL");
   const isModification = safeUpper(activeVariantName).includes("MODIFICATION");
 
-  const classOptions = (variantElements || []).map((elem) => ({
+  const displayElements: ServiceVariantElementItem[] =
+    variantElements.length > 0
+      ? variantElements
+      : serviceTitle.includes("EXAM") || serviceTitle.includes("ADMISSION SLIP") || serviceTitle.includes("OPERATOR")
+      ? [
+          { id: "elem-1", code: "ELEMENT 1", description: "Radio Law, Rules and Regulations" },
+          { id: "elem-2", code: "ELEMENT 2", description: "Radio Operator Rules & International Treaties" },
+          { id: "elem-3", code: "ELEMENT 3", description: "Radio Telegraphy & Morse Code Procedures" },
+          { id: "elem-4", code: "ELEMENT 4", description: "Radio Telephony & Operating Procedures" },
+          { id: "elem-8", code: "ELEMENT 8", description: "Commercial Radio Operator Examination Class" },
+          { id: "elem-class-a", code: "CLASS A", description: "Amateur Radio Class A Examination" },
+          { id: "elem-class-b", code: "CLASS B", description: "Amateur Radio Class B Examination" },
+          { id: "elem-class-c", code: "CLASS C", description: "Amateur Radio Class C Examination" },
+        ]
+      : [];
+
+  const classOptions = displayElements.map((elem) => ({
     id: elem.id,
     title: elem.code ? `${elem.code} — ${elem.description}` : elem.description,
     desc: elem.description || "",

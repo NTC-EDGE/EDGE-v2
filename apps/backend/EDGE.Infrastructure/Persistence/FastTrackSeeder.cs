@@ -25,6 +25,7 @@ public static class FastTrackSeeder
             await UpdateVariantsAsync(context);          // 2. Update/upsert all variants
             await BackfillNewCatalogDetailsAsync(context); // 3. Backfill elements, notes, requirements, and fees
             await ServiceInformationDataSeeder.SeedAsync(context);  // 4. Seed ServiceInformations entity records
+            await SeedFormsInternalAsync(context);       // 5. Seed Form layouts
             return;
         }
 
@@ -125,6 +126,11 @@ public static class FastTrackSeeder
 
         await context.SaveChangesAsync();
 
+        await SeedFormsInternalAsync(context);
+    }
+
+    private static async Task SeedFormsInternalAsync(ApplicationDbContext context)
+    {
         // 7. Seed Central Reusable Fields Pool (Deterministic GUIDs)
         var fieldsPool = FastTrackSeederData.GetFieldsPool();
 
@@ -140,6 +146,7 @@ public static class FastTrackSeeder
 
         // 8. Seed Form Builders & Sections per Service
         var existingForms = await context.Forms.AsNoTracking().Select(f => f.ServiceId).ToListAsync();
+        var services = new Dictionary<string, Service>();
 
         async Task SeedFormForService(string serviceKey, Guid formId, Guid sectionGuidPrefix, List<(string Key, string Title, List<string> FieldKeys)> sectionDefs)
         {
@@ -175,42 +182,59 @@ public static class FastTrackSeeder
                     .FirstAsync();
             }
 
+            // 1. Fetch existing sections for this form
+            var existingSections = await context.FormSections
+                .Where(s => s.FormId == formId)
+                .ToListAsync();
+
+            var existingSectionIds = existingSections.Select(s => s.Id).ToList();
+
+            // 2. Remove all existing SectionFields for this form's sections to prevent field mixing/orphans
+            if (existingSectionIds.Count > 0)
+            {
+                var existingSectionFields = await context.SectionFields
+                    .Where(sf => existingSectionIds.Contains(sf.FormSectionId))
+                    .ToListAsync();
+                if (existingSectionFields.Count > 0)
+                {
+                    context.SectionFields.RemoveRange(existingSectionFields);
+                    await context.SaveChangesAsync();
+                }
+            }
+
+            // 3. Update existing sections or insert new sections matching sectionDefs
+            var processedSectionIds = new HashSet<Guid>();
             int sectionOrder = 1;
             int sectionIndex = 1;
+
             foreach (var (key, title, fieldKeys) in sectionDefs)
             {
-                // Always query fresh to avoid EF change-tracker collisions
-                var existingSection = await context.FormSections
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(s => s.FormId == formId && s.Key == key);
+                var bytes = sectionGuidPrefix.ToByteArray();
+                bytes[15] = (byte)sectionIndex;
+                Guid sectionId = new Guid(bytes);
+                processedSectionIds.Add(sectionId);
 
-                Guid sectionId;
+                var existingSection = existingSections.FirstOrDefault(s => s.Id == sectionId);
+
                 if (existingSection == null)
                 {
-                    var bytes = sectionGuidPrefix.ToByteArray();
-                    bytes[15] = (byte)sectionIndex;
-                    sectionId = new Guid(bytes);
-
-                    // Guard against GUID already being tracked from an earlier iteration
-                    var alreadyTracked = context.ChangeTracker.Entries<FormSection>()
-                        .Any(e => e.Entity.Id == sectionId);
-
-                    if (!alreadyTracked)
+                    context.FormSections.Add(new FormSection
                     {
-                        context.FormSections.Add(new FormSection
-                        {
-                            Id = sectionId,
-                            FormId = formId,
-                            Key = key,
-                            Title = title,
-                            OrderIndex = sectionOrder
-                        });
-                        await context.SaveChangesAsync();
-                    }
+                        Id = sectionId,
+                        FormId = formId,
+                        Key = key,
+                        Title = title,
+                        OrderIndex = sectionOrder
+                    });
+                    await context.SaveChangesAsync();
                 }
                 else
                 {
-                    sectionId = existingSection.Id;
+                    existingSection.FormId = formId;
+                    existingSection.Key = key;
+                    existingSection.Title = title;
+                    existingSection.OrderIndex = sectionOrder;
+                    await context.SaveChangesAsync();
                 }
 
                 sectionOrder++;
@@ -221,24 +245,25 @@ public static class FastTrackSeeder
                 {
                     if (fieldsPool.TryGetValue(fk, out var f))
                     {
-                        var sfExists = await context.SectionFields
-                            .AsNoTracking()
-                            .AnyAsync(sf => sf.FormSectionId == sectionId && sf.FieldId == f.Id);
-
-                        if (!sfExists)
+                        context.SectionFields.Add(new SectionField
                         {
-                            context.SectionFields.Add(new SectionField
-                            {
-                                FormSectionId = sectionId,
-                                FieldId = f.Id,
-                                IsRequired = key != "assistanceRequest" && key != "knownByAnotherName" && key != "club" && key != "examination" && key != "radioOfficers",
-                                OrderIndex = fieldOrder++
-                            });
-                        }
+                            FormSectionId = sectionId,
+                            FieldId = f.Id,
+                            IsRequired = key != "assistanceRequest" && key != "knownByAnotherName" && key != "club" && key != "examination" && key != "radioOfficers",
+                            OrderIndex = fieldOrder++
+                        });
                     }
                 }
+                await context.SaveChangesAsync();
             }
-            await context.SaveChangesAsync();
+
+            // 4. Clean up any obsolete sections for this form that are no longer present in sectionDefs
+            var obsoleteSections = existingSections.Where(s => !processedSectionIds.Contains(s.Id)).ToList();
+            if (obsoleteSections.Count > 0)
+            {
+                context.FormSections.RemoveRange(obsoleteSections);
+                await context.SaveChangesAsync();
+            }
         }
 
         // Seed Forms per NTC Service
@@ -306,7 +331,7 @@ public static class FastTrackSeeder
             ("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
         });
 
-        await SeedFormForService("NTC_MAR_PERMITS", Guid.Parse("fma00000-0000-0000-0000-000000000001"), Guid.Parse("fmaa0000-0000-0000-0000-000000000000"), new()
+        await SeedFormForService("NTC_MAR_PERMITS", Guid.Parse("fb000000-0000-0000-0000-000000000001"), Guid.Parse("fb0a0000-0000-0000-0000-000000000000"), new()
         {
             ("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email", "callSign" }),
             ("proposedStation", "Proposed Station & Operating Specs", new() { "stationLocation", "stationClass", "serviceArea", "frequency", "bandwidth", "emission", "powerOutput", "hoursOfOperation", "configuration", "dataRate", "remarks" }),
@@ -318,7 +343,7 @@ public static class FastTrackSeeder
             ("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
         });
 
-        await SeedFormForService("NTC_FLM_PERMITS", Guid.Parse("ffl00000-0000-0000-0000-000000000001"), Guid.Parse("ffla0000-0000-0000-0000-000000000000"), new()
+        await SeedFormForService("NTC_FLM_PERMITS", Guid.Parse("fb100000-0000-0000-0000-000000000001"), Guid.Parse("fb1a0000-0000-0000-0000-000000000000"), new()
         {
             ("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email", "callSign" }),
             ("proposedStation", "Proposed Station & Operating Specs", new() { "stationLocation", "stationClass", "serviceArea", "frequency", "bandwidth", "emission", "powerOutput", "hoursOfOperation", "configuration", "dataRate", "remarks" }),
@@ -330,7 +355,7 @@ public static class FastTrackSeeder
             ("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
         });
 
-        await SeedFormForService("NTC_PTE_PERMITS", Guid.Parse("fpt00000-0000-0000-0000-000000000001"), Guid.Parse("fpta0000-0000-0000-0000-000000000000"), new()
+        await SeedFormForService("NTC_PTE_PERMITS", Guid.Parse("fb200000-0000-0000-0000-000000000001"), Guid.Parse("fb2a0000-0000-0000-0000-000000000000"), new()
         {
             ("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email", "callSign" }),
             ("proposedStation", "Proposed Station & Operating Specs", new() { "stationLocation", "stationClass", "serviceArea", "frequency", "bandwidth", "emission", "powerOutput", "hoursOfOperation", "configuration", "dataRate", "remarks" }),
@@ -342,7 +367,7 @@ public static class FastTrackSeeder
             ("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
         });
 
-        await SeedFormForService("NTC_EQUIP_PERMITS", Guid.Parse("feq00000-0000-0000-0000-000000000001"), Guid.Parse("feqa0000-0000-0000-0000-000000000000"), new()
+        await SeedFormForService("NTC_EQUIP_PERMITS", Guid.Parse("fb300000-0000-0000-0000-000000000001"), Guid.Parse("fb3a0000-0000-0000-0000-000000000000"), new()
         {
             ("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email", "callSign" }),
             ("proposedStation", "Proposed Station & Operating Specs", new() { "stationLocation", "stationClass", "serviceArea", "frequency", "bandwidth", "emission", "powerOutput", "hoursOfOperation", "configuration", "dataRate", "remarks" }),
@@ -354,7 +379,7 @@ public static class FastTrackSeeder
             ("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
         });
 
-        await SeedFormForService("NTC_MP_PERMITS", Guid.Parse("fmp00000-0000-0000-0000-000000000001"), Guid.Parse("fmpa0000-0000-0000-0000-000000000000"), new()
+        await SeedFormForService("NTC_MP_PERMITS", Guid.Parse("fb400000-0000-0000-0000-000000000001"), Guid.Parse("fb4a0000-0000-0000-0000-000000000000"), new()
         {
             ("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email", "callSign" }),
             ("proposedStation", "Proposed Station & Operating Specs", new() { "stationLocation", "stationClass", "serviceArea", "frequency", "bandwidth", "emission", "powerOutput", "hoursOfOperation", "configuration", "dataRate", "remarks" }),
@@ -366,7 +391,7 @@ public static class FastTrackSeeder
             ("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
         });
 
-        await SeedFormForService("NTC_COPY_PERMITS", Guid.Parse("fcp00000-0000-0000-0000-000000000001"), Guid.Parse("fcpa0000-0000-0000-0000-000000000000"), new()
+        await SeedFormForService("NTC_COPY_PERMITS", Guid.Parse("fb500000-0000-0000-0000-000000000001"), Guid.Parse("fb5a0000-0000-0000-0000-000000000000"), new()
         {
             ("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email", "callSign" }),
             ("proposedStation", "Proposed Station & Operating Specs", new() { "stationLocation", "stationClass", "serviceArea", "frequency", "bandwidth", "emission", "powerOutput", "hoursOfOperation", "configuration", "dataRate", "remarks" }),
@@ -374,6 +399,7 @@ public static class FastTrackSeeder
             ("antennas", "Particulars of Antenna", new() { "antennaType", "height", "gain", "directivity", "diameter", "polarization", "beamwidth", "remarks" }),
             ("sourceOfEquipment", "Source of Equipment", new() { "dealerName", "authorizedSellerBuyer", "orInvoiceNo", "permitRslNo", "sellerAddress", "amateurLicenseNo" }),
             ("intendedUse", "Intended Use of Equipment", new() { "intendedUseType", "specifyDetails" }),
+            ("circumstances", "Circumstances of Loss/Damage", new() { "circumstances" }),
             ("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
             ("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
         });
@@ -443,9 +469,10 @@ public static class FastTrackSeeder
 
         await SeedFormForService("NTC_AMA_LICENSES", Guid.Parse("f7000000-0000-0000-0000-000000000001"), Guid.Parse("f70a0000-0000-0000-0000-000000000000"), new()
         {
-            ("transaction", "Transaction & License Options", new() { "appType", "classOfStation", "noOfYears" }),
+            ("applicantPerson", "Basic Applicant Information", new() { "fullName", "middleName", "suffix", "birthDate", "contactNo", "email", "address", "location", "callSign" }),
+            ("permitType", "Transaction & License Options", new() { "appType", "classOfStation", "noOfYears" }),
+            ("classOfStation", "Class of Station", new() { "classOfStation" }),
             ("existingLicense", "Existing License Details", new() { "licenseNo", "dateOfExpiry", "modificationDueTo" }),
-            ("applicant", "Basic Applicant Information", new() { "fullName", "middleName", "suffix", "birthDate", "contactNo", "email", "address", "location", "callSign" }),
             ("examBackground", "Examination / Seminar Background", new() { "placeOfExamSeminar", "dateOfExamSeminar", "ratings" }),
             ("equipment", "Particulars of Radio Equipment", new() { "particularsEquipment" }),
             ("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),

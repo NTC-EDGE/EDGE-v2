@@ -2,6 +2,12 @@ import { useState, useEffect } from "react";
 import { useApi } from "../../../../shared/hooks/useApi";
 import { FormDto } from "../../../../shared/components/DynamicFormRenderer";
 
+interface ApiResponseEnvelope<T> {
+  succeeded?: boolean;
+  data?: T;
+  message?: string;
+}
+
 /**
  * Lazily fetches the dynamic form layout for a given service (and optionally a variant)
  * from the backend API.
@@ -38,20 +44,20 @@ export function useServiceForm(serviceId: string | undefined, variantId?: string
           ? `/api/v2/services/${serviceId}/variants/${variantId}/form`
           : `/api/v2/services/${serviceId}/form`;
 
-        let res: FormDto | null = null;
-
-        res = await api.get<FormDto>(primaryEndpoint).catch(() => null);
+        let rawRes = await api.get<ApiResponseEnvelope<FormDto>>(primaryEndpoint).catch(() => null);
+        let formDto = rawRes?.data ?? null;
 
         // 2. Fallback to base service form if variant-specific endpoint fails
-        if (!res && variantId) {
-          res = await api.get<FormDto>(`/api/v2/services/${serviceId}/form`).catch(() => null);
+        if (!formDto && variantId) {
+          rawRes = await api.get<ApiResponseEnvelope<FormDto>>(`/api/v2/services/${serviceId}/form`).catch(() => null);
+          formDto = rawRes?.data ?? null;
         }
 
         if (isMounted) {
           // Only set form when the response has meaningful seeded sections
           // If no seeded form exists, fall back to null → hardcoded form renders instead
-          if (res && Array.isArray(res.sections) && res.sections.length > 0) {
-            setForm(res);
+          if (formDto && Array.isArray(formDto.sections) && formDto.sections.length > 0) {
+            setForm(formDto);
           } else {
             setForm(null);
           }
