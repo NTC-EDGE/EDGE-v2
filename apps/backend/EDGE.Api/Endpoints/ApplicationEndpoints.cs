@@ -27,6 +27,7 @@ using EDGE.Application.Applications.Queries.GetAllApplications;
 using EDGE.Application.Applications.Queries.GetApplicationById;
 using EDGE.Application.Applications.Queries.GetApplicationsByApplicant;
 using EDGE.Application.Applications.Queries.GetDraftApplications;
+using EDGE.Application.Applications.Queries.GetApplicationFormWithSubmission;
 using EDGE.Application.Applications.Commands.CreateSoa;
 using EDGE.Application.Applications.Commands.ApproveSoa;
 using EDGE.Application.Applications.Commands.ReturnSoa;
@@ -260,7 +261,7 @@ public static class ApplicationEndpoints
         [FromQuery] Guid? submissionId,
         IMediator mediator)
     {
-        var result = await mediator.Send(new EDGE.Application.Applications.Queries.GetApplicationFormWithSubmission.GetApplicationFormWithSubmissionQuery(id, applicantId, submissionId));
+        var result = await mediator.Send(new GetApplicationFormWithSubmissionQuery(id, applicantId, submissionId));
         return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
     }
 
