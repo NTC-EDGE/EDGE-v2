@@ -451,18 +451,10 @@ public static class ApplicationEndpoints
     public static async Task<IResult> AdminUpdateApplicationEndpoint(
         Guid id,
         [FromBody] AdminUpdateApplicationCommand command,
-        IValidator<AdminUpdateApplicationCommand> validator,
         IMediator mediator,
         CancellationToken cancellationToken)
     {
-        var fullCommand = command with { Id = id };
-        var validationResult = await validator.ValidateAsync(fullCommand, cancellationToken);
-        if (!validationResult.IsValid)
-        {
-            return Results.ValidationProblem(validationResult.ToDictionary());
-        }
-
-        var result = await mediator.Send(fullCommand, cancellationToken);
+        var result = await mediator.Send(command with { Id = id }, cancellationToken);
         if (!result.Succeeded) return Results.BadRequest(result);
         return Results.Ok(result);
     }
@@ -472,18 +464,10 @@ public static class ApplicationEndpoints
         Guid id,
         Guid applicantId,
         [FromBody] AdminUpdateApplicantProfileCommand command,
-        IValidator<AdminUpdateApplicantProfileCommand> validator,
         IMediator mediator,
         CancellationToken cancellationToken)
     {
-        var fullCommand = command with { ApplicationId = id, ApplicantId = applicantId };
-        var validationResult = await validator.ValidateAsync(fullCommand, cancellationToken);
-        if (!validationResult.IsValid)
-        {
-            return Results.ValidationProblem(validationResult.ToDictionary());
-        }
-
-        var result = await mediator.Send(fullCommand, cancellationToken);
+        var result = await mediator.Send(command with { ApplicationId = id, ApplicantId = applicantId }, cancellationToken);
         if (!result.Succeeded) return Results.BadRequest(result);
         return Results.Ok(result);
     }
@@ -505,18 +489,10 @@ public static class ApplicationEndpoints
     public static async Task<IResult> CreateFormSubmissionEndpoint(
         Guid id,
         [FromBody] CreateFormSubmissionCommand command,
-        IValidator<CreateFormSubmissionCommand> validator,
         IMediator mediator,
         CancellationToken cancellationToken)
     {
-        var fullCommand = command with { ApplicationId = id };
-        var validationResult = await validator.ValidateAsync(fullCommand, cancellationToken);
-        if (!validationResult.IsValid)
-        {
-            return Results.ValidationProblem(validationResult.ToDictionary());
-        }
-
-        var result = await mediator.Send(fullCommand, cancellationToken);
+        var result = await mediator.Send(command with { ApplicationId = id }, cancellationToken);
         return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
     }
 
@@ -525,18 +501,10 @@ public static class ApplicationEndpoints
         Guid id,
         Guid submissionId,
         [FromBody] UpdateFormSubmissionValuesCommand command,
-        IValidator<UpdateFormSubmissionValuesCommand> validator,
         IMediator mediator,
         CancellationToken cancellationToken)
     {
-        var fullCommand = command with { ApplicationId = id, SubmissionId = submissionId };
-        var validationResult = await validator.ValidateAsync(fullCommand, cancellationToken);
-        if (!validationResult.IsValid)
-        {
-            return Results.ValidationProblem(validationResult.ToDictionary());
-        }
-
-        var result = await mediator.Send(fullCommand, cancellationToken);
+        var result = await mediator.Send(command with { ApplicationId = id, SubmissionId = submissionId }, cancellationToken);
         return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
     }
 }
