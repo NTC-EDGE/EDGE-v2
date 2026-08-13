@@ -1166,13 +1166,19 @@ function ApplicantRecordTab({
           return;
         }
 
+        const tenantId = app.tenantId;
+        if (tenantId === undefined || tenantId === null || tenantId.trim() === '') {
+          Alert.alert('Upload Failed', 'Tenant ID is missing on current application context.');
+          return;
+        }
+
         setUploadingReqId(reqItem.requirementId);
         try {
           const [storageRes, storageErr] = await storageService.uploadFile(
             selectedFile,
             selectedFile.name,
             'requirements',
-            app.tenantId ?? undefined
+            tenantId
           );
 
           if (storageErr !== null || storageRes === null || storageRes.data === undefined || storageRes.data === null) {
