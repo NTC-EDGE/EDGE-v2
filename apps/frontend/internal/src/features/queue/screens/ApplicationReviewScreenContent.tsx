@@ -648,7 +648,7 @@ function ApplicationDetailsTab({
                         style={[styles.inspectBtn, { backgroundColor: isDark ? colors.brand[500] : colors.brand[700], paddingHorizontal: 12 }]}
                         onPress={handleSaveAllRoster}
                       >
-                        <Text style={[styles.inspectBtnText, { color: COLORS.neutral.white, fontWeight: '700' }]}>💾 Save Roster Changes</Text>
+                        <Text style={[styles.inspectBtnText, { color: COLORS.neutral.white, fontWeight: '700' }]}>Save</Text>
                       </Pressable>
                     </>
                   ) : (
@@ -656,7 +656,7 @@ function ApplicationDetailsTab({
                       style={[styles.inspectBtn, { backgroundColor: isDark ? colors.brand[600] : colors.brand[700], paddingHorizontal: 10 }]}
                       onPress={() => setIsEditingRoster(true)}
                     >
-                      <Text style={[styles.inspectBtnText, { color: COLORS.neutral.white }]}>✏️ Edit Batch Roster</Text>
+                      <Text style={[styles.inspectBtnText, { color: COLORS.neutral.white }]}>Edit</Text>
                     </Pressable>
                   )}
                 </View>
@@ -949,6 +949,9 @@ function ApplicantRecordTab({
   const [addressDraft, setAddressDraft] = useState('');
   const [editingZip, setEditingZip] = useState(false);
   const [zipDraft, setZipDraft] = useState('');
+  const [dobDraft, setDobDraft] = useState('');
+  const [sexDraft, setSexDraft] = useState('');
+  const [nationalityDraft, setNationalityDraft] = useState('');
 
   const [compNameProfileDraft, setCompNameProfileDraft] = useState('');
   const [compRegNoProfileDraft, setCompRegNoProfileDraft] = useState('');
@@ -1014,6 +1017,9 @@ function ApplicantRecordTab({
           lastName: lnProfileDraft,
           middleName: mnProfileDraft,
           extensionName: extProfileDraft,
+          dob: dobDraft,
+          sex: sexDraft,
+          nationality: nationalityDraft,
         },
       };
       setLocalApplicants(updated);
@@ -1028,6 +1034,9 @@ function ApplicantRecordTab({
           address: addressDraft || updated[activeIdx].address,
           zipCode: zipDraft || updated[activeIdx].zipCode,
           applicantType: typeDraft || updated[activeIdx].applicantType,
+          dob: dobDraft,
+          sex: sexDraft,
+          nationality: nationalityDraft,
           companyName: typeDraft === 'Company' ? compNameProfileDraft : undefined,
           companyRegistrationNumber: typeDraft === 'Company' ? compRegNoProfileDraft : undefined,
           companyAddress: typeDraft === 'Company' ? compAddressProfileDraft : undefined,
@@ -1313,6 +1322,9 @@ function ApplicantRecordTab({
                       setEmailDraft(activeApplicant.email || '');
                       setAddressDraft(activeApplicant.address || '');
                       setZipDraft(activeApplicant.zipCode || '');
+                      setDobDraft(biData?.dob || '');
+                      setSexDraft(biData?.sex || '');
+                      setNationalityDraft(biData?.nationality || '');
                       const compData = activeApplicant.companyDetails;
                       setCompNameProfileDraft(compData?.name || app.companyDetails?.name || app.filingUser?.company?.name || '');
                       setCompRegNoProfileDraft(compData?.registrationNumber || app.companyDetails?.registrationNumber || app.filingUser?.company?.registrationNumber || '');
@@ -1490,11 +1502,29 @@ function ApplicantRecordTab({
                 editValue={zipDraft}
                 onEditChange={setZipDraft}
               />
+              <InfoRow
+                label="Date of Birth:"
+                value={bi?.dob || '—'}
+                isEditing={isEditingProfile}
+                editValue={dobDraft}
+                onEditChange={setDobDraft}
+              />
+              <InfoRow
+                label="Sex:"
+                value={bi?.sex || '—'}
+                isEditing={isEditingProfile}
+                editValue={sexDraft}
+                onEditChange={setSexDraft}
+              />
+              <InfoRow
+                label="Nationality:"
+                value={bi?.nationality || '—'}
+                isEditing={isEditingProfile}
+                editValue={nationalityDraft}
+                onEditChange={setNationalityDraft}
+              />
               {bi ? (
                 <>
-                  {bi.dob ? <InfoRow label="Date of Birth:" value={bi.dob} /> : null}
-                  {bi.sex ? <InfoRow label="Sex:" value={bi.sex} /> : null}
-                  {bi.nationality ? <InfoRow label="Nationality:" value={bi.nationality} /> : null}
                   {bi.height > 0 ? <InfoRow label="Height:" value={`${bi.height} cm`} /> : null}
                   {bi.weight > 0 ? <InfoRow label="Weight:" value={`${bi.weight} kg`} /> : null}
                 </>

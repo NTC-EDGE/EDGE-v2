@@ -19,5 +19,10 @@ public class AdminUpdateApplicantProfileCommandValidator : AbstractValidator<Adm
         RuleFor(x => x.CompanyEmail)
             .EmailAddress().WithMessage("Invalid Company Email address format.")
             .When(x => !string.IsNullOrEmpty(x.CompanyEmail));
+
+        RuleFor(x => x.Dob)
+            .Must(dob => string.IsNullOrEmpty(dob) || System.DateOnly.TryParse(dob, out _))
+            .WithMessage("Date of Birth must be a valid date string (YYYY-MM-DD).")
+            .When(x => !string.IsNullOrEmpty(x.Dob));
     }
 }
