@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using EDGE.Domain.Entities;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.Common.Models;
@@ -14,15 +15,18 @@ public class AdminUpdateApplicationCommandHandler : IRequestHandler<AdminUpdateA
     private readonly IApplicationFullRepository _applicationRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<AdminUpdateApplicationCommandHandler> _logger;
 
     public AdminUpdateApplicationCommandHandler(
         IApplicationFullRepository applicationRepository,
         ICurrentUserService currentUserService,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        ILogger<AdminUpdateApplicationCommandHandler> logger)
     {
         _applicationRepository = applicationRepository;
         _currentUserService = currentUserService;
         _unitOfWork = unitOfWork;
+        _logger = logger;
     }
 
     public async Task<ApiResponse<Guid>> Handle(AdminUpdateApplicationCommand request, CancellationToken cancellationToken)
@@ -110,15 +114,16 @@ public class AdminUpdateApplicationCommandHandler : IRequestHandler<AdminUpdateA
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Failed to record administrative correction for ApplicationId {ApplicationId}", request.Id);
             try
             {
                 await _unitOfWork.RollbackTransactionAsync(cancellationToken);
             }
-            catch
+            catch (Exception rollbackEx)
             {
-                // Ignore rollback exceptions to preserve primary exception details
+                _logger.LogWarning(rollbackEx, "Transaction rollback failed during application administrative correction.");
             }
-            return ApiResponse<Guid>.Fail($"Failed to record application administrative correction. Error: {ex.Message}");
+            return ApiResponse<Guid>.Fail("An unexpected error occurred while recording application corrections. Please try again or contact support.");
         }
     }
 }

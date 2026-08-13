@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using EDGE.Domain.Entities;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.Common.Models;
@@ -14,13 +15,16 @@ public class CreateFormSubmissionCommandHandler : IRequestHandler<CreateFormSubm
 {
     private readonly IApplicationFullRepository _applicationRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<CreateFormSubmissionCommandHandler> _logger;
 
     public CreateFormSubmissionCommandHandler(
         IApplicationFullRepository applicationRepository,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        ILogger<CreateFormSubmissionCommandHandler> logger)
     {
         _applicationRepository = applicationRepository;
         _unitOfWork = unitOfWork;
+        _logger = logger;
     }
 
     public async Task<ApiResponse<Guid>> Handle(CreateFormSubmissionCommand request, CancellationToken cancellationToken)
@@ -71,15 +75,16 @@ public class CreateFormSubmissionCommandHandler : IRequestHandler<CreateFormSubm
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Failed to create form submission for ApplicationId {ApplicationId}, FormId {FormId}", request.ApplicationId, request.FormId);
             try
             {
                 await _unitOfWork.RollbackTransactionAsync(cancellationToken);
             }
-            catch
+            catch (Exception rollbackEx)
             {
-                // Ignore rollback exceptions to preserve primary exception details
+                _logger.LogWarning(rollbackEx, "Transaction rollback failed during form submission creation.");
             }
-            return ApiResponse<Guid>.Fail($"Failed to create form submission. Error: {ex.Message}");
+            return ApiResponse<Guid>.Fail("An unexpected error occurred while creating form submission. Please try again or contact support.");
         }
     }
 }

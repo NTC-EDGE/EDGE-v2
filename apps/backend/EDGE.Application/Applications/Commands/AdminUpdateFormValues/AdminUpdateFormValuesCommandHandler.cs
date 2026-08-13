@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using EDGE.Domain.Entities;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.Common.Models;
@@ -14,15 +15,18 @@ public class AdminUpdateFormValuesCommandHandler : IRequestHandler<AdminUpdateFo
     private readonly IApplicationFullRepository _applicationRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<AdminUpdateFormValuesCommandHandler> _logger;
 
     public AdminUpdateFormValuesCommandHandler(
         IApplicationFullRepository applicationRepository,
         ICurrentUserService currentUserService,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        ILogger<AdminUpdateFormValuesCommandHandler> logger)
     {
         _applicationRepository = applicationRepository;
         _currentUserService = currentUserService;
         _unitOfWork = unitOfWork;
+        _logger = logger;
     }
 
     public async Task<ApiResponse<Guid>> Handle(AdminUpdateFormValuesCommand request, CancellationToken cancellationToken)
@@ -131,15 +135,16 @@ public class AdminUpdateFormValuesCommandHandler : IRequestHandler<AdminUpdateFo
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Failed to update form field values for ApplicationId {ApplicationId}, SubmissionId {SubmissionId}", request.ApplicationId, request.SubmissionId);
             try
             {
                 await _unitOfWork.RollbackTransactionAsync(cancellationToken);
             }
-            catch
+            catch (Exception rollbackEx)
             {
-                // Ignore rollback exceptions to preserve primary exception details
+                _logger.LogWarning(rollbackEx, "Transaction rollback failed during form values update.");
             }
-            return ApiResponse<Guid>.Fail($"Failed to update form values. Error: {ex.Message}");
+            return ApiResponse<Guid>.Fail("An unexpected error occurred while updating form field values. Please try again or contact support.");
         }
     }
 }

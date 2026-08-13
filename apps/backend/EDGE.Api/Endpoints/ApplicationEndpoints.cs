@@ -277,7 +277,7 @@ public static class ApplicationEndpoints
         IMediator mediator)
     {
         var result = await mediator.Send(new GetApplicationFormWithSubmissionQuery(id, applicantId, submissionId));
-        return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
+        return result.Succeeded ? Results.Ok(result) : Results.NotFound(result);
     }
 
     [HasPermission(Permissions.UpdateApplication)]

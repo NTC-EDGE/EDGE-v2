@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using EDGE.Domain.Entities;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.Common.Models;
@@ -14,15 +15,18 @@ public class AdminUpdateApplicantProfileCommandHandler : IRequestHandler<AdminUp
     private readonly IApplicationFullRepository _applicationRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<AdminUpdateApplicantProfileCommandHandler> _logger;
 
     public AdminUpdateApplicantProfileCommandHandler(
         IApplicationFullRepository applicationRepository,
         ICurrentUserService currentUserService,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        ILogger<AdminUpdateApplicantProfileCommandHandler> logger)
     {
         _applicationRepository = applicationRepository;
         _currentUserService = currentUserService;
         _unitOfWork = unitOfWork;
+        _logger = logger;
     }
 
     public async Task<ApiResponse<Guid>> Handle(AdminUpdateApplicantProfileCommand request, CancellationToken cancellationToken)
@@ -279,15 +283,16 @@ public class AdminUpdateApplicantProfileCommandHandler : IRequestHandler<AdminUp
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Failed to update applicant profile for ApplicationId {ApplicationId}, ApplicantId {ApplicantId}", request.ApplicationId, request.ApplicantId);
             try
             {
                 await _unitOfWork.RollbackTransactionAsync(cancellationToken);
             }
-            catch
+            catch (Exception rollbackEx)
             {
-                // Ignore rollback exceptions to preserve primary exception details
+                _logger.LogWarning(rollbackEx, "Transaction rollback failed during applicant profile update.");
             }
-            return ApiResponse<Guid>.Fail($"Failed to update applicant profile. Error: {ex.Message}");
+            return ApiResponse<Guid>.Fail("An unexpected error occurred while updating applicant profile details. Please try again or contact support.");
         }
     }
 }

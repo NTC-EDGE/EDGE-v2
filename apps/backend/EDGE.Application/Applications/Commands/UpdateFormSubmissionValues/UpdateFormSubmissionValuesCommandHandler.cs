@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using EDGE.Domain.Entities;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.Common.Models;
@@ -14,13 +15,16 @@ public class UpdateFormSubmissionValuesCommandHandler : IRequestHandler<UpdateFo
 {
     private readonly IApplicationFullRepository _applicationRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<UpdateFormSubmissionValuesCommandHandler> _logger;
 
     public UpdateFormSubmissionValuesCommandHandler(
         IApplicationFullRepository applicationRepository,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        ILogger<UpdateFormSubmissionValuesCommandHandler> logger)
     {
         _applicationRepository = applicationRepository;
         _unitOfWork = unitOfWork;
+        _logger = logger;
     }
 
     public async Task<ApiResponse<Guid>> Handle(UpdateFormSubmissionValuesCommand request, CancellationToken cancellationToken)
@@ -91,15 +95,16 @@ public class UpdateFormSubmissionValuesCommandHandler : IRequestHandler<UpdateFo
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Failed to update form submission values for ApplicationId {ApplicationId}, SubmissionId {SubmissionId}", request.ApplicationId, request.SubmissionId);
             try
             {
                 await _unitOfWork.RollbackTransactionAsync(cancellationToken);
             }
-            catch
+            catch (Exception rollbackEx)
             {
-                // Ignore rollback exceptions to preserve primary exception details
+                _logger.LogWarning(rollbackEx, "Transaction rollback failed during form submission values update.");
             }
-            return ApiResponse<Guid>.Fail($"Failed to update form submission values. Error: {ex.Message}");
+            return ApiResponse<Guid>.Fail("An unexpected error occurred while updating form submission values. Please try again or contact support.");
         }
     }
 }
