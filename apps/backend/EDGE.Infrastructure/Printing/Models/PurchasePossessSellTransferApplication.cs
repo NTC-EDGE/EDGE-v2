@@ -24,6 +24,8 @@ public class SourceOfEquipment
     public string OrInvoiceNo { get; set; } = "";
     public string AuthorizedSellerBuyer { get; set; } = "";
     public string PermitRslNo { get; set; } = "";
+    public string SellerAddress { get; set; } = "";
+    public string AmateurLicenseNo { get; set; } = "";
 }
 
 /// <summary>

@@ -186,7 +186,7 @@ public static class FastTrackSeederData
         ""revisionDate"": ""2023-03-31"",
         ""serviceCategory"": ""Permits"",
         ""group"": ""Permits in the Amateur Service"",
-        ""applicationTypes"": [""Purchase"", ""Possess"", ""Possess for Storage"", ""Sell/Transfer""],
+        ""applicationTypes"": [""Permit to Purchase"", ""Purchase to Possess"", ""Possess for Storage"", ""Permit to Sell/Transfer"", ""Purchase"", ""Possess"", ""Sell/Transfer""],
         ""elements"": [],
         ""requiredSections"": [
             { ""key"": ""applicant"", ""required"": true },
@@ -473,11 +473,7 @@ public static class FastTrackSeederData
             ("NTC_1_02", Guid.Parse("50000000-0000-0000-0000-000000000002"), categoryIds["Certificates"], "RADIO OPERATOR CERTIFICATES (ROC) EXCLUDING AMATEUR ROC", "Radio Operator Certificates (ROC) excluding Amateur ROC", "NTC_1_02", "RADIO OPERATOR CERTIFICATES (ROC) EXCLUDING AMATEUR ROC (NTC 1-02)", Ntc102Contract),
             ("NTC_1_03", Guid.Parse("50000000-0000-0000-0000-000000000003"), categoryIds["Certificates"], "CERTIFICATES IN THE AMATEUR SERVICE", "License in the Amateur Service", "NTC_1_03", "CERTIFICATES IN THE AMATEUR SERVICE (NTC 1-03)", Ntc103Contract),
             ("NTC_1_04", Guid.Parse("50000000-0000-0000-0000-000000000004"), categoryIds["Licenses"], "Application for Ship/Ship-Earth Station License", "Ship/Ship-Earth Station", "NTC_1_04", "Application for Ship/Ship-Earth Station License (NTC 1-04)", Ntc104Contract),
-            ("NTC_1_05", Guid.Parse("50000000-0000-0000-0000-000000000005"), categoryIds["Permits"], "Form A (Multiple Stations/Equipment)", null, "NTC_1_05", "Form A Continuation Sheet (NTC 1-05)", Ntc105Contract),
             ("NTC_1_09", Guid.Parse("50000000-0000-0000-0000-000000000009"), categoryIds["Permits"], "PERMITS IN THE AMATEUR SERVICE", "Permits in the Amateur Service", "NTC_1_09", "PERMITS IN THE AMATEUR SERVICE (NTC 1-09)", Ntc109Contract),
-            ("NTC_1_10", Guid.Parse("50000000-0000-0000-0000-000000000010"), categoryIds["Permits"], "Form E (Multiple Stations/Equipment)", null, "NTC_1_10", "Form E Continuation Sheet (NTC 1-10)", Ntc110Contract),
-            ("NTC_1_11", Guid.Parse("50000000-0000-0000-0000-000000000011"), categoryIds["Permits"], "Application for Construction Permit / Radio Station License", null, "NTC_1_11", "Application for Construction Permit / Radio Station License (NTC 1-11)", Ntc111Contract),
-            ("NTC_1_14", Guid.Parse("50000000-0000-0000-0000-000000000014"), categoryIds["Permits"], "Application for Temporary Permit to Propagate/Demonstrate", null, "NTC_1_14", "Application for Temporary Permit to Propagate/Demonstrate (NTC 1-14)", Ntc114Contract),
             ("NTC_1_18", Guid.Parse("50000000-0000-0000-0000-000000000018"), categoryIds["Accreditations"], "CUSTOMER PREMISES EQUIPMENT SUPPLIER ACCREDITATION", "Customer Premises Equipment Supplier Accreditation", "NTC_1_18", "CUSTOMER PREMISES EQUIPMENT SUPPLIER ACCREDITATION (NTC 1-18)", Ntc118Contract),
             ("NTC_1_19", Guid.Parse("50000000-0000-0000-0000-000000000019"), categoryIds["Certificates"], "CERTIFICATE OF REGISTRATION FOR RFID, SRD, WDN, DEVICES- INDOOR", null, "NTC_1_19", "CERTIFICATE OF REGISTRATION FOR RFID, SRD, WDN, DEVICES- INDOOR (NTC 1-19)", Ntc119Contract),
             ("NTC_1_20", Guid.Parse("50000000-0000-0000-0000-000000000020"), categoryIds["Certificates"], "CERTIFICATE OF REGISTRATION AS A VALUE-ADDED SERVICE (VAS) PROVIDER", null, "NTC_1_20", "CERTIFICATE OF REGISTRATION AS A VALUE-ADDED SERVICE (VAS) PROVIDER (NTC 1-20)", Ntc120Contract),
@@ -581,6 +577,7 @@ public static class FastTrackSeederData
             (Guid.Parse("60000000-0000-0000-0000-000000000062"), svc109, ServiceVariantType.NA, "Amateur Radio Station Permit to Purchase/Possess"),
             (Guid.Parse("60000000-0000-0000-0000-000000000063"), svc109, ServiceVariantType.New, "Amateur Radio Station Permit to Sell/Transfer"),
             (Guid.Parse("60000000-0000-0000-0000-000000000064"), svc109, ServiceVariantType.NA, "Temporary Permit to Operate an Amateur Radio Station - Foreign Visitor"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000067"), svc109, ServiceVariantType.New, "Special Permit for Use of Vanity Call Sign (NEW)"),
             (Guid.Parse("60000000-0000-0000-0000-000000000065"), svc109, ServiceVariantType.Renewal, "Special Permit for Use of Vanity Call Sign (RENEWAL)"),
             (Guid.Parse("60000000-0000-0000-0000-000000000066"), svc109, ServiceVariantType.New, "Special Permit for the Use of Special Event Call Sign"),
 
@@ -588,6 +585,7 @@ public static class FastTrackSeederData
             (Guid.Parse("60000000-0000-0000-0000-000000000070"), svcAero, ServiceVariantType.NA, "Aeronautical Station Permit to Purchase"),
             (Guid.Parse("60000000-0000-0000-0000-000000000071"), svcAero, ServiceVariantType.NA, "Aeronautical Station Permit to Possess"),
             (Guid.Parse("60000000-0000-0000-0000-000000000072"), svcAero, ServiceVariantType.NA, "Aeronautical Station Permit to Purchase/Possess"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000078"), svcAero, ServiceVariantType.NA, "Permit to Possess for Storage"),
             (Guid.Parse("60000000-0000-0000-0000-000000000073"), svcAero, ServiceVariantType.NA, "Aeronautical Station Permit to Sell/Transfer"),
             (Guid.Parse("60000000-0000-0000-0000-000000000074"), svcAero, ServiceVariantType.NA, "Aircraft Station Permit to Purchase"),
             (Guid.Parse("60000000-0000-0000-0000-000000000075"), svcAero, ServiceVariantType.NA, "Aircraft Station Permit to Possess"),
@@ -1284,6 +1282,9 @@ public static class FastTrackSeederData
             (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000055"), true, "Class C"),
             (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000056"), true, "Class C"),
             (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true, "Class C"),
+            // Special Permit for Use of Vanity Call Sign (NEW)
+            (Guid.Parse("60000000-0000-0000-0000-000000000067"), Guid.Parse("70000000-0000-0000-0000-000000000054"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000067"), Guid.Parse("70000000-0000-0000-0000-000000000057"), true, null),
             // Special Permit for Use of Vanity Call Sign (RENEWAL)
             (Guid.Parse("60000000-0000-0000-0000-000000000065"), Guid.Parse("70000000-0000-0000-0000-000000000057"), true, null),
             (Guid.Parse("60000000-0000-0000-0000-000000000065"), Guid.Parse("70000000-0000-0000-0000-000000000054"), true, null),
@@ -1299,6 +1300,8 @@ public static class FastTrackSeederData
             // Aeronautical Station Permit to Purchase/Possess
             (Guid.Parse("60000000-0000-0000-0000-000000000072"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true, null),
             (Guid.Parse("60000000-0000-0000-0000-000000000072"), Guid.Parse("70000000-0000-0000-0000-000000000059"), true, null),
+            // Permit to Possess for Storage (Aeronautical)
+            (Guid.Parse("60000000-0000-0000-0000-000000000078"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true, null),
             // Aeronautical Station Permit to Sell/Transfer
             (Guid.Parse("60000000-0000-0000-0000-000000000073"), Guid.Parse("70000000-0000-0000-0000-000000000060"), true, null),
             // Aircraft Station Permit to Purchase
@@ -1468,6 +1471,10 @@ public static class FastTrackSeederData
 
             (Guid.Parse("60000000-0000-0000-0000-000000000137"), Guid.Parse("70000000-0000-0000-0000-000000000091"), true, null),
 
+            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000053"), true, "Class A"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000054"), true, "Class A"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000055"), true, "Class A"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000056"), true, "Class A"),
             (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true, "Class A"),
             (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000053"), true, "Class B"),
             (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000054"), true, "Class B"),
@@ -1479,6 +1486,9 @@ public static class FastTrackSeederData
             (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000055"), true, "Class C"),
             (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000056"), true, "Class C"),
             (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true, "Class C"),
+            // Special Permit for Use of Vanity Call Sign (NEW)
+            (Guid.Parse("60000000-0000-0000-0000-000000000067"), Guid.Parse("70000000-0000-0000-0000-000000000054"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000067"), Guid.Parse("70000000-0000-0000-0000-000000000057"), true, null),
             // Special Permit for Use of Vanity Call Sign (RENEWAL)
             (Guid.Parse("60000000-0000-0000-0000-000000000065"), Guid.Parse("70000000-0000-0000-0000-000000000057"), true, null),
             (Guid.Parse("60000000-0000-0000-0000-000000000065"), Guid.Parse("70000000-0000-0000-0000-000000000054"), true, null),
@@ -1494,6 +1504,8 @@ public static class FastTrackSeederData
             // Aeronautical Station Permit to Purchase/Possess
             (Guid.Parse("60000000-0000-0000-0000-000000000072"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true, null),
             (Guid.Parse("60000000-0000-0000-0000-000000000072"), Guid.Parse("70000000-0000-0000-0000-000000000059"), true, null),
+            // Permit to Possess for Storage (Aeronautical)
+            (Guid.Parse("60000000-0000-0000-0000-000000000078"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true, null),
             // Aeronautical Station Permit to Sell/Transfer
             (Guid.Parse("60000000-0000-0000-0000-000000000073"), Guid.Parse("70000000-0000-0000-0000-000000000060"), true, null),
             // Aircraft Station Permit to Purchase

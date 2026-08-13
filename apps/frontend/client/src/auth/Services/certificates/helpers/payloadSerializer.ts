@@ -74,6 +74,12 @@ export function serializeCertificateApplicant(
   ) {
     const data = app.permitData;
     if (data) {
+      const isPurchaseMode =
+        data.applicationType === "Permit to Purchase" ||
+        data.applicationType === "Purchase to Possess";
+      const isSellTransferMode =
+        data.applicationType === "Permit to Sell/Transfer";
+
       addField("Application Type", data.applicationType);
       addField("Applicant Name", data.applicant);
       addField("Call Sign", data.callSign);
@@ -86,34 +92,91 @@ export function serializeCertificateApplicant(
       addField("Street", data.street);
       addField("Room / Unit / Bldg", data.room);
       addField("Zip Code", data.zipCode);
-      addField("Service Area", data.serviceArea);
-      addField("Assigned Frequency", data.frequency);
-      addField("Bandwidth", `${data.bandwidth} ${data.unit}`.trim());
-      addField("Bandwidth Value", data.bandwidth);
-      addField("Bandwidth Unit", data.unit);
-      addField("Emission", data.emission);
-      addField("Power Output", data.powerOutput);
-      addField("Hours of Operation", data.hoursOfOperation);
-      addField("Station Class", data.stationClass);
-      addField("Exact Location", data.exactLocation);
-      addField("Longitude", data.longitude);
-      addField("Latitude", data.latitude);
-      addField("Configuration", data.configuration);
-      addField("Data Rate", data.dataRate);
-      addField("Remarks", data.remarks);
-      addField(
-        "Particulars of Equipment",
-        JSON.stringify(
-          data.equipments.map((eq) => ({
-            SerialNumber: eq.serialNumber,
-            FrequencyRange: eq.frequencyRange,
-          }))
-        )
-      );
-      addField("Name of Dealer", data.nameOfDealer);
-      addField("Authorized Seller / Buyer", data.authorizedSellerBuyer);
-      addField("OR / Invoice No", data.orInvoiceNo);
-      addField("Permit / RSL No", data.permitRslNo);
+
+      if (isPurchaseMode) {
+        addField("Frequency(ies)", data.frequency);
+        addField(
+          "Particulars of Equipment",
+          JSON.stringify(
+            data.purchaseEquipments.map((peq) => ({
+              ClassOfStation: peq.classOfStation,
+            }))
+          )
+        );
+      } else if (isSellTransferMode) {
+        addField("Frequency (Within Authorized Amateur Band)", data.frequency);
+        addField("Bandwidth", `${data.bandwidth} ${data.unit}`.trim());
+        addField("Bandwidth Value", data.bandwidth);
+        addField("Bandwidth Unit", data.unit);
+        addField("Emission", data.emission);
+        addField("Power Output (Watts)", data.powerOutput);
+        addField("Hours of Operation", data.hoursOfOperation);
+
+        addField(
+          "Particulars of Station, Equipment & Antenna",
+          JSON.stringify(
+            data.stationParticulars.map((sp) => ({
+              StationClass: sp.stationClass,
+              ExactLocation: sp.exactLocation,
+              Longitude: sp.longitude,
+              Latitude: sp.latitude,
+              Configuration: sp.configuration,
+              DataRate: sp.dataRate,
+              Remarks: sp.remarks,
+              Equipments: sp.equipments.map((eq) => ({
+                SerialNumber: eq.serialNumber,
+                FrequencyRange: eq.frequencyRange,
+              })),
+              Antenna: {
+                Type: sp.antenna.type,
+                HeightCm: sp.antenna.heightCm,
+                GainDb: sp.antenna.gainDb,
+                Directivity: sp.antenna.directivity,
+                Diameter: sp.antenna.diameter,
+                Polarization: sp.antenna.polarization,
+                Beamwidth: sp.antenna.beamwidth,
+                Remarks: sp.antenna.remarks,
+              },
+            }))
+          )
+        );
+
+        addField("Name of Dealer / Seller", data.nameOfDealerOrSeller);
+        addField(
+          "Amateur License No. / Permit to Possess No.",
+          data.amateurLicenseNoOrPermitToPossessNo
+        );
+        addField("Seller Address", data.sellerAddress);
+      } else {
+        addField("Service Area", data.serviceArea);
+        addField("Assigned Frequency", data.frequency);
+        addField("Bandwidth", `${data.bandwidth} ${data.unit}`.trim());
+        addField("Bandwidth Value", data.bandwidth);
+        addField("Bandwidth Unit", data.unit);
+        addField("Emission", data.emission);
+        addField("Power Output", data.powerOutput);
+        addField("Hours of Operation", data.hoursOfOperation);
+        addField("Station Class", data.stationClass);
+        addField("Exact Location", data.exactLocation);
+        addField("Longitude", data.longitude);
+        addField("Latitude", data.latitude);
+        addField("Configuration", data.configuration);
+        addField("Data Rate", data.dataRate);
+        addField("Remarks", data.remarks);
+        addField(
+          "Particulars of Equipment",
+          JSON.stringify(
+            data.equipments.map((eq) => ({
+              SerialNumber: eq.serialNumber,
+              FrequencyRange: eq.frequencyRange,
+            }))
+          )
+        );
+        addField("Name of Dealer", data.nameOfDealer);
+        addField("Authorized Seller / Buyer", data.authorizedSellerBuyer);
+        addField("OR / Invoice No", data.orInvoiceNo);
+        addField("Permit / RSL No", data.permitRslNo);
+      }
 
       const intendedUses: string[] = [];
       if (data.intendedUseStorageAt) {

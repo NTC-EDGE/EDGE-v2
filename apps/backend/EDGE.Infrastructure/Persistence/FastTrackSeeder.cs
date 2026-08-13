@@ -272,11 +272,12 @@ public static class FastTrackSeeder
 
         await SeedFormForService("NTC_1_09", Guid.Parse("f0900000-0000-0000-0000-000000000001"), Guid.Parse("f09a0000-0000-0000-0000-000000000000"), new()
         {
-            ("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email" }),
-            ("proposedStation", "Proposed Station", new() { "stationLocation" }),
-            ("equipment", "Equipment Details", new() { "equipmentDetails" }),
-            ("sourceOfEquipment", "Source of Equipment", new() { "equipmentDetails" }),
-            ("intendedUse", "Intended Use", new() { "equipmentDetails" }),
+            ("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email", "callSign" }),
+            ("proposedStation", "Proposed Station & Operating Specs", new() { "stationLocation", "stationClass", "serviceArea", "frequency", "bandwidth", "emission", "powerOutput", "hoursOfOperation", "configuration", "dataRate", "remarks" }),
+            ("equipment", "Particulars of Equipment", new() { "equipmentDetails", "classOfStation", "serialNumber", "frequencyRange" }),
+            ("antennas", "Particulars of Antenna", new() { "antennaType", "height", "gain", "directivity", "diameter", "polarization", "beamwidth", "remarks" }),
+            ("sourceOfEquipment", "Source of Equipment", new() { "dealerName", "authorizedSellerBuyer", "orInvoiceNo", "permitRslNo", "sellerAddress", "amateurLicenseNo" }),
+            ("intendedUse", "Intended Use of Equipment", new() { "intendedUseType", "specifyDetails" }),
             ("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
             ("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
         });

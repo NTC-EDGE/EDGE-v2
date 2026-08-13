@@ -129,6 +129,7 @@ export function GeneralWizardSteps({
           setCurrentApplicantIndex={setCurrentApplicantIndex}
           onRequiredFieldsChange={onRequiredFieldsChange}
           errors={errors}
+          variants={variants}
         />
       );
     case 4:

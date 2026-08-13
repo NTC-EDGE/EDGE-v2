@@ -42,6 +42,7 @@ interface GeneralFilingDetailsStepProps {
   /** Called once after the form layout resolves with the IDs of required fields (empty for hardcoded forms). */
   onRequiredFieldsChange?: (requiredFieldIds: string[]) => void;
   errors?: Record<string, string>;
+  variants?: Array<{ id: string; name?: string; title?: string; [key: string]: unknown }>;
 }
 
 const deriveAppTypeFromStep3 = (variantStr?: string): "NEW" | "RENEWAL" | "MODIFICATION" => {
@@ -61,6 +62,7 @@ export function GeneralFilingDetailsStep({
   setCurrentApplicantIndex,
   onRequiredFieldsChange,
   errors = {},
+  variants = [],
 }: GeneralFilingDetailsStepProps) {
   const { form, loading } = useServiceForm(service?.id, activeApplicant.selectedVariantId);
 
@@ -193,7 +195,9 @@ export function GeneralFilingDetailsStep({
     (serviceTitle.includes("PERMIT") && serviceTitle.includes("AMATEUR")) ||
     (serviceCategory.includes("PERMIT") && (serviceTitle.includes("AMATEUR") || serviceCode === "NTC_1_09"))
   ) {
-    const step3PermitAppType = derivePermitAppTypeFromStep3(activeApplicant.selectedVariantId);
+    const selectedVariant = variants?.find((v) => v.id === activeApplicant.selectedVariantId);
+    const variantName = selectedVariant?.name || selectedVariant?.title;
+    const step3PermitAppType = derivePermitAppTypeFromStep3(activeApplicant.selectedVariantId, variantName);
     const rawData = activeApplicant.permitData || initialAmateurPermitData(activeApplicant.id);
     const permitData = {
       ...rawData,
