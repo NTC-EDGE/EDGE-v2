@@ -6,11 +6,13 @@ import { ApiResponse, ApplicationFormSubmissionDto } from '../types';
 export function useApplicationFormWithSubmission(
   applicationId?: string,
   applicantId?: string,
-  submissionId?: string
+  submissionId?: string,
+  applicationServiceId?: string
 ) {
   const queryParams = new URLSearchParams();
   if (applicantId) queryParams.set('applicantId', applicantId);
   if (submissionId) queryParams.set('submissionId', submissionId);
+  if (applicationServiceId) queryParams.set('applicationServiceId', applicationServiceId);
   const queryString = queryParams.toString();
 
   const key = applicationId

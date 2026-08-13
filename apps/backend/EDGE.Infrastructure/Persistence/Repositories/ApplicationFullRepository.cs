@@ -236,10 +236,8 @@ public class ApplicationFullRepository : IApplicationFullRepository
                 Services = app.ApplicationServices.Select(s => new EDGE.Application.Applications.Dtos.ServiceSummaryDto
                 {
                     Id = s.Id,
-                    ServiceCategoryId = s.ServiceCategoryId,
                     ServiceId = s.ServiceId,
-                    ServiceVariantId = s.ServiceVariantId,
-                    ApplicationTypeKey = s.ApplicationTypeKey
+                    ServiceVariantId = s.ServiceVariantId
                 }).ToList(),
                 Applicants = app.ApplicationApplicants.Select(aa => new EDGE.Application.Applications.Dtos.ApplicantSummaryDto
                 {
@@ -348,11 +346,9 @@ public class ApplicationFullRepository : IApplicationFullRepository
                 Services = app.ApplicationServices.Select(s => new EDGE.Application.Applications.Dtos.ApplicationServiceDto
                 {
                     Id = s.Id,
-                    ServiceCategoryId = s.ServiceCategoryId,
+                    ApplicantId = s.ApplicantId,
                     ServiceId = s.ServiceId,
-                    ServiceVariantId = s.ServiceVariantId,
-                    ApplicationTypeKey = s.ApplicationTypeKey,
-                    DynamicDataJson = s.DynamicDataJson
+                    ServiceVariantId = s.ServiceVariantId
                 }).ToList(),
                 Applicants = app.ApplicationApplicants.Select(aa => new EDGE.Application.Applicants.Dtos.ApplicantDto
                 {

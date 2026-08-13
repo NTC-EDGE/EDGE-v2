@@ -388,14 +388,31 @@ public static class ApplicationDataSeeder
             ApplicantId = applicants[7].Id,
             SequenceOrder = 2,
         });
-        app7.ApplicationServices.Add(new ApplicationService
+        var app7Service1 = new ApplicationService
         {
-            Id = Guid.NewGuid(),
+            Id = Guid.Parse("c7000000-0000-0000-0000-000000000001"),
             ApplicationId = app7.Id,
-            ServiceCategoryId = PermitCategoryId,
-            ServiceId = ServicePermitId,
-            ApplicationTypeKey = "RENEWAL",
-        });
+            ApplicantId = applicants[6].Id,
+            ServiceId = ServicePermitId
+        };
+        var app7Service2 = new ApplicationService
+        {
+            Id = Guid.Parse("c7000000-0000-0000-0000-000000000002"),
+            ApplicationId = app7.Id,
+            ApplicantId = applicants[6].Id,
+            ServiceId = ServiceCertId
+        };
+        var app7Service3 = new ApplicationService
+        {
+            Id = Guid.Parse("c7000000-0000-0000-0000-000000000003"),
+            ApplicationId = app7.Id,
+            ApplicantId = applicants[7].Id,
+            ServiceId = ServiceLicenseId
+        };
+
+        app7.ApplicationServices.Add(app7Service1);
+        app7.ApplicationServices.Add(app7Service2);
+        app7.ApplicationServices.Add(app7Service3);
 
         AddHistory(app7, "Bulk application submitted.", null, ApplicationStatus.Submitted,
             ClientUserId, "Miguel Lopez", "Client", now.AddDays(-10));
@@ -406,8 +423,9 @@ public static class ApplicationDataSeeder
         var soaBulk1 = MakeSoa(Guid.Parse("b7000000-0000-0000-0000-000000000001"), app7,
             applicants[6].Id, IssuedToType.Individual, FullName(applicants[6]),
             now.AddDays(20), EvaluatorUserId);
-        AddSoaLine(soaBulk1, "Amateur Radio Station Permit (Renewal)", "PRM-AMAT-REN", "Individual renewal", 1, 1, 320.00m);
-        AddSoaHistory(soaBulk1, "SOA created for applicant 1 (Miguel Lopez).", null, SoaStatus.Pending,
+        AddSoaLine(soaBulk1, "Amateur Radio Station Permit (New)", "PRM-AMAT-NEW", "Individual new permit", 1, 1, 500.00m);
+        AddSoaLine(soaBulk1, "Radio Operator Certificate (Renewal)", "CERT-OPER-REN", "Individual certificate renewal", 1, 1, 300.00m);
+        AddSoaHistory(soaBulk1, "SOA created for applicant 1 (Miguel Lopez) multi-service.", null, SoaStatus.Pending,
             EvaluatorUserId, "Jane Evaluator", "Evaluator", now.AddDays(-8));
 
         var soaBulk2 = MakeSoa(Guid.Parse("b7000000-0000-0000-0000-000000000002"), app7,
@@ -417,16 +435,29 @@ public static class ApplicationDataSeeder
         AddSoaHistory(soaBulk2, "SOA created for applicant 2 (Sofia Ramos).", null, SoaStatus.Pending,
             EvaluatorUserId, "Jane Evaluator", "Evaluator", now.AddDays(-8));
 
+        // Form submission 1 for Applicant 6 (Permit Service)
         AddFormSubmission(app7, applicants[6], new()
         {
             ("Examinee Class", "Class B (General)"),
             ("Exam Type", "First Time Examinee"),
             ("Preferred Exam Language", "English"),
             ("PRC License Status", "None"),
-            ("Station Call Sign", "DU7MLP"),
+            ("Station Call Sign", "DU7MLP-1"),
             ("Vessel Name", "M/V Ocean Sentinel"),
-        }, defaultFormId, availableFields);
+        }, defaultFormId, availableFields, app7Service1.Id);
 
+        // Form submission 2 for Applicant 6 (Certificate Service - Second Service for same applicant)
+        AddFormSubmission(app7, applicants[6], new()
+        {
+            ("Examinee Class", "Class B (General Operator)"),
+            ("Exam Type", "Certificate Renewal"),
+            ("Preferred Exam Language", "English"),
+            ("PRC License Status", "Licensed Engineer"),
+            ("Station Call Sign", "DU7MLP-CERT"),
+            ("Vessel Name", "M/V Ocean Sentinel"),
+        }, defaultFormId, availableFields, app7Service2.Id);
+
+        // Form submission for Applicant 7 (Permit Service)
         AddFormSubmission(app7, applicants[7], new()
         {
             ("Examinee Class", "Class A (Advanced)"),
@@ -435,7 +466,7 @@ public static class ApplicationDataSeeder
             ("PRC License Status", "Licensed Engineer"),
             ("Station Call Sign", "DU7SFR"),
             ("Vessel Name", "M/V Visayas Trader"),
-        }, defaultFormId, availableFields);
+        }, defaultFormId, availableFields, app7Service3.Id);
 
         app7.StatementsOfAccount.Add(soaBulk1);
         app7.StatementsOfAccount.Add(soaBulk2);
@@ -601,9 +632,7 @@ public static class ApplicationDataSeeder
         {
             Id = Guid.NewGuid(),
             ApplicationId = app13.Id,
-            ServiceCategoryId = PermitCategoryId,
             ServiceId = ServicePermitId,
-            ApplicationTypeKey = "NEW",
         });
 
         AddHistory(app13, "Company bulk application submitted.", null, ApplicationStatus.Submitted,
@@ -712,7 +741,6 @@ public static class ApplicationDataSeeder
         AddCorrection(app16, "Applicant Profile", "ContactNumber", "09670000000", "09671234572", "Jane Evaluator", now.AddDays(-5));
         AddCorrection(app16, "Applicant Profile", "ZipCode", "1000", "1008", "Jane Evaluator", now.AddDays(-5));
         AddCorrection(app16, "Form Submission", "Station Location", "Block 4 Lot 1", "Unit 402 Sampaloc Manila", "Jane Evaluator", now.AddDays(-4));
-        AddCorrection(app16, "Service Category", "ApplicationTypeKey", "RENEWAL", "NEW", "Jane Evaluator", now.AddDays(-4));
 
         AddFormSubmission(app16, applicants[5], new()
         {
@@ -838,9 +866,7 @@ public static class ApplicationDataSeeder
         {
             Id = Guid.NewGuid(),
             ApplicationId = id,
-            ServiceCategoryId = PermitCategoryId,
             ServiceId = serviceId,
-            ApplicationTypeKey = "NEW",
         });
         return app;
     }
@@ -1000,13 +1026,15 @@ public static class ApplicationDataSeeder
         DomainApplication app, Applicant applicant,
         List<(string label, string value)> fields,
         Guid defaultFormId,
-        List<Field> availableFields)
+        List<Field> availableFields,
+        Guid? applicationServiceId = null)
     {
         var submission = new FormSubmission
         {
             Id = Guid.NewGuid(),
             ApplicationId = app.Id,
             ApplicantId = applicant.Id,
+            ApplicationServiceId = applicationServiceId,
             FormId = defaultFormId,
             CreatedAt = app.CreatedAt,
         };

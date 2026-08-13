@@ -47,44 +47,19 @@ public class FilingUserDto
 public class ApplicationServiceDto
 {
     public Guid Id { get; set; }
-    public Guid? ServiceCategoryId { get; set; }
+    public Guid? ApplicantId { get; set; }
     public Guid? ServiceId { get; set; }
     public Guid? ServiceVariantId { get; set; }
-    public string? ApplicationTypeKey { get; set; }
-    public string? DynamicDataJson { get; set; }
-
-    public List<Guid> ServiceVariantElementIds
-    {
-        get
-        {
-            if (string.IsNullOrWhiteSpace(DynamicDataJson)) return new();
-            try
-            {
-                using var doc = System.Text.Json.JsonDocument.Parse(DynamicDataJson);
-                if (doc.RootElement.TryGetProperty("selectedElementIds", out var elementIdsProp) &&
-                    elementIdsProp.ValueKind == System.Text.Json.JsonValueKind.Array)
-                {
-                    return elementIdsProp.EnumerateArray()
-                        .Select(x => x.TryGetGuid(out var g) ? g : Guid.Empty)
-                        .Where(g => g != Guid.Empty)
-                        .ToList();
-                }
-            }
-            catch
-            {
-                // Ignore parse errors
-            }
-            return new();
-        }
-    }
 }
 
 public class ApplicationRequirementDto
 {
     public Guid Id { get; set; }
     public Guid ApplicantId { get; set; }
+    public Guid? ApplicationServiceId { get; set; }
     public Guid RequirementId { get; set; }
     public Guid? ServiceVariantRequirementId { get; set; }
     public string Url { get; set; } = string.Empty;
     public bool IsApproved { get; set; }
 }
+

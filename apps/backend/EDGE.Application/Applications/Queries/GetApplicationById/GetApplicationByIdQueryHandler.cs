@@ -64,16 +64,15 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
             Services = app.ApplicationServices.Select(s => new ApplicationServiceDto
             {
                 Id = s.Id,
-                ServiceCategoryId = s.ServiceCategoryId,
+                ApplicantId = s.ApplicantId,
                 ServiceId = s.ServiceId,
-                ServiceVariantId = s.ServiceVariantId,
-                ApplicationTypeKey = s.ApplicationTypeKey,
-                DynamicDataJson = s.DynamicDataJson
+                ServiceVariantId = s.ServiceVariantId
             }).ToList(),
             Requirements = app.ApplicationRequirements.Select(r => new ApplicationRequirementDto
             {
                 Id = r.Id,
                 ApplicantId = r.ApplicantId,
+                ApplicationServiceId = r.ApplicationServiceId,
                 RequirementId = r.RequirementId,
                 ServiceVariantRequirementId = r.ServiceVariantRequirementId,
                 Url = r.Url,

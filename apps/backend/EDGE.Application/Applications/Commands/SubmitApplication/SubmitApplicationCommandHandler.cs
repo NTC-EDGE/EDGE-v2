@@ -249,20 +249,6 @@ public class SubmitApplicationCommandHandler
             await _applicationRepository.AddAsync(application, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            // Create ApplicationService
-            var appService = new ApplicationService
-            {
-                ApplicationId = application.Id,
-                ServiceCategoryId = service.ServiceCategoryId,
-                ServiceId = service.Id,
-                ServiceVariantId = resolvedVariantId,
-                ApplicationTypeKey = effectiveAppTypeKey,
-                DynamicDataJson = request.ServiceVariantElementIds != null && request.ServiceVariantElementIds.Any()
-                    ? System.Text.Json.JsonSerializer.Serialize(new { selectedElementIds = request.ServiceVariantElementIds })
-                    : null
-            };
-            await _applicationRepository.AddApplicationServiceAsync(appService, cancellationToken);
-
             // Loop over applicants — runs once for Single, N times for Bulk
             int sequenceOrder = 1;
             foreach (var dto in request.Applicants)
@@ -304,15 +290,40 @@ public class SubmitApplicationCommandHandler
                 await _applicationRepository.AddApplicationApplicantAsync(
                     appApplicant, cancellationToken);
 
-                // Create FormSubmission + FormFieldValue rows
-                if (form != null)
+                // Determine per-applicant service parameters (fallback to root request values if not specified)
+                Guid applicantServiceId = dto.ServiceId.HasValue && dto.ServiceId.Value != Guid.Empty
+                    ? dto.ServiceId.Value
+                    : service.Id;
+
+                Guid? applicantVariantId = dto.ServiceVariantId.HasValue && dto.ServiceVariantId.Value != Guid.Empty
+                    ? dto.ServiceVariantId.Value
+                    : resolvedVariantId;
+
+                // Create ApplicationService tied to this Applicant
+                var appService = new ApplicationService
+                {
+                    ApplicationId = application.Id,
+                    ApplicantId = applicant.Id,
+                    ServiceId = applicantServiceId,
+                    ServiceVariantId = applicantVariantId
+                };
+                await _applicationRepository.AddApplicationServiceAsync(appService, cancellationToken);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+                // Create FormSubmission + FormFieldValue rows tied to ApplicationServiceId
+                var applicantForm = applicantServiceId == service.Id
+                    ? form
+                    : await _formRepository.GetFormByServiceIdAsync(applicantServiceId, cancellationToken);
+
+                if (applicantForm != null)
                 {
                     var formSubmission = new FormSubmission
                     {
                         Id = Guid.NewGuid(),
                         ApplicationId = application.Id,
-                        FormId = form.Id,
-                        ApplicantId = applicant.Id
+                        FormId = applicantForm.Id,
+                        ApplicantId = applicant.Id,
+                        ApplicationServiceId = appService.Id
                     };
                     await _applicationRepository.AddFormSubmissionAsync(
                         formSubmission, cancellationToken);

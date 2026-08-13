@@ -92,9 +92,11 @@ public class UploadApplicantRequirementCommandHandler
             return ApiResponse<Guid>.Fail(
                 $"Requirement '{resolvedRequirementId}' was not found in the master catalog.");
 
-        // 7. Resolve per-applicant ContextKey from FormFieldValues + Service.Contract
-        //    This replaces the old application-level ApplicationTypeKey lookup.
-        var appService = app.ApplicationServices.FirstOrDefault();
+        // 7. Resolve per-applicant ApplicationService & ContextKey from FormFieldValues + Service.Contract
+        var appService = request.ApplicationServiceId.HasValue
+            ? app.ApplicationServices.FirstOrDefault(s => s.Id == request.ApplicationServiceId.Value)
+            : (app.ApplicationServices.FirstOrDefault(s => s.ApplicantId == request.ApplicantId) ?? app.ApplicationServices.FirstOrDefault());
+
         if (appService?.ServiceId != null)
         {
             // Load the service to access its Contract JSON
@@ -134,6 +136,7 @@ public class UploadApplicantRequirementCommandHandler
         {
             ApplicationId               = request.ApplicationId,
             ApplicantId                 = request.ApplicantId,
+            ApplicationServiceId        = appService?.Id,
             RequirementId               = resolvedRequirementId,
             ServiceVariantRequirementId = request.ServiceVariantRequirementId,
             TenantId                    = app.TenantId,

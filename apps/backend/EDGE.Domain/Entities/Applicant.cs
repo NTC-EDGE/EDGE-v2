@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using EDGE.Domain.Common;
 using EDGE.Domain.Enums;
 
@@ -18,4 +19,7 @@ public class Applicant : AuditableEntity
     public CompanyDetail? CompanyDetail { get; set; }
     public ApplicantStatus Status { get; set; } = ApplicantStatus.Incomplete;
     public string? EvaluationRemarks { get; set; }
+
+    public ICollection<ApplicationService> ApplicationServices { get; set; } = new List<ApplicationService>();
 }
+

@@ -417,6 +417,10 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
                   .WithMany(a => a.ApplicationServices)
                   .HasForeignKey(e => e.ApplicationId)
                   .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.Applicant)
+                  .WithMany(a => a.ApplicationServices)
+                  .HasForeignKey(e => e.ApplicantId)
+                  .OnDelete(DeleteBehavior.SetNull);
             entity.HasOne(e => e.Service)
                   .WithMany()
                   .HasForeignKey(e => e.ServiceId)
@@ -454,6 +458,10 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
                   .WithMany()
                   .HasForeignKey(e => e.ApplicantId)
                   .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.ApplicationService)
+                  .WithMany(s => s.FormSubmissions)
+                  .HasForeignKey(e => e.ApplicationServiceId)
+                  .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<FormFieldValue>(entity =>
@@ -478,6 +486,10 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
             entity.HasOne(e => e.Applicant)
                   .WithMany()
                   .HasForeignKey(e => e.ApplicantId)
+                  .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.ApplicationService)
+                  .WithMany(s => s.ApplicationRequirements)
+                  .HasForeignKey(e => e.ApplicationServiceId)
                   .OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(e => e.Tenant)
                   .WithMany()
