@@ -1,6 +1,5 @@
 import { View } from "react-native";
 import { ServicesState } from "../hooks/useServices";
-import { ServiceList } from "./ServiceList";
 import { CategoryGrid } from "./CategoryGrid";
 import { BulkApplicantsPanel } from "../accreditation/customer-premises";
 import { ExamBulkApplicantsPanel } from "../exams/radio-operator";
@@ -40,13 +39,8 @@ export function ContentColumn({ servicesState }: ContentColumnProps) {
     handleAddGeneralApplicant,
     selectedService,
     searchQuery,
-    searchResults,
-    isMobile,
     setSelectedCategoryId,
     selectedCategoryId,
-    activeCategory,
-    handleClearSearch,
-    handleBackToCategories,
     userProfile,
     setSearchQuery,
     drafts,
@@ -125,37 +119,6 @@ export function ContentColumn({ servicesState }: ContentColumnProps) {
           service={selectedService}
           variantRequirements={servicesState.variantRequirements}
         />
-      ) : searchQuery.trim() !== "" ? (
-        <ServiceList
-          searchQuery={searchQuery}
-          activeCategory={null}
-          searchResults={searchResults}
-          onServiceSelect={(service) => {
-            confirmSwitchService(() => {
-              setSelectedService(service);
-              if (isMobile) {
-                setSelectedCategoryId("search-active");
-              }
-            });
-          }}
-          onBack={() => confirmSwitchService(handleClearSearch)}
-          isMobile={isMobile}
-          isWizardActive={activeWizardService !== null}
-        />
-      ) : selectedCategoryId !== null || selectedService !== null ? (
-        <ServiceList
-          searchQuery=""
-          activeCategory={activeCategory}
-          searchResults={null}
-          onServiceSelect={(service) => {
-            confirmSwitchService(() => {
-              setSelectedService(service);
-            });
-          }}
-          onBack={() => confirmSwitchService(handleBackToCategories)}
-          isMobile={isMobile}
-          isWizardActive={activeWizardService !== null}
-        />
       ) : (
         <CategoryGrid
           user={userProfile}
@@ -172,6 +135,7 @@ export function ContentColumn({ servicesState }: ContentColumnProps) {
             confirmSwitchService(() => {
               setSelectedCategoryId(catId);
               setServiceId(catId);
+              setSelectedService(null);
             });
           }}
           drafts={drafts}

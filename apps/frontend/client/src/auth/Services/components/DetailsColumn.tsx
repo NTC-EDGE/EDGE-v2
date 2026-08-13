@@ -5,6 +5,7 @@ import { CPEAccreditationWizard } from "../accreditation/customer-premises";
 import { ExamFilingWizard } from "../exams/radio-operator";
 import { GeneralServiceWizard } from "../shared/GeneralServiceWizard";
 import { ServiceDetails } from "./ServiceDetails";
+import { ServiceList } from "./ServiceList";
 import { styles } from "../Services.styles";
 
 interface DetailsColumnProps {
@@ -74,7 +75,11 @@ export function DetailsColumn({ servicesState }: DetailsColumnProps) {
     width,
     activeCategory,
     handleBackToServices,
-    serviceId,
+    handleBackToCategories,
+    handleClearSearch,
+    searchQuery,
+    searchResults,
+    confirmSwitchService,
   } = servicesState;
 
   const isWizardActive = activeWizardService !== null;
@@ -104,33 +109,56 @@ export function DetailsColumn({ servicesState }: DetailsColumnProps) {
       <View style={{ flex: 1 }}>
         {activeWizardService === "cpe-accreditation" ? (
           <CPEAccreditationWizard
-            onClose={handleClose} onSuccess={handleSuccess}
-            isDetailsExpanded={isDetailsExpanded} onToggleExpand={() => setIsDetailsExpanded((prev) => !prev)}
-            step={wizardStep} setStep={setWizardStep}
-            selectedRegionId={selectedRegionId} setSelectedRegionId={setSelectedRegionId}
-            selectedOfficeId={selectedOfficeId} setSelectedOfficeId={setSelectedOfficeId}
-            appMode={appMode} setAppMode={setAppMode}
-            bulkMethod={bulkMethod} setBulkMethod={setBulkMethod}
-            isFileUploaded={isFileUploaded} setIsFileUploaded={setIsFileUploaded}
-            uploadedFileName={uploadedFileName} setUploadedFileName={setUploadedFileName}
-            applicants={applicants} setApplicants={setApplicants}
-            currentApplicantIndex={currentApplicantIndex} setCurrentApplicantIndex={setCurrentApplicantIndex}
+            onClose={handleClose}
+            onSuccess={handleSuccess}
+            isDetailsExpanded={isDetailsExpanded}
+            onToggleExpand={() => setIsDetailsExpanded((prev) => !prev)}
+            step={wizardStep}
+            setStep={setWizardStep}
+            selectedRegionId={selectedRegionId}
+            setSelectedRegionId={setSelectedRegionId}
+            selectedOfficeId={selectedOfficeId}
+            setSelectedOfficeId={setSelectedOfficeId}
+            appMode={appMode}
+            setAppMode={setAppMode}
+            bulkMethod={bulkMethod}
+            setBulkMethod={setBulkMethod}
+            isFileUploaded={isFileUploaded}
+            setIsFileUploaded={setIsFileUploaded}
+            uploadedFileName={uploadedFileName}
+            setUploadedFileName={setUploadedFileName}
+            applicants={applicants}
+            setApplicants={setApplicants}
+            currentApplicantIndex={currentApplicantIndex}
+            setCurrentApplicantIndex={setCurrentApplicantIndex}
             serviceId={selectedService?.id}
           />
         ) : activeWizardService === "radio-operator-exam" ? (
           <ExamFilingWizard
-            onClose={handleClose} onSuccess={handleSuccess}
-            isDetailsExpanded={isDetailsExpanded} onToggleExpand={() => setIsDetailsExpanded((prev) => !prev)}
-            step={examWizardStep} setStep={setExamWizardStep}
-            selectedRegionId={selectedRegionId} setSelectedRegionId={setSelectedRegionId}
-            selectedOfficeId={selectedOfficeId} setSelectedOfficeId={setSelectedOfficeId}
-            appMode={appMode} setAppMode={setAppMode}
-            bulkMethod={bulkMethod} setBulkMethod={setBulkMethod}
-            isFileUploaded={isFileUploaded} setIsFileUploaded={setIsFileUploaded}
-            uploadedFileName={uploadedFileName} setUploadedFileName={setUploadedFileName}
-            applicants={examApplicants} setApplicants={setExamApplicants}
-            currentApplicantIndex={currentExamApplicantIndex} setCurrentApplicantIndex={setCurrentExamApplicantIndex}
-            isBulkSubmitOpen={isBulkSubmitOpen} setIsBulkSubmitOpen={setIsBulkSubmitOpen}
+            onClose={handleClose}
+            onSuccess={handleSuccess}
+            isDetailsExpanded={isDetailsExpanded}
+            onToggleExpand={() => setIsDetailsExpanded((prev) => !prev)}
+            step={examWizardStep}
+            setStep={setExamWizardStep}
+            selectedRegionId={selectedRegionId}
+            setSelectedRegionId={setSelectedRegionId}
+            selectedOfficeId={selectedOfficeId}
+            setSelectedOfficeId={setSelectedOfficeId}
+            appMode={appMode}
+            setAppMode={setAppMode}
+            bulkMethod={bulkMethod}
+            setBulkMethod={setBulkMethod}
+            isFileUploaded={isFileUploaded}
+            setIsFileUploaded={setIsFileUploaded}
+            uploadedFileName={uploadedFileName}
+            setUploadedFileName={setUploadedFileName}
+            applicants={examApplicants}
+            setApplicants={setExamApplicants}
+            currentApplicantIndex={currentExamApplicantIndex}
+            setCurrentApplicantIndex={setCurrentExamApplicantIndex}
+            isBulkSubmitOpen={isBulkSubmitOpen}
+            setIsBulkSubmitOpen={setIsBulkSubmitOpen}
             serviceId={selectedService?.id}
             serviceName={selectedService?.title}
           />
@@ -138,14 +166,22 @@ export function DetailsColumn({ servicesState }: DetailsColumnProps) {
           selectedService !== null ? (
           <GeneralServiceWizard
             service={selectedService}
-            onClose={handleClose} onSuccess={handleSuccess}
-            isDetailsExpanded={isDetailsExpanded} onToggleExpand={() => setIsDetailsExpanded((prev) => !prev)}
-            step={wizardStep} setStep={setWizardStep}
-            selectedRegionId={selectedRegionId} setSelectedRegionId={setSelectedRegionId}
-            selectedOfficeId={selectedOfficeId} setSelectedOfficeId={setSelectedOfficeId}
-            appMode={appMode} setAppMode={setAppMode}
-            applicants={generalApplicants} setApplicants={setGeneralApplicants}
-            currentApplicantIndex={currentGeneralApplicantIndex} setCurrentApplicantIndex={setCurrentGeneralApplicantIndex}
+            onClose={handleClose}
+            onSuccess={handleSuccess}
+            isDetailsExpanded={isDetailsExpanded}
+            onToggleExpand={() => setIsDetailsExpanded((prev) => !prev)}
+            step={wizardStep}
+            setStep={setWizardStep}
+            selectedRegionId={selectedRegionId}
+            setSelectedRegionId={setSelectedRegionId}
+            selectedOfficeId={selectedOfficeId}
+            setSelectedOfficeId={setSelectedOfficeId}
+            appMode={appMode}
+            setAppMode={setAppMode}
+            applicants={generalApplicants}
+            setApplicants={setGeneralApplicants}
+            currentApplicantIndex={currentGeneralApplicantIndex}
+            setCurrentApplicantIndex={setCurrentGeneralApplicantIndex}
             triggerOpenApplicant={servicesState.triggerOpenApplicant}
           />
         ) : selectedService !== null ? (
@@ -153,22 +189,50 @@ export function DetailsColumn({ servicesState }: DetailsColumnProps) {
             selectedService={selectedService}
             onBackToServices={handleBackToServices}
             onApplyPress={() => {
-              setActiveWizardService("general-service");
+              const title = (selectedService.title || "").toUpperCase();
+              if (title.includes("CUSTOMER PREMISES") || title.includes("CPE")) {
+                setActiveWizardService("cpe-accreditation");
+              } else if (title.includes("EXAMINATION") || title.includes("EXAM") || title.includes("ADMISSION SLIP")) {
+                setActiveWizardService("radio-operator-exam");
+              } else {
+                setActiveWizardService("general-service");
+              }
             }}
             isMobile={isMobile}
           />
+        ) : searchQuery.trim() !== "" ? (
+          <ServiceList
+            searchQuery={searchQuery}
+            activeCategory={null}
+            searchResults={searchResults}
+            onServiceSelect={(service) => {
+              confirmSwitchService(() => {
+                setSelectedService(service);
+              });
+            }}
+            onBack={() => confirmSwitchService(handleClearSearch)}
+            isMobile={isMobile}
+            isWizardActive={activeWizardService !== null}
+          />
         ) : activeCategory !== null ? (
-          !isMobile && (
-            <EmptyPlaceholder
-              title="Select a service"
-              description="Please choose a specific service from the list on the left to view the required documents and submit an application."
-            />
-          )
+          <ServiceList
+            searchQuery=""
+            activeCategory={activeCategory}
+            searchResults={null}
+            onServiceSelect={(service) => {
+              confirmSwitchService(() => {
+                setSelectedService(service);
+              });
+            }}
+            onBack={() => confirmSwitchService(handleBackToCategories)}
+            isMobile={isMobile}
+            isWizardActive={activeWizardService !== null}
+          />
         ) : (
           !isMobile && (
             <EmptyPlaceholder
-              title="No service selected"
-              description="Choose a category on the left, then select a service to view its application details and requirements."
+              title="Select a category"
+              description="Choose a category from the left navigation panel to view and apply for NTC services."
             />
           )
         )}

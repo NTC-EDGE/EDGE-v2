@@ -5,8 +5,9 @@ import {
   TouchableOpacity,
   ScrollView,
   StyleSheet,
+  Platform,
 } from "react-native";
-import { Icon, COLORS, TYPOGRAPHY } from "@edge/ui";
+import { Icon, COLORS, TYPOGRAPHY, SPACING } from "@edge/ui";
 import { NTCService } from "../../data/servicesData";
 import { styles as originalStyles } from "./ServiceDetails.styles";
 
@@ -27,32 +28,7 @@ export function ServiceDetails({
   const displayWhoMayAvail = selectedService.whoMayAvail || null;
 
   return (
-    <View style={{ flex: 1 }}>
-      {/* Back to Services Navigation Button (Mobile, iPad & Desktop Views) */}
-      <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4, backgroundColor: "#FFFFFF" }}>
-        <TouchableOpacity
-          onPress={onBackToServices}
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 6,
-            alignSelf: "flex-start",
-            paddingVertical: 8,
-            paddingHorizontal: 14,
-            borderRadius: 8,
-            backgroundColor: "#EFF6FF",
-            borderColor: "#BFDBFE",
-            borderWidth: 1,
-          }}
-          activeOpacity={0.7}
-        >
-          <Icon name="arrow-left" size={16} color="#1E40AF" />
-          <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: "#1E40AF" }}>
-            Back to Services
-          </Text>
-        </TouchableOpacity>
-      </View>
-
+    <View style={{ flex: 1, backgroundColor: "#F8FAFC" }}>
       <ScrollView contentContainerStyle={originalStyles.detailsContent} showsVerticalScrollIndicator={false}>
         <View style={originalStyles.detailsCard}>
           <Text style={originalStyles.detailsTitle}>{selectedService.title}</Text>
@@ -79,14 +55,26 @@ export function ServiceDetails({
             </View>
           )}
 
-          {/* 3. Apply Now Action Button */}
-          <TouchableOpacity
-            onPress={onApplyPress}
-            style={[originalStyles.applyBtn, { marginTop: 16 }]}
-          >
-            <Text style={originalStyles.applyBtnText}>Apply Now</Text>
-            <Icon name="arrow-right" size={16} color="#ffffff" style={{ marginLeft: 6 }} />
-          </TouchableOpacity>
+          {/* 3. Bottom Action Bar: Back to Services & Apply Now side-by-side */}
+          <View style={localStyles.actionsRow}>
+            <TouchableOpacity
+              onPress={onBackToServices}
+              style={localStyles.backBtn}
+              activeOpacity={0.7}
+            >
+              <Icon name="arrow-left" size={16} color="#475569" />
+              <Text style={localStyles.backBtnText}>Back to Services</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={onApplyPress}
+              style={localStyles.applyBtn}
+              activeOpacity={0.8}
+            >
+              <Text style={localStyles.applyBtnText}>Apply Now</Text>
+              <Icon name="arrow-right" size={16} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
     </View>
@@ -136,13 +124,68 @@ const localStyles = StyleSheet.create({
     fontSize: 13,
     color: "#334155",
     lineHeight: 20,
-    whiteSpace: "pre-line",
-  } as any,
+  },
   availBodyText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 13,
     color: "#047857",
     lineHeight: 20,
-    whiteSpace: "pre-line",
-  } as any,
+  },
+  actionsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    marginTop: 24,
+    paddingTop: 18,
+    borderTopWidth: 1,
+    borderTopColor: "#E2E8F0",
+  },
+  backBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderRadius: 8,
+    backgroundColor: "#F1F5F9",
+    borderColor: "#CBD5E1",
+    borderWidth: 1,
+    ...Platform.select({
+      web: {
+        cursor: "pointer",
+        transition: "all 150ms ease",
+      },
+    }),
+  },
+  backBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#475569",
+  },
+  applyBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    backgroundColor: "#031A6E",
+    ...Platform.select({
+      web: {
+        cursor: "pointer",
+        transition: "all 150ms ease",
+        boxShadow: "0 2px 6px rgba(3, 26, 110, 0.2)",
+      },
+    }),
+  },
+  applyBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
 });

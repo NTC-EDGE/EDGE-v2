@@ -24,6 +24,10 @@ import {
   initialAmateurRadioStationLicenseData,
   initialLifetimeAmateurLicenseData,
 } from "../../licenses";
+import {
+  AmateurPermitData,
+  initialAmateurPermitData,
+} from "../../permits";
 
 export interface TenantInfo {
   id: string;
@@ -49,7 +53,7 @@ export interface GeneralApplicantData {
   selectedVariantId?: string;
   uploads: Record<string, { name: string; uri: string } | string>;
   formFieldValues?: Array<{ fieldId: string; fieldLabel: string; value: string }>;
-  // Specialized Certificate & License Models
+  // Specialized Certificate, License & Permit Models
   radioCertData?: RadioOperatorCertData;
   deviceRegData?: DeviceRegistrationData;
   tvroRegData?: TVRORegistrationData;
@@ -57,6 +61,7 @@ export interface GeneralApplicantData {
   copyOfCertData?: CopyOfCertificateData;
   amateurLicenseData?: AmateurRadioStationLicenseData;
   lifetimeLicenseData?: LifetimeAmateurLicenseData;
+  permitData?: AmateurPermitData;
 }
 
 export const initialGeneralApplicant = (id: number): GeneralApplicantData => ({
@@ -79,6 +84,7 @@ export const initialGeneralApplicant = (id: number): GeneralApplicantData => ({
   copyOfCertData: initialCopyOfCertificateData(id),
   amateurLicenseData: initialAmateurRadioStationLicenseData(id),
   lifetimeLicenseData: initialLifetimeAmateurLicenseData(id),
+  permitData: initialAmateurPermitData(id),
 });
 
 export interface UseGeneralServiceWizardOptions {

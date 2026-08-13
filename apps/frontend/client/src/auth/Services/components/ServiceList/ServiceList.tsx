@@ -41,6 +41,8 @@ export function ServiceList({
     }
   }, [isWizardActive]);
 
+  const serviceCount = activeCategory?.services.length ?? 0;
+
   return (
     <View style={{ flex: 1 }}>
       {/* Mobile Navbar Header */}
@@ -80,16 +82,15 @@ export function ServiceList({
             </View>
           </View>
         )}
+
         {isSearchActive ? (
           /* Search results listing screen */
           <View style={styles.searchResultsWrapper}>
-            {/* Back button (Web only) */}
-            {!isMobile && (
-              <TouchableOpacity onPress={onBack} style={styles.backLink}>
-                <Icon name="chevron-left" size={14} color="#1d4ed8" />
-                <Text style={styles.backLinkText}>Clear Search Results</Text>
-              </TouchableOpacity>
-            )}
+            {/* Clear search link */}
+            <TouchableOpacity onPress={onBack} style={styles.backLink}>
+              <Icon name="chevron-left" size={14} color="#1d4ed8" />
+              <Text style={styles.backLinkText}>Clear Search Results</Text>
+            </TouchableOpacity>
 
             <Text style={styles.sectionLabel}>Search Results ({searchResults?.length ?? 0})</Text>
             
@@ -99,49 +100,72 @@ export function ServiceList({
                 <Text style={styles.emptyStateText}>No services match your query.</Text>
               </View>
             ) : (
-              searchResults.map((item, idx) => (
-                <TouchableOpacity
-                  key={idx}
-                  onPress={() => onServiceSelect(item.service)}
-                  style={styles.serviceCardItem}
-                >
-                  <View style={styles.serviceCardItemHeader}>
-                    <Text style={styles.serviceCardItemTitle}>{item.service.title}</Text>
-                    <Icon name="chevron-right" size={16} color="#1d4ed8" />
-                  </View>
-                  <Text style={styles.serviceCardItemCategory}>under {item.categoryTitle}</Text>
-                </TouchableOpacity>
-              ))
+              <View style={styles.servicesGrid}>
+                {searchResults.map((item, idx) => (
+                  <TouchableOpacity
+                    key={idx}
+                    onPress={() => onServiceSelect(item.service)}
+                    style={styles.serviceCardItem}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.serviceCardItemHeader}>
+                      <Text style={styles.serviceCardItemTitle}>{item.service.title}</Text>
+                      <Icon name="chevron-right" size={18} color="#1E40AF" />
+                    </View>
+                    <Text style={styles.serviceCardItemCategory}>under {item.categoryTitle}</Text>
+                    {item.service.description && (
+                      <Text style={styles.serviceCardItemDesc} numberOfLines={2}>
+                        {item.service.description}
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </View>
             )}
           </View>
         ) : activeCategory !== null ? (
-          /* Standard Sub-items listing screen */
+          /* Standard Category Services listing screen */
           <View style={styles.subItemsWrapper}>
-            {/* Back button (Web only) */}
-            {!isMobile && (
-              <TouchableOpacity onPress={onBack} style={styles.backLink}>
-                <Icon name="chevron-left" size={14} color="#1d4ed8" />
-                <Text style={styles.backLinkText}>Back to Categories</Text>
-              </TouchableOpacity>
-            )}
-
-            <Text style={styles.subItemsTitle}>{activeCategory.title} Services</Text>
-            
-            {activeCategory.services.map((service, idx) => (
-              <TouchableOpacity
-                key={idx}
-                onPress={() => onServiceSelect(service)}
-                style={styles.serviceCardItem}
-              >
-                <View style={styles.serviceCardItemHeader}>
-                  <Text style={styles.serviceCardItemTitle}>{service.title}</Text>
-                  <Icon name="chevron-right" size={16} color="#1d4ed8" />
+            {/* Category Header Banner */}
+            <View style={styles.categoryHeaderBanner}>
+              <View style={styles.categoryHeaderRow}>
+                <Text style={styles.categoryHeaderTitle}>{activeCategory.title}</Text>
+                <View style={styles.categoryHeaderBadge}>
+                  <Text style={styles.categoryHeaderBadgeText}>
+                    {serviceCount} {serviceCount === 1 ? "Service Available" : "Services Available"}
+                  </Text>
                 </View>
-                <Text style={styles.serviceCardItemDesc} numberOfLines={2}>
-                  {service.description}
-                </Text>
-              </TouchableOpacity>
-            ))}
+              </View>
+              <Text style={styles.categoryHeaderDesc}>{activeCategory.description}</Text>
+            </View>
+
+            <Text style={styles.subItemsTitle}>Available Services</Text>
+            
+            {activeCategory.services.length === 0 ? (
+              <View style={styles.emptyStateContainer}>
+                <Icon name="info" size={24} color="#9ca3af" style={{ marginBottom: 8 }} />
+                <Text style={styles.emptyStateText}>No services currently available under this category.</Text>
+              </View>
+            ) : (
+              <View style={styles.servicesGrid}>
+                {activeCategory.services.map((service, idx) => (
+                  <TouchableOpacity
+                    key={idx}
+                    onPress={() => onServiceSelect(service)}
+                    style={styles.serviceCardItem}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.serviceCardItemHeader}>
+                      <Text style={styles.serviceCardItemTitle}>{service.title}</Text>
+                      <Icon name="chevron-right" size={18} color="#1E40AF" />
+                    </View>
+                    <Text style={styles.serviceCardItemDesc} numberOfLines={2}>
+                      {service.description}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
           </View>
         ) : null}
       </ScrollView>

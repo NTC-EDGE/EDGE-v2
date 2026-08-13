@@ -25,6 +25,11 @@ import {
   initialAmateurRadioStationLicenseData,
   initialLifetimeAmateurLicenseData,
 } from "../../licenses";
+import {
+  AmateurPermitForm,
+  initialAmateurPermitData,
+  derivePermitAppTypeFromStep3,
+} from "../../permits";
 
 interface GeneralFilingDetailsStepProps {
   service: NTCService;
@@ -37,6 +42,7 @@ interface GeneralFilingDetailsStepProps {
   /** Called once after the form layout resolves with the IDs of required fields (empty for hardcoded forms). */
   onRequiredFieldsChange?: (requiredFieldIds: string[]) => void;
   errors?: Record<string, string>;
+  variants?: Array<{ id: string; name?: string; title?: string; [key: string]: unknown }>;
 }
 
 const deriveAppTypeFromStep3 = (variantStr?: string): "NEW" | "RENEWAL" | "MODIFICATION" => {
@@ -56,6 +62,7 @@ export function GeneralFilingDetailsStep({
   setCurrentApplicantIndex,
   onRequiredFieldsChange,
   errors = {},
+  variants = [],
 }: GeneralFilingDetailsStepProps) {
   const { form, loading } = useServiceForm(service?.id, activeApplicant.selectedVariantId);
 
@@ -181,7 +188,48 @@ export function GeneralFilingDetailsStep({
     );
   }
 
-  // 1. Lifetime Amateur Radio Station License for Class A
+  // 1. NTC 1-09: Permits in the Amateur Service / Permits
+  if (
+    serviceCode === "NTC_1_09" ||
+    serviceTitle.includes("PERMITS IN THE AMATEUR SERVICE") ||
+    (serviceTitle.includes("PERMIT") && serviceTitle.includes("AMATEUR")) ||
+    (serviceCategory.includes("PERMIT") && (serviceTitle.includes("AMATEUR") || serviceCode === "NTC_1_09"))
+  ) {
+    const selectedVariant = variants?.find((v) => v.id === activeApplicant.selectedVariantId);
+    const variantName = selectedVariant?.name || selectedVariant?.title;
+    const step3PermitAppType = derivePermitAppTypeFromStep3(activeApplicant.selectedVariantId, variantName);
+    const rawData = activeApplicant.permitData || initialAmateurPermitData(activeApplicant.id);
+    const permitData = {
+      ...rawData,
+      applicationType: step3PermitAppType,
+      intendedUseStorageAt:
+        step3PermitAppType === "Possess for storage"
+          ? true
+          : rawData.intendedUseStorageAt,
+      applicant: rawData.applicant || `${activeApplicant.firstName} ${activeApplicant.lastName}`.trim(),
+      email: activeApplicant.email || rawData.email,
+      contactNo: activeApplicant.contactNo || rawData.contactNo,
+      street: activeApplicant.address || rawData.street,
+    };
+
+    return (
+      <AmateurPermitForm
+        data={permitData}
+        onChange={(fields) =>
+          updateActiveApplicant({
+            permitData: { ...permitData, ...fields },
+            firstName: fields.applicant !== undefined ? fields.applicant.split(" ")[0] || "" : activeApplicant.firstName,
+            lastName: fields.applicant !== undefined ? fields.applicant.split(" ").slice(1).join(" ") : activeApplicant.lastName,
+            email: fields.email !== undefined ? fields.email : activeApplicant.email,
+            contactNo: fields.contactNo !== undefined ? fields.contactNo : activeApplicant.contactNo,
+            address: fields.street !== undefined ? fields.street : activeApplicant.address,
+          })
+        }
+      />
+    );
+  }
+
+  // 2. Lifetime Amateur Radio Station License for Class A
   if (
     serviceTitle.includes("LIFETIME") ||
     serviceCode.includes("LIFETIME") ||

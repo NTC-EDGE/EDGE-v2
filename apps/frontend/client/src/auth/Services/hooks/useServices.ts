@@ -568,7 +568,7 @@ export function useServices() {
   };
 
   const isLeftColumnHiddenOnMobile =
-    isMobile && (selectedService !== null || activeWizardService !== null);
+    isMobile && (selectedCategoryId !== null || selectedService !== null || activeWizardService !== null);
 
   const isWizardActive = activeWizardService !== null;
   const hideSidebar = isMobile;
@@ -576,6 +576,14 @@ export function useServices() {
     (isWizardActive && isDetailsExpanded) ||
     (isWizardActive && width < 1024) ||
     isLeftColumnHiddenOnMobile;
+
+  // Auto-select first category on desktop if none is currently selected
+  useEffect(() => {
+    if (!isMobile && !selectedCategoryId && backendCategories && backendCategories.length > 0) {
+      setSelectedCategoryId(backendCategories[0].id);
+      setServiceId(backendCategories[0].id);
+    }
+  }, [isMobile, backendCategories, selectedCategoryId]);
 
   const userProfile = useMemo(() => {
     if (clerkUser !== null && clerkUser !== undefined) {
@@ -603,7 +611,11 @@ export function useServices() {
     const category = backendCategories.find((c: any) => c.id === catId || c.code?.toLowerCase() === catId?.toLowerCase());
     if (!category) return null;
 
-    const servicesList = backendServices ? backendServices.map((bs: any) => {
+    const rawServices = (backendServices && backendServices.length > 0)
+      ? backendServices
+      : (allBackendServices ? allBackendServices.filter((s: any) => s.serviceCategoryId === category.id) : []);
+
+    const servicesList = rawServices.map((bs: any) => {
       const backendInfo = (backendServiceInfos || []).find(
         (x: any) => x.serviceId === bs.id ||
                     x.serviceTitle?.toLowerCase() === bs.name.toLowerCase() ||
@@ -619,10 +631,10 @@ export function useServices() {
         description: backendInfo?.information || bs.description || bs.name,
         whoMayAvail: backendInfo?.whoMayAvail || undefined,
         requirements: bs.requirements?.map((r: any) => r.name) || [],
-        fee: bs.feeDescription || "Varies",
-        time: bs.estimatedDuration || "3-5 Working Days"
+        fee: bs.feeDescription || undefined,
+        time: bs.estimatedDuration || undefined
       };
-    }) : [];
+    });
 
     const code = category.code?.toUpperCase();
     const icon = code === "EXAM" ? "award"
@@ -639,7 +651,7 @@ export function useServices() {
       description: category.description || `NTC ${category.name} services.`,
       services: servicesList
     };
-  }, [selectedCategoryId, backendCategories, backendServices, backendServiceInfos]);
+  }, [selectedCategoryId, selectedService, backendCategories, backendServices, allBackendServices, backendServiceInfos]);
 
   const searchResults = useMemo(() => {
     if (searchQuery.trim() === "" || !allBackendServices) return null;
@@ -669,8 +681,8 @@ export function useServices() {
             description: backendInfo?.information || bs.description || bs.name,
             whoMayAvail: backendInfo?.whoMayAvail || undefined,
             requirements: bs.requirements?.map((r: any) => r.name) || [],
-            fee: bs.feeDescription || "Varies",
-            time: bs.estimatedDuration || "3-5 Working Days"
+            fee: bs.feeDescription || undefined,
+            time: bs.estimatedDuration || undefined
           }
         });
       }
