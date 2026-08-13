@@ -106,7 +106,7 @@ public class GetApplicationFormWithSubmissionQueryHandler : IRequestHandler<GetA
         var valueMap = submission?.FieldValues
             .GroupBy(fv => fv.FieldId)
             .ToDictionary(g => g.Key, g => g.First().Value)
-            ?? new Dictionary<Guid, string?>();
+            ?? new Dictionary<Guid, string>();
 
         var requiredSectionKeys = service != null && !string.IsNullOrWhiteSpace(service.Contract)
             ? _contractValidator.GetRequiredSectionKeys(service.Contract)
