@@ -20,6 +20,11 @@ public class Applicant : AuditableEntity
     public ApplicantStatus Status { get; set; } = ApplicantStatus.Incomplete;
     public string? EvaluationRemarks { get; set; }
 
-    public ICollection<ApplicationService> ApplicationServices { get; set; } = new List<ApplicationService>();
+    public Guid? ServiceId { get; set; }
+    public Service? Service { get; set; }
+    public Guid? ServiceVariantId { get; set; }
+    public ServiceVariant? ServiceVariant { get; set; }
+
+    public FormSubmission? FormSubmission { get; set; }
 }
 

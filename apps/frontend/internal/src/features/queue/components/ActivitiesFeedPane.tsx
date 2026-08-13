@@ -16,6 +16,7 @@ import {
   RADIUS,
   TYPOGRAPHY,
   Icon as Lucide,
+  SkeletonLoader,
   useTheme,
 } from "@edge/ui";
 import {
@@ -24,7 +25,8 @@ import {
   ApplicationCategory,
 } from "../../../types/application";
 import { ActivityCard } from "./ActivityCard";
-import { useApplications } from "../context/ApplicationContext";
+import { useAdminApplications, applicationService } from "@edge/api";
+import { mapApplicationDtoToUI } from "../data/applicationMapper";
 import {
   usePermissions,
   QueueTab,
@@ -108,20 +110,52 @@ function buildDateGroups(
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export function ActivitiesFeedPane() {
-  const {
-    applications,
-    selectedId,
-    setSelectedId,
-    activeQueueTab,
-    setActiveQueueTab,
-    togglePinApplication,
-    toggleArchiveApplication,
-    evaluateApplication,
-    resetStore,
-  } = useApplications();
+export interface ActivitiesFeedPaneProps {
+  selectedId?: string | null;
+  onSelectId?: (id: string | null) => void;
+  activeQueueTab?: QueueTab;
+  onSelectQueueTab?: (tab: QueueTab) => void;
+}
+
+export function ActivitiesFeedPane({
+  selectedId,
+  onSelectId: setSelectedId,
+  activeQueueTab = "activity",
+  onSelectQueueTab: setActiveQueueTab,
+}: ActivitiesFeedPaneProps) {
   const { visibleTabs } = usePermissions();
   const { colors, isDark } = useTheme();
+
+  const { applications: rawDtos, isLoading, refetch } = useAdminApplications({
+    queueTab: activeQueueTab,
+    scope: "queue",
+  });
+
+  const applications = useMemo(() => {
+    return rawDtos.map(mapApplicationDtoToUI);
+  }, [rawDtos]);
+
+  const togglePinApplication = useCallback(async (id: string) => {
+    const app = applications.find((a) => a.id === id);
+    await applicationService.togglePin(id, !app?.isPinned);
+    refetch();
+  }, [applications, refetch]);
+
+  const toggleArchiveApplication = useCallback(async (id: string) => {
+    const app = applications.find((a) => a.id === id);
+    await applicationService.toggleArchive(id, !app?.isArchived);
+    if (selectedId === id) setSelectedId?.(null);
+    refetch();
+  }, [applications, selectedId, setSelectedId, refetch]);
+
+  const evaluateApplication = useCallback(async (id: string) => {
+    await applicationService.updateStatus(id, { status: "Evaluating" });
+    refetch();
+  }, [refetch]);
+
+  const resetStore = useCallback(() => {
+    refetch();
+  }, [refetch]);
 
   const [searchQuery,       setSearchQuery]       = useState("");
   const [sortOrder,         setSortOrder]         = useState<SortOrder>("newest");
@@ -394,7 +428,7 @@ export function ActivitiesFeedPane() {
             <Pressable
               key={tab.key}
               style={styles.tabItem}
-              onPress={() => setActiveQueueTab(tab.key)}
+              onPress={() => setActiveQueueTab?.(tab.key)}
             >
               <Text style={[styles.tabText, { color: isActive ? brandColor : textMuted }, isActive && { fontWeight: TYPOGRAPHY.weights.semibold }]}>
                 {tab.label}
@@ -407,7 +441,30 @@ export function ActivitiesFeedPane() {
 
       {/* ── Feed List ── */}
       <ScrollView style={styles.feedScroll} showsVerticalScrollIndicator={false}>
-        {filteredGroups.length === 0 ? (
+        {isLoading ? (
+          <View style={{ padding: SPACING[12], gap: SPACING[12] }}>
+            {[1, 2, 3, 4, 5].map((idx) => (
+              <View
+                key={idx}
+                style={{
+                  padding: SPACING[16],
+                  borderRadius: RADIUS.card,
+                  borderWidth: 1,
+                  borderColor: borderSoft,
+                  backgroundColor: surface,
+                  gap: SPACING[10],
+                }}
+              >
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <SkeletonLoader width={130} height={14} borderRadius={4} />
+                  <SkeletonLoader width={75} height={20} borderRadius={10} />
+                </View>
+                <SkeletonLoader width={180} height={18} borderRadius={4} />
+                <SkeletonLoader width={140} height={13} borderRadius={4} />
+              </View>
+            ))}
+          </View>
+        ) : filteredGroups.length === 0 ? (
           <View style={styles.emptyState}>
             <Lucide name="inbox" size={28} color={textMuted} />
             <Text style={[styles.emptyTitle, { color: textMuted }]}>No applications</Text>
@@ -437,7 +494,7 @@ export function ActivitiesFeedPane() {
                       key={app.id}
                       application={app}
                       isActive={selectedId === app.id}
-                      onPress={() => setSelectedId(app.id)}
+                      onPress={() => setSelectedId?.(app.id)}
                       onMenuAction={(action, id) => {
                         if (action === "evaluate") {
                           void evaluateApplication(id);

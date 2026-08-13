@@ -1141,6 +1141,8 @@ namespace EDGE.Infrastructure.Migrations
                     CompanyDetailId = table.Column<Guid>(type: "uuid", nullable: true),
                     Status = table.Column<string>(type: "text", nullable: false),
                     EvaluationRemarks = table.Column<string>(type: "text", nullable: true),
+                    ServiceId = table.Column<Guid>(type: "uuid", nullable: true),
+                    ServiceVariantId = table.Column<Guid>(type: "uuid", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     CreatedBy = table.Column<string>(type: "text", nullable: true),
                     LastModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
@@ -1165,6 +1167,20 @@ namespace EDGE.Infrastructure.Migrations
                         principalTable: "CompanyDetails",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_Applicants_ServiceVariants_ServiceVariantId",
+                        column: x => x.ServiceVariantId,
+                        principalSchema: "public",
+                        principalTable: "ServiceVariants",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_Applicants_Services_ServiceId",
+                        column: x => x.ServiceId,
+                        principalSchema: "public",
+                        principalTable: "Services",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_Applicants_Tenants_TenantId",
                         column: x => x.TenantId,
@@ -1299,45 +1315,68 @@ namespace EDGE.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "ApplicationServices",
+                name: "ApplicationRequirements",
                 schema: "public",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     ApplicationId = table.Column<Guid>(type: "uuid", nullable: false),
-                    ApplicantId = table.Column<Guid>(type: "uuid", nullable: true),
-                    ServiceId = table.Column<Guid>(type: "uuid", nullable: true),
-                    ServiceVariantId = table.Column<Guid>(type: "uuid", nullable: true)
+                    ApplicantId = table.Column<Guid>(type: "uuid", nullable: false),
+                    RequirementId = table.Column<Guid>(type: "uuid", nullable: false),
+                    ServiceVariantRequirementId = table.Column<Guid>(type: "uuid", nullable: true),
+                    StoredFileId = table.Column<Guid>(type: "uuid", nullable: true),
+                    TenantId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Url = table.Column<string>(type: "text", nullable: false),
+                    IsApproved = table.Column<bool>(type: "boolean", nullable: false),
+                    ApprovedBy = table.Column<string>(type: "text", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    CreatedBy = table.Column<string>(type: "text", nullable: true),
+                    LastModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    LastModifiedBy = table.Column<string>(type: "text", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "boolean", nullable: false),
+                    IsDeletedBy = table.Column<string>(type: "text", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_ApplicationServices", x => x.Id);
+                    table.PrimaryKey("PK_ApplicationRequirements", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_ApplicationServices_Applicants_ApplicantId",
+                        name: "FK_ApplicationRequirements_Applicants_ApplicantId",
                         column: x => x.ApplicantId,
                         principalSchema: "public",
                         principalTable: "Applicants",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.SetNull);
+                        onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_ApplicationServices_Applications_ApplicationId",
+                        name: "FK_ApplicationRequirements_Applications_ApplicationId",
                         column: x => x.ApplicationId,
                         principalSchema: "public",
                         principalTable: "Applications",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_ApplicationServices_ServiceVariants_ServiceVariantId",
-                        column: x => x.ServiceVariantId,
+                        name: "FK_ApplicationRequirements_Requirements_RequirementId",
+                        column: x => x.RequirementId,
                         principalSchema: "public",
-                        principalTable: "ServiceVariants",
+                        principalTable: "Requirements",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
+                        onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_ApplicationServices_Services_ServiceId",
-                        column: x => x.ServiceId,
+                        name: "FK_ApplicationRequirements_ServiceVariantRequirements_ServiceV~",
+                        column: x => x.ServiceVariantRequirementId,
                         principalSchema: "public",
-                        principalTable: "Services",
+                        principalTable: "ServiceVariantRequirements",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_ApplicationRequirements_StoredFiles_StoredFileId",
+                        column: x => x.StoredFileId,
+                        principalSchema: "public",
+                        principalTable: "StoredFiles",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_ApplicationRequirements_Tenants_TenantId",
+                        column: x => x.TenantId,
+                        principalSchema: "public",
+                        principalTable: "Tenants",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                 });
@@ -1400,6 +1439,48 @@ namespace EDGE.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "FormSubmissions",
+                schema: "public",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    ApplicationId = table.Column<Guid>(type: "uuid", nullable: false),
+                    FormId = table.Column<Guid>(type: "uuid", nullable: false),
+                    ApplicantId = table.Column<Guid>(type: "uuid", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    CreatedBy = table.Column<string>(type: "text", nullable: true),
+                    LastModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    LastModifiedBy = table.Column<string>(type: "text", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "boolean", nullable: false),
+                    IsDeletedBy = table.Column<string>(type: "text", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_FormSubmissions", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_FormSubmissions_Applicants_ApplicantId",
+                        column: x => x.ApplicantId,
+                        principalSchema: "public",
+                        principalTable: "Applicants",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_FormSubmissions_Applications_ApplicationId",
+                        column: x => x.ApplicationId,
+                        principalSchema: "public",
+                        principalTable: "Applications",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_FormSubmissions_Forms_FormId",
+                        column: x => x.FormId,
+                        principalSchema: "public",
+                        principalTable: "Forms",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "StatementsOfAccount",
                 schema: "public",
                 columns: table => new
@@ -1444,128 +1525,33 @@ namespace EDGE.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "ApplicationRequirements",
+                name: "FormFieldValues",
                 schema: "public",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    ApplicationId = table.Column<Guid>(type: "uuid", nullable: false),
-                    ApplicantId = table.Column<Guid>(type: "uuid", nullable: false),
-                    ApplicationServiceId = table.Column<Guid>(type: "uuid", nullable: true),
-                    RequirementId = table.Column<Guid>(type: "uuid", nullable: false),
-                    ServiceVariantRequirementId = table.Column<Guid>(type: "uuid", nullable: true),
-                    StoredFileId = table.Column<Guid>(type: "uuid", nullable: true),
-                    TenantId = table.Column<Guid>(type: "uuid", nullable: false),
-                    Url = table.Column<string>(type: "text", nullable: false),
-                    IsApproved = table.Column<bool>(type: "boolean", nullable: false),
-                    ApprovedBy = table.Column<string>(type: "text", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    CreatedBy = table.Column<string>(type: "text", nullable: true),
-                    LastModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    LastModifiedBy = table.Column<string>(type: "text", nullable: true),
-                    IsDeleted = table.Column<bool>(type: "boolean", nullable: false),
-                    IsDeletedBy = table.Column<string>(type: "text", nullable: false)
+                    FormSubmissionId = table.Column<Guid>(type: "uuid", nullable: false),
+                    FieldId = table.Column<Guid>(type: "uuid", nullable: false),
+                    CustomLabel = table.Column<string>(type: "text", nullable: true),
+                    Value = table.Column<string>(type: "text", nullable: false),
+                    Id = table.Column<Guid>(type: "uuid", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_ApplicationRequirements", x => x.Id);
+                    table.PrimaryKey("PK_FormFieldValues", x => new { x.FormSubmissionId, x.FieldId });
                     table.ForeignKey(
-                        name: "FK_ApplicationRequirements_Applicants_ApplicantId",
-                        column: x => x.ApplicantId,
+                        name: "FK_FormFieldValues_Fields_FieldId",
+                        column: x => x.FieldId,
                         principalSchema: "public",
-                        principalTable: "Applicants",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_ApplicationRequirements_ApplicationServices_ApplicationServ~",
-                        column: x => x.ApplicationServiceId,
-                        principalSchema: "public",
-                        principalTable: "ApplicationServices",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_ApplicationRequirements_Applications_ApplicationId",
-                        column: x => x.ApplicationId,
-                        principalSchema: "public",
-                        principalTable: "Applications",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_ApplicationRequirements_Requirements_RequirementId",
-                        column: x => x.RequirementId,
-                        principalSchema: "public",
-                        principalTable: "Requirements",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_ApplicationRequirements_ServiceVariantRequirements_ServiceV~",
-                        column: x => x.ServiceVariantRequirementId,
-                        principalSchema: "public",
-                        principalTable: "ServiceVariantRequirements",
-                        principalColumn: "Id");
-                    table.ForeignKey(
-                        name: "FK_ApplicationRequirements_StoredFiles_StoredFileId",
-                        column: x => x.StoredFileId,
-                        principalSchema: "public",
-                        principalTable: "StoredFiles",
-                        principalColumn: "Id");
-                    table.ForeignKey(
-                        name: "FK_ApplicationRequirements_Tenants_TenantId",
-                        column: x => x.TenantId,
-                        principalSchema: "public",
-                        principalTable: "Tenants",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "FormSubmissions",
-                schema: "public",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    ApplicationId = table.Column<Guid>(type: "uuid", nullable: false),
-                    FormId = table.Column<Guid>(type: "uuid", nullable: false),
-                    ApplicantId = table.Column<Guid>(type: "uuid", nullable: false),
-                    ApplicationServiceId = table.Column<Guid>(type: "uuid", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    CreatedBy = table.Column<string>(type: "text", nullable: true),
-                    LastModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    LastModifiedBy = table.Column<string>(type: "text", nullable: true),
-                    IsDeleted = table.Column<bool>(type: "boolean", nullable: false),
-                    IsDeletedBy = table.Column<string>(type: "text", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_FormSubmissions", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_FormSubmissions_Applicants_ApplicantId",
-                        column: x => x.ApplicantId,
-                        principalSchema: "public",
-                        principalTable: "Applicants",
+                        principalTable: "Fields",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_FormSubmissions_ApplicationServices_ApplicationServiceId",
-                        column: x => x.ApplicationServiceId,
+                        name: "FK_FormFieldValues_FormSubmissions_FormSubmissionId",
+                        column: x => x.FormSubmissionId,
                         principalSchema: "public",
-                        principalTable: "ApplicationServices",
+                        principalTable: "FormSubmissions",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_FormSubmissions_Applications_ApplicationId",
-                        column: x => x.ApplicationId,
-                        principalSchema: "public",
-                        principalTable: "Applications",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_FormSubmissions_Forms_FormId",
-                        column: x => x.FormId,
-                        principalSchema: "public",
-                        principalTable: "Forms",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -1668,36 +1654,6 @@ namespace EDGE.Infrastructure.Migrations
                         column: x => x.StatementOfAccountId,
                         principalSchema: "public",
                         principalTable: "StatementsOfAccount",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "FormFieldValues",
-                schema: "public",
-                columns: table => new
-                {
-                    FormSubmissionId = table.Column<Guid>(type: "uuid", nullable: false),
-                    FieldId = table.Column<Guid>(type: "uuid", nullable: false),
-                    CustomLabel = table.Column<string>(type: "text", nullable: true),
-                    Value = table.Column<string>(type: "text", nullable: false),
-                    Id = table.Column<Guid>(type: "uuid", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_FormFieldValues", x => new { x.FormSubmissionId, x.FieldId });
-                    table.ForeignKey(
-                        name: "FK_FormFieldValues_Fields_FieldId",
-                        column: x => x.FieldId,
-                        principalSchema: "public",
-                        principalTable: "Fields",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_FormFieldValues_FormSubmissions_FormSubmissionId",
-                        column: x => x.FormSubmissionId,
-                        principalSchema: "public",
-                        principalTable: "FormSubmissions",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
@@ -1864,6 +1820,18 @@ namespace EDGE.Infrastructure.Migrations
                 column: "CompanyDetailId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Applicants_ServiceId",
+                schema: "public",
+                table: "Applicants",
+                column: "ServiceId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Applicants_ServiceVariantId",
+                schema: "public",
+                table: "Applicants",
+                column: "ServiceVariantId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Applicants_TenantId",
                 schema: "public",
                 table: "Applicants",
@@ -1898,12 +1866,6 @@ namespace EDGE.Infrastructure.Migrations
                 schema: "public",
                 table: "ApplicationRequirements",
                 column: "ApplicationId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_ApplicationRequirements_ApplicationServiceId",
-                schema: "public",
-                table: "ApplicationRequirements",
-                column: "ApplicationServiceId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_ApplicationRequirements_RequirementId",
@@ -1952,30 +1914,6 @@ namespace EDGE.Infrastructure.Migrations
                 schema: "public",
                 table: "Applications",
                 column: "UserId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_ApplicationServices_ApplicantId",
-                schema: "public",
-                table: "ApplicationServices",
-                column: "ApplicantId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_ApplicationServices_ApplicationId",
-                schema: "public",
-                table: "ApplicationServices",
-                column: "ApplicationId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_ApplicationServices_ServiceId",
-                schema: "public",
-                table: "ApplicationServices",
-                column: "ServiceId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_ApplicationServices_ServiceVariantId",
-                schema: "public",
-                table: "ApplicationServices",
-                column: "ServiceVariantId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_ApplicationStatusHistories_ApplicationId",
@@ -2082,19 +2020,14 @@ namespace EDGE.Infrastructure.Migrations
                 name: "IX_FormSubmissions_ApplicantId",
                 schema: "public",
                 table: "FormSubmissions",
-                column: "ApplicantId");
+                column: "ApplicantId",
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_FormSubmissions_ApplicationId",
                 schema: "public",
                 table: "FormSubmissions",
                 column: "ApplicationId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_FormSubmissions_ApplicationServiceId",
-                schema: "public",
-                table: "FormSubmissions",
-                column: "ApplicationServiceId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_FormSubmissions_FormId",
@@ -2591,19 +2524,11 @@ namespace EDGE.Infrastructure.Migrations
                 schema: "public");
 
             migrationBuilder.DropTable(
-                name: "ApplicationServices",
-                schema: "public");
-
-            migrationBuilder.DropTable(
                 name: "StatementsOfAccount",
                 schema: "public");
 
             migrationBuilder.DropTable(
                 name: "Forms",
-                schema: "public");
-
-            migrationBuilder.DropTable(
-                name: "ServiceVariants",
                 schema: "public");
 
             migrationBuilder.DropTable(
@@ -2616,6 +2541,10 @@ namespace EDGE.Infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "ApplicantDetails",
+                schema: "public");
+
+            migrationBuilder.DropTable(
+                name: "ServiceVariants",
                 schema: "public");
 
             migrationBuilder.DropTable(

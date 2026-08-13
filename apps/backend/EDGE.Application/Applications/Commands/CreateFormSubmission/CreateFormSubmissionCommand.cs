@@ -9,7 +9,6 @@ public record CreateFormSubmissionCommand : IRequest<ApiResponse<Guid>>
 {
     public Guid ApplicationId { get; init; }
     public Guid? ApplicantId { get; init; }
-    public Guid? ApplicationServiceId { get; init; }
     public Guid FormId { get; init; }
     public List<FormFieldValueInputDto> FieldValues { get; init; } = new();
 }

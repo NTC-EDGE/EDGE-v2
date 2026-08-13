@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { Toaster } from "sonner";
 import { SidebarNav } from "@/components/SidebarNav";
 import { BackendStatusIndicator } from "@/components/BackendStatusIndicator";
 import { ForbiddenAccessToast } from "@/components/ForbiddenAccessToast";
@@ -12,7 +13,12 @@ export function AdminAppLayout({ children }: { children: React.ReactNode }) {
   const isAuthPage = pathname.startsWith("/sign-in") || pathname.startsWith("/sign-up");
 
   if (isAuthPage) {
-    return <main className="h-full w-full overflow-y-auto bg-background">{children}</main>;
+    return (
+      <main className="h-full w-full overflow-y-auto bg-background">
+        <Toaster position="top-right" richColors />
+        {children}
+      </main>
+    );
   }
 
   return (
@@ -20,7 +26,8 @@ export function AdminAppLayout({ children }: { children: React.ReactNode }) {
       {/* Sidebar Navigation */}
       <SidebarNav />
 
-      {/* Global 403 Forbidden Toast */}
+      {/* Global Toaster & 403 Listener */}
+      <Toaster position="top-right" richColors />
       <ForbiddenAccessToast />
 
       {/* Main Area */}

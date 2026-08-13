@@ -299,18 +299,11 @@ public class SubmitApplicationCommandHandler
                     ? dto.ServiceVariantId.Value
                     : resolvedVariantId;
 
-                // Create ApplicationService tied to this Applicant
-                var appService = new ApplicationService
-                {
-                    ApplicationId = application.Id,
-                    ApplicantId = applicant.Id,
-                    ServiceId = applicantServiceId,
-                    ServiceVariantId = applicantVariantId
-                };
-                await _applicationRepository.AddApplicationServiceAsync(appService, cancellationToken);
+                applicant.ServiceId = applicantServiceId;
+                applicant.ServiceVariantId = applicantVariantId;
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-                // Create FormSubmission + FormFieldValue rows tied to ApplicationServiceId
+                // Create FormSubmission + FormFieldValue rows tied to Applicant
                 var applicantForm = applicantServiceId == service.Id
                     ? form
                     : await _formRepository.GetFormByServiceIdAsync(applicantServiceId, cancellationToken);
@@ -322,8 +315,7 @@ public class SubmitApplicationCommandHandler
                         Id = Guid.NewGuid(),
                         ApplicationId = application.Id,
                         FormId = applicantForm.Id,
-                        ApplicantId = applicant.Id,
-                        ApplicationServiceId = appService.Id
+                        ApplicantId = applicant.Id
                     };
                     await _applicationRepository.AddFormSubmissionAsync(
                         formSubmission, cancellationToken);

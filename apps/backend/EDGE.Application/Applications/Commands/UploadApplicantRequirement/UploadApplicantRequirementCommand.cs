@@ -14,7 +14,6 @@ public record UploadApplicantRequirementCommand : IRequest<ApiResponse<Guid>>
     public Guid ApplicantId { get; init; }
 
     // Public request body
-    public Guid? ApplicationServiceId { get; init; }
     public Guid? RequirementId { get; init; }
     public Guid? ServiceVariantRequirementId { get; init; }
     public required Guid StoredFileId { get; init; }

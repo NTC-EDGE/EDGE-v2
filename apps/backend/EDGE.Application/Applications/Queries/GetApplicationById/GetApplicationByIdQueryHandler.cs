@@ -61,18 +61,17 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                     EntityType = app.User.CompanyDetail.EntityType?.ToString()
                 } : null
             } : null,
-            Services = app.ApplicationServices.Select(s => new ApplicationServiceDto
+            FormSubmissions = app.FormSubmissions.Select(fs => new FormSubmissionSummaryDto
             {
-                Id = s.Id,
-                ApplicantId = s.ApplicantId,
-                ServiceId = s.ServiceId,
-                ServiceVariantId = s.ServiceVariantId
+                Id = fs.Id,
+                FormId = fs.FormId,
+                ApplicantId = fs.ApplicantId,
+                CreatedAt = fs.CreatedAt
             }).ToList(),
             Requirements = app.ApplicationRequirements.Select(r => new ApplicationRequirementDto
             {
                 Id = r.Id,
                 ApplicantId = r.ApplicantId,
-                ApplicationServiceId = r.ApplicationServiceId,
                 RequirementId = r.RequirementId,
                 ServiceVariantRequirementId = r.ServiceVariantRequirementId,
                 Url = r.Url,
@@ -87,7 +86,12 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                     TenantId = a?.TenantId ?? Guid.Empty,
                     UserId = a?.UserId,
                     IsGuest = a?.IsGuest ?? true,
-                    ApplicantType = a?.ApplicantType.ToString() ?? "Individual"
+                    ApplicantType = a?.ApplicantType.ToString() ?? "Individual",
+                    Status = a?.Status.ToString() ?? "Incomplete",
+                    EvaluationRemarks = a?.EvaluationRemarks,
+                    ServiceId = a?.ServiceId,
+                    ServiceVariantId = a?.ServiceVariantId,
+                    SubmissionId = a?.FormSubmission != null ? a.FormSubmission.Id : app.FormSubmissions.FirstOrDefault(fs => fs.ApplicantId == a?.Id)?.Id
                 };
 
                 if (a?.ApplicantDetail != null)

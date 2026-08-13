@@ -77,6 +77,9 @@ export interface ApplicantItem {
   applicantType: ApplicantType;
   status?: 'Complete' | 'Incomplete' | 'ForEndorsement';
   evaluationRemarks?: string;
+  serviceId?: string;
+  serviceVariantId?: string;
+  submissionId?: string;
   contactNumber: string;
   email: string;
   address: string;
@@ -108,6 +111,22 @@ export interface ApplicantItem {
   requirements?: RequirementDocument[];
 }
 
+export interface FormSubmissionSummaryItem {
+  id: string;
+  formId: string;
+  applicantId: string;
+  applicationServiceId?: string;
+  createdAt?: string;
+}
+
+export interface ApplicationServiceItem {
+  id: string;
+  applicantId?: string;
+  serviceId?: string;
+  serviceVariantId?: string;
+  submissionId?: string;
+}
+
 export interface ApplicationData {
   id: string;
   referenceNumber: string;
@@ -123,6 +142,7 @@ export interface ApplicationData {
   assignedTo: string;
   applicationType: 'SINGLE' | 'BULK';
   applicantsList?: ApplicantItem[];
+  services?: ApplicationServiceItem[];
   isBeingViewed: boolean;
   isUrgent: boolean;
   isPinned: boolean;

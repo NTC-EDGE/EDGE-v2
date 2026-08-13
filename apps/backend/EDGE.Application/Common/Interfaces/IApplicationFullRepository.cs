@@ -23,7 +23,6 @@ public interface IApplicationFullRepository
     Task UpdateAsync(Domain.Entities.Application application, CancellationToken cancellationToken = default);
     Task DeleteAsync(Domain.Entities.Application application, CancellationToken cancellationToken = default);
 
-    Task AddApplicationServiceAsync(ApplicationService appService, CancellationToken cancellationToken = default);
     Task AddApplicationApplicantAsync(ApplicationApplicant appApplicant, CancellationToken cancellationToken = default);
     Task AddApplicationRequirementAsync(ApplicationRequirement appRequirement, CancellationToken cancellationToken = default);
     Task<List<ApplicationRequirement>> GetApplicantRequirementsAsync(Guid applicationId, Guid applicantId, CancellationToken cancellationToken = default);

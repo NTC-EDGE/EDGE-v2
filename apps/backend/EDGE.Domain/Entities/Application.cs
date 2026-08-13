@@ -26,7 +26,6 @@ public class Application : AuditableEntity
     public bool IsPinned { get; set; } = false;
     public bool IsArchived { get; set; } = false;
 
-    public ICollection<ApplicationService> ApplicationServices { get; set; } = new List<ApplicationService>();
     public ICollection<ApplicationApplicant> ApplicationApplicants { get; set; } = new List<ApplicationApplicant>();
     public ICollection<ApplicationRequirement> ApplicationRequirements { get; set; } = new List<ApplicationRequirement>();
     public ICollection<FormSubmission> FormSubmissions { get; set; } = new List<FormSubmission>();

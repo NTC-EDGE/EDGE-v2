@@ -77,27 +77,20 @@ public class AddApplicantToApplicationCommandHandler : IRequestHandler<AddApplic
         };
         await _applicationRepository.AddApplicationApplicantAsync(appApplicant, cancellationToken);
 
-        // 4. Create ApplicationService for newly added applicant
-        var defaultAppService = app.ApplicationServices.FirstOrDefault();
+        // 4. Assign ServiceId and ServiceVariantId to newly added applicant
+        var defaultApplicant = app.ApplicationApplicants.Select(aa => aa.Applicant).FirstOrDefault(a => a != null);
         Guid targetServiceId = request.ServiceId.HasValue && request.ServiceId.Value != Guid.Empty
             ? request.ServiceId.Value
-            : (defaultAppService?.ServiceId ?? Guid.Empty);
+            : (defaultApplicant?.ServiceId ?? Guid.Empty);
 
         Guid? targetVariantId = request.ServiceVariantId.HasValue && request.ServiceVariantId.Value != Guid.Empty
             ? request.ServiceVariantId.Value
-            : defaultAppService?.ServiceVariantId;
+            : defaultApplicant?.ServiceVariantId;
 
-        ApplicationService? newAppService = null;
         if (targetServiceId != Guid.Empty)
         {
-            newAppService = new ApplicationService
-            {
-                ApplicationId = app.Id,
-                ApplicantId = applicant.Id,
-                ServiceId = targetServiceId,
-                ServiceVariantId = targetVariantId
-            };
-            await _applicationRepository.AddApplicationServiceAsync(newAppService, cancellationToken);
+            applicant.ServiceId = targetServiceId;
+            applicant.ServiceVariantId = targetVariantId;
             await _unitOfWork.SaveChangesAsync(cancellationToken);
         }
 
@@ -112,7 +105,6 @@ public class AddApplicantToApplicationCommandHandler : IRequestHandler<AddApplic
                     Id = Guid.NewGuid(),
                     ApplicationId = app.Id,
                     ApplicantId = applicant.Id,
-                    ApplicationServiceId = newAppService?.Id,
                     FormId = form.Id
                 };
                 await _applicationRepository.AddFormSubmissionAsync(submission, cancellationToken);

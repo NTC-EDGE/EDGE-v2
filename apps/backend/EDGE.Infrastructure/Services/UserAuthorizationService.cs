@@ -175,7 +175,7 @@ public class UserAuthorizationService : IUserAuthorizationService
         try
         {
             var tenantId = _tenantContextService.TenantId;
-            List<string> dbPermissions;
+            List<string> dbPermissions = new();
             if (tenantId.HasValue)
             {
                 var query = from tm in _dbContext.Set<TenantMember>()
@@ -184,9 +184,10 @@ public class UserAuthorizationService : IUserAuthorizationService
                             select rp.PermissionKey;
                 dbPermissions = await query.Distinct().ToListAsync(cancellationToken);
             }
-            else
+
+            if (dbPermissions.Count == 0)
             {
-                // Fallback: if no active tenant in request, load permissions across active memberships
+                // Fallback: if no active tenant in request or specified tenant has no matches, load permissions across all active memberships
                 var query = from tm in _dbContext.Set<TenantMember>()
                             join rp in _dbContext.Set<RolePermission>() on tm.RoleId equals rp.RoleId
                             where tm.UserId == user.Id
@@ -204,6 +205,7 @@ public class UserAuthorizationService : IUserAuthorizationService
                     Permissions.ReadServices,
                     Permissions.SubmitApplication,
                     Permissions.ViewOwnApplications,
+                    Permissions.ReadApplication,
                     Permissions.UploadStorage,
                     Permissions.ReadStorage,
                     Permissions.DownloadStorage
