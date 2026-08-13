@@ -72,7 +72,7 @@ public class AdminUpdateFormValuesCommandHandler : IRequestHandler<AdminUpdateFo
                 return ApiResponse<Guid>.Fail($"No matching form submission found.");
             }
 
-            if (submission != null && request.FormFields != null)
+            if (request.FormFields != null)
             {
                 foreach (var fieldDto in request.FormFields)
                 {
