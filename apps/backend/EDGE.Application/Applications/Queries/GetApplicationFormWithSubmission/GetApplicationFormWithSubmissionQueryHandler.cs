@@ -7,12 +7,12 @@ using MediatR;
 using EDGE.Domain.Entities;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.Common.Models;
-using EDGE.Application.Forms.Dtos;
+using EDGE.Application.Applications.Dtos;
 using EDGE.Application.Forms.Services;
 
 namespace EDGE.Application.Applications.Queries.GetApplicationFormWithSubmission;
 
-public class GetApplicationFormWithSubmissionQueryHandler : IRequestHandler<GetApplicationFormWithSubmissionQuery, ApiResponse<FormDto>>
+public class GetApplicationFormWithSubmissionQueryHandler : IRequestHandler<GetApplicationFormWithSubmissionQuery, ApiResponse<ApplicationFormSubmissionDto>>
 {
     private readonly IApplicationFullRepository _applicationRepository;
     private readonly IFormRepository _formRepository;
@@ -31,23 +31,23 @@ public class GetApplicationFormWithSubmissionQueryHandler : IRequestHandler<GetA
         _contractValidator = contractValidator;
     }
 
-    public async Task<ApiResponse<FormDto>> Handle(GetApplicationFormWithSubmissionQuery request, CancellationToken cancellationToken)
+    public async Task<ApiResponse<ApplicationFormSubmissionDto>> Handle(GetApplicationFormWithSubmissionQuery request, CancellationToken cancellationToken)
     {
         var app = await _applicationRepository.GetByIdWithDetailsAsync(request.ApplicationId, cancellationToken);
         if (app == null)
         {
-            return ApiResponse<FormDto>.Fail($"Application with ID {request.ApplicationId} was not found.");
+            return ApiResponse<ApplicationFormSubmissionDto>.Fail($"Application with ID {request.ApplicationId} was not found.");
         }
 
         var appService = app.ApplicationServices.FirstOrDefault();
         if (appService == null)
         {
-            return ApiResponse<FormDto>.Fail($"Application {request.ApplicationId} has no associated service catalog item.");
+            return ApiResponse<ApplicationFormSubmissionDto>.Fail($"Application {request.ApplicationId} has no associated service catalog item.");
         }
 
         if (!appService.ServiceId.HasValue)
         {
-            return ApiResponse<FormDto>.Fail($"Application {request.ApplicationId} has no associated service catalog item.");
+            return ApiResponse<ApplicationFormSubmissionDto>.Fail($"Application {request.ApplicationId} has no associated service catalog item.");
         }
 
         var serviceId = appService.ServiceId.Value;
@@ -56,7 +56,7 @@ public class GetApplicationFormWithSubmissionQueryHandler : IRequestHandler<GetA
 
         if (form == null)
         {
-            return ApiResponse<FormDto>.Fail($"Form layout for Service ID {serviceId} was not found.");
+            return ApiResponse<ApplicationFormSubmissionDto>.Fail($"Form layout for Service ID {serviceId} was not found.");
         }
 
         FormSubmission? submission = null;
@@ -75,7 +75,7 @@ public class GetApplicationFormWithSubmissionQueryHandler : IRequestHandler<GetA
             ? _contractValidator.GetRequiredSectionKeys(service.Contract)
             : new HashSet<string>();
 
-        var dto = new FormDto
+        var dto = new ApplicationFormSubmissionDto
         {
             FormId = form.Id,
             ServiceId = form.ServiceId,
@@ -84,7 +84,7 @@ public class GetApplicationFormWithSubmissionQueryHandler : IRequestHandler<GetA
             Version = form.Version,
             Sections = form.Sections
                 .OrderBy(s => s.OrderIndex)
-                .Select(fs => new FormSectionDto
+                .Select(fs => new ApplicationFormSectionDto
                 {
                     Key = fs.Key,
                     Title = fs.Title,
@@ -92,7 +92,7 @@ public class GetApplicationFormWithSubmissionQueryHandler : IRequestHandler<GetA
                     OrderIndex = fs.OrderIndex,
                     Fields = fs.SectionFields
                         .OrderBy(sf => sf.OrderIndex)
-                        .Select(sf => new FormFieldDto
+                        .Select(sf => new ApplicationFormFieldValueDto
                         {
                             FieldId = sf.FieldId,
                             Label = sf.Field?.Label ?? string.Empty,
@@ -106,6 +106,6 @@ public class GetApplicationFormWithSubmissionQueryHandler : IRequestHandler<GetA
                 }).ToList()
         };
 
-        return ApiResponse<FormDto>.Success(dto);
+        return ApiResponse<ApplicationFormSubmissionDto>.Success(dto);
     }
 }

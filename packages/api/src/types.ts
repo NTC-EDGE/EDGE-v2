@@ -903,7 +903,7 @@ export interface ReturnOpRequest {
   returnTo: ReturnTargetDto;
 }
 
-// ─── Form Builder & Submitted Layout Types ──────────────────────────
+// ─── Form Builder Schema Types ──────────────────────────
 
 export interface FormFieldDto {
   fieldId: string;
@@ -913,7 +913,6 @@ export interface FormFieldDto {
   orderIndex: number;
   validationRules?: string | null;
   visibilityCondition?: string | null;
-  value?: string | null;
 }
 
 export interface FormSectionDto {
@@ -927,8 +926,36 @@ export interface FormSectionDto {
 export interface FormDto {
   formId: string;
   serviceId: string;
-  applicationId?: string | null;
-  applicantId?: string | null;
   version: string;
   sections: FormSectionDto[];
+}
+
+// ─── Application Form Submission Layout Types ──────────────────────────
+
+export interface ApplicationFormFieldValueDto {
+  fieldId: string;
+  label: string;
+  type: string;
+  isRequired: boolean;
+  orderIndex: number;
+  validationRules?: string | null;
+  visibilityCondition?: string | null;
+  value?: string | null;
+}
+
+export interface ApplicationFormSectionDto {
+  key: string;
+  title: string;
+  required: boolean;
+  orderIndex: number;
+  fields: ApplicationFormFieldValueDto[];
+}
+
+export interface ApplicationFormSubmissionDto {
+  formId: string;
+  serviceId: string;
+  applicationId: string;
+  applicantId?: string | null;
+  version: string;
+  sections: ApplicationFormSectionDto[];
 }

@@ -10,8 +10,6 @@ public class FormDto
 {
     public Guid FormId { get; set; }
     public Guid ServiceId { get; set; }
-    public Guid? ApplicationId { get; set; }
-    public Guid? ApplicantId { get; set; }
     public string Version { get; set; } = string.Empty;
     public List<FormSectionDto> Sections { get; set; } = new();
 }
