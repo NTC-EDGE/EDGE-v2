@@ -12,18 +12,15 @@ namespace EDGE.Application.Applications.Commands.AdminUpdateFormValues;
 public class AdminUpdateFormValuesCommandHandler : IRequestHandler<AdminUpdateFormValuesCommand, ApiResponse<Guid>>
 {
     private readonly IApplicationFullRepository _applicationRepository;
-    private readonly IFormRepository _formRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly IUnitOfWork _unitOfWork;
 
     public AdminUpdateFormValuesCommandHandler(
         IApplicationFullRepository applicationRepository,
-        IFormRepository formRepository,
         ICurrentUserService currentUserService,
         IUnitOfWork unitOfWork)
     {
         _applicationRepository = applicationRepository;
-        _formRepository = formRepository;
         _currentUserService = currentUserService;
         _unitOfWork = unitOfWork;
     }
@@ -41,33 +38,11 @@ public class AdminUpdateFormValuesCommandHandler : IRequestHandler<AdminUpdateFo
         await _unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
-            // Find form submission for applicant
-            var submission = app.FormSubmissions.FirstOrDefault(fs => fs.ApplicantId == request.ApplicantId);
-            if (submission == null)
-            {
-                submission = app.FormSubmissions.FirstOrDefault(fs => fs.ApplicationId == app.Id);
-            }
+            // Find form submission for applicant (or application level)
+            var submission = app.FormSubmissions.FirstOrDefault(fs => fs.ApplicantId == request.ApplicantId)
+                ?? app.FormSubmissions.FirstOrDefault(fs => fs.ApplicationId == app.Id);
 
-            if (submission == null)
-            {
-                var serviceId = app.ApplicationServices.FirstOrDefault()?.ServiceId ?? Guid.Empty;
-                var form = serviceId != Guid.Empty ? await _formRepository.GetFormByServiceIdAsync(serviceId, cancellationToken) : null;
-
-                submission = new FormSubmission
-                {
-                    Id = Guid.NewGuid(),
-                    ApplicationId = app.Id,
-                    ApplicantId = request.ApplicantId,
-                    FormId = form?.Id ?? Guid.Empty,
-                };
-                app.FormSubmissions.Add(submission);
-            }
-            else if (submission.ApplicantId != request.ApplicantId && request.ApplicantId != Guid.Empty)
-            {
-                submission.ApplicantId = request.ApplicantId;
-            }
-
-            if (request.FormFields != null)
+            if (submission != null && request.FormFields != null)
             {
                 foreach (var fieldDto in request.FormFields)
                 {
