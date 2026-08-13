@@ -29,7 +29,13 @@ import {
 } from "../../../types/application";
 import { useRole } from "../../shell/context/RoleContext";
 import { usePermissions } from "../../shell/context/PermissionContext";
-import { applicationService, useApplicationFormWithSubmission, useAdminApplicationDetails } from "@edge/api";
+import {
+  applicationService,
+  storageService,
+  ApplicantRequirementItemDto,
+  useApplicationFormWithSubmission,
+  useAdminApplicationDetails,
+} from "@edge/api";
 import { mapApplicationDtoToUI } from "../data/applicationMapper";
 import { ApproveModal } from "../components/modals/ApproveModal";
 import { DeclineModal } from "../components/modals/DeclineModal";
@@ -1064,9 +1070,25 @@ function ApplicantRecordTab({
     );
   };
 
-  const handleViewRequirement = (label: string) => {
-    Alert.alert("View Requirement Document", `Viewing submitted document: ${label}`);
-  };
+  const [applicantRequirementsState, setApplicantRequirementsState] = useState<ApplicantRequirementItemDto[]>([]);
+  const [isLoadingRequirements, setIsLoadingRequirements] = useState<boolean>(false);
+  const [uploadingReqId, setUploadingReqId] = useState<string | null>(null);
+
+  const fetchApplicantRequirements = useCallback(async () => {
+    if (app?.id === undefined || app?.id === null || activeApplicant?.id === undefined || activeApplicant?.id === null) {
+      return;
+    }
+    setIsLoadingRequirements(true);
+    const [res, err] = await applicationService.getApplicantRequirements(app.id, activeApplicant.id);
+    setIsLoadingRequirements(false);
+    if (res !== null && res.data !== undefined && res.data !== null) {
+      setApplicantRequirementsState(res.data);
+    }
+  }, [app?.id, activeApplicant?.id]);
+
+  useEffect(() => {
+    fetchApplicantRequirements();
+  }, [fetchApplicantRequirements]);
 
   const [localRemarks, setLocalRemarks] = useState(activeApplicant?.evaluationRemarks ?? '');
 
@@ -1095,6 +1117,98 @@ function ApplicantRecordTab({
       if (updateApplication) {
         updateApplication(app.id, { applicantsList: updated });
       }
+    }
+  };
+
+  const handleViewRequirement = (label: string, fileUrl?: string) => {
+    if (fileUrl !== undefined && fileUrl !== null && Platform.OS === 'web') {
+      window.open(fileUrl, '_blank');
+    } else {
+      Alert.alert("View Requirement Document", `Viewing submitted document: ${label}`);
+    }
+  };
+
+  const handleUploadOrReplaceRequirement = async (reqItem: ApplicantRequirementItemDto) => {
+    if (app?.id === undefined || app?.id === null || activeApplicant?.id === undefined || activeApplicant?.id === null) {
+      return;
+    }
+
+    if (Platform.OS === 'web') {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/jpeg,image/jpg,image/png,image/webp,image/gif,image/bmp,application/pdf';
+
+      input.onchange = async (e: Event) => {
+        const target = e.target as HTMLInputElement;
+        const files = target.files;
+        if (files === null || files.length === 0) return;
+
+        const selectedFile = files[0];
+        if (selectedFile === undefined || selectedFile === null) return;
+
+        const fileName = selectedFile.name.toLowerCase();
+        const mimeType = selectedFile.type.toLowerCase();
+
+        const isImage = mimeType.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif|bmp)$/i.test(fileName);
+        const isPdf = mimeType === 'application/pdf' || fileName.endsWith('.pdf');
+
+        if (!isImage && !isPdf) {
+          Alert.alert('Invalid File Type', 'Only image files (JPG, PNG, WEBP, GIF, BMP) and PDF documents are allowed.');
+          return;
+        }
+
+        setUploadingReqId(reqItem.requirementId);
+        try {
+          const [storageRes, storageErr] = await storageService.uploadFile(
+            selectedFile,
+            selectedFile.name,
+            'requirements',
+            app.tenantId ?? undefined
+          );
+
+          if (storageErr !== null || storageRes === null || storageRes.data === undefined || storageRes.data === null) {
+            const errText = typeof storageErr === 'object' && storageErr !== null && 'message' in storageErr
+              ? String((storageErr as { message?: unknown }).message)
+              : (storageRes?.message ?? 'Failed to upload document to storage.');
+            Alert.alert('Upload Failed', errText);
+            setUploadingReqId(null);
+            return;
+          }
+
+          const storedFileId = storageRes.data.id;
+
+          const [reqRes, reqErr] = await applicationService.uploadApplicantRequirement(
+            app.id,
+            activeApplicant.id,
+            {
+              requirementId: reqItem.requirementId,
+              serviceVariantRequirementId: reqItem.serviceVariantRequirementId ?? undefined,
+              storedFileId: storedFileId,
+            }
+          );
+
+          setUploadingReqId(null);
+
+          if (reqErr !== null || reqRes === null || !reqRes.succeeded) {
+            const errText = typeof reqErr === 'object' && reqErr !== null && 'message' in reqErr
+              ? String((reqErr as { message?: unknown }).message)
+              : (reqRes?.message ?? 'Failed to save requirement attachment.');
+            Alert.alert('Save Failed', errText);
+            return;
+          }
+
+          Alert.alert('Success', 'Requirement document attached successfully.');
+          await fetchApplicantRequirements();
+        } catch (err: unknown) {
+          setUploadingReqId(null);
+          const errorMsg = err instanceof Error ? err.message : 'An error occurred during file upload.';
+          Alert.alert('Upload Error', errorMsg);
+        }
+      };
+
+      input.click();
+    } else {
+      Alert.alert('Upload Attachment', 'File upload is currently supported on web platform.');
     }
   };
 
@@ -1472,29 +1586,113 @@ function ApplicantRecordTab({
         {/* Section 3: Requirements & Submitted Documents per Applicant */}
         <SectionHeader title="3. SUBMITTED REQUIREMENTS & DOCUMENT ATTACHMENTS" />
         <View style={styles.infoBlock}>
-          {applicantRequirements.length === 0 ? (
+          {isLoadingRequirements ? (
+            <View style={{ padding: SPACING[4] }}>
+              <SkeletonLoader height={24} style={{ marginBottom: 8 }} />
+              <SkeletonLoader height={24} style={{ marginBottom: 8 }} />
+            </View>
+          ) : applicantRequirementsState.length === 0 ? (
             <View style={styles.emptyReqs}>
               <Lucide name="folder" size={24} color={isDark ? colors.neutral[600] : colors.neutral[300]} />
-              <Text style={[styles.emptyReqsText, { color: isDark ? colors.neutral[500] : colors.neutral[400] }]}>No requirement documents submitted</Text>
+              <Text style={[styles.emptyReqsText, { color: isDark ? colors.neutral[500] : colors.neutral[400] }]}>
+                No requirement documents configured or submitted
+              </Text>
             </View>
           ) : (
-            applicantRequirements.map((req, idx) => (
-              <View key={idx} style={[styles.reqItem, { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100] }]}>
-                <Text style={[styles.reqLabel, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>{req.label}</Text>
-                {req.note !== undefined && req.note.length > 0 && (
-                  <Text style={[styles.reqNote, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>{req.note}</Text>
-                )}
-                <View style={styles.reqFileRow}>
-                  <Lucide name="file-text" size={14} color={isDark ? colors.brand[400] : colors.brand[700]} />
-                  <Text style={[styles.reqFilename, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]} numberOfLines={1}>
-                    {req.filename}
-                  </Text>
-                  <Pressable onPress={() => handleViewRequirement(req.label)}>
-                    <Text style={[styles.reqViewLink, { color: isDark ? colors.brand[400] : colors.brand[700] }]}>View Document</Text>
-                  </Pressable>
+            applicantRequirementsState.map((reqItem) => {
+              const isAttached = reqItem.submittedRequirementId !== undefined && reqItem.submittedRequirementId !== null;
+              const isUploading = uploadingReqId === reqItem.requirementId;
+
+              return (
+                <View key={reqItem.requirementId} style={[styles.reqItem, { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100] }]}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <Text style={[styles.reqLabel, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>
+                      {reqItem.requirementName}
+                    </Text>
+                    <View style={{ flexDirection: 'row', gap: 6 }}>
+                      <View style={{
+                        paddingHorizontal: 8,
+                        paddingVertical: 2,
+                        borderRadius: 4,
+                        backgroundColor: reqItem.isRequired
+                          ? (isDark ? 'rgba(239, 68, 68, 0.2)' : '#FEE2E2')
+                          : (isDark ? colors.neutral[800] : colors.neutral[100])
+                      }}>
+                        <Text style={{
+                          fontSize: 10,
+                          fontWeight: '700',
+                          color: reqItem.isRequired ? '#EF4444' : (isDark ? colors.neutral[400] : colors.neutral[600])
+                        }}>
+                          {reqItem.isRequired ? 'REQUIRED' : 'OPTIONAL'}
+                        </Text>
+                      </View>
+                      <View style={{
+                        paddingHorizontal: 8,
+                        paddingVertical: 2,
+                        borderRadius: 4,
+                        backgroundColor: isAttached
+                          ? (isDark ? 'rgba(34, 197, 94, 0.2)' : '#DCFCE7')
+                          : (isDark ? 'rgba(234, 179, 8, 0.2)' : '#FEF9C3')
+                      }}>
+                        <Text style={{
+                          fontSize: 10,
+                          fontWeight: '700',
+                          color: isAttached ? '#22C55E' : (isDark ? '#EAB308' : '#CA8A04')
+                        }}>
+                          {isAttached ? 'ATTACHED' : 'PENDING'}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  {reqItem.description !== undefined && reqItem.description !== null && reqItem.description.length > 0 && (
+                    <Text style={[styles.reqNote, { color: isDark ? colors.neutral[400] : colors.neutral[500], marginBottom: 8 }]}>
+                      {reqItem.description}
+                    </Text>
+                  )}
+
+                  <View style={styles.reqFileRow}>
+                    <Lucide
+                      name={reqItem.contentType?.includes('pdf') || reqItem.fileName?.endsWith('.pdf') ? 'file-text' : 'image'}
+                      size={14}
+                      color={isDark ? colors.brand[400] : colors.brand[700]}
+                    />
+                    <Text style={[styles.reqFilename, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]} numberOfLines={1}>
+                      {reqItem.fileName || 'No document file attached'}
+                    </Text>
+                    {isAttached && reqItem.url !== undefined && reqItem.url !== null && (
+                      <Pressable onPress={() => handleViewRequirement(reqItem.requirementName, reqItem.url ?? undefined)}>
+                        <Text style={[styles.reqViewLink, { color: isDark ? colors.brand[400] : colors.brand[700] }]}>View Document</Text>
+                      </Pressable>
+                    )}
+                    {isEditable && (
+                      <Pressable
+                        disabled={isUploading}
+                        onPress={() => handleUploadOrReplaceRequirement(reqItem)}
+                        style={{
+                          marginLeft: 12,
+                          paddingHorizontal: 10,
+                          paddingVertical: 4,
+                          borderRadius: RADIUS.sm,
+                          backgroundColor: isDark ? colors.brand[900] : colors.brand[50],
+                          borderWidth: 1,
+                          borderColor: isDark ? colors.brand[700] : colors.brand[200],
+                          opacity: isUploading ? 0.6 : 1
+                        }}
+                      >
+                        <Text style={{
+                          fontSize: 11,
+                          fontWeight: '600',
+                          color: isDark ? colors.brand[300] : colors.brand[700]
+                        }}>
+                          {isUploading ? 'Uploading...' : isAttached ? 'Replace File' : 'Upload File'}
+                        </Text>
+                      </Pressable>
+                    )}
+                  </View>
                 </View>
-              </View>
-            ))
+              );
+            })
           )}
         </View>
 

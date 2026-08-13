@@ -565,6 +565,23 @@ export interface ServiceVariantRequirement {
   isRequired: boolean;
 }
 
+export interface ApplicantRequirementItemDto {
+  requirementId: string;
+  serviceVariantRequirementId?: string | null;
+  requirementName: string;
+  description?: string | null;
+  isRequired: boolean;
+  contextKey?: string | null;
+  submittedRequirementId?: string | null;
+  storedFileId?: string | null;
+  fileName?: string | null;
+  contentType?: string | null;
+  fileSizeBytes?: number | null;
+  url?: string | null;
+  isApproved: boolean;
+  uploadedAt?: string | null;
+}
+
 export interface StoredFileDto {
   id: string;
   fileName: string;

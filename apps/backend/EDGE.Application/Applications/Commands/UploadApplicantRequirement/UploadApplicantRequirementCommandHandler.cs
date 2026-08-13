@@ -129,29 +129,52 @@ public class UploadApplicantRequirementCommandHandler
         }
 
         // 8. Auto-generate storage URL — never accepted from client
-        var url = $"tenants/{app.TenantId}/requirements/{request.StoredFileId}";
+        var url = $"/api/v2/tenants/{app.TenantId}/storage/files/{request.StoredFileId}";
 
-        var entity = new ApplicationRequirement
-        {
-            ApplicationId               = request.ApplicationId,
-            ApplicantId                 = request.ApplicantId,
-            RequirementId               = resolvedRequirementId,
-            ServiceVariantRequirementId = request.ServiceVariantRequirementId,
-            TenantId                    = app.TenantId,
-            Url                         = url,
-            IsApproved                  = false
-        };
+        // 9. Check if an existing submission record exists for this requirement and applicant
+        var existingRequirement = app.ApplicationRequirements.FirstOrDefault(ar =>
+            ar.ApplicantId == request.ApplicantId &&
+            ((request.ServiceVariantRequirementId.HasValue && ar.ServiceVariantRequirementId == request.ServiceVariantRequirementId.Value) ||
+             ar.RequirementId == resolvedRequirementId));
+
+        Guid requirementEntityId;
 
         await _unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
-            await _applicationRepository.AddApplicationRequirementAsync(
-                entity, cancellationToken);
+            if (existingRequirement != null)
+            {
+                existingRequirement.StoredFileId = request.StoredFileId;
+                existingRequirement.ServiceVariantRequirementId = request.ServiceVariantRequirementId ?? existingRequirement.ServiceVariantRequirementId;
+                existingRequirement.RequirementId = resolvedRequirementId;
+                existingRequirement.Url = url;
+                existingRequirement.IsApproved = false;
+                requirementEntityId = existingRequirement.Id;
+            }
+            else
+            {
+                var entity = new ApplicationRequirement
+                {
+                    ApplicationId               = request.ApplicationId,
+                    ApplicantId                 = request.ApplicantId,
+                    RequirementId               = resolvedRequirementId,
+                    ServiceVariantRequirementId = request.ServiceVariantRequirementId,
+                    StoredFileId                = request.StoredFileId,
+                    TenantId                    = app.TenantId,
+                    Url                         = url,
+                    IsApproved                  = false
+                };
+
+                await _applicationRepository.AddApplicationRequirementAsync(
+                    entity, cancellationToken);
+                requirementEntityId = entity.Id;
+            }
+
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             await _unitOfWork.CommitTransactionAsync(cancellationToken);
 
             return ApiResponse<Guid>.Success(
-                entity.Id, "Applicant requirement document uploaded successfully.");
+                requirementEntityId, "Applicant requirement document uploaded successfully.");
         }
         catch (Exception ex)
         {
