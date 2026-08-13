@@ -810,7 +810,50 @@ public static class FastTrackSeederData
             ["devicesDetails"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000035"), FieldType = "text", Label = "Registered Devices Details (WDN/SRD/RFID)", SyncBackOnSubmit = false },
             ["valueAddedServices"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000036"), FieldType = "text", Label = "Value-Added Services / Category", SyncBackOnSubmit = false },
             ["circumstances"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000037"), FieldType = "text", Label = "Circumstances / Reason for Duplicate", SyncBackOnSubmit = false },
-            ["tvroDetails"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000038"), FieldType = "text", Label = "TVRO / CATV Receiver & Satellite Details", SyncBackOnSubmit = false }
+            ["tvroDetails"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000038"), FieldType = "text", Label = "TVRO / CATV Receiver & Satellite Details", SyncBackOnSubmit = false },
+
+            // NTC 1-09 Permit Fields
+            ["stationClass"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000101"), FieldType = "text", Label = "Station Class", SyncBackOnSubmit = false },
+            ["serviceArea"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000102"), FieldType = "text", Label = "Service Area", SyncBackOnSubmit = false },
+            ["frequency"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000103"), FieldType = "text", Label = "Frequency / Frequencies", SyncBackOnSubmit = false },
+            ["bandwidth"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000104"), FieldType = "text", Label = "Bandwidth", SyncBackOnSubmit = false },
+            ["emission"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000105"), FieldType = "text", Label = "Emission", SyncBackOnSubmit = false },
+            ["powerOutput"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000106"), FieldType = "text", Label = "Power Output", SyncBackOnSubmit = false },
+            ["hoursOfOperation"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000107"), FieldType = "text", Label = "Hours of Operation", SyncBackOnSubmit = false },
+            ["configuration"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000108"), FieldType = "text", Label = "Configuration", SyncBackOnSubmit = false },
+            ["dataRate"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000109"), FieldType = "text", Label = "Data Rate", SyncBackOnSubmit = false },
+            ["remarks"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000110"), FieldType = "text", Label = "Remarks", SyncBackOnSubmit = false },
+            ["serialNumber"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000111"), FieldType = "text", Label = "Serial Number", SyncBackOnSubmit = false },
+            ["frequencyRange"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000112"), FieldType = "text", Label = "Frequency Range", SyncBackOnSubmit = false },
+            ["antennaType"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000113"), FieldType = "text", Label = "Antenna Type", SyncBackOnSubmit = false },
+            ["height"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000114"), FieldType = "text", Label = "Antenna Height", SyncBackOnSubmit = false },
+            ["gain"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000115"), FieldType = "text", Label = "Antenna Gain", SyncBackOnSubmit = false },
+            ["directivity"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000116"), FieldType = "text", Label = "Antenna Directivity", SyncBackOnSubmit = false },
+            ["diameter"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000117"), FieldType = "text", Label = "Antenna Diameter", SyncBackOnSubmit = false },
+            ["polarization"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000118"), FieldType = "text", Label = "Antenna Polarization", SyncBackOnSubmit = false },
+            ["beamwidth"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000119"), FieldType = "text", Label = "Antenna Beamwidth", SyncBackOnSubmit = false },
+            ["dealerName"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000120"), FieldType = "text", Label = "Dealer Name", SyncBackOnSubmit = false },
+            ["authorizedSellerBuyer"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000121"), FieldType = "text", Label = "Authorized Seller / Buyer", SyncBackOnSubmit = false },
+            ["orInvoiceNo"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000122"), FieldType = "text", Label = "OR / Invoice No", SyncBackOnSubmit = false },
+            ["permitRslNo"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000123"), FieldType = "text", Label = "Permit / RSL No", SyncBackOnSubmit = false },
+            ["sellerAddress"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000124"), FieldType = "text", Label = "Seller Address", SyncBackOnSubmit = false },
+            ["amateurLicenseNo"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000125"), FieldType = "text", Label = "Amateur License No", SyncBackOnSubmit = false },
+            ["intendedUseType"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000126"), FieldType = "text", Label = "Intended Use Type", SyncBackOnSubmit = false },
+            ["specifyDetails"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000127"), FieldType = "text", Label = "Specify Details", SyncBackOnSubmit = false },
+
+            // Amateur Radio Station License (NTC_AMA_LICENSES) specific fields
+            ["appType"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000200"), FieldType = "dropdown", Label = "Application Type", SyncBackOnSubmit = false, ValidationRules = "[\"NEW\",\"RENEWAL\",\"MODIFICATION\"]" },
+            ["noOfYears"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000201"), FieldType = "dropdown", Label = "Number of Years", SyncBackOnSubmit = false, ValidationRules = "[\"1\",\"2\",\"3\",\"5\"]" },
+            ["licenseNo"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000202"), FieldType = "text", Label = "Existing License No", SyncBackOnSubmit = false },
+            ["dateOfExpiry"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000203"), FieldType = "date", Label = "License Expiry Date", SyncBackOnSubmit = false },
+            ["modificationDueTo"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000204"), FieldType = "dropdown", Label = "Modification Due To", SyncBackOnSubmit = false, ValidationRules = "[\"Change of Station Location\",\"Change / Additional Equipment\",\"Upgrade of Class of Station\",\"Change of Call Sign\",\"Change of Name / Personal Info\"]" },
+            ["placeOfExamSeminar"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000205"), FieldType = "text", Label = "Place of Exam / Seminar", SyncBackOnSubmit = false },
+            ["dateOfExamSeminar"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000206"), FieldType = "date", Label = "Date of Exam / Seminar", SyncBackOnSubmit = false },
+            ["ratings"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000207"), FieldType = "text", Label = "Ratings / Exam Score Details", SyncBackOnSubmit = false },
+            ["particularsEquipment"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000208"), FieldType = "text", Label = "Particulars of Radio Equipment (JSON)", SyncBackOnSubmit = false },
+            ["location"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000209"), FieldType = "text", Label = "Station Location / Installation Address", SyncBackOnSubmit = false },
+            ["middleName"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000210"), FieldType = "text", Label = "Middle Name", SyncBackOnSubmit = false },
+            ["suffix"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000211"), FieldType = "text", Label = "Suffix", SyncBackOnSubmit = false }
         };
     }
 

@@ -257,6 +257,12 @@ export function useGeneralServiceWizard(
     let active = true;
     const fetchVariantRequirements = async () => {
       if (!service?.id) return;
+      if (!effectiveVariantId) {
+        if (active) {
+          setVariantRequirements(service.requirements || []);
+        }
+        return;
+      }
       try {
         setLoadingRequirements(true);
         const reqRes = await api

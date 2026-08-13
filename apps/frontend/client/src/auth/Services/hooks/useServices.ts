@@ -282,10 +282,18 @@ export function useServices() {
     let active = true;
     const fetchRequirements = async () => {
       if (!selectedService?.id) {
-        setVariantRequirements([]);
+        if (active) {
+          setVariantRequirements([]);
+        }
         return;
       }
       const effectiveVariantId = generalApplicants[0]?.selectedVariantId || "";
+      if (!effectiveVariantId) {
+        if (active) {
+          setVariantRequirements(selectedService.requirements || []);
+        }
+        return;
+      }
       try {
         const reqRes = await api
           .get<any>(`/api/v2/services/${selectedService.id}/requirements?variantId=${effectiveVariantId || ""}`)
