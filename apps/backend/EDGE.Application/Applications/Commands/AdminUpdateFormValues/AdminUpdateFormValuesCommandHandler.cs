@@ -12,15 +12,18 @@ namespace EDGE.Application.Applications.Commands.AdminUpdateFormValues;
 public class AdminUpdateFormValuesCommandHandler : IRequestHandler<AdminUpdateFormValuesCommand, ApiResponse<Guid>>
 {
     private readonly IApplicationFullRepository _applicationRepository;
+    private readonly IFormRepository _formRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly IUnitOfWork _unitOfWork;
 
     public AdminUpdateFormValuesCommandHandler(
         IApplicationFullRepository applicationRepository,
+        IFormRepository formRepository,
         ICurrentUserService currentUserService,
         IUnitOfWork unitOfWork)
     {
         _applicationRepository = applicationRepository;
+        _formRepository = formRepository;
         _currentUserService = currentUserService;
         _unitOfWork = unitOfWork;
     }
@@ -40,27 +43,80 @@ public class AdminUpdateFormValuesCommandHandler : IRequestHandler<AdminUpdateFo
         {
             // Find form submission for applicant
             var submission = app.FormSubmissions.FirstOrDefault(fs => fs.ApplicantId == request.ApplicantId);
-            if (submission != null && request.FormFields != null)
+            if (submission == null)
+            {
+                submission = app.FormSubmissions.FirstOrDefault(fs => fs.ApplicationId == app.Id);
+            }
+
+            if (submission == null)
+            {
+                var serviceId = app.ApplicationServices.FirstOrDefault()?.ServiceId ?? Guid.Empty;
+                var form = serviceId != Guid.Empty ? await _formRepository.GetFormByServiceIdAsync(serviceId, cancellationToken) : null;
+
+                submission = new FormSubmission
+                {
+                    Id = Guid.NewGuid(),
+                    ApplicationId = app.Id,
+                    ApplicantId = request.ApplicantId,
+                    FormId = form?.Id ?? Guid.Empty,
+                };
+                app.FormSubmissions.Add(submission);
+            }
+            else if (submission.ApplicantId != request.ApplicantId && request.ApplicantId != Guid.Empty)
+            {
+                submission.ApplicantId = request.ApplicantId;
+            }
+
+            if (request.FormFields != null)
             {
                 foreach (var fieldDto in request.FormFields)
                 {
                     if (Guid.TryParse(fieldDto.FieldId, out var fieldId))
                     {
                         var existingVal = submission.FieldValues.FirstOrDefault(fv => fv.FieldId == fieldId);
-                        if (existingVal != null && existingVal.Value != fieldDto.Value)
+                        var newValue = fieldDto.Value ?? string.Empty;
+
+                        if (existingVal != null)
+                        {
+                            if (existingVal.Value != newValue)
+                            {
+                                await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
+                                {
+                                    ApplicationId = app.Id,
+                                    Category = "Form Submissions",
+                                    FieldName = string.IsNullOrWhiteSpace(fieldDto.FieldLabel)
+                                        ? (existingVal.Field?.Label ?? "Field")
+                                        : fieldDto.FieldLabel,
+                                    OldValue = existingVal.Value ?? string.Empty,
+                                    NewValue = newValue,
+                                    CorrectedByStaff = staffName,
+                                    CorrectedAt = DateTime.UtcNow
+                                }, cancellationToken);
+
+                                existingVal.Value = newValue;
+                            }
+                        }
+                        else
                         {
                             await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
                             {
                                 ApplicationId = app.Id,
                                 Category = "Form Submissions",
-                                FieldName = fieldDto.FieldLabel,
-                                OldValue = existingVal.Value ?? string.Empty,
-                                NewValue = fieldDto.Value ?? string.Empty,
+                                FieldName = string.IsNullOrWhiteSpace(fieldDto.FieldLabel) ? "Field" : fieldDto.FieldLabel,
+                                OldValue = string.Empty,
+                                NewValue = newValue,
                                 CorrectedByStaff = staffName,
                                 CorrectedAt = DateTime.UtcNow
                             }, cancellationToken);
 
-                            existingVal.Value = fieldDto.Value;
+                            submission.FieldValues.Add(new FormFieldValue
+                            {
+                                Id = Guid.NewGuid(),
+                                FormSubmissionId = submission.Id,
+                                FieldId = fieldId,
+                                CustomLabel = fieldDto.FieldLabel,
+                                Value = newValue
+                            });
                         }
                     }
                 }
