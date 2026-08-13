@@ -57,7 +57,7 @@ public class AdminUpdateApplicantProfileCommandHandler : IRequestHandler<AdminUp
         try
         {
             // Audit & update First Name
-            if (!string.IsNullOrEmpty(request.FirstName) && request.FirstName != detail.FirstName)
+            if (request.FirstName != null && request.FirstName != detail.FirstName)
             {
                 await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
                 {
@@ -73,7 +73,7 @@ public class AdminUpdateApplicantProfileCommandHandler : IRequestHandler<AdminUp
             }
 
             // Audit & update Last Name
-            if (!string.IsNullOrEmpty(request.LastName) && request.LastName != detail.LastName)
+            if (request.LastName != null && request.LastName != detail.LastName)
             {
                 await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
                 {
@@ -105,7 +105,7 @@ public class AdminUpdateApplicantProfileCommandHandler : IRequestHandler<AdminUp
             }
 
             // Audit & update Contact Number
-            if (!string.IsNullOrEmpty(request.ContactNumber) && request.ContactNumber != detail.ContactNumber)
+            if (request.ContactNumber != null && request.ContactNumber != detail.ContactNumber)
             {
                 await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
                 {
@@ -121,7 +121,7 @@ public class AdminUpdateApplicantProfileCommandHandler : IRequestHandler<AdminUp
             }
 
             // Audit & update Email Address
-            if (!string.IsNullOrEmpty(request.Email) && request.Email != detail.EmailAddress)
+            if (request.Email != null && request.Email != detail.EmailAddress)
             {
                 await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
                 {
@@ -188,7 +188,7 @@ public class AdminUpdateApplicantProfileCommandHandler : IRequestHandler<AdminUp
             }
 
             // Audit & update Company Details if Company
-            if (!string.IsNullOrEmpty(request.CompanyName))
+            if (request.CompanyName != null || request.CompanyRegistrationNumber != null || request.CompanyAddress != null || request.CompanyContactNumber != null || request.CompanyEmail != null)
             {
                 if (applicant.CompanyDetail == null)
                 {
@@ -199,7 +199,7 @@ public class AdminUpdateApplicantProfileCommandHandler : IRequestHandler<AdminUp
                 }
                 var comp = applicant.CompanyDetail;
 
-                if (request.CompanyName != comp.Name)
+                if (request.CompanyName != null && request.CompanyName != comp.Name)
                 {
                     await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
                     {
@@ -214,7 +214,7 @@ public class AdminUpdateApplicantProfileCommandHandler : IRequestHandler<AdminUp
                     comp.Name = request.CompanyName;
                 }
 
-                if (!string.IsNullOrEmpty(request.CompanyRegistrationNumber) && request.CompanyRegistrationNumber != comp.RegistrationNumber)
+                if (request.CompanyRegistrationNumber != null && request.CompanyRegistrationNumber != comp.RegistrationNumber)
                 {
                     await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
                     {
@@ -229,7 +229,7 @@ public class AdminUpdateApplicantProfileCommandHandler : IRequestHandler<AdminUp
                     comp.RegistrationNumber = request.CompanyRegistrationNumber;
                 }
 
-                if (!string.IsNullOrEmpty(request.CompanyAddress) && request.CompanyAddress != comp.Address)
+                if (request.CompanyAddress != null && request.CompanyAddress != comp.Address)
                 {
                     await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
                     {
@@ -244,7 +244,7 @@ public class AdminUpdateApplicantProfileCommandHandler : IRequestHandler<AdminUp
                     comp.Address = request.CompanyAddress;
                 }
 
-                if (!string.IsNullOrEmpty(request.CompanyContactNumber) && request.CompanyContactNumber != comp.ContactNumber)
+                if (request.CompanyContactNumber != null && request.CompanyContactNumber != comp.ContactNumber)
                 {
                     await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
                     {
@@ -259,7 +259,7 @@ public class AdminUpdateApplicantProfileCommandHandler : IRequestHandler<AdminUp
                     comp.ContactNumber = request.CompanyContactNumber;
                 }
 
-                if (!string.IsNullOrEmpty(request.CompanyEmail) && request.CompanyEmail != comp.Email)
+                if (request.CompanyEmail != null && request.CompanyEmail != comp.Email)
                 {
                     await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
                     {

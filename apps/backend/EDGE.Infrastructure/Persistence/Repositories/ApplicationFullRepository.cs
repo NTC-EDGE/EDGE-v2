@@ -140,6 +140,19 @@ public class ApplicationFullRepository : IApplicationFullRepository
             }
         }
 
+        if (!string.IsNullOrWhiteSpace(scope))
+        {
+            var s = scope.Trim().ToLowerInvariant();
+            if (s == "queue")
+            {
+                query = query.Where(a => a.Status != ApplicationStatus.Draft && !a.IsArchived);
+            }
+            else if (s == "office")
+            {
+                query = query.Where(a => !string.IsNullOrEmpty(a.Office));
+            }
+        }
+
         return await query
             .OrderByDescending(a => a.IsPinned)
             .ThenByDescending(a => a.CreatedAt)
@@ -170,6 +183,19 @@ public class ApplicationFullRepository : IApplicationFullRepository
             else if (tab == "history")
             {
                 query = query.Where(a => a.Status == ApplicationStatus.Approved || a.Status == ApplicationStatus.Returned || a.Status == ApplicationStatus.Completed);
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(scope))
+        {
+            var s = scope.Trim().ToLowerInvariant();
+            if (s == "queue")
+            {
+                query = query.Where(a => a.Status != ApplicationStatus.Draft && !a.IsArchived);
+            }
+            else if (s == "office")
+            {
+                query = query.Where(a => !string.IsNullOrEmpty(a.Office));
             }
         }
 

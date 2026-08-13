@@ -116,13 +116,16 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                         YearGraduated = ad.YearGraduated,
                         ESignature = ad.ESignature
                     };
+                }
 
-                    if (a?.CompanyDetail != null || ad.CompanyDetail != null)
+                if (a?.CompanyDetail != null || a?.ApplicantDetail?.CompanyDetail != null)
+                {
+                    var cd = a?.CompanyDetail ?? a?.ApplicantDetail?.CompanyDetail;
+                    if (cd != null)
                     {
-                        var cd = a?.CompanyDetail ?? ad.CompanyDetail;
-                        var companyDto = new CompanyDetailDto
+                        applicantDto.Company = new CompanyDetailDto
                         {
-                            Id = cd!.Id,
+                            Id = cd.Id,
                             BarangayId = cd.BarangayId,
                             Address = cd.Address,
                             Name = cd.Name,
@@ -131,7 +134,6 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                             Email = cd.Email,
                             EntityType = cd.EntityType?.ToString()
                         };
-                        applicantDto.Company = companyDto;
                     }
                 }
 

@@ -91,7 +91,7 @@ public class AdminUpdateApplicationCommandHandler : IRequestHandler<AdminUpdateA
             }
 
             // Audit & update Office
-            if (!string.IsNullOrEmpty(request.Office) && request.Office != app.Office)
+            if (request.Office != null && request.Office != app.Office)
             {
                 await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
                 {
@@ -104,6 +104,207 @@ public class AdminUpdateApplicationCommandHandler : IRequestHandler<AdminUpdateA
                     CorrectedAt = DateTime.UtcNow
                 }, cancellationToken);
                 app.Office = request.Office;
+            }
+
+            // Find primary applicant on the application (if any)
+            var primaryAppApplicant = app.ApplicationApplicants.FirstOrDefault();
+            var primaryApplicant = primaryAppApplicant?.Applicant;
+
+            // Process ContactDetails, BasicInfo, Address on Primary Applicant's ApplicantDetail
+            if (primaryApplicant != null && (request.ContactDetails != null || request.BasicInfo != null || request.Address != null))
+            {
+                if (primaryApplicant.ApplicantDetail == null)
+                {
+                    primaryApplicant.ApplicantDetail = new ApplicantDetail { Id = Guid.NewGuid() };
+                }
+                var detail = primaryApplicant.ApplicantDetail;
+
+                if (request.ContactDetails != null)
+                {
+                    if (request.ContactDetails.Email != null && request.ContactDetails.Email != detail.EmailAddress)
+                    {
+                        await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
+                        {
+                            ApplicationId = app.Id,
+                            Category = "Contact Details",
+                            FieldName = "EmailAddress",
+                            OldValue = detail.EmailAddress ?? string.Empty,
+                            NewValue = request.ContactDetails.Email,
+                            CorrectedByStaff = staffName,
+                            CorrectedAt = DateTime.UtcNow
+                        }, cancellationToken);
+                        detail.EmailAddress = request.ContactDetails.Email;
+                    }
+
+                    if (request.ContactDetails.ContactNumber != null && request.ContactDetails.ContactNumber != detail.ContactNumber)
+                    {
+                        await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
+                        {
+                            ApplicationId = app.Id,
+                            Category = "Contact Details",
+                            FieldName = "ContactNumber",
+                            OldValue = detail.ContactNumber ?? string.Empty,
+                            NewValue = request.ContactDetails.ContactNumber,
+                            CorrectedByStaff = staffName,
+                            CorrectedAt = DateTime.UtcNow
+                        }, cancellationToken);
+                        detail.ContactNumber = request.ContactDetails.ContactNumber;
+                    }
+                }
+
+                if (request.BasicInfo != null)
+                {
+                    if (request.BasicInfo.FirstName != null && request.BasicInfo.FirstName != detail.FirstName)
+                    {
+                        await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
+                        {
+                            ApplicationId = app.Id,
+                            Category = "Basic Info",
+                            FieldName = "FirstName",
+                            OldValue = detail.FirstName ?? string.Empty,
+                            NewValue = request.BasicInfo.FirstName,
+                            CorrectedByStaff = staffName,
+                            CorrectedAt = DateTime.UtcNow
+                        }, cancellationToken);
+                        detail.FirstName = request.BasicInfo.FirstName;
+                    }
+
+                    if (request.BasicInfo.LastName != null && request.BasicInfo.LastName != detail.LastName)
+                    {
+                        await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
+                        {
+                            ApplicationId = app.Id,
+                            Category = "Basic Info",
+                            FieldName = "LastName",
+                            OldValue = detail.LastName ?? string.Empty,
+                            NewValue = request.BasicInfo.LastName,
+                            CorrectedByStaff = staffName,
+                            CorrectedAt = DateTime.UtcNow
+                        }, cancellationToken);
+                        detail.LastName = request.BasicInfo.LastName;
+                    }
+
+                    if (request.BasicInfo.MiddleName != null && request.BasicInfo.MiddleName != detail.MiddleName)
+                    {
+                        await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
+                        {
+                            ApplicationId = app.Id,
+                            Category = "Basic Info",
+                            FieldName = "MiddleName",
+                            OldValue = detail.MiddleName ?? string.Empty,
+                            NewValue = request.BasicInfo.MiddleName,
+                            CorrectedByStaff = staffName,
+                            CorrectedAt = DateTime.UtcNow
+                        }, cancellationToken);
+                        detail.MiddleName = request.BasicInfo.MiddleName;
+                    }
+                }
+
+                if (request.Address != null)
+                {
+                    if (request.Address.ZipCode != null && request.Address.ZipCode != detail.ZipCode)
+                    {
+                        await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
+                        {
+                            ApplicationId = app.Id,
+                            Category = "Address Details",
+                            FieldName = "ZipCode",
+                            OldValue = detail.ZipCode ?? string.Empty,
+                            NewValue = request.Address.ZipCode,
+                            CorrectedByStaff = staffName,
+                            CorrectedAt = DateTime.UtcNow
+                        }, cancellationToken);
+                        detail.ZipCode = request.Address.ZipCode;
+                    }
+                }
+            }
+
+            // Process CompanyDetails on Primary Applicant's CompanyDetail
+            if (primaryApplicant != null && request.CompanyDetails != null)
+            {
+                if (primaryApplicant.CompanyDetail == null)
+                {
+                    var newComp = new CompanyDetail { Id = Guid.NewGuid() };
+                    await _applicationRepository.AddCompanyDetailAsync(newComp, cancellationToken);
+                    primaryApplicant.CompanyDetail = newComp;
+                    primaryApplicant.CompanyDetailId = newComp.Id;
+                }
+                var comp = primaryApplicant.CompanyDetail;
+
+                if (request.CompanyDetails.Name != null && request.CompanyDetails.Name != comp.Name)
+                {
+                    await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
+                    {
+                        ApplicationId = app.Id,
+                        Category = "Company Details",
+                        FieldName = "Name",
+                        OldValue = comp.Name ?? string.Empty,
+                        NewValue = request.CompanyDetails.Name,
+                        CorrectedByStaff = staffName,
+                        CorrectedAt = DateTime.UtcNow
+                    }, cancellationToken);
+                    comp.Name = request.CompanyDetails.Name;
+                }
+
+                if (request.CompanyDetails.RegistrationNumber != null && request.CompanyDetails.RegistrationNumber != comp.RegistrationNumber)
+                {
+                    await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
+                    {
+                        ApplicationId = app.Id,
+                        Category = "Company Details",
+                        FieldName = "RegistrationNumber",
+                        OldValue = comp.RegistrationNumber ?? string.Empty,
+                        NewValue = request.CompanyDetails.RegistrationNumber,
+                        CorrectedByStaff = staffName,
+                        CorrectedAt = DateTime.UtcNow
+                    }, cancellationToken);
+                    comp.RegistrationNumber = request.CompanyDetails.RegistrationNumber;
+                }
+
+                if (request.CompanyDetails.Address != null && request.CompanyDetails.Address != comp.Address)
+                {
+                    await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
+                    {
+                        ApplicationId = app.Id,
+                        Category = "Company Details",
+                        FieldName = "Address",
+                        OldValue = comp.Address ?? string.Empty,
+                        NewValue = request.CompanyDetails.Address,
+                        CorrectedByStaff = staffName,
+                        CorrectedAt = DateTime.UtcNow
+                    }, cancellationToken);
+                    comp.Address = request.CompanyDetails.Address;
+                }
+
+                if (request.CompanyDetails.ContactNumber != null && request.CompanyDetails.ContactNumber != comp.ContactNumber)
+                {
+                    await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
+                    {
+                        ApplicationId = app.Id,
+                        Category = "Company Details",
+                        FieldName = "ContactNumber",
+                        OldValue = comp.ContactNumber ?? string.Empty,
+                        NewValue = request.CompanyDetails.ContactNumber,
+                        CorrectedByStaff = staffName,
+                        CorrectedAt = DateTime.UtcNow
+                    }, cancellationToken);
+                    comp.ContactNumber = request.CompanyDetails.ContactNumber;
+                }
+
+                if (request.CompanyDetails.Email != null && request.CompanyDetails.Email != comp.Email)
+                {
+                    await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
+                    {
+                        ApplicationId = app.Id,
+                        Category = "Company Details",
+                        FieldName = "Email",
+                        OldValue = comp.Email ?? string.Empty,
+                        NewValue = request.CompanyDetails.Email,
+                        CorrectedByStaff = staffName,
+                        CorrectedAt = DateTime.UtcNow
+                    }, cancellationToken);
+                    comp.Email = request.CompanyDetails.Email;
+                }
             }
 
             await _applicationRepository.UpdateAsync(app, cancellationToken);
