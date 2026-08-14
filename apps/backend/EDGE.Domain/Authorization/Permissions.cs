@@ -80,6 +80,12 @@ public static class Permissions
     public const string UpdateServiceNotes = "service_notes.update";
     public const string DeleteServiceNotes = "service_notes.delete";
 
+    // SOA Notes
+    public const string ReadSoaNotes = "soa_notes.read";
+    public const string CreateSoaNotes = "soa_notes.create";
+    public const string UpdateSoaNotes = "soa_notes.update";
+    public const string DeleteSoaNotes = "soa_notes.delete";
+
     // Legacy aliases
     public const string ReadNotes = ReadServiceNotes;
     public const string CreateNotes = CreateServiceNotes;
@@ -159,6 +165,12 @@ public static class Permissions
         new(CreateServiceNotes, "Service Notes", "Create Service Notes", PermissionScope.Internal, "Allows adding compliance notes to services"),
         new(UpdateServiceNotes, "Service Notes", "Update Service Notes", PermissionScope.Internal, "Allows editing service compliance notes"),
         new(DeleteServiceNotes, "Service Notes", "Delete Service Notes", PermissionScope.Internal, "Allows deleting service compliance notes"),
+
+        // SOA Notes
+        new(ReadSoaNotes, "SOA Notes", "Read SOA Notes", PermissionScope.Internal, "Allows viewing Statement of Account note templates"),
+        new(CreateSoaNotes, "SOA Notes", "Create SOA Notes", PermissionScope.Internal, "Allows creating Statement of Account note templates"),
+        new(UpdateSoaNotes, "SOA Notes", "Update SOA Notes", PermissionScope.Internal, "Allows editing Statement of Account note templates"),
+        new(DeleteSoaNotes, "SOA Notes", "Delete SOA Notes", PermissionScope.Internal, "Allows deleting Statement of Account note templates"),
 
         // Billing
         new(CreateBilling, "Billing & Fees", "Create Billing", PermissionScope.Internal, "Allows generating fee order of payment"),

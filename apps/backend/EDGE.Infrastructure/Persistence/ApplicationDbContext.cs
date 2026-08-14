@@ -632,6 +632,11 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
             entity.Property(e => e.TotalAmount).HasColumnType("decimal(18,2)");
             entity.Property(e => e.Status).HasConversion<string>();
             entity.Property(e => e.IssuedToType).HasConversion<string>();
+
+            entity.HasOne(e => e.SoaNote)
+                  .WithMany(n => n.StatementsOfAccount)
+                  .HasForeignKey(e => e.SoaNoteId)
+                  .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<SoaLineItem>(entity =>
@@ -642,10 +647,9 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
 
         modelBuilder.Entity<SoaNote>(entity =>
         {
-            entity.HasOne(e => e.StatementOfAccount)
-                  .WithMany(s => s.Notes)
-                  .HasForeignKey(e => e.StatementOfAccountId)
-                  .OnDelete(DeleteBehavior.Cascade);
+            entity.Property(e => e.Notes).IsRequired();
+            entity.Property(e => e.Title).HasMaxLength(200);
+            entity.Property(e => e.Code).HasMaxLength(50);
         });
 
         modelBuilder.Entity<OrderOfPayment>(entity =>

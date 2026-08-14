@@ -67,6 +67,7 @@ public static class DependencyInjection
         services.AddScoped<IFieldOfficeRepository, FieldOfficeRepository>();
         services.AddScoped<ICsvSchemaParserService, CsvSchemaParserService>();
         services.AddScoped<IServiceNoteRepository, ServiceNoteRepository>();
+        services.AddScoped<ISoaNoteRepository, SoaNoteRepository>();
         services.AddScoped<IStoredFileRepository, StoredFileRepository>();
         services.AddScoped<IRequirementRepository, RequirementRepository>();
         services.AddScoped<IFeeRepository, FeeRepository>();
