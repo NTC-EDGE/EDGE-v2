@@ -139,11 +139,8 @@ export function GeneralFilingDetailsStep({
   }, [
     loading,
     form,
-    activeApplicant.firstName,
-    activeApplicant.lastName,
-    activeApplicant.email,
-    activeApplicant.contactNo,
-    activeApplicant.address,
+    activeApplicant.id,
+    currentApplicantIndex,
     activeApplicant.selectedVariantId,
     activeApplicant.selectedElementId,
     activeApplicant.selectedElementTitle,
@@ -301,16 +298,36 @@ export function GeneralFilingDetailsStep({
       updateActiveApplicant(partial);
     };
 
+    const structuredNameData: Partial<StructuredNameData> = {
+      firstName: activeApplicant.firstName || "",
+      middleName: activeApplicant.middleName || "",
+      lastName: activeApplicant.lastName || "",
+      suffix: activeApplicant.suffix || "",
+      companyName: activeApplicant.companyName || (activeApplicant.applicantType === "company" ? activeApplicant.firstName : ""),
+      representativeName: activeApplicant.representativeName || (activeApplicant.applicantType === "company" ? activeApplicant.lastName : ""),
+      applicantType: activeApplicant.applicantType || "individual",
+    };
+
     const handleStructuredNameChange = (data: StructuredNameData) => {
       if (data.applicantType === "individual") {
         updateActiveApplicant({
+          applicantType: "individual",
           firstName: data.firstName,
+          middleName: data.middleName,
           lastName: data.lastName,
+          suffix: data.suffix,
+          companyName: "",
+          representativeName: "",
         });
       } else {
         updateActiveApplicant({
+          applicantType: "company",
+          companyName: data.companyName,
+          representativeName: data.representativeName,
           firstName: data.companyName,
           lastName: data.representativeName || "",
+          middleName: "",
+          suffix: "",
         });
       }
     };
@@ -325,10 +342,12 @@ export function GeneralFilingDetailsStep({
       <View>
         {renderBulkCohortBanner()}
         <DynamicFormRenderer
+          key={`dynamic-form-${activeApplicant.id || currentApplicantIndex}`}
           form={form}
           values={valuesRecord}
           onChange={handleDynamicFieldChange}
           onStructuredNameChange={handleStructuredNameChange}
+          structuredNameData={structuredNameData}
           applicantName={getApplicantDisplayName(activeApplicant)}
           allowCompany={!isExamService}
           variantElements={variantElements}

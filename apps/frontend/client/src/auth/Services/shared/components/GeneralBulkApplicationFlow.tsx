@@ -150,29 +150,6 @@ export function GeneralBulkApplicationFlow({
           </View>
         </View>
 
-        {allComplete && (
-          <TouchableOpacity
-            onPress={onSubmitAll}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "center",
-              backgroundColor: "#16A34A",
-              borderRadius: 10,
-              paddingVertical: 12,
-              paddingHorizontal: 16,
-              gap: 8,
-              marginBottom: 16,
-            }}
-            activeOpacity={0.8}
-          >
-            <Icon name="check-circle" size={16} color="#ffffff" />
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: "#ffffff" }}>
-              Submit All {applicants.length} Applications
-            </Text>
-          </TouchableOpacity>
-        )}
-
         <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
           <GeneralFilingDetailsStep
             service={service}
@@ -239,29 +216,6 @@ export function GeneralBulkApplicationFlow({
             </Text>
           </View>
         </View>
-
-        {allComplete && (
-          <TouchableOpacity
-            onPress={onSubmitAll}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "center",
-              backgroundColor: "#16A34A",
-              borderRadius: 10,
-              paddingVertical: 12,
-              paddingHorizontal: 16,
-              gap: 8,
-              marginBottom: 16,
-            }}
-            activeOpacity={0.8}
-          >
-            <Icon name="check-circle" size={16} color="#ffffff" />
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: "#ffffff" }}>
-              Submit All {applicants.length} Applications
-            </Text>
-          </TouchableOpacity>
-        )}
 
         <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
           <GeneralDocumentUploadStep

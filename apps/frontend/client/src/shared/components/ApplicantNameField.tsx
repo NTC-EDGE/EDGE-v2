@@ -18,7 +18,8 @@ export interface StructuredNameData {
 interface ApplicantNameFieldProps {
   label?: string;
   isRequired?: boolean;
-  value: string;
+  value?: string;
+  structuredValue?: Partial<StructuredNameData>;
   allowCompany?: boolean;
   onChange: (fullName: string) => void;
   onStructuredChange?: (data: StructuredNameData) => void;
@@ -39,47 +40,105 @@ export function ApplicantNameField({
   label = "Applicant Information",
   isRequired = true,
   value = "",
+  structuredValue,
   allowCompany = true,
   onChange,
   onStructuredChange,
   error,
 }: ApplicantNameFieldProps) {
-  const [applicantType, setApplicantType] = useState<"individual" | "company">("individual");
-  const [firstName, setFirstName] = useState("");
-  const [middleName, setMiddleName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [suffix, setSuffix] = useState("");
-  const [companyName, setCompanyName] = useState("");
-  const [representativeName, setRepresentativeName] = useState("");
+  const [applicantType, setApplicantType] = useState<"individual" | "company">(
+    structuredValue?.applicantType || "individual"
+  );
+  const [firstName, setFirstName] = useState(structuredValue?.firstName || "");
+  const [middleName, setMiddleName] = useState(structuredValue?.middleName || "");
+  const [lastName, setLastName] = useState(structuredValue?.lastName || "");
+  const [suffix, setSuffix] = useState(structuredValue?.suffix || "");
+  const [companyName, setCompanyName] = useState(structuredValue?.companyName || "");
+  const [representativeName, setRepresentativeName] = useState(structuredValue?.representativeName || "");
 
   // Enforce individual if company is disallowed
   useEffect(() => {
     if (!allowCompany && applicantType !== "individual") {
       setApplicantType("individual");
     }
-  }, [allowCompany]);
+  }, [allowCompany, applicantType]);
 
-  // Initialize from existing value if structured fields are empty
+  const lastNotifiedRef = React.useRef<string | null>(null);
+
+  // Synchronize from structuredValue or value prop
   useEffect(() => {
-    if (value && !firstName && !lastName && !companyName) {
+    if (structuredValue) {
+      if (structuredValue.applicantType !== undefined) {
+        setApplicantType(structuredValue.applicantType);
+      }
+      setFirstName(structuredValue.firstName || "");
+      setMiddleName(structuredValue.middleName || "");
+      setLastName(structuredValue.lastName || "");
+      setSuffix(structuredValue.suffix || "");
+      setCompanyName(structuredValue.companyName || "");
+      setRepresentativeName(structuredValue.representativeName || "");
+      return;
+    }
+
+    if (value !== undefined && value !== lastNotifiedRef.current) {
+      lastNotifiedRef.current = value;
       if (allowCompany && (value.toLowerCase().includes("corp") || value.toLowerCase().includes("inc") || value.toLowerCase().includes("ltd") || value.toLowerCase().includes("company"))) {
         setApplicantType("company");
         setCompanyName(value);
+        setFirstName("");
+        setMiddleName("");
+        setLastName("");
+        setSuffix("");
+        setRepresentativeName("");
       } else {
-        const parts = value.trim().split(/\s+/);
+        setApplicantType("individual");
+        setCompanyName("");
+        const rawParts = value.trim().split(/\s+/);
+        if (rawParts.length === 0 || (rawParts.length === 1 && rawParts[0] === "")) {
+          setFirstName("");
+          setMiddleName("");
+          setLastName("");
+          setSuffix("");
+          return;
+        }
+
+        // Check if last token matches a known suffix
+        const lastToken = rawParts[rawParts.length - 1];
+        const knownSuffixes = ["jr.", "jr", "sr.", "sr", "ii", "iii", "iv", "v"];
+        let detectedSuffix = "";
+        let parts = [...rawParts];
+        if (rawParts.length > 1 && knownSuffixes.includes(lastToken.toLowerCase())) {
+          detectedSuffix = lastToken;
+          parts = rawParts.slice(0, rawParts.length - 1);
+        }
+        setSuffix(detectedSuffix);
+
         if (parts.length === 1) {
-          setFirstName(parts[0]);
+          setFirstName(parts[0] || "");
+          setMiddleName("");
+          setLastName("");
         } else if (parts.length === 2) {
-          setFirstName(parts[0]);
-          setLastName(parts[1]);
+          setFirstName(parts[0] || "");
+          setMiddleName("");
+          setLastName(parts[1] || "");
         } else if (parts.length >= 3) {
-          setFirstName(parts[0]);
-          setMiddleName(parts[1]);
+          setFirstName(parts[0] || "");
+          setMiddleName(parts[1] || "");
           setLastName(parts.slice(2).join(" "));
         }
       }
     }
-  }, []);
+  }, [
+    structuredValue?.firstName,
+    structuredValue?.middleName,
+    structuredValue?.lastName,
+    structuredValue?.suffix,
+    structuredValue?.companyName,
+    structuredValue?.representativeName,
+    structuredValue?.applicantType,
+    value,
+    allowCompany,
+  ]);
 
   const notifyChange = (
     type: "individual" | "company",
@@ -99,6 +158,7 @@ export function ApplicantNameField({
       computedFullName = comp.trim();
     }
 
+    lastNotifiedRef.current = computedFullName;
     onChange(computedFullName);
     onStructuredChange?.({
       applicantType: allowCompany ? type : "individual",

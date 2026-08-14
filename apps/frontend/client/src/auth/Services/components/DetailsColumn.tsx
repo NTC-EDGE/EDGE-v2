@@ -183,6 +183,7 @@ export function DetailsColumn({ servicesState }: DetailsColumnProps) {
             currentApplicantIndex={currentGeneralApplicantIndex}
             setCurrentApplicantIndex={setCurrentGeneralApplicantIndex}
             triggerOpenApplicant={servicesState.triggerOpenApplicant}
+            triggerBulkSubmit={servicesState.triggerBulkSubmit}
           />
         ) : selectedService !== null ? (
           <ServiceDetails

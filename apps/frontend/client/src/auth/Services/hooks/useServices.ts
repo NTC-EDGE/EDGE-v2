@@ -113,6 +113,7 @@ export function useServices() {
   ]);
   const [currentGeneralApplicantIndex, setCurrentGeneralApplicantIndex] = useState(0);
   const [triggerOpenApplicant, setTriggerOpenApplicant] = useState(0);
+  const [triggerBulkSubmit, setTriggerBulkSubmit] = useState(0);
   const [variantRequirements, setVariantRequirements] = useState<string[]>([]);
 
   const [drafts, setDrafts] = useState<DraftApplication[]>(initialDrafts);
@@ -912,6 +913,8 @@ export function useServices() {
     setCurrentGeneralApplicantIndex,
     triggerOpenApplicant,
     setTriggerOpenApplicant,
+    triggerBulkSubmit,
+    setTriggerBulkSubmit,
     variantRequirements,
     drafts,
     setDrafts,

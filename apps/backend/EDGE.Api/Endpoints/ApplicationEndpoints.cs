@@ -245,9 +245,18 @@ public static class ApplicationEndpoints
     }
 
     [HasPermission(Permissions.ViewOwnApplications)]
-    public static async Task<IResult> GetAllApplications([FromQuery] ApplicationStatus? status, IMediator mediator)
+    public static async Task<IResult> GetAllApplications(
+        [FromQuery] ApplicationStatus? status,
+        [FromQuery] string? queueTab,
+        [FromQuery] string? scope,
+        [FromQuery] bool? mine,
+        [FromQuery] int? pageNumber,
+        [FromQuery] int? pageSize,
+        [FromQuery] string? searchTerm,
+        [FromQuery] string? mode,
+        IMediator mediator)
     {
-        var result = await mediator.Send(new GetAllApplicationsQuery(status));
+        var result = await mediator.Send(new GetAllApplicationsQuery(status, queueTab, scope, mine, pageNumber, pageSize, searchTerm, mode));
         if (!result.Succeeded && result.Message != null && result.Message.StartsWith("401"))
         {
             return Results.Unauthorized();

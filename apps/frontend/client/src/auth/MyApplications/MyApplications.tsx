@@ -1,20 +1,22 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import {
   Text,
   View,
   TextInput,
   TouchableOpacity,
   ScrollView,
+  ActivityIndicator,
 } from "react-native";
 import { Icon } from "@edge/ui";
+import { useApi } from "../../shared/hooks/useApi";
 import {
-  mockApplications,
   Application,
   ModeFilterOption,
   StatusFilterOption,
   getAppDocuments,
   getStatusLabel,
   ApplicationDocument,
+  mapApiApplicationToApplication,
 } from "./data/applicationsData";
 import { ApplicationCard, ApplicationDetailsPage } from "./components";
 import { ClientAppLayout } from "../../shared/components/ClientAppLayout";
@@ -23,6 +25,13 @@ import { styles } from "./MyApplications.styles";
 const LIST_PAGE_SIZE = 6;
 
 export function MyApplications() {
+  const api = useApi();
+
+  // Applications list state from API
+  const [applications, setApplications] = useState<Application[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
   // Filter & Search state
   const [filterText, setFilterText] = useState("");
   const [selectedMode, setSelectedMode] = useState<ModeFilterOption>("ALL");
@@ -45,68 +54,146 @@ export function MyApplications() {
   // Search focus state
   const [isSearchFocused, setIsSearchFocused] = useState(false);
 
-  // Filtered & Sorted Applications
-  const filteredApps = useMemo<Application[]>(() => {
-    const list = mockApplications.filter((app) => {
-      // Search text match
-      const q = filterText.toLowerCase();
-      const primaryName =
-        app.mode === "BULK" ? app.companyName : app.applicantName;
-      const matchesSearch =
-        q === "" ||
-        app.referenceNumber.toLowerCase().includes(q) ||
-        app.serviceName.toLowerCase().includes(q) ||
-        primaryName.toLowerCase().includes(q);
+  // Server-provided counts & statistics
+  const [serverStats, setServerStats] = useState<{
+    totalCount: number;
+    singleCount: number;
+    bulkCount: number;
+    readyDocsCount: number;
+  } | null>(null);
+  const [serverTotalCount, setServerTotalCount] = useState(0);
+  const [serverTotalPages, setServerTotalPages] = useState(1);
 
-      if (!matchesSearch) return false;
+  // Debounce search query
+  const [debouncedSearch, setDebouncedSearch] = useState(filterText);
 
-      // Mode filter
-      if (selectedMode !== "ALL" && app.mode !== selectedMode) return false;
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(filterText);
+      setCurrentPage(1);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [filterText]);
 
-      // Status filter
-      if (selectedStatus !== "ALL" && app.status !== selectedStatus)
-        return false;
+  // Fetch applications from /api/v2/applications with pagination, search, and mode/status filters
+  const fetchApplications = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setErrorMessage(null);
 
-      return true;
-    });
+      const params = new URLSearchParams();
+      params.set("mine", "true");
+      params.set("pageNumber", String(currentPage));
+      params.set("pageSize", String(LIST_PAGE_SIZE));
 
-    // Sort order
-    return list.sort((a, b) => {
+      if (debouncedSearch.trim()) {
+        params.set("searchTerm", debouncedSearch.trim());
+      }
+      if (selectedMode !== "ALL") {
+        params.set("mode", selectedMode === "SINGLE" ? "Single" : "Bulk");
+      }
+      if (selectedStatus !== "ALL") {
+        params.set("status", selectedStatus);
+      }
+
+      const res = await api.get<unknown>(`/api/v2/applications?${params.toString()}`);
+      if (res !== null && typeof res === "object") {
+        const resObj = res as {
+          succeeded?: boolean;
+          data?: {
+            items?: unknown[];
+            totalCount?: number;
+            totalPages?: number;
+            pageNumber?: number;
+            statistics?: {
+              totalCount?: number;
+              singleCount?: number;
+              bulkCount?: number;
+              readyDocsCount?: number;
+            };
+          } | unknown[];
+        };
+
+        let rawList: unknown[] = [];
+        if (resObj.succeeded && resObj.data !== null && typeof resObj.data === "object") {
+          if (Array.isArray(resObj.data)) {
+            rawList = resObj.data;
+            setServerTotalCount(resObj.data.length);
+            setServerTotalPages(Math.max(1, Math.ceil(resObj.data.length / LIST_PAGE_SIZE)));
+          } else if ("items" in resObj.data && Array.isArray(resObj.data.items)) {
+            rawList = resObj.data.items;
+            const count = resObj.data.totalCount ?? rawList.length;
+            setServerTotalCount(count);
+            setServerTotalPages(resObj.data.totalPages ?? Math.max(1, Math.ceil(count / LIST_PAGE_SIZE)));
+            if (resObj.data.statistics) {
+              setServerStats({
+                totalCount: resObj.data.statistics.totalCount ?? 0,
+                singleCount: resObj.data.statistics.singleCount ?? 0,
+                bulkCount: resObj.data.statistics.bulkCount ?? 0,
+                readyDocsCount: resObj.data.statistics.readyDocsCount ?? 0,
+              });
+            }
+          }
+        } else if (Array.isArray(res)) {
+          rawList = res;
+          setServerTotalCount(res.length);
+          setServerTotalPages(Math.max(1, Math.ceil(res.length / LIST_PAGE_SIZE)));
+        }
+
+        const mappedList: Application[] = rawList.map((item) =>
+          mapApiApplicationToApplication(
+            item as Parameters<typeof mapApiApplicationToApplication>[0]
+          )
+        );
+        setApplications(mappedList);
+      } else {
+        setApplications([]);
+        setServerTotalCount(0);
+        setServerTotalPages(1);
+      }
+    } catch (err) {
+      console.error("Failed to load user applications:", err);
+      setErrorMessage("Unable to load applications. Please check your connection.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [currentPage, debouncedSearch, selectedMode, selectedStatus]);
+
+  useEffect(() => {
+    fetchApplications();
+  }, [fetchApplications]);
+
+  // Sorted Applications
+  const displayedApps = useMemo<Application[]>(() => {
+    return [...applications].sort((a, b) => {
       const timeA = new Date(a.submittedAt).getTime();
       const timeB = new Date(b.submittedAt).getTime();
       return sortOrder === "NEWEST" ? timeB - timeA : timeA - timeB;
     });
-  }, [filterText, selectedMode, selectedStatus, sortOrder]);
+  }, [applications, sortOrder]);
 
   // Statistics
   const stats = useMemo(() => {
-    const totalCount = mockApplications.length;
-    const singleCount = mockApplications.filter(
-      (a) => a.mode === "SINGLE",
+    if (serverStats !== null) {
+      return serverStats;
+    }
+    const totalCount = applications.length;
+    const singleCount = applications.filter(
+      (a) => a.mode === "SINGLE"
     ).length;
-    const bulkCount = mockApplications.filter((a) => a.mode === "BULK").length;
-    const readyDocsCount = mockApplications.reduce(
+    const bulkCount = applications.filter((a) => a.mode === "BULK").length;
+    const readyDocsCount = applications.reduce(
       (acc, app) => acc + getAppDocuments(app).length,
-      0,
+      0
     );
 
     return { totalCount, singleCount, bulkCount, readyDocsCount };
-  }, []);
+  }, [applications, serverStats]);
 
   // Reset pagination on filter change
   useEffect(() => {
     setCurrentPage(1);
-  }, [filterText, selectedMode, selectedStatus, sortOrder]);
-
-  // Pagination
-  const totalPages = Math.max(
-    1,
-    Math.ceil(filteredApps.length / LIST_PAGE_SIZE),
-  );
-  const pagedApps = filteredApps.slice(
-    (currentPage - 1) * LIST_PAGE_SIZE,
-    currentPage * LIST_PAGE_SIZE,
-  );
+  }, [selectedMode, selectedStatus, sortOrder]);
 
   // Download Handler
   const handleDownloadDoc = (doc: ApplicationDocument) => {
@@ -136,12 +223,34 @@ export function MyApplications() {
             onScrollBeginDrag={() => setOpenDropdown(null)}
           >
             {/* ── Hero Section ───────────────────────────────────────────── */}
-            <View style={styles.heroHeader}>
-              <Text style={styles.heroTitle}>My Applications Dashboard</Text>
-              <Text style={styles.heroSubtitle}>
-                View details, check status timelines, and download official
-                documents for your single and bulk applications.
-              </Text>
+            <View style={[styles.heroHeader, { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }]}>
+              <View style={{ flex: 1, paddingRight: 16 }}>
+                <Text style={styles.heroTitle}>My Applications Dashboard</Text>
+                <Text style={styles.heroSubtitle}>
+                  View details, check status timelines, and download official
+                  documents for your single and bulk applications.
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={fetchApplications}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  backgroundColor: "#EFF6FF",
+                  borderWidth: 1,
+                  borderColor: "#BFDBFE",
+                  paddingVertical: 8,
+                  paddingHorizontal: 14,
+                  borderRadius: 8,
+                  gap: 6,
+                }}
+                activeOpacity={0.8}
+              >
+                <Icon name="refresh-cw" size={14} color="#1D4ED8" />
+                <Text style={{ fontFamily: "Inter", fontSize: 12, fontWeight: "700", color: "#1D4ED8" }}>
+                  Refresh
+                </Text>
+              </TouchableOpacity>
             </View>
 
             {/* ── 4 Stat Metric Cards ────────────────────────────────────── */}
@@ -449,19 +558,53 @@ export function MyApplications() {
 
             {/* ── Applications Cards Container ────────────────────────────── */}
             <View style={styles.cardsContainer}>
-              {pagedApps.length === 0 ? (
+              {isLoading ? (
+                <View style={[styles.emptyStateCard, { paddingVertical: 48 }]}>
+                  <ActivityIndicator size="large" color="#2563EB" />
+                  <Text style={[styles.emptyStateTitle, { marginTop: 16 }]}>
+                    Loading applications...
+                  </Text>
+                  <Text style={styles.emptyStateSub}>
+                    Fetching your latest filed applications from the NTC portal.
+                  </Text>
+                </View>
+              ) : errorMessage !== null ? (
+                <View style={[styles.emptyStateCard, { paddingVertical: 36, borderColor: "#FECACA", backgroundColor: "#FEF2F2" }]}>
+                  <Icon name="alert-circle" size={36} color="#DC2626" />
+                  <Text style={[styles.emptyStateTitle, { color: "#991B1B", marginTop: 12 }]}>
+                    {errorMessage}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={fetchApplications}
+                    style={{
+                      marginTop: 16,
+                      backgroundColor: "#DC2626",
+                      paddingVertical: 8,
+                      paddingHorizontal: 16,
+                      borderRadius: 8,
+                    }}
+                  >
+                    <Text style={{ fontFamily: "Inter", fontSize: 13, fontWeight: "700", color: "#FFFFFF" }}>
+                      Try Again
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              ) : displayedApps.length === 0 ? (
                 <View style={styles.emptyStateCard}>
                   <Icon name="file-text" size={36} color="#CBD5E1" />
                   <Text style={styles.emptyStateTitle}>
-                    No applications match your filter
+                    {filterText.trim() !== "" || selectedMode !== "ALL" || selectedStatus !== "ALL"
+                      ? "No applications match your filter"
+                      : "No filed applications yet"}
                   </Text>
                   <Text style={styles.emptyStateSub}>
-                    Try selecting a different type or status from the dropdown
-                    menus above.
+                    {filterText.trim() !== "" || selectedMode !== "ALL" || selectedStatus !== "ALL"
+                      ? "Try clearing the search or selecting different options from the filters above."
+                      : "Start by selecting a service from the Services catalog to submit your first application."}
                   </Text>
                 </View>
               ) : (
-                pagedApps.map((app) => (
+                displayedApps.map((app) => (
                   <ApplicationCard
                     key={app.id}
                     app={app}
@@ -473,38 +616,39 @@ export function MyApplications() {
             </View>
 
             {/* ── Pagination Bar ────────────────────────────────────────────── */}
-            {totalPages > 1 && (
+            {serverTotalPages > 1 && (
               <View style={styles.paginationBar}>
                 <Text style={styles.paginationSummary}>
                   Showing {(currentPage - 1) * LIST_PAGE_SIZE + 1} to{" "}
                   {Math.min(
                     currentPage * LIST_PAGE_SIZE,
-                    filteredApps.length,
+                    serverTotalCount,
                   )}{" "}
-                  of {filteredApps.length} applications
+                  of {serverTotalCount} applications
                 </Text>
 
                 <View style={styles.paginationBtns}>
                   <TouchableOpacity
                     onPress={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
+                    disabled={currentPage === 1 || isLoading}
                     style={[
                       styles.pageNavBtn,
-                      currentPage === 1 && styles.pageNavBtnDisabled,
+                      (currentPage === 1 || isLoading) && styles.pageNavBtnDisabled,
                     ]}
                   >
                     <Icon
                       name="chevron-left"
                       size={16}
-                      color={currentPage === 1 ? "#CBD5E1" : "#334155"}
+                      color={currentPage === 1 || isLoading ? "#CBD5E1" : "#334155"}
                     />
                   </TouchableOpacity>
 
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                  {Array.from({ length: serverTotalPages }, (_, i) => i + 1).map(
                     (pg) => (
                       <TouchableOpacity
                         key={pg}
                         onPress={() => setCurrentPage(pg)}
+                        disabled={isLoading}
                         style={[
                           styles.pageNumberBtn,
                           pg === currentPage && styles.pageNumberBtnActive,
@@ -525,19 +669,19 @@ export function MyApplications() {
 
                   <TouchableOpacity
                     onPress={() =>
-                      setCurrentPage((p) => Math.min(totalPages, p + 1))
+                      setCurrentPage((p) => Math.min(serverTotalPages, p + 1))
                     }
-                    disabled={currentPage === totalPages}
+                    disabled={currentPage === serverTotalPages || isLoading}
                     style={[
                       styles.pageNavBtn,
-                      currentPage === totalPages && styles.pageNavBtnDisabled,
+                      (currentPage === serverTotalPages || isLoading) && styles.pageNavBtnDisabled,
                     ]}
                   >
                     <Icon
                       name="chevron-right"
                       size={16}
                       color={
-                        currentPage === totalPages ? "#CBD5E1" : "#334155"
+                        currentPage === serverTotalPages || isLoading ? "#CBD5E1" : "#334155"
                       }
                     />
                   </TouchableOpacity>

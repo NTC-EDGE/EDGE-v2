@@ -41,6 +41,7 @@ interface DynamicFormRendererProps {
   values: Record<string, string>; // fieldId -> value
   onChange: (fieldId: string, label: string, value: string) => void;
   onStructuredNameChange?: (data: StructuredNameData) => void;
+  structuredNameData?: Partial<StructuredNameData>;
   applicantName?: string;
   allowCompany?: boolean;
   variantElements?: Array<{ id: string; code?: string; description?: string; [key: string]: unknown }>;
@@ -77,6 +78,7 @@ export function DynamicFormRenderer({
   values,
   onChange,
   onStructuredNameChange,
+  structuredNameData,
   applicantName = "",
   allowCompany = true,
   variantElements = [],
@@ -171,9 +173,11 @@ export function DynamicFormRenderer({
                   <FormCol key={targetId} span={span} compact={field.isCompact}>
                     {isNameField ? (
                       <ApplicantNameField
+                        key={targetId}
                         label={field.label}
                         isRequired={field.isRequired}
                         value={val}
+                        structuredValue={structuredNameData}
                         allowCompany={allowCompany}
                         onChange={(combinedName) => onChange(targetId, field.label, combinedName)}
                         onStructuredChange={onStructuredNameChange}

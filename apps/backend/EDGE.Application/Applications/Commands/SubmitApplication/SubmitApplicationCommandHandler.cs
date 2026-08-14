@@ -27,6 +27,7 @@ public class SubmitApplicationCommandHandler
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUserService _currentUserService;
     private readonly IServiceVariantElementRepository _elementRepository;
+    private readonly IUserRepository _userRepository;
 
     public SubmitApplicationCommandHandler(
         IApplicationFullRepository applicationRepository,
@@ -38,7 +39,8 @@ public class SubmitApplicationCommandHandler
         IScheduleRepository scheduleRepository,
         IUnitOfWork unitOfWork,
         ICurrentUserService currentUserService,
-        IServiceVariantElementRepository elementRepository)
+        IServiceVariantElementRepository elementRepository,
+        IUserRepository userRepository)
     {
         _applicationRepository = applicationRepository;
         _applicantRepository = applicantRepository;
@@ -50,6 +52,7 @@ public class SubmitApplicationCommandHandler
         _unitOfWork = unitOfWork;
         _currentUserService = currentUserService;
         _elementRepository = elementRepository;
+        _userRepository = userRepository;
     }
 
     public async Task<ApiResponse<Guid>> Handle(
@@ -59,7 +62,22 @@ public class SubmitApplicationCommandHandler
 
         // 1. Resolve current user
         var currentUserIdStr = _currentUserService.UserId;
-        Guid? submitterUserId = Guid.TryParse(currentUserIdStr, out var parsed) ? parsed : null;
+        Guid? submitterUserId = null;
+        if (!string.IsNullOrEmpty(currentUserIdStr))
+        {
+            if (Guid.TryParse(currentUserIdStr, out var parsed))
+            {
+                submitterUserId = parsed;
+            }
+            else
+            {
+                var dbUser = await _userRepository.GetByAuthUserIdAsync(currentUserIdStr, cancellationToken);
+                if (dbUser != null)
+                {
+                    submitterUserId = dbUser.Id;
+                }
+            }
+        }
         bool isGuest = submitterUserId == null;
 
         // 2. Validate service exists

@@ -1,6 +1,6 @@
 import { Alert } from "react-native";
 import { NTCService } from "../../data/servicesData";
-import { GeneralApplicantData } from "../hooks/useGeneralServiceWizard";
+import { GeneralApplicantData, isGeneralApplicantComplete } from "../hooks/useGeneralServiceWizard";
 
 interface NavigationContext {
   step: number;
@@ -125,6 +125,11 @@ export function handleWizardNext({
     return;
   }
   if (step === 5) {
+    const isApplicantComplete = isGeneralApplicantComplete(activeApplicant, service, variantRequirements);
+    if (!isApplicantComplete) {
+      Alert.alert("Incomplete Application", "Please complete all required fields and document uploads before submitting.");
+      return;
+    }
     setIsConfirmModalOpen(true);
   }
 }

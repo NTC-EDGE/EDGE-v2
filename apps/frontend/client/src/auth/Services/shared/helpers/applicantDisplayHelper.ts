@@ -9,7 +9,7 @@ export function getApplicantDisplayName(app?: GeneralApplicantData | null, fallb
     return fallbackIdx !== undefined ? `Applicant #${fallbackIdx}` : "Applicant";
   }
 
-  const explicitName = [app.firstName, app.lastName].filter(Boolean).join(" ").trim();
+  const explicitName = [app.firstName, app.middleName, app.lastName, app.suffix].filter(Boolean).join(" ").trim();
   if (explicitName.length > 0) {
     return explicitName;
   }
