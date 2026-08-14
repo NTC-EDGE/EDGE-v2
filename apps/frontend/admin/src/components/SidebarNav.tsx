@@ -26,6 +26,7 @@ import {
   FileCheck,
   Boxes,
   KeyRound,
+  FileText,
 } from "lucide-react";
 import { useAdminScope, AdminRoleType } from "@/lib/admin-scope-context";
 
@@ -258,6 +259,22 @@ export function SidebarNav() {
                 <div className="flex items-center gap-3">
                   <CircleDollarSign className="h-4 w-4 text-amber-500 dark:text-amber-400" />
                   <span>Fees</span>
+                </div>
+                <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-mono">System</span>
+              </Link>
+            )}
+
+            {isSystemAdmin && (
+              <Link
+                href="/soa-notes"
+                onClick={() => setMobileOpen(false)}
+                className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                  isActive("/soa-notes") ? activeLinkClass : inactiveLinkClass
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <FileText className="h-4 w-4 text-indigo-500 dark:text-indigo-400" />
+                  <span>SOA Notes</span>
                 </div>
                 <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-mono">System</span>
               </Link>

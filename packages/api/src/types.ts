@@ -547,7 +547,8 @@ export type Note = ServiceNote;
 
 export interface SoaNote {
   id: string;
-  statementOfAccountId: string;
+  code?: string | null;
+  title?: string | null;
   notes: string;
   createdAt?: string;
   createdBy?: string | null;

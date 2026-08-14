@@ -132,7 +132,7 @@ export default function Dashboard() {
   const { useAnnouncements } = useAnnouncementService();
   const { useSchedules } = useScheduleService();
   const { useGlobalUsers } = useSupportService();
-  const { useFees, useNotes, useElements } = useFeesService();
+  const { useFees, useNotes, useSoaNotes, useElements } = useFeesService();
   const { useRequirements } = useRequirementsService();
 
   // Fetch all
@@ -150,6 +150,7 @@ export default function Dashboard() {
   const feesResult = useFees(1, 1);
   const requirementsResult = useRequirements(1, 1);
   const notesResult = useNotes(1, 1, undefined, undefined, undefined, true);
+  const soaNotesResult = useSoaNotes(1, 1, undefined, true);
   const elementsResult = useElements(1, 1);
 
   // Counts
@@ -163,6 +164,7 @@ export default function Dashboard() {
   const supportUsersCount = Array.isArray(supportUsersData) ? supportUsersData.length : 0;
   const feesCount = feesResult.totalCount;
   const notesCount = notesResult.totalCount;
+  const soaNotesCount = soaNotesResult.totalCount;
   const elementsCount = elementsResult.totalCount;
   const requirementsCount = requirementsResult.totalCount;
   const activeAnnouncements = announcementsData?.data?.filter !== undefined ? announcementsData.data.filter((a) => a.isActive).length : 0;
@@ -287,6 +289,17 @@ export default function Dashboard() {
       borderColor: "border-teal-500/30",
       bgGradient: "from-teal-500/10 to-transparent",
       href: "/services",
+    },
+    {
+      name: "SOA Note Templates",
+      count: soaNotesCount,
+      loading: soaNotesResult.isLoading,
+      subtitle: "Billing Terms & Templates",
+      icon: FileText,
+      textColor: "text-indigo-600 dark:text-indigo-400",
+      borderColor: "border-indigo-500/30",
+      bgGradient: "from-indigo-500/10 to-transparent",
+      href: "/soa-notes",
     },
     {
       name: "Master Elements",

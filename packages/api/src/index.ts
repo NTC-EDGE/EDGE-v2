@@ -20,6 +20,7 @@ export * from './hooks/useAdminFieldOffices';
 export * from './hooks/useAdminRequirements';
 export * from './hooks/useAdminFees';
 export * from './hooks/useAdminNotes';
+export * from './hooks/useSoaNotes';
 export * from './hooks/useAdminForms';
 export * from './hooks/useAdminRoles';
 export * from './hooks/useRolePermissions';
