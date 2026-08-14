@@ -553,7 +553,7 @@ export function useServicesPage() {
     if (res) {
       showToast(`Note ${editingNote ? "updated" : "created"} successfully.`);
       mutNotes();
-      invalidatePrefix("/api/v2/notes");
+      invalidatePrefix("/api/v2/service-notes");
       setIsNoteModalOpen(false);
     } else {
       showToast(getErrorMessage(err, "Failed to save note."), "error");
@@ -564,7 +564,7 @@ export function useServicesPage() {
   const handleDeleteNoteConfirm = async () => {
     if (!deletingNoteId) return;
     const [res, err] = await safeAsync(deleteNote(deletingNoteId));
-    if (res) { showToast("Note deleted."); mutNotes(); invalidatePrefix("/api/v2/notes"); }
+    if (res) { showToast("Note deleted."); mutNotes(); invalidatePrefix("/api/v2/service-notes"); }
     else showToast(getErrorMessage(err, "Failed to delete note."), "error");
     setDeletingNoteId(null);
   };

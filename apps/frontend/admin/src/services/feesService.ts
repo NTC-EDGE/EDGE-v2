@@ -213,7 +213,7 @@ export function useFeesService() {
       if (searchTerm) params.append('searchTerm', searchTerm);
       if (serviceId) params.append('serviceId', serviceId);
       if (serviceVariantId) params.append('serviceVariantId', serviceVariantId);
-      url = `/api/v2/notes?${params.toString()}`;
+      url = `/api/v2/service-notes?${params.toString()}`;
     }
     const query = useQuery<PaginatedApiResponse<Note>>(url);
     return {
@@ -225,15 +225,15 @@ export function useFeesService() {
   };
 
   const createNote = async (data: Omit<Note, 'id'>): Promise<Note> => {
-    return await post<Note, Omit<Note, 'id'>>('/api/v2/notes', data);
+    return await post<Note, Omit<Note, 'id'>>('/api/v2/service-notes', data);
   };
 
   const updateNote = async (id: string, data: Omit<Note, 'id'>): Promise<Note> => {
-    return await put<Note, Omit<Note, 'id'>>(`/api/v2/notes/${id}`, data);
+    return await put<Note, Omit<Note, 'id'>>(`/api/v2/service-notes/${id}`, data);
   };
 
   const deleteNote = async (id: string): Promise<void> => {
-    await del<void>(`/api/v2/notes/${id}`);
+    await del<void>(`/api/v2/service-notes/${id}`);
   };
 
   // --- SERVICE VARIANT ELEMENTS CRUD ---
@@ -298,6 +298,10 @@ export function useFeesService() {
     createServiceVariantElementFee,
     updateServiceVariantElementFee,
     deleteServiceVariantElementFee,
+    useServiceNotes: useNotes,
+    createServiceNote: createNote,
+    updateServiceNote: updateNote,
+    deleteServiceNote: deleteNote,
     useNotes,
     createNote,
     updateNote,
