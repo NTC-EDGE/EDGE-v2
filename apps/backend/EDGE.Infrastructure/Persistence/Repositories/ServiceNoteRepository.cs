@@ -4,39 +4,39 @@ using EDGE.Application.Common.Interfaces;
 
 namespace EDGE.Infrastructure.Persistence.Repositories;
 
-public class NoteRepository : INoteRepository
+public class ServiceNoteRepository : IServiceNoteRepository
 {
     private readonly ApplicationDbContext _context;
 
-    public NoteRepository(ApplicationDbContext context)
+    public ServiceNoteRepository(ApplicationDbContext context)
     {
         _context = context;
     }
 
-    public async Task AddAsync(Note note, CancellationToken cancellationToken = default)
+    public async Task AddAsync(ServiceNote note, CancellationToken cancellationToken = default)
     {
-        await _context.Notes.AddAsync(note, cancellationToken);
+        await _context.ServiceNotes.AddAsync(note, cancellationToken);
     }
 
-    public async Task<Note?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    public async Task<ServiceNote?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        return await _context.Notes
+        return await _context.ServiceNotes
             .Include(n => n.Service)
             .Include(n => n.ServiceVariant)
             .FirstOrDefaultAsync(n => n.Id == id, cancellationToken);
     }
 
-    public async Task<List<Note>> GetAllAsync(CancellationToken cancellationToken = default)
+    public async Task<List<ServiceNote>> GetAllAsync(CancellationToken cancellationToken = default)
     {
-        return await _context.Notes
+        return await _context.ServiceNotes
             .Include(n => n.Service)
             .Include(n => n.ServiceVariant)
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<(List<Note> Items, int TotalCount)> GetPagedAsync(int pageNumber, int pageSize, CancellationToken cancellationToken = default)
+    public async Task<(List<ServiceNote> Items, int TotalCount)> GetPagedAsync(int pageNumber, int pageSize, CancellationToken cancellationToken = default)
     {
-        var query = _context.Notes.AsNoTracking()
+        var query = _context.ServiceNotes.AsNoTracking()
             .Include(n => n.Service)
             .Include(n => n.ServiceVariant);
         var totalCount = await query.CountAsync(cancellationToken);
@@ -49,8 +49,8 @@ public class NoteRepository : INoteRepository
         return (items, totalCount);
     }
 
-    public void Delete(Note note)
+    public void Delete(ServiceNote note)
     {
-        _context.Notes.Remove(note);
+        _context.ServiceNotes.Remove(note);
     }
 }

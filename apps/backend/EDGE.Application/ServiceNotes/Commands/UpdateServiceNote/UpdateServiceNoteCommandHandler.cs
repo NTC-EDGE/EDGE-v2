@@ -1,26 +1,26 @@
 using MediatR;
 using EDGE.Application.Common.Interfaces;
-using EDGE.Application.Notes.DTOs;
+using EDGE.Application.ServiceNotes.DTOs;
 
-namespace EDGE.Application.Notes.Commands.UpdateNote;
+namespace EDGE.Application.ServiceNotes.Commands.UpdateServiceNote;
 
-public class UpdateNoteCommandHandler : IRequestHandler<UpdateNoteCommand, NoteDto>
+public class UpdateServiceNoteCommandHandler : IRequestHandler<UpdateServiceNoteCommand, ServiceNoteDto>
 {
-    private readonly INoteRepository _noteRepository;
+    private readonly IServiceNoteRepository _serviceNoteRepository;
     private readonly IUnitOfWork _unitOfWork;
 
-    public UpdateNoteCommandHandler(INoteRepository noteRepository, IUnitOfWork unitOfWork)
+    public UpdateServiceNoteCommandHandler(IServiceNoteRepository serviceNoteRepository, IUnitOfWork unitOfWork)
     {
-        _noteRepository = noteRepository;
+        _serviceNoteRepository = serviceNoteRepository;
         _unitOfWork = unitOfWork;
     }
 
-    public async Task<NoteDto> Handle(UpdateNoteCommand request, CancellationToken cancellationToken)
+    public async Task<ServiceNoteDto> Handle(UpdateServiceNoteCommand request, CancellationToken cancellationToken)
     {
-        var note = await _noteRepository.GetByIdAsync(request.Id, cancellationToken);
+        var note = await _serviceNoteRepository.GetByIdAsync(request.Id, cancellationToken);
         if (note == null)
         {
-            throw new KeyNotFoundException($"Note with ID '{request.Id}' was not found.");
+            throw new KeyNotFoundException($"Service note with ID '{request.Id}' was not found.");
         }
 
         note.Notes = request.Notes;
@@ -29,9 +29,9 @@ public class UpdateNoteCommandHandler : IRequestHandler<UpdateNoteCommand, NoteD
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        var loadedNote = await _noteRepository.GetByIdAsync(note.Id, cancellationToken) ?? note;
+        var loadedNote = await _serviceNoteRepository.GetByIdAsync(note.Id, cancellationToken) ?? note;
 
-        return new NoteDto
+        return new ServiceNoteDto
         {
             Id = loadedNote.Id,
             Notes = loadedNote.Notes,

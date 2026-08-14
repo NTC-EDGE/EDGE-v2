@@ -12,4 +12,5 @@ public class ServiceVariant : AuditableEntity
     public string? Description { get; set; }
     public ICollection<ServiceVariantRequirement> ServiceVariantRequirements { get; set; } = new List<ServiceVariantRequirement>();
     public ICollection<ServiceVariantElement> ServiceVariantElements { get; set; } = new List<ServiceVariantElement>();
+    public virtual ICollection<ServiceNote> ServiceNotes { get; set; } = new List<ServiceNote>();
 }

@@ -33,7 +33,7 @@ public static class EndpointConfiguration
         apiV2Group.MapServiceCategoryEndpoints();
         apiV2Group.MapFieldOfficeEndpoints();
         apiV2Group.MapApplicantEndpoints();
-        apiV2Group.MapNoteEndpoints();
+        apiV2Group.MapServiceNoteEndpoints();
         apiV2Group.MapStorageEndpoints();
         apiV2Group.MapRegionEndpoints();
         apiV2Group.MapProvinceEndpoints();

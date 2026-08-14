@@ -3,7 +3,7 @@ using EDGE.Domain.Common;
 
 namespace EDGE.Domain.Entities;
 
-public class Note : AuditableEntity
+public class ServiceNote : AuditableEntity
 {
     public string Notes { get; set; } = string.Empty;
 

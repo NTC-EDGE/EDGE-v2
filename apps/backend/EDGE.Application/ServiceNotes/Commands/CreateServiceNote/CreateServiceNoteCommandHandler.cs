@@ -1,36 +1,36 @@
 using MediatR;
 using EDGE.Domain.Entities;
 using EDGE.Application.Common.Interfaces;
-using EDGE.Application.Notes.DTOs;
+using EDGE.Application.ServiceNotes.DTOs;
 
-namespace EDGE.Application.Notes.Commands.CreateNote;
+namespace EDGE.Application.ServiceNotes.Commands.CreateServiceNote;
 
-public class CreateNoteCommandHandler : IRequestHandler<CreateNoteCommand, NoteDto>
+public class CreateServiceNoteCommandHandler : IRequestHandler<CreateServiceNoteCommand, ServiceNoteDto>
 {
-    private readonly INoteRepository _noteRepository;
+    private readonly IServiceNoteRepository _serviceNoteRepository;
     private readonly IUnitOfWork _unitOfWork;
 
-    public CreateNoteCommandHandler(INoteRepository noteRepository, IUnitOfWork unitOfWork)
+    public CreateServiceNoteCommandHandler(IServiceNoteRepository serviceNoteRepository, IUnitOfWork unitOfWork)
     {
-        _noteRepository = noteRepository;
+        _serviceNoteRepository = serviceNoteRepository;
         _unitOfWork = unitOfWork;
     }
 
-    public async Task<NoteDto> Handle(CreateNoteCommand request, CancellationToken cancellationToken)
+    public async Task<ServiceNoteDto> Handle(CreateServiceNoteCommand request, CancellationToken cancellationToken)
     {
-        var note = new Note
+        var note = new ServiceNote
         {
             Notes = request.Notes,
             ServiceId = request.ServiceId,
             ServiceVariantId = request.ServiceVariantId
         };
 
-        await _noteRepository.AddAsync(note, cancellationToken);
+        await _serviceNoteRepository.AddAsync(note, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        var loadedNote = await _noteRepository.GetByIdAsync(note.Id, cancellationToken) ?? note;
+        var loadedNote = await _serviceNoteRepository.GetByIdAsync(note.Id, cancellationToken) ?? note;
 
-        return new NoteDto
+        return new ServiceNoteDto
         {
             Id = loadedNote.Id,
             Notes = loadedNote.Notes,

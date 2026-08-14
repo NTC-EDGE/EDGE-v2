@@ -1,29 +1,29 @@
 using MediatR;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.Common.Models;
-using EDGE.Application.Notes.DTOs;
+using EDGE.Application.ServiceNotes.DTOs;
 
-namespace EDGE.Application.Notes.Queries.GetAllNotes;
+namespace EDGE.Application.ServiceNotes.Queries.GetAllServiceNotes;
 
-public class GetAllNotesQueryHandler : IRequestHandler<GetAllNotesQuery, PaginatedApiResponse<NoteDto>>
+public class GetAllServiceNotesQueryHandler : IRequestHandler<GetAllServiceNotesQuery, PaginatedApiResponse<ServiceNoteDto>>
 {
-    private readonly INoteRepository _noteRepository;
+    private readonly IServiceNoteRepository _serviceNoteRepository;
     private readonly IServiceCategoryRepository _categoryRepository;
 
-    public GetAllNotesQueryHandler(INoteRepository noteRepository, IServiceCategoryRepository categoryRepository)
+    public GetAllServiceNotesQueryHandler(IServiceNoteRepository serviceNoteRepository, IServiceCategoryRepository categoryRepository)
     {
-        _noteRepository = noteRepository;
+        _serviceNoteRepository = serviceNoteRepository;
         _categoryRepository = categoryRepository;
     }
 
-    public async Task<PaginatedApiResponse<NoteDto>> Handle(GetAllNotesQuery request, CancellationToken cancellationToken)
+    public async Task<PaginatedApiResponse<ServiceNoteDto>> Handle(GetAllServiceNotesQuery request, CancellationToken cancellationToken)
     {
-        var notes = await _noteRepository.GetAllAsync(cancellationToken);
+        var notes = await _serviceNoteRepository.GetAllAsync(cancellationToken);
 
         if (!string.IsNullOrWhiteSpace(request.SearchTerm))
         {
             var search = request.SearchTerm.ToLower();
-            notes = notes.Where(n => 
+            notes = notes.Where(n =>
                 n.Notes.ToLower().Contains(search) ||
                 (n.Service != null && n.Service.Name.ToLower().Contains(search)) ||
                 (n.ServiceVariant != null && n.ServiceVariant.Type.ToString().ToLower().Contains(search)) ||
@@ -48,7 +48,7 @@ public class GetAllNotesQueryHandler : IRequestHandler<GetAllNotesQuery, Paginat
 
         var paginated = notes.OrderByDescending(n => n.CreatedAt).Skip((pageNumber - 1) * pageSize).Take(pageSize).ToList();
 
-        var noteDtos = paginated.Select(n => new NoteDto
+        var noteDtos = paginated.Select(n => new ServiceNoteDto
         {
             Id = n.Id,
             Notes = n.Notes,
@@ -62,6 +62,6 @@ public class GetAllNotesQueryHandler : IRequestHandler<GetAllNotesQuery, Paginat
             LastModifiedBy = n.LastModifiedBy
         }).ToList();
 
-        return new PaginatedApiResponse<NoteDto>(noteDtos, pageNumber, pageSize, totalCount);
+        return new PaginatedApiResponse<ServiceNoteDto>(noteDtos, pageNumber, pageSize, totalCount);
     }
 }

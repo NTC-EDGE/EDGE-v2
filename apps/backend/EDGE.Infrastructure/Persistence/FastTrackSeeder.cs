@@ -840,9 +840,9 @@ public static class FastTrackSeeder
         }
         await context.SaveChangesAsync();
 
-        // 3. Seed Notes
+        // 3. Seed ServiceNotes
         var notesToSeed = FastTrackSeederData.GetBackfillNotes(svc101);
-        var existingNotes = (await context.Notes.AsNoTracking().Select(n => new { n.ServiceId, n.ServiceVariantId, n.Notes }).ToListAsync())
+        var existingNotes = (await context.ServiceNotes.AsNoTracking().Select(n => new { n.ServiceId, n.ServiceVariantId, n.Notes }).ToListAsync())
             .Select(n => (n.ServiceId, n.ServiceVariantId, n.Notes)).ToHashSet();
 
         foreach (var note in notesToSeed)
@@ -850,7 +850,7 @@ public static class FastTrackSeeder
             Guid? actualVariantId = note.ServiceVariantId.HasValue ? ResolveVariantId(note.ServiceVariantId.Value) : null;
             if (!existingNotes.Contains((note.ServiceId, actualVariantId, note.Content)))
             {
-                context.Notes.Add(new Note
+                context.ServiceNotes.Add(new ServiceNote
                 {
                     Id = Guid.NewGuid(),
                     ServiceId = note.ServiceId,

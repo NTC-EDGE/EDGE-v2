@@ -50,7 +50,7 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
     public DbSet<Barangay> Barangays => Set<Barangay>();
     public DbSet<Schedule> Schedules => Set<Schedule>();
     public DbSet<FieldOffice> FieldOffices => Set<FieldOffice>();
-    public DbSet<Note> Notes => Set<Note>();
+    public DbSet<ServiceNote> ServiceNotes => Set<ServiceNote>();
     public DbSet<Feedback> Feedbacks => Set<Feedback>();
     public DbSet<SystemAnnouncement> SystemAnnouncements => Set<SystemAnnouncement>();
 
@@ -88,6 +88,7 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
 
     public DbSet<StatementOfAccount> StatementsOfAccount => Set<StatementOfAccount>();
     public DbSet<SoaLineItem> SoaLineItems => Set<SoaLineItem>();
+    public DbSet<SoaNote> SoaNotes => Set<SoaNote>();
     public DbSet<OrderOfPayment> OrdersOfPayment => Set<OrderOfPayment>();
     public DbSet<ApplicationHistory> ApplicationHistories => Set<ApplicationHistory>();
     public DbSet<SoaHistory> SoaHistories => Set<SoaHistory>();
@@ -493,16 +494,16 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
                   .OnDelete(DeleteBehavior.SetNull);
         });
 
-        // Note entity configuration
-        modelBuilder.Entity<Note>(entity =>
+        // ServiceNote entity configuration
+        modelBuilder.Entity<ServiceNote>(entity =>
         {
             entity.HasOne(e => e.Service)
-                  .WithMany()
+                  .WithMany(s => s.ServiceNotes)
                   .HasForeignKey(e => e.ServiceId)
                   .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasOne(e => e.ServiceVariant)
-                  .WithMany()
+                  .WithMany(sv => sv.ServiceNotes)
                   .HasForeignKey(e => e.ServiceVariantId)
                   .OnDelete(DeleteBehavior.Cascade);
         });
@@ -637,6 +638,14 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
         {
             entity.Property(e => e.FeeRate).HasColumnType("decimal(18,2)");
             entity.Property(e => e.Amount).HasColumnType("decimal(18,2)");
+        });
+
+        modelBuilder.Entity<SoaNote>(entity =>
+        {
+            entity.HasOne(e => e.StatementOfAccount)
+                  .WithMany(s => s.Notes)
+                  .HasForeignKey(e => e.StatementOfAccountId)
+                  .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<OrderOfPayment>(entity =>

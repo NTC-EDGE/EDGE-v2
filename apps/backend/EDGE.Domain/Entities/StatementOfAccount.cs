@@ -24,4 +24,5 @@ public class StatementOfAccount : AuditableEntity
     public string? Remarks { get; set; }
     public ICollection<SoaLineItem> LineItems { get; set; } = new List<SoaLineItem>();
     public ICollection<SoaHistory> Histories { get; set; } = new List<SoaHistory>();
+    public ICollection<SoaNote> Notes { get; set; } = new List<SoaNote>();
 }

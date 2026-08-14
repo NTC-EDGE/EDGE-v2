@@ -1,6 +1,8 @@
-namespace EDGE.Application.Notes.DTOs;
+using System;
 
-public class NoteDto
+namespace EDGE.Application.ServiceNotes.DTOs;
+
+public class ServiceNoteDto
 {
     public Guid Id { get; set; }
     public string Notes { get; set; } = string.Empty;
