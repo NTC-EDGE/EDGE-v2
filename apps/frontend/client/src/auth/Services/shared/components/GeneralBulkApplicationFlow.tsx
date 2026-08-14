@@ -85,12 +85,13 @@ export function GeneralBulkApplicationFlow({
     const errors: Record<string, string> = {};
 
     if (dynamicRequiredFieldIds && dynamicRequiredFieldIds.length > 0) {
-      const filledIds = new Set(
-        (activeApplicant?.formFieldValues || []).map((fv) => fv.fieldId)
-      );
+      const fieldValues = activeApplicant?.formFieldValues || [];
+      const filledMap = new Map(fieldValues.map((fv) => [fv.fieldId, fv.value]));
+
       dynamicRequiredFieldIds.forEach((id) => {
-        const value = (activeApplicant?.formFieldValues ?? []).find((fv) => fv.fieldId === id)?.value;
-        if (!filledIds.has(id) || !value || value.trim() === "") {
+        const val = filledMap.get(id);
+        const trimmed = val !== undefined && val !== null ? (typeof val === "string" ? val.trim() : String(val)) : "";
+        if (trimmed === "" || trimmed === "false") {
           errors[id] = "This required field cannot be left blank.";
         }
       });

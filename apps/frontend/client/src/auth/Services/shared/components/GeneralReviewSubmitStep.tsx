@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, Image } from "react-native";
 import { COLORS, TYPOGRAPHY, Icon } from "@edge/ui";
 import { NTCService } from "../../data/servicesData";
 import { TenantInfo, OfficeInfo, GeneralApplicantData } from "../hooks/useGeneralServiceWizard";
@@ -20,8 +20,270 @@ interface GeneralReviewSubmitStepProps {
 }
 
 // ─── Reusable Summary Row ──────────────────────────────────────────────────
-function SummaryRow({ label, value }: { label: string; value?: string | null }) {
+function SummaryRow({
+  label,
+  value,
+  onPreviewFile,
+}: {
+  label: string;
+  value?: string | null;
+  onPreviewFile?: (file: string, label: string) => void;
+}) {
   if (!value || value.trim() === "") return null;
+
+  const trimmedVal = value.trim();
+  const labelLower = label.toLowerCase();
+
+  const isSignature =
+    labelLower.includes("signature") ||
+    trimmedVal.startsWith("data:image") ||
+    trimmedVal.startsWith("typed:cursive:") ||
+    trimmedVal.startsWith("blob:");
+
+  const isCheckbox =
+    labelLower.includes("declare") ||
+    labelLower.includes("certify") ||
+    labelLower.includes("agreement") ||
+    labelLower.includes("declaration") ||
+    trimmedVal === "true" ||
+    trimmedVal === "false" ||
+    trimmedVal === "agreed" ||
+    trimmedVal === "yes" ||
+    trimmedVal === "no";
+
+  const isDocumentFile =
+    !isSignature &&
+    (trimmedVal.startsWith("data:application/pdf") ||
+      trimmedVal.startsWith("blob:") ||
+      trimmedVal.toLowerCase().endsWith(".pdf") ||
+      trimmedVal.toLowerCase().endsWith(".png") ||
+      trimmedVal.toLowerCase().endsWith(".jpg") ||
+      trimmedVal.toLowerCase().endsWith(".jpeg"));
+
+  if (isSignature) {
+    const isImageSignature =
+      trimmedVal.startsWith("data:image") ||
+      trimmedVal.startsWith("blob:") ||
+      trimmedVal.startsWith("http://") ||
+      trimmedVal.startsWith("https://");
+
+    const typedText = trimmedVal.startsWith("typed:cursive:")
+      ? trimmedVal.replace("typed:cursive:", "").trim()
+      : trimmedVal;
+
+    return (
+      <View
+        style={{
+          backgroundColor: "#F8FAFC",
+          padding: 14,
+          borderRadius: 12,
+          borderWidth: 1,
+          borderColor: "#CBD5E1",
+          marginBottom: 10,
+        }}
+      >
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+          <Text
+            style={{
+              fontFamily: TYPOGRAPHY.fonts.primary,
+              fontSize: 11,
+              fontWeight: "700",
+              color: "#475569",
+              textTransform: "uppercase",
+              letterSpacing: 0.5,
+            }}
+          >
+            {label}
+          </Text>
+          <View style={{ backgroundColor: "#EFF6FF", borderWidth: 1, borderColor: "#BFDBFE", borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 }}>
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 10, fontWeight: "700", color: "#1D4ED8" }}>
+              APPLICANT SIGNATURE
+            </Text>
+          </View>
+        </View>
+
+        {isImageSignature ? (
+          <View
+            style={{
+              backgroundColor: "#FFFFFF",
+              borderWidth: 1,
+              borderColor: "#E2E8F0",
+              borderRadius: 8,
+              padding: 8,
+              alignItems: "center",
+              justifyContent: "center",
+              minHeight: 90,
+            }}
+          >
+            <Image
+              source={{ uri: trimmedVal }}
+              style={{ width: "100%", height: 80 }}
+              resizeMode="contain"
+            />
+            <View style={{ width: "80%", height: 1, backgroundColor: "#CBD5E1", marginTop: 6 }} />
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 10, color: "#94A3B8", marginTop: 4 }}>
+              Digital Handwritten Signature Recorded
+            </Text>
+          </View>
+        ) : (
+          <View
+            style={{
+              backgroundColor: "#FFFFFF",
+              borderWidth: 1,
+              borderColor: "#E2E8F0",
+              borderRadius: 8,
+              padding: 14,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Text
+              style={{
+                fontFamily: TYPOGRAPHY.fonts.primary,
+                fontSize: 22,
+                fontStyle: "italic",
+                fontWeight: "700",
+                color: "#0F2C59",
+                letterSpacing: 1,
+              }}
+            >
+              {typedText}
+            </Text>
+            <View style={{ width: "80%", height: 1, backgroundColor: "#0F2C59", marginTop: 6 }} />
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 10, color: "#64748B", marginTop: 4 }}>
+              Digitally / Electronically Signed
+            </Text>
+          </View>
+        )}
+      </View>
+    );
+  }
+
+  if (isCheckbox) {
+    const isChecked = trimmedVal === "true" || trimmedVal === "agreed" || trimmedVal === "yes" || trimmedVal === "1";
+    return (
+      <View
+        style={{
+          backgroundColor: isChecked ? "#F0FDF4" : "#FEF2F2",
+          padding: 12,
+          borderRadius: 10,
+          borderWidth: 1,
+          borderColor: isChecked ? "#BBF7D0" : "#FECACA",
+          marginBottom: 8,
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 10,
+        }}
+      >
+        <View
+          style={{
+            width: 22,
+            height: 22,
+            borderRadius: 6,
+            backgroundColor: isChecked ? "#16A34A" : "#FFFFFF",
+            borderWidth: 1.5,
+            borderColor: isChecked ? "#16A34A" : "#DC2626",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          {isChecked && <Icon name="check" size={14} color="#FFFFFF" />}
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text
+            style={{
+              fontFamily: TYPOGRAPHY.fonts.primary,
+              fontSize: 12.5,
+              fontWeight: "600",
+              color: isChecked ? "#166534" : "#991B1B",
+              lineHeight: 18,
+            }}
+          >
+            {label}
+          </Text>
+          <Text
+            style={{
+              fontFamily: TYPOGRAPHY.fonts.primary,
+              fontSize: 10,
+              fontWeight: "700",
+              color: isChecked ? "#15803D" : "#B91C1C",
+              marginTop: 2,
+              textTransform: "uppercase",
+            }}
+          >
+            {isChecked ? "✓ Confirmed & Agreed" : "✗ Not Agreed"}
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  if (isDocumentFile) {
+    return (
+      <View
+        style={{
+          backgroundColor: "#F8FAFC",
+          padding: 12,
+          borderRadius: 10,
+          borderWidth: 1,
+          borderColor: "#E2E8F0",
+          marginBottom: 8,
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        <View style={{ flex: 1 }}>
+          <Text
+            style={{
+              fontFamily: TYPOGRAPHY.fonts.primary,
+              fontSize: 10,
+              fontWeight: "700",
+              color: "#64748B",
+              marginBottom: 3,
+              textTransform: "uppercase",
+              letterSpacing: 0.5,
+            }}
+          >
+            {label}
+          </Text>
+          <Text
+            style={{
+              fontFamily: TYPOGRAPHY.fonts.primary,
+              fontSize: 12,
+              fontWeight: "600",
+              color: "#0F172A",
+            }}
+            numberOfLines={1}
+          >
+            {trimmedVal}
+          </Text>
+        </View>
+        {onPreviewFile !== undefined && (
+          <TouchableOpacity
+            onPress={() => onPreviewFile(trimmedVal, label)}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              backgroundColor: "#EFF6FF",
+              borderWidth: 1,
+              borderColor: "#BFDBFE",
+              paddingVertical: 6,
+              paddingHorizontal: 12,
+              borderRadius: 8,
+              gap: 4,
+            }}
+          >
+            <Icon name="eye" size={13} color="#1D4ED8" />
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: "700", color: "#1D4ED8" }}>
+              View Document
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  }
+
   return (
     <View
       style={{
@@ -608,7 +870,16 @@ export function GeneralReviewSubmitStep({
       {formFieldValues.length > 0 && (
         <SectionCard icon="edit-3" title="Dynamic Filing Form Fields" accentColor="#D97706">
           {formFieldValues.map((fv) => (
-            <SummaryRow key={fv.fieldId} label={fv.fieldLabel} value={fv.value} />
+            <SummaryRow
+              key={fv.fieldId}
+              label={fv.fieldLabel}
+              value={fv.value}
+              onPreviewFile={(uri, lbl) => {
+                setPreviewFile({ name: lbl, uri });
+                setPreviewLabel(lbl);
+                setIsPreviewOpen(true);
+              }}
+            />
           ))}
         </SectionCard>
       )}

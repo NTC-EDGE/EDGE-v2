@@ -274,7 +274,7 @@ public static class FastTrackSeeder
                         {
                             FormSectionId = sectionId,
                             FieldId = f.Id,
-                            IsRequired = key != "assistanceRequest" && key != "knownByAnotherName" && key != "club" && key != "examination" && key != "radioOfficers",
+                            IsRequired = key != "assistanceRequest" && key != "knownByAnotherName" && key != "club" && key != "examination" && key != "radioOfficers" && key != "payment",
                             OrderIndex = fieldOrder++
                         });
                     }

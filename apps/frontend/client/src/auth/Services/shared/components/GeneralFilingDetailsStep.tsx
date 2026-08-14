@@ -102,6 +102,34 @@ export function GeneralFilingDetailsStep({
             hasChanges = true;
           }
         }
+        // Personal / contact details prefill from activeApplicant
+        if ((labelLower.includes("full name") || labelLower.includes("applicant name") || labelLower === "name") && !existingVal) {
+          const combined = [activeApplicant.firstName, activeApplicant.lastName].filter(Boolean).join(" ");
+          if (combined) {
+            updatedValues.push({ fieldId, fieldLabel: field.label, value: combined });
+            hasChanges = true;
+          }
+        }
+        if (labelLower.includes("first name") && !existingVal && activeApplicant.firstName) {
+          updatedValues.push({ fieldId, fieldLabel: field.label, value: activeApplicant.firstName });
+          hasChanges = true;
+        }
+        if (labelLower.includes("last name") && !existingVal && activeApplicant.lastName) {
+          updatedValues.push({ fieldId, fieldLabel: field.label, value: activeApplicant.lastName });
+          hasChanges = true;
+        }
+        if (labelLower.includes("email") && !existingVal && activeApplicant.email) {
+          updatedValues.push({ fieldId, fieldLabel: field.label, value: activeApplicant.email });
+          hasChanges = true;
+        }
+        if ((labelLower.includes("contact number") || labelLower.includes("contact no") || labelLower.includes("mobile") || labelLower.includes("phone")) && !existingVal && activeApplicant.contactNo) {
+          updatedValues.push({ fieldId, fieldLabel: field.label, value: activeApplicant.contactNo });
+          hasChanges = true;
+        }
+        if ((labelLower.includes("address") || labelLower.includes("street")) && !existingVal && activeApplicant.address) {
+          updatedValues.push({ fieldId, fieldLabel: field.label, value: activeApplicant.address });
+          hasChanges = true;
+        }
       });
 
       if (hasChanges) {
@@ -111,6 +139,11 @@ export function GeneralFilingDetailsStep({
   }, [
     loading,
     form,
+    activeApplicant.firstName,
+    activeApplicant.lastName,
+    activeApplicant.email,
+    activeApplicant.contactNo,
+    activeApplicant.address,
     activeApplicant.selectedVariantId,
     activeApplicant.selectedElementId,
     activeApplicant.selectedElementTitle,
@@ -118,13 +151,24 @@ export function GeneralFilingDetailsStep({
     variantElements,
   ]);
 
-  // Inform parent of mandatory dynamic fields once form is loaded
+  // Inform parent of mandatory dynamic fields once form is loaded (only visible fields)
   useEffect(() => {
     if (!loading && form && form.sections) {
-      const requiredIds = form.sections
+      const visibleSections = form.sections.filter((section) => {
+        const key = (section.key || section.id || "").toLowerCase();
+        const title = (section.title || "").toLowerCase();
+        return (
+          key !== "payment" &&
+          !key.includes("payment") &&
+          title !== "payment details" &&
+          !title.includes("payment")
+        );
+      });
+
+      const requiredIds = visibleSections
         .flatMap((s) => s.fields)
         .filter((f) => f.isRequired)
-        .map((f) => f.id || f.fieldId)
+        .map((f) => f.fieldId || f.id)
         .filter((id): id is string => id !== undefined && id !== "");
 
       onRequiredFieldsChange?.(requiredIds);
