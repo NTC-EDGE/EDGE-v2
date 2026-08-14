@@ -88,6 +88,9 @@ export function ContentColumn({ servicesState }: ContentColumnProps) {
           onRemoveApplicant={handleRemoveExamApplicant}
           bulkMethod={bulkMethod}
           onAddApplicant={handleAddExamApplicant}
+          onSubmitAll={() => {
+            servicesState.setIsBulkSubmitOpen(true);
+          }}
         />
       ) : activeWizardService === "general-service" &&
         appMode === "BULK" &&
@@ -118,6 +121,9 @@ export function ContentColumn({ servicesState }: ContentColumnProps) {
           }}
           service={selectedService}
           variantRequirements={servicesState.variantRequirements}
+          onSubmitAll={() => {
+            servicesState.setTriggerBulkSubmit((prev: number) => prev + 1);
+          }}
         />
       ) : (
         <CategoryGrid

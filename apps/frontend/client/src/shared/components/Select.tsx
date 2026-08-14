@@ -30,6 +30,7 @@ interface SelectProps {
   error?: string;
   style?: ViewStyle;
   iconName?: LucideIconName;
+  required?: boolean;
 }
 
 export function Select({
@@ -42,6 +43,7 @@ export function Select({
   error,
   style,
   iconName,
+  required,
 }: SelectProps) {
   const [modalVisible, setModalVisible] = useState(false);
 
@@ -65,7 +67,10 @@ export function Select({
     return (
       <View style={[styles.container, style]}>
         {label !== undefined && label.length > 0 ? (
-          <Text style={styles.label}>{label}</Text>
+          <Text style={styles.label}>
+            {label}
+            {required && <Text style={{ color: '#EF4444', fontWeight: '800' }}> *</Text>}
+          </Text>
         ) : null}
 
         <View style={styles.selectWrapper}>
@@ -129,7 +134,10 @@ export function Select({
   return (
     <View style={[styles.container, style]}>
       {label !== undefined && label.length > 0 ? (
-        <Text style={styles.label}>{label}</Text>
+        <Text style={styles.label}>
+          {label}
+          {required && <Text style={{ color: '#EF4444', fontWeight: '800' }}> *</Text>}
+        </Text>
       ) : null}
 
       <TouchableOpacity

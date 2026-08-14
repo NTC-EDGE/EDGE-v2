@@ -45,17 +45,6 @@ export function ServiceVariantRequirementsTab({
       cell: (_, row) => <span className="font-bold text-slate-900 dark:text-white block">{row.requirement?.name || "Requirement"}</span>,
     },
     {
-      header: "Context Key (Applicant Type)",
-      accessorKey: "contextKey",
-      cell: (val) => val ? (
-        <span className="px-2 py-0.5 bg-indigo-50 dark:bg-slate-950 border border-indigo-200 dark:border-slate-800 text-indigo-600 dark:text-indigo-400 rounded inline-block font-mono text-[10px]">
-          {String(val)}
-        </span>
-      ) : (
-        <span className="text-slate-500 text-[10px] inline-block font-mono">All Types</span>
-      ),
-    },
-    {
       header: "Necessity",
       accessorKey: "isRequired",
       cell: (val) => (

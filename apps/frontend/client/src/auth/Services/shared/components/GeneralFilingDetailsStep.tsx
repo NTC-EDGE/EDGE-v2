@@ -1,90 +1,178 @@
-import React from "react";
-import { View, Text, TextInput, ActivityIndicator, TouchableOpacity } from "react-native";
+import React, { useEffect } from "react";
+import { View, Text, ActivityIndicator, TouchableOpacity } from "react-native";
 import { COLORS, TYPOGRAPHY, Icon } from "@edge/ui";
 import { NTCService } from "../../data/servicesData";
 import { GeneralApplicantData } from "../hooks/useGeneralServiceWizard";
-import { ValidatedInput } from "../../../../shared/components/ValidatedInput";
-import { Select } from "../../../../shared/components/Select";
+
 import { DynamicFormRenderer } from "../../../../shared/components/DynamicFormRenderer";
+import { StructuredNameData } from "../../../../shared/components/ApplicantNameField";
 import { useServiceForm } from "../hooks/useServiceForm";
-import {
-  RadioOperatorCertForm,
-  DeviceRegistrationForm,
-  TVRORegistrationForm,
-  VASProviderForm,
-  CopyOfCertificateForm,
-  initialRadioOperatorCertData,
-  initialDeviceRegistrationData,
-  initialTVRORegistrationData,
-  initialVASProviderData,
-  initialCopyOfCertificateData,
-} from "../../certificates";
-import {
-  AmateurRadioStationLicenseForm,
-  LifetimeAmateurLicenseForm,
-  initialAmateurRadioStationLicenseData,
-  initialLifetimeAmateurLicenseData,
-} from "../../licenses";
-import {
-  AmateurPermitForm,
-  initialAmateurPermitData,
-  derivePermitAppTypeFromStep3,
-} from "../../permits";
+import { getApplicantDisplayName } from "../helpers/applicantDisplayHelper";
 
 interface GeneralFilingDetailsStepProps {
   service: NTCService;
   activeApplicant: GeneralApplicantData;
   updateActiveApplicant: (fields: Partial<GeneralApplicantData>) => void;
-  appMode?: "SINGLE" | "BULK" | "";
+  appMode?: "SINGLE" | "BULK";
   applicants?: GeneralApplicantData[];
   currentApplicantIndex?: number;
   setCurrentApplicantIndex?: (idx: number) => void;
-  /** Called once after the form layout resolves with the IDs of required fields (empty for hardcoded forms). */
-  onRequiredFieldsChange?: (requiredFieldIds: string[]) => void;
+  onRequiredFieldsChange?: (fieldIds: string[]) => void;
   errors?: Record<string, string>;
-  variants?: Array<{ id: string; name?: string; title?: string; [key: string]: unknown }>;
+  variants?: Array<{ id: string; type?: string; name?: string; description?: string; [key: string]: unknown }>;
+  variantElements?: Array<{ id: string; code?: string; description?: string; [key: string]: unknown }>;
 }
-
-const deriveAppTypeFromStep3 = (variantStr?: string): "NEW" | "RENEWAL" | "MODIFICATION" => {
-  const upper = (variantStr || "").toUpperCase();
-  if (upper.includes("RENEWAL") || upper.includes("REN")) return "RENEWAL";
-  if (upper.includes("MODIFICATION") || upper.includes("MOD")) return "MODIFICATION";
-  return "NEW";
-};
 
 export function GeneralFilingDetailsStep({
   service,
   activeApplicant,
   updateActiveApplicant,
-  appMode,
+  appMode = "SINGLE",
   applicants = [],
   currentApplicantIndex = 0,
   setCurrentApplicantIndex,
   onRequiredFieldsChange,
   errors = {},
   variants = [],
+  variantElements = [],
 }: GeneralFilingDetailsStepProps) {
-  const { form, loading } = useServiceForm(service?.id, activeApplicant.selectedVariantId);
+  const { form, loading } = useServiceForm(service.id);
 
-  // Notify parent of required field IDs whenever the dynamic form resolves
-  React.useEffect(() => {
-    if (loading) return;
-    if (form && Array.isArray(form.sections) && form.sections.length > 0) {
-      const requiredIds = form.sections
-        .flatMap((section) => section.fields)
-        .filter((field) => field.isRequired === true)
-        .map((field) => field.id);
+  // Auto-populate variant and element selections established in Step 2 into formFieldValues
+  useEffect(() => {
+    if (!loading && form && form.sections) {
+      const allFields = form.sections.flatMap((s) => s.fields);
+      const currentValues = activeApplicant.formFieldValues || [];
+      const updatedValues = [...currentValues];
+      let hasChanges = false;
+
+      const matchedVariant = variants.find((v) => String(v.id) === String(activeApplicant.selectedVariantId));
+      const matchedElement = variantElements.find(
+        (e) => String(e.id) === String(activeApplicant.selectedElementId)
+      ) || variantElements[0];
+
+      const selectedElementTitle =
+        activeApplicant.selectedElementTitle ||
+        (matchedElement
+          ? matchedElement.code
+            ? `${matchedElement.code} — ${matchedElement.description}`
+            : (matchedElement.description || matchedElement.id)
+          : "");
+
+      allFields.forEach((field) => {
+        const fieldId = field.fieldId || field.id || "";
+        const labelLower = (field.label || "").toLowerCase().trim();
+        const existingVal = updatedValues.find((v) => v.fieldId === fieldId)?.value;
+
+        // Examinee Type prefill
+        if ((labelLower.includes("examinee type") || fieldId === "fd000000-0000-0000-0000-000000000008") && !existingVal) {
+          const examineeTypeVal = matchedVariant?.type || matchedVariant?.description || "FirstTaker";
+          updatedValues.push({ fieldId, fieldLabel: field.label, value: examineeTypeVal });
+          hasChanges = true;
+        }
+
+        // Exam Category prefill
+        if ((labelLower.includes("exam category") || fieldId === "fd000000-0000-0000-0000-000000000007") && !existingVal) {
+          const desc = ((matchedVariant?.description || "") + " " + (service.title || "")).toLowerCase();
+          let categoryVal = "Radiotelegraphy";
+          if (desc.includes("amateur")) categoryVal = "Amateur";
+          else if (desc.includes("radiotelephony") || desc.includes("rtp")) categoryVal = "Radiotelephony";
+          else if (desc.includes("restricted") || desc.includes("rroc")) categoryVal = "Restricted Radiotelephone";
+          updatedValues.push({ fieldId, fieldLabel: field.label, value: categoryVal });
+          hasChanges = true;
+        }
+
+        // Exam Elements & Variant Elements prefill
+        if ((labelLower.includes("element") || fieldId === "fd000000-0000-0000-0000-000000000009") && !existingVal && selectedElementTitle) {
+          updatedValues.push({ fieldId, fieldLabel: field.label, value: selectedElementTitle });
+          hasChanges = true;
+        }
+
+        // Class of Station prefill
+        if ((labelLower.includes("class of station") || fieldId === "fd000000-0000-0000-0000-000000000025") && !existingVal && selectedElementTitle) {
+          updatedValues.push({ fieldId, fieldLabel: field.label, value: selectedElementTitle });
+          hasChanges = true;
+        }
+
+        // Permit / Certificate Type prefill from variant name
+        if ((labelLower.includes("permit / license type") || labelLower.includes("type of certificate")) && !existingVal && matchedVariant) {
+          const vName = matchedVariant.name || matchedVariant.description || "";
+          if (vName) {
+            updatedValues.push({ fieldId, fieldLabel: field.label, value: vName });
+            hasChanges = true;
+          }
+        }
+        // Personal / contact details prefill from activeApplicant
+        if ((labelLower.includes("full name") || labelLower.includes("applicant name") || labelLower === "name") && !existingVal) {
+          const combined = [activeApplicant.firstName, activeApplicant.lastName].filter(Boolean).join(" ");
+          if (combined) {
+            updatedValues.push({ fieldId, fieldLabel: field.label, value: combined });
+            hasChanges = true;
+          }
+        }
+        if (labelLower.includes("first name") && !existingVal && activeApplicant.firstName) {
+          updatedValues.push({ fieldId, fieldLabel: field.label, value: activeApplicant.firstName });
+          hasChanges = true;
+        }
+        if (labelLower.includes("last name") && !existingVal && activeApplicant.lastName) {
+          updatedValues.push({ fieldId, fieldLabel: field.label, value: activeApplicant.lastName });
+          hasChanges = true;
+        }
+        if (labelLower.includes("email") && !existingVal && activeApplicant.email) {
+          updatedValues.push({ fieldId, fieldLabel: field.label, value: activeApplicant.email });
+          hasChanges = true;
+        }
+        if ((labelLower.includes("contact number") || labelLower.includes("contact no") || labelLower.includes("mobile") || labelLower.includes("phone")) && !existingVal && activeApplicant.contactNo) {
+          updatedValues.push({ fieldId, fieldLabel: field.label, value: activeApplicant.contactNo });
+          hasChanges = true;
+        }
+        if ((labelLower.includes("address") || labelLower.includes("street")) && !existingVal && activeApplicant.address) {
+          updatedValues.push({ fieldId, fieldLabel: field.label, value: activeApplicant.address });
+          hasChanges = true;
+        }
+      });
+
+      if (hasChanges) {
+        updateActiveApplicant({ formFieldValues: updatedValues });
+      }
+    }
+  }, [
+    loading,
+    form,
+    activeApplicant.id,
+    currentApplicantIndex,
+    activeApplicant.selectedVariantId,
+    activeApplicant.selectedElementId,
+    activeApplicant.selectedElementTitle,
+    variants,
+    variantElements,
+  ]);
+
+  // Inform parent of mandatory dynamic fields once form is loaded (only visible fields)
+  useEffect(() => {
+    if (!loading && form && form.sections) {
+      const visibleSections = form.sections.filter((section) => {
+        const key = (section.key || section.id || "").toLowerCase();
+        const title = (section.title || "").toLowerCase();
+        return (
+          key !== "payment" &&
+          !key.includes("payment") &&
+          title !== "payment details" &&
+          !title.includes("payment")
+        );
+      });
+
+      const requiredIds = visibleSections
+        .flatMap((s) => s.fields)
+        .filter((f) => f.isRequired)
+        .map((f) => f.fieldId || f.id)
+        .filter((id): id is string => id !== undefined && id !== "");
+
       onRequiredFieldsChange?.(requiredIds);
     } else {
       onRequiredFieldsChange?.([]);
     }
   }, [loading, form]);
-
-  const serviceCode = (service.code || "").toUpperCase();
-  const serviceTitle = (service.title || "").toUpperCase();
-  const serviceCategory = (service.category || "").toUpperCase();
-
-  const step3AppType = deriveAppTypeFromStep3(activeApplicant.selectedVariantId);
 
   if (loading) {
     return (
@@ -99,7 +187,7 @@ export function GeneralFilingDetailsStep({
 
   const renderBulkCohortBanner = () => {
     if (appMode !== "BULK" || !applicants || applicants.length === 0) return null;
-    const activeName = [activeApplicant.firstName, activeApplicant.lastName].filter(Boolean).join(" ") || `Applicant #${currentApplicantIndex + 1}`;
+    const activeName = getApplicantDisplayName(activeApplicant, currentApplicantIndex + 1);
     return (
       <View
         style={{
@@ -172,288 +260,116 @@ export function GeneralFilingDetailsStep({
       const currentArr = activeApplicant.formFieldValues || [];
       const filtered = currentArr.filter((item) => item.fieldId !== fieldId);
       const updatedArr = [...filtered, { fieldId, fieldLabel, value }];
-      updateActiveApplicant({ formFieldValues: updatedArr });
+      
+      const partial: Partial<GeneralApplicantData> = { formFieldValues: updatedArr };
+      const normalized = (fieldLabel || "").toLowerCase().trim();
+
+      if (normalized.includes("first name") || normalized === "fname" || normalized === "first") {
+        partial.firstName = value;
+      } else if (normalized.includes("last name") || normalized.includes("surname") || normalized === "lname" || normalized === "last") {
+        partial.lastName = value;
+      } else if (normalized.includes("full name") || normalized.includes("applicant name") || normalized === "name") {
+        const parts = value.trim().split(/\s+/);
+        if (parts.length > 1) {
+          partial.firstName = parts[0];
+          partial.lastName = parts.slice(1).join(" ");
+        } else {
+          partial.firstName = value;
+          partial.lastName = "";
+        }
+      } else if (normalized.includes("company name") || normalized.includes("corporate name") || normalized === "business name") {
+        partial.firstName = value;
+        partial.lastName = "";
+      } else if (normalized.includes("contact number") || normalized.includes("mobile") || normalized.includes("phone")) {
+        partial.contactNo = value;
+      } else if (normalized.includes("email")) {
+        partial.email = value;
+      } else if (normalized.includes("address") || normalized.includes("street")) {
+        partial.address = value;
+      } else if (normalized.includes("birth") || normalized.includes("dob") || normalized.includes("date of birth")) {
+        const dateParts = value.split("-");
+        if (dateParts.length === 3) {
+          partial.birthYear = dateParts[0];
+          partial.birthMonth = dateParts[1];
+          partial.birthDay = dateParts[2];
+        }
+      }
+
+      updateActiveApplicant(partial);
     };
+
+    const structuredNameData: Partial<StructuredNameData> = {
+      firstName: activeApplicant.firstName || "",
+      middleName: activeApplicant.middleName || "",
+      lastName: activeApplicant.lastName || "",
+      suffix: activeApplicant.suffix || "",
+      companyName: activeApplicant.companyName || (activeApplicant.applicantType === "company" ? activeApplicant.firstName : ""),
+      representativeName: activeApplicant.representativeName || (activeApplicant.applicantType === "company" ? activeApplicant.lastName : ""),
+      applicantType: activeApplicant.applicantType || "individual",
+    };
+
+    const handleStructuredNameChange = (data: StructuredNameData) => {
+      if (data.applicantType === "individual") {
+        updateActiveApplicant({
+          applicantType: "individual",
+          firstName: data.firstName,
+          middleName: data.middleName,
+          lastName: data.lastName,
+          suffix: data.suffix,
+          companyName: "",
+          representativeName: "",
+        });
+      } else {
+        updateActiveApplicant({
+          applicantType: "company",
+          companyName: data.companyName,
+          representativeName: data.representativeName,
+          firstName: data.companyName,
+          lastName: data.representativeName || "",
+          middleName: "",
+          suffix: "",
+        });
+      }
+    };
+
+    const isExamService =
+      (service.category || "").toLowerCase().includes("exam") ||
+      (service.title || "").toLowerCase().includes("exam") ||
+      (service.title || "").toLowerCase().includes("admission") ||
+      (service.title || "").toLowerCase().includes("operator");
 
     return (
       <View>
         {renderBulkCohortBanner()}
         <DynamicFormRenderer
+          key={`dynamic-form-${activeApplicant.id || currentApplicantIndex}`}
           form={form}
           values={valuesRecord}
           onChange={handleDynamicFieldChange}
+          onStructuredNameChange={handleStructuredNameChange}
+          structuredNameData={structuredNameData}
+          applicantName={getApplicantDisplayName(activeApplicant)}
+          allowCompany={!isExamService}
+          variantElements={variantElements}
           errors={errors}
         />
       </View>
     );
   }
 
-  // 1. NTC 1-09: Permits in the Amateur Service / Permits
-  if (
-    serviceCode === "NTC_1_09" ||
-    serviceTitle.includes("PERMITS IN THE AMATEUR SERVICE") ||
-    (serviceTitle.includes("PERMIT") && serviceTitle.includes("AMATEUR")) ||
-    (serviceCategory.includes("PERMIT") && (serviceTitle.includes("AMATEUR") || serviceCode === "NTC_1_09"))
-  ) {
-    const selectedVariant = variants?.find((v) => v.id === activeApplicant.selectedVariantId);
-    const variantName = selectedVariant?.name || selectedVariant?.title;
-    const step3PermitAppType = derivePermitAppTypeFromStep3(activeApplicant.selectedVariantId, variantName);
-    const rawData = activeApplicant.permitData || initialAmateurPermitData(activeApplicant.id);
-    const permitData = {
-      ...rawData,
-      applicationType: step3PermitAppType,
-      intendedUseStorageAt:
-        step3PermitAppType === "Possess for storage"
-          ? true
-          : rawData.intendedUseStorageAt,
-      applicant: rawData.applicant || `${activeApplicant.firstName} ${activeApplicant.lastName}`.trim(),
-      email: activeApplicant.email || rawData.email,
-      contactNo: activeApplicant.contactNo || rawData.contactNo,
-      street: activeApplicant.address || rawData.street,
-    };
-
-    return (
-      <AmateurPermitForm
-        data={permitData}
-        onChange={(fields) =>
-          updateActiveApplicant({
-            permitData: { ...permitData, ...fields },
-            firstName: fields.applicant !== undefined ? fields.applicant.split(" ")[0] || "" : activeApplicant.firstName,
-            lastName: fields.applicant !== undefined ? fields.applicant.split(" ").slice(1).join(" ") : activeApplicant.lastName,
-            email: fields.email !== undefined ? fields.email : activeApplicant.email,
-            contactNo: fields.contactNo !== undefined ? fields.contactNo : activeApplicant.contactNo,
-            address: fields.street !== undefined ? fields.street : activeApplicant.address,
-          })
-        }
-      />
-    );
-  }
-
-  // 2. Lifetime Amateur Radio Station License for Class A
-  if (
-    serviceTitle.includes("LIFETIME") ||
-    serviceCode.includes("LIFETIME") ||
-    (activeApplicant.selectedVariantId && activeApplicant.selectedVariantId.toLowerCase().includes("life"))
-  ) {
-    const rawData = activeApplicant.lifetimeLicenseData || initialLifetimeAmateurLicenseData(activeApplicant.id);
-    const lifetimeData = {
-      ...rawData,
-      firstName: activeApplicant.firstName || rawData.firstName,
-      lastName: activeApplicant.lastName || rawData.lastName,
-      email: activeApplicant.email || rawData.email,
-      contactNo: activeApplicant.contactNo || rawData.contactNo,
-      address: activeApplicant.address || rawData.address,
-    };
-    return (
-      <LifetimeAmateurLicenseForm
-        data={lifetimeData}
-        onChange={(fields) =>
-          updateActiveApplicant({
-            lifetimeLicenseData: { ...lifetimeData, ...fields },
-            firstName: fields.firstName !== undefined ? fields.firstName : activeApplicant.firstName,
-            lastName: fields.lastName !== undefined ? fields.lastName : activeApplicant.lastName,
-            email: fields.email !== undefined ? fields.email : activeApplicant.email,
-            contactNo: fields.contactNo !== undefined ? fields.contactNo : activeApplicant.contactNo,
-            address: fields.address !== undefined ? fields.address : activeApplicant.address,
-          })
-        }
-      />
-    );
-  }
-
-  // 2. Amateur Radio Station License (NEW, RENEWAL, MODIFICATION)
-  if (
-    serviceTitle.includes("AMATEUR") ||
-    serviceTitle.includes("STATION") ||
-    serviceTitle.includes("LICENSE") ||
-    serviceCategory.includes("LICENSE") ||
-    serviceCode.includes("LICENSE") ||
-    serviceCode === "NTC_AMA_STATION_LICENSE"
-  ) {
-    const rawData = activeApplicant.amateurLicenseData || initialAmateurRadioStationLicenseData(activeApplicant.id);
-    const amateurData = {
-      ...rawData,
-      appType: step3AppType,
-      firstName: activeApplicant.firstName || rawData.firstName,
-      lastName: activeApplicant.lastName || rawData.lastName,
-      email: activeApplicant.email || rawData.email,
-      contactNo: activeApplicant.contactNo || rawData.contactNo,
-      address: activeApplicant.address || rawData.address,
-    };
-
-    return (
-      <AmateurRadioStationLicenseForm
-        data={amateurData}
-        onChange={(fields) =>
-          updateActiveApplicant({
-            amateurLicenseData: { ...amateurData, ...fields },
-            firstName: fields.firstName !== undefined ? fields.firstName : activeApplicant.firstName,
-            lastName: fields.lastName !== undefined ? fields.lastName : activeApplicant.lastName,
-            email: fields.email !== undefined ? fields.email : activeApplicant.email,
-            contactNo: fields.contactNo !== undefined ? fields.contactNo : activeApplicant.contactNo,
-            address: fields.address !== undefined ? fields.address : activeApplicant.address,
-          })
-        }
-      />
-    );
-  }
-
-  // 3. NTC 1-02: Commercial Radio Operator Certificates
-  if (serviceCode === "NTC_1_02" || serviceTitle.includes("RADIO OPERATOR CERTIFICATES (ROC)")) {
-    const rawData = activeApplicant.radioCertData || initialRadioOperatorCertData(activeApplicant.id);
-    const radioData = { ...rawData, appType: step3AppType };
-    return (
-      <RadioOperatorCertForm
-        data={radioData}
-        onChange={(fields) =>
-          updateActiveApplicant({
-            radioCertData: { ...radioData, ...fields },
-            firstName: fields.applicantName !== undefined ? fields.applicantName.split(" ")[0] || "" : activeApplicant.firstName,
-            lastName: fields.applicantName !== undefined ? fields.applicantName.split(" ").slice(1).join(" ") : activeApplicant.lastName,
-            email: fields.email !== undefined ? fields.email : activeApplicant.email,
-            contactNo: fields.contactNo !== undefined ? fields.contactNo : activeApplicant.contactNo,
-            address: fields.address !== undefined ? fields.address : activeApplicant.address,
-          })
-        }
-        isAmateurService={false}
-      />
-    );
-  }
-
-  // 4. NTC 1-03: Certificates in the Amateur Service
-  if (serviceCode === "NTC_1_03" || serviceCode === "NTC_AMA_LICENSES" || serviceTitle.includes("CERTIFICATES IN THE AMATEUR SERVICE")) {
-    const rawData = activeApplicant.radioCertData || initialRadioOperatorCertData(activeApplicant.id);
-    const radioData = { ...rawData, appType: step3AppType };
-    return (
-      <RadioOperatorCertForm
-        data={radioData}
-        onChange={(fields) =>
-          updateActiveApplicant({
-            radioCertData: { ...radioData, ...fields },
-            firstName: fields.applicantName !== undefined ? fields.applicantName.split(" ")[0] || "" : activeApplicant.firstName,
-            lastName: fields.applicantName !== undefined ? fields.applicantName.split(" ").slice(1).join(" ") : activeApplicant.lastName,
-            email: fields.email !== undefined ? fields.email : activeApplicant.email,
-            contactNo: fields.contactNo !== undefined ? fields.contactNo : activeApplicant.contactNo,
-            address: fields.address !== undefined ? fields.address : activeApplicant.address,
-          })
-        }
-        isAmateurService={true}
-      />
-    );
-  }
-
-  // 5. NTC 1-07: Registration of Radio Transceivers / Receiver
-  if (serviceCode === "NTC_1_07" || serviceTitle.includes("RADIO TRANSCEIVER") || serviceTitle.includes("RECEIVER")) {
-    const deviceData = activeApplicant.deviceRegData || initialDeviceRegistrationData(activeApplicant.id);
-    return (
-      <DeviceRegistrationForm
-        data={deviceData}
-        onChange={(fields) =>
-          updateActiveApplicant({
-            deviceRegData: { ...deviceData, ...fields },
-            firstName: fields.applicantName !== undefined ? fields.applicantName.split(" ")[0] || "" : activeApplicant.firstName,
-            lastName: fields.applicantName !== undefined ? fields.applicantName.split(" ").slice(1).join(" ") : activeApplicant.lastName,
-            email: fields.email !== undefined ? fields.email : activeApplicant.email,
-            contactNo: fields.contactNo !== undefined ? fields.contactNo : activeApplicant.contactNo,
-            address: fields.address !== undefined ? fields.address : activeApplicant.address,
-          })
-        }
-      />
-    );
-  }
-
-  // 6. NTC 1-13: TVRO Station Registration
-  if (serviceCode === "NTC_1_13" || serviceTitle.includes("TVRO")) {
-    const tvroData = activeApplicant.tvroRegData || initialTVRORegistrationData(activeApplicant.id);
-    return (
-      <TVRORegistrationForm
-        data={tvroData}
-        onChange={(fields) =>
-          updateActiveApplicant({
-            tvroRegData: { ...tvroData, ...fields },
-            firstName: fields.applicantName !== undefined ? fields.applicantName.split(" ")[0] || "" : activeApplicant.firstName,
-            email: fields.email !== undefined ? fields.email : activeApplicant.email,
-            contactNo: fields.contactNo !== undefined ? fields.contactNo : activeApplicant.contactNo,
-            address: fields.address !== undefined ? fields.address : activeApplicant.address,
-          })
-        }
-      />
-    );
-  }
-
-  // 7. NTC 1-14: Value Added Services (VAS) Registration
-  if (serviceCode === "NTC_1_14" || serviceTitle.includes("VALUE ADDED") || serviceTitle.includes("VAS")) {
-    const vasData = activeApplicant.vasData || initialVASProviderData(activeApplicant.id);
-    return (
-      <VASProviderForm
-        data={vasData}
-        onChange={(fields) =>
-          updateActiveApplicant({
-            vasData: { ...vasData, ...fields },
-            email: fields.email !== undefined ? fields.email : activeApplicant.email,
-            contactNo: fields.contactNo !== undefined ? fields.contactNo : activeApplicant.contactNo,
-            address: fields.address !== undefined ? fields.address : activeApplicant.address,
-          })
-        }
-      />
-    );
-  }
-
-  // 8. NTC 1-19: Duplicate / Certified True Copy of Permit / License
-  if (serviceCode === "NTC_1_19" || serviceTitle.includes("DUPLICATE") || serviceTitle.includes("CERTIFIED TRUE COPY")) {
-    const copyData = activeApplicant.copyOfCertData || initialCopyOfCertificateData(activeApplicant.id);
-    return (
-      <CopyOfCertificateForm
-        data={copyData}
-        onChange={(fields) =>
-          updateActiveApplicant({
-            copyOfCertData: { ...copyData, ...fields },
-            firstName: fields.applicantName !== undefined ? fields.applicantName.split(" ")[0] || "" : activeApplicant.firstName,
-            lastName: fields.applicantName !== undefined ? fields.applicantName.split(" ").slice(1).join(" ") : activeApplicant.lastName,
-            email: fields.email !== undefined ? fields.email : activeApplicant.email,
-            contactNo: fields.contactNo !== undefined ? fields.contactNo : activeApplicant.contactNo,
-            address: fields.address !== undefined ? fields.address : activeApplicant.address,
-          })
-        }
-      />
-    );
-  }
-
-  // Fallback Generic Form
+  // Fallback diagnostic view if no database-seeded form configuration is found
   return (
-    <View style={{ gap: 14 }}>
+    <View style={{ gap: 14, padding: 18, backgroundColor: COLORS.neutral[100], borderRadius: 10, borderWidth: 1, borderColor: COLORS.neutral[200] }}>
       {renderBulkCohortBanner()}
-      <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: COLORS.neutral[600] }}>
-        Generic Application Form for {service.title} ({service.code})
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+        <Icon name="alert-circle" size={18} color={COLORS.semantic.error} />
+        <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 14, fontWeight: "700", color: COLORS.semantic.error }}>
+          Form Layout Unavailable
+        </Text>
+      </View>
+      <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12.5, color: COLORS.neutral[600], lineHeight: 18 }}>
+        No custom form layout is configured in the database for {service.title} ({service.code}). Please ensure that forms seeding is completed.
       </Text>
-      <ValidatedInput
-        label="First Name"
-        placeholder="First Name"
-        value={activeApplicant.firstName}
-        onChangeText={(val) => updateActiveApplicant({ firstName: val })}
-        required
-      />
-      <ValidatedInput
-        label="Last Name"
-        placeholder="Last Name"
-        value={activeApplicant.lastName}
-        onChangeText={(val) => updateActiveApplicant({ lastName: val })}
-        required
-      />
-      <ValidatedInput
-        label="Email Address"
-        placeholder="email@example.com"
-        value={activeApplicant.email}
-        onChangeText={(val) => updateActiveApplicant({ email: val })}
-        required
-      />
-      <ValidatedInput
-        label="Contact Number"
-        placeholder="0917XXXXXXX"
-        value={activeApplicant.contactNo}
-        onChangeText={(val) => updateActiveApplicant({ contactNo: val })}
-        required
-      />
     </View>
   );
 }

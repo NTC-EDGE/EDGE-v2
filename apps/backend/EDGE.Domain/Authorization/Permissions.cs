@@ -74,11 +74,23 @@ public static class Permissions
     public const string DownloadStorage = "storage.download";
     public const string DeleteStorage = "storage.delete";
 
-    // Notes
-    public const string ReadNotes = "notes.read";
-    public const string CreateNotes = "notes.create";
-    public const string UpdateNotes = "notes.update";
-    public const string DeleteNotes = "notes.delete";
+    // Service Notes
+    public const string ReadServiceNotes = "service_notes.read";
+    public const string CreateServiceNotes = "service_notes.create";
+    public const string UpdateServiceNotes = "service_notes.update";
+    public const string DeleteServiceNotes = "service_notes.delete";
+
+    // SOA Notes
+    public const string ReadSoaNotes = "soa_notes.read";
+    public const string CreateSoaNotes = "soa_notes.create";
+    public const string UpdateSoaNotes = "soa_notes.update";
+    public const string DeleteSoaNotes = "soa_notes.delete";
+
+    // Legacy aliases
+    public const string ReadNotes = ReadServiceNotes;
+    public const string CreateNotes = CreateServiceNotes;
+    public const string UpdateNotes = UpdateServiceNotes;
+    public const string DeleteNotes = DeleteServiceNotes;
 
     // Billing & Fees
     public const string CreateBilling = "billing.create";
@@ -148,11 +160,17 @@ public static class Permissions
         new(DownloadStorage, "Storage", "Download Attachments", PermissionScope.Internal, "Allows downloading document attachments"),
         new(DeleteStorage, "Storage", "Delete Attachments", PermissionScope.Internal, "Allows removing document attachments"),
 
-        // Notes
-        new(ReadNotes, "Internal Notes", "Read Notes", PermissionScope.Internal, "Allows viewing application internal notes"),
-        new(CreateNotes, "Internal Notes", "Create Notes", PermissionScope.Internal, "Allows adding internal notes to applications"),
-        new(UpdateNotes, "Internal Notes", "Update Notes", PermissionScope.Internal, "Allows editing internal notes"),
-        new(DeleteNotes, "Internal Notes", "Delete Notes", PermissionScope.Internal, "Allows deleting internal notes"),
+        // Service Notes
+        new(ReadServiceNotes, "Service Notes", "Read Service Notes", PermissionScope.Internal, "Allows viewing service compliance notes"),
+        new(CreateServiceNotes, "Service Notes", "Create Service Notes", PermissionScope.Internal, "Allows adding compliance notes to services"),
+        new(UpdateServiceNotes, "Service Notes", "Update Service Notes", PermissionScope.Internal, "Allows editing service compliance notes"),
+        new(DeleteServiceNotes, "Service Notes", "Delete Service Notes", PermissionScope.Internal, "Allows deleting service compliance notes"),
+
+        // SOA Notes
+        new(ReadSoaNotes, "SOA Notes", "Read SOA Notes", PermissionScope.Internal, "Allows viewing Statement of Account note templates"),
+        new(CreateSoaNotes, "SOA Notes", "Create SOA Notes", PermissionScope.Internal, "Allows creating Statement of Account note templates"),
+        new(UpdateSoaNotes, "SOA Notes", "Update SOA Notes", PermissionScope.Internal, "Allows editing Statement of Account note templates"),
+        new(DeleteSoaNotes, "SOA Notes", "Delete SOA Notes", PermissionScope.Internal, "Allows deleting Statement of Account note templates"),
 
         // Billing
         new(CreateBilling, "Billing & Fees", "Create Billing", PermissionScope.Internal, "Allows generating fee order of payment"),

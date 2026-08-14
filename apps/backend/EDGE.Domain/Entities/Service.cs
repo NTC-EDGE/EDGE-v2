@@ -17,4 +17,5 @@ public class Service : AuditableEntity
     public ICollection<ServiceVariant> ServiceVariants { get; set; } = new List<ServiceVariant>();
     public virtual ICollection<ServiceFee> ServiceFees { get; set; } = new List<ServiceFee>();
     public virtual ICollection<Schedule> Schedules { get; set; } = new List<Schedule>();
+    public virtual ICollection<ServiceNote> ServiceNotes { get; set; } = new List<ServiceNote>();
 }

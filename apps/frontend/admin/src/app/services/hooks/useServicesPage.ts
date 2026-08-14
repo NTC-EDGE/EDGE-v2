@@ -215,7 +215,6 @@ export function useServicesPage() {
   const { data: serviceRequirements = [], error: svcReqErr, isLoading: loadingServiceReqs, mutate: mutSvcReq } = useServiceRequirements(
     activeTab === "service-requirements" && mappingServiceId ? mappingServiceId : undefined,
     activeTab === "service-requirements" && mappingVariantId ? mappingVariantId : undefined,
-    undefined,
     activeTab === "service-requirements"
   );
 
@@ -345,7 +344,7 @@ export function useServicesPage() {
 
   const filteredFlatMappings = useMemo(() => {
     const term = flatMappingsSearch.toLowerCase();
-    return flatMappings.filter((mr: ServiceVariantRequirement) => (mr.serviceName || "").toLowerCase().includes(term) || (mr.requirement?.name || "").toLowerCase().includes(term) || (mr.contextKey || "").toLowerCase().includes(term));
+    return flatMappings.filter((mr: ServiceVariantRequirement) => (mr.serviceName || "").toLowerCase().includes(term) || (mr.requirement?.name || "").toLowerCase().includes(term));
   }, [flatMappings, flatMappingsSearch]);
 
   const pagedFlatMappings = useMemo(() => {
@@ -451,20 +450,18 @@ export function useServicesPage() {
     setIsReqSubmitting(false);
   };
 
-  const handleMappingSubmit = async (data: any) => {
+  const handleMappingSubmit = async (data: { serviceId: string; variantId: string; requirementId: string; isRequired: boolean }) => {
     setIsMappingSubmitting(true);
     let apiCall;
     if (editingMapping) {
       apiCall = updateServiceVariantRequirement(editingMapping.id, {
         requirementId: editingMapping.requirementId,
         serviceVariantId: editingMapping.serviceVariantId,
-        contextKey: data.contextKey,
         isRequired: data.isRequired
       });
     } else {
       apiCall = attachServiceVariantRequirement(data.serviceId, data.variantId, {
         requirementId: data.requirementId,
-        contextKey: data.contextKey,
         isRequired: data.isRequired
       });
     }
@@ -556,7 +553,7 @@ export function useServicesPage() {
     if (res) {
       showToast(`Note ${editingNote ? "updated" : "created"} successfully.`);
       mutNotes();
-      invalidatePrefix("/api/v2/notes");
+      invalidatePrefix("/api/v2/service-notes");
       setIsNoteModalOpen(false);
     } else {
       showToast(getErrorMessage(err, "Failed to save note."), "error");
@@ -567,7 +564,7 @@ export function useServicesPage() {
   const handleDeleteNoteConfirm = async () => {
     if (!deletingNoteId) return;
     const [res, err] = await safeAsync(deleteNote(deletingNoteId));
-    if (res) { showToast("Note deleted."); mutNotes(); invalidatePrefix("/api/v2/notes"); }
+    if (res) { showToast("Note deleted."); mutNotes(); invalidatePrefix("/api/v2/service-notes"); }
     else showToast(getErrorMessage(err, "Failed to delete note."), "error");
     setDeletingNoteId(null);
   };

@@ -42,7 +42,12 @@ export interface OfficeInfo {
 export interface GeneralApplicantData {
   id: number;
   firstName: string;
+  middleName?: string;
   lastName: string;
+  suffix?: string;
+  applicantType?: "individual" | "company";
+  companyName?: string;
+  representativeName?: string;
   email: string;
   contactNo: string;
   address: string;
@@ -51,6 +56,8 @@ export interface GeneralApplicantData {
   birthYear: string;
   notes: string;
   selectedVariantId?: string;
+  selectedElementId?: string;
+  selectedElementTitle?: string;
   uploads: Record<string, { name: string; uri: string } | string>;
   formFieldValues?: Array<{ fieldId: string; fieldLabel: string; value: string }>;
   // Specialized Certificate, License & Permit Models
@@ -67,7 +74,12 @@ export interface GeneralApplicantData {
 export const initialGeneralApplicant = (id: number): GeneralApplicantData => ({
   id,
   firstName: "",
+  middleName: "",
   lastName: "",
+  suffix: "",
+  applicantType: "individual",
+  companyName: "",
+  representativeName: "",
   email: "",
   contactNo: "",
   address: "",
@@ -86,6 +98,50 @@ export const initialGeneralApplicant = (id: number): GeneralApplicantData => ({
   lifetimeLicenseData: initialLifetimeAmateurLicenseData(id),
   permitData: initialAmateurPermitData(id),
 });
+
+export const isGeneralApplicantComplete = (
+  app: GeneralApplicantData,
+  service?: NTCService,
+  variantRequirements: string[] = []
+): boolean => {
+  // 1. Basic details (must have name, email, contact number)
+  const hasFirstName = Boolean(app.firstName && app.firstName.trim().length > 0);
+  const hasLastName = Boolean(app.lastName && app.lastName.trim().length > 0);
+  const hasEmail = Boolean(app.email && app.email.trim().length > 0 && app.email.includes("@"));
+  const hasContact = Boolean(app.contactNo && app.contactNo.trim().length > 0);
+
+  if (!hasFirstName || !hasLastName || !hasEmail || !hasContact) {
+    return false;
+  }
+
+  // 2. Document upload validation
+  const uploads = app.uploads || {};
+  const reqList =
+    variantRequirements && variantRequirements.length > 0
+      ? variantRequirements
+      : service?.requirements && service.requirements.length > 0
+      ? service.requirements
+      : [];
+
+  if (reqList.length > 0) {
+    const allUploaded = reqList.every((req, idx) => {
+      const file =
+        uploads[req] ||
+        uploads[`req-${idx}`] ||
+        uploads[`req-gen-${idx}`] ||
+        uploads[idx.toString()];
+
+      if (!file) return false;
+      if (typeof file === "string") return file.trim().length > 0;
+      return !!(file.name || file.uri);
+    });
+    if (!allUploaded) {
+      return false;
+    }
+  }
+
+  return true;
+};
 
 export interface UseGeneralServiceWizardOptions {
   service: NTCService;
@@ -257,6 +313,12 @@ export function useGeneralServiceWizard(
     let active = true;
     const fetchVariantRequirements = async () => {
       if (!service?.id) return;
+      if (!effectiveVariantId) {
+        if (active) {
+          setVariantRequirements(service.requirements || []);
+        }
+        return;
+      }
       try {
         setLoadingRequirements(true);
         const reqRes = await api
@@ -390,13 +452,24 @@ export function useGeneralServiceWizard(
   };
 
   const submitApplicationPayload = async (isDraft = false) => {
+    if (!isDraft) {
+      const incompleteCount = applicants.filter(
+        (app) => !isGeneralApplicantComplete(app, service, variantRequirements)
+      ).length;
+      if (incompleteCount > 0) {
+        throw new Error(
+          `Cannot submit: ${incompleteCount} of ${applicants.length} applicant(s) are incomplete. Please complete all required personal details and document uploads before submitting.`
+        );
+      }
+    }
+
     const mappedApplicants = applicants.map((app) =>
       serializeCertificateApplicant(app, service, [])
     );
 
     const payload = {
       tenantId: selectedRegionId,
-      submissionMode: "Single",
+      submissionMode: mappedApplicants.length > 1 ? "Bulk" : "Single",
       serviceId: service.id,
       fieldOfficeId: selectedOfficeId,
       serviceVariantId: activeApplicant.selectedVariantId || (variants.length > 0 ? variants[0].id : null),

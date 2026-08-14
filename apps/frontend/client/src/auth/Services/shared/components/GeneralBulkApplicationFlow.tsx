@@ -32,10 +32,7 @@ interface GeneralBulkApplicationFlowProps {
   setDynamicRequiredFieldIds?: (ids: string[]) => void;
 }
 
-function getApplicantDisplayName(app: GeneralApplicantData, idx: number): string {
-  const name = `${app.firstName || ""} ${app.lastName || ""}`.trim();
-  return name || `Applicant #${idx + 1}`;
-}
+import { getApplicantDisplayName } from "../helpers/applicantDisplayHelper";
 
 // ─── Main Component ────────────────────────────────────────────────────────
 export function GeneralBulkApplicationFlow({
@@ -88,12 +85,13 @@ export function GeneralBulkApplicationFlow({
     const errors: Record<string, string> = {};
 
     if (dynamicRequiredFieldIds && dynamicRequiredFieldIds.length > 0) {
-      const filledIds = new Set(
-        (activeApplicant?.formFieldValues || []).map((fv) => fv.fieldId)
-      );
+      const fieldValues = activeApplicant?.formFieldValues || [];
+      const filledMap = new Map(fieldValues.map((fv) => [fv.fieldId, fv.value]));
+
       dynamicRequiredFieldIds.forEach((id) => {
-        const value = (activeApplicant?.formFieldValues ?? []).find((fv) => fv.fieldId === id)?.value;
-        if (!filledIds.has(id) || !value || value.trim() === "") {
+        const val = filledMap.get(id);
+        const trimmed = val !== undefined && val !== null ? (typeof val === "string" ? val.trim() : String(val)) : "";
+        if (trimmed === "" || trimmed === "false") {
           errors[id] = "This required field cannot be left blank.";
         }
       });
@@ -152,29 +150,6 @@ export function GeneralBulkApplicationFlow({
           </View>
         </View>
 
-        {allComplete && (
-          <TouchableOpacity
-            onPress={onSubmitAll}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "center",
-              backgroundColor: "#16A34A",
-              borderRadius: 10,
-              paddingVertical: 12,
-              paddingHorizontal: 16,
-              gap: 8,
-              marginBottom: 16,
-            }}
-            activeOpacity={0.8}
-          >
-            <Icon name="check-circle" size={16} color="#ffffff" />
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: "#ffffff" }}>
-              Submit All {applicants.length} Applications
-            </Text>
-          </TouchableOpacity>
-        )}
-
         <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
           <GeneralFilingDetailsStep
             service={service}
@@ -186,12 +161,18 @@ export function GeneralBulkApplicationFlow({
         </ScrollView>
 
         {/* Navigation */}
-        <View style={{ flexDirection: "row", justifyContent: "flex-end", paddingTop: 12, borderTopWidth: 1, borderColor: "#E2E8F0", marginTop: 8 }}>
+        <View style={{ flexDirection: "row", gap: 10, paddingTop: 12, borderTopWidth: 1, borderColor: "#E2E8F0", marginTop: 8 }}>
+          <TouchableOpacity
+            onPress={onBack}
+            style={{ flex: 1, borderWidth: 1.5, borderColor: "#CBD5E1", backgroundColor: "#F8FAFC", borderRadius: 12, paddingVertical: 12, alignItems: "center" }}
+          >
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: "#0F2C59" }}>← Back to Selection</Text>
+          </TouchableOpacity>
           <TouchableOpacity
             onPress={handleFilingDetailsNext}
             style={{ flex: 1, backgroundColor: "#0F2C59", borderRadius: 12, paddingVertical: 12, alignItems: "center" }}
           >
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: "#FFFFFF" }}>Next</Text>
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: "#FFFFFF" }}>Next →</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -235,29 +216,6 @@ export function GeneralBulkApplicationFlow({
             </Text>
           </View>
         </View>
-
-        {allComplete && (
-          <TouchableOpacity
-            onPress={onSubmitAll}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "center",
-              backgroundColor: "#16A34A",
-              borderRadius: 10,
-              paddingVertical: 12,
-              paddingHorizontal: 16,
-              gap: 8,
-              marginBottom: 16,
-            }}
-            activeOpacity={0.8}
-          >
-            <Icon name="check-circle" size={16} color="#ffffff" />
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: "#ffffff" }}>
-              Submit All {applicants.length} Applications
-            </Text>
-          </TouchableOpacity>
-        )}
 
         <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
           <GeneralDocumentUploadStep

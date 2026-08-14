@@ -4,27 +4,34 @@ import { ValidatedInput } from "./ValidatedInput";
 import { DatePickerInput } from "./DatePickerInput";
 import { Select } from "./Select";
 import { FormGrid, FormCol } from "./FormGrid";
+import { ApplicantNameField, StructuredNameData } from "./ApplicantNameField";
+import { FormSignatureInput } from "./FormSignatureInput";
+import { DeclarationCheckbox } from "./DeclarationCheckbox";
 import { TYPOGRAPHY, COLORS } from "../theme/tokens";
 
 export interface FieldDto {
-  id: string;
-  fieldType: string; // text | number | date | dropdown | checkbox | signature | file
+  id?: string;
+  fieldId?: string;
+  fieldType?: string; // text | number | date | dropdown | checkbox | signature | file
+  type?: string;
   label: string;
   isRequired?: boolean;
-  options?: Array<{ label: string; value: string }>;
+  options?: Array<{ label: string; value: string }> | string[];
   placeholder?: string;
   isCompact?: boolean;
   validationRules?: string;
 }
 
 export interface FormSectionDto {
-  id: string;
+  id?: string;
+  key?: string;
   title: string;
   fields: FieldDto[];
 }
 
 export interface FormDto {
-  id: string;
+  id?: string;
+  formId?: string;
   version: string;
   sections: FormSectionDto[];
 }
@@ -33,70 +40,202 @@ interface DynamicFormRendererProps {
   form: FormDto;
   values: Record<string, string>; // fieldId -> value
   onChange: (fieldId: string, label: string, value: string) => void;
+  onStructuredNameChange?: (data: StructuredNameData) => void;
+  structuredNameData?: Partial<StructuredNameData>;
+  applicantName?: string;
+  allowCompany?: boolean;
+  variantElements?: Array<{ id: string; code?: string; description?: string; [key: string]: unknown }>;
   errors?: Record<string, string>;
+  hideSections?: string[];
+}
+
+function parseOptions(field: FieldDto): Array<{ label: string; value: string }> {
+  if (field.options !== null && field.options !== undefined && Array.isArray(field.options) && field.options.length > 0) {
+    return field.options.map((opt) =>
+      typeof opt === "string" ? { label: opt, value: opt } : opt
+    );
+  }
+
+  if (field.validationRules !== null && field.validationRules !== undefined && typeof field.validationRules === "string") {
+    try {
+      const parsed: unknown = JSON.parse(field.validationRules);
+      if (Array.isArray(parsed)) {
+        return parsed.map((item) => {
+          const str = typeof item === "string" ? item : String(item);
+          return { label: str, value: str };
+        });
+      }
+    } catch {
+      // Ignored if not JSON array
+    }
+  }
+
+  return [];
 }
 
 export function DynamicFormRenderer({
   form,
   values,
   onChange,
+  onStructuredNameChange,
+  structuredNameData,
+  applicantName = "",
+  allowCompany = true,
+  variantElements = [],
   errors = {},
+  hideSections = ["payment"],
 }: DynamicFormRendererProps) {
+  const hiddenKeys = hideSections.map((s) => s.toLowerCase());
+
+  const visibleSections = form.sections.filter((section) => {
+    const key = (section.key || section.id || "").toLowerCase();
+    const title = (section.title || "").toLowerCase();
+    return (
+      !hiddenKeys.includes(key) &&
+      !hiddenKeys.includes(title) &&
+      title !== "payment details"
+    );
+  });
+
   return (
     <View style={styles.container}>
-      {form.sections.map((section, idx) => (
-        <View key={section.id} style={styles.sectionCard}>
-          <View style={styles.sectionHeaderRow}>
-            <View style={styles.sectionTitleRow}>
-              <View style={styles.iconCircle}>
-                <Text style={styles.iconCircleText}>{idx + 1}</Text>
+      {visibleSections.map((section, idx) => {
+        const sectionKey = section.id || section.key || `section-${idx}`;
+        return (
+          <View key={sectionKey} style={styles.sectionCard}>
+            <View style={styles.sectionHeaderRow}>
+              <View style={styles.sectionTitleRow}>
+                <View style={styles.iconCircle}>
+                  <Text style={styles.iconCircleText}>{idx + 1}</Text>
+                </View>
+                <Text style={styles.sectionTitle}>{section.title}</Text>
               </View>
-              <Text style={styles.sectionTitle}>{section.title}</Text>
+              <View style={styles.sectionBadge}>
+                <Text style={styles.sectionBadgeText}>DYNAMIC SECTION {idx + 1}</Text>
+              </View>
             </View>
-            <View style={styles.sectionBadge}>
-              <Text style={styles.sectionBadgeText}>DYNAMIC SECTION {idx + 1}</Text>
-            </View>
+
+            <FormGrid>
+              {section.fields.map((field, fIdx) => {
+                const targetId = field.fieldId || field.id || `field-${fIdx}`;
+                const val = values[targetId] || "";
+                const err = errors[targetId];
+                const rawType = (field.fieldType || field.type || "").toLowerCase();
+                const labelLower = (field.label || "").toLowerCase().trim();
+
+                const isNameField =
+                  labelLower.includes("full name") ||
+                  labelLower.includes("applicant name") ||
+                  labelLower.includes("name of applicant") ||
+                  labelLower === "name" ||
+                  labelLower === "applicant";
+
+                const isSignature =
+                  rawType === "signature" ||
+                  labelLower.includes("signature");
+
+                const isCheckbox =
+                  rawType === "checkbox" ||
+                  labelLower.includes("declare") ||
+                  labelLower.includes("certify") ||
+                  labelLower.includes("agreement") ||
+                  labelLower.includes("declaration");
+
+                const isElementsField =
+                  labelLower.includes("element") ||
+                  targetId === "fd000000-0000-0000-0000-000000000009";
+
+                const elementOptions: Array<{ label: string; value: string }> =
+                  variantElements && variantElements.length > 0
+                    ? variantElements.map((e) => {
+                        const title = e.code ? `${e.code} — ${e.description}` : String(e.description || e.id);
+                        return { label: title, value: title };
+                      })
+                    : [];
+
+                const isDropdown =
+                  rawType === "dropdown" ||
+                  rawType === "select" ||
+                  (isElementsField && elementOptions.length > 0);
+
+                const dropdownOptions =
+                  isElementsField && elementOptions.length > 0
+                    ? elementOptions
+                    : parseOptions(field);
+
+                const isDate = rawType === "date";
+                const isNumber = rawType === "number";
+                const isFile = rawType === "file";
+
+                const span = isNameField || isSignature || isCheckbox || isFile ? 12 : 6;
+
+                return (
+                  <FormCol key={targetId} span={span} compact={field.isCompact}>
+                    {isNameField ? (
+                      <ApplicantNameField
+                        key={targetId}
+                        label={field.label}
+                        isRequired={field.isRequired}
+                        value={val}
+                        structuredValue={structuredNameData}
+                        allowCompany={allowCompany}
+                        onChange={(combinedName) => onChange(targetId, field.label, combinedName)}
+                        onStructuredChange={onStructuredNameChange}
+                        error={err}
+                      />
+                    ) : isSignature ? (
+                      <FormSignatureInput
+                        label={field.label}
+                        isRequired={field.isRequired}
+                        value={val}
+                        onChange={(sigData) => onChange(targetId, field.label, sigData)}
+                        applicantName={applicantName || val}
+                        error={err}
+                      />
+                    ) : isCheckbox ? (
+                      <DeclarationCheckbox
+                        label={field.label}
+                        isRequired={field.isRequired}
+                        value={val}
+                        onChange={(chkVal) => onChange(targetId, field.label, chkVal)}
+                        error={err}
+                      />
+                    ) : isDropdown ? (
+                      <Select
+                        label={field.label}
+                        required={field.isRequired}
+                        value={val}
+                        onValueChange={(v) => onChange(targetId, field.label, v)}
+                        options={dropdownOptions}
+                        placeholder={isElementsField ? "Select Exam Element..." : (field.placeholder || "Select an option...")}
+                        error={err}
+                      />
+                    ) : isDate ? (
+                      <DatePickerInput
+                        label={field.label}
+                        required={field.isRequired}
+                        value={val}
+                        onChangeText={(v: string) => onChange(targetId, field.label, v)}
+                        error={err}
+                      />
+                    ) : (
+                      <ValidatedInput
+                        label={field.label}
+                        required={field.isRequired}
+                        value={val}
+                        onChangeText={(v) => onChange(targetId, field.label, v)}
+                        placeholder={field.placeholder || `Enter ${field.label}...`}
+                        keyboardType={isNumber ? "numeric" : "default"}
+                        error={err}
+                      />
+                    )}
+                  </FormCol>
+                );
+              })}
+            </FormGrid>
           </View>
-
-          <FormGrid>
-            {section.fields.map((field) => {
-              const val = values[field.id] || "";
-              const err = errors[field.id];
-              const span = field.fieldType === "file" || field.fieldType === "signature" ? 12 : 6;
-
-              return (
-                <FormCol key={field.id} span={span} compact={field.isCompact}>
-                  {field.fieldType === "dropdown" ? (
-                    <Select
-                      label={`${field.label}${field.isRequired ? " *" : ""}`}
-                      value={val}
-                      onValueChange={(v) => onChange(field.id, field.label, v)}
-                      options={field.options || []}
-                      error={err}
-                    />
-                  ) : field.fieldType === "date" ? (
-                    <DatePickerInput
-                      label={`${field.label}${field.isRequired ? " *" : ""}`}
-                      value={val}
-                      onChangeText={(v: string) => onChange(field.id, field.label, v)}
-                      error={err}
-                    />
-                  ) : (
-                    <ValidatedInput
-                      label={`${field.label}${field.isRequired ? " *" : ""}`}
-                      value={val}
-                      onChangeText={(v) => onChange(field.id, field.label, v)}
-                      placeholder={field.placeholder || `Enter ${field.label}...`}
-                      keyboardType={field.fieldType === "number" ? "numeric" : "default"}
-                      error={err}
-                    />
-                  )}
-                </FormCol>
-              );
-            })}
-          </FormGrid>
-        </View>
-      ))}
+        );
+      })}
     </View>
   );
 }

@@ -530,13 +530,30 @@ export interface ServiceVariantElementFee {
   createdAt?: string;
 }
 
-export interface Note {
+export interface ServiceNote {
   id: string;
   notes: string;
   serviceId: string;
   serviceVariantId?: string | null;
   serviceName?: string | null;
   serviceVariantName?: string | null;
+  createdAt?: string;
+  createdBy?: string | null;
+  lastModifiedAt?: string | null;
+  lastModifiedBy?: string | null;
+}
+
+export type Note = ServiceNote;
+
+export interface SoaNote {
+  id: string;
+  code?: string | null;
+  title?: string | null;
+  notes: string;
+  createdAt?: string;
+  createdBy?: string | null;
+  lastModifiedAt?: string | null;
+  lastModifiedBy?: string | null;
 }
 
 export interface Requirement {
@@ -561,7 +578,6 @@ export interface ServiceVariantRequirement {
   serviceVariantType?: string;
   serviceName?: string;
   serviceCode?: string;
-  contextKey?: string | null;
   isRequired: boolean;
 }
 
@@ -571,7 +587,6 @@ export interface ApplicantRequirementItemDto {
   requirementName: string;
   description?: string | null;
   isRequired: boolean;
-  contextKey?: string | null;
   submittedRequirementId?: string | null;
   storedFileId?: string | null;
   fileName?: string | null;

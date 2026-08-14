@@ -97,6 +97,13 @@ export function GeneralWizardSteps({
           variantRequirements={variantRequirements}
           selectedVariantId={selectedVariantId}
           onSelectVariant={onSelectVariant}
+          selectedElementId={activeApplicant.selectedElementId}
+          onSelectElement={(elemId, elemTitle) => {
+            updateActiveApplicant({
+              selectedElementId: elemId,
+              selectedElementTitle: elemTitle,
+            });
+          }}
           appMode={appMode}
           onAppModeChange={(val) => {
             setAppMode(val);
@@ -123,13 +130,14 @@ export function GeneralWizardSteps({
           service={service}
           activeApplicant={activeApplicant}
           updateActiveApplicant={updateActiveApplicant}
-          appMode={appMode}
+          appMode={appMode || "SINGLE"}
           applicants={applicants}
           currentApplicantIndex={currentApplicantIndex}
           setCurrentApplicantIndex={setCurrentApplicantIndex}
           onRequiredFieldsChange={onRequiredFieldsChange}
           errors={errors}
           variants={variants}
+          variantElements={variantElements}
         />
       );
     case 4:

@@ -121,18 +121,6 @@ export function ServiceRequirementsTab({
       ),
     },
     {
-      header: "Context Key (Applicant Type)",
-      accessorKey: "contextKey",
-      cell: (val) =>
-        val ? (
-          <span className="px-2 py-0.5 bg-indigo-50 dark:bg-slate-950 border border-indigo-200 dark:border-slate-800 text-indigo-600 dark:text-indigo-300 rounded inline-block font-mono text-[10px]">
-            {String(val)}
-          </span>
-        ) : (
-          <span className="text-slate-500 text-[10px] inline-block font-mono">All Applicant Types</span>
-        ),
-    },
-    {
       header: "Requirement Necessity",
       accessorKey: "isRequired",
       cell: (val) => (
@@ -423,17 +411,6 @@ export function ServiceRequirementsTab({
                         }`}
                       >
                         {mr.isRequired ? "Mandatory" : "Optional"}
-                      </span>
-
-                      <span className="text-[9px] font-medium text-slate-500 font-mono truncate">
-                        Context:{" "}
-                        {mr.contextKey ? (
-                          <span className="text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-slate-950 px-1 py-0.5 rounded border border-indigo-200 dark:border-slate-800 font-bold ml-1">
-                            {mr.contextKey}
-                          </span>
-                        ) : (
-                          "All Applicant Types"
-                        )}
                       </span>
                     </div>
                   </div>

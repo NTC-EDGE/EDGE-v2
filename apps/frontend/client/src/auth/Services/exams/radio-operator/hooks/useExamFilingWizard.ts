@@ -5,6 +5,7 @@ import { extractApiErrorMessage } from "../../../../../shared/components/Toast";
 import { ExamApplicantData } from "../types/examTypes";
 import { useExamFilingQueries } from "./useExamFilingQueries";
 import { getFieldValidationError, mapApplicantsPayload } from "../helpers/examMapping";
+import { isExamApplicantComplete } from "../helpers/validation";
 
 interface UseExamFilingWizardProps {
   serviceId?: string | null;
@@ -157,10 +158,18 @@ export function useExamFilingWizard({
       Alert.alert("Error", "Service identifier is missing.");
       return;
     }
+    if (!isDraft) {
+      const incompleteCount = applicants.filter((app) => !isExamApplicantComplete(app)).length;
+      if (incompleteCount > 0) {
+        throw new Error(
+          `Cannot submit: ${incompleteCount} of ${applicants.length} applicant(s) are incomplete. Please complete all required personal details and document uploads before submitting.`
+        );
+      }
+    }
     const mapped = mapApplicantsPayload(applicants, queries.formFields, serviceName);
     const payload = {
       tenantId: selectedRegionId,
-      submissionMode: appMode === "SINGLE" ? "Single" : "Bulk",
+      submissionMode: (mapped.length > 1 || appMode === "BULK") ? "Bulk" : "Single",
       serviceId: serviceId,
       scheduleId: selectedScheduleId,
       fieldOfficeId: selectedOfficeId,

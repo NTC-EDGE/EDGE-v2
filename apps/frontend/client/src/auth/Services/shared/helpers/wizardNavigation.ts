@@ -1,6 +1,6 @@
 import { Alert } from "react-native";
 import { NTCService } from "../../data/servicesData";
-import { GeneralApplicantData } from "../hooks/useGeneralServiceWizard";
+import { GeneralApplicantData, isGeneralApplicantComplete } from "../hooks/useGeneralServiceWizard";
 
 interface NavigationContext {
   step: number;
@@ -65,12 +65,16 @@ export function handleWizardNext({
       dynamicRequiredFieldIds !== undefined && dynamicRequiredFieldIds.length > 0;
 
     if (hasDynamicForm) {
-      const filledIds = new Set(
-        (activeApplicant.formFieldValues || []).map((fv) => fv.fieldId)
-      );
-      const missingFields = dynamicRequiredFieldIds.filter(
-        (id) => !filledIds.has(id) || !(activeApplicant.formFieldValues ?? []).find((fv) => fv.fieldId === id && fv.value.trim() !== "")
-      );
+      const fieldValues = activeApplicant.formFieldValues || [];
+      const filledMap = new Map(fieldValues.map((fv) => [fv.fieldId, fv.value]));
+
+      const missingFields = dynamicRequiredFieldIds.filter((id) => {
+        const val = filledMap.get(id);
+        if (val === undefined || val === null) return true;
+        const trimmed = typeof val === "string" ? val.trim() : String(val);
+        return trimmed === "" || trimmed === "false";
+      });
+
       if (missingFields.length > 0) {
         const fieldErrors: Record<string, string> = {};
         missingFields.forEach((fieldId) => {
@@ -121,6 +125,11 @@ export function handleWizardNext({
     return;
   }
   if (step === 5) {
+    const isApplicantComplete = isGeneralApplicantComplete(activeApplicant, service, variantRequirements);
+    if (!isApplicantComplete) {
+      Alert.alert("Incomplete Application", "Please complete all required fields and document uploads before submitting.");
+      return;
+    }
     setIsConfirmModalOpen(true);
   }
 }

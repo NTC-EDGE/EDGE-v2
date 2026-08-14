@@ -10,7 +10,12 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Icon, COLORS, TYPOGRAPHY } from "@edge/ui";
-import { GeneralApplicantData } from "./hooks/useGeneralServiceWizard";
+import {
+  GeneralApplicantData,
+  isGeneralApplicantComplete,
+} from "./hooks/useGeneralServiceWizard";
+export { isGeneralApplicantComplete };
+import { getApplicantDisplayName } from "./helpers/applicantDisplayHelper";
 import { NTCService } from "../data/servicesData";
 import { styles } from "./GeneralBulkApplicantsPanel.styles";
 import { GeneralDeleteApplicantModal } from "./components/GeneralDeleteApplicantModal";
@@ -31,51 +36,21 @@ interface GeneralBulkApplicantsPanelProps {
   onRemoveApplicant: (idx: number) => void;
   onAddApplicant: () => void;
   onApplicantsImported?: (applicants: GeneralApplicantData[]) => void;
+  onSubmitAll?: () => void;
   service: NTCService;
   variantRequirements?: string[];
 }
-
-export const isGeneralApplicantComplete = (
-  app: GeneralApplicantData,
-  service?: NTCService,
-  variantRequirements: string[] = []
-): boolean => {
-  const uploads = app.uploads || {};
-
-  const reqList =
-    variantRequirements && variantRequirements.length > 0
-      ? variantRequirements
-      : service?.requirements && service.requirements.length > 0
-      ? service.requirements
-      : [];
-
-  // If no requirements defined/loaded yet, cannot mark as complete
-  if (reqList.length === 0) {
-    return false;
-  }
-
-  // ALL requirements must have an attached document
-  return reqList.every((req, idx) => {
-    const file =
-      uploads[req] ||
-      uploads[`req-${idx}`] ||
-      uploads[`req-gen-${idx}`] ||
-      uploads[idx.toString()];
-
-    if (!file) return false;
-    if (typeof file === "string") return file.trim().length > 0;
-    return !!(file.name || file.uri);
-  });
-};
 
 export function GeneralBulkApplicantsPanel({
   applicants,
   currentApplicantIndex,
   onSelectApplicant,
+  setStep,
   onCancel,
   onRemoveApplicant,
   onAddApplicant,
   onApplicantsImported,
+  onSubmitAll,
   service,
   variantRequirements = [],
 }: GeneralBulkApplicantsPanelProps) {
@@ -267,7 +242,7 @@ export function GeneralBulkApplicantsPanel({
         {filteredApplicants.map(({ app, originalIdx }) => {
           const isSelected = originalIdx === currentApplicantIndex;
           const isComplete = isGeneralApplicantComplete(app, service, variantRequirements);
-          const fullName = `${app.firstName} ${app.lastName}`.trim() || `Applicant #${originalIdx + 1}`;
+          const fullName = getApplicantDisplayName(app, originalIdx + 1);
 
           return (
             <TouchableOpacity
@@ -308,21 +283,52 @@ export function GeneralBulkApplicantsPanel({
       </ScrollView>
 
       {/* Actions footer */}
-      <View style={styles.footer}>
-        <TouchableOpacity
-          onPress={onAddApplicant}
-          style={styles.addBtn}
-        >
-          <Icon name="plus" size={16} color={COLORS.brand[700]} style={{ marginRight: 6 }} />
-          <Text style={styles.addBtnText}>Add Applicant</Text>
-        </TouchableOpacity>
+      <View style={{ padding: 16, borderTopWidth: 1, borderColor: "#E2E8F0", backgroundColor: "#FFFFFF", gap: 10 }}>
+        {onSubmitAll !== undefined && (
+          <TouchableOpacity
+            disabled={completeCount !== applicants.length || applicants.length === 0}
+            onPress={onSubmitAll}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: completeCount === applicants.length && applicants.length > 0 ? "#16A34A" : "#94A3B8",
+              borderRadius: 10,
+              paddingVertical: 12,
+              paddingHorizontal: 16,
+              gap: 8,
+              opacity: completeCount === applicants.length && applicants.length > 0 ? 1 : 0.7,
+            }}
+            activeOpacity={0.8}
+          >
+            <Icon name={completeCount === applicants.length && applicants.length > 0 ? "check-circle" : "lock"} size={16} color="#ffffff" />
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: "#ffffff" }}>
+              {completeCount === applicants.length && applicants.length > 0
+                ? `Submit All ${applicants.length} Applications`
+                : `Complete All Applications to Submit (${completeCount}/${applicants.length})`}
+            </Text>
+          </TouchableOpacity>
+        )}
 
-        <TouchableOpacity
-          onPress={onCancel}
-          style={[styles.submitBtn, { backgroundColor: COLORS.semantic.error }]}
-        >
-          <Text style={styles.submitBtnText}>Cancel Application</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: "row", gap: 10 }}>
+          <TouchableOpacity
+            onPress={() => setStep(2)}
+            style={[styles.backBtn, { flex: 1 }]}
+            activeOpacity={0.8}
+          >
+            <Icon name="arrow-left" size={15} color="#0F2C59" style={{ marginRight: 6 }} />
+            <Text style={styles.backBtnText}>Back</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={onAddApplicant}
+            style={[styles.addBtn, { flex: 1 }]}
+            activeOpacity={0.8}
+          >
+            <Icon name="plus" size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
+            <Text style={styles.addBtnText}>Add Applicant</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <GeneralDeleteApplicantModal

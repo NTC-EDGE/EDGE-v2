@@ -28,7 +28,6 @@ export interface EditRequirementDialogProps {
       description: string;
       requirementId: string;
       serviceVariantId: string;
-      contextKey: string | null;
       isRequired: boolean;
     }
   ) => Promise<void>;
@@ -57,7 +56,6 @@ export function EditRequirementDialog({
   const [selectedServiceId, setSelectedServiceId] = useState("");
   const [selectedVariantId, setSelectedVariantId] = useState("");
   const [selectedReqId, setSelectedReqId] = useState("");
-  const [contextKey, setContextKey] = useState("");
   const [isRequired, setIsRequired] = useState(true);
 
   // Fetch variants for selected service
@@ -76,20 +74,12 @@ export function EditRequirementDialog({
         setName(selectedRequirement.name);
         setDescription(selectedRequirement.description ?? "");
       } else if (activeTab === "service-requirements" && selectedSvr !== null) {
-        // Find matching service for the variant
-        // Since we mapped serviceId in ServiceVariant, let's look up in services
-        // But wait! If we don't have serviceId directly on the svr, we can use useSWR or query it
-        // Or wait, does MOCK_SERVICES or the service catalog list have the service?
-        // Yes, we can find a service whose name or code matches svr.serviceName/serviceCode,
-        // or just let them select it.
-        // Wait, how can we match the service?
         const matchedService = services.find(
           (s) => s.name === selectedSvr.serviceName || s.code === selectedSvr.serviceCode
         );
         setSelectedServiceId(matchedService?.id ?? "");
         setSelectedVariantId(selectedSvr.serviceVariantId);
         setSelectedReqId(selectedSvr.requirementId);
-        setContextKey(selectedSvr.contextKey ?? "");
         setIsRequired(selectedSvr.isRequired);
       }
     }
@@ -119,7 +109,6 @@ export function EditRequirementDialog({
         description,
         requirementId: selectedReqId,
         serviceVariantId: selectedVariantId,
-        contextKey: contextKey.trim() === "" ? null : contextKey.trim().toUpperCase(),
         isRequired,
       });
       onOpenChange(false);
@@ -230,19 +219,8 @@ export function EditRequirementDialog({
                 </select>
               </div>
 
-              <div className="flex items-center justify-between gap-4 pt-2">
-                <div className="flex items-center gap-2 flex-1 animate-pulse-once">
-                  <label className="text-xs font-semibold text-slate-300">Context Key</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. NEW, RENEW (leave blank for Any)"
-                    value={contextKey}
-                    onChange={(e) => setContextKey(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 uppercase font-mono"
-                  />
-                </div>
-
-                <label className="flex items-center gap-2 cursor-pointer select-none self-end pb-2">
+              <div className="pt-2">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
                   <input
                     type="checkbox"
                     checked={isRequired}

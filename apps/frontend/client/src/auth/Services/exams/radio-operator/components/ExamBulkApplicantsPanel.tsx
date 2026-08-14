@@ -23,9 +23,8 @@ interface ExamBulkApplicantsPanelProps {
   onRemoveApplicant: (idx: number) => void;
   bulkMethod?: "MANUAL" | "EXCEL";
   onAddApplicant?: () => void;
+  onSubmitAll?: () => void;
 }
-
-
 
 export function ExamBulkApplicantsPanel({
   applicants,
@@ -36,6 +35,7 @@ export function ExamBulkApplicantsPanel({
   onRemoveApplicant,
   bulkMethod,
   onAddApplicant,
+  onSubmitAll,
 }: ExamBulkApplicantsPanelProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<"ALL" | "COMPLETE" | "DRAFTS">("ALL");
@@ -155,24 +155,55 @@ export function ExamBulkApplicantsPanel({
         )}
       </ScrollView>
 
-      {/* Bottom Cancel Button */}
-      <View style={styles.footer}>
-        <TouchableOpacity
-          onPress={onCancel}
-          style={[
-            styles.submitBtn,
-            { backgroundColor: COLORS.semantic.error },
-          ]}
-        >
-          <Text
-            style={[
-              styles.submitBtnText,
-              { color: COLORS.neutral.white },
-            ]}
+      {/* Bottom Actions Footer */}
+      <View style={{ padding: 16, borderTopWidth: 1, borderColor: "#E2E8F0", backgroundColor: "#FFFFFF", gap: 10 }}>
+        {onSubmitAll !== undefined && (
+          <TouchableOpacity
+            disabled={completeCount !== applicants.length || applicants.length === 0}
+            onPress={onSubmitAll}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: completeCount === applicants.length && applicants.length > 0 ? "#16A34A" : "#94A3B8",
+              borderRadius: 10,
+              paddingVertical: 12,
+              paddingHorizontal: 16,
+              gap: 8,
+              opacity: completeCount === applicants.length && applicants.length > 0 ? 1 : 0.7,
+            }}
+            activeOpacity={0.8}
           >
-            Cancel Application
-          </Text>
-        </TouchableOpacity>
+            <Icon name={completeCount === applicants.length && applicants.length > 0 ? "check-circle" : "lock"} size={16} color="#ffffff" />
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: "#ffffff" }}>
+              {completeCount === applicants.length && applicants.length > 0
+                ? `Submit All ${applicants.length} Applications`
+                : `Complete All Applications to Submit (${completeCount}/${applicants.length})`}
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        <View style={{ flexDirection: "row", gap: 10 }}>
+          <TouchableOpacity
+            onPress={() => setStep(2)}
+            style={[styles.backBtn, { flex: 1 }]}
+            activeOpacity={0.8}
+          >
+            <Icon name="arrow-left" size={15} color="#0F2C59" style={{ marginRight: 6 }} />
+            <Text style={styles.backBtnText}>Back</Text>
+          </TouchableOpacity>
+
+          {onAddApplicant && (
+            <TouchableOpacity
+              onPress={onAddApplicant}
+              style={[styles.addBtn, { flex: 1 }]}
+              activeOpacity={0.8}
+            >
+              <Icon name="plus" size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
+              <Text style={styles.addBtnText}>Add Applicant</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       <ExamDeleteApplicantModal

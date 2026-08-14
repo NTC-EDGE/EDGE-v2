@@ -127,7 +127,7 @@ public class GetApplicantRequirementsQueryHandlerTests
         _mockAppRepo.Setup(r => r.GetByIdWithDetailsAsync(appId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(app);
 
-        _mockReqRepo.Setup(r => r.GetServiceVariantRequirementsAsync(serviceId, variantId, It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+        _mockReqRepo.Setup(r => r.GetServiceVariantRequirementsAsync(serviceId, variantId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<ServiceVariantRequirement> { rule });
 
         var query = new GetApplicantRequirementsQuery(appId, applicantId);

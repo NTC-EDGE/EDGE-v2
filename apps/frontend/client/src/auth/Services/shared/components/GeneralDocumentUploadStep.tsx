@@ -3,6 +3,7 @@ import { View, Text } from "react-native";
 import { TYPOGRAPHY, COLORS, Icon } from "@edge/ui";
 import { NTCService } from "../../data/servicesData";
 import { GeneralApplicantData } from "../hooks/useGeneralServiceWizard";
+import { getApplicantDisplayName } from "../helpers/applicantDisplayHelper";
 import { SharedDocumentUpload } from "../../../../shared/components/SharedDocumentUpload";
 
 import { TouchableOpacity } from "react-native";
@@ -91,7 +92,7 @@ export function GeneralDocumentUploadStep({
                 BULK FILING COHORT — Document Uploads for Applicant {currentApplicantIndex + 1} of {applicants.length}
               </Text>
               <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, color: "#2563EB", marginTop: 1 }} numberOfLines={1}>
-                Uploading for: {[activeApplicant.firstName, activeApplicant.lastName].filter(Boolean).join(" ") || `Applicant #${currentApplicantIndex + 1}`}
+                Uploading for: {getApplicantDisplayName(activeApplicant, currentApplicantIndex + 1)}
               </Text>
             </View>
           </View>
@@ -116,7 +117,7 @@ export function GeneralDocumentUploadStep({
           </View>
         </View>
       )}
-      {/* Header Indicator Card */}
+      {/* Header Info Card */}
       <View
         style={{
           backgroundColor: "#FFFFFF",
@@ -133,6 +134,24 @@ export function GeneralDocumentUploadStep({
           elevation: 2,
         }}
       >
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: "#EFF6FF", justifyContent: "center", alignItems: "center" }}>
+              <Icon name="upload-cloud" size={15} color="#0F2C59" />
+            </View>
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 15, fontWeight: "700", color: "#0F2C59" }}>
+              Document Upload Requirements
+            </Text>
+          </View>
+          <View style={{ backgroundColor: "#EFF6FF", borderColor: "#BFDBFE", borderWidth: 1, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 }}>
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: "700", color: "#1D4ED8" }}>
+              {reqList.length} Mandatory Document{reqList.length === 1 ? "" : "s"}
+            </Text>
+          </View>
+        </View>
+        <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: "#64748B", lineHeight: 18 }}>
+          Upload clear scanned copies (PDF, JPG, or PNG formats up to 10MB per file) for each requirement below.
+        </Text>
       </View>
 
       {isLifetime && (

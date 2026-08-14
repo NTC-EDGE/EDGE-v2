@@ -183,20 +183,14 @@ export function DetailsColumn({ servicesState }: DetailsColumnProps) {
             currentApplicantIndex={currentGeneralApplicantIndex}
             setCurrentApplicantIndex={setCurrentGeneralApplicantIndex}
             triggerOpenApplicant={servicesState.triggerOpenApplicant}
+            triggerBulkSubmit={servicesState.triggerBulkSubmit}
           />
         ) : selectedService !== null ? (
           <ServiceDetails
             selectedService={selectedService}
             onBackToServices={handleBackToServices}
             onApplyPress={() => {
-              const title = (selectedService.title || "").toUpperCase();
-              if (title.includes("CUSTOMER PREMISES") || title.includes("CPE")) {
-                setActiveWizardService("cpe-accreditation");
-              } else if (title.includes("EXAMINATION") || title.includes("EXAM") || title.includes("ADMISSION SLIP")) {
-                setActiveWizardService("radio-operator-exam");
-              } else {
-                setActiveWizardService("general-service");
-              }
+              setActiveWizardService("general-service");
             }}
             isMobile={isMobile}
           />

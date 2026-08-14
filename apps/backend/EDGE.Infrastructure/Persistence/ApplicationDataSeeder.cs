@@ -117,7 +117,7 @@ public static class ApplicationDataSeeder
                     ("Frequency Band", "VHF 136-174 MHz"),
                     ("Station Installation Address", "Building 4, Port Area, Manila"),
                     ("Intended Usage", "Commercial Fleet Operations"),
-                }, defaultFormId, availableFields);
+                }, defaultFormId, availableFields, null, context);
             }
 
             if (exApp2 != null && exApp2.ApplicationApplicants.FirstOrDefault()?.Applicant != null)
@@ -129,7 +129,7 @@ public static class ApplicationDataSeeder
                     ("Antenna Height (Meters)", "24.5m"),
                     ("Antenna Type", "Omni-directional Fiber Dipole"),
                     ("Operating Hours", "24/7 Continuous Operation"),
-                }, defaultFormId, availableFields);
+                }, defaultFormId, availableFields, null, context);
             }
 
             if (exApp3 != null && exApp3.ApplicationApplicants.FirstOrDefault()?.Applicant != null)
@@ -141,7 +141,7 @@ public static class ApplicationDataSeeder
                     ("Examination Date", "2025-11-14"),
                     ("School / Training Center", "Philippine Maritime & Radio Academy"),
                     ("Highest Educational Attainment", "BS Electronics Engineering"),
-                }, defaultFormId, availableFields);
+                }, defaultFormId, availableFields, null, context);
             }
 
             if (exApp16 != null && exApp16.ApplicationApplicants.FirstOrDefault()?.Applicant != null)
@@ -153,7 +153,7 @@ public static class ApplicationDataSeeder
                     ("Commercial Operator ID", "COP-2024-5512"),
                     ("Station Location", "Unit 402 Sampaloc Manila"),
                     ("Equipment Power Rating", "100W PEP"),
-                }, defaultFormId, availableFields);
+                }, defaultFormId, availableFields, null, context);
             }
 
             if (exApp17 != null && exApp17.ApplicationApplicants.FirstOrDefault()?.Applicant != null)
@@ -166,7 +166,7 @@ public static class ApplicationDataSeeder
                     ("RF Radiation Compliance Certificate", "EMF-CERT-2025-0981"),
                     ("Safety Officer In-Charge", "Engr. Manuel Roxas (PECE #4412)"),
                     ("Emergency Power Source", "250 kVA Standby Generator Set"),
-                }, defaultFormId, availableFields);
+                }, defaultFormId, availableFields, null, context);
             }
 
             await context.SaveChangesAsync();
@@ -989,14 +989,16 @@ public static class ApplicationDataSeeder
         DomainApplication app, Applicant applicant,
         List<(string label, string value)> fields,
         Guid defaultFormId,
-        List<Field> availableFields)
+        List<Field> availableFields,
+        Guid? specificFormId = null,
+        ApplicationDbContext? context = null)
     {
         var submission = new FormSubmission
         {
             Id = Guid.NewGuid(),
             ApplicationId = app.Id,
             ApplicantId = applicant.Id,
-            FormId = defaultFormId,
+            FormId = specificFormId ?? defaultFormId,
             CreatedAt = app.CreatedAt,
         };
 
@@ -1014,6 +1016,10 @@ public static class ApplicationDataSeeder
             });
         }
 
+        if (context != null)
+        {
+            context.FormSubmissions.Add(submission);
+        }
         app.FormSubmissions.Add(submission);
     }
 }

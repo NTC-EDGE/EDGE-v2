@@ -1,19 +1,19 @@
 import useSWR from "swr";
 import { apiClient } from "../apiClient";
-import { ApiResponse, Note } from "../types";
+import { ApiResponse, ServiceNote, Note } from "../types";
 
 export interface UseAdminNotesReturn {
-  notes: Note[];
+  notes: ServiceNote[];
   isLoading: boolean;
   isError: boolean;
-  refetch: () => Promise<ApiResponse<Note[]> | undefined>;
+  refetch: () => Promise<ApiResponse<ServiceNote[]> | undefined>;
 }
 
 export function useAdminNotes(): UseAdminNotesReturn {
-  const { data, error, isLoading, mutate } = useSWR<ApiResponse<Note[]>>(
-    "/api/v2/notes",
+  const { data, error, isLoading, mutate } = useSWR<ApiResponse<ServiceNote[]>>(
+    "/api/v2/service-notes",
     async (url: string) => {
-      const res = await apiClient.get<ApiResponse<Note[]>>(url);
+      const res = await apiClient.get<ApiResponse<ServiceNote[]>>(url);
       return res.data;
     },
     { revalidateOnFocus: false }

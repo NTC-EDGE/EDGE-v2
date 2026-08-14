@@ -32,6 +32,8 @@ interface GeneralFilingModeStepProps {
   variantRequirements?: string[];
   selectedVariantId?: string;
   onSelectVariant?: (variantId: string, variantName: string) => void;
+  selectedElementId?: string;
+  onSelectElement?: (elementId: string, elementTitle: string) => void;
   appMode: "SINGLE" | "BULK" | "";
   onAppModeChange: (mode: "SINGLE" | "BULK") => void;
   bulkMethod?: "MANUAL" | "EXCEL";
@@ -56,6 +58,8 @@ export function GeneralFilingModeStep({
   variantRequirements = [],
   selectedVariantId = "",
   onSelectVariant,
+  selectedElementId = "",
+  onSelectElement,
   appMode,
   onAppModeChange,
   isFileUploaded,
@@ -65,8 +69,10 @@ export function GeneralFilingModeStep({
   onApplicantsImported,
 }: GeneralFilingModeStepProps) {
   const [loading, setLoading] = useState(false);
-  const [selectedClassId, setSelectedClassId] = useState<string>("class-a");
+  const [localSelectedClassId, setLocalSelectedClassId] = useState<string>("");
   const serviceTitle = safeUpper(service?.title || "");
+
+  const selectedClassId = selectedElementId || localSelectedClassId;
 
   const templateConfig = getSpreadsheetTemplateForService(service);
 
@@ -74,6 +80,27 @@ export function GeneralFilingModeStep({
   const displayVariants: ServiceVariantItem[] =
     variants.length > 0
       ? variants
+      : serviceTitle.includes("EXAM") || serviceTitle.includes("ADMISSION SLIP") || serviceTitle.includes("OPERATOR")
+      ? [
+          {
+            id: "v-exam-new",
+            name: `${service?.title || "Admission Slip for Radio Operator Examination"} (NEW)`,
+            type: "New",
+            description: "First-time examination filing for Radio Operator License / Admission Slip.",
+          },
+          {
+            id: "v-exam-retake",
+            name: `${service?.title || "Admission Slip for Radio Operator Examination"} (RETAKE)`,
+            type: "Retake",
+            description: "Re-examination / retake filing for previously unpassed radio elements.",
+          },
+          {
+            id: "v-exam-special",
+            name: `${service?.title || "Admission Slip for Radio Operator Examination"} (SPECIAL EXAM)`,
+            type: "Special Exam",
+            description: "Special radio operator examination schedule request.",
+          },
+        ]
       : serviceTitle.includes("AMATEUR") || serviceTitle.includes("LICENSE")
       ? [
           {
@@ -172,7 +199,9 @@ export function GeneralFilingModeStep({
   const isRenewal = safeUpper(activeVariantName).includes("RENEWAL");
   const isModification = safeUpper(activeVariantName).includes("MODIFICATION");
 
-  const classOptions = (variantElements || []).map((elem) => ({
+  const displayElements: ServiceVariantElementItem[] = variantElements;
+
+  const classOptions = displayElements.map((elem) => ({
     id: elem.id,
     title: elem.code ? `${elem.code} — ${elem.description}` : elem.description,
     desc: elem.description || "",
@@ -350,7 +379,10 @@ export function GeneralFilingModeStep({
             return (
               <TouchableOpacity
                 key={opt.id}
-                onPress={() => setSelectedClassId(opt.id)}
+                onPress={() => {
+                  setLocalSelectedClassId(opt.id);
+                  onSelectElement?.(opt.id, opt.title);
+                }}
                 activeOpacity={0.7}
                 style={{
                   flexDirection: "row",

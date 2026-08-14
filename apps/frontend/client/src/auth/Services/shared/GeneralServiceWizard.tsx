@@ -47,6 +47,7 @@ interface GeneralServiceWizardProps {
   setCurrentApplicantIndex: (idx: number) => void;
   /** Incremented each time a user selects an applicant from the left panel to open Filing Details */
   triggerOpenApplicant?: number;
+  triggerBulkSubmit?: number;
 }
 
 export function GeneralServiceWizard({
@@ -74,6 +75,7 @@ export function GeneralServiceWizard({
   currentApplicantIndex,
   setCurrentApplicantIndex,
   triggerOpenApplicant = 0,
+  triggerBulkSubmit = 0,
 }: GeneralServiceWizardProps) {
   if (!service) return null;
 
@@ -129,6 +131,14 @@ export function GeneralServiceWizard({
     setApplicants,
     currentApplicantIndex,
   });
+
+  const prevBulkSubmitRef = React.useRef(triggerBulkSubmit);
+  React.useEffect(() => {
+    if (triggerBulkSubmit && triggerBulkSubmit !== prevBulkSubmitRef.current) {
+      prevBulkSubmitRef.current = triggerBulkSubmit;
+      setIsConfirmModalOpen(true);
+    }
+  }, [triggerBulkSubmit, setIsConfirmModalOpen]);
 
   const handleNext = () => {
     handleWizardNext({

@@ -1240,50 +1240,6 @@ namespace EDGE.Infrastructure.Migrations
                     b.ToTable("Municipalities", "public");
                 });
 
-            modelBuilder.Entity("EDGE.Domain.Entities.Note", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("IsDeletedBy")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("LastModifiedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("LastModifiedBy")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Notes")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("ServiceId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("ServiceVariantId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ServiceId");
-
-                    b.HasIndex("ServiceVariantId");
-
-                    b.ToTable("Notes", "public");
-                });
-
             modelBuilder.Entity("EDGE.Domain.Entities.NotificationTemplate", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1951,6 +1907,50 @@ namespace EDGE.Infrastructure.Migrations
                     b.ToTable("ServiceInformations", "public");
                 });
 
+            modelBuilder.Entity("EDGE.Domain.Entities.ServiceNote", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("IsDeletedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Notes")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ServiceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ServiceVariantId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ServiceId");
+
+                    b.HasIndex("ServiceVariantId");
+
+                    b.ToTable("ServiceNotes", "public");
+                });
+
             modelBuilder.Entity("EDGE.Domain.Entities.ServiceVariant", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2135,9 +2135,6 @@ namespace EDGE.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<string>("ContextKey")
-                        .HasColumnType("text");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -2166,11 +2163,16 @@ namespace EDGE.Infrastructure.Migrations
                     b.Property<Guid>("ServiceVariantId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("TenantId")
+                        .HasColumnType("uuid");
+
                     b.HasKey("Id");
 
                     b.HasIndex("RequirementId");
 
                     b.HasIndex("ServiceVariantId");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("ServiceVariantRequirements", "public");
                 });
@@ -2264,6 +2266,48 @@ namespace EDGE.Infrastructure.Migrations
                     b.ToTable("SoaLineItems", "public");
                 });
 
+            modelBuilder.Entity("EDGE.Domain.Entities.SoaNote", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Code")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("IsDeletedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Notes")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Title")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("SoaNotes", "public");
+                });
+
             modelBuilder.Entity("EDGE.Domain.Entities.StatementOfAccount", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2321,6 +2365,9 @@ namespace EDGE.Infrastructure.Migrations
                     b.Property<string>("Remarks")
                         .HasColumnType("text");
 
+                    b.Property<Guid?>("SoaNoteId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("SoaNumber")
                         .IsRequired()
                         .HasColumnType("text");
@@ -2337,6 +2384,8 @@ namespace EDGE.Infrastructure.Migrations
                     b.HasIndex("ApplicantId");
 
                     b.HasIndex("ApplicationId");
+
+                    b.HasIndex("SoaNoteId");
 
                     b.ToTable("StatementsOfAccount", "public");
                 });
@@ -3142,24 +3191,6 @@ namespace EDGE.Infrastructure.Migrations
                     b.Navigation("Province");
                 });
 
-            modelBuilder.Entity("EDGE.Domain.Entities.Note", b =>
-                {
-                    b.HasOne("EDGE.Domain.Entities.Service", "Service")
-                        .WithMany()
-                        .HasForeignKey("ServiceId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("EDGE.Domain.Entities.ServiceVariant", "ServiceVariant")
-                        .WithMany()
-                        .HasForeignKey("ServiceVariantId")
-                        .OnDelete(DeleteBehavior.Cascade);
-
-                    b.Navigation("Service");
-
-                    b.Navigation("ServiceVariant");
-                });
-
             modelBuilder.Entity("EDGE.Domain.Entities.OpHistory", b =>
                 {
                     b.HasOne("EDGE.Domain.Entities.OrderOfPayment", "OrderOfPayment")
@@ -3322,6 +3353,24 @@ namespace EDGE.Infrastructure.Migrations
                     b.Navigation("Service");
                 });
 
+            modelBuilder.Entity("EDGE.Domain.Entities.ServiceNote", b =>
+                {
+                    b.HasOne("EDGE.Domain.Entities.Service", "Service")
+                        .WithMany("ServiceNotes")
+                        .HasForeignKey("ServiceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("EDGE.Domain.Entities.ServiceVariant", "ServiceVariant")
+                        .WithMany("ServiceNotes")
+                        .HasForeignKey("ServiceVariantId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("Service");
+
+                    b.Navigation("ServiceVariant");
+                });
+
             modelBuilder.Entity("EDGE.Domain.Entities.ServiceVariant", b =>
                 {
                     b.HasOne("EDGE.Domain.Entities.Service", "Service")
@@ -3404,9 +3453,16 @@ namespace EDGE.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("EDGE.Domain.Entities.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("Requirement");
 
                     b.Navigation("ServiceVariant");
+
+                    b.Navigation("Tenant");
                 });
 
             modelBuilder.Entity("EDGE.Domain.Entities.SoaHistory", b =>
@@ -3443,9 +3499,16 @@ namespace EDGE.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("EDGE.Domain.Entities.SoaNote", "SoaNote")
+                        .WithMany("StatementsOfAccount")
+                        .HasForeignKey("SoaNoteId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("Applicant");
 
                     b.Navigation("Application");
+
+                    b.Navigation("SoaNote");
                 });
 
             modelBuilder.Entity("EDGE.Domain.Entities.StoredFile", b =>
@@ -3601,14 +3664,23 @@ namespace EDGE.Infrastructure.Migrations
 
                     b.Navigation("ServiceFees");
 
+                    b.Navigation("ServiceNotes");
+
                     b.Navigation("ServiceVariants");
                 });
 
             modelBuilder.Entity("EDGE.Domain.Entities.ServiceVariant", b =>
                 {
+                    b.Navigation("ServiceNotes");
+
                     b.Navigation("ServiceVariantElements");
 
                     b.Navigation("ServiceVariantRequirements");
+                });
+
+            modelBuilder.Entity("EDGE.Domain.Entities.SoaNote", b =>
+                {
+                    b.Navigation("StatementsOfAccount");
                 });
 
             modelBuilder.Entity("EDGE.Domain.Entities.StatementOfAccount", b =>
