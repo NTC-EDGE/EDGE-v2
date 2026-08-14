@@ -2135,9 +2135,6 @@ namespace EDGE.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<string>("ContextKey")
-                        .HasColumnType("text");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -2166,11 +2163,16 @@ namespace EDGE.Infrastructure.Migrations
                     b.Property<Guid>("ServiceVariantId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("TenantId")
+                        .HasColumnType("uuid");
+
                     b.HasKey("Id");
 
                     b.HasIndex("RequirementId");
 
                     b.HasIndex("ServiceVariantId");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("ServiceVariantRequirements", "public");
                 });
@@ -3404,9 +3406,16 @@ namespace EDGE.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("EDGE.Domain.Entities.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("Requirement");
 
                     b.Navigation("ServiceVariant");
+
+                    b.Navigation("Tenant");
                 });
 
             modelBuilder.Entity("EDGE.Domain.Entities.SoaHistory", b =>
