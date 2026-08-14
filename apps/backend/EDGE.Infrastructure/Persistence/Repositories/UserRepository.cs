@@ -51,7 +51,12 @@ public class UserRepository : IUserRepository
     {
         if (!string.IsNullOrEmpty(userIdStr) && Guid.TryParse(userIdStr, out var parsedUserId))
         {
-            var user = await GetByIdAsync(parsedUserId, cancellationToken);
+            var user = await _context.Users
+                .AsNoTracking()
+                .Include(x => x.TenantMemberships)
+                    .ThenInclude(tm => tm.Role)
+                .FirstOrDefaultAsync(x => x.Id == parsedUserId, cancellationToken);
+
             if (user != null)
             {
                 var staffName = $"{user.FirstName} {user.LastName}".Trim();

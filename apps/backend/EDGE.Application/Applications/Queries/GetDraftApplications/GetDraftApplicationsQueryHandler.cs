@@ -50,69 +50,7 @@ public class GetDraftApplicationsQueryHandler : IRequestHandler<GetDraftApplicat
             Remarks = app.Remarks,
             UserId = app.UserId,
             IsGuest = app.IsGuest,
-            CreatedAt = app.CreatedAt,
-            Applicants = app.ApplicationApplicants.Select(aa =>
-            {
-                var a = aa.Applicant;
-                var dto = new ApplicantDto
-                {
-                    Id = a?.Id ?? Guid.Empty,
-                    TenantId = a?.TenantId ?? Guid.Empty,
-                    UserId = a?.UserId,
-                    IsGuest = a?.IsGuest ?? true,
-                    ApplicantType = a?.ApplicantType.ToString() ?? "Individual",
-                    Status = a?.Status.ToString() ?? "Incomplete",
-                    EvaluationRemarks = a?.EvaluationRemarks,
-                    ServiceId = a?.ServiceId,
-                    ServiceVariantId = a?.ServiceVariantId,
-                    SubmissionId = a?.FormSubmission != null ? a.FormSubmission.Id : app.FormSubmissions.FirstOrDefault(fs => fs.ApplicantId == a?.Id)?.Id
-                };
-
-                if (a?.ApplicantDetail != null)
-                {
-                    var ad = a.ApplicantDetail;
-                    dto.Details = new ApplicantDetailDto
-                    {
-                        Id = ad.Id,
-                        BarangayId = ad.BarangayId ?? Guid.Empty,
-                        Address = ad.Address,
-                        FirstName = ad.FirstName,
-                        MiddleName = ad.MiddleName,
-                        LastName = ad.LastName,
-                        Suffix = ad.Suffix,
-                        Nationality = ad.Nationality,
-                        Sex = ad.Sex,
-                        Height = ad.Height,
-                        Weight = ad.Weight,
-                        BirthDate = ad.BirthDate,
-                        ContactNumber = ad.ContactNumber,
-                        ZipCode = ad.ZipCode,
-                        SchoolAttended = ad.SchoolAttended,
-                        CourseTaken = ad.CourseTaken,
-                        YearGraduated = ad.YearGraduated,
-                        ESignature = ad.ESignature
-                    };
-                }
-
-                if (a != null)
-                {
-                    var formSubmissionsForApplicant = app.FormSubmissions
-                        .Where(fs => fs.ApplicantId == a.Id)
-                        .ToList();
-
-                    dto.FormFieldValues = formSubmissionsForApplicant
-                        .SelectMany(fs => fs.FieldValues)
-                        .Select(fv => new FormFieldValueDto
-                        {
-                            FieldId = fv.FieldId,
-                            FieldLabel = fv.Field?.Label ?? string.Empty,
-                            Value = fv.Value
-                        })
-                        .ToList();
-                }
-
-                return dto;
-            }).ToList()
+            CreatedAt = app.CreatedAt
         }).ToList();
 
         return ApiResponse<List<ApplicationDto>>.Success(dtos, "User draft applications retrieved successfully.");

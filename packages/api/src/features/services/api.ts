@@ -1,5 +1,5 @@
 import { apiClient } from '../../apiClient';
-import { ApiResponse, ServiceVariant } from '../../types';
+import { ApiResponse, PaginatedApiResponse, ServiceVariant } from '../../types';
 import {
   Service,
   CreateServiceCommand,
@@ -8,15 +8,62 @@ import {
 
 /**
  * GET /api/v2/services
- * Retrieves catalog services.
+ * Retrieves all catalog services, fetching subsequent pages automatically if paginated.
  */
 export async function getServices(params?: {
   serviceCategoryId?: string;
+  pageSize?: number;
 }): Promise<ApiResponse<Service[]>> {
-  const response = await apiClient.get<ApiResponse<Service[]>>('/services', {
-    params,
-  });
-  return response.data;
+  const pageSize = params?.pageSize ?? 50;
+  const firstRes = await apiClient.get<PaginatedApiResponse<Service>>(
+    '/api/v2/services',
+    {
+      params: {
+        ...params,
+        pageNumber: 1,
+        pageSize,
+      },
+    }
+  );
+
+  const initialData = firstRes.data?.data ?? [];
+  const totalPages = firstRes.data?.totalPages ?? 1;
+
+  if (totalPages > 1) {
+    const pagePromises = [];
+    for (let page = 2; page <= totalPages; page++) {
+      pagePromises.push(
+        apiClient.get<PaginatedApiResponse<Service>>('/api/v2/services', {
+          params: {
+            ...params,
+            pageNumber: page,
+            pageSize,
+          },
+        })
+      );
+    }
+
+    const subsequentResponses = await Promise.all(pagePromises);
+    const allServices = [...initialData];
+    for (const res of subsequentResponses) {
+      if (res.data?.data) {
+        allServices.push(...res.data.data);
+      }
+    }
+    return {
+      succeeded: firstRes.data?.succeeded ?? true,
+      message: firstRes.data?.message ?? null,
+      data: allServices,
+      errors: null,
+    };
+  }
+
+  return {
+    succeeded: firstRes.data?.succeeded ?? true,
+    message: firstRes.data?.message ?? null,
+    data: initialData,
+    errors: null,
+  };
 }
 
 /**
@@ -24,21 +71,71 @@ export async function getServices(params?: {
  * Retrieves service details by ID.
  */
 export async function getServiceById(id: string): Promise<ApiResponse<Service>> {
-  const response = await apiClient.get<ApiResponse<Service>>(`/services/${id}`);
+  const response = await apiClient.get<ApiResponse<Service>>(`/api/v2/services/${id}`);
   return response.data;
 }
 
 /**
  * GET /api/v2/services/{id}/variants
- * Retrieves service variants by service ID.
+ * Retrieves all service variants by service ID, fetching subsequent pages automatically if paginated.
  */
 export async function getServiceVariants(
-  id: string
+  id: string,
+  params?: { pageSize?: number; searchTerm?: string }
 ): Promise<ApiResponse<ServiceVariant[]>> {
-  const response = await apiClient.get<ApiResponse<ServiceVariant[]>>(
-    `/services/${id}/variants`
+  const pageSize = params?.pageSize ?? 50;
+  const firstRes = await apiClient.get<PaginatedApiResponse<ServiceVariant>>(
+    `/api/v2/services/${id}/variants`,
+    {
+      params: {
+        ...params,
+        pageNumber: 1,
+        pageSize,
+      },
+    }
   );
-  return response.data;
+
+  const initialData = firstRes.data?.data ?? [];
+  const totalPages = firstRes.data?.totalPages ?? 1;
+
+  if (totalPages > 1) {
+    const pagePromises = [];
+    for (let page = 2; page <= totalPages; page++) {
+      pagePromises.push(
+        apiClient.get<PaginatedApiResponse<ServiceVariant>>(
+          `/api/v2/services/${id}/variants`,
+          {
+            params: {
+              ...params,
+              pageNumber: page,
+              pageSize,
+            },
+          }
+        )
+      );
+    }
+
+    const subsequentResponses = await Promise.all(pagePromises);
+    const allVariants = [...initialData];
+    for (const res of subsequentResponses) {
+      if (res.data?.data) {
+        allVariants.push(...res.data.data);
+      }
+    }
+    return {
+      succeeded: firstRes.data?.succeeded ?? true,
+      message: firstRes.data?.message ?? null,
+      data: allVariants,
+      errors: null,
+    };
+  }
+
+  return {
+    succeeded: firstRes.data?.succeeded ?? true,
+    message: firstRes.data?.message ?? null,
+    data: initialData,
+    errors: null,
+  };
 }
 
 /**
@@ -46,7 +143,7 @@ export async function getServiceVariants(
  * Retrieves contract schema configuration.
  */
 export async function getServiceContract(id: string): Promise<ApiResponse<any>> {
-  const response = await apiClient.get<ApiResponse<any>>(`/services/${id}/contract`);
+  const response = await apiClient.get<ApiResponse<any>>(`/api/v2/services/${id}/contract`);
   return response.data;
 }
 
@@ -55,23 +152,71 @@ export async function getServiceContract(id: string): Promise<ApiResponse<any>> 
  * Retrieves the form builder layout for a service.
  */
 export async function getServiceForm(id: string): Promise<ApiResponse<any>> {
-  const response = await apiClient.get<ApiResponse<any>>(`/services/${id}/form`);
+  const response = await apiClient.get<ApiResponse<any>>(`/api/v2/services/${id}/form`);
   return response.data;
 }
 
 /**
  * GET /api/v2/tenants/{tenantId}/services
- * Retrieves services scoped to a tenant.
+ * Retrieves all services scoped to a tenant, fetching subsequent pages automatically if paginated.
  */
 export async function getTenantServices(
   tenantId: string,
-  params?: { serviceCategoryId?: string }
+  params?: { serviceCategoryId?: string; pageSize?: number }
 ): Promise<ApiResponse<Service[]>> {
-  const response = await apiClient.get<ApiResponse<Service[]>>(
-    `/tenants/${tenantId}/services`,
-    { params }
+  const pageSize = params?.pageSize ?? 50;
+  const firstRes = await apiClient.get<PaginatedApiResponse<Service>>(
+    `/api/v2/tenants/${tenantId}/services`,
+    {
+      params: {
+        ...params,
+        pageNumber: 1,
+        pageSize,
+      },
+    }
   );
-  return response.data;
+
+  const initialData = firstRes.data?.data ?? [];
+  const totalPages = firstRes.data?.totalPages ?? 1;
+
+  if (totalPages > 1) {
+    const pagePromises = [];
+    for (let page = 2; page <= totalPages; page++) {
+      pagePromises.push(
+        apiClient.get<PaginatedApiResponse<Service>>(
+          `/api/v2/tenants/${tenantId}/services`,
+          {
+            params: {
+              ...params,
+              pageNumber: page,
+              pageSize,
+            },
+          }
+        )
+      );
+    }
+
+    const subsequentResponses = await Promise.all(pagePromises);
+    const allServices = [...initialData];
+    for (const res of subsequentResponses) {
+      if (res.data?.data) {
+        allServices.push(...res.data.data);
+      }
+    }
+    return {
+      succeeded: firstRes.data?.succeeded ?? true,
+      message: firstRes.data?.message ?? null,
+      data: allServices,
+      errors: null,
+    };
+  }
+
+  return {
+    succeeded: firstRes.data?.succeeded ?? true,
+    message: firstRes.data?.message ?? null,
+    data: initialData,
+    errors: null,
+  };
 }
 
 /**
@@ -83,7 +228,7 @@ export async function createTenantService(
   payload: Omit<CreateServiceCommand, 'tenantId'>
 ): Promise<ApiResponse<string>> {
   const response = await apiClient.post<ApiResponse<string>>(
-    `/tenants/${tenantId}/services`,
+    `/api/v2/tenants/${tenantId}/services`,
     payload
   );
   return response.data;
@@ -99,7 +244,7 @@ export async function updateTenantService(
   payload: Omit<UpdateServiceCommand, 'tenantId' | 'id'>
 ): Promise<ApiResponse<string>> {
   const response = await apiClient.put<ApiResponse<string>>(
-    `/tenants/${tenantId}/services/${id}`,
+    `/api/v2/tenants/${tenantId}/services/${id}`,
     payload
   );
   return response.data;
@@ -114,7 +259,7 @@ export async function deleteTenantService(
   id: string
 ): Promise<ApiResponse<string>> {
   const response = await apiClient.delete<ApiResponse<string>>(
-    `/tenants/${tenantId}/services/${id}`
+    `/api/v2/tenants/${tenantId}/services/${id}`
   );
   return response.data;
 }
@@ -129,7 +274,7 @@ export async function patchTenantService(
   payload: Partial<Omit<UpdateServiceCommand, 'tenantId' | 'id'>>
 ): Promise<ApiResponse<string>> {
   const response = await apiClient.patch<ApiResponse<string>>(
-    `/tenants/${tenantId}/services/${id}`,
+    `/api/v2/tenants/${tenantId}/services/${id}`,
     payload
   );
   return response.data;

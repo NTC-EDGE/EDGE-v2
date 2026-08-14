@@ -33,6 +33,7 @@ export interface ApplicationFormAttachment {
 }
 
 export interface SoaItem {
+  id?: string;
   particular: string;
   validityYears: number;
   percentage: number;
@@ -40,6 +41,29 @@ export interface SoaItem {
   fees: number;
   amount: number;
   code: string;
+  description?: string;
+  applicantId?: string;
+  applicantName?: string;
+}
+
+export interface StatementOfAccountItem {
+  id: string;
+  applicationId: string;
+  applicantId?: string;
+  applicantName?: string;
+  soaNumber: string;
+  status: 'Pending' | 'Approved' | 'Returned';
+  issuedToType: 'Individual' | 'Company';
+  issuedToName: string;
+  issuedToAddress?: string;
+  totalAmount: number;
+  dueDate: string;
+  preparedByUserId?: string;
+  approvedByUserId?: string;
+  approvedAt?: string;
+  remarks?: string;
+  lineItems: SoaItem[];
+  histories: AuditTrailEntry[];
 }
 
 export interface PaymentDetails {
@@ -78,7 +102,10 @@ export interface ApplicantItem {
   status?: 'Complete' | 'Incomplete' | 'ForEndorsement';
   evaluationRemarks?: string;
   serviceId?: string;
+  serviceName?: string;
+  serviceCode?: string;
   serviceVariantId?: string;
+  serviceVariantName?: string;
   submissionId?: string;
   contactNumber: string;
   email: string;
@@ -134,7 +161,7 @@ export interface ApplicationData {
   applicationNumber: string;
   applicant: string;
   applicantType: ApplicantType;
-  permitTitle: string;
+  serviceName: string;
   category: ApplicationCategory;
   status: ApplicationStatus;
   queueTab: QueueTab;
@@ -142,6 +169,7 @@ export interface ApplicationData {
   dateLabel: string;
   assignedTo: string;
   applicationType: 'SINGLE' | 'BULK';
+  applicantCount?: number;
   applicantsList?: ApplicantItem[];
   services?: ApplicationServiceItem[];
   isBeingViewed: boolean;
@@ -181,6 +209,7 @@ export interface ApplicationData {
   };
   requirements: RequirementDocument[];
   forms: ApplicationFormAttachment[];
+  statementsOfAccount?: StatementOfAccountItem[];
   soaItems: SoaItem[];
   totalAmountDue: number;
   dueDate: string;

@@ -26,7 +26,7 @@ import {
 } from "../../../types/application";
 import { ActivityCard } from "./ActivityCard";
 import { useAdminApplications, applicationService } from "@edge/api";
-import { mapApplicationDtoToUI } from "../data/applicationMapper";
+import { mapToApplicationData } from "../mappers";
 import {
   usePermissions,
   QueueTab,
@@ -132,7 +132,7 @@ export function ActivitiesFeedPane({
   });
 
   const applications = useMemo(() => {
-    return rawDtos.map(mapApplicationDtoToUI);
+    return rawDtos.map((dto) => mapToApplicationData(dto));
   }, [rawDtos]);
 
   const togglePinApplication = useCallback(async (id: string) => {
@@ -227,7 +227,7 @@ export function ActivitiesFeedPane({
       if (
         searchQuery.trim().length > 0 &&
         !app.applicant.toLowerCase().includes(searchQuery.toLowerCase()) &&
-        !app.permitTitle.toLowerCase().includes(searchQuery.toLowerCase())
+        !app.serviceName.toLowerCase().includes(searchQuery.toLowerCase())
       ) return false;
       if (activeStatuses.size > 0 && !activeStatuses.has(app.status))   return false;
       if (activeCategories.size > 0 && !activeCategories.has(app.category)) return false;

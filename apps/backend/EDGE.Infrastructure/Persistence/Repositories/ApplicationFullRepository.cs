@@ -33,7 +33,6 @@ public class ApplicationFullRepository : IApplicationFullRepository
     public async Task<Domain.Entities.Application?> GetByIdWithDetailsAsync(Guid id, CancellationToken cancellationToken = default)
     {
         return await _context.Applications
-            .AsNoTracking()
             .AsSplitQuery()
             .Include(a => a.User)
                 .ThenInclude(u => u!.CompanyDetail)
@@ -43,12 +42,15 @@ public class ApplicationFullRepository : IApplicationFullRepository
                         .ThenInclude(ad => ad!.CompanyDetail)
             .Include(a => a.ApplicationApplicants)
                 .ThenInclude(aa => aa.Applicant)
-                    .ThenInclude(app => app!.CompanyDetail)
-            .Include(a => a.ApplicationApplicants)
-                .ThenInclude(aa => aa.Applicant)
                     .ThenInclude(app => app!.FormSubmission)
                         .ThenInclude(fs => fs!.FieldValues)
                             .ThenInclude(fv => fv!.Field)
+            .Include(a => a.ApplicationApplicants)
+                .ThenInclude(aa => aa.Applicant)
+                    .ThenInclude(app => app!.Service)
+            .Include(a => a.ApplicationApplicants)
+                .ThenInclude(aa => aa.Applicant)
+                    .ThenInclude(app => app!.ServiceVariant)
             .Include(a => a.ApplicationRequirements)
             .Include(a => a.FormSubmissions)
                 .ThenInclude(fs => fs.FieldValues)
@@ -284,6 +286,190 @@ public class ApplicationFullRepository : IApplicationFullRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<List<EDGE.Application.Applications.Dtos.ApplicationFeedDto>> GetApplicationFeedDtosAsync(ApplicationStatus? status = null, string? queueTab = null, string? scope = null, CancellationToken cancellationToken = default)
+    {
+        var query = _context.Applications
+            .AsNoTracking()
+            .AsQueryable();
+
+        // Agency portal feed never shows unsubmitted client Drafts nor archived applications
+        query = query.Where(a => a.Status != ApplicationStatus.Draft && !a.IsArchived);
+
+        if (status.HasValue)
+        {
+            query = query.Where(a => a.Status == status.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(queueTab))
+        {
+            var tab = queueTab.Trim().ToLowerInvariant();
+            if (tab == "pending")
+            {
+                query = query.Where(a => a.Status == ApplicationStatus.Submitted || a.Status == ApplicationStatus.Evaluating);
+            }
+            else if (tab == "history")
+            {
+                query = query.Where(a => a.Status == ApplicationStatus.Approved || a.Status == ApplicationStatus.Returned || a.Status == ApplicationStatus.Completed);
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(scope))
+        {
+            var s = scope.Trim().ToLowerInvariant();
+            if (s == "queue")
+            {
+                query = query.Where(a => a.Status != ApplicationStatus.Draft && !a.IsArchived);
+            }
+            else if (s == "office")
+            {
+                query = query.Where(a => !string.IsNullOrEmpty(a.Office));
+            }
+        }
+
+        return await query
+            .OrderByDescending(a => a.IsPinned)
+            .ThenByDescending(a => a.CreatedAt)
+            .Select(app => new EDGE.Application.Applications.Dtos.ApplicationFeedDto
+            {
+                Id = app.Id,
+                ApplicationNumber = app.ApplicationNumber,
+                ReferenceNumber = app.ReferenceNumber,
+                Status = app.Status.ToString(),
+                SubmissionMode = app.SubmissionMode.ToString(),
+                Office = app.Office,
+                Remarks = app.Remarks,
+                IsGuest = app.IsGuest,
+                IsPinned = app.IsPinned,
+                IsArchived = app.IsArchived,
+                CreatedAt = app.CreatedAt,
+                FilingUser = app.User != null ? new EDGE.Application.Applications.Dtos.FilingUserDto
+                {
+                    Id = app.User.Id,
+                    Name = (app.User.FirstName + " " + app.User.LastName).Trim(),
+                    Email = app.User.Email,
+                    AccountType = app.User.AccountType.ToString(),
+                    Company = app.User.CompanyDetail != null ? new EDGE.Application.Applicants.Dtos.CompanyDetailDto
+                    {
+                        Id = app.User.CompanyDetail.Id,
+                        BarangayId = app.User.CompanyDetail.BarangayId,
+                        Address = app.User.CompanyDetail.Address,
+                        Name = app.User.CompanyDetail.Name,
+                        RegistrationNumber = app.User.CompanyDetail.RegistrationNumber,
+                        ContactNumber = app.User.CompanyDetail.ContactNumber,
+                        Email = app.User.CompanyDetail.Email,
+                        EntityType = app.User.CompanyDetail.EntityType != null ? app.User.CompanyDetail.EntityType.Value.ToString() : null
+                    } : null
+                } : null,
+                ApplicantCount = app.ApplicationApplicants.Count(),
+                Services = app.ApplicationApplicants
+                    .Where(aa => aa.Applicant != null && (aa.Applicant.Service != null || aa.Applicant.ServiceId != null))
+                    .Select(aa => new EDGE.Application.Applications.Dtos.ApplicationFeedServiceDto
+                    {
+                        Name = aa.Applicant.Service != null ? aa.Applicant.Service.Name : (aa.Applicant.ServiceId != null ? aa.Applicant.ServiceId.ToString() : string.Empty),
+                        Variant = aa.Applicant.ServiceVariant != null ? aa.Applicant.ServiceVariant.Type.ToString() : (aa.Applicant.ServiceVariantId != null ? aa.Applicant.ServiceVariantId.ToString() : string.Empty)
+                    })
+                    .ToList()
+            })
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<EDGE.Application.Applicants.Dtos.ApplicantDto>> GetApplicationApplicantsAsync(Guid applicationId, CancellationToken cancellationToken = default)
+    {
+        var app = await _context.Applications
+            .AsNoTracking()
+            .Include(a => a.ApplicationApplicants)
+                .ThenInclude(aa => aa.Applicant)
+                    .ThenInclude(ap => ap.ApplicantDetail)
+            .Include(a => a.ApplicationApplicants)
+                .ThenInclude(aa => aa.Applicant)
+                    .ThenInclude(ap => ap.CompanyDetail)
+            .Include(a => a.ApplicationApplicants)
+                .ThenInclude(aa => aa.Applicant)
+                    .ThenInclude(ap => ap.FormSubmission)
+            .Include(a => a.ApplicationApplicants)
+                .ThenInclude(aa => aa.Applicant)
+                    .ThenInclude(ap => ap.Service)
+            .Include(a => a.ApplicationApplicants)
+                .ThenInclude(aa => aa.Applicant)
+                    .ThenInclude(ap => ap.ServiceVariant)
+            .Include(a => a.FormSubmissions)
+            .FirstOrDefaultAsync(a => a.Id == applicationId, cancellationToken);
+
+        if (app == null)
+        {
+            return new List<EDGE.Application.Applicants.Dtos.ApplicantDto>();
+        }
+
+        return app.ApplicationApplicants.Select(aa =>
+        {
+            var a = aa.Applicant;
+            var applicantDto = new EDGE.Application.Applicants.Dtos.ApplicantDto
+            {
+                Id = a?.Id ?? Guid.Empty,
+                TenantId = a?.TenantId ?? Guid.Empty,
+                UserId = a?.UserId,
+                IsGuest = a?.IsGuest ?? true,
+                ApplicantType = a?.ApplicantType.ToString() ?? "Individual",
+                Status = a?.Status.ToString() ?? "Incomplete",
+                EvaluationRemarks = a?.EvaluationRemarks,
+                ServiceId = a?.ServiceId,
+                ServiceName = a?.Service?.Name,
+                ServiceCode = a?.Service?.Code,
+                ServiceVariantId = a?.ServiceVariantId,
+                ServiceVariantName = a?.ServiceVariant?.Type.ToString(),
+                SubmissionId = a?.FormSubmission != null ? a.FormSubmission.Id : app.FormSubmissions.FirstOrDefault(fs => fs.ApplicantId == a?.Id)?.Id
+            };
+
+            if (a?.ApplicantDetail != null)
+            {
+                var ad = a.ApplicantDetail;
+                applicantDto.Details = new EDGE.Application.Applicants.Dtos.ApplicantDetailDto
+                {
+                    Id = ad.Id,
+                    BarangayId = ad.BarangayId ?? Guid.Empty,
+                    Address = ad.Address,
+                    FirstName = ad.FirstName,
+                    MiddleName = ad.MiddleName,
+                    LastName = ad.LastName,
+                    Suffix = ad.Suffix,
+                    Nationality = ad.Nationality,
+                    Sex = ad.Sex,
+                    Height = ad.Height,
+                    Weight = ad.Weight,
+                    BirthDate = ad.BirthDate,
+                    ContactNumber = ad.ContactNumber,
+                    EmailAddress = ad.EmailAddress,
+                    ZipCode = ad.ZipCode,
+                    SchoolAttended = ad.SchoolAttended,
+                    CourseTaken = ad.CourseTaken,
+                    YearGraduated = ad.YearGraduated,
+                    ESignature = ad.ESignature
+                };
+            }
+
+            if (a?.CompanyDetail != null || a?.ApplicantDetail?.CompanyDetail != null)
+            {
+                var cd = a?.CompanyDetail ?? a?.ApplicantDetail?.CompanyDetail;
+                if (cd != null)
+                {
+                    applicantDto.Company = new EDGE.Application.Applicants.Dtos.CompanyDetailDto
+                    {
+                        Id = cd.Id,
+                        BarangayId = cd.BarangayId,
+                        Address = cd.Address,
+                        Name = cd.Name,
+                        RegistrationNumber = cd.RegistrationNumber,
+                        ContactNumber = cd.ContactNumber,
+                        Email = cd.Email,
+                        EntityType = cd.EntityType?.ToString()
+                    };
+                }
+            }
+
+            return applicantDto;
+        }).ToList();
+    }
+
     public async Task<List<EDGE.Application.Applications.Dtos.ApplicationDto>> GetApplicationDtosAsync(ApplicationStatus? status = null, string? queueTab = null, string? scope = null, CancellationToken cancellationToken = default)
     {
         var query = _context.Applications
@@ -350,79 +536,6 @@ public class ApplicationFullRepository : IApplicationFullRepository
                         EntityType = app.User.CompanyDetail.EntityType != null ? app.User.CompanyDetail.EntityType.Value.ToString() : null
                     } : null
                 } : null,
-                Applicants = app.ApplicationApplicants.Select(aa => new EDGE.Application.Applicants.Dtos.ApplicantDto
-                {
-                    Id = aa.Applicant != null ? aa.Applicant.Id : Guid.Empty,
-                    TenantId = aa.Applicant != null ? aa.Applicant.TenantId : Guid.Empty,
-                    UserId = aa.Applicant != null ? aa.Applicant.UserId : null,
-                    IsGuest = aa.Applicant != null ? aa.Applicant.IsGuest : true,
-                    ApplicantType = aa.Applicant != null ? aa.Applicant.ApplicantType.ToString() : "Individual",
-                    Status = aa.Applicant != null ? aa.Applicant.Status.ToString() : "Incomplete",
-                    EvaluationRemarks = aa.Applicant != null ? aa.Applicant.EvaluationRemarks : null,
-                    ServiceId = aa.Applicant != null ? aa.Applicant.ServiceId : null,
-                    ServiceVariantId = aa.Applicant != null ? aa.Applicant.ServiceVariantId : null,
-                    SubmissionId = aa.Applicant != null
-                        ? (aa.Applicant.FormSubmission != null
-                            ? (Guid?)aa.Applicant.FormSubmission.Id
-                            : app.FormSubmissions.Where(fs => fs.ApplicantId == aa.Applicant.Id).Select(fs => (Guid?)fs.Id).FirstOrDefault())
-                        : null,
-                    Company = (aa.Applicant != null && aa.Applicant.CompanyDetail != null)
-                        ? new EDGE.Application.Applicants.Dtos.CompanyDetailDto
-                        {
-                            Id = aa.Applicant.CompanyDetail.Id,
-                            BarangayId = aa.Applicant.CompanyDetail.BarangayId,
-                            Address = aa.Applicant.CompanyDetail.Address,
-                            Name = aa.Applicant.CompanyDetail.Name,
-                            RegistrationNumber = aa.Applicant.CompanyDetail.RegistrationNumber,
-                            ContactNumber = aa.Applicant.CompanyDetail.ContactNumber,
-                            Email = aa.Applicant.CompanyDetail.Email,
-                            EntityType = aa.Applicant.CompanyDetail.EntityType != null ? aa.Applicant.CompanyDetail.EntityType.Value.ToString() : null
-                        }
-                        : (aa.Applicant != null && aa.Applicant.ApplicantDetail != null && aa.Applicant.ApplicantDetail.CompanyDetail != null)
-                        ? new EDGE.Application.Applicants.Dtos.CompanyDetailDto
-                        {
-                            Id = aa.Applicant.ApplicantDetail.CompanyDetail.Id,
-                            BarangayId = aa.Applicant.ApplicantDetail.CompanyDetail.BarangayId,
-                            Address = aa.Applicant.ApplicantDetail.CompanyDetail.Address,
-                            Name = aa.Applicant.ApplicantDetail.CompanyDetail.Name,
-                            RegistrationNumber = aa.Applicant.ApplicantDetail.CompanyDetail.RegistrationNumber,
-                            ContactNumber = aa.Applicant.ApplicantDetail.ContactNumber,
-                            Email = aa.Applicant.ApplicantDetail.CompanyDetail.Email,
-                            EntityType = aa.Applicant.ApplicantDetail.CompanyDetail.EntityType != null ? aa.Applicant.ApplicantDetail.CompanyDetail.EntityType.Value.ToString() : null
-                        }
-                        : null,
-                    Details = aa.Applicant != null && aa.Applicant.ApplicantDetail != null ? new EDGE.Application.Applicants.Dtos.ApplicantDetailDto
-                    {
-                        Id = aa.Applicant.ApplicantDetail.Id,
-                        BarangayId = aa.Applicant.ApplicantDetail.BarangayId ?? Guid.Empty,
-                        Address = aa.Applicant.ApplicantDetail.Address,
-                        FirstName = aa.Applicant.ApplicantDetail.FirstName,
-                        MiddleName = aa.Applicant.ApplicantDetail.MiddleName,
-                        LastName = aa.Applicant.ApplicantDetail.LastName,
-                        Suffix = aa.Applicant.ApplicantDetail.Suffix,
-                        Nationality = aa.Applicant.ApplicantDetail.Nationality,
-                        Sex = aa.Applicant.ApplicantDetail.Sex,
-                        Height = aa.Applicant.ApplicantDetail.Height,
-                        Weight = aa.Applicant.ApplicantDetail.Weight,
-                        BirthDate = aa.Applicant.ApplicantDetail.BirthDate,
-                        ContactNumber = aa.Applicant.ApplicantDetail.ContactNumber,
-                        EmailAddress = aa.Applicant.ApplicantDetail.EmailAddress,
-                        ZipCode = aa.Applicant.ApplicantDetail.ZipCode,
-                        SchoolAttended = aa.Applicant.ApplicantDetail.SchoolAttended,
-                        CourseTaken = aa.Applicant.ApplicantDetail.CourseTaken,
-                        YearGraduated = aa.Applicant.ApplicantDetail.YearGraduated,
-                        ESignature = aa.Applicant.ApplicantDetail.ESignature
-                    } : null,
-                    FormFieldValues = app.FormSubmissions
-                        .Where(fs => aa.Applicant != null && fs.ApplicantId == aa.Applicant.Id)
-                        .SelectMany(fs => fs.FieldValues)
-                        .Select(fv => new EDGE.Application.Applicants.Dtos.FormFieldValueDto
-                        {
-                            FieldId = fv.FieldId,
-                            FieldLabel = fv.Field != null ? fv.Field.Label : (fv.CustomLabel ?? "Field"),
-                            Value = fv.Value
-                        }).ToList()
-                }).ToList(),
                 StatementsOfAccount = app.StatementsOfAccount.Select(s => new EDGE.Application.Applications.Dtos.StatementOfAccountDto
                 {
                     Id = s.Id,
@@ -543,7 +656,10 @@ public class ApplicationFullRepository : IApplicationFullRepository
 
     public Task UpdateAsync(Domain.Entities.Application application, CancellationToken cancellationToken = default)
     {
-        _context.Applications.Update(application);
+        if (_context.Entry(application).State == EntityState.Detached)
+        {
+            _context.Applications.Update(application);
+        }
         return Task.CompletedTask;
     }
 
@@ -588,7 +704,6 @@ public class ApplicationFullRepository : IApplicationFullRepository
     public async Task<StatementOfAccount?> GetSoaByIdAsync(Guid soaId, CancellationToken cancellationToken = default)
     {
         return await _context.StatementsOfAccount
-            .Include(s => s.Application)
             .Include(s => s.LineItems)
             .Include(s => s.Histories)
             .FirstOrDefaultAsync(s => s.Id == soaId, cancellationToken);
@@ -597,6 +712,16 @@ public class ApplicationFullRepository : IApplicationFullRepository
     public async Task AddSoaAsync(StatementOfAccount soa, CancellationToken cancellationToken = default)
     {
         await _context.StatementsOfAccount.AddAsync(soa, cancellationToken);
+    }
+
+    public async Task AddSoaLineItemAsync(SoaLineItem lineItem, CancellationToken cancellationToken = default)
+    {
+        await _context.SoaLineItems.AddAsync(lineItem, cancellationToken);
+    }
+
+    public void RemoveSoaLineItem(SoaLineItem lineItem)
+    {
+        _context.SoaLineItems.Remove(lineItem);
     }
 
     public async Task<OrderOfPayment?> GetOpByIdAsync(Guid opId, CancellationToken cancellationToken = default)

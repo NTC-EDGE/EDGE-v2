@@ -12,7 +12,7 @@ using EDGE.Domain.Authorization;
 using EDGE.Infrastructure.Authorization;
 using EDGE.Application.Applications.Commands.AddApplicantToApplication;
 using EDGE.Application.Applications.Commands.AdminUpdateApplication;
-using EDGE.Application.Applications.Commands.AdminUpdateApplicantProfile;
+using EDGE.Application.Applications.Commands.AdminUpdateApplicant;
 using EDGE.Application.Applications.Commands.AdminUpdateFormValues;
 using EDGE.Application.Applications.Commands.DeleteDraftApplication;
 using EDGE.Application.Applications.Commands.FinalizeApplicationSubmission;
@@ -25,6 +25,7 @@ using EDGE.Application.Applications.Commands.UpdateApplicationStatus;
 using EDGE.Application.Applications.Commands.UploadApplicantRequirement;
 using EDGE.Application.Applications.Queries.GetAllApplications;
 using EDGE.Application.Applications.Queries.GetApplicationById;
+using EDGE.Application.Applications.Queries.GetApplicationApplicants;
 using EDGE.Application.Applications.Queries.GetApplicationsByApplicant;
 using EDGE.Application.Applications.Queries.GetDraftApplications;
 using EDGE.Application.Applications.Queries.GetApplicantServiceFormSubmission;
@@ -78,7 +79,13 @@ public static class ApplicationEndpoints
         group.MapGet("/{id:guid}", GetApplicationById)
             .WithName("GetApplicationById")
             .WithSummary("Retrieve application by ID")
-            .WithDescription("Retrieves detailed profile, status history, and applicant records for a specific application.");
+            .WithDescription("Retrieves detailed profile, status history, and financial records for a specific application.");
+
+        group.MapGet("/{id:guid}/applicants", GetApplicationApplicantsEndpoint)
+            .RequireAuthorization(new HasPermissionAttribute(Permissions.ReadApplication))
+            .WithName("GetApplicationApplicants")
+            .WithSummary("Retrieve applicants for an application")
+            .WithDescription("Retrieves the full list of applicants belonging to a specific application.");
 
         group.MapGet("/{id:guid}/applicants/{applicantId:guid}/form-submission", GetApplicantServiceFormSubmissionEndpoint)
             .RequireAuthorization(new HasPermissionAttribute(Permissions.ReadApplication))
@@ -114,11 +121,11 @@ public static class ApplicationEndpoints
             .WithSummary("Agency administrative correction update")
             .WithDescription("Updates application fields during review and records CorrectionAuditTrail entries.");
 
-        group.MapPatch("/{id:guid}/applicants/{applicantId:guid}/admin-update", AdminUpdateApplicantProfileEndpoint)
+        group.MapPatch("/{id:guid}/applicants/{applicantId:guid}/admin-update", AdminUpdateApplicantEndpoint)
             .RequireAuthorization(new HasPermissionAttribute(Permissions.EvaluateApplication))
-            .WithName("AdminUpdateApplicantProfile")
-            .WithSummary("Agency administrative update for applicant profile")
-            .WithDescription("Updates applicant profile details during review and records CorrectionAuditTrail entries.");
+            .WithName("AdminUpdateApplicant")
+            .WithSummary("Agency administrative update for applicant details")
+            .WithDescription("Updates applicant root, profile, or company details during review and records CorrectionAuditTrail entries.");
 
         group.MapPatch("/{id:guid}/applicants/{applicantId:guid}/form-values/admin-update", AdminUpdateFormValuesEndpoint)
             .RequireAuthorization(new HasPermissionAttribute(Permissions.EvaluateApplication))
@@ -245,9 +252,13 @@ public static class ApplicationEndpoints
     }
 
     [HasPermission(Permissions.ViewOwnApplications)]
-    public static async Task<IResult> GetAllApplications([FromQuery] ApplicationStatus? status, IMediator mediator)
+    public static async Task<IResult> GetAllApplications(
+        [FromQuery] ApplicationStatus? status,
+        [FromQuery] string? queueTab,
+        [FromQuery] string? scope,
+        IMediator mediator)
     {
-        var result = await mediator.Send(new GetAllApplicationsQuery(status));
+        var result = await mediator.Send(new GetAllApplicationsQuery(status, queueTab, scope));
         if (!result.Succeeded && result.Message != null && result.Message.StartsWith("401"))
         {
             return Results.Unauthorized();
@@ -273,6 +284,13 @@ public static class ApplicationEndpoints
     public static async Task<IResult> GetApplicationById(Guid id, IMediator mediator)
     {
         var result = await mediator.Send(new GetApplicationByIdQuery(id));
+        return result.Succeeded ? Results.Ok(result) : Results.NotFound(result);
+    }
+
+    [HasPermission(Permissions.ReadApplication)]
+    public static async Task<IResult> GetApplicationApplicantsEndpoint(Guid id, IMediator mediator)
+    {
+        var result = await mediator.Send(new GetApplicationApplicantsQuery(id));
         return result.Succeeded ? Results.Ok(result) : Results.NotFound(result);
     }
 
@@ -486,14 +504,22 @@ public static class ApplicationEndpoints
     }
 
     [HasPermission(Permissions.EvaluateApplication)]
-    public static async Task<IResult> AdminUpdateApplicantProfileEndpoint(
+    public static async Task<IResult> AdminUpdateApplicantEndpoint(
         Guid id,
         Guid applicantId,
-        [FromBody] AdminUpdateApplicantProfileCommand command,
+        [FromBody] AdminUpdateApplicantCommand command,
+        IValidator<AdminUpdateApplicantCommand> validator,
         IMediator mediator,
         CancellationToken cancellationToken)
     {
-        var result = await mediator.Send(command with { ApplicationId = id, ApplicantId = applicantId }, cancellationToken);
+        var fullCommand = command with { ApplicationId = id, ApplicantId = applicantId };
+        var validationResult = await validator.ValidateAsync(fullCommand, cancellationToken);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
+
+        var result = await mediator.Send(fullCommand, cancellationToken);
         if (!result.Succeeded) return Results.BadRequest(result);
         return Results.Ok(result);
     }

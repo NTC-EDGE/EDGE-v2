@@ -19,7 +19,6 @@ public class ApplicationSummaryDto
     public DateTime CreatedAt { get; set; }
 
     public FilingUserSummaryDto? FilingUser { get; set; }
-    public List<ServiceSummaryDto> Services { get; set; } = new();
     public List<ApplicantSummaryDto> Applicants { get; set; } = new();
 }
 

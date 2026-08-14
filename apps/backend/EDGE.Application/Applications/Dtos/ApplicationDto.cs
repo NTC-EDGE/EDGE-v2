@@ -4,36 +4,8 @@ using EDGE.Application.Applicants.Dtos;
 
 namespace EDGE.Application.Applications.Dtos;
 
-public class ApplicationDto
+public class ApplicationDto : ApplicationDetailDto
 {
-    public Guid Id { get; set; }
-    public Guid TenantId { get; set; }
-    public Guid? ScheduleId { get; set; }
-    public Guid? RegionId { get; set; }
-    public string? Office { get; set; }
-    public string? ApplicationNumber { get; set; }
-    public string? ReferenceNumber { get; set; }
-    public string Status { get; set; } = string.Empty;
-    public string SubmissionMode { get; set; } = string.Empty;
-    public string? DataEntryMethod { get; set; }
-    public string? Remarks { get; set; }
-    public Guid? UserId { get; set; }
-    public bool IsGuest { get; set; }
-    public bool IsPinned { get; set; }
-    public bool IsArchived { get; set; }
-    public DateTime CreatedAt { get; set; }
-
-    public FilingUserDto? FilingUser { get; set; }
-
-    public List<ApplicationServiceDto> Services { get; set; } = new();
-    public List<ApplicantDto> Applicants { get; set; } = new();
-    public List<ApplicationRequirementDto> Requirements { get; set; } = new();
-    public List<FormSubmissionSummaryDto> FormSubmissions { get; set; } = new();
-    
-    public List<StatementOfAccountDto> StatementsOfAccount { get; set; } = new();
-    public List<OrderOfPaymentDto> OrdersOfPayment { get; set; } = new();
-    public List<ApplicationHistoryDto> Histories { get; set; } = new();
-    public List<CorrectionAuditTrailDto> CorrectionAuditTrails { get; set; } = new();
 }
 
 public class FilingUserDto
@@ -64,4 +36,3 @@ public class ApplicationRequirementDto
     public string Url { get; set; } = string.Empty;
     public bool IsApproved { get; set; }
 }
-

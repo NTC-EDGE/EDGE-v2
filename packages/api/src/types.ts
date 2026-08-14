@@ -810,20 +810,130 @@ export interface ApplicantDetailDto {
   company?: CompanyDetailDto;
 }
 
-export interface ApplicantDto {
-  id: string;
-  tenantId: string;
-  userId?: string;
-  isGuest: boolean;
-  applicantType: string;
+export interface AdminUpdateApplicantDetailDto {
+  firstName?: string;
+  middleName?: string;
+  lastName?: string;
+  suffix?: string;
+  sex?: string;
+  birthDate?: string;
+  dob?: string;
+  nationality?: string;
+  contactNumber?: string;
+  emailAddress?: string;
+  address?: string;
+  barangayId?: string;
+  zipCode?: string;
+  height?: number;
+  weight?: number;
+  schoolAttended?: string;
+  courseTaken?: string;
+  yearGraduated?: string;
+  eSignature?: string;
+}
+
+export interface AdminUpdateCompanyDetailDto {
+  name?: string;
+  registrationNumber?: string;
+  address?: string;
+  barangayId?: string;
+  contactNumber?: string;
+  email?: string;
+  entityType?: string;
+}
+
+export interface AdminUpdateApplicantPayload {
+  applicantType?: string;
   status?: string;
   evaluationRemarks?: string;
   serviceId?: string;
   serviceVariantId?: string;
+  details?: AdminUpdateApplicantDetailDto;
+  company?: AdminUpdateCompanyDetailDto;
+  firstName?: string;
+  lastName?: string;
+  middleName?: string;
+  suffix?: string;
+  contactNumber?: string;
+  email?: string;
+  address?: string;
+  zipCode?: string;
+  dob?: string;
+  sex?: string;
+  height?: number;
+  weight?: number;
+  nationality?: string;
+  employmentStatus?: string;
+  companyName?: string;
+  companyRegistrationNumber?: string;
+  companyAddress?: string;
+  companyContactNumber?: string;
+  companyEmail?: string;
+}
+
+export interface AdminUpdateRosterItemDto {
+  id?: string;
+  status?: string;
+  applicantType?: string;
+  evaluationRemarks?: string;
+}
+
+export interface AdminUpdateApplicationPayload {
+  referenceNumber?: string;
+  permitNumber?: string;
+  office?: string;
+  applicant?: string;
+  applicantType?: string;
+  note?: string;
+  contactDetails?: {
+    email?: string;
+    contactNumber?: string;
+  };
+  address?: {
+    barangay?: string;
+    province?: string;
+    city?: string;
+    zipCode?: string;
+  };
+  companyDetails?: {
+    name?: string;
+    registrationNumber?: string;
+    address?: string;
+    contactNumber?: string;
+    email?: string;
+  };
+  basicInfo?: {
+    lastName?: string;
+    firstName?: string;
+    middleName?: string;
+    extensionName?: string;
+    placeOfBirth?: string;
+    dob?: string;
+    sex?: string;
+    weight?: number;
+    height?: number;
+    nationality?: string;
+    employmentStatus?: string;
+  };
+  applicantsList?: AdminUpdateRosterItemDto[];
+}
+
+export interface ApplicantDto {
+  id: string;
+  tenantId?: string;
+  userId?: string;
+  isGuest?: boolean;
+  applicantType: string;
+  status?: string;
+  evaluationRemarks?: string;
+  serviceId?: string;
+  serviceName?: string;
+  serviceCode?: string;
+  serviceVariantId?: string;
+  serviceVariantName?: string;
   submissionId?: string;
   details?: ApplicantDetailDto;
   company?: CompanyDetailDto;
-  formFieldValues?: FormFieldValueDto[];
 }
 
 export interface FilingUserDto {
@@ -834,7 +944,29 @@ export interface FilingUserDto {
   company?: CompanyDetailDto;
 }
 
-export interface ApplicationDto {
+export interface ApplicationFeedServiceDto {
+  name: string;
+  variant: string;
+}
+
+export interface ApplicationFeedDto {
+  id: string;
+  applicationNumber?: string;
+  referenceNumber?: string;
+  status: ApplicationStatusDto;
+  submissionMode: string;
+  office?: string;
+  remarks?: string;
+  isGuest?: boolean;
+  isPinned?: boolean;
+  isArchived?: boolean;
+  createdAt: string;
+  applicantCount: number;
+  filingUser?: FilingUserDto;
+  services: ApplicationFeedServiceDto[];
+}
+
+export interface ApplicationDetailDto {
   id: string;
   tenantId: string;
   scheduleId?: string;
@@ -852,50 +984,14 @@ export interface ApplicationDto {
   isArchived?: boolean;
   createdAt: string;
   filingUser?: FilingUserDto;
-  services?: ApplicationServiceDto[];
-  applicants: ApplicantDto[];
-  formSubmissions?: FormSubmissionSummaryDto[];
   statementsOfAccount: StatementOfAccountDto[];
   ordersOfPayment: OrderOfPaymentDto[];
   histories: ApplicationHistoryDto[];
   correctionAuditTrails: CorrectionAuditTrailDto[];
 }
 
-export interface ApplicantSummaryDto {
-  id: string;
-  applicantType: string;
-  status?: string;
-  evaluationRemarks?: string;
-  serviceId?: string;
-  serviceVariantId?: string;
-  submissionId?: string;
-  name: string;
-  company?: CompanyDetailDto;
-  details?: ApplicantDetailDto;
-  formFieldValues?: FormFieldValueDto[];
-}
-
-export interface ApplicationSummaryDto {
-  id: string;
-  tenantId?: string;
-  office?: string;
-  applicationNumber?: string;
-  referenceNumber?: string;
-  status: ApplicationStatusDto;
-  submissionMode: string;
-  remarks?: string;
-  isGuest?: boolean;
-  isPinned?: boolean;
-  isArchived?: boolean;
-  createdAt: string;
-  filingUser?: FilingUserDto;
-  services: ApplicationServiceDto[];
-  applicants: ApplicantSummaryDto[];
-  statementsOfAccount?: StatementOfAccountDto[];
-  ordersOfPayment?: OrderOfPaymentDto[];
-  histories?: ApplicationHistoryDto[];
-  correctionAuditTrails?: CorrectionAuditTrailDto[];
-}
+export type ApplicationDto = ApplicationDetailDto;
+export type ApplicationSummaryDto = ApplicationFeedDto;
 
 export interface UpdateApplicationStatusRequest {
   status: string;
@@ -921,6 +1017,36 @@ export interface CreateSoaRequest {
   issuedToAddress?: string;
   dueDate: string;
   lineItems: CreateSoaLineItemRequest[];
+}
+
+export interface AddSoaLineItemRequest {
+  particular: string;
+  itemCode: string;
+  description?: string;
+  periodOfCoverageStart?: string;
+  periodOfCoverageEnd?: string;
+  validityYears: number;
+  noOfUnits: number;
+  feeRate: number;
+}
+
+export interface UpdateSoaLineItemRequest {
+  particular: string;
+  itemCode: string;
+  description?: string;
+  periodOfCoverageStart?: string;
+  periodOfCoverageEnd?: string;
+  validityYears: number;
+  noOfUnits: number;
+  feeRate: number;
+  amount?: number;
+}
+
+export interface UpdateSoaRequest {
+  dueDate?: string;
+  issuedToName?: string;
+  issuedToAddress?: string;
+  remarks?: string;
 }
 
 export interface VerifyPaymentRequest {

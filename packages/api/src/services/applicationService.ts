@@ -2,14 +2,22 @@ import { apiClient } from '../apiClient';
 import { safeAsync } from '../utils/safeAsync';
 import {
   ApiResponse,
+  ApplicantDto,
+  ApplicationDetailDto,
   ApplicationDto,
+  ApplicationFeedDto,
   ApplicationSummaryDto,
   UpdateApplicationStatusRequest,
   CreateSoaRequest,
+  AddSoaLineItemRequest,
+  UpdateSoaLineItemRequest,
+  UpdateSoaRequest,
   VerifyPaymentRequest,
   ReturnOpRequest,
   ApplicationFormSubmissionDto,
   ApplicantRequirementItemDto,
+  AdminUpdateApplicantPayload,
+  AdminUpdateApplicationPayload,
 } from '../types';
 
 export const applicationService = {
@@ -19,7 +27,7 @@ export const applicationService = {
     status?: string;
   }) {
     return safeAsync(async () => {
-      const response = await apiClient.get<ApiResponse<ApplicationSummaryDto[]>>(
+      const response = await apiClient.get<ApiResponse<ApplicationFeedDto[]>>(
         '/api/v2/applications',
         { params }
       );
@@ -29,10 +37,19 @@ export const applicationService = {
 
   async getApplicationById(id: string) {
     return safeAsync(async () => {
-      const response = await apiClient.get<ApiResponse<ApplicationDto>>(
+      const response = await apiClient.get<ApiResponse<ApplicationDetailDto>>(
         `/api/v2/applications/${id}`
       );
       return response.data.data;
+    });
+  },
+
+  async getApplicationApplicants(applicationId: string) {
+    return safeAsync(async () => {
+      const response = await apiClient.get<ApiResponse<ApplicantDto[]>>(
+        `/api/v2/applications/${applicationId}/applicants`
+      );
+      return response.data.data ?? [];
     });
   },
 
@@ -56,7 +73,10 @@ export const applicationService = {
     });
   },
 
-  async adminUpdateApplication(id: string, data: Record<string, unknown>) {
+  async adminUpdateApplication(
+    id: string,
+    data: AdminUpdateApplicationPayload | Record<string, unknown>
+  ) {
     return safeAsync(async () => {
       const response = await apiClient.patch<ApiResponse<ApplicationDto>>(
         `/api/v2/applications/${id}/admin-update`,
@@ -66,14 +86,26 @@ export const applicationService = {
     });
   },
 
-  async adminUpdateApplicantProfile(applicationId: string, applicantId: string, data: Record<string, unknown>) {
+  async adminUpdateApplicant(
+    applicationId: string,
+    applicantId: string,
+    data: AdminUpdateApplicantPayload
+  ) {
     return safeAsync(async () => {
-      const response = await apiClient.patch<ApiResponse<ApplicationDto>>(
+      const response = await apiClient.patch<ApiResponse<ApplicantDto>>(
         `/api/v2/applications/${applicationId}/applicants/${applicantId}/admin-update`,
         data
       );
       return response.data;
     });
+  },
+
+  async adminUpdateApplicantProfile(
+    applicationId: string,
+    applicantId: string,
+    data: AdminUpdateApplicantPayload
+  ) {
+    return this.adminUpdateApplicant(applicationId, applicantId, data);
   },
 
   async adminUpdateFormValues(
@@ -155,6 +187,55 @@ export const applicationService = {
       const response = await apiClient.post(
         `/api/v2/applications/${applicationId}/soas`,
         body
+      );
+      return response.data;
+    });
+  },
+
+  async generateSoa(applicationId: string) {
+    return safeAsync(async () => {
+      const response = await apiClient.post<ApiResponse<string[]>>(
+        `/api/v2/applications/${applicationId}/soas/generate`,
+        {}
+      );
+      return response.data;
+    });
+  },
+
+  async updateSoa(soaId: string, body: UpdateSoaRequest) {
+    return safeAsync(async () => {
+      const response = await apiClient.put<ApiResponse<string>>(
+        `/api/v2/soas/${soaId}`,
+        body
+      );
+      return response.data;
+    });
+  },
+
+  async addSoaLineItem(soaId: string, body: AddSoaLineItemRequest) {
+    return safeAsync(async () => {
+      const response = await apiClient.post<ApiResponse<string>>(
+        `/api/v2/soas/${soaId}/line-items`,
+        body
+      );
+      return response.data;
+    });
+  },
+
+  async updateSoaLineItem(soaId: string, lineItemId: string, body: UpdateSoaLineItemRequest) {
+    return safeAsync(async () => {
+      const response = await apiClient.put<ApiResponse<string>>(
+        `/api/v2/soas/${soaId}/line-items/${lineItemId}`,
+        body
+      );
+      return response.data;
+    });
+  },
+
+  async deleteSoaLineItem(soaId: string, lineItemId: string) {
+    return safeAsync(async () => {
+      const response = await apiClient.delete<ApiResponse<boolean>>(
+        `/api/v2/soas/${soaId}/line-items/${lineItemId}`
       );
       return response.data;
     });

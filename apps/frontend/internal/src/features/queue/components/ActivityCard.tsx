@@ -167,8 +167,8 @@ export function ActivityCard({
         <View style={styles.middleRow}>
           <View style={styles.titleRow}>
             <Lucide name="file-text" size={12} color={textMuted} />
-            <Text style={[styles.permitTitle, { color: textSub }]} numberOfLines={1}>
-              {application.permitTitle}
+            <Text style={[styles.serviceName, { color: textSub }]} numberOfLines={1}>
+              {application.serviceName}
             </Text>
           </View>
           <View style={styles.rightActions}>
@@ -228,8 +228,8 @@ export function ActivityCard({
                     : { color: textSub },
                 ]}
               >
-                {application.applicationType === "BULK" && application.applicantsList && application.applicantsList.length > 0
-                  ? `BULK • ${application.applicantsList.length}`
+                {application.applicationType === "BULK"
+                  ? `BULK (${(application.applicantCount !== undefined && application.applicantCount > 0) ? application.applicantCount : (application.applicantsList ? application.applicantsList.length : 0)})`
                   : application.applicationType}
               </Text>
             </View>
@@ -388,7 +388,7 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: SPACING[6],
   },
-  permitTitle: {
+  serviceName: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: TYPOGRAPHY.sizes.caption,
     flex: 1,

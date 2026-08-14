@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using EDGE.Domain.Entities;
+using EDGE.Domain.Enums;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.Common.Models;
 
@@ -304,6 +305,77 @@ public class AdminUpdateApplicationCommandHandler : IRequestHandler<AdminUpdateA
                         CorrectedAt = DateTime.UtcNow
                     }, cancellationToken);
                     comp.Email = request.CompanyDetails.Email;
+                }
+            }
+
+            // Process ApplicantsList from Batch Summary
+            if (request.ApplicantsList != null && request.ApplicantsList.Any())
+            {
+                foreach (var rosterItem in request.ApplicantsList)
+                {
+                    if (string.IsNullOrWhiteSpace(rosterItem.Id)) continue;
+
+                    var targetApplicant = app.ApplicationApplicants
+                        .FirstOrDefault(aa => 
+                            (Guid.TryParse(rosterItem.Id, out var parsedId) && aa.ApplicantId == parsedId) ||
+                            rosterItem.Id == aa.ApplicantId.ToString() ||
+                            rosterItem.Id == aa.Applicant?.Id.ToString()
+                        )?.Applicant;
+
+                    if (targetApplicant != null)
+                    {
+                        // Update ApplicantType
+                        if (!string.IsNullOrWhiteSpace(rosterItem.ApplicantType) &&
+                            Enum.TryParse<ApplicantType>(rosterItem.ApplicantType, true, out var newType) &&
+                            newType != targetApplicant.ApplicantType)
+                        {
+                            await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
+                            {
+                                ApplicationId = app.Id,
+                                Category = "Applicant Details",
+                                FieldName = $"Applicant_{targetApplicant.Id}_ApplicantType",
+                                OldValue = targetApplicant.ApplicantType.ToString(),
+                                NewValue = newType.ToString(),
+                                CorrectedByStaff = staffName,
+                                CorrectedAt = DateTime.UtcNow
+                            }, cancellationToken);
+                            targetApplicant.ApplicantType = newType;
+                        }
+
+                        // Update Status
+                        if (!string.IsNullOrWhiteSpace(rosterItem.Status) &&
+                            Enum.TryParse<ApplicantStatus>(rosterItem.Status, true, out var newStatus) &&
+                            newStatus != targetApplicant.Status)
+                        {
+                            await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
+                            {
+                                ApplicationId = app.Id,
+                                Category = "Applicant Details",
+                                FieldName = $"Applicant_{targetApplicant.Id}_Status",
+                                OldValue = targetApplicant.Status.ToString(),
+                                NewValue = newStatus.ToString(),
+                                CorrectedByStaff = staffName,
+                                CorrectedAt = DateTime.UtcNow
+                            }, cancellationToken);
+                            targetApplicant.Status = newStatus;
+                        }
+
+                        // Update EvaluationRemarks
+                        if (rosterItem.EvaluationRemarks != null && rosterItem.EvaluationRemarks != targetApplicant.EvaluationRemarks)
+                        {
+                            await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
+                            {
+                                ApplicationId = app.Id,
+                                Category = "Applicant Details",
+                                FieldName = $"Applicant_{targetApplicant.Id}_EvaluationRemarks",
+                                OldValue = targetApplicant.EvaluationRemarks ?? string.Empty,
+                                NewValue = rosterItem.EvaluationRemarks,
+                                CorrectedByStaff = staffName,
+                                CorrectedAt = DateTime.UtcNow
+                            }, cancellationToken);
+                            targetApplicant.EvaluationRemarks = rosterItem.EvaluationRemarks;
+                        }
+                    }
                 }
             }
 

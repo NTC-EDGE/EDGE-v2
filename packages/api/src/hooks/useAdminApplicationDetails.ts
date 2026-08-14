@@ -1,14 +1,14 @@
 import useSWR from 'swr';
 import { apiClient } from '../apiClient';
-import { ApiResponse, ApplicationDto } from '../types';
+import { ApiResponse, ApplicationDetailDto } from '../types';
 
 export function useAdminApplicationDetails(id?: string | null) {
   const key = id ? `/api/v2/applications/${id}` : null;
 
-  const { data, error, isLoading, mutate } = useSWR<ApiResponse<ApplicationDto>>(
+  const { data, error, isLoading, mutate } = useSWR<ApiResponse<ApplicationDetailDto>>(
     key,
     async (url: string) => {
-      const res = await apiClient.get<ApiResponse<ApplicationDto>>(url);
+      const res = await apiClient.get<ApiResponse<ApplicationDetailDto>>(url);
       return res.data;
     },
     { revalidateOnFocus: false }
