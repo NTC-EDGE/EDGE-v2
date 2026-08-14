@@ -35,14 +35,12 @@ export function ServiceVariantRequirementsTable({
     const serviceCode = svr.serviceCode ?? "";
     const variantType = svr.serviceVariantType ?? "";
     const reqName = svr.requirement?.name ?? "";
-    const appType = svr.contextKey ?? "";
 
     return (
       serviceName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       serviceCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
       variantType.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      reqName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      appType.toLowerCase().includes(searchTerm.toLowerCase())
+      reqName.toLowerCase().includes(searchTerm.toLowerCase())
     );
   });
 
@@ -81,17 +79,6 @@ export function ServiceVariantRequirementsTable({
           <span className="font-semibold text-slate-200">{item.requirement?.name ?? "Unknown Requirement"}</span>
           <span className="text-xs text-slate-400 mt-0.5">{item.requirement?.description ?? ""}</span>
         </div>
-      ),
-    },
-    {
-      key: "contextKey",
-      header: "Context Key",
-      cell: (item) => (
-        <span className="font-mono text-xs bg-slate-950/70 border border-slate-800 px-2 py-0.5 rounded text-slate-300">
-          {item.contextKey !== null && item.contextKey !== undefined && item.contextKey !== "" 
-            ? item.contextKey 
-            : "Any / Default"}
-        </span>
       ),
     },
     {

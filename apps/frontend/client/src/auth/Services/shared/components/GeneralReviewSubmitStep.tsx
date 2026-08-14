@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { COLORS, TYPOGRAPHY, Icon } from "@edge/ui";
 import { NTCService } from "../../data/servicesData";
 import { TenantInfo, OfficeInfo, GeneralApplicantData } from "../hooks/useGeneralServiceWizard";
+import { getApplicantDisplayName } from "../helpers/applicantDisplayHelper";
 import { DocumentPreviewModal } from "../../../../shared/components/DocumentPreviewModal";
 
 interface GeneralReviewSubmitStepProps {
@@ -271,7 +272,7 @@ export function GeneralReviewSubmitStep({
         <SectionCard icon="users" title={`Bulk Application Group Cohort (${applicants.length} Applicants)`} accentColor="#0284C7">
           <View style={{ gap: 8 }}>
             {applicants.map((app, idx) => {
-              const appName = [app.firstName, app.lastName].filter(Boolean).join(" ") || `Draft Applicant #${idx + 1}`;
+              const appName = getApplicantDisplayName(app, idx + 1);
               const docCount = Object.keys(app.uploads || {}).length;
               const isSelected = idx === currentApplicantIndex;
               return (

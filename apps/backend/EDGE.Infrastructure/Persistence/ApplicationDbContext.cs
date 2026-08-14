@@ -608,7 +608,11 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
         modelBuilder.Entity<ServiceVariantRequirement>(entity =>
         {
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.ContextKey);
+
+            entity.HasOne(e => e.Tenant)
+                  .WithMany()
+                  .HasForeignKey(e => e.TenantId)
+                  .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasOne(e => e.Requirement)
                   .WithMany(r => r.ServiceVariantRequirements)

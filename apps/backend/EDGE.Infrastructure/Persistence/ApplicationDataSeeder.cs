@@ -989,14 +989,16 @@ public static class ApplicationDataSeeder
         DomainApplication app, Applicant applicant,
         List<(string label, string value)> fields,
         Guid defaultFormId,
-        List<Field> availableFields)
+        List<Field> availableFields,
+        Guid? specificFormId = null,
+        ApplicationDbContext? context = null)
     {
         var submission = new FormSubmission
         {
             Id = Guid.NewGuid(),
             ApplicationId = app.Id,
             ApplicantId = applicant.Id,
-            FormId = defaultFormId,
+            FormId = specificFormId ?? defaultFormId,
             CreatedAt = app.CreatedAt,
         };
 

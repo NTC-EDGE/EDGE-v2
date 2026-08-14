@@ -15,8 +15,5 @@ public class UpdateServiceVariantRequirementCommandValidator : AbstractValidator
         RuleFor(x => x.ServiceVariantId)
             .NotEmpty().WithMessage("Service Variant ID is required.");
 
-        RuleFor(x => x.ContextKey)
-            .MaximumLength(100).WithMessage("Context Key must not exceed 100 characters.");
-
     }
 }

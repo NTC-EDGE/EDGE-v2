@@ -18,8 +18,8 @@ public record AttachServiceVariantRequirementCommand : IRequest<ApiResponse<Guid
     public Guid ServiceVariantId { get; init; }
 
     // Public request body — only these fields
+    public Guid? TenantId { get; init; }
     public required Guid RequirementId { get; init; }
-    public string? ContextKey { get; init; }
     public bool IsRequired { get; init; } = true;
 }
 
@@ -44,9 +44,9 @@ public class AttachServiceVariantRequirementCommandHandler : IRequestHandler<Att
 
         var svr = new ServiceVariantRequirement
         {
+            TenantId = request.TenantId,
             ServiceVariantId = request.ServiceVariantId,
             RequirementId = request.RequirementId,
-            ContextKey = string.IsNullOrWhiteSpace(request.ContextKey) ? null : request.ContextKey.Trim(),
             IsRequired = request.IsRequired
         };
 

@@ -179,9 +179,6 @@ public class SubmitApplicationCommandHandler
         else
         {
             // Fallback: Derive ApplicationTypeKey from submitted formFieldValues matching a valid ServiceVariantType.
-            // Only New / Renewal / Modification are valid application-level variant types.
-            // Applicant-level exam types (First Taker, Re-taker, Upgrade) are stored in FormFieldValues
-            // and are NOT ServiceVariant discriminators — they form the ContextKey at upload time.
             var firstFormValues = request.Applicants.FirstOrDefault()?.FormFieldValues;
             if (firstFormValues != null)
             {

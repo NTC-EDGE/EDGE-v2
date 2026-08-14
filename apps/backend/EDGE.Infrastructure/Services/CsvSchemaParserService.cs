@@ -177,9 +177,8 @@ public class CsvSchemaParserService : ICsvSchemaParserService
                 }
             }
 
-            // Guarantee that per-applicant context fields (examCategory, examineeType) are always
+            // Guarantee that per-applicant form fields (examCategory, examineeType) are always
             // present in FormFieldValues, even if the form field label alias lookup missed them.
-            // These are critical for ContextKey resolution during requirement validation.
             if (form != null && !string.IsNullOrWhiteSpace(appType))
             {
                 var examCategoryField = form.Sections

@@ -182,8 +182,9 @@ public static class FastTrackSeeder
                     .FirstAsync();
             }
 
-            // 1. Fetch existing sections for this form
+            // 1. Fetch existing sections for this form (no-tracking to avoid stale state)
             var existingSections = await context.FormSections
+                .AsNoTracking()
                 .Where(s => s.FormId == formId)
                 .ToListAsync();
 
@@ -214,27 +215,51 @@ public static class FastTrackSeeder
                 Guid sectionId = new Guid(bytes);
                 processedSectionIds.Add(sectionId);
 
-                var existingSection = existingSections.FirstOrDefault(s => s.Id == sectionId);
+                // Re-check DB directly to avoid EF change tracker stale state
+                var sectionExistsInDb = await context.FormSections
+                    .AsNoTracking()
+                    .AnyAsync(s => s.Id == sectionId);
 
-                if (existingSection == null)
+                if (!sectionExistsInDb)
                 {
-                    context.FormSections.Add(new FormSection
+                    try
                     {
-                        Id = sectionId,
-                        FormId = formId,
-                        Key = key,
-                        Title = title,
-                        OrderIndex = sectionOrder
-                    });
-                    await context.SaveChangesAsync();
+                        context.FormSections.Add(new FormSection
+                        {
+                            Id = sectionId,
+                            FormId = formId,
+                            Key = key,
+                            Title = title,
+                            OrderIndex = sectionOrder
+                        });
+                        await context.SaveChangesAsync();
+                    }
+                    catch (Microsoft.EntityFrameworkCore.DbUpdateException)
+                    {
+                        // Section was inserted by a concurrent call or prior iteration — detach and continue
+                        context.ChangeTracker.Clear();
+                        var tracked = await context.FormSections.FindAsync(sectionId);
+                        if (tracked != null)
+                        {
+                            tracked.FormId = formId;
+                            tracked.Key = key;
+                            tracked.Title = title;
+                            tracked.OrderIndex = sectionOrder;
+                            await context.SaveChangesAsync();
+                        }
+                    }
                 }
                 else
                 {
-                    existingSection.FormId = formId;
-                    existingSection.Key = key;
-                    existingSection.Title = title;
-                    existingSection.OrderIndex = sectionOrder;
-                    await context.SaveChangesAsync();
+                    var existingSection = await context.FormSections.FindAsync(sectionId);
+                    if (existingSection != null)
+                    {
+                        existingSection.FormId = formId;
+                        existingSection.Key = key;
+                        existingSection.Title = title;
+                        existingSection.OrderIndex = sectionOrder;
+                        await context.SaveChangesAsync();
+                    }
                 }
 
                 sectionOrder++;
@@ -269,7 +294,10 @@ public static class FastTrackSeeder
         // Seed Forms per NTC Service
         await SeedFormForService("NTC_1_01", Guid.Parse("f0100000-0000-0000-0000-000000000001"), Guid.Parse("f01a0000-0000-0000-0000-000000000000"), new()
         {
-            ("applicantPerson", "Personal Information", new() { "fullName", "birthDate", "address", "contactNo", "email", "education" }),
+            ("applicantPerson", "Personal Information", new() { "fullName", "birthDate", "sex", "civilStatus", "nationality" }),
+            ("applicantAddress", "Address Information", new() { "region", "province", "city", "barangay", "street", "zipCode" }),
+            ("applicantContact", "Contact Information", new() { "contactNo", "email", "emergencyContactPerson", "emergencyContactNo" }),
+            ("applicantEducation", "Educational Background", new() { "schoolName", "courseDegree", "yearGraduated" }),
             ("examSelection", "Exam Selection", new() { "examCategory", "examineeType", "elements" }),
             ("assistanceRequest", "Special Needs Assistance", new() { "specialNeeds" }),
             ("admissionSlip", "Admission Slip", new() { "admissionNumber" }),
@@ -278,7 +306,9 @@ public static class FastTrackSeeder
 
         await SeedFormForService("NTC_1_02", Guid.Parse("f0200000-0000-0000-0000-000000000001"), Guid.Parse("f02a0000-0000-0000-0000-000000000000"), new()
         {
-            ("applicantPerson", "Personal Information", new() { "fullName", "birthDate", "address", "contactNo", "email", "weight_kg", "height_cm", "employmentStatus", "employmentLocation" }),
+            ("applicantPerson", "Personal Information", new() { "fullName", "birthDate", "sex", "nationality", "weight_kg", "height_cm", "employmentStatus", "employmentLocation" }),
+            ("applicantAddress", "Address Information", new() { "region", "province", "city", "barangay", "street", "zipCode" }),
+            ("applicantContact", "Contact Information", new() { "contactNo", "email" }),
             ("typeOfCertificate", "Type of Certificate", new() { "typeOfCertificate" }),
             ("examSeminarDetails", "Exam / Seminar Details", new() { "examSeminarDetails" }),
             ("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
@@ -287,7 +317,9 @@ public static class FastTrackSeeder
 
         await SeedFormForService("NTC_1_03", Guid.Parse("f0300000-0000-0000-0000-000000000001"), Guid.Parse("f03a0000-0000-0000-0000-000000000000"), new()
         {
-            ("applicantPerson", "Personal Information", new() { "fullName", "birthDate", "address", "contactNo", "email" }),
+            ("applicantPerson", "Personal Information", new() { "fullName", "birthDate", "sex", "nationality" }),
+            ("applicantAddress", "Address Information", new() { "region", "province", "city", "barangay", "street", "zipCode" }),
+            ("applicantContact", "Contact Information", new() { "contactNo", "email" }),
             ("permitType", "Permit / License Type", new() { "permitType" }),
             ("classOfStation", "Class of Station", new() { "classOfStation" }),
             ("club", "Club Details", new() { "clubDetails" }),
@@ -299,7 +331,9 @@ public static class FastTrackSeeder
 
         await SeedFormForService("NTC_1_04", Guid.Parse("f0400000-0000-0000-0000-000000000001"), Guid.Parse("f04a0000-0000-0000-0000-000000000000"), new()
         {
-            ("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email" }),
+            ("applicant", "Applicant Details", new() { "fullName", "birthDate", "sex", "nationality" }),
+            ("applicantAddress", "Address Information", new() { "region", "province", "city", "barangay", "street", "zipCode" }),
+            ("applicantContact", "Contact Information", new() { "contactNo", "email" }),
             ("vessel", "Vessel Details", new() { "vesselName", "callSign", "imoNumber" }),
             ("equipment", "Equipment List", new() { "equipmentDetails" }),
             ("radioOfficers", "Radio Officers", new() { "radioOfficers" }),
@@ -846,23 +880,25 @@ public static class FastTrackSeeder
         await context.SaveChangesAsync();
 
         // 5. Seed ServiceVariantRequirements
+        var tenantId = await context.Tenants.Select(t => (Guid?)t.Id).FirstOrDefaultAsync();
         var variantReqsToSeed = FastTrackSeederData.GetBackfillVariantRequirements();
-        var existingSvr = (await context.ServiceVariantRequirements.AsNoTracking().Select(r => new { r.ServiceVariantId, r.RequirementId, r.ContextKey }).ToListAsync())
-            .Select(r => (r.ServiceVariantId, r.RequirementId, r.ContextKey)).ToHashSet();
+        var existingSvr = (await context.ServiceVariantRequirements.AsNoTracking().Select(r => new { r.ServiceVariantId, r.RequirementId }).ToListAsync())
+            .Select(r => (r.ServiceVariantId, r.RequirementId)).ToHashSet();
 
         foreach (var vr in variantReqsToSeed)
         {
             Guid actualVariantId = ResolveVariantId(vr.VariantId);
-            if (!existingSvr.Contains((actualVariantId, vr.ReqId, vr.ContextKey)))
+            if (!existingSvr.Contains((actualVariantId, vr.ReqId)))
             {
                 context.ServiceVariantRequirements.Add(new ServiceVariantRequirement
                 {
                     Id = Guid.NewGuid(),
+                    TenantId = tenantId,
                     ServiceVariantId = actualVariantId,
                     RequirementId = vr.ReqId,
-                    IsRequired = vr.IsRequired,
-                    ContextKey = vr.ContextKey
+                    IsRequired = vr.IsRequired
                 });
+                existingSvr.Add((actualVariantId, vr.ReqId));
             }
         }
         await context.SaveChangesAsync();
@@ -870,7 +906,7 @@ public static class FastTrackSeeder
          // Deduplicate any existing duplicate database records
          var allSvr = await context.ServiceVariantRequirements.ToListAsync();
          var duplicatesToRemove = allSvr
-             .GroupBy(r => new { r.ServiceVariantId, r.RequirementId, r.ContextKey })
+             .GroupBy(r => new { r.ServiceVariantId, r.RequirementId })
              .SelectMany(g => g.Skip(1))
              .ToList();
 

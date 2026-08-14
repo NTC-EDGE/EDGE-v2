@@ -74,21 +74,6 @@ public static class FastTrackSeederData
             ""typeOfCertificate"": [""1RTG"",""2RTG"",""3RTG"",""1PHN"",""2PHN"",""3PHN"",""SROP"",""RROC-Land Mobile"",""RROC-Aircraft"",""GROC"",""TP RROC-Aircraft"",""Other""],
             ""applicantPersonExtension"": [""weight_kg"",""height_cm"",""employment_status"",""employment_location""]
         },
-        ""requirementDiscriminatorFields"": [""Type of Certificate""],
-        ""requirementContextGroups"": {
-            ""1RTG"": ""CommercialROC"",
-            ""2RTG"": ""CommercialROC"",
-            ""3RTG"": ""CommercialROC"",
-            ""1PHN"": ""CommercialROC"",
-            ""2PHN"": ""CommercialROC"",
-            ""3PHN"": ""CommercialROC"",
-            ""SROP"": ""SROP"",
-            ""RROC-Land Mobile"": ""RROC-Land Mobile"",
-            ""RROC-Aircraft"": ""RROC-Aircraft"",
-            ""GROC"": ""GROC"",
-            ""TP RROC-Aircraft"": ""TP RROC-Aircraft"",
-            ""Other"": null
-        },
         ""entityType"": ""Application""
     }";
 
@@ -762,11 +747,31 @@ public static class FastTrackSeederData
         return new Dictionary<string, Field>
         {
             // Core Personal / Applicant
-            ["fullName"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000001"), FieldType = "text", Label = "Full Name / Company Name", SyncBackOnSubmit = true },
-            ["birthDate"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000002"), FieldType = "date", Label = "Birth Date", SyncBackOnSubmit = true },
-            ["address"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000003"), FieldType = "text", Label = "Address", SyncBackOnSubmit = true },
-            ["contactNo"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000004"), FieldType = "text", Label = "Contact Number", SyncBackOnSubmit = true },
+            ["fullName"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000001"), FieldType = "text", Label = "Full Legal Name", SyncBackOnSubmit = true },
+            ["birthDate"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000002"), FieldType = "date", Label = "Date of Birth", SyncBackOnSubmit = true },
+            ["sex"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000041"), FieldType = "dropdown", Label = "Sex / Gender", SyncBackOnSubmit = true, ValidationRules = @"[""Male"",""Female""]" },
+            ["civilStatus"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000042"), FieldType = "dropdown", Label = "Civil Status", SyncBackOnSubmit = true, ValidationRules = @"[""Single"",""Married"",""Widowed"",""Separated""]" },
+            ["nationality"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000043"), FieldType = "dropdown", Label = "Nationality / Citizenship", SyncBackOnSubmit = true, ValidationRules = @"[""Filipino"",""Foreign National / Others""]" },
+
+            // Granular Address
+            ["region"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000051"), FieldType = "dropdown", Label = "Region", SyncBackOnSubmit = true, ValidationRules = @"[""National Capital Region (NCR)"",""Region I - Ilocos Region"",""Region II - Cagayan Valley"",""Region III - Central Luzon"",""Region IV-A - CALABARZON"",""MIMAROPA Region"",""Region V - Bicol Region"",""Region VI - Western Visayas"",""Region VII - Central Visayas"",""Region VIII - Eastern Visayas"",""Region IX - Zamboanga Peninsula"",""Region X - Northern Mindanao"",""Region XI - Davao Region"",""Region XII - SOCCSKSARGEN"",""Region XIII - Caraga"",""Cordillera Administrative Region (CAR)"",""Bangsamoro Autonomous Region in Muslim Mindanao (BARMM)""]" },
+            ["province"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000052"), FieldType = "text", Label = "Province", SyncBackOnSubmit = true },
+            ["city"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000053"), FieldType = "text", Label = "City / Municipality", SyncBackOnSubmit = true },
+            ["barangay"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000054"), FieldType = "text", Label = "Barangay", SyncBackOnSubmit = true },
+            ["street"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000055"), FieldType = "text", Label = "Street Address / Unit / Building", SyncBackOnSubmit = true },
+            ["zipCode"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000056"), FieldType = "text", Label = "Zip / Postal Code", SyncBackOnSubmit = true },
+            ["address"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000003"), FieldType = "text", Label = "Complete Address", SyncBackOnSubmit = true },
+
+            // Contact & Emergency
+            ["contactNo"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000004"), FieldType = "text", Label = "Contact / Mobile Number", SyncBackOnSubmit = true },
             ["email"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000005"), FieldType = "text", Label = "Email Address", SyncBackOnSubmit = true },
+            ["emergencyContactPerson"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000071"), FieldType = "text", Label = "Emergency Contact Person", SyncBackOnSubmit = false },
+            ["emergencyContactNo"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000072"), FieldType = "text", Label = "Emergency Contact Number", SyncBackOnSubmit = false },
+
+            // Education
+            ["schoolName"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000061"), FieldType = "text", Label = "School / University Attended", SyncBackOnSubmit = false },
+            ["courseDegree"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000062"), FieldType = "text", Label = "Course / Degree Program", SyncBackOnSubmit = false },
+            ["yearGraduated"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000063"), FieldType = "text", Label = "Year Graduated", SyncBackOnSubmit = false },
             ["education"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000006"), FieldType = "text", Label = "Education / School Attended", SyncBackOnSubmit = false },
 
             // NTC 1-01 Exam Specific
@@ -1151,939 +1156,939 @@ public static class FastTrackSeederData
         };
     }
 
-    public static List<(Guid VariantId, Guid ReqId, bool IsRequired, string? ContextKey)> GetBackfillVariantRequirements()
+    public static List<(Guid VariantId, Guid ReqId, bool IsRequired)> GetBackfillVariantRequirements()
     {
-        return new List<(Guid VariantId, Guid ReqId, bool IsRequired, string? ContextKey)>
+        return new List<(Guid VariantId, Guid ReqId, bool IsRequired)>
         {
             // Radiotelegraphy (RTG)
-            (Guid.Parse("60000000-0000-0000-0000-000000000031"), Guid.Parse("70000000-0000-0000-0000-000000000001"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000031"), Guid.Parse("70000000-0000-0000-0000-000000000002"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000031"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000032"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000032"), Guid.Parse("70000000-0000-0000-0000-000000000004"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000033"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000033"), Guid.Parse("70000000-0000-0000-0000-000000000005"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000031"), Guid.Parse("70000000-0000-0000-0000-000000000001"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000031"), Guid.Parse("70000000-0000-0000-0000-000000000002"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000031"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000032"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000032"), Guid.Parse("70000000-0000-0000-0000-000000000004"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000033"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000033"), Guid.Parse("70000000-0000-0000-0000-000000000005"), true),
 
             // Radiotelephony (RTP)
-            (Guid.Parse("60000000-0000-0000-0000-000000000034"), Guid.Parse("70000000-0000-0000-0000-000000000001"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000034"), Guid.Parse("70000000-0000-0000-0000-000000000002"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000034"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000035"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000035"), Guid.Parse("70000000-0000-0000-0000-000000000004"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000036"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000036"), Guid.Parse("70000000-0000-0000-0000-000000000005"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000034"), Guid.Parse("70000000-0000-0000-0000-000000000001"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000034"), Guid.Parse("70000000-0000-0000-0000-000000000002"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000034"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000035"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000035"), Guid.Parse("70000000-0000-0000-0000-000000000004"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000036"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000036"), Guid.Parse("70000000-0000-0000-0000-000000000005"), true),
 
             // Amateur (AMA)
-            (Guid.Parse("60000000-0000-0000-0000-000000000037"), Guid.Parse("70000000-0000-0000-0000-000000000001"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000037"), Guid.Parse("70000000-0000-0000-0000-000000000006"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000037"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000038"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000038"), Guid.Parse("70000000-0000-0000-0000-000000000004"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000039"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000039"), Guid.Parse("70000000-0000-0000-0000-000000000007"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000037"), Guid.Parse("70000000-0000-0000-0000-000000000001"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000037"), Guid.Parse("70000000-0000-0000-0000-000000000006"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000037"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000038"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000038"), Guid.Parse("70000000-0000-0000-0000-000000000004"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000039"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000039"), Guid.Parse("70000000-0000-0000-0000-000000000007"), true),
 
             // RROC Aircraft
-            (Guid.Parse("60000000-0000-0000-0000-000000000040"), Guid.Parse("70000000-0000-0000-0000-000000000008"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000040"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000041"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000041"), Guid.Parse("70000000-0000-0000-0000-000000000004"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000040"), Guid.Parse("70000000-0000-0000-0000-000000000008"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000040"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000041"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000041"), Guid.Parse("70000000-0000-0000-0000-000000000004"), true),
 
             // --- ROC Certificates (excluding Amateur) ---
             // CommercialROC - New
-            (Guid.Parse("60000000-0000-0000-0000-000000000002"), Guid.Parse("70000000-0000-0000-0000-000000000010"), true, "CommercialROC"), // ROC_RATING
-            (Guid.Parse("60000000-0000-0000-0000-000000000002"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true, "CommercialROC"), // PHOTO
-            (Guid.Parse("60000000-0000-0000-0000-000000000002"), Guid.Parse("70000000-0000-0000-0000-000000000005"), false, "CommercialROC"), // ROC (upgrade option)
+            (Guid.Parse("60000000-0000-0000-0000-000000000002"), Guid.Parse("70000000-0000-0000-0000-000000000010"), true), // ROC_RATING
+            (Guid.Parse("60000000-0000-0000-0000-000000000002"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true), // PHOTO
+            (Guid.Parse("60000000-0000-0000-0000-000000000002"), Guid.Parse("70000000-0000-0000-0000-000000000005"), false), // ROC (upgrade option)
             // CommercialROC - Modification
-            (Guid.Parse("60000000-0000-0000-0000-000000000011"), Guid.Parse("70000000-0000-0000-0000-000000000005"), true, "CommercialROC"), // ROC
-            (Guid.Parse("60000000-0000-0000-0000-000000000011"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true, "CommercialROC"), // PHOTO
-            (Guid.Parse("60000000-0000-0000-0000-000000000011"), Guid.Parse("70000000-0000-0000-0000-000000000027"), false, "CommercialROC"), // CORRECTION_NAME_DOCS
+            (Guid.Parse("60000000-0000-0000-0000-000000000011"), Guid.Parse("70000000-0000-0000-0000-000000000005"), true), // ROC
+            (Guid.Parse("60000000-0000-0000-0000-000000000011"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true), // PHOTO
+            (Guid.Parse("60000000-0000-0000-0000-000000000011"), Guid.Parse("70000000-0000-0000-0000-000000000027"), false), // CORRECTION_NAME_DOCS
 
             // RROC-Aircraft - New
-            (Guid.Parse("60000000-0000-0000-0000-000000000002"), Guid.Parse("70000000-0000-0000-0000-000000000010"), true, "RROC-Aircraft"), // ROC_RATING
-            (Guid.Parse("60000000-0000-0000-0000-000000000002"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true, "RROC-Aircraft"), // PHOTO
+            (Guid.Parse("60000000-0000-0000-0000-000000000002"), Guid.Parse("70000000-0000-0000-0000-000000000010"), true), // ROC_RATING
+            (Guid.Parse("60000000-0000-0000-0000-000000000002"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true), // PHOTO
             // RROC-Aircraft - Renewal
-            (Guid.Parse("60000000-0000-0000-0000-000000000003"), Guid.Parse("70000000-0000-0000-0000-000000000005"), true, "RROC-Aircraft"), // ROC
-            (Guid.Parse("60000000-0000-0000-0000-000000000003"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true, "RROC-Aircraft"), // PHOTO
+            (Guid.Parse("60000000-0000-0000-0000-000000000003"), Guid.Parse("70000000-0000-0000-0000-000000000005"), true), // ROC
+            (Guid.Parse("60000000-0000-0000-0000-000000000003"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true), // PHOTO
             // RROC-Aircraft - Modification
-            (Guid.Parse("60000000-0000-0000-0000-000000000011"), Guid.Parse("70000000-0000-0000-0000-000000000005"), true, "RROC-Aircraft"), // ROC
-            (Guid.Parse("60000000-0000-0000-0000-000000000011"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true, "RROC-Aircraft"), // PHOTO
-            (Guid.Parse("60000000-0000-0000-0000-000000000011"), Guid.Parse("70000000-0000-0000-0000-000000000027"), false, "RROC-Aircraft"), // CORRECTION_NAME_DOCS
+            (Guid.Parse("60000000-0000-0000-0000-000000000011"), Guid.Parse("70000000-0000-0000-0000-000000000005"), true), // ROC
+            (Guid.Parse("60000000-0000-0000-0000-000000000011"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true), // PHOTO
+            (Guid.Parse("60000000-0000-0000-0000-000000000011"), Guid.Parse("70000000-0000-0000-0000-000000000027"), false), // CORRECTION_NAME_DOCS
 
             // TP RROC-Aircraft - New
-            (Guid.Parse("60000000-0000-0000-0000-000000000002"), Guid.Parse("70000000-0000-0000-0000-000000000011"), true, "TP RROC-Aircraft"), // FOREIGN_PILOT_LICENSE
-            (Guid.Parse("60000000-0000-0000-0000-000000000002"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true, "TP RROC-Aircraft"), // PHOTO
+            (Guid.Parse("60000000-0000-0000-0000-000000000002"), Guid.Parse("70000000-0000-0000-0000-000000000011"), true), // FOREIGN_PILOT_LICENSE
+            (Guid.Parse("60000000-0000-0000-0000-000000000002"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true), // PHOTO
             // TP RROC-Aircraft - Modification
-            (Guid.Parse("60000000-0000-0000-0000-000000000011"), Guid.Parse("70000000-0000-0000-0000-000000000005"), true, "TP RROC-Aircraft"), // ROC
-            (Guid.Parse("60000000-0000-0000-0000-000000000011"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true, "TP RROC-Aircraft"), // PHOTO
-            (Guid.Parse("60000000-0000-0000-0000-000000000011"), Guid.Parse("70000000-0000-0000-0000-000000000027"), false, "TP RROC-Aircraft"), // CORRECTION_NAME_DOCS
+            (Guid.Parse("60000000-0000-0000-0000-000000000011"), Guid.Parse("70000000-0000-0000-0000-000000000005"), true), // ROC
+            (Guid.Parse("60000000-0000-0000-0000-000000000011"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true), // PHOTO
+            (Guid.Parse("60000000-0000-0000-0000-000000000011"), Guid.Parse("70000000-0000-0000-0000-000000000027"), false), // CORRECTION_NAME_DOCS
 
             // GROC - New
-            (Guid.Parse("60000000-0000-0000-0000-000000000002"), Guid.Parse("70000000-0000-0000-0000-000000000012"), true, "GROC"), // GOOD_MORAL
-            (Guid.Parse("60000000-0000-0000-0000-000000000002"), Guid.Parse("70000000-0000-0000-0000-000000000013"), true, "GROC"), // GOVT_SERVICE
-            (Guid.Parse("60000000-0000-0000-0000-000000000002"), Guid.Parse("70000000-0000-0000-0000-000000000014"), true, "GROC"), // GOVT_SEMINAR
-            (Guid.Parse("60000000-0000-0000-0000-000000000002"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true, "GROC"), // PHOTO
+            (Guid.Parse("60000000-0000-0000-0000-000000000002"), Guid.Parse("70000000-0000-0000-0000-000000000012"), true), // GOOD_MORAL
+            (Guid.Parse("60000000-0000-0000-0000-000000000002"), Guid.Parse("70000000-0000-0000-0000-000000000013"), true), // GOVT_SERVICE
+            (Guid.Parse("60000000-0000-0000-0000-000000000002"), Guid.Parse("70000000-0000-0000-0000-000000000014"), true), // GOVT_SEMINAR
+            (Guid.Parse("60000000-0000-0000-0000-000000000002"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true), // PHOTO
             // GROC - Renewal
-            (Guid.Parse("60000000-0000-0000-0000-000000000003"), Guid.Parse("70000000-0000-0000-0000-000000000005"), true, "GROC"), // ROC
-            (Guid.Parse("60000000-0000-0000-0000-000000000003"), Guid.Parse("70000000-0000-0000-0000-000000000015"), true, "GROC"), // COE
-            (Guid.Parse("60000000-0000-0000-0000-000000000003"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true, "GROC"), // PHOTO
+            (Guid.Parse("60000000-0000-0000-0000-000000000003"), Guid.Parse("70000000-0000-0000-0000-000000000005"), true), // ROC
+            (Guid.Parse("60000000-0000-0000-0000-000000000003"), Guid.Parse("70000000-0000-0000-0000-000000000015"), true), // COE
+            (Guid.Parse("60000000-0000-0000-0000-000000000003"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true), // PHOTO
             // GROC - Modification
-            (Guid.Parse("60000000-0000-0000-0000-000000000011"), Guid.Parse("70000000-0000-0000-0000-000000000005"), true, "GROC"), // ROC
-            (Guid.Parse("60000000-0000-0000-0000-000000000011"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true, "GROC"), // PHOTO
-            (Guid.Parse("60000000-0000-0000-0000-000000000011"), Guid.Parse("70000000-0000-0000-0000-000000000027"), false, "GROC"), // CORRECTION_NAME_DOCS
+            (Guid.Parse("60000000-0000-0000-0000-000000000011"), Guid.Parse("70000000-0000-0000-0000-000000000005"), true), // ROC
+            (Guid.Parse("60000000-0000-0000-0000-000000000011"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true), // PHOTO
+            (Guid.Parse("60000000-0000-0000-0000-000000000011"), Guid.Parse("70000000-0000-0000-0000-000000000027"), false), // CORRECTION_NAME_DOCS
 
             // RROC-Land Mobile - New
-            (Guid.Parse("60000000-0000-0000-0000-000000000002"), Guid.Parse("70000000-0000-0000-0000-000000000014"), true, "RROC-Land Mobile"), // GOVT_SEMINAR
-            (Guid.Parse("60000000-0000-0000-0000-000000000002"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true, "RROC-Land Mobile"), // PHOTO
+            (Guid.Parse("60000000-0000-0000-0000-000000000002"), Guid.Parse("70000000-0000-0000-0000-000000000014"), true), // GOVT_SEMINAR
+            (Guid.Parse("60000000-0000-0000-0000-000000000002"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true), // PHOTO
             // RROC-Land Mobile - Renewal
-            (Guid.Parse("60000000-0000-0000-0000-000000000003"), Guid.Parse("70000000-0000-0000-0000-000000000005"), true, "RROC-Land Mobile"), // ROC
-            (Guid.Parse("60000000-0000-0000-0000-000000000003"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true, "RROC-Land Mobile"), // PHOTO
+            (Guid.Parse("60000000-0000-0000-0000-000000000003"), Guid.Parse("70000000-0000-0000-0000-000000000005"), true), // ROC
+            (Guid.Parse("60000000-0000-0000-0000-000000000003"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true), // PHOTO
             // RROC-Land Mobile - Modification
-            (Guid.Parse("60000000-0000-0000-0000-000000000011"), Guid.Parse("70000000-0000-0000-0000-000000000005"), true, "RROC-Land Mobile"), // ROC
-            (Guid.Parse("60000000-0000-0000-0000-000000000011"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true, "RROC-Land Mobile"), // PHOTO
-            (Guid.Parse("60000000-0000-0000-0000-000000000011"), Guid.Parse("70000000-0000-0000-0000-000000000027"), false, "RROC-Land Mobile"), // CORRECTION_NAME_DOCS
+            (Guid.Parse("60000000-0000-0000-0000-000000000011"), Guid.Parse("70000000-0000-0000-0000-000000000005"), true), // ROC
+            (Guid.Parse("60000000-0000-0000-0000-000000000011"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true), // PHOTO
+            (Guid.Parse("60000000-0000-0000-0000-000000000011"), Guid.Parse("70000000-0000-0000-0000-000000000027"), false), // CORRECTION_NAME_DOCS
 
             // SROP - New
-            (Guid.Parse("60000000-0000-0000-0000-000000000002"), Guid.Parse("70000000-0000-0000-0000-000000000014"), true, "SROP"), // GOVT_SEMINAR
-            (Guid.Parse("60000000-0000-0000-0000-000000000002"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true, "SROP"), // PHOTO
+            (Guid.Parse("60000000-0000-0000-0000-000000000002"), Guid.Parse("70000000-0000-0000-0000-000000000014"), true), // GOVT_SEMINAR
+            (Guid.Parse("60000000-0000-0000-0000-000000000002"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true), // PHOTO
             // SROP - Renewal
-            (Guid.Parse("60000000-0000-0000-0000-000000000003"), Guid.Parse("70000000-0000-0000-0000-000000000005"), true, "SROP"), // ROC
-            (Guid.Parse("60000000-0000-0000-0000-000000000003"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true, "SROP"), // PHOTO
+            (Guid.Parse("60000000-0000-0000-0000-000000000003"), Guid.Parse("70000000-0000-0000-0000-000000000005"), true), // ROC
+            (Guid.Parse("60000000-0000-0000-0000-000000000003"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true), // PHOTO
             // SROP - Modification
-            (Guid.Parse("60000000-0000-0000-0000-000000000011"), Guid.Parse("70000000-0000-0000-0000-000000000005"), true, "SROP"), // ROC
-            (Guid.Parse("60000000-0000-0000-0000-000000000011"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true, "SROP"), // PHOTO
-            (Guid.Parse("60000000-0000-0000-0000-000000000011"), Guid.Parse("70000000-0000-0000-0000-000000000027"), false, "SROP"), // CORRECTION_NAME_DOCS
+            (Guid.Parse("60000000-0000-0000-0000-000000000011"), Guid.Parse("70000000-0000-0000-0000-000000000005"), true), // ROC
+            (Guid.Parse("60000000-0000-0000-0000-000000000011"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true), // PHOTO
+            (Guid.Parse("60000000-0000-0000-0000-000000000011"), Guid.Parse("70000000-0000-0000-0000-000000000027"), false), // CORRECTION_NAME_DOCS
 
             // --- Amateur Certificates ---
             // AmateurROC - New
-            (Guid.Parse("60000000-0000-0000-0000-000000000004"), Guid.Parse("70000000-0000-0000-0000-000000000004"), true, "AmateurROC"), // RATING
-            (Guid.Parse("60000000-0000-0000-0000-000000000004"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true, "AmateurROC"), // PHOTO
+            (Guid.Parse("60000000-0000-0000-0000-000000000004"), Guid.Parse("70000000-0000-0000-0000-000000000004"), true), // RATING
+            (Guid.Parse("60000000-0000-0000-0000-000000000004"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true), // PHOTO
             // AmateurROC - Renewal
-            (Guid.Parse("60000000-0000-0000-0000-000000000008"), Guid.Parse("70000000-0000-0000-0000-000000000007"), true, "AmateurROC"), // AT_ROC
-            (Guid.Parse("60000000-0000-0000-0000-000000000008"), Guid.Parse("70000000-0000-0000-0000-000000000016"), true, "AmateurROC"), // AMA_ACTIVITIES
-            (Guid.Parse("60000000-0000-0000-0000-000000000008"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true, "AmateurROC"), // PHOTO
+            (Guid.Parse("60000000-0000-0000-0000-000000000008"), Guid.Parse("70000000-0000-0000-0000-000000000007"), true), // AT_ROC
+            (Guid.Parse("60000000-0000-0000-0000-000000000008"), Guid.Parse("70000000-0000-0000-0000-000000000016"), true), // AMA_ACTIVITIES
+            (Guid.Parse("60000000-0000-0000-0000-000000000008"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true), // PHOTO
             // AmateurROC - Modification
-            (Guid.Parse("60000000-0000-0000-0000-000000000009"), Guid.Parse("70000000-0000-0000-0000-000000000007"), true, "AmateurROC"), // AT_ROC
-            (Guid.Parse("60000000-0000-0000-0000-000000000009"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true, "AmateurROC"), // PHOTO
-            (Guid.Parse("60000000-0000-0000-0000-000000000009"), Guid.Parse("70000000-0000-0000-0000-000000000028"), false, "AmateurROC"), // AMA_UPGRADE_RATING
+            (Guid.Parse("60000000-0000-0000-0000-000000000009"), Guid.Parse("70000000-0000-0000-0000-000000000007"), true), // AT_ROC
+            (Guid.Parse("60000000-0000-0000-0000-000000000009"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true), // PHOTO
+            (Guid.Parse("60000000-0000-0000-0000-000000000009"), Guid.Parse("70000000-0000-0000-0000-000000000028"), false), // AMA_UPGRADE_RATING
 
             // LifetimeSupplementaryCert - Modification
-            (Guid.Parse("60000000-0000-0000-0000-000000000009"), Guid.Parse("70000000-0000-0000-0000-000000000017"), true, "LifetimeSupplementaryCert"), // SUPPLEMENTARY_CERT
+            (Guid.Parse("60000000-0000-0000-0000-000000000009"), Guid.Parse("70000000-0000-0000-0000-000000000017"), true), // SUPPLEMENTARY_CERT
 
             // --- Certificate of Registration (WDN/SRD/RFID) ---
             // Dealers - New
-            (Guid.Parse("60000000-0000-0000-0000-000000000016"), Guid.Parse("70000000-0000-0000-0000-000000000018"), true, "Dealers"), // DEALER_PERMIT
-            (Guid.Parse("60000000-0000-0000-0000-000000000016"), Guid.Parse("70000000-0000-0000-0000-000000000019"), false, "Dealers"), // IMPORTED_DOCS
-            (Guid.Parse("60000000-0000-0000-0000-000000000016"), Guid.Parse("70000000-0000-0000-0000-000000000020"), false, "Dealers"), // LOCAL_MFG_DOCS
+            (Guid.Parse("60000000-0000-0000-0000-000000000016"), Guid.Parse("70000000-0000-0000-0000-000000000018"), true), // DEALER_PERMIT
+            (Guid.Parse("60000000-0000-0000-0000-000000000016"), Guid.Parse("70000000-0000-0000-0000-000000000019"), false), // IMPORTED_DOCS
+            (Guid.Parse("60000000-0000-0000-0000-000000000016"), Guid.Parse("70000000-0000-0000-0000-000000000020"), false), // LOCAL_MFG_DOCS
             // Non-Dealers - New
-            (Guid.Parse("60000000-0000-0000-0000-000000000016"), Guid.Parse("70000000-0000-0000-0000-000000000019"), false, "Non-Dealers"), // IMPORTED_DOCS
-            (Guid.Parse("60000000-0000-0000-0000-000000000016"), Guid.Parse("70000000-0000-0000-0000-000000000020"), false, "Non-Dealers"), // LOCAL_MFG_DOCS
+            (Guid.Parse("60000000-0000-0000-0000-000000000016"), Guid.Parse("70000000-0000-0000-0000-000000000019"), false), // IMPORTED_DOCS
+            (Guid.Parse("60000000-0000-0000-0000-000000000016"), Guid.Parse("70000000-0000-0000-0000-000000000020"), false), // LOCAL_MFG_DOCS
 
             // --- TVRO Registration Certificate ---
             // Commercial TVRO
-            (Guid.Parse("60000000-0000-0000-0000-000000000020"), Guid.Parse("70000000-0000-0000-0000-000000000021"), true, "Commercial"), // PROVISIONAL_AUTHORITY
-            (Guid.Parse("60000000-0000-0000-0000-000000000020"), Guid.Parse("70000000-0000-0000-0000-000000000022"), true, "Commercial"), // HEADEND_EQUIP_LIST
+            (Guid.Parse("60000000-0000-0000-0000-000000000020"), Guid.Parse("70000000-0000-0000-0000-000000000021"), true), // PROVISIONAL_AUTHORITY
+            (Guid.Parse("60000000-0000-0000-0000-000000000020"), Guid.Parse("70000000-0000-0000-0000-000000000022"), true), // HEADEND_EQUIP_LIST
             // Non-Commercial TVRO
-            (Guid.Parse("60000000-0000-0000-0000-000000000020"), Guid.Parse("70000000-0000-0000-0000-000000000022"), true, "Non-Commercial"), // HEADEND_EQUIP_LIST
+            (Guid.Parse("60000000-0000-0000-0000-000000000020"), Guid.Parse("70000000-0000-0000-0000-000000000022"), true), // HEADEND_EQUIP_LIST
 
             // --- VAS Provider Registration Renewal ---
-            (Guid.Parse("60000000-0000-0000-0000-000000000018"), Guid.Parse("70000000-0000-0000-0000-000000000029"), true, null), // COR (VAS)
-            (Guid.Parse("60000000-0000-0000-0000-000000000018"), Guid.Parse("70000000-0000-0000-0000-000000000023"), true, null), // LEASE_AGREEMENT
-            (Guid.Parse("60000000-0000-0000-0000-000000000018"), Guid.Parse("70000000-0000-0000-0000-000000000024"), true, null), // VAS_QUARTERLY_REPORTS
+            (Guid.Parse("60000000-0000-0000-0000-000000000018"), Guid.Parse("70000000-0000-0000-0000-000000000029"), true), // COR (VAS)
+            (Guid.Parse("60000000-0000-0000-0000-000000000018"), Guid.Parse("70000000-0000-0000-0000-000000000023"), true), // LEASE_AGREEMENT
+            (Guid.Parse("60000000-0000-0000-0000-000000000018"), Guid.Parse("70000000-0000-0000-0000-000000000024"), true), // VAS_QUARTERLY_REPORTS
 
             // --- Certified / Duplicate Copy (Copy of Certificates) ---
             // Duplicate Copy
-            (Guid.Parse("60000000-0000-0000-0000-000000000050"), Guid.Parse("70000000-0000-0000-0000-000000000026"), true, null), // SCANNED_CERT
-            (Guid.Parse("60000000-0000-0000-0000-000000000050"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true, null), // PHOTO
+            (Guid.Parse("60000000-0000-0000-0000-000000000050"), Guid.Parse("70000000-0000-0000-0000-000000000026"), true), // SCANNED_CERT
+            (Guid.Parse("60000000-0000-0000-0000-000000000050"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true), // PHOTO
             // Certified True Copy
-            (Guid.Parse("60000000-0000-0000-0000-000000000051"), Guid.Parse("70000000-0000-0000-0000-000000000025"), true, null), // AUTH_COPY
+            (Guid.Parse("60000000-0000-0000-0000-000000000051"), Guid.Parse("70000000-0000-0000-0000-000000000025"), true), // AUTH_COPY
 
             // --- PERMITS IN THE AMATEUR SERVICE (svc109) ---
             // Amateur Radio Station Permit to Purchase
-            (Guid.Parse("60000000-0000-0000-0000-000000000060"), Guid.Parse("70000000-0000-0000-0000-000000000050"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000060"), Guid.Parse("70000000-0000-0000-0000-000000000051"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000060"), Guid.Parse("70000000-0000-0000-0000-000000000050"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000060"), Guid.Parse("70000000-0000-0000-0000-000000000051"), true),
             // Amateur Radio Station Permit Permit to Possess for Storage
-            (Guid.Parse("60000000-0000-0000-0000-000000000061"), Guid.Parse("70000000-0000-0000-0000-000000000050"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000061"), Guid.Parse("70000000-0000-0000-0000-000000000051"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000061"), Guid.Parse("70000000-0000-0000-0000-000000000050"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000061"), Guid.Parse("70000000-0000-0000-0000-000000000051"), true),
             // Amateur Radio Station Permit to Purchase/Possess
-            (Guid.Parse("60000000-0000-0000-0000-000000000062"), Guid.Parse("70000000-0000-0000-0000-000000000050"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000062"), Guid.Parse("70000000-0000-0000-0000-000000000051"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000062"), Guid.Parse("70000000-0000-0000-0000-000000000050"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000062"), Guid.Parse("70000000-0000-0000-0000-000000000051"), true),
             // Amateur Radio Station Permit to Sell/Transfer
-            (Guid.Parse("60000000-0000-0000-0000-000000000063"), Guid.Parse("70000000-0000-0000-0000-000000000052"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000063"), Guid.Parse("70000000-0000-0000-0000-000000000052"), true),
             // Temporary Permit to Operate an Amateur Radio Station - Foreign Visitor (Class A, B, C)
-            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000053"), true, "Class A"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000054"), true, "Class A"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000055"), true, "Class A"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000056"), true, "Class A"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true, "Class A"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000053"), true, "Class B"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000054"), true, "Class B"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000055"), true, "Class B"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000056"), true, "Class B"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true, "Class B"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000053"), true, "Class C"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000054"), true, "Class C"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000055"), true, "Class C"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000056"), true, "Class C"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true, "Class C"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000053"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000054"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000055"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000056"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000053"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000054"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000055"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000056"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000053"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000054"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000055"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000056"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true),
             // Special Permit for Use of Vanity Call Sign (NEW)
-            (Guid.Parse("60000000-0000-0000-0000-000000000067"), Guid.Parse("70000000-0000-0000-0000-000000000054"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000067"), Guid.Parse("70000000-0000-0000-0000-000000000057"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000067"), Guid.Parse("70000000-0000-0000-0000-000000000054"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000067"), Guid.Parse("70000000-0000-0000-0000-000000000057"), true),
             // Special Permit for Use of Vanity Call Sign (RENEWAL)
-            (Guid.Parse("60000000-0000-0000-0000-000000000065"), Guid.Parse("70000000-0000-0000-0000-000000000057"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000065"), Guid.Parse("70000000-0000-0000-0000-000000000054"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000066"), Guid.Parse("70000000-0000-0000-0000-000000000058"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000066"), Guid.Parse("70000000-0000-0000-0000-000000000054"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000065"), Guid.Parse("70000000-0000-0000-0000-000000000057"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000065"), Guid.Parse("70000000-0000-0000-0000-000000000054"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000066"), Guid.Parse("70000000-0000-0000-0000-000000000058"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000066"), Guid.Parse("70000000-0000-0000-0000-000000000054"), true),
 
             // --- PERMITS IN THE AERONAUTICAL SERVICE (svcAero) ---
             // Aeronautical Station Permit to Purchase
-            (Guid.Parse("60000000-0000-0000-0000-000000000070"), Guid.Parse("70000000-0000-0000-0000-000000000059"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000070"), Guid.Parse("70000000-0000-0000-0000-000000000059"), true),
             // Aeronautical Station Permit to Possess
-            (Guid.Parse("60000000-0000-0000-0000-000000000071"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000071"), Guid.Parse("70000000-0000-0000-0000-000000000059"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000071"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000071"), Guid.Parse("70000000-0000-0000-0000-000000000059"), true),
             // Aeronautical Station Permit to Purchase/Possess
-            (Guid.Parse("60000000-0000-0000-0000-000000000072"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000072"), Guid.Parse("70000000-0000-0000-0000-000000000059"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000072"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000072"), Guid.Parse("70000000-0000-0000-0000-000000000059"), true),
             // Permit to Possess for Storage (Aeronautical)
-            (Guid.Parse("60000000-0000-0000-0000-000000000078"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000078"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true),
             // Aeronautical Station Permit to Sell/Transfer
-            (Guid.Parse("60000000-0000-0000-0000-000000000073"), Guid.Parse("70000000-0000-0000-0000-000000000060"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000073"), Guid.Parse("70000000-0000-0000-0000-000000000060"), true),
             // Aircraft Station Permit to Purchase
-            (Guid.Parse("60000000-0000-0000-0000-000000000074"), Guid.Parse("70000000-0000-0000-0000-000000000059"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000074"), Guid.Parse("70000000-0000-0000-0000-000000000059"), true),
             // Aircraft Station Permit to Possess
-            (Guid.Parse("60000000-0000-0000-0000-000000000075"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000075"), Guid.Parse("70000000-0000-0000-0000-000000000059"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000075"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000075"), Guid.Parse("70000000-0000-0000-0000-000000000059"), true),
             // Aircraft Station Permit to Purchase/Possess
-            (Guid.Parse("60000000-0000-0000-0000-000000000076"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000076"), Guid.Parse("70000000-0000-0000-0000-000000000059"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000076"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000076"), Guid.Parse("70000000-0000-0000-0000-000000000059"), true),
             // Aircraft Station Permit to Sell/Transfer
-            (Guid.Parse("60000000-0000-0000-0000-000000000077"), Guid.Parse("70000000-0000-0000-0000-000000000060"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000077"), Guid.Parse("70000000-0000-0000-0000-000000000060"), true),
 
             // --- PERMITS IN THE MARITIME SERVICE (svcMar) ---
             // Ship Station Permit to Purchase (Domestic Trade)
-            (Guid.Parse("60000000-0000-0000-0000-000000000080"), Guid.Parse("70000000-0000-0000-0000-000000000061"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000080"), Guid.Parse("70000000-0000-0000-0000-000000000061"), true),
             // Ship Station Permit to Possess (Domestic Trade)
-            (Guid.Parse("60000000-0000-0000-0000-000000000081"), Guid.Parse("70000000-0000-0000-0000-000000000061"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000081"), Guid.Parse("70000000-0000-0000-0000-000000000061"), true),
             // Ship Station Permit to Possess (Storage)
-            (Guid.Parse("60000000-0000-0000-0000-000000000082"), Guid.Parse("70000000-0000-0000-0000-000000000062"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000082"), Guid.Parse("70000000-0000-0000-0000-000000000062"), true),
             // Ship Station Permit to Purchase/Possess (Domestic Trade)
-            (Guid.Parse("60000000-0000-0000-0000-000000000083"), Guid.Parse("70000000-0000-0000-0000-000000000061"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000083"), Guid.Parse("70000000-0000-0000-0000-000000000061"), true),
             // Ship Station Permit to Sell/Transfer
-            (Guid.Parse("60000000-0000-0000-0000-000000000084"), Guid.Parse("70000000-0000-0000-0000-000000000063"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000084"), Guid.Parse("70000000-0000-0000-0000-000000000063"), true),
             // Private Coastal Station Permit to Purchase
-            (Guid.Parse("60000000-0000-0000-0000-000000000085"), Guid.Parse("70000000-0000-0000-0000-000000000064"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000085"), Guid.Parse("70000000-0000-0000-0000-000000000064"), true),
             // Private Coastal Station Permit to Possess
-            (Guid.Parse("60000000-0000-0000-0000-000000000086"), Guid.Parse("70000000-0000-0000-0000-000000000064"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000086"), Guid.Parse("70000000-0000-0000-0000-000000000064"), true),
             // Private Coastal Station Permit to Purchase /Possess
-            (Guid.Parse("60000000-0000-0000-0000-000000000087"), Guid.Parse("70000000-0000-0000-0000-000000000064"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000087"), Guid.Parse("70000000-0000-0000-0000-000000000064"), true),
             // Public Coastal Station Permit to Purchase
-            (Guid.Parse("60000000-0000-0000-0000-000000000088"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000088"), Guid.Parse("70000000-0000-0000-0000-000000000066"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000088"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000088"), Guid.Parse("70000000-0000-0000-0000-000000000066"), true),
             // Public Coastal Station Permit to Possess
-            (Guid.Parse("60000000-0000-0000-0000-000000000089"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000089"), Guid.Parse("70000000-0000-0000-0000-000000000066"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000089"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000089"), Guid.Parse("70000000-0000-0000-0000-000000000066"), true),
             // Public Coastal Station Permit to Purchase/Possess
-            (Guid.Parse("60000000-0000-0000-0000-000000000090"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000090"), Guid.Parse("70000000-0000-0000-0000-000000000066"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000090"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000090"), Guid.Parse("70000000-0000-0000-0000-000000000066"), true),
             // Public Coastal Station Permit to Sell/Transfer
-            (Guid.Parse("60000000-0000-0000-0000-000000000091"), Guid.Parse("70000000-0000-0000-0000-000000000067"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000091"), Guid.Parse("70000000-0000-0000-0000-000000000067"), true),
 
             // --- PERMITS TO FIXED & LAND MOBILE STATIONS (svcFlm) ---
             // Permit to Purchase (VSAT, PRIVATE, CIVIC ACTION GROUP, GOVERNMENT)
-            (Guid.Parse("60000000-0000-0000-0000-000000000100"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true, null), // VSAT
-            (Guid.Parse("60000000-0000-0000-0000-000000000100"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000100"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000100"), Guid.Parse("70000000-0000-0000-0000-000000000070"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000100"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true), // VSAT
+            (Guid.Parse("60000000-0000-0000-0000-000000000100"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000100"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000100"), Guid.Parse("70000000-0000-0000-0000-000000000070"), true),
 
-            (Guid.Parse("60000000-0000-0000-0000-000000000107"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true, null), // PRIVATE
-            (Guid.Parse("60000000-0000-0000-0000-000000000107"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000107"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000107"), Guid.Parse("70000000-0000-0000-0000-000000000071"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000107"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true), // PRIVATE
+            (Guid.Parse("60000000-0000-0000-0000-000000000107"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000107"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000107"), Guid.Parse("70000000-0000-0000-0000-000000000071"), true),
 
-            (Guid.Parse("60000000-0000-0000-0000-000000000108"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true, null), // CIVIC ACTION GROUP
-            (Guid.Parse("60000000-0000-0000-0000-000000000108"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000108"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000108"), Guid.Parse("70000000-0000-0000-0000-000000000072"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000108"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true), // CIVIC ACTION GROUP
+            (Guid.Parse("60000000-0000-0000-0000-000000000108"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000108"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000108"), Guid.Parse("70000000-0000-0000-0000-000000000072"), true),
 
-            (Guid.Parse("60000000-0000-0000-0000-000000000109"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true, null), // GOVERNMENT
-            (Guid.Parse("60000000-0000-0000-0000-000000000109"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000109"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000109"), Guid.Parse("70000000-0000-0000-0000-000000000073"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000109"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true), // GOVERNMENT
+            (Guid.Parse("60000000-0000-0000-0000-000000000109"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000109"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000109"), Guid.Parse("70000000-0000-0000-0000-000000000073"), true),
 
             // Permit to Possess (VSAT, PRIVATE, CIVIC ACTION GROUP, GOVERNMENT)
-            (Guid.Parse("60000000-0000-0000-0000-000000000101"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true, null), // VSAT
-            (Guid.Parse("60000000-0000-0000-0000-000000000101"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000101"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000101"), Guid.Parse("70000000-0000-0000-0000-000000000070"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000101"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true), // VSAT
+            (Guid.Parse("60000000-0000-0000-0000-000000000101"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000101"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000101"), Guid.Parse("70000000-0000-0000-0000-000000000070"), true),
 
-            (Guid.Parse("60000000-0000-0000-0000-000000000110"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true, null), // PRIVATE
-            (Guid.Parse("60000000-0000-0000-0000-000000000110"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000110"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000110"), Guid.Parse("70000000-0000-0000-0000-000000000071"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000110"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true), // PRIVATE
+            (Guid.Parse("60000000-0000-0000-0000-000000000110"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000110"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000110"), Guid.Parse("70000000-0000-0000-0000-000000000071"), true),
 
-            (Guid.Parse("60000000-0000-0000-0000-000000000111"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true, null), // CIVIC ACTION GROUP
-            (Guid.Parse("60000000-0000-0000-0000-000000000111"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000111"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000111"), Guid.Parse("70000000-0000-0000-0000-000000000072"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000111"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true), // CIVIC ACTION GROUP
+            (Guid.Parse("60000000-0000-0000-0000-000000000111"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000111"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000111"), Guid.Parse("70000000-0000-0000-0000-000000000072"), true),
 
-            (Guid.Parse("60000000-0000-0000-0000-000000000112"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true, null), // GOVERNMENT
-            (Guid.Parse("60000000-0000-0000-0000-000000000112"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000112"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000112"), Guid.Parse("70000000-0000-0000-0000-000000000073"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000112"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true), // GOVERNMENT
+            (Guid.Parse("60000000-0000-0000-0000-000000000112"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000112"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000112"), Guid.Parse("70000000-0000-0000-0000-000000000073"), true),
 
             // Permit to Purchase/Possess (VSAT, PRIVATE, CIVIC ACTION GROUP, GOVERNMENT)
-            (Guid.Parse("60000000-0000-0000-0000-000000000102"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true, null), // VSAT
-            (Guid.Parse("60000000-0000-0000-0000-000000000102"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000102"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000102"), Guid.Parse("70000000-0000-0000-0000-000000000070"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000102"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true), // VSAT
+            (Guid.Parse("60000000-0000-0000-0000-000000000102"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000102"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000102"), Guid.Parse("70000000-0000-0000-0000-000000000070"), true),
 
-            (Guid.Parse("60000000-0000-0000-0000-000000000113"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true, null), // PRIVATE
-            (Guid.Parse("60000000-0000-0000-0000-000000000113"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000113"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000113"), Guid.Parse("70000000-0000-0000-0000-000000000071"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000113"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true), // PRIVATE
+            (Guid.Parse("60000000-0000-0000-0000-000000000113"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000113"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000113"), Guid.Parse("70000000-0000-0000-0000-000000000071"), true),
 
-            (Guid.Parse("60000000-0000-0000-0000-000000000114"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true, null), // CIVIC ACTION GROUP
-            (Guid.Parse("60000000-0000-0000-0000-000000000114"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000114"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000114"), Guid.Parse("70000000-0000-0000-0000-000000000072"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000114"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true), // CIVIC ACTION GROUP
+            (Guid.Parse("60000000-0000-0000-0000-000000000114"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000114"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000114"), Guid.Parse("70000000-0000-0000-0000-000000000072"), true),
 
-            (Guid.Parse("60000000-0000-0000-0000-000000000115"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true, null), // GOVERNMENT
-            (Guid.Parse("60000000-0000-0000-0000-000000000115"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000115"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000115"), Guid.Parse("70000000-0000-0000-0000-000000000073"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000115"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true), // GOVERNMENT
+            (Guid.Parse("60000000-0000-0000-0000-000000000115"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000115"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000115"), Guid.Parse("70000000-0000-0000-0000-000000000073"), true),
 
             // Permit to Possess for Storage
-            (Guid.Parse("60000000-0000-0000-0000-000000000103"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000103"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true),
             // Permit to Sell/Transfer
-            (Guid.Parse("60000000-0000-0000-0000-000000000104"), Guid.Parse("70000000-0000-0000-0000-000000000075"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000104"), Guid.Parse("70000000-0000-0000-0000-000000000075"), true),
 
             // Construction Permit (NEW)
-            (Guid.Parse("60000000-0000-0000-0000-000000000105"), Guid.Parse("70000000-0000-0000-0000-000000000076"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000105"), Guid.Parse("70000000-0000-0000-0000-000000000005"), true, null), // ROC
-            (Guid.Parse("60000000-0000-0000-0000-000000000105"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true, null), // Engineering Plan
-            (Guid.Parse("60000000-0000-0000-0000-000000000105"), Guid.Parse("70000000-0000-0000-0000-000000000077"), true, null), // Equip Source
-            (Guid.Parse("60000000-0000-0000-0000-000000000105"), Guid.Parse("70000000-0000-0000-0000-000000000078"), false, null), // OR/CR
+            (Guid.Parse("60000000-0000-0000-0000-000000000105"), Guid.Parse("70000000-0000-0000-0000-000000000076"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000105"), Guid.Parse("70000000-0000-0000-0000-000000000005"), true), // ROC
+            (Guid.Parse("60000000-0000-0000-0000-000000000105"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true), // Engineering Plan
+            (Guid.Parse("60000000-0000-0000-0000-000000000105"), Guid.Parse("70000000-0000-0000-0000-000000000077"), true), // Equip Source
+            (Guid.Parse("60000000-0000-0000-0000-000000000105"), Guid.Parse("70000000-0000-0000-0000-000000000078"), false), // OR/CR
             // Construction Permit (MODIFICATION)
-            (Guid.Parse("60000000-0000-0000-0000-000000000116"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000116"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true),
 
             // Temporary Permit to Demonstrate and Propagate (VSAT, PRIVATE, CIVIC ACTION GROUP, GOVERNMENT)
-            (Guid.Parse("60000000-0000-0000-0000-000000000106"), Guid.Parse("70000000-0000-0000-0000-000000000079"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000106"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000106"), Guid.Parse("70000000-0000-0000-0000-000000000080"), false, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000106"), Guid.Parse("70000000-0000-0000-0000-000000000079"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000106"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000106"), Guid.Parse("70000000-0000-0000-0000-000000000080"), false),
 
-            (Guid.Parse("60000000-0000-0000-0000-000000000117"), Guid.Parse("70000000-0000-0000-0000-000000000079"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000117"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000117"), Guid.Parse("70000000-0000-0000-0000-000000000079"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000117"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
 
-            (Guid.Parse("60000000-0000-0000-0000-000000000118"), Guid.Parse("70000000-0000-0000-0000-000000000079"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000118"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000118"), Guid.Parse("70000000-0000-0000-0000-000000000079"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000118"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
 
-            (Guid.Parse("60000000-0000-0000-0000-000000000119"), Guid.Parse("70000000-0000-0000-0000-000000000079"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000119"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000119"), Guid.Parse("70000000-0000-0000-0000-000000000079"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000119"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
 
             // --- PERMITS FOR PUBLIC TELECOMMUNICATIONS ENTITIES (PTEs) (svcPte) ---
-            (Guid.Parse("60000000-0000-0000-0000-000000000120"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000120"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true),
 
             // --- PERMITS FOR RADIO COMMUNICATIONS EQUIPMENT (svcEquip) ---
             // Permit to Transport
-            (Guid.Parse("60000000-0000-0000-0000-000000000130"), Guid.Parse("70000000-0000-0000-0000-000000000081"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000130"), Guid.Parse("70000000-0000-0000-0000-000000000081"), true),
             
             // Dealer Permit (NEW, RENEWAL, MODIFICATION)
-            (Guid.Parse("60000000-0000-0000-0000-000000000131"), Guid.Parse("70000000-0000-0000-0000-000000000082"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000131"), Guid.Parse("70000000-0000-0000-0000-000000000083"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000131"), Guid.Parse("70000000-0000-0000-0000-000000000084"), false, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000131"), Guid.Parse("70000000-0000-0000-0000-000000000085"), false, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000131"), Guid.Parse("70000000-0000-0000-0000-000000000086"), false, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000131"), Guid.Parse("70000000-0000-0000-0000-000000000082"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000131"), Guid.Parse("70000000-0000-0000-0000-000000000083"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000131"), Guid.Parse("70000000-0000-0000-0000-000000000084"), false),
+            (Guid.Parse("60000000-0000-0000-0000-000000000131"), Guid.Parse("70000000-0000-0000-0000-000000000085"), false),
+            (Guid.Parse("60000000-0000-0000-0000-000000000131"), Guid.Parse("70000000-0000-0000-0000-000000000086"), false),
 
-            (Guid.Parse("60000000-0000-0000-0000-000000000134"), Guid.Parse("70000000-0000-0000-0000-000000000087"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000134"), Guid.Parse("70000000-0000-0000-0000-000000000071"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000134"), Guid.Parse("70000000-0000-0000-0000-000000000085"), false, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000134"), Guid.Parse("70000000-0000-0000-0000-000000000086"), false, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000134"), Guid.Parse("70000000-0000-0000-0000-000000000087"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000134"), Guid.Parse("70000000-0000-0000-0000-000000000071"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000134"), Guid.Parse("70000000-0000-0000-0000-000000000085"), false),
+            (Guid.Parse("60000000-0000-0000-0000-000000000134"), Guid.Parse("70000000-0000-0000-0000-000000000086"), false),
 
-            (Guid.Parse("60000000-0000-0000-0000-000000000135"), Guid.Parse("70000000-0000-0000-0000-000000000087"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000135"), Guid.Parse("70000000-0000-0000-0000-000000000087"), true),
 
             // Manufacturer Permit (NEW, RENEWAL, MODIFICATION)
-            (Guid.Parse("60000000-0000-0000-0000-000000000132"), Guid.Parse("70000000-0000-0000-0000-000000000082"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000132"), Guid.Parse("70000000-0000-0000-0000-000000000088"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000132"), Guid.Parse("70000000-0000-0000-0000-000000000089"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000132"), Guid.Parse("70000000-0000-0000-0000-000000000085"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000132"), Guid.Parse("70000000-0000-0000-0000-000000000090"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000132"), Guid.Parse("70000000-0000-0000-0000-000000000082"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000132"), Guid.Parse("70000000-0000-0000-0000-000000000088"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000132"), Guid.Parse("70000000-0000-0000-0000-000000000089"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000132"), Guid.Parse("70000000-0000-0000-0000-000000000085"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000132"), Guid.Parse("70000000-0000-0000-0000-000000000090"), true),
 
-            (Guid.Parse("60000000-0000-0000-0000-000000000136"), Guid.Parse("70000000-0000-0000-0000-000000000091"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000136"), Guid.Parse("70000000-0000-0000-0000-000000000071"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000136"), Guid.Parse("70000000-0000-0000-0000-000000000085"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000136"), Guid.Parse("70000000-0000-0000-0000-000000000090"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000136"), Guid.Parse("70000000-0000-0000-0000-000000000091"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000136"), Guid.Parse("70000000-0000-0000-0000-000000000071"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000136"), Guid.Parse("70000000-0000-0000-0000-000000000085"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000136"), Guid.Parse("70000000-0000-0000-0000-000000000090"), true),
 
-            (Guid.Parse("60000000-0000-0000-0000-000000000137"), Guid.Parse("70000000-0000-0000-0000-000000000091"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000137"), Guid.Parse("70000000-0000-0000-0000-000000000091"), true),
 
-            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000053"), true, "Class A"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000054"), true, "Class A"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000055"), true, "Class A"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000056"), true, "Class A"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true, "Class A"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000053"), true, "Class B"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000054"), true, "Class B"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000055"), true, "Class B"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000056"), true, "Class B"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true, "Class B"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000053"), true, "Class C"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000054"), true, "Class C"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000055"), true, "Class C"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000056"), true, "Class C"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true, "Class C"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000053"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000054"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000055"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000056"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000053"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000054"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000055"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000056"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000053"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000054"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000055"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000056"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true),
             // Special Permit for Use of Vanity Call Sign (NEW)
-            (Guid.Parse("60000000-0000-0000-0000-000000000067"), Guid.Parse("70000000-0000-0000-0000-000000000054"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000067"), Guid.Parse("70000000-0000-0000-0000-000000000057"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000067"), Guid.Parse("70000000-0000-0000-0000-000000000054"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000067"), Guid.Parse("70000000-0000-0000-0000-000000000057"), true),
             // Special Permit for Use of Vanity Call Sign (RENEWAL)
-            (Guid.Parse("60000000-0000-0000-0000-000000000065"), Guid.Parse("70000000-0000-0000-0000-000000000057"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000065"), Guid.Parse("70000000-0000-0000-0000-000000000054"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000066"), Guid.Parse("70000000-0000-0000-0000-000000000058"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000066"), Guid.Parse("70000000-0000-0000-0000-000000000054"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000065"), Guid.Parse("70000000-0000-0000-0000-000000000057"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000065"), Guid.Parse("70000000-0000-0000-0000-000000000054"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000066"), Guid.Parse("70000000-0000-0000-0000-000000000058"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000066"), Guid.Parse("70000000-0000-0000-0000-000000000054"), true),
 
             // --- PERMITS IN THE AERONAUTICAL SERVICE (svcAero) ---
             // Aeronautical Station Permit to Purchase
-            (Guid.Parse("60000000-0000-0000-0000-000000000070"), Guid.Parse("70000000-0000-0000-0000-000000000059"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000070"), Guid.Parse("70000000-0000-0000-0000-000000000059"), true),
             // Aeronautical Station Permit to Possess
-            (Guid.Parse("60000000-0000-0000-0000-000000000071"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000071"), Guid.Parse("70000000-0000-0000-0000-000000000059"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000071"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000071"), Guid.Parse("70000000-0000-0000-0000-000000000059"), true),
             // Aeronautical Station Permit to Purchase/Possess
-            (Guid.Parse("60000000-0000-0000-0000-000000000072"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000072"), Guid.Parse("70000000-0000-0000-0000-000000000059"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000072"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000072"), Guid.Parse("70000000-0000-0000-0000-000000000059"), true),
             // Permit to Possess for Storage (Aeronautical)
-            (Guid.Parse("60000000-0000-0000-0000-000000000078"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000078"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true),
             // Aeronautical Station Permit to Sell/Transfer
-            (Guid.Parse("60000000-0000-0000-0000-000000000073"), Guid.Parse("70000000-0000-0000-0000-000000000060"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000073"), Guid.Parse("70000000-0000-0000-0000-000000000060"), true),
             // Aircraft Station Permit to Purchase
-            (Guid.Parse("60000000-0000-0000-0000-000000000074"), Guid.Parse("70000000-0000-0000-0000-000000000059"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000074"), Guid.Parse("70000000-0000-0000-0000-000000000059"), true),
             // Aircraft Station Permit to Possess
-            (Guid.Parse("60000000-0000-0000-0000-000000000075"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000075"), Guid.Parse("70000000-0000-0000-0000-000000000059"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000075"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000075"), Guid.Parse("70000000-0000-0000-0000-000000000059"), true),
             // Aircraft Station Permit to Purchase/Possess
-            (Guid.Parse("60000000-0000-0000-0000-000000000076"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000076"), Guid.Parse("70000000-0000-0000-0000-000000000059"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000076"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000076"), Guid.Parse("70000000-0000-0000-0000-000000000059"), true),
             // Aircraft Station Permit to Sell/Transfer
-            (Guid.Parse("60000000-0000-0000-0000-000000000077"), Guid.Parse("70000000-0000-0000-0000-000000000060"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000077"), Guid.Parse("70000000-0000-0000-0000-000000000060"), true),
 
             // --- PERMITS IN THE MARITIME SERVICE (svcMar) ---
             // Ship Station Permit to Purchase (Domestic Trade)
-            (Guid.Parse("60000000-0000-0000-0000-000000000080"), Guid.Parse("70000000-0000-0000-0000-000000000061"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000080"), Guid.Parse("70000000-0000-0000-0000-000000000061"), true),
             // Ship Station Permit to Possess (Domestic Trade)
-            (Guid.Parse("60000000-0000-0000-0000-000000000081"), Guid.Parse("70000000-0000-0000-0000-000000000061"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000081"), Guid.Parse("70000000-0000-0000-0000-000000000061"), true),
             // Ship Station Permit to Possess (Storage)
-            (Guid.Parse("60000000-0000-0000-0000-000000000082"), Guid.Parse("70000000-0000-0000-0000-000000000062"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000082"), Guid.Parse("70000000-0000-0000-0000-000000000062"), true),
             // Ship Station Permit to Purchase/Possess (Domestic Trade)
-            (Guid.Parse("60000000-0000-0000-0000-000000000083"), Guid.Parse("70000000-0000-0000-0000-000000000061"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000083"), Guid.Parse("70000000-0000-0000-0000-000000000061"), true),
             // Ship Station Permit to Sell/Transfer
-            (Guid.Parse("60000000-0000-0000-0000-000000000084"), Guid.Parse("70000000-0000-0000-0000-000000000063"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000084"), Guid.Parse("70000000-0000-0000-0000-000000000063"), true),
             // Private Coastal Station Permit to Purchase
-            (Guid.Parse("60000000-0000-0000-0000-000000000085"), Guid.Parse("70000000-0000-0000-0000-000000000064"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000085"), Guid.Parse("70000000-0000-0000-0000-000000000064"), true),
             // Private Coastal Station Permit to Possess
-            (Guid.Parse("60000000-0000-0000-0000-000000000086"), Guid.Parse("70000000-0000-0000-0000-000000000064"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000086"), Guid.Parse("70000000-0000-0000-0000-000000000064"), true),
             // Private Coastal Station Permit to Purchase /Possess
-            (Guid.Parse("60000000-0000-0000-0000-000000000087"), Guid.Parse("70000000-0000-0000-0000-000000000064"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000087"), Guid.Parse("70000000-0000-0000-0000-000000000064"), true),
             // Public Coastal Station Permit to Purchase
-            (Guid.Parse("60000000-0000-0000-0000-000000000088"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000088"), Guid.Parse("70000000-0000-0000-0000-000000000066"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000088"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000088"), Guid.Parse("70000000-0000-0000-0000-000000000066"), true),
             // Public Coastal Station Permit to Possess
-            (Guid.Parse("60000000-0000-0000-0000-000000000089"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000089"), Guid.Parse("70000000-0000-0000-0000-000000000066"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000089"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000089"), Guid.Parse("70000000-0000-0000-0000-000000000066"), true),
             // Public Coastal Station Permit to Purchase/Possess
-            (Guid.Parse("60000000-0000-0000-0000-000000000090"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000090"), Guid.Parse("70000000-0000-0000-0000-000000000066"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000090"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000090"), Guid.Parse("70000000-0000-0000-0000-000000000066"), true),
             // Public Coastal Station Permit to Sell/Transfer
-            (Guid.Parse("60000000-0000-0000-0000-000000000091"), Guid.Parse("70000000-0000-0000-0000-000000000067"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000091"), Guid.Parse("70000000-0000-0000-0000-000000000067"), true),
 
             // --- PERMITS TO FIXED & LAND MOBILE STATIONS (svcFlm) ---
             // Permit to Purchase (VSAT, PRIVATE, CIVIC ACTION GROUP, GOVERNMENT)
-            (Guid.Parse("60000000-0000-0000-0000-000000000100"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true, null), // VSAT
-            (Guid.Parse("60000000-0000-0000-0000-000000000100"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000100"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000100"), Guid.Parse("70000000-0000-0000-0000-000000000070"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000100"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true), // VSAT
+            (Guid.Parse("60000000-0000-0000-0000-000000000100"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000100"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000100"), Guid.Parse("70000000-0000-0000-0000-000000000070"), true),
 
-            (Guid.Parse("60000000-0000-0000-0000-000000000107"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true, null), // PRIVATE
-            (Guid.Parse("60000000-0000-0000-0000-000000000107"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000107"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000107"), Guid.Parse("70000000-0000-0000-0000-000000000071"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000107"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true), // PRIVATE
+            (Guid.Parse("60000000-0000-0000-0000-000000000107"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000107"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000107"), Guid.Parse("70000000-0000-0000-0000-000000000071"), true),
 
-            (Guid.Parse("60000000-0000-0000-0000-000000000108"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true, null), // CIVIC ACTION GROUP
-            (Guid.Parse("60000000-0000-0000-0000-000000000108"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000108"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000108"), Guid.Parse("70000000-0000-0000-0000-000000000072"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000108"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true), // CIVIC ACTION GROUP
+            (Guid.Parse("60000000-0000-0000-0000-000000000108"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000108"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000108"), Guid.Parse("70000000-0000-0000-0000-000000000072"), true),
 
-            (Guid.Parse("60000000-0000-0000-0000-000000000109"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true, null), // GOVERNMENT
-            (Guid.Parse("60000000-0000-0000-0000-000000000109"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000109"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000109"), Guid.Parse("70000000-0000-0000-0000-000000000073"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000109"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true), // GOVERNMENT
+            (Guid.Parse("60000000-0000-0000-0000-000000000109"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000109"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000109"), Guid.Parse("70000000-0000-0000-0000-000000000073"), true),
 
             // Permit to Possess (VSAT, PRIVATE, CIVIC ACTION GROUP, GOVERNMENT)
-            (Guid.Parse("60000000-0000-0000-0000-000000000101"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true, null), // VSAT
-            (Guid.Parse("60000000-0000-0000-0000-000000000101"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000101"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000101"), Guid.Parse("70000000-0000-0000-0000-000000000070"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000101"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true), // VSAT
+            (Guid.Parse("60000000-0000-0000-0000-000000000101"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000101"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000101"), Guid.Parse("70000000-0000-0000-0000-000000000070"), true),
 
-            (Guid.Parse("60000000-0000-0000-0000-000000000110"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true, null), // PRIVATE
-            (Guid.Parse("60000000-0000-0000-0000-000000000110"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000110"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000110"), Guid.Parse("70000000-0000-0000-0000-000000000071"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000110"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true), // PRIVATE
+            (Guid.Parse("60000000-0000-0000-0000-000000000110"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000110"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000110"), Guid.Parse("70000000-0000-0000-0000-000000000071"), true),
 
-            (Guid.Parse("60000000-0000-0000-0000-000000000111"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true, null), // CIVIC ACTION GROUP
-            (Guid.Parse("60000000-0000-0000-0000-000000000111"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000111"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000111"), Guid.Parse("70000000-0000-0000-0000-000000000072"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000111"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true), // CIVIC ACTION GROUP
+            (Guid.Parse("60000000-0000-0000-0000-000000000111"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000111"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000111"), Guid.Parse("70000000-0000-0000-0000-000000000072"), true),
 
-            (Guid.Parse("60000000-0000-0000-0000-000000000112"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true, null), // GOVERNMENT
-            (Guid.Parse("60000000-0000-0000-0000-000000000112"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000112"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000112"), Guid.Parse("70000000-0000-0000-0000-000000000073"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000112"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true), // GOVERNMENT
+            (Guid.Parse("60000000-0000-0000-0000-000000000112"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000112"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000112"), Guid.Parse("70000000-0000-0000-0000-000000000073"), true),
 
             // Permit to Purchase/Possess (VSAT, PRIVATE, CIVIC ACTION GROUP, GOVERNMENT)
-            (Guid.Parse("60000000-0000-0000-0000-000000000102"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true, null), // VSAT
-            (Guid.Parse("60000000-0000-0000-0000-000000000102"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000102"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000102"), Guid.Parse("70000000-0000-0000-0000-000000000070"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000102"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true), // VSAT
+            (Guid.Parse("60000000-0000-0000-0000-000000000102"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000102"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000102"), Guid.Parse("70000000-0000-0000-0000-000000000070"), true),
 
-            (Guid.Parse("60000000-0000-0000-0000-000000000113"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true, null), // PRIVATE
-            (Guid.Parse("60000000-0000-0000-0000-000000000113"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000113"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000113"), Guid.Parse("70000000-0000-0000-0000-000000000071"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000113"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true), // PRIVATE
+            (Guid.Parse("60000000-0000-0000-0000-000000000113"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000113"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000113"), Guid.Parse("70000000-0000-0000-0000-000000000071"), true),
 
-            (Guid.Parse("60000000-0000-0000-0000-000000000114"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true, null), // CIVIC ACTION GROUP
-            (Guid.Parse("60000000-0000-0000-0000-000000000114"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000114"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000114"), Guid.Parse("70000000-0000-0000-0000-000000000072"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000114"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true), // CIVIC ACTION GROUP
+            (Guid.Parse("60000000-0000-0000-0000-000000000114"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000114"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000114"), Guid.Parse("70000000-0000-0000-0000-000000000072"), true),
 
-            (Guid.Parse("60000000-0000-0000-0000-000000000115"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true, null), // GOVERNMENT
-            (Guid.Parse("60000000-0000-0000-0000-000000000115"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000115"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000115"), Guid.Parse("70000000-0000-0000-0000-000000000073"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000115"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true), // GOVERNMENT
+            (Guid.Parse("60000000-0000-0000-0000-000000000115"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000115"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000115"), Guid.Parse("70000000-0000-0000-0000-000000000073"), true),
 
             // Permit to Possess for Storage
-            (Guid.Parse("60000000-0000-0000-0000-000000000103"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000103"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true),
             // Permit to Sell/Transfer
-            (Guid.Parse("60000000-0000-0000-0000-000000000104"), Guid.Parse("70000000-0000-0000-0000-000000000075"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000104"), Guid.Parse("70000000-0000-0000-0000-000000000075"), true),
 
             // Construction Permit (NEW)
-            (Guid.Parse("60000000-0000-0000-0000-000000000105"), Guid.Parse("70000000-0000-0000-0000-000000000076"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000105"), Guid.Parse("70000000-0000-0000-0000-000000000005"), true, null), // ROC
-            (Guid.Parse("60000000-0000-0000-0000-000000000105"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true, null), // Engineering Plan
-            (Guid.Parse("60000000-0000-0000-0000-000000000105"), Guid.Parse("70000000-0000-0000-0000-000000000077"), true, null), // Equip Source
-            (Guid.Parse("60000000-0000-0000-0000-000000000105"), Guid.Parse("70000000-0000-0000-0000-000000000078"), false, null), // OR/CR
+            (Guid.Parse("60000000-0000-0000-0000-000000000105"), Guid.Parse("70000000-0000-0000-0000-000000000076"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000105"), Guid.Parse("70000000-0000-0000-0000-000000000005"), true), // ROC
+            (Guid.Parse("60000000-0000-0000-0000-000000000105"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true), // Engineering Plan
+            (Guid.Parse("60000000-0000-0000-0000-000000000105"), Guid.Parse("70000000-0000-0000-0000-000000000077"), true), // Equip Source
+            (Guid.Parse("60000000-0000-0000-0000-000000000105"), Guid.Parse("70000000-0000-0000-0000-000000000078"), false), // OR/CR
             // Construction Permit (MODIFICATION)
-            (Guid.Parse("60000000-0000-0000-0000-000000000116"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000116"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true),
 
             // Temporary Permit to Demonstrate and Propagate (VSAT, PRIVATE, CIVIC ACTION GROUP, GOVERNMENT)
-            (Guid.Parse("60000000-0000-0000-0000-000000000106"), Guid.Parse("70000000-0000-0000-0000-000000000079"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000106"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000106"), Guid.Parse("70000000-0000-0000-0000-000000000080"), false, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000106"), Guid.Parse("70000000-0000-0000-0000-000000000079"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000106"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000106"), Guid.Parse("70000000-0000-0000-0000-000000000080"), false),
 
-            (Guid.Parse("60000000-0000-0000-0000-000000000117"), Guid.Parse("70000000-0000-0000-0000-000000000079"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000117"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000117"), Guid.Parse("70000000-0000-0000-0000-000000000079"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000117"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
 
-            (Guid.Parse("60000000-0000-0000-0000-000000000118"), Guid.Parse("70000000-0000-0000-0000-000000000079"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000118"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000118"), Guid.Parse("70000000-0000-0000-0000-000000000079"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000118"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
 
-            (Guid.Parse("60000000-0000-0000-0000-000000000119"), Guid.Parse("70000000-0000-0000-0000-000000000079"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000119"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000119"), Guid.Parse("70000000-0000-0000-0000-000000000079"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000119"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
 
             // --- PERMITS FOR PUBLIC TELECOMMUNICATIONS ENTITIES (PTEs) (svcPte) ---
-            (Guid.Parse("60000000-0000-0000-0000-000000000120"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000120"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true),
 
             // --- PERMITS FOR RADIO COMMUNICATIONS EQUIPMENT (svcEquip) ---
             // Permit to Transport
-            (Guid.Parse("60000000-0000-0000-0000-000000000130"), Guid.Parse("70000000-0000-0000-0000-000000000081"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000130"), Guid.Parse("70000000-0000-0000-0000-000000000081"), true),
             
             // Dealer Permit (NEW, RENEWAL, MODIFICATION)
-            (Guid.Parse("60000000-0000-0000-0000-000000000131"), Guid.Parse("70000000-0000-0000-0000-000000000082"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000131"), Guid.Parse("70000000-0000-0000-0000-000000000083"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000131"), Guid.Parse("70000000-0000-0000-0000-000000000084"), false, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000131"), Guid.Parse("70000000-0000-0000-0000-000000000085"), false, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000131"), Guid.Parse("70000000-0000-0000-0000-000000000086"), false, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000131"), Guid.Parse("70000000-0000-0000-0000-000000000082"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000131"), Guid.Parse("70000000-0000-0000-0000-000000000083"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000131"), Guid.Parse("70000000-0000-0000-0000-000000000084"), false),
+            (Guid.Parse("60000000-0000-0000-0000-000000000131"), Guid.Parse("70000000-0000-0000-0000-000000000085"), false),
+            (Guid.Parse("60000000-0000-0000-0000-000000000131"), Guid.Parse("70000000-0000-0000-0000-000000000086"), false),
 
-            (Guid.Parse("60000000-0000-0000-0000-000000000134"), Guid.Parse("70000000-0000-0000-0000-000000000087"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000134"), Guid.Parse("70000000-0000-0000-0000-000000000071"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000134"), Guid.Parse("70000000-0000-0000-0000-000000000085"), false, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000134"), Guid.Parse("70000000-0000-0000-0000-000000000086"), false, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000134"), Guid.Parse("70000000-0000-0000-0000-000000000087"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000134"), Guid.Parse("70000000-0000-0000-0000-000000000071"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000134"), Guid.Parse("70000000-0000-0000-0000-000000000085"), false),
+            (Guid.Parse("60000000-0000-0000-0000-000000000134"), Guid.Parse("70000000-0000-0000-0000-000000000086"), false),
 
-            (Guid.Parse("60000000-0000-0000-0000-000000000135"), Guid.Parse("70000000-0000-0000-0000-000000000087"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000135"), Guid.Parse("70000000-0000-0000-0000-000000000087"), true),
 
             // Manufacturer Permit (NEW, RENEWAL, MODIFICATION)
-            (Guid.Parse("60000000-0000-0000-0000-000000000132"), Guid.Parse("70000000-0000-0000-0000-000000000082"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000132"), Guid.Parse("70000000-0000-0000-0000-000000000088"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000132"), Guid.Parse("70000000-0000-0000-0000-000000000089"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000132"), Guid.Parse("70000000-0000-0000-0000-000000000085"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000132"), Guid.Parse("70000000-0000-0000-0000-000000000090"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000132"), Guid.Parse("70000000-0000-0000-0000-000000000082"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000132"), Guid.Parse("70000000-0000-0000-0000-000000000088"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000132"), Guid.Parse("70000000-0000-0000-0000-000000000089"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000132"), Guid.Parse("70000000-0000-0000-0000-000000000085"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000132"), Guid.Parse("70000000-0000-0000-0000-000000000090"), true),
 
-            (Guid.Parse("60000000-0000-0000-0000-000000000136"), Guid.Parse("70000000-0000-0000-0000-000000000091"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000136"), Guid.Parse("70000000-0000-0000-0000-000000000071"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000136"), Guid.Parse("70000000-0000-0000-0000-000000000085"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000136"), Guid.Parse("70000000-0000-0000-0000-000000000090"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000136"), Guid.Parse("70000000-0000-0000-0000-000000000091"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000136"), Guid.Parse("70000000-0000-0000-0000-000000000071"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000136"), Guid.Parse("70000000-0000-0000-0000-000000000085"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000136"), Guid.Parse("70000000-0000-0000-0000-000000000090"), true),
 
-            (Guid.Parse("60000000-0000-0000-0000-000000000137"), Guid.Parse("70000000-0000-0000-0000-000000000091"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000137"), Guid.Parse("70000000-0000-0000-0000-000000000091"), true),
 
             // Service Center Permit (NEW, RENEWAL, MODIFICATION)
-            (Guid.Parse("60000000-0000-0000-0000-000000000133"), Guid.Parse("70000000-0000-0000-0000-000000000082"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000133"), Guid.Parse("70000000-0000-0000-0000-000000000092"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000133"), Guid.Parse("70000000-0000-0000-0000-000000000089"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000133"), Guid.Parse("70000000-0000-0000-0000-000000000085"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000133"), Guid.Parse("70000000-0000-0000-0000-000000000086"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000138"), Guid.Parse("70000000-0000-0000-0000-000000000093"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000138"), Guid.Parse("70000000-0000-0000-0000-000000000071"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000138"), Guid.Parse("70000000-0000-0000-0000-000000000085"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000138"), Guid.Parse("70000000-0000-0000-0000-000000000090"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000133"), Guid.Parse("70000000-0000-0000-0000-000000000082"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000133"), Guid.Parse("70000000-0000-0000-0000-000000000092"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000133"), Guid.Parse("70000000-0000-0000-0000-000000000089"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000133"), Guid.Parse("70000000-0000-0000-0000-000000000085"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000133"), Guid.Parse("70000000-0000-0000-0000-000000000086"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000138"), Guid.Parse("70000000-0000-0000-0000-000000000093"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000138"), Guid.Parse("70000000-0000-0000-0000-000000000071"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000138"), Guid.Parse("70000000-0000-0000-0000-000000000085"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000138"), Guid.Parse("70000000-0000-0000-0000-000000000090"), true),
 
-            (Guid.Parse("60000000-0000-0000-0000-000000000139"), Guid.Parse("70000000-0000-0000-0000-000000000093"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000139"), Guid.Parse("70000000-0000-0000-0000-000000000093"), true),
 
             // --- PERMITS FOR MOBILE PHONE (svcMp) ---
             // Dealer Permit NEW (MAIN / BRANCH)
-            (Guid.Parse("60000000-0000-0000-0000-000000000140"), Guid.Parse("70000000-0000-0000-0000-000000000071"), true, "MAIN"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000140"), Guid.Parse("70000000-0000-0000-0000-000000000094"), true, "MAIN"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000140"), Guid.Parse("70000000-0000-0000-0000-000000000095"), true, "MAIN"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000140"), Guid.Parse("70000000-0000-0000-0000-000000000071"), true, "BRANCH"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000140"), Guid.Parse("70000000-0000-0000-0000-000000000094"), true, "BRANCH"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000140"), Guid.Parse("70000000-0000-0000-0000-000000000095"), true, "BRANCH"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000140"), Guid.Parse("70000000-0000-0000-0000-000000000071"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000140"), Guid.Parse("70000000-0000-0000-0000-000000000094"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000140"), Guid.Parse("70000000-0000-0000-0000-000000000095"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000140"), Guid.Parse("70000000-0000-0000-0000-000000000071"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000140"), Guid.Parse("70000000-0000-0000-0000-000000000094"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000140"), Guid.Parse("70000000-0000-0000-0000-000000000095"), true),
 
             // Dealer Permit RENEWAL (MAIN / BRANCH)
-            (Guid.Parse("60000000-0000-0000-0000-000000000144"), Guid.Parse("70000000-0000-0000-0000-000000000096"), true, "MAIN"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000144"), Guid.Parse("70000000-0000-0000-0000-000000000071"), true, "MAIN"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000144"), Guid.Parse("70000000-0000-0000-0000-000000000094"), true, "MAIN"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000144"), Guid.Parse("70000000-0000-0000-0000-000000000096"), true, "BRANCH"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000144"), Guid.Parse("70000000-0000-0000-0000-000000000071"), true, "BRANCH"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000144"), Guid.Parse("70000000-0000-0000-0000-000000000094"), true, "BRANCH"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000144"), Guid.Parse("70000000-0000-0000-0000-000000000096"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000144"), Guid.Parse("70000000-0000-0000-0000-000000000071"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000144"), Guid.Parse("70000000-0000-0000-0000-000000000094"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000144"), Guid.Parse("70000000-0000-0000-0000-000000000096"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000144"), Guid.Parse("70000000-0000-0000-0000-000000000071"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000144"), Guid.Parse("70000000-0000-0000-0000-000000000094"), true),
 
             // Dealer Permit MODIFICATION (MAIN / BRANCH)
-            (Guid.Parse("60000000-0000-0000-0000-000000000146"), Guid.Parse("70000000-0000-0000-0000-000000000053"), true, "MAIN"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000146"), Guid.Parse("70000000-0000-0000-0000-000000000096"), true, "MAIN"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000146"), Guid.Parse("70000000-0000-0000-0000-000000000053"), true, "BRANCH"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000146"), Guid.Parse("70000000-0000-0000-0000-000000000096"), true, "BRANCH"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000146"), Guid.Parse("70000000-0000-0000-0000-000000000053"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000146"), Guid.Parse("70000000-0000-0000-0000-000000000096"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000146"), Guid.Parse("70000000-0000-0000-0000-000000000053"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000146"), Guid.Parse("70000000-0000-0000-0000-000000000096"), true),
 
             // Retailer/Reseller Permit (NEW, RENEWAL, MODIFICATION)
-            (Guid.Parse("60000000-0000-0000-0000-000000000141"), Guid.Parse("70000000-0000-0000-0000-000000000071"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000141"), Guid.Parse("70000000-0000-0000-0000-000000000098"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000141"), Guid.Parse("70000000-0000-0000-0000-000000000071"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000141"), Guid.Parse("70000000-0000-0000-0000-000000000098"), true),
 
-            (Guid.Parse("60000000-0000-0000-0000-000000000148"), Guid.Parse("70000000-0000-0000-0000-000000000099"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000148"), Guid.Parse("70000000-0000-0000-0000-000000000097"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000148"), Guid.Parse("70000000-0000-0000-0000-000000000099"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000148"), Guid.Parse("70000000-0000-0000-0000-000000000097"), true),
 
-            (Guid.Parse("60000000-0000-0000-0000-000000000149"), Guid.Parse("70000000-0000-0000-0000-000000000099"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000149"), Guid.Parse("70000000-0000-0000-0000-000000000100"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000149"), Guid.Parse("70000000-0000-0000-0000-000000000099"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000149"), Guid.Parse("70000000-0000-0000-0000-000000000100"), true),
 
             // Mobile Phone Service Center Permit (NEW, RENEWAL, MODIFICATION)
-            (Guid.Parse("60000000-0000-0000-0000-000000000142"), Guid.Parse("70000000-0000-0000-0000-000000000097"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000142"), Guid.Parse("70000000-0000-0000-0000-000000000101"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000142"), Guid.Parse("70000000-0000-0000-0000-000000000102"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000142"), Guid.Parse("70000000-0000-0000-0000-000000000097"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000142"), Guid.Parse("70000000-0000-0000-0000-000000000101"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000142"), Guid.Parse("70000000-0000-0000-0000-000000000102"), true),
 
-            (Guid.Parse("60000000-0000-0000-0000-000000000152"), Guid.Parse("70000000-0000-0000-0000-000000000103"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000152"), Guid.Parse("70000000-0000-0000-0000-000000000097"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000152"), Guid.Parse("70000000-0000-0000-0000-000000000101"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000152"), Guid.Parse("70000000-0000-0000-0000-000000000102"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000152"), Guid.Parse("70000000-0000-0000-0000-000000000103"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000152"), Guid.Parse("70000000-0000-0000-0000-000000000097"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000152"), Guid.Parse("70000000-0000-0000-0000-000000000101"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000152"), Guid.Parse("70000000-0000-0000-0000-000000000102"), true),
 
-            (Guid.Parse("60000000-0000-0000-0000-000000000153"), Guid.Parse("70000000-0000-0000-0000-000000000103"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000153"), Guid.Parse("70000000-0000-0000-0000-000000000103"), true),
 
             // --- COPY OF PERMITS (svcCopy) ---
             // Certified True Copy
-            (Guid.Parse("60000000-0000-0000-0000-000000000150"), Guid.Parse("70000000-0000-0000-0000-000000000025"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000150"), Guid.Parse("70000000-0000-0000-0000-000000000025"), true),
             // Duplicate Copy
-            (Guid.Parse("60000000-0000-0000-0000-000000000151"), Guid.Parse("70000000-0000-0000-0000-000000000104"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000151"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000151"), Guid.Parse("70000000-0000-0000-0000-000000000104"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000151"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true),
 
             // --- LICENSE IN THE AMATEUR SERVICE (svcLicAma) ---
             // Amateur Radio Station License (NEW) - Class A, B, C, D
-            (Guid.Parse("60000000-0000-0000-0000-000000000200"), Guid.Parse("70000000-0000-0000-0000-000000000076"), true, "Class A"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000200"), Guid.Parse("70000000-0000-0000-0000-000000000007"), true, "Class A"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000200"), Guid.Parse("70000000-0000-0000-0000-000000000200"), true, "Class A"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000200"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true, "Class A"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000200"), Guid.Parse("70000000-0000-0000-0000-000000000076"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000200"), Guid.Parse("70000000-0000-0000-0000-000000000007"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000200"), Guid.Parse("70000000-0000-0000-0000-000000000200"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000200"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true),
 
-            (Guid.Parse("60000000-0000-0000-0000-000000000200"), Guid.Parse("70000000-0000-0000-0000-000000000076"), true, "Class B"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000200"), Guid.Parse("70000000-0000-0000-0000-000000000007"), true, "Class B"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000200"), Guid.Parse("70000000-0000-0000-0000-000000000200"), true, "Class B"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000200"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true, "Class B"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000200"), Guid.Parse("70000000-0000-0000-0000-000000000076"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000200"), Guid.Parse("70000000-0000-0000-0000-000000000007"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000200"), Guid.Parse("70000000-0000-0000-0000-000000000200"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000200"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true),
 
-            (Guid.Parse("60000000-0000-0000-0000-000000000200"), Guid.Parse("70000000-0000-0000-0000-000000000076"), true, "Class C"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000200"), Guid.Parse("70000000-0000-0000-0000-000000000007"), true, "Class C"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000200"), Guid.Parse("70000000-0000-0000-0000-000000000200"), true, "Class C"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000200"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true, "Class C"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000200"), Guid.Parse("70000000-0000-0000-0000-000000000076"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000200"), Guid.Parse("70000000-0000-0000-0000-000000000007"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000200"), Guid.Parse("70000000-0000-0000-0000-000000000200"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000200"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true),
 
-            (Guid.Parse("60000000-0000-0000-0000-000000000200"), Guid.Parse("70000000-0000-0000-0000-000000000076"), true, "Class D"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000200"), Guid.Parse("70000000-0000-0000-0000-000000000007"), true, "Class D"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000200"), Guid.Parse("70000000-0000-0000-0000-000000000200"), true, "Class D"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000200"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true, "Class D"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000200"), Guid.Parse("70000000-0000-0000-0000-000000000076"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000200"), Guid.Parse("70000000-0000-0000-0000-000000000007"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000200"), Guid.Parse("70000000-0000-0000-0000-000000000200"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000200"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true),
 
             // Amateur Radio Station License (RENEWAL) - Class A, B, C, D
-            (Guid.Parse("60000000-0000-0000-0000-000000000201"), Guid.Parse("70000000-0000-0000-0000-000000000201"), true, "Class A"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000201"), Guid.Parse("70000000-0000-0000-0000-000000000016"), true, "Class A"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000201"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true, "Class A"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000201"), Guid.Parse("70000000-0000-0000-0000-000000000201"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000201"), Guid.Parse("70000000-0000-0000-0000-000000000016"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000201"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true),
 
-            (Guid.Parse("60000000-0000-0000-0000-000000000201"), Guid.Parse("70000000-0000-0000-0000-000000000201"), true, "Class B"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000201"), Guid.Parse("70000000-0000-0000-0000-000000000016"), true, "Class B"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000201"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true, "Class B"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000201"), Guid.Parse("70000000-0000-0000-0000-000000000201"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000201"), Guid.Parse("70000000-0000-0000-0000-000000000016"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000201"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true),
 
-            (Guid.Parse("60000000-0000-0000-0000-000000000201"), Guid.Parse("70000000-0000-0000-0000-000000000201"), true, "Class C"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000201"), Guid.Parse("70000000-0000-0000-0000-000000000016"), true, "Class C"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000201"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true, "Class C"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000201"), Guid.Parse("70000000-0000-0000-0000-000000000201"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000201"), Guid.Parse("70000000-0000-0000-0000-000000000016"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000201"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true),
 
-            (Guid.Parse("60000000-0000-0000-0000-000000000201"), Guid.Parse("70000000-0000-0000-0000-000000000201"), true, "Class D"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000201"), Guid.Parse("70000000-0000-0000-0000-000000000016"), true, "Class D"),
-            (Guid.Parse("60000000-0000-0000-0000-000000000201"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true, "Class D"),
+            (Guid.Parse("60000000-0000-0000-0000-000000000201"), Guid.Parse("70000000-0000-0000-0000-000000000201"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000201"), Guid.Parse("70000000-0000-0000-0000-000000000016"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000201"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true),
 
             // Amateur Radio Station License (MODIFICATION)
-            (Guid.Parse("60000000-0000-0000-0000-000000000202"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000202"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true),
 
             // Lifetime Amateur Radio Station License for Class A
-            (Guid.Parse("60000000-0000-0000-0000-000000000203"), Guid.Parse("70000000-0000-0000-0000-000000000202"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000203"), Guid.Parse("70000000-0000-0000-0000-000000000203"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000203"), Guid.Parse("70000000-0000-0000-0000-000000000001"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000203"), Guid.Parse("70000000-0000-0000-0000-000000000204"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000203"), Guid.Parse("70000000-0000-0000-0000-000000000205"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000203"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000203"), Guid.Parse("70000000-0000-0000-0000-000000000202"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000203"), Guid.Parse("70000000-0000-0000-0000-000000000203"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000203"), Guid.Parse("70000000-0000-0000-0000-000000000001"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000203"), Guid.Parse("70000000-0000-0000-0000-000000000204"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000203"), Guid.Parse("70000000-0000-0000-0000-000000000205"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000203"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true),
 
             // Amateur Club Radio Station License (NEW)
-            (Guid.Parse("60000000-0000-0000-0000-000000000204"), Guid.Parse("70000000-0000-0000-0000-000000000076"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000204"), Guid.Parse("70000000-0000-0000-0000-000000000206"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000204"), Guid.Parse("70000000-0000-0000-0000-000000000076"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000204"), Guid.Parse("70000000-0000-0000-0000-000000000206"), true),
 
             // Amateur Club Radio Station License (RENEWAL)
-            (Guid.Parse("60000000-0000-0000-0000-000000000205"), Guid.Parse("70000000-0000-0000-0000-000000000207"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000205"), Guid.Parse("70000000-0000-0000-0000-000000000208"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000205"), Guid.Parse("70000000-0000-0000-0000-000000000207"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000205"), Guid.Parse("70000000-0000-0000-0000-000000000208"), true),
 
             // Amateur Club Radio Station License (MODIFICATION)
-            (Guid.Parse("60000000-0000-0000-0000-000000000206"), Guid.Parse("70000000-0000-0000-0000-000000000207"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000206"), Guid.Parse("70000000-0000-0000-0000-000000000207"), true),
 
             // Fixed Aeronautical Station License (NEW)
-            (Guid.Parse("60000000-0000-0000-0000-000000000210"), Guid.Parse("70000000-0000-0000-0000-000000000210"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000210"), Guid.Parse("70000000-0000-0000-0000-000000000076"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000210"), Guid.Parse("70000000-0000-0000-0000-000000000211"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000210"), Guid.Parse("70000000-0000-0000-0000-000000000212"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000210"), Guid.Parse("70000000-0000-0000-0000-000000000015"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000210"), Guid.Parse("70000000-0000-0000-0000-000000000213"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000210"), Guid.Parse("70000000-0000-0000-0000-000000000210"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000210"), Guid.Parse("70000000-0000-0000-0000-000000000076"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000210"), Guid.Parse("70000000-0000-0000-0000-000000000211"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000210"), Guid.Parse("70000000-0000-0000-0000-000000000212"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000210"), Guid.Parse("70000000-0000-0000-0000-000000000015"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000210"), Guid.Parse("70000000-0000-0000-0000-000000000213"), true),
 
             // Fixed Aeronautical Station License (RENEWAL)
-            (Guid.Parse("60000000-0000-0000-0000-000000000211"), Guid.Parse("70000000-0000-0000-0000-000000000212"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000211"), Guid.Parse("70000000-0000-0000-0000-000000000015"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000211"), Guid.Parse("70000000-0000-0000-0000-000000000213"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000211"), Guid.Parse("70000000-0000-0000-0000-000000000214"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000211"), Guid.Parse("70000000-0000-0000-0000-000000000212"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000211"), Guid.Parse("70000000-0000-0000-0000-000000000015"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000211"), Guid.Parse("70000000-0000-0000-0000-000000000213"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000211"), Guid.Parse("70000000-0000-0000-0000-000000000214"), true),
 
             // Fixed Aeronautical Station License (MODIFICATION)
-            (Guid.Parse("60000000-0000-0000-0000-000000000212"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000212"), Guid.Parse("70000000-0000-0000-0000-000000000212"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000212"), Guid.Parse("70000000-0000-0000-0000-000000000015"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000212"), Guid.Parse("70000000-0000-0000-0000-000000000214"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000212"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000212"), Guid.Parse("70000000-0000-0000-0000-000000000212"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000212"), Guid.Parse("70000000-0000-0000-0000-000000000015"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000212"), Guid.Parse("70000000-0000-0000-0000-000000000214"), true),
 
             // Aircraft Station License (NEW)
-            (Guid.Parse("60000000-0000-0000-0000-000000000213"), Guid.Parse("70000000-0000-0000-0000-000000000215"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000213"), Guid.Parse("70000000-0000-0000-0000-000000000216"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000213"), Guid.Parse("70000000-0000-0000-0000-000000000217"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000213"), Guid.Parse("70000000-0000-0000-0000-000000000015"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000213"), Guid.Parse("70000000-0000-0000-0000-000000000213"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000213"), Guid.Parse("70000000-0000-0000-0000-000000000215"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000213"), Guid.Parse("70000000-0000-0000-0000-000000000216"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000213"), Guid.Parse("70000000-0000-0000-0000-000000000217"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000213"), Guid.Parse("70000000-0000-0000-0000-000000000015"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000213"), Guid.Parse("70000000-0000-0000-0000-000000000213"), true),
 
             // Aircraft Station License (RENEWAL)
-            (Guid.Parse("60000000-0000-0000-0000-000000000214"), Guid.Parse("70000000-0000-0000-0000-000000000218"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000214"), Guid.Parse("70000000-0000-0000-0000-000000000215"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000214"), Guid.Parse("70000000-0000-0000-0000-000000000216"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000214"), Guid.Parse("70000000-0000-0000-0000-000000000217"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000214"), Guid.Parse("70000000-0000-0000-0000-000000000015"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000214"), Guid.Parse("70000000-0000-0000-0000-000000000213"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000214"), Guid.Parse("70000000-0000-0000-0000-000000000218"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000214"), Guid.Parse("70000000-0000-0000-0000-000000000215"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000214"), Guid.Parse("70000000-0000-0000-0000-000000000216"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000214"), Guid.Parse("70000000-0000-0000-0000-000000000217"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000214"), Guid.Parse("70000000-0000-0000-0000-000000000015"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000214"), Guid.Parse("70000000-0000-0000-0000-000000000213"), true),
 
             // Aircraft Station License (MODIFICATION)
-            (Guid.Parse("60000000-0000-0000-0000-000000000215"), Guid.Parse("70000000-0000-0000-0000-000000000218"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000215"), Guid.Parse("70000000-0000-0000-0000-000000000218"), true),
 
             // Ship Station License Domestic Trade (Without originally-installed equipment) (NEW)
-            (Guid.Parse("60000000-0000-0000-0000-000000000220"), Guid.Parse("70000000-0000-0000-0000-000000000061"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000220"), Guid.Parse("70000000-0000-0000-0000-000000000220"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000220"), Guid.Parse("70000000-0000-0000-0000-000000000015"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000220"), Guid.Parse("70000000-0000-0000-0000-000000000076"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000220"), Guid.Parse("70000000-0000-0000-0000-000000000077"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000220"), Guid.Parse("70000000-0000-0000-0000-000000000213"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000220"), Guid.Parse("70000000-0000-0000-0000-000000000061"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000220"), Guid.Parse("70000000-0000-0000-0000-000000000220"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000220"), Guid.Parse("70000000-0000-0000-0000-000000000015"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000220"), Guid.Parse("70000000-0000-0000-0000-000000000076"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000220"), Guid.Parse("70000000-0000-0000-0000-000000000077"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000220"), Guid.Parse("70000000-0000-0000-0000-000000000213"), true),
 
             // Ship Station License Domestic Trade (With originally-installed equipment) (NEW)
-            (Guid.Parse("60000000-0000-0000-0000-000000000221"), Guid.Parse("70000000-0000-0000-0000-000000000061"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000221"), Guid.Parse("70000000-0000-0000-0000-000000000220"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000221"), Guid.Parse("70000000-0000-0000-0000-000000000015"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000221"), Guid.Parse("70000000-0000-0000-0000-000000000213"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000221"), Guid.Parse("70000000-0000-0000-0000-000000000061"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000221"), Guid.Parse("70000000-0000-0000-0000-000000000220"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000221"), Guid.Parse("70000000-0000-0000-0000-000000000015"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000221"), Guid.Parse("70000000-0000-0000-0000-000000000213"), true),
 
             // Ship Station License Domestic Trade (RENEWAL)
-            (Guid.Parse("60000000-0000-0000-0000-000000000222"), Guid.Parse("70000000-0000-0000-0000-000000000221"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000222"), Guid.Parse("70000000-0000-0000-0000-000000000220"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000222"), Guid.Parse("70000000-0000-0000-0000-000000000015"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000222"), Guid.Parse("70000000-0000-0000-0000-000000000213"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000222"), Guid.Parse("70000000-0000-0000-0000-000000000221"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000222"), Guid.Parse("70000000-0000-0000-0000-000000000220"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000222"), Guid.Parse("70000000-0000-0000-0000-000000000015"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000222"), Guid.Parse("70000000-0000-0000-0000-000000000213"), true),
 
             // Ship Station License Domestic Trade (MODIFICATION)
-            (Guid.Parse("60000000-0000-0000-0000-000000000223"), Guid.Parse("70000000-0000-0000-0000-000000000222"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000223"), Guid.Parse("70000000-0000-0000-0000-000000000222"), true),
 
             // Ship Station License International Trade (RENEWAL)
-            (Guid.Parse("60000000-0000-0000-0000-000000000224"), Guid.Parse("70000000-0000-0000-0000-000000000222"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000224"), Guid.Parse("70000000-0000-0000-0000-000000000223"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000224"), Guid.Parse("70000000-0000-0000-0000-000000000224"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000224"), Guid.Parse("70000000-0000-0000-0000-000000000225"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000224"), Guid.Parse("70000000-0000-0000-0000-000000000226"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000224"), Guid.Parse("70000000-0000-0000-0000-000000000227"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000224"), Guid.Parse("70000000-0000-0000-0000-000000000222"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000224"), Guid.Parse("70000000-0000-0000-0000-000000000223"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000224"), Guid.Parse("70000000-0000-0000-0000-000000000224"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000224"), Guid.Parse("70000000-0000-0000-0000-000000000225"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000224"), Guid.Parse("70000000-0000-0000-0000-000000000226"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000224"), Guid.Parse("70000000-0000-0000-0000-000000000227"), true),
 
             // Ship Station License International Trade (MODIFICATION)
-            (Guid.Parse("60000000-0000-0000-0000-000000000225"), Guid.Parse("70000000-0000-0000-0000-000000000222"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000225"), Guid.Parse("70000000-0000-0000-0000-000000000222"), true),
 
             // Ship Earth Station License International Trade (RENEWAL)
-            (Guid.Parse("60000000-0000-0000-0000-000000000226"), Guid.Parse("70000000-0000-0000-0000-000000000228"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000226"), Guid.Parse("70000000-0000-0000-0000-000000000223"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000226"), Guid.Parse("70000000-0000-0000-0000-000000000224"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000226"), Guid.Parse("70000000-0000-0000-0000-000000000225"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000226"), Guid.Parse("70000000-0000-0000-0000-000000000226"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000226"), Guid.Parse("70000000-0000-0000-0000-000000000227"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000226"), Guid.Parse("70000000-0000-0000-0000-000000000228"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000226"), Guid.Parse("70000000-0000-0000-0000-000000000223"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000226"), Guid.Parse("70000000-0000-0000-0000-000000000224"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000226"), Guid.Parse("70000000-0000-0000-0000-000000000225"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000226"), Guid.Parse("70000000-0000-0000-0000-000000000226"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000226"), Guid.Parse("70000000-0000-0000-0000-000000000227"), true),
 
             // Ship Earth Station License International Trade (MODIFICATION)
-            (Guid.Parse("60000000-0000-0000-0000-000000000227"), Guid.Parse("70000000-0000-0000-0000-000000000222"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000227"), Guid.Parse("70000000-0000-0000-0000-000000000222"), true),
 
             // Private Coastal Station License (NEW)
-            (Guid.Parse("60000000-0000-0000-0000-000000000228"), Guid.Parse("70000000-0000-0000-0000-000000000229"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000228"), Guid.Parse("70000000-0000-0000-0000-000000000220"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000228"), Guid.Parse("70000000-0000-0000-0000-000000000015"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000228"), Guid.Parse("70000000-0000-0000-0000-000000000077"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000228"), Guid.Parse("70000000-0000-0000-0000-000000000213"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000228"), Guid.Parse("70000000-0000-0000-0000-000000000229"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000228"), Guid.Parse("70000000-0000-0000-0000-000000000220"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000228"), Guid.Parse("70000000-0000-0000-0000-000000000015"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000228"), Guid.Parse("70000000-0000-0000-0000-000000000077"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000228"), Guid.Parse("70000000-0000-0000-0000-000000000213"), true),
 
             // Private Coastal Station License (RENEWAL)
-            (Guid.Parse("60000000-0000-0000-0000-000000000229"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000229"), Guid.Parse("70000000-0000-0000-0000-000000000220"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000229"), Guid.Parse("70000000-0000-0000-0000-000000000015"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000229"), Guid.Parse("70000000-0000-0000-0000-000000000213"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000229"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000229"), Guid.Parse("70000000-0000-0000-0000-000000000220"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000229"), Guid.Parse("70000000-0000-0000-0000-000000000015"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000229"), Guid.Parse("70000000-0000-0000-0000-000000000213"), true),
 
             // Private Coastal Station License (MODIFICATION)
-            (Guid.Parse("60000000-0000-0000-0000-000000000230"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000230"), Guid.Parse("70000000-0000-0000-0000-000000000213"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000230"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000230"), Guid.Parse("70000000-0000-0000-0000-000000000213"), true),
 
             // Public Coastal Station License (NEW)
-            (Guid.Parse("60000000-0000-0000-0000-000000000231"), Guid.Parse("70000000-0000-0000-0000-000000000076"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000231"), Guid.Parse("70000000-0000-0000-0000-000000000077"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000231"), Guid.Parse("70000000-0000-0000-0000-000000000220"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000231"), Guid.Parse("70000000-0000-0000-0000-000000000015"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000231"), Guid.Parse("70000000-0000-0000-0000-000000000076"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000231"), Guid.Parse("70000000-0000-0000-0000-000000000077"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000231"), Guid.Parse("70000000-0000-0000-0000-000000000220"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000231"), Guid.Parse("70000000-0000-0000-0000-000000000015"), true),
 
             // Public Coastal Station License (RENEWAL)
-            (Guid.Parse("60000000-0000-0000-0000-000000000232"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000232"), Guid.Parse("70000000-0000-0000-0000-000000000220"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000232"), Guid.Parse("70000000-0000-0000-0000-000000000015"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000232"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000232"), Guid.Parse("70000000-0000-0000-0000-000000000220"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000232"), Guid.Parse("70000000-0000-0000-0000-000000000015"), true),
 
             // Public Coastal Station License (MODIFICATION)
-            (Guid.Parse("60000000-0000-0000-0000-000000000233"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000233"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true),
 
             // Radio Station License (NEW) - Fixed & Land Mobile Service
-            (Guid.Parse("60000000-0000-0000-0000-000000000240"), Guid.Parse("70000000-0000-0000-0000-000000000076"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000240"), Guid.Parse("70000000-0000-0000-0000-000000000230"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000240"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000240"), Guid.Parse("70000000-0000-0000-0000-000000000077"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000240"), Guid.Parse("70000000-0000-0000-0000-000000000078"), false, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000240"), Guid.Parse("70000000-0000-0000-0000-000000000076"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000240"), Guid.Parse("70000000-0000-0000-0000-000000000230"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000240"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000240"), Guid.Parse("70000000-0000-0000-0000-000000000077"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000240"), Guid.Parse("70000000-0000-0000-0000-000000000078"), false),
 
             // Radio Station License (RENEWAL)
-            (Guid.Parse("60000000-0000-0000-0000-000000000241"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000241"), Guid.Parse("70000000-0000-0000-0000-000000000230"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000241"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000241"), Guid.Parse("70000000-0000-0000-0000-000000000230"), true),
 
             // Radio Station License (MODIFICATION)
-            (Guid.Parse("60000000-0000-0000-0000-000000000242"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000242"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true),
 
             // Other Radio Station Licenses (Microwave, VSAT, Public Trunked, BWA, WDN, BTS)
-            (Guid.Parse("60000000-0000-0000-0000-000000000250"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000251"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000252"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000253"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000254"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000255"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000256"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000257"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000258"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000259"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000260"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000261"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000262"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000250"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000251"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000252"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000253"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000254"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000255"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000256"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000257"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000258"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000259"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000260"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000261"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000262"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true),
 
             // TVRO Station License (NEW)
-            (Guid.Parse("60000000-0000-0000-0000-000000000270"), Guid.Parse("70000000-0000-0000-0000-000000000021"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000270"), Guid.Parse("70000000-0000-0000-0000-000000000240"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000270"), Guid.Parse("70000000-0000-0000-0000-000000000022"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000270"), Guid.Parse("70000000-0000-0000-0000-000000000241"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000270"), Guid.Parse("70000000-0000-0000-0000-000000000242"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000270"), Guid.Parse("70000000-0000-0000-0000-000000000021"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000270"), Guid.Parse("70000000-0000-0000-0000-000000000240"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000270"), Guid.Parse("70000000-0000-0000-0000-000000000022"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000270"), Guid.Parse("70000000-0000-0000-0000-000000000241"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000270"), Guid.Parse("70000000-0000-0000-0000-000000000242"), true),
 
             // TVRO Station License (RENEWAL)
-            (Guid.Parse("60000000-0000-0000-0000-000000000271"), Guid.Parse("70000000-0000-0000-0000-000000000243"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000271"), Guid.Parse("70000000-0000-0000-0000-000000000021"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000271"), Guid.Parse("70000000-0000-0000-0000-000000000022"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000271"), Guid.Parse("70000000-0000-0000-0000-000000000241"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000271"), Guid.Parse("70000000-0000-0000-0000-000000000242"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000271"), Guid.Parse("70000000-0000-0000-0000-000000000243"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000271"), Guid.Parse("70000000-0000-0000-0000-000000000021"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000271"), Guid.Parse("70000000-0000-0000-0000-000000000022"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000271"), Guid.Parse("70000000-0000-0000-0000-000000000241"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000271"), Guid.Parse("70000000-0000-0000-0000-000000000242"), true),
 
             // CATV Station License (NEW)
-            (Guid.Parse("60000000-0000-0000-0000-000000000272"), Guid.Parse("70000000-0000-0000-0000-000000000250"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000272"), Guid.Parse("70000000-0000-0000-0000-000000000251"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000272"), Guid.Parse("70000000-0000-0000-0000-000000000022"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000272"), Guid.Parse("70000000-0000-0000-0000-000000000241"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000272"), Guid.Parse("70000000-0000-0000-0000-000000000242"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000272"), Guid.Parse("70000000-0000-0000-0000-000000000252"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000272"), Guid.Parse("70000000-0000-0000-0000-000000000250"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000272"), Guid.Parse("70000000-0000-0000-0000-000000000251"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000272"), Guid.Parse("70000000-0000-0000-0000-000000000022"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000272"), Guid.Parse("70000000-0000-0000-0000-000000000241"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000272"), Guid.Parse("70000000-0000-0000-0000-000000000242"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000272"), Guid.Parse("70000000-0000-0000-0000-000000000252"), true),
 
             // CATV Station License (RENEWAL)
-            (Guid.Parse("60000000-0000-0000-0000-000000000273"), Guid.Parse("70000000-0000-0000-0000-000000000253"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000273"), Guid.Parse("70000000-0000-0000-0000-000000000250"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000273"), Guid.Parse("70000000-0000-0000-0000-000000000022"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000273"), Guid.Parse("70000000-0000-0000-0000-000000000241"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000273"), Guid.Parse("70000000-0000-0000-0000-000000000242"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000273"), Guid.Parse("70000000-0000-0000-0000-000000000252"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000273"), Guid.Parse("70000000-0000-0000-0000-000000000253"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000273"), Guid.Parse("70000000-0000-0000-0000-000000000250"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000273"), Guid.Parse("70000000-0000-0000-0000-000000000022"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000273"), Guid.Parse("70000000-0000-0000-0000-000000000241"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000273"), Guid.Parse("70000000-0000-0000-0000-000000000242"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000273"), Guid.Parse("70000000-0000-0000-0000-000000000252"), true),
 
             // Certified True Copy (License)
-            (Guid.Parse("60000000-0000-0000-0000-000000000280"), Guid.Parse("70000000-0000-0000-0000-000000000025"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000280"), Guid.Parse("70000000-0000-0000-0000-000000000025"), true),
 
             // Duplicate Copy (License)
-            (Guid.Parse("60000000-0000-0000-0000-000000000281"), Guid.Parse("70000000-0000-0000-0000-000000000260"), true, null),
-            (Guid.Parse("60000000-0000-0000-0000-000000000281"), Guid.Parse("70000000-0000-0000-0000-000000000261"), true, null),
+            (Guid.Parse("60000000-0000-0000-0000-000000000281"), Guid.Parse("70000000-0000-0000-0000-000000000260"), true),
+            (Guid.Parse("60000000-0000-0000-0000-000000000281"), Guid.Parse("70000000-0000-0000-0000-000000000261"), true),
 
             // --- CUSTOMER PREMISES EQUIPMENT SUPPLIER ACCREDITATION (svc118) ---
             // Mobile - NEW (60000000-0000-0000-0000-000000000013)
-            (Guid.Parse("60000000-0000-0000-0000-000000000013"), Guid.Parse("70000000-0000-0000-0000-000000000082"), true, null), // DEALER_REG_DOCS
-            (Guid.Parse("60000000-0000-0000-0000-000000000013"), Guid.Parse("70000000-0000-0000-0000-000000000301"), true, null), // PAID_UP_CAPITAL_250K
-            (Guid.Parse("60000000-0000-0000-0000-000000000013"), Guid.Parse("70000000-0000-0000-0000-000000000302"), true, null), // DISTRIBUTORSHIP_AGREEMENT
-            (Guid.Parse("60000000-0000-0000-0000-000000000013"), Guid.Parse("70000000-0000-0000-0000-000000000303"), true, null), // TYPE_APPROVAL_OR_GRANT_OF_EQUIPMENT_CONFORMITY
-            (Guid.Parse("60000000-0000-0000-0000-000000000013"), Guid.Parse("70000000-0000-0000-0000-000000000304"), true, null), // TWO_TECH_EMPLOYMENT_DOCS
-            (Guid.Parse("60000000-0000-0000-0000-000000000013"), Guid.Parse("70000000-0000-0000-0000-000000000305"), true, null), // ECE_PECE_EMPLOYMENT_DOCS
+            (Guid.Parse("60000000-0000-0000-0000-000000000013"), Guid.Parse("70000000-0000-0000-0000-000000000082"), true), // DEALER_REG_DOCS
+            (Guid.Parse("60000000-0000-0000-0000-000000000013"), Guid.Parse("70000000-0000-0000-0000-000000000301"), true), // PAID_UP_CAPITAL_250K
+            (Guid.Parse("60000000-0000-0000-0000-000000000013"), Guid.Parse("70000000-0000-0000-0000-000000000302"), true), // DISTRIBUTORSHIP_AGREEMENT
+            (Guid.Parse("60000000-0000-0000-0000-000000000013"), Guid.Parse("70000000-0000-0000-0000-000000000303"), true), // TYPE_APPROVAL_OR_GRANT_OF_EQUIPMENT_CONFORMITY
+            (Guid.Parse("60000000-0000-0000-0000-000000000013"), Guid.Parse("70000000-0000-0000-0000-000000000304"), true), // TWO_TECH_EMPLOYMENT_DOCS
+            (Guid.Parse("60000000-0000-0000-0000-000000000013"), Guid.Parse("70000000-0000-0000-0000-000000000305"), true), // ECE_PECE_EMPLOYMENT_DOCS
 
             // Mobile Phones - RENEWAL (60000000-0000-0000-0000-000000000014)
-            (Guid.Parse("60000000-0000-0000-0000-000000000014"), Guid.Parse("70000000-0000-0000-0000-000000000306"), true, null), // CPE_SUPPLIER_ACCREDITATION_DOC
-            (Guid.Parse("60000000-0000-0000-0000-000000000014"), Guid.Parse("70000000-0000-0000-0000-000000000307"), true, null), // BUSINESS_MAYORS_PERMIT
-            (Guid.Parse("60000000-0000-0000-0000-000000000014"), Guid.Parse("70000000-0000-0000-0000-000000000302"), true, null), // DISTRIBUTORSHIP_AGREEMENT
-            (Guid.Parse("60000000-0000-0000-0000-000000000014"), Guid.Parse("70000000-0000-0000-0000-000000000304"), true, null), // TWO_TECH_EMPLOYMENT_DOCS
-            (Guid.Parse("60000000-0000-0000-0000-000000000014"), Guid.Parse("70000000-0000-0000-0000-000000000305"), true, null), // ECE_PECE_EMPLOYMENT_DOCS
+            (Guid.Parse("60000000-0000-0000-0000-000000000014"), Guid.Parse("70000000-0000-0000-0000-000000000306"), true), // CPE_SUPPLIER_ACCREDITATION_DOC
+            (Guid.Parse("60000000-0000-0000-0000-000000000014"), Guid.Parse("70000000-0000-0000-0000-000000000307"), true), // BUSINESS_MAYORS_PERMIT
+            (Guid.Parse("60000000-0000-0000-0000-000000000014"), Guid.Parse("70000000-0000-0000-0000-000000000302"), true), // DISTRIBUTORSHIP_AGREEMENT
+            (Guid.Parse("60000000-0000-0000-0000-000000000014"), Guid.Parse("70000000-0000-0000-0000-000000000304"), true), // TWO_TECH_EMPLOYMENT_DOCS
+            (Guid.Parse("60000000-0000-0000-0000-000000000014"), Guid.Parse("70000000-0000-0000-0000-000000000305"), true), // ECE_PECE_EMPLOYMENT_DOCS
 
             // Mobile - MODIFICATION (60000000-0000-0000-0000-000000000015)
-            (Guid.Parse("60000000-0000-0000-0000-000000000015"), Guid.Parse("70000000-0000-0000-0000-000000000306"), true, null), // CPE_SUPPLIER_ACCREDITATION_DOC
-            (Guid.Parse("60000000-0000-0000-0000-000000000015"), Guid.Parse("70000000-0000-0000-0000-000000000308"), true, null), // TYPE_APPROVAL_NOT_PREVIOUSLY_INDICATED
+            (Guid.Parse("60000000-0000-0000-0000-000000000015"), Guid.Parse("70000000-0000-0000-0000-000000000306"), true), // CPE_SUPPLIER_ACCREDITATION_DOC
+            (Guid.Parse("60000000-0000-0000-0000-000000000015"), Guid.Parse("70000000-0000-0000-0000-000000000308"), true), // TYPE_APPROVAL_NOT_PREVIOUSLY_INDICATED
 
             // Non-Mobile Phones - NEW (60000000-0000-0000-0000-000000000304)
-            (Guid.Parse("60000000-0000-0000-0000-000000000304"), Guid.Parse("70000000-0000-0000-0000-000000000082"), true, null), // DEALER_REG_DOCS
-            (Guid.Parse("60000000-0000-0000-0000-000000000304"), Guid.Parse("70000000-0000-0000-0000-000000000301"), true, null), // PAID_UP_CAPITAL_250K
-            (Guid.Parse("60000000-0000-0000-0000-000000000304"), Guid.Parse("70000000-0000-0000-0000-000000000302"), true, null), // DISTRIBUTORSHIP_AGREEMENT
-            (Guid.Parse("60000000-0000-0000-0000-000000000304"), Guid.Parse("70000000-0000-0000-0000-000000000303"), true, null), // TYPE_APPROVAL_OR_GRANT_OF_EQUIPMENT_CONFORMITY
-            (Guid.Parse("60000000-0000-0000-0000-000000000304"), Guid.Parse("70000000-0000-0000-0000-000000000304"), true, null), // TWO_TECH_EMPLOYMENT_DOCS
-            (Guid.Parse("60000000-0000-0000-0000-000000000304"), Guid.Parse("70000000-0000-0000-0000-000000000305"), true, null), // ECE_PECE_EMPLOYMENT_DOCS
+            (Guid.Parse("60000000-0000-0000-0000-000000000304"), Guid.Parse("70000000-0000-0000-0000-000000000082"), true), // DEALER_REG_DOCS
+            (Guid.Parse("60000000-0000-0000-0000-000000000304"), Guid.Parse("70000000-0000-0000-0000-000000000301"), true), // PAID_UP_CAPITAL_250K
+            (Guid.Parse("60000000-0000-0000-0000-000000000304"), Guid.Parse("70000000-0000-0000-0000-000000000302"), true), // DISTRIBUTORSHIP_AGREEMENT
+            (Guid.Parse("60000000-0000-0000-0000-000000000304"), Guid.Parse("70000000-0000-0000-0000-000000000303"), true), // TYPE_APPROVAL_OR_GRANT_OF_EQUIPMENT_CONFORMITY
+            (Guid.Parse("60000000-0000-0000-0000-000000000304"), Guid.Parse("70000000-0000-0000-0000-000000000304"), true), // TWO_TECH_EMPLOYMENT_DOCS
+            (Guid.Parse("60000000-0000-0000-0000-000000000304"), Guid.Parse("70000000-0000-0000-0000-000000000305"), true), // ECE_PECE_EMPLOYMENT_DOCS
 
             // Non-Mobile Phones - RENEWAL (60000000-0000-0000-0000-000000000305)
-            (Guid.Parse("60000000-0000-0000-0000-000000000305"), Guid.Parse("70000000-0000-0000-0000-000000000306"), true, null), // CPE_SUPPLIER_ACCREDITATION_DOC
-            (Guid.Parse("60000000-0000-0000-0000-000000000305"), Guid.Parse("70000000-0000-0000-0000-000000000307"), true, null), // BUSINESS_MAYORS_PERMIT
-            (Guid.Parse("60000000-0000-0000-0000-000000000305"), Guid.Parse("70000000-0000-0000-0000-000000000302"), true, null), // DISTRIBUTORSHIP_AGREEMENT
-            (Guid.Parse("60000000-0000-0000-0000-000000000305"), Guid.Parse("70000000-0000-0000-0000-000000000304"), true, null), // TWO_TECH_EMPLOYMENT_DOCS
-            (Guid.Parse("60000000-0000-0000-0000-000000000305"), Guid.Parse("70000000-0000-0000-0000-000000000305"), true, null), // ECE_PECE_EMPLOYMENT_DOCS
+            (Guid.Parse("60000000-0000-0000-0000-000000000305"), Guid.Parse("70000000-0000-0000-0000-000000000306"), true), // CPE_SUPPLIER_ACCREDITATION_DOC
+            (Guid.Parse("60000000-0000-0000-0000-000000000305"), Guid.Parse("70000000-0000-0000-0000-000000000307"), true), // BUSINESS_MAYORS_PERMIT
+            (Guid.Parse("60000000-0000-0000-0000-000000000305"), Guid.Parse("70000000-0000-0000-0000-000000000302"), true), // DISTRIBUTORSHIP_AGREEMENT
+            (Guid.Parse("60000000-0000-0000-0000-000000000305"), Guid.Parse("70000000-0000-0000-0000-000000000304"), true), // TWO_TECH_EMPLOYMENT_DOCS
+            (Guid.Parse("60000000-0000-0000-0000-000000000305"), Guid.Parse("70000000-0000-0000-0000-000000000305"), true), // ECE_PECE_EMPLOYMENT_DOCS
 
             // Non-Mobile Phones - MODIFICATION (60000000-0000-0000-0000-000000000306)
-            (Guid.Parse("60000000-0000-0000-0000-000000000306"), Guid.Parse("70000000-0000-0000-0000-000000000306"), true, null), // CPE_SUPPLIER_ACCREDITATION_DOC
-            (Guid.Parse("60000000-0000-0000-0000-000000000306"), Guid.Parse("70000000-0000-0000-0000-000000000308"), true, null),  // TYPE_APPROVAL_NOT_PREVIOUSLY_INDICATED
+            (Guid.Parse("60000000-0000-0000-0000-000000000306"), Guid.Parse("70000000-0000-0000-0000-000000000306"), true), // CPE_SUPPLIER_ACCREDITATION_DOC
+            (Guid.Parse("60000000-0000-0000-0000-000000000306"), Guid.Parse("70000000-0000-0000-0000-000000000308"), true),  // TYPE_APPROVAL_NOT_PREVIOUSLY_INDICATED
 
             // --- REQUESTS AND COMPLAINTS OF CONSUMERS/SUBSCRIBERS (svcReqComp) ---
             // 1. Requests for Blocking of IMEI and SIM of Lost/Stolen Mobile Phone (60000000-0000-0000-0000-000000000401)
-            (Guid.Parse("60000000-0000-0000-0000-000000000401"), Guid.Parse("70000000-0000-0000-0000-000000000401"), true, null), // REQ_PROOF_OF_OWNERSHIP
-            (Guid.Parse("60000000-0000-0000-0000-000000000401"), Guid.Parse("70000000-0000-0000-0000-000000000402"), true, null), // REQ_VALID_ID_STUDENT_PASSPORT
+            (Guid.Parse("60000000-0000-0000-0000-000000000401"), Guid.Parse("70000000-0000-0000-0000-000000000401"), true), // REQ_PROOF_OF_OWNERSHIP
+            (Guid.Parse("60000000-0000-0000-0000-000000000401"), Guid.Parse("70000000-0000-0000-0000-000000000402"), true), // REQ_VALID_ID_STUDENT_PASSPORT
 
             // 2. Requests for Unblocking of IMEI and SIM of Lost/Stolen Mobile Phone (60000000-0000-0000-0000-000000000402)
-            (Guid.Parse("60000000-0000-0000-0000-000000000402"), Guid.Parse("70000000-0000-0000-0000-000000000403"), true, null), // REQ_BLOCKING_FORM_PROOF
-            (Guid.Parse("60000000-0000-0000-0000-000000000402"), Guid.Parse("70000000-0000-0000-0000-000000000404"), true, null), // REQ_VALID_ID_SIMPLE
+            (Guid.Parse("60000000-0000-0000-0000-000000000402"), Guid.Parse("70000000-0000-0000-0000-000000000403"), true), // REQ_BLOCKING_FORM_PROOF
+            (Guid.Parse("60000000-0000-0000-0000-000000000402"), Guid.Parse("70000000-0000-0000-0000-000000000404"), true), // REQ_VALID_ID_SIMPLE
 
             // 3. Complaints on Text Spam, Text Scam, or Illegal/Obscene/Threat/Other Similar Text Messages (60000000-0000-0000-0000-000000000403)
-            (Guid.Parse("60000000-0000-0000-0000-000000000403"), Guid.Parse("70000000-0000-0000-0000-000000000402"), true, null), // REQ_VALID_ID_STUDENT_PASSPORT
-            (Guid.Parse("60000000-0000-0000-0000-000000000403"), Guid.Parse("70000000-0000-0000-0000-000000000405"), true, null), // REQ_SCREENSHOT_TEXT_MSG
-            (Guid.Parse("60000000-0000-0000-0000-000000000403"), Guid.Parse("70000000-0000-0000-0000-000000000406"), false, null), // REQ_NOTARIZED_COMPLAINT (Conditional on admin case)
+            (Guid.Parse("60000000-0000-0000-0000-000000000403"), Guid.Parse("70000000-0000-0000-0000-000000000402"), true), // REQ_VALID_ID_STUDENT_PASSPORT
+            (Guid.Parse("60000000-0000-0000-0000-000000000403"), Guid.Parse("70000000-0000-0000-0000-000000000405"), true), // REQ_SCREENSHOT_TEXT_MSG
+            (Guid.Parse("60000000-0000-0000-0000-000000000403"), Guid.Parse("70000000-0000-0000-0000-000000000406"), false), // REQ_NOTARIZED_COMPLAINT (Conditional on admin case)
 
             // 4. Complaints on Services Offered by Telecommunications or Broadcast Service Providers (60000000-0000-0000-0000-000000000404)
-            (Guid.Parse("60000000-0000-0000-0000-000000000404"), Guid.Parse("70000000-0000-0000-0000-000000000402"), true, null), // REQ_VALID_ID_STUDENT_PASSPORT
-            (Guid.Parse("60000000-0000-0000-0000-000000000404"), Guid.Parse("70000000-0000-0000-0000-000000000407"), true, null), // REQ_TELCO_SERVICE_DOCS
-            (Guid.Parse("60000000-0000-0000-0000-000000000404"), Guid.Parse("70000000-0000-0000-0000-000000000406"), false, null), // REQ_NOTARIZED_COMPLAINT (Conditional on admin case)
+            (Guid.Parse("60000000-0000-0000-0000-000000000404"), Guid.Parse("70000000-0000-0000-0000-000000000402"), true), // REQ_VALID_ID_STUDENT_PASSPORT
+            (Guid.Parse("60000000-0000-0000-0000-000000000404"), Guid.Parse("70000000-0000-0000-0000-000000000407"), true), // REQ_TELCO_SERVICE_DOCS
+            (Guid.Parse("60000000-0000-0000-0000-000000000404"), Guid.Parse("70000000-0000-0000-0000-000000000406"), false), // REQ_NOTARIZED_COMPLAINT (Conditional on admin case)
 
             // 5. Request for Mandatory Tape Preservation (60000000-0000-0000-0000-000000000405)
-            (Guid.Parse("60000000-0000-0000-0000-000000000405"), Guid.Parse("70000000-0000-0000-0000-000000000408"), true, null)  // REQ_LETTER_REQUEST_MANDATORY_TAPE
+            (Guid.Parse("60000000-0000-0000-0000-000000000405"), Guid.Parse("70000000-0000-0000-0000-000000000408"), true)  // REQ_LETTER_REQUEST_MANDATORY_TAPE
         };
     }
 }

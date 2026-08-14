@@ -69,20 +69,12 @@ public class GetApplicantRequirementsQueryHandler
         }
 
         List<ServiceVariantRequirement> rules = new();
-        string? contextKey = null;
 
         if (serviceId.HasValue && serviceId.Value != Guid.Empty)
         {
-            var service = await _serviceRepository.GetByIdAsync(serviceId.Value, cancellationToken);
-            if (service != null && !string.IsNullOrWhiteSpace(service.Contract))
-            {
-                contextKey = ResolveContextKey(service.Contract, app.FormSubmissions, request.ApplicantId);
-            }
-
             rules = await _requirementRepository.GetServiceVariantRequirementsAsync(
                 serviceId.Value,
                 variantId,
-                contextKey,
                 cancellationToken);
         }
 
@@ -136,7 +128,6 @@ public class GetApplicantRequirementsQueryHandler
                 RequirementName = reqName,
                 Description = reqDesc,
                 IsRequired = rule.IsRequired,
-                ContextKey = rule.ContextKey ?? contextKey,
                 SubmittedRequirementId = matchingSub?.Id,
                 StoredFileId = matchingSub?.StoredFileId ?? storedFile?.Id,
                 FileName = fileName,
@@ -171,7 +162,6 @@ public class GetApplicantRequirementsQueryHandler
                 RequirementName = reqMaster?.Name ?? "Additional Document Attachment",
                 Description = reqMaster?.Description,
                 IsRequired = false,
-                ContextKey = null,
                 SubmittedRequirementId = sub.Id,
                 StoredFileId = sub.StoredFileId ?? storedFile?.Id,
                 FileName = fileName,
@@ -186,77 +176,5 @@ public class GetApplicantRequirementsQueryHandler
         return ApiResponse<List<ApplicantRequirementItemDto>>.Success(
             resultList,
             "Applicant service requirements retrieved successfully.");
-    }
-
-    private static string? ResolveContextKey(
-        string contractJson,
-        IEnumerable<FormSubmission> formSubmissions,
-        Guid applicantId)
-    {
-        try
-        {
-            using var doc = JsonDocument.Parse(contractJson);
-            var root = doc.RootElement;
-
-            if (!root.TryGetProperty("requirementDiscriminatorFields", out var discriminatorsProp))
-                return null;
-
-            var discriminatorFields = new List<string>();
-            foreach (var item in discriminatorsProp.EnumerateArray())
-            {
-                var fieldKey = item.GetString();
-                if (!string.IsNullOrWhiteSpace(fieldKey))
-                    discriminatorFields.Add(fieldKey);
-            }
-
-            if (discriminatorFields.Count == 0)
-                return null;
-
-            Dictionary<string, string?> contextGroups = new(StringComparer.OrdinalIgnoreCase);
-            if (root.TryGetProperty("requirementContextGroups", out var groupsProp))
-            {
-                foreach (var group in groupsProp.EnumerateObject())
-                {
-                    contextGroups[group.Name] = group.Value.ValueKind == JsonValueKind.Null
-                        ? null
-                        : group.Value.GetString();
-                }
-            }
-
-            var submission = formSubmissions.FirstOrDefault(fs => fs.ApplicantId == applicantId);
-            if (submission == null)
-                return null;
-
-            var parts = new List<string>();
-            foreach (var fieldLabel in discriminatorFields)
-            {
-                var fieldValue = submission.FieldValues
-                    .FirstOrDefault(fv =>
-                        string.Equals(fv.Field?.Label, fieldLabel, StringComparison.OrdinalIgnoreCase)
-                        || string.Equals(fv.Field?.Label?.Replace(" ", ""), fieldLabel.Replace(" ", ""), StringComparison.OrdinalIgnoreCase));
-
-                if (fieldValue == null || string.IsNullOrWhiteSpace(fieldValue.Value))
-                    return null;
-
-                var rawValue = fieldValue.Value.Trim();
-
-                if (contextGroups.TryGetValue(rawValue, out var normalizedValue))
-                {
-                    if (normalizedValue == null)
-                        return null;
-                    parts.Add(normalizedValue);
-                }
-                else
-                {
-                    parts.Add(rawValue);
-                }
-            }
-
-            return parts.Count > 0 ? string.Join("|", parts) : null;
-        }
-        catch
-        {
-            return null;
-        }
     }
 }

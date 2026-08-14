@@ -32,10 +32,7 @@ interface GeneralBulkApplicationFlowProps {
   setDynamicRequiredFieldIds?: (ids: string[]) => void;
 }
 
-function getApplicantDisplayName(app: GeneralApplicantData, idx: number): string {
-  const name = `${app.firstName || ""} ${app.lastName || ""}`.trim();
-  return name || `Applicant #${idx + 1}`;
-}
+import { getApplicantDisplayName } from "../helpers/applicantDisplayHelper";
 
 // ─── Main Component ────────────────────────────────────────────────────────
 export function GeneralBulkApplicationFlow({
@@ -186,12 +183,18 @@ export function GeneralBulkApplicationFlow({
         </ScrollView>
 
         {/* Navigation */}
-        <View style={{ flexDirection: "row", justifyContent: "flex-end", paddingTop: 12, borderTopWidth: 1, borderColor: "#E2E8F0", marginTop: 8 }}>
+        <View style={{ flexDirection: "row", gap: 10, paddingTop: 12, borderTopWidth: 1, borderColor: "#E2E8F0", marginTop: 8 }}>
+          <TouchableOpacity
+            onPress={onBack}
+            style={{ flex: 1, borderWidth: 1.5, borderColor: "#CBD5E1", backgroundColor: "#F8FAFC", borderRadius: 12, paddingVertical: 12, alignItems: "center" }}
+          >
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: "#0F2C59" }}>← Back to Selection</Text>
+          </TouchableOpacity>
           <TouchableOpacity
             onPress={handleFilingDetailsNext}
             style={{ flex: 1, backgroundColor: "#0F2C59", borderRadius: 12, paddingVertical: 12, alignItems: "center" }}
           >
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: "#FFFFFF" }}>Next</Text>
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: "#FFFFFF" }}>Next →</Text>
           </TouchableOpacity>
         </View>
       </View>

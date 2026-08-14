@@ -51,6 +51,8 @@ export interface GeneralApplicantData {
   birthYear: string;
   notes: string;
   selectedVariantId?: string;
+  selectedElementId?: string;
+  selectedElementTitle?: string;
   uploads: Record<string, { name: string; uri: string } | string>;
   formFieldValues?: Array<{ fieldId: string; fieldLabel: string; value: string }>;
   // Specialized Certificate, License & Permit Models

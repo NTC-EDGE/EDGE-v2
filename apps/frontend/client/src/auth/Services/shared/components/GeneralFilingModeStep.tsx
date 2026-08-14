@@ -32,6 +32,8 @@ interface GeneralFilingModeStepProps {
   variantRequirements?: string[];
   selectedVariantId?: string;
   onSelectVariant?: (variantId: string, variantName: string) => void;
+  selectedElementId?: string;
+  onSelectElement?: (elementId: string, elementTitle: string) => void;
   appMode: "SINGLE" | "BULK" | "";
   onAppModeChange: (mode: "SINGLE" | "BULK") => void;
   bulkMethod?: "MANUAL" | "EXCEL";
@@ -56,6 +58,8 @@ export function GeneralFilingModeStep({
   variantRequirements = [],
   selectedVariantId = "",
   onSelectVariant,
+  selectedElementId = "",
+  onSelectElement,
   appMode,
   onAppModeChange,
   isFileUploaded,
@@ -65,8 +69,10 @@ export function GeneralFilingModeStep({
   onApplicantsImported,
 }: GeneralFilingModeStepProps) {
   const [loading, setLoading] = useState(false);
-  const [selectedClassId, setSelectedClassId] = useState<string>("class-a");
+  const [localSelectedClassId, setLocalSelectedClassId] = useState<string>("");
   const serviceTitle = safeUpper(service?.title || "");
+
+  const selectedClassId = selectedElementId || localSelectedClassId;
 
   const templateConfig = getSpreadsheetTemplateForService(service);
 
@@ -193,21 +199,7 @@ export function GeneralFilingModeStep({
   const isRenewal = safeUpper(activeVariantName).includes("RENEWAL");
   const isModification = safeUpper(activeVariantName).includes("MODIFICATION");
 
-  const displayElements: ServiceVariantElementItem[] =
-    variantElements.length > 0
-      ? variantElements
-      : serviceTitle.includes("EXAM") || serviceTitle.includes("ADMISSION SLIP") || serviceTitle.includes("OPERATOR")
-      ? [
-          { id: "elem-1", code: "ELEMENT 1", description: "Radio Law, Rules and Regulations" },
-          { id: "elem-2", code: "ELEMENT 2", description: "Radio Operator Rules & International Treaties" },
-          { id: "elem-3", code: "ELEMENT 3", description: "Radio Telegraphy & Morse Code Procedures" },
-          { id: "elem-4", code: "ELEMENT 4", description: "Radio Telephony & Operating Procedures" },
-          { id: "elem-8", code: "ELEMENT 8", description: "Commercial Radio Operator Examination Class" },
-          { id: "elem-class-a", code: "CLASS A", description: "Amateur Radio Class A Examination" },
-          { id: "elem-class-b", code: "CLASS B", description: "Amateur Radio Class B Examination" },
-          { id: "elem-class-c", code: "CLASS C", description: "Amateur Radio Class C Examination" },
-        ]
-      : [];
+  const displayElements: ServiceVariantElementItem[] = variantElements;
 
   const classOptions = displayElements.map((elem) => ({
     id: elem.id,
@@ -387,7 +379,10 @@ export function GeneralFilingModeStep({
             return (
               <TouchableOpacity
                 key={opt.id}
-                onPress={() => setSelectedClassId(opt.id)}
+                onPress={() => {
+                  setLocalSelectedClassId(opt.id);
+                  onSelectElement?.(opt.id, opt.title);
+                }}
                 activeOpacity={0.7}
                 style={{
                   flexDirection: "row",

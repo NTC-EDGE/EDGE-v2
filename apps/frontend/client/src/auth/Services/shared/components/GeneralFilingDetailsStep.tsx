@@ -1,52 +1,130 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { View, Text, ActivityIndicator, TouchableOpacity } from "react-native";
 import { COLORS, TYPOGRAPHY, Icon } from "@edge/ui";
 import { NTCService } from "../../data/servicesData";
 import { GeneralApplicantData } from "../hooks/useGeneralServiceWizard";
 
 import { DynamicFormRenderer } from "../../../../shared/components/DynamicFormRenderer";
+import { StructuredNameData } from "../../../../shared/components/ApplicantNameField";
 import { useServiceForm } from "../hooks/useServiceForm";
+import { getApplicantDisplayName } from "../helpers/applicantDisplayHelper";
 
 interface GeneralFilingDetailsStepProps {
   service: NTCService;
   activeApplicant: GeneralApplicantData;
   updateActiveApplicant: (fields: Partial<GeneralApplicantData>) => void;
-  appMode?: "SINGLE" | "BULK" | "";
+  appMode?: "SINGLE" | "BULK";
   applicants?: GeneralApplicantData[];
   currentApplicantIndex?: number;
   setCurrentApplicantIndex?: (idx: number) => void;
-  /** Called once after the form layout resolves with the IDs of required fields (empty for hardcoded forms). */
-  onRequiredFieldsChange?: (requiredFieldIds: string[]) => void;
+  onRequiredFieldsChange?: (fieldIds: string[]) => void;
   errors?: Record<string, string>;
-  variants?: Array<{ id: string; name?: string; title?: string; [key: string]: unknown }>;
+  variants?: Array<{ id: string; type?: string; name?: string; description?: string; [key: string]: unknown }>;
+  variantElements?: Array<{ id: string; code?: string; description?: string; [key: string]: unknown }>;
 }
 
 export function GeneralFilingDetailsStep({
   service,
   activeApplicant,
   updateActiveApplicant,
-  appMode,
+  appMode = "SINGLE",
   applicants = [],
   currentApplicantIndex = 0,
   setCurrentApplicantIndex,
   onRequiredFieldsChange,
   errors = {},
+  variants = [],
+  variantElements = [],
 }: GeneralFilingDetailsStepProps) {
-  const { form, loading } = useServiceForm(service?.id, activeApplicant.selectedVariantId);
+  const { form, loading } = useServiceForm(service.id);
 
-  // Notify parent of required field IDs whenever the dynamic form resolves
-  React.useEffect(() => {
-    if (loading) return;
-    if (form && Array.isArray(form.sections) && form.sections.length > 0) {
+  // Auto-populate variant and element selections established in Step 2 into formFieldValues
+  useEffect(() => {
+    if (!loading && form && form.sections) {
+      const allFields = form.sections.flatMap((s) => s.fields);
+      const currentValues = activeApplicant.formFieldValues || [];
+      const updatedValues = [...currentValues];
+      let hasChanges = false;
+
+      const matchedVariant = variants.find((v) => String(v.id) === String(activeApplicant.selectedVariantId));
+      const matchedElement = variantElements.find(
+        (e) => String(e.id) === String(activeApplicant.selectedElementId)
+      ) || variantElements[0];
+
+      const selectedElementTitle =
+        activeApplicant.selectedElementTitle ||
+        (matchedElement
+          ? matchedElement.code
+            ? `${matchedElement.code} — ${matchedElement.description}`
+            : (matchedElement.description || matchedElement.id)
+          : "");
+
+      allFields.forEach((field) => {
+        const fieldId = field.fieldId || field.id || "";
+        const labelLower = (field.label || "").toLowerCase().trim();
+        const existingVal = updatedValues.find((v) => v.fieldId === fieldId)?.value;
+
+        // Examinee Type prefill
+        if ((labelLower.includes("examinee type") || fieldId === "fd000000-0000-0000-0000-000000000008") && !existingVal) {
+          const examineeTypeVal = matchedVariant?.type || matchedVariant?.description || "FirstTaker";
+          updatedValues.push({ fieldId, fieldLabel: field.label, value: examineeTypeVal });
+          hasChanges = true;
+        }
+
+        // Exam Category prefill
+        if ((labelLower.includes("exam category") || fieldId === "fd000000-0000-0000-0000-000000000007") && !existingVal) {
+          const desc = ((matchedVariant?.description || "") + " " + (service.title || "")).toLowerCase();
+          let categoryVal = "Radiotelegraphy";
+          if (desc.includes("amateur")) categoryVal = "Amateur";
+          else if (desc.includes("radiotelephony") || desc.includes("rtp")) categoryVal = "Radiotelephony";
+          else if (desc.includes("restricted") || desc.includes("rroc")) categoryVal = "Restricted Radiotelephone";
+          updatedValues.push({ fieldId, fieldLabel: field.label, value: categoryVal });
+          hasChanges = true;
+        }
+
+        // Exam Elements & Variant Elements prefill
+        if ((labelLower.includes("element") || fieldId === "fd000000-0000-0000-0000-000000000009") && !existingVal && selectedElementTitle) {
+          updatedValues.push({ fieldId, fieldLabel: field.label, value: selectedElementTitle });
+          hasChanges = true;
+        }
+
+        // Class of Station prefill
+        if ((labelLower.includes("class of station") || fieldId === "fd000000-0000-0000-0000-000000000025") && !existingVal && selectedElementTitle) {
+          updatedValues.push({ fieldId, fieldLabel: field.label, value: selectedElementTitle });
+          hasChanges = true;
+        }
+
+        // Permit / Certificate Type prefill from variant name
+        if ((labelLower.includes("permit / license type") || labelLower.includes("type of certificate")) && !existingVal && matchedVariant) {
+          const vName = matchedVariant.name || matchedVariant.description || "";
+          if (vName) {
+            updatedValues.push({ fieldId, fieldLabel: field.label, value: vName });
+            hasChanges = true;
+          }
+        }
+      });
+
+      if (hasChanges) {
+        updateActiveApplicant({ formFieldValues: updatedValues });
+      }
+    }
+  }, [
+    loading,
+    form,
+    activeApplicant.selectedVariantId,
+    activeApplicant.selectedElementId,
+    activeApplicant.selectedElementTitle,
+    variants,
+    variantElements,
+  ]);
+
+  // Inform parent of mandatory dynamic fields once form is loaded
+  useEffect(() => {
+    if (!loading && form && form.sections) {
       const requiredIds = form.sections
-        .filter((section) => {
-          const key = (section.key || section.id || "").toLowerCase();
-          const title = (section.title || "").toLowerCase();
-          return key !== "payment" && title !== "payment details";
-        })
-        .flatMap((section) => section.fields)
-        .filter((field) => field.isRequired === true)
-        .map((field) => field.fieldId || field.id)
+        .flatMap((s) => s.fields)
+        .filter((f) => f.isRequired)
+        .map((f) => f.id || f.fieldId)
         .filter((id): id is string => id !== undefined && id !== "");
 
       onRequiredFieldsChange?.(requiredIds);
@@ -68,7 +146,7 @@ export function GeneralFilingDetailsStep({
 
   const renderBulkCohortBanner = () => {
     if (appMode !== "BULK" || !applicants || applicants.length === 0) return null;
-    const activeName = [activeApplicant.firstName, activeApplicant.lastName].filter(Boolean).join(" ") || `Applicant #${currentApplicantIndex + 1}`;
+    const activeName = getApplicantDisplayName(activeApplicant, currentApplicantIndex + 1);
     return (
       <View
         style={{
@@ -141,8 +219,63 @@ export function GeneralFilingDetailsStep({
       const currentArr = activeApplicant.formFieldValues || [];
       const filtered = currentArr.filter((item) => item.fieldId !== fieldId);
       const updatedArr = [...filtered, { fieldId, fieldLabel, value }];
-      updateActiveApplicant({ formFieldValues: updatedArr });
+      
+      const partial: Partial<GeneralApplicantData> = { formFieldValues: updatedArr };
+      const normalized = (fieldLabel || "").toLowerCase().trim();
+
+      if (normalized.includes("first name") || normalized === "fname" || normalized === "first") {
+        partial.firstName = value;
+      } else if (normalized.includes("last name") || normalized.includes("surname") || normalized === "lname" || normalized === "last") {
+        partial.lastName = value;
+      } else if (normalized.includes("full name") || normalized.includes("applicant name") || normalized === "name") {
+        const parts = value.trim().split(/\s+/);
+        if (parts.length > 1) {
+          partial.firstName = parts[0];
+          partial.lastName = parts.slice(1).join(" ");
+        } else {
+          partial.firstName = value;
+          partial.lastName = "";
+        }
+      } else if (normalized.includes("company name") || normalized.includes("corporate name") || normalized === "business name") {
+        partial.firstName = value;
+        partial.lastName = "";
+      } else if (normalized.includes("contact number") || normalized.includes("mobile") || normalized.includes("phone")) {
+        partial.contactNo = value;
+      } else if (normalized.includes("email")) {
+        partial.email = value;
+      } else if (normalized.includes("address") || normalized.includes("street")) {
+        partial.address = value;
+      } else if (normalized.includes("birth") || normalized.includes("dob") || normalized.includes("date of birth")) {
+        const dateParts = value.split("-");
+        if (dateParts.length === 3) {
+          partial.birthYear = dateParts[0];
+          partial.birthMonth = dateParts[1];
+          partial.birthDay = dateParts[2];
+        }
+      }
+
+      updateActiveApplicant(partial);
     };
+
+    const handleStructuredNameChange = (data: StructuredNameData) => {
+      if (data.applicantType === "individual") {
+        updateActiveApplicant({
+          firstName: data.firstName,
+          lastName: data.lastName,
+        });
+      } else {
+        updateActiveApplicant({
+          firstName: data.companyName,
+          lastName: data.representativeName || "",
+        });
+      }
+    };
+
+    const isExamService =
+      (service.category || "").toLowerCase().includes("exam") ||
+      (service.title || "").toLowerCase().includes("exam") ||
+      (service.title || "").toLowerCase().includes("admission") ||
+      (service.title || "").toLowerCase().includes("operator");
 
     return (
       <View>
@@ -151,6 +284,10 @@ export function GeneralFilingDetailsStep({
           form={form}
           values={valuesRecord}
           onChange={handleDynamicFieldChange}
+          onStructuredNameChange={handleStructuredNameChange}
+          applicantName={getApplicantDisplayName(activeApplicant)}
+          allowCompany={!isExamService}
+          variantElements={variantElements}
           errors={errors}
         />
       </View>

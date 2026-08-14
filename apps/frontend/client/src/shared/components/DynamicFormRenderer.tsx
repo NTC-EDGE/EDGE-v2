@@ -4,6 +4,9 @@ import { ValidatedInput } from "./ValidatedInput";
 import { DatePickerInput } from "./DatePickerInput";
 import { Select } from "./Select";
 import { FormGrid, FormCol } from "./FormGrid";
+import { ApplicantNameField, StructuredNameData } from "./ApplicantNameField";
+import { FormSignatureInput } from "./FormSignatureInput";
+import { DeclarationCheckbox } from "./DeclarationCheckbox";
 import { TYPOGRAPHY, COLORS } from "../theme/tokens";
 
 export interface FieldDto {
@@ -37,6 +40,10 @@ interface DynamicFormRendererProps {
   form: FormDto;
   values: Record<string, string>; // fieldId -> value
   onChange: (fieldId: string, label: string, value: string) => void;
+  onStructuredNameChange?: (data: StructuredNameData) => void;
+  applicantName?: string;
+  allowCompany?: boolean;
+  variantElements?: Array<{ id: string; code?: string; description?: string; [key: string]: unknown }>;
   errors?: Record<string, string>;
   hideSections?: string[];
 }
@@ -69,6 +76,10 @@ export function DynamicFormRenderer({
   form,
   values,
   onChange,
+  onStructuredNameChange,
+  applicantName = "",
+  allowCompany = true,
+  variantElements = [],
   errors = {},
   hideSections = ["payment"],
 }: DynamicFormRendererProps) {
@@ -108,34 +119,105 @@ export function DynamicFormRenderer({
                 const val = values[targetId] || "";
                 const err = errors[targetId];
                 const rawType = (field.fieldType || field.type || "").toLowerCase();
-                const isDropdown = rawType === "dropdown" || rawType === "select";
+                const labelLower = (field.label || "").toLowerCase().trim();
+
+                const isNameField =
+                  labelLower.includes("full name") ||
+                  labelLower.includes("applicant name") ||
+                  labelLower.includes("name of applicant") ||
+                  labelLower === "name" ||
+                  labelLower === "applicant";
+
+                const isSignature =
+                  rawType === "signature" ||
+                  labelLower.includes("signature");
+
+                const isCheckbox =
+                  rawType === "checkbox" ||
+                  labelLower.includes("declare") ||
+                  labelLower.includes("certify") ||
+                  labelLower.includes("agreement") ||
+                  labelLower.includes("declaration");
+
+                const isElementsField =
+                  labelLower.includes("element") ||
+                  targetId === "fd000000-0000-0000-0000-000000000009";
+
+                const elementOptions: Array<{ label: string; value: string }> =
+                  variantElements && variantElements.length > 0
+                    ? variantElements.map((e) => {
+                        const title = e.code ? `${e.code} — ${e.description}` : String(e.description || e.id);
+                        return { label: title, value: title };
+                      })
+                    : [];
+
+                const isDropdown =
+                  rawType === "dropdown" ||
+                  rawType === "select" ||
+                  (isElementsField && elementOptions.length > 0);
+
+                const dropdownOptions =
+                  isElementsField && elementOptions.length > 0
+                    ? elementOptions
+                    : parseOptions(field);
+
                 const isDate = rawType === "date";
                 const isNumber = rawType === "number";
                 const isFile = rawType === "file";
-                const isSignature = rawType === "signature";
 
-                const span = isFile || isSignature ? 12 : 6;
+                const span = isNameField || isSignature || isCheckbox || isFile ? 12 : 6;
 
                 return (
                   <FormCol key={targetId} span={span} compact={field.isCompact}>
-                    {isDropdown ? (
+                    {isNameField ? (
+                      <ApplicantNameField
+                        label={field.label}
+                        isRequired={field.isRequired}
+                        value={val}
+                        allowCompany={allowCompany}
+                        onChange={(combinedName) => onChange(targetId, field.label, combinedName)}
+                        onStructuredChange={onStructuredNameChange}
+                        error={err}
+                      />
+                    ) : isSignature ? (
+                      <FormSignatureInput
+                        label={field.label}
+                        isRequired={field.isRequired}
+                        value={val}
+                        onChange={(sigData) => onChange(targetId, field.label, sigData)}
+                        applicantName={applicantName || val}
+                        error={err}
+                      />
+                    ) : isCheckbox ? (
+                      <DeclarationCheckbox
+                        label={field.label}
+                        isRequired={field.isRequired}
+                        value={val}
+                        onChange={(chkVal) => onChange(targetId, field.label, chkVal)}
+                        error={err}
+                      />
+                    ) : isDropdown ? (
                       <Select
-                        label={`${field.label}${field.isRequired ? " *" : ""}`}
+                        label={field.label}
+                        required={field.isRequired}
                         value={val}
                         onValueChange={(v) => onChange(targetId, field.label, v)}
-                        options={parseOptions(field)}
+                        options={dropdownOptions}
+                        placeholder={isElementsField ? "Select Exam Element..." : (field.placeholder || "Select an option...")}
                         error={err}
                       />
                     ) : isDate ? (
                       <DatePickerInput
-                        label={`${field.label}${field.isRequired ? " *" : ""}`}
+                        label={field.label}
+                        required={field.isRequired}
                         value={val}
                         onChangeText={(v: string) => onChange(targetId, field.label, v)}
                         error={err}
                       />
                     ) : (
                       <ValidatedInput
-                        label={`${field.label}${field.isRequired ? " *" : ""}`}
+                        label={field.label}
+                        required={field.isRequired}
                         value={val}
                         onChangeText={(v) => onChange(targetId, field.label, v)}
                         placeholder={field.placeholder || `Enter ${field.label}...`}

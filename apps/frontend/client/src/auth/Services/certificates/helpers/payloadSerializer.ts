@@ -178,29 +178,51 @@ export function serializeCertificateApplicant(
 
   // If the applicant has dynamic form field values, rely on them fully and bypass legacy hardcoded serialization
   if (app.formFieldValues && app.formFieldValues.length > 0) {
-    const fullNameField = app.formFieldValues.find(
-      (fv) => fv.fieldId === "fd000000-0000-0000-0000-000000000001"
-    )?.value || "";
-    const addressField = app.formFieldValues.find(
-      (fv) => fv.fieldId === "fd000000-0000-0000-0000-000000000003"
-    )?.value || "";
-    const contactNoField = app.formFieldValues.find(
-      (fv) => fv.fieldId === "fd000000-0000-0000-0000-000000000004"
-    )?.value || "";
-    const emailField = app.formFieldValues.find(
-      (fv) => fv.fieldId === "fd000000-0000-0000-0000-000000000005"
-    )?.value || "";
+    const fnFromFields = app.formFieldValues.find(fv => {
+      const l = (fv.fieldLabel || "").toLowerCase();
+      return l.includes("first name") || l === "fname";
+    })?.value?.trim();
 
-    const fullName = fullNameField.trim() || `${app.firstName} ${app.lastName}`.trim() || "Applicant";
-    const firstName = fullName.split(" ")[0] || "Applicant";
-    const lastName = fullName.split(" ").slice(1).join(" ") || "Detail";
+    const lnFromFields = app.formFieldValues.find(fv => {
+      const l = (fv.fieldLabel || "").toLowerCase();
+      return l.includes("last name") || l.includes("surname") || l === "lname";
+    })?.value?.trim();
+
+    const fullNameField = app.formFieldValues.find(fv => {
+      const l = (fv.fieldLabel || "").toLowerCase();
+      return l.includes("full name") || l.includes("applicant name") || l === "name" || l.includes("company name");
+    })?.value?.trim() || "";
+
+    const addressField = app.formFieldValues.find(fv => {
+      const l = (fv.fieldLabel || "").toLowerCase();
+      return l.includes("address") || l.includes("street");
+    })?.value?.trim() || "";
+
+    const contactNoField = app.formFieldValues.find(fv => {
+      const l = (fv.fieldLabel || "").toLowerCase();
+      return l.includes("contact number") || l.includes("mobile") || l.includes("phone");
+    })?.value?.trim() || "";
+
+    const emailField = app.formFieldValues.find(fv => {
+      const l = (fv.fieldLabel || "").toLowerCase();
+      return l.includes("email");
+    })?.value?.trim() || "";
+
+    let finalFirstName = app.firstName?.trim() || fnFromFields || "";
+    let finalLastName = app.lastName?.trim() || lnFromFields || "";
+
+    if (!finalFirstName && fullNameField) {
+      const parts = fullNameField.split(/\s+/);
+      finalFirstName = parts[0] || "Applicant";
+      finalLastName = parts.slice(1).join(" ") || "Detail";
+    }
 
     return {
-      firstName,
-      lastName,
-      email: emailField.trim() || app.email || "applicant@example.com",
-      contactNumber: contactNoField.trim() || app.contactNo || "",
-      address: addressField.trim() || app.address || "N/A",
+      firstName: finalFirstName || "Applicant",
+      lastName: finalLastName || "Detail",
+      email: emailField || app.email || "applicant@example.com",
+      contactNumber: contactNoField || app.contactNo || "",
+      address: addressField || app.address || "N/A",
       birthDate,
       formFieldValues: app.formFieldValues.map(fv => ({
         fieldId: fv.fieldId,

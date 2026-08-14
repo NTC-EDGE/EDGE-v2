@@ -9,7 +9,6 @@ public class ApplicantRequirementItemDto
     public string RequirementName { get; set; } = string.Empty;
     public string? Description { get; set; }
     public bool IsRequired { get; set; }
-    public string? ContextKey { get; set; }
 
     public Guid? SubmittedRequirementId { get; set; }
     public Guid? StoredFileId { get; set; }

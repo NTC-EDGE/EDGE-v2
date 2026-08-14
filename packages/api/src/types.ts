@@ -561,7 +561,6 @@ export interface ServiceVariantRequirement {
   serviceVariantType?: string;
   serviceName?: string;
   serviceCode?: string;
-  contextKey?: string | null;
   isRequired: boolean;
 }
 
@@ -571,7 +570,6 @@ export interface ApplicantRequirementItemDto {
   requirementName: string;
   description?: string | null;
   isRequired: boolean;
-  contextKey?: string | null;
   submittedRequirementId?: string | null;
   storedFileId?: string | null;
   fileName?: string | null;

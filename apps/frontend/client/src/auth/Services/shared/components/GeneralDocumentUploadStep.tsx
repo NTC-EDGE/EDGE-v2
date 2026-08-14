@@ -3,6 +3,7 @@ import { View, Text } from "react-native";
 import { TYPOGRAPHY, COLORS, Icon } from "@edge/ui";
 import { NTCService } from "../../data/servicesData";
 import { GeneralApplicantData } from "../hooks/useGeneralServiceWizard";
+import { getApplicantDisplayName } from "../helpers/applicantDisplayHelper";
 import { SharedDocumentUpload } from "../../../../shared/components/SharedDocumentUpload";
 
 import { TouchableOpacity } from "react-native";
@@ -91,7 +92,7 @@ export function GeneralDocumentUploadStep({
                 BULK FILING COHORT — Document Uploads for Applicant {currentApplicantIndex + 1} of {applicants.length}
               </Text>
               <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, color: "#2563EB", marginTop: 1 }} numberOfLines={1}>
-                Uploading for: {[activeApplicant.firstName, activeApplicant.lastName].filter(Boolean).join(" ") || `Applicant #${currentApplicantIndex + 1}`}
+                Uploading for: {getApplicantDisplayName(activeApplicant, currentApplicantIndex + 1)}
               </Text>
             </View>
           </View>

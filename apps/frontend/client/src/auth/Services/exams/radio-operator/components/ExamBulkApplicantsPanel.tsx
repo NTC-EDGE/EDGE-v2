@@ -155,24 +155,27 @@ export function ExamBulkApplicantsPanel({
         )}
       </ScrollView>
 
-      {/* Bottom Cancel Button */}
-      <View style={styles.footer}>
+      {/* Bottom Actions Footer */}
+      <View style={styles.footerRow}>
         <TouchableOpacity
-          onPress={onCancel}
-          style={[
-            styles.submitBtn,
-            { backgroundColor: COLORS.semantic.error },
-          ]}
+          onPress={() => setStep(2)}
+          style={styles.backBtn}
+          activeOpacity={0.8}
         >
-          <Text
-            style={[
-              styles.submitBtnText,
-              { color: COLORS.neutral.white },
-            ]}
-          >
-            Cancel Application
-          </Text>
+          <Icon name="arrow-left" size={15} color="#0F2C59" style={{ marginRight: 6 }} />
+          <Text style={styles.backBtnText}>Back to Selection</Text>
         </TouchableOpacity>
+
+        {onAddApplicant && (
+          <TouchableOpacity
+            onPress={onAddApplicant}
+            style={styles.addBtn}
+            activeOpacity={0.8}
+          >
+            <Icon name="plus" size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
+            <Text style={styles.addBtnText}>Add Applicant</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <ExamDeleteApplicantModal

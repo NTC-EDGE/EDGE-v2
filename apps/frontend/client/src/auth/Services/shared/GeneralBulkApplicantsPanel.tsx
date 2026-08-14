@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { Icon, COLORS, TYPOGRAPHY } from "@edge/ui";
 import { GeneralApplicantData } from "./hooks/useGeneralServiceWizard";
+import { getApplicantDisplayName } from "./helpers/applicantDisplayHelper";
 import { NTCService } from "../data/servicesData";
 import { styles } from "./GeneralBulkApplicantsPanel.styles";
 import { GeneralDeleteApplicantModal } from "./components/GeneralDeleteApplicantModal";
@@ -72,6 +73,7 @@ export function GeneralBulkApplicantsPanel({
   applicants,
   currentApplicantIndex,
   onSelectApplicant,
+  setStep,
   onCancel,
   onRemoveApplicant,
   onAddApplicant,
@@ -267,7 +269,7 @@ export function GeneralBulkApplicantsPanel({
         {filteredApplicants.map(({ app, originalIdx }) => {
           const isSelected = originalIdx === currentApplicantIndex;
           const isComplete = isGeneralApplicantComplete(app, service, variantRequirements);
-          const fullName = `${app.firstName} ${app.lastName}`.trim() || `Applicant #${originalIdx + 1}`;
+          const fullName = getApplicantDisplayName(app, originalIdx + 1);
 
           return (
             <TouchableOpacity
@@ -308,20 +310,23 @@ export function GeneralBulkApplicantsPanel({
       </ScrollView>
 
       {/* Actions footer */}
-      <View style={styles.footer}>
+      <View style={styles.footerRow}>
         <TouchableOpacity
-          onPress={onAddApplicant}
-          style={styles.addBtn}
+          onPress={() => setStep(2)}
+          style={styles.backBtn}
+          activeOpacity={0.8}
         >
-          <Icon name="plus" size={16} color={COLORS.brand[700]} style={{ marginRight: 6 }} />
-          <Text style={styles.addBtnText}>Add Applicant</Text>
+          <Icon name="arrow-left" size={15} color="#0F2C59" style={{ marginRight: 6 }} />
+          <Text style={styles.backBtnText}>Back to Selection</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          onPress={onCancel}
-          style={[styles.submitBtn, { backgroundColor: COLORS.semantic.error }]}
+          onPress={onAddApplicant}
+          style={styles.addBtn}
+          activeOpacity={0.8}
         >
-          <Text style={styles.submitBtnText}>Cancel Application</Text>
+          <Icon name="plus" size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
+          <Text style={styles.addBtnText}>Add Applicant</Text>
         </TouchableOpacity>
       </View>
 

@@ -36,6 +36,52 @@ public class DatabaseInitializerHostedService : IHostedService
                 _logger.LogInformation("Public schema dropped and recreated successfully.");
             }
 
+            // Guard: if tables were already created outside of EF migrations (e.g. via schema dump),
+            // ensure __EFMigrationsHistory exists and has the InitialCreate entry recorded so that
+            // MigrateAsync does not attempt to re-create existing tables (which causes 42P07).
+            // Also backfill any columns added to the migration that may be missing from an older schema.
+            await context.Database.ExecuteSqlRawAsync("""
+                CREATE TABLE IF NOT EXISTS "__EFMigrationsHistory" (
+                    "MigrationId" character varying(150) NOT NULL,
+                    "ProductVersion" character varying(32) NOT NULL,
+                    CONSTRAINT "PK___EFMigrationsHistory" PRIMARY KEY ("MigrationId")
+                );
+
+                INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+                SELECT '20260813070918_InitialCreate', '9.0.0'
+                WHERE EXISTS (
+                    SELECT 1 FROM information_schema.tables
+                    WHERE table_schema = 'public' AND table_name = 'ActivityLogs'
+                )
+                AND NOT EXISTS (
+                    SELECT 1 FROM "__EFMigrationsHistory"
+                    WHERE "MigrationId" = '20260813070918_InitialCreate'
+                );
+
+                -- Backfill columns that exist in the current migration but may be missing from older DB schemas
+                DO $$ BEGIN
+                    IF EXISTS (
+                        SELECT 1 FROM information_schema.tables
+                        WHERE table_schema = 'public' AND table_name = 'Applicants'
+                    ) THEN
+                        ALTER TABLE "Applicants"
+                            ADD COLUMN IF NOT EXISTS "ServiceId" uuid NULL;
+
+                        CREATE INDEX IF NOT EXISTS "IX_Applicants_ServiceId" ON "Applicants" ("ServiceId");
+
+                        IF NOT EXISTS (
+                            SELECT 1 FROM information_schema.table_constraints
+                            WHERE constraint_name = 'FK_Applicants_Services_ServiceId'
+                            AND table_name = 'Applicants'
+                        ) THEN
+                            ALTER TABLE "Applicants"
+                            ADD CONSTRAINT "FK_Applicants_Services_ServiceId"
+                            FOREIGN KEY ("ServiceId") REFERENCES "Services" ("Id");
+                        END IF;
+                    END IF;
+                END $$;
+                """, cancellationToken);
+
             _logger.LogInformation("Applying database migrations...");
             await context.Database.MigrateAsync(cancellationToken);
             _logger.LogInformation("Database migrations applied successfully.");

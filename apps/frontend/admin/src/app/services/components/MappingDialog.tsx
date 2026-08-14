@@ -13,7 +13,6 @@ interface MappingDialogProps {
     serviceId: string;
     variantId: string;
     requirementId: string;
-    contextKey: string | null;
     isRequired: boolean;
   }) => Promise<void>;
   editingMapping: ServiceVariantRequirement | null;
@@ -44,7 +43,6 @@ export function MappingDialog({
   const [dialogServiceId, setDialogServiceId] = useState("");
   const [dialogVariantId, setDialogVariantId] = useState("");
   const [selectedRequirementId, setSelectedRequirementId] = useState("");
-  const [contextKey, setContextKey] = useState("");
   const [isRequired, setIsRequired] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -75,13 +73,11 @@ export function MappingDialog({
         setDialogServiceId(resolvedServiceId);
         setDialogVariantId(editingMapping.serviceVariantId ?? "");
         setSelectedRequirementId(editingMapping.requirementId ?? "");
-        setContextKey(editingMapping.contextKey ?? "");
         setIsRequired(editingMapping.isRequired);
       } else if (activeTab === "service-requirements") {
         setDialogServiceId(mappingServiceId);
         setDialogVariantId(mappingVariantId);
         setSelectedRequirementId("");
-        setContextKey("");
         setIsRequired(true);
       } else {
         // Flat mapping mode
@@ -90,7 +86,6 @@ export function MappingDialog({
         const matchingVars = allVariants.filter((v) => v.serviceId === initialSvcId);
         setDialogVariantId(matchingVars.length > 0 ? matchingVars[0].id : "");
         setSelectedRequirementId("");
-        setContextKey("");
         setIsRequired(true);
       }
     }
@@ -125,11 +120,11 @@ export function MappingDialog({
         serviceId: sId,
         variantId: vId,
         requirementId: rId,
-        contextKey: contextKey.trim() ? contextKey.trim() : null,
         isRequired,
       });
-    } catch (err: any) {
-      setError(err?.message || "Failed to save mapping configuration.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to save mapping configuration.";
+      setError(message);
     }
   };
 
@@ -252,17 +247,6 @@ export function MappingDialog({
                 ))}
               </select>
             )}
-          </div>
-
-          <div>
-            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 block mb-1.5">Context Key (Applicant Type Key)</label>
-            <input
-              type="text"
-              placeholder="e.g. NEW, RENEW (leave blank for Any)"
-              value={contextKey}
-              onChange={(e) => setContextKey(e.target.value)}
-              className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all font-mono uppercase"
-            />
           </div>
 
           <label className="flex items-center gap-2.5 text-xs text-slate-700 dark:text-slate-300 font-semibold cursor-pointer py-1.5 select-none hover:text-slate-900 dark:hover:text-white transition-colors">
