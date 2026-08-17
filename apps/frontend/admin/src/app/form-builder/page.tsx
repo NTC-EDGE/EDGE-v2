@@ -11,15 +11,20 @@ import {
   ClipboardList,
   Sparkles,
   Layers,
+  Building2,
 } from "lucide-react";
 import { FormSchema, FormField, FieldType } from "@/components/form-builder/types";
 import {
-  loadForms,
+  useLocalForms,
   saveFormSchema,
   deleteFormSchema,
   createDefaultField,
   generateId,
+  convertBackendFormToSchema,
+  convertSchemaToBackendSections,
 } from "@/components/form-builder/utils";
+import { useFormBuilderService } from "@/services/formBuilderService";
+import { useCatalogService, ServiceCategory, ServiceItem } from "@/services/catalogService";
 import { FieldPalette } from "@/components/form-builder/FieldPalette";
 import { FieldEditor } from "@/components/form-builder/FieldEditor";
 import { FormCanvas } from "@/components/form-builder/FormCanvas";
@@ -27,38 +32,205 @@ import { FormPreviewModal } from "@/components/form-builder/FormPreviewModal";
 import { FormsList } from "@/components/form-builder/FormsList";
 import { CreateFormDialog } from "@/components/form-builder/CreateFormDialog";
 import { ConfirmActionDialog } from "@/components/ui/confirm-action-dialog";
-import { ToastNotification, ToastMessage } from "@/components/ui/toast-notification";
+import { UnsavedChangesDialog } from "@/components/form-builder/UnsavedChangesDialog";
+import { ToastNotification, ToastMessage, getErrorMessage } from "@/components/ui/toast-notification";
 
 type View = "list" | "builder";
 
 function FormBuilderContent() {
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategoryId, setSelectedCategoryId] = useState("");
+  const [selectedServiceId, setSelectedServiceId] = useState("");
+
+  const {
+    useForms,
+    getFormById,
+    createForm,
+    updateForm,
+    deleteForm,
+    duplicateForm,
+  } = useFormBuilderService();
+  const { data: apiResponse, mutate } = useForms(
+    currentPage,
+    pageSize,
+    searchTerm,
+    selectedServiceId || undefined
+  );
+
+  const { useServiceCategories, useServices } = useCatalogService();
+  const { data: categoriesResponse } = useServiceCategories();
+  const { data: servicesResponse } = useServices(undefined, 1, 200);
+
+  const categories: ServiceCategory[] = React.useMemo(() => {
+    if (!categoriesResponse) return [];
+    return Array.isArray(categoriesResponse)
+      ? categoriesResponse
+      : categoriesResponse.data && Array.isArray(categoriesResponse.data)
+      ? categoriesResponse.data
+      : [];
+  }, [categoriesResponse]);
+
+  const services: ServiceItem[] = React.useMemo(() => {
+    if (!servicesResponse) return [];
+    return Array.isArray(servicesResponse)
+      ? servicesResponse
+      : servicesResponse.data && Array.isArray(servicesResponse.data)
+      ? servicesResponse.data
+      : [];
+  }, [servicesResponse]);
+
   const [view, setView] = useState<View>("list");
-  const [forms, setForms] = useState<FormSchema[]>(() => loadForms());
+  const localForms = useLocalForms();
   const [activeForm, setActiveForm] = useState<FormSchema | null>(null);
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [previewForm, setPreviewForm] = useState<FormSchema | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<FormSchema | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [toast, setToast] = useState<ToastMessage | null>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isDirty, setIsDirty] = useState(false);
+  const [isUnsavedDialogOpen, setIsUnsavedDialogOpen] = useState(false);
+  const originalFormRef = useRef<string | null>(null);
 
-  // Auto-save with debounce
-  const scheduleAutoSave = useCallback((form: FormSchema) => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
+  // Warn on browser tab / window navigation if unsaved changes exist
+  React.useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (view === "builder" && isDirty) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [view, isDirty]);
+
+  // Parse backend and seeded forms
+  const backendForms: FormSchema[] = React.useMemo(() => {
+    if (!apiResponse) return [];
+    const rawList = Array.isArray(apiResponse)
+      ? apiResponse
+      : apiResponse.data && Array.isArray(apiResponse.data)
+      ? apiResponse.data
+      : [];
+    return rawList.map((f: unknown) => convertBackendFormToSchema(f as Parameters<typeof convertBackendFormToSchema>[0]));
+  }, [apiResponse]);
+
+  // Forms list reflecting backend API response
+  const forms = React.useMemo(() => {
+    if (apiResponse && apiResponse.succeeded !== false) {
+      return backendForms;
+    }
+    // Offline / fallback when backend is unavailable
+    return localForms;
+  }, [apiResponse, backendForms, localForms]);
+
+  // Backend persistence called ONLY on explicit Save
+  const persistFormToBackend = useCallback(
+    async (
+      formToSave: FormSchema
+    ): Promise<{ success: boolean; message: string; form: FormSchema }> => {
       setIsSaving(true);
       try {
-        saveFormSchema(form);
-        setForms(loadForms());
+        // Save locally first for instant resiliency
+        saveFormSchema(formToSave);
+
+        let current = formToSave;
+
+        // If form has a serviceId, synchronize to backend API
+        if (formToSave.serviceId) {
+          const sections = convertSchemaToBackendSections(formToSave.fields);
+
+          try {
+            const updateRes = await updateForm(formToSave.id, {
+              id: formToSave.id,
+              serviceId: formToSave.serviceId,
+              version: "1.0",
+              categorySelectionRequired: false,
+              sections,
+            });
+
+            if (updateRes && updateRes.succeeded) {
+              await mutate();
+              return {
+                success: true,
+                message: updateRes.message || "Form template updated successfully.",
+                form: current,
+              };
+            } else if (updateRes && !updateRes.succeeded) {
+              return {
+                success: false,
+                message: updateRes.message || "Failed to update form template.",
+                form: current,
+              };
+            }
+          } catch (updateErr: unknown) {
+            const status = (updateErr as { response?: { status?: number } })?.response?.status;
+            // If 404 (client-generated UUID not yet created on backend), create on backend
+            if (status === 404) {
+              try {
+                const createRes = await createForm({
+                  serviceId: formToSave.serviceId,
+                  version: "1.0",
+                  categorySelectionRequired: false,
+                  sections,
+                });
+
+                if (createRes && createRes.formId) {
+                  const updatedWithNewId: FormSchema = {
+                    ...formToSave,
+                    id: createRes.formId,
+                  };
+                  saveFormSchema(updatedWithNewId);
+                  setActiveForm(updatedWithNewId);
+                  current = updatedWithNewId;
+                  await mutate();
+                  return {
+                    success: true,
+                    message: "Form template created and saved successfully.",
+                    form: current,
+                  };
+                }
+              } catch (createErr: unknown) {
+                const errMsg = getErrorMessage(createErr, "Failed to create form on backend.");
+                return {
+                  success: false,
+                  message: errMsg,
+                  form: current,
+                };
+              }
+            } else {
+              const errMsg = getErrorMessage(updateErr, "Failed to update form on backend.");
+              return {
+                success: false,
+                message: errMsg,
+                form: current,
+              };
+            }
+          }
+        }
+
+        return {
+          success: true,
+          message: "Form saved successfully.",
+          form: current,
+        };
+      } catch (err: unknown) {
+        const errMsg = getErrorMessage(err, "An error occurred while saving the form.");
+        return {
+          success: false,
+          message: errMsg,
+          form: formToSave,
+        };
       } finally {
         setIsSaving(false);
       }
-    }, 800);
-  }, []);
+    },
+    [updateForm, createForm, mutate]
+  );
 
-  // --- Builder actions ---
+  // --- Builder actions (no auto-save; marks form as dirty) ---
 
   const handleUpdateForm = useCallback(
     (updates: Partial<FormSchema>) => {
@@ -69,9 +241,9 @@ function FormBuilderContent() {
         updatedAt: new Date().toISOString(),
       };
       setActiveForm(updated);
-      scheduleAutoSave(updated);
+      setIsDirty(true);
     },
-    [activeForm, scheduleAutoSave]
+    [activeForm]
   );
 
   const handleAddField = useCallback(
@@ -91,9 +263,9 @@ function FormBuilderContent() {
       };
       setActiveForm(updated);
       setSelectedFieldId(newField.id);
-      scheduleAutoSave(updated);
+      setIsDirty(true);
     },
-    [activeForm, scheduleAutoSave]
+    [activeForm]
   );
 
   const handleReorderFields = useCallback(
@@ -110,9 +282,9 @@ function FormBuilderContent() {
         updatedAt: new Date().toISOString(),
       };
       setActiveForm(updated);
-      scheduleAutoSave(updated);
+      setIsDirty(true);
     },
-    [activeForm, scheduleAutoSave]
+    [activeForm]
   );
 
   const handleDuplicateField = useCallback(
@@ -130,9 +302,9 @@ function FormBuilderContent() {
         updatedAt: new Date().toISOString(),
       };
       setActiveForm(updated);
-      scheduleAutoSave(updated);
+      setIsDirty(true);
     },
-    [activeForm, scheduleAutoSave]
+    [activeForm]
   );
 
   const handleDeleteField = useCallback(
@@ -146,9 +318,9 @@ function FormBuilderContent() {
         updatedAt: new Date().toISOString(),
       };
       setActiveForm(updated);
-      scheduleAutoSave(updated);
+      setIsDirty(true);
     },
-    [activeForm, selectedFieldId, scheduleAutoSave]
+    [activeForm, selectedFieldId]
   );
 
   const handleUpdateField = useCallback(
@@ -163,67 +335,137 @@ function FormBuilderContent() {
         updatedAt: new Date().toISOString(),
       };
       setActiveForm(updated);
-      scheduleAutoSave(updated);
+      setIsDirty(true);
     },
-    [activeForm, selectedFieldId, scheduleAutoSave]
+    [activeForm, selectedFieldId]
   );
 
-  const handleManualSave = () => {
+  const handleManualSave = async () => {
     if (!activeForm) return;
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    setIsSaving(true);
-    try {
-      saveFormSchema(activeForm);
-      setForms(loadForms());
-      setToast({ message: "Form saved successfully.", type: "success" });
-    } finally {
-      setIsSaving(false);
+    const result = await persistFormToBackend(activeForm);
+    if (result.success) {
+      originalFormRef.current = JSON.stringify(result.form);
+      setIsDirty(false);
+      setToast({
+        message: result.message || "Form template saved to backend successfully.",
+        type: "success",
+      });
+    } else {
+      setToast({
+        message: result.message || "Failed to save form to backend.",
+        type: "error",
+      });
     }
   };
 
-  const handleTogglePublish = () => {
+  const handleTogglePublish = async () => {
     if (!activeForm) return;
+    const targetState = !activeForm.isPublished;
     const updated: FormSchema = {
       ...activeForm,
-      isPublished: !activeForm.isPublished,
+      isPublished: targetState,
       updatedAt: new Date().toISOString(),
     };
     setActiveForm(updated);
-    saveFormSchema(updated);
-    setForms(loadForms());
-    setToast({
-      message: updated.isPublished ? "Form published successfully." : "Form unpublished.",
-      type: "success",
-    });
+    const result = await persistFormToBackend(updated);
+    if (result.success) {
+      originalFormRef.current = JSON.stringify(result.form);
+      setIsDirty(false);
+      setToast({
+        message: targetState
+          ? "Form published successfully."
+          : "Form unpublished.",
+        type: "success",
+      });
+    } else {
+      setActiveForm((prev) =>
+        prev ? { ...prev, isPublished: !targetState } : prev
+      );
+      setToast({
+        message: `Failed to update publication status: ${result.message}`,
+        type: "error",
+      });
+    }
   };
 
   // --- List actions ---
 
-  const handleOpenEditor = (form: FormSchema) => {
+  const handleOpenEditor = async (form: FormSchema) => {
     setActiveForm(form);
     setSelectedFieldId(null);
+    setIsDirty(false);
+    originalFormRef.current = JSON.stringify(form);
     setView("builder");
+
+    if (form.id) {
+      try {
+        const res = await getFormById(form.id).catch(() => null);
+        if (res && res.succeeded && res.data) {
+          const freshSchema = convertBackendFormToSchema(res.data);
+          const combined: FormSchema = {
+            ...freshSchema,
+            name: form.name || freshSchema.name,
+            description: form.description || freshSchema.description,
+            serviceName: form.serviceName || freshSchema.serviceName,
+            serviceCode: form.serviceCode || freshSchema.serviceCode,
+          };
+          setActiveForm((prev) => (prev && prev.id === form.id ? combined : prev));
+          originalFormRef.current = JSON.stringify(combined);
+          setIsDirty(false);
+        }
+      } catch {
+        // Graceful fallback to initial form schema
+      }
+    }
   };
 
-  const handleCreateNew = (name: string, description: string) => {
+  const handleOpenPreview = async (form: FormSchema) => {
+    setPreviewForm(form);
+
+    if (form.id) {
+      try {
+        const res = await getFormById(form.id).catch(() => null);
+        if (res && res.succeeded && res.data) {
+          const freshSchema = convertBackendFormToSchema(res.data);
+          setPreviewForm({
+            ...freshSchema,
+            name: form.name || freshSchema.name,
+            description: form.description || freshSchema.description,
+            serviceName: form.serviceName || freshSchema.serviceName,
+            serviceCode: form.serviceCode || freshSchema.serviceCode,
+          });
+        }
+      } catch {
+        // Fallback to active preview
+      }
+    }
+  };
+
+  const handleCreateNew = (
+    name: string,
+    description: string,
+    serviceId?: string,
+    serviceName?: string
+  ) => {
     const now = new Date().toISOString();
     const newForm: FormSchema = {
       id: generateId(),
       name,
       description,
+      serviceId,
+      serviceName,
       fields: [],
       createdAt: now,
       updatedAt: now,
       isPublished: false,
     };
     saveFormSchema(newForm);
-    setForms(loadForms());
     setIsCreateDialogOpen(false);
     handleOpenEditor(newForm);
     setToast({ message: "Form created. Start adding fields!", type: "success" });
   };
 
-  const handleDuplicateForm = (form: FormSchema) => {
+  const handleDuplicateForm = async (form: FormSchema) => {
     const now = new Date().toISOString();
     const duplicate: FormSchema = {
       ...form,
@@ -234,31 +476,76 @@ function FormBuilderContent() {
       updatedAt: now,
     };
     saveFormSchema(duplicate);
-    setForms(loadForms());
+    if (form.serviceId) {
+      await duplicateForm(form.id).catch(() => null);
+      await mutate();
+    }
     setToast({ message: "Form duplicated.", type: "success" });
   };
 
-  const handleDeleteFormConfirm = () => {
+  const handleDeleteFormConfirm = async () => {
     if (!deleteTarget) return;
     deleteFormSchema(deleteTarget.id);
-    setForms(loadForms());
+    if (deleteTarget.serviceId) {
+      await deleteForm(deleteTarget.id).catch(() => null);
+      await mutate();
+    }
     if (activeForm?.id === deleteTarget.id) {
       setActiveForm(null);
       setView("list");
+      setIsDirty(false);
     }
     setToast({ message: "Form deleted.", type: "success" });
     setDeleteTarget(null);
   };
 
   const handleBackToList = () => {
-    if (activeForm) {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-      saveFormSchema(activeForm);
-      setForms(loadForms());
+    if (isDirty) {
+      setIsUnsavedDialogOpen(true);
+    } else {
+      setView("list");
+      setActiveForm(null);
+      setSelectedFieldId(null);
+      setIsDirty(false);
     }
+  };
+
+  const handleSaveAndExit = async () => {
+    if (!activeForm) return;
+    const result = await persistFormToBackend(activeForm);
+    if (result.success) {
+      setIsDirty(false);
+      setIsUnsavedDialogOpen(false);
+      setView("list");
+      setActiveForm(null);
+      setSelectedFieldId(null);
+      setToast({
+        message: "Form template saved successfully.",
+        type: "success",
+      });
+    } else {
+      setToast({
+        message: result.message || "Failed to save form to backend.",
+        type: "error",
+      });
+    }
+  };
+
+  const handleDiscardAndExit = () => {
+    if (originalFormRef.current) {
+      try {
+        const original = JSON.parse(originalFormRef.current) as FormSchema;
+        saveFormSchema(original);
+      } catch {
+        // ignore
+      }
+    }
+    setIsDirty(false);
+    setIsUnsavedDialogOpen(false);
     setView("list");
     setActiveForm(null);
     setSelectedFieldId(null);
+    setToast({ message: "Unsaved modifications discarded.", type: "info" });
   };
 
   const selectedField = activeForm?.fields.find((f) => f.id === selectedFieldId) ?? null;
@@ -282,20 +569,43 @@ function FormBuilderContent() {
             </button>
             <div className="w-px h-5 bg-slate-200 dark:bg-slate-700" />
             <div className="flex items-center gap-2">
-              <ClipboardList className="w-4 h-4 text-indigo-500" />
-              <span className="text-sm font-semibold text-slate-800 dark:text-white max-w-[200px] truncate">
+              <ClipboardList className="w-4 h-4 text-indigo-500 shrink-0" />
+              <span
+                className="text-sm font-semibold text-slate-800 dark:text-white max-w-[200px] truncate"
+                title={activeForm.name || "Untitled Form"}
+              >
                 {activeForm.name || "Untitled Form"}
               </span>
+              {activeForm.serviceName && (
+                <div
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/80 dark:border-indigo-800/60 max-w-[360px]"
+                  title={`Associated Service: ${activeForm.serviceName}${activeForm.serviceCode ? ` (${activeForm.serviceCode})` : ""}`}
+                >
+                  <Building2 className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                  <span className="text-xs font-medium text-indigo-700 dark:text-indigo-300 truncate">
+                    {activeForm.serviceName}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Unsaved indicator */}
+            {isDirty && (
+              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 px-2.5 py-1 rounded-full animate-in fade-in">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                <span>Unsaved Changes</span>
+              </div>
+            )}
+
             {isSaving && (
               <div className="flex items-center gap-1.5 text-xs text-slate-400">
-                <Loader2 className="w-3 h-3 animate-spin" />
+                <Loader2 className="w-3 h-3 animate-spin text-indigo-500" />
                 Saving…
               </div>
             )}
+
             <button
               type="button"
               onClick={() => setPreviewForm(activeForm)}
@@ -307,10 +617,15 @@ function FormBuilderContent() {
             <button
               type="button"
               onClick={handleManualSave}
-              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-indigo-200 dark:border-indigo-700 text-indigo-600 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 font-medium transition-all"
+              disabled={isSaving}
+              className={`flex items-center gap-1.5 text-xs px-3.5 py-1.5 rounded-lg font-semibold transition-all ${
+                isDirty
+                  ? "bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/30"
+                  : "border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+              }`}
             >
               <Save className="w-3.5 h-3.5" />
-              Save
+              <span>{isSaving ? "Saving..." : "Save"}</span>
             </button>
             <button
               type="button"
@@ -340,7 +655,7 @@ function FormBuilderContent() {
         <div className="flex flex-1 overflow-hidden">
           {/* Left Panel: Field Palette */}
           <div className="w-60 flex-shrink-0 overflow-hidden">
-            <FieldPalette />
+            <FieldPalette onAddField={handleAddField} />
           </div>
 
           {/* Center Panel: Canvas */}
@@ -357,11 +672,27 @@ function FormBuilderContent() {
             />
           </div>
 
-          {/* Right Panel: Field Editor */}
-          <div className="w-72 flex-shrink-0 overflow-hidden">
-            <FieldEditor field={selectedField} onUpdateField={handleUpdateField} />
+          {/* Right Panel: Field Properties & Form Details */}
+          <div className="w-80 flex-shrink-0 overflow-hidden">
+            <FieldEditor
+              field={selectedField}
+              form={activeForm}
+              onUpdateField={handleUpdateField}
+              onUpdateForm={handleUpdateForm}
+              onSelectField={setSelectedFieldId}
+            />
           </div>
         </div>
+
+        {/* Unsaved Changes Confirmation Dialog */}
+        <UnsavedChangesDialog
+          open={isUnsavedDialogOpen}
+          onClose={() => setIsUnsavedDialogOpen(false)}
+          onSaveAndExit={handleSaveAndExit}
+          onDiscard={handleDiscardAndExit}
+          isSaving={isSaving}
+          formTitle={activeForm.name || activeForm.serviceName || "this form"}
+        />
 
         {/* Preview Modal */}
         {previewForm && (
@@ -392,9 +723,12 @@ function FormBuilderContent() {
                 <Sparkles className="w-3.5 h-3.5" />
                 Admin Tool
               </span>
-              <span className="px-2.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-xs font-semibold border border-indigo-500/20 flex items-center gap-1.5">
+              <span
+                className="px-2.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-xs font-semibold border border-indigo-500/20 flex items-center gap-1.5"
+                suppressHydrationWarning
+              >
                 <Layers className="w-3.5 h-3.5" />
-                {forms.length} Forms
+                {`${apiResponse?.totalCount ?? forms.length} Forms`}
               </span>
             </div>
             <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
@@ -420,12 +754,35 @@ function FormBuilderContent() {
       <FormsList
         forms={forms}
         onEdit={handleOpenEditor}
-        onPreview={(form) => setPreviewForm(form)}
+        onPreview={handleOpenPreview}
         onDuplicate={handleDuplicateForm}
         onDelete={(form) => setDeleteTarget(form)}
         onCreateNew={() => setIsCreateDialogOpen(true)}
         searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
+        onSearchChange={(term) => {
+          setSearchTerm(term);
+          setCurrentPage(1);
+        }}
+        selectedCategoryId={selectedCategoryId}
+        onCategoryChange={(catId) => {
+          setSelectedCategoryId(catId);
+          setCurrentPage(1);
+        }}
+        selectedServiceId={selectedServiceId}
+        onServiceChange={(svcId) => {
+          setSelectedServiceId(svcId);
+          setCurrentPage(1);
+        }}
+        categories={categories}
+        services={services}
+        currentPage={currentPage}
+        pageSize={pageSize}
+        totalItems={apiResponse?.totalCount ?? forms.length}
+        onPageChange={setCurrentPage}
+        onPageSizeChange={(newSize) => {
+          setPageSize(newSize);
+          setCurrentPage(1);
+        }}
       />
 
       {/* Create Dialog */}

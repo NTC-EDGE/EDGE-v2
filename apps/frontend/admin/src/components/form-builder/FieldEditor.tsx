@@ -1,21 +1,58 @@
 "use client";
 
 import React from "react";
-import { Plus, Trash2, GripVertical } from "lucide-react";
-import { FormField, FieldType } from "./types";
-import { generateId, getFieldLabel } from "./utils";
+import {
+  Plus,
+  Trash2,
+  GripVertical,
+  CheckCircle2,
+  FileText,
+  Layout,
+  ListFilter,
+  ShieldAlert,
+  Building2,
+  Layers,
+  Calendar,
+  Globe,
+  EyeOff,
+  Table,
+  Sparkles,
+} from "lucide-react";
+import { FormField, FormSchema, FieldType, RepeaterColumn } from "./types";
+import { generateId, getFieldLabel, getFieldIcon, DEFAULT_EQUIPMENT_COLUMNS } from "./utils";
 
 interface FieldEditorProps {
   field: FormField | null;
+  form?: FormSchema | null;
   onUpdateField: (updates: Partial<FormField>) => void;
+  onUpdateForm?: (updates: Partial<FormSchema>) => void;
+  onSelectField?: (fieldId: string | null) => void;
 }
 
-function LabeledSection({ title, children }: { title: string; children: React.ReactNode }) {
+function LabeledSection({
+  title,
+  icon: Icon,
+  description,
+  children,
+}: {
+  title: string;
+  icon?: React.ComponentType<{ className?: string }>;
+  description?: string;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="space-y-1.5">
-      <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-        {title}
-      </label>
+    <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800/80 first:border-t-0 first:pt-0">
+      <div className="flex items-center gap-1.5">
+        {Icon && <Icon className="w-3.5 h-3.5 text-indigo-500 shrink-0" />}
+        <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+          {title}
+        </label>
+      </div>
+      {description && (
+        <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-tight">
+          {description}
+        </p>
+      )}
       {children}
     </div>
   );
@@ -27,23 +64,228 @@ const inputClass =
 const FIELDS_WITH_PLACEHOLDER: FieldType[] = ["text", "textarea", "number", "email", "phone", "date"];
 const FIELDS_WITH_OPTIONS: FieldType[] = ["select", "radio", "checkbox"];
 
-export function FieldEditor({ field, onUpdateField }: FieldEditorProps) {
+function formatDate(isoString?: string): string {
+  if (!isoString) return "—";
+  try {
+    return new Date(isoString).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return isoString;
+  }
+}
+
+export function FieldEditor({
+  field,
+  form,
+  onUpdateField,
+  onUpdateForm,
+  onSelectField,
+}: FieldEditorProps) {
+  // If NO field is selected, display the Form Template Overview and Details
   if (!field) {
+    const totalFields = form?.fields.length ?? 0;
+    const requiredFields = form?.fields.filter((f) => f.required).length ?? 0;
+    const sectionHeaders = form?.fields.filter((f) => f.type === "section-header").length ?? 0;
+    const fileFields = form?.fields.filter((f) => f.type === "file").length ?? 0;
+
     return (
-      <div className="h-full flex items-center justify-center p-6 bg-slate-50 dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800">
-        <div className="text-center">
-          <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto mb-3">
-            <span className="text-2xl">⚙️</span>
+      <div className="h-full overflow-y-auto bg-slate-50 dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 flex flex-col">
+        {/* Header */}
+        <div className="p-3.5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
+              <FileText className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <h2 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider truncate">
+                Form Template Details
+              </h2>
+              <p className="text-[10px] text-slate-400 font-mono truncate">
+                {form?.id ? `ID: ${form.id}` : "Overview & Summary"}
+              </p>
+            </div>
           </div>
-          <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">Field Properties</p>
-          <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 max-w-[180px]">
-            Select a field on the canvas to edit its properties
-          </p>
+        </div>
+
+        <div className="flex-1 p-4 space-y-4 overflow-y-auto">
+          {/* Associated Service Card */}
+          <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <Building2 className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+              <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                Associated Service
+              </span>
+            </div>
+            {form?.serviceName ? (
+              <div className="space-y-1">
+                <p className="text-xs font-bold text-slate-900 dark:text-white leading-snug">
+                  {form.serviceName}
+                </p>
+                {form.serviceCode && (
+                  <span className="inline-block text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                    {form.serviceCode}
+                  </span>
+                )}
+              </div>
+            ) : (
+              <p className="text-xs text-slate-400 italic">Standalone / Unassigned</p>
+            )}
+          </div>
+
+          {/* Form Properties & Settings */}
+          <LabeledSection
+            title="Form Title"
+            icon={FileText}
+            description="Display title of this form template."
+          >
+            <input
+              type="text"
+              value={form?.name ?? ""}
+              onChange={(e) => onUpdateForm && onUpdateForm({ name: e.target.value })}
+              className={inputClass}
+              placeholder="Form template name"
+            />
+          </LabeledSection>
+
+          <LabeledSection
+            title="Form Description"
+            description="Instructions displayed to applicants."
+          >
+            <textarea
+              value={form?.description ?? ""}
+              onChange={(e) => onUpdateForm && onUpdateForm({ description: e.target.value })}
+              className={`${inputClass} h-16 resize-none`}
+              placeholder="Form description / purpose"
+            />
+          </LabeledSection>
+
+          {/* Status & Publication */}
+          <LabeledSection
+            title="Publication State"
+            icon={form?.isPublished ? Globe : EyeOff}
+            description="Control whether this form is live for applicants."
+          >
+            <button
+              type="button"
+              onClick={() => onUpdateForm && onUpdateForm({ isPublished: !form?.isPublished })}
+              className={`w-full flex items-center justify-between p-2.5 rounded-xl border text-xs font-semibold transition-all ${
+                form?.isPublished
+                  ? "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300"
+                  : "bg-amber-50 dark:bg-amber-950/30 border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-300"
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    form?.isPublished ? "bg-emerald-500" : "bg-amber-500"
+                  }`}
+                />
+                <span>{form?.isPublished ? "Published (Live)" : "Draft Mode"}</span>
+              </div>
+              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-normal">
+                Click to switch
+              </span>
+            </button>
+          </LabeledSection>
+
+          {/* Form Statistics */}
+          <LabeledSection
+            title="Form Statistics"
+            icon={Layers}
+            description="Summary of fields and sections in this form."
+          >
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center">
+                <span className="text-lg font-bold text-indigo-600 dark:text-indigo-400 block font-mono">
+                  {totalFields}
+                </span>
+                <span className="text-[10px] text-slate-500 dark:text-slate-400">Total Fields</span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center">
+                <span className="text-lg font-bold text-rose-600 dark:text-rose-400 block font-mono">
+                  {requiredFields}
+                </span>
+                <span className="text-[10px] text-slate-500 dark:text-slate-400">Required</span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center">
+                <span className="text-lg font-bold text-slate-700 dark:text-slate-300 block font-mono">
+                  {sectionHeaders}
+                </span>
+                <span className="text-[10px] text-slate-500 dark:text-slate-400">Sections</span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center">
+                <span className="text-lg font-bold text-amber-600 dark:text-amber-400 block font-mono">
+                  {fileFields}
+                </span>
+                <span className="text-[10px] text-slate-500 dark:text-slate-400">Attachments</span>
+              </div>
+            </div>
+          </LabeledSection>
+
+          {/* Form Outline / Quick Jump */}
+          {form?.fields && form.fields.length > 0 && (
+            <LabeledSection
+              title="Field Outline (Click to Inspect)"
+              icon={ListFilter}
+              description="Click any component below to edit its specific properties."
+            >
+              <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                {form.fields.map((f, idx) => (
+                  <button
+                    key={`${f.id}-${idx}`}
+                    type="button"
+                    onClick={() => onSelectField && onSelectField(f.id)}
+                    className="w-full flex items-center justify-between p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-indigo-400 dark:hover:border-indigo-600 text-left transition-colors group"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-xs">{getFieldIcon(f.type)}</span>
+                      <span className="text-xs font-medium text-slate-800 dark:text-slate-200 truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400">
+                        {f.label || `Field ${idx + 1}`}
+                      </span>
+                    </div>
+                    {f.required && (
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-rose-100 dark:bg-rose-950 text-rose-600 font-bold shrink-0">
+                        *
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </LabeledSection>
+          )}
+
+          {/* Metadata Timestamps */}
+          <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-[10px] text-slate-400 space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1">
+                <Calendar className="w-3 h-3 text-slate-400" />
+                Created:
+              </span>
+              <span className="font-mono text-slate-600 dark:text-slate-300" suppressHydrationWarning>
+                {formatDate(form?.createdAt)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1">
+                <Calendar className="w-3 h-3 text-slate-400" />
+                Updated:
+              </span>
+              <span className="font-mono text-slate-600 dark:text-slate-300" suppressHydrationWarning>
+                {formatDate(form?.updatedAt)}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
+  // If a FIELD IS SELECTED, display individual Field Properties
   const hasPlaceholder = FIELDS_WITH_PLACEHOLDER.includes(field.type);
   const hasOptions = FIELDS_WITH_OPTIONS.includes(field.type);
 
@@ -57,10 +299,11 @@ export function FieldEditor({ field, onUpdateField }: FieldEditorProps) {
   };
 
   const handleAddOption = () => {
+    const nextIdx = (field.options?.length ?? 0) + 1;
     const newOption = {
       id: generateId(),
-      label: `Option ${(field.options?.length ?? 0) + 1}`,
-      value: `option_${(field.options?.length ?? 0) + 1}`,
+      label: `Option ${nextIdx}`,
+      value: `option_${nextIdx}`,
     };
     onUpdateField({ options: [...(field.options ?? []), newOption] });
   };
@@ -84,70 +327,167 @@ export function FieldEditor({ field, onUpdateField }: FieldEditorProps) {
     onUpdateField({ options: newOptions });
   };
 
+  // Repeater Column Handlers
+  const columns: RepeaterColumn[] = field.repeaterColumns ?? [];
+
+  const handleAddColumn = () => {
+    const nextIdx = columns.length + 1;
+    const newCol: RepeaterColumn = {
+      id: generateId(),
+      key: `col_${nextIdx}`,
+      label: `Column ${nextIdx}`,
+      type: "text",
+      required: false,
+    };
+    onUpdateField({ repeaterColumns: [...columns, newCol] });
+  };
+
+  const handleUpdateColumn = (colId: string, updates: Partial<RepeaterColumn>) => {
+    const updated = columns.map((c) => (c.id === colId ? { ...c, ...updates } : c));
+    onUpdateField({ repeaterColumns: updated });
+  };
+
+  const handleRemoveColumn = (colId: string) => {
+    onUpdateField({ repeaterColumns: columns.filter((c) => c.id !== colId) });
+  };
+
+  const handleMoveColumn = (colId: string, direction: "up" | "down") => {
+    const idx = columns.findIndex((c) => c.id === colId);
+    if (idx < 0) return;
+    const targetIdx = direction === "up" ? idx - 1 : idx + 1;
+    if (targetIdx < 0 || targetIdx >= columns.length) return;
+    const newCols = [...columns];
+    const temp = newCols[idx];
+    const swap = newCols[targetIdx];
+    if (!temp || !swap) return;
+    newCols[idx] = swap;
+    newCols[targetIdx] = temp;
+    onUpdateField({ repeaterColumns: newCols });
+  };
+
+  const handleLoadEquipmentPreset = () => {
+    onUpdateField({
+      label: "Equipment Inventory / Specifications",
+      helpText: "List all radio equipment units included in this application.",
+      addButtonLabel: "Add Equipment",
+      repeaterColumns: [...DEFAULT_EQUIPMENT_COLUMNS],
+      minRows: 1,
+    });
+  };
+
   return (
     <div className="h-full overflow-y-auto bg-slate-50 dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 flex flex-col">
-      <div className="p-3 border-b border-slate-200 dark:border-slate-800 flex-shrink-0">
-        <h2 className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-widest">
-          Field Properties
-        </h2>
-        <p className="text-[10px] text-slate-400 mt-0.5">{getFieldLabel(field.type)}</p>
+      {/* Editor Header */}
+      <div className="p-3.5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 flex-shrink-0 flex items-center justify-between">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-base">{getFieldIcon(field.type)}</span>
+          <div className="min-w-0">
+            <h2 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider truncate">
+              {getFieldLabel(field.type)}
+            </h2>
+            <p className="text-[10px] text-slate-400 font-mono truncate">ID: {field.id}</p>
+          </div>
+        </div>
+        {onSelectField && (
+          <button
+            type="button"
+            onClick={() => onSelectField(null)}
+            className="text-[10px] text-indigo-600 dark:text-indigo-400 hover:underline shrink-0"
+            title="Deselect to view Form Overview"
+          >
+            Form Overview
+          </button>
+        )}
       </div>
 
       <div className="flex-1 p-4 space-y-5 overflow-y-auto">
         {/* Label */}
-        <LabeledSection title="Label">
+        <LabeledSection
+          title="Field Label"
+          icon={FileText}
+          description="The question or title displayed above the input."
+        >
           <input
             type="text"
             value={field.label}
             onChange={(e) => onUpdateField({ label: e.target.value })}
             className={inputClass}
-            placeholder="Field label"
+            placeholder="e.g. Full Legal Name, Business Address..."
           />
         </LabeledSection>
 
-        {/* Section Title */}
+        {/* Section Header Title */}
         {field.type === "section-header" && (
-          <LabeledSection title="Section Title">
+          <LabeledSection
+            title="Section Heading Text"
+            icon={Layout}
+            description="Heading text displayed on the divider banner."
+          >
             <input
               type="text"
               value={field.sectionTitle ?? ""}
               onChange={(e) => onUpdateField({ sectionTitle: e.target.value })}
               className={inputClass}
-              placeholder="Section title text"
+              placeholder="e.g. Part I: Applicant Information"
             />
           </LabeledSection>
         )}
 
         {/* Placeholder */}
         {hasPlaceholder && (
-          <LabeledSection title="Placeholder">
+          <LabeledSection
+            title="Placeholder Text"
+            description="Subtle example text shown inside the input before typing."
+          >
             <input
               type="text"
               value={field.placeholder ?? ""}
               onChange={(e) => onUpdateField({ placeholder: e.target.value })}
               className={inputClass}
-              placeholder="Placeholder text"
+              placeholder="e.g. Enter your complete address..."
             />
           </LabeledSection>
         )}
 
-        {/* Help Text */}
+        {/* Help / Guidance Text */}
         {field.type !== "section-header" && field.type !== "divider" && (
-          <LabeledSection title="Help Text">
+          <LabeledSection
+            title="Help / Guidance Text"
+            description="Helper instructions displayed underneath the input for end users."
+          >
             <input
               type="text"
               value={field.helpText ?? ""}
               onChange={(e) => onUpdateField({ helpText: e.target.value })}
               className={inputClass}
-              placeholder="Optional help text"
+              placeholder="e.g. Please provide your registered address per official ID"
             />
           </LabeledSection>
         )}
 
-        {/* Required toggle */}
+        {/* Mandatory / Required toggle */}
         {field.type !== "section-header" && field.type !== "divider" && (
-          <LabeledSection title="Validation">
-            <label className="flex items-center gap-2.5 cursor-pointer">
+          <LabeledSection
+            title="Validation Requirements"
+            icon={ShieldAlert}
+            description="Enforce user input before form submission."
+          >
+            <label className="flex items-center justify-between p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 cursor-pointer hover:border-indigo-300 dark:hover:border-indigo-600 transition-colors">
+              <div className="flex items-center gap-2">
+                <CheckCircle2
+                  className={`w-4 h-4 ${
+                    field.required ? "text-indigo-600 dark:text-indigo-400" : "text-slate-400"
+                  }`}
+                />
+                <div>
+                  <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">
+                    Mandatory Field
+                  </span>
+                  <span className="text-[10px] text-slate-400 block">
+                    {field.required ? "Required to submit form" : "Optional field"}
+                  </span>
+                </div>
+              </div>
               <div
                 role="checkbox"
                 aria-checked={field.required}
@@ -166,27 +506,30 @@ export function FieldEditor({ field, onUpdateField }: FieldEditorProps) {
                   }`}
                 />
               </div>
-              <span className="text-xs text-slate-700 dark:text-slate-300">Required field</span>
             </label>
           </LabeledSection>
         )}
 
-        {/* Column Span */}
+        {/* Column Span Layout */}
         {field.type !== "divider" && (
-          <LabeledSection title="Column Span">
-            <div className="flex gap-2">
+          <LabeledSection
+            title="Grid Column Span"
+            icon={Layout}
+            description="Choose how wide this field renders on the page."
+          >
+            <div className="grid grid-cols-2 gap-2">
               {([1, 2] as const).map((col) => (
                 <button
                   key={col}
                   type="button"
                   onClick={() => onUpdateField({ cols: col })}
-                  className={`flex-1 py-1.5 text-xs rounded-lg border font-medium transition-all ${
-                    field.cols === col
-                      ? "bg-indigo-600 border-indigo-600 text-white"
-                      : "border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-indigo-400"
+                  className={`py-2 px-3 text-xs rounded-xl border font-semibold transition-all text-center ${
+                    (field.cols ?? 2) === col
+                      ? "bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-600/20"
+                      : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:border-indigo-400"
                   }`}
                 >
-                  {col === 1 ? "Half Width" : "Full Width"}
+                  {col === 1 ? "Half Width (1 Col)" : "Full Width (2 Cols)"}
                 </button>
               ))}
             </div>
@@ -195,10 +538,15 @@ export function FieldEditor({ field, onUpdateField }: FieldEditorProps) {
 
         {/* Text length constraints */}
         {(field.type === "text" || field.type === "textarea") && (
-          <LabeledSection title="Length Constraints">
+          <LabeledSection
+            title="Character Limits"
+            description="Optional minimum and maximum length constraints."
+          >
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-[10px] text-slate-400 mb-1 block">Min Length</label>
+                <label className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 mb-1 block">
+                  Min Characters
+                </label>
                 <input
                   type="number"
                   value={field.minLength ?? ""}
@@ -211,7 +559,9 @@ export function FieldEditor({ field, onUpdateField }: FieldEditorProps) {
                 />
               </div>
               <div>
-                <label className="text-[10px] text-slate-400 mb-1 block">Max Length</label>
+                <label className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 mb-1 block">
+                  Max Characters
+                </label>
                 <input
                   type="number"
                   value={field.maxLength ?? ""}
@@ -219,7 +569,7 @@ export function FieldEditor({ field, onUpdateField }: FieldEditorProps) {
                     onUpdateField({ maxLength: e.target.value ? parseInt(e.target.value) : undefined })
                   }
                   className={inputClass}
-                  placeholder="∞"
+                  placeholder="No limit"
                   min={0}
                 />
               </div>
@@ -229,10 +579,15 @@ export function FieldEditor({ field, onUpdateField }: FieldEditorProps) {
 
         {/* Number constraints */}
         {field.type === "number" && (
-          <LabeledSection title="Number Range">
+          <LabeledSection
+            title="Numeric Value Range"
+            description="Minimum and maximum accepted numbers."
+          >
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-[10px] text-slate-400 mb-1 block">Min</label>
+                <label className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 mb-1 block">
+                  Min Value
+                </label>
                 <input
                   type="number"
                   value={field.min ?? ""}
@@ -240,11 +595,13 @@ export function FieldEditor({ field, onUpdateField }: FieldEditorProps) {
                     onUpdateField({ min: e.target.value ? parseFloat(e.target.value) : undefined })
                   }
                   className={inputClass}
-                  placeholder="—"
+                  placeholder="Min"
                 />
               </div>
               <div>
-                <label className="text-[10px] text-slate-400 mb-1 block">Max</label>
+                <label className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 mb-1 block">
+                  Max Value
+                </label>
                 <input
                   type="number"
                   value={field.max ?? ""}
@@ -252,7 +609,7 @@ export function FieldEditor({ field, onUpdateField }: FieldEditorProps) {
                     onUpdateField({ max: e.target.value ? parseFloat(e.target.value) : undefined })
                   }
                   className={inputClass}
-                  placeholder="—"
+                  placeholder="Max"
                 />
               </div>
             </div>
@@ -262,7 +619,10 @@ export function FieldEditor({ field, onUpdateField }: FieldEditorProps) {
         {/* File constraints */}
         {field.type === "file" && (
           <>
-            <LabeledSection title="Accepted File Types">
+            <LabeledSection
+              title="Allowed File Types"
+              description="Comma-separated extensions e.g. .pdf, .docx, .png, .jpg"
+            >
               <input
                 type="text"
                 value={field.acceptedFileTypes ?? ""}
@@ -271,7 +631,10 @@ export function FieldEditor({ field, onUpdateField }: FieldEditorProps) {
                 placeholder=".pdf,.jpg,.png"
               />
             </LabeledSection>
-            <LabeledSection title="Max File Size (MB)">
+            <LabeledSection
+              title="Maximum File Size (MB)"
+              description="Upload limit per attached file."
+            >
               <input
                 type="number"
                 value={field.maxFileSizeMb ?? ""}
@@ -281,19 +644,191 @@ export function FieldEditor({ field, onUpdateField }: FieldEditorProps) {
                   })
                 }
                 className={inputClass}
-                placeholder="10"
-                min={0}
+                placeholder="10 (MB)"
+                min={1}
               />
             </LabeledSection>
           </>
         )}
 
-        {/* Options */}
+        {/* Table & Repeater Columns Editor */}
+        {field.type === "repeater" && (
+          <LabeledSection
+            title="Table Columns & Equipment Fields"
+            icon={Table}
+            description="Define the table columns for each repeatable equipment entry."
+          >
+            {/* Quick Preset Button */}
+            <button
+              type="button"
+              onClick={handleLoadEquipmentPreset}
+              className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 mb-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-xs text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 font-semibold transition-colors"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Load Standard Radio Equipment Preset</span>
+            </button>
+
+            {/* Columns List */}
+            <div className="space-y-2">
+              {columns.map((col, idx) => (
+                <div
+                  key={col.id}
+                  className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2"
+                >
+                  <div className="flex items-center justify-between gap-1.5">
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => handleMoveColumn(col.id, "up")}
+                        disabled={idx === 0}
+                        className="p-0.5 rounded text-slate-400 hover:text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                        title="Move column up"
+                      >
+                        <GripVertical className="w-3.5 h-3.5" />
+                      </button>
+                      <span className="text-[10px] font-bold text-slate-400 font-mono">#{idx + 1}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="flex items-center gap-1 cursor-pointer text-[10px] text-slate-600 dark:text-slate-400">
+                        <input
+                          type="checkbox"
+                          checked={col.required ?? false}
+                          onChange={(e) => handleUpdateColumn(col.id, { required: e.target.checked })}
+                          className="rounded text-indigo-600 focus:ring-0 w-3 h-3"
+                        />
+                        <span>Req</span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveColumn(col.id)}
+                        className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
+                        title="Delete column"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <div>
+                      <label className="text-[9px] font-semibold text-slate-400 block mb-0.5">Column Label</label>
+                      <input
+                        type="text"
+                        value={col.label}
+                        onChange={(e) => handleUpdateColumn(col.id, { label: e.target.value })}
+                        className={inputClass}
+                        placeholder="Column Label"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[9px] font-semibold text-slate-400 block mb-0.5">Input Type</label>
+                      <select
+                        value={col.type}
+                        onChange={(e) =>
+                          handleUpdateColumn(col.id, {
+                            type: e.target.value as "text" | "number" | "select" | "date",
+                          })
+                        }
+                        className={inputClass}
+                      >
+                        <option value="text">Text Input</option>
+                        <option value="number">Number</option>
+                        <option value="select">Dropdown</option>
+                        <option value="date">Date Picker</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[9px] font-semibold text-slate-400 block mb-0.5">Placeholder</label>
+                    <input
+                      type="text"
+                      value={col.placeholder ?? ""}
+                      onChange={(e) => handleUpdateColumn(col.id, { placeholder: e.target.value })}
+                      className={inputClass}
+                      placeholder="e.g. Motorola / IC-7300..."
+                    />
+                  </div>
+                </div>
+              ))}
+
+              <button
+                type="button"
+                onClick={handleAddColumn}
+                className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border border-dashed border-indigo-300 dark:border-indigo-800 text-xs text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 font-semibold transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Add Table Column
+              </button>
+            </div>
+
+            {/* Table Action Controls & Row Constraints */}
+            <div className="pt-2 space-y-2 border-t border-slate-200 dark:border-slate-800">
+              <div>
+                <label className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
+                  Add Button Label
+                </label>
+                <input
+                  type="text"
+                  value={field.addButtonLabel ?? "Add Equipment"}
+                  onChange={(e) => onUpdateField({ addButtonLabel: e.target.value })}
+                  className={inputClass}
+                  placeholder="e.g. Add Equipment / Add Row"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
+                    Min Rows Required
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={field.minRows ?? 1}
+                    onChange={(e) =>
+                      onUpdateField({
+                        minRows: e.target.value ? parseInt(e.target.value, 10) : 0,
+                      })
+                    }
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 block mb-1">
+                    Max Rows Allowed
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={field.maxRows ?? ""}
+                    onChange={(e) =>
+                      onUpdateField({
+                        maxRows: e.target.value ? parseInt(e.target.value, 10) : undefined,
+                      })
+                    }
+                    className={inputClass}
+                    placeholder="Unlimited"
+                  />
+                </div>
+              </div>
+            </div>
+          </LabeledSection>
+        )}
+
+        {/* Options list for select, radio, checkbox */}
         {hasOptions && (
-          <LabeledSection title="Options">
+          <LabeledSection
+            title="Choice Options"
+            icon={ListFilter}
+            description="Manage choices presented to users."
+          >
             <div className="space-y-2">
               {(field.options ?? []).map((option, idx) => (
-                <div key={option.id} className="flex items-center gap-1.5">
+                <div
+                  key={option.id}
+                  className="flex items-center gap-1.5 p-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800"
+                >
                   <button
                     type="button"
                     onClick={() => handleMoveOption(option.id, "up")}
@@ -301,27 +836,29 @@ export function FieldEditor({ field, onUpdateField }: FieldEditorProps) {
                     className="p-1 rounded text-slate-400 hover:text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed"
                     title="Move up"
                   >
-                    <GripVertical className="w-3 h-3" />
+                    <GripVertical className="w-3.5 h-3.5" />
                   </button>
                   <input
                     type="text"
                     value={option.label}
                     onChange={(e) => handleOptionChange(option.id, "label", e.target.value)}
                     className={`${inputClass} flex-1`}
-                    placeholder="Label"
+                    placeholder="Display Label"
+                    title="Display Label"
                   />
                   <input
                     type="text"
                     value={option.value}
                     onChange={(e) => handleOptionChange(option.id, "value", e.target.value)}
-                    className={`${inputClass} w-24`}
-                    placeholder="Value"
+                    className={`${inputClass} w-24 font-mono text-[11px]`}
+                    placeholder="Value Code"
+                    title="Stored Value Code"
                   />
                   <button
                     type="button"
                     onClick={() => handleRemoveOption(option.id)}
-                    className="p-1 rounded text-rose-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
-                    title="Remove option"
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
+                    title="Delete option"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -330,10 +867,10 @@ export function FieldEditor({ field, onUpdateField }: FieldEditorProps) {
               <button
                 type="button"
                 onClick={handleAddOption}
-                className="flex items-center gap-1.5 text-[11px] text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200 font-medium transition-colors"
+                className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border border-dashed border-indigo-300 dark:border-indigo-800 text-xs text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 font-semibold transition-colors"
               >
-                <Plus className="w-3.5 h-3.5" />
-                Add Option
+                <Plus className="w-4 h-4" />
+                Add New Choice Option
               </button>
             </div>
           </LabeledSection>

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Building2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -10,11 +10,12 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { useCatalogService, ServiceItem } from "@/services/catalogService";
 
 interface CreateFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreate: (name: string, description: string) => void;
+  onCreate: (name: string, description: string, serviceId?: string, serviceName?: string) => void;
   isCreating?: boolean;
 }
 
@@ -26,19 +27,38 @@ export function CreateFormDialog({
 }: CreateFormDialogProps) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [selectedServiceId, setSelectedServiceId] = useState("");
+
+  const { useServices } = useCatalogService();
+  const { data: servicesResponse } = useServices(undefined, 1, 100);
+
+  const servicesList: ServiceItem[] = Array.isArray(servicesResponse)
+    ? servicesResponse
+    : servicesResponse && Array.isArray(servicesResponse.data)
+    ? servicesResponse.data
+    : [];
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!name.trim()) return;
-    onCreate(name.trim(), description.trim());
+
+    const matchedService = servicesList.find((s) => s.id === selectedServiceId);
+    onCreate(
+      name.trim(),
+      description.trim(),
+      selectedServiceId || undefined,
+      matchedService?.name || undefined
+    );
     setName("");
     setDescription("");
+    setSelectedServiceId("");
   };
 
   const handleOpenChange = (value: boolean) => {
     if (!value) {
       setName("");
       setDescription("");
+      setSelectedServiceId("");
     }
     onOpenChange(value);
   };
@@ -52,7 +72,7 @@ export function CreateFormDialog({
         <DialogHeader>
           <DialogTitle>Create New Form</DialogTitle>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Give your form a name and optional description to get started.
+            Give your form a name and optional service association to get started.
           </p>
         </DialogHeader>
 
@@ -65,12 +85,38 @@ export function CreateFormDialog({
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Application Form, Customer Survey..."
+              placeholder="e.g. Radio Station Permit Application..."
               className={inputClass}
               required
               autoFocus
               maxLength={120}
             />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider flex items-center gap-1.5">
+              <Building2 className="w-3.5 h-3.5 text-indigo-500" />
+              Associated Service (Optional)
+            </label>
+            <select
+              value={selectedServiceId}
+              onChange={(e) => {
+                const sId = e.target.value;
+                setSelectedServiceId(sId);
+                if (!name && sId) {
+                  const s = servicesList.find((x) => x.id === sId);
+                  if (s) setName(`${s.name} Form`);
+                }
+              }}
+              className={inputClass}
+            >
+              <option value="">-- No Specific Service (Standalone) --</option>
+              {servicesList.map((svc) => (
+                <option key={svc.id} value={svc.id}>
+                  {svc.name} {svc.code ? `(${svc.code})` : ""}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>

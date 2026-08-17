@@ -1,7 +1,15 @@
 "use client";
 
 import React, { useState, useCallback } from "react";
-import { LayoutGrid, MousePointerClick } from "lucide-react";
+import {
+  LayoutGrid,
+  MousePointerClick,
+  Building2,
+  Tag,
+  Layers,
+  Pencil,
+  Info,
+} from "lucide-react";
 import { FormField, FormSchema, FieldType } from "./types";
 import { CanvasField } from "./CanvasField";
 
@@ -86,6 +94,9 @@ export function FormCanvas({
     setDragOverIndex(null);
   };
 
+  // Count section headers
+  const sectionCount = form.fields.filter((f) => f.type === "section-header").length;
+
   return (
     <div
       className="h-full flex flex-col overflow-hidden bg-slate-100 dark:bg-slate-950"
@@ -94,9 +105,11 @@ export function FormCanvas({
       {/* Canvas scroll area */}
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-3xl mx-auto py-8 px-6 min-h-full">
-          {/* Form Header */}
-          <div className="mb-6 p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
-            <div className="flex items-center gap-2 mb-3">
+          {/* Form Header Card */}
+          <div className="mb-6 p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm relative">
+            {/* Metadata Pills */}
+            <div className="flex flex-wrap items-center gap-2 mb-3">
+              {/* Published / Draft Status */}
               <span
                 className={`text-[10px] px-2.5 py-0.5 rounded-full font-semibold border flex items-center gap-1 ${
                   form.isPublished
@@ -109,11 +122,34 @@ export function FormCanvas({
                     form.isPublished ? "bg-emerald-500" : "bg-amber-500"
                   }`}
                 />
-                {form.isPublished ? "Published" : "Draft"}
+                {form.isPublished ? "Published Form" : "Draft Template"}
               </span>
-              <span className="text-[10px] text-slate-400 font-mono">{form.fields.length} fields</span>
+
+              {/* Service association */}
+              {form.serviceName ? (
+                <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/70 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-medium flex items-center gap-1 max-w-[320px] truncate">
+                  <Building2 className="w-3 h-3 shrink-0" />
+                  <span className="truncate">
+                    {form.serviceName}
+                    {form.serviceCode ? ` (${form.serviceCode})` : ""}
+                  </span>
+                </span>
+              ) : (
+                <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 font-medium flex items-center gap-1">
+                  <Tag className="w-3 h-3" />
+                  Standalone Template
+                </span>
+              )}
+
+              {/* Counts */}
+              <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-mono font-medium flex items-center gap-1">
+                <Layers className="w-3 h-3" />
+                {form.fields.length} {form.fields.length === 1 ? "field" : "fields"}
+                {sectionCount > 0 && ` · ${sectionCount} ${sectionCount === 1 ? "section" : "sections"}`}
+              </span>
             </div>
 
+            {/* Editable Form Title */}
             {editingTitle ? (
               <input
                 autoFocus
@@ -123,17 +159,25 @@ export function FormCanvas({
                 onBlur={() => setEditingTitle(false)}
                 onKeyDown={(e) => e.key === "Enter" && setEditingTitle(false)}
                 className="text-2xl font-extrabold text-slate-900 dark:text-white w-full bg-transparent border-b-2 border-indigo-500 outline-none tracking-tight"
+                placeholder="Enter Form Template Name..."
               />
             ) : (
-              <h1
-                onClick={(e) => { e.stopPropagation(); setEditingTitle(true); }}
-                className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight cursor-text hover:opacity-70 transition-opacity"
-                title="Click to edit title"
+              <div
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setEditingTitle(true);
+                }}
+                className="group/title flex items-center gap-2 cursor-pointer"
+                title="Click to edit form title"
               >
-                {form.name || "Untitled Form"}
-              </h1>
+                <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight group-hover/title:text-indigo-600 dark:group-hover/title:text-indigo-400 transition-colors">
+                  {form.name || "Untitled Form"}
+                </h1>
+                <Pencil className="w-4 h-4 text-slate-400 opacity-0 group-hover/title:opacity-100 transition-opacity" />
+              </div>
             )}
 
+            {/* Editable Description */}
             {editingDescription ? (
               <textarea
                 autoFocus
@@ -142,19 +186,34 @@ export function FormCanvas({
                 onBlur={() => setEditingDescription(false)}
                 rows={2}
                 className="mt-2 text-sm text-slate-600 dark:text-slate-400 w-full bg-transparent border-b border-indigo-400 outline-none resize-none"
+                placeholder="Enter form description or guidance for applicants..."
               />
             ) : (
-              <p
-                onClick={(e) => { e.stopPropagation(); setEditingDescription(true); }}
-                className="mt-2 text-sm text-slate-500 dark:text-slate-400 cursor-text hover:opacity-70 transition-opacity min-h-[20px]"
-                title="Click to edit description"
+              <div
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setEditingDescription(true);
+                }}
+                className="group/desc flex items-center gap-2 mt-2 cursor-pointer"
+                title="Click to edit form description"
               >
-                {form.description || "Click to add description..."}
-              </p>
+                <p className="text-sm text-slate-500 dark:text-slate-400 min-h-[20px] group-hover/desc:text-slate-700 dark:group-hover/desc:text-slate-300 transition-colors">
+                  {form.description || "Click to add form description or instructions..."}
+                </p>
+                <Pencil className="w-3.5 h-3.5 text-slate-400 opacity-0 group-hover/desc:opacity-100 transition-opacity" />
+              </div>
             )}
+
+            {/* Hint Banner */}
+            <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-500">
+              <Info className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+              <span>
+                Tip: Click any field on the canvas to configure properties in the right panel. Drag handles to reorder.
+              </span>
+            </div>
           </div>
 
-          {/* Fields area */}
+          {/* Fields canvas area */}
           {form.fields.length === 0 ? (
             <div
               onDragOver={handleCanvasDragOver}
@@ -163,7 +222,7 @@ export function FormCanvas({
               className={`flex flex-col items-center justify-center py-20 rounded-2xl border-2 border-dashed transition-all ${
                 isDragOverCanvas
                   ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-950/30"
-                  : "border-slate-300 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-700"
+                  : "border-slate-300 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-700 bg-white/50 dark:bg-slate-900/40"
               }`}
             >
               <div className="w-14 h-14 rounded-2xl bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center mb-4">
@@ -173,11 +232,11 @@ export function FormCanvas({
                   <LayoutGrid className="w-7 h-7 text-indigo-400 dark:text-indigo-500" />
                 )}
               </div>
-              <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">
-                {isDragOverCanvas ? "Drop to add field" : "Start building your form"}
+              <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                {isDragOverCanvas ? "Drop here to add field" : "Start building your form"}
               </p>
-              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
-                Drag fields from the left palette to get started
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 max-w-sm text-center">
+                Click or drag component types from the left palette onto this canvas to add input fields, sections, and attachments.
               </p>
             </div>
           ) : (
@@ -189,12 +248,16 @@ export function FormCanvas({
             >
               {form.fields.map((field: FormField, index: number) => (
                 <CanvasField
-                  key={field.id}
+                  key={`${field.id}-${index}`}
                   field={field}
                   isSelected={selectedFieldId === field.id}
                   isDragOver={dragOverIndex === index}
-                  onSelect={() => { onSelectField(field.id); }}
-                  onEdit={() => { onSelectField(field.id); }}
+                  onSelect={() => {
+                    onSelectField(field.id);
+                  }}
+                  onEdit={() => {
+                    onSelectField(field.id);
+                  }}
                   onDuplicate={() => onDuplicateField(field.id)}
                   onDelete={() => onDeleteField(field.id)}
                   onDragStart={(e) => handleFieldDragStart(e, field.id)}
@@ -205,15 +268,20 @@ export function FormCanvas({
 
               {/* Bottom drop zone */}
               <div
-                onDragOver={(e) => { e.preventDefault(); setDragOverIndex(form.fields.length); }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragOverIndex(form.fields.length);
+                }}
                 onDrop={(e) => handleFieldDrop(e, form.fields.length)}
                 onDragEnd={handleFieldDragEnd}
-                className={`h-8 rounded-xl border-2 border-dashed transition-all ${
+                className={`h-10 rounded-xl border-2 border-dashed transition-all flex items-center justify-center text-[11px] ${
                   dragOverIndex === form.fields.length
-                    ? "border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/20"
-                    : "border-transparent"
+                    ? "border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/20 text-indigo-600 font-semibold"
+                    : "border-transparent text-transparent hover:border-slate-300 dark:hover:border-slate-700 hover:text-slate-400"
                 }`}
-              />
+              >
+                + Drop new field at the end
+              </div>
             </div>
           )}
         </div>
@@ -221,4 +289,3 @@ export function FormCanvas({
     </div>
   );
 }
-
