@@ -351,19 +351,19 @@ export function FormPreviewModal({ open, onOpenChange, form }: FormPreviewModalP
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col p-0">
-        <DialogHeader className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex-shrink-0 bg-slate-50 dark:bg-slate-900/80">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <div className="flex flex-wrap items-center gap-2 mb-1.5">
+      <DialogContent className="w-[calc(100vw-24px)] sm:w-full sm:max-w-3xl max-h-[92vh] sm:max-h-[90vh] overflow-hidden flex flex-col p-0">
+        <DialogHeader className="px-4 py-3 sm:px-6 sm:py-4 border-b border-slate-200 dark:border-slate-800 flex-shrink-0 bg-slate-50 dark:bg-slate-900/80 pr-10 sm:pr-12">
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-1.5">
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 font-semibold border border-indigo-200 dark:border-indigo-700 flex items-center gap-1">
                   <Eye className="w-3 h-3" />
                   Live Preview
                 </span>
                 {form.serviceName && (
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium flex items-center gap-1">
-                    <Building2 className="w-3 h-3 text-indigo-500" />
-                    {form.serviceName}
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium flex items-center gap-1 max-w-[200px] truncate" title={form.serviceName}>
+                    <Building2 className="w-3 h-3 text-indigo-500 shrink-0" />
+                    <span className="truncate">{form.serviceName}</span>
                   </span>
                 )}
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 font-mono">
@@ -371,12 +371,12 @@ export function FormPreviewModal({ open, onOpenChange, form }: FormPreviewModalP
                   {form.fields.length} fields
                 </span>
               </div>
-              <DialogTitle className="text-lg font-bold">{form.name || "Untitled Form"}</DialogTitle>
+              <DialogTitle className="text-base sm:text-lg font-bold break-words">{form.name || "Untitled Form"}</DialogTitle>
               {form.description && (
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{form.description}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 break-words">{form.description}</p>
               )}
             </div>
-            <div className="flex items-center gap-2 pr-8">
+            <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
               <div className="flex items-center rounded-lg bg-slate-200 dark:bg-slate-800 p-0.5 text-xs">
                 <button
                   type="button"
@@ -406,9 +406,9 @@ export function FormPreviewModal({ open, onOpenChange, form }: FormPreviewModalP
           </div>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto px-6 py-5">
+        <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
           {tab === "json" ? (
-            <pre className="p-4 rounded-xl bg-slate-950 text-emerald-400 text-xs font-mono overflow-auto max-h-[450px]">
+            <pre className="p-3 sm:p-4 rounded-xl bg-slate-950 text-emerald-400 text-xs font-mono overflow-auto max-h-[450px]">
               {JSON.stringify(form, null, 2)}
             </pre>
           ) : form.fields.length === 0 ? (
@@ -417,10 +417,10 @@ export function FormPreviewModal({ open, onOpenChange, form }: FormPreviewModalP
               <p className="text-xs text-slate-500 mt-1">Add fields from the palette to preview them here.</p>
             </div>
           ) : (
-            <form id="preview-form" onSubmit={handleSubmit} className="grid grid-cols-2 gap-4">
+            <form id="preview-form" onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               {submitted && (
-                <div className="col-span-2 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 flex items-center gap-2 text-xs text-emerald-800 dark:text-emerald-200">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                <div className="col-span-1 sm:col-span-2 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 flex items-center gap-2 text-xs text-emerald-800 dark:text-emerald-200">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                   <span>Preview Submission Validated: All required fields were entered correctly!</span>
                 </div>
               )}
@@ -432,11 +432,11 @@ export function FormPreviewModal({ open, onOpenChange, form }: FormPreviewModalP
         </div>
 
         {tab === "form" && form.fields.length > 0 && (
-          <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-800 flex-shrink-0 bg-slate-50 dark:bg-slate-900/60">
+          <div className="px-4 py-3 sm:px-6 sm:py-4 border-t border-slate-200 dark:border-slate-800 flex-shrink-0 bg-slate-50 dark:bg-slate-900/60">
             <button
               type="submit"
               form="preview-form"
-              className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm rounded-xl transition-colors shadow-lg shadow-indigo-600/20"
+              className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs sm:text-sm rounded-xl transition-colors shadow-lg shadow-indigo-600/20"
             >
               Test Form Submission
             </button>
