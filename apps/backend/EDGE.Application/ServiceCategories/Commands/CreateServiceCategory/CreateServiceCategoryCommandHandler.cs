@@ -14,9 +14,10 @@ public class CreateServiceCategoryCommandHandler(IServiceCategoryRepository repo
 {
     public async Task<ApiResponse<Guid>> Handle(CreateServiceCategoryCommand request, CancellationToken cancellationToken)
     {
-        if (!Enum.TryParse<ServiceCategoryType>(request.Type, true, out var type))
+        ServiceCategoryType type = ServiceCategoryType.Certificate;
+        if (!string.IsNullOrWhiteSpace(request.Type) && Enum.TryParse<ServiceCategoryType>(request.Type, true, out var parsedType))
         {
-            return ApiResponse<Guid>.Fail("Invalid Type value.");
+            type = parsedType;
         }
 
         var category = new ServiceCategory

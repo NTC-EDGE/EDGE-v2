@@ -6,6 +6,7 @@ import { Note, ServiceVariant } from "@edge/api";
 import { DataTable, ColumnDef, ActionMenuItem } from "@/components/ui/data-table";
 import { ServiceCatalogItem } from "@/services/feesService";
 import { ServiceCategory } from "@/services/catalogService";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 
 interface ServiceNotesTabProps {
   notes: Note[];
@@ -205,17 +206,6 @@ export function ServiceNotesTab({
               </span>
             )}
           </button>
-
-          {canManage && (
-            <button
-              type="button"
-              onClick={onAdd}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-colors shrink-0"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              Add Note
-            </button>
-          )}
         </div>
       </div>
 
@@ -227,18 +217,21 @@ export function ServiceNotesTab({
               <Folder className="w-3 h-3 text-indigo-400" />
               Filter by Category
             </label>
-            <select
+            <SearchableSelect
               value={selectedCategoryId}
-              onChange={(e) => handleCategoryChange(e.target.value)}
-              className="px-3 py-2.5 bg-slate-900 text-slate-100 border border-slate-800 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
-            >
-              <option value="" className="bg-slate-900 text-slate-100 py-1">All Categories</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id} className="bg-slate-900 text-slate-100 py-1">
-                  {c.name}
-                </option>
-              ))}
-            </select>
+              onChange={(val) => handleCategoryChange(val)}
+              placeholder="All Categories"
+              searchPlaceholder="Search categories..."
+              maxHeight="max-h-48"
+              options={[
+                { value: "", label: "All Categories" },
+                ...categories.map((c) => ({
+                  value: c.id,
+                  label: c.name,
+                  badge: c.code || undefined,
+                })),
+              ]}
+            />
           </div>
 
           <div className="flex flex-col gap-1.5 w-full md:w-64">
@@ -246,42 +239,44 @@ export function ServiceNotesTab({
               <Settings2 className="w-3 h-3 text-indigo-400" />
               Filter by Service
             </label>
-            <select
+            <SearchableSelect
               value={filterServiceId}
-              onChange={(e) => {
-                onFilterServiceChange(e.target.value);
+              onChange={(val) => {
+                onFilterServiceChange(val);
                 onFilterVariantChange("");
               }}
-              className="px-3 py-2.5 bg-slate-900 text-slate-100 border border-slate-800 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
-            >
-              <option value="" className="bg-slate-900 text-slate-100 py-1">
-                {selectedCategoryId ? `All in Category (${filteredServices.length})` : "All Services"}
-              </option>
-              {filteredServices.map((s) => (
-                <option key={s.id} value={s.id} className="bg-slate-900 text-slate-100 py-1">
-                  {s.name}
-                </option>
-              ))}
-            </select>
+              placeholder={selectedCategoryId ? `All in Category (${filteredServices.length})` : "All Services"}
+              searchPlaceholder="Search services..."
+              maxHeight="max-h-48"
+              options={[
+                { value: "", label: selectedCategoryId ? `All in Category (${filteredServices.length})` : "All Services" },
+                ...filteredServices.map((s) => ({
+                  value: s.id,
+                  label: s.name,
+                })),
+              ]}
+            />
           </div>
 
           <div className="flex flex-col gap-1.5 w-full md:w-64">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
               Filter by Variant
             </label>
-            <select
+            <SearchableSelect
               value={filterServiceVariantId}
-              onChange={(e) => onFilterVariantChange(e.target.value)}
+              onChange={(val) => onFilterVariantChange(val)}
               disabled={filterServiceId === ""}
-              className="px-3 py-2.5 bg-slate-900 text-slate-100 border border-slate-800 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <option value="" className="bg-slate-900 text-slate-100 py-1">All Variants</option>
-              {variants.map((v) => (
-                <option key={v.id} value={v.id} className="bg-slate-900 text-slate-100 py-1">
-                  {v.type} {v.description ? `— ${v.description}` : ""}
-                </option>
-              ))}
-            </select>
+              placeholder="All Variants"
+              searchPlaceholder="Search variants..."
+              maxHeight="max-h-48"
+              options={[
+                { value: "", label: "All Variants" },
+                ...variants.map((v) => ({
+                  value: v.id,
+                  label: `${v.type} ${v.description ? `— ${v.description}` : ""}`,
+                })),
+              ]}
+            />
           </div>
 
           {hasActiveFilters && (

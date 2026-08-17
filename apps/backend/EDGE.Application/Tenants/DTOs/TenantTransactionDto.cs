@@ -9,5 +9,5 @@ public record TenantTransactionDto(
     string ServiceType,
     decimal Amount,
     string PaymentStatus,
-    string Date
+    DateTime Date
 );

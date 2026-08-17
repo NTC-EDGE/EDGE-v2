@@ -107,7 +107,13 @@ public static class ServiceEndpoints
     {
         var updatedCommand = command with { Id = id };
         var result = await mediator.Send(updatedCommand);
-        return result.Succeeded ? Results.Ok(result) : Results.NotFound(result);
+        if (!result.Succeeded)
+        {
+            return result.Message != null && result.Message.Contains("not found")
+                ? Results.NotFound(result)
+                : Results.BadRequest(result);
+        }
+        return Results.Ok(result);
     }
 
     [HasPermission(Permissions.DeleteServices)]
@@ -151,7 +157,13 @@ public static class ServiceEndpoints
     {
         var updatedCommand = command with { TenantId = tenantId, Id = id };
         var result = await mediator.Send(updatedCommand);
-        return result.Succeeded ? Results.Ok(result) : Results.NotFound(result);
+        if (!result.Succeeded)
+        {
+            return result.Message != null && result.Message.Contains("not found")
+                ? Results.NotFound(result)
+                : Results.BadRequest(result);
+        }
+        return Results.Ok(result);
     }
 
     [HasPermission(Permissions.DeleteServices)]

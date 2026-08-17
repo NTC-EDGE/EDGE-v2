@@ -39,14 +39,14 @@ export interface PaginatedApiResponse<T> {
 export interface CreateServiceCategoryRequest {
   name: string;
   code?: string;
-  type: string;
+  type?: string;
 }
 
 export interface UpdateServiceCategoryRequest {
-  id: string;
+  id?: string;
   name: string;
   code?: string;
-  type: string;
+  type?: string;
 }
 
 export interface CreateServiceRequest {

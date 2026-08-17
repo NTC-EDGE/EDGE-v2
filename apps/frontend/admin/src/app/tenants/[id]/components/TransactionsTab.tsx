@@ -1,9 +1,10 @@
 "use client";
 
-import React from "react";
-import { Loader2, Receipt } from "lucide-react";
+import React, { useState } from "react";
+import { Loader2, Receipt, Search } from "lucide-react";
 import { Tenant } from "@edge/api";
 import { useTenantService } from "@/services/tenantService";
+import { Pagination } from "@/components/ui/pagination";
 
 export interface RegionalTransaction {
   id: string;
@@ -19,16 +20,63 @@ interface TransactionsTabProps {
   currentTenant: Tenant;
 }
 
+function formatBackendDateTime(dateString: string | null | undefined): string {
+  if (!dateString) return "—";
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) return String(dateString);
+
+  return date.toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
 export function TransactionsTab({ currentTenant }: TransactionsTabProps) {
+  const [txPage, setTxPage] = useState(1);
+  const [txPageSize, setTxPageSize] = useState(10);
+  const [txSearchTerm, setTxSearchTerm] = useState("");
+
   const { useTenantTransactions } = useTenantService();
-  const { data: fetchedTx, isLoading } = useTenantTransactions(currentTenant.id);
-  const currentTransactions: RegionalTransaction[] = fetchedTx ?? [];
+  const { data: fetchedTxResponse, isLoading } = useTenantTransactions(
+    currentTenant.id,
+    txPage,
+    txPageSize,
+    txSearchTerm
+  );
+
+  const currentTransactions: RegionalTransaction[] = Array.isArray(fetchedTxResponse?.data)
+    ? fetchedTxResponse.data
+    : Array.isArray(fetchedTxResponse)
+      ? (fetchedTxResponse as unknown as RegionalTransaction[])
+      : [];
+
+  const totalCount = fetchedTxResponse?.totalCount ?? currentTransactions.length;
 
   return (
     <div className="space-y-4 min-w-0">
-      <div className="pb-3 border-b border-slate-200 dark:border-slate-800">
-        <h3 className="text-base font-bold text-slate-900 dark:text-white">Regional Permit & Regulatory Transactions</h3>
-        <p className="text-xs text-slate-600 dark:text-slate-400">Financial reference records for spectrum permits and inspections.</p>
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
+        <div>
+          <h3 className="text-base font-bold text-slate-900 dark:text-white">Regional Permit & Regulatory Transactions</h3>
+          <p className="text-xs text-slate-600 dark:text-slate-400">Financial reference records for spectrum permits, orders of payment, and assessments.</p>
+        </div>
+
+        <div className="relative w-full sm:w-80">
+          <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400 dark:text-slate-500" />
+          <input
+            type="text"
+            placeholder="Search reference #, client, or permit..."
+            value={txSearchTerm}
+            onChange={(e) => {
+              setTxSearchTerm(e.target.value);
+              setTxPage(1);
+            }}
+            className="w-full pl-10 pr-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-teal-500"
+          />
+        </div>
       </div>
 
       <div className="divide-y divide-slate-200 dark:divide-slate-800 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-slate-50 dark:bg-slate-950/60 min-w-0">
@@ -44,39 +92,54 @@ export function TransactionsTab({ currentTenant }: TransactionsTabProps) {
             </div>
             <h4 className="text-sm font-bold text-slate-900 dark:text-white mb-1">No Transactions Recorded</h4>
             <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm">
-              There are no permit, fee, or order of payment transactions recorded for this tenant office yet.
+              {txSearchTerm
+                ? "No transactions match your search filter."
+                : "There are no permit, fee, or order of payment transactions recorded for this tenant office yet."}
             </p>
           </div>
         ) : (
           currentTransactions.map((tx) => (
-            <div key={tx.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-100 dark:hover:bg-slate-800/40 transition-colors min-w-0">
-              <div className="space-y-1 min-w-0">
-                <div className="flex flex-wrap items-center gap-2.5 min-w-0">
+            <div key={tx.id} className="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 hover:bg-slate-100 dark:hover:bg-slate-800/40 transition-colors min-w-0">
+              <div className="space-y-0.5 min-w-0">
+                <div className="flex flex-wrap items-center gap-2 min-w-0">
                   <span className="font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-white dark:bg-slate-900 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-800 shrink-0">
                     {tx.refNo}
                   </span>
-                  <span className="text-sm font-bold text-slate-900 dark:text-white break-words">{tx.applicantName}</span>
+                  <span className="text-sm font-bold text-slate-900 dark:text-white truncate">{tx.applicantName}</span>
                 </div>
-                <p className="text-xs text-slate-600 dark:text-slate-400 break-words">{tx.serviceType}</p>
+                <p className="text-xs text-slate-600 dark:text-slate-400 truncate">{tx.serviceType}</p>
               </div>
 
-              <div className="flex items-center justify-between sm:justify-end sm:flex-col sm:items-end gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-200/80 dark:border-slate-800/60">
+              <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-200/80 dark:border-slate-800/60">
                 <span className="text-sm font-extrabold text-slate-900 dark:text-white font-mono">
                   ₱{tx.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                 </span>
-                <div className="flex items-center gap-2 text-xs">
-                  <span className={`px-2 py-0.5 rounded text-[11px] font-semibold ${
-                    tx.paymentStatus === "Paid" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
-                  }`}>
-                    {tx.paymentStatus}
-                  </span>
-                  <span className="text-[11px] text-slate-500 font-mono">{tx.date}</span>
-                </div>
+                <span className={`px-2 py-0.5 rounded text-[11px] font-semibold ${
+                  tx.paymentStatus === "Paid" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                }`}>
+                  {tx.paymentStatus}
+                </span>
+                <span className="text-xs text-slate-500 dark:text-slate-400 font-mono whitespace-nowrap">
+                  {formatBackendDateTime(tx.date)}
+                </span>
               </div>
             </div>
           ))
         )}
       </div>
+
+      {totalCount > 0 && (
+        <Pagination
+          currentPage={txPage}
+          totalItems={totalCount}
+          pageSize={txPageSize}
+          onPageChange={setTxPage}
+          onPageSizeChange={(newSize) => {
+            setTxPageSize(newSize);
+            setTxPage(1);
+          }}
+        />
+      )}
     </div>
   );
 }

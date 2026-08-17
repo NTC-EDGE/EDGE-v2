@@ -135,7 +135,11 @@ public static class ServiceVariantElementEndpoints
         IValidator<UpdateServiceVariantElementCommand> validator,
         IMediator mediator)
     {
-        if (id != command.Id)
+        if (command.Id == Guid.Empty)
+        {
+            command = command with { Id = id };
+        }
+        else if (id != command.Id)
         {
             return Results.BadRequest(new { message = "The path ID does not match the request body ID." });
         }

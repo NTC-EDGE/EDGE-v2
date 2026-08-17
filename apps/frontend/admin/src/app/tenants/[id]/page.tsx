@@ -65,6 +65,7 @@ function TenantDetailContent({ currentTenant, tenantId }: TenantDetailContentPro
   const { useRegions } = useRegionService();
   const { useFieldOffices } = useFieldOfficeService();
   const { useTenantMembers } = useTenantMemberService();
+  const { useTenantClients, useTenantTransactions } = useTenantService();
 
   const { data: regionsResponse } = useRegions();
   const regionsList: Region[] = Array.isArray(regionsResponse)
@@ -89,10 +90,14 @@ function TenantDetailContent({ currentTenant, tenantId }: TenantDetailContentPro
     visitedTabs.includes("field_offices") ? currentTenant.regionId : null
   );
 
+  const { data: tenantClientsResponse } = useTenantClients(tenantId, 1, 1);
+  const { data: tenantTransactionsResponse } = useTenantTransactions(tenantId, 1, 1);
+
   const fieldOfficesList: FieldOffice[] = fetchedFieldOfficesResponse ?? [];
   const staffCount = fetchedMembers !== undefined && fetchedMembers !== null ? fetchedMembers.length : (currentTenant.tenantMembersTotal ?? 0);
   const officesCount = fetchedFieldOfficesResponse !== undefined && fetchedFieldOfficesResponse !== null ? fetchedFieldOfficesResponse.length : (currentTenant.fieldOfficesCount ?? 0);
-  const clientCount = currentTenant.clientTotal ?? 0;
+  const clientCount = tenantClientsResponse?.totalCount ?? currentTenant.clientTotal ?? 0;
+  const transactionCount = tenantTransactionsResponse?.totalCount ?? 0;
 
   return (
     <div className="space-y-5 sm:space-y-6 min-w-0">
@@ -178,7 +183,7 @@ function TenantDetailContent({ currentTenant, tenantId }: TenantDetailContentPro
           <KeyRound className="w-4 h-4 text-purple-500 dark:text-purple-400" /> Roles
         </button>
         <button onClick={() => handleTabChange("transactions")} className={`px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shrink-0 transition-all ${activeTab === "transactions" ? "bg-indigo-600 text-white shadow-sm" : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60"}`}>
-          <Receipt className="w-4 h-4 text-teal-500 dark:text-teal-400" /> Transactions
+          <Receipt className="w-4 h-4 text-teal-500 dark:text-teal-400" /> Transactions ({transactionCount.toLocaleString()})
         </button>
       </div>
 

@@ -235,7 +235,7 @@ export default function Dashboard() {
       href: "/services",
     },
     {
-      name: "Services Catalog",
+      name: "Services",
       count: servicesCount,
       loading: servicesLoading,
       subtitle: "Across All Categories",
@@ -246,7 +246,7 @@ export default function Dashboard() {
       href: "/services",
     },
     {
-      name: "Master Requirements",
+      name: "Requirements",
       count: requirementsCount,
       loading: requirementsResult.isLoading,
       subtitle: "Documentary Requirements Pool",
@@ -302,7 +302,7 @@ export default function Dashboard() {
       href: "/soa-notes",
     },
     {
-      name: "Master Elements",
+      name: "Elements",
       count: elementsCount,
       loading: elementsResult.isLoading,
       subtitle: "Catalog Elements Pool",
@@ -325,7 +325,7 @@ export default function Dashboard() {
     { label: "Manage Tenants", desc: "Register branches & assign region ownership", icon: Building2, color: "text-emerald-600 dark:text-emerald-400", hover: "hover:border-emerald-500/40", href: "/tenants" },
     { label: "Support Users", desc: "Unlock accounts, revoke sessions & diagnostics", icon: HeadphonesIcon, color: "text-sky-600 dark:text-sky-400", hover: "hover:border-sky-500/40", href: "/support-users" },
     { label: "Roles & Permissions", desc: "Manage access control policy and role matrices", icon: KeyRound, color: "text-violet-600 dark:text-violet-400", hover: "hover:border-violet-500/40", href: "/roles-permissions" },
-    { label: "Services Catalog", desc: "Configure services, variants, checklists & fees", icon: FileText, color: "text-indigo-600 dark:text-indigo-400", hover: "hover:border-indigo-500/40", href: "/services" },
+    { label: "Services", desc: "Configure services, variants, checklists & fees", icon: FileText, color: "text-indigo-600 dark:text-indigo-400", hover: "hover:border-indigo-500/40", href: "/services" },
     { label: "Announcements", desc: "Broadcast system-wide messages and alerts", icon: BellRing, color: "text-amber-600 dark:text-amber-400", hover: "hover:border-amber-500/40", href: "/announcements" },
     { label: "System Config", desc: "Platform-wide settings and configuration values", icon: Settings, color: "text-slate-700 dark:text-slate-300", hover: "hover:border-slate-400 dark:hover:border-slate-600", href: "/system-config" },
   ];

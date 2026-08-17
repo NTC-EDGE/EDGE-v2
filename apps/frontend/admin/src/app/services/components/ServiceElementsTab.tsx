@@ -86,14 +86,6 @@ export function ServiceElementsTab({
             Manage global exam elements catalog in the system.
           </p>
         </div>
-        {canManage && (
-          <button
-            onClick={onAdd}
-            className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold transition-all text-xs shadow shadow-indigo-600/20 flex items-center gap-1.5"
-          >
-            <Plus className="w-4 h-4" /> Add Element
-          </button>
-        )}
       </div>
 
       <div className="overflow-x-auto">

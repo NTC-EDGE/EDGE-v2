@@ -5,6 +5,8 @@ import { Boxes } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ServiceCategory, ServiceItem } from "@/services/catalogService";
 
+import { SearchableSelect } from "@/components/ui/searchable-select";
+
 interface CatalogServiceDialogProps {
   isOpen: boolean;
   onClose: () => void;
@@ -86,36 +88,39 @@ export function CatalogServiceDialog({
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
           <div>
             <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 block mb-1.5">Service Category *</label>
-            <select
-              required
+            <SearchableSelect
               value={serviceCategoryId}
-              onChange={(e) => setServiceCategoryId(e.target.value)}
-              className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all font-medium"
-            >
-              {categories.map((c) => (
-                <option key={c.id} value={c.id} className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">
-                  {c.name} ({c.type})
-                </option>
-              ))}
-            </select>
+              onChange={setServiceCategoryId}
+              placeholder="Select Service Category..."
+              searchPlaceholder="Search categories..."
+              maxHeight="max-h-48"
+              options={categories.map((c) => ({
+                value: c.id,
+                label: c.name,
+                badge: c.code || undefined,
+              }))}
+            />
           </div>
 
           <div>
             <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 block mb-1.5">
               Target Tenant / Branch <span className="text-slate-500 font-normal font-sans text-[9px]">(Optional)</span>
             </label>
-            <select
+            <SearchableSelect
               value={serviceTenantId}
-              onChange={(e) => setServiceTenantId(e.target.value)}
-              className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all font-medium"
-            >
-              <option value="" className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">Global / System-Wide Service (All Tenants)</option>
-              {tenants.map((t) => (
-                <option key={t.id} value={t.id} className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">
-                  {t.name} ({t.code})
-                </option>
-              ))}
-            </select>
+              onChange={setServiceTenantId}
+              placeholder="Global / System-Wide Service (All Tenants)"
+              searchPlaceholder="Search tenants / branches..."
+              maxHeight="max-h-48"
+              clearable={true}
+              options={[
+                { value: "", label: "Global / System-Wide Service (All Tenants)" },
+                ...tenants.map((t) => ({
+                  value: t.id,
+                  label: `${t.name} (${t.code})`,
+                })),
+              ]}
+            />
           </div>
 
           <div>

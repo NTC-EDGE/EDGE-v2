@@ -1,5 +1,5 @@
 import { useApi } from './api';
-import { Tenant, CreateTenantCommand, UpdateTenantCommand, TenantClientDto } from '@edge/api';
+import { Tenant, CreateTenantCommand, UpdateTenantCommand, TenantClientDto, TenantClientDetailsDto } from '@edge/api';
 
 export interface PaginatedApiResponse<T> {
   succeeded: boolean;
@@ -29,15 +29,17 @@ export function useTenantService() {
     return useQuery<Tenant>(id !== null && id.length > 0 ? `/api/v2/tenants/${id}` : null);
   };
 
-  const useTenantClients = (tenantId: string | null, search?: string) => {
+  const useTenantClients = (tenantId: string | null, pageNumber = 1, pageSize = 10, search?: string) => {
     const params = new URLSearchParams();
+    params.append('pageNumber', pageNumber.toString());
+    params.append('pageSize', pageSize.toString());
     if (search !== undefined && search !== null && search.trim().length > 0) {
       params.append('search', search.trim());
     }
     const queryString = params.toString();
     const isVal = tenantId !== null && tenantId !== undefined && tenantId.length > 0;
-    const endpoint = isVal ? `/api/v2/tenants/${tenantId}/clients${queryString.length > 0 ? `?${queryString}` : ''}` : null;
-    return useQuery<TenantClientDto[]>(endpoint);
+    const endpoint = isVal ? `/api/v2/tenants/${tenantId}/clients?${queryString}` : null;
+    return useQuery<PaginatedApiResponse<TenantClientDto>>(endpoint);
   };
 
   const createTenant = async (command: CreateTenantCommand): Promise<Tenant> => {
@@ -56,10 +58,17 @@ export function useTenantService() {
     return post<Tenant, undefined>(`/api/v2/tenants/${id}/toggle-active`, undefined);
   };
 
-  const useTenantTransactions = (tenantId: string | null) => {
+  const useTenantTransactions = (tenantId: string | null, pageNumber = 1, pageSize = 10, search?: string) => {
+    const params = new URLSearchParams();
+    params.append('pageNumber', pageNumber.toString());
+    params.append('pageSize', pageSize.toString());
+    if (search !== undefined && search !== null && search.trim().length > 0) {
+      params.append('search', search.trim());
+    }
+    const queryString = params.toString();
     const isVal = tenantId !== null && tenantId !== undefined && tenantId.length > 0;
-    const endpoint = isVal ? `/api/v2/tenants/${tenantId}/transactions` : null;
-    return useQuery<{
+    const endpoint = isVal ? `/api/v2/tenants/${tenantId}/transactions?${queryString}` : null;
+    return useQuery<PaginatedApiResponse<{
       id: string;
       refNo: string;
       applicantName: string;
@@ -67,13 +76,20 @@ export function useTenantService() {
       amount: number;
       paymentStatus: string;
       date: string;
-    }[]>(endpoint);
+    }>>(endpoint);
+  };
+
+  const useTenantClientDetails = (tenantId: string | null, clientId: string | null) => {
+    const isVal = tenantId !== null && tenantId !== undefined && tenantId.length > 0 && clientId !== null && clientId !== undefined && clientId.length > 0;
+    const endpoint = isVal ? `/api/v2/tenants/${tenantId}/clients/${clientId}` : null;
+    return useQuery<TenantClientDetailsDto>(endpoint);
   };
 
   return {
     useTenants,
     useTenant,
     useTenantClients,
+    useTenantClientDetails,
     useTenantTransactions,
     createTenant,
     updateTenant,

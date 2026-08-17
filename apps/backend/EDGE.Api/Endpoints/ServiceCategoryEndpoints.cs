@@ -76,11 +76,12 @@ public static class ServiceCategoryEndpoints
     [HasPermission(Permissions.UpdateServices)]
     public static async Task<IResult> UpdateServiceCategory(Guid id, UpdateServiceCategoryCommand command, IMediator mediator)
     {
-        if (id != command.Id)
-            return Results.BadRequest(ApiResponse<Guid>.Fail("ID path parameter does not match command body ID."));
+        if (command.Id != Guid.Empty && id != command.Id)
+            return Results.BadRequest(ApiResponse<string>.Fail("ID path parameter does not match command body ID."));
 
-        var result = await mediator.Send(command);
-        return result.Succeeded ? Results.Ok(result) : Results.NotFound(result);
+        var cmd = command.Id == Guid.Empty ? command with { Id = id } : command;
+        var result = await mediator.Send(cmd);
+        return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
     }
 
     [HasPermission(Permissions.DeleteServices)]

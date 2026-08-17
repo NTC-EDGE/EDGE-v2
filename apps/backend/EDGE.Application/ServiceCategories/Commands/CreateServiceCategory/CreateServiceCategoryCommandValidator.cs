@@ -23,8 +23,8 @@ public class CreateServiceCategoryCommandValidator : AbstractValidator<CreateSer
             .WithMessage("Code must be unique.");
 
         RuleFor(v => v.Type)
-            .NotEmpty()
             .Must(t => Enum.TryParse<ServiceCategoryType>(t, true, out _))
+            .When(v => !string.IsNullOrWhiteSpace(v.Type))
             .WithMessage("Type must be one of: Certificate, Accreditation, Exam, License, Permit, RequestsAndComplaints.");
     }
 }
