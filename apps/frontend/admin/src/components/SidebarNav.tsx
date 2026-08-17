@@ -282,6 +282,22 @@ export function SidebarNav() {
 
             {isSystemAdmin && (
               <Link
+                href="/form-builder"
+                onClick={() => setMobileOpen(false)}
+                className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                  isActive("/form-builder") ? activeLinkClass : inactiveLinkClass
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <ClipboardList className="h-4 w-4 text-violet-500 dark:text-violet-400" />
+                  <span>Form Builder</span>
+                </div>
+                <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-mono">System</span>
+              </Link>
+            )}
+
+            {isSystemAdmin && (
+              <Link
                 href="/roles-permissions"
                 onClick={() => setMobileOpen(false)}
                 className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
