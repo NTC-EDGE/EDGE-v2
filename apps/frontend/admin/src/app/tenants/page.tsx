@@ -9,13 +9,11 @@ import {
   Plus,
   Search,
   MapPin,
-  Users,
   Eye,
   Edit2,
   Trash2,
   Filter,
   Loader2,
-  ShieldCheck,
   CheckCircle2,
   AlertCircle,
   Power,
@@ -27,7 +25,7 @@ import { useAdminScope } from "@/lib/admin-scope-context";
 import { Tenant, Region } from "@edge/api";
 import { Button } from "@/components/ui/button";
 import { ConfirmActionDialog } from "@/components/ui/confirm-action-dialog";
-import { DataTable, ColumnDef } from "@/components/ui/data-table";
+import { DataTable } from "@/components/ui/data-table";
 import {
   Dialog,
   DialogContent,
@@ -102,7 +100,7 @@ export default function TenantsPage() {
       code: "",
       description: "",
       regionId: regions.length > 0 ? regions[0].id : "",
-      isActive: true,
+      isActive: false,
     });
     setErrorMsg(null);
     setIsCreateOpen(true);
@@ -165,7 +163,7 @@ export default function TenantsPage() {
         regionId: formData.regionId,
       });
       await mutate();
-      setToast({ message: `Tenant "${formData.name}" created successfully.`, type: "success" });
+      setToast({ message: `Tenant "${formData.name}" created successfully as Inactive.`, type: "success" });
       setIsCreateOpen(false);
     } catch (err: unknown) {
       const msg = getErrorMessage(err, "Failed to create tenant. Please try again.");
@@ -339,12 +337,14 @@ export default function TenantsPage() {
               key: "status",
               header: "Status",
               cell: (tenant) => tenant.isActive ? (
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> Operational
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                  Active
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
-                  Disabled
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-700 dark:text-rose-300 border border-rose-500/30">
+                  <span className="h-2 w-2 rounded-full bg-rose-500" />
+                  Inactive
                 </span>
               ),
             },
@@ -411,10 +411,10 @@ export default function TenantsPage() {
 
       {/* Create Tenant Modal */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="sm:max-w-[500px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white">
+        <DialogContent className="w-[calc(100vw-24px)] sm:w-full sm:max-w-[500px] max-h-[92vh] overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white p-5 sm:p-6">
           <DialogHeader>
-            <DialogTitle className="text-xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-              <Building2 className="w-5 h-5 text-indigo-500 dark:text-indigo-400" /> Register New Tenant Branch
+            <DialogTitle className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+              <Plus className="w-5 h-5 text-indigo-500 dark:text-indigo-400" /> Provision New Tenant
             </DialogTitle>
             <DialogDescription className="text-slate-600 dark:text-slate-400 text-xs">
               Add a new regional administrative tenant to the platform ecosystem.
@@ -429,6 +429,14 @@ export default function TenantsPage() {
               </div>
             )}
 
+            {/* Status Informational Note */}
+            <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-700 dark:text-amber-300 flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <div>
+                <span className="font-semibold">Default Inactive Status:</span> Newly provisioned tenant organizations are created as <strong>Inactive</strong> by default until activated by an administrator.
+              </div>
+            </div>
+
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Tenant Name *</label>
               <input
@@ -441,7 +449,7 @@ export default function TenantsPage() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Tenant Code *</label>
                 <input
@@ -482,19 +490,20 @@ export default function TenantsPage() {
               />
             </div>
 
-            <DialogFooter className="pt-4 border-t border-slate-200 dark:border-slate-800">
+
+            <DialogFooter className="pt-4 border-t border-slate-200 dark:border-slate-800 flex-col-reverse sm:flex-row gap-2">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => setIsCreateOpen(false)}
-                className="border-slate-300 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                className="w-full sm:w-auto border-slate-300 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
                 disabled={submitting}
-                className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold flex items-center gap-2"
+                className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold flex items-center justify-center gap-2 w-full sm:w-auto"
               >
                 {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
                 <span>Create Tenant</span>
@@ -506,9 +515,9 @@ export default function TenantsPage() {
 
       {/* Edit Tenant Modal */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="sm:max-w-[500px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white">
+        <DialogContent className="w-[calc(100vw-24px)] sm:w-full sm:max-w-[500px] max-h-[92vh] overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white p-5 sm:p-6">
           <DialogHeader>
-            <DialogTitle className="text-xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+            <DialogTitle className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
               <Edit2 className="w-5 h-5 text-indigo-500 dark:text-indigo-400" /> Edit Tenant Details
             </DialogTitle>
             <DialogDescription className="text-slate-600 dark:text-slate-400 text-xs">
@@ -528,7 +537,7 @@ export default function TenantsPage() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Tenant Code *</label>
                 <input
@@ -580,19 +589,19 @@ export default function TenantsPage() {
               </label>
             </div>
 
-            <DialogFooter className="pt-4 border-t border-slate-200 dark:border-slate-800">
+            <DialogFooter className="pt-4 border-t border-slate-200 dark:border-slate-800 flex-col-reverse sm:flex-row gap-2">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => setIsEditOpen(false)}
-                className="border-slate-300 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                className="w-full sm:w-auto border-slate-300 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
                 disabled={submitting}
-                className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold flex items-center gap-2"
+                className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold flex items-center justify-center gap-2 w-full sm:w-auto"
               >
                 {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
                 <span>Save Changes</span>

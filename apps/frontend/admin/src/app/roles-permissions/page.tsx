@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   KeyRound,
   Plus,
@@ -26,6 +26,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ConfirmActionDialog } from "@/components/ui/confirm-action-dialog";
 import { isForbiddenError, PageForbiddenState } from "@/components/PageForbiddenState";
+import { showToast } from "@/components/ui/toast-notification";
 import { Role, CreateRoleCommand, UpdateRoleCommand } from "@edge/api";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -240,12 +241,6 @@ function RoleFormDialog({
 // ─────────────────────────────────────────────────────────────────────────────
 
 type RoleFilter = "all" | "system" | "tenant";
-type ToastType = "success" | "error";
-
-interface ToastState {
-  msg: string;
-  type: ToastType;
-}
 
 export default function RolesPermissionsPage() {
   const { useRoles, createRole, updateRole, deleteRole } = useRoleService();
@@ -289,14 +284,6 @@ export default function RolesPermissionsPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
-
-  // Toast
-  const [toast, setToast] = useState<ToastState | null>(null);
-
-  const showToast = useCallback((msg: string, type: ToastType = "success") => {
-    setToast({ msg, type });
-    setTimeout(() => setToast(null), 5000);
-  }, []);
 
   // Role permissions for selected role
   const {
@@ -407,9 +394,10 @@ export default function RolesPermissionsPage() {
         ...removedKeys.map((k) => revokePermission(selectedRoleId, k).catch(() => null)),
       ]);
       await mutateRolePerms();
-      showToast(`Permissions saved for "${selectedRole?.name}".`);
+      setOriginalKeys(new Set(pendingKeys));
+      showToast.success(`Permissions saved for "${selectedRole?.name}".`);
     } catch {
-      showToast("Failed to save permission changes.", "error");
+      showToast.error("Failed to save permission changes.");
     } finally {
       setIsSavingPerms(false);
     }
@@ -429,7 +417,7 @@ export default function RolesPermissionsPage() {
     await createRole(command);
     await mutateRoles();
     setIsCreateOpen(false);
-    showToast(`Role "${data.name}" created successfully.`);
+    showToast.success(`Role "${data.name}" created successfully.`);
   };
 
   const handleUpdateRole = async (data: RoleFormData) => {
@@ -445,7 +433,7 @@ export default function RolesPermissionsPage() {
     await mutateRoles();
     setIsEditOpen(false);
     setEditingRole(null);
-    showToast(`Role "${data.name}" updated.`);
+    showToast.success(`Role "${data.name}" updated.`);
   };
 
   const handleDeleteRole = async () => {
@@ -455,9 +443,9 @@ export default function RolesPermissionsPage() {
       await deleteRole(deletingRole.id);
       await mutateRoles();
       if (selectedRoleId === deletingRole.id) setSelectedRoleId(null);
-      showToast(`Role "${deletingRole.name}" deleted.`);
+      showToast.success(`Role "${deletingRole.name}" deleted.`);
     } catch {
-      showToast("Failed to delete role.", "error");
+      showToast.error("Failed to delete role.");
     } finally {
       setIsDeleting(false);
       setIsDeleteOpen(false);
@@ -470,9 +458,9 @@ export default function RolesPermissionsPage() {
     try {
       await resetRolePermissions();
       if (selectedRoleId !== null) await mutateRolePerms();
-      showToast("Role permissions have been reset to system defaults.");
+      showToast.success("Role permissions have been reset to system defaults.");
     } catch {
-      showToast("Failed to reset role permissions.", "error");
+      showToast.error("Failed to reset role permissions.");
     } finally {
       setIsResetting(false);
       setIsResetConfirmOpen(false);
@@ -489,32 +477,6 @@ export default function RolesPermissionsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Toast notification */}
-      {toast !== null && (
-        <div
-          className={`p-4 rounded-xl border text-sm flex items-center justify-between shadow-xl ${
-            toast.type === "error"
-              ? "bg-red-500/10 border-red-500/30 text-red-300"
-              : "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
-          }`}
-        >
-          <div className="flex items-center gap-3">
-            {toast.type === "error" ? (
-              <AlertCircle className="w-4 h-4 shrink-0" />
-            ) : (
-              <Check className="w-4 h-4 shrink-0" />
-            )}
-            <span>{toast.msg}</span>
-          </div>
-          <button
-            onClick={() => setToast(null)}
-            className="text-xs opacity-50 hover:opacity-100 transition-opacity"
-          >
-            Dismiss
-          </button>
-        </div>
-      )}
-
       {/* Page header */}
       <div className="p-5 md:p-6 rounded-2xl bg-white dark:bg-gradient-to-r dark:from-slate-900 dark:via-slate-900/90 dark:to-purple-950/60 border border-slate-200 dark:border-slate-800 shadow-md dark:shadow-xl relative overflow-hidden transition-colors duration-200">
         <div className="absolute top-0 right-0 p-8 opacity-[0.04] pointer-events-none select-none">

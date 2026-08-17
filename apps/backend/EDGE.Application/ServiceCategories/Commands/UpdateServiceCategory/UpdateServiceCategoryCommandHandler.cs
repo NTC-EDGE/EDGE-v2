@@ -19,14 +19,12 @@ public class UpdateServiceCategoryCommandHandler(IServiceCategoryRepository repo
             return ApiResponse<string>.Fail("Service category not found.");
         }
 
-        if (!Enum.TryParse<ServiceCategoryType>(request.Type, true, out var type))
-        {
-            return ApiResponse<string>.Fail("Invalid Type value.");
-        }
-
         category.Name = request.Name;
         category.Code = request.Code;
-        category.Type = type;
+        if (!string.IsNullOrWhiteSpace(request.Type) && Enum.TryParse<ServiceCategoryType>(request.Type, true, out var type))
+        {
+            category.Type = type;
+        }
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
 

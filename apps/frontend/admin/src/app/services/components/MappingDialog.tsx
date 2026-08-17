@@ -5,6 +5,7 @@ import { Link2, AlertCircle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Requirement, ServiceVariant, ServiceVariantRequirement } from "@edge/api";
 import { ServiceItem } from "@/services/catalogService";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 
 interface MappingDialogProps {
   isOpen: boolean;
@@ -74,14 +75,14 @@ export function MappingDialog({
         setDialogVariantId(editingMapping.serviceVariantId ?? "");
         setSelectedRequirementId(editingMapping.requirementId ?? "");
         setIsRequired(editingMapping.isRequired);
-      } else if (activeTab === "service-requirements") {
+      } else if (activeTab === "service-requirements" && mappingServiceId && mappingVariantId) {
         setDialogServiceId(mappingServiceId);
         setDialogVariantId(mappingVariantId);
         setSelectedRequirementId("");
         setIsRequired(true);
       } else {
-        // Flat mapping mode
-        const initialSvcId = services.length > 0 ? services[0].id : "";
+        // Flat mapping mode or unselected variant
+        const initialSvcId = mappingServiceId || (services.length > 0 ? services[0].id : "");
         setDialogServiceId(initialSvcId);
         const matchingVars = allVariants.filter((v) => v.serviceId === initialSvcId);
         setDialogVariantId(matchingVars.length > 0 ? matchingVars[0].id : "");
@@ -103,11 +104,12 @@ export function MappingDialog({
     e.preventDefault();
     setError(null);
 
-    const variant = allVariants.find(v => v.id === dialogVariantId);
     const sId = editingMapping
       ? (allVariants.find(v => v.id === editingMapping.serviceVariantId)?.serviceId ?? "")
-      : (activeTab === "service-requirements" ? mappingServiceId : dialogServiceId);
-    const vId = editingMapping ? editingMapping.serviceVariantId : (activeTab === "service-requirements" ? mappingVariantId : dialogVariantId);
+      : (activeTab === "service-requirements" && mappingServiceId && mappingVariantId ? mappingServiceId : dialogServiceId);
+    const vId = editingMapping
+      ? editingMapping.serviceVariantId
+      : (activeTab === "service-requirements" && mappingServiceId && mappingVariantId ? mappingVariantId : dialogVariantId);
     const rId = editingMapping ? editingMapping.requirementId : selectedRequirementId;
 
     if (!sId || !vId || !rId) {
@@ -168,7 +170,7 @@ export function MappingDialog({
                 </div>
               </div>
             </div>
-          ) : activeTab === "service-requirements" ? (
+          ) : (activeTab === "service-requirements" && mappingServiceId && mappingVariantId) ? (
             <div className="grid grid-cols-2 gap-4">
               <div className="min-w-0">
                 <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 block mb-1.5">Service</label>
@@ -190,38 +192,34 @@ export function MappingDialog({
             <div className="space-y-4">
               <div>
                 <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 block mb-1.5">Service *</label>
-                <select
-                  required
+                <SearchableSelect
                   value={dialogServiceId}
-                  onChange={(e) => setDialogServiceId(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all font-medium"
-                >
-                  {services.map((s) => (
-                    <option key={s.id} value={s.id} className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">
-                      [{s.code || "SVC"}] {s.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setDialogServiceId}
+                  placeholder="Select Service..."
+                  searchPlaceholder="Search services..."
+                  maxHeight="max-h-48"
+                  options={services.map((s) => ({
+                    value: s.id,
+                    label: s.name,
+                    badge: s.code || "SVC",
+                  }))}
+                />
               </div>
               <div>
                 <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 block mb-1.5">Service Variant *</label>
-                <select
-                  required
+                <SearchableSelect
                   value={dialogVariantId}
-                  onChange={(e) => setDialogVariantId(e.target.value)}
+                  onChange={setDialogVariantId}
                   disabled={dialogVariants.length === 0}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all disabled:opacity-40 font-medium"
-                >
-                  {dialogVariants.length === 0 ? (
-                    <option value="" className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">No variants registered for this service</option>
-                  ) : (
-                    dialogVariants.map((v) => (
-                      <option key={v.id} value={v.id} className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">
-                        {v.type === "NA" ? "N/A" : v.type} {v.description ? `- ${v.description}` : ""}
-                      </option>
-                    ))
-                  )}
-                </select>
+                  placeholder={dialogVariants.length === 0 ? "No variants registered for this service" : "Select Variant..."}
+                  searchPlaceholder="Search variants..."
+                  maxHeight="max-h-48"
+                  options={dialogVariants.map((v) => ({
+                    value: v.id,
+                    label: v.type === "NA" ? "N/A" : v.type,
+                    description: v.description || undefined,
+                  }))}
+                />
               </div>
             </div>
           )}
@@ -233,19 +231,18 @@ export function MappingDialog({
                 {editingMapping.requirement?.name ?? ""}
               </div>
             ) : (
-              <select
-                required
+              <SearchableSelect
                 value={selectedRequirementId}
-                onChange={(e) => setSelectedRequirementId(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all font-medium"
-              >
-                <option value="" disabled className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">Select Requirement...</option>
-                {availableRequirements.map((req) => (
-                  <option key={req.id} value={req.id} className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">
-                    {req.name}
-                  </option>
-                ))}
-              </select>
+                onChange={setSelectedRequirementId}
+                placeholder="Select Requirement..."
+                searchPlaceholder="Search requirements..."
+                maxHeight="max-h-48"
+                options={availableRequirements.map((req) => ({
+                  value: req.id,
+                  label: req.name,
+                  description: req.description || undefined,
+                }))}
+              />
             )}
           </div>
 

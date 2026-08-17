@@ -10,5 +10,6 @@ public interface IRoleRepository
     Task<List<Role>> GetSystemRolesAsync(CancellationToken cancellationToken = default);
     Task AddAsync(Role role, CancellationToken cancellationToken = default);
     Task<List<Role>> GetAllAsync(CancellationToken cancellationToken = default);
+    Task<bool> IsRoleNameUniqueAsync(string name, Guid? tenantId = null, Guid? excludeId = null, CancellationToken cancellationToken = default);
     void Delete(Role role);
 }

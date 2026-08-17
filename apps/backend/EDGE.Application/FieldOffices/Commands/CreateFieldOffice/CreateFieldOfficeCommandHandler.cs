@@ -118,7 +118,7 @@ public class CreateFieldOfficeCommandHandler : IRequestHandler<CreateFieldOffice
             ContactPhone = (request.ContactPhone ?? "").Trim(),
             ContactEmail = (request.ContactEmail ?? "").Trim(),
             OfficerInChargeId = officerId,
-            IsActive = request.IsActive,
+            IsActive = false,
             AllowSpectrumInspection = request.AllowSpectrumInspection,
             AllowPermitIssuance = request.AllowPermitIssuance,
             AllowComplaintReception = request.AllowComplaintReception

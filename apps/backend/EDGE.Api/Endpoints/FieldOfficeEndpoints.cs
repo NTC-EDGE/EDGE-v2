@@ -6,6 +6,7 @@ using EDGE.Application.FieldOffices.DTOs;
 using EDGE.Application.FieldOffices.Commands.CreateFieldOffice;
 using EDGE.Application.FieldOffices.Commands.UpdateFieldOffice;
 using EDGE.Application.FieldOffices.Commands.DeleteFieldOffice;
+using EDGE.Application.FieldOffices.Commands.ToggleFieldOfficeActive;
 using EDGE.Application.FieldOffices.Queries.GetFieldOffices;
 using EDGE.Application.FieldOffices.Queries.GetFieldOfficeById;
 using EDGE.Application.FieldOffices.Queries.GetFieldOfficesByTenant;
@@ -54,6 +55,13 @@ public static class FieldOfficeEndpoints
             .WithDescription("Updates the details of a specific field office.")
             .RequireAuthorization();
 
+        offices.MapPut("/{id:guid}/toggle-active", ToggleFieldOfficeActive)
+            .WithName("ToggleFieldOfficeActive")
+            .WithTags("FieldOffices")
+            .WithSummary("Toggle field office active status")
+            .WithDescription("Toggles the active status of a specific field office.")
+            .RequireAuthorization();
+
         offices.MapDelete("/{id:guid}", DeleteFieldOffice)
             .WithName("DeleteFieldOffice")
             .WithTags("FieldOffices")
@@ -75,10 +83,11 @@ public static class FieldOfficeEndpoints
 
     [HasPermission(Permissions.ReadTenants)]
     public static async Task<IResult> GetFieldOffices(
-        Guid? tenantId,
+        [FromQuery] Guid? tenantId,
+        [FromQuery] Guid? regionId,
         IMediator mediator)
     {
-        var result = await mediator.Send(new GetFieldOfficesQuery(tenantId.GetValueOrDefault()));
+        var result = await mediator.Send(new GetFieldOfficesQuery(tenantId, regionId));
         return Results.Ok(result);
     }
 
@@ -111,7 +120,6 @@ public static class FieldOfficeEndpoints
             request.ContactPhone,
             request.ContactEmail,
             request.GetOfficerInChargeGuid(),
-            request.IsActive,
             request.AllowSpectrumInspection,
             request.AllowPermitIssuance,
             request.AllowComplaintReception
@@ -162,5 +170,17 @@ public static class FieldOfficeEndpoints
         return success
             ? Results.NoContent()
             : Results.NotFound(new { message = $"Field office with ID '{id}' was not found or could not be deleted." });
+    }
+
+    [HasPermission(Permissions.UpdateTenants)]
+    public static async Task<IResult> ToggleFieldOfficeActive(
+        Guid id,
+        Guid? tenantId,
+        IMediator mediator)
+    {
+        var result = await mediator.Send(new ToggleFieldOfficeActiveCommand(id, tenantId.GetValueOrDefault()));
+        return result is not null
+            ? Results.Ok(result)
+            : Results.NotFound(new { message = $"Field office with ID '{id}' was not found." });
     }
 }

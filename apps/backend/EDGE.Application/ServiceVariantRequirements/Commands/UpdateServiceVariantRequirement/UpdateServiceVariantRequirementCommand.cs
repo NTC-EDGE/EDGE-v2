@@ -6,9 +6,9 @@ namespace EDGE.Application.ServiceVariantRequirements.Commands.UpdateServiceVari
 
 public record UpdateServiceVariantRequirementCommand : IRequest<ApiResponse<Guid>>
 {
-    public required Guid Id { get; init; }
+    public Guid Id { get; init; }
     public Guid? TenantId { get; init; }
-    public required Guid RequirementId { get; init; }
-    public required Guid ServiceVariantId { get; init; }
+    public Guid? RequirementId { get; init; }
+    public Guid? ServiceVariantId { get; init; }
     public bool IsRequired { get; init; }
 }

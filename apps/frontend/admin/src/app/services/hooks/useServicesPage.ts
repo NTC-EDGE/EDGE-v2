@@ -175,7 +175,7 @@ export function useServicesPage() {
   const tenants = tenantsResponse?.data || [];
 
   // Full list of variants for dialog lookups
-  const { data: allVariants = [] } = useServiceVariants(
+  const { data: allVariants = [], mutate: mutAllVariants } = useServiceVariants(
     1,
     9999,
     undefined,
@@ -381,7 +381,36 @@ export function useServicesPage() {
     setIsReqModalOpen(true);
   };
 
-  const handleOpenEditMapping = (mr: any) => { setEditingMapping(mr); setIsMappingFormOpen(true); };
+  const handleOpenEditMapping = (item: any) => {
+    const mappingObj: ServiceVariantRequirement = {
+      id: item.serviceVariantRequirementId || item.id,
+      requirementId: item.requirementId || item.requirement?.id || "",
+      serviceVariantId: item.serviceVariantId || mappingVariantId,
+      isRequired: item.isRequired ?? true,
+      requirement: {
+        id: item.requirementId || item.requirement?.id || "",
+        name: item.name || item.requirement?.name || "",
+        description: item.description || item.requirement?.description || null,
+      },
+    };
+    setEditingMapping(mappingObj);
+    setIsMappingFormOpen(true);
+  };
+
+  const handleToggleMappingRequired = async (mappingId: string, isRequired: boolean) => {
+    const [res, err] = await safeAsync(updateServiceVariantRequirement(mappingId, {
+      isRequired,
+    } as any));
+    if (res) {
+      showToast(`Requirement mapping updated to ${isRequired ? "Mandatory" : "Optional"}.`);
+      mutSvcReq();
+      mutFlatMap();
+      invalidatePrefix("/api/v2/service-variant-requirements");
+    } else {
+      showToast(getErrorMessage(err, "Failed to update requirement mapping."), "error");
+    }
+  };
+
   const handleOpenEditElement = (el: Element) => { setEditingElement(el); setIsElementModalOpen(true); };
   const handleOpenEditVarElement = (el: ServiceVariantElement) => { setEditingVarElement(el); setIsVarElementModalOpen(true); };
   const handleOpenEditNote = (n: Note) => { setEditingNote(n); setIsNoteModalOpen(true); };
@@ -389,11 +418,14 @@ export function useServicesPage() {
   // Submit Handlers
   const handleCategorySubmit = async (data: any) => {
     setIsCategorySubmitting(true);
-    const apiCall = editingCategory ? updateServiceCategory(editingCategory.id, data) : createServiceCategory(data);
+    const payload = editingCategory ? { ...data, id: editingCategory.id } : data;
+    const apiCall = editingCategory ? updateServiceCategory(editingCategory.id, payload) : createServiceCategory(data);
     const [res, err] = await safeAsync(apiCall);
     if (res) {
       showToast(`Service category ${editingCategory ? "updated" : "created"} successfully.`);
       mutCat();
+      invalidatePrefix("/api/v2/service-categories");
+      invalidatePrefix("/api/v2/services");
       setIsCategoryModalOpen(false);
     } else {
       showToast(getErrorMessage(err, "Failed to save category."), "error");
@@ -403,13 +435,16 @@ export function useServicesPage() {
 
   const handleServiceSubmit = async (data: any) => {
     setIsServiceSubmitting(true);
+    const tenantId = data.tenantId ?? (editingService ? editingService.tenantId : null);
+    const payload = editingService ? { ...data, id: editingService.id, tenantId } : { ...data, tenantId };
     const apiCall = editingService 
-      ? updateService(editingService.tenantId, editingService.id, data) 
-      : createService(data.tenantId, data);
+      ? updateService(tenantId, editingService.id, payload) 
+      : createService(tenantId, payload);
     const [res, err] = await safeAsync(apiCall);
     if (res) {
       showToast(`Service ${editingService ? "updated" : "registered"} successfully.`);
       mutSvc();
+      invalidatePrefix("/api/v2/services");
       setIsServiceModalOpen(false);
     } else {
       showToast(getErrorMessage(err, "Failed to save service."), "error");
@@ -424,6 +459,9 @@ export function useServicesPage() {
     if (res) {
       showToast(`Variant ${editingVariant ? "updated" : "created"} successfully.`);
       mutVar();
+      mutAllVariants();
+      invalidatePrefix("/api/v2/service-variants");
+      invalidatePrefix("/api/v2/services");
       setIsVariantModalOpen(false);
     } else {
       showToast(getErrorMessage(err, "Failed to save variant."), "error");
@@ -470,6 +508,9 @@ export function useServicesPage() {
       showToast("Checklist rule updated successfully.");
       mutSvcReq();
       mutFlatMap();
+      invalidatePrefix("/api/v2/services");
+      invalidatePrefix("/api/v2/service-variants");
+      invalidatePrefix("/api/v2/service-variant-requirements");
       setIsMappingFormOpen(false);
     } else {
       throw err;
@@ -508,15 +549,19 @@ export function useServicesPage() {
   };
 
   // Variant Elements CRUD (Variant-Specific)
-  const handleVarElementSubmit = async (data: { code: string; description: string }) => {
-    if (!mappingVariantId) return;
+  const handleVarElementSubmit = async (data: { serviceVariantId?: string; code: string; description: string }) => {
+    const targetVariantId = data.serviceVariantId || mappingVariantId;
+    if (!targetVariantId) {
+      showToast("Please select a service variant to link this element.", "error");
+      return;
+    }
     setIsVarElementSubmitting(true);
     const apiCall = editingVarElement
       ? updateServiceVariantElement(editingVarElement.id, { code: data.code.toUpperCase(), description: data.description || "" })
-      : createServiceVariantElement({ serviceVariantId: mappingVariantId, code: data.code.toUpperCase(), description: data.description || "" });
+      : createServiceVariantElement({ serviceVariantId: targetVariantId, code: data.code.toUpperCase(), description: data.description || "" });
     const [res, err] = await safeAsync(apiCall);
     if (res) {
-      showToast(`Variant element ${editingVarElement ? "updated" : "created"} successfully.`);
+      showToast(`Variant element ${editingVarElement ? "updated" : "linked"} successfully.`);
       mutVarElements();
       invalidatePrefix("/api/v2/service-variant-elements");
       setIsVarElementModalOpen(false);
@@ -591,7 +636,13 @@ export function useServicesPage() {
   const handleDeleteVariantConfirm = async () => {
     if (!deletingVariantId) return;
     const [res, err] = await safeAsync(deleteServiceVariant(deletingVariantId));
-    if (res) { showToast("Variant deleted."); mutVar(); }
+    if (res) {
+      showToast("Variant deleted.");
+      mutVar();
+      mutAllVariants();
+      invalidatePrefix("/api/v2/service-variants");
+      invalidatePrefix("/api/v2/services");
+    }
     else showToast(getErrorMessage(err, "Failed to delete variant."), "error");
     setDeletingVariantId(null);
   };
@@ -620,7 +671,14 @@ export function useServicesPage() {
     const sId = mapping.serviceId ?? mappingServiceId;
     const vId = mapping.serviceVariantId ?? mappingVariantId;
     const [res, err] = await safeAsync(unlinkServiceVariantRequirement(sId, vId, deletingMappingId));
-    if (res) { showToast("Requirement unlinked."); mutSvcReq(); mutFlatMap(); }
+    if (res) {
+      showToast("Requirement unlinked.");
+      mutSvcReq();
+      mutFlatMap();
+      invalidatePrefix("/api/v2/services");
+      invalidatePrefix("/api/v2/service-variants");
+      invalidatePrefix("/api/v2/service-variant-requirements");
+    }
     else showToast(getErrorMessage(err, "Failed to unlink requirement."), "error");
     setDeletingMappingId(null);
   };
@@ -645,6 +703,7 @@ export function useServicesPage() {
     isReqSubmitting, deletingReqId, setDeletingReqId,
     isMappingFormOpen, setIsMappingFormOpen, editingMapping, setEditingMapping,
     isMappingSubmitting, deletingMappingId, setDeletingMappingId,
+    handleOpenEditMapping, handleToggleMappingRequired,
     // Elements
     isElementModalOpen, setIsElementModalOpen, editingElement, setEditingElement,
     isElementSubmitting, deletingElementId, setDeletingElementId,
@@ -652,6 +711,7 @@ export function useServicesPage() {
     handleOpenEditElement, handleElementSubmit, handleDeleteElementConfirm,
     // Variant Elements
     isVarElementModalOpen, setIsVarElementModalOpen, editingVarElement, setEditingVarElement,
+    setIsVariantElementModalOpen: setIsVarElementModalOpen, setEditingVariantElement: setEditingVarElement,
     isVarElementSubmitting, deletingVarElementId, setDeletingVarElementId,
     serviceVariantElements, varElementsTotalCount, loadingVarElements,
     varElementsPage, setVarElementsPage,
@@ -671,7 +731,7 @@ export function useServicesPage() {
     filteredVariants, pagedVariants, filteredRequirements, pagedRequirements,
     filteredFlatMappings, pagedFlatMappings,
     handleOpenEditCategory, handleOpenEditService, handleOpenEditVariant,
-    handleOpenEditRequirement, handleOpenEditMapping,
+    handleOpenEditRequirement,
     handleCategorySubmit, handleServiceSubmit, handleVariantSubmit,
     handleReqSubmit, handleMappingSubmit,
     handleDeleteCategoryConfirm, handleDeleteServiceConfirm, handleDeleteVariantConfirm,

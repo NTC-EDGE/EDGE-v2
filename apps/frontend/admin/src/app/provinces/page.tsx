@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Building, Search, CheckCircle2 } from "lucide-react";
+import { Plus, Building, Search } from "lucide-react";
 import { useProvinceService } from "@/services/provinceService";
 import { useRegionService } from "@/services/regionService";
 import { useMunicipalityService } from "@/services/municipalityService";
@@ -10,6 +10,7 @@ import { ProvincesTable } from "@/components/geographics/ProvincesTable";
 import { CreateProvinceDialog, EditProvinceDialog } from "@/components/geographics/ProvinceDialogs";
 import { ConfirmActionDialog } from "@/components/ui/confirm-action-dialog";
 import { isForbiddenError, PageForbiddenState } from "@/components/PageForbiddenState";
+import { showToast } from "@/components/ui/toast-notification";
 import { Province } from "@edge/api";
 
 type FilterType = "all" | "active" | "inactive";
@@ -18,7 +19,10 @@ interface ConfirmConfig {
   title: string;
   description: string;
   actionType: "delete" | "toggle-status";
-  payload: any;
+  payload: {
+    item: Province;
+    newStatus?: boolean;
+  };
 }
 
 export default function ProvincesPage() {
@@ -52,12 +56,6 @@ export default function ProvincesPage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmConfig, setConfirmConfig] = useState<ConfirmConfig | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [toastMsg, setToastMsg] = useState<string | null>(null);
-
-  const showToast = (msg: string) => {
-    setToastMsg(msg);
-    setTimeout(() => setToastMsg(null), 4000);
-  };
 
   const hasMunicipalities = (provinceId: string) => {
     return municipalities.some((m) => m.provinceId === provinceId);
@@ -83,7 +81,7 @@ export default function ProvincesPage() {
     if (res.succeeded) {
       setIsCreateOpen(false);
       mutate();
-      showToast("Province registered successfully!");
+      showToast.success(`Province '${data.name}' registered successfully.`);
     } else {
       throw new Error(res.message || "Failed to register province.");
     }
@@ -101,7 +99,7 @@ export default function ProvincesPage() {
     if (res.succeeded) {
       setIsEditOpen(false);
       mutate();
-      showToast("Province details updated successfully!");
+      showToast.success(`Province '${data.name}' updated successfully.`);
     } else {
       throw new Error(res.message || "Failed to update province.");
     }
@@ -139,9 +137,9 @@ export default function ProvincesPage() {
         const res = await deleteProvince(item.id);
         if (res.succeeded) {
           mutate();
-          showToast(`Province '${item.name}' has been deleted.`);
+          showToast.success(`Province '${item.name}' has been deleted.`);
         } else {
-          showToast(res.message || "Failed to delete province.");
+          showToast.error(res.message || "Failed to delete province.");
         }
       } 
       else if (actionType === "toggle-status") {
@@ -151,18 +149,17 @@ export default function ProvincesPage() {
           regionId: item.regionId,
           code: item.code,
           name: item.name,
-          isActive: newStatus,
+          isActive: newStatus ?? true,
         });
         if (res.succeeded) {
           mutate();
-          showToast(`Province '${item.code}' status updated to ${newStatus ? "Active" : "Inactive"}.`);
+          showToast.success(`Province '${item.code}' is now ${newStatus ? "Active" : "Inactive"}.`);
         } else {
-          showToast(res.message || "Failed to toggle status.");
+          showToast.error(res.message || "Failed to toggle status.");
         }
       }
-    } catch (err) {
-      console.error(err);
-      showToast("An error occurred executing this operation.");
+    } catch {
+      showToast.error("An error occurred executing this operation.");
     } finally {
       setIsProcessing(false);
       setConfirmOpen(false);
@@ -172,15 +169,6 @@ export default function ProvincesPage() {
 
   return (
     <div className="space-y-6">
-      {toastMsg !== null && (
-        <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-sm flex items-center justify-between shadow-xl animate-fade-in">
-          <div className="flex items-center gap-3">
-            <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-            <span>{toastMsg}</span>
-          </div>
-          <button onClick={() => setToastMsg(null)} className="text-emerald-400 hover:text-white text-xs">Dismiss</button>
-        </div>
-      )}
 
       {/* Header section */}
       <div className="p-5 md:p-6 rounded-2xl bg-white dark:bg-gradient-to-r dark:from-slate-900 dark:via-slate-900/90 dark:to-indigo-950/60 border border-slate-200 dark:border-slate-800 shadow-md dark:shadow-xl relative overflow-hidden transition-colors duration-200">

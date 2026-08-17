@@ -8,5 +8,5 @@ public record CreateServiceCategoryCommand : IRequest<ApiResponse<Guid>>
 {
     public required string Name { get; init; }
     public string? Code { get; init; }
-    public required string Type { get; init; }
+    public string? Type { get; init; }
 }

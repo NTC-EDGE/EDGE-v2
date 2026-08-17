@@ -20,8 +20,14 @@ public class UpdateServiceVariantRequirementCommandHandler(
             return ApiResponse<Guid>.Fail($"Service Variant Requirement with ID '{request.Id}' was not found.");
         }
 
-        svr.RequirementId = request.RequirementId;
-        svr.ServiceVariantId = request.ServiceVariantId;
+        if (request.RequirementId.HasValue && request.RequirementId.Value != Guid.Empty)
+        {
+            svr.RequirementId = request.RequirementId.Value;
+        }
+        if (request.ServiceVariantId.HasValue && request.ServiceVariantId.Value != Guid.Empty)
+        {
+            svr.ServiceVariantId = request.ServiceVariantId.Value;
+        }
         svr.IsRequired = request.IsRequired;
         if (request.TenantId.HasValue) svr.TenantId = request.TenantId;
 

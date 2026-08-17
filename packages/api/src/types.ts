@@ -344,6 +344,53 @@ export interface GlobalSupportUser {
   totalTicketsCount: number;
 }
 
+export interface TenantClientDto {
+  id: string;
+  userId?: string | null;
+  name: string;
+  email: string;
+  organization: string;
+  licenseCategory: string;
+  status: string;
+  applicationCount: number;
+  registeredDate?: string | null;
+}
+
+export interface TenantClientTransactionDto {
+  id: string;
+  refNo: string;
+  type: string;
+  amount: number;
+  status: string;
+  date: string;
+}
+
+export interface TenantClientDetailsDto {
+  id: string;
+  userId?: string | null;
+  name: string;
+  email: string;
+  contactNumber: string;
+  address: string;
+  nationality: string;
+  sex?: string | null;
+  birthDate?: string | null;
+  organization?: string | null;
+  companyRegistrationNumber?: string | null;
+  companyAddress?: string | null;
+  companyEmail?: string | null;
+  companyContactNumber?: string | null;
+  serviceType: string;
+  serviceCode: string;
+  applicationNumber: string;
+  referenceNumber: string;
+  status: string;
+  applicationMode: string;
+  totalApplications: number;
+  registeredDate: string;
+  transactions: TenantClientTransactionDto[];
+}
+
 export interface UserSession {
   id: string;
   userId: string;
@@ -435,6 +482,14 @@ export interface UpdateRoleCommand {
   id: string;
   tenantId?: string | null;
   isSystemRole: boolean;
+  name: string;
+  key: string;
+  description?: string | null;
+}
+
+export interface DuplicateRoleCommand {
+  sourceRoleId: string;
+  targetTenantId: string;
   name: string;
   key: string;
   description?: string | null;

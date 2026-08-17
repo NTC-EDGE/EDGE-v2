@@ -5,6 +5,7 @@ import { Note, ServiceVariant } from "@edge/api";
 import { X, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ServiceCatalogItem } from "@/services/feesService";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 
 interface NoteDialogProps {
   isOpen: boolean;
@@ -111,37 +112,36 @@ export function NoteDialog({ isOpen, onClose, onSubmit, editingNote, isSubmittin
           {scope === "service" ? (
             <div className="space-y-1.5">
               <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Service *</label>
-              <select
+              <SearchableSelect
                 value={serviceId}
-                onChange={(e) => setServiceId(e.target.value)}
-                required
-                className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
-              >
-                <option value="" className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">Select a service…</option>
-                {services.map((s) => (
-                  <option key={s.id} value={s.id} className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">{s.name}</option>
-                ))}
-              </select>
+                onChange={setServiceId}
+                placeholder="Select a service…"
+                searchPlaceholder="Search services..."
+                maxHeight="max-h-48"
+                options={services.map((s) => ({
+                  value: s.id,
+                  label: s.name,
+                }))}
+              />
             </div>
           ) : (
             <div className="space-y-1.5">
               <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Service Variant *</label>
-              <select
+              <SearchableSelect
                 value={serviceVariantId}
-                onChange={(e) => setServiceVariantId(e.target.value)}
-                required
-                className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
-              >
-                <option value="" className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">Select a service variant…</option>
-                {variants.map((v) => {
+                onChange={setServiceVariantId}
+                placeholder="Select a service variant…"
+                searchPlaceholder="Search variants..."
+                maxHeight="max-h-48"
+                options={variants.map((v) => {
                   const sName = v.serviceName ?? services.find((s) => s.id === v.serviceId)?.name ?? "Unknown Service";
-                  return (
-                    <option key={v.id} value={v.id} className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">
-                      {sName} — {v.type === "NA" ? "N/A" : v.type} {v.description ? `(${v.description})` : ""}
-                    </option>
-                  );
+                  return {
+                    value: v.id,
+                    label: `${sName} — ${v.type === "NA" ? "N/A" : v.type}`,
+                    description: v.description || undefined,
+                  };
                 })}
-              </select>
+              />
             </div>
           )}
 

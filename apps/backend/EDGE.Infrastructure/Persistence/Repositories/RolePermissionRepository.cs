@@ -18,6 +18,11 @@ public class RolePermissionRepository : IRolePermissionRepository
         await _context.Set<RolePermission>().AddAsync(rolePermission, cancellationToken);
     }
 
+    public async Task AddRangeAsync(IEnumerable<RolePermission> rolePermissions, CancellationToken cancellationToken = default)
+    {
+        await _context.Set<RolePermission>().AddRangeAsync(rolePermissions, cancellationToken);
+    }
+
     public void Delete(RolePermission rolePermission)
     {
         _context.Set<RolePermission>().Remove(rolePermission);

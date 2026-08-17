@@ -18,7 +18,7 @@ public class FieldOffice : AuditableEntity
     public string ContactPhone { get; set; } = string.Empty;
     public string ContactEmail { get; set; } = string.Empty;
     public Guid OfficerInChargeId { get; set; }
-    public bool IsActive { get; set; } = true;
+    public bool IsActive { get; set; } = false;
     public bool AllowSpectrumInspection { get; set; } = true;
     public bool AllowPermitIssuance { get; set; } = true;
     public bool AllowComplaintReception { get; set; } = true;
