@@ -110,53 +110,6 @@ export function SoaNotesTable({
         </div>
       ),
     },
-    {
-      key: "actions",
-      header: "Actions",
-      align: "right",
-      cell: (item) => (
-        <div className="flex items-center justify-end gap-1.5">
-          {onViewDetails && (
-            <button
-              type="button"
-              onClick={() => onViewDetails(item)}
-              title="View full details"
-              className="p-1.5 text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 rounded-lg transition-colors"
-            >
-              <Eye className="h-4 w-4" />
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={() => handleCopy(item.notes, item.id)}
-            title="Copy template text"
-            className="p-1.5 text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-          >
-            {copiedId === item.id ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
-          </button>
-          {canManage && (
-            <>
-              <button
-                type="button"
-                onClick={() => onEdit(item)}
-                title="Edit SOA note"
-                className="p-1.5 text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 rounded-lg transition-colors"
-              >
-                <Edit2 className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => onDelete(item)}
-                title="Delete SOA note"
-                className="p-1.5 text-rose-600 hover:text-rose-700 dark:text-rose-400 dark:hover:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            </>
-          )}
-        </div>
-      ),
-    },
   ];
 
   return (
@@ -168,6 +121,37 @@ export function SoaNotesTable({
         title: "No SOA note templates found",
         description: "Click 'New SOA Note' above to create standard billing terms and instructions.",
       }}
+      rowActionMenu={(item) => [
+        ...(onViewDetails
+          ? [
+              {
+                label: "View Details",
+                icon: Eye,
+                onClick: () => onViewDetails(item),
+              },
+            ]
+          : []),
+        {
+          label: copiedId === item.id ? "Copied!" : "Copy Template Text",
+          icon: copiedId === item.id ? Check : Copy,
+          onClick: () => handleCopy(item.notes, item.id),
+        },
+        ...(canManage
+          ? [
+              {
+                label: "Edit SOA Note",
+                icon: Edit2,
+                onClick: () => onEdit(item),
+              },
+              {
+                label: "Delete SOA Note",
+                icon: Trash2,
+                onClick: () => onDelete(item),
+                variant: "destructive" as const,
+              },
+            ]
+          : []),
+      ]}
       pagination={{
         currentPage,
         totalItems: totalCount,

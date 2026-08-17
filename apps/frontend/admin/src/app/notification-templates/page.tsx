@@ -13,8 +13,11 @@ import {
   Search,
   Monitor,
   Smartphone,
+  Copy,
+  Check,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ActionMenu } from "@/components/ui/action-menu";
 
 import { ToastNotification, ToastMessage, getErrorMessage } from "@/components/ui/toast-notification";
 import { isForbiddenError, PageForbiddenState } from "@/components/PageForbiddenState";
@@ -159,19 +162,45 @@ export default function NotificationTemplatesPage() {
                 >
                   <div className="space-y-3">
                     <div className="flex items-start justify-between gap-2.5 flex-wrap sm:flex-nowrap">
-                      <span className="text-xs font-mono px-2.5 py-1 rounded-md bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/20 font-semibold break-all leading-snug">
-                        {t.eventKey}
-                      </span>
-                      <span
-                        className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium shrink-0 ${
-                          t.isActive
-                            ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
-                            : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700"
-                        }`}
-                      >
-                        <CheckCircle className="h-3 w-3" />
-                        {t.isActive ? "Active" : "Disabled"}
-                      </span>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs font-mono px-2.5 py-1 rounded-md bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/20 font-semibold break-all leading-snug">
+                          {t.eventKey}
+                        </span>
+                        <span
+                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium shrink-0 ${
+                            t.isActive
+                              ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
+                              : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700"
+                          }`}
+                        >
+                          <CheckCircle className="h-3 w-3" />
+                          {t.isActive ? "Active" : "Disabled"}
+                        </span>
+                      </div>
+                      <div className="shrink-0">
+                        <ActionMenu
+                          items={[
+                            {
+                              label: "Edit Template",
+                              icon: Edit2,
+                              onClick: () => handleEdit(t),
+                            },
+                            {
+                              label: "Live Preview",
+                              icon: Eye,
+                              onClick: () => handlePreview(t),
+                            },
+                            {
+                              label: "Copy Subject",
+                              icon: Copy,
+                              onClick: () => {
+                                navigator.clipboard.writeText(t.subject);
+                                setToast({ message: "Subject copied to clipboard.", type: "success" });
+                              },
+                            },
+                          ]}
+                        />
+                      </div>
                     </div>
                     <h3 className="font-bold text-slate-900 dark:text-white text-lg">{t.name}</h3>
                     <p className="text-slate-800 dark:text-slate-200 text-xs font-mono bg-slate-50 dark:bg-slate-950 p-3 rounded-xl border border-slate-200 dark:border-slate-800/80 break-words">
@@ -192,25 +221,6 @@ export default function NotificationTemplatesPage() {
                         </span>
                       ))}
                     </div>
-                  </div>
-
-                  <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handlePreview(t)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-medium border border-slate-200 dark:border-slate-700 transition-all"
-                    >
-                      <Eye className="h-3.5 w-3.5" />
-                      <span>Preview</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleEdit(t)}
-                      className="flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-50 dark:bg-indigo-600/20 hover:bg-indigo-600 text-indigo-700 dark:text-indigo-300 hover:text-white rounded-xl text-xs font-medium border border-indigo-200 dark:border-indigo-500/30 transition-all"
-                    >
-                      <Edit2 className="h-3.5 w-3.5" />
-                      <span>Edit Template</span>
-                    </button>
                   </div>
                 </div>
               ))}

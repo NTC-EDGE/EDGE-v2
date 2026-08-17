@@ -224,22 +224,6 @@ export function SidebarNav() {
 
             {isSystemAdmin && (
               <Link
-                href="/system-config"
-                onClick={() => setMobileOpen(false)}
-                className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                  isActive("/system-config") ? activeLinkClass : inactiveLinkClass
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <Sliders className="h-4 w-4 text-indigo-500 dark:text-indigo-400" />
-                  <span>System Configuration</span>
-                </div>
-                <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-mono">System</span>
-              </Link>
-            )}
-
-            {isSystemAdmin && (
-              <Link
                 href="/notification-templates"
                 onClick={() => setMobileOpen(false)}
                 className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
@@ -313,6 +297,22 @@ export function SidebarNav() {
                 <div className="flex items-center gap-3">
                   <KeyRound className="h-4 w-4 text-purple-500 dark:text-purple-400" />
                   <span>Roles &amp; Permissions</span>
+                </div>
+                <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-mono">System</span>
+              </Link>
+            )}
+
+            {isSystemAdmin && (
+              <Link
+                href="/system-config"
+                onClick={() => setMobileOpen(false)}
+                className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                  isActive("/system-config") ? activeLinkClass : inactiveLinkClass
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Sliders className="h-4 w-4 text-indigo-500 dark:text-indigo-400" />
+                  <span>System Configuration</span>
                 </div>
                 <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-mono">System</span>
               </Link>
