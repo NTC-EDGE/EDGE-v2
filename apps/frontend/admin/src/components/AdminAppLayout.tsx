@@ -15,7 +15,7 @@ export function AdminAppLayout({ children }: { children: React.ReactNode }) {
   if (isAuthPage) {
     return (
       <main className="h-full w-full overflow-y-auto bg-background">
-        <Toaster position="top-right" richColors />
+        <Toaster position="top-right" richColors closeButton />
         {children}
       </main>
     );
@@ -27,7 +27,7 @@ export function AdminAppLayout({ children }: { children: React.ReactNode }) {
       <SidebarNav />
 
       {/* Global Toaster & 403 Listener */}
-      <Toaster position="top-right" richColors />
+      <Toaster position="top-right" richColors closeButton />
       <ForbiddenAccessToast />
 
       {/* Main Area */}

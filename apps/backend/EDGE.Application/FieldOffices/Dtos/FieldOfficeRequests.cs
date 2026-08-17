@@ -16,7 +16,7 @@ public class CreateFieldOfficeRequest
     public string? ContactPhone { get; set; }
     public string? ContactEmail { get; set; }
     public string? OfficerInChargeId { get; set; }
-    public bool IsActive { get; set; } = true;
+    public bool IsActive { get; set; } = false;
     public bool AllowSpectrumInspection { get; set; } = true;
     public bool AllowPermitIssuance { get; set; } = true;
     public bool AllowComplaintReception { get; set; } = true;

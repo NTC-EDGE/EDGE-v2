@@ -178,8 +178,8 @@ export function MembersTab({ currentTenant, fieldOfficesList, showToast }: Membe
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+    <div className="space-y-4 min-w-0">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
         <div>
           <h3 className="text-base font-bold text-slate-900 dark:text-white">Assigned Tenant Members & Staff</h3>
           <p className="text-xs text-slate-500 dark:text-slate-400">Personnel assigned to this regional administrative tenant branch.</p>
@@ -187,7 +187,7 @@ export function MembersTab({ currentTenant, fieldOfficesList, showToast }: Membe
         {!isSystemAdmin && (
           <Button
             onClick={handleOpenAssignMember}
-            className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-4 py-2 rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-indigo-600/20"
+            className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-4 py-2 rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/20 shrink-0"
           >
             <UserPlus className="w-4 h-4" />
             <span>Assign Staff Member</span>
@@ -195,28 +195,29 @@ export function MembersTab({ currentTenant, fieldOfficesList, showToast }: Membe
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 min-w-0">
         {tenantMembersList.map((member) => (
           <div
             key={member.id}
-            className="p-4 rounded-xl bg-slate-50 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition-colors space-y-3 shadow-sm"
+            className="p-4 rounded-xl bg-slate-50 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition-colors space-y-3 shadow-sm min-w-0 overflow-hidden"
           >
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-3">
-                <div className="h-11 w-11 rounded-full bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow shrink-0">
+            <div className="flex items-start justify-between gap-2 min-w-0">
+              <div className="flex items-center gap-3 min-w-0 overflow-hidden">
+                <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-full bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow shrink-0">
                   {member.userFirstName.charAt(0)}{member.userLastName.charAt(0)}
                 </div>
-                <div>
-                  <h4 className="text-sm font-bold text-slate-900 dark:text-white">{member.userFirstName} {member.userLastName}</h4>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5">
-                    <Mail className="w-3 h-3 text-slate-400 dark:text-slate-500" /> {member.userEmail}
+                <div className="min-w-0 space-y-0.5">
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-white truncate">{member.userFirstName} {member.userLastName}</h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 truncate">
+                    <Mail className="w-3 h-3 text-slate-400 dark:text-slate-500 shrink-0" />
+                    <span className="truncate">{member.userEmail}</span>
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                <span className="px-2.5 py-1 rounded-full text-[11px] font-medium bg-sky-500/10 text-sky-700 dark:text-sky-300 border border-sky-500/20 flex items-center gap-1">
-                  <ShieldCheck className="w-3 h-3 text-sky-500 dark:text-sky-400" /> {member.jobTitle ?? "Staff Officer"}
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="hidden sm:inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium bg-sky-500/10 text-sky-700 dark:text-sky-300 border border-sky-500/20 items-center gap-1 shrink-0">
+                  <ShieldCheck className="w-3 h-3 text-sky-500 dark:text-sky-400 shrink-0" /> <span className="truncate max-w-[90px]">{member.jobTitle ?? "Staff"}</span>
                 </span>
 
                 <ActionMenu
@@ -246,17 +247,24 @@ export function MembersTab({ currentTenant, fieldOfficesList, showToast }: Membe
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200 dark:border-slate-800/80 text-xs">
-              <div>
-                <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold block">Division & Position</span>
-                <span className="text-slate-800 dark:text-slate-300 font-medium">{member.position}</span>
-                <span className="text-slate-500 dark:text-slate-400 block text-[11px]">{member.division}</span>
+            <div className="sm:hidden">
+              <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium bg-sky-500/10 text-sky-700 dark:text-sky-300 border border-sky-500/20 items-center gap-1">
+                <ShieldCheck className="w-3 h-3 text-sky-500 dark:text-sky-400 shrink-0" /> {member.jobTitle ?? "Staff Officer"}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200 dark:border-slate-800/80 text-xs min-w-0">
+              <div className="min-w-0">
+                <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold block truncate">Division & Position</span>
+                <span className="text-slate-800 dark:text-slate-300 font-medium block truncate">{member.position}</span>
+                <span className="text-slate-500 dark:text-slate-400 block text-[11px] truncate">{member.division}</span>
               </div>
 
-              <div>
-                <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold block">Office Location</span>
-                <span className="text-slate-800 dark:text-slate-300 font-medium flex items-center gap-1">
-                  <Building className="w-3 h-3 text-slate-400 dark:text-slate-500" /> {member.fieldOfficeName ?? "Headquarters"}
+              <div className="min-w-0">
+                <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold block truncate">Office Location</span>
+                <span className="text-slate-800 dark:text-slate-300 font-medium flex items-center gap-1 truncate">
+                  <Building className="w-3 h-3 text-slate-400 dark:text-slate-500 shrink-0" />
+                  <span className="truncate">{member.fieldOfficeName ?? "Headquarters"}</span>
                 </span>
               </div>
             </div>
@@ -266,7 +274,7 @@ export function MembersTab({ currentTenant, fieldOfficesList, showToast }: Membe
 
       {/* Assign Member Modal */}
       <Dialog open={isAssignMemberOpen} onOpenChange={setIsAssignMemberOpen}>
-        <DialogContent className="sm:max-w-[500px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white">
+        <DialogContent className="w-[calc(100vw-24px)] sm:w-full sm:max-w-[520px] max-h-[92vh] overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white p-5 sm:p-6">
           <DialogHeader>
             <DialogTitle className="text-xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
               <UserPlus className="w-5 h-5 text-indigo-500 dark:text-indigo-400" /> Assign New Staff Member
@@ -392,7 +400,7 @@ export function MembersTab({ currentTenant, fieldOfficesList, showToast }: Membe
 
       {/* Edit Member Modal */}
       <Dialog open={isEditMemberOpen} onOpenChange={setIsEditMemberOpen}>
-        <DialogContent className="sm:max-w-[500px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white">
+        <DialogContent className="w-[calc(100vw-24px)] sm:w-full sm:max-w-[520px] max-h-[92vh] overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white p-5 sm:p-6">
           <DialogHeader>
             <DialogTitle className="text-xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
               <Edit2 className="w-5 h-5 text-indigo-500 dark:text-indigo-400" /> Edit Member Details
@@ -407,7 +415,7 @@ export function MembersTab({ currentTenant, fieldOfficesList, showToast }: Membe
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Security Role *</label>
                 <select
@@ -442,7 +450,7 @@ export function MembersTab({ currentTenant, fieldOfficesList, showToast }: Membe
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Job Title</label>
                 <input
@@ -466,7 +474,7 @@ export function MembersTab({ currentTenant, fieldOfficesList, showToast }: Membe
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Division *</label>
                 <input
@@ -503,7 +511,7 @@ export function MembersTab({ currentTenant, fieldOfficesList, showToast }: Membe
               />
             </div>
 
-            <DialogFooter className="pt-4 border-t border-slate-200 dark:border-slate-800">
+            <DialogFooter className="pt-4 border-t border-slate-200 dark:border-slate-800 flex-col-reverse sm:flex-row gap-2">
               <Button type="button" variant="outline" onClick={() => setIsEditMemberOpen(false)}>Cancel</Button>
               <Button type="submit" className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold">Save Member Details</Button>
             </DialogFooter>
@@ -513,7 +521,7 @@ export function MembersTab({ currentTenant, fieldOfficesList, showToast }: Membe
 
       {/* Remove Member Modal */}
       <Dialog open={isRemoveMemberOpen} onOpenChange={setIsRemoveMemberOpen}>
-        <DialogContent className="sm:max-w-[440px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white">
+        <DialogContent className="w-[calc(100vw-24px)] sm:w-full sm:max-w-[440px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white p-5 sm:p-6">
           <DialogHeader>
             <DialogTitle className="text-xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2 text-rose-500 dark:text-rose-400">
               <Trash2 className="w-5 h-5" /> Unassign Staff Member
@@ -523,7 +531,7 @@ export function MembersTab({ currentTenant, fieldOfficesList, showToast }: Membe
             </DialogDescription>
           </DialogHeader>
 
-          <DialogFooter className="pt-4 border-t border-slate-200 dark:border-slate-800">
+          <DialogFooter className="pt-4 border-t border-slate-200 dark:border-slate-800 flex-col-reverse sm:flex-row gap-2">
             <Button type="button" variant="outline" onClick={() => setIsRemoveMemberOpen(false)}>Cancel</Button>
             <Button type="button" onClick={handleRemoveMemberConfirm} className="bg-rose-600 hover:bg-rose-500 text-white font-semibold">Unassign Member</Button>
           </DialogFooter>
@@ -532,7 +540,7 @@ export function MembersTab({ currentTenant, fieldOfficesList, showToast }: Membe
 
       {/* View Member Details Modal */}
       <Dialog open={isViewMemberOpen} onOpenChange={setIsViewMemberOpen}>
-        <DialogContent className="sm:max-w-[550px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white p-6 rounded-2xl overflow-hidden">
+        <DialogContent className="w-[calc(100vw-24px)] sm:w-full sm:max-w-[550px] max-h-[92vh] overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white p-5 sm:p-6 rounded-2xl">
           <DialogHeader className="pb-4 border-b border-slate-200 dark:border-slate-800/80">
             <DialogTitle className="text-xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
               <Eye className="w-5 h-5 text-sky-500 dark:text-sky-400" /> Staff Member Details

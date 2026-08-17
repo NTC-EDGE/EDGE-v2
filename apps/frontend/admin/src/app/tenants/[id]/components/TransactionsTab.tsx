@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Receipt, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Tenant } from "@edge/api";
 import { useApi } from "@/services/api";
 
@@ -27,13 +27,13 @@ export function TransactionsTab({ currentTenant }: TransactionsTabProps) {
   const currentTransactions: RegionalTransaction[] = fetchedTx ?? [];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 min-w-0">
       <div className="pb-3 border-b border-slate-200 dark:border-slate-800">
         <h3 className="text-base font-bold text-slate-900 dark:text-white">Regional Permit & Regulatory Transactions</h3>
         <p className="text-xs text-slate-600 dark:text-slate-400">Financial reference records for spectrum permits and inspections.</p>
       </div>
 
-      <div className="divide-y divide-slate-200 dark:divide-slate-800 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-slate-50 dark:bg-slate-950/60">
+      <div className="divide-y divide-slate-200 dark:divide-slate-800 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-slate-50 dark:bg-slate-950/60 min-w-0">
         {isLoading ? (
           <div className="p-8 text-center text-sm text-slate-600 dark:text-slate-400 flex items-center justify-center gap-2">
             <Loader2 className="w-4 h-4 animate-spin text-teal-600 dark:text-teal-400" />
@@ -45,22 +45,22 @@ export function TransactionsTab({ currentTenant }: TransactionsTabProps) {
           </div>
         ) : (
           currentTransactions.map((tx) => (
-            <div key={tx.id} className="p-4 flex items-center justify-between hover:bg-slate-100 dark:hover:bg-slate-800/40 transition-colors">
-              <div className="space-y-1">
-                <div className="flex items-center gap-3">
-                  <span className="font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-white dark:bg-slate-900 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-800">
+            <div key={tx.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-100 dark:hover:bg-slate-800/40 transition-colors min-w-0">
+              <div className="space-y-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-2.5 min-w-0">
+                  <span className="font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-white dark:bg-slate-900 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-800 shrink-0">
                     {tx.refNo}
                   </span>
-                  <span className="text-sm font-bold text-slate-900 dark:text-white">{tx.applicantName}</span>
+                  <span className="text-sm font-bold text-slate-900 dark:text-white break-words">{tx.applicantName}</span>
                 </div>
-                <p className="text-xs text-slate-600 dark:text-slate-400">{tx.serviceType}</p>
+                <p className="text-xs text-slate-600 dark:text-slate-400 break-words">{tx.serviceType}</p>
               </div>
 
-              <div className="text-right space-y-1">
+              <div className="flex items-center justify-between sm:justify-end sm:flex-col sm:items-end gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-200/80 dark:border-slate-800/60">
                 <span className="text-sm font-extrabold text-slate-900 dark:text-white font-mono">
                   ₱{tx.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                 </span>
-                <div className="flex items-center justify-end gap-2 text-xs">
+                <div className="flex items-center gap-2 text-xs">
                   <span className={`px-2 py-0.5 rounded text-[11px] font-semibold ${
                     tx.paymentStatus === "Paid" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
                   }`}>

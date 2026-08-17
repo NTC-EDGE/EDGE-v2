@@ -15,16 +15,14 @@ export function useTenantService() {
   const { useQuery, post, put, del } = useApi();
 
   const useTenants = (pageNumber = 1, pageSize = 50, searchTerm?: string, enabled = true) => {
-    if (!enabled) {
-      return useQuery<PaginatedApiResponse<Tenant>>(null);
-    }
     const params = new URLSearchParams();
     params.append('pageNumber', pageNumber.toString());
     params.append('pageSize', pageSize.toString());
     if (searchTerm !== undefined && searchTerm !== null && searchTerm.trim().length > 0) {
       params.append('searchTerm', searchTerm.trim());
     }
-    return useQuery<PaginatedApiResponse<Tenant>>(`/api/v2/tenants?${params.toString()}`);
+    const key = enabled ? `/api/v2/tenants?${params.toString()}` : null;
+    return useQuery<PaginatedApiResponse<Tenant>>(key);
   };
 
   const useTenant = (id: string | null) => {

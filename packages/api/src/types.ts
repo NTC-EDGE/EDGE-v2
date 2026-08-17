@@ -188,6 +188,7 @@ export interface CreateTenantCommand {
   code: string;
   description?: string | null;
   regionId: string;
+  isActive?: boolean;
 }
 
 export interface UpdateTenantCommand {
@@ -281,6 +282,7 @@ export interface CreateFieldOfficeCommand {
   contactPhone: string;
   contactEmail: string;
   officerInChargeId: string;
+  isActive?: boolean;
   allowSpectrumInspection: boolean;
   allowPermitIssuance: boolean;
   allowComplaintReception: boolean;

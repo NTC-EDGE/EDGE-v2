@@ -38,7 +38,7 @@ export function SchedulesTab({ currentTenant, showToast }: SchedulesTabProps) {
   const services = servicesResponse ?? [];
 
   const [isCreateSchedOpen, setIsCreateSchedOpen] = useState(false);
-  const [schedFormData, setSchedFormData] = useState({
+  const [schedFormData, setSchedFormData] = useState(() => ({
     title: "",
     examType: "",
     serviceId: "",
@@ -48,7 +48,7 @@ export function SchedulesTab({ currentTenant, showToast }: SchedulesTabProps) {
     maxSlots: 50,
     isPublished: true,
     description: "",
-  });
+  }));
 
   const schedulesList: ExamSchedule[] = Array.isArray(fetchedSchedules)
     ? fetchedSchedules
@@ -140,22 +140,22 @@ export function SchedulesTab({ currentTenant, showToast }: SchedulesTabProps) {
             const displayDate = sched.startDate || sched.examDate;
 
             return (
-              <div key={sched.id} className="p-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
-                <div className="space-y-1 max-w-xl">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-slate-900 dark:text-white text-sm">{displayTitle}</span>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-300 border border-purple-200 dark:border-purple-500/20">
+              <div key={sched.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors min-w-0">
+                <div className="space-y-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2 min-w-0">
+                    <span className="font-bold text-slate-900 dark:text-white text-sm break-words">{displayTitle}</span>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-300 border border-purple-200 dark:border-purple-500/20 shrink-0">
                       {displayType}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2">
-                    <span className="flex items-center gap-1 text-slate-700 dark:text-slate-300"><MapPin className="w-3 h-3 text-emerald-500 dark:text-emerald-400" /> {sched.venue}</span>
-                    <span>•</span>
-                    <span className="flex items-center gap-1 text-indigo-600 dark:text-indigo-300"><Calendar className="w-3 h-3 text-indigo-500 dark:text-indigo-400" /> Exam Date: {displayDate ? new Date(displayDate).toLocaleDateString() : "N/A"}</span>
-                  </p>
+                  <div className="text-xs text-slate-500 dark:text-slate-400 flex flex-wrap items-center gap-x-2 gap-y-1 min-w-0">
+                    <span className="flex items-center gap-1 text-slate-700 dark:text-slate-300 break-words"><MapPin className="w-3 h-3 text-emerald-500 dark:text-emerald-400 shrink-0" /> {sched.venue}</span>
+                    <span className="hidden sm:inline">•</span>
+                    <span className="flex items-center gap-1 text-indigo-600 dark:text-indigo-300 shrink-0"><Calendar className="w-3 h-3 text-indigo-500 dark:text-indigo-400 shrink-0" /> Exam: {displayDate ? new Date(displayDate).toLocaleDateString() : "N/A"}</span>
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-4">
+                <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 dark:border-slate-800/60">
                   {isSystemAdmin ? (
                     <span
                       className={`px-3 py-1 rounded-full text-xs font-semibold border inline-flex items-center gap-1.5 ${
@@ -207,7 +207,7 @@ export function SchedulesTab({ currentTenant, showToast }: SchedulesTabProps) {
 
       {/* Create Schedule Modal */}
       <Dialog open={isCreateSchedOpen} onOpenChange={setIsCreateSchedOpen}>
-        <DialogContent className="sm:max-w-[500px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white">
+        <DialogContent className="w-[calc(100vw-24px)] sm:w-full sm:max-w-[500px] max-h-[92vh] overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white p-5 sm:p-6">
           <DialogHeader>
             <DialogTitle className="text-xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
               <Calendar className="w-5 h-5 text-indigo-500 dark:text-indigo-400" /> Create Exam Schedule

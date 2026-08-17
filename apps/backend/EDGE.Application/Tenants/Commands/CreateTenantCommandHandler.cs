@@ -29,7 +29,7 @@ public class CreateTenantCommandHandler : IRequestHandler<CreateTenantCommand, T
             Name = request.Name,
             Code = request.Code.ToUpperInvariant(), // Normalize tenant code to upper case
             Description = request.Description,
-            IsActive = true,
+            IsActive = request.IsActive,
             RegionId = request.RegionId
         };
 
