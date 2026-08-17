@@ -1,5 +1,5 @@
 import { useApi } from './api';
-import { Role, CreateRoleCommand, UpdateRoleCommand, Permission } from '@edge/api';
+import { Role, CreateRoleCommand, UpdateRoleCommand, DuplicateRoleCommand, Permission } from '@edge/api';
 
 export function useRoleService() {
   const { useQuery, post, put, del } = useApi();
@@ -28,6 +28,10 @@ export function useRoleService() {
     return post<Role, CreateRoleCommand>('/api/v2/roles', command);
   };
 
+  const duplicateRole = async (command: DuplicateRoleCommand): Promise<Role> => {
+    return post<Role, DuplicateRoleCommand>(`/api/v2/roles/${command.sourceRoleId}/duplicate`, command);
+  };
+
   const updateRole = async (id: string, command: UpdateRoleCommand): Promise<Role> => {
     return put<Role, UpdateRoleCommand>(`/api/v2/roles/${id}`, command);
   };
@@ -41,6 +45,7 @@ export function useRoleService() {
     useRole,
     usePermissions,
     createRole,
+    duplicateRole,
     updateRole,
     deleteRole,
   };

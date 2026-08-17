@@ -9,16 +9,16 @@ import {
 export function useSupportService() {
   const { useQuery, post, put, del } = useApi();
 
-  const useGlobalUsers = (searchTerm?: string, regionFilter?: string, statusFilter?: string) => {
+  const useGlobalUsers = (searchTerm?: string, tenantFilter?: string, statusFilter?: string) => {
     const params = new URLSearchParams();
     if (searchTerm !== undefined && searchTerm !== null && searchTerm.trim().length > 0) {
       params.append('search', searchTerm.trim());
     }
-    if (regionFilter !== undefined && regionFilter !== null && regionFilter !== 'ALL') {
-      params.append('regionId', regionFilter);
+    if (tenantFilter !== undefined && tenantFilter !== null && tenantFilter !== 'ALL' && tenantFilter.trim().length > 0) {
+      params.append('tenantId', tenantFilter.trim());
     }
-    if (statusFilter !== undefined && statusFilter !== null && statusFilter !== 'ALL') {
-      params.append('status', statusFilter);
+    if (statusFilter !== undefined && statusFilter !== null && statusFilter !== 'ALL' && statusFilter.trim().length > 0) {
+      params.append('status', statusFilter.trim());
     }
 
     const queryString = params.toString();

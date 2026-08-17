@@ -31,6 +31,12 @@ public class CreateRoleCommandHandler : IRequestHandler<CreateRoleCommand, Role>
             }
         }
 
+        var isUnique = await _roleRepository.IsRoleNameUniqueAsync(request.Name, request.TenantId, null, cancellationToken);
+        if (!isUnique)
+        {
+            throw new InvalidOperationException($"A role with the name '{request.Name}' already exists in this tenant or as a standard role.");
+        }
+
         var role = new Role
         {
             Name = request.Name,

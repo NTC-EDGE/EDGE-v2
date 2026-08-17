@@ -161,10 +161,9 @@ export default function TenantsPage() {
         code: formData.code,
         description: formData.description,
         regionId: formData.regionId,
-        isActive: formData.isActive,
       });
       await mutate();
-      setToast({ message: `Tenant "${formData.name}" created successfully as ${formData.isActive ? "Active" : "Inactive"}.`, type: "success" });
+      setToast({ message: `Tenant "${formData.name}" created successfully as Inactive.`, type: "success" });
       setIsCreateOpen(false);
     } catch (err: unknown) {
       const msg = getErrorMessage(err, "Failed to create tenant. Please try again.");
@@ -491,18 +490,6 @@ export default function TenantsPage() {
               />
             </div>
 
-            <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800">
-              <input
-                type="checkbox"
-                id="createTenantActive"
-                checked={formData.isActive}
-                onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-                className="h-4 w-4 rounded border-slate-300 dark:border-slate-800 text-indigo-600 focus:ring-indigo-500 bg-slate-100 dark:bg-slate-900 cursor-pointer"
-              />
-              <label htmlFor="createTenantActive" className="text-xs font-semibold text-slate-700 dark:text-slate-200 cursor-pointer">
-                Set as Active Immediately
-              </label>
-            </div>
 
             <DialogFooter className="pt-4 border-t border-slate-200 dark:border-slate-800 flex-col-reverse sm:flex-row gap-2">
               <Button

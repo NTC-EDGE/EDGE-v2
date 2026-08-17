@@ -23,8 +23,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Tenant, Region, GlobalSupportUser } from "@edge/api";
-import { useSupportService } from "@/services/supportService";
+import { Tenant, Region, TenantClientDto } from "@edge/api";
+import { useTenantService } from "@/services/tenantService";
 
 export interface ExternalUser {
   id: string;
@@ -49,11 +49,10 @@ export function ExternalUsersTab({ currentTenant, getRegionName, getRegionCode }
   const [selectedExternalUser, setSelectedExternalUser] = useState<ExternalUser | null>(null);
   const [isExternalUserModalOpen, setIsExternalUserModalOpen] = useState(false);
 
-  const { useGlobalUsers } = useSupportService();
-  const { data: globalUsers, isLoading: loadingUsers, error } = useGlobalUsers(
-    externalSearchTerm,
-    currentTenant.regionId,
-    "ALL"
+  const { useTenantClients } = useTenantService();
+  const { data: tenantClients, isLoading: loadingUsers, error } = useTenantClients(
+    currentTenant.id,
+    externalSearchTerm
   );
 
   if (error && isForbiddenError(error)) {
@@ -65,7 +64,7 @@ export function ExternalUsersTab({ currentTenant, getRegionName, getRegionCode }
     );
   }
 
-  if (loadingUsers && !globalUsers) {
+  if (loadingUsers && !tenantClients) {
     return (
       <div className="p-12 text-center text-slate-500 dark:text-slate-400 flex flex-col items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-purple-500 mb-3" />
@@ -74,18 +73,18 @@ export function ExternalUsersTab({ currentTenant, getRegionName, getRegionCode }
     );
   }
 
-  const usersArray: GlobalSupportUser[] = Array.isArray(globalUsers)
-    ? globalUsers
-    : (globalUsers as { data?: GlobalSupportUser[] } | undefined)?.data ?? [];
+  const clientsArray: TenantClientDto[] = Array.isArray(tenantClients)
+    ? tenantClients
+    : (tenantClients as { data?: TenantClientDto[] } | undefined)?.data ?? [];
 
-  const fullExternalUsers: ExternalUser[] = usersArray.map((usr) => ({
-    id: usr.id,
-    name: `${usr.firstName} ${usr.lastName}`.trim() || usr.email,
-    email: usr.email,
-    organization: usr.tenantName || usr.fieldOfficeName || "Client Entity",
-    licenseCategory: Array.isArray(usr.assignedRoles) && usr.assignedRoles.length > 0 ? usr.assignedRoles.join(", ") : "Public Telecommunications Entity (PTE)",
-    status: usr.isLockedOut ? "Locked Out" : usr.status === "active" ? "Active License" : "Under Review",
-    registeredDate: usr.createdAt ? usr.createdAt.slice(0, 10) : "2026-01-15",
+  const fullExternalUsers: ExternalUser[] = clientsArray.map((client) => ({
+    id: client.id,
+    name: client.name || client.email || "Client Entity",
+    email: client.email,
+    organization: client.organization || "Client Entity",
+    licenseCategory: client.licenseCategory || "Public Telecommunications Entity (PTE)",
+    status: client.status || "Under Review",
+    registeredDate: client.registeredDate ? client.registeredDate.slice(0, 10) : "2026-01-15",
   }));
 
   const filteredExternalUsers = fullExternalUsers.filter((usr) => {
@@ -142,8 +141,16 @@ export function ExternalUsersTab({ currentTenant, getRegionName, getRegionCode }
 
       <div className="divide-y divide-slate-200 dark:divide-slate-800 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-white dark:bg-slate-950/60 transition-colors duration-200 min-w-0">
         {filteredExternalUsers.length === 0 ? (
-          <div className="p-8 text-center text-sm text-slate-500 dark:text-slate-400">
-            No regional clients match your criteria.
+          <div className="p-12 text-center flex flex-col items-center justify-center">
+            <div className="w-12 h-12 rounded-2xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center mb-3 border border-purple-500/20 shadow-sm">
+              <UserCheck className="w-6 h-6" />
+            </div>
+            <h4 className="text-sm font-bold text-slate-900 dark:text-white mb-1">No Regional Clients Found</h4>
+            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm">
+              {externalSearchTerm || externalCategoryFilter !== "ALL"
+                ? "No clients match your filter criteria. Try adjusting your search query."
+                : "No clients or applicants have submitted transactions in this regional office yet."}
+            </p>
           </div>
         ) : (
           paginatedExternalUsers.map((user) => (

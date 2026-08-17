@@ -118,7 +118,6 @@ export function FieldOfficesTab({ currentTenant, getRegionCode }: FieldOfficesTa
         contactPhone: officeFormData.contactPhone,
         contactEmail: officeFormData.contactEmail,
         officerInChargeId: officeFormData.officerInChargeId,
-        isActive: officeFormData.isActive,
         allowSpectrumInspection: officeFormData.allowSpectrumInspection,
         allowPermitIssuance: officeFormData.allowPermitIssuance,
         allowComplaintReception: officeFormData.allowComplaintReception,
@@ -126,8 +125,8 @@ export function FieldOfficesTab({ currentTenant, getRegionCode }: FieldOfficesTa
       await mutateFieldOffices();
       setIsCreateOfficeOpen(false);
       showToast.success(
-        `Field office "${officeFormData.name}" registered successfully as ${officeFormData.isActive ? "Active" : "Inactive"}.`,
-        officeFormData.isActive ? "Operational services active." : "Provisioned with Inactive status."
+        `Field office "${officeFormData.name}" registered successfully as Inactive.`,
+        "Provisioned with Inactive status."
       );
     } catch {
       showToast.error("Failed to register field office. Please verify the office code and fields.");
@@ -412,18 +411,6 @@ export function FieldOfficesTab({ currentTenant, getRegionCode }: FieldOfficesTa
               </select>
             </div>
 
-            <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800">
-              <input
-                type="checkbox"
-                id="createFoActive"
-                checked={officeFormData.isActive}
-                onChange={(e) => setOfficeFormData({ ...officeFormData, isActive: e.target.checked })}
-                className="h-4 w-4 rounded border-slate-300 dark:border-slate-800 text-emerald-600 focus:ring-emerald-500 bg-slate-100 dark:bg-slate-900 cursor-pointer"
-              />
-              <label htmlFor="createFoActive" className="text-xs font-semibold text-slate-700 dark:text-slate-200 cursor-pointer">
-                Set as Active Immediately
-              </label>
-            </div>
 
             <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
               <label className="text-[11px] font-bold text-slate-700 dark:text-slate-400 uppercase tracking-wider block">Service Capabilities</label>

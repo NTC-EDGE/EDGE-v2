@@ -83,7 +83,7 @@ function GlobalUserDirectoryContent() {
   const { data: fetchedRegions } = useRegions();
   const { data: fetchedUsers, isLoading: loadingUsers, mutate: mutateUsers, error } = useGlobalUsers(
     searchTerm,
-    regionFilter,
+    undefined,
     statusFilter
   );
 

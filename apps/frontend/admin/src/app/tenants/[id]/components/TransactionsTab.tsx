@@ -1,9 +1,9 @@
 "use client";
 
 import React from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Receipt } from "lucide-react";
 import { Tenant } from "@edge/api";
-import { useApi } from "@/services/api";
+import { useTenantService } from "@/services/tenantService";
 
 export interface RegionalTransaction {
   id: string;
@@ -20,10 +20,8 @@ interface TransactionsTabProps {
 }
 
 export function TransactionsTab({ currentTenant }: TransactionsTabProps) {
-  const { useQuery } = useApi();
-  const { data: fetchedTx, isLoading } = useQuery<RegionalTransaction[]>(
-    `/api/v2/tenants/${currentTenant.id}/transactions`
-  );
+  const { useTenantTransactions } = useTenantService();
+  const { data: fetchedTx, isLoading } = useTenantTransactions(currentTenant.id);
   const currentTransactions: RegionalTransaction[] = fetchedTx ?? [];
 
   return (
@@ -35,13 +33,19 @@ export function TransactionsTab({ currentTenant }: TransactionsTabProps) {
 
       <div className="divide-y divide-slate-200 dark:divide-slate-800 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-slate-50 dark:bg-slate-950/60 min-w-0">
         {isLoading ? (
-          <div className="p-8 text-center text-sm text-slate-600 dark:text-slate-400 flex items-center justify-center gap-2">
-            <Loader2 className="w-4 h-4 animate-spin text-teal-600 dark:text-teal-400" />
-            <span>Loading regional transaction records...</span>
+          <div className="p-12 text-center text-sm text-slate-600 dark:text-slate-400 flex flex-col items-center justify-center gap-2">
+            <Loader2 className="w-8 h-8 animate-spin text-teal-600 dark:text-teal-400 mb-2" />
+            <span className="text-xs font-semibold">Loading regional transaction records...</span>
           </div>
         ) : currentTransactions.length === 0 ? (
-          <div className="p-8 text-center text-sm text-slate-600 dark:text-slate-400">
-            No regional permit or fee transactions recorded yet.
+          <div className="p-12 text-center flex flex-col items-center justify-center">
+            <div className="w-12 h-12 rounded-2xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center mb-3 border border-teal-500/20 shadow-sm">
+              <Receipt className="w-6 h-6" />
+            </div>
+            <h4 className="text-sm font-bold text-slate-900 dark:text-white mb-1">No Transactions Recorded</h4>
+            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm">
+              There are no permit, fee, or order of payment transactions recorded for this tenant office yet.
+            </p>
           </div>
         ) : (
           currentTransactions.map((tx) => (

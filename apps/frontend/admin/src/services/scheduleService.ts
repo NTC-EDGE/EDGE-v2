@@ -16,13 +16,13 @@ export function useScheduleService() {
     };
   };
 
-  const useSchedules = (search?: string, regionId?: string, isPublished?: string) => {
+  const useSchedules = (search?: string, tenantId?: string, isPublished?: string) => {
     const params = new URLSearchParams();
     if (search !== undefined && search !== null && search.trim().length > 0) {
       params.append('search', search.trim());
     }
-    if (regionId !== undefined && regionId !== null && regionId !== 'ALL' && regionId.trim().length > 0) {
-      params.append('regionId', regionId.trim());
+    if (tenantId !== undefined && tenantId !== null && tenantId !== 'ALL' && tenantId.trim().length > 0) {
+      params.append('tenantId', tenantId.trim());
     }
     if (isPublished !== undefined && isPublished !== null && isPublished !== 'ALL') {
       params.append('isPublished', isPublished);

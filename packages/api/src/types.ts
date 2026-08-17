@@ -188,7 +188,6 @@ export interface CreateTenantCommand {
   code: string;
   description?: string | null;
   regionId: string;
-  isActive?: boolean;
 }
 
 export interface UpdateTenantCommand {
@@ -282,7 +281,6 @@ export interface CreateFieldOfficeCommand {
   contactPhone: string;
   contactEmail: string;
   officerInChargeId: string;
-  isActive?: boolean;
   allowSpectrumInspection: boolean;
   allowPermitIssuance: boolean;
   allowComplaintReception: boolean;
@@ -344,6 +342,18 @@ export interface GlobalSupportUser {
   createdAt: string;
   openTicketsCount: number;
   totalTicketsCount: number;
+}
+
+export interface TenantClientDto {
+  id: string;
+  userId?: string | null;
+  name: string;
+  email: string;
+  organization: string;
+  licenseCategory: string;
+  status: string;
+  applicationCount: number;
+  registeredDate?: string | null;
 }
 
 export interface UserSession {
@@ -437,6 +447,14 @@ export interface UpdateRoleCommand {
   id: string;
   tenantId?: string | null;
   isSystemRole: boolean;
+  name: string;
+  key: string;
+  description?: string | null;
+}
+
+export interface DuplicateRoleCommand {
+  sourceRoleId: string;
+  targetTenantId: string;
   name: string;
   key: string;
   description?: string | null;

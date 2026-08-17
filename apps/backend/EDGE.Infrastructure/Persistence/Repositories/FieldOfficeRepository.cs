@@ -31,31 +31,38 @@ public class FieldOfficeRepository : IFieldOfficeRepository
 
     public async Task<List<FieldOffice>> GetByTenantIdAsync(Guid tenantId, CancellationToken cancellationToken = default)
     {
-        var tenantOffices = await _context.FieldOffices
-            .Include(f => f.Tenant)
-            .Include(f => f.Region)
-            .Include(f => f.Province)
-            .Include(f => f.OfficerInCharge)
-                .ThenInclude(o => o.User)
-            .Where(f => f.TenantId == tenantId || (f.RegionId != Guid.Empty && f.RegionId == tenantId))
-            .OrderBy(f => f.Name)
-            .ToListAsync(cancellationToken);
-
-        if (tenantOffices.Count > 0)
-        {
-            return tenantOffices;
-        }
-
-        // Fallback: If no offices are bound to this specific tenant, return all active offices
         return await _context.FieldOffices
             .Include(f => f.Tenant)
             .Include(f => f.Region)
             .Include(f => f.Province)
             .Include(f => f.OfficerInCharge)
                 .ThenInclude(o => o.User)
-            .Where(f => f.IsActive)
+            .Where(f => f.TenantId == tenantId)
             .OrderBy(f => f.Name)
             .ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<FieldOffice>> GetFilteredAsync(Guid? tenantId = null, Guid? regionId = null, CancellationToken cancellationToken = default)
+    {
+        var query = _context.FieldOffices
+            .Include(f => f.Tenant)
+            .Include(f => f.Region)
+            .Include(f => f.Province)
+            .Include(f => f.OfficerInCharge)
+                .ThenInclude(o => o.User)
+            .AsQueryable();
+
+        if (tenantId.HasValue && tenantId.Value != Guid.Empty)
+        {
+            query = query.Where(f => f.TenantId == tenantId.Value);
+        }
+
+        if (regionId.HasValue && regionId.Value != Guid.Empty)
+        {
+            query = query.Where(f => f.RegionId == regionId.Value);
+        }
+
+        return await query.OrderBy(f => f.Name).ToListAsync(cancellationToken);
     }
 
     public async Task<List<FieldOffice>> GetAllAsync(CancellationToken cancellationToken = default)

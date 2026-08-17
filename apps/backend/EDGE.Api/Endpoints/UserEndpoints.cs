@@ -196,10 +196,76 @@ public static class UserEndpoints
     }
 
     [HasPermission(Permissions.SupportDiagnostics)]
-    public static async Task<IResult> GetGlobalSupportUsers(string? search, string? regionId, string? status, IMediator mediator)
+    public static async Task<IResult> GetGlobalSupportUsers(
+        string? search,
+        string? tenantId,
+        string? regionId,
+        string? status,
+        IMediator mediator)
     {
         var users = await mediator.Send(new GetUsersQuery());
-        return Results.Ok(users);
+
+        Guid? parsedTenantId = null;
+        if (!string.IsNullOrWhiteSpace(tenantId) && Guid.TryParse(tenantId, out var tid))
+        {
+            parsedTenantId = tid;
+            users = users.Where(u => u.TenantMemberships != null && u.TenantMemberships.Any(tm => tm.TenantId == tid)).ToList();
+        }
+
+        Guid? parsedRegionId = null;
+        if (!string.IsNullOrWhiteSpace(regionId) && Guid.TryParse(regionId, out var rid))
+        {
+            parsedRegionId = rid;
+            users = users.Where(u => u.TenantMemberships != null && u.TenantMemberships.Any(tm => tm.Tenant != null && tm.Tenant.RegionId == rid)).ToList();
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var s = search.Trim().ToLower();
+            users = users.Where(u =>
+                (!string.IsNullOrEmpty(u.FirstName) && u.FirstName.ToLower().Contains(s)) ||
+                (!string.IsNullOrEmpty(u.LastName) && u.LastName.ToLower().Contains(s)) ||
+                (!string.IsNullOrEmpty(u.Email) && u.Email.ToLower().Contains(s))
+            ).ToList();
+        }
+
+        var result = users.Select(u =>
+        {
+            var primaryMembership = u.TenantMemberships?.FirstOrDefault(tm => !parsedTenantId.HasValue || tm.TenantId == parsedTenantId.Value)
+                                    ?? u.TenantMemberships?.FirstOrDefault();
+
+            return new
+            {
+                id = u.Id,
+                authUserId = u.AuthUserId,
+                email = u.Email,
+                firstName = u.FirstName,
+                lastName = u.LastName,
+                phoneNumber = u.ContactNumber,
+                contactNumber = u.ContactNumber,
+                regionId = primaryMembership?.Tenant?.RegionId.ToString() ?? "",
+                regionName = primaryMembership?.Tenant?.Region?.Name ?? "",
+                tenantId = primaryMembership?.TenantId,
+                tenantName = primaryMembership?.Tenant?.Name,
+                fieldOfficeName = primaryMembership?.FieldOffice?.Name,
+                status = "active",
+                isSuperAdmin = u.IsSuperAdmin,
+                isLockedOut = false,
+                mfaEnabled = false,
+                mfaMethod = (string?)null,
+                lastLoginAt = u.LastOnline ?? u.CreatedAt,
+                lastOnline = u.LastOnline,
+                failedLoginAttempts = 0,
+                authProvider = "Clerk",
+                assignedRoles = u.TenantMemberships?.Select(tm => tm.Role?.Name ?? tm.Position).Where(r => !string.IsNullOrEmpty(r)).ToList()
+                                ?? (u.IsSuperAdmin ? new List<string> { "SUPER_ADMIN" } : new List<string> { "STANDARD_USER" }),
+                createdAt = u.CreatedAt,
+                openTicketsCount = 0,
+                totalTicketsCount = 0
+            };
+        }).ToList();
+
+        return Results.Ok(result);
     }
 
     [HasPermission(Permissions.SupportDiagnostics)]

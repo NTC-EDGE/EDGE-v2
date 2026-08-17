@@ -1,5 +1,5 @@
 import { useApi } from './api';
-import { Tenant, CreateTenantCommand, UpdateTenantCommand } from '@edge/api';
+import { Tenant, CreateTenantCommand, UpdateTenantCommand, TenantClientDto } from '@edge/api';
 
 export interface PaginatedApiResponse<T> {
   succeeded: boolean;
@@ -29,6 +29,17 @@ export function useTenantService() {
     return useQuery<Tenant>(id !== null && id.length > 0 ? `/api/v2/tenants/${id}` : null);
   };
 
+  const useTenantClients = (tenantId: string | null, search?: string) => {
+    const params = new URLSearchParams();
+    if (search !== undefined && search !== null && search.trim().length > 0) {
+      params.append('search', search.trim());
+    }
+    const queryString = params.toString();
+    const isVal = tenantId !== null && tenantId !== undefined && tenantId.length > 0;
+    const endpoint = isVal ? `/api/v2/tenants/${tenantId}/clients${queryString.length > 0 ? `?${queryString}` : ''}` : null;
+    return useQuery<TenantClientDto[]>(endpoint);
+  };
+
   const createTenant = async (command: CreateTenantCommand): Promise<Tenant> => {
     return post<Tenant, CreateTenantCommand>('/api/v2/tenants', command);
   };
@@ -45,9 +56,25 @@ export function useTenantService() {
     return post<Tenant, undefined>(`/api/v2/tenants/${id}/toggle-active`, undefined);
   };
 
+  const useTenantTransactions = (tenantId: string | null) => {
+    const isVal = tenantId !== null && tenantId !== undefined && tenantId.length > 0;
+    const endpoint = isVal ? `/api/v2/tenants/${tenantId}/transactions` : null;
+    return useQuery<{
+      id: string;
+      refNo: string;
+      applicantName: string;
+      serviceType: string;
+      amount: number;
+      paymentStatus: string;
+      date: string;
+    }[]>(endpoint);
+  };
+
   return {
     useTenants,
     useTenant,
+    useTenantClients,
+    useTenantTransactions,
     createTenant,
     updateTenant,
     deleteTenant,

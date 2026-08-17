@@ -33,6 +33,12 @@ public static class RoleEndpoints
             .WithSummary("Create custom role")
             .WithDescription("Creates a new role for tenant or system access control.");
 
+        group.MapPost("/{id:guid}/duplicate", DuplicateRole)
+            .WithName("DuplicateRole")
+            .WithTags("Roles")
+            .WithSummary("Duplicate existing role for a tenant")
+            .WithDescription("Duplicates a standard or tenant role along with its permissions for a specific tenant scope.");
+
         group.MapPut("/{id:guid}", UpdateRole)
             .WithName("UpdateRole")
             .WithTags("Roles")
@@ -82,6 +88,28 @@ public static class RoleEndpoints
         IValidator<CreateRoleCommand> validator,
         IMediator mediator)
     {
+        var validationResult = await validator.ValidateAsync(command);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
+
+        var result = await mediator.Send(command);
+        return Results.Created($"/roles/{result.Id}", result);
+    }
+
+    [HasPermission(Permissions.CreateRoles)]
+    public static async Task<IResult> DuplicateRole(
+        Guid id,
+        DuplicateRoleCommand command,
+        IValidator<DuplicateRoleCommand> validator,
+        IMediator mediator)
+    {
+        if (id != command.SourceRoleId)
+        {
+            return Results.BadRequest("Route ID does not match SourceRoleId in request body.");
+        }
+
         var validationResult = await validator.ValidateAsync(command);
         if (!validationResult.IsValid)
         {

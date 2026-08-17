@@ -52,19 +52,19 @@ public static class RolePermissionDataSeeder
 
         var defaultRoles = new List<Role>
         {
-            new() { Id = superAdminRoleId, TenantId = null,            IsSystemRole = true,  Name = "Super Administrator", Key = "superadmin", Description = "System-wide administrator", CreatedAt = staticDate },
-            new() { Id = clientRoleId,     TenantId = defaultTenantId, IsSystemRole = false, Name = "Client",              Key = "client",     Description = "External portal user", CreatedAt = staticDate },
-            new() { Id = evaluatorRoleId,  TenantId = defaultTenantId, IsSystemRole = false, Name = "Evaluator",           Key = "evaluator",  Description = "Staff member",         CreatedAt = staticDate },
-            new() { Id = higherUpsRoleId,  TenantId = defaultTenantId, IsSystemRole = false, Name = "Higher-Ups",          Key = "higherups",  Description = "Executive approver",   CreatedAt = staticDate },
-            new() { Id = accountantRoleId, TenantId = defaultTenantId, IsSystemRole = false, Name = "Accountant",          Key = "accountant", Description = "Financial admin",      CreatedAt = staticDate },
-            new() { Id = cashierRoleId,    TenantId = defaultTenantId, IsSystemRole = false, Name = "Cashier",             Key = "cashier",    Description = "Payment admin",        CreatedAt = staticDate },
-            new() { Id = adminRoleId,      TenantId = defaultTenantId, IsSystemRole = false, Name = "Administrator",       Key = "admin",      Description = "Tenant administrator", CreatedAt = staticDate },
+            new() { Id = superAdminRoleId, TenantId = null, IsSystemRole = true,  Name = "Super Administrator", Key = "superadmin", Description = "System-wide administrator", CreatedAt = staticDate },
+            new() { Id = clientRoleId,     TenantId = null, IsSystemRole = false, Name = "Client",              Key = "client",     Description = "External portal user", CreatedAt = staticDate },
+            new() { Id = evaluatorRoleId,  TenantId = null, IsSystemRole = false, Name = "Evaluator",           Key = "evaluator",  Description = "Staff member",         CreatedAt = staticDate },
+            new() { Id = higherUpsRoleId,  TenantId = null, IsSystemRole = false, Name = "Higher-Ups",          Key = "higherups",  Description = "Executive approver",   CreatedAt = staticDate },
+            new() { Id = accountantRoleId, TenantId = null, IsSystemRole = false, Name = "Accountant",          Key = "accountant", Description = "Financial admin",      CreatedAt = staticDate },
+            new() { Id = cashierRoleId,    TenantId = null, IsSystemRole = false, Name = "Cashier",             Key = "cashier",    Description = "Payment admin",        CreatedAt = staticDate },
+            new() { Id = adminRoleId,      TenantId = null, IsSystemRole = false, Name = "Administrator",       Key = "admin",      Description = "Tenant administrator", CreatedAt = staticDate },
         };
 
         foreach (var role in defaultRoles)
         {
-            var exists = await context.Roles.AnyAsync(r => r.Id == role.Id || r.Key == role.Key);
-            if (!exists)
+            var existingRole = await context.Roles.FirstOrDefaultAsync(r => r.Id == role.Id || r.Key == role.Key);
+            if (existingRole == null)
             {
                 try
                 {
@@ -75,6 +75,11 @@ public static class RolePermissionDataSeeder
                 {
                     context.Entry(role).State = EntityState.Detached;
                 }
+            }
+            else if (existingRole.TenantId != null && defaultRoles.Any(d => d.Key == existingRole.Key))
+            {
+                existingRole.TenantId = null;
+                await context.SaveChangesAsync();
             }
         }
 

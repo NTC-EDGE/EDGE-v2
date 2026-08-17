@@ -83,10 +83,11 @@ public static class FieldOfficeEndpoints
 
     [HasPermission(Permissions.ReadTenants)]
     public static async Task<IResult> GetFieldOffices(
-        Guid? tenantId,
+        [FromQuery] Guid? tenantId,
+        [FromQuery] Guid? regionId,
         IMediator mediator)
     {
-        var result = await mediator.Send(new GetFieldOfficesQuery(tenantId.GetValueOrDefault()));
+        var result = await mediator.Send(new GetFieldOfficesQuery(tenantId, regionId));
         return Results.Ok(result);
     }
 
@@ -119,7 +120,6 @@ public static class FieldOfficeEndpoints
             request.ContactPhone,
             request.ContactEmail,
             request.GetOfficerInChargeGuid(),
-            request.IsActive,
             request.AllowSpectrumInspection,
             request.AllowPermitIssuance,
             request.AllowComplaintReception

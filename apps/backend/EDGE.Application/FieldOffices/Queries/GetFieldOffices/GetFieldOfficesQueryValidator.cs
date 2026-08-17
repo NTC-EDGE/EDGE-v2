@@ -6,7 +6,5 @@ public class GetFieldOfficesQueryValidator : AbstractValidator<GetFieldOfficesQu
 {
     public GetFieldOfficesQueryValidator()
     {
-        RuleFor(x => x.TenantId)
-            .NotEmpty().WithMessage("TenantId is required.");
     }
 }

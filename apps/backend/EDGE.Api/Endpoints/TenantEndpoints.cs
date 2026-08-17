@@ -14,6 +14,8 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using EDGE.Application.Tenants.DTOs;
 using EDGE.Application.TenantMembers.DTOs;
+using EDGE.Application.Tenants.Queries.GetTenantClients;
+using EDGE.Application.Tenants.Queries.GetTenantTransactions;
 
 namespace EDGE.Api.Endpoints;
 
@@ -80,6 +82,20 @@ public static class TenantEndpoints
             .WithDescription("Toggles the IsActive status (active/deactivate) of a tenant organization.")
             .Produces<TenantDto>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status404NotFound);
+
+        tenants.MapGet("/{id:guid}/clients", GetTenantClients)
+            .WithName("GetTenantClients")
+            .WithTags("Tenants")
+            .WithSummary("Retrieve tenant client profiles")
+            .WithDescription("Retrieves all clients, applicants, and entities who have submitted applications or transactions in this tenant office.")
+            .Produces<List<TenantClientDto>>(StatusCodes.Status200OK);
+
+        tenants.MapGet("/{id:guid}/transactions", GetTenantTransactions)
+            .WithName("GetTenantTransactions")
+            .WithTags("Tenants")
+            .WithSummary("Retrieve tenant regulatory and fee transactions")
+            .WithDescription("Retrieves all financial, permit, and fee transactions recorded for this tenant office.")
+            .Produces<List<TenantTransactionDto>>(StatusCodes.Status200OK);
 
         tenants.MapPost("/verify-membership", VerifyTenantMembership)
             .WithName("VerifyTenantMembership")
@@ -226,5 +242,24 @@ public static class TenantEndpoints
         {
             return Results.NotFound(new { message = $"Tenant with ID '{id}' was not found." });
         }
+    }
+
+    [HasPermission(Permissions.ReadTenants)]
+    public static async Task<IResult> GetTenantClients(
+        Guid id,
+        string? search,
+        IMediator mediator)
+    {
+        var result = await mediator.Send(new GetTenantClientsQuery(id, search));
+        return Results.Ok(result);
+    }
+
+    [HasPermission(Permissions.ReadTenants)]
+    public static async Task<IResult> GetTenantTransactions(
+        Guid id,
+        IMediator mediator)
+    {
+        var result = await mediator.Send(new GetTenantTransactionsQuery(id));
+        return Results.Ok(result);
     }
 }
