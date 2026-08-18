@@ -189,7 +189,14 @@ export function DynamicFormRenderer({
     return (
       !hiddenKeys.includes(key) &&
       !hiddenKeys.includes(title) &&
-      title !== "payment details"
+      key !== "declaration" &&
+      !key.includes("declaration") &&
+      title !== "declaration" &&
+      !title.includes("declaration") &&
+      title !== "payment details" &&
+      !title.includes("payment") &&
+      key !== "payment" &&
+      !key.includes("payment")
     );
   });
 

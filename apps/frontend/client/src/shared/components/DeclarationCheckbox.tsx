@@ -11,15 +11,23 @@ interface DeclarationCheckboxProps {
   error?: string;
 }
 
+export const OFFICIAL_LEGAL_DECLARATION =
+  "I hereby declare that all the above entries are true and correct. Under the Revised Penal Code, I shall be held liable for any willful false statement(s) or misrepresentation(s) made in this application form that may serve as a valid ground for the denial of this application and/or cancellation/revocation of thepermit issued/granted. Further, I am freely giving full consent for the collection and processing of personal information in accordance with Republic Act No. 10713, Data Privacy Act of 2012.";
+
 export function DeclarationCheckbox({
-  label = "I hereby declare that all information provided is true and correct.",
-  description = "By checking this box, you certify under penalty of law that the statements made in this application are authentic and verifiable.",
+  label = OFFICIAL_LEGAL_DECLARATION,
+  description,
   isRequired = true,
   value = "",
   onChange,
   error,
 }: DeclarationCheckboxProps) {
   const isChecked = value === "true" || value === "agreed" || value === "1" || value === "yes";
+
+  const displayText =
+    label.toLowerCase().startsWith("i hereby declare")
+      ? OFFICIAL_LEGAL_DECLARATION
+      : label;
 
   const handleToggle = () => {
     onChange(isChecked ? "false" : "true");
@@ -38,7 +46,7 @@ export function DeclarationCheckbox({
 
         <View style={styles.textContainer}>
           <View style={styles.titleRow}>
-            <Text style={styles.titleText}>{label}</Text>
+            <Text style={styles.titleText}>{displayText}</Text>
             {isRequired && <Text style={styles.requiredAsterisk}>*</Text>}
           </View>
           {description ? (

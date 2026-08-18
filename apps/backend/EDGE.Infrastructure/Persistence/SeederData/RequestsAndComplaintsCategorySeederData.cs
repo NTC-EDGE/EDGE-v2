@@ -37,52 +37,91 @@ public static class RequestsAndComplaintsCategorySeederData
 
     public static List<ServiceCategoryDef> GetServiceDefs(Guid categoryId) => new()
     {
-        new("NTC_REQ_COMPLAINTS", SvcReqCompId, categoryId, "REQUESTS AND COMPLAINTS OF CONSUMERS/SUBSCRIBERS", "Requests and Complaints of Consumers/Subscribers", "NTC_REQ_COMPLAINTS", "REQUESTS AND COMPLAINTS OF CONSUMERS/SUBSCRIBERS", NtcReqComplaintsContract)
+        new("NTC_REQ_COMPLAINTS", SvcReqCompId, categoryId, "Requests and Complaints of Consumers/Subscribers", "Requests and Complaints of Consumers/Subscribers", "NTC_REQ_COMPLAINTS", "Requests and Complaints of Consumers/Subscribers", NtcReqComplaintsContract)
     };
+
+    // Variant IDs
+    public static readonly Guid VarReqBlocking   = Guid.Parse("60000000-0000-0000-0000-000000000401");
+    public static readonly Guid VarReqUnblocking = Guid.Parse("60000000-0000-0000-0000-000000000402");
+    public static readonly Guid VarReqSpam       = Guid.Parse("60000000-0000-0000-0000-000000000403");
+    public static readonly Guid VarReqProvider   = Guid.Parse("60000000-0000-0000-0000-000000000404");
+    public static readonly Guid VarReqTape       = Guid.Parse("60000000-0000-0000-0000-000000000405");
 
     public static List<ServiceVariantDef> GetVariantDefs() => new()
     {
-        new(Guid.Parse("60000000-0000-0000-0000-000000000401"), SvcReqCompId, ServiceVariantType.New, "Requests for Blocking of IMEI and SIM of Lost/Stolen Mobile Phone"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000402"), SvcReqCompId, ServiceVariantType.New, "Requests for Unblocking of IMEI and SIM of Lost/Stolen Mobile Phone"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000403"), SvcReqCompId, ServiceVariantType.New, "Complaints on Text Spam, Text Scam, or Illegal/Obscene/Threat/Other Similar Text Messages"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000404"), SvcReqCompId, ServiceVariantType.New, "Complaints on Services Offered by Telecommunications or Broadcast Service Providers"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000405"), SvcReqCompId, ServiceVariantType.New, "Request for Mandatory Tape Preservation")
+        new(VarReqBlocking, SvcReqCompId, ServiceVariantType.NA, "Requests for Blocking of IMEI and SIM of Lost/Stolen Mobile Phone"),
+        new(VarReqUnblocking, SvcReqCompId, ServiceVariantType.NA, "Requests for Unblocking of IMEI and SIM of Lost/Stolen Mobile Phone"),
+        new(VarReqSpam, SvcReqCompId, ServiceVariantType.NA, "Complaints on Text Spam, Text Scam, or Illegal/Obscene/Threat/Other Similar Text Messages"),
+        new(VarReqProvider, SvcReqCompId, ServiceVariantType.NA, "Complaints on Services Offered by Telecommunications or Broadcast Service Providers"),
+        new(VarReqTape, SvcReqCompId, ServiceVariantType.NA, "Request for Mandatory Tape Preservation")
     };
 
     public static Dictionary<string, RequirementDef> GetBackfillRequirements() => new()
     {
-        ["REQ_PROOF_OF_OWNERSHIP"] = new(Guid.Parse("70000000-0000-0000-0000-000000000401"), "Proof of Ownership of Mobile Phone (Receipt / Box / Police Report / Notarized Affidavit)", "Proof of ownership document such as official receipt, box with IMEI barcode, police report, or notarized affidavit of loss."),
-        ["REQ_VALID_ID_STUDENT_PASSPORT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000402"), "Valid ID (Government ID / Passport / School ID)", "Any government-issued ID, student ID with registration, or passport with signature."),
-        ["REQ_BLOCKING_FORM_PROOF"] = new(Guid.Parse("70000000-0000-0000-0000-000000000403"), "Duly Accomplished Incident Report / Form & Proof of Identity", "Duly accomplished unblocking form and previously issued blocking acknowledgment or unit ownership proof."),
-        ["REQ_VALID_ID_SIMPLE"] = new(Guid.Parse("70000000-0000-0000-0000-000000000404"), "Valid ID of the Applicant / Subscriber", "Any valid government or institutional identification document."),
-        ["REQ_SCREENSHOT_TEXT_MSG"] = new(Guid.Parse("70000000-0000-0000-0000-000000000405"), "Screenshot / Copy of the Unwanted / Threat Text Message", "Clear screenshot, photo, or transcribed copy showing the sender number, date, time, and text message body."),
-        ["REQ_NOTARIZED_COMPLAINT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000406"), "Duly Accomplished and Notarized Complaint Form (for Administrative Case)", "Formal notarized complaint with verification and certification against forum shopping (if filing administrative case)."),
-        ["REQ_TELCO_SERVICE_DOCS"] = new(Guid.Parse("70000000-0000-0000-0000-000000000407"), "Statement of Account / Billing Statement / Telco Subscription Documents", "Copy of relevant billing statement, proof of subscription, or previous communication/ticket with the service provider."),
-        ["REQ_LETTER_REQUEST_MANDATORY_TAPE"] = new(Guid.Parse("70000000-0000-0000-0000-000000000408"), "Formal Letter Request / Legal Instrument Specifying Subject Broadcast Details", "Letter-request from court, law enforcement, lawyer, or affected individual detailing station name, frequency, date, time, and title of program.")
+        ["PROOF_OF_OWNERSHIP_BLOCKING"] = new(
+            Guid.Parse("70000000-0000-0000-0000-000000000401"),
+            "Proof of ownership, ANY of the following:",
+            "1. Proof of ownership, ANY of the following:*\n• Official Receipt of the mobile phone\n• Box of the mobile phone with International Mobile Equipment Identity (IMEI)\n• Police Blotter"
+        ),
+        ["VALID_IDENTIFICATION_BLOCKING"] = new(
+            Guid.Parse("70000000-0000-0000-0000-000000000402"),
+            "Copy of valid Identification",
+            "Copy of valid Identification*\n• Any government-issued ID OR Passport\n• For students, School ID\n• For cases when ID is not available, Birth Certificate OR NBI Clearance"
+        ),
+        ["UNBLOCKING_PROOF"] = new(
+            Guid.Parse("70000000-0000-0000-0000-000000000403"),
+            "ANY of the following:\n• Blocking Form\n• Proof of Blocking",
+            "1. ANY of the following:*\n• Blocking Form\n• Proof of Blocking"
+        ),
+        ["VALID_ID_UNBLOCKING"] = new(
+            Guid.Parse("70000000-0000-0000-0000-000000000404"),
+            "Valid ID",
+            "2. Valid ID*"
+        ),
+        ["SCREENSHOT_TEXT_MESSAGE"] = new(
+            Guid.Parse("70000000-0000-0000-0000-000000000405"),
+            "Screenshot of text message",
+            "2. Screenshot of text message*"
+        ),
+        ["NOTARIZED_COMPLAINT"] = new(
+            Guid.Parse("70000000-0000-0000-0000-000000000406"),
+            "If complaint proceeds to administrative case:\nCopy of duly notarized Complaint",
+            "If complaint proceeds to administrative case:\nCopy of duly notarized Complaint"
+        ),
+        ["TELCO_SERVICE_DOCS"] = new(
+            Guid.Parse("70000000-0000-0000-0000-000000000407"),
+            "ANY of the following:\n• Service Contract\n• Billing Statement\n• Document indicating services availed by the complainant",
+            "2. ANY of the following:*\n• Service Contract\n• Billing Statement\n• Document indicating services availed by the complainant"
+        ),
+        ["LETTER_REQUEST_TAPE"] = new(
+            Guid.Parse("70000000-0000-0000-0000-000000000408"),
+            "Letter Request",
+            "1. Letter Request*"
+        )
     };
 
     public static List<VariantRequirementDef> GetBackfillVariantRequirements() => new()
     {
-        // 1. Blocking of IMEI/SIM
-        new(Guid.Parse("60000000-0000-0000-0000-000000000401"), Guid.Parse("70000000-0000-0000-0000-000000000401"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000401"), Guid.Parse("70000000-0000-0000-0000-000000000402"), true),
+        // 1. Requests for Blocking of IMEI and SIM of Lost/Stolen Mobile Phone
+        new(VarReqBlocking, Guid.Parse("70000000-0000-0000-0000-000000000401"), true),
+        new(VarReqBlocking, Guid.Parse("70000000-0000-0000-0000-000000000402"), true),
 
-        // 2. Unblocking of IMEI/SIM
-        new(Guid.Parse("60000000-0000-0000-0000-000000000402"), Guid.Parse("70000000-0000-0000-0000-000000000403"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000402"), Guid.Parse("70000000-0000-0000-0000-000000000404"), true),
+        // 2. Requests for Unblocking of IMEI and SIM of Lost/Stolen Mobile Phone
+        new(VarReqUnblocking, Guid.Parse("70000000-0000-0000-0000-000000000403"), true),
+        new(VarReqUnblocking, Guid.Parse("70000000-0000-0000-0000-000000000404"), true),
 
-        // 3. Spam / Scam Complaints
-        new(Guid.Parse("60000000-0000-0000-0000-000000000403"), Guid.Parse("70000000-0000-0000-0000-000000000402"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000403"), Guid.Parse("70000000-0000-0000-0000-000000000405"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000403"), Guid.Parse("70000000-0000-0000-0000-000000000406"), false),
+        // 3. Complaints on Text Spam, Text Scam, or Illegal/Obscene/Threat/Other Similar Text Messages
+        new(VarReqSpam, Guid.Parse("70000000-0000-0000-0000-000000000402"), true),
+        new(VarReqSpam, Guid.Parse("70000000-0000-0000-0000-000000000405"), true),
+        new(VarReqSpam, Guid.Parse("70000000-0000-0000-0000-000000000406"), false),
 
-        // 4. Telco / Broadcast Provider Complaints
-        new(Guid.Parse("60000000-0000-0000-0000-000000000404"), Guid.Parse("70000000-0000-0000-0000-000000000402"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000407"), Guid.Parse("70000000-0000-0000-0000-000000000407"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000404"), Guid.Parse("70000000-0000-0000-0000-000000000406"), false),
+        // 4. Complaints on Services Offered by Telecommunications or Broadcast Service Providers
+        new(VarReqProvider, Guid.Parse("70000000-0000-0000-0000-000000000402"), true),
+        new(VarReqProvider, Guid.Parse("70000000-0000-0000-0000-000000000407"), true),
+        new(VarReqProvider, Guid.Parse("70000000-0000-0000-0000-000000000406"), false),
 
-        // 5. Tape Preservation
-        new(Guid.Parse("60000000-0000-0000-0000-000000000405"), Guid.Parse("70000000-0000-0000-0000-000000000408"), true)
+        // 5. Request for Mandatory Tape Preservation
+        new(VarReqTape, Guid.Parse("70000000-0000-0000-0000-000000000408"), true)
     };
 
     public static List<ServiceFormDef> GetFormDefs() => new()

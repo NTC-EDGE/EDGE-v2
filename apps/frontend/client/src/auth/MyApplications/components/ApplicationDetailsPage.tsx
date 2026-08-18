@@ -14,6 +14,7 @@ import {
 import { Icon, COLORS, TYPOGRAPHY, SPACING } from '@edge/ui';
 import { useApi } from '../../../shared/hooks/useApi';
 import { DocumentPreviewModal } from '../../../shared/components/DocumentPreviewModal';
+import { OFFICIAL_LEGAL_DECLARATION } from '../../../shared/components/DeclarationCheckbox';
 import {
   Application,
   getStatusLabel,
@@ -1611,7 +1612,9 @@ function SubmittedFormStructuredView({
                             color: isConfirmed ? '#166534' : '#991B1B',
                           }}
                         >
-                          {dec.fieldLabel || dec.fieldId}
+                          {(dec.fieldLabel || dec.fieldId).toLowerCase().startsWith('i hereby declare')
+                            ? OFFICIAL_LEGAL_DECLARATION
+                            : (dec.fieldLabel || dec.fieldId)}
                         </Text>
                         <Text
                           style={{

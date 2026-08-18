@@ -217,7 +217,11 @@ export function GeneralFilingDetailsStep({
           key !== "payment" &&
           !key.includes("payment") &&
           title !== "payment details" &&
-          !title.includes("payment")
+          !title.includes("payment") &&
+          key !== "declaration" &&
+          !key.includes("declaration") &&
+          title !== "declaration" &&
+          !title.includes("declaration")
         );
       });
 

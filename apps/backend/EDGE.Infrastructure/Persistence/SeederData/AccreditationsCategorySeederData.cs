@@ -39,71 +39,115 @@ public static class AccreditationsCategorySeederData
 
     public static List<ServiceCategoryDef> GetServiceDefs(Guid categoryId) => new()
     {
-        new("NTC_1_18", Svc118Id, categoryId, "CUSTOMER PREMISES EQUIPMENT SUPPLIER ACCREDITATION", "Customer Premises Equipment Supplier Accreditation", "NTC_1_18", "CUSTOMER PREMISES EQUIPMENT SUPPLIER ACCREDITATION (NTC 1-18)", Ntc118Contract)
+        new("NTC_1_18", Svc118Id, categoryId, "Customer Premises Equipment Supplier Accreditation", "Customer Premises Equipment Supplier Accreditation", "NTC_1_18", "Customer Premises Equipment Supplier Accreditation", Ntc118Contract)
     };
+
+    // Variant IDs
+    public static readonly Guid VarCpeMobileNew       = Guid.Parse("60000000-0000-0000-0000-000000000013");
+    public static readonly Guid VarCpeMobileRen       = Guid.Parse("60000000-0000-0000-0000-000000000014");
+    public static readonly Guid VarCpeMobileMod       = Guid.Parse("60000000-0000-0000-0000-000000000015");
+    public static readonly Guid VarCpeNonMobileNew    = Guid.Parse("60000000-0000-0000-0000-000000000304");
+    public static readonly Guid VarCpeNonMobileRen    = Guid.Parse("60000000-0000-0000-0000-000000000305");
+    public static readonly Guid VarCpeNonMobileMod    = Guid.Parse("60000000-0000-0000-0000-000000000306");
 
     public static List<ServiceVariantDef> GetVariantDefs() => new()
     {
-        new(Guid.Parse("60000000-0000-0000-0000-000000000013"), Svc118Id, ServiceVariantType.New, "Customer Premises Equipment Supplier Accreditation (Mobile)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000014"), Svc118Id, ServiceVariantType.Renewal, "Customer Premises Equipment Supplier Accreditation (Mobile)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000015"), Svc118Id, ServiceVariantType.Modification, "Customer Premises Equipment Supplier Accreditation (Mobile)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000304"), Svc118Id, ServiceVariantType.New, "Customer Premises Equipment Supplier Accreditation (Non-Mobile Phones)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000305"), Svc118Id, ServiceVariantType.Renewal, "Customer Premises Equipment Supplier Accreditation (Non-Mobile Phones)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000306"), Svc118Id, ServiceVariantType.Modification, "Customer Premises Equipment Supplier Accreditation (Non-Mobile Phones)")
+        new(VarCpeMobileNew, Svc118Id, ServiceVariantType.New, "MOBILE"),
+        new(VarCpeMobileRen, Svc118Id, ServiceVariantType.Renewal, "MOBILE PHONES"),
+        new(VarCpeMobileMod, Svc118Id, ServiceVariantType.Modification, "MOBILE"),
+        new(VarCpeNonMobileNew, Svc118Id, ServiceVariantType.New, "NON-MOBILE PHONES"),
+        new(VarCpeNonMobileRen, Svc118Id, ServiceVariantType.Renewal, "NON-MOBILE PHONES"),
+        new(VarCpeNonMobileMod, Svc118Id, ServiceVariantType.Modification, "NON-MOBILE PHONES")
     };
 
     public static Dictionary<string, RequirementDef> GetBackfillRequirements() => new()
     {
-        ["DEALER_REG_DOCS"] = new(Guid.Parse("70000000-0000-0000-0000-000000000082"), "Valid Registration/Permit Documents (DTI/SEC/CDA/Mayor's Permit)", "Valid Certificate of Registration or Business Permit."),
-        ["PAID_UP_CAPITAL_250K"] = new(Guid.Parse("70000000-0000-0000-0000-000000000301"), "Proof of Paid-Up Capital (Php 250,000)", "Bank certificate or financial statement showing minimum paid-up capital of Php 250,000."),
-        ["DISTRIBUTORSHIP_AGREEMENT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000302"), "Distributorship Agreement / Certificate", "Authenticated agreement or appointment letter from manufacturer or principal distributor."),
-        ["TYPE_APPROVAL_OR_GRANT_OF_EQUIPMENT_CONFORMITY"] = new(Guid.Parse("70000000-0000-0000-0000-000000000303"), "Type Approval Certificate / Grant of Equipment Conformity", "Valid NTC Type Approval / Acceptance certificate for equipment to be distributed."),
-        ["TWO_TECH_EMPLOYMENT_DOCS"] = new(Guid.Parse("70000000-0000-0000-0000-000000000304"), "Proof of Employment of at least Two (2) Technicians", "Contract of employment, SSS/PhilHealth registration of at least 2 qualified technicians."),
-        ["ECE_PECE_EMPLOYMENT_DOCS"] = new(Guid.Parse("70000000-0000-0000-0000-000000000305"), "Proof of Employment of Validly Registered ECE/PECE", "PRC License and employment contract of supervising ECE or PECE."),
-        ["CPE_SUPPLIER_ACCREDITATION_DOC"] = new(Guid.Parse("70000000-0000-0000-0000-000000000306"), "Previous CPE Supplier Accreditation Certificate", "Copy of existing or expiring Accreditation Certificate."),
-        ["BUSINESS_MAYORS_PERMIT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000307"), "Current Business / Mayor's Permit", "Valid Mayor's / Business Permit for the current calendar year."),
-        ["TYPE_APPROVAL_NOT_PREVIOUSLY_INDICATED"] = new(Guid.Parse("70000000-0000-0000-0000-000000000308"), "Type Approval Certificate of New/Additional Equipment", "Type approval documentation for items not covered by initial accreditation.")
+        ["REGISTRATION_OR_PERMIT_DOCS"] = new(
+            Guid.Parse("70000000-0000-0000-0000-000000000082"),
+            "Copy of ANY of the following:\n• SEC Registration\n• DTI Registration\n• Business/Mayor's Permit",
+            "Copy of ANY of the following:*\n• SEC Registration\n• DTI Registration\n• Business/Mayor's Permit\n\nNote : The purpose of the company as indicated in its registration document must include information related to the accreditation applied for."
+        ),
+        ["PROOF_OF_PAID_UP_CAPITAL"] = new(
+            Guid.Parse("70000000-0000-0000-0000-000000000301"),
+            "Proof of Paid-Up Capital",
+            "Proof of Paid-Up Capital*\nMinimum of PHP 250,000.00, duly certified by the Treasurer of the Corporation or by the partners in a partnership or by the owner in a sole proprietorship"
+        ),
+        ["DISTRIBUTORSHIP_AGREEMENT"] = new(
+            Guid.Parse("70000000-0000-0000-0000-000000000302"),
+            "Distributorship OR Representation Agreement on products to be sold",
+            "Distributorship OR Representation Agreement on products to be sold*"
+        ),
+        ["TYPE_APPROVAL_OR_CONFORMITY"] = new(
+            Guid.Parse("70000000-0000-0000-0000-000000000303"),
+            "Type Approval Certificate OR Copy of Grant of Equipment Conformity for CPE to be sold",
+            "Type Approval Certificate OR Copy of Grant of Equipment Conformity for CPE to be sold*"
+        ),
+        ["TWO_TECHNICIANS_EMPLOYMENT"] = new(
+            Guid.Parse("70000000-0000-0000-0000-000000000304"),
+            "Copy of the following:\nCertificate of Employment AND copy of valid ROC/license of two (2) qualified radio technicians employed on a full-time basis",
+            "Copy of the following:*\nCertificate of Employment AND copy of valid ROC/license of two (2) qualified radio technicians (i.e. Radio Communications Technician OR Electronics Technician) employed on a full-time basis"
+        ),
+        ["ECE_PECE_EMPLOYMENT"] = new(
+            Guid.Parse("70000000-0000-0000-0000-000000000305"),
+            "Copy of the following:\nCertificate of Employment and copy of valid license of supervising Electronics Engineer (ECE) OR Professional Electronics Engineer (PECE)",
+            "Copy of the following:*\nCertificate of Employment and copy of valid license of supervising Electronics Engineer (ECE) OR Professional Electronics Engineer (PECE)"
+        ),
+        ["CPE_SUPPLIER_ACCREDITATION"] = new(
+            Guid.Parse("70000000-0000-0000-0000-000000000306"),
+            "CPE Supplier Accreditation",
+            "CPE Supplier Accreditation*"
+        ),
+        ["BUSINESS_MAYORS_PERMIT"] = new(
+            Guid.Parse("70000000-0000-0000-0000-000000000307"),
+            "Business/Mayor's Permit",
+            "Business/Mayor's Permit*"
+        ),
+        ["TYPE_APPROVAL_NOT_PREVIOUSLY_INDICATED"] = new(
+            Guid.Parse("70000000-0000-0000-0000-000000000308"),
+            "For equipment not previously indicated in the CPE Supplier Accreditation:\nCopy of Type Approval Certificate OR Copy of Grant of Equipment Conformity for CPE to be sold",
+            "For equipment not previously indicated in the CPE Supplier Accreditation:\nCopy of Type Approval Certificate OR Copy of Grant of Equipment Conformity for CPE to be sold"
+        )
     };
 
     public static List<VariantRequirementDef> GetBackfillVariantRequirements() => new()
     {
-        // Mobile - NEW
-        new(Guid.Parse("60000000-0000-0000-0000-000000000013"), Guid.Parse("70000000-0000-0000-0000-000000000082"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000013"), Guid.Parse("70000000-0000-0000-0000-000000000301"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000013"), Guid.Parse("70000000-0000-0000-0000-000000000302"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000013"), Guid.Parse("70000000-0000-0000-0000-000000000303"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000013"), Guid.Parse("70000000-0000-0000-0000-000000000304"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000013"), Guid.Parse("70000000-0000-0000-0000-000000000305"), true),
+        // 1. MOBILE - NEW
+        new(VarCpeMobileNew, Guid.Parse("70000000-0000-0000-0000-000000000082"), true),
+        new(VarCpeMobileNew, Guid.Parse("70000000-0000-0000-0000-000000000301"), true),
+        new(VarCpeMobileNew, Guid.Parse("70000000-0000-0000-0000-000000000302"), true),
+        new(VarCpeMobileNew, Guid.Parse("70000000-0000-0000-0000-000000000303"), true),
+        new(VarCpeMobileNew, Guid.Parse("70000000-0000-0000-0000-000000000304"), true),
+        new(VarCpeMobileNew, Guid.Parse("70000000-0000-0000-0000-000000000305"), true),
 
-        // Mobile - RENEWAL
-        new(Guid.Parse("60000000-0000-0000-0000-000000000014"), Guid.Parse("70000000-0000-0000-0000-000000000306"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000014"), Guid.Parse("70000000-0000-0000-0000-000000000307"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000014"), Guid.Parse("70000000-0000-0000-0000-000000000302"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000014"), Guid.Parse("70000000-0000-0000-0000-000000000304"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000014"), Guid.Parse("70000000-0000-0000-0000-000000000305"), true),
+        // 2. MOBILE PHONES - RENEWAL
+        new(VarCpeMobileRen, Guid.Parse("70000000-0000-0000-0000-000000000306"), true),
+        new(VarCpeMobileRen, Guid.Parse("70000000-0000-0000-0000-000000000307"), true),
+        new(VarCpeMobileRen, Guid.Parse("70000000-0000-0000-0000-000000000302"), true),
+        new(VarCpeMobileRen, Guid.Parse("70000000-0000-0000-0000-000000000304"), true),
+        new(VarCpeMobileRen, Guid.Parse("70000000-0000-0000-0000-000000000305"), true),
 
-        // Mobile - MODIFICATION
-        new(Guid.Parse("60000000-0000-0000-0000-000000000015"), Guid.Parse("70000000-0000-0000-0000-000000000306"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000015"), Guid.Parse("70000000-0000-0000-0000-000000000308"), true),
+        // 3. MOBILE - MODIFICATION
+        new(VarCpeMobileMod, Guid.Parse("70000000-0000-0000-0000-000000000306"), true),
+        new(VarCpeMobileMod, Guid.Parse("70000000-0000-0000-0000-000000000308"), false),
 
-        // Non-Mobile Phones - NEW
-        new(Guid.Parse("60000000-0000-0000-0000-000000000304"), Guid.Parse("70000000-0000-0000-0000-000000000082"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000304"), Guid.Parse("70000000-0000-0000-0000-000000000301"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000304"), Guid.Parse("70000000-0000-0000-0000-000000000302"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000304"), Guid.Parse("70000000-0000-0000-0000-000000000303"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000304"), Guid.Parse("70000000-0000-0000-0000-000000000304"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000304"), Guid.Parse("70000000-0000-0000-0000-000000000305"), true),
+        // 4. NON-MOBILE PHONES - NEW
+        new(VarCpeNonMobileNew, Guid.Parse("70000000-0000-0000-0000-000000000082"), true),
+        new(VarCpeNonMobileNew, Guid.Parse("70000000-0000-0000-0000-000000000301"), true),
+        new(VarCpeNonMobileNew, Guid.Parse("70000000-0000-0000-0000-000000000302"), true),
+        new(VarCpeNonMobileNew, Guid.Parse("70000000-0000-0000-0000-000000000303"), true),
+        new(VarCpeNonMobileNew, Guid.Parse("70000000-0000-0000-0000-000000000304"), true),
+        new(VarCpeNonMobileNew, Guid.Parse("70000000-0000-0000-0000-000000000305"), true),
 
-        // Non-Mobile Phones - RENEWAL
-        new(Guid.Parse("60000000-0000-0000-0000-000000000305"), Guid.Parse("70000000-0000-0000-0000-000000000306"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000305"), Guid.Parse("70000000-0000-0000-0000-000000000307"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000305"), Guid.Parse("70000000-0000-0000-0000-000000000302"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000305"), Guid.Parse("70000000-0000-0000-0000-000000000304"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000305"), Guid.Parse("70000000-0000-0000-0000-000000000305"), true),
+        // 5. NON-MOBILE PHONES - RENEWAL
+        new(VarCpeNonMobileRen, Guid.Parse("70000000-0000-0000-0000-000000000306"), true),
+        new(VarCpeNonMobileRen, Guid.Parse("70000000-0000-0000-0000-000000000307"), true),
+        new(VarCpeNonMobileRen, Guid.Parse("70000000-0000-0000-0000-000000000302"), true),
+        new(VarCpeNonMobileRen, Guid.Parse("70000000-0000-0000-0000-000000000304"), true),
+        new(VarCpeNonMobileRen, Guid.Parse("70000000-0000-0000-0000-000000000305"), true),
 
-        // Non-Mobile Phones - MODIFICATION
-        new(Guid.Parse("60000000-0000-0000-0000-000000000306"), Guid.Parse("70000000-0000-0000-0000-000000000306"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000306"), Guid.Parse("70000000-0000-0000-0000-000000000308"), true)
+        // 6. NON-MOBILE PHONES - MODIFICATION
+        new(VarCpeNonMobileMod, Guid.Parse("70000000-0000-0000-0000-000000000306"), true),
+        new(VarCpeNonMobileMod, Guid.Parse("70000000-0000-0000-0000-000000000308"), false)
     };
 
     public static List<ServiceFormDef> GetFormDefs() => new()

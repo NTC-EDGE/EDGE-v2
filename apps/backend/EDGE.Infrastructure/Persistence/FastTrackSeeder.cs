@@ -137,9 +137,16 @@ public static class FastTrackSeeder
         var existingFields = await context.Fields.ToListAsync();
         foreach (var f in fieldsPool.Values)
         {
-            if (!existingFields.Any(x => x.Id == f.Id))
+            var existing = existingFields.FirstOrDefault(x => x.Id == f.Id);
+            if (existing == null)
             {
                 context.Fields.Add(f);
+            }
+            else if (existing.Label != f.Label || existing.FieldType != f.FieldType || existing.SyncBackOnSubmit != f.SyncBackOnSubmit)
+            {
+                existing.Label = f.Label;
+                existing.FieldType = f.FieldType;
+                existing.SyncBackOnSubmit = f.SyncBackOnSubmit;
             }
         }
         await context.SaveChangesAsync();
@@ -157,113 +164,74 @@ public static class FastTrackSeeder
                 services[serviceKey] = service;
             }
 
-            // Check if the form already exists in the DB (no-tracking)
-            var formExists = existingForms.Contains(service.Id);
-            if (!formExists)
+            // 1. Query all forms associated with this service
+            var formsForService = await context.Forms
+                .Where(f => f.ServiceId == service.Id)
+                .ToListAsync();
+
+            var formIdsForService = formsForService.Select(f => f.Id).ToList();
+
+            // 2. Fetch and purge all existing SectionFields and FormSections across all forms for this service
+            if (formIdsForService.Count > 0)
             {
-                var newForm = new Form
+                var existingSections = await context.FormSections
+                    .Where(s => formIdsForService.Contains(s.FormId))
+                    .ToListAsync();
+
+                if (existingSections.Count > 0)
+                {
+                    var existingSectionIds = existingSections.Select(s => s.Id).ToList();
+                    var existingSectionFields = await context.SectionFields
+                        .Where(sf => existingSectionIds.Contains(sf.FormSectionId))
+                        .ToListAsync();
+
+                    if (existingSectionFields.Count > 0)
+                    {
+                        context.SectionFields.RemoveRange(existingSectionFields);
+                    }
+                    context.FormSections.RemoveRange(existingSections);
+                    await context.SaveChangesAsync();
+                }
+            }
+
+            // 3. Ensure exactly one Form exists for this service
+            Form targetForm;
+            if (formsForService.Count == 0)
+            {
+                targetForm = new Form
                 {
                     Id = formId,
                     ServiceId = service.Id,
                     Version = "1.0",
                     CategorySelectionRequired = false
                 };
-                context.Forms.Add(newForm);
+                context.Forms.Add(targetForm);
                 await context.SaveChangesAsync();
-                existingForms.Add(service.Id);
             }
             else
             {
-                // Resolve the actual formId from the DB in case it differs
-                formId = await context.Forms
-                    .AsNoTracking()
-                    .Where(f => f.ServiceId == service.Id)
-                    .Select(f => f.Id)
-                    .FirstAsync();
-            }
-
-            // 1. Fetch existing sections for this form (no-tracking to avoid stale state)
-            var existingSections = await context.FormSections
-                .AsNoTracking()
-                .Where(s => s.FormId == formId)
-                .ToListAsync();
-
-            var existingSectionIds = existingSections.Select(s => s.Id).ToList();
-
-            // 2. Remove all existing SectionFields for this form's sections to prevent field mixing/orphans
-            if (existingSectionIds.Count > 0)
-            {
-                var existingSectionFields = await context.SectionFields
-                    .Where(sf => existingSectionIds.Contains(sf.FormSectionId))
-                    .ToListAsync();
-                if (existingSectionFields.Count > 0)
+                targetForm = formsForService[0];
+                if (formsForService.Count > 1)
                 {
-                    context.SectionFields.RemoveRange(existingSectionFields);
+                    context.Forms.RemoveRange(formsForService.Skip(1));
                     await context.SaveChangesAsync();
                 }
             }
 
-            // 3. Update existing sections or insert new sections matching sectionDefs
-            var processedSectionIds = new HashSet<Guid>();
+            // 4. Insert fresh sections matching sectionDefs
             int sectionOrder = 1;
-            int sectionIndex = 1;
-
             foreach (var (key, title, fieldKeys) in sectionDefs)
             {
-                var bytes = sectionGuidPrefix.ToByteArray();
-                bytes[15] = (byte)sectionIndex;
-                Guid sectionId = new Guid(bytes);
-                processedSectionIds.Add(sectionId);
-
-                // Re-check DB directly to avoid EF change tracker stale state
-                var sectionExistsInDb = await context.FormSections
-                    .AsNoTracking()
-                    .AnyAsync(s => s.Id == sectionId);
-
-                if (!sectionExistsInDb)
+                var newSection = new FormSection
                 {
-                    try
-                    {
-                        context.FormSections.Add(new FormSection
-                        {
-                            Id = sectionId,
-                            FormId = formId,
-                            Key = key,
-                            Title = title,
-                            OrderIndex = sectionOrder
-                        });
-                        await context.SaveChangesAsync();
-                    }
-                    catch (Microsoft.EntityFrameworkCore.DbUpdateException)
-                    {
-                        // Section was inserted by a concurrent call or prior iteration — detach and continue
-                        context.ChangeTracker.Clear();
-                        var tracked = await context.FormSections.FindAsync(sectionId);
-                        if (tracked != null)
-                        {
-                            tracked.FormId = formId;
-                            tracked.Key = key;
-                            tracked.Title = title;
-                            tracked.OrderIndex = sectionOrder;
-                            await context.SaveChangesAsync();
-                        }
-                    }
-                }
-                else
-                {
-                    var existingSection = await context.FormSections.FindAsync(sectionId);
-                    if (existingSection != null)
-                    {
-                        existingSection.FormId = formId;
-                        existingSection.Key = key;
-                        existingSection.Title = title;
-                        existingSection.OrderIndex = sectionOrder;
-                        await context.SaveChangesAsync();
-                    }
-                }
-
-                sectionOrder++;
-                sectionIndex++;
+                    Id = Guid.NewGuid(),
+                    FormId = targetForm.Id,
+                    Key = key,
+                    Title = title,
+                    OrderIndex = sectionOrder++
+                };
+                context.FormSections.Add(newSection);
+                await context.SaveChangesAsync();
 
                 int fieldOrder = 1;
                 foreach (var fk in fieldKeys)
@@ -272,21 +240,13 @@ public static class FastTrackSeeder
                     {
                         context.SectionFields.Add(new SectionField
                         {
-                            FormSectionId = sectionId,
+                            FormSectionId = newSection.Id,
                             FieldId = f.Id,
                             IsRequired = key != "assistanceRequest" && key != "knownByAnotherName" && key != "club" && key != "examination" && key != "radioOfficers" && key != "payment",
                             OrderIndex = fieldOrder++
                         });
                     }
                 }
-                await context.SaveChangesAsync();
-            }
-
-            // 4. Clean up any obsolete sections for this form that are no longer present in sectionDefs
-            var obsoleteSections = existingSections.Where(s => !processedSectionIds.Contains(s.Id)).ToList();
-            if (obsoleteSections.Count > 0)
-            {
-                context.FormSections.RemoveRange(obsoleteSections);
                 await context.SaveChangesAsync();
             }
         }
@@ -353,14 +313,42 @@ public static class FastTrackSeeder
         
         bool anyChange = false;
 
-        // Remove variants no longer defined in seeder
-        foreach (var ev in existingVariants)
+        // Clean up and remove variants no longer defined in seeder
+        var obsoleteVariantIds = existingVariants
+            .Where(ev => !variantDefIds.Contains(ev.Id))
+            .Select(ev => ev.Id)
+            .ToList();
+
+        if (obsoleteVariantIds.Count > 0)
         {
-            if (!variantDefIds.Contains(ev.Id))
+            var obsoleteSvr = await context.ServiceVariantRequirements
+                .Where(r => obsoleteVariantIds.Contains(r.ServiceVariantId))
+                .ToListAsync();
+            if (obsoleteSvr.Count > 0)
             {
-                context.ServiceVariants.Remove(ev);
-                anyChange = true;
+                context.ServiceVariantRequirements.RemoveRange(obsoleteSvr);
             }
+
+            var obsoleteSve = await context.ServiceVariantElements
+                .Where(e => obsoleteVariantIds.Contains(e.ServiceVariantId))
+                .ToListAsync();
+            if (obsoleteSve.Count > 0)
+            {
+                context.ServiceVariantElements.RemoveRange(obsoleteSve);
+            }
+
+            var obsoleteSn = await context.ServiceNotes
+                .Where(n => n.ServiceVariantId.HasValue && obsoleteVariantIds.Contains(n.ServiceVariantId.Value))
+                .ToListAsync();
+            if (obsoleteSn.Count > 0)
+            {
+                context.ServiceNotes.RemoveRange(obsoleteSn);
+            }
+
+            var variantsToRemove = existingVariants.Where(ev => obsoleteVariantIds.Contains(ev.Id)).ToList();
+            context.ServiceVariants.RemoveRange(variantsToRemove);
+            await context.SaveChangesAsync();
+            anyChange = true;
         }
 
         var existingServiceIds = (await context.Services.Select(s => s.Id).ToListAsync()).ToHashSet();
@@ -488,6 +476,82 @@ public static class FastTrackSeeder
             }
         }
 
+        // Clean up any obsolete services not present in serviceDefs
+        var validServiceIds = serviceDefs.Select(d => d.Id).ToHashSet();
+        var obsoleteServices = existingServices.Where(s => !validServiceIds.Contains(s.Id)).ToList();
+        if (obsoleteServices.Count > 0)
+        {
+            var obsoleteServiceIds = obsoleteServices.Select(s => s.Id).ToList();
+
+            // 1. Re-assign any applicants pointing to obsolete services
+            var fallbackServiceId = serviceDefs[0].Id;
+            var referencingApplicants = await context.Applicants
+                .Where(a => a.ServiceId != null && obsoleteServiceIds.Contains(a.ServiceId.Value))
+                .ToListAsync();
+            foreach (var applicant in referencingApplicants)
+            {
+                applicant.ServiceId = fallbackServiceId;
+                applicant.ServiceVariantId = null;
+            }
+
+            // 2. Cascade delete obsolete forms, form sections, and section fields
+            var obsoleteForms = await context.Forms
+                .Where(f => obsoleteServiceIds.Contains(f.ServiceId))
+                .ToListAsync();
+            if (obsoleteForms.Count > 0)
+            {
+                var obsoleteFormIds = obsoleteForms.Select(f => f.Id).ToList();
+                var obsoleteSections = await context.FormSections
+                    .Where(s => obsoleteFormIds.Contains(s.FormId))
+                    .ToListAsync();
+                if (obsoleteSections.Count > 0)
+                {
+                    var obsoleteSectionIds = obsoleteSections.Select(s => s.Id).ToList();
+                    var obsoleteFields = await context.SectionFields
+                        .Where(sf => obsoleteSectionIds.Contains(sf.FormSectionId))
+                        .ToListAsync();
+                    if (obsoleteFields.Count > 0) context.SectionFields.RemoveRange(obsoleteFields);
+                    context.FormSections.RemoveRange(obsoleteSections);
+                }
+                context.Forms.RemoveRange(obsoleteForms);
+            }
+
+            // 3. Cascade delete obsolete variants and children
+            var obsoleteVariants = await context.ServiceVariants
+                .Where(v => obsoleteServiceIds.Contains(v.ServiceId))
+                .ToListAsync();
+            if (obsoleteVariants.Count > 0)
+            {
+                var obsoleteVariantIds = obsoleteVariants.Select(v => v.Id).ToList();
+                var obsoleteReqs = await context.ServiceVariantRequirements
+                    .Where(vr => obsoleteVariantIds.Contains(vr.ServiceVariantId))
+                    .ToListAsync();
+                if (obsoleteReqs.Count > 0) context.ServiceVariantRequirements.RemoveRange(obsoleteReqs);
+
+                var obsoleteElements = await context.ServiceVariantElements
+                    .Where(ve => obsoleteVariantIds.Contains(ve.ServiceVariantId))
+                    .ToListAsync();
+                if (obsoleteElements.Count > 0) context.ServiceVariantElements.RemoveRange(obsoleteElements);
+
+                context.ServiceVariants.RemoveRange(obsoleteVariants);
+            }
+
+            // 4. Delete obsolete service notes and fees
+            var obsoleteNotes = await context.ServiceNotes
+                .Where(sn => obsoleteServiceIds.Contains(sn.ServiceId))
+                .ToListAsync();
+            if (obsoleteNotes.Count > 0) context.ServiceNotes.RemoveRange(obsoleteNotes);
+
+            var obsoleteFees = await context.ServiceFees
+                .Where(sf => obsoleteServiceIds.Contains(sf.ServiceId))
+                .ToListAsync();
+            if (obsoleteFees.Count > 0) context.ServiceFees.RemoveRange(obsoleteFees);
+
+            // 5. Remove obsolete services
+            context.Services.RemoveRange(obsoleteServices);
+            anyChange = true;
+        }
+
         if (anyChange)
         {
             await context.SaveChangesAsync();
@@ -499,6 +563,7 @@ public static class FastTrackSeeder
         var svc101 = Guid.Parse("50000000-0000-0000-0000-000000000001");
 
         var allVariantsInDb = await context.ServiceVariants.AsNoTracking().ToListAsync();
+        var validVariantIds = allVariantsInDb.Select(v => v.Id).ToHashSet();
         var allVariantsByDef = FastTrackSeederData.GetVariantDefs();
 
         Guid ResolveVariantId(Guid hardcodedVariantId)
@@ -528,7 +593,7 @@ public static class FastTrackSeeder
         foreach (var el in elementsToSeed)
         {
             Guid actualVariantId = ResolveVariantId(el.VariantId);
-            if (!existingSve.Contains((actualVariantId, el.Code)))
+            if (validVariantIds.Contains(actualVariantId) && !existingSve.Contains((actualVariantId, el.Code)))
             {
                 context.ServiceVariantElements.Add(new ServiceVariantElement
                 {
@@ -537,6 +602,7 @@ public static class FastTrackSeeder
                     Code = el.Code,
                     Description = el.Description
                 });
+                existingSve.Add((actualVariantId, el.Code));
             }
         }
         await context.SaveChangesAsync();
@@ -572,6 +638,11 @@ public static class FastTrackSeeder
         foreach (var note in notesToSeed)
         {
             Guid? actualVariantId = note.ServiceVariantId.HasValue ? ResolveVariantId(note.ServiceVariantId.Value) : null;
+            if (actualVariantId.HasValue && !validVariantIds.Contains(actualVariantId.Value))
+            {
+                actualVariantId = null;
+            }
+
             if (!existingNotes.Contains((note.ServiceId, actualVariantId, note.Content)))
             {
                 context.ServiceNotes.Add(new ServiceNote
@@ -599,6 +670,7 @@ public static class FastTrackSeeder
                     Name = req.Name,
                     Description = req.Desc
                 });
+                existingReqIds.Add(req.Id);
             }
         }
         await context.SaveChangesAsync();
@@ -612,6 +684,11 @@ public static class FastTrackSeeder
         foreach (var vr in variantReqsToSeed)
         {
             Guid actualVariantId = ResolveVariantId(vr.VariantId);
+            if (!validVariantIds.Contains(actualVariantId) || !existingReqIds.Contains(vr.ReqId))
+            {
+                continue;
+            }
+
             if (!existingSvr.Contains((actualVariantId, vr.ReqId)))
             {
                 context.ServiceVariantRequirements.Add(new ServiceVariantRequirement

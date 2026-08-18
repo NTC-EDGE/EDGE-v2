@@ -17,6 +17,7 @@ public static class PermitsCategorySeederData
     public static readonly Guid SvcMpId         = Guid.Parse("50000000-0000-0000-0000-000000000065");
     public static readonly Guid SvcCopyId       = Guid.Parse("50000000-0000-0000-0000-000000000066");
 
+    #region Contracts
     public static readonly string Ntc109Contract = @"
     {
         ""formNo"": ""NTC 1-09"",
@@ -24,8 +25,8 @@ public static class PermitsCategorySeederData
         ""revisionDate"": ""2023-03-31"",
         ""serviceCategory"": ""Permits"",
         ""group"": ""Permits in the Amateur Service"",
-        ""applicationTypes"": [""Permit to Purchase"", ""Purchase to Possess"", ""Possess for Storage"", ""Permit to Sell/Transfer"", ""Purchase"", ""Possess"", ""Sell/Transfer""],
-        ""elements"": [],
+        ""applicationTypes"": [""Permit to Purchase"", ""Permit to Possess for Storage"", ""Permit to Purchase/Possess"", ""Permit to Sell/Transfer"", ""Temporary Permit to Operate an Amateur Radio Station - Foreign Visitor"", ""Special Permit for Use of Vanity Call Sign"", ""Special Permit for the Use of Special Event Call Sign""],
+        ""elements"": [""Class A"", ""Class B"", ""Class C""],
         ""requiredSections"": [
             { ""key"": ""applicant"", ""required"": true },
             { ""key"": ""proposedStation"", ""required"": true },
@@ -69,6 +70,7 @@ public static class PermitsCategorySeederData
         },
         ""entityType"": ""Application""
     }";
+    #endregion
 
     public static Dictionary<string, string> GetContractMapEntries() => new(StringComparer.OrdinalIgnoreCase)
     {
@@ -95,339 +97,405 @@ public static class PermitsCategorySeederData
         new("NTC_COPY_PERMITS", SvcCopyId, categoryId, "COPY OF PERMITS", null, "NTC_COPY_PERMITS", "COPY OF PERMITS", Ntc109Contract)
     };
 
+    // Variant IDs
+    public static readonly Guid VarAmPur           = Guid.Parse("60000000-0000-0000-0000-000000000060");
+    public static readonly Guid VarAmStorage       = Guid.Parse("60000000-0000-0000-0000-000000000061");
+    public static readonly Guid VarAmPurPoss       = Guid.Parse("60000000-0000-0000-0000-000000000062");
+    public static readonly Guid VarAmSell          = Guid.Parse("60000000-0000-0000-0000-000000000063");
+    public static readonly Guid VarAmForeign       = Guid.Parse("60000000-0000-0000-0000-000000000064");
+    public static readonly Guid VarAmVanityNew     = Guid.Parse("60000000-0000-0000-0000-000000000067");
+    public static readonly Guid VarAmVanityRen     = Guid.Parse("60000000-0000-0000-0000-000000000065");
+    public static readonly Guid VarAmSpecialEvent  = Guid.Parse("60000000-0000-0000-0000-000000000066");
+
+    public static readonly Guid VarAeroStnPur      = Guid.Parse("60000000-0000-0000-0000-000000000070");
+    public static readonly Guid VarAeroStnPoss     = Guid.Parse("60000000-0000-0000-0000-000000000071");
+    public static readonly Guid VarAeroStnPurPoss  = Guid.Parse("60000000-0000-0000-0000-000000000072");
+    public static readonly Guid VarAeroStorage     = Guid.Parse("60000000-0000-0000-0000-000000000078");
+    public static readonly Guid VarAeroStnSell     = Guid.Parse("60000000-0000-0000-0000-000000000073");
+    public static readonly Guid VarAirStnPur       = Guid.Parse("60000000-0000-0000-0000-000000000074");
+    public static readonly Guid VarAirStnPoss      = Guid.Parse("60000000-0000-0000-0000-000000000075");
+    public static readonly Guid VarAirStnPurPoss   = Guid.Parse("60000000-0000-0000-0000-000000000076");
+    public static readonly Guid VarAirStnSell      = Guid.Parse("60000000-0000-0000-0000-000000000077");
+
+    public static readonly Guid VarMarShipPur      = Guid.Parse("60000000-0000-0000-0000-000000000080");
+    public static readonly Guid VarMarShipPoss     = Guid.Parse("60000000-0000-0000-0000-000000000081");
+    public static readonly Guid VarMarShipStorage  = Guid.Parse("60000000-0000-0000-0000-000000000082");
+    public static readonly Guid VarMarShipPurPoss  = Guid.Parse("60000000-0000-0000-0000-000000000083");
+    public static readonly Guid VarMarShipSell     = Guid.Parse("60000000-0000-0000-0000-000000000084");
+    public static readonly Guid VarMarPrivCoastPur = Guid.Parse("60000000-0000-0000-0000-000000000085");
+    public static readonly Guid VarMarPrivCoastPoss= Guid.Parse("60000000-0000-0000-0000-000000000086");
+    public static readonly Guid VarMarPrivCoastPP  = Guid.Parse("60000000-0000-0000-0000-000000000087");
+    public static readonly Guid VarMarPubCoastPur  = Guid.Parse("60000000-0000-0000-0000-000000000088");
+    public static readonly Guid VarMarPubCoastPoss = Guid.Parse("60000000-0000-0000-0000-000000000089");
+    public static readonly Guid VarMarPubCoastPP   = Guid.Parse("60000000-0000-0000-0000-000000000090");
+    public static readonly Guid VarMarPubCoastSell = Guid.Parse("60000000-0000-0000-0000-000000000091");
+
+    public static readonly Guid VarFlmPurVsat      = Guid.Parse("60000000-0000-0000-0000-000000000100");
+    public static readonly Guid VarFlmPurPriv      = Guid.Parse("60000000-0000-0000-0000-000000000107");
+    public static readonly Guid VarFlmPurCag       = Guid.Parse("60000000-0000-0000-0000-000000000108");
+    public static readonly Guid VarFlmPurGov       = Guid.Parse("60000000-0000-0000-0000-000000000109");
+    public static readonly Guid VarFlmPossVsat     = Guid.Parse("60000000-0000-0000-0000-000000000101");
+    public static readonly Guid VarFlmPossPriv     = Guid.Parse("60000000-0000-0000-0000-000000000110");
+    public static readonly Guid VarFlmPossCag      = Guid.Parse("60000000-0000-0000-0000-000000000111");
+    public static readonly Guid VarFlmPossGov      = Guid.Parse("60000000-0000-0000-0000-000000000112");
+    public static readonly Guid VarFlmPPVsat       = Guid.Parse("60000000-0000-0000-0000-000000000102");
+    public static readonly Guid VarFlmPPPriv       = Guid.Parse("60000000-0000-0000-0000-000000000113");
+    public static readonly Guid VarFlmPPCag        = Guid.Parse("60000000-0000-0000-0000-000000000114");
+    public static readonly Guid VarFlmPPGov        = Guid.Parse("60000000-0000-0000-0000-000000000115");
+    public static readonly Guid VarFlmStorage      = Guid.Parse("60000000-0000-0000-0000-000000000103");
+    public static readonly Guid VarFlmSell         = Guid.Parse("60000000-0000-0000-0000-000000000104");
+    public static readonly Guid VarFlmConstNew     = Guid.Parse("60000000-0000-0000-0000-000000000105");
+    public static readonly Guid VarFlmConstMod     = Guid.Parse("60000000-0000-0000-0000-000000000116");
+    public static readonly Guid VarFlmDemo         = Guid.Parse("60000000-0000-0000-0000-000000000106");
+
+    public static readonly Guid VarPteStorage      = Guid.Parse("60000000-0000-0000-0000-000000000120");
+
+    public static readonly Guid VarEquipTransport  = Guid.Parse("60000000-0000-0000-0000-000000000130");
+    public static readonly Guid VarEquipDealerNew  = Guid.Parse("60000000-0000-0000-0000-000000000131");
+    public static readonly Guid VarEquipDealerRen  = Guid.Parse("60000000-0000-0000-0000-000000000134");
+    public static readonly Guid VarEquipDealerMod  = Guid.Parse("60000000-0000-0000-0000-000000000135");
+    public static readonly Guid VarEquipMfgNew     = Guid.Parse("60000000-0000-0000-0000-000000000132");
+    public static readonly Guid VarEquipMfgRen     = Guid.Parse("60000000-0000-0000-0000-000000000136");
+    public static readonly Guid VarEquipMfgMod     = Guid.Parse("60000000-0000-0000-0000-000000000137");
+    public static readonly Guid VarEquipSvcNew     = Guid.Parse("60000000-0000-0000-0000-000000000133");
+    public static readonly Guid VarEquipSvcRen     = Guid.Parse("60000000-0000-0000-0000-000000000138");
+    public static readonly Guid VarEquipSvcMod     = Guid.Parse("60000000-0000-0000-0000-000000000139");
+
+    public static readonly Guid VarMpDealerNew     = Guid.Parse("60000000-0000-0000-0000-000000000140");
+    public static readonly Guid VarMpDealerRen     = Guid.Parse("60000000-0000-0000-0000-000000000144");
+    public static readonly Guid VarMpDealerMod     = Guid.Parse("60000000-0000-0000-0000-000000000146");
+    public static readonly Guid VarMpRetailerNew   = Guid.Parse("60000000-0000-0000-0000-000000000141");
+    public static readonly Guid VarMpRetailerRen   = Guid.Parse("60000000-0000-0000-0000-000000000148");
+    public static readonly Guid VarMpRetailerMod   = Guid.Parse("60000000-0000-0000-0000-000000000149");
+    public static readonly Guid VarMpSvcNew        = Guid.Parse("60000000-0000-0000-0000-000000000142");
+    public static readonly Guid VarMpSvcRen        = Guid.Parse("60000000-0000-0000-0000-000000000152");
+    public static readonly Guid VarMpSvcMod        = Guid.Parse("60000000-0000-0000-0000-000000000153");
+
+    public static readonly Guid VarPermitTrueCopy  = Guid.Parse("60000000-0000-0000-0000-000000000150");
+    public static readonly Guid VarPermitDuplicate = Guid.Parse("60000000-0000-0000-0000-000000000151");
+
     public static List<ServiceVariantDef> GetVariantDefs() => new()
     {
-        // Amateur Permits
-        new(Guid.Parse("60000000-0000-0000-0000-000000000060"), Svc109Id, ServiceVariantType.New, "Amateur Radio Station Permit to Purchase"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000061"), Svc109Id, ServiceVariantType.NA, "Amateur Radio Station Permit to Possess for Storage"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000062"), Svc109Id, ServiceVariantType.NA, "Amateur Radio Station Permit to Purchase/Possess"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000063"), Svc109Id, ServiceVariantType.New, "Amateur Radio Station Permit to Sell/Transfer"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000064"), Svc109Id, ServiceVariantType.NA, "Temporary Permit to Operate an Amateur Radio Station - Foreign Visitor"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000067"), Svc109Id, ServiceVariantType.New, "Special Permit for Use of Vanity Call Sign"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000065"), Svc109Id, ServiceVariantType.Renewal, "Special Permit for Use of Vanity Call Sign"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000066"), Svc109Id, ServiceVariantType.New, "Special Permit for the Use of Special Event Call Sign"),
+        // 1. PERMITS IN THE AMATEUR SERVICE
+        new(VarAmPur, Svc109Id, ServiceVariantType.NA, "Amateur Radio Station Permit to Purchase"),
+        new(VarAmStorage, Svc109Id, ServiceVariantType.NA, "Amateur Radio Station Permit Permit to Possess for Storage"),
+        new(VarAmPurPoss, Svc109Id, ServiceVariantType.NA, "Amateur Radio Station Permit to Purchase/Possess"),
+        new(VarAmSell, Svc109Id, ServiceVariantType.NA, "Amateur Radio Station Permit to Sell/Transfer"),
+        new(VarAmForeign, Svc109Id, ServiceVariantType.NA, "Temporary Permit to Operate an Amateur Radio Station - Foreign Visitor"),
+        new(VarAmVanityNew, Svc109Id, ServiceVariantType.New, "Special Permit for Use of Vanity Call Sign"),
+        new(VarAmVanityRen, Svc109Id, ServiceVariantType.Renewal, "Special Permit for Use of Vanity Call Sign"),
+        new(VarAmSpecialEvent, Svc109Id, ServiceVariantType.NA, "Special Permit for the Use of Special Event Call Sign"),
 
-        // Aeronautical Permits
-        new(Guid.Parse("60000000-0000-0000-0000-000000000070"), SvcAeroId, ServiceVariantType.NA, "Aeronautical Station Permit to Purchase"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000071"), SvcAeroId, ServiceVariantType.NA, "Aeronautical Station Permit to Possess"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000072"), SvcAeroId, ServiceVariantType.NA, "Aeronautical Station Permit to Purchase/Possess"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000078"), SvcAeroId, ServiceVariantType.NA, "Permit to Possess for Storage (Aeronautical)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000073"), SvcAeroId, ServiceVariantType.NA, "Aeronautical Station Permit to Sell/Transfer"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000074"), SvcAeroId, ServiceVariantType.NA, "Aircraft Station Permit to Purchase"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000075"), SvcAeroId, ServiceVariantType.NA, "Aircraft Station Permit to Possess"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000076"), SvcAeroId, ServiceVariantType.NA, "Aircraft Station Permit to Purchase/Possess"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000077"), SvcAeroId, ServiceVariantType.NA, "Aircraft Station Permit to Sell/Transfer"),
+        // 2. PERMITS IN THE AERONAUTICAL SERVICE
+        new(VarAeroStnPur, SvcAeroId, ServiceVariantType.NA, "Aeronautical Station Permit to Purchase"),
+        new(VarAeroStnPoss, SvcAeroId, ServiceVariantType.NA, "Aeronautical Station Permit to Possess"),
+        new(VarAeroStnPurPoss, SvcAeroId, ServiceVariantType.NA, "Aeronautical Station Permit to Purchase/Possess"),
+        new(VarAeroStorage, SvcAeroId, ServiceVariantType.NA, "Permit to Possess for Storage"),
+        new(VarAeroStnSell, SvcAeroId, ServiceVariantType.NA, "Aeronautical Station Permit to Sell/Transfer"),
+        new(VarAirStnPur, SvcAeroId, ServiceVariantType.NA, "Aircraft Station Permit to Purchase"),
+        new(VarAirStnPoss, SvcAeroId, ServiceVariantType.NA, "Aircraft Station Permit to Possess"),
+        new(VarAirStnPurPoss, SvcAeroId, ServiceVariantType.NA, "Aircraft Station Permit to Purchase/Possess"),
+        new(VarAirStnSell, SvcAeroId, ServiceVariantType.NA, "Aircraft Station Permit to Sell/Transfer"),
 
-        // Maritime Permits
-        new(Guid.Parse("60000000-0000-0000-0000-000000000080"), SvcMarId, ServiceVariantType.NA, "Ship Station Permit to Purchase (Domestic Trade)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000081"), SvcMarId, ServiceVariantType.NA, "Ship Station Permit to Possess (Domestic Trade)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000082"), SvcMarId, ServiceVariantType.NA, "Ship Station Permit to Possess for Storage"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000083"), SvcMarId, ServiceVariantType.NA, "Ship Station Permit to Purchase/Possess (Domestic Trade)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000084"), SvcMarId, ServiceVariantType.NA, "Ship Station Permit to Sell/Transfer"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000085"), SvcMarId, ServiceVariantType.NA, "Private Coastal Station Permit to Purchase"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000086"), SvcMarId, ServiceVariantType.NA, "Private Coastal Station Permit to Possess"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000087"), SvcMarId, ServiceVariantType.NA, "Private Coastal Station Permit to Purchase/Possess"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000088"), SvcMarId, ServiceVariantType.NA, "Public Coastal Station Permit to Purchase"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000089"), SvcMarId, ServiceVariantType.NA, "Public Coastal Station Permit to Possess"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000090"), SvcMarId, ServiceVariantType.NA, "Public Coastal Station Permit to Purchase/Possess"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000091"), SvcMarId, ServiceVariantType.NA, "Public Coastal Station Permit to Sell/Transfer"),
+        // 3. PERMITS IN THE MARITIME SERVICE
+        new(VarMarShipPur, SvcMarId, ServiceVariantType.NA, "Ship Station Permit to Purchase (Domestic Trade)"),
+        new(VarMarShipPoss, SvcMarId, ServiceVariantType.NA, "Ship Station Permit to Possess (Domestic Trade)"),
+        new(VarMarShipStorage, SvcMarId, ServiceVariantType.NA, "Ship Station Permit to Possess (Storage)"),
+        new(VarMarShipPurPoss, SvcMarId, ServiceVariantType.NA, "Ship Station Permit to Purchase/Possess (Domestic Trade)"),
+        new(VarMarShipSell, SvcMarId, ServiceVariantType.NA, "Ship Station Permit to Sell/Transfer"),
+        new(VarMarPrivCoastPur, SvcMarId, ServiceVariantType.NA, "Private Coastal Station Permit to Purchase"),
+        new(VarMarPrivCoastPoss, SvcMarId, ServiceVariantType.NA, "Private Coastal Station Permit to Possess"),
+        new(VarMarPrivCoastPP, SvcMarId, ServiceVariantType.NA, "Private Coastal Station Permit to Purchase/Possess"),
+        new(VarMarPubCoastPur, SvcMarId, ServiceVariantType.NA, "Public Coastal Station Permit to Purchase"),
+        new(VarMarPubCoastPoss, SvcMarId, ServiceVariantType.NA, "Public Coastal Station Permit to Possess"),
+        new(VarMarPubCoastPP, SvcMarId, ServiceVariantType.NA, "Public Coastal Station Permit to Purchase/Possess"),
+        new(VarMarPubCoastSell, SvcMarId, ServiceVariantType.NA, "Public Coastal Station Permit to Sell/Transfer"),
 
-        // FLM Permits
-        new(Guid.Parse("60000000-0000-0000-0000-000000000100"), SvcFlmId, ServiceVariantType.NA, "Permit to Purchase (VSAT)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000107"), SvcFlmId, ServiceVariantType.NA, "Permit to Purchase (Private)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000108"), SvcFlmId, ServiceVariantType.NA, "Permit to Purchase (Civic Action Group)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000109"), SvcFlmId, ServiceVariantType.NA, "Permit to Purchase (Government)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000101"), SvcFlmId, ServiceVariantType.NA, "Permit to Possess (VSAT)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000110"), SvcFlmId, ServiceVariantType.NA, "Permit to Possess (Private)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000111"), SvcFlmId, ServiceVariantType.NA, "Permit to Possess (Civic Action Group)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000112"), SvcFlmId, ServiceVariantType.NA, "Permit to Possess (Government)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000102"), SvcFlmId, ServiceVariantType.NA, "Permit to Purchase/Possess (VSAT)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000113"), SvcFlmId, ServiceVariantType.NA, "Permit to Purchase/Possess (Private)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000114"), SvcFlmId, ServiceVariantType.NA, "Permit to Purchase/Possess (Civic Action Group)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000115"), SvcFlmId, ServiceVariantType.NA, "Permit to Purchase/Possess (Government)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000103"), SvcFlmId, ServiceVariantType.NA, "Permit to Possess for Storage (FLM)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000104"), SvcFlmId, ServiceVariantType.NA, "Permit to Sell/Transfer (FLM)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000105"), SvcFlmId, ServiceVariantType.New, "Construction Permit (FLM)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000116"), SvcFlmId, ServiceVariantType.Modification, "Construction Permit (FLM)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000106"), SvcFlmId, ServiceVariantType.NA, "Temporary Permit to Demonstrate and Propagate (VSAT)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000117"), SvcFlmId, ServiceVariantType.NA, "Temporary Permit to Demonstrate and Propagate (Private)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000118"), SvcFlmId, ServiceVariantType.NA, "Temporary Permit to Demonstrate and Propagate (Civic Action Group)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000119"), SvcFlmId, ServiceVariantType.NA, "Temporary Permit to Demonstrate and Propagate (Government)"),
+        // 4. PERMITS TO GOVERNMENT AND PRIVATE RADIO STATIONS IN THE FIXED AND LAND MOBILE SERVICE
+        new(VarFlmPurVsat, SvcFlmId, ServiceVariantType.NA, "Permit to Purchase (VSAT)"),
+        new(VarFlmPurPriv, SvcFlmId, ServiceVariantType.NA, "Permit to Purchase (Private)"),
+        new(VarFlmPurCag, SvcFlmId, ServiceVariantType.NA, "Permit to Purchase (Civic Action Group)"),
+        new(VarFlmPurGov, SvcFlmId, ServiceVariantType.NA, "Permit to Purchase (Government)"),
+        new(VarFlmPossVsat, SvcFlmId, ServiceVariantType.NA, "Permit to Possess (VSAT)"),
+        new(VarFlmPossPriv, SvcFlmId, ServiceVariantType.NA, "Permit to Possess (Private)"),
+        new(VarFlmPossCag, SvcFlmId, ServiceVariantType.NA, "Permit to Possess (Civic Action Group)"),
+        new(VarFlmPossGov, SvcFlmId, ServiceVariantType.NA, "Permit to Possess (Government)"),
+        new(VarFlmPPVsat, SvcFlmId, ServiceVariantType.NA, "Permit to Purchase/Possess (VSAT)"),
+        new(VarFlmPPPriv, SvcFlmId, ServiceVariantType.NA, "Permit to Purchase/Possess (Private)"),
+        new(VarFlmPPCag, SvcFlmId, ServiceVariantType.NA, "Permit to Purchase/Possess (Civic Action Group)"),
+        new(VarFlmPPGov, SvcFlmId, ServiceVariantType.NA, "Permit to Purchase/Possess (Government)"),
+        new(VarFlmStorage, SvcFlmId, ServiceVariantType.NA, "Permit to Possess for Storage"),
+        new(VarFlmSell, SvcFlmId, ServiceVariantType.NA, "Permit to Sell/Transfer"),
+        new(VarFlmConstNew, SvcFlmId, ServiceVariantType.New, "Construction Permit"),
+        new(VarFlmConstMod, SvcFlmId, ServiceVariantType.Modification, "Construction Permit"),
+        new(VarFlmDemo, SvcFlmId, ServiceVariantType.NA, "Temporary Permit to Demonstrate and Propagate"),
 
-        // PTE Permits
-        new(Guid.Parse("60000000-0000-0000-0000-000000000120"), SvcPteId, ServiceVariantType.NA, "Permit to Possess for Storage (PTE)"),
+        // 5. PERMITS FOR PUBLIC TELECOMMUNICATIONS ENTITIES (PTEs)
+        new(VarPteStorage, SvcPteId, ServiceVariantType.NA, "Permit to Possess for Storage (PTEs)"),
 
-        // Equipment Permits
-        new(Guid.Parse("60000000-0000-0000-0000-000000000130"), SvcEquipId, ServiceVariantType.NA, "Permit to Transport"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000131"), SvcEquipId, ServiceVariantType.New, "Dealer Permit (Radio Communications Equipment)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000134"), SvcEquipId, ServiceVariantType.Renewal, "Dealer Permit (Radio Communications Equipment)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000135"), SvcEquipId, ServiceVariantType.Modification, "Dealer Permit (Radio Communications Equipment)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000132"), SvcEquipId, ServiceVariantType.New, "Manufacturer Permit (Radio Communications Equipment)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000136"), SvcEquipId, ServiceVariantType.Renewal, "Manufacturer Permit (Radio Communications Equipment)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000137"), SvcEquipId, ServiceVariantType.Modification, "Manufacturer Permit (Radio Communications Equipment)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000133"), SvcEquipId, ServiceVariantType.New, "Service Center Permit (Radio Communications Equipment)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000138"), SvcEquipId, ServiceVariantType.Renewal, "Service Center Permit (Radio Communications Equipment)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000139"), SvcEquipId, ServiceVariantType.Modification, "Service Center Permit (Radio Communications Equipment)"),
+        // 6. PERMITS FOR RADIO COMMUNICATIONS EQUIPMENT
+        new(VarEquipTransport, SvcEquipId, ServiceVariantType.NA, "Permit to Transport"),
+        new(VarEquipDealerNew, SvcEquipId, ServiceVariantType.New, "Dealer Permit"),
+        new(VarEquipDealerRen, SvcEquipId, ServiceVariantType.Renewal, "Dealer Permit"),
+        new(VarEquipDealerMod, SvcEquipId, ServiceVariantType.Modification, "Dealer Permit"),
+        new(VarEquipMfgNew, SvcEquipId, ServiceVariantType.New, "Manufacturer Permit"),
+        new(VarEquipMfgRen, SvcEquipId, ServiceVariantType.Renewal, "Manufacturer Permit"),
+        new(VarEquipMfgMod, SvcEquipId, ServiceVariantType.Modification, "Manufacturer Permit"),
+        new(VarEquipSvcNew, SvcEquipId, ServiceVariantType.New, "Service Center Permit"),
+        new(VarEquipSvcRen, SvcEquipId, ServiceVariantType.Renewal, "Service Center Permit"),
+        new(VarEquipSvcMod, SvcEquipId, ServiceVariantType.Modification, "Service Center Permit"),
 
-        // Mobile Phone Permits
-        new(Guid.Parse("60000000-0000-0000-0000-000000000140"), SvcMpId, ServiceVariantType.New, "Dealer Permit (Mobile Phone)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000144"), SvcMpId, ServiceVariantType.Renewal, "Dealer Permit (Mobile Phone)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000146"), SvcMpId, ServiceVariantType.Modification, "Dealer Permit (Mobile Phone)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000141"), SvcMpId, ServiceVariantType.New, "Retailer/Reseller Permit (Mobile Phone)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000148"), SvcMpId, ServiceVariantType.Renewal, "Retailer/Reseller Permit (Mobile Phone)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000149"), SvcMpId, ServiceVariantType.Modification, "Retailer/Reseller Permit (Mobile Phone)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000142"), SvcMpId, ServiceVariantType.New, "Service Center Permit (Mobile Phone)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000152"), SvcMpId, ServiceVariantType.Renewal, "Service Center Permit (Mobile Phone)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000153"), SvcMpId, ServiceVariantType.Modification, "Service Center Permit (Mobile Phone)"),
+        // 7. PERMITS FOR MOBILE PHONE
+        new(VarMpDealerNew, SvcMpId, ServiceVariantType.New, "Dealer Permit"),
+        new(VarMpDealerRen, SvcMpId, ServiceVariantType.Renewal, "Dealer Permit"),
+        new(VarMpDealerMod, SvcMpId, ServiceVariantType.Modification, "Dealer Permit"),
+        new(VarMpRetailerNew, SvcMpId, ServiceVariantType.New, "Retailer/Reseller Permit"),
+        new(VarMpRetailerRen, SvcMpId, ServiceVariantType.Renewal, "Retailer/Reseller Permit"),
+        new(VarMpRetailerMod, SvcMpId, ServiceVariantType.Modification, "Retailer/Reseller Permit"),
+        new(VarMpSvcNew, SvcMpId, ServiceVariantType.New, "Service Center Permit"),
+        new(VarMpSvcRen, SvcMpId, ServiceVariantType.Renewal, "Service Center Permit"),
+        new(VarMpSvcMod, SvcMpId, ServiceVariantType.Modification, "Service Center Permit"),
 
-        // Copy of Permits
-        new(Guid.Parse("60000000-0000-0000-0000-000000000150"), SvcCopyId, ServiceVariantType.NA, "Certified True Copy (Permit)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000151"), SvcCopyId, ServiceVariantType.NA, "Duplicate Copy (Permit)")
+        // 8. COPY OF PERMITS
+        new(VarPermitTrueCopy, SvcCopyId, ServiceVariantType.NA, "Certified True Copy"),
+        new(VarPermitDuplicate, SvcCopyId, ServiceVariantType.NA, "Duplicate Copy")
+    };
+
+    public static List<VariantElementDef> GetBackfillElements() => new()
+    {
+        // Foreign Visitor Amateur
+        new(VarAmForeign, "Class A", "Class A Amateur Operator"),
+        new(VarAmForeign, "Class B", "Class B Amateur Operator"),
+        new(VarAmForeign, "Class C", "Class C Amateur Operator"),
+
+        // Mobile Phone Dealer Permit Elements
+        new(VarMpDealerNew, "MAIN", "Main Office / Establishment"),
+        new(VarMpDealerNew, "BRANCH", "Branch Office / Outlet"),
+        new(VarMpDealerRen, "MAIN", "Main Office / Establishment"),
+        new(VarMpDealerRen, "BRANCH", "Branch Office / Outlet"),
+        new(VarMpDealerMod, "MAIN", "Main Office / Establishment"),
+        new(VarMpDealerMod, "BRANCH", "Branch Office / Outlet")
     };
 
     public static Dictionary<string, RequirementDef> GetBackfillRequirements() => new()
     {
-        ["AM_NEW_STATION_REQ"] = new(Guid.Parse("70000000-0000-0000-0000-000000000050"), "Proof for New Amateur Radio Station License", "Valid Report of Rating or Amateur Radio Operator Certificate."),
-        ["AM_CHANGE_EQUIP"] = new(Guid.Parse("70000000-0000-0000-0000-000000000051"), "Valid Amateur Radio Station License", "Copy of existing Amateur Radio Station License."),
-        ["AM_SELLER_LICENSE"] = new(Guid.Parse("70000000-0000-0000-0000-000000000052"), "Seller's Amateur Radio Station License", "Amateur Radio Station License of the equipment seller."),
-        ["LETTER_OF_INTENT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000053"), "Letter of Intent", "Formal letter stating intended operational parameters and purpose."),
-        ["FOREIGN_AMA_ROC"] = new(Guid.Parse("70000000-0000-0000-0000-000000000054"), "Foreign Amateur Radio Operator Certificate", "Valid certificate issued by country of citizenship."),
-        ["RECIPROCAL_PROOF"] = new(Guid.Parse("70000000-0000-0000-0000-000000000055"), "Proof of Reciprocity", "Proof that home country provides reciprocal operating privileges."),
-        ["PARA_ENDORSEMENT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000056"), "Endorsement from PARA, Inc.", "Official endorsement letter from Philippine Amateur Radio Association."),
-        ["SPECIAL_PERMIT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000057"), "Special Permit", "Previously issued vanity/special call sign permit."),
-        ["CALL_SIGN_ASSIGNMENT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000058"), "Call Sign Assignment Notice", "Official call sign assignment notice from NTC."),
-        ["AERO_CAAP_APPROVAL"] = new(Guid.Parse("70000000-0000-0000-0000-000000000059"), "CAAP Frequency / Operating Approval", "Clearance and authorization from CAAP."),
-        ["AERO_SELLER_PERMIT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000060"), "Seller's Aeronautical Station Permit", "Valid permit of seller authorizing equipment transfer."),
-        ["MARINA_VESSEL_DOCS"] = new(Guid.Parse("70000000-0000-0000-0000-000000000061"), "MARINA Vessel Authority / Registration", "MARINA Certificate of Philippine Registry or authority."),
-        ["SHIP_STORAGE_JUSTIFICATION"] = new(Guid.Parse("70000000-0000-0000-0000-000000000062"), "Justification for Ship Equipment Storage", "Written explanation for de-installation and storage."),
-        ["MAR_SELLER_LICENSE"] = new(Guid.Parse("70000000-0000-0000-0000-000000000063"), "Seller's Ship Station License", "Copy of valid ship station license of the transferor."),
-        ["COASTAL_STATION_JUSTIFICATION"] = new(Guid.Parse("70000000-0000-0000-0000-000000000064"), "Private Coastal Station Justification", "Operational requirement justification for coastal station."),
-        ["ENGINEERING_PLAN_PECE"] = new(Guid.Parse("70000000-0000-0000-0000-000000000065"), "Engineering Plan Signed by PECE", "Complete technical network plans and specifications prepared and signed by PECE."),
-        ["PTE_FRANCHISE_PROOF"] = new(Guid.Parse("70000000-0000-0000-0000-000000000066"), "PTE Franchise / Certificate of Public Convenience", "Legislative franchise or CPCN for public correspondence service."),
-        ["PUBLIC_COASTAL_TRANSFER_DOCS"] = new(Guid.Parse("70000000-0000-0000-0000-000000000067"), "Public Coastal Station Transfer Authority", "Board resolution and transfer agreement between operators."),
-        ["SEC_DTI_REG"] = new(Guid.Parse("70000000-0000-0000-0000-000000000068"), "SEC / DTI Registration Certificate", "Certificate of Incorporation or Business Name Registration."),
-        ["NETWORK_DIAGRAM"] = new(Guid.Parse("70000000-0000-0000-0000-000000000069"), "Network Layout Diagram", "Overall system and network topology diagram."),
-        ["VSAT_SERVICE_CONTRACT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000070"), "VSAT Service / Hub Agreement", "Contract with authorized VSAT satellite service provider."),
-        ["MAYORS_PERMIT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000071"), "Valid Mayor's / Business Permit", "Current local government business permit."),
-        ["CAG_ACCREDITATION"] = new(Guid.Parse("70000000-0000-0000-0000-000000000072"), "Civic Action Group NTC Accreditation", "Valid Accreditation Certificate as Civic Action Group."),
-        ["GOVT_AGENCY_AUTHORIZATION"] = new(Guid.Parse("70000000-0000-0000-0000-000000000073"), "Government Agency Head Authorization", "Official requisition signed by Head of Office / Department."),
-        ["EXISTING_PERMIT_RSL"] = new(Guid.Parse("70000000-0000-0000-0000-000000000074"), "Copy of Existing Permit / License", "Copy of existing Permit to Purchase/Possess or Station License."),
-        ["DEED_OF_SALE"] = new(Guid.Parse("70000000-0000-0000-0000-000000000075"), "Deed of Sale / Assignment", "Notarized Deed of Sale or Transfer Agreement."),
-        ["CONSTRUCTION_PERMIT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000076"), "Valid Construction Permit", "Construction Permit issued by NTC."),
-        ["PURCHASE_RECEIPT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000077"), "Official Sales Invoice / Receipt of Equipment", "Sales invoice from authorized dealer or importation documents."),
-        ["VEHICLE_OR_CR"] = new(Guid.Parse("70000000-0000-0000-0000-000000000078"), "LTO Official Receipt / Certificate of Registration (OR/CR)", "For mobile land units: LTO vehicle registration."),
-        ["DEMO_PROPAGATE_JUSTIFICATION"] = new(Guid.Parse("70000000-0000-0000-0000-000000000079"), "Technical Justification for Propagation Test", "Engineering justification and test parameters for signal demonstration."),
-        ["EQUIP_TEST_SCHEDULE"] = new(Guid.Parse("70000000-0000-0000-0000-000000000080"), "Test Schedule & Operational Parameters", "Detailed itinerary, frequencies, power levels, and duration of test."),
-        ["TRANSPORT_EQUIP_LIST"] = new(Guid.Parse("70000000-0000-0000-0000-000000000081"), "List of Equipment to be Transported with Serial Numbers", "Detailed itemized list of transceivers, serial numbers, and origin/destination."),
-        ["CAPITAL_PROOF_DEALER"] = new(Guid.Parse("70000000-0000-0000-0000-000000000083"), "Proof of Capital (Financial Statement / Bank Cert)", "Audited Financial Statements or Bank Certification showing capital compliance."),
-        ["DEALER_SHOP_INSP"] = new(Guid.Parse("70000000-0000-0000-0000-000000000084"), "NTC Service Shop / Showroom Inspection Report", "Official technical site inspection report of shop premises."),
-        ["ECE_PECE_EMPLOYMENT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000085"), "Proof of Employment of Registered ECE / PECE", "PRC ID and employment contract of supervising electronics engineer."),
-        ["TECH_EMPLOYMENT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000086"), "Proof of Employment of Qualified Technicians", "Employment contracts and certifications of skilled radio technicians."),
-        ["EXPIRING_DEALER_PERMIT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000087"), "Copy of Expiring Dealer Permit", "Copy of existing/expiring Dealer Permit."),
-        ["MFG_FACILITY_LAYOUT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000088"), "Manufacturing Facility Plant Layout & Production Process", "Plant layout, assembly line diagram, and quality control process description."),
-        ["TEST_EQUIP_LIST"] = new(Guid.Parse("70000000-0000-0000-0000-000000000089"), "List of Test & Measuring Equipment with Calibration Certs", "Itemized list of spectrum analyzers, signal generators, power meters with valid calibration."),
-        ["SEMI_ANNUAL_REPORT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000090"), "Semi-Annual Sales & Stocks Report", "Submitted semi-annual sales and stocks transactions report."),
-        ["EXPIRING_MFG_PERMIT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000091"), "Copy of Expiring Manufacturer Permit", "Copy of existing/expiring Manufacturer Permit."),
-        ["SVC_CENTER_SERVICE_AGREEMENT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000092"), "Service Agreement with Authorized Brand/Manufacturer", "Appointment or authorization agreement from equipment manufacturer."),
-        ["EXPIRING_SVC_CENTER_PERMIT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000093"), "Copy of Expiring Service Center Permit", "Copy of existing/expiring Service Center Permit."),
-        ["MP_DISTRIBUTOR_AGREEMENT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000094"), "Distributorship Agreement with Mobile Phone Brand", "Distributorship agreement or appointment from accredited brand supplier."),
-        ["MP_SHOWROOM_INSP"] = new(Guid.Parse("70000000-0000-0000-0000-000000000095"), "NTC Mobile Phone Retail/Showroom Inspection Report", "Official NTC showroom inspection certificate."),
-        ["EXPIRING_MP_DEALER_PERMIT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000096"), "Copy of Expiring Mobile Phone Dealer Permit", "Copy of existing/expiring Mobile Phone Dealer Permit."),
-        ["BARANGAY_CLEARANCE"] = new(Guid.Parse("70000000-0000-0000-0000-000000000097"), "Valid Barangay Business Clearance", "Current Barangay Clearance for business operations."),
-        ["RETAILER_SUPPLY_CONTRACT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000098"), "Supply Contract from Accredited Mobile Phone Dealer", "Supply agreement or invoice from NTC-accredited dealer."),
-        ["EXPIRING_RETAILER_PERMIT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000099"), "Copy of Expiring Retailer/Reseller Permit", "Copy of existing/expiring Retailer/Reseller Permit."),
-        ["MP_SALES_REPORT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000100"), "Semi-Annual Sales Report of Mobile Phone Units", "Report of mobile phones sold with IMEIs."),
-        ["MP_SERVICE_AUTH"] = new(Guid.Parse("70000000-0000-0000-0000-000000000101"), "Mobile Phone Brand Service Center Authorization", "Authorization contract from phone manufacturer."),
-        ["MP_TEST_TOOLS_LIST"] = new(Guid.Parse("70000000-0000-0000-0000-000000000102"), "List of Mobile Diagnostic Tools & Repair Equipment", "List of diagnostic software, soldering stations, and multimeters."),
-        ["EXPIRING_MP_SVC_PERMIT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000103"), "Copy of Expiring Mobile Phone Service Center Permit", "Copy of existing/expiring Service Center Permit."),
-        ["AFFIDAVIT_OF_LOSS_PERMIT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000104"), "Duly Notarized Affidavit of Loss (Permit)", "Notarized affidavit describing circumstances of lost or damaged permit.")
+        ["AM_NEW_STATION_REQ"] = new(Guid.Parse("70000000-0000-0000-0000-000000000050"), "Proof for New Amateur Radio Station License", "1. For new Amateur Radio Station License: Valid Report of Rating or Valid Amateur Radio Operator Certificate; 2. For Change/Additional Equipment: Valid Amateur Radio Station License"),
+        ["AM_SELLER_LICENSE"] = new(Guid.Parse("70000000-0000-0000-0000-000000000052"), "Amateur Radio Station License of the Seller", "Amateur Radio Station License of the Seller."),
+        ["LETTER_OF_INTENT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000053"), "Letter of Intent", "Letter of Intent stating operational details and purpose."),
+        ["FOREIGN_AMA_ROC"] = new(Guid.Parse("70000000-0000-0000-0000-000000000054"), "Foreign Amateur Radio Operator Certificate", "Copy of valid Amateur Radio Operator Certificate issued by the country of citizenship."),
+        ["RECIPROCAL_PROOF"] = new(Guid.Parse("70000000-0000-0000-0000-000000000055"), "Proof of Reciprocal Privilege", "Any proof that country provides the same privilege with Filipino Amateurs."),
+        ["PARA_ENDORSEMENT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000056"), "Endorsement from PARA, Inc.", "Endorsement from recognized national organization (i.e. PARA, Inc.)."),
+        ["PHOTO_1X1"] = new(Guid.Parse("70000000-0000-0000-0000-000000000003"), "1x1 ID Picture", "Clear 1x1 ID picture taken within the last six (6) months."),
+        ["AM_VANITY_NEW_REQ"] = new(Guid.Parse("70000000-0000-0000-0000-000000000057"), "Vanity Call Sign Eligibility Proof", "Copy of valid ROC or RSL, and PARA Endorsement or proof of radio amateur activities (DXCC 5B, Continental Champion, DXpedition)."),
+        ["AM_VANITY_REN_REQ"] = new(Guid.Parse("70000000-0000-0000-0000-000000000058"), "Vanity Renewal Requirements", "Copy of valid Amateur Radio Operator Certificate or Station License and Special Permit."),
+        ["AM_SPECIAL_EVENT_REQ"] = new(Guid.Parse("70000000-0000-0000-0000-000000000078"), "Special Event Call Sign Request", "Letter Request stating nature and duration of event, and valid ROC/RSL."),
+
+        ["AERO_CAAP_FREQ"] = new(Guid.Parse("70000000-0000-0000-0000-000000000059"), "CAAP Frequency Assignment / Allocation", "Frequency assignment/allocation issued by the Civil Aviation Authority of the Philippines (CAAP)."),
+        ["AERO_AC_LICENSE"] = new(Guid.Parse("70000000-0000-0000-0000-000000000060"), "Valid Aircraft Station License(s)", "Valid Aircraft Station License(s)."),
+        ["RADIO_STATION_LICENSE"] = new(Guid.Parse("70000000-0000-0000-0000-000000000074"), "Valid Radio Station License", "Valid Radio Station License (RSL) or Aircraft Station License (ASL)."),
+        ["AERO_SELLER_LICENSE"] = new(Guid.Parse("70000000-0000-0000-0000-000000000075"), "Aeronautical Station License of the Seller", "Aeronautical Station License of the Seller."),
+
+        ["MARINA_REG_OR_PERMIT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000061"), "Vessel Registry / LGU Permit / Ship Station License", "Certificate of Vessel Registry & Ownership from MARINA, or LGU Permit, or Ship Station License."),
+        ["RADIO_STATION_PERMIT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000062"), "Radio Station Permit", "Copy of valid Radio Station Permit."),
+        ["SHIP_SELLER_LICENSE"] = new(Guid.Parse("70000000-0000-0000-0000-000000000063"), "Ship Station License of the Seller", "Ship Station License of the Seller."),
+        ["DOMESTIC_TRADE_SHIP_LICENSE"] = new(Guid.Parse("70000000-0000-0000-0000-000000000064"), "Ship Station License(s) (Domestic Trade)", "Ship Station License(s) for ship(s) engaged in Domestic Trade."),
+        ["PECE_ENGINEERING_PLANS"] = new(Guid.Parse("70000000-0000-0000-0000-000000000065"), "PECE Signed Engineering Plans", "Engineering Plans signed and sealed by a PECE: Network Diagram, Map with geographical coordinates, Antenna System Plan."),
+        ["PROVISIONAL_AUTH_OR_CPCN"] = new(Guid.Parse("70000000-0000-0000-0000-000000000066"), "Provisional Authority / CPCN", "Copy of Provisional Authority or Certificate of Public Convenience and Necessity."),
+        ["PUBLIC_COASTAL_SELLER_LICENSE"] = new(Guid.Parse("70000000-0000-0000-0000-000000000067"), "Public Coastal Station License of the Seller", "Public Coastal Station License of the Seller."),
+
+        ["VSAT_AGREEMENT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000070"), "Transponder Lease Agreement / Satellite Certification", "Copy of valid Transponder Lease Agreement (TLA) or Certification of assigned transponder parameters."),
+        ["PRIVATE_BUSINESS_DOCS"] = new(Guid.Parse("70000000-0000-0000-0000-000000000071"), "SEC / DTI / Mayor's Permit", "Copy of SEC Registration, DTI Registration, or valid Business/Mayor's Permit."),
+        ["CIVIC_ACTION_DOCS"] = new(Guid.Parse("70000000-0000-0000-0000-000000000072"), "Civic Action Group Documents", "SEC/DTI/Mayor's Permit or CAG RSL, List of Officers & at least 50 active members, MOA with government/NGOs."),
+        ["GOVT_LETTER_OF_INTENT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000073"), "Government Entity Letter of Intent", "Letter of Intent duly signed by the head of agency stating technical information and fund availability."),
+        ["EQUIPMENT_DATASHEET"] = new(Guid.Parse("70000000-0000-0000-0000-000000000068"), "Datasheet of Proposed Radio Equipment", "Datasheet of proposed radio equipment."),
+        ["LINK_BUDGET_ANALYSIS"] = new(Guid.Parse("70000000-0000-0000-0000-000000000069"), "Link Budget Analysis", "Link Budget Analysis for Microwave Radio Link."),
+        ["RADIO_OPERATOR_CERTIFICATE"] = new(Guid.Parse("70000000-0000-0000-0000-000000000005"), "Radio Operator Certificate", "Appropriate and valid Radio Operator Certificate."),
+        ["EQUIPMENT_SOURCE_DOCS"] = new(Guid.Parse("70000000-0000-0000-0000-000000000077"), "Source of Equipment Document", "OR/Sales Invoice from Radio Dealer, Supplier Invoice & Import Permit, or Permit to Possess."),
+        ["VEHICLE_OR_CR"] = new(Guid.Parse("70000000-0000-0000-0000-000000000076"), "Vehicle Valid OR/CR", "Vehicle's valid Official Receipt and Certificate of Registration (for land mobile stations)."),
+
+        ["PERMIT_TO_TRANSPORT_DOCS"] = new(Guid.Parse("70000000-0000-0000-0000-000000000081"), "Permit/License for Transport", "Copy of Permit to Purchase, Permit to Possess, Construction Permit/RSL, Permit to Transfer, or Dealer Permit."),
+        ["DEALER_PERMIT_NEW_REQ"] = new(Guid.Parse("70000000-0000-0000-0000-000000000082"), "RCE Dealer Permit (New) Requirements", "SEC/DTI/Mayor's Permit, Paid-Up Capital (Min. PHP350k), List of Test Equipment, Employment & ROC of Radio Technician, Employment & License of supervising ECE/PECE."),
+        ["DEALER_PERMIT_REN_REQ"] = new(Guid.Parse("70000000-0000-0000-0000-000000000083"), "RCE Dealer Permit (Renewal) Requirements", "RCE Dealer Permit, Business/Mayor's Permit, Employment & ROC of Radio Technician, Employment & License of supervising ECE/PECE."),
+        ["EXISTING_DEALER_PERMIT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000087"), "Radio Communication Equipment Dealer Permit", "Copy of existing Radio Communication Equipment Dealer Permit."),
+
+        ["MFG_PERMIT_NEW_REQ"] = new(Guid.Parse("70000000-0000-0000-0000-000000000088"), "RCE Manufacturer Permit (New) Requirements", "SEC/DTI/Mayor's Permit, Paid-Up Capital (Min. PHP1M), List of Test Equipment, Employment & ROC of Radio Technician, Employment & License of supervising PECE."),
+        ["MFG_PERMIT_REN_REQ"] = new(Guid.Parse("70000000-0000-0000-0000-000000000089"), "RCE Manufacturer Permit (Renewal) Requirements", "RCE Manufacturer Permit, Business/Mayor's Permit, Employment & ROC of Radio Technician, Employment & License of supervising PECE."),
+        ["EXISTING_MFG_PERMIT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000091"), "Radio Communication Equipment Manufacturer Permit", "Copy of existing Radio Communication Equipment Manufacturer Permit."),
+
+        ["SVC_CENTER_PERMIT_NEW_REQ"] = new(Guid.Parse("70000000-0000-0000-0000-000000000092"), "RCE Service Center Permit (New) Requirements", "SEC/DTI/Mayor's Permit, Paid-Up Capital (Min. PHP100k), List of Test Equipment, Employment & ROC of Radio Technician, Employment & License of supervising ECE/PECE."),
+        ["SVC_CENTER_PERMIT_REN_REQ"] = new(Guid.Parse("70000000-0000-0000-0000-000000000090"), "RCE Service Center Permit (Renewal) Requirements", "RCE Service Center Permit, Business/Mayor's Permit, Employment & ROC of Radio Technician, Employment & License of supervising PECE."),
+        ["EXISTING_SVC_CENTER_PERMIT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000093"), "Radio Communication Equipment Service Center Permit", "Copy of existing Radio Communication Equipment Service Center Permit."),
+
+        ["MP_DEALER_NEW_REQ"] = new(Guid.Parse("70000000-0000-0000-0000-000000000094"), "Mobile Phone Dealer (New) Requirements", "SEC/DTI/Mayor's Permit, Dealership agreement from accredited Distributor/Supplier, Paid-Up Capital (Min. PHP100k), List of stocks of spare parts."),
+        ["MP_DEALER_REN_REQ"] = new(Guid.Parse("70000000-0000-0000-0000-000000000095"), "Mobile Phone Dealer (Renewal) Requirements", "Mobile Phone Dealer Permit, Business/Mayor's Permit, Dealership agreement from accredited Distributor/Supplier, Sales & Stocks Reports."),
+        ["MP_DEALER_MOD_REQ"] = new(Guid.Parse("70000000-0000-0000-0000-000000000096"), "Mobile Phone Dealer (Modification) Requirements", "Letter of Intent and Mobile Phone Dealer Permit."),
+
+        ["MP_RETAILER_NEW_REQ"] = new(Guid.Parse("70000000-0000-0000-0000-000000000098"), "Mobile Phone Retailer/Reseller (New) Requirements", "SEC/DTI/Mayor's Permit, Paid-Up Capital (Min. PHP50k)."),
+        ["MP_RETAILER_REN_REQ"] = new(Guid.Parse("70000000-0000-0000-0000-000000000099"), "Mobile Phone Retailer/Reseller (Renewal) Requirements", "Mobile Phone Retailer/Reseller Permit and Business/Mayor's Permit."),
+        ["MP_RETAILER_MOD_REQ"] = new(Guid.Parse("70000000-0000-0000-0000-000000000100"), "Mobile Phone Retailer/Reseller (Modification) Requirements", "Mobile Phone Retailer/Reseller Permit, SEC/DTI/Mayor's Permit for Change of Name or Address."),
+
+        ["MP_SVC_NEW_REQ"] = new(Guid.Parse("70000000-0000-0000-0000-000000000101"), "Mobile Phone Service Center (New) Requirements", "SEC/DTI/Mayor's Permit, List of Test Equipment and Measuring Instruments, Certificate of employment of qualified technician with mobile repair training."),
+        ["MP_SVC_REN_REQ"] = new(Guid.Parse("70000000-0000-0000-0000-000000000102"), "Mobile Phone Service Center (Renewal) Requirements", "Mobile Phone Service Center Permit, Business/Mayor's Permit, List of Test Equipment, Certificate of employment of qualified technician."),
+        ["MP_SVC_MOD_REQ"] = new(Guid.Parse("70000000-0000-0000-0000-000000000103"), "Mobile Phone Service Center (Modification) Requirements", "Mobile Phone Service Center Permit."),
+
+        ["AUTH_COPY_REQ"] = new(Guid.Parse("70000000-0000-0000-0000-000000000104"), "Copy of Document to Authenticate", "Copy of document to be authenticated."),
+        ["DUPLICATE_PERMIT_REQ"] = new(Guid.Parse("70000000-0000-0000-0000-000000000105"), "Duplicate Permit Requirements", "Copy of Permit (scanned/photocopied) and clear 1x1 ID picture taken within the last 6 months.")
     };
 
     public static List<VariantRequirementDef> GetBackfillVariantRequirements() => new()
     {
-        // Amateur Permits
-        new(Guid.Parse("60000000-0000-0000-0000-000000000060"), Guid.Parse("70000000-0000-0000-0000-000000000050"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000060"), Guid.Parse("70000000-0000-0000-0000-000000000051"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000061"), Guid.Parse("70000000-0000-0000-0000-000000000050"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000061"), Guid.Parse("70000000-0000-0000-0000-000000000051"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000062"), Guid.Parse("70000000-0000-0000-0000-000000000050"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000062"), Guid.Parse("70000000-0000-0000-0000-000000000051"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000063"), Guid.Parse("70000000-0000-0000-0000-000000000052"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000053"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000054"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000055"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000056"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000064"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000067"), Guid.Parse("70000000-0000-0000-0000-000000000054"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000067"), Guid.Parse("70000000-0000-0000-0000-000000000057"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000065"), Guid.Parse("70000000-0000-0000-0000-000000000057"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000065"), Guid.Parse("70000000-0000-0000-0000-000000000054"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000066"), Guid.Parse("70000000-0000-0000-0000-000000000058"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000066"), Guid.Parse("70000000-0000-0000-0000-000000000054"), true),
+        // 1. Amateur Permits
+        new(VarAmPur, Guid.Parse("70000000-0000-0000-0000-000000000050"), true),
+        new(VarAmStorage, Guid.Parse("70000000-0000-0000-0000-000000000050"), true),
+        new(VarAmPurPoss, Guid.Parse("70000000-0000-0000-0000-000000000050"), true),
+        new(VarAmSell, Guid.Parse("70000000-0000-0000-0000-000000000052"), true),
+        new(VarAmForeign, Guid.Parse("70000000-0000-0000-0000-000000000053"), true),
+        new(VarAmForeign, Guid.Parse("70000000-0000-0000-0000-000000000054"), true),
+        new(VarAmForeign, Guid.Parse("70000000-0000-0000-0000-000000000055"), true),
+        new(VarAmForeign, Guid.Parse("70000000-0000-0000-0000-000000000056"), true),
+        new(VarAmForeign, Guid.Parse("70000000-0000-0000-0000-000000000003"), true),
+        new(VarAmVanityNew, Guid.Parse("70000000-0000-0000-0000-000000000057"), true),
+        new(VarAmVanityRen, Guid.Parse("70000000-0000-0000-0000-000000000058"), true),
+        new(VarAmSpecialEvent, Guid.Parse("70000000-0000-0000-0000-000000000078"), true),
 
-        // Aeronautical Permits
-        new(Guid.Parse("60000000-0000-0000-0000-000000000070"), Guid.Parse("70000000-0000-0000-0000-000000000059"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000071"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000071"), Guid.Parse("70000000-0000-0000-0000-000000000059"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000072"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000072"), Guid.Parse("70000000-0000-0000-0000-000000000059"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000078"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000073"), Guid.Parse("70000000-0000-0000-0000-000000000060"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000074"), Guid.Parse("70000000-0000-0000-0000-000000000059"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000075"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000075"), Guid.Parse("70000000-0000-0000-0000-000000000059"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000076"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000076"), Guid.Parse("70000000-0000-0000-0000-000000000059"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000077"), Guid.Parse("70000000-0000-0000-0000-000000000060"), true),
+        // 2. Aeronautical Permits
+        new(VarAeroStnPur, Guid.Parse("70000000-0000-0000-0000-000000000059"), true),
+        new(VarAeroStnPoss, Guid.Parse("70000000-0000-0000-0000-000000000060"), true),
+        new(VarAeroStnPoss, Guid.Parse("70000000-0000-0000-0000-000000000059"), true),
+        new(VarAeroStnPurPoss, Guid.Parse("70000000-0000-0000-0000-000000000060"), true),
+        new(VarAeroStnPurPoss, Guid.Parse("70000000-0000-0000-0000-000000000059"), true),
+        new(VarAeroStnPurPoss, Guid.Parse("70000000-0000-0000-0000-000000000074"), true),
+        new(VarAeroStorage, Guid.Parse("70000000-0000-0000-0000-000000000074"), true),
+        new(VarAeroStnSell, Guid.Parse("70000000-0000-0000-0000-000000000075"), true),
+        new(VarAirStnPur, Guid.Parse("70000000-0000-0000-0000-000000000059"), true),
+        new(VarAirStnPoss, Guid.Parse("70000000-0000-0000-0000-000000000060"), true),
+        new(VarAirStnPoss, Guid.Parse("70000000-0000-0000-0000-000000000059"), true),
+        new(VarAirStnPurPoss, Guid.Parse("70000000-0000-0000-0000-000000000060"), true),
+        new(VarAirStnPurPoss, Guid.Parse("70000000-0000-0000-0000-000000000059"), true),
+        new(VarAirStnPurPoss, Guid.Parse("70000000-0000-0000-0000-000000000074"), true),
+        new(VarAirStnSell, Guid.Parse("70000000-0000-0000-0000-000000000075"), true),
 
-        // Maritime Permits
-        new(Guid.Parse("60000000-0000-0000-0000-000000000080"), Guid.Parse("70000000-0000-0000-0000-000000000061"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000081"), Guid.Parse("70000000-0000-0000-0000-000000000061"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000082"), Guid.Parse("70000000-0000-0000-0000-000000000062"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000083"), Guid.Parse("70000000-0000-0000-0000-000000000061"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000084"), Guid.Parse("70000000-0000-0000-0000-000000000063"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000085"), Guid.Parse("70000000-0000-0000-0000-000000000064"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000086"), Guid.Parse("70000000-0000-0000-0000-000000000064"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000087"), Guid.Parse("70000000-0000-0000-0000-000000000064"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000088"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000088"), Guid.Parse("70000000-0000-0000-0000-000000000066"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000089"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000089"), Guid.Parse("70000000-0000-0000-0000-000000000066"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000090"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000090"), Guid.Parse("70000000-0000-0000-0000-000000000066"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000091"), Guid.Parse("70000000-0000-0000-0000-000000000067"), true),
+        // 3. Maritime Permits
+        new(VarMarShipPur, Guid.Parse("70000000-0000-0000-0000-000000000061"), true),
+        new(VarMarShipPoss, Guid.Parse("70000000-0000-0000-0000-000000000061"), true),
+        new(VarMarShipStorage, Guid.Parse("70000000-0000-0000-0000-000000000062"), true),
+        new(VarMarShipPurPoss, Guid.Parse("70000000-0000-0000-0000-000000000061"), true),
+        new(VarMarShipSell, Guid.Parse("70000000-0000-0000-0000-000000000063"), true),
+        new(VarMarPrivCoastPur, Guid.Parse("70000000-0000-0000-0000-000000000064"), true),
+        new(VarMarPrivCoastPoss, Guid.Parse("70000000-0000-0000-0000-000000000064"), true),
+        new(VarMarPrivCoastPP, Guid.Parse("70000000-0000-0000-0000-000000000064"), true),
+        new(VarMarPubCoastPur, Guid.Parse("70000000-0000-0000-0000-000000000065"), true),
+        new(VarMarPubCoastPur, Guid.Parse("70000000-0000-0000-0000-000000000066"), true),
+        new(VarMarPubCoastPoss, Guid.Parse("70000000-0000-0000-0000-000000000065"), true),
+        new(VarMarPubCoastPoss, Guid.Parse("70000000-0000-0000-0000-000000000066"), true),
+        new(VarMarPubCoastPP, Guid.Parse("70000000-0000-0000-0000-000000000065"), true),
+        new(VarMarPubCoastPP, Guid.Parse("70000000-0000-0000-0000-000000000066"), true),
+        new(VarMarPubCoastSell, Guid.Parse("70000000-0000-0000-0000-000000000067"), true),
 
-        // FLM Permits
-        new(Guid.Parse("60000000-0000-0000-0000-000000000100"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000100"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000100"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000100"), Guid.Parse("70000000-0000-0000-0000-000000000070"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000107"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000107"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000107"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000107"), Guid.Parse("70000000-0000-0000-0000-000000000071"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000108"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000108"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000108"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000108"), Guid.Parse("70000000-0000-0000-0000-000000000072"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000109"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000109"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000109"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000109"), Guid.Parse("70000000-0000-0000-0000-000000000073"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000101"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000101"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000101"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000101"), Guid.Parse("70000000-0000-0000-0000-000000000070"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000110"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000110"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000110"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000110"), Guid.Parse("70000000-0000-0000-0000-000000000071"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000111"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000111"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000111"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000111"), Guid.Parse("70000000-0000-0000-0000-000000000072"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000112"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000112"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000112"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000112"), Guid.Parse("70000000-0000-0000-0000-000000000073"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000102"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000102"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000102"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000102"), Guid.Parse("70000000-0000-0000-0000-000000000070"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000113"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000113"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000113"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000113"), Guid.Parse("70000000-0000-0000-0000-000000000071"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000114"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000114"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000114"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000114"), Guid.Parse("70000000-0000-0000-0000-000000000072"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000115"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000115"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000115"), Guid.Parse("70000000-0000-0000-0000-000000000069"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000115"), Guid.Parse("70000000-0000-0000-0000-000000000073"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000103"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000104"), Guid.Parse("70000000-0000-0000-0000-000000000075"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000105"), Guid.Parse("70000000-0000-0000-0000-000000000076"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000105"), Guid.Parse("70000000-0000-0000-0000-000000000005"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000105"), Guid.Parse("70000000-0000-0000-0000-000000000065"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000105"), Guid.Parse("70000000-0000-0000-0000-000000000077"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000105"), Guid.Parse("70000000-0000-0000-0000-000000000078"), false),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000116"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000106"), Guid.Parse("70000000-0000-0000-0000-000000000079"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000106"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000106"), Guid.Parse("70000000-0000-0000-0000-000000000080"), false),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000117"), Guid.Parse("70000000-0000-0000-0000-000000000079"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000117"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000118"), Guid.Parse("70000000-0000-0000-0000-000000000079"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000118"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000119"), Guid.Parse("70000000-0000-0000-0000-000000000079"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000119"), Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
+        // 4. FLM Permits
+        new(VarFlmPurVsat, Guid.Parse("70000000-0000-0000-0000-000000000065"), true),
+        new(VarFlmPurVsat, Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
+        new(VarFlmPurVsat, Guid.Parse("70000000-0000-0000-0000-000000000069"), true),
+        new(VarFlmPurVsat, Guid.Parse("70000000-0000-0000-0000-000000000070"), true),
 
-        // PTE Permits
-        new(Guid.Parse("60000000-0000-0000-0000-000000000120"), Guid.Parse("70000000-0000-0000-0000-000000000074"), true),
+        new(VarFlmPurPriv, Guid.Parse("70000000-0000-0000-0000-000000000065"), true),
+        new(VarFlmPurPriv, Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
+        new(VarFlmPurPriv, Guid.Parse("70000000-0000-0000-0000-000000000069"), true),
+        new(VarFlmPurPriv, Guid.Parse("70000000-0000-0000-0000-000000000071"), true),
 
-        // Equipment Permits
-        new(Guid.Parse("60000000-0000-0000-0000-000000000130"), Guid.Parse("70000000-0000-0000-0000-000000000081"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000131"), Guid.Parse("70000000-0000-0000-0000-000000000082"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000131"), Guid.Parse("70000000-0000-0000-0000-000000000083"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000131"), Guid.Parse("70000000-0000-0000-0000-000000000084"), false),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000131"), Guid.Parse("70000000-0000-0000-0000-000000000085"), false),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000131"), Guid.Parse("70000000-0000-0000-0000-000000000086"), false),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000134"), Guid.Parse("70000000-0000-0000-0000-000000000087"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000134"), Guid.Parse("70000000-0000-0000-0000-000000000071"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000134"), Guid.Parse("70000000-0000-0000-0000-000000000085"), false),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000134"), Guid.Parse("70000000-0000-0000-0000-000000000086"), false),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000135"), Guid.Parse("70000000-0000-0000-0000-000000000087"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000132"), Guid.Parse("70000000-0000-0000-0000-000000000082"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000132"), Guid.Parse("70000000-0000-0000-0000-000000000088"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000132"), Guid.Parse("70000000-0000-0000-0000-000000000089"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000132"), Guid.Parse("70000000-0000-0000-0000-000000000085"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000132"), Guid.Parse("70000000-0000-0000-0000-000000000090"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000136"), Guid.Parse("70000000-0000-0000-0000-000000000091"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000136"), Guid.Parse("70000000-0000-0000-0000-000000000071"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000136"), Guid.Parse("70000000-0000-0000-0000-000000000085"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000136"), Guid.Parse("70000000-0000-0000-0000-000000000090"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000137"), Guid.Parse("70000000-0000-0000-0000-000000000091"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000133"), Guid.Parse("70000000-0000-0000-0000-000000000082"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000133"), Guid.Parse("70000000-0000-0000-0000-000000000092"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000133"), Guid.Parse("70000000-0000-0000-0000-000000000089"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000133"), Guid.Parse("70000000-0000-0000-0000-000000000085"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000133"), Guid.Parse("70000000-0000-0000-0000-000000000086"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000138"), Guid.Parse("70000000-0000-0000-0000-000000000093"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000138"), Guid.Parse("70000000-0000-0000-0000-000000000071"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000138"), Guid.Parse("70000000-0000-0000-0000-000000000085"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000138"), Guid.Parse("70000000-0000-0000-0000-000000000090"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000139"), Guid.Parse("70000000-0000-0000-0000-000000000093"), true),
+        new(VarFlmPurCag, Guid.Parse("70000000-0000-0000-0000-000000000065"), true),
+        new(VarFlmPurCag, Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
+        new(VarFlmPurCag, Guid.Parse("70000000-0000-0000-0000-000000000069"), true),
+        new(VarFlmPurCag, Guid.Parse("70000000-0000-0000-0000-000000000072"), true),
 
-        // Mobile Phone Permits
-        new(Guid.Parse("60000000-0000-0000-0000-000000000140"), Guid.Parse("70000000-0000-0000-0000-000000000071"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000140"), Guid.Parse("70000000-0000-0000-0000-000000000094"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000140"), Guid.Parse("70000000-0000-0000-0000-000000000095"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000144"), Guid.Parse("70000000-0000-0000-0000-000000000096"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000144"), Guid.Parse("70000000-0000-0000-0000-000000000071"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000144"), Guid.Parse("70000000-0000-0000-0000-000000000094"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000146"), Guid.Parse("70000000-0000-0000-0000-000000000053"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000146"), Guid.Parse("70000000-0000-0000-0000-000000000096"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000141"), Guid.Parse("70000000-0000-0000-0000-000000000071"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000141"), Guid.Parse("70000000-0000-0000-0000-000000000098"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000148"), Guid.Parse("70000000-0000-0000-0000-000000000099"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000148"), Guid.Parse("70000000-0000-0000-0000-000000000097"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000149"), Guid.Parse("70000000-0000-0000-0000-000000000099"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000149"), Guid.Parse("70000000-0000-0000-0000-000000000100"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000142"), Guid.Parse("70000000-0000-0000-0000-000000000097"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000142"), Guid.Parse("70000000-0000-0000-0000-000000000101"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000142"), Guid.Parse("70000000-0000-0000-0000-000000000102"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000152"), Guid.Parse("70000000-0000-0000-0000-000000000103"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000152"), Guid.Parse("70000000-0000-0000-0000-000000000097"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000152"), Guid.Parse("70000000-0000-0000-0000-000000000101"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000152"), Guid.Parse("70000000-0000-0000-0000-000000000102"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000153"), Guid.Parse("70000000-0000-0000-0000-000000000103"), true),
+        new(VarFlmPurGov, Guid.Parse("70000000-0000-0000-0000-000000000065"), true),
+        new(VarFlmPurGov, Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
+        new(VarFlmPurGov, Guid.Parse("70000000-0000-0000-0000-000000000069"), true),
+        new(VarFlmPurGov, Guid.Parse("70000000-0000-0000-0000-000000000073"), true),
 
-        // Copy of Permits
-        new(Guid.Parse("60000000-0000-0000-0000-000000000150"), Guid.Parse("70000000-0000-0000-0000-000000000025"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000151"), Guid.Parse("70000000-0000-0000-0000-000000000104"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000151"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true)
+        new(VarFlmPossVsat, Guid.Parse("70000000-0000-0000-0000-000000000065"), true),
+        new(VarFlmPossVsat, Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
+        new(VarFlmPossVsat, Guid.Parse("70000000-0000-0000-0000-000000000069"), true),
+        new(VarFlmPossVsat, Guid.Parse("70000000-0000-0000-0000-000000000070"), true),
+
+        new(VarFlmPossPriv, Guid.Parse("70000000-0000-0000-0000-000000000065"), true),
+        new(VarFlmPossPriv, Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
+        new(VarFlmPossPriv, Guid.Parse("70000000-0000-0000-0000-000000000069"), true),
+        new(VarFlmPossPriv, Guid.Parse("70000000-0000-0000-0000-000000000071"), true),
+
+        new(VarFlmPossCag, Guid.Parse("70000000-0000-0000-0000-000000000065"), true),
+        new(VarFlmPossCag, Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
+        new(VarFlmPossCag, Guid.Parse("70000000-0000-0000-0000-000000000069"), true),
+        new(VarFlmPossCag, Guid.Parse("70000000-0000-0000-0000-000000000072"), true),
+
+        new(VarFlmPossGov, Guid.Parse("70000000-0000-0000-0000-000000000065"), true),
+        new(VarFlmPossGov, Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
+        new(VarFlmPossGov, Guid.Parse("70000000-0000-0000-0000-000000000069"), true),
+        new(VarFlmPossGov, Guid.Parse("70000000-0000-0000-0000-000000000073"), true),
+
+        new(VarFlmPPVsat, Guid.Parse("70000000-0000-0000-0000-000000000065"), true),
+        new(VarFlmPPVsat, Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
+        new(VarFlmPPVsat, Guid.Parse("70000000-0000-0000-0000-000000000069"), true),
+        new(VarFlmPPVsat, Guid.Parse("70000000-0000-0000-0000-000000000070"), true),
+
+        new(VarFlmPPPriv, Guid.Parse("70000000-0000-0000-0000-000000000065"), true),
+        new(VarFlmPPPriv, Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
+        new(VarFlmPPPriv, Guid.Parse("70000000-0000-0000-0000-000000000069"), true),
+        new(VarFlmPPPriv, Guid.Parse("70000000-0000-0000-0000-000000000071"), true),
+
+        new(VarFlmPPCag, Guid.Parse("70000000-0000-0000-0000-000000000065"), true),
+        new(VarFlmPPCag, Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
+        new(VarFlmPPCag, Guid.Parse("70000000-0000-0000-0000-000000000069"), true),
+        new(VarFlmPPCag, Guid.Parse("70000000-0000-0000-0000-000000000072"), true),
+
+        new(VarFlmPPGov, Guid.Parse("70000000-0000-0000-0000-000000000065"), true),
+        new(VarFlmPPGov, Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
+        new(VarFlmPPGov, Guid.Parse("70000000-0000-0000-0000-000000000069"), true),
+        new(VarFlmPPGov, Guid.Parse("70000000-0000-0000-0000-000000000073"), true),
+
+        new(VarFlmStorage, Guid.Parse("70000000-0000-0000-0000-000000000074"), true),
+        new(VarFlmSell, Guid.Parse("70000000-0000-0000-0000-000000000074"), true),
+
+        new(VarFlmConstNew, Guid.Parse("70000000-0000-0000-0000-000000000062"), true),
+        new(VarFlmConstNew, Guid.Parse("70000000-0000-0000-0000-000000000005"), true),
+        new(VarFlmConstNew, Guid.Parse("70000000-0000-0000-0000-000000000065"), true),
+        new(VarFlmConstNew, Guid.Parse("70000000-0000-0000-0000-000000000077"), true),
+        new(VarFlmConstNew, Guid.Parse("70000000-0000-0000-0000-000000000076"), false),
+        new(VarFlmConstMod, Guid.Parse("70000000-0000-0000-0000-000000000074"), true),
+
+        new(VarFlmDemo, Guid.Parse("70000000-0000-0000-0000-000000000065"), true),
+        new(VarFlmDemo, Guid.Parse("70000000-0000-0000-0000-000000000068"), true),
+        new(VarFlmDemo, Guid.Parse("70000000-0000-0000-0000-000000000070"), false),
+
+        // 5. PTE Permits
+        new(VarPteStorage, Guid.Parse("70000000-0000-0000-0000-000000000074"), true),
+
+        // 6. Equipment Permits
+        new(VarEquipTransport, Guid.Parse("70000000-0000-0000-0000-000000000081"), true),
+        new(VarEquipDealerNew, Guid.Parse("70000000-0000-0000-0000-000000000082"), true),
+        new(VarEquipDealerRen, Guid.Parse("70000000-0000-0000-0000-000000000083"), true),
+        new(VarEquipDealerMod, Guid.Parse("70000000-0000-0000-0000-000000000087"), true),
+        new(VarEquipMfgNew, Guid.Parse("70000000-0000-0000-0000-000000000088"), true),
+        new(VarEquipMfgRen, Guid.Parse("70000000-0000-0000-0000-000000000089"), true),
+        new(VarEquipMfgMod, Guid.Parse("70000000-0000-0000-0000-000000000091"), true),
+        new(VarEquipSvcNew, Guid.Parse("70000000-0000-0000-0000-000000000092"), true),
+        new(VarEquipSvcRen, Guid.Parse("70000000-0000-0000-0000-000000000090"), true),
+        new(VarEquipSvcMod, Guid.Parse("70000000-0000-0000-0000-000000000093"), true),
+
+        // 7. Mobile Phone Permits
+        new(VarMpDealerNew, Guid.Parse("70000000-0000-0000-0000-000000000094"), true),
+        new(VarMpDealerRen, Guid.Parse("70000000-0000-0000-0000-000000000095"), true),
+        new(VarMpDealerMod, Guid.Parse("70000000-0000-0000-0000-000000000096"), true),
+        new(VarMpRetailerNew, Guid.Parse("70000000-0000-0000-0000-000000000098"), true),
+        new(VarMpRetailerRen, Guid.Parse("70000000-0000-0000-0000-000000000099"), true),
+        new(VarMpRetailerMod, Guid.Parse("70000000-0000-0000-0000-000000000100"), true),
+        new(VarMpSvcNew, Guid.Parse("70000000-0000-0000-0000-000000000101"), true),
+        new(VarMpSvcRen, Guid.Parse("70000000-0000-0000-0000-000000000102"), true),
+        new(VarMpSvcMod, Guid.Parse("70000000-0000-0000-0000-000000000103"), true),
+
+        // 8. Copy of Permits
+        new(VarPermitTrueCopy, Guid.Parse("70000000-0000-0000-0000-000000000104"), true),
+        new(VarPermitDuplicate, Guid.Parse("70000000-0000-0000-0000-000000000105"), true)
     };
 
     public static List<ServiceFormDef> GetFormDefs() => new()
@@ -443,7 +511,7 @@ public static class PermitsCategorySeederData
             new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
             new("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
         }),
-        new("NTC_AERO_PERMITS", Guid.Parse("fae00000-0000-0000-0000-000000000001"), Guid.Parse("faea0000-0000-0000-0000-000000000000"), new()
+        new("NTC_AERO_PERMITS", Guid.Parse("fa000000-0000-0000-0000-000000000001"), Guid.Parse("fa0a0000-0000-0000-0000-000000000000"), new()
         {
             new("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email", "callSign" }),
             new("proposedStation", "Proposed Station & Operating Specs", new() { "stationLocation", "stationClass", "serviceArea", "frequency", "bandwidth", "emission", "powerOutput", "hoursOfOperation", "configuration", "dataRate", "remarks" }),
@@ -454,7 +522,7 @@ public static class PermitsCategorySeederData
             new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
             new("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
         }),
-        new("NTC_MAR_PERMITS", Guid.Parse("fb000000-0000-0000-0000-000000000001"), Guid.Parse("fb0a0000-0000-0000-0000-000000000000"), new()
+        new("NTC_MAR_PERMITS", Guid.Parse("fb100000-0000-0000-0000-000000000001"), Guid.Parse("fb1a0000-0000-0000-0000-000000000000"), new()
         {
             new("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email", "callSign" }),
             new("proposedStation", "Proposed Station & Operating Specs", new() { "stationLocation", "stationClass", "serviceArea", "frequency", "bandwidth", "emission", "powerOutput", "hoursOfOperation", "configuration", "dataRate", "remarks" }),
@@ -465,7 +533,7 @@ public static class PermitsCategorySeederData
             new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
             new("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
         }),
-        new("NTC_FLM_PERMITS", Guid.Parse("fb100000-0000-0000-0000-000000000001"), Guid.Parse("fb1a0000-0000-0000-0000-000000000000"), new()
+        new("NTC_FLM_PERMITS", Guid.Parse("fb200000-0000-0000-0000-000000000001"), Guid.Parse("fb2a0000-0000-0000-0000-000000000000"), new()
         {
             new("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email", "callSign" }),
             new("proposedStation", "Proposed Station & Operating Specs", new() { "stationLocation", "stationClass", "serviceArea", "frequency", "bandwidth", "emission", "powerOutput", "hoursOfOperation", "configuration", "dataRate", "remarks" }),
@@ -476,7 +544,7 @@ public static class PermitsCategorySeederData
             new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
             new("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
         }),
-        new("NTC_PTE_PERMITS", Guid.Parse("fb200000-0000-0000-0000-000000000001"), Guid.Parse("fb2a0000-0000-0000-0000-000000000000"), new()
+        new("NTC_PTE_PERMITS", Guid.Parse("fbe00000-0000-0000-0000-000000000001"), Guid.Parse("fbea0000-0000-0000-0000-000000000000"), new()
         {
             new("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email", "callSign" }),
             new("proposedStation", "Proposed Station & Operating Specs", new() { "stationLocation", "stationClass", "serviceArea", "frequency", "bandwidth", "emission", "powerOutput", "hoursOfOperation", "configuration", "dataRate", "remarks" }),

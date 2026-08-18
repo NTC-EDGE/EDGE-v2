@@ -87,6 +87,8 @@ public static class FastTrackSeederData
         var list = new List<VariantElementDef>();
         list.AddRange(ExamsCategorySeederData.GetBackfillElements());
         list.AddRange(CertificatesCategorySeederData.GetBackfillElements());
+        list.AddRange(PermitsCategorySeederData.GetBackfillElements());
+        list.AddRange(LicensesCategorySeederData.GetBackfillElements());
 
         return list.Select(e => (e.VariantId, e.Code, e.Description)).ToList();
     }

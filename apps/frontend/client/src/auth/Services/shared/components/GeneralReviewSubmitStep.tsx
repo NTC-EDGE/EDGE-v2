@@ -5,6 +5,7 @@ import { NTCService } from "../../data/servicesData";
 import { TenantInfo, OfficeInfo, GeneralApplicantData } from "../hooks/useGeneralServiceWizard";
 import { getApplicantDisplayName } from "../helpers/applicantDisplayHelper";
 import { DocumentPreviewModal } from "../../../../shared/components/DocumentPreviewModal";
+import { OFFICIAL_LEGAL_DECLARATION } from "../../../../shared/components/DeclarationCheckbox";
 
 interface GeneralReviewSubmitStepProps {
   service: NTCService;
@@ -161,6 +162,10 @@ function SummaryRow({
 
   if (isCheckbox) {
     const isChecked = trimmedVal === "true" || trimmedVal === "agreed" || trimmedVal === "yes" || trimmedVal === "1";
+    const displayLabel = labelLower.startsWith("i hereby declare")
+      ? OFFICIAL_LEGAL_DECLARATION
+      : label;
+
     return (
       <View
         style={{
@@ -199,7 +204,7 @@ function SummaryRow({
               lineHeight: 18,
             }}
           >
-            {label}
+            {displayLabel}
           </Text>
           <Text
             style={{
@@ -1053,30 +1058,40 @@ export function GeneralReviewSubmitStep({
       {/* ── Declaration & Legal Notice ── */}
       <View
         style={{
-          backgroundColor: "#EFF6FF",
-          borderColor: "#BFDBFE",
+          backgroundColor: "#F0FDF4",
+          borderColor: "#BBF7D0",
           borderWidth: 1,
           borderRadius: 12,
-          padding: 14,
+          padding: 16,
           flexDirection: "row",
-          gap: 10,
+          gap: 12,
           alignItems: "flex-start",
         }}
       >
-        <Icon name="info" size={15} color="#1D4ED8" style={{ marginTop: 1 }} />
-        <Text
-          style={{
-            fontFamily: TYPOGRAPHY.fonts.primary,
-            fontSize: 12,
-            color: "#1E40AF",
-            flex: 1,
-            lineHeight: 18,
-          }}
-        >
-          By clicking{" "}
-          <Text style={{ fontWeight: "700" }}>Submit</Text>, you certify that all provided particulars
-          and attached documents are true and accurate. Official evaluation will proceed upon submission.
-        </Text>
+        <Icon name="check-circle" size={18} color="#16A34A" style={{ marginTop: 2 }} />
+        <View style={{ flex: 1 }}>
+          <Text
+            style={{
+              fontFamily: TYPOGRAPHY.fonts.primary,
+              fontSize: 13,
+              fontWeight: "700",
+              color: "#166534",
+              marginBottom: 4,
+            }}
+          >
+            Legal Declaration & Affirmation
+          </Text>
+          <Text
+            style={{
+              fontFamily: TYPOGRAPHY.fonts.primary,
+              fontSize: 12,
+              color: "#14532D",
+              lineHeight: 18,
+            }}
+          >
+            {OFFICIAL_LEGAL_DECLARATION}
+          </Text>
+        </View>
       </View>
 
       <DocumentPreviewModal
