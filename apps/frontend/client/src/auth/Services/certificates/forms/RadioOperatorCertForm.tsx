@@ -178,76 +178,79 @@ export function RadioOperatorCertForm({
         </View>
       </View>
 
-      {/* Employment & Physical Attributes (Commercial ROC) */}
-      {!isAmateurService && (
-        <View style={certStyles.formSection}>
-          <Text style={certStyles.formSectionHeading}>Employment & Qualifications</Text>
-          <View style={certStyles.formGrid}>
-            <View style={certStyles.formCol6}>
-              <Text style={certStyles.selectLabel}>Employment Status</Text>
-              <Select
-                value={data.employmentStatus}
-                onValueChange={(val) => onChange({ employmentStatus: val })}
-                options={[
-                  { label: "Employed", value: "Employed" },
-                  { label: "Self-Employed", value: "Self-Employed" },
-                  { label: "Unemployed", value: "Unemployed" },
-                  { label: "Student", value: "Student" },
-                ]}
-              />
-            </View>
-            <View style={certStyles.formCol6}>
-              <ValidatedInput
-                label="Employment Location"
-                placeholder="Company / Ship Name & Station"
-                value={data.employmentLocation}
-                onChangeText={(val) => onChange({ employmentLocation: val })}
-              />
-            </View>
-            <View style={certStyles.formCol6}>
-              <ValidatedInput
-                label="Weight (kg)"
-                placeholder="e.g. 65"
-                value={data.weightKg}
-                onChangeText={(val) => onChange({ weightKg: val })}
-              />
-            </View>
-            <View style={certStyles.formCol6}>
-              <ValidatedInput
-                label="Height (cm)"
-                placeholder="e.g. 170"
-                value={data.heightCm}
-                onChangeText={(val) => onChange({ heightCm: val })}
-              />
-            </View>
-          </View>
-        </View>
-      )}
-
-      {/* Exam / Seminar History & Ratings */}
+      {/* Employment Status Section (after Address) */}
       <View style={certStyles.formSection}>
-        <Text style={certStyles.formSectionHeading}>Exam / Seminar Background</Text>
+        <Text style={certStyles.formSectionHeading}>Employment Status</Text>
         <View style={certStyles.formGrid}>
           <View style={certStyles.formCol6}>
+            <Text style={certStyles.selectLabel}>Status*</Text>
+            <Select
+              value={data.employmentStatus}
+              onValueChange={(val) => onChange({ employmentStatus: val })}
+              options={[
+                { label: "Employed", value: "Employed" },
+                { label: "Unemployed", value: "Unemployed" },
+              ]}
+            />
+          </View>
+          <View style={certStyles.formCol6}>
+            <Text style={certStyles.selectLabel}>Type*</Text>
+            <Select
+              value={data.employmentType}
+              onValueChange={(val) => onChange({ employmentType: val })}
+              options={[
+                { label: "Local", value: "Local" },
+                { label: "Foreign", value: "Foreign" },
+              ]}
+            />
+          </View>
+          {!isAmateurService && (
+            <>
+              <View style={certStyles.formCol6}>
+                <ValidatedInput
+                  label="Weight (kg)"
+                  placeholder="e.g. 65"
+                  value={data.weightKg}
+                  onChangeText={(val) => onChange({ weightKg: val })}
+                />
+              </View>
+              <View style={certStyles.formCol6}>
+                <ValidatedInput
+                  label="Height (cm)"
+                  placeholder="e.g. 170"
+                  value={data.heightCm}
+                  onChangeText={(val) => onChange({ heightCm: val })}
+                />
+              </View>
+            </>
+          )}
+        </View>
+      </View>
+
+      {/* Exam / Seminar Details */}
+      <View style={certStyles.formSection}>
+        <Text style={certStyles.formSectionHeading}>Exam / Seminar Details</Text>
+        <View style={certStyles.formGrid}>
+          <View style={certStyles.formCol12}>
             <ValidatedInput
-              label="Place of Exam / Seminar"
-              placeholder="e.g. NTC Central Office / Online"
+              label="Seminar / Exam Address"
+              placeholder="e.g. NTC Central Office, BIR Road, Diliman, Quezon City"
               value={data.placeOfExamSeminar}
               onChangeText={(val) => onChange({ placeOfExamSeminar: val })}
             />
           </View>
           <View style={certStyles.formCol6}>
             <DatePickerInput
-              label="Exam / Seminar Date"
+              label="Date"
               placeholder="MM/DD/YYYY"
               value={data.examDate}
               onChangeText={(val) => onChange({ examDate: val })}
             />
           </View>
-          <View style={certStyles.formCol12}>
+          <View style={certStyles.formCol6}>
             <ValidatedInput
-              label="Examination Ratings / Remarks"
-              placeholder="Passed Element 1, 2, 3 (Rating: 85%)"
+              label="Rating"
+              placeholder="e.g. 85% or Passed"
               value={data.ratings}
               onChangeText={(val) => onChange({ ratings: val })}
             />

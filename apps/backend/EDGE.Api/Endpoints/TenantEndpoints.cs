@@ -172,9 +172,10 @@ public static class TenantEndpoints
         IMediator mediator,
         [Microsoft.AspNetCore.Mvc.FromQuery] int pageNumber = 1,
         [Microsoft.AspNetCore.Mvc.FromQuery] int pageSize = 10,
-        [Microsoft.AspNetCore.Mvc.FromQuery] string? searchTerm = null)
+        [Microsoft.AspNetCore.Mvc.FromQuery] string? searchTerm = null,
+        [Microsoft.AspNetCore.Mvc.FromQuery] bool? isActive = null)
     {
-        var result = await mediator.Send(new GetAllTenantsQuery(pageNumber, pageSize, searchTerm));
+        var result = await mediator.Send(new GetAllTenantsQuery(pageNumber, pageSize, searchTerm, isActive));
         return Results.Ok(result);
     }
 

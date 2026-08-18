@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   Users,
   UserPlus,
@@ -11,10 +11,13 @@ import {
   Trash2,
   Loader2,
   Eye,
-  Info
+  Info,
+  UserCheck
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ActionMenu } from "@/components/ui/action-menu";
+import { SearchableSelect, SelectOption } from "@/components/ui/searchable-select";
+import { showToast, getErrorMessage } from "@/components/ui/toast-notification";
 import {
   Dialog,
   DialogContent,
@@ -27,29 +30,33 @@ import { Tenant, TenantMember, Role, FieldOffice } from "@edge/api";
 import { useTenantMemberService } from "@/services/tenantMemberService";
 import { useFieldOfficeService } from "@/services/fieldOfficeService";
 import { useRoleService } from "@/services/roleService";
+import { useUserService } from "@/services/userService";
 import { useAdminScope } from "@/lib/admin-scope-context";
 
 interface MembersTabProps {
   currentTenant: Tenant;
   fieldOfficesList: FieldOffice[];
-  showToast: (msg: string) => void;
+  showToast?: (msg: string) => void;
 }
 
-export function MembersTab({ currentTenant, fieldOfficesList, showToast }: MembersTabProps) {
+export function MembersTab({ currentTenant, fieldOfficesList }: MembersTabProps) {
   const tenantId = currentTenant.id;
-  const { isSystemAdmin } = useAdminScope();
+  const { canManageTenantMembers } = useAdminScope();
   const { useTenantMembers, useMemberDetails, assignUserToTenant, updateMemberDetails, removeUserFromTenant } = useTenantMemberService();
   const { useFieldOffices } = useFieldOfficeService();
   const { useRoles } = useRoleService();
+  const { useUsers } = useUserService();
 
   const { data: fetchedMembers, mutate: mutateMembers, isLoading: loadingMembers } = useTenantMembers(tenantId);
   const { data: fetchedRoles } = useRoles(tenantId);
+  const { data: allUsers, isLoading: loadingUsers } = useUsers();
   const rolesList: Role[] = fetchedRoles ?? [];
 
   const [isAssignMemberOpen, setIsAssignMemberOpen] = useState(false);
   const [isEditMemberOpen, setIsEditMemberOpen] = useState(false);
   const [isRemoveMemberOpen, setIsRemoveMemberOpen] = useState(false);
   const [isViewMemberOpen, setIsViewMemberOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedMember, setSelectedMember] = useState<TenantMember | null>(null);
   const [viewingMemberId, setViewingMemberId] = useState<string | null>(null);
 
@@ -71,22 +78,61 @@ export function MembersTab({ currentTenant, fieldOfficesList, showToast }: Membe
 
   const [memberFormData, setMemberFormData] = useState({
     userId: "",
-    roleId: "r-admin",
+    roleId: "",
     fieldOfficeId: "",
     jobTitle: "",
     level: "SG-18",
-    division: "Licensing Division",
-    position: "Supervising Engineer",
+    division: "Licensing & Permit Division",
+    position: "Engineer III",
     designation: "Spectrum Regulator",
   });
 
   const tenantMembersList: TenantMember[] = fetchedMembers ?? [];
 
+  // Form options
+  const userOptions: SelectOption[] = useMemo(() => {
+    if (!allUsers) return [];
+    return allUsers.map((u) => {
+      const isAlreadyMember = tenantMembersList.some((tm) => tm.userId === u.id);
+      const fullName = `${u.firstName || ""} ${u.lastName || ""}`.trim() || "Platform User";
+      return {
+        value: u.id,
+        label: `${fullName} (${u.email || "No email"})`,
+        description: u.email ? `Email: ${u.email}` : `User ID: ${u.id.substring(0, 8)}...`,
+        badge: isAlreadyMember ? "Assigned" : undefined,
+        disabled: isAlreadyMember,
+      };
+    });
+  }, [allUsers, tenantMembersList]);
+
+  const roleOptions: SelectOption[] = useMemo(() => {
+    return rolesList.map((r) => ({
+      value: r.id,
+      label: r.name,
+      description: r.description || undefined,
+    }));
+  }, [rolesList]);
+
+  const fieldOfficeOptions: SelectOption[] = useMemo(() => {
+    return [
+      { value: "", label: "Headquarters / Main Regional Office (Unassigned)" },
+      ...activeFieldOfficesList.map((fo) => ({
+        value: fo.id,
+        label: fo.name,
+        description: fo.address || undefined,
+      })),
+    ];
+  }, [activeFieldOfficesList]);
+
   const handleOpenAssignMember = () => {
+    const defaultRoleId = rolesList.length > 0 ? rolesList[0].id : "";
+    const defaultFieldOfficeId = activeFieldOfficesList.length > 0 ? activeFieldOfficesList[0].id : "";
+    const availableUser = userOptions.find((u) => !u.disabled);
+
     setMemberFormData({
-      userId: "",
-      roleId: rolesList.length > 0 ? rolesList[0].id : "",
-      fieldOfficeId: activeFieldOfficesList.length > 0 ? activeFieldOfficesList[0].id : "",
+      userId: availableUser ? availableUser.value : "",
+      roleId: defaultRoleId,
+      fieldOfficeId: defaultFieldOfficeId,
       jobTitle: "Regulator Officer",
       level: "SG-18",
       division: "Licensing & Permit Division",
@@ -118,8 +164,12 @@ export function MembersTab({ currentTenant, fieldOfficesList, showToast }: Membe
 
   const handleAssignMemberSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!memberFormData.userId || !memberFormData.roleId) return;
+    if (!memberFormData.userId || !memberFormData.roleId) {
+      showToast.error("Please select a user account and security role.");
+      return;
+    }
 
+    setIsSubmitting(true);
     try {
       await assignUserToTenant(tenantId, {
         tenantId: tenantId,
@@ -134,9 +184,11 @@ export function MembersTab({ currentTenant, fieldOfficesList, showToast }: Membe
       });
       await mutateMembers();
       setIsAssignMemberOpen(false);
-      showToast(`Staff member assigned to tenant!`);
+      showToast.success("Staff member assigned to tenant branch successfully!");
     } catch (err: unknown) {
-      showToast(`Failed to assign staff member to tenant.`);
+      showToast.error(getErrorMessage(err, "Failed to assign staff member to tenant."));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -144,6 +196,7 @@ export function MembersTab({ currentTenant, fieldOfficesList, showToast }: Membe
     e.preventDefault();
     if (selectedMember === null) return;
 
+    setIsSubmitting(true);
     try {
       await updateMemberDetails(tenantId, selectedMember.id, {
         memberId: selectedMember.id,
@@ -158,22 +211,27 @@ export function MembersTab({ currentTenant, fieldOfficesList, showToast }: Membe
       });
       await mutateMembers();
       setIsEditMemberOpen(false);
-      showToast(`Member details updated.`);
+      showToast.success("Member details updated successfully.");
     } catch (err: unknown) {
-      showToast(`Failed to update member details.`);
+      showToast.error(getErrorMessage(err, "Failed to update member details."));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleRemoveMemberConfirm = async () => {
     if (selectedMember === null) return;
 
+    setIsSubmitting(true);
     try {
       await removeUserFromTenant(tenantId, selectedMember.id);
       await mutateMembers();
       setIsRemoveMemberOpen(false);
-      showToast(`Member unassigned from tenant.`);
+      showToast.success("Staff member unassigned from tenant successfully.");
     } catch (err: unknown) {
-      showToast(`Failed to unassign member.`);
+      showToast.error(getErrorMessage(err, "Failed to unassign member."));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -184,7 +242,7 @@ export function MembersTab({ currentTenant, fieldOfficesList, showToast }: Membe
           <h3 className="text-base font-bold text-slate-900 dark:text-white">Assigned Tenant Members & Staff</h3>
           <p className="text-xs text-slate-500 dark:text-slate-400">Personnel assigned to this regional administrative tenant branch.</p>
         </div>
-        {!isSystemAdmin && (
+        {canManageTenantMembers && (
           <Button
             onClick={handleOpenAssignMember}
             className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-4 py-2 rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/20 shrink-0"
@@ -206,18 +264,9 @@ export function MembersTab({ currentTenant, fieldOfficesList, showToast }: Membe
             <Users className="w-6 h-6" />
           </div>
           <h4 className="text-sm font-bold text-slate-900 dark:text-white mb-1">No Staff Members Assigned</h4>
-          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mb-4">
-            There are currently no staff officers or personnel assigned to this regional tenant office.
+          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm">
+            There are currently no staff officers or personnel assigned to this regional tenant office. Click the button above to assign a staff member.
           </p>
-          {!isSystemAdmin && (
-            <Button
-              onClick={handleOpenAssignMember}
-              className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-4 py-2 rounded-xl text-xs flex items-center gap-2 shadow-sm"
-            >
-              <UserPlus className="w-4 h-4" />
-              <span>Assign First Staff Member</span>
-            </Button>
-          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 min-w-0">
@@ -229,7 +278,7 @@ export function MembersTab({ currentTenant, fieldOfficesList, showToast }: Membe
               <div className="flex items-start justify-between gap-2 min-w-0">
                 <div className="flex items-center gap-3 min-w-0 overflow-hidden">
                   <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-full bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow shrink-0">
-                    {member.userFirstName.charAt(0)}{member.userLastName.charAt(0)}
+                    {(member.userFirstName || "U").charAt(0)}{(member.userLastName || "S").charAt(0)}
                   </div>
                   <div className="min-w-0 space-y-0.5">
                     <h4 className="text-sm font-bold text-slate-900 dark:text-white truncate">{member.userFirstName} {member.userLastName}</h4>
@@ -252,7 +301,7 @@ export function MembersTab({ currentTenant, fieldOfficesList, showToast }: Membe
                         icon: Eye,
                         onClick: () => handleOpenViewMember(member),
                       },
-                      ...(!isSystemAdmin
+                      ...(canManageTenantMembers
                         ? [
                             {
                               label: "Edit Member Details",
@@ -300,179 +349,59 @@ export function MembersTab({ currentTenant, fieldOfficesList, showToast }: Membe
 
       {/* Assign Member Modal */}
       <Dialog open={isAssignMemberOpen} onOpenChange={setIsAssignMemberOpen}>
-        <DialogContent className="w-[calc(100vw-24px)] sm:w-full sm:max-w-[520px] max-h-[92vh] overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white p-5 sm:p-6">
+        <DialogContent className="w-[calc(100vw-24px)] sm:w-full sm:max-w-[540px] max-h-[92vh] overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white p-5 sm:p-6">
           <DialogHeader>
             <DialogTitle className="text-xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
               <UserPlus className="w-5 h-5 text-indigo-500 dark:text-indigo-400" /> Assign New Staff Member
             </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500 dark:text-slate-400">
+              Select an existing platform user account and configure their regional role and office details.
+            </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleAssignMemberSubmit} className="space-y-4 pt-2">
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">User Account ID *</label>
-              <input
-                type="text"
-                required
-                placeholder="Enter User GUID (e.g. 123e4567-e89b-12d3-a456-426614174000)"
-                value={memberFormData.userId}
-                onChange={(e) => setMemberFormData({ ...memberFormData, userId: e.target.value })}
-                className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Security Role *</label>
-                <select
-                  required
-                  value={memberFormData.roleId}
-                  onChange={(e) => setMemberFormData({ ...memberFormData, roleId: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-                >
-                  <option value="" disabled className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">Select Role...</option>
-                  {rolesList.map((r) => (
-                    <option key={r.id} value={r.id} className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">
-                      {r.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Field Office Assignment</label>
-                <select
-                  value={memberFormData.fieldOfficeId}
-                  onChange={(e) => setMemberFormData({ ...memberFormData, fieldOfficeId: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-                >
-                  <option value="" className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">Headquarters / Unassigned</option>
-                  {activeFieldOfficesList.map((fo) => (
-                    <option key={fo.id} value={fo.id} className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">
-                      {fo.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Job Title</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Senior Spectrum Officer"
-                  value={memberFormData.jobTitle}
-                  onChange={(e) => setMemberFormData({ ...memberFormData, jobTitle: e.target.value })}
-                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Select User Account *</label>
+              {loadingUsers ? (
+                <div className="flex items-center gap-2 p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-500">
+                  <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />
+                  <span>Loading platform users...</span>
+                </div>
+              ) : (
+                <SearchableSelect
+                  value={memberFormData.userId}
+                  onChange={(val) => setMemberFormData({ ...memberFormData, userId: val })}
+                  options={userOptions}
+                  placeholder="Search user by name or email..."
+                  searchPlaceholder="Type name or email..."
+                  maxHeight="max-h-56"
                 />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Salary Grade Level</label>
-                <input
-                  type="text"
-                  placeholder="e.g. SG-18"
-                  value={memberFormData.level}
-                  onChange={(e) => setMemberFormData({ ...memberFormData, level: e.target.value })}
-                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Division *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Operations & Enforcement"
-                  value={memberFormData.division}
-                  onChange={(e) => setMemberFormData({ ...memberFormData, division: e.target.value })}
-                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Position *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Engineer III"
-                  value={memberFormData.position}
-                  onChange={(e) => setMemberFormData({ ...memberFormData, position: e.target.value })}
-                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Designation</label>
-              <input
-                type="text"
-                placeholder="e.g. Chief Spectrum Audit Investigator"
-                value={memberFormData.designation}
-                onChange={(e) => setMemberFormData({ ...memberFormData, designation: e.target.value })}
-                className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-
-            <DialogFooter className="pt-4 border-t border-slate-200 dark:border-slate-800">
-              <Button type="button" variant="outline" onClick={() => setIsAssignMemberOpen(false)}>Cancel</Button>
-              <Button type="submit" className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold">Assign Staff Member</Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Member Modal */}
-      <Dialog open={isEditMemberOpen} onOpenChange={setIsEditMemberOpen}>
-        <DialogContent className="w-[calc(100vw-24px)] sm:w-full sm:max-w-[520px] max-h-[92vh] overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white p-5 sm:p-6">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-              <Edit2 className="w-5 h-5 text-indigo-500 dark:text-indigo-400" /> Edit Member Details
-            </DialogTitle>
-          </DialogHeader>
-
-          <form onSubmit={handleEditMemberSubmit} className="space-y-4 pt-2">
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">User</label>
-              <div className="px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-sm text-slate-800 dark:text-slate-300">
-                {selectedMember ? `${selectedMember.userFirstName} ${selectedMember.userLastName} (${selectedMember.userEmail})` : ""}
-              </div>
+              )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Security Role *</label>
-                <select
-                  required
+                <SearchableSelect
                   value={memberFormData.roleId}
-                  onChange={(e) => setMemberFormData({ ...memberFormData, roleId: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-                >
-                  <option value="" disabled className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">Select Role...</option>
-                  {rolesList.map((r) => (
-                    <option key={r.id} value={r.id} className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">
-                      {r.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(val) => setMemberFormData({ ...memberFormData, roleId: val })}
+                  options={roleOptions}
+                  placeholder="Select Security Role..."
+                  searchPlaceholder="Filter roles..."
+                  maxHeight="max-h-48"
+                />
               </div>
 
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Field Office Assignment</label>
-                <select
+                <SearchableSelect
                   value={memberFormData.fieldOfficeId}
-                  onChange={(e) => setMemberFormData({ ...memberFormData, fieldOfficeId: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-                >
-                  <option value="" className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">Headquarters / Unassigned</option>
-                  {activeFieldOfficesList.map((fo) => (
-                    <option key={fo.id} value={fo.id} className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">
-                      {fo.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(val) => setMemberFormData({ ...memberFormData, fieldOfficeId: val })}
+                  options={fieldOfficeOptions}
+                  placeholder="Select Field Office..."
+                  searchPlaceholder="Filter offices..."
+                  maxHeight="max-h-48"
+                />
               </div>
             </div>
 
@@ -538,13 +467,141 @@ export function MembersTab({ currentTenant, fieldOfficesList, showToast }: Membe
             </div>
 
             <DialogFooter className="pt-4 border-t border-slate-200 dark:border-slate-800 flex-col-reverse sm:flex-row gap-2">
-              <Button type="button" variant="outline" onClick={() => setIsEditMemberOpen(false)}>Cancel</Button>
-              <Button type="submit" className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold">Save Member Details</Button>
+              <Button type="button" variant="outline" disabled={isSubmitting} onClick={() => setIsAssignMemberOpen(false)}>Cancel</Button>
+              <Button type="submit" disabled={isSubmitting || !memberFormData.userId} className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold">
+                {isSubmitting ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" /> Assigning...
+                  </span>
+                ) : (
+                  "Assign Staff Member"
+                )}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
+      {/* Edit Member Modal */}
+      <Dialog open={isEditMemberOpen} onOpenChange={setIsEditMemberOpen}>
+        <DialogContent className="w-[calc(100vw-24px)] sm:w-full sm:max-w-[540px] max-h-[92vh] overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white p-5 sm:p-6">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+              <Edit2 className="w-5 h-5 text-indigo-500 dark:text-indigo-400" /> Edit Member Details
+            </DialogTitle>
+          </DialogHeader>
+
+          <form onSubmit={handleEditMemberSubmit} className="space-y-4 pt-2">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">Assigned User</label>
+              <div className="px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-xs font-medium text-slate-800 dark:text-slate-300 flex items-center gap-2">
+                <UserCheck className="w-4 h-4 text-emerald-500" />
+                <span>{selectedMember ? `${selectedMember.userFirstName} ${selectedMember.userLastName} (${selectedMember.userEmail})` : ""}</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Security Role *</label>
+                <SearchableSelect
+                  value={memberFormData.roleId}
+                  onChange={(val) => setMemberFormData({ ...memberFormData, roleId: val })}
+                  options={roleOptions}
+                  placeholder="Select Security Role..."
+                  searchPlaceholder="Filter roles..."
+                  maxHeight="max-h-48"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Field Office Assignment</label>
+                <SearchableSelect
+                  value={memberFormData.fieldOfficeId}
+                  onChange={(val) => setMemberFormData({ ...memberFormData, fieldOfficeId: val })}
+                  options={fieldOfficeOptions}
+                  placeholder="Select Field Office..."
+                  searchPlaceholder="Filter offices..."
+                  maxHeight="max-h-48"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Job Title</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Senior Spectrum Officer"
+                  value={memberFormData.jobTitle}
+                  onChange={(e) => setMemberFormData({ ...memberFormData, jobTitle: e.target.value })}
+                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Salary Grade Level</label>
+                <input
+                  type="text"
+                  placeholder="e.g. SG-18"
+                  value={memberFormData.level}
+                  onChange={(e) => setMemberFormData({ ...memberFormData, level: e.target.value })}
+                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Division *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Operations & Enforcement"
+                  value={memberFormData.division}
+                  onChange={(e) => setMemberFormData({ ...memberFormData, division: e.target.value })}
+                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Position *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Engineer III"
+                  value={memberFormData.position}
+                  onChange={(e) => setMemberFormData({ ...memberFormData, position: e.target.value })}
+                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Designation</label>
+              <input
+                type="text"
+                placeholder="e.g. Chief Spectrum Audit Investigator"
+                value={memberFormData.designation}
+                onChange={(e) => setMemberFormData({ ...memberFormData, designation: e.target.value })}
+                className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+
+            <DialogFooter className="pt-4 border-t border-slate-200 dark:border-slate-800 flex-col-reverse sm:flex-row gap-2">
+              <Button type="button" variant="outline" disabled={isSubmitting} onClick={() => setIsEditMemberOpen(false)}>Cancel</Button>
+              <Button type="submit" disabled={isSubmitting} className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold">
+                {isSubmitting ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" /> Saving...
+                  </span>
+                ) : (
+                  "Save Member Details"
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
       {/* Remove Member Modal */}
       <Dialog open={isRemoveMemberOpen} onOpenChange={setIsRemoveMemberOpen}>
         <DialogContent className="w-[calc(100vw-24px)] sm:w-full sm:max-w-[440px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white p-5 sm:p-6">
@@ -558,8 +615,16 @@ export function MembersTab({ currentTenant, fieldOfficesList, showToast }: Membe
           </DialogHeader>
 
           <DialogFooter className="pt-4 border-t border-slate-200 dark:border-slate-800 flex-col-reverse sm:flex-row gap-2">
-            <Button type="button" variant="outline" onClick={() => setIsRemoveMemberOpen(false)}>Cancel</Button>
-            <Button type="button" onClick={handleRemoveMemberConfirm} className="bg-rose-600 hover:bg-rose-500 text-white font-semibold">Unassign Member</Button>
+            <Button type="button" variant="outline" disabled={isSubmitting} onClick={() => setIsRemoveMemberOpen(false)}>Cancel</Button>
+            <Button type="button" disabled={isSubmitting} onClick={handleRemoveMemberConfirm} className="bg-rose-600 hover:bg-rose-500 text-white font-semibold">
+              {isSubmitting ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" /> Unassigning...
+                </span>
+              ) : (
+                "Unassign Member"
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

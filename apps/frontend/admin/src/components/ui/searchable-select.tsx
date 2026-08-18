@@ -178,11 +178,11 @@ export function SearchableSelect({
                 {searchQuery ? "No matching options found" : "No options available"}
               </div>
             ) : (
-              filteredOptions.map((opt) => {
+              filteredOptions.map((opt, idx) => {
                 const isSelected = opt.value === value;
                 return (
                   <button
-                    key={opt.value}
+                    key={`${opt.value}-${idx}`}
                     type="button"
                     disabled={opt.disabled}
                     onClick={() => {

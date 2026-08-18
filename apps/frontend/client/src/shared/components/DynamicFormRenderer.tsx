@@ -7,6 +7,7 @@ import { FormGrid, FormCol } from "./FormGrid";
 import { ApplicantNameField, StructuredNameData } from "./ApplicantNameField";
 import { FormSignatureInput } from "./FormSignatureInput";
 import { DeclarationCheckbox } from "./DeclarationCheckbox";
+import { useGeographicLocations } from "../hooks/useGeographicLocations";
 import { TYPOGRAPHY, COLORS } from "../theme/tokens";
 
 export interface FieldDto {
@@ -75,7 +76,7 @@ function parseOptions(field: FieldDto): Array<{ label: string; value: string }> 
 
 export function DynamicFormRenderer({
   form,
-  values,
+  values = {},
   onChange,
   onStructuredNameChange,
   structuredNameData,
@@ -85,9 +86,104 @@ export function DynamicFormRenderer({
   errors = {},
   hideSections = ["payment"],
 }: DynamicFormRendererProps) {
+  // Safe guard: form and sections might be undefined when loading
+  const sections = form?.sections ?? [];
+  const allFields = sections.flatMap((s) => s?.fields ?? []);
+  const regionField = allFields.find((f) => {
+    const l = (f?.label || "").toLowerCase().trim();
+    const id = f?.fieldId || f?.id || "";
+    return l === "region" || id === "fd000000-0000-0000-0000-000000000051";
+  });
+  const provinceField = allFields.find((f) => {
+    const l = (f?.label || "").toLowerCase().trim();
+    const id = f?.fieldId || f?.id || "";
+    return l === "province" || id === "fd000000-0000-0000-0000-000000000052";
+  });
+  const cityField = allFields.find((f) => {
+    const l = (f?.label || "").toLowerCase().trim();
+    const id = f?.fieldId || f?.id || "";
+    return (
+      l === "city" ||
+      l.includes("city / municipality") ||
+      l.includes("municipality") ||
+      id === "fd000000-0000-0000-0000-000000000053"
+    );
+  });
+  const barangayField = allFields.find((f) => {
+    const l = (f?.label || "").toLowerCase().trim();
+    const id = f?.fieldId || f?.id || "";
+    return l === "barangay" || id === "fd000000-0000-0000-0000-000000000054";
+  });
+
+  const regionFieldId = regionField?.fieldId || regionField?.id || "";
+  const provinceFieldId = provinceField?.fieldId || provinceField?.id || "";
+  const cityFieldId = cityField?.fieldId || cityField?.id || "";
+  const barangayFieldId = barangayField?.fieldId || barangayField?.id || "";
+
+  const currentRegionVal = (regionFieldId && values?.[regionFieldId]) || values?.["region"] || "";
+  const currentProvinceVal = (provinceFieldId && values?.[provinceFieldId]) || values?.["province"] || "";
+  const currentCityVal = (cityFieldId && values?.[cityFieldId]) || values?.["city"] || "";
+
+  const [selectedRegionId, setSelectedRegionId] = React.useState<string | undefined>(undefined);
+  const [selectedProvinceId, setSelectedProvinceId] = React.useState<string | undefined>(undefined);
+  const [selectedMunicipalityId, setSelectedMunicipalityId] = React.useState<string | undefined>(undefined);
+
+  const {
+    regions = [],
+    provinces = [],
+    municipalities = [],
+    barangays = [],
+    loadingRegions,
+    loadingProvinces,
+    loadingMunicipalities,
+    loadingBarangays,
+  } = useGeographicLocations(selectedRegionId, selectedProvinceId, selectedMunicipalityId);
+
+  // Sync selected IDs when form values change
+  React.useEffect(() => {
+    if (!currentRegionVal) {
+      setSelectedRegionId(undefined);
+      return;
+    }
+    const matchedRegion = regions.find(
+      (r) =>
+        r.name.toLowerCase() === currentRegionVal.toLowerCase() ||
+        r.id === currentRegionVal ||
+        (r.code && currentRegionVal.toLowerCase().includes(r.code.toLowerCase()))
+    );
+    setSelectedRegionId(matchedRegion?.id);
+  }, [currentRegionVal, regions]);
+
+  React.useEffect(() => {
+    if (!currentProvinceVal) {
+      setSelectedProvinceId(undefined);
+      return;
+    }
+    const matchedProvince = provinces.find(
+      (p) =>
+        p.name.toLowerCase() === currentProvinceVal.toLowerCase() ||
+        p.id === currentProvinceVal
+    );
+    setSelectedProvinceId(matchedProvince?.id);
+  }, [currentProvinceVal, provinces]);
+
+  React.useEffect(() => {
+    if (!currentCityVal) {
+      setSelectedMunicipalityId(undefined);
+      return;
+    }
+    const matchedMunicipality = municipalities.find(
+      (m) =>
+        m.name.toLowerCase() === currentCityVal.toLowerCase() ||
+        m.id === currentCityVal
+    );
+    setSelectedMunicipalityId(matchedMunicipality?.id);
+  }, [currentCityVal, municipalities]);
+
   const hiddenKeys = hideSections.map((s) => s.toLowerCase());
 
-  const visibleSections = form.sections.filter((section) => {
+  const visibleSections = sections.filter((section) => {
+    if (!section) return false;
     const key = (section.key || section.id || "").toLowerCase();
     const title = (section.title || "").toLowerCase();
     return (
@@ -116,10 +212,11 @@ export function DynamicFormRenderer({
             </View>
 
             <FormGrid>
-              {section.fields.map((field, fIdx) => {
+              {(section.fields || []).map((field, fIdx) => {
+                if (!field) return null;
                 const targetId = field.fieldId || field.id || `field-${fIdx}`;
-                const val = values[targetId] || "";
-                const err = errors[targetId];
+                const rawVal = (values && values[targetId]) || (values && field.label && values[field.label]) || "";
+                const err = (errors && errors[targetId]) || undefined;
                 const rawType = (field.fieldType || field.type || "").toLowerCase();
                 const labelLower = (field.label || "").toLowerCase().trim();
 
@@ -145,6 +242,34 @@ export function DynamicFormRenderer({
                   labelLower.includes("element") ||
                   targetId === "fd000000-0000-0000-0000-000000000009";
 
+                const isRegionField =
+                  labelLower === "region" ||
+                  targetId === "fd000000-0000-0000-0000-000000000051";
+
+                const isProvinceField =
+                  labelLower === "province" ||
+                  targetId === "fd000000-0000-0000-0000-000000000052";
+
+                const isCityField =
+                  labelLower === "city" ||
+                  labelLower.includes("city / municipality") ||
+                  labelLower.includes("municipality") ||
+                  targetId === "fd000000-0000-0000-0000-000000000053";
+
+                const isBarangayField =
+                  labelLower === "barangay" ||
+                  targetId === "fd000000-0000-0000-0000-000000000054";
+
+                const isEmploymentStatusField =
+                  (labelLower === "status" && (section.title.toLowerCase().includes("employment") || section.key?.toLowerCase().includes("employment"))) ||
+                  labelLower === "employment status" ||
+                  targetId === "fd000000-0000-0000-0000-000000000017";
+
+                const isEmploymentTypeField =
+                  (labelLower === "type" && (section.title.toLowerCase().includes("employment") || section.key?.toLowerCase().includes("employment"))) ||
+                  labelLower === "employment type" ||
+                  targetId === "fd000000-0000-0000-0000-000000000018";
+
                 const elementOptions: Array<{ label: string; value: string }> =
                   variantElements && variantElements.length > 0
                     ? variantElements.map((e) => {
@@ -156,12 +281,102 @@ export function DynamicFormRenderer({
                 const isDropdown =
                   rawType === "dropdown" ||
                   rawType === "select" ||
+                  isRegionField ||
+                  isProvinceField ||
+                  isCityField ||
+                  isBarangayField ||
+                  isEmploymentStatusField ||
+                  isEmploymentTypeField ||
                   (isElementsField && elementOptions.length > 0);
 
-                const dropdownOptions =
-                  isElementsField && elementOptions.length > 0
-                    ? elementOptions
-                    : parseOptions(field);
+                let val = rawVal;
+                if (!val && values) {
+                  if (isRegionField) {
+                    val = values["region"] || values["Region"] || "";
+                  } else if (isProvinceField) {
+                    val = values["province"] || values["Province"] || "";
+                  } else if (isCityField) {
+                    val = values["city"] || values["City"] || values["municipality"] || values["City / Municipality"] || "";
+                  } else if (isBarangayField) {
+                    val = values["barangay"] || values["Barangay"] || "";
+                  }
+                }
+
+                let dropdownOptions: Array<{ label: string; value: string }> = [];
+                let placeholder = field.placeholder || "Select an option...";
+
+                if (isElementsField && elementOptions.length > 0) {
+                  dropdownOptions = elementOptions;
+                  placeholder = "Select Exam Element...";
+                } else if (isRegionField) {
+                  dropdownOptions = regions.map((r) => ({
+                    label: r.code ? `${r.name} (${r.code})` : r.name,
+                    value: r.name,
+                  }));
+                  placeholder = loadingRegions ? "Loading regions..." : "Select Region...";
+                } else if (isProvinceField) {
+                  dropdownOptions = provinces.map((p) => ({
+                    label: p.name,
+                    value: p.name,
+                  }));
+                  placeholder = loadingProvinces
+                    ? "Loading provinces..."
+                    : !selectedRegionId
+                    ? "Select Region first..."
+                    : "Select Province...";
+                } else if (isCityField) {
+                  dropdownOptions = municipalities.map((m) => ({
+                    label: m.name,
+                    value: m.name,
+                  }));
+                  placeholder = loadingMunicipalities
+                    ? "Loading cities..."
+                    : !selectedProvinceId
+                    ? "Select Province first..."
+                    : "Select City / Municipality...";
+                } else if (isBarangayField) {
+                  dropdownOptions = barangays.map((b) => ({
+                    label: b.name,
+                    value: b.name,
+                  }));
+                  placeholder = loadingBarangays
+                    ? "Loading barangays..."
+                    : !selectedMunicipalityId
+                    ? "Select City first..."
+                    : "Select Barangay...";
+                } else if (isEmploymentStatusField) {
+                  dropdownOptions = [
+                    { label: "Employed", value: "Employed" },
+                    { label: "Unemployed", value: "Unemployed" },
+                  ];
+                  placeholder = "Select Status...";
+                } else if (isEmploymentTypeField) {
+                  dropdownOptions = [
+                    { label: "Local", value: "Local" },
+                    { label: "Foreign", value: "Foreign" },
+                  ];
+                  placeholder = "Select Type...";
+                } else {
+                  dropdownOptions = parseOptions(field);
+                }
+
+                const handleDropdownChange = (selectedVal: string) => {
+                  onChange(targetId, field.label, selectedVal);
+
+                  // Cascade reset child fields only if value actually changed and was non-empty
+                  if (val && selectedVal !== val) {
+                    if (isRegionField) {
+                      if (provinceFieldId) onChange(provinceFieldId, provinceField?.label || "Province", "");
+                      if (cityFieldId) onChange(cityFieldId, cityField?.label || "City / Municipality", "");
+                      if (barangayFieldId) onChange(barangayFieldId, barangayField?.label || "Barangay", "");
+                    } else if (isProvinceField) {
+                      if (cityFieldId) onChange(cityFieldId, cityField?.label || "City / Municipality", "");
+                      if (barangayFieldId) onChange(barangayFieldId, barangayField?.label || "Barangay", "");
+                    } else if (isCityField) {
+                      if (barangayFieldId) onChange(barangayFieldId, barangayField?.label || "Barangay", "");
+                    }
+                  }
+                };
 
                 const isDate = rawType === "date";
                 const isNumber = rawType === "number";
@@ -205,9 +420,9 @@ export function DynamicFormRenderer({
                         label={field.label}
                         required={field.isRequired}
                         value={val}
-                        onValueChange={(v) => onChange(targetId, field.label, v)}
+                        onValueChange={handleDropdownChange}
                         options={dropdownOptions}
-                        placeholder={isElementsField ? "Select Exam Element..." : (field.placeholder || "Select an option...")}
+                        placeholder={placeholder}
                         error={err}
                       />
                     ) : isDate ? (

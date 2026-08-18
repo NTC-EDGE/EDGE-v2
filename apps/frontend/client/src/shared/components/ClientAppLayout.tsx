@@ -18,9 +18,9 @@ import { ConfirmationDialog } from "./ConfirmationDialog";
 const ntcLogo = require("../../../assets/ntc-logo.png");
 
 interface ClientAppLayoutProps {
-  activeTab: "services" | "my-applications";
+  activeTab: "services" | "my-applications" | "settings";
   hideSidebar?: boolean;
-  onBeforeNavigate?: (targetTab: "services" | "my-applications", proceed: () => void) => void;
+  onBeforeNavigate?: (targetTab: "services" | "my-applications" | "settings", proceed: () => void) => void;
   children: React.ReactNode;
 }
 
@@ -69,14 +69,16 @@ export function ClientAppLayout({
     await signOut();
   };
 
-  const handleTabClick = (targetTab: "services" | "my-applications") => {
+  const handleTabClick = (targetTab: "services" | "my-applications" | "settings") => {
     if (targetTab === activeTab) return;
 
     const navigate = () => {
       if (targetTab === "services") {
         navigation.navigate("Services");
-      } else {
+      } else if (targetTab === "my-applications") {
         navigation.navigate("MyApplications");
+      } else {
+        navigation.navigate("Settings");
       }
     };
 
@@ -241,6 +243,32 @@ export function ClientAppLayout({
                   </Text>
                 )}
               </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => handleTabClick("settings")}
+                style={[
+                  styles.sidebarItem,
+                  activeTab === "settings" && styles.sidebarItemActive,
+                ]}
+                activeOpacity={0.8}
+              >
+                <Icon
+                  name="settings"
+                  size={20}
+                  color={activeTab === "settings" ? "#FFFFFF" : "#64748B"}
+                />
+                {!isSidebarCollapsed && (
+                  <Text
+                    style={
+                      activeTab === "settings"
+                        ? styles.sidebarItemTextActive
+                        : styles.sidebarItemText
+                    }
+                  >
+                    Settings
+                  </Text>
+                )}
+              </TouchableOpacity>
             </View>
           </View>
         )}
@@ -297,6 +325,29 @@ export function ClientAppLayout({
               My Applications
             </Text>
           </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => handleTabClick("settings")}
+            style={[
+              styles.mobileNavItem,
+              activeTab === "settings" && styles.mobileNavItemActive,
+            ]}
+            activeOpacity={0.7}
+          >
+            <Icon
+              name="settings"
+              size={20}
+              color={activeTab === "settings" ? "#0F2C59" : "#64748B"}
+            />
+            <Text
+              style={[
+                styles.mobileNavText,
+                activeTab === "settings" && styles.mobileNavTextActive,
+              ]}
+            >
+              Settings
+            </Text>
+          </TouchableOpacity>
         </View>
       )}
 
@@ -336,6 +387,29 @@ export function ClientAppLayout({
                 </Text>
               </View>
             </View>
+
+            <TouchableOpacity
+              onPress={() => {
+                setIsProfileVisible(false);
+                handleTabClick("settings");
+              }}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+                backgroundColor: "#F1F5F9",
+                paddingVertical: 10,
+                borderRadius: 8,
+                marginBottom: 10,
+              }}
+              activeOpacity={0.7}
+            >
+              <Icon name="settings" size={16} color="#0F2C59" />
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "600", color: "#0F2C59" }}>
+                Manage Account & Settings
+              </Text>
+            </TouchableOpacity>
 
             <TouchableOpacity
               onPress={() => setIsProfileVisible(false)}

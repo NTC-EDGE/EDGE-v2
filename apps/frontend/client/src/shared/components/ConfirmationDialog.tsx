@@ -8,15 +8,18 @@ import {
   Platform,
   Animated,
   Pressable,
+  ActivityIndicator,
 } from 'react-native';
 import { Icon as Lucide } from '@edge/ui';
 import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY } from '../theme/tokens';
 
 export interface ConfirmationDialogAction {
   text: string;
-  onPress: () => void;
+  onPress: () => void | Promise<void>;
   style?: 'default' | 'destructive' | 'cancel';
   iconName?: React.ComponentProps<typeof Lucide>['name'];
+  loading?: boolean;
+  disabled?: boolean;
 }
 
 interface ConfirmationDialogProps {
@@ -24,6 +27,7 @@ interface ConfirmationDialogProps {
   title: string;
   message: string;
   hint?: string;
+  errorMessage?: string | null;
   actions: ConfirmationDialogAction[];
   onClose: () => void;
   iconName?: React.ComponentProps<typeof Lucide>['name'];
@@ -36,6 +40,7 @@ export function ConfirmationDialog({
   title,
   message,
   hint,
+  errorMessage,
   actions,
   onClose,
   iconName = 'alert-circle',
@@ -146,6 +151,19 @@ export function ConfirmationDialog({
             </View>
           )}
 
+          {/* Optional error message banner */}
+          {errorMessage !== undefined && errorMessage !== null && errorMessage.length > 0 && (
+            <View style={styles.errorBanner}>
+              <Lucide
+                name="alert-circle"
+                size={16}
+                color={COLORS.semantic.error}
+                style={styles.errorBannerIcon}
+              />
+              <Text style={styles.errorBannerText}>{errorMessage}</Text>
+            </View>
+          )}
+
           {/* Divider */}
           <View style={styles.divider} />
 
@@ -154,23 +172,27 @@ export function ConfirmationDialog({
             {actions.map((action, index) => {
               const isCancel = action.style === 'cancel';
               const isActionDestructive = action.style === 'destructive';
+              const isDisabled = action.disabled || action.loading;
 
               if (isCancel) {
                 return (
                   <TouchableOpacity
                     key={index}
                     onPress={action.onPress}
-                    style={styles.cancelButton}
+                    disabled={isDisabled}
+                    style={[styles.cancelButton, isDisabled && { opacity: 0.5 }]}
                     activeOpacity={0.65}
                   >
-                    {action.iconName !== undefined && (
+                    {action.loading ? (
+                      <ActivityIndicator size="small" color={COLORS.neutral[400]} style={styles.btnIcon} />
+                    ) : action.iconName !== undefined ? (
                       <Lucide
                         name={action.iconName}
                         size={15}
                         color={COLORS.neutral[400]}
                         style={styles.btnIcon}
                       />
-                    )}
+                    ) : null}
                     <Text style={styles.cancelButtonText}>{action.text}</Text>
                   </TouchableOpacity>
                 );
@@ -180,22 +202,26 @@ export function ConfirmationDialog({
                 <TouchableOpacity
                   key={index}
                   onPress={action.onPress}
+                  disabled={isDisabled}
                   activeOpacity={0.82}
                   style={[
                     styles.button,
                     isActionDestructive
                       ? styles.destructiveButton
                       : styles.primaryButton,
+                    isDisabled && { opacity: 0.7 },
                   ]}
                 >
-                  {action.iconName !== undefined && (
+                  {action.loading ? (
+                    <ActivityIndicator size="small" color={COLORS.neutral.white} style={styles.btnIcon} />
+                  ) : action.iconName !== undefined ? (
                     <Lucide
                       name={action.iconName}
                       size={16}
                       color={COLORS.neutral.white}
                       style={styles.btnIcon}
                     />
-                  )}
+                  ) : null}
                   <Text
                     style={[
                       styles.buttonText,
@@ -308,6 +334,30 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 12,
     color: COLORS.neutral[400],
+    flex: 1,
+    lineHeight: 18,
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FCA5A5',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingVertical: SPACING[8],
+    paddingHorizontal: SPACING[12],
+    marginTop: SPACING[8],
+    marginBottom: SPACING[4],
+    gap: 8,
+  },
+  errorBannerIcon: {
+    marginTop: 1,
+  },
+  errorBannerText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    color: COLORS.semantic.error,
+    fontWeight: '600',
     flex: 1,
     lineHeight: 18,
   },

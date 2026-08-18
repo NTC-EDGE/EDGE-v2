@@ -9,6 +9,8 @@ using EDGE.Infrastructure.Authorization;
 using EDGE.Application.Users.Queries;
 using EDGE.Application.Users.Commands.UpdateUser;
 using EDGE.Application.Users.Commands.DeleteUser;
+using EDGE.Application.Users.Commands.UpdateCurrentProfile;
+using EDGE.Application.Users.Commands.UpdateCurrentSignature;
 
 namespace EDGE.Api.Endpoints;
 
@@ -20,8 +22,32 @@ public static class UserEndpoints
 
         group.MapGet("/me", GetCurrentUser)
             .WithName("GetCurrentUser")
-            .WithSummary("Get authenticated user's own profile")
-            .WithDescription("Returns the database profile of the currently authenticated user, including IsSuperAdmin flag.")
+            .WithSummary("Get authenticated user's own basic auth record")
+            .WithDescription("Returns the basic database record of the currently authenticated user, including IsSuperAdmin flag.")
+            .RequireAuthorization();
+
+        group.MapGet("/profile", GetCurrentUserProfile)
+            .WithName("GetCurrentUserProfile")
+            .WithSummary("Get authenticated user's full detailed profile")
+            .WithDescription("Returns the complete biographical, educational, address, and company profile data of the currently authenticated user.")
+            .RequireAuthorization();
+
+        group.MapGet("/me/profile", GetCurrentUserProfile)
+            .WithName("GetCurrentUserMeProfile")
+            .WithSummary("Get authenticated user's full detailed profile (alias)")
+            .WithDescription("Returns the complete biographical, educational, address, and company profile data of the currently authenticated user.")
+            .RequireAuthorization();
+
+        group.MapPatch("/me/profile", UpdateCurrentUserProfile)
+            .WithName("UpdateCurrentUserProfile")
+            .WithSummary("Update authenticated user's personal profile")
+            .WithDescription("Updates the profile details (biographical, address, contact) of the currently authenticated user.")
+            .RequireAuthorization();
+
+        group.MapPatch("/me/signature", UpdateCurrentUserSignature)
+            .WithName("UpdateCurrentUserSignature")
+            .WithSummary("Update authenticated user's default e-signature")
+            .WithDescription("Updates the official default electronic signature data of the currently authenticated user.")
             .RequireAuthorization();
 
         group.MapGet("/", GetUsers)
@@ -96,7 +122,7 @@ public static class UserEndpoints
             new EDGE.Application.Users.Queries.GetUserByAuthUserId.GetUserByAuthUserIdQuery(authUserId));
 
         if (user is null)
-            return Results.NotFound(new { message = "User profile not found." });
+            return Results.NotFound(new { message = "User record not found." });
 
         return Results.Ok(new
         {
@@ -107,6 +133,90 @@ public static class UserEndpoints
             lastName = user.LastName,
             isSuperAdmin = user.IsSuperAdmin,
         });
+    }
+
+    public static async Task<IResult> GetCurrentUserProfile(
+        IMediator mediator,
+        EDGE.Application.Common.Interfaces.ICurrentUserService currentUserService)
+    {
+        var authUserId = currentUserService.UserId;
+        if (string.IsNullOrEmpty(authUserId))
+            return Results.Unauthorized();
+
+        var user = await mediator.Send(
+            new EDGE.Application.Users.Queries.GetUserByAuthUserId.GetUserByAuthUserIdQuery(authUserId));
+
+        if (user is null)
+            return Results.NotFound(new { message = "User profile not found." });
+
+        return Results.Ok(new
+        {
+            id = user.Id,
+            authUserId = user.AuthUserId,
+            email = user.Email,
+            firstName = user.FirstName,
+            lastName = user.LastName,
+            middleName = user.MiddleName,
+            suffix = user.Suffix,
+            contactNumber = user.ContactNumber,
+            dateOfBirth = user.DateOfBirth,
+            sex = user.Sex,
+            nationality = user.Nationality,
+            height = user.Height,
+            weight = user.Weight,
+            schoolAttended = user.SchoolAttended,
+            courseTaken = user.CourseTaken,
+            profilePicture = user.ProfilePicture,
+            eSignature = user.ESignature,
+            isSuperAdmin = user.IsSuperAdmin,
+            address = new
+            {
+                street = user.Street,
+                unit = user.Unit,
+                zipCode = user.ZipCode,
+                barangayId = user.BarangayId,
+            },
+            company = user.CompanyDetail != null ? new
+            {
+                id = user.CompanyDetail.Id,
+                name = user.CompanyDetail.Name,
+                registrationNumber = user.CompanyDetail.RegistrationNumber,
+                address = user.CompanyDetail.Address,
+                contactNumber = user.CompanyDetail.ContactNumber,
+                email = user.CompanyDetail.Email,
+                entityType = user.CompanyDetail.EntityType != null ? user.CompanyDetail.EntityType.ToString() : null,
+            } : null,
+        });
+    }
+
+    public static async Task<IResult> UpdateCurrentUserProfile(
+        UpdateCurrentProfileCommand command,
+        IValidator<UpdateCurrentProfileCommand> validator,
+        IMediator mediator)
+    {
+        var validationResult = await validator.ValidateAsync(command);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
+
+        var result = await mediator.Send(command);
+        return result is not null ? Results.Ok(result) : Results.NotFound(new { message = "User profile not found." });
+    }
+
+    public static async Task<IResult> UpdateCurrentUserSignature(
+        UpdateCurrentSignatureCommand command,
+        IValidator<UpdateCurrentSignatureCommand> validator,
+        IMediator mediator)
+    {
+        var validationResult = await validator.ValidateAsync(command);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
+
+        var result = await mediator.Send(command);
+        return result is not null ? Results.Ok(result) : Results.NotFound(new { message = "User profile not found." });
     }
 
     [HasPermission(Permissions.ReadUsers)]

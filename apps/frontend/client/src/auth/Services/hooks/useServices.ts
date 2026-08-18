@@ -373,8 +373,13 @@ export function useServices() {
     }
   }, [activeWizardService, currentActiveStep]);
 
-  const saveActiveAsDraft = async () => {
-    if (!activeWizardService) return;
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
+  const [draftErrorMessage, setDraftErrorMessage] = useState<string | null>(null);
+
+  const saveActiveAsDraft = async (): Promise<boolean> => {
+    if (!activeWizardService) return true;
+    setDraftErrorMessage(null);
+    setIsSavingDraft(true);
 
     const draftId = `draft-${Date.now()}`;
     const formattedDate = new Date().toLocaleDateString("en-US", {
@@ -407,8 +412,9 @@ export function useServices() {
     setDrafts((prev) => [newDraft, ...prev.filter((d) => d.id !== draftId)]);
 
     if (!selectedRegionId) {
-      Alert.alert("Success", "Draft saved locally. (Select a region to save to server)");
-      return;
+      toast.info("Draft Saved Locally", "Your draft was saved locally on your device.");
+      setIsSavingDraft(false);
+      return true;
     }
 
     try {
@@ -429,6 +435,9 @@ export function useServices() {
       let svId: string | null = null;
       let sveIds: string[] = [];
 
+      const isGuid = (val?: string): boolean =>
+        Boolean(val && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(val));
+
       if (activeWizardService === "cpe-accreditation") {
         mappedApplicants = applicants.map(app => ({
           firstName: "CPE Supplier",
@@ -436,7 +445,7 @@ export function useServices() {
           email: app.email || "draft@example.com",
           contactNumber: app.contactNo || "",
           address: `${app.unitBldgNo || ""}, ${app.street || ""}, ${app.barangay || ""}, ${app.city || ""}, ${app.province || ""}` || "N/A",
-          birthDate: "1990-01-01T00:00:00Z",
+          birthDate: "1990-01-01",
           formFieldValues: []
         }));
       } else if (activeWizardService === "radio-operator-exam") {
@@ -454,7 +463,7 @@ export function useServices() {
             email: app.email || "draft@example.com",
             contactNumber: app.contactNo || "",
             address: `${app.street || ""}, ${app.barangay || ""}, ${app.city || ""}, ${app.province || ""}` || "N/A",
-            birthDate: app.birthYear ? `${app.birthYear}-${monthNum}-${day}T00:00:00Z` : "1990-01-01T00:00:00Z",
+            birthDate: app.birthYear ? `${app.birthYear}-${monthNum}-${day}` : "1990-01-01",
             formFieldValues: []
           };
         });
@@ -486,11 +495,13 @@ export function useServices() {
             email: emailField.trim() || app.email || "draft@example.com",
             contactNumber: contactNoField.trim() || app.contactNo || "",
             address: addressField.trim() || app.address || "N/A",
-            birthDate: app.birthYear ? `${app.birthYear}-${monthNum}-${day}T00:00:00Z` : "1990-01-01T00:00:00Z",
-            formFieldValues: (app.formFieldValues || []).map(fv => ({
-              fieldId: fv.fieldId,
-              value: fv.value
-            }))
+            birthDate: app.birthYear ? `${app.birthYear}-${monthNum}-${day}` : "1990-01-01",
+            formFieldValues: (app.formFieldValues || [])
+              .filter(fv => isGuid(fv.fieldId))
+              .map(fv => ({
+                fieldId: fv.fieldId,
+                value: fv.value || ""
+              }))
           };
         });
       }
@@ -498,20 +509,26 @@ export function useServices() {
       const payload = {
         tenantId: selectedRegionId,
         submissionMode: appMode === "BULK" ? "Bulk" : "Single",
-        serviceId: selectedService?.id || null,
+        serviceId: selectedService?.id && isGuid(selectedService.id) ? selectedService.id : null,
         scheduleId: null,
-        fieldOfficeId: selectedOfficeId || null,
-        serviceVariantId: svId,
-        serviceVariantElementIds: sveIds,
+        fieldOfficeId: selectedOfficeId && isGuid(selectedOfficeId) ? selectedOfficeId : null,
+        serviceVariantId: svId && isGuid(svId) ? svId : null,
+        serviceVariantElementIds: (sveIds || []).filter(isGuid),
         isDraft: true,
         applicants: mappedApplicants,
       };
 
       await api.post(`/api/v2/tenants/${selectedRegionId}/applications`, payload);
       toast.success("Draft Saved", "Draft saved to server successfully.");
-    } catch (err) {
+      setIsSavingDraft(false);
+      return true;
+    } catch (err: unknown) {
       console.error("Failed to save draft to backend:", err);
-      toast.error("Sync Failed", extractApiErrorMessage(err));
+      const errMsg = extractApiErrorMessage(err) || "Failed to save draft to server.";
+      setDraftErrorMessage(errMsg);
+      toast.error("Draft Save Failed", errMsg);
+      setIsSavingDraft(false);
+      return false;
     }
   };
 
@@ -922,6 +939,10 @@ export function useServices() {
     setViewingDraftsCategory,
     resetWizardState,
     saveActiveAsDraft,
+    isSavingDraft,
+    setIsSavingDraft,
+    draftErrorMessage,
+    setDraftErrorMessage,
     loadDraft,
     handleAddGeneralApplicant,
     handleRemoveGeneralApplicant,

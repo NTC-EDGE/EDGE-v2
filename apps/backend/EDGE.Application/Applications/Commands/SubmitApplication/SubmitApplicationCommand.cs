@@ -30,14 +30,14 @@ public record ApplicantSubmissionDto
     public string Email { get; init; } = "";
     public string ContactNumber { get; init; } = "";
     public string Address { get; init; } = "";
-    public DateOnly BirthDate { get; init; }
+    public DateOnly? BirthDate { get; init; }
 
     public List<FormFieldValueSubmissionDto> FormFieldValues { get; init; } = new();
 }
 
 public record FormFieldValueSubmissionDto
 {
-    public Guid FieldId { get; init; }
+    public Guid? FieldId { get; init; }
     public string? FieldLabel { get; init; }
     public string Value { get; init; } = "";
 }

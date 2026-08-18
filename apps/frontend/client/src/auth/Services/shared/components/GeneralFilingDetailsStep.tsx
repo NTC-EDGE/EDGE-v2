@@ -12,7 +12,9 @@ import { getApplicantDisplayName } from "../helpers/applicantDisplayHelper";
 interface GeneralFilingDetailsStepProps {
   service: NTCService;
   activeApplicant: GeneralApplicantData;
-  updateActiveApplicant: (fields: Partial<GeneralApplicantData>) => void;
+  updateActiveApplicant: (
+    fields: Partial<GeneralApplicantData> | ((prevApp: GeneralApplicantData) => Partial<GeneralApplicantData>)
+  ) => void;
   appMode?: "SINGLE" | "BULK";
   applicants?: GeneralApplicantData[];
   currentApplicantIndex?: number;
@@ -104,18 +106,30 @@ export function GeneralFilingDetailsStep({
         }
         // Personal / contact details prefill from activeApplicant
         if ((labelLower.includes("full name") || labelLower.includes("applicant name") || labelLower === "name") && !existingVal) {
-          const combined = [activeApplicant.firstName, activeApplicant.lastName].filter(Boolean).join(" ");
+          const combined = [activeApplicant.firstName, activeApplicant.middleName, activeApplicant.lastName, activeApplicant.suffix].filter(Boolean).join(" ");
           if (combined) {
             updatedValues.push({ fieldId, fieldLabel: field.label, value: combined });
             hasChanges = true;
           }
         }
-        if (labelLower.includes("first name") && !existingVal && activeApplicant.firstName) {
+        if ((labelLower.includes("first name") || labelLower === "fname") && !existingVal && activeApplicant.firstName) {
           updatedValues.push({ fieldId, fieldLabel: field.label, value: activeApplicant.firstName });
           hasChanges = true;
         }
-        if (labelLower.includes("last name") && !existingVal && activeApplicant.lastName) {
+        if ((labelLower.includes("middle name") || labelLower === "mname") && !existingVal && activeApplicant.middleName) {
+          updatedValues.push({ fieldId, fieldLabel: field.label, value: activeApplicant.middleName });
+          hasChanges = true;
+        }
+        if ((labelLower.includes("last name") || labelLower.includes("surname") || labelLower === "lname") && !existingVal && activeApplicant.lastName) {
           updatedValues.push({ fieldId, fieldLabel: field.label, value: activeApplicant.lastName });
+          hasChanges = true;
+        }
+        if ((labelLower.includes("suffix") || labelLower.includes("extension")) && !existingVal && activeApplicant.suffix) {
+          updatedValues.push({ fieldId, fieldLabel: field.label, value: activeApplicant.suffix });
+          hasChanges = true;
+        }
+        if ((labelLower.includes("company name") || labelLower.includes("business name") || labelLower.includes("corporate name")) && !existingVal && activeApplicant.companyName) {
+          updatedValues.push({ fieldId, fieldLabel: field.label, value: activeApplicant.companyName });
           hasChanges = true;
         }
         if (labelLower.includes("email") && !existingVal && activeApplicant.email) {
@@ -124,6 +138,39 @@ export function GeneralFilingDetailsStep({
         }
         if ((labelLower.includes("contact number") || labelLower.includes("contact no") || labelLower.includes("mobile") || labelLower.includes("phone")) && !existingVal && activeApplicant.contactNo) {
           updatedValues.push({ fieldId, fieldLabel: field.label, value: activeApplicant.contactNo });
+          hasChanges = true;
+        }
+        if ((labelLower.includes("birth") || labelLower.includes("dob") || labelLower === "date of birth") && !existingVal && activeApplicant.birthYear && activeApplicant.birthYear !== "2000") {
+          const dobFormatted = `${activeApplicant.birthYear}-${activeApplicant.birthMonth}-${activeApplicant.birthDay}`;
+          updatedValues.push({ fieldId, fieldLabel: field.label, value: dobFormatted });
+          hasChanges = true;
+        }
+        if ((labelLower === "sex" || labelLower === "gender") && !existingVal && activeApplicant.sex) {
+          updatedValues.push({ fieldId, fieldLabel: field.label, value: activeApplicant.sex });
+          hasChanges = true;
+        }
+        if ((labelLower === "nationality" || labelLower.includes("citizenship")) && !existingVal && activeApplicant.nationality) {
+          updatedValues.push({ fieldId, fieldLabel: field.label, value: activeApplicant.nationality });
+          hasChanges = true;
+        }
+        if ((labelLower.includes("zip") || labelLower.includes("postal")) && !existingVal && activeApplicant.zipCode) {
+          updatedValues.push({ fieldId, fieldLabel: field.label, value: activeApplicant.zipCode });
+          hasChanges = true;
+        }
+        if (labelLower === "region" && !existingVal && activeApplicant.region) {
+          updatedValues.push({ fieldId, fieldLabel: field.label, value: activeApplicant.region });
+          hasChanges = true;
+        }
+        if (labelLower === "province" && !existingVal && activeApplicant.province) {
+          updatedValues.push({ fieldId, fieldLabel: field.label, value: activeApplicant.province });
+          hasChanges = true;
+        }
+        if ((labelLower === "city" || labelLower.includes("city / municipality") || labelLower.includes("municipality")) && !existingVal && activeApplicant.city) {
+          updatedValues.push({ fieldId, fieldLabel: field.label, value: activeApplicant.city });
+          hasChanges = true;
+        }
+        if (labelLower === "barangay" && !existingVal && activeApplicant.barangay) {
+          updatedValues.push({ fieldId, fieldLabel: field.label, value: activeApplicant.barangay });
           hasChanges = true;
         }
         if ((labelLower.includes("address") || labelLower.includes("street")) && !existingVal && activeApplicant.address) {
@@ -144,6 +191,18 @@ export function GeneralFilingDetailsStep({
     activeApplicant.selectedVariantId,
     activeApplicant.selectedElementId,
     activeApplicant.selectedElementTitle,
+    activeApplicant.firstName,
+    activeApplicant.middleName,
+    activeApplicant.lastName,
+    activeApplicant.suffix,
+    activeApplicant.email,
+    activeApplicant.contactNo,
+    activeApplicant.address,
+    activeApplicant.region,
+    activeApplicant.province,
+    activeApplicant.city,
+    activeApplicant.barangay,
+    activeApplicant.companyName,
     variants,
     variantElements,
   ]);
@@ -252,50 +311,65 @@ export function GeneralFilingDetailsStep({
     const valuesRecord: Record<string, string> = {};
     if (activeApplicant.formFieldValues) {
       activeApplicant.formFieldValues.forEach((fv) => {
-        valuesRecord[fv.fieldId] = fv.value;
+        if (fv.fieldId) valuesRecord[fv.fieldId] = fv.value;
+        if (fv.fieldLabel) valuesRecord[fv.fieldLabel] = fv.value;
       });
     }
+    if (activeApplicant.region && !valuesRecord["region"]) valuesRecord["region"] = activeApplicant.region;
+    if (activeApplicant.province && !valuesRecord["province"]) valuesRecord["province"] = activeApplicant.province;
+    if (activeApplicant.city && !valuesRecord["city"]) valuesRecord["city"] = activeApplicant.city;
+    if (activeApplicant.barangay && !valuesRecord["barangay"]) valuesRecord["barangay"] = activeApplicant.barangay;
 
     const handleDynamicFieldChange = (fieldId: string, fieldLabel: string, value: string) => {
-      const currentArr = activeApplicant.formFieldValues || [];
-      const filtered = currentArr.filter((item) => item.fieldId !== fieldId);
-      const updatedArr = [...filtered, { fieldId, fieldLabel, value }];
-      
-      const partial: Partial<GeneralApplicantData> = { formFieldValues: updatedArr };
-      const normalized = (fieldLabel || "").toLowerCase().trim();
+      updateActiveApplicant((prevApp) => {
+        const currentArr = prevApp.formFieldValues || [];
+        const filtered = currentArr.filter((item) => item.fieldId !== fieldId);
+        const updatedArr = [...filtered, { fieldId, fieldLabel, value }];
+        
+        const partial: Partial<GeneralApplicantData> = { formFieldValues: updatedArr };
+        const normalized = (fieldLabel || "").toLowerCase().trim();
 
-      if (normalized.includes("first name") || normalized === "fname" || normalized === "first") {
-        partial.firstName = value;
-      } else if (normalized.includes("last name") || normalized.includes("surname") || normalized === "lname" || normalized === "last") {
-        partial.lastName = value;
-      } else if (normalized.includes("full name") || normalized.includes("applicant name") || normalized === "name") {
-        const parts = value.trim().split(/\s+/);
-        if (parts.length > 1) {
-          partial.firstName = parts[0];
-          partial.lastName = parts.slice(1).join(" ");
-        } else {
+        if (normalized.includes("first name") || normalized === "fname" || normalized === "first") {
+          partial.firstName = value;
+        } else if (normalized.includes("last name") || normalized.includes("surname") || normalized === "lname" || normalized === "last") {
+          partial.lastName = value;
+        } else if (normalized.includes("full name") || normalized.includes("applicant name") || normalized === "name") {
+          const parts = value.trim().split(/\s+/);
+          if (parts.length > 1) {
+            partial.firstName = parts[0];
+            partial.lastName = parts.slice(1).join(" ");
+          } else {
+            partial.firstName = value;
+            partial.lastName = "";
+          }
+        } else if (normalized.includes("company name") || normalized.includes("corporate name") || normalized === "business name") {
           partial.firstName = value;
           partial.lastName = "";
+        } else if (normalized.includes("contact number") || normalized.includes("mobile") || normalized.includes("phone")) {
+          partial.contactNo = value;
+        } else if (normalized.includes("email")) {
+          partial.email = value;
+        } else if (normalized.includes("address") || normalized.includes("street")) {
+          partial.address = value;
+        } else if (normalized === "region") {
+          partial.region = value;
+        } else if (normalized === "province") {
+          partial.province = value;
+        } else if (normalized === "city" || normalized.includes("municipality")) {
+          partial.city = value;
+        } else if (normalized === "barangay") {
+          partial.barangay = value;
+        } else if (normalized.includes("birth") || normalized.includes("dob") || normalized.includes("date of birth")) {
+          const dateParts = value.split("-");
+          if (dateParts.length === 3) {
+            partial.birthYear = dateParts[0];
+            partial.birthMonth = dateParts[1];
+            partial.birthDay = dateParts[2];
+          }
         }
-      } else if (normalized.includes("company name") || normalized.includes("corporate name") || normalized === "business name") {
-        partial.firstName = value;
-        partial.lastName = "";
-      } else if (normalized.includes("contact number") || normalized.includes("mobile") || normalized.includes("phone")) {
-        partial.contactNo = value;
-      } else if (normalized.includes("email")) {
-        partial.email = value;
-      } else if (normalized.includes("address") || normalized.includes("street")) {
-        partial.address = value;
-      } else if (normalized.includes("birth") || normalized.includes("dob") || normalized.includes("date of birth")) {
-        const dateParts = value.split("-");
-        if (dateParts.length === 3) {
-          partial.birthYear = dateParts[0];
-          partial.birthMonth = dateParts[1];
-          partial.birthDay = dateParts[2];
-        }
-      }
 
-      updateActiveApplicant(partial);
+        return partial;
+      });
     };
 
     const structuredNameData: Partial<StructuredNameData> = {

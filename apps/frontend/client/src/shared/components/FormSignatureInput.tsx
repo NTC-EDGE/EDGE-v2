@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Platform,
 } from "react-native";
+import { useUser } from "@clerk/expo";
 import { COLORS, TYPOGRAPHY, Icon } from "@edge/ui";
 
 interface FormSignatureInputProps {
@@ -27,9 +28,59 @@ export function FormSignatureInput({
   error,
   applicantName = "",
 }: FormSignatureInputProps) {
+  const { user: clerkUser } = useUser();
   const [activeTab, setActiveTab] = useState<"draw" | "type" | "upload">("draw");
-  const [typedName, setTypedName] = useState(applicantName || "");
+  const [typedName, setTypedName] = useState(applicantName || clerkUser?.fullName || "");
   const [hasDrawnStrokes, setHasDrawnStrokes] = useState(false);
+
+  // Helper to retrieve saved signature from Clerk metadata or local storage
+  const getSavedSignature = useCallback((): string => {
+    try {
+      const userMeta = clerkUser?.unsafeMetadata as Record<string, unknown> | undefined;
+      if (userMeta?.eSignature && typeof userMeta.eSignature === "string" && userMeta.eSignature.trim().length > 0) {
+        return userMeta.eSignature;
+      }
+      if (userMeta?.signature && typeof userMeta.signature === "string" && userMeta.signature.trim().length > 0) {
+        return userMeta.signature;
+      }
+      const publicMeta = clerkUser?.publicMetadata as Record<string, unknown> | undefined;
+      if (publicMeta?.eSignature && typeof publicMeta.eSignature === "string" && publicMeta.eSignature.trim().length > 0) {
+        return publicMeta.eSignature;
+      }
+      if (publicMeta?.signature && typeof publicMeta.signature === "string" && publicMeta.signature.trim().length > 0) {
+        return publicMeta.signature;
+      }
+      if (Platform.OS === "web" && typeof window !== "undefined" && window.localStorage) {
+        const localSig = window.localStorage.getItem("ntc_user_saved_signature") || window.localStorage.getItem("user_e_signature");
+        if (localSig && localSig.trim().length > 0) {
+          return localSig;
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return "";
+  }, [clerkUser]);
+
+  const savedSignature = getSavedSignature();
+
+  // Auto-populate default saved signature if value is currently empty
+  useEffect(() => {
+    if (!value || value.trim().length === 0) {
+      if (savedSignature) {
+        onChange(savedSignature);
+      }
+    }
+  }, [savedSignature, value, onChange]);
+
+  // Sync typed name when applicantName or clerkUser updates
+  useEffect(() => {
+    if (applicantName) {
+      setTypedName(applicantName);
+    } else if (clerkUser?.fullName) {
+      setTypedName(clerkUser.fullName);
+    }
+  }, [applicantName, clerkUser?.fullName]);
 
   // Web Canvas Ref
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -130,16 +181,37 @@ export function FormSignatureInput({
     }
   };
 
+  const persistSavedSignature = async (sigDataUrl: string) => {
+    if (!sigDataUrl || !sigDataUrl.trim()) return;
+    try {
+      if (Platform.OS === "web" && typeof window !== "undefined" && window.localStorage) {
+        window.localStorage.setItem("ntc_user_saved_signature", sigDataUrl);
+      }
+      if (clerkUser) {
+        await clerkUser.update({
+          unsafeMetadata: {
+            ...((clerkUser.unsafeMetadata as Record<string, unknown>) || {}),
+            eSignature: sigDataUrl,
+          },
+        });
+      }
+    } catch (err) {
+      console.warn("Could not persist saved signature:", err);
+    }
+  };
+
   const handleApplyDrawnSignature = () => {
     if (!canvasRef.current) return;
     const dataUrl = canvasRef.current.toDataURL("image/png");
     onChange(dataUrl);
+    persistSavedSignature(dataUrl);
   };
 
   const handleApplyTypedSignature = () => {
     if (!typedName.trim()) return;
     const signatureToken = `typed:cursive:${typedName.trim()}`;
     onChange(signatureToken);
+    persistSavedSignature(signatureToken);
   };
 
   const triggerNativeOrWebUpload = () => {
@@ -154,12 +226,19 @@ export function FormSignatureInput({
           reader.onload = () => {
             if (typeof reader.result === "string") {
               onChange(reader.result);
+              persistSavedSignature(reader.result);
             }
           };
           reader.readAsDataURL(file);
         }
       };
       input.click();
+    }
+  };
+
+  const handleApplySavedSignature = () => {
+    if (savedSignature) {
+      onChange(savedSignature);
     }
   };
 
@@ -283,6 +362,22 @@ export function FormSignatureInput({
                 Upload Image
               </Text>
             </TouchableOpacity>
+
+            {Boolean(savedSignature) && (
+              <TouchableOpacity
+                onPress={handleApplySavedSignature}
+                style={[
+                  styles.tabButton,
+                  { backgroundColor: "#EFF6FF", borderColor: "#BFDBFE", borderWidth: 1 },
+                ]}
+                activeOpacity={0.7}
+              >
+                <Icon name="bookmark" size={14} color="#2563EB" />
+                <Text style={[styles.tabText, { color: "#2563EB", fontWeight: "700" }]}>
+                  Use Saved
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Mode 1: Draw Signature via Touch Pad */}
