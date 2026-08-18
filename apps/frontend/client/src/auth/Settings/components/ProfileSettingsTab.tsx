@@ -44,6 +44,23 @@ export function ProfileSettingsTab({
     profile.address.municipalityId
   );
 
+  const effectiveRegionId =
+    profile.address.regionId ||
+    regions.find((r) => r.name.toLowerCase() === (profile.address.region || "").toLowerCase())?.id ||
+    "";
+  const effectiveProvinceId =
+    profile.address.provinceId ||
+    provinces.find((p) => p.name.toLowerCase() === (profile.address.province || "").toLowerCase())?.id ||
+    "";
+  const effectiveMunicipalityId =
+    profile.address.municipalityId ||
+    municipalities.find((m) => m.name.toLowerCase() === (profile.address.city || "").toLowerCase())?.id ||
+    "";
+  const effectiveBarangayId =
+    profile.address.barangayId ||
+    barangays.find((b) => b.name.toLowerCase() === (profile.address.barangay || "").toLowerCase())?.id ||
+    "";
+
   return (
     <View style={styles.container}>
       {/* ── 1. Personal & Biographical Information Card ─────────── */}
@@ -270,7 +287,7 @@ export function ProfileSettingsTab({
             <Select
               label=""
               placeholder={loadingRegions ? "Loading regions..." : "Select Region..."}
-              value={profile.address.regionId || ""}
+              value={effectiveRegionId}
               onValueChange={(val) => {
                 const selected = regions.find((r) => r.id === val);
                 onUpdateAddress({
@@ -299,11 +316,11 @@ export function ProfileSettingsTab({
               placeholder={
                 loadingProvinces
                   ? "Loading provinces..."
-                  : !profile.address.regionId
+                  : !effectiveRegionId
                   ? "Select Region first..."
                   : "Select Province..."
               }
-              value={profile.address.provinceId || ""}
+              value={effectiveProvinceId}
               onValueChange={(val) => {
                 const selected = provinces.find((p) => p.id === val);
                 onUpdateAddress({
@@ -330,11 +347,11 @@ export function ProfileSettingsTab({
               placeholder={
                 loadingMunicipalities
                   ? "Loading cities..."
-                  : !profile.address.provinceId
+                  : !effectiveProvinceId
                   ? "Select Province first..."
                   : "Select City / Municipality..."
               }
-              value={profile.address.municipalityId || ""}
+              value={effectiveMunicipalityId}
               onValueChange={(val) => {
                 const selected = municipalities.find((m) => m.id === val);
                 onUpdateAddress({
@@ -359,11 +376,11 @@ export function ProfileSettingsTab({
               placeholder={
                 loadingBarangays
                   ? "Loading barangays..."
-                  : !profile.address.municipalityId
+                  : !effectiveMunicipalityId
                   ? "Select City first..."
                   : "Select Barangay..."
               }
-              value={profile.address.barangayId || ""}
+              value={effectiveBarangayId}
               onValueChange={(val) => {
                 const selected = barangays.find((b) => b.id === val);
                 onUpdateAddress({

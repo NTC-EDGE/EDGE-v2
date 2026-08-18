@@ -54,17 +54,16 @@ export function useGeographicLocations(selectedRegionId?: string, selectedProvin
     };
   }, []);
 
-  // 2. Fetch Provinces when Region changes
+  // 2. Fetch Provinces (filtered by region if provided, or all)
   useEffect(() => {
     let isMounted = true;
     async function fetchProvinces() {
-      if (!selectedRegionId) {
-        setProvinces([]);
-        return;
-      }
       setLoadingProvinces(true);
       try {
-        const res = await api.get<ApiResponseWrapper<GeographicItem[]> | GeographicItem[]>(`/api/v2/provinces?regionId=${selectedRegionId}&activeOnly=true`).catch(() => null);
+        const url = selectedRegionId
+          ? `/api/v2/provinces?regionId=${selectedRegionId}&activeOnly=true`
+          : `/api/v2/provinces?activeOnly=true`;
+        const res = await api.get<ApiResponseWrapper<GeographicItem[]> | GeographicItem[]>(url).catch(() => null);
         if (!isMounted) return;
 
         let list: GeographicItem[] = [];
@@ -86,17 +85,16 @@ export function useGeographicLocations(selectedRegionId?: string, selectedProvin
     };
   }, [selectedRegionId]);
 
-  // 3. Fetch Municipalities when Province changes
+  // 3. Fetch Municipalities (filtered by province if provided, or all)
   useEffect(() => {
     let isMounted = true;
     async function fetchMunicipalities() {
-      if (!selectedProvinceId) {
-        setMunicipalities([]);
-        return;
-      }
       setLoadingMunicipalities(true);
       try {
-        const res = await api.get<ApiResponseWrapper<GeographicItem[]> | GeographicItem[]>(`/api/v2/municipalities?provinceId=${selectedProvinceId}&activeOnly=true`).catch(() => null);
+        const url = selectedProvinceId
+          ? `/api/v2/municipalities?provinceId=${selectedProvinceId}&activeOnly=true`
+          : `/api/v2/municipalities?activeOnly=true`;
+        const res = await api.get<ApiResponseWrapper<GeographicItem[]> | GeographicItem[]>(url).catch(() => null);
         if (!isMounted) return;
 
         let list: GeographicItem[] = [];
@@ -118,17 +116,19 @@ export function useGeographicLocations(selectedRegionId?: string, selectedProvin
     };
   }, [selectedProvinceId]);
 
-  // 4. Fetch Barangays when Municipality changes
+  // 4. Fetch Barangays (filtered by municipality if provided)
   useEffect(() => {
     let isMounted = true;
     async function fetchBarangays() {
       if (!selectedMunicipalityId) {
         setBarangays([]);
+        setLoadingBarangays(false);
         return;
       }
       setLoadingBarangays(true);
       try {
-        const res = await api.get<ApiResponseWrapper<GeographicItem[]> | GeographicItem[]>(`/api/v2/barangays?municipalityId=${selectedMunicipalityId}&activeOnly=true`).catch(() => null);
+        const url = `/api/v2/barangays?municipalityId=${selectedMunicipalityId}&activeOnly=true`;
+        const res = await api.get<ApiResponseWrapper<GeographicItem[]> | GeographicItem[]>(url).catch(() => null);
         if (!isMounted) return;
 
         let list: GeographicItem[] = [];

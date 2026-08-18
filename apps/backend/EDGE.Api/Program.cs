@@ -43,6 +43,10 @@ try
     builder.Services.ConfigureHttpJsonOptions(options =>
     {
         options.SerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+        options.SerializerOptions.Converters.Add(new EDGE.Application.Common.JsonConverters.FlexibleDateOnlyJsonConverter());
+        options.SerializerOptions.Converters.Add(new EDGE.Application.Common.JsonConverters.FlexibleNullableDateOnlyJsonConverter());
+        options.SerializerOptions.Converters.Add(new EDGE.Application.Common.JsonConverters.FlexibleGuidJsonConverter());
+        options.SerializerOptions.Converters.Add(new EDGE.Application.Common.JsonConverters.FlexibleNullableGuidJsonConverter());
     });
 
     // Configure OpenAPI

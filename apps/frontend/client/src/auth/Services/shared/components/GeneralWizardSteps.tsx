@@ -34,7 +34,9 @@ interface GeneralWizardStepsProps {
   currentApplicantIndex?: number;
   setCurrentApplicantIndex: (idx: number) => void;
   activeApplicant: GeneralApplicantData;
-  updateActiveApplicant: (fields: Partial<GeneralApplicantData>) => void;
+  updateActiveApplicant: (
+    fields: Partial<GeneralApplicantData> | ((prevApp: GeneralApplicantData) => Partial<GeneralApplicantData>)
+  ) => void;
   isWeb: boolean;
   onUploadPress: (req: string, file: { name: string; uri: string }) => void;
   onRemoveUpload: (req: string) => void;
@@ -108,7 +110,7 @@ export function GeneralWizardSteps({
           onAppModeChange={(val) => {
             setAppMode(val);
             if (val === "SINGLE") {
-              setApplicants([initialGeneralApplicant(1)]);
+              setApplicants((prev) => [prev[0] || initialGeneralApplicant(1)]);
               setCurrentApplicantIndex(0);
             }
           }}

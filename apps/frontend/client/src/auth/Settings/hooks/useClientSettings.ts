@@ -226,7 +226,7 @@ export function useClientSettings() {
             firstName: prev.firstName || dbUser.firstName || "",
             lastName: prev.lastName || dbUser.lastName || "",
             middleName: prev.middleName || dbUser.middleName || "",
-            suffix: prev.suffix || dbUser.suffix || "",
+            extensionName: prev.extensionName || dbUser.suffix || "",
             phone: prev.phone || dbUser.contactNumber || "",
             sex: prev.sex || dbUser.sex || "",
             nationality: prev.nationality || dbUser.nationality || "Filipino",

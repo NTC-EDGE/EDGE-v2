@@ -216,11 +216,23 @@ export function ExamSteps1To2({
 
         {/* Scheduled Dates Card */}
         <View style={styles.formSection}>
-          <Text style={styles.formSectionHeading}>Scheduled Exam Dates</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8, flexWrap: "wrap", gap: 6 }}>
+            <Text style={styles.formSectionHeading}>Scheduled Exam Dates*</Text>
+            {selectedScheduleId ? (
+              <View style={{ backgroundColor: "#DCFCE7", borderColor: "#16A34A", borderWidth: 1, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12, flexDirection: "row", alignItems: "center", gap: 4 }}>
+                <Icon name="check" size={12} color="#16A34A" />
+                <Text style={{ fontSize: 11, fontWeight: "700", color: "#16A34A" }}>Schedule Selected</Text>
+              </View>
+            ) : (
+              <Text style={{ fontSize: 11, fontStyle: "italic", color: "#E11D48" }}>* Selection required</Text>
+            )}
+          </View>
           {loadingSchedules ? (
             <Text style={{ marginVertical: 10, color: COLORS.neutral[500] }}>Loading schedules...</Text>
           ) : schedules.length === 0 ? (
-            <Text style={{ marginVertical: 10, color: COLORS.neutral[500] }}>No schedules available for the selected region.</Text>
+            <View style={{ padding: 12, backgroundColor: "#FEF2F2", borderWidth: 1, borderColor: "#FECACA", borderRadius: 8, marginVertical: 8 }}>
+              <Text style={{ color: "#DC2626", fontSize: 13 }}>No available exam schedules found for this region. Please try another region or check back soon.</Text>
+            </View>
           ) : (
             schedules.map((sched, index) => {
               const isSelected = selectedScheduleId === sched.id;
@@ -233,11 +245,22 @@ export function ExamSteps1To2({
                 <TouchableOpacity
                   key={sched.id || index}
                   onPress={() => setSelectedScheduleId(sched.id)}
-                  style={[styles.dateCard, isSelected && styles.dateCardSelected]}
+                  style={[
+                    styles.dateCard,
+                    isSelected && styles.dateCardSelected,
+                    isSelected && { borderColor: "#0F2C59", borderWidth: 2, backgroundColor: "#F0F7FF" }
+                  ]}
                 >
-                  <View style={styles.dateItem}>
-                    <Icon name="calendar" size={16} color={COLORS.brand[600]} />
-                    <Text style={styles.dateText}>DATE: {dateStr}</Text>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                    <View style={styles.dateItem}>
+                      <Icon name="calendar" size={16} color={isSelected ? "#0F2C59" : COLORS.brand[600]} />
+                      <Text style={[styles.dateText, isSelected && { fontWeight: "700", color: "#0F2C59" }]}>DATE: {dateStr}</Text>
+                    </View>
+                    {isSelected && (
+                      <View style={{ backgroundColor: "#0F2C59", borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2 }}>
+                        <Text style={{ color: "#FFFFFF", fontSize: 10, fontWeight: "700" }}>SELECTED</Text>
+                      </View>
+                    )}
                   </View>
                   <View style={styles.dateItem}>
                     <Icon name="clock" size={16} color={COLORS.brand[600]} />

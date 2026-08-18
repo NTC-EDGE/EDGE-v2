@@ -28,6 +28,7 @@ import {
   AmateurPermitData,
   initialAmateurPermitData,
 } from "../../permits";
+import { extractUserProfile } from "../../../../shared/utils/userProfileHelper";
 
 export interface TenantInfo {
   id: string;
@@ -52,7 +53,14 @@ export interface GeneralApplicantData {
   representativeName?: string;
   email: string;
   contactNo: string;
+  sex?: string;
+  nationality?: string;
+  zipCode?: string;
   address: string;
+  region?: string;
+  province?: string;
+  city?: string;
+  barangay?: string;
   birthMonth: string;
   birthDay: string;
   birthYear: string;
@@ -354,27 +362,85 @@ export function useGeneralServiceWizard(
     return () => { active = false; };
   }, [effectiveVariantId, service?.id, service?.requirements]);
 
-  // Pre-fill user profile
+  // Pre-fill user profile for single application
   React.useEffect(() => {
-    if (clerkUser && applicants.length === 1) {
-      const firstApp = applicants[0];
-      if (firstApp && firstApp.firstName === "" && firstApp.lastName === "" && firstApp.email === "") {
+    let active = true;
+    async function loadUserProfileForPrefill() {
+      if (!clerkUser) return;
+
+      // 1. Initial prefill from local storage / Clerk metadata
+      const initialProfile = extractUserProfile(clerkUser, null);
+      setApplicants((prev) =>
+        prev.map((app, idx) => {
+          if (idx !== 0) return app;
+          return {
+            ...app,
+            firstName: app.firstName || initialProfile.firstName,
+            lastName: app.lastName || initialProfile.lastName,
+            middleName: app.middleName || initialProfile.middleName,
+            suffix: app.suffix || initialProfile.suffix,
+            email: app.email || initialProfile.email,
+            contactNo: app.contactNo || initialProfile.phone,
+            sex: app.sex || initialProfile.sex,
+            nationality: app.nationality || initialProfile.nationality,
+            zipCode: app.zipCode || initialProfile.zipCode,
+            address: app.address || initialProfile.formattedAddress || [initialProfile.unit, initialProfile.street].filter(Boolean).join(", "),
+            region: app.region || initialProfile.region,
+            province: app.province || initialProfile.province,
+            city: app.city || initialProfile.city,
+            barangay: app.barangay || initialProfile.barangay,
+            birthYear: app.birthYear && app.birthYear !== "2000" ? app.birthYear : initialProfile.birthYear,
+            birthMonth: app.birthMonth && app.birthMonth !== "January" ? app.birthMonth : initialProfile.birthMonth,
+            birthDay: app.birthDay && app.birthDay !== "1" ? app.birthDay : initialProfile.birthDay,
+            companyName: app.companyName || initialProfile.companyName,
+          };
+        })
+      );
+
+      // 2. Enrich from backend database /api/v2/users/profile
+      try {
+        const dbRes = await api.get<any>("/api/v2/users/profile").catch(() => null);
+        if (!active || !dbRes) return;
+        const dbUser = (dbRes && dbRes.data) ? dbRes.data : dbRes;
+        if (!dbUser) return;
+
+        const enriched = extractUserProfile(clerkUser, dbUser);
         setApplicants((prev) =>
-          prev.map((app, idx) =>
-            idx === 0
-              ? {
-                  ...app,
-                  firstName: clerkUser.firstName || "",
-                  lastName: clerkUser.lastName || "",
-                  email: clerkUser.primaryEmailAddress?.emailAddress || "",
-                  contactNo: clerkUser.primaryPhoneNumber?.phoneNumber || "",
-                }
-              : app
-          )
+          prev.map((app, idx) => {
+            if (idx !== 0) return app;
+            return {
+              ...app,
+              firstName: app.firstName || enriched.firstName,
+              lastName: app.lastName || enriched.lastName,
+              middleName: app.middleName || enriched.middleName,
+              suffix: app.suffix || enriched.suffix,
+              email: app.email || enriched.email,
+              contactNo: app.contactNo || enriched.phone,
+              sex: app.sex || enriched.sex,
+              nationality: app.nationality || enriched.nationality,
+              zipCode: app.zipCode || enriched.zipCode,
+              address: app.address || enriched.formattedAddress || [enriched.unit, enriched.street].filter(Boolean).join(", "),
+              region: app.region || enriched.region,
+              province: app.province || enriched.province,
+              city: app.city || enriched.city,
+              barangay: app.barangay || enriched.barangay,
+              birthYear: app.birthYear && app.birthYear !== "2000" ? app.birthYear : enriched.birthYear,
+              birthMonth: app.birthMonth && app.birthMonth !== "January" ? app.birthMonth : enriched.birthMonth,
+              birthDay: app.birthDay && app.birthDay !== "1" ? app.birthDay : enriched.birthDay,
+              companyName: app.companyName || enriched.companyName,
+            };
+          })
         );
+      } catch (err) {
+        // Fallback gracefully
       }
     }
-  }, [clerkUser, applicants, setApplicants]);
+
+    loadUserProfileForPrefill();
+    return () => {
+      active = false;
+    };
+  }, [clerkUser]);
 
   interface ApiResponseEnvelope<T> {
     succeeded?: boolean;
@@ -447,9 +513,15 @@ export function useGeneralServiceWizard(
     fetchOffices();
   }, [selectedRegionId]);
 
-  const updateActiveApplicant = (fields: Partial<GeneralApplicantData>) => {
+  const updateActiveApplicant = (
+    fields: Partial<GeneralApplicantData> | ((prevApp: GeneralApplicantData) => Partial<GeneralApplicantData>)
+  ) => {
     setApplicants((prev) =>
-      prev.map((app, idx) => (idx === currentApplicantIndex ? { ...app, ...fields } : app))
+      prev.map((app, idx) => {
+        if (idx !== currentApplicantIndex) return app;
+        const resolved = typeof fields === "function" ? fields(app) : fields;
+        return { ...app, ...resolved };
+      })
     );
   };
 

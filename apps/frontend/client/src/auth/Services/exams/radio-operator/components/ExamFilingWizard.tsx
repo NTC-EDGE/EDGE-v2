@@ -130,11 +130,14 @@ export function ExamFilingWizard(props: ExamFilingWizardProps) {
   const handleNext = () => {
     if (props.step === 1) {
       if (!props.selectedRegionId || !props.selectedOfficeId || !props.appMode) {
-        Alert.alert("Error", "Please complete Region, Office and Application Mode.");
+        Alert.alert("Validation Error", "Please select a Region, Processing Office, and Application Mode.");
         return;
       }
-      if (props.appMode === "SINGLE" && !selectedScheduleId) {
-        Alert.alert("Error", "Please select an exam schedule date.");
+      if (!selectedScheduleId) {
+        Alert.alert(
+          "Exam Schedule Required",
+          "Please select an Exam Schedule date before you can proceed with the application."
+        );
         return;
       }
       props.setStep(props.appMode === "SINGLE" ? 3 : 2);

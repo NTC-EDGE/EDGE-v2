@@ -416,11 +416,21 @@ export function GeneralReviewSubmitStep({
     "Main Processing Office";
 
   const selectedVariant = variants.find((v) => v.id === activeApplicant.selectedVariantId);
+  const variantDesc = selectedVariant?.description?.trim() || selectedVariant?.name?.trim() || "";
+  const variantType =
+    selectedVariant?.type &&
+    typeof selectedVariant.type === "string" &&
+    selectedVariant.type.toUpperCase() !== "NA" &&
+    selectedVariant.type.toUpperCase() !== "N/A"
+      ? selectedVariant.type.toUpperCase()
+      : "";
+
   const variantLabel =
-    selectedVariant?.name ||
-    selectedVariant?.description ||
-    activeApplicant.selectedVariantId ||
-    "Standard";
+    variantDesc.length > 0 && variantType.length > 0
+      ? variantDesc.toUpperCase().includes(`(${variantType})`)
+        ? variantDesc
+        : `${variantDesc} (${variantType})`
+      : variantDesc || activeApplicant.selectedVariantId || "Standard";
 
   const appModeLabel =
     appMode === "SINGLE" ? "Single Applicant" : appMode === "BULK" ? "Bulk / Group Filing" : "—";

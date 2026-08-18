@@ -165,17 +165,30 @@ export function GeneralFilingModeStep({
        .replace(/\bN\/?A\b/gi, "")
        .trim();
 
+    const desc = v.description && typeof v.description === "string" ? v.description.trim() : "";
+    const typeStr =
+      v.type &&
+      typeof v.type === "string" &&
+      v.type.toUpperCase() !== "NA" &&
+      v.type.toUpperCase() !== "N/A"
+        ? safeUpper(v.type)
+        : "";
+
     let rawLabel = "";
-    if (v.name && typeof v.name === "string" && v.name.trim().length > 0) {
+    if (desc.length > 0 && typeStr.length > 0) {
+      if (desc.toUpperCase().includes(`(${typeStr})`)) {
+        rawLabel = desc;
+      } else {
+        rawLabel = `${desc} (${typeStr})`;
+      }
+    } else if (desc.length > 0) {
+      rawLabel = desc;
+    } else if (typeStr.length > 0) {
+      rawLabel = `${service?.title || "Application"} (${typeStr})`;
+    } else if (v.name && typeof v.name === "string" && v.name.trim().length > 0) {
       rawLabel = v.name;
-    } else if (v.description && typeof v.description === "string" && v.description.includes("(")) {
-      rawLabel = v.description;
-    } else if (v.serviceName && v.type && v.type.toUpperCase() !== "NA" && v.type.toUpperCase() !== "N/A") {
-      rawLabel = `${v.serviceName} (${safeUpper(v.type)})`;
-    } else if (v.type && v.type.toUpperCase() !== "NA" && v.type.toUpperCase() !== "N/A") {
-      rawLabel = `${service?.title || "Application"} (${safeUpper(v.type)})`;
     } else {
-      rawLabel = v.description || service?.title || "Application Variant";
+      rawLabel = service?.title || "Application Variant";
     }
 
     return cleanStr(rawLabel);
@@ -330,7 +343,7 @@ export function GeneralFilingModeStep({
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 }}>
               <Icon name="check-circle" size={15} color="#0F2C59" />
               <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: "#0F2C59" }}>
-                Selected Concern: {activeVariant.name || activeVariant.description || "Variant Selected"}
+                Selected Concern: {formatVariantLabel(activeVariant)}
               </Text>
             </View>
             {activeVariant.description && (

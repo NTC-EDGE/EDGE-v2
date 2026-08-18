@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useUser } from "@clerk/expo";
 import { useApi } from "../../../../../shared/hooks/useApi";
 import { ExamApplicantData, ScheduleItem } from "../types/examTypes";
+import { extractUserProfile } from "../../../../../shared/utils/userProfileHelper";
 
 interface UseExamFilingQueriesProps {
   serviceId?: string | null;
@@ -41,26 +42,91 @@ export function useExamFilingQueries({
   const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
   const [loadingSchedules, setLoadingSchedules] = useState(false);
 
-  // Clerk auto-fill
+  // Comprehensive Profile auto-fill
   React.useEffect(() => {
-    if (clerkUser && applicants.length === 1) {
-      const firstApp = applicants[0];
-      if (firstApp && firstApp.firstName === "" && firstApp.lastName === "" && firstApp.email === "") {
-        const firstName = clerkUser.firstName || "";
-        const lastName = clerkUser.lastName || "";
-        const email = clerkUser.primaryEmailAddress?.emailAddress || "";
-        const phone = clerkUser.primaryPhoneNumber?.phoneNumber || "";
+    let active = true;
+    async function prefillExamApplicant() {
+      if (!clerkUser || applicants.length !== 1) return;
 
-        setApplicants(prev => prev.map((app, idx) => idx === 0 ? {
-          ...app,
-          firstName,
-          lastName,
-          email,
-          contactNo: phone,
-        } : app));
+      // 1. Initial prefill from local storage / Clerk metadata
+      const initialProfile = extractUserProfile(clerkUser, null);
+      setApplicants((prev) =>
+        prev.map((app, idx) =>
+          idx === 0
+            ? {
+                ...app,
+                firstName: app.firstName || initialProfile.firstName,
+                lastName: app.lastName || initialProfile.lastName,
+                middleName: app.middleName || initialProfile.middleName,
+                suffix: app.suffix || initialProfile.suffix,
+                email: app.email || initialProfile.email,
+                contactNo: app.contactNo || initialProfile.phone,
+                sex: app.sex && app.sex !== "Male" ? app.sex : (initialProfile.sex || "Male"),
+                nationality: app.nationality || initialProfile.nationality || "Filipino",
+                schoolName: app.schoolName || initialProfile.schoolAttended,
+                courseDegree: app.courseDegree || initialProfile.courseTaken,
+                yearGraduated: app.yearGraduated || initialProfile.yearGraduated,
+                street: app.street || initialProfile.street,
+                barangay: app.barangay || initialProfile.barangay,
+                city: app.city || initialProfile.city,
+                province: app.province || initialProfile.province,
+                regionName: app.regionName || initialProfile.region,
+                zipCode: app.zipCode || initialProfile.zipCode,
+                birthYear: app.birthYear && app.birthYear !== "2000" ? app.birthYear : initialProfile.birthYear,
+                birthMonth: app.birthMonth && app.birthMonth !== "January" ? app.birthMonth : initialProfile.birthMonth,
+                birthDay: app.birthDay && app.birthDay !== "1" ? app.birthDay : initialProfile.birthDay,
+              }
+            : app
+        )
+      );
+
+      // 2. Enrich from backend database /api/v2/users/profile
+      try {
+        const dbRes = await api.get<any>("/api/v2/users/profile").catch(() => null);
+        if (!active || !dbRes) return;
+        const dbUser = dbRes.data || dbRes;
+        if (!dbUser) return;
+
+        const enriched = extractUserProfile(clerkUser, dbUser);
+        setApplicants((prev) =>
+          prev.map((app, idx) =>
+            idx === 0
+              ? {
+                  ...app,
+                  firstName: app.firstName || enriched.firstName,
+                  lastName: app.lastName || enriched.lastName,
+                  middleName: app.middleName || enriched.middleName,
+                  suffix: app.suffix || enriched.suffix,
+                  email: app.email || enriched.email,
+                  contactNo: app.contactNo || enriched.phone,
+                  sex: app.sex && app.sex !== "Male" ? app.sex : (enriched.sex || "Male"),
+                  nationality: app.nationality || enriched.nationality || "Filipino",
+                  schoolName: app.schoolName || enriched.schoolAttended,
+                  courseDegree: app.courseDegree || enriched.courseTaken,
+                  yearGraduated: app.yearGraduated || enriched.yearGraduated,
+                  street: app.street || enriched.street,
+                  barangay: app.barangay || enriched.barangay,
+                  city: app.city || enriched.city,
+                  province: app.province || enriched.province,
+                  regionName: app.regionName || enriched.region,
+                  zipCode: app.zipCode || enriched.zipCode,
+                  birthYear: app.birthYear && app.birthYear !== "2000" ? app.birthYear : enriched.birthYear,
+                  birthMonth: app.birthMonth && app.birthMonth !== "January" ? app.birthMonth : enriched.birthMonth,
+                  birthDay: app.birthDay && app.birthDay !== "1" ? app.birthDay : enriched.birthDay,
+                }
+              : app
+          )
+        );
+      } catch (err) {
+        // Fallback
       }
     }
-  }, [clerkUser, applicants, setApplicants]);
+
+    prefillExamApplicant();
+    return () => {
+      active = false;
+    };
+  }, [clerkUser]);
 
   // Fetch tenants
   React.useEffect(() => {

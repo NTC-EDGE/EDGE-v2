@@ -5,6 +5,7 @@ import { useApi } from "../../../../../shared/hooks/useApi";
 import { extractApiErrorMessage } from "../../../../../shared/components/Toast";
 import { NTCOffice } from "../data/mockRegionData";
 import { ApplicantData } from "../types/cpeTypes";
+import { extractUserProfile } from "../../../../../shared/utils/userProfileHelper";
 
 interface UseCPEAccreditationWizardProps {
   selectedRegionId: string;
@@ -65,22 +66,71 @@ export function useCPEAccreditationWizard({
   // Form fields schema mapping
   const [formFields, setFormFields] = useState<any[]>([]);
 
-  // Auto-fill applicant with Clerk user details
+  // Auto-fill applicant with Clerk user and database profile details
   React.useEffect(() => {
-    if (clerkUser && applicants.length === 1) {
-      const firstApp = applicants[0];
-      if (firstApp && firstApp.email === "" && firstApp.contactNo === "") {
-        const email = clerkUser.primaryEmailAddress?.emailAddress || "";
-        const phone = clerkUser.primaryPhoneNumber?.phoneNumber || "";
+    let active = true;
+    async function prefillCPEApplicant() {
+      if (!clerkUser || applicants.length !== 1) return;
 
-        setApplicants((prev) => prev.map((app, idx) => idx === 0 ? {
-          ...app,
-          email,
-          contactNo: phone,
-        } : app));
+      // 1. Initial prefill from local storage / Clerk metadata
+      const initialProfile = extractUserProfile(clerkUser, null);
+      setApplicants((prev) =>
+        prev.map((app, idx) =>
+          idx === 0
+            ? {
+                ...app,
+                businessName: app.businessName || initialProfile.companyName || initialProfile.fullName,
+                email: app.email || initialProfile.email,
+                contactNo: app.contactNo || initialProfile.phone,
+                unitBldgNo: app.unitBldgNo || initialProfile.unit,
+                street: app.street || initialProfile.street,
+                barangay: app.barangay || initialProfile.barangay,
+                city: app.city || initialProfile.city,
+                province: app.province || initialProfile.province,
+                regionName: app.regionName || initialProfile.region,
+                zipCode: app.zipCode || initialProfile.zipCode,
+              }
+            : app
+        )
+      );
+
+      // 2. Enrich from backend database /api/v2/users/profile
+      try {
+        const dbRes = await api.get<any>("/api/v2/users/profile").catch(() => null);
+        if (!active || !dbRes) return;
+        const dbUser = dbRes.data || dbRes;
+        if (!dbUser) return;
+
+        const enriched = extractUserProfile(clerkUser, dbUser);
+        setApplicants((prev) =>
+          prev.map((app, idx) =>
+            idx === 0
+              ? {
+                  ...app,
+                  businessName: app.businessName || enriched.companyName || enriched.fullName,
+                  email: app.email || enriched.email,
+                  contactNo: app.contactNo || enriched.phone,
+                  unitBldgNo: app.unitBldgNo || enriched.unit,
+                  street: app.street || enriched.street,
+                  barangay: app.barangay || enriched.barangay,
+                  city: app.city || enriched.city,
+                  province: app.province || enriched.province,
+                  regionName: app.regionName || enriched.region,
+                  zipCode: app.zipCode || enriched.zipCode,
+                }
+              : app
+          )
+        );
+      } catch (err) {
+        // Soft fallback
       }
     }
-  }, [clerkUser, applicants, setApplicants]);
+
+    prefillCPEApplicant();
+    return () => {
+      active = false;
+    };
+  }, [clerkUser]);
 
   const [tenants, setTenants] = useState<Array<{ id: string; name: string }>>([]);
   const [loadingTenants, setLoadingTenants] = useState(false);

@@ -111,13 +111,16 @@ public class AddApplicantToApplicationCommandHandler : IRequestHandler<AddApplic
 
                 foreach (var fv in request.FormFieldValues)
                 {
-                    await _applicationRepository.AddFormFieldValueAsync(new FormFieldValue
+                    if (fv.FieldId.HasValue && fv.FieldId.Value != Guid.Empty)
                     {
-                        Id = Guid.NewGuid(),
-                        FormSubmissionId = submission.Id,
-                        FieldId = fv.FieldId,
-                        Value = fv.Value
-                    }, cancellationToken);
+                        await _applicationRepository.AddFormFieldValueAsync(new FormFieldValue
+                        {
+                            Id = Guid.NewGuid(),
+                            FormSubmissionId = submission.Id,
+                            FieldId = fv.FieldId.Value,
+                            Value = fv.Value ?? ""
+                        }, cancellationToken);
+                    }
                 }
             }
         }

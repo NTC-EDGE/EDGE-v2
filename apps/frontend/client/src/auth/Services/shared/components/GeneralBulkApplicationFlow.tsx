@@ -64,12 +64,15 @@ export function GeneralBulkApplicationFlow({
 
   const activeApplicant = applicants[currentApplicantIndex] || applicants[0];
 
-  const updateActiveApplicant = (fields: Partial<GeneralApplicantData>) => {
+  const updateActiveApplicant = (
+    fields: Partial<GeneralApplicantData> | ((prevApp: GeneralApplicantData) => Partial<GeneralApplicantData>)
+  ) => {
     setApplicants((prev) => {
       const updated = [...prev];
       const current = updated[currentApplicantIndex];
       if (current) {
-        updated[currentApplicantIndex] = { ...current, ...fields };
+        const resolved = typeof fields === "function" ? fields(current) : fields;
+        updated[currentApplicantIndex] = { ...current, ...resolved };
       }
       return updated;
     });

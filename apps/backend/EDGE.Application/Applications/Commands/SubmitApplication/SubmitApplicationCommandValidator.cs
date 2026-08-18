@@ -12,6 +12,7 @@ public class SubmitApplicationCommandValidator : AbstractValidator<SubmitApplica
 
         RuleFor(x => x.ServiceId)
             .NotEmpty()
+            .When(x => !x.IsDraft)
             .WithMessage("Service ID is required.");
 
         RuleFor(x => x.SubmissionMode)
@@ -69,6 +70,7 @@ public class SubmitApplicationCommandValidator : AbstractValidator<SubmitApplica
 
         RuleForEach(x => x.ServiceVariantElementIds)
             .NotEmpty()
+            .When(x => !x.IsDraft)
             .WithMessage("Service Variant Element ID cannot be empty.");
     }
 }
