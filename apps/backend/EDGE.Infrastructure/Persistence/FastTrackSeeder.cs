@@ -306,11 +306,12 @@ public static class FastTrackSeeder
 
         await SeedFormForService("NTC_1_02", Guid.Parse("f0200000-0000-0000-0000-000000000001"), Guid.Parse("f02a0000-0000-0000-0000-000000000000"), new()
         {
-            ("applicantPerson", "Personal Information", new() { "fullName", "birthDate", "sex", "nationality", "weight_kg", "height_cm", "employmentStatus", "employmentLocation" }),
+            ("applicantPerson", "Personal Information", new() { "fullName", "birthDate", "sex", "nationality", "weight_kg", "height_cm" }),
             ("applicantAddress", "Address Information", new() { "region", "province", "city", "barangay", "street", "zipCode" }),
+            ("employmentStatus", "Employment Status", new() { "employmentStatus", "employmentType" }),
             ("applicantContact", "Contact Information", new() { "contactNo", "email" }),
             ("typeOfCertificate", "Type of Certificate", new() { "typeOfCertificate" }),
-            ("examSeminarDetails", "Exam / Seminar Details", new() { "examSeminarDetails" }),
+            ("examSeminarDetails", "Exam / Seminar Details", new() { "examSeminarAddress", "examSeminarDate", "examSeminarRating" }),
             ("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
             ("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
         });
@@ -319,11 +320,12 @@ public static class FastTrackSeeder
         {
             ("applicantPerson", "Personal Information", new() { "fullName", "birthDate", "sex", "nationality" }),
             ("applicantAddress", "Address Information", new() { "region", "province", "city", "barangay", "street", "zipCode" }),
+            ("employmentStatus", "Employment Status", new() { "employmentStatus", "employmentType" }),
             ("applicantContact", "Contact Information", new() { "contactNo", "email" }),
             ("permitType", "Permit / License Type", new() { "permitType" }),
             ("classOfStation", "Class of Station", new() { "classOfStation" }),
             ("club", "Club Details", new() { "clubDetails" }),
-            ("examination", "Examination History", new() { "examSeminarDetails" }),
+            ("examSeminarDetails", "Exam / Seminar Details", new() { "examSeminarAddress", "examSeminarDate", "examSeminarRating" }),
             ("equipment", "Equipment Details", new() { "equipmentDetails" }),
             ("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
             ("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
