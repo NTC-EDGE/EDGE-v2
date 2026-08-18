@@ -35,6 +35,11 @@ public class GetAllTenantsQueryHandler : IRequestHandler<GetAllTenantsQuery, Pag
             );
         }
 
+        if (request.IsActive.HasValue)
+        {
+            queryable = queryable.Where(t => t.IsActive == request.IsActive.Value);
+        }
+
         var totalCount = queryable.Count();
         var pageNumber = request.PageNumber <= 0 ? 1 : request.PageNumber;
         var pageSize = request.PageSize <= 0 ? 10 : request.PageSize;

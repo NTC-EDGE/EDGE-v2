@@ -95,7 +95,7 @@ export function useCPEAccreditationWizard({
     async function fetchTenants() {
       setLoadingTenants(true);
       try {
-        const res = await api.get<ApiResponseEnvelope<Array<{ id: string; name: string }>> | Array<{ id: string; name: string }>>("/api/v2/tenants?pageSize=100");
+        const res = await api.get<ApiResponseEnvelope<Array<{ id: string; name: string }>> | Array<{ id: string; name: string }>>("/api/v2/tenants?pageSize=100&isActive=true");
         let list: Array<{ id: string; name: string }> = [];
         if (res && !Array.isArray(res) && res.succeeded && Array.isArray(res.data)) {
           list = res.data;
@@ -138,18 +138,19 @@ export function useCPEAccreditationWizard({
       }
       setLoadingOffices(true);
       try {
-        const res = await api.get<ApiResponseEnvelope<NTCOffice[]> | NTCOffice[]>(`/api/v2/tenants/${selectedRegionId}/field-offices`);
+        const res = await api.get<ApiResponseEnvelope<NTCOffice[]> | NTCOffice[]>(`/api/v2/tenants/${selectedRegionId}/field-offices?isActive=true`);
+        let rawOffices: NTCOffice[] = [];
         if (res && !Array.isArray(res) && res.succeeded && Array.isArray(res.data)) {
-          setOffices(res.data);
-          if (res.data.length > 0) setSelectedOfficeId(res.data[0].id);
+          rawOffices = res.data;
         } else if (Array.isArray(res)) {
-          setOffices(res);
-          if (res.length > 0) setSelectedOfficeId(res[0].id);
+          rawOffices = res;
         } else if (res && !Array.isArray(res) && Array.isArray(res.items)) {
-          setOffices(res.items);
-          if (res.items.length > 0) setSelectedOfficeId(res.items[0].id);
+          rawOffices = res.items;
+        }
+        setOffices(rawOffices);
+        if (rawOffices.length > 0) {
+          setSelectedOfficeId(rawOffices[0].id);
         } else {
-          setOffices([]);
           setSelectedOfficeId("");
         }
       } catch (err) {

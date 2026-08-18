@@ -16,6 +16,10 @@ public class GetFieldOfficesQueryHandler : IRequestHandler<GetFieldOfficesQuery,
     public async Task<List<FieldOfficeDto>> Handle(GetFieldOfficesQuery request, CancellationToken cancellationToken)
     {
         var offices = await _repository.GetFilteredAsync(request.TenantId, request.RegionId, cancellationToken);
+        if (request.IsActive.HasValue)
+        {
+            offices = offices.Where(f => f.IsActive == request.IsActive.Value).ToList();
+        }
         return offices.Select(f => new FieldOfficeDto(
             f.Id,
             f.TenantId,

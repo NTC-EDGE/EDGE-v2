@@ -32,11 +32,13 @@ import {
 export interface TenantInfo {
   id: string;
   name: string;
+  isActive?: boolean;
 }
 
 export interface OfficeInfo {
   id: string;
   name: string;
+  isActive?: boolean;
 }
 
 export interface GeneralApplicantData {
@@ -384,7 +386,7 @@ export function useGeneralServiceWizard(
     async function fetchTenants() {
       setLoadingTenants(true);
       try {
-        const res = await api.get<ApiResponseEnvelope<TenantInfo[]> | TenantInfo[]>("/api/v2/tenants?pageSize=100");
+        const res = await api.get<ApiResponseEnvelope<TenantInfo[]> | TenantInfo[]>("/api/v2/tenants?pageSize=100&isActive=true");
         let list: TenantInfo[] = [];
         if (res && !Array.isArray(res) && res.succeeded && Array.isArray(res.data)) {
           list = res.data;
@@ -416,9 +418,9 @@ export function useGeneralServiceWizard(
       setLoadingOffices(true);
       try {
         const res = await api
-          .get<ApiResponseEnvelope<OfficeInfo[]> | OfficeInfo[]>(`/api/v2/tenants/${selectedRegionId}/field-offices`)
+          .get<ApiResponseEnvelope<OfficeInfo[]> | OfficeInfo[]>(`/api/v2/tenants/${selectedRegionId}/field-offices?isActive=true`)
           .catch(async () => {
-            return await api.get<ApiResponseEnvelope<OfficeInfo[]> | OfficeInfo[]>(`/api/v2/field-offices?tenantId=${selectedRegionId}`).catch(() => null);
+            return await api.get<ApiResponseEnvelope<OfficeInfo[]> | OfficeInfo[]>(`/api/v2/field-offices?tenantId=${selectedRegionId}&isActive=true`).catch(() => null);
           });
 
         let officeList: OfficeInfo[] = [];

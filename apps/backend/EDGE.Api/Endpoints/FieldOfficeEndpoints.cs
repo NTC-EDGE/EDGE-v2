@@ -75,9 +75,10 @@ public static class FieldOfficeEndpoints
     [HasPermission(Permissions.ReadTenants)]
     public static async Task<IResult> GetFieldOfficesByTenant(
         Guid tenantId,
+        [FromQuery] bool? isActive,
         IMediator mediator)
     {
-        var result = await mediator.Send(new GetFieldOfficesByTenantQuery(tenantId));
+        var result = await mediator.Send(new GetFieldOfficesByTenantQuery(tenantId, isActive));
         return result.Succeeded ? Results.Ok(result) : Results.NotFound(result);
     }
 
@@ -85,9 +86,10 @@ public static class FieldOfficeEndpoints
     public static async Task<IResult> GetFieldOffices(
         [FromQuery] Guid? tenantId,
         [FromQuery] Guid? regionId,
+        [FromQuery] bool? isActive,
         IMediator mediator)
     {
-        var result = await mediator.Send(new GetFieldOfficesQuery(tenantId, regionId));
+        var result = await mediator.Send(new GetFieldOfficesQuery(tenantId, regionId, isActive));
         return Results.Ok(result);
     }
 
