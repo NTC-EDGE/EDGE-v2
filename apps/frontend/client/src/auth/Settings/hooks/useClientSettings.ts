@@ -256,8 +256,8 @@ export function useClientSettings() {
             setSavedSignature(dbUser.eSignature);
           }
         }
-      }).catch(() => {
-        // Backend user load error ignored (falls back to Clerk)
+      }).catch((err) => {
+        console.warn("[ClientSettings] Notice: Backend profile fetch failed or returned non-200. Falling back to Clerk/local settings.", err);
       });
     } catch (err) {
       console.warn("Failed to parse settings from Clerk metadata:", err);

@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -17,11 +18,20 @@ public class FlexibleDateOnlyJsonConverter : JsonConverter<DateOnly>
             if (string.IsNullOrWhiteSpace(str))
                 return default;
 
-            if (DateOnly.TryParse(str, out var dateOnly))
+            if (DateOnly.TryParse(str, CultureInfo.InvariantCulture, DateTimeStyles.None, out var dateOnly))
                 return dateOnly;
 
-            if (DateTime.TryParse(str, out var dt))
+            if (DateTimeOffset.TryParse(str, CultureInfo.InvariantCulture, DateTimeStyles.None, out var dto))
+                return DateOnly.FromDateTime(dto.DateTime);
+
+            if (DateTime.TryParse(str, CultureInfo.InvariantCulture, DateTimeStyles.None, out var dt))
                 return DateOnly.FromDateTime(dt);
+
+            if (DateOnly.TryParse(str, out var fallbackDateOnly))
+                return fallbackDateOnly;
+
+            if (DateTime.TryParse(str, out var fallbackDt))
+                return DateOnly.FromDateTime(fallbackDt);
         }
 
         return default;
@@ -29,7 +39,7 @@ public class FlexibleDateOnlyJsonConverter : JsonConverter<DateOnly>
 
     public override void Write(Utf8JsonWriter writer, DateOnly value, JsonSerializerOptions options)
     {
-        writer.WriteStringValue(value.ToString("yyyy-MM-dd"));
+        writer.WriteStringValue(value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
     }
 }
 
@@ -46,11 +56,20 @@ public class FlexibleNullableDateOnlyJsonConverter : JsonConverter<DateOnly?>
             if (string.IsNullOrWhiteSpace(str))
                 return null;
 
-            if (DateOnly.TryParse(str, out var dateOnly))
+            if (DateOnly.TryParse(str, CultureInfo.InvariantCulture, DateTimeStyles.None, out var dateOnly))
                 return dateOnly;
 
-            if (DateTime.TryParse(str, out var dt))
+            if (DateTimeOffset.TryParse(str, CultureInfo.InvariantCulture, DateTimeStyles.None, out var dto))
+                return DateOnly.FromDateTime(dto.DateTime);
+
+            if (DateTime.TryParse(str, CultureInfo.InvariantCulture, DateTimeStyles.None, out var dt))
                 return DateOnly.FromDateTime(dt);
+
+            if (DateOnly.TryParse(str, out var fallbackDateOnly))
+                return fallbackDateOnly;
+
+            if (DateTime.TryParse(str, out var fallbackDt))
+                return DateOnly.FromDateTime(fallbackDt);
         }
 
         return null;
@@ -59,7 +78,7 @@ public class FlexibleNullableDateOnlyJsonConverter : JsonConverter<DateOnly?>
     public override void Write(Utf8JsonWriter writer, DateOnly? value, JsonSerializerOptions options)
     {
         if (value.HasValue)
-            writer.WriteStringValue(value.Value.ToString("yyyy-MM-dd"));
+            writer.WriteStringValue(value.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
         else
             writer.WriteNullValue();
     }

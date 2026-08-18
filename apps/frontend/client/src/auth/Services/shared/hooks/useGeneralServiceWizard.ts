@@ -399,7 +399,10 @@ export function useGeneralServiceWizard(
 
       // 2. Enrich from backend database /api/v2/users/profile
       try {
-        const dbRes = await api.get<any>("/api/v2/users/profile").catch(() => null);
+        const dbRes = await api.get<any>("/api/v2/users/profile").catch((err) => {
+          console.warn("[GeneralServiceWizard] Notice: Backend profile fetch failed or returned non-200. Using Clerk/local profile fallbacks.", err);
+          return null;
+        });
         if (!active || !dbRes) return;
         const dbUser = (dbRes && dbRes.data) ? dbRes.data : dbRes;
         if (!dbUser) return;
@@ -432,7 +435,7 @@ export function useGeneralServiceWizard(
           })
         );
       } catch (err) {
-        // Fallback gracefully
+        console.warn("[GeneralServiceWizard] Failed to process backend profile data:", err);
       }
     }
 
