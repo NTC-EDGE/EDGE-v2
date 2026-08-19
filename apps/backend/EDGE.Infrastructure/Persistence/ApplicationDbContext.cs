@@ -322,6 +322,7 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
         modelBuilder.Entity<SectionField>(entity =>
         {
             entity.HasKey(e => new { e.FormSectionId, e.FieldId });
+            entity.Property(e => e.VisibilityCondition).HasColumnType("text").IsRequired(false);
             entity.HasOne(e => e.FormSection)
                   .WithMany(s => s.SectionFields)
                   .HasForeignKey(e => e.FormSectionId)

@@ -101,7 +101,7 @@ public class DatabaseInitializerHostedService : IHostedService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Geographic seed data encountered an issue.");
+            _logger.LogError(ex, "Geographic seed data failed.");
             throw new InvalidOperationException("Geographic seed data failed. Please check the logs for details.", ex);
         }
 
@@ -114,7 +114,7 @@ public class DatabaseInitializerHostedService : IHostedService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "IAM seed data encountered an issue.");
+            _logger.LogError(ex, "IAM seed data failed.");
             throw new InvalidOperationException("IAM seed data failed. Please check the logs for details.", ex);
         }
 
@@ -127,7 +127,7 @@ public class DatabaseInitializerHostedService : IHostedService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Fast-Track seed data encountered an issue.");
+            _logger.LogError(ex, "Fast-Track seed data failed.");
             throw new InvalidOperationException("Fast-Track seed data failed. Please check the logs for details.", ex);
         }
 
@@ -140,7 +140,7 @@ public class DatabaseInitializerHostedService : IHostedService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Feedback seed data encountered an issue.");
+            _logger.LogError(ex, "Feedback seed data encountered an issue.");
         }
 
         // 6. Seed System Announcements and Audit Logs
@@ -152,7 +152,7 @@ public class DatabaseInitializerHostedService : IHostedService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "System Announcements/Audit Logs seed data encountered an issue.");
+            _logger.LogError(ex, "System Announcements/Audit Logs seed data encountered an issue.");
         }
 
         // 7. Seed Notification Templates (External & Internal)
@@ -164,7 +164,7 @@ public class DatabaseInitializerHostedService : IHostedService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Notification Templates seed data encountered an issue.");
+            _logger.LogError(ex, "Notification Templates seed data encountered an issue.");
         }
 
         // 8. Seed Application dev data (Applications, SOAs, OPs, Histories)
@@ -189,7 +189,7 @@ public class DatabaseInitializerHostedService : IHostedService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Service Information seed data encountered an issue.");
+            _logger.LogError(ex, "Service Information seed data encountered an issue.");
         }
     }
 
