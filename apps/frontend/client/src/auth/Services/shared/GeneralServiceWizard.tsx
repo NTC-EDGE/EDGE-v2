@@ -103,6 +103,11 @@ export function GeneralServiceWizard({
     loadingTenants,
     offices,
     loadingOffices,
+    isExamService,
+    schedules,
+    loadingSchedules,
+    selectedScheduleId,
+    setSelectedScheduleId,
     variants,
     loadingVariants,
     variantElements,
@@ -120,6 +125,7 @@ export function GeneralServiceWizard({
     feedbackComment,
     setFeedbackComment,
     submitApplicationPayload,
+    submitFeedback,
   } = useGeneralServiceWizard({
     service,
     step,
@@ -146,12 +152,17 @@ export function GeneralServiceWizard({
       setStep,
       selectedRegionId,
       selectedOfficeId,
+      isExamService,
+      schedules,
+      selectedScheduleId,
       appMode,
       activeApplicant,
       applicants,
       currentApplicantIndex,
       setCurrentApplicantIndex,
       service,
+      variants,
+      variantElements,
       variantRequirements,
       setIsConfirmModalOpen,
       dynamicRequiredFieldIds,
@@ -179,11 +190,18 @@ export function GeneralServiceWizard({
     if (isModification) appType = "MODIFICATION";
 
     const currentAmateur = activeApplicant.amateurLicenseData;
+    const currentRadio = activeApplicant.radioCertData;
 
     updateActiveApplicant({
       selectedVariantId: variantId,
+      selectedVariantName: variantName,
+      selectedElementId: activeApplicant.selectedVariantId === variantId ? activeApplicant.selectedElementId : undefined,
+      selectedElementTitle: activeApplicant.selectedVariantId === variantId ? activeApplicant.selectedElementTitle : undefined,
       amateurLicenseData: currentAmateur
         ? { ...currentAmateur, appType }
+        : undefined,
+      radioCertData: currentRadio
+        ? { ...currentRadio, appType }
         : undefined,
     });
   };
@@ -204,6 +222,8 @@ export function GeneralServiceWizard({
           isWeb={isWeb}
           dynamicRequiredFieldIds={dynamicRequiredFieldIds}
           setDynamicRequiredFieldIds={setDynamicRequiredFieldIds}
+          variants={variants}
+          variantElements={variantElements}
           onBack={() => setStep(2)}
           onSubmitAll={() => setIsConfirmModalOpen(true)}
         />
@@ -251,6 +271,11 @@ export function GeneralServiceWizard({
           setSelectedOfficeId={setSelectedOfficeId}
           tenants={tenants}
           offices={offices}
+          isExamService={isExamService}
+          schedules={schedules}
+          loadingSchedules={loadingSchedules}
+          selectedScheduleId={selectedScheduleId}
+          onSelectSchedule={setSelectedScheduleId}
           appMode={appMode}
           setAppMode={setAppMode}
           bulkMethod={bulkMethod}
@@ -280,13 +305,15 @@ export function GeneralServiceWizard({
           onRequiredFieldsChange={setDynamicRequiredFieldIds}
           errors={formErrors}
         />
-
-        <GeneralWizardNavigation
-          step={step}
-          onBack={handleBack}
-          onNext={handleNext}
-        />
       </ScrollView>
+
+      {/* ── Fixed Sticky Bottom Action Bar ── */}
+      <GeneralWizardNavigation
+        step={step}
+        totalSteps={5}
+        onBack={handleBack}
+        onNext={handleNext}
+      />
 
       <GeneralWizardModals
         isConfirmModalOpen={isConfirmModalOpen}
@@ -294,6 +321,7 @@ export function GeneralServiceWizard({
         isAgreedToTerms={isAgreedToTerms}
         setIsAgreedToTerms={setIsAgreedToTerms}
         submitApplicationPayload={submitApplicationPayload}
+        submitFeedback={submitFeedback}
         isFeedbackModalOpen={isFeedbackModalOpen}
         setIsFeedbackModalOpen={setIsFeedbackModalOpen}
         feedbackRating={feedbackRating}

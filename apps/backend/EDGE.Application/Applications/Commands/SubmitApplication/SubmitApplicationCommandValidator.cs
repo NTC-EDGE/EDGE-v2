@@ -54,6 +54,12 @@ public class SubmitApplicationCommandValidator : AbstractValidator<SubmitApplica
                 .EmailAddress()
                 .WithMessage("A valid applicant email address is required.");
 
+            applicant.RuleFor(a => a.ContactNumber)
+                .NotEmpty()
+                .WithMessage("Applicant contact number is required.")
+                .Matches(@"^(0\d{10}|\+63\d{10}|63\d{10})$")
+                .WithMessage("Applicant contact number must start with 0 (11 digits, e.g. 09171234567) or +63 (e.g. +639171234567).");
+
             // Each FormFieldValue must have a non-empty FieldId
             applicant.RuleForEach(a => a.FormFieldValues).ChildRules(fv =>
             {

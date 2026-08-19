@@ -2,7 +2,11 @@ import React from "react";
 import { View, Text } from "react-native";
 import { TYPOGRAPHY, COLORS, Icon } from "@edge/ui";
 import { NTCService } from "../../data/servicesData";
-import { GeneralApplicantData } from "../hooks/useGeneralServiceWizard";
+import {
+  GeneralApplicantData,
+  ServiceRequirementItem,
+  isRequirementMandatory,
+} from "../hooks/useGeneralServiceWizard";
 import { getApplicantDisplayName } from "../helpers/applicantDisplayHelper";
 import { SharedDocumentUpload } from "../../../../shared/components/SharedDocumentUpload";
 
@@ -11,7 +15,7 @@ import { TouchableOpacity } from "react-native";
 interface GeneralDocumentUploadStepProps {
   service: NTCService;
   activeApplicant: GeneralApplicantData;
-  variantRequirements?: string[];
+  variantRequirements?: Array<ServiceRequirementItem | string>;
   appMode?: "SINGLE" | "BULK" | "";
   applicants?: GeneralApplicantData[];
   currentApplicantIndex?: number;
@@ -40,24 +44,33 @@ export function GeneralDocumentUploadStep({
   // Requirements come exclusively from the backend:
   // 1. variantRequirements — fetched from the selected service variant (preferred)
   // 2. service.requirements — fetched from the service itself (fallback)
-  // Static hardcoded lists are intentionally removed: they caused different
-  // applicants in a bulk cohort to see different requirement sets because the
-  // branching depended on per-applicant fields (e.g. amateurLicenseData.appType).
-  let reqList: Array<{ key: string; label: string; required: boolean; hint?: string }> = [];
+  const rawReqs: Array<ServiceRequirementItem | string> =
+    variantRequirements && variantRequirements.length > 0
+      ? variantRequirements
+      : service.requirements && service.requirements.length > 0
+      ? service.requirements
+      : [];
 
-  if (variantRequirements && variantRequirements.length > 0) {
-    reqList = variantRequirements.map((reqStr, idx) => ({
-      key: `req-${idx}`,
-      label: reqStr.replace(/\*$/, ""),
-      required: true,
-    }));
-  } else {
-    reqList = (service.requirements || []).map((req, idx) => ({
-      key: `req-gen-${idx}`,
-      label: req,
-      required: true,
-    }));
-  }
+  const reqList: Array<{ key: string; label: string; required: boolean; hint?: string }> = rawReqs.map((req, idx) => {
+    const isMandatory = isRequirementMandatory(req);
+    if (typeof req === "string") {
+      return {
+        key: `req-${idx}`,
+        label: req.replace(/\*$/, "").trim(),
+        required: isMandatory,
+      };
+    }
+    const key = req.id ? `req-${req.id}` : `req-${idx}`;
+    return {
+      key,
+      label: (req.name || req.label || req.title || `Requirement ${idx + 1}`).replace(/\*$/, "").trim(),
+      required: isMandatory,
+      hint: req.description || req.hint,
+    };
+  });
+
+  const mandatoryCount = reqList.filter((r) => r.required).length;
+  const optionalCount = reqList.filter((r) => !r.required).length;
 
   return (
     <View style={{ gap: 16 }}>
@@ -143,9 +156,27 @@ export function GeneralDocumentUploadStep({
               Document Upload Requirements
             </Text>
           </View>
-          <View style={{ backgroundColor: "#EFF6FF", borderColor: "#BFDBFE", borderWidth: 1, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 }}>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: "700", color: "#1D4ED8" }}>
-              {reqList.length} Mandatory Document{reqList.length === 1 ? "" : "s"}
+          <View
+            style={{
+              backgroundColor: mandatoryCount > 0 ? "#EFF6FF" : "#F0FDF4",
+              borderColor: mandatoryCount > 0 ? "#BFDBFE" : "#BBF7D0",
+              borderWidth: 1,
+              borderRadius: 12,
+              paddingHorizontal: 10,
+              paddingVertical: 4,
+            }}
+          >
+            <Text
+              style={{
+                fontFamily: TYPOGRAPHY.fonts.primary,
+                fontSize: 11,
+                fontWeight: "700",
+                color: mandatoryCount > 0 ? "#1D4ED8" : "#15803D",
+              }}
+            >
+              {mandatoryCount > 0
+                ? `${mandatoryCount} Mandatory Document${mandatoryCount === 1 ? "" : "s"}${optionalCount > 0 ? ` (${optionalCount} Optional)` : ""}`
+                : "No Mandatory Attachments Required"}
             </Text>
           </View>
         </View>

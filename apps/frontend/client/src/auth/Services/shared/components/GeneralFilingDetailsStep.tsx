@@ -8,6 +8,18 @@ import { DynamicFormRenderer } from "../../../../shared/components/DynamicFormRe
 import { StructuredNameData } from "../../../../shared/components/ApplicantNameField";
 import { useServiceForm } from "../hooks/useServiceForm";
 import { getApplicantDisplayName } from "../helpers/applicantDisplayHelper";
+import {
+  FIELD_ID_FULL_NAME,
+  FIELD_ID_BIRTH_DATE,
+  FIELD_ID_NO_OF_YEARS,
+  FIELD_ID_APP_TYPE,
+  FIELD_ID_EXAMINEE_TYPE,
+  FIELD_ID_EXAM_CATEGORY,
+  FIELD_ID_ELEMENTS,
+  FIELD_ID_CLASS_OF_STATION,
+  FIELD_ID_CONTACT_NO,
+  FIELD_ID_EMAIL,
+} from "../../../../shared/constants/fieldIds";
 
 interface GeneralFilingDetailsStepProps {
   service: NTCService;
@@ -67,14 +79,14 @@ export function GeneralFilingDetailsStep({
         const existingVal = updatedValues.find((v) => v.fieldId === fieldId)?.value;
 
         // Examinee Type prefill
-        if ((labelLower.includes("examinee type") || fieldId === "fd000000-0000-0000-0000-000000000008") && !existingVal) {
+        if ((labelLower.includes("examinee type") || fieldId === FIELD_ID_EXAMINEE_TYPE) && !existingVal) {
           const examineeTypeVal = matchedVariant?.type || matchedVariant?.description || "FirstTaker";
           updatedValues.push({ fieldId, fieldLabel: field.label, value: examineeTypeVal });
           hasChanges = true;
         }
 
         // Exam Category prefill
-        if ((labelLower.includes("exam category") || fieldId === "fd000000-0000-0000-0000-000000000007") && !existingVal) {
+        if ((labelLower.includes("exam category") || fieldId === FIELD_ID_EXAM_CATEGORY) && !existingVal) {
           const desc = ((matchedVariant?.description || "") + " " + (service.title || "")).toLowerCase();
           let categoryVal = "Radiotelegraphy";
           if (desc.includes("amateur")) categoryVal = "Amateur";
@@ -85,27 +97,48 @@ export function GeneralFilingDetailsStep({
         }
 
         // Exam Elements & Variant Elements prefill
-        if ((labelLower.includes("element") || fieldId === "fd000000-0000-0000-0000-000000000009") && !existingVal && selectedElementTitle) {
+        if ((labelLower.includes("element") || fieldId === FIELD_ID_ELEMENTS) && !existingVal && selectedElementTitle) {
           updatedValues.push({ fieldId, fieldLabel: field.label, value: selectedElementTitle });
           hasChanges = true;
         }
 
         // Class of Station prefill
-        if ((labelLower.includes("class of station") || fieldId === "fd000000-0000-0000-0000-000000000025") && !existingVal && selectedElementTitle) {
+        if ((labelLower.includes("class of station") || fieldId === FIELD_ID_CLASS_OF_STATION) && !existingVal && selectedElementTitle) {
           updatedValues.push({ fieldId, fieldLabel: field.label, value: selectedElementTitle });
           hasChanges = true;
         }
 
-        // Permit / Certificate Type prefill from variant name
-        if ((labelLower.includes("permit / license type") || labelLower.includes("type of certificate")) && !existingVal && matchedVariant) {
-          const vName = matchedVariant.name || matchedVariant.description || "";
-          if (vName) {
-            updatedValues.push({ fieldId, fieldLabel: field.label, value: vName });
+        // Permit / Certificate / Application Type prefill from variant
+        if (
+          (labelLower.includes("type of application") ||
+            labelLower.includes("application type") ||
+            labelLower.includes("permit type") ||
+            labelLower.includes("permit / license type") ||
+            labelLower.includes("type of certificate") ||
+            labelLower.includes("certificate type")) &&
+          !existingVal &&
+          matchedVariant
+        ) {
+          const vType = matchedVariant.type && matchedVariant.type !== "NA" && matchedVariant.type !== "N/A" ? matchedVariant.type : "";
+          const vDesc = matchedVariant.description || matchedVariant.name || "";
+          const displayVal = vDesc || vType || "";
+          if (displayVal) {
+            updatedValues.push({ fieldId, fieldLabel: field.label, value: displayVal });
             hasChanges = true;
           }
         }
         // Personal / contact details prefill from activeApplicant
-        if ((labelLower.includes("full name") || labelLower.includes("applicant name") || labelLower === "name") && !existingVal) {
+        if (
+          !labelLower.includes("type") &&
+          !labelLower.includes("permit") &&
+          !labelLower.includes("certificate") &&
+          (labelLower.includes("full name") ||
+            labelLower.includes("full legal name") ||
+            labelLower.includes("applicant name") ||
+            labelLower === "name" ||
+            fieldId === FIELD_ID_FULL_NAME) &&
+          !existingVal
+        ) {
           const combined = [activeApplicant.firstName, activeApplicant.middleName, activeApplicant.lastName, activeApplicant.suffix].filter(Boolean).join(" ");
           if (combined) {
             updatedValues.push({ fieldId, fieldLabel: field.label, value: combined });
@@ -140,13 +173,30 @@ export function GeneralFilingDetailsStep({
           updatedValues.push({ fieldId, fieldLabel: field.label, value: activeApplicant.contactNo });
           hasChanges = true;
         }
-        if ((labelLower.includes("birth") || labelLower.includes("dob") || labelLower === "date of birth") && !existingVal && activeApplicant.birthYear && activeApplicant.birthYear !== "2000") {
-          const dobFormatted = `${activeApplicant.birthYear}-${activeApplicant.birthMonth}-${activeApplicant.birthDay}`;
+        if (
+          (labelLower.includes("birth") ||
+            labelLower.includes("dob") ||
+            labelLower === "date of birth" ||
+            fieldId === FIELD_ID_BIRTH_DATE) &&
+          !existingVal &&
+          activeApplicant.birthYear
+        ) {
+          const monthMap: Record<string, string> = {
+            January: "01", February: "02", March: "03", April: "04", May: "05", June: "06",
+            July: "07", August: "08", September: "09", October: "10", November: "11", December: "12"
+          };
+          const mNum = monthMap[activeApplicant.birthMonth] || activeApplicant.birthMonth.padStart(2, "0");
+          const dNum = activeApplicant.birthDay.padStart(2, "0");
+          const dobFormatted = `${mNum}/${dNum}/${activeApplicant.birthYear}`;
           updatedValues.push({ fieldId, fieldLabel: field.label, value: dobFormatted });
           hasChanges = true;
         }
         if ((labelLower === "sex" || labelLower === "gender") && !existingVal && activeApplicant.sex) {
           updatedValues.push({ fieldId, fieldLabel: field.label, value: activeApplicant.sex });
+          hasChanges = true;
+        }
+        if ((labelLower.includes("civil status") || labelLower === "civilstatus") && !existingVal && activeApplicant.civilStatus) {
+          updatedValues.push({ fieldId, fieldLabel: field.label, value: activeApplicant.civilStatus });
           hasChanges = true;
         }
         if ((labelLower === "nationality" || labelLower.includes("citizenship")) && !existingVal && activeApplicant.nationality) {
@@ -190,21 +240,6 @@ export function GeneralFilingDetailsStep({
     currentApplicantIndex,
     activeApplicant.selectedVariantId,
     activeApplicant.selectedElementId,
-    activeApplicant.selectedElementTitle,
-    activeApplicant.firstName,
-    activeApplicant.middleName,
-    activeApplicant.lastName,
-    activeApplicant.suffix,
-    activeApplicant.email,
-    activeApplicant.contactNo,
-    activeApplicant.address,
-    activeApplicant.region,
-    activeApplicant.province,
-    activeApplicant.city,
-    activeApplicant.barangay,
-    activeApplicant.companyName,
-    variants,
-    variantElements,
   ]);
 
   // Inform parent of mandatory dynamic fields once form is loaded (only visible fields)
@@ -217,13 +252,93 @@ export function GeneralFilingDetailsStep({
           key !== "payment" &&
           !key.includes("payment") &&
           title !== "payment details" &&
-          !title.includes("payment")
+          !title.includes("payment") &&
+          key !== "declaration" &&
+          !key.includes("declaration") &&
+          title !== "declaration" &&
+          !title.includes("declaration") &&
+          key !== "typeofcertificate" &&
+          key !== "permittype" &&
+          key !== "apptype" &&
+          key !== "applicationtype" &&
+          key !== "typeofapplication" &&
+          title !== "type of certificate / application" &&
+          title !== "type of application & permit category" &&
+          title !== "type of application & category" &&
+          title !== "type of certificate" &&
+          title !== "type of application" &&
+          title !== "application type" &&
+          title !== "permit type / application type" &&
+          title !== "permit type" &&
+          title !== "permit category"
         );
       });
 
       const requiredIds = visibleSections
-        .flatMap((s) => s.fields)
-        .filter((f) => f.isRequired)
+        .flatMap((s) => {
+          const sectionKeyLower = (s.key || s.id || "").toLowerCase();
+          const isOptionalSection =
+            sectionKeyLower.includes("education") ||
+            sectionKeyLower.includes("assistance") ||
+            sectionKeyLower.includes("specialneeds") ||
+            sectionKeyLower.includes("emergency");
+          if (isOptionalSection) return [];
+
+          const hasRepeater = s.fields.some((f) => {
+            const fType = (f.fieldType || f.type || "").toLowerCase();
+            const fId = (f.fieldId || f.id || "").toLowerCase();
+            return fType === "repeater" || fType === "table" || fType === "repeater_table" || fId.includes("details");
+          });
+
+          return s.fields.filter((f) => {
+            if (!f.isRequired) return false;
+            const fIdLower = (f.fieldId || f.id || "").toLowerCase();
+            const labelLower = (f.label || "").toLowerCase().trim();
+
+            const isEmployment =
+              labelLower === "status" ||
+              labelLower === "employment status" ||
+              labelLower === "type" ||
+              labelLower === "employment type";
+
+            const isAppType =
+              !isEmployment &&
+              (labelLower.includes("type of application") ||
+                labelLower.includes("application type") ||
+                labelLower.includes("permit type") ||
+                labelLower.includes("license type") ||
+                labelLower.includes("certificate type") ||
+                labelLower.includes("type of certificate") ||
+                labelLower === "application" ||
+                (labelLower === "type" && !s.title.toLowerCase().includes("employment") && !s.key?.toLowerCase().includes("employment")) ||
+                fIdLower === "type_of_application" ||
+                fIdLower === "permittype" ||
+                fIdLower === "applicationtype" ||
+                fIdLower === "typeofcertificate");
+            if (isAppType) return false;
+
+            const isElem =
+              labelLower.includes("element") ||
+              labelLower.includes("class of station") ||
+              fIdLower === "elements" ||
+              fIdLower === "element";
+            if (isElem) return false;
+
+            if (
+              hasRepeater &&
+              !fIdLower.includes("details") &&
+              (labelLower === "serial number" ||
+                labelLower === "frequency range" ||
+                labelLower === "power output" ||
+                labelLower === "make" ||
+                labelLower === "type/model")
+            ) {
+              return false;
+            }
+
+            return true;
+          });
+        })
         .map((f) => f.fieldId || f.id)
         .filter((id): id is string => id !== undefined && id !== "");
 
@@ -284,23 +399,10 @@ export function GeneralFilingDetailsStep({
           </View>
         </View>
 
-        <View style={{ flexDirection: "row", gap: 6 }}>
-          {currentApplicantIndex > 0 && setCurrentApplicantIndex && (
-            <TouchableOpacity
-              onPress={() => setCurrentApplicantIndex(currentApplicantIndex - 1)}
-              style={{ backgroundColor: "#FFFFFF", paddingVertical: 6, paddingHorizontal: 10, borderRadius: 6, borderWidth: 1, borderColor: "#93C5FD" }}
-            >
-              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: "700", color: "#1D4ED8" }}>← Prev</Text>
-            </TouchableOpacity>
-          )}
-          {currentApplicantIndex < applicants.length - 1 && setCurrentApplicantIndex && (
-            <TouchableOpacity
-              onPress={() => setCurrentApplicantIndex(currentApplicantIndex + 1)}
-              style={{ backgroundColor: "#FFFFFF", paddingVertical: 6, paddingHorizontal: 10, borderRadius: 6, borderWidth: 1, borderColor: "#93C5FD" }}
-            >
-              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: "700", color: "#1D4ED8" }}>Next →</Text>
-            </TouchableOpacity>
-          )}
+        <View style={{ backgroundColor: "#DBEAFE", borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 }}>
+          <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: "700", color: "#1D4ED8" }}>
+            Applicant {currentApplicantIndex + 1}/{applicants.length}
+          </Text>
         </View>
       </View>
     );
@@ -333,7 +435,13 @@ export function GeneralFilingDetailsStep({
           partial.firstName = value;
         } else if (normalized.includes("last name") || normalized.includes("surname") || normalized === "lname" || normalized === "last") {
           partial.lastName = value;
-        } else if (normalized.includes("full name") || normalized.includes("applicant name") || normalized === "name") {
+        } else if (
+          normalized.includes("full name") ||
+          normalized.includes("full legal name") ||
+          normalized.includes("applicant name") ||
+          normalized === "name" ||
+          fieldId === FIELD_ID_FULL_NAME
+        ) {
           const parts = value.trim().split(/\s+/);
           if (parts.length > 1) {
             partial.firstName = parts[0];
@@ -345,9 +453,9 @@ export function GeneralFilingDetailsStep({
         } else if (normalized.includes("company name") || normalized.includes("corporate name") || normalized === "business name") {
           partial.firstName = value;
           partial.lastName = "";
-        } else if (normalized.includes("contact number") || normalized.includes("mobile") || normalized.includes("phone")) {
+        } else if (normalized.includes("contact number") || normalized.includes("mobile") || normalized.includes("phone") || fieldId === FIELD_ID_CONTACT_NO) {
           partial.contactNo = value;
-        } else if (normalized.includes("email")) {
+        } else if (normalized.includes("email") || fieldId === FIELD_ID_EMAIL) {
           partial.email = value;
         } else if (normalized.includes("address") || normalized.includes("street")) {
           partial.address = value;
@@ -359,13 +467,29 @@ export function GeneralFilingDetailsStep({
           partial.city = value;
         } else if (normalized === "barangay") {
           partial.barangay = value;
-        } else if (normalized.includes("birth") || normalized.includes("dob") || normalized.includes("date of birth")) {
-          const dateParts = value.split("-");
-          if (dateParts.length === 3) {
-            partial.birthYear = dateParts[0];
-            partial.birthMonth = dateParts[1];
-            partial.birthDay = dateParts[2];
+        } else if (normalized.includes("birth") || normalized.includes("dob") || normalized.includes("date of birth") || fieldId === FIELD_ID_BIRTH_DATE) {
+          const slashParts = value.split("/");
+          const dashParts = value.split("-");
+          if (slashParts.length === 3) {
+            partial.birthMonth = slashParts[0] || "01";
+            partial.birthDay = slashParts[1] || "01";
+            partial.birthYear = slashParts[2] || "2000";
+          } else if (dashParts.length === 3) {
+            if (dashParts[0] && dashParts[0].length === 4) {
+              partial.birthYear = dashParts[0] || "2000";
+              partial.birthMonth = dashParts[1] || "01";
+              partial.birthDay = dashParts[2] || "01";
+            } else {
+              partial.birthMonth = dashParts[0] || "01";
+              partial.birthDay = dashParts[1] || "01";
+              partial.birthYear = dashParts[2] || "2000";
+            }
           }
+        } else if (fieldId === FIELD_ID_NO_OF_YEARS || normalized.includes("number of years") || normalized.includes("no of years") || normalized === "years") {
+          if (partial.radioCertData) partial.radioCertData.years = value;
+          if (partial.amateurLicenseData) partial.amateurLicenseData.noOfYears = value;
+          if (partial.tvroRegData) partial.tvroRegData.years = value;
+          if (partial.vasData) partial.vasData.years = value;
         }
 
         return partial;
@@ -377,33 +501,15 @@ export function GeneralFilingDetailsStep({
       middleName: activeApplicant.middleName || "",
       lastName: activeApplicant.lastName || "",
       suffix: activeApplicant.suffix || "",
-      companyName: activeApplicant.companyName || (activeApplicant.applicantType === "company" ? activeApplicant.firstName : ""),
-      representativeName: activeApplicant.representativeName || (activeApplicant.applicantType === "company" ? activeApplicant.lastName : ""),
-      applicantType: activeApplicant.applicantType || "individual",
     };
 
     const handleStructuredNameChange = (data: StructuredNameData) => {
-      if (data.applicantType === "individual") {
-        updateActiveApplicant({
-          applicantType: "individual",
-          firstName: data.firstName,
-          middleName: data.middleName,
-          lastName: data.lastName,
-          suffix: data.suffix,
-          companyName: "",
-          representativeName: "",
-        });
-      } else {
-        updateActiveApplicant({
-          applicantType: "company",
-          companyName: data.companyName,
-          representativeName: data.representativeName,
-          firstName: data.companyName,
-          lastName: data.representativeName || "",
-          middleName: "",
-          suffix: "",
-        });
-      }
+      updateActiveApplicant({
+        firstName: data.firstName,
+        middleName: data.middleName,
+        lastName: data.lastName,
+        suffix: data.suffix,
+      });
     };
 
     const isExamService =
@@ -411,6 +517,13 @@ export function GeneralFilingDetailsStep({
       (service.title || "").toLowerCase().includes("exam") ||
       (service.title || "").toLowerCase().includes("admission") ||
       (service.title || "").toLowerCase().includes("operator");
+
+    const matchedVariant = variants.find((v) => String(v.id) === String(activeApplicant.selectedVariantId)) || variants[0];
+    const appTypeLabel = matchedVariant
+      ? matchedVariant.description || matchedVariant.name || (matchedVariant.type === "RENEWAL" ? "Renewal" : matchedVariant.type === "MODIFICATION" ? "Modification" : "New Application")
+      : "New Application";
+
+    const currentNoOfYears = activeApplicant.radioCertData?.years || activeApplicant.amateurLicenseData?.noOfYears || activeApplicant.tvroRegData?.years || activeApplicant.vasData?.years || valuesRecord[FIELD_ID_NO_OF_YEARS] || valuesRecord["Number of Years"] || "1";
 
     return (
       <View>
@@ -424,6 +537,46 @@ export function GeneralFilingDetailsStep({
           structuredNameData={structuredNameData}
           applicantName={getApplicantDisplayName(activeApplicant)}
           allowCompany={!isExamService}
+          serviceCategory={service.category}
+          serviceTitle={service.title}
+          selectedVariantId={activeApplicant.selectedVariantId}
+          onVariantChange={(vId, vName) => {
+            const isRenewal = vName.toUpperCase().includes("RENEWAL");
+            const isModification = vName.toUpperCase().includes("MODIFICATION");
+            let appType: "NEW" | "RENEWAL" | "MODIFICATION" = "NEW";
+            if (isRenewal) appType = "RENEWAL";
+            if (isModification) appType = "MODIFICATION";
+
+            updateActiveApplicant((prevApp) => {
+              const currentAmateur = prevApp.amateurLicenseData;
+              const currentRadio = prevApp.radioCertData;
+              return {
+                selectedVariantId: vId,
+                selectedVariantName: vName,
+                selectedElementId: prevApp.selectedVariantId === vId ? prevApp.selectedElementId : undefined,
+                selectedElementTitle: prevApp.selectedVariantId === vId ? prevApp.selectedElementTitle : undefined,
+                amateurLicenseData: currentAmateur ? { ...currentAmateur, appType } : undefined,
+                radioCertData: currentRadio ? { ...currentRadio, appType } : undefined,
+              };
+            });
+            handleDynamicFieldChange(FIELD_ID_APP_TYPE, "Application Type", vName);
+            handleDynamicFieldChange("typeOfCertificate", "Type of Certificate", vName);
+            handleDynamicFieldChange("permitType", "Permit Type", vName);
+          }}
+          selectedElementId={activeApplicant.selectedElementId}
+          onElementChange={(elemId, elemTitle) => {
+            updateActiveApplicant({
+              selectedElementId: elemId,
+              selectedElementTitle: elemTitle,
+            });
+            handleDynamicFieldChange(FIELD_ID_ELEMENTS, "Exam Elements / Classification", elemTitle);
+            handleDynamicFieldChange(FIELD_ID_CLASS_OF_STATION, "Class of Station", elemTitle);
+            handleDynamicFieldChange("classOfStation", "Class of Station", elemTitle);
+            handleDynamicFieldChange("elements", "Elements", elemTitle);
+          }}
+          noOfYears={currentNoOfYears}
+          onNoOfYearsChange={(y) => handleDynamicFieldChange(FIELD_ID_NO_OF_YEARS, "Number of Years", y)}
+          variants={variants}
           variantElements={variantElements}
           errors={errors}
         />

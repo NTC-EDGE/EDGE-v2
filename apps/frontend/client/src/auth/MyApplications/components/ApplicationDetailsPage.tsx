@@ -14,6 +14,7 @@ import {
 import { Icon, COLORS, TYPOGRAPHY, SPACING } from '@edge/ui';
 import { useApi } from '../../../shared/hooks/useApi';
 import { DocumentPreviewModal } from '../../../shared/components/DocumentPreviewModal';
+import { OFFICIAL_LEGAL_DECLARATION } from '../../../shared/components/DeclarationCheckbox';
 import {
   Application,
   getStatusLabel,
@@ -1135,6 +1136,118 @@ function SubmittedFormStructuredView({
           val.toLowerCase().endsWith('.jpg') ||
           val.toLowerCase().endsWith('.jpeg');
 
+        let parsedArray: Array<Record<string, unknown>> | null = null;
+        if ((val.startsWith('[') && val.endsWith(']')) || (val.startsWith('{') && val.endsWith('}'))) {
+          try {
+            const parsed: unknown = JSON.parse(val);
+            if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === 'object' && parsed[0] !== null) {
+              parsedArray = parsed as Array<Record<string, unknown>>;
+            } else if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+              parsedArray = [parsed as Record<string, unknown>];
+            }
+          } catch {
+            // Ignored
+          }
+        }
+
+        if (parsedArray !== null && parsedArray.length > 0) {
+          return (
+            <View
+              key={field.fieldId || `fld-grid-${idx}`}
+              style={{
+                width: '100%',
+                backgroundColor: '#F8FAFC',
+                borderWidth: 1,
+                borderColor: '#CBD5E1',
+                borderRadius: 10,
+                padding: 14,
+                marginBottom: 4,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <Text
+                  style={{
+                    fontFamily: TYPOGRAPHY.fonts.primary,
+                    fontSize: 11,
+                    fontWeight: '700',
+                    color: '#475569',
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.3,
+                  }}
+                >
+                  {field.fieldLabel || field.fieldId}
+                </Text>
+                <View style={{ backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 1 }}>
+                  <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 10, fontWeight: '700', color: '#1D4ED8' }}>
+                    {parsedArray.length} {parsedArray.length === 1 ? 'Entry' : 'Entries'}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={{ gap: 8 }}>
+                {parsedArray.map((row, rIdx) => {
+                  const entries = Object.entries(row).filter(
+                    ([k, v]) =>
+                      k !== '_id' &&
+                      k !== 'id' &&
+                      k !== 'key' &&
+                      v !== null &&
+                      v !== undefined &&
+                      String(v).trim() !== ''
+                  );
+                  if (entries.length === 0) return null;
+                  return (
+                    <View
+                      key={row._id ? String(row._id) : `r-${rIdx}`}
+                      style={{
+                        backgroundColor: '#FFFFFF',
+                        borderWidth: 1,
+                        borderColor: '#E2E8F0',
+                        borderRadius: 8,
+                        padding: 10,
+                      }}
+                    >
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6, paddingBottom: 4, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }}>
+                        <View style={{ width: 16, height: 16, borderRadius: 8, backgroundColor: '#0F2C59', justifyContent: 'center', alignItems: 'center' }}>
+                          <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 9, fontWeight: '700', color: '#FFFFFF' }}>
+                            {rIdx + 1}
+                          </Text>
+                        </View>
+                        <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: '700', color: '#0F2C59' }}>
+                          Item #{rIdx + 1}
+                        </Text>
+                      </View>
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                        {entries.map(([k, v]) => (
+                          <View
+                            key={k}
+                            style={{
+                              minWidth: '45%',
+                              flex: 1,
+                              backgroundColor: '#F8FAFC',
+                              padding: 6,
+                              borderRadius: 4,
+                              borderWidth: 1,
+                              borderColor: '#F1F5F9',
+                            }}
+                          >
+                            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 9, fontWeight: '700', color: '#64748B' }}>
+                              {k.replace(/_/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2').replace(/\b\w/g, (c) => c.toUpperCase())}
+                            </Text>
+                            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: '600', color: '#0F172A' }}>
+                              {String(v)}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
+          );
+        }
+
         return (
           <View
             key={field.fieldId || `fld-grid-${idx}`}
@@ -1611,7 +1724,9 @@ function SubmittedFormStructuredView({
                             color: isConfirmed ? '#166534' : '#991B1B',
                           }}
                         >
-                          {dec.fieldLabel || dec.fieldId}
+                          {(dec.fieldLabel || dec.fieldId).toLowerCase().startsWith('i hereby declare')
+                            ? OFFICIAL_LEGAL_DECLARATION
+                            : (dec.fieldLabel || dec.fieldId)}
                         </Text>
                         <Text
                           style={{

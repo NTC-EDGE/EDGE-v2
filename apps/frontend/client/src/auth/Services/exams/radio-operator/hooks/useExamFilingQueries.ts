@@ -204,17 +204,30 @@ export function useExamFilingQueries({
       }
       setLoadingSchedules(true);
       try {
-        const currentDateIso = new Date().toISOString();
         const data = await api.get<any>(
-          `/api/v2/schedules/client-view?serviceId=${serviceId}&tenantId=${selectedRegionId}&date=${currentDateIso}`
-        );
-        const rawItems = Array.isArray(data) ? data : (data.items || data.data || []);
+          `/api/v2/schedules/client-view?serviceId=${serviceId}&tenantId=${selectedRegionId}&pageSize=50`
+        ).catch(async () => {
+          // Fallback to general schedules query if client-view has specific window filtering
+          return await api.get<any>(
+            `/api/v2/schedules?serviceId=${serviceId}&tenantId=${selectedRegionId}&pageSize=50`
+          ).catch(() => null);
+        });
+
+        if (!data) {
+          setSchedules([]);
+          return;
+        }
+
+        const rawItems = Array.isArray(data)
+          ? data
+          : (data.items || data.data || []);
+
         const mappedSchedules: ScheduleItem[] = rawItems.map((item: any) => {
           if (item.scheduledDate && item.startTime && item.endTime) {
             return item;
           }
-          const startD = new Date(item.startDate);
-          const endD = new Date(item.endDate);
+          const startD = item.startDate ? new Date(item.startDate) : new Date();
+          const endD = item.endDate ? new Date(item.endDate) : new Date();
           const scheduledDate = startD.toLocaleDateString("en-US", {
             year: "numeric",
             month: "long",
@@ -235,13 +248,13 @@ export function useExamFilingQueries({
             scheduledDate,
             startTime,
             endTime,
-            venue: item.venue,
+            venue: item.venue || "NTC Regional Examination Center",
             maximumSlots: item.maximumSlots,
           };
         });
         setSchedules(mappedSchedules);
       } catch (err) {
-        console.error("Failed to fetch schedules:", err);
+        console.warn("[ExamFilingQueries] Failed to fetch exam schedules:", err);
         setSchedules([]);
       } finally {
         setLoadingSchedules(false);

@@ -228,10 +228,45 @@ export function ExamSteps1To2({
             )}
           </View>
           {loadingSchedules ? (
-            <Text style={{ marginVertical: 10, color: COLORS.neutral[500] }}>Loading schedules...</Text>
+            <View style={{ padding: 20, alignItems: "center", justifyContent: "center", gap: 8 }}>
+              <ActivityIndicator size="small" color="#0F2C59" />
+              <Text style={{ color: COLORS.neutral[600], fontSize: 13 }}>Checking available examination schedules...</Text>
+            </View>
           ) : schedules.length === 0 ? (
-            <View style={{ padding: 12, backgroundColor: "#FEF2F2", borderWidth: 1, borderColor: "#FECACA", borderRadius: 8, marginVertical: 8 }}>
-              <Text style={{ color: "#DC2626", fontSize: 13 }}>No available exam schedules found for this region. Please try another region or check back soon.</Text>
+            <View
+              style={{
+                padding: 16,
+                backgroundColor: "#FFFBEB",
+                borderWidth: 1,
+                borderColor: "#FDE68A",
+                borderRadius: 10,
+                marginVertical: 8,
+                flexDirection: "row",
+                alignItems: "flex-start",
+                gap: 12,
+              }}
+            >
+              <View
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 18,
+                  backgroundColor: "#FEF3C7",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginTop: 2,
+                }}
+              >
+                <Icon name="calendar" size={18} color="#D97706" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: "#92400E", fontSize: 14, fontWeight: "700", marginBottom: 4 }}>
+                  No Open Examination Schedule
+                </Text>
+                <Text style={{ color: "#B45309", fontSize: 13, lineHeight: 18 }}>
+                  There are currently no active or open exam slots for the selected Region/Office. Examination filing requires an open schedule date. You may switch to another Regional Office or check back soon for newly published exam dates.
+                </Text>
+              </View>
             </View>
           ) : (
             schedules.map((sched, index) => {

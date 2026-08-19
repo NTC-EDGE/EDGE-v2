@@ -7,8 +7,23 @@ import { FormGrid, FormCol } from "./FormGrid";
 import { ApplicantNameField, StructuredNameData } from "./ApplicantNameField";
 import { FormSignatureInput } from "./FormSignatureInput";
 import { DeclarationCheckbox } from "./DeclarationCheckbox";
+import { FormRepeaterTable } from "./FormRepeaterTable";
 import { useGeographicLocations } from "../hooks/useGeographicLocations";
 import { TYPOGRAPHY, COLORS } from "../theme/tokens";
+import {
+  FIELD_ID_FULL_NAME,
+  FIELD_ID_BIRTH_DATE,
+  FIELD_ID_NO_OF_YEARS,
+  FIELD_ID_CONTACT_NO,
+  FIELD_ID_EMAIL,
+  FIELD_ID_ELEMENTS,
+  FIELD_ID_EMPLOYMENT_STATUS,
+  FIELD_ID_EMPLOYMENT_TYPE,
+  FIELD_ID_REGION,
+  FIELD_ID_PROVINCE,
+  FIELD_ID_CITY,
+  FIELD_ID_BARANGAY,
+} from "../constants/fieldIds";
 
 export interface FieldDto {
   id?: string;
@@ -45,9 +60,44 @@ interface DynamicFormRendererProps {
   structuredNameData?: Partial<StructuredNameData>;
   applicantName?: string;
   allowCompany?: boolean;
+  serviceCategory?: string;
+  serviceTitle?: string;
+  selectedVariantId?: string;
+  onVariantChange?: (variantId: string, variantName: string) => void;
+  selectedElementId?: string;
+  onElementChange?: (elementId: string, elementTitle: string) => void;
+  noOfYears?: string;
+  onNoOfYearsChange?: (years: string) => void;
+  showApplicationTypeSection?: boolean;
+  variants?: Array<{ id: string; name?: string; type?: string; description?: string; [key: string]: unknown }>;
   variantElements?: Array<{ id: string; code?: string; description?: string; [key: string]: unknown }>;
   errors?: Record<string, string>;
   hideSections?: string[];
+}
+
+function getElementFieldLabel(category?: string, title?: string): string {
+  const cat = (category || "").toLowerCase();
+  const tit = (title || "").toLowerCase();
+
+  if (cat.includes("certificate") || tit.includes("certificate") || tit.includes("cert")) {
+    return "Type of Certificate";
+  }
+  if (cat.includes("license") || cat.includes("licence") || tit.includes("license") || tit.includes("licence")) {
+    if (tit.includes("amateur") || tit.includes("station") || tit.includes("radio")) {
+      return "Class of Station";
+    }
+    return "Type of License";
+  }
+  if (cat.includes("permit") || tit.includes("permit")) {
+    return "Type of Permit";
+  }
+  if (cat.includes("exam") || tit.includes("exam") || tit.includes("admission") || tit.includes("operator")) {
+    return "Exam Element / Station Class";
+  }
+  if (cat.includes("accreditation") || tit.includes("accreditation")) {
+    return "Accreditation Category";
+  }
+  return "Classification / Element";
 }
 
 function parseOptions(field: FieldDto): Array<{ label: string; value: string }> {
@@ -74,6 +124,71 @@ function parseOptions(field: FieldDto): Array<{ label: string; value: string }> 
   return [];
 }
 
+function getFieldSortPriority(field: FieldDto, defaultIndex: number): number {
+  if (!field) return defaultIndex;
+  const labelLower = (field.label || "").toLowerCase().trim();
+  const idLower = (field.fieldId || field.id || "").toLowerCase().trim();
+
+  // 1. Personal Identity Fields
+  if (
+    labelLower.includes("full name") ||
+    labelLower.includes("legal name") ||
+    idLower === "fullname" ||
+    idLower === FIELD_ID_FULL_NAME
+  ) {
+    return 1;
+  }
+  if (
+    labelLower.includes("birth") ||
+    idLower === "birthdate" ||
+    idLower === FIELD_ID_BIRTH_DATE
+  ) {
+    return 2;
+  }
+  if (labelLower.includes("sex") || labelLower.includes("gender")) return 3;
+  if (labelLower.includes("civil status")) return 4;
+  if (labelLower.includes("nationality") || labelLower.includes("citizenship")) return 5;
+
+  // 2. Address Fields in strict requested order:
+  // First is Region, Province, Municipality/City, Barangay, then Street, then Zip Code
+  if (labelLower === "region" || idLower === "region" || idLower === FIELD_ID_REGION) return 10;
+  if (labelLower === "province" || idLower === "province" || idLower === FIELD_ID_PROVINCE) return 20;
+  if (
+    labelLower === "city" ||
+    labelLower.includes("city / municipality") ||
+    labelLower.includes("municipality") ||
+    idLower === "city" ||
+    idLower === FIELD_ID_CITY
+  ) {
+    return 30;
+  }
+  if (labelLower === "barangay" || idLower === "barangay" || idLower === FIELD_ID_BARANGAY) return 40;
+  if (
+    labelLower.includes("street") ||
+    idLower === "street" ||
+    labelLower.includes("unit") ||
+    labelLower.includes("building") ||
+    idLower === "address" ||
+    labelLower === "complete address"
+  ) {
+    return 50;
+  }
+  if (labelLower.includes("zip") || labelLower.includes("postal") || idLower === "zipcode") return 60;
+
+  // 3. Contact Details after Address
+  if (
+    labelLower.includes("contact") ||
+    labelLower.includes("mobile") ||
+    idLower === "contactno" ||
+    idLower === FIELD_ID_CONTACT_NO
+  ) {
+    return 70;
+  }
+  if (labelLower.includes("email") || idLower === "email" || idLower === FIELD_ID_EMAIL) return 80;
+
+  return 100 + defaultIndex;
+}
+
 export function DynamicFormRenderer({
   form,
   values = {},
@@ -81,10 +196,20 @@ export function DynamicFormRenderer({
   onStructuredNameChange,
   structuredNameData,
   applicantName = "",
-  allowCompany = true,
+  allowCompany = false,
+  serviceCategory,
+  serviceTitle,
+  selectedVariantId,
+  onVariantChange,
+  selectedElementId,
+  onElementChange,
+  noOfYears,
+  onNoOfYearsChange,
+  showApplicationTypeSection = true,
+  variants = [],
   variantElements = [],
   errors = {},
-  hideSections = ["payment"],
+  hideSections = [],
 }: DynamicFormRendererProps) {
   // Safe guard: form and sections might be undefined when loading
   const sections = form?.sections ?? [];
@@ -92,12 +217,12 @@ export function DynamicFormRenderer({
   const regionField = allFields.find((f) => {
     const l = (f?.label || "").toLowerCase().trim();
     const id = f?.fieldId || f?.id || "";
-    return l === "region" || id === "fd000000-0000-0000-0000-000000000051";
+    return l === "region" || id === FIELD_ID_REGION;
   });
   const provinceField = allFields.find((f) => {
     const l = (f?.label || "").toLowerCase().trim();
     const id = f?.fieldId || f?.id || "";
-    return l === "province" || id === "fd000000-0000-0000-0000-000000000052";
+    return l === "province" || id === FIELD_ID_PROVINCE;
   });
   const cityField = allFields.find((f) => {
     const l = (f?.label || "").toLowerCase().trim();
@@ -106,13 +231,13 @@ export function DynamicFormRenderer({
       l === "city" ||
       l.includes("city / municipality") ||
       l.includes("municipality") ||
-      id === "fd000000-0000-0000-0000-000000000053"
+      id === FIELD_ID_CITY
     );
   });
   const barangayField = allFields.find((f) => {
     const l = (f?.label || "").toLowerCase().trim();
     const id = f?.fieldId || f?.id || "";
-    return l === "barangay" || id === "fd000000-0000-0000-0000-000000000054";
+    return l === "barangay" || id === FIELD_ID_BARANGAY;
   });
 
   const regionFieldId = regionField?.fieldId || regionField?.id || "";
@@ -182,50 +307,252 @@ export function DynamicFormRenderer({
 
   const hiddenKeys = hideSections.map((s) => s.toLowerCase());
 
+  const isTypeSection = (section: FormSectionDto): boolean => {
+    const key = (section.key || section.id || "").toLowerCase();
+    const title = (section.title || "").toLowerCase();
+    return (
+      key === "typeofcertificate" ||
+      key === "permittype" ||
+      key === "apptype" ||
+      key === "applicationtype" ||
+      key === "typeofapplication" ||
+      title === "type of certificate / application" ||
+      title === "type of application & permit category" ||
+      title === "type of application & category" ||
+      title === "type of certificate" ||
+      title === "type of application" ||
+      title === "application type" ||
+      title === "permit type / application type" ||
+      title === "permit type" ||
+      title === "permit category"
+    );
+  };
+
   const visibleSections = sections.filter((section) => {
     if (!section) return false;
+    if (isTypeSection(section)) return false;
     const key = (section.key || section.id || "").toLowerCase();
     const title = (section.title || "").toLowerCase();
     return (
       !hiddenKeys.includes(key) &&
       !hiddenKeys.includes(title) &&
-      title !== "payment details"
+      key !== "declaration" &&
+      !key.includes("declaration") &&
+      title !== "declaration" &&
+      !title.includes("declaration") &&
+      title !== "payment details" &&
+      !title.includes("payment") &&
+      key !== "payment" &&
+      !key.includes("payment")
     );
   });
 
   return (
     <View style={styles.container}>
+      {/* Section 1: Application Type, Category/Element, & Duration from serviceVariant endpoint */}
+      {showApplicationTypeSection && (
+        <View style={styles.sectionCard}>
+          <View style={styles.sectionHeaderRow}>
+            <View style={styles.sectionTitleRow}>
+              <View style={styles.iconCircle}>
+                <Text style={styles.iconCircleText}>1</Text>
+              </View>
+              <Text style={styles.sectionTitle}>Application Type</Text>
+            </View>
+            <View style={styles.sectionBadge}>
+              <Text style={styles.sectionBadgeText}>SECTION 1</Text>
+            </View>
+          </View>
+
+          <FormGrid>
+            {/* 1. Type of Application (Service Variant Dropdown) */}
+            <FormCol span={variantElements.length > 0 ? 4 : 6}>
+              <Select
+                label="Type of Application"
+                required
+                value={selectedVariantId || (variants[0] ? String(variants[0].id) : "")}
+                options={
+                  variants.length > 0
+                    ? variants.map((v) => {
+                        const vType = v.type && v.type !== "NA" && v.type !== "N/A" ? v.type : "";
+                        const vDesc = v.description || v.name || v.id;
+                        const displayLabel = vType ? `${vType.toUpperCase()} — ${vDesc}` : `${vDesc}`;
+                        return {
+                          label: displayLabel,
+                          value: String(v.id),
+                        };
+                      })
+                    : [
+                        { label: "NEW — First-time application / issuance", value: "New" },
+                        { label: "RENEWAL — Renewal of existing permit, license, or certificate", value: "Renewal" },
+                        { label: "MODIFICATION — Amendment or change of registered particulars", value: "Modification" },
+                      ]
+                }
+                placeholder="Select Type of Application..."
+                onValueChange={(val: string) => {
+                  const matched = variants.find((v) => String(v.id) === String(val));
+                  const vDesc = matched ? (matched.description || matched.name || matched.type || val) : val;
+                  onVariantChange?.(val, String(vDesc));
+                }}
+              />
+            </FormCol>
+
+            {/* 2. Type of Certificate / License / Station Class / Permit Type (Filtered by Service Variant) */}
+            {variantElements.length > 0 && (
+              <FormCol span={4}>
+                <Select
+                  label={getElementFieldLabel(serviceCategory, serviceTitle)}
+                  required
+                  value={selectedElementId || (variantElements[0] ? String(variantElements[0].id) : "")}
+                  options={variantElements.map((elem) => {
+                    const title = elem.code ? `${elem.code} — ${elem.description}` : String(elem.description || elem.id);
+                    return {
+                      label: title,
+                      value: String(elem.id),
+                    };
+                  })}
+                  placeholder={`Select ${getElementFieldLabel(serviceCategory, serviceTitle)}...`}
+                  onValueChange={(val: string) => {
+                    const matched = variantElements.find((e) => String(e.id) === String(val));
+                    const eTitle = matched
+                      ? (matched.code ? `${matched.code} — ${matched.description}` : String(matched.description || matched.id))
+                      : val;
+                    onElementChange?.(val, eTitle);
+                  }}
+                />
+              </FormCol>
+            )}
+
+            {/* 3. Number of Years (1, 2, 3 only) */}
+            <FormCol span={variantElements.length > 0 ? 4 : 6}>
+              <Select
+                label="Number of Years"
+                required
+                value={noOfYears || "1"}
+                options={[
+                  { label: "1 Year", value: "1" },
+                  { label: "2 Years", value: "2" },
+                  { label: "3 Years", value: "3" },
+                ]}
+                placeholder="Select Duration..."
+                onValueChange={(val: string) => onNoOfYearsChange?.(val)}
+              />
+            </FormCol>
+          </FormGrid>
+        </View>
+      )}
+
       {visibleSections.map((section, idx) => {
         const sectionKey = section.id || section.key || `section-${idx}`;
+        const sectionDisplayNum = (showApplicationTypeSection ? 1 : 0) + idx + 1;
         return (
           <View key={sectionKey} style={styles.sectionCard}>
             <View style={styles.sectionHeaderRow}>
               <View style={styles.sectionTitleRow}>
                 <View style={styles.iconCircle}>
-                  <Text style={styles.iconCircleText}>{idx + 1}</Text>
+                  <Text style={styles.iconCircleText}>{sectionDisplayNum}</Text>
                 </View>
                 <Text style={styles.sectionTitle}>{section.title}</Text>
               </View>
               <View style={styles.sectionBadge}>
-                <Text style={styles.sectionBadgeText}>DYNAMIC SECTION {idx + 1}</Text>
+                <Text style={styles.sectionBadgeText}>SECTION {sectionDisplayNum}</Text>
               </View>
             </View>
 
             <FormGrid>
-              {(section.fields || []).map((field, fIdx) => {
-                if (!field) return null;
-                const targetId = field.fieldId || field.id || `field-${fIdx}`;
-                const rawVal = (values && values[targetId]) || (values && field.label && values[field.label]) || "";
-                const err = (errors && errors[targetId]) || undefined;
-                const rawType = (field.fieldType || field.type || "").toLowerCase();
-                const labelLower = (field.label || "").toLowerCase().trim();
+              {(() => {
+                const rawFields = section.fields || [];
+                const sectionFields = [...rawFields].sort((a, b) => {
+                  const idxA = rawFields.indexOf(a);
+                  const idxB = rawFields.indexOf(b);
+                  return getFieldSortPriority(a, idxA) - getFieldSortPriority(b, idxB);
+                });
+                const hasRepeater = sectionFields.some((f) => {
+                  const fType = (f.fieldType || f.type || "").toLowerCase();
+                  const fId = (f.fieldId || f.id || "").toLowerCase();
+                  const fLbl = (f.label || "").toLowerCase();
+                  return (
+                    fType === "repeater" ||
+                    fType === "table" ||
+                    fType === "repeater_table" ||
+                    fId.includes("equipmentdetails") ||
+                    fId.includes("antennadetails") ||
+                    fId.includes("devicesdetails") ||
+                    fId.includes("radioofficers") ||
+                    fLbl.includes("particulars of equipment") ||
+                    fLbl.includes("registered devices details")
+                  );
+                });
+
+                return sectionFields.map((field, fIdx) => {
+                  if (!field) return null;
+                  const targetId = field.fieldId || field.id || `field-${fIdx}`;
+                  const fIdLower = targetId.toLowerCase();
+                  const rawVal = (values && values[targetId]) || (values && field.label && values[field.label]) || "";
+                  const err = (errors && errors[targetId]) || undefined;
+                  const rawType = (field.fieldType || field.type || "").toLowerCase();
+                  const labelLower = (field.label || "").toLowerCase().trim();
+
+                  // Skip redundant single fields if full repeater already encompasses them in this section
+                  if (
+                    hasRepeater &&
+                    !fIdLower.includes("equipmentdetails") &&
+                    !fIdLower.includes("antennadetails") &&
+                    !fIdLower.includes("devicesdetails") &&
+                    !fIdLower.includes("radioofficers") &&
+                    rawType !== "repeater" &&
+                    (labelLower === "serial number" ||
+                     labelLower === "frequency range" ||
+                     labelLower === "power output" ||
+                     labelLower === "make" ||
+                     labelLower === "type/model")
+                  ) {
+                    return null;
+                  }
+
+                const isEmploymentStatusField =
+                  (labelLower === "status" && (section.title.toLowerCase().includes("employment") || section.key?.toLowerCase().includes("employment"))) ||
+                  labelLower === "employment status" ||
+                  targetId === FIELD_ID_EMPLOYMENT_STATUS;
+
+                const isEmploymentTypeField =
+                  (labelLower === "type" && (section.title.toLowerCase().includes("employment") || section.key?.toLowerCase().includes("employment"))) ||
+                  labelLower === "employment type" ||
+                  targetId === FIELD_ID_EMPLOYMENT_TYPE;
+
+                const isApplicationTypeField =
+                  !isEmploymentStatusField &&
+                  !isEmploymentTypeField &&
+                  (labelLower.includes("type of application") ||
+                  labelLower.includes("application type") ||
+                  labelLower.includes("permit type") ||
+                  labelLower.includes("license type") ||
+                  labelLower.includes("certificate type") ||
+                  labelLower.includes("type of certificate") ||
+                  labelLower === "application" ||
+                  (labelLower === "type" && !section.title.toLowerCase().includes("employment") && !section.key?.toLowerCase().includes("employment")) ||
+                  fIdLower === "type_of_application" ||
+                  fIdLower === "permittype" ||
+                  fIdLower === "applicationtype" ||
+                  fIdLower === "typeofcertificate");
+
+                // Skip repetitive application/permit/certificate type fields in the form body
+                if (isApplicationTypeField) {
+                  return null;
+                }
 
                 const isNameField =
-                  labelLower.includes("full name") ||
-                  labelLower.includes("applicant name") ||
-                  labelLower.includes("name of applicant") ||
-                  labelLower === "name" ||
-                  labelLower === "applicant";
+                  !isApplicationTypeField &&
+                  !isEmploymentStatusField &&
+                  !isEmploymentTypeField &&
+                  (labelLower.includes("full name") ||
+                   labelLower.includes("full legal name") ||
+                   labelLower.includes("applicant name") ||
+                   labelLower.includes("name of applicant") ||
+                   labelLower === "name" ||
+                   fIdLower === "fullname" ||
+                   fIdLower === "applicant_name" ||
+                   targetId === FIELD_ID_FULL_NAME);
 
                 const isSignature =
                   rawType === "signature" ||
@@ -240,35 +567,31 @@ export function DynamicFormRenderer({
 
                 const isElementsField =
                   labelLower.includes("element") ||
-                  targetId === "fd000000-0000-0000-0000-000000000009";
+                  labelLower.includes("class of station") ||
+                  targetId === FIELD_ID_ELEMENTS;
+
+                // Skip element field in the form body if already rendered in top Section 1
+                if (showApplicationTypeSection && variantElements.length > 0 && isElementsField) {
+                  return null;
+                }
 
                 const isRegionField =
                   labelLower === "region" ||
-                  targetId === "fd000000-0000-0000-0000-000000000051";
+                  targetId === FIELD_ID_REGION;
 
                 const isProvinceField =
                   labelLower === "province" ||
-                  targetId === "fd000000-0000-0000-0000-000000000052";
+                  targetId === FIELD_ID_PROVINCE;
 
                 const isCityField =
                   labelLower === "city" ||
                   labelLower.includes("city / municipality") ||
                   labelLower.includes("municipality") ||
-                  targetId === "fd000000-0000-0000-0000-000000000053";
+                  targetId === FIELD_ID_CITY;
 
                 const isBarangayField =
                   labelLower === "barangay" ||
-                  targetId === "fd000000-0000-0000-0000-000000000054";
-
-                const isEmploymentStatusField =
-                  (labelLower === "status" && (section.title.toLowerCase().includes("employment") || section.key?.toLowerCase().includes("employment"))) ||
-                  labelLower === "employment status" ||
-                  targetId === "fd000000-0000-0000-0000-000000000017";
-
-                const isEmploymentTypeField =
-                  (labelLower === "type" && (section.title.toLowerCase().includes("employment") || section.key?.toLowerCase().includes("employment"))) ||
-                  labelLower === "employment type" ||
-                  targetId === "fd000000-0000-0000-0000-000000000018";
+                  targetId === FIELD_ID_BARANGAY;
 
                 const elementOptions: Array<{ label: string; value: string }> =
                   variantElements && variantElements.length > 0
@@ -278,9 +601,35 @@ export function DynamicFormRenderer({
                       })
                     : [];
 
+                const variantOptions: Array<{ label: string; value: string }> =
+                  variants && variants.length > 0
+                    ? variants.map((v) => {
+                        const vType = v.type && v.type !== "NA" && v.type !== "N/A" ? v.type : "";
+                        const vDesc = v.description || v.name || v.id;
+                        const displayLabel = vType ? `${vType.toUpperCase()} — ${vDesc}` : `${vDesc}`;
+                        return {
+                          label: displayLabel,
+                          value: vDesc || vType || v.id,
+                        };
+                      })
+                    : [
+                        { label: "NEW — First-time application / issuance", value: "New" },
+                        { label: "RENEWAL — Renewal of existing permit, license, or certificate", value: "Renewal" },
+                        { label: "MODIFICATION — Amendment or change of registered particulars", value: "Modification" },
+                      ];
+
+                const isNoOfYearsField =
+                  labelLower.includes("number of years") ||
+                  labelLower.includes("no of years") ||
+                  labelLower === "years" ||
+                  targetId === FIELD_ID_NO_OF_YEARS;
+
                 const isDropdown =
                   rawType === "dropdown" ||
                   rawType === "select" ||
+                  (rawType === "radio" && isApplicationTypeField) ||
+                  isApplicationTypeField ||
+                  isNoOfYearsField ||
                   isRegionField ||
                   isProvinceField ||
                   isCityField ||
@@ -290,6 +639,12 @@ export function DynamicFormRenderer({
                   (isElementsField && elementOptions.length > 0);
 
                 let val = rawVal;
+                if (isApplicationTypeField && (!val || val === "") && variantOptions.length > 0) {
+                  val = variantOptions[0].value;
+                }
+                if (isNoOfYearsField && (!val || val === "")) {
+                  val = noOfYears || "1";
+                }
                 if (!val && values) {
                   if (isRegionField) {
                     val = values["region"] || values["Region"] || "";
@@ -305,7 +660,29 @@ export function DynamicFormRenderer({
                 let dropdownOptions: Array<{ label: string; value: string }> = [];
                 let placeholder = field.placeholder || "Select an option...";
 
-                if (isElementsField && elementOptions.length > 0) {
+                if (isEmploymentStatusField) {
+                  dropdownOptions = [
+                    { label: "Employed", value: "Employed" },
+                    { label: "Unemployed", value: "Unemployed" },
+                  ];
+                  placeholder = "Select Status...";
+                } else if (isEmploymentTypeField) {
+                  dropdownOptions = [
+                    { label: "Local", value: "Local" },
+                    { label: "Foreign", value: "Foreign" },
+                  ];
+                  placeholder = "Select Type...";
+                } else if (isNoOfYearsField) {
+                  dropdownOptions = [
+                    { label: "1 Year", value: "1" },
+                    { label: "2 Years", value: "2" },
+                    { label: "3 Years", value: "3" },
+                  ];
+                  placeholder = "Select Number of Years...";
+                } else if (isApplicationTypeField) {
+                  dropdownOptions = variantOptions;
+                  placeholder = "Select Application Type / Variant...";
+                } else if (isElementsField && elementOptions.length > 0) {
                   dropdownOptions = elementOptions;
                   placeholder = "Select Exam Element...";
                 } else if (isRegionField) {
@@ -344,18 +721,6 @@ export function DynamicFormRenderer({
                     : !selectedMunicipalityId
                     ? "Select City first..."
                     : "Select Barangay...";
-                } else if (isEmploymentStatusField) {
-                  dropdownOptions = [
-                    { label: "Employed", value: "Employed" },
-                    { label: "Unemployed", value: "Unemployed" },
-                  ];
-                  placeholder = "Select Status...";
-                } else if (isEmploymentTypeField) {
-                  dropdownOptions = [
-                    { label: "Local", value: "Local" },
-                    { label: "Foreign", value: "Foreign" },
-                  ];
-                  placeholder = "Select Type...";
                 } else {
                   dropdownOptions = parseOptions(field);
                 }
@@ -378,11 +743,66 @@ export function DynamicFormRenderer({
                   }
                 };
 
-                const isDate = rawType === "date";
-                const isNumber = rawType === "number";
+                const isDate =
+                  rawType === "date" ||
+                  targetId === FIELD_ID_BIRTH_DATE ||
+                  labelLower === "date of birth" ||
+                  labelLower === "birth date" ||
+                  labelLower === "dob" ||
+                  (labelLower.includes("date") && !labelLower.includes("candidate") && !labelLower.includes("update") && !labelLower.includes("data"));
+                const isNumber =
+                  rawType === "number" ||
+                  rawType === "numeric" ||
+                  rawType === "integer" ||
+                  rawType === "decimal" ||
+                  labelLower.includes("quantity") ||
+                  labelLower.includes("gross tonnage") ||
+                  labelLower.includes("net tonnage") ||
+                  labelLower.includes("output power") ||
+                  labelLower.includes("power (watts)") ||
+                  labelLower.includes("frequency (mhz)") ||
+                  labelLower.includes("zip code") ||
+                  labelLower.includes("postal code") ||
+                  labelLower === "age" ||
+                  labelLower === "qty" ||
+                  labelLower === "quantity" ||
+                  labelLower === "watts" ||
+                  labelLower === "power";
                 const isFile = rawType === "file";
+                const sectionKeyLower = (section.key || section.id || "").toLowerCase();
+                const fieldIdLower = (field.fieldId || field.id || "").toLowerCase();
+                const isRepeaterField =
+                  rawType === "repeater" ||
+                  rawType === "table" ||
+                  rawType === "repeater_table" ||
+                  rawType === "array" ||
+                  fieldIdLower.includes("equipmentdetails") ||
+                  fieldIdLower.includes("antennadetails") ||
+                  fieldIdLower.includes("radioofficers") ||
+                  fieldIdLower.includes("devicesdetails") ||
+                  sectionKeyLower.includes("equipment") ||
+                  sectionKeyLower.includes("antenna") ||
+                  sectionKeyLower.includes("device") ||
+                  labelLower.includes("particulars of equipment") ||
+                  labelLower.includes("registered devices details") ||
+                  labelLower.includes("equipment technical details") ||
+                  labelLower.includes("antenna technical details") ||
+                  labelLower.includes("radio officers details");
 
-                const span = isNameField || isSignature || isCheckbox || isFile ? 12 : 6;
+                const isContactField =
+                  fieldIdLower === "fd000000-0000-0000-0000-000000000004" ||
+                  labelLower.includes("contact") ||
+                  labelLower.includes("mobile") ||
+                  labelLower.includes("phone") ||
+                  rawType === "tel" ||
+                  rawType === "phone";
+
+                const isEmailField =
+                  fieldIdLower === "fd000000-0000-0000-0000-000000000005" ||
+                  labelLower.includes("email") ||
+                  rawType === "email";
+
+                const span = isNameField || isSignature || isCheckbox || isFile || isRepeaterField ? 12 : 6;
 
                 return (
                   <FormCol key={targetId} span={span} compact={field.isCompact}>
@@ -396,6 +816,15 @@ export function DynamicFormRenderer({
                         allowCompany={allowCompany}
                         onChange={(combinedName) => onChange(targetId, field.label, combinedName)}
                         onStructuredChange={onStructuredNameChange}
+                        error={err}
+                      />
+                    ) : isRepeaterField ? (
+                      <FormRepeaterTable
+                        label={field.label}
+                        isRequired={field.isRequired}
+                        value={val}
+                        fieldKey={targetId}
+                        onChange={(repeaterJson) => onChange(targetId, field.label, repeaterJson)}
                         error={err}
                       />
                     ) : isSignature ? (
@@ -439,17 +868,35 @@ export function DynamicFormRenderer({
                         required={field.isRequired}
                         value={val}
                         onChangeText={(v) => onChange(targetId, field.label, v)}
-                        placeholder={field.placeholder || `Enter ${field.label}...`}
-                        keyboardType={isNumber ? "numeric" : "default"}
+                        placeholder={
+                          field.placeholder ||
+                          (isContactField
+                            ? "09XXXXXXXXX or +639XXXXXXXXX"
+                            : isEmailField
+                            ? "user@example.com"
+                            : `Enter ${field.label}...`)
+                        }
+                        keyboardType={
+                          isContactField
+                            ? "phone-pad"
+                            : isEmailField
+                            ? "email-address"
+                            : isNumber
+                            ? "numeric"
+                            : "default"
+                        }
+                        autoCapitalize={isEmailField ? "none" : undefined}
+                        maxLength={isContactField ? 13 : undefined}
                         error={err}
                       />
                     )}
                   </FormCol>
                 );
-              })}
-            </FormGrid>
-          </View>
-        );
+              });
+            })()}
+          </FormGrid>
+        </View>
+      );
       })}
     </View>
   );

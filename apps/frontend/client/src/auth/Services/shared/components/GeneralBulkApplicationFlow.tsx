@@ -8,10 +8,17 @@ import {
 } from "react-native";
 import { Icon, COLORS, TYPOGRAPHY } from "@edge/ui";
 import { NTCService } from "../../data/servicesData";
-import { GeneralApplicantData } from "../hooks/useGeneralServiceWizard";
+import {
+  GeneralApplicantData,
+  ServiceRequirementItem,
+  ServiceVariantInfo,
+  ServiceVariantElementInfo,
+} from "../hooks/useGeneralServiceWizard";
 import { GeneralFilingDetailsStep } from "./GeneralFilingDetailsStep";
 import { GeneralDocumentUploadStep } from "./GeneralDocumentUploadStep";
 import { isGeneralApplicantComplete } from "../GeneralBulkApplicantsPanel";
+import { validateContactNumber, validateEmailAddress } from "../../../../shared/helpers/fieldValidators";
+import { FIELD_ID_CONTACT_NO, FIELD_ID_EMAIL } from "../../../../shared/constants/fieldIds";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 type BulkSubView = "FILING_DETAILS" | "DOCUMENT_UPLOAD";
@@ -24,12 +31,14 @@ interface GeneralBulkApplicationFlowProps {
   setCurrentApplicantIndex: (idx: number) => void;
   /** Increment to trigger opening Filing Details for currentApplicantIndex from the left panel */
   triggerOpenApplicant?: number;
-  variantRequirements?: string[];
+  variantRequirements?: Array<ServiceRequirementItem | string>;
   onBack?: () => void;
   onSubmitAll: () => void;
   isWeb: boolean;
   dynamicRequiredFieldIds?: string[];
   setDynamicRequiredFieldIds?: (ids: string[]) => void;
+  variants?: ServiceVariantInfo[];
+  variantElements?: ServiceVariantElementInfo[];
 }
 
 import { getApplicantDisplayName } from "../helpers/applicantDisplayHelper";
@@ -48,6 +57,8 @@ export function GeneralBulkApplicationFlow({
   isWeb,
   dynamicRequiredFieldIds = [],
   setDynamicRequiredFieldIds,
+  variants = [],
+  variantElements = [],
 }: GeneralBulkApplicationFlowProps) {
   const [subView, setSubView] = useState<BulkSubView>("FILING_DETAILS");
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -91,6 +102,7 @@ export function GeneralBulkApplicationFlow({
       const fieldValues = activeApplicant?.formFieldValues || [];
       const filledMap = new Map(fieldValues.map((fv) => [fv.fieldId, fv.value]));
 
+      // 1. Missing required fields check
       dynamicRequiredFieldIds.forEach((id) => {
         const val = filledMap.get(id);
         const trimmed = val !== undefined && val !== null ? (typeof val === "string" ? val.trim() : String(val)) : "";
@@ -98,16 +110,38 @@ export function GeneralBulkApplicationFlow({
           errors[id] = "This required field cannot be left blank.";
         }
       });
+
+      // 2. Specific format validation for Contact Number and Email
+      fieldValues.forEach((fv) => {
+        const fId = (fv.fieldId || "").toLowerCase();
+        const fLbl = (fv.fieldLabel || "").toLowerCase();
+        const val = typeof fv.value === "string" ? fv.value.trim() : "";
+
+        if (val.length > 0) {
+          if (fId === FIELD_ID_CONTACT_NO || fLbl.includes("contact") || fLbl.includes("phone") || fLbl.includes("mobile")) {
+            const err = validateContactNumber(val);
+            if (err) errors[fv.fieldId] = err;
+          } else if (fId === FIELD_ID_EMAIL || fLbl.includes("email")) {
+            const err = validateEmailAddress(val);
+            if (err) errors[fv.fieldId] = err;
+          }
+        }
+      });
     } else {
-      if (!activeApplicant?.firstName) errors.firstName = "First Name is required.";
-      if (!activeApplicant?.lastName) errors.lastName = "Last Name is required.";
-      if (!activeApplicant?.email) errors.email = "Email Address is required.";
-      if (!activeApplicant?.contactNo) errors.contactNo = "Contact Number is required.";
+      if (!activeApplicant?.firstName || activeApplicant.firstName.trim() === "") errors.firstName = "First Name is required.";
+      if (!activeApplicant?.lastName || activeApplicant.lastName.trim() === "") errors.lastName = "Last Name is required.";
+
+      const emailErr = validateEmailAddress(activeApplicant?.email);
+      if (emailErr) errors.email = emailErr;
+
+      const contactErr = validateContactNumber(activeApplicant?.contactNo);
+      if (contactErr) errors.contactNo = contactErr;
     }
 
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
-      Alert.alert("Incomplete", "Please fill in all required fields before continuing.");
+      const firstError = Object.values(errors)[0];
+      Alert.alert("Validation Error", firstError || "Please fill in all required fields marked in red correctly.");
       return;
     }
 
@@ -115,112 +149,91 @@ export function GeneralBulkApplicationFlow({
     setSubView("DOCUMENT_UPLOAD");
   };
 
-  // ─── Filing Details ────────────────────────────────────────────────────────
-  const renderFilingDetails = () => {
-    if (!activeApplicant) return null;
-    const name = getApplicantDisplayName(activeApplicant, currentApplicantIndex);
-    return (
-      <View style={{ flex: 1 }}>
-        {/* Sub-header banner */}
+  const handleDocumentUploadNext = () => {
+    if (currentApplicantIndex < applicants.length - 1) {
+      setCurrentApplicantIndex(currentApplicantIndex + 1);
+      setSubView("FILING_DETAILS");
+    } else {
+      onSubmitAll();
+    }
+  };
+
+  const handleBottomBack = () => {
+    if (subView === "DOCUMENT_UPLOAD") {
+      setSubView("FILING_DETAILS");
+    } else if (currentApplicantIndex > 0) {
+      setCurrentApplicantIndex(currentApplicantIndex - 1);
+      setSubView("FILING_DETAILS");
+    } else {
+      onBack?.();
+    }
+  };
+
+  const name = getApplicantDisplayName(activeApplicant, currentApplicantIndex);
+
+  return (
+    <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: 24, paddingBottom: 40 }}
+        showsVerticalScrollIndicator={true}
+      >
+        {/* Page Header */}
+        <View style={{ marginBottom: 16 }}>
+          <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 20, fontWeight: "700", color: "#0F172A", marginBottom: 4 }}>
+            {service.title}
+          </Text>
+          <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: "#64748B" }}>
+            Bulk / Corporate Filing — {subView === "FILING_DETAILS" ? "Applicant Information & Parameters" : "Mandatory Document Attachments"}
+          </Text>
+        </View>
+
+        {/* Sub-header Banner */}
         <View
           style={{
             backgroundColor: "#EFF6FF",
             borderRadius: 12,
             padding: 14,
-            marginBottom: 16,
+            marginBottom: 20,
             borderWidth: 1,
             borderColor: "#93C5FD",
             flexDirection: "row",
             alignItems: "center",
-            gap: 10,
+            justifyContent: "space-between",
           }}
         >
-          <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: "#1D4ED8", justifyContent: "center", alignItems: "center" }}>
-            <Icon name="users" size={16} color="#FFFFFF" />
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 10, flex: 1 }}>
+            <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: "#1D4ED8", justifyContent: "center", alignItems: "center" }}>
+              <Icon name={subView === "FILING_DETAILS" ? "users" : "paperclip"} size={16} color="#FFFFFF" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, fontWeight: "700", color: "#1E40AF" }}>
+                BULK APPLICANT {currentApplicantIndex + 1} OF {applicants.length}
+              </Text>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, color: "#2563EB", marginTop: 1 }} numberOfLines={1}>
+                {name}
+              </Text>
+            </View>
           </View>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, fontWeight: "700", color: "#1E40AF" }}>
-              BULK FILING — Applicant {currentApplicantIndex + 1} of {applicants.length}
-            </Text>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, color: "#2563EB", marginTop: 1 }} numberOfLines={1}>
-              {name}
-            </Text>
-          </View>
-          <View style={{ backgroundColor: "#DBEAFE", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 10, fontWeight: "700", color: "#1E40AF" }}>
-              Step 1/2 · Details
+          <View style={{ backgroundColor: "#DBEAFE", borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 }}>
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: "700", color: "#1E40AF" }}>
+              {subView === "FILING_DETAILS" ? "Step 1/2 · Details" : "Step 2/2 · Documents"}
             </Text>
           </View>
         </View>
 
-        <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+        {/* Active Sub-step Body */}
+        {subView === "FILING_DETAILS" ? (
           <GeneralFilingDetailsStep
             service={service}
             activeApplicant={activeApplicant}
             updateActiveApplicant={updateActiveApplicant}
             onRequiredFieldsChange={setDynamicRequiredFieldIds}
             errors={formErrors}
+            variants={variants}
+            variantElements={variantElements}
           />
-        </ScrollView>
-
-        {/* Navigation */}
-        <View style={{ flexDirection: "row", gap: 10, paddingTop: 12, borderTopWidth: 1, borderColor: "#E2E8F0", marginTop: 8 }}>
-          <TouchableOpacity
-            onPress={onBack}
-            style={{ flex: 1, borderWidth: 1.5, borderColor: "#CBD5E1", backgroundColor: "#F8FAFC", borderRadius: 12, paddingVertical: 12, alignItems: "center" }}
-          >
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: "#0F2C59" }}>← Back to Selection</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={handleFilingDetailsNext}
-            style={{ flex: 1, backgroundColor: "#0F2C59", borderRadius: 12, paddingVertical: 12, alignItems: "center" }}
-          >
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: "#FFFFFF" }}>Next →</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  };
-
-  // ─── Document Upload ───────────────────────────────────────────────────────
-  const renderDocumentUpload = () => {
-    if (!activeApplicant) return null;
-    const name = getApplicantDisplayName(activeApplicant, currentApplicantIndex);
-    return (
-      <View style={{ flex: 1 }}>
-        {/* Sub-header banner */}
-        <View
-          style={{
-            backgroundColor: "#EFF6FF",
-            borderRadius: 12,
-            padding: 14,
-            marginBottom: 16,
-            borderWidth: 1,
-            borderColor: "#93C5FD",
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 10,
-          }}
-        >
-          <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: "#1D4ED8", justifyContent: "center", alignItems: "center" }}>
-            <Icon name="paperclip" size={16} color="#FFFFFF" />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, fontWeight: "700", color: "#1E40AF" }}>
-              BULK FILING — Applicant {currentApplicantIndex + 1} of {applicants.length}
-            </Text>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, color: "#2563EB", marginTop: 1 }} numberOfLines={1}>
-              {name}
-            </Text>
-          </View>
-          <View style={{ backgroundColor: "#DBEAFE", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 10, fontWeight: "700", color: "#1E40AF" }}>
-              Step 2/2 · Docs
-            </Text>
-          </View>
-        </View>
-
-        <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+        ) : (
           <GeneralDocumentUploadStep
             service={service}
             activeApplicant={activeApplicant}
@@ -237,60 +250,118 @@ export function GeneralBulkApplicationFlow({
               updateActiveApplicant({ uploads: cur });
             }}
           />
-        </ScrollView>
+        )}
+      </ScrollView>
 
-        {/* Navigation */}
-        <View style={{ flexDirection: "row", gap: 10, paddingTop: 12, borderTopWidth: 1, borderColor: "#E2E8F0", marginTop: 8 }}>
-          <TouchableOpacity
-            onPress={() => setSubView("FILING_DETAILS")}
-            style={{ flex: 1, borderWidth: 1.5, borderColor: "#0F2C59", borderRadius: 12, paddingVertical: 12, alignItems: "center" }}
-          >
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: "#0F2C59" }}>← Filing Details</Text>
-          </TouchableOpacity>
-          {currentApplicantIndex < applicants.length - 1 ? (
-            <TouchableOpacity
-              onPress={() => {
-                setCurrentApplicantIndex(currentApplicantIndex + 1);
-                setSubView("FILING_DETAILS");
+      {/* ── Fixed Sticky Bottom Action Bar ── */}
+      <View
+        style={{
+          width: "100%",
+          backgroundColor: "#FFFFFF",
+          borderTopWidth: 1,
+          borderTopColor: "#E2E8F0",
+          paddingVertical: 12,
+          paddingHorizontal: 20,
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: -3 },
+          shadowOpacity: 0.06,
+          shadowRadius: 6,
+          elevation: 8,
+          zIndex: 50,
+        }}
+      >
+        <View
+          style={{
+            width: "100%",
+            maxWidth: 1200,
+            alignSelf: "center",
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 16,
+          }}
+        >
+          {/* Progress / Cohort Counter Pill */}
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <View
+              style={{
+                backgroundColor: "#F1F5F9",
+                borderRadius: 8,
+                paddingVertical: 6,
+                paddingHorizontal: 12,
+                borderWidth: 1,
+                borderColor: "#E2E8F0",
               }}
-              style={{ flex: 1, backgroundColor: "#0F2C59", borderRadius: 12, paddingVertical: 12, alignItems: "center" }}
             >
-              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: "#FFFFFF" }}>Next Applicant →</Text>
-            </TouchableOpacity>
-          ) : (
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: "700", color: "#475569" }}>
+                APPLICANT {currentApplicantIndex + 1}/{applicants.length} · {subView === "FILING_DETAILS" ? "DETAILS" : "DOCS"}
+              </Text>
+            </View>
+          </View>
+
+          {/* Action Buttons */}
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+            {(subView === "DOCUMENT_UPLOAD" || currentApplicantIndex > 0) && (
+              <TouchableOpacity
+                onPress={handleBottomBack}
+                activeOpacity={0.7}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  borderWidth: 1.5,
+                  borderColor: "#CBD5E1",
+                  backgroundColor: "#FFFFFF",
+                  borderRadius: 10,
+                  paddingVertical: 10,
+                  paddingHorizontal: 20,
+                  minWidth: 110,
+                }}
+              >
+                <Icon name="arrow-left" size={15} color={COLORS.neutral[700]} />
+                <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: COLORS.neutral[700] }}>
+                  {subView === "DOCUMENT_UPLOAD" ? "Back to Details" : "Prev Applicant"}
+                </Text>
+              </TouchableOpacity>
+            )}
+
             <TouchableOpacity
-              onPress={() => setSubView("FILING_DETAILS")}
-              style={{ flex: 1, backgroundColor: "#16A34A", borderRadius: 12, paddingVertical: 12, alignItems: "center" }}
+              onPress={subView === "FILING_DETAILS" ? handleFilingDetailsNext : handleDocumentUploadNext}
+              activeOpacity={0.8}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+                backgroundColor: subView === "DOCUMENT_UPLOAD" && currentApplicantIndex === applicants.length - 1 ? "#16A34A" : "#0F2C59",
+                borderRadius: 10,
+                paddingVertical: 10,
+                paddingHorizontal: 24,
+                minWidth: 140,
+                shadowColor: "#0F2C59",
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.15,
+                shadowRadius: 4,
+                elevation: 3,
+              }}
             >
-              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: "#FFFFFF" }}>✓ Filing Complete</Text>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13.5, fontWeight: "700", color: "#FFFFFF" }}>
+                {subView === "FILING_DETAILS"
+                  ? "Proceed to Documents"
+                  : currentApplicantIndex < applicants.length - 1
+                  ? "Next Applicant"
+                  : "Review & Submit Bulk Cohort"}
+              </Text>
+              <Icon
+                name={subView === "DOCUMENT_UPLOAD" && currentApplicantIndex === applicants.length - 1 ? "check-circle" : "arrow-right"}
+                size={15}
+                color="#FFFFFF"
+              />
             </TouchableOpacity>
-          )}
+          </View>
         </View>
       </View>
-    );
-  };
-
-  return (
-    <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
-      <ScrollView contentContainerStyle={{ padding: 20, flexGrow: 1 }}>
-        {/* Page Header */}
-        <View style={{ marginBottom: 20 }}>
-          <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 20, fontWeight: "700", color: "#0F172A", marginBottom: 4 }}>
-            {service.title}
-          </Text>
-          <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: "#64748B" }}>
-            Bulk / Group Filing —{" "}
-            {subView === "FILING_DETAILS"
-              ? "Applicant Filing Details"
-              : "Document Upload"}
-          </Text>
-        </View>
-
-        <View style={{ flex: 1 }}>
-          {subView === "FILING_DETAILS" && renderFilingDetails()}
-          {subView === "DOCUMENT_UPLOAD" && renderDocumentUpload()}
-        </View>
-      </ScrollView>
     </View>
   );
 }

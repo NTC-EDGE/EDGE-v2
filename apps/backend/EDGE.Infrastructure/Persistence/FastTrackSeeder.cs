@@ -80,11 +80,14 @@ public static class FastTrackSeeder
 
         foreach (var def in serviceDefs)
         {
-            var s = existingServices.FirstOrDefault(x => x.Code == def.Code);
+            var s = existingServices.FirstOrDefault(x => x.Id == def.Id)
+                 ?? existingServices.FirstOrDefault(x => x.Code == def.Code);
+
             if (s != null && s.Id != def.Id)
             {
                 context.Services.Remove(s);
                 await context.SaveChangesAsync();
+                existingServices.Remove(s);
                 s = null;
             }
 
@@ -102,11 +105,14 @@ public static class FastTrackSeeder
                     Contract = def.Contract
                 };
                 context.Services.Add(s);
+                existingServices.Add(s);
             }
             else
             {
+                s.Code = def.Code;
                 s.Name = def.Name;
                 s.Group = def.Group;
+                s.Description = def.Desc;
                 s.ServiceCategoryId = def.CategoryId;
                 s.Contract = def.Contract;
             }
@@ -137,9 +143,16 @@ public static class FastTrackSeeder
         var existingFields = await context.Fields.ToListAsync();
         foreach (var f in fieldsPool.Values)
         {
-            if (!existingFields.Any(x => x.Id == f.Id))
+            var existing = existingFields.FirstOrDefault(x => x.Id == f.Id);
+            if (existing == null)
             {
                 context.Fields.Add(f);
+            }
+            else if (existing.Label != f.Label || existing.FieldType != f.FieldType || existing.SyncBackOnSubmit != f.SyncBackOnSubmit)
+            {
+                existing.Label = f.Label;
+                existing.FieldType = f.FieldType;
+                existing.SyncBackOnSubmit = f.SyncBackOnSubmit;
             }
         }
         await context.SaveChangesAsync();
@@ -157,429 +170,140 @@ public static class FastTrackSeeder
                 services[serviceKey] = service;
             }
 
-            // Check if the form already exists in the DB (no-tracking)
-            var formExists = existingForms.Contains(service.Id);
-            if (!formExists)
+            // 1. Ensure exactly one Form exists for this service / formId
+            var existingForms = await context.Forms
+                .Where(f => f.ServiceId == service.Id || f.Id == formId)
+                .ToListAsync();
+
+            var targetForm = existingForms.FirstOrDefault(f => f.Id == formId)
+                          ?? existingForms.FirstOrDefault(f => f.ServiceId == service.Id);
+
+            if (targetForm == null)
             {
-                var newForm = new Form
+                targetForm = new Form
                 {
                     Id = formId,
                     ServiceId = service.Id,
                     Version = "1.0",
                     CategorySelectionRequired = false
                 };
-                context.Forms.Add(newForm);
+                context.Forms.Add(targetForm);
                 await context.SaveChangesAsync();
-                existingForms.Add(service.Id);
             }
             else
             {
-                // Resolve the actual formId from the DB in case it differs
-                formId = await context.Forms
-                    .AsNoTracking()
-                    .Where(f => f.ServiceId == service.Id)
-                    .Select(f => f.Id)
-                    .FirstAsync();
-            }
-
-            // 1. Fetch existing sections for this form (no-tracking to avoid stale state)
-            var existingSections = await context.FormSections
-                .AsNoTracking()
-                .Where(s => s.FormId == formId)
-                .ToListAsync();
-
-            var existingSectionIds = existingSections.Select(s => s.Id).ToList();
-
-            // 2. Remove all existing SectionFields for this form's sections to prevent field mixing/orphans
-            if (existingSectionIds.Count > 0)
-            {
-                var existingSectionFields = await context.SectionFields
-                    .Where(sf => existingSectionIds.Contains(sf.FormSectionId))
-                    .ToListAsync();
-                if (existingSectionFields.Count > 0)
+                targetForm.ServiceId = service.Id;
+                var redundantForms = existingForms.Where(f => f.Id != targetForm.Id).ToList();
+                if (redundantForms.Count > 0)
                 {
-                    context.SectionFields.RemoveRange(existingSectionFields);
+                    var redundantFormIds = redundantForms.Select(f => f.Id).ToList();
+                    var redundantSections = await context.FormSections
+                        .Where(s => redundantFormIds.Contains(s.FormId))
+                        .ToListAsync();
+                    if (redundantSections.Count > 0)
+                    {
+                        var redundantSecIds = redundantSections.Select(s => s.Id).ToList();
+                        var redundantSecFields = await context.SectionFields
+                            .Where(sf => redundantSecIds.Contains(sf.FormSectionId))
+                            .ToListAsync();
+                        if (redundantSecFields.Count > 0) context.SectionFields.RemoveRange(redundantSecFields);
+                        context.FormSections.RemoveRange(redundantSections);
+                    }
+                    context.Forms.RemoveRange(redundantForms);
                     await context.SaveChangesAsync();
                 }
             }
 
-            // 3. Update existing sections or insert new sections matching sectionDefs
-            var processedSectionIds = new HashSet<Guid>();
-            int sectionOrder = 1;
-            int sectionIndex = 1;
+            // 2. Fetch all existing FormSections for targetForm
+            var existingSections = await context.FormSections
+                .Where(s => s.FormId == targetForm.Id)
+                .ToListAsync();
 
-            foreach (var (key, title, fieldKeys) in sectionDefs)
+            var deduplicatedSections = sectionDefs
+                .GroupBy(s => s.Key)
+                .Select(g => g.First())
+                .ToList();
+
+            var desiredKeys = deduplicatedSections.Select(s => s.Key).ToHashSet();
+
+            // Remove sections no longer in definition
+            var obsoleteSections = existingSections.Where(s => !desiredKeys.Contains(s.Key)).ToList();
+            if (obsoleteSections.Count > 0)
             {
-                var bytes = sectionGuidPrefix.ToByteArray();
-                bytes[15] = (byte)sectionIndex;
-                Guid sectionId = new Guid(bytes);
-                processedSectionIds.Add(sectionId);
+                var obsoleteSecIds = obsoleteSections.Select(s => s.Id).ToList();
+                var obsoleteFields = await context.SectionFields
+                    .Where(sf => obsoleteSecIds.Contains(sf.FormSectionId))
+                    .ToListAsync();
+                if (obsoleteFields.Count > 0) context.SectionFields.RemoveRange(obsoleteFields);
+                context.FormSections.RemoveRange(obsoleteSections);
+                await context.SaveChangesAsync();
+            }
 
-                // Re-check DB directly to avoid EF change tracker stale state
-                var sectionExistsInDb = await context.FormSections
-                    .AsNoTracking()
-                    .AnyAsync(s => s.Id == sectionId);
-
-                if (!sectionExistsInDb)
+            // 3. Upsert sections and fields
+            int sectionOrder = 1;
+            foreach (var (key, title, fieldKeys) in deduplicatedSections)
+            {
+                var sec = existingSections.FirstOrDefault(s => s.Key == key);
+                if (sec == null)
                 {
-                    try
+                    sec = new FormSection
                     {
-                        context.FormSections.Add(new FormSection
-                        {
-                            Id = sectionId,
-                            FormId = formId,
-                            Key = key,
-                            Title = title,
-                            OrderIndex = sectionOrder
-                        });
-                        await context.SaveChangesAsync();
-                    }
-                    catch (Microsoft.EntityFrameworkCore.DbUpdateException)
-                    {
-                        // Section was inserted by a concurrent call or prior iteration — detach and continue
-                        context.ChangeTracker.Clear();
-                        var tracked = await context.FormSections.FindAsync(sectionId);
-                        if (tracked != null)
-                        {
-                            tracked.FormId = formId;
-                            tracked.Key = key;
-                            tracked.Title = title;
-                            tracked.OrderIndex = sectionOrder;
-                            await context.SaveChangesAsync();
-                        }
-                    }
+                        Id = Guid.NewGuid(),
+                        FormId = targetForm.Id,
+                        Key = key,
+                        Title = title,
+                        OrderIndex = sectionOrder++
+                    };
+                    context.FormSections.Add(sec);
+                    await context.SaveChangesAsync();
                 }
                 else
                 {
-                    var existingSection = await context.FormSections.FindAsync(sectionId);
-                    if (existingSection != null)
-                    {
-                        existingSection.FormId = formId;
-                        existingSection.Key = key;
-                        existingSection.Title = title;
-                        existingSection.OrderIndex = sectionOrder;
-                        await context.SaveChangesAsync();
-                    }
+                    sec.Title = title;
+                    sec.OrderIndex = sectionOrder++;
+                    await context.SaveChangesAsync();
                 }
 
-                sectionOrder++;
-                sectionIndex++;
+                // Refresh section fields
+                var currentFields = await context.SectionFields
+                    .Where(sf => sf.FormSectionId == sec.Id)
+                    .ToListAsync();
+                if (currentFields.Count > 0)
+                {
+                    context.SectionFields.RemoveRange(currentFields);
+                    await context.SaveChangesAsync();
+                }
 
                 int fieldOrder = 1;
-                foreach (var fk in fieldKeys)
+                var deduplicatedFields = fieldKeys.Distinct().ToList();
+                foreach (var fk in deduplicatedFields)
                 {
                     if (fieldsPool.TryGetValue(fk, out var f))
                     {
                         context.SectionFields.Add(new SectionField
                         {
-                            FormSectionId = sectionId,
+                            FormSectionId = sec.Id,
                             FieldId = f.Id,
-                            IsRequired = key != "assistanceRequest" && key != "knownByAnotherName" && key != "club" && key != "examination" && key != "radioOfficers" && key != "payment",
+                            IsRequired = key != "assistanceRequest" && key != "applicantEducation" && key != "knownByAnotherName" && key != "club" && key != "examination" && key != "radioOfficers" && key != "payment",
                             OrderIndex = fieldOrder++
                         });
                     }
                 }
                 await context.SaveChangesAsync();
             }
-
-            // 4. Clean up any obsolete sections for this form that are no longer present in sectionDefs
-            var obsoleteSections = existingSections.Where(s => !processedSectionIds.Contains(s.Id)).ToList();
-            if (obsoleteSections.Count > 0)
-            {
-                context.FormSections.RemoveRange(obsoleteSections);
-                await context.SaveChangesAsync();
-            }
         }
 
-        // Seed Forms per NTC Service
-        await SeedFormForService("NTC_1_01", Guid.Parse("f0100000-0000-0000-0000-000000000001"), Guid.Parse("f01a0000-0000-0000-0000-000000000000"), new()
+        // Seed Forms per NTC Service (defined modularly in service category seeders)
+        var formDefs = FastTrackSeederData.GetAllFormDefs();
+        foreach (var formDef in formDefs)
         {
-            ("applicantPerson", "Personal Information", new() { "fullName", "birthDate", "sex", "civilStatus", "nationality" }),
-            ("applicantAddress", "Address Information", new() { "region", "province", "city", "barangay", "street", "zipCode" }),
-            ("applicantContact", "Contact Information", new() { "contactNo", "email", "emergencyContactPerson", "emergencyContactNo" }),
-            ("applicantEducation", "Educational Background", new() { "schoolName", "courseDegree", "yearGraduated" }),
-            ("examSelection", "Exam Selection", new() { "examCategory", "examineeType", "elements" }),
-            ("assistanceRequest", "Special Needs Assistance", new() { "specialNeeds" }),
-            ("admissionSlip", "Admission Slip", new() { "admissionNumber" }),
-            ("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" })
-        });
-
-        await SeedFormForService("NTC_1_02", Guid.Parse("f0200000-0000-0000-0000-000000000001"), Guid.Parse("f02a0000-0000-0000-0000-000000000000"), new()
-        {
-            ("applicantPerson", "Personal Information", new() { "fullName", "birthDate", "sex", "nationality", "weight_kg", "height_cm" }),
-            ("applicantAddress", "Address Information", new() { "region", "province", "city", "barangay", "street", "zipCode" }),
-            ("employmentStatus", "Employment Status", new() { "employmentStatus", "employmentType" }),
-            ("applicantContact", "Contact Information", new() { "contactNo", "email" }),
-            ("typeOfCertificate", "Type of Certificate", new() { "typeOfCertificate" }),
-            ("examSeminarDetails", "Exam / Seminar Details", new() { "examSeminarAddress", "examSeminarDate", "examSeminarRating" }),
-            ("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            ("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
-        });
-
-        await SeedFormForService("NTC_1_03", Guid.Parse("f0300000-0000-0000-0000-000000000001"), Guid.Parse("f03a0000-0000-0000-0000-000000000000"), new()
-        {
-            ("applicantPerson", "Personal Information", new() { "fullName", "birthDate", "sex", "nationality" }),
-            ("applicantAddress", "Address Information", new() { "region", "province", "city", "barangay", "street", "zipCode" }),
-            ("employmentStatus", "Employment Status", new() { "employmentStatus", "employmentType" }),
-            ("applicantContact", "Contact Information", new() { "contactNo", "email" }),
-            ("permitType", "Permit / License Type", new() { "permitType" }),
-            ("classOfStation", "Class of Station", new() { "classOfStation" }),
-            ("club", "Club Details", new() { "clubDetails" }),
-            ("examSeminarDetails", "Exam / Seminar Details", new() { "examSeminarAddress", "examSeminarDate", "examSeminarRating" }),
-            ("equipment", "Equipment Details", new() { "equipmentDetails" }),
-            ("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            ("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
-        });
-
-        await SeedFormForService("NTC_1_04", Guid.Parse("f0400000-0000-0000-0000-000000000001"), Guid.Parse("f04a0000-0000-0000-0000-000000000000"), new()
-        {
-            ("applicant", "Applicant Details", new() { "fullName", "birthDate", "sex", "nationality" }),
-            ("applicantAddress", "Address Information", new() { "region", "province", "city", "barangay", "street", "zipCode" }),
-            ("applicantContact", "Contact Information", new() { "contactNo", "email" }),
-            ("vessel", "Vessel Details", new() { "vesselName", "callSign", "imoNumber" }),
-            ("equipment", "Equipment List", new() { "equipmentDetails" }),
-            ("radioOfficers", "Radio Officers", new() { "radioOfficers" }),
-            ("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            ("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
-        });
-
-        await SeedFormForService("NTC_1_09", Guid.Parse("f0900000-0000-0000-0000-000000000001"), Guid.Parse("f09a0000-0000-0000-0000-000000000000"), new()
-        {
-            ("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email", "callSign" }),
-            ("proposedStation", "Proposed Station & Operating Specs", new() { "stationLocation", "stationClass", "serviceArea", "frequency", "bandwidth", "emission", "powerOutput", "hoursOfOperation", "configuration", "dataRate", "remarks" }),
-            ("equipment", "Particulars of Equipment", new() { "equipmentDetails", "classOfStation", "serialNumber", "frequencyRange" }),
-            ("antennas", "Particulars of Antenna", new() { "antennaType", "height", "gain", "directivity", "diameter", "polarization", "beamwidth", "remarks" }),
-            ("sourceOfEquipment", "Source of Equipment", new() { "dealerName", "authorizedSellerBuyer", "orInvoiceNo", "permitRslNo", "sellerAddress", "amateurLicenseNo" }),
-            ("intendedUse", "Intended Use of Equipment", new() { "intendedUseType", "specifyDetails" }),
-            ("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            ("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
-        });
-
-        await SeedFormForService("NTC_AERO_PERMITS", Guid.Parse("fae00000-0000-0000-0000-000000000001"), Guid.Parse("faea0000-0000-0000-0000-000000000000"), new()
-        {
-            ("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email", "callSign" }),
-            ("proposedStation", "Proposed Station & Operating Specs", new() { "stationLocation", "stationClass", "serviceArea", "frequency", "bandwidth", "emission", "powerOutput", "hoursOfOperation", "configuration", "dataRate", "remarks" }),
-            ("equipment", "Particulars of Equipment", new() { "equipmentDetails", "classOfStation", "serialNumber", "frequencyRange" }),
-            ("antennas", "Particulars of Antenna", new() { "antennaType", "height", "gain", "directivity", "diameter", "polarization", "beamwidth", "remarks" }),
-            ("sourceOfEquipment", "Source of Equipment", new() { "dealerName", "authorizedSellerBuyer", "orInvoiceNo", "permitRslNo", "sellerAddress", "amateurLicenseNo" }),
-            ("intendedUse", "Intended Use of Equipment", new() { "intendedUseType", "specifyDetails" }),
-            ("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            ("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
-        });
-
-        await SeedFormForService("NTC_MAR_PERMITS", Guid.Parse("fb000000-0000-0000-0000-000000000001"), Guid.Parse("fb0a0000-0000-0000-0000-000000000000"), new()
-        {
-            ("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email", "callSign" }),
-            ("proposedStation", "Proposed Station & Operating Specs", new() { "stationLocation", "stationClass", "serviceArea", "frequency", "bandwidth", "emission", "powerOutput", "hoursOfOperation", "configuration", "dataRate", "remarks" }),
-            ("equipment", "Particulars of Equipment", new() { "equipmentDetails", "classOfStation", "serialNumber", "frequencyRange" }),
-            ("antennas", "Particulars of Antenna", new() { "antennaType", "height", "gain", "directivity", "diameter", "polarization", "beamwidth", "remarks" }),
-            ("sourceOfEquipment", "Source of Equipment", new() { "dealerName", "authorizedSellerBuyer", "orInvoiceNo", "permitRslNo", "sellerAddress", "amateurLicenseNo" }),
-            ("intendedUse", "Intended Use of Equipment", new() { "intendedUseType", "specifyDetails" }),
-            ("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            ("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
-        });
-
-        await SeedFormForService("NTC_FLM_PERMITS", Guid.Parse("fb100000-0000-0000-0000-000000000001"), Guid.Parse("fb1a0000-0000-0000-0000-000000000000"), new()
-        {
-            ("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email", "callSign" }),
-            ("proposedStation", "Proposed Station & Operating Specs", new() { "stationLocation", "stationClass", "serviceArea", "frequency", "bandwidth", "emission", "powerOutput", "hoursOfOperation", "configuration", "dataRate", "remarks" }),
-            ("equipment", "Particulars of Equipment", new() { "equipmentDetails", "classOfStation", "serialNumber", "frequencyRange" }),
-            ("antennas", "Particulars of Antenna", new() { "antennaType", "height", "gain", "directivity", "diameter", "polarization", "beamwidth", "remarks" }),
-            ("sourceOfEquipment", "Source of Equipment", new() { "dealerName", "authorizedSellerBuyer", "orInvoiceNo", "permitRslNo", "sellerAddress", "amateurLicenseNo" }),
-            ("intendedUse", "Intended Use of Equipment", new() { "intendedUseType", "specifyDetails" }),
-            ("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            ("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
-        });
-
-        await SeedFormForService("NTC_PTE_PERMITS", Guid.Parse("fb200000-0000-0000-0000-000000000001"), Guid.Parse("fb2a0000-0000-0000-0000-000000000000"), new()
-        {
-            ("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email", "callSign" }),
-            ("proposedStation", "Proposed Station & Operating Specs", new() { "stationLocation", "stationClass", "serviceArea", "frequency", "bandwidth", "emission", "powerOutput", "hoursOfOperation", "configuration", "dataRate", "remarks" }),
-            ("equipment", "Particulars of Equipment", new() { "equipmentDetails", "classOfStation", "serialNumber", "frequencyRange" }),
-            ("antennas", "Particulars of Antenna", new() { "antennaType", "height", "gain", "directivity", "diameter", "polarization", "beamwidth", "remarks" }),
-            ("sourceOfEquipment", "Source of Equipment", new() { "dealerName", "authorizedSellerBuyer", "orInvoiceNo", "permitRslNo", "sellerAddress", "amateurLicenseNo" }),
-            ("intendedUse", "Intended Use of Equipment", new() { "intendedUseType", "specifyDetails" }),
-            ("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            ("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
-        });
-
-        await SeedFormForService("NTC_EQUIP_PERMITS", Guid.Parse("fb300000-0000-0000-0000-000000000001"), Guid.Parse("fb3a0000-0000-0000-0000-000000000000"), new()
-        {
-            ("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email", "callSign" }),
-            ("proposedStation", "Proposed Station & Operating Specs", new() { "stationLocation", "stationClass", "serviceArea", "frequency", "bandwidth", "emission", "powerOutput", "hoursOfOperation", "configuration", "dataRate", "remarks" }),
-            ("equipment", "Particulars of Equipment", new() { "equipmentDetails", "classOfStation", "serialNumber", "frequencyRange" }),
-            ("antennas", "Particulars of Antenna", new() { "antennaType", "height", "gain", "directivity", "diameter", "polarization", "beamwidth", "remarks" }),
-            ("sourceOfEquipment", "Source of Equipment", new() { "dealerName", "authorizedSellerBuyer", "orInvoiceNo", "permitRslNo", "sellerAddress", "amateurLicenseNo" }),
-            ("intendedUse", "Intended Use of Equipment", new() { "intendedUseType", "specifyDetails" }),
-            ("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            ("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
-        });
-
-        await SeedFormForService("NTC_MP_PERMITS", Guid.Parse("fb400000-0000-0000-0000-000000000001"), Guid.Parse("fb4a0000-0000-0000-0000-000000000000"), new()
-        {
-            ("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email", "callSign" }),
-            ("proposedStation", "Proposed Station & Operating Specs", new() { "stationLocation", "stationClass", "serviceArea", "frequency", "bandwidth", "emission", "powerOutput", "hoursOfOperation", "configuration", "dataRate", "remarks" }),
-            ("equipment", "Particulars of Equipment", new() { "equipmentDetails", "classOfStation", "serialNumber", "frequencyRange" }),
-            ("antennas", "Particulars of Antenna", new() { "antennaType", "height", "gain", "directivity", "diameter", "polarization", "beamwidth", "remarks" }),
-            ("sourceOfEquipment", "Source of Equipment", new() { "dealerName", "authorizedSellerBuyer", "orInvoiceNo", "permitRslNo", "sellerAddress", "amateurLicenseNo" }),
-            ("intendedUse", "Intended Use of Equipment", new() { "intendedUseType", "specifyDetails" }),
-            ("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            ("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
-        });
-
-        await SeedFormForService("NTC_COPY_PERMITS", Guid.Parse("fb500000-0000-0000-0000-000000000001"), Guid.Parse("fb5a0000-0000-0000-0000-000000000000"), new()
-        {
-            ("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email", "callSign" }),
-            ("proposedStation", "Proposed Station & Operating Specs", new() { "stationLocation", "stationClass", "serviceArea", "frequency", "bandwidth", "emission", "powerOutput", "hoursOfOperation", "configuration", "dataRate", "remarks" }),
-            ("equipment", "Particulars of Equipment", new() { "equipmentDetails", "classOfStation", "serialNumber", "frequencyRange" }),
-            ("antennas", "Particulars of Antenna", new() { "antennaType", "height", "gain", "directivity", "diameter", "polarization", "beamwidth", "remarks" }),
-            ("sourceOfEquipment", "Source of Equipment", new() { "dealerName", "authorizedSellerBuyer", "orInvoiceNo", "permitRslNo", "sellerAddress", "amateurLicenseNo" }),
-            ("intendedUse", "Intended Use of Equipment", new() { "intendedUseType", "specifyDetails" }),
-            ("circumstances", "Circumstances of Loss/Damage", new() { "circumstances" }),
-            ("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            ("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
-        });
-
-        await SeedFormForService("NTC_1_11", Guid.Parse("f1100000-0000-0000-0000-000000000001"), Guid.Parse("f11a0000-0000-0000-0000-000000000000"), new()
-        {
-            ("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email" }),
-            ("stations", "Station Details", new() { "stationLocation" }),
-            ("equipment", "Equipment Details", new() { "equipmentDetails" }),
-            ("antennas", "Antenna Details", new() { "antennaDetails" }),
-            ("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            ("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
-        });
-
-        await SeedFormForService("NTC_1_14", Guid.Parse("f1400000-0000-0000-0000-000000000001"), Guid.Parse("f14a0000-0000-0000-0000-000000000000"), new()
-        {
-            ("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email" }),
-            ("station", "Station Technical Details", new() { "stationLocation" }),
-            ("equipment", "Equipment Details", new() { "equipmentDetails" }),
-            ("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            ("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
-        });
-
-        await SeedFormForService("NTC_1_18", Guid.Parse("f1800000-0000-0000-0000-000000000001"), Guid.Parse("f18a0000-0000-0000-0000-000000000000"), new()
-        {
-            ("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email" }),
-            ("personnel", "Personnel Credentials", new() { "personnelDetails" }),
-            ("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            ("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
-        });
-
-        await SeedFormForService("NTC_1_19", Guid.Parse("f1900000-0000-0000-0000-000000000001"), Guid.Parse("f19a0000-0000-0000-0000-000000000000"), new()
-        {
-            ("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email" }),
-            ("devices", "Registered Devices", new() { "devicesDetails" }),
-            ("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            ("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
-        });
-
-        await SeedFormForService("NTC_1_20", Guid.Parse("f2000000-0000-0000-0000-000000000001"), Guid.Parse("f20a0000-0000-0000-0000-000000000000"), new()
-        {
-            ("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email" }),
-            ("knownByAnotherName", "Trade Name", new() { "fullName" }),
-            ("valueAddedServices", "Value-Added Services", new() { "valueAddedServices" }),
-            ("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            ("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
-        });
-
-        await SeedFormForService("NTC_1_21", Guid.Parse("f2100000-0000-0000-0000-000000000001"), Guid.Parse("f21a0000-0000-0000-0000-000000000000"), new()
-        {
-            ("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email" }),
-            ("permitLicenseCertificateNo", "Existing Permit/License Number", new() { "circumstances" }),
-            ("circumstances", "Circumstances of Loss/Damage", new() { "circumstances" }),
-            ("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            ("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
-        });
-
-        await SeedFormForService("NTC_1_22", Guid.Parse("f2200000-0000-0000-0000-000000000001"), Guid.Parse("f22a0000-0000-0000-0000-000000000000"), new()
-        {
-            ("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email" }),
-            ("tvroEquipment", "TVRO Equipment Details", new() { "tvroDetails" }),
-            ("antennaSystem", "Antenna System Details", new() { "antennaDetails" }),
-            ("signalReception", "Signal Reception Details", new() { "tvroDetails" }),
-            ("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            ("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
-        });
-
-        await SeedFormForService("NTC_AMA_LICENSES", Guid.Parse("f7000000-0000-0000-0000-000000000001"), Guid.Parse("f70a0000-0000-0000-0000-000000000000"), new()
-        {
-            ("applicantPerson", "Basic Applicant Information", new() { "fullName", "middleName", "suffix", "birthDate", "contactNo", "email", "address", "location", "callSign" }),
-            ("permitType", "Transaction & License Options", new() { "appType", "classOfStation", "noOfYears" }),
-            ("classOfStation", "Class of Station", new() { "classOfStation" }),
-            ("existingLicense", "Existing License Details", new() { "licenseNo", "dateOfExpiry", "modificationDueTo" }),
-            ("examBackground", "Examination / Seminar Background", new() { "placeOfExamSeminar", "dateOfExamSeminar", "ratings" }),
-            ("equipment", "Particulars of Radio Equipment", new() { "particularsEquipment" }),
-            ("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            ("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
-        });
-
-        await SeedFormForService("NTC_AERO_LICENSES", Guid.Parse("f7100000-0000-0000-0000-000000000001"), Guid.Parse("f71a0000-0000-0000-0000-000000000000"), new()
-        {
-            ("applicant", "Applicant/Station Owner Details", new() { "fullName", "address", "contactNo", "email" }),
-            ("stations", "Station Details", new() { "stationLocation" }),
-            ("equipment", "Equipment Details", new() { "equipmentDetails" }),
-            ("antennas", "Antenna Details", new() { "antennaDetails" }),
-            ("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            ("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
-        });
-
-        await SeedFormForService("NTC_MAR_LICENSES", Guid.Parse("f7200000-0000-0000-0000-000000000001"), Guid.Parse("f72a0000-0000-0000-0000-000000000000"), new()
-        {
-            ("applicant", "Applicant/Station Owner Details", new() { "fullName", "address", "contactNo", "email" }),
-            ("vessel", "Vessel Details", new() { "vesselName", "callSign", "imoNumber" }),
-            ("equipment", "Equipment List", new() { "equipmentDetails" }),
-            ("radioOfficers", "Radio Officers", new() { "radioOfficers" }),
-            ("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            ("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
-        });
-
-        await SeedFormForService("NTC_FLM_LICENSES", Guid.Parse("f7300000-0000-0000-0000-000000000001"), Guid.Parse("f73a0000-0000-0000-0000-000000000000"), new()
-        {
-            ("applicant", "Applicant/Station Owner Details", new() { "fullName", "address", "contactNo", "email" }),
-            ("stations", "Station Details", new() { "stationLocation" }),
-            ("equipment", "Equipment Details", new() { "equipmentDetails" }),
-            ("antennas", "Antenna Details", new() { "antennaDetails" }),
-            ("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            ("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
-        });
-
-        await SeedFormForService("NTC_OTHER_LICENSES", Guid.Parse("f7400000-0000-0000-0000-000000000001"), Guid.Parse("f74a0000-0000-0000-0000-000000000000"), new()
-        {
-            ("applicant", "Applicant/Station Owner Details", new() { "fullName", "address", "contactNo", "email" }),
-            ("stations", "Station Details", new() { "stationLocation" }),
-            ("equipment", "Equipment Details", new() { "equipmentDetails" }),
-            ("antennas", "Antenna Details", new() { "antennaDetails" }),
-            ("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            ("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
-        });
-
-        await SeedFormForService("NTC_TVRO_CATV_LICENSES", Guid.Parse("f7500000-0000-0000-0000-000000000001"), Guid.Parse("f75a0000-0000-0000-0000-000000000000"), new()
-        {
-            ("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email" }),
-            ("tvroEquipment", "TVRO Equipment Details", new() { "tvroDetails" }),
-            ("antennaSystem", "Antenna System Details", new() { "antennaDetails" }),
-            ("signalReception", "Signal Reception Details", new() { "tvroDetails" }),
-            ("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            ("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
-        });
-
-        await SeedFormForService("NTC_COPY_LICENSES", Guid.Parse("f7600000-0000-0000-0000-000000000001"), Guid.Parse("f76a0000-0000-0000-0000-000000000000"), new()
-        {
-            ("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email" }),
-            ("permitLicenseCertificateNo", "Existing Permit/License Number", new() { "circumstances" }),
-            ("circumstances", "Circumstances of Loss/Damage", new() { "circumstances" }),
-            ("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            ("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
-        });
-
-        await SeedFormForService("NTC_REQ_COMPLAINTS", Guid.Parse("f8000000-0000-0000-0000-000000000001"), Guid.Parse("f80a0000-0000-0000-0000-000000000000"), new()
-        {
-            ("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email" }),
-            ("details", "Details of Request or Complaint", new() { "circumstances" }),
-            ("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" })
-        });
+            await SeedFormForService(
+                formDef.ServiceKey,
+                formDef.FormId,
+                formDef.SectionGuidPrefix,
+                formDef.Sections.Select(s => (s.Key, s.Title, s.FieldKeys)).ToList()
+            );
+        }
     }
 
     /// <summary>
@@ -631,14 +355,42 @@ public static class FastTrackSeeder
         
         bool anyChange = false;
 
-        // Remove variants no longer defined in seeder
-        foreach (var ev in existingVariants)
+        // Clean up and remove variants no longer defined in seeder
+        var obsoleteVariantIds = existingVariants
+            .Where(ev => !variantDefIds.Contains(ev.Id))
+            .Select(ev => ev.Id)
+            .ToList();
+
+        if (obsoleteVariantIds.Count > 0)
         {
-            if (!variantDefIds.Contains(ev.Id))
+            var obsoleteSvr = await context.ServiceVariantRequirements
+                .Where(r => obsoleteVariantIds.Contains(r.ServiceVariantId))
+                .ToListAsync();
+            if (obsoleteSvr.Count > 0)
             {
-                context.ServiceVariants.Remove(ev);
-                anyChange = true;
+                context.ServiceVariantRequirements.RemoveRange(obsoleteSvr);
             }
+
+            var obsoleteSve = await context.ServiceVariantElements
+                .Where(e => obsoleteVariantIds.Contains(e.ServiceVariantId))
+                .ToListAsync();
+            if (obsoleteSve.Count > 0)
+            {
+                context.ServiceVariantElements.RemoveRange(obsoleteSve);
+            }
+
+            var obsoleteSn = await context.ServiceNotes
+                .Where(n => n.ServiceVariantId.HasValue && obsoleteVariantIds.Contains(n.ServiceVariantId.Value))
+                .ToListAsync();
+            if (obsoleteSn.Count > 0)
+            {
+                context.ServiceNotes.RemoveRange(obsoleteSn);
+            }
+
+            var variantsToRemove = existingVariants.Where(ev => obsoleteVariantIds.Contains(ev.Id)).ToList();
+            context.ServiceVariants.RemoveRange(variantsToRemove);
+            await context.SaveChangesAsync();
+            anyChange = true;
         }
 
         var existingServiceIds = (await context.Services.Select(s => s.Id).ToListAsync()).ToHashSet();
@@ -728,11 +480,14 @@ public static class FastTrackSeeder
 
         foreach (var def in serviceDefs)
         {
-            var s = existingServices.FirstOrDefault(x => x.Code == def.Code);
+            var s = existingServices.FirstOrDefault(x => x.Id == def.Id)
+                 ?? existingServices.FirstOrDefault(x => x.Code == def.Code);
+
             if (s != null && s.Id != def.Id)
             {
                 context.Services.Remove(s);
                 await context.SaveChangesAsync();
+                existingServices.Remove(s);
                 s = null;
                 anyChange = true;
             }
@@ -743,7 +498,7 @@ public static class FastTrackSeeder
                 {
                     Id = def.Id,
                     ServiceCategoryId = def.CategoryId,
-                    TenantId = tenant.Id,
+                    TenantId = null,
                     Name = def.Name,
                     Group = def.Group,
                     Code = def.Code,
@@ -751,19 +506,99 @@ public static class FastTrackSeeder
                     Contract = def.Contract
                 };
                 context.Services.Add(s);
+                existingServices.Add(s);
                 anyChange = true;
             }
             else
             {
-                if (s.Name != def.Name || s.Group != def.Group || s.ServiceCategoryId != def.CategoryId || s.Contract != def.Contract)
+                if (s.Code != def.Code || s.Name != def.Name || s.Group != def.Group || s.ServiceCategoryId != def.CategoryId || s.Description != def.Desc || s.Contract != def.Contract || s.TenantId != null)
                 {
+                    s.Code = def.Code;
                     s.Name = def.Name;
                     s.Group = def.Group;
+                    s.Description = def.Desc;
                     s.ServiceCategoryId = def.CategoryId;
                     s.Contract = def.Contract;
+                    s.TenantId = null;
                     anyChange = true;
                 }
             }
+        }
+
+        // Clean up any obsolete services not present in serviceDefs
+        var validServiceIds = serviceDefs.Select(d => d.Id).ToHashSet();
+        var obsoleteServices = existingServices.Where(s => !validServiceIds.Contains(s.Id)).ToList();
+        if (obsoleteServices.Count > 0)
+        {
+            var obsoleteServiceIds = obsoleteServices.Select(s => s.Id).ToList();
+
+            // 1. Re-assign any applicants pointing to obsolete services
+            var fallbackServiceId = serviceDefs[0].Id;
+            var referencingApplicants = await context.Applicants
+                .Where(a => a.ServiceId != null && obsoleteServiceIds.Contains(a.ServiceId.Value))
+                .ToListAsync();
+            foreach (var applicant in referencingApplicants)
+            {
+                applicant.ServiceId = fallbackServiceId;
+                applicant.ServiceVariantId = null;
+            }
+
+            // 2. Cascade delete obsolete forms, form sections, and section fields
+            var obsoleteForms = await context.Forms
+                .Where(f => obsoleteServiceIds.Contains(f.ServiceId))
+                .ToListAsync();
+            if (obsoleteForms.Count > 0)
+            {
+                var obsoleteFormIds = obsoleteForms.Select(f => f.Id).ToList();
+                var obsoleteSections = await context.FormSections
+                    .Where(s => obsoleteFormIds.Contains(s.FormId))
+                    .ToListAsync();
+                if (obsoleteSections.Count > 0)
+                {
+                    var obsoleteSectionIds = obsoleteSections.Select(s => s.Id).ToList();
+                    var obsoleteFields = await context.SectionFields
+                        .Where(sf => obsoleteSectionIds.Contains(sf.FormSectionId))
+                        .ToListAsync();
+                    if (obsoleteFields.Count > 0) context.SectionFields.RemoveRange(obsoleteFields);
+                    context.FormSections.RemoveRange(obsoleteSections);
+                }
+                context.Forms.RemoveRange(obsoleteForms);
+            }
+
+            // 3. Cascade delete obsolete variants and children
+            var obsoleteVariants = await context.ServiceVariants
+                .Where(v => obsoleteServiceIds.Contains(v.ServiceId))
+                .ToListAsync();
+            if (obsoleteVariants.Count > 0)
+            {
+                var obsoleteVariantIds = obsoleteVariants.Select(v => v.Id).ToList();
+                var obsoleteReqs = await context.ServiceVariantRequirements
+                    .Where(vr => obsoleteVariantIds.Contains(vr.ServiceVariantId))
+                    .ToListAsync();
+                if (obsoleteReqs.Count > 0) context.ServiceVariantRequirements.RemoveRange(obsoleteReqs);
+
+                var obsoleteElements = await context.ServiceVariantElements
+                    .Where(ve => obsoleteVariantIds.Contains(ve.ServiceVariantId))
+                    .ToListAsync();
+                if (obsoleteElements.Count > 0) context.ServiceVariantElements.RemoveRange(obsoleteElements);
+
+                context.ServiceVariants.RemoveRange(obsoleteVariants);
+            }
+
+            // 4. Delete obsolete service notes and fees
+            var obsoleteNotes = await context.ServiceNotes
+                .Where(sn => obsoleteServiceIds.Contains(sn.ServiceId))
+                .ToListAsync();
+            if (obsoleteNotes.Count > 0) context.ServiceNotes.RemoveRange(obsoleteNotes);
+
+            var obsoleteFees = await context.ServiceFees
+                .Where(sf => obsoleteServiceIds.Contains(sf.ServiceId))
+                .ToListAsync();
+            if (obsoleteFees.Count > 0) context.ServiceFees.RemoveRange(obsoleteFees);
+
+            // 5. Remove obsolete services
+            context.Services.RemoveRange(obsoleteServices);
+            anyChange = true;
         }
 
         if (anyChange)
@@ -777,6 +612,7 @@ public static class FastTrackSeeder
         var svc101 = Guid.Parse("50000000-0000-0000-0000-000000000001");
 
         var allVariantsInDb = await context.ServiceVariants.AsNoTracking().ToListAsync();
+        var validVariantIds = allVariantsInDb.Select(v => v.Id).ToHashSet();
         var allVariantsByDef = FastTrackSeederData.GetVariantDefs();
 
         Guid ResolveVariantId(Guid hardcodedVariantId)
@@ -806,7 +642,7 @@ public static class FastTrackSeeder
         foreach (var el in elementsToSeed)
         {
             Guid actualVariantId = ResolveVariantId(el.VariantId);
-            if (!existingSve.Contains((actualVariantId, el.Code)))
+            if (validVariantIds.Contains(actualVariantId) && !existingSve.Contains((actualVariantId, el.Code)))
             {
                 context.ServiceVariantElements.Add(new ServiceVariantElement
                 {
@@ -815,6 +651,7 @@ public static class FastTrackSeeder
                     Code = el.Code,
                     Description = el.Description
                 });
+                existingSve.Add((actualVariantId, el.Code));
             }
         }
         await context.SaveChangesAsync();
@@ -850,6 +687,11 @@ public static class FastTrackSeeder
         foreach (var note in notesToSeed)
         {
             Guid? actualVariantId = note.ServiceVariantId.HasValue ? ResolveVariantId(note.ServiceVariantId.Value) : null;
+            if (actualVariantId.HasValue && !validVariantIds.Contains(actualVariantId.Value))
+            {
+                actualVariantId = null;
+            }
+
             if (!existingNotes.Contains((note.ServiceId, actualVariantId, note.Content)))
             {
                 context.ServiceNotes.Add(new ServiceNote
@@ -877,6 +719,7 @@ public static class FastTrackSeeder
                     Name = req.Name,
                     Description = req.Desc
                 });
+                existingReqIds.Add(req.Id);
             }
         }
         await context.SaveChangesAsync();
@@ -890,6 +733,11 @@ public static class FastTrackSeeder
         foreach (var vr in variantReqsToSeed)
         {
             Guid actualVariantId = ResolveVariantId(vr.VariantId);
+            if (!validVariantIds.Contains(actualVariantId) || !existingReqIds.Contains(vr.ReqId))
+            {
+                continue;
+            }
+
             if (!existingSvr.Contains((actualVariantId, vr.ReqId)))
             {
                 context.ServiceVariantRequirements.Add(new ServiceVariantRequirement
@@ -933,6 +781,49 @@ public static class FastTrackSeeder
             });
         }
         await context.SaveChangesAsync();
+
+        // 7. Seed Examination Schedules for all Tenants
+        var allTenants = await context.Tenants.ToListAsync();
+        var nowUtc = DateTime.UtcNow;
+
+        foreach (var tenantItem in allTenants)
+        {
+            if (!await context.Schedules.AnyAsync(s => s.ServiceId == svc101 && s.TenantId == tenantItem.Id))
+            {
+                context.Schedules.AddRange(
+                    new Schedule
+                    {
+                        Id = Guid.NewGuid(),
+                        ServiceId = svc101,
+                        TenantId = tenantItem.Id,
+                        Venue = $"{tenantItem.Name} Regional Testing Center - Room 101",
+                        StartDate = nowUtc.Date.AddDays(7).AddHours(8),
+                        EndDate = nowUtc.Date.AddDays(7).AddHours(12),
+                        StartApplication = nowUtc.Date.AddDays(-30),
+                        EndApplication = nowUtc.Date.AddDays(6),
+                        IsPublished = true,
+                        MaximumSlots = 50,
+                        Remarks = "Regular Morning Examination Session"
+                    },
+                    new Schedule
+                    {
+                        Id = Guid.NewGuid(),
+                        ServiceId = svc101,
+                        TenantId = tenantItem.Id,
+                        Venue = $"{tenantItem.Name} Regional Testing Center - Room 102",
+                        StartDate = nowUtc.Date.AddDays(21).AddHours(13),
+                        EndDate = nowUtc.Date.AddDays(21).AddHours(17),
+                        StartApplication = nowUtc.Date.AddDays(-30),
+                        EndApplication = nowUtc.Date.AddDays(20),
+                        IsPublished = true,
+                        MaximumSlots = 40,
+                        Remarks = "Special Afternoon Radio Operator Examination Session"
+                    }
+                );
+            }
+        }
+        await context.SaveChangesAsync();
+
         await ServiceInformationDataSeeder.SeedAsync(context);
     }
 }

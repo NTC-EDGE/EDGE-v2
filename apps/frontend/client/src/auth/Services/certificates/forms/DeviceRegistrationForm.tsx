@@ -156,6 +156,8 @@ export function DeviceRegistrationForm({
               label="Contact Number"
               placeholder="09171234567"
               value={data.contactNo}
+              keyboardType="phone-pad"
+              maxLength={13}
               onChangeText={(val) => onChange({ contactNo: val })}
               error={errors.contactNo}
               touched={touched.contactNo}

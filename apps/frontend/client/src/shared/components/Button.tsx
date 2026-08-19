@@ -12,7 +12,8 @@ import {
 import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from '../theme/tokens';
 
 interface ButtonProps {
-  title: string;
+  title?: string;
+  children?: React.ReactNode;
   onPress: () => void;
   variant?: 'primary' | 'secondary' | 'outline' | 'text';
   size?: 'sm' | 'md' | 'lg';
@@ -32,6 +33,7 @@ interface PressableState {
 
 export function Button({
   title,
+  children,
   onPress,
   variant = 'primary',
   size = 'md',
@@ -168,7 +170,15 @@ export function Button({
             {icon !== undefined && icon !== null ? (
               <View style={styles.iconContainer}>{icon}</View>
             ) : null}
-            <Text style={getTextStyles(hovered)}>{title}</Text>
+            {children !== undefined && children !== null ? (
+              typeof children === 'string' ? (
+                <Text style={getTextStyles(hovered)}>{children}</Text>
+              ) : (
+                children
+              )
+            ) : (
+              <Text style={getTextStyles(hovered)}>{title}</Text>
+            )}
           </View>
         )
       }

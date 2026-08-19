@@ -22,10 +22,10 @@ public static class ApplicationDataSeeder
     private static readonly Guid AccountantUserId = Guid.Parse("44444444-4444-4444-4444-444444444444");
     private static readonly Guid CashierUserId    = Guid.Parse("55555555-5555-5555-5555-555555555555");
 
-    // Service IDs from FastTrackSeeder
-    private static readonly Guid ServicePermitId  = Guid.Parse("50000000-0000-0000-0000-000000000003"); // NTC_1_03
-    private static readonly Guid ServiceLicenseId = Guid.Parse("50000000-0000-0000-0000-000000000002"); // NTC_1_02
-    private static readonly Guid ServiceCertId    = Guid.Parse("50000000-0000-0000-0000-000000000004"); // NTC_1_04
+    // Service IDs from FastTrackSeeder (active catalog)
+    private static readonly Guid ServicePermitId  = Guid.Parse("50000000-0000-0000-0000-000000000050"); // NTC_AMA_PERMITS
+    private static readonly Guid ServiceLicenseId = Guid.Parse("50000000-0000-0000-0000-000000000070"); // NTC_AMA_LICENSES
+    private static readonly Guid ServiceCertId    = Guid.Parse("50000000-0000-0000-0000-000000000001"); // NTC_COMM_ROC
     private static readonly Guid PermitCategoryId = Guid.Parse("c0000000-0000-0000-0000-000000000004");
 
     public static async Task SeedAsync(ApplicationDbContext context)
