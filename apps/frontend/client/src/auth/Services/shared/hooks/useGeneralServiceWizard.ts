@@ -52,6 +52,7 @@ export interface ExamScheduleItem {
   maximumSlots?: number;
   availableSlots?: number;
   description?: string;
+  [key: string]: unknown;
 }
 
 export interface GeneralApplicantData {
@@ -66,6 +67,7 @@ export interface GeneralApplicantData {
   email: string;
   contactNo: string;
   sex?: string;
+  civilStatus?: string;
   nationality?: string;
   zipCode?: string;
   address: string;
@@ -76,12 +78,15 @@ export interface GeneralApplicantData {
   birthMonth: string;
   birthDay: string;
   birthYear: string;
+  birthDate?: string;
   notes: string;
   selectedVariantId?: string;
+  selectedVariantName?: string;
   selectedElementId?: string;
   selectedElementTitle?: string;
   uploads: Record<string, { name: string; uri: string } | string>;
   formFieldValues?: Array<{ fieldId: string; fieldLabel: string; value: string }>;
+  signatureUrl?: string;
   // Specialized Certificate, License & Permit Models
   radioCertData?: RadioOperatorCertData;
   deviceRegData?: DeviceRegistrationData;
@@ -127,6 +132,7 @@ export interface ServiceVariantInfo {
   type?: string;
   description?: string;
   code?: string;
+  [key: string]: unknown;
 }
 
 export interface ServiceVariantElementInfo {
@@ -134,6 +140,7 @@ export interface ServiceVariantElementInfo {
   code?: string;
   description?: string;
   name?: string;
+  [key: string]: unknown;
 }
 
 export interface ServiceRequirementItem {
@@ -342,7 +349,7 @@ export function useGeneralServiceWizard(
   // Examination Schedule State
   const isExamService = Boolean(
     service?.category?.toLowerCase() === "exams" ||
-    service?.categoryKey?.toLowerCase() === "exams" ||
+    service?.category?.toLowerCase() === "exam" ||
     service?.title?.toLowerCase().includes("exam") ||
     service?.title?.toLowerCase().includes("admission") ||
     service?.title?.toLowerCase().includes("operator")

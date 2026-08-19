@@ -13,6 +13,7 @@ import { validateContactNumber, validateEmailAddress } from "../../../../shared/
 import {
   FIELD_ID_FULL_NAME,
   FIELD_ID_BIRTH_DATE,
+  FIELD_ID_ADDRESS,
   FIELD_ID_CONTACT_NO,
   FIELD_ID_EMAIL,
   FIELD_ID_REGION,
@@ -24,6 +25,7 @@ import {
   FIELD_ID_SEX,
   FIELD_ID_CIVIL_STATUS,
   FIELD_ID_NATIONALITY,
+  FIELD_ID_SIGNATURE,
 } from "../../../../shared/constants/fieldIds";
 
 interface NavigationContext {
@@ -228,6 +230,12 @@ export function handleWizardNext({
             activeApplicant.nationality
           ) {
             val = activeApplicant.nationality;
+          } else if (
+            idLower === FIELD_ID_SIGNATURE.toLowerCase() ||
+            idLower === "signature" ||
+            idLower.includes("signature")
+          ) {
+            val = activeApplicant.signatureUrl;
           }
         }
         const trimmed = val !== undefined && val !== null ? (typeof val === "string" ? val.trim() : String(val)) : "";

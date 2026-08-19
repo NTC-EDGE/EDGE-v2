@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Platform,
 } from "react-native";
+import * as DocumentPicker from "expo-document-picker";
 import { useUser } from "@clerk/expo";
 import { COLORS, TYPOGRAPHY, Icon } from "@edge/ui";
 
@@ -18,6 +19,8 @@ interface FormSignatureInputProps {
   onChange: (signatureDataUrl: string) => void;
   error?: string;
   applicantName?: string;
+  isBulk?: boolean;
+  appMode?: "SINGLE" | "BULK" | "";
 }
 
 export function FormSignatureInput({
@@ -27,9 +30,12 @@ export function FormSignatureInput({
   onChange,
   error,
   applicantName = "",
+  isBulk = false,
+  appMode,
 }: FormSignatureInputProps) {
+  const isBulkMode = isBulk || appMode === "BULK";
   const { user: clerkUser } = useUser();
-  const [activeTab, setActiveTab] = useState<"draw" | "type" | "upload">("draw");
+  const [activeTab, setActiveTab] = useState<"draw" | "type" | "upload">(isBulkMode ? "upload" : "draw");
   const [typedName, setTypedName] = useState(applicantName || clerkUser?.fullName || "");
   const [hasDrawnStrokes, setHasDrawnStrokes] = useState(false);
 
@@ -64,14 +70,15 @@ export function FormSignatureInput({
 
   const savedSignature = getSavedSignature();
 
-  // Auto-populate default saved signature if value is currently empty
+  // For individual applications: auto-populate default user saved signature if value is currently empty
+  // For bulk applications: start blank, allowing drawing or image uploading per applicant
   useEffect(() => {
-    if (!value || value.trim().length === 0) {
+    if (!isBulkMode && (!value || value.trim().length === 0)) {
       if (savedSignature) {
         onChange(savedSignature);
       }
     }
-  }, [savedSignature, value, onChange]);
+  }, [savedSignature, value, onChange, isBulkMode]);
 
   // Sync typed name when applicantName or clerkUser updates
   useEffect(() => {
@@ -204,17 +211,21 @@ export function FormSignatureInput({
     if (!canvasRef.current) return;
     const dataUrl = canvasRef.current.toDataURL("image/png");
     onChange(dataUrl);
-    persistSavedSignature(dataUrl);
+    if (!isBulkMode) {
+      persistSavedSignature(dataUrl);
+    }
   };
 
   const handleApplyTypedSignature = () => {
     if (!typedName.trim()) return;
     const signatureToken = `typed:cursive:${typedName.trim()}`;
     onChange(signatureToken);
-    persistSavedSignature(signatureToken);
+    if (!isBulkMode) {
+      persistSavedSignature(signatureToken);
+    }
   };
 
-  const triggerNativeOrWebUpload = () => {
+  const triggerNativeOrWebUpload = async () => {
     if (Platform.OS === "web" && typeof document !== "undefined") {
       const input = document.createElement("input");
       input.type = "file";
@@ -226,13 +237,33 @@ export function FormSignatureInput({
           reader.onload = () => {
             if (typeof reader.result === "string") {
               onChange(reader.result);
-              persistSavedSignature(reader.result);
+              if (!isBulkMode) {
+                persistSavedSignature(reader.result);
+              }
             }
           };
           reader.readAsDataURL(file);
         }
       };
       input.click();
+    } else {
+      try {
+        const res = await DocumentPicker.getDocumentAsync({
+          type: ["image/png", "image/jpeg", "image/jpg"],
+          copyToCacheDirectory: true,
+        });
+        if (!res.canceled && res.assets && res.assets.length > 0) {
+          const file = res.assets[0];
+          if (file && file.uri) {
+            onChange(file.uri);
+            if (!isBulkMode) {
+              persistSavedSignature(file.uri);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("Document picker failed:", err);
+      }
     }
   };
 

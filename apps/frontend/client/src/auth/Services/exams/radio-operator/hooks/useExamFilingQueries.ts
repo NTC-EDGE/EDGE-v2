@@ -264,20 +264,31 @@ export function useExamFilingQueries({
   }, [selectedRegionId, selectedOfficeId, serviceId]);
 
   // Variants API Query
-  const { data: variantsResponse } = api.useQuery<{ succeeded: boolean; data: any[] }>(
-    serviceId ? `/api/v2/services/${serviceId}/variants` : null
+  const { data: variantsResponse } = api.useQuery<{ succeeded?: boolean; data?: any[]; items?: any[] } | any[]>(
+    serviceId ? `/api/v2/services/${serviceId}/variants?pageSize=100` : null
   );
-  const variants = variantsResponse?.succeeded ? variantsResponse.data : [];
+  const variants = Array.isArray(variantsResponse)
+    ? variantsResponse
+    : Array.isArray(variantsResponse?.data)
+    ? variantsResponse.data
+    : Array.isArray(variantsResponse?.items)
+    ? variantsResponse.items
+    : [];
 
   // Elements API Query
   const activeApplicant = applicants[currentApplicantIndex];
   const selectedVariantId = activeApplicant?.selectedVariantId;
-  const { data: elementsResponse } = api.useQuery<any[]>(
-    selectedVariantId ? `/api/v2/service-variant-elements?serviceVariantId=${selectedVariantId}` : null
+  const { data: elementsResponse } = api.useQuery<{ succeeded?: boolean; data?: any[]; items?: any[] } | any[]>(
+    selectedVariantId ? `/api/v2/service-variant-elements?serviceVariantId=${selectedVariantId}&pageSize=100` : null
   );
-  const rawElements = Array.isArray(elementsResponse) ? elementsResponse : [];
-  // Deduplicate by element id — the backend may return the same element linked
-  // to multiple variants (e.g. "Proof of Rating" appears across Retaker/Upgrader rows)
+  const rawElements = Array.isArray(elementsResponse)
+    ? elementsResponse
+    : Array.isArray(elementsResponse?.data)
+    ? elementsResponse.data
+    : Array.isArray(elementsResponse?.items)
+    ? elementsResponse.items
+    : [];
+
   const seen = new Set<string>();
   const variantElements = rawElements.filter((elem) => {
     const key = typeof elem.id === "string" ? elem.id : String(elem.id);
@@ -285,13 +296,19 @@ export function useExamFilingQueries({
     seen.add(key);
     return true;
   });
-  const isLoadingElements = !!selectedVariantId && elementsResponse === undefined;
+  const isLoadingElements = selectedVariantId !== undefined && selectedVariantId !== "" && elementsResponse === undefined;
 
   // Requirements API Query
-  const { data: requirementsResponse } = api.useQuery<{ succeeded: boolean; data: any[] }>(
-    serviceId && selectedVariantId ? `/api/v2/services/${serviceId}/requirements?variantId=${selectedVariantId}` : null
+  const { data: requirementsResponse } = api.useQuery<{ succeeded?: boolean; data?: any[]; items?: any[] } | any[]>(
+    serviceId && selectedVariantId ? `/api/v2/services/${serviceId}/requirements?variantId=${selectedVariantId}&pageSize=100` : null
   );
-  const dbRequirements = requirementsResponse?.succeeded ? requirementsResponse.data : [];
+  const dbRequirements = Array.isArray(requirementsResponse)
+    ? requirementsResponse
+    : Array.isArray(requirementsResponse?.data)
+    ? requirementsResponse.data
+    : Array.isArray(requirementsResponse?.items)
+    ? requirementsResponse.items
+    : [];
 
   return {
     formFields,

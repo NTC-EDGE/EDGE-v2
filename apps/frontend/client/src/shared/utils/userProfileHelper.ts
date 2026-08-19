@@ -36,6 +36,7 @@ export interface ResolvedUserProfile {
   companyAddress: string;
   companyPhone: string;
   companyEmail: string;
+  signature: string;
 }
 
 export function parseDateOfBirth(dobRaw?: string | null): { birthYear: string; birthMonth: string; birthDay: string } {
@@ -346,5 +347,18 @@ export function extractUserProfile(
     companyAddress,
     companyPhone,
     companyEmail,
+    signature:
+      str(cUser?.unsafeMetadata?.eSignature) ||
+      str(cUser?.unsafeMetadata?.signature) ||
+      str(metaProfile.eSignature) ||
+      str(metaProfile.signature) ||
+      (Platform.OS === "web" && typeof window !== "undefined" && window.localStorage
+        ? window.localStorage.getItem("ntc_user_saved_signature") ||
+          window.localStorage.getItem("user_e_signature") ||
+          ""
+        : "") ||
+      str(db.eSignature) ||
+      str(db.signature) ||
+      "",
   };
 }

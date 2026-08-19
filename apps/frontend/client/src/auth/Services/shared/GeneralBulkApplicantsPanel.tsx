@@ -13,6 +13,7 @@ import { Icon, COLORS, TYPOGRAPHY } from "@edge/ui";
 import {
   GeneralApplicantData,
   isGeneralApplicantComplete,
+  ServiceRequirementItem,
 } from "./hooks/useGeneralServiceWizard";
 export { isGeneralApplicantComplete };
 import { getApplicantDisplayName } from "./helpers/applicantDisplayHelper";
@@ -38,7 +39,7 @@ interface GeneralBulkApplicantsPanelProps {
   onApplicantsImported?: (applicants: GeneralApplicantData[]) => void;
   onSubmitAll?: () => void;
   service: NTCService;
-  variantRequirements?: string[];
+  variantRequirements?: Array<ServiceRequirementItem | string>;
 }
 
 export function GeneralBulkApplicantsPanel({

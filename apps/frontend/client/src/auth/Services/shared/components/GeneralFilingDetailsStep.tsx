@@ -579,6 +579,8 @@ export function GeneralFilingDetailsStep({
           variants={variants}
           variantElements={variantElements}
           errors={errors}
+          appMode={appMode}
+          isBulk={appMode === "BULK"}
         />
       </View>
     );
