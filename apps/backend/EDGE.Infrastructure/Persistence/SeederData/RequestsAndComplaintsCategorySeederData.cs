@@ -9,35 +9,40 @@ public static class RequestsAndComplaintsCategorySeederData
     public static readonly Guid CategoryId = Guid.Parse("c0000000-0000-0000-0000-000000000006");
     public static readonly Guid SvcReqCompId = Guid.Parse("50000000-0000-0000-0000-000000000080");
 
-    public static readonly string NtcReqComplaintsContract = @"
+    public static readonly string Ntc125Contract = @"
     {
-        ""formNo"": ""NTC-REQ-COMPLAINTS"",
-        ""revisionNo"": ""01"",
+        ""formNo"": ""NTC 1-25"",
+        ""revisionNo"": ""02"",
         ""revisionDate"": ""2023-03-31"",
         ""serviceCategory"": ""Requests and Complaints"",
-        ""group"": ""Requests and Complaints of Consumers/Subscribers"",
+        ""group"": ""Complaint Form"",
         ""applicationTypes"": [""New""],
         ""elements"": [],
         ""requiredSections"": [
-            { ""key"": ""applicant"", ""required"": true },
+            { ""key"": ""complainant"", ""required"": true },
+            { ""key"": ""serviceProvider"", ""required"": true },
+            { ""key"": ""natureOfComplaint"", ""required"": true },
             { ""key"": ""details"", ""required"": true },
             { ""key"": ""declaration"", ""required"": true }
         ],
         ""allowsBulkSubmission"": false,
         ""categorySpecific"": {
-            ""requestType"": [""IMEI/SIM Blocking"", ""IMEI/SIM Unblocking"", ""Spam/Scam Text Complaints"", ""Telco/Broadcast Complaints"", ""Mandatory Tape Preservation""]
+            ""natureOfComplaint"": [""Billing Complaint"", ""Spam"", ""Poor Service (Technical Service/Customer Service)"", ""Scam"", ""Fair Use"", ""Denial of Subscription Plan"", ""Others, please specify""]
         },
         ""entityType"": ""Application""
     }";
 
+    public static readonly string NtcReqComplaintsContract = Ntc125Contract;
+
     public static Dictionary<string, string> GetContractMapEntries() => new(StringComparer.OrdinalIgnoreCase)
     {
-        ["NTC_REQ_COMPLAINTS"] = NtcReqComplaintsContract
+        ["NTC_1_25"] = Ntc125Contract,
+        ["NTC_REQ_COMPLAINTS"] = Ntc125Contract
     };
 
     public static List<ServiceCategoryDef> GetServiceDefs(Guid categoryId) => new()
     {
-        new("NTC_REQ_COMPLAINTS", SvcReqCompId, categoryId, "Requests and Complaints of Consumers/Subscribers", "Requests and Complaints of Consumers/Subscribers", "NTC_REQ_COMPLAINTS", "Requests and Complaints of Consumers/Subscribers", NtcReqComplaintsContract)
+        new("NTC_1_25", SvcReqCompId, categoryId, "COMPLAINT FORM", "Requests and Complaints of Consumers/Subscribers", "NTC_1_25", "COMPLAINT FORM (NTC 1-25)", Ntc125Contract)
     };
 
     // Variant IDs
@@ -126,11 +131,13 @@ public static class RequestsAndComplaintsCategorySeederData
 
     public static List<ServiceFormDef> GetFormDefs() => new()
     {
-        new("NTC_REQ_COMPLAINTS", Guid.Parse("f8000000-0000-0000-0000-000000000001"), Guid.Parse("f80a0000-0000-0000-0000-000000000000"), new()
+        new("NTC_1_25", Guid.Parse("f2500000-0000-0000-0000-000000000001"), Guid.Parse("f25a0000-0000-0000-0000-000000000000"), new()
         {
-            new("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email" }),
-            new("details", "Details of Request or Complaint", new() { "circumstances" }),
-            new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" })
+            new("complainant", "Complainant's Details", new() { "fullName", "region", "province", "city", "barangay", "street", "zipCode", "contactNo", "email" }),
+            new("serviceProvider", "Particulars of Service Provider", new() { "dealerName", "sellerAddress", "contactNo" }),
+            new("natureOfComplaint", "Nature of Complaint", new() { "permitType", "specifyDetails" }),
+            new("details", "Details and Supporting Documents", new() { "circumstances" }),
+            new("declaration", "Acknowledgement and Signature", new() { "signatureField", "declarationCheckbox" })
         })
     };
 

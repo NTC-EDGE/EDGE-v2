@@ -63,7 +63,6 @@ export function RadioOperatorCertForm({
                 { label: "1 Year", value: "1" },
                 { label: "2 Years", value: "2" },
                 { label: "3 Years", value: "3" },
-                { label: "5 Years", value: "5" },
               ]}
             />
           </View>
@@ -147,6 +146,8 @@ export function RadioOperatorCertForm({
               label="Contact Number"
               placeholder="e.g. 09171234567"
               value={data.contactNo}
+              keyboardType="phone-pad"
+              maxLength={13}
               onChangeText={(val) => onChange({ contactNo: val })}
               error={errors.contactNo}
               touched={touched.contactNo}

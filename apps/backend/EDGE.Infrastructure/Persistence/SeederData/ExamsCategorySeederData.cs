@@ -42,9 +42,8 @@ public static class ExamsCategorySeederData
         ],
         ""requiredSections"": [
             { ""key"": ""applicantPerson"", ""required"": true },
-            { ""key"": ""examSelection"", ""required"": true },
+            { ""key"": ""applicantEducation"", ""required"": false },
             { ""key"": ""assistanceRequest"", ""required"": false },
-            { ""key"": ""admissionSlip"", ""required"": true },
             { ""key"": ""declaration"", ""required"": true }
         ],
         ""allowsBulkSubmission"": true,
@@ -174,11 +173,9 @@ public static class ExamsCategorySeederData
         {
             new("applicantPerson", "Personal Information", new() { "fullName", "birthDate", "sex", "civilStatus", "nationality" }),
             new("applicantAddress", "Address Information", new() { "region", "province", "city", "barangay", "street", "zipCode" }),
-            new("applicantContact", "Contact Information", new() { "contactNo", "email", "emergencyContactPerson", "emergencyContactNo" }),
+            new("applicantContact", "Contact Information", new() { "contactNo", "email" }),
             new("applicantEducation", "Educational Background", new() { "schoolName", "courseDegree", "yearGraduated" }),
-            new("examSelection", "Exam Selection", new() { "examCategory", "examineeType", "elements" }),
             new("assistanceRequest", "Special Needs Assistance", new() { "specialNeeds" }),
-            new("admissionSlip", "Admission Slip", new() { "admissionNumber" }),
             new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" })
         })
     };

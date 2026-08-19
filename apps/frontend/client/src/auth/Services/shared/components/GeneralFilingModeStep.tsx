@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, Alert, Platform, ActivityIndicator } from
 import * as DocumentPicker from "expo-document-picker";
 import { Icon, COLORS, TYPOGRAPHY } from "@edge/ui";
 import { Select } from "../../../../shared/components/Select";
+import { ValidatedInput } from "../../../../shared/components/ValidatedInput";
 import { NTCService } from "../../data/servicesData";
 import { GeneralApplicantData } from "../hooks/useGeneralServiceWizard";
 import {
@@ -34,6 +35,10 @@ interface GeneralFilingModeStepProps {
   onSelectVariant?: (variantId: string, variantName: string) => void;
   selectedElementId?: string;
   onSelectElement?: (elementId: string, elementTitle: string) => void;
+  applicantType?: "individual" | "company";
+  onApplicantTypeChange?: (type: "individual" | "company") => void;
+  companyName?: string;
+  onCompanyNameChange?: (name: string) => void;
   appMode: "SINGLE" | "BULK" | "";
   onAppModeChange: (mode: "SINGLE" | "BULK") => void;
   bulkMethod?: "MANUAL" | "EXCEL";
@@ -45,9 +50,11 @@ interface GeneralFilingModeStepProps {
   onApplicantsImported?: (applicants: GeneralApplicantData[]) => void;
 }
 
-const safeUpper = (str?: any): string => {
+const safeUpper = (str?: unknown): string => {
   if (typeof str === "string") return str.toUpperCase();
-  if (str && typeof str.toString === "function") return str.toString().toUpperCase();
+  if (str !== null && str !== undefined && typeof (str as { toString: () => string }).toString === "function") {
+    return (str as { toString: () => string }).toString().toUpperCase();
+  }
   return "";
 };
 
@@ -60,6 +67,10 @@ export function GeneralFilingModeStep({
   onSelectVariant,
   selectedElementId = "",
   onSelectElement,
+  applicantType = "individual",
+  onApplicantTypeChange,
+  companyName = "",
+  onCompanyNameChange,
   appMode,
   onAppModeChange,
   isFileUploaded,
@@ -71,6 +82,12 @@ export function GeneralFilingModeStep({
   const [loading, setLoading] = useState(false);
   const [localSelectedClassId, setLocalSelectedClassId] = useState<string>("");
   const serviceTitle = safeUpper(service?.title || "");
+
+  React.useEffect(() => {
+    if (!appMode || (applicantType === "individual" && appMode !== "SINGLE")) {
+      onAppModeChange("SINGLE");
+    }
+  }, [appMode, applicantType, onAppModeChange]);
 
   const selectedClassId = selectedElementId || localSelectedClassId;
 
@@ -157,7 +174,7 @@ export function GeneralFilingModeStep({
     description: "Standard filing concern",
   };
 
-  const formatVariantLabel = (v: any): string => {
+  const formatVariantLabel = (v: { description?: string; type?: string; name?: string } | null | undefined): string => {
     if (!v) return "Application Variant";
 
     const cleanStr = (s: string) =>
@@ -493,7 +510,146 @@ export function GeneralFilingModeStep({
         })()}
       </View>
 
-      {/* ── 4. Select Filing Mode* (Card 4 — Positioned DIRECTLY BELOW Variant & Elements) ── */}
+      {/* ── 4. Select Applicant Classification (Individual vs Company)* ── */}
+      <View
+        style={{
+          backgroundColor: "#FFFFFF",
+          borderRadius: 14,
+          padding: 20,
+          borderWidth: 1,
+          borderColor: "#CBD5E1",
+          borderLeftWidth: 5,
+          borderLeftColor: "#3B82F6",
+          shadowColor: "#3B82F6",
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.05,
+          shadowRadius: 6,
+          elevation: 2,
+        }}
+      >
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12 }}>
+          <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: "#EFF6FF", justifyContent: "center", alignItems: "center" }}>
+            <Icon name="user-check" size={15} color="#1D4ED8" />
+          </View>
+          <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 15, fontWeight: "700", color: "#0F2C59" }}>
+            Applicant Classification / Entity Type*
+          </Text>
+        </View>
+
+        <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: "#64748B", marginBottom: 14 }}>
+          Select whether this application is filed for an individual person or on behalf of a company/corporation:
+        </Text>
+
+        <View style={{ gap: 10 }}>
+          {/* Option A: Individual Applicant */}
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => {
+              onApplicantTypeChange?.("individual");
+              onAppModeChange("SINGLE");
+            }}
+            style={{
+              flexDirection: "row",
+              alignItems: "flex-start",
+              padding: 14,
+              borderRadius: 10,
+              borderWidth: applicantType === "individual" ? 2 : 1,
+              borderColor: applicantType === "individual" ? "#0F2C59" : "#CBD5E1",
+              backgroundColor: applicantType === "individual" ? "#F0F9FF" : "#FFFFFF",
+            }}
+          >
+            <View
+              style={{
+                width: 20,
+                height: 20,
+                borderRadius: 10,
+                borderWidth: 2,
+                borderColor: applicantType === "individual" ? "#0F2C59" : "#94A3B8",
+                justifyContent: "center",
+                alignItems: "center",
+                marginRight: 12,
+                marginTop: 2,
+              }}
+            >
+              {applicantType === "individual" && (
+                <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: "#0F2C59" }} />
+              )}
+            </View>
+            <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                <Icon name="user" size={14} color={applicantType === "individual" ? "#0F2C59" : "#64748B"} />
+                <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: applicantType === "individual" ? "#0F2C59" : "#1E293B" }}>
+                  Individual Applicant
+                </Text>
+              </View>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: "#64748B", lineHeight: 16 }}>
+                Personal filing for yourself. Individual applications are processed as single transactions.
+              </Text>
+            </View>
+          </TouchableOpacity>
+
+          {/* Option B: Company / Corporation / Organization */}
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => {
+              onApplicantTypeChange?.("company");
+            }}
+            style={{
+              flexDirection: "row",
+              alignItems: "flex-start",
+              padding: 14,
+              borderRadius: 10,
+              borderWidth: applicantType === "company" ? 2 : 1,
+              borderColor: applicantType === "company" ? "#0F2C59" : "#CBD5E1",
+              backgroundColor: applicantType === "company" ? "#F0F9FF" : "#FFFFFF",
+            }}
+          >
+            <View
+              style={{
+                width: 20,
+                height: 20,
+                borderRadius: 10,
+                borderWidth: 2,
+                borderColor: applicantType === "company" ? "#0F2C59" : "#94A3B8",
+                justifyContent: "center",
+                alignItems: "center",
+                marginRight: 12,
+                marginTop: 2,
+              }}
+            >
+              {applicantType === "company" && (
+                <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: "#0F2C59" }} />
+              )}
+            </View>
+            <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                <Icon name="briefcase" size={14} color={applicantType === "company" ? "#0F2C59" : "#64748B"} />
+                <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: applicantType === "company" ? "#0F2C59" : "#1E293B" }}>
+                  Company / Corporation / Organization
+                </Text>
+              </View>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: "#64748B", lineHeight: 16 }}>
+                Corporate filing on behalf of an enterprise, entity, or multiple employees (eligible for Bulk submission).
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        {/* Company Name Input when Company is selected */}
+        {applicantType === "company" && (
+          <View style={{ marginTop: 16 }}>
+            <ValidatedInput
+              label="Company / Corporation Name"
+              required={true}
+              placeholder="e.g., Globe Telecom Inc., Converge ICT Solutions"
+              value={companyName}
+              onChangeText={(text) => onCompanyNameChange?.(text)}
+            />
+          </View>
+        )}
+      </View>
+
+      {/* ── 5. Select Filing Mode* (Card 5) ── */}
       <View
         style={{
           backgroundColor: "#FFFFFF",
@@ -519,37 +675,65 @@ export function GeneralFilingModeStep({
           </Text>
         </View>
 
-        <Select
-          label="Filing Mode*"
-          placeholder="Select Filing Mode..."
-          value={appMode}
-          onValueChange={(val) => {
-            if (val === "SINGLE" || val === "BULK") {
-              onAppModeChange(val);
-            }
-          }}
-          options={[
-            { label: "Single Application (Individual)", value: "SINGLE" },
-            { label: "Bulk Application (Multiple Applicants / Spreadsheet Import)", value: "BULK" },
-          ]}
-          iconName="users"
-        />
-
-        {appMode === "BULK" && (
+        {applicantType === "individual" ? (
           <View
             style={{
-              marginTop: 12,
-              backgroundColor: "#EFF6FF",
+              backgroundColor: "#F8FAFC",
               borderRadius: 10,
-              padding: 12,
+              padding: 14,
               borderWidth: 1,
-              borderColor: "#BFDBFE",
+              borderColor: "#CBD5E1",
             }}
           >
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: "#1E40AF", lineHeight: 18 }}>
-              ✓ You selected Bulk Application. Click <Text style={{ fontWeight: "700" }}>Next</Text> to open the cohort management screen where you can import a spreadsheet or add applicants manually.
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 6 }}>
+              <View style={{ backgroundColor: "#EFF6FF", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 }}>
+                <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: "700", color: "#1D4ED8" }}>
+                  SINGLE APPLICATION
+                </Text>
+              </View>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: "#0F2C59" }}>
+                Individual Filing Mode
+              </Text>
+            </View>
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: "#64748B", lineHeight: 17 }}>
+              Individual applicants are processed as single applications. If you need to submit batch filings for multiple applicants in bulk, select <Text style={{ fontWeight: "700", color: "#0F2C59" }}>Company / Corporation</Text> above.
             </Text>
           </View>
+        ) : (
+          <>
+            <Select
+              label="Filing Mode*"
+              placeholder="Select Filing Mode..."
+              value={appMode}
+              onValueChange={(val) => {
+                if (val === "SINGLE" || val === "BULK") {
+                  onAppModeChange(val);
+                }
+              }}
+              options={[
+                { label: "Single Application (1 Applicant under Company)", value: "SINGLE" },
+                { label: "Bulk Application (Multiple Applicants / Spreadsheet Import)", value: "BULK" },
+              ]}
+              iconName="users"
+            />
+
+            {appMode === "BULK" && (
+              <View
+                style={{
+                  marginTop: 12,
+                  backgroundColor: "#EFF6FF",
+                  borderRadius: 10,
+                  padding: 12,
+                  borderWidth: 1,
+                  borderColor: "#BFDBFE",
+                }}
+              >
+                <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: "#1E40AF", lineHeight: 18 }}>
+                  ✓ You selected Bulk Application for <Text style={{ fontWeight: "700" }}>{companyName || "your company"}</Text>. Click <Text style={{ fontWeight: "700" }}>Next</Text> to open the cohort management screen where you can import a spreadsheet or add applicants manually.
+                </Text>
+              </View>
+            )}
+          </>
         )}
       </View>
     </View>

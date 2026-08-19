@@ -22,7 +22,7 @@ type SettingsTabKey = "profile" | "signature" | "preferences" | "notifications" 
 interface TabItem {
   key: SettingsTabKey;
   label: string;
-  icon: string;
+  icon: React.ComponentProps<typeof Icon>["name"];
   description: string;
 }
 

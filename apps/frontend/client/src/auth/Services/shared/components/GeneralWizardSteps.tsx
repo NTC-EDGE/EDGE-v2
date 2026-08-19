@@ -1,6 +1,15 @@
 import React from "react";
 import { NTCService } from "../../data/servicesData";
-import { TenantInfo, OfficeInfo, GeneralApplicantData, initialGeneralApplicant } from "../hooks/useGeneralServiceWizard";
+import {
+  TenantInfo,
+  OfficeInfo,
+  GeneralApplicantData,
+  ExamScheduleItem,
+  initialGeneralApplicant,
+  ServiceVariantInfo,
+  ServiceVariantElementInfo,
+  ServiceRequirementItem,
+} from "../hooks/useGeneralServiceWizard";
 import { GeneralRegionOfficeStep } from "./GeneralRegionOfficeStep";
 import { GeneralFilingModeStep } from "./GeneralFilingModeStep";
 import { GeneralFilingDetailsStep } from "./GeneralFilingDetailsStep";
@@ -10,9 +19,9 @@ import { GeneralReviewSubmitStep } from "./GeneralReviewSubmitStep";
 interface GeneralWizardStepsProps {
   step: number;
   service: NTCService;
-  variants?: any[];
-  variantElements?: any[];
-  variantRequirements?: string[];
+  variants?: ServiceVariantInfo[];
+  variantElements?: ServiceVariantElementInfo[];
+  variantRequirements?: Array<ServiceRequirementItem | string>;
   selectedVariantId?: string;
   onSelectVariant?: (variantId: string, variantName: string) => void;
   selectedRegionId: string;
@@ -21,6 +30,11 @@ interface GeneralWizardStepsProps {
   setSelectedOfficeId: (val: string) => void;
   tenants: TenantInfo[];
   offices: OfficeInfo[];
+  isExamService?: boolean;
+  schedules?: ExamScheduleItem[];
+  loadingSchedules?: boolean;
+  selectedScheduleId?: string | null;
+  onSelectSchedule?: (id: string) => void;
   appMode: "SINGLE" | "BULK" | "";
   setAppMode: (val: "SINGLE" | "BULK" | "") => void;
   bulkMethod: "MANUAL" | "EXCEL";
@@ -58,6 +72,11 @@ export function GeneralWizardSteps({
   setSelectedOfficeId,
   tenants,
   offices,
+  isExamService = false,
+  schedules = [],
+  loadingSchedules = false,
+  selectedScheduleId = null,
+  onSelectSchedule,
   appMode,
   setAppMode,
   bulkMethod,
@@ -88,6 +107,11 @@ export function GeneralWizardSteps({
           setSelectedOfficeId={setSelectedOfficeId}
           tenants={tenants}
           offices={offices}
+          isExamService={isExamService}
+          schedules={schedules}
+          loadingSchedules={loadingSchedules}
+          selectedScheduleId={selectedScheduleId}
+          onSelectSchedule={onSelectSchedule}
         />
       );
     case 2:
@@ -106,6 +130,15 @@ export function GeneralWizardSteps({
               selectedElementTitle: elemTitle,
             });
           }}
+          applicantType={activeApplicant.applicantType || "individual"}
+          onApplicantTypeChange={(type) => {
+            updateActiveApplicant({ applicantType: type });
+            if (type === "individual" && appMode === "BULK") {
+              setAppMode("SINGLE");
+            }
+          }}
+          companyName={activeApplicant.companyName || ""}
+          onCompanyNameChange={(name) => updateActiveApplicant({ companyName: name })}
           appMode={appMode}
           onAppModeChange={(val) => {
             setAppMode(val);
@@ -170,6 +203,8 @@ export function GeneralWizardSteps({
           currentApplicantIndex={currentApplicantIndex}
           appMode={appMode}
           variants={variants}
+          schedules={schedules}
+          selectedScheduleId={selectedScheduleId}
         />
       );
     default:

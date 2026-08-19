@@ -1,18 +1,18 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
 import { COLORS, TYPOGRAPHY, Icon } from "@edge/ui";
 import { ValidatedInput } from "./ValidatedInput";
 import { Select } from "./Select";
 import { FormGrid, FormCol } from "./FormGrid";
 
 export interface StructuredNameData {
-  applicantType: "individual" | "company";
+  applicantType?: "individual" | "company";
   firstName: string;
   middleName: string;
   lastName: string;
   suffix: string;
-  companyName: string;
-  representativeName: string;
+  companyName?: string;
+  representativeName?: string;
 }
 
 interface ApplicantNameFieldProps {
@@ -37,296 +37,111 @@ const SUFFIX_OPTIONS = [
 ];
 
 export function ApplicantNameField({
-  label = "Applicant Information",
+  label = "Full Legal Name",
   isRequired = true,
   value = "",
   structuredValue,
-  allowCompany = true,
   onChange,
   onStructuredChange,
   error,
 }: ApplicantNameFieldProps) {
-  const [applicantType, setApplicantType] = useState<"individual" | "company">(
-    structuredValue?.applicantType || "individual"
-  );
-  const [firstName, setFirstName] = useState(structuredValue?.firstName || "");
-  const [middleName, setMiddleName] = useState(structuredValue?.middleName || "");
-  const [lastName, setLastName] = useState(structuredValue?.lastName || "");
-  const [suffix, setSuffix] = useState(structuredValue?.suffix || "");
-  const [companyName, setCompanyName] = useState(structuredValue?.companyName || "");
-  const [representativeName, setRepresentativeName] = useState(structuredValue?.representativeName || "");
+  // If structuredValue is provided, use it directly; otherwise parse from raw value string
+  const firstName = structuredValue?.firstName !== undefined
+    ? structuredValue.firstName
+    : value.trim().split(/\s+/)[0] || "";
 
-  // Enforce individual if company is disallowed
-  useEffect(() => {
-    if (!allowCompany && applicantType !== "individual") {
-      setApplicantType("individual");
-    }
-  }, [allowCompany, applicantType]);
+  const lastName = structuredValue?.lastName !== undefined
+    ? structuredValue.lastName
+    : value.trim().split(/\s+/).length > 1
+    ? value.trim().split(/\s+/).slice(1).join(" ")
+    : "";
 
-  const lastNotifiedRef = React.useRef<string | null>(null);
+  const middleName = structuredValue?.middleName ?? "";
+  const suffix = structuredValue?.suffix ?? "";
 
-  // Synchronize from structuredValue or value prop
-  useEffect(() => {
-    if (structuredValue) {
-      if (structuredValue.applicantType !== undefined) {
-        setApplicantType(structuredValue.applicantType);
-      }
-      setFirstName(structuredValue.firstName || "");
-      setMiddleName(structuredValue.middleName || "");
-      setLastName(structuredValue.lastName || "");
-      setSuffix(structuredValue.suffix || "");
-      setCompanyName(structuredValue.companyName || "");
-      setRepresentativeName(structuredValue.representativeName || "");
-      return;
-    }
-
-    if (value !== undefined && value !== lastNotifiedRef.current) {
-      lastNotifiedRef.current = value;
-      if (allowCompany && (value.toLowerCase().includes("corp") || value.toLowerCase().includes("inc") || value.toLowerCase().includes("ltd") || value.toLowerCase().includes("company"))) {
-        setApplicantType("company");
-        setCompanyName(value);
-        setFirstName("");
-        setMiddleName("");
-        setLastName("");
-        setSuffix("");
-        setRepresentativeName("");
-      } else {
-        setApplicantType("individual");
-        setCompanyName("");
-        const rawParts = value.trim().split(/\s+/);
-        if (rawParts.length === 0 || (rawParts.length === 1 && rawParts[0] === "")) {
-          setFirstName("");
-          setMiddleName("");
-          setLastName("");
-          setSuffix("");
-          return;
-        }
-
-        // Check if last token matches a known suffix
-        const lastToken = rawParts[rawParts.length - 1];
-        const knownSuffixes = ["jr.", "jr", "sr.", "sr", "ii", "iii", "iv", "v"];
-        let detectedSuffix = "";
-        let parts = [...rawParts];
-        if (rawParts.length > 1 && knownSuffixes.includes(lastToken.toLowerCase())) {
-          detectedSuffix = lastToken;
-          parts = rawParts.slice(0, rawParts.length - 1);
-        }
-        setSuffix(detectedSuffix);
-
-        if (parts.length === 1) {
-          setFirstName(parts[0] || "");
-          setMiddleName("");
-          setLastName("");
-        } else if (parts.length === 2) {
-          setFirstName(parts[0] || "");
-          setMiddleName("");
-          setLastName(parts[1] || "");
-        } else if (parts.length >= 3) {
-          setFirstName(parts[0] || "");
-          setMiddleName(parts[1] || "");
-          setLastName(parts.slice(2).join(" "));
-        }
-      }
-    }
-  }, [
-    structuredValue?.firstName,
-    structuredValue?.middleName,
-    structuredValue?.lastName,
-    structuredValue?.suffix,
-    structuredValue?.companyName,
-    structuredValue?.representativeName,
-    structuredValue?.applicantType,
-    value,
-    allowCompany,
-  ]);
-
-  const notifyChange = (
-    type: "individual" | "company",
-    fn: string,
-    mn: string,
-    ln: string,
-    sfx: string,
-    comp: string,
-    rep: string
+  const handleFieldChange = (
+    newFn: string,
+    newMn: string,
+    newLn: string,
+    newSfx: string
   ) => {
-    let computedFullName = "";
-    if (type === "individual" || !allowCompany) {
-      computedFullName = [fn.trim(), mn.trim(), ln.trim(), sfx.trim()]
-        .filter(Boolean)
-        .join(" ");
-    } else {
-      computedFullName = comp.trim();
-    }
+    const computedFullName = [newFn.trim(), newMn.trim(), newLn.trim(), newSfx.trim()]
+      .filter(Boolean)
+      .join(" ");
 
-    lastNotifiedRef.current = computedFullName;
     onChange(computedFullName);
     onStructuredChange?.({
-      applicantType: allowCompany ? type : "individual",
-      firstName: fn,
-      middleName: mn,
-      lastName: ln,
-      suffix: sfx,
-      companyName: comp,
-      representativeName: rep,
+      firstName: newFn,
+      middleName: newMn,
+      lastName: newLn,
+      suffix: newSfx,
     });
-  };
-
-  const handleTypeToggle = (newType: "individual" | "company") => {
-    setApplicantType(newType);
-    notifyChange(newType, firstName, middleName, lastName, suffix, companyName, representativeName);
   };
 
   return (
     <View style={styles.container}>
       {/* Field Label with Red Asterisk */}
       <View style={styles.labelRow}>
-        <Text style={styles.mainLabel}>
-          {!allowCompany ? "Applicant Personal Information" : label}
-        </Text>
+        <Text style={styles.mainLabel}>{label}</Text>
         {isRequired && <Text style={styles.requiredAsterisk}>*</Text>}
       </View>
-
-      {/* Applicant Type Selection Buttons (Only displayed when company application is allowed) */}
-      {allowCompany && (
-        <View style={styles.typeSelectorContainer}>
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => handleTypeToggle("individual")}
-            style={[
-              styles.typeOptionButton,
-              applicantType === "individual" && styles.typeOptionButtonActive,
-            ]}
-          >
-            <Icon
-              name="user"
-              size={16}
-              color={applicantType === "individual" ? "#FFFFFF" : COLORS.neutral[600]}
-            />
-            <Text
-              style={[
-                styles.typeOptionText,
-                applicantType === "individual" && styles.typeOptionTextActive,
-              ]}
-            >
-              Individual Applicant
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => handleTypeToggle("company")}
-            style={[
-              styles.typeOptionButton,
-              applicantType === "company" && styles.typeOptionButtonActive,
-            ]}
-          >
-            <Icon
-              name="briefcase"
-              size={16}
-              color={applicantType === "company" ? "#FFFFFF" : COLORS.neutral[600]}
-            />
-            <Text
-              style={[
-                styles.typeOptionText,
-                applicantType === "company" && styles.typeOptionTextActive,
-              ]}
-            >
-              Company / Corporation
-            </Text>
-          </TouchableOpacity>
-        </View>
-      )}
+      <Text style={styles.subLabel}>
+        Enter the full legal name of the applicant/licensee as it will appear on the certificate or license.
+      </Text>
 
       {/* Individual Fields Layout */}
-      {applicantType === "individual" || !allowCompany ? (
-        <View style={styles.fieldsWrapper}>
-          <FormGrid>
-            <FormCol span={6}>
-              <ValidatedInput
-                label="First Name"
-                required={isRequired}
-                placeholder="e.g. Juan"
-                value={firstName}
-                error={error && !firstName.trim() ? "First Name is required." : undefined}
-                onChangeText={(val) => {
-                  setFirstName(val);
-                  notifyChange("individual", val, middleName, lastName, suffix, companyName, representativeName);
-                }}
-              />
-            </FormCol>
+      <View style={styles.fieldsWrapper}>
+        <FormGrid>
+          <FormCol span={6}>
+            <ValidatedInput
+              label="First Name"
+              required={isRequired}
+              placeholder="e.g. Juan"
+              value={firstName}
+              error={error && !firstName.trim() ? "First Name is required." : undefined}
+              onChangeText={(val) => {
+                handleFieldChange(val, middleName, lastName, suffix);
+              }}
+            />
+          </FormCol>
 
-            <FormCol span={6}>
-              <ValidatedInput
-                label="Middle Name (Optional)"
-                placeholder="e.g. Mercado"
-                value={middleName}
-                onChangeText={(val) => {
-                  setMiddleName(val);
-                  notifyChange("individual", firstName, val, lastName, suffix, companyName, representativeName);
-                }}
-              />
-            </FormCol>
+          <FormCol span={6}>
+            <ValidatedInput
+              label="Middle Name (Optional)"
+              placeholder="e.g. Mercado"
+              value={middleName}
+              onChangeText={(val) => {
+                handleFieldChange(firstName, val, lastName, suffix);
+              }}
+            />
+          </FormCol>
 
-            <FormCol span={6}>
-              <ValidatedInput
-                label="Last Name"
-                required={isRequired}
-                placeholder="e.g. Dela Cruz"
-                value={lastName}
-                error={error && !lastName.trim() ? "Last Name is required." : undefined}
-                onChangeText={(val) => {
-                  setLastName(val);
-                  notifyChange("individual", firstName, middleName, val, suffix, companyName, representativeName);
-                }}
-              />
-            </FormCol>
+          <FormCol span={6}>
+            <ValidatedInput
+              label="Last Name"
+              required={isRequired}
+              placeholder="e.g. Dela Cruz"
+              value={lastName}
+              error={error && !lastName.trim() ? "Last Name is required." : undefined}
+              onChangeText={(val) => {
+                handleFieldChange(firstName, middleName, val, suffix);
+              }}
+            />
+          </FormCol>
 
-            <FormCol span={6}>
-              <Select
-                label="Suffix"
-                placeholder="None"
-                value={suffix}
-                options={SUFFIX_OPTIONS}
-                onValueChange={(val) => {
-                  setSuffix(val);
-                  notifyChange("individual", firstName, middleName, lastName, val, companyName, representativeName);
-                }}
-              />
-            </FormCol>
-          </FormGrid>
-        </View>
-      ) : (
-        /* Company Fields Layout */
-        <View style={styles.fieldsWrapper}>
-          <FormGrid>
-            <FormCol span={12}>
-              <ValidatedInput
-                label="Company / Corporate Name"
-                required={isRequired}
-                placeholder="e.g. Globe Telecom, Inc. / Smart Communications"
-                value={companyName}
-                error={error && !companyName.trim() ? "Company Name is required." : undefined}
-                onChangeText={(val) => {
-                  setCompanyName(val);
-                  notifyChange("company", firstName, middleName, lastName, suffix, val, representativeName);
-                }}
-              />
-            </FormCol>
-
-            <FormCol span={12}>
-              <ValidatedInput
-                label="Authorized Representative / Signatory (Optional)"
-                placeholder="e.g. Maria Santos (General Manager)"
-                value={representativeName}
-                onChangeText={(val) => {
-                  setRepresentativeName(val);
-                  notifyChange("company", firstName, middleName, lastName, suffix, companyName, val);
-                }}
-              />
-            </FormCol>
-          </FormGrid>
-        </View>
-      )}
+          <FormCol span={6}>
+            <Select
+              label="Suffix"
+              placeholder="None"
+              value={suffix}
+              options={SUFFIX_OPTIONS}
+              onValueChange={(val) => {
+                handleFieldChange(firstName, middleName, lastName, val);
+              }}
+            />
+          </FormCol>
+        </FormGrid>
+      </View>
 
       {error !== undefined && error.length > 0 && (
         <Text style={styles.errorText}>{error}</Text>
@@ -348,94 +163,34 @@ const styles = StyleSheet.create({
   labelRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 10,
-    gap: 4,
+    marginBottom: 2,
   },
   mainLabel: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13.5,
+    fontSize: 14,
     fontWeight: "700",
     color: "#0F2C59",
+  },
+  subLabel: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    color: "#64748B",
+    marginBottom: 12,
   },
   requiredAsterisk: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 14,
-    fontWeight: "800",
-    color: "#EF4444",
-  },
-  typeSelectorContainer: {
-    flexDirection: "row",
-    backgroundColor: "#E2E8F0",
-    borderRadius: 9,
-    padding: 3,
-    marginBottom: 14,
-    gap: 4,
-  },
-  typeOptionButton: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 7,
-    borderRadius: 7,
-    gap: 6,
-  },
-  typeOptionButtonActive: {
-    backgroundColor: "#0F2C59",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  typeOptionText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
-    fontWeight: "600",
-    color: COLORS.neutral[600],
-  },
-  typeOptionTextActive: {
-    color: "#FFFFFF",
     fontWeight: "700",
+    color: "#DC2626",
+    marginLeft: 4,
   },
   fieldsWrapper: {
-    marginTop: 2,
-  },
-  previewPillContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#EFF6FF",
-    borderWidth: 1,
-    borderColor: "#BFDBFE",
-    borderRadius: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    marginTop: 4,
-    gap: 6,
-  },
-  previewDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "#3B82F6",
-  },
-  previewLabel: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#1E40AF",
-  },
-  previewValue: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11.5,
-    fontWeight: "600",
-    color: "#1E3A8A",
-    flex: 1,
+    width: "100%",
   },
   errorText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-    color: "#EF4444",
+    fontSize: 12,
+    color: "#DC2626",
     marginTop: 6,
   },
 });

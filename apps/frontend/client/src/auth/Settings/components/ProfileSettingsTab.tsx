@@ -263,24 +263,6 @@ export function ProfileSettingsTab({
         </View>
 
         <View style={styles.grid}>
-          <View style={styles.col6}>
-            <Input
-              label="Street / Building"
-              placeholder="e.g. 123 Mahogany St."
-              value={profile.address.street}
-              onChangeText={(val) => onUpdateAddress({ street: val })}
-            />
-          </View>
-
-          <View style={styles.col6}>
-            <Input
-              label="Unit / Floor / Room"
-              placeholder="e.g. Unit 4B, 2nd Floor"
-              value={profile.address.unit || ""}
-              onChangeText={(val) => onUpdateAddress({ unit: val })}
-            />
-          </View>
-
           {/* Cascading Region Dropdown */}
           <View style={styles.col6}>
             <Text style={styles.selectLabel}>Region</Text>
@@ -392,6 +374,24 @@ export function ProfileSettingsTab({
                 label: b.name,
                 value: b.id,
               }))}
+            />
+          </View>
+
+          <View style={styles.col6}>
+            <Input
+              label="Street / Building"
+              placeholder="e.g. 123 Mahogany St."
+              value={profile.address.street}
+              onChangeText={(val) => onUpdateAddress({ street: val })}
+            />
+          </View>
+
+          <View style={styles.col6}>
+            <Input
+              label="Unit / Floor / Room"
+              placeholder="e.g. Unit 4B, 2nd Floor"
+              value={profile.address.unit || ""}
+              onChangeText={(val) => onUpdateAddress({ unit: val })}
             />
           </View>
 

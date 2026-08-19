@@ -48,8 +48,10 @@ public static class CertificatesCategorySeederData
     public static readonly Guid VarTvroComm         = Guid.Parse("60000000-0000-0000-0000-000000000020");
     public static readonly Guid VarTvroNonComm      = Guid.Parse("60000000-0000-0000-0000-000000000037");
 
-    // Variant GUID for NTC 1-20 (VAS Provider)
+    // Variant GUIDs for NTC 1-20 (VAS Provider)
+    public static readonly Guid VarVasNew           = Guid.Parse("60000000-0000-0000-0000-000000000038");
     public static readonly Guid VarVasRenewal       = Guid.Parse("60000000-0000-0000-0000-000000000018");
+    public static readonly Guid VarVasMod           = Guid.Parse("60000000-0000-0000-0000-000000000039");
 
     // Variant GUIDs for NTC 1-21 (Copy of Certificates)
     public static readonly Guid VarCertTrueCopy     = Guid.Parse("60000000-0000-0000-0000-000000000051");
@@ -142,7 +144,7 @@ public static class CertificatesCategorySeederData
         ""revisionDate"": ""2023-03-31"",
         ""serviceCategory"": ""Certificates"",
         ""group"": null,
-        ""applicationTypes"": [""Renewal""],
+        ""applicationTypes"": [""New"", ""Renewal"", ""Modification""],
         ""elements"": [],
         ""requiredSections"": [
             { ""key"": ""applicant"", ""required"": true },
@@ -153,7 +155,9 @@ public static class CertificatesCategorySeederData
         ],
         ""allowsBulkSubmission"": false,
         ""categorySpecific"": {
-            ""natureOfServices"": [""Messaging"",""Audio Information"",""Audio/Video Content Stream"",""Voice Mail"",""Internet Access Provider"",""Other""]
+            ""serviceClassification"": [""VALUE-ADDED SERVICE (VAS) PROVIDER"", ""PUBLIC CALLING STATION/OFFICE/TELECENTER SERVICE PROVIDER (PCSOTSP)"", ""RESELLER"", ""VOICE OVER INTERNET PROTOCOL (VOIP) PROVIDER""],
+            ""entityType"": [""Single Proprietorship"", ""Corporation"", ""Partnership"", ""Others""],
+            ""natureOfServices"": [""Messaging service"", ""Content and Program service"", ""Audio conferencing"", ""Audiotext service"", ""Audio and Video Conferencing"", ""Facsimile service"", ""Voice mail service"", ""Virtual Private Network service"", ""Electronic mail service"", ""Hosting service"", ""Information service"", ""Electronic Gaming Services, except gambling"", ""Application service"", ""Others""]
         },
         ""entityType"": ""Application""
     }";
@@ -188,9 +192,10 @@ public static class CertificatesCategorySeederData
         ""revisionDate"": ""2023-03-31"",
         ""serviceCategory"": ""Certificates"",
         ""group"": null,
-        ""applicationTypes"": [""Commercial"", ""Non-Commercial""],
+        ""applicationTypes"": [""NEW"", ""RENEWAL"", ""Modification, use Form B"", ""Commercial"", ""Non-Commercial""],
         ""elements"": [],
         ""requiredSections"": [
+            { ""key"": ""applicationSpecifications"", ""required"": true },
             { ""key"": ""applicant"", ""required"": true },
             { ""key"": ""tvroEquipment"", ""required"": true },
             { ""key"": ""antennaSystem"", ""required"": true },
@@ -200,7 +205,9 @@ public static class CertificatesCategorySeederData
         ],
         ""allowsBulkSubmission"": false,
         ""categorySpecific"": {
-            ""typeOfApplication"": [""Commercial"",""Non-Commercial""]
+            ""typeOfApplication"": [""NEW"", ""RENEWAL"", ""Modification, use Form B""],
+            ""typeOfLicenseCertificate"": [""TVRO REGISTRATION CERTIFICATE"", ""TVRO STATION LICENSE"", ""CATV STATION LICENSE""],
+            ""classificationOfApplicant"": [""COMMERCIAL"", ""BROADCASTING"", ""NON-COMMERCIAL"", ""CATV"", ""OTHERS, specify""]
         },
         ""entityType"": ""Application""
     }";
@@ -266,7 +273,9 @@ public static class CertificatesCategorySeederData
         new(VarTvroNonComm, Svc122Id, ServiceVariantType.NA, "TVRO Registration Certificate (Non-Commercial)"),
 
         // CERTIFICATE OF REGISTRATION AS A VALUE-ADDED SERVICE (VAS) PROVIDER (NTC 1-20)
-        new(VarVasRenewal, Svc120Id, ServiceVariantType.Renewal, "Certificate of Registration as a Value-Added Service (VAS) Provider"),
+        new(VarVasNew, Svc120Id, ServiceVariantType.New, "Certificate of Registration as a Value-Added Service (VAS) Provider - NEW"),
+        new(VarVasRenewal, Svc120Id, ServiceVariantType.Renewal, "Certificate of Registration as a Value-Added Service (VAS) Provider - RENEWAL"),
+        new(VarVasMod, Svc120Id, ServiceVariantType.Modification, "Certificate of Registration as a Value-Added Service (VAS) Provider - MODIFICATION"),
 
         // COPY OF CERTIFICATES (NTC 1-21)
         new(VarCertTrueCopy, Svc121Id, ServiceVariantType.NA, "Certified True Copy"),
@@ -436,10 +445,18 @@ public static class CertificatesCategorySeederData
         // 25. TVRO Registration Certificate (Non-Commercial)
         new(VarTvroNonComm, Guid.Parse("70000000-0000-0000-0000-000000000022"), true), // List of Head-End Equipment signed by PECE/ECE*
 
+        // 26. Certificate of Registration as a VAS Provider - NEW
+        new(VarVasNew, Guid.Parse("70000000-0000-0000-0000-000000000023"), true),  // Facilities/network lease agreement*
+        new(VarVasNew, Guid.Parse("70000000-0000-0000-0000-000000000024"), false), // Technical Description / Network Diagram
+
         // 26. Certificate of Registration as a VAS Provider - RENEWAL
         new(VarVasRenewal, Guid.Parse("70000000-0000-0000-0000-000000000029"), true),  // Certificate of Registration*
         new(VarVasRenewal, Guid.Parse("70000000-0000-0000-0000-000000000023"), true),  // Facilities/network lease agreement*
         new(VarVasRenewal, Guid.Parse("70000000-0000-0000-0000-000000000024"), true),  // Quarterly Report(s) of VAS Provider*
+
+        // 26. Certificate of Registration as a VAS Provider - MODIFICATION
+        new(VarVasMod, Guid.Parse("70000000-0000-0000-0000-000000000029"), true),  // Certificate of Registration*
+        new(VarVasMod, Guid.Parse("70000000-0000-0000-0000-000000000027"), false), // Supporting documents for modification
 
         // 27. Copy of Certificates - Certified True Copy
         new(VarCertTrueCopy, Guid.Parse("70000000-0000-0000-0000-000000000025"), true),// Copy of document to be authenticated*
@@ -453,22 +470,22 @@ public static class CertificatesCategorySeederData
     {
         new("NTC_1_02", Guid.Parse("f0200000-0000-0000-0000-000000000001"), Guid.Parse("f02a0000-0000-0000-0000-000000000000"), new()
         {
+            new("typeOfCertificate", "Type of Certificate / Application", new() { "typeOfCertificate" }),
             new("applicantPerson", "Personal Information", new() { "fullName", "birthDate", "sex", "nationality", "weight_kg", "height_cm" }),
             new("applicantAddress", "Address Information", new() { "region", "province", "city", "barangay", "street", "zipCode" }),
             new("employmentStatus", "Employment Status", new() { "employmentStatus", "employmentType" }),
             new("applicantContact", "Contact Information", new() { "contactNo", "email" }),
-            new("typeOfCertificate", "Type of Certificate", new() { "typeOfCertificate" }),
             new("examSeminarDetails", "Exam / Seminar Details", new() { "examSeminarAddress", "examSeminarDate", "examSeminarRating" }),
             new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
             new("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
         }),
         new("NTC_1_03", Guid.Parse("f0300000-0000-0000-0000-000000000001"), Guid.Parse("f03a0000-0000-0000-0000-000000000000"), new()
         {
+            new("permitType", "Type of Application & Permit Category", new() { "permitType" }),
             new("applicantPerson", "Personal Information", new() { "fullName", "birthDate", "sex", "nationality" }),
             new("applicantAddress", "Address Information", new() { "region", "province", "city", "barangay", "street", "zipCode" }),
             new("employmentStatus", "Employment Status", new() { "employmentStatus", "employmentType" }),
             new("applicantContact", "Contact Information", new() { "contactNo", "email" }),
-            new("permitType", "Permit / License Type", new() { "permitType" }),
             new("classOfStation", "Class of Station", new() { "classOfStation" }),
             new("club", "Club Details", new() { "clubDetails" }),
             new("examSeminarDetails", "Exam / Seminar Details", new() { "examSeminarAddress", "examSeminarDate", "examSeminarRating" }),
@@ -485,26 +502,27 @@ public static class CertificatesCategorySeederData
         }),
         new("NTC_1_20", Guid.Parse("f2000000-0000-0000-0000-000000000001"), Guid.Parse("f20a0000-0000-0000-0000-000000000000"), new()
         {
-            new("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email" }),
-            new("knownByAnotherName", "Trade Name", new() { "fullName" }),
-            new("valueAddedServices", "Value-Added Services", new() { "valueAddedServices" }),
+            new("applicant", "Applicant Details", new() { "fullName", "region", "province", "city", "barangay", "street", "zipCode", "contactNo", "email" }),
+            new("knownByAnotherName", "Trade Name / Former Name", new() { "fullName" }),
+            new("valueAddedServices", "List of Value Added Services", new() { "valueAddedServices" }),
             new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
             new("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
         }),
         new("NTC_1_21", Guid.Parse("f2100000-0000-0000-0000-000000000001"), Guid.Parse("f21a0000-0000-0000-0000-000000000000"), new()
         {
-            new("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email" }),
-            new("permitLicenseCertificateNo", "Existing Permit/License Number", new() { "circumstances" }),
+            new("applicant", "Applicant's Details", new() { "fullName", "region", "province", "city", "barangay", "street", "zipCode", "contactNo", "email" }),
+            new("permitLicenseCertificateNo", "Particulars of Permit/License/Certificate", new() { "permitRslNo", "stationClass" }),
             new("circumstances", "Circumstances of Loss/Damage", new() { "circumstances" }),
             new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
             new("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
         }),
         new("NTC_1_22", Guid.Parse("f2200000-0000-0000-0000-000000000001"), Guid.Parse("f22a0000-0000-0000-0000-000000000000"), new()
         {
-            new("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email" }),
-            new("tvroEquipment", "TVRO Equipment Details", new() { "tvroDetails" }),
-            new("antennaSystem", "Antenna System Details", new() { "antennaDetails" }),
-            new("signalReception", "Signal Reception Details", new() { "tvroDetails" }),
+            new("applicationSpecifications", "Application Specifications", new() { "permitType", "stationClass" }),
+            new("applicant", "Applicant's Details", new() { "fullName", "region", "province", "city", "barangay", "street", "zipCode", "contactNo", "email", "stationLocation" }),
+            new("tvroEquipment", "Particulars of Equipment", new() { "equipmentDetails", "makeModel", "serialNumber", "frequencyRange" }),
+            new("antennaSystem", "Particulars of Antenna System", new() { "antennaType", "diameter", "azimuth", "polarization", "remarks" }),
+            new("signalReception", "Particulars of Signal to be Received", new() { "frequency", "bandwidth", "emission", "remarks" }),
             new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
             new("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
         })

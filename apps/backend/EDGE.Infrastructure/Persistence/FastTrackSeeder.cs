@@ -80,11 +80,14 @@ public static class FastTrackSeeder
 
         foreach (var def in serviceDefs)
         {
-            var s = existingServices.FirstOrDefault(x => x.Code == def.Code);
+            var s = existingServices.FirstOrDefault(x => x.Id == def.Id)
+                 ?? existingServices.FirstOrDefault(x => x.Code == def.Code);
+
             if (s != null && s.Id != def.Id)
             {
                 context.Services.Remove(s);
                 await context.SaveChangesAsync();
+                existingServices.Remove(s);
                 s = null;
             }
 
@@ -102,11 +105,14 @@ public static class FastTrackSeeder
                     Contract = def.Contract
                 };
                 context.Services.Add(s);
+                existingServices.Add(s);
             }
             else
             {
+                s.Code = def.Code;
                 s.Name = def.Name;
                 s.Group = def.Group;
+                s.Description = def.Desc;
                 s.ServiceCategoryId = def.CategoryId;
                 s.Contract = def.Contract;
             }
@@ -164,39 +170,15 @@ public static class FastTrackSeeder
                 services[serviceKey] = service;
             }
 
-            // 1. Query all forms associated with this service
-            var formsForService = await context.Forms
-                .Where(f => f.ServiceId == service.Id)
+            // 1. Ensure exactly one Form exists for this service / formId
+            var existingForms = await context.Forms
+                .Where(f => f.ServiceId == service.Id || f.Id == formId)
                 .ToListAsync();
 
-            var formIdsForService = formsForService.Select(f => f.Id).ToList();
+            var targetForm = existingForms.FirstOrDefault(f => f.Id == formId)
+                          ?? existingForms.FirstOrDefault(f => f.ServiceId == service.Id);
 
-            // 2. Fetch and purge all existing SectionFields and FormSections across all forms for this service
-            if (formIdsForService.Count > 0)
-            {
-                var existingSections = await context.FormSections
-                    .Where(s => formIdsForService.Contains(s.FormId))
-                    .ToListAsync();
-
-                if (existingSections.Count > 0)
-                {
-                    var existingSectionIds = existingSections.Select(s => s.Id).ToList();
-                    var existingSectionFields = await context.SectionFields
-                        .Where(sf => existingSectionIds.Contains(sf.FormSectionId))
-                        .ToListAsync();
-
-                    if (existingSectionFields.Count > 0)
-                    {
-                        context.SectionFields.RemoveRange(existingSectionFields);
-                    }
-                    context.FormSections.RemoveRange(existingSections);
-                    await context.SaveChangesAsync();
-                }
-            }
-
-            // 3. Ensure exactly one Form exists for this service
-            Form targetForm;
-            if (formsForService.Count == 0)
+            if (targetForm == null)
             {
                 targetForm = new Form
                 {
@@ -210,39 +192,99 @@ public static class FastTrackSeeder
             }
             else
             {
-                targetForm = formsForService[0];
-                if (formsForService.Count > 1)
+                targetForm.ServiceId = service.Id;
+                var redundantForms = existingForms.Where(f => f.Id != targetForm.Id).ToList();
+                if (redundantForms.Count > 0)
                 {
-                    context.Forms.RemoveRange(formsForService.Skip(1));
+                    var redundantFormIds = redundantForms.Select(f => f.Id).ToList();
+                    var redundantSections = await context.FormSections
+                        .Where(s => redundantFormIds.Contains(s.FormId))
+                        .ToListAsync();
+                    if (redundantSections.Count > 0)
+                    {
+                        var redundantSecIds = redundantSections.Select(s => s.Id).ToList();
+                        var redundantSecFields = await context.SectionFields
+                            .Where(sf => redundantSecIds.Contains(sf.FormSectionId))
+                            .ToListAsync();
+                        if (redundantSecFields.Count > 0) context.SectionFields.RemoveRange(redundantSecFields);
+                        context.FormSections.RemoveRange(redundantSections);
+                    }
+                    context.Forms.RemoveRange(redundantForms);
                     await context.SaveChangesAsync();
                 }
             }
 
-            // 4. Insert fresh sections matching sectionDefs
-            int sectionOrder = 1;
-            foreach (var (key, title, fieldKeys) in sectionDefs)
+            // 2. Fetch all existing FormSections for targetForm
+            var existingSections = await context.FormSections
+                .Where(s => s.FormId == targetForm.Id)
+                .ToListAsync();
+
+            var deduplicatedSections = sectionDefs
+                .GroupBy(s => s.Key)
+                .Select(g => g.First())
+                .ToList();
+
+            var desiredKeys = deduplicatedSections.Select(s => s.Key).ToHashSet();
+
+            // Remove sections no longer in definition
+            var obsoleteSections = existingSections.Where(s => !desiredKeys.Contains(s.Key)).ToList();
+            if (obsoleteSections.Count > 0)
             {
-                var newSection = new FormSection
-                {
-                    Id = Guid.NewGuid(),
-                    FormId = targetForm.Id,
-                    Key = key,
-                    Title = title,
-                    OrderIndex = sectionOrder++
-                };
-                context.FormSections.Add(newSection);
+                var obsoleteSecIds = obsoleteSections.Select(s => s.Id).ToList();
+                var obsoleteFields = await context.SectionFields
+                    .Where(sf => obsoleteSecIds.Contains(sf.FormSectionId))
+                    .ToListAsync();
+                if (obsoleteFields.Count > 0) context.SectionFields.RemoveRange(obsoleteFields);
+                context.FormSections.RemoveRange(obsoleteSections);
                 await context.SaveChangesAsync();
+            }
+
+            // 3. Upsert sections and fields
+            int sectionOrder = 1;
+            foreach (var (key, title, fieldKeys) in deduplicatedSections)
+            {
+                var sec = existingSections.FirstOrDefault(s => s.Key == key);
+                if (sec == null)
+                {
+                    sec = new FormSection
+                    {
+                        Id = Guid.NewGuid(),
+                        FormId = targetForm.Id,
+                        Key = key,
+                        Title = title,
+                        OrderIndex = sectionOrder++
+                    };
+                    context.FormSections.Add(sec);
+                    await context.SaveChangesAsync();
+                }
+                else
+                {
+                    sec.Title = title;
+                    sec.OrderIndex = sectionOrder++;
+                    await context.SaveChangesAsync();
+                }
+
+                // Refresh section fields
+                var currentFields = await context.SectionFields
+                    .Where(sf => sf.FormSectionId == sec.Id)
+                    .ToListAsync();
+                if (currentFields.Count > 0)
+                {
+                    context.SectionFields.RemoveRange(currentFields);
+                    await context.SaveChangesAsync();
+                }
 
                 int fieldOrder = 1;
-                foreach (var fk in fieldKeys)
+                var deduplicatedFields = fieldKeys.Distinct().ToList();
+                foreach (var fk in deduplicatedFields)
                 {
                     if (fieldsPool.TryGetValue(fk, out var f))
                     {
                         context.SectionFields.Add(new SectionField
                         {
-                            FormSectionId = newSection.Id,
+                            FormSectionId = sec.Id,
                             FieldId = f.Id,
-                            IsRequired = key != "assistanceRequest" && key != "knownByAnotherName" && key != "club" && key != "examination" && key != "radioOfficers" && key != "payment",
+                            IsRequired = key != "assistanceRequest" && key != "applicantEducation" && key != "knownByAnotherName" && key != "club" && key != "examination" && key != "radioOfficers" && key != "payment",
                             OrderIndex = fieldOrder++
                         });
                     }
@@ -438,11 +480,14 @@ public static class FastTrackSeeder
 
         foreach (var def in serviceDefs)
         {
-            var s = existingServices.FirstOrDefault(x => x.Code == def.Code);
+            var s = existingServices.FirstOrDefault(x => x.Id == def.Id)
+                 ?? existingServices.FirstOrDefault(x => x.Code == def.Code);
+
             if (s != null && s.Id != def.Id)
             {
                 context.Services.Remove(s);
                 await context.SaveChangesAsync();
+                existingServices.Remove(s);
                 s = null;
                 anyChange = true;
             }
@@ -453,7 +498,7 @@ public static class FastTrackSeeder
                 {
                     Id = def.Id,
                     ServiceCategoryId = def.CategoryId,
-                    TenantId = tenant.Id,
+                    TenantId = null,
                     Name = def.Name,
                     Group = def.Group,
                     Code = def.Code,
@@ -461,16 +506,20 @@ public static class FastTrackSeeder
                     Contract = def.Contract
                 };
                 context.Services.Add(s);
+                existingServices.Add(s);
                 anyChange = true;
             }
             else
             {
-                if (s.Name != def.Name || s.Group != def.Group || s.ServiceCategoryId != def.CategoryId || s.Contract != def.Contract)
+                if (s.Code != def.Code || s.Name != def.Name || s.Group != def.Group || s.ServiceCategoryId != def.CategoryId || s.Description != def.Desc || s.Contract != def.Contract || s.TenantId != null)
                 {
+                    s.Code = def.Code;
                     s.Name = def.Name;
                     s.Group = def.Group;
+                    s.Description = def.Desc;
                     s.ServiceCategoryId = def.CategoryId;
                     s.Contract = def.Contract;
+                    s.TenantId = null;
                     anyChange = true;
                 }
             }
@@ -732,6 +781,49 @@ public static class FastTrackSeeder
             });
         }
         await context.SaveChangesAsync();
+
+        // 7. Seed Examination Schedules for all Tenants
+        var allTenants = await context.Tenants.ToListAsync();
+        var nowUtc = DateTime.UtcNow;
+
+        foreach (var tenantItem in allTenants)
+        {
+            if (!await context.Schedules.AnyAsync(s => s.ServiceId == svc101 && s.TenantId == tenantItem.Id))
+            {
+                context.Schedules.AddRange(
+                    new Schedule
+                    {
+                        Id = Guid.NewGuid(),
+                        ServiceId = svc101,
+                        TenantId = tenantItem.Id,
+                        Venue = $"{tenantItem.Name} Regional Testing Center - Room 101",
+                        StartDate = nowUtc.Date.AddDays(7).AddHours(8),
+                        EndDate = nowUtc.Date.AddDays(7).AddHours(12),
+                        StartApplication = nowUtc.Date.AddDays(-30),
+                        EndApplication = nowUtc.Date.AddDays(6),
+                        IsPublished = true,
+                        MaximumSlots = 50,
+                        Remarks = "Regular Morning Examination Session"
+                    },
+                    new Schedule
+                    {
+                        Id = Guid.NewGuid(),
+                        ServiceId = svc101,
+                        TenantId = tenantItem.Id,
+                        Venue = $"{tenantItem.Name} Regional Testing Center - Room 102",
+                        StartDate = nowUtc.Date.AddDays(21).AddHours(13),
+                        EndDate = nowUtc.Date.AddDays(21).AddHours(17),
+                        StartApplication = nowUtc.Date.AddDays(-30),
+                        EndApplication = nowUtc.Date.AddDays(20),
+                        IsPublished = true,
+                        MaximumSlots = 40,
+                        Remarks = "Special Afternoon Radio Operator Examination Session"
+                    }
+                );
+            }
+        }
+        await context.SaveChangesAsync();
+
         await ServiceInformationDataSeeder.SeedAsync(context);
     }
 }

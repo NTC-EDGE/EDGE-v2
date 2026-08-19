@@ -97,14 +97,7 @@ public class SubmitApplicationCommandHandler
             return ApiResponse<Guid>.Fail("Validation Error: Service ID is required.");
         }
 
-        // 2a. Service belongs to the requesting tenant
-        if (service != null && service.TenantId != request.TenantId && !request.IsDraft)
-        {
-            return ApiResponse<Guid>.Fail(
-                "Validation Error: The selected service is not available for this tenant.");
-        }
-
-        // 2b. Validate FieldOfficeId if provided and inherit RegionId from tenant
+        // 2a. Validate FieldOfficeId if provided and inherit RegionId from tenant
         var tenant = await _tenantRepository.GetByIdAsync(request.TenantId, cancellationToken);
         if (tenant == null)
         {

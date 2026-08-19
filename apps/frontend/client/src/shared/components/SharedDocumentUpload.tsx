@@ -13,9 +13,14 @@ export interface DocumentRequirement {
   required?: boolean;
 }
 
+export interface UploadedFile {
+  name: string;
+  uri?: string;
+}
+
 interface SharedDocumentUploadProps {
   requirements: DocumentRequirement[];
-  uploads: Record<string, any>;
+  uploads: Record<string, UploadedFile | string | undefined>;
   onUpload: (key: string, file: { name: string; uri: string }) => void;
   onRemove: (key: string) => void;
   isWeb: boolean;

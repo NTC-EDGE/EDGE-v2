@@ -15,19 +15,21 @@ public static class AccreditationsCategorySeederData
         ""revisionNo"": ""02"",
         ""revisionDate"": ""2023-03-31"",
         ""serviceCategory"": ""Accreditations"",
-        ""group"": ""Customer Premises Equipment Supplier Accreditation"",
-        ""applicationTypes"": [""New"", ""Renewal"", ""Modification""],
+        ""group"": ""Dealer/Manufacturer/Service Center/Retailer/Reseller Permit / CPE Supplier Accreditation"",
+        ""applicationTypes"": [""NEW"", ""RENEWAL"", ""MODIFICATION""],
         ""elements"": [],
         ""requiredSections"": [
+            { ""key"": ""typeOfApplication"", ""required"": true },
             { ""key"": ""applicant"", ""required"": true },
-            { ""key"": ""personnel"", ""required"": true },
+            { ""key"": ""personnel"", ""required"": false },
             { ""key"": ""declaration"", ""required"": true },
             { ""key"": ""payment"", ""required"": true }
         ],
         ""allowsBulkSubmission"": false,
         ""categorySpecific"": {
-            ""category"": [""MOBILE"", ""MOBILE PHONES"", ""NON-MOBILE PHONES""],
-            ""applicationType"": [""MOBILE"", ""MOBILE PHONES"", ""NON-MOBILE PHONES""]
+            ""equipmentCategory"": [""Radio Communications Equipment (RCE)"", ""Radio Transmitter/Transceiver"", ""WDN Indoor/SRD/RFID"", ""Mobile Phone""],
+            ""permitCategory"": [""Dealer"", ""Manufacturer"", ""Service Center"", ""Dealer (MPDP)"", ""Retailer/Reseller (MPRR)"", ""Service Center (MPSCP)"", ""Customer Premises Equipment (CPE) Supplier Accreditation""],
+            ""entityType"": [""Single Proprietorship"", ""Corporation"", ""Partnership"", ""Others, specify""]
         },
         ""entityType"": ""Application""
     }";
@@ -154,8 +156,9 @@ public static class AccreditationsCategorySeederData
     {
         new("NTC_1_18", Guid.Parse("f1800000-0000-0000-0000-000000000001"), Guid.Parse("f18a0000-0000-0000-0000-000000000000"), new()
         {
-            new("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email" }),
-            new("personnel", "Personnel Credentials", new() { "personnelDetails" }),
+            new("typeOfApplication", "Type of Application & Category", new() { "permitType", "employmentType" }),
+            new("applicant", "Applicant's Details", new() { "fullName", "region", "province", "city", "barangay", "street", "zipCode", "contactNo", "email" }),
+            new("personnel", "Personnel Required", new() { "personnelDetails" }),
             new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
             new("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
         })

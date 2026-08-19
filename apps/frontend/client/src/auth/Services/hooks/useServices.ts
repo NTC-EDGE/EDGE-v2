@@ -89,7 +89,7 @@ export function useServices() {
   const [wizardStep, setWizardStep] = useState(1);
   const [selectedRegionId, setSelectedRegionId] = useState("");
   const [selectedOfficeId, setSelectedOfficeId] = useState("");
-  const [appMode, setAppMode] = useState<"SINGLE" | "BULK" | "">("");
+  const [appMode, setAppMode] = useState<"SINGLE" | "BULK" | "">("SINGLE");
 
   // Navigation Guard confirmation states
   const [confirmModalVisible, setConfirmModalVisible] = useState(false);
@@ -124,7 +124,7 @@ export function useServices() {
     setExamWizardStep(1);
     setSelectedRegionId("");
     setSelectedOfficeId("");
-    setAppMode("");
+    setAppMode("SINGLE");
     setBulkMethod("MANUAL");
     setIsFileUploaded(false);
     setUploadedFileName("");

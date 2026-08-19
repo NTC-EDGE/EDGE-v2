@@ -28,6 +28,7 @@ import {
   AmateurPermitData,
   initialAmateurPermitData,
 } from "../../permits";
+import { isValidContactNumber, isValidEmailAddress } from "../../../../shared/helpers/fieldValidators";
 import { extractUserProfile } from "../../../../shared/utils/userProfileHelper";
 
 export interface TenantInfo {
@@ -40,6 +41,17 @@ export interface OfficeInfo {
   id: string;
   name: string;
   isActive?: boolean;
+}
+
+export interface ExamScheduleItem {
+  id: string;
+  scheduledDate: string;
+  startTime?: string;
+  endTime?: string;
+  venue?: string;
+  maximumSlots?: number;
+  availableSlots?: number;
+  description?: string;
 }
 
 export interface GeneralApplicantData {
@@ -109,23 +121,129 @@ export const initialGeneralApplicant = (id: number): GeneralApplicantData => ({
   permitData: initialAmateurPermitData(id),
 });
 
+export interface ServiceVariantInfo {
+  id: string;
+  name?: string;
+  type?: string;
+  description?: string;
+  code?: string;
+}
+
+export interface ServiceVariantElementInfo {
+  id: string;
+  code?: string;
+  description?: string;
+  name?: string;
+}
+
+export interface ServiceRequirementItem {
+  id?: string;
+  name?: string;
+  label?: string;
+  title?: string;
+  description?: string;
+  hint?: string;
+  isRequired?: boolean;
+  required?: boolean;
+}
+
+export function isRequirementMandatory(req: ServiceRequirementItem | string): boolean {
+  if (typeof req === "string") {
+    const lower = req.toLowerCase().trim();
+    if (
+      lower.includes("(optional)") ||
+      lower.includes("[optional]") ||
+      lower.endsWith("optional") ||
+      lower.startsWith("optional")
+    ) {
+      return false;
+    }
+    return true;
+  }
+  if (typeof req === "object" && req !== null) {
+    if (req.isRequired !== undefined) return Boolean(req.isRequired);
+    if (req.required !== undefined) return Boolean(req.required);
+    const label = (req.name || req.label || req.title || req.description || "").toLowerCase().trim();
+    if (
+      label.includes("(optional)") ||
+      label.includes("[optional]") ||
+      label.endsWith("optional") ||
+      label.startsWith("optional")
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
+export function isRequirementUploaded(
+  req: ServiceRequirementItem | string,
+  idx: number,
+  uploads: Record<string, { name?: string; uri?: string } | string | undefined> | undefined
+): boolean {
+  if (!uploads) return false;
+  const isReqObj = typeof req === "object" && req !== null;
+  const reqId = isReqObj && req.id ? String(req.id).trim() : "";
+  const reqLabel = (isReqObj ? (req.name || req.label || req.title || "") : req).trim();
+
+  const candidateKeys = [
+    reqId ? `req-${reqId}` : "",
+    reqId,
+    `req-${idx}`,
+    `req-gen-${idx}`,
+    idx.toString(),
+    reqLabel,
+    reqLabel.replace(/\*$/, "").trim(),
+  ].filter(Boolean);
+
+  for (const k of candidateKeys) {
+    const val = uploads[k];
+    if (val !== undefined && val !== null) {
+      if (typeof val === "string" && val.trim().length > 0) return true;
+      if (typeof val === "object" && Boolean(val.name || val.uri)) return true;
+    }
+  }
+
+  // Also check if any key in uploads matches case-insensitively or by prefix/substring
+  const uploadEntries = Object.entries(uploads);
+  for (const [upKey, upVal] of uploadEntries) {
+    if (!upVal) continue;
+    const isValidVal =
+      (typeof upVal === "string" && upVal.trim().length > 0) ||
+      (typeof upVal === "object" && Boolean(upVal.name || upVal.uri));
+    if (!isValidVal) continue;
+
+    const upKeyLower = upKey.toLowerCase().trim();
+    if (
+      (reqId && upKeyLower.includes(reqId.toLowerCase())) ||
+      (reqLabel && upKeyLower === reqLabel.toLowerCase()) ||
+      (reqLabel && upKeyLower === reqLabel.replace(/\*$/, "").toLowerCase().trim()) ||
+      upKeyLower === `req-${idx}` ||
+      upKeyLower === `req-gen-${idx}`
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 export const isGeneralApplicantComplete = (
   app: GeneralApplicantData,
   service?: NTCService,
-  variantRequirements: string[] = []
+  variantRequirements: Array<ServiceRequirementItem | string> = []
 ): boolean => {
-  // 1. Basic details (must have name, email, contact number)
+  // 1. Basic details (must have valid name, email, contact number)
   const hasFirstName = Boolean(app.firstName && app.firstName.trim().length > 0);
   const hasLastName = Boolean(app.lastName && app.lastName.trim().length > 0);
-  const hasEmail = Boolean(app.email && app.email.trim().length > 0 && app.email.includes("@"));
-  const hasContact = Boolean(app.contactNo && app.contactNo.trim().length > 0);
+  const hasEmail = Boolean(app.email && isValidEmailAddress(app.email));
+  const hasContact = Boolean(app.contactNo && isValidContactNumber(app.contactNo));
 
   if (!hasFirstName || !hasLastName || !hasEmail || !hasContact) {
     return false;
   }
 
-  // 2. Document upload validation
-  const uploads = app.uploads || {};
+  // 2. Document upload validation: only mandatory requirements must be uploaded
   const reqList =
     variantRequirements && variantRequirements.length > 0
       ? variantRequirements
@@ -134,18 +252,15 @@ export const isGeneralApplicantComplete = (
       : [];
 
   if (reqList.length > 0) {
-    const allUploaded = reqList.every((req, idx) => {
-      const file =
-        uploads[req] ||
-        uploads[`req-${idx}`] ||
-        uploads[`req-gen-${idx}`] ||
-        uploads[idx.toString()];
+    const mandatoryList = reqList
+      .map((req, idx) => ({ req, idx }))
+      .filter(({ req }) => isRequirementMandatory(req));
 
-      if (!file) return false;
-      if (typeof file === "string") return file.trim().length > 0;
-      return !!(file.name || file.uri);
-    });
-    if (!allUploaded) {
+    const allMandatoryUploaded = mandatoryList.every(({ req, idx }) =>
+      isRequirementUploaded(req, idx, app.uploads)
+    );
+
+    if (!allMandatoryUploaded) {
       return false;
     }
   }
@@ -224,9 +339,124 @@ export function useGeneralServiceWizard(
   const [offices, setOffices] = useState<OfficeInfo[]>([]);
   const [loadingOffices, setLoadingOffices] = useState(false);
 
-  const [variants, setVariants] = useState<any[]>([]);
+  // Examination Schedule State
+  const isExamService = Boolean(
+    service?.category?.toLowerCase() === "exams" ||
+    service?.categoryKey?.toLowerCase() === "exams" ||
+    service?.title?.toLowerCase().includes("exam") ||
+    service?.title?.toLowerCase().includes("admission") ||
+    service?.title?.toLowerCase().includes("operator")
+  );
+  const [schedules, setSchedules] = useState<ExamScheduleItem[]>([]);
+  const [loadingSchedules, setLoadingSchedules] = useState(false);
+  const [selectedScheduleId, setSelectedScheduleId] = useState<string | null>(null);
+
+  // Fetch Examination Schedules when Region changes for exam services
+  React.useEffect(() => {
+    let active = true;
+    async function fetchSchedules() {
+      if (!isExamService || !selectedRegionId || !service?.id) {
+        if (active) setSchedules([]);
+        return;
+      }
+      setLoadingSchedules(true);
+      try {
+        const data = await api
+          .get<unknown>(
+            `/api/v2/schedules/client-view?serviceId=${service.id}&tenantId=${selectedRegionId}&pageSize=50`
+          )
+          .catch(async () => {
+            return await api
+              .get<unknown>(
+                `/api/v2/schedules?serviceId=${service.id}&tenantId=${selectedRegionId}&pageSize=50`
+              )
+              .catch(() => null);
+          });
+
+        if (!active) return;
+        if (!data) {
+          setSchedules([]);
+          return;
+        }
+
+        const dataObj = typeof data === "object" && data !== null ? (data as Record<string, unknown>) : {};
+        const rawItems = Array.isArray(data)
+          ? data
+          : Array.isArray(dataObj.items)
+          ? (dataObj.items as unknown[])
+          : Array.isArray(dataObj.data)
+          ? (dataObj.data as unknown[])
+          : [];
+
+        const mappedSchedules: ExamScheduleItem[] = rawItems.map((rawItem: unknown) => {
+          const item = typeof rawItem === "object" && rawItem !== null ? (rawItem as Record<string, unknown>) : {};
+          const itemDate = typeof item.scheduledDate === "string" ? item.scheduledDate : undefined;
+          const itemStart = typeof item.startTime === "string" ? item.startTime : undefined;
+          const itemEnd = typeof item.endTime === "string" ? item.endTime : undefined;
+
+          if (itemDate && itemStart && itemEnd) {
+            return {
+              id: String(item.id || ""),
+              scheduledDate: itemDate,
+              startTime: itemStart,
+              endTime: itemEnd,
+              venue: typeof item.venue === "string" ? item.venue : undefined,
+              maximumSlots: typeof item.maximumSlots === "number" ? item.maximumSlots : undefined,
+              availableSlots: typeof item.availableSlots === "number" ? item.availableSlots : undefined,
+              description: typeof item.description === "string" ? item.description : undefined,
+            };
+          }
+          const startD = typeof item.startDate === "string" ? new Date(item.startDate) : new Date();
+          const endD = typeof item.endDate === "string" ? new Date(item.endDate) : new Date();
+          const scheduledDate = !isNaN(startD.getTime())
+            ? startD.toLocaleDateString("en-US", {
+                weekday: "short",
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              })
+            : itemDate || "TBA";
+          const startTime = !isNaN(startD.getTime())
+            ? startD.toLocaleTimeString("en-US", {
+                hour: "numeric",
+                minute: "2-digit",
+                hour12: true,
+              })
+            : itemStart || "";
+          const endTime = !isNaN(endD.getTime())
+            ? endD.toLocaleTimeString("en-US", {
+                hour: "numeric",
+                minute: "2-digit",
+                hour12: true,
+              })
+            : itemEnd || "";
+
+          return {
+            id: String(item.id || ""),
+            scheduledDate,
+            startTime,
+            endTime,
+            venue: typeof item.venue === "string" ? item.venue : undefined,
+            maximumSlots: typeof item.maximumSlots === "number" ? item.maximumSlots : undefined,
+            availableSlots: typeof item.availableSlots === "number" ? item.availableSlots : undefined,
+            description: typeof item.description === "string" ? item.description : undefined,
+          };
+        });
+        setSchedules(mappedSchedules);
+      } catch (err) {
+        console.warn("[useGeneralServiceWizard] Failed to fetch exam schedules:", err);
+        if (active) setSchedules([]);
+      } finally {
+        if (active) setLoadingSchedules(false);
+      }
+    }
+    fetchSchedules();
+    return () => { active = false; };
+  }, [isExamService, selectedRegionId, service?.id]);
+
+  const [variants, setVariants] = useState<ServiceVariantInfo[]>([]);
   const [loadingVariants, setLoadingVariants] = useState(false);
-  const [variantElements, setVariantElements] = useState<any[]>([]);
+  const [variantElements, setVariantElements] = useState<ServiceVariantElementInfo[]>([]);
   const [loadingElements, setLoadingElements] = useState(false);
 
   // Lazy fetch variants when opening Step 3
@@ -236,32 +466,35 @@ export function useGeneralServiceWizard(
       if ((currentStep !== 2 && currentStep !== 3) || !service?.id) return;
       try {
         setLoadingVariants(true);
-        const varRes = await api.get<any>(`/api/v2/services/${service.id}/variants`).catch(() => null);
+        const varRes = await api.get<unknown>(`/api/v2/services/${service.id}/variants`).catch(() => null);
         if (active) {
-          let fetchedVariants: any[] = [];
-          if (varRes && varRes.succeeded && Array.isArray(varRes.data)) {
-            fetchedVariants = varRes.data;
+          let fetchedVariants: ServiceVariantInfo[] = [];
+          const resObj = typeof varRes === "object" && varRes !== null ? (varRes as Record<string, unknown>) : {};
+          if (resObj.succeeded && Array.isArray(resObj.data)) {
+            fetchedVariants = resObj.data as ServiceVariantInfo[];
           } else if (Array.isArray(varRes)) {
-            fetchedVariants = varRes;
-          } else if (varRes && Array.isArray(varRes.items)) {
-            fetchedVariants = varRes.items;
+            fetchedVariants = varRes as ServiceVariantInfo[];
+          } else if (Array.isArray(resObj.items)) {
+            fetchedVariants = resObj.items as ServiceVariantInfo[];
           }
           setVariants(fetchedVariants);
 
           // Auto-select initial variant if applicant has no variant selected yet
           if (fetchedVariants.length > 0) {
             const firstVariant = fetchedVariants[0];
-            setApplicants((prev) =>
-              prev.map((app, idx) =>
-                idx === currentApplicantIndex && !app.selectedVariantId
-                  ? {
-                      ...app,
-                      selectedVariantId: firstVariant.id,
-                      selectedVariantName: firstVariant.name || firstVariant.description || "",
-                    }
-                  : app
-              )
-            );
+            if (firstVariant) {
+              setApplicants((prev) =>
+                prev.map((app, idx) =>
+                  idx === currentApplicantIndex && !app.selectedVariantId
+                    ? {
+                        ...app,
+                        selectedVariantId: firstVariant.id,
+                        selectedVariantName: firstVariant.name || firstVariant.description || "",
+                      }
+                    : app
+                )
+              );
+            }
           }
         }
       } catch (err) {
@@ -288,18 +521,19 @@ export function useGeneralServiceWizard(
       try {
         setLoadingElements(true);
         const elRes = await api
-          .get<any>(`/api/v2/service-variant-elements?serviceVariantId=${effectiveVariantId}`)
+          .get<unknown>(`/api/v2/service-variant-elements?serviceVariantId=${effectiveVariantId}`)
           .catch(async () => {
-            return await api.get<any>(`/api/v2/services/${service.id}/variants/${effectiveVariantId}/elements`).catch(() => null);
+            return await api.get<unknown>(`/api/v2/services/${service.id}/variants/${effectiveVariantId}/elements`).catch(() => null);
           });
 
         if (active) {
-          if (elRes && elRes.succeeded && Array.isArray(elRes.data)) {
-            setVariantElements(elRes.data);
+          const elObj = typeof elRes === "object" && elRes !== null ? (elRes as Record<string, unknown>) : {};
+          if (elObj.succeeded && Array.isArray(elObj.data)) {
+            setVariantElements(elObj.data as ServiceVariantElementInfo[]);
           } else if (Array.isArray(elRes)) {
-            setVariantElements(elRes);
-          } else if (elRes && Array.isArray(elRes.items)) {
-            setVariantElements(elRes.items);
+            setVariantElements(elRes as ServiceVariantElementInfo[]);
+          } else if (Array.isArray(elObj.items)) {
+            setVariantElements(elObj.items as ServiceVariantElementInfo[]);
           } else {
             setVariantElements([]);
           }
@@ -316,7 +550,7 @@ export function useGeneralServiceWizard(
   }, [currentStep, effectiveVariantId, service?.id, variants]);
 
   // Fetch variant requirements when variant or service changes
-  const [variantRequirements, setVariantRequirements] = useState<string[]>([]);
+  const [variantRequirements, setVariantRequirements] = useState<Array<ServiceRequirementItem | string>>([]);
   const [loadingRequirements, setLoadingRequirements] = useState(false);
 
   React.useEffect(() => {
@@ -332,19 +566,39 @@ export function useGeneralServiceWizard(
       try {
         setLoadingRequirements(true);
         const reqRes = await api
-          .get<any>(`/api/v2/services/${service.id}/requirements?variantId=${effectiveVariantId || ""}`)
+          .get<unknown>(`/api/v2/services/${service.id}/requirements?variantId=${effectiveVariantId || ""}`)
           .catch(async () => {
-            return await api.get<any>(`/api/v2/service-variant-requirements?serviceVariantId=${effectiveVariantId || ""}`).catch(() => null);
+            return await api.get<unknown>(`/api/v2/service-variant-requirements?serviceVariantId=${effectiveVariantId || ""}`).catch(() => null);
           });
 
         if (active) {
-          let list: string[] = [];
-          if (reqRes && reqRes.succeeded && Array.isArray(reqRes.data)) {
-            list = reqRes.data.map((r: any) => typeof r === "string" ? r : r.name || r.title || r.description || "");
-          } else if (Array.isArray(reqRes)) {
-            list = reqRes.map((r: any) => typeof r === "string" ? r : r.name || r.title || r.description || "");
-          } else if (reqRes && Array.isArray(reqRes.items)) {
-            list = reqRes.items.map((r: any) => typeof r === "string" ? r : r.name || r.title || r.description || "");
+          let list: Array<ServiceRequirementItem | string> = [];
+          const resObj = typeof reqRes === "object" && reqRes !== null ? (reqRes as Record<string, unknown>) : {};
+          const rawItems =
+            resObj.succeeded && Array.isArray(resObj.data)
+              ? (resObj.data as unknown[])
+              : Array.isArray(reqRes)
+              ? (reqRes as unknown[])
+              : Array.isArray(resObj.items)
+              ? (resObj.items as unknown[])
+              : [];
+
+          if (rawItems.length > 0) {
+            list = rawItems.map((r: unknown) => {
+              if (typeof r === "string") return r;
+              const rObj = typeof r === "object" && r !== null ? (r as Record<string, unknown>) : {};
+              const idStr = typeof rObj.id === "string" ? rObj.id : typeof rObj.requirementId === "string" ? rObj.requirementId : undefined;
+              const nameStr = typeof rObj.name === "string" ? rObj.name : typeof rObj.title === "string" ? rObj.title : typeof rObj.description === "string" ? rObj.description : "Requirement";
+              const descStr = typeof rObj.description === "string" ? rObj.description : undefined;
+              const isReqBool = typeof rObj.isRequired === "boolean" ? rObj.isRequired : true;
+
+              return {
+                id: idStr,
+                name: nameStr,
+                description: descStr,
+                isRequired: isReqBool,
+              };
+            });
           }
 
           if (list.length === 0 && service.requirements && Array.isArray(service.requirements) && service.requirements.length > 0) {
@@ -399,12 +653,13 @@ export function useGeneralServiceWizard(
 
       // 2. Enrich from backend database /api/v2/users/profile
       try {
-        const dbRes = await api.get<any>("/api/v2/users/profile").catch((err) => {
+        const dbRes = await api.get<unknown>("/api/v2/users/profile").catch((err) => {
           console.warn("[GeneralServiceWizard] Notice: Backend profile fetch failed or returned non-200. Using Clerk/local profile fallbacks.", err);
           return null;
         });
         if (!active || !dbRes) return;
-        const dbUser = (dbRes && dbRes.data) ? dbRes.data : dbRes;
+        const resObj = typeof dbRes === "object" && dbRes !== null ? (dbRes as Record<string, unknown>) : {};
+        const dbUser = (resObj.data && typeof resObj.data === "object") ? (resObj.data as Record<string, unknown>) : resObj;
         if (!dbUser) return;
 
         const enriched = extractUserProfile(clerkUser, dbUser);
@@ -551,6 +806,7 @@ export function useGeneralServiceWizard(
       fieldOfficeId: selectedOfficeId,
       serviceVariantId: activeApplicant.selectedVariantId || (variants.length > 0 ? variants[0].id : null),
       serviceVariantElementIds: [],
+      scheduleId: isExamService && selectedScheduleId ? selectedScheduleId : undefined,
       isDraft: isDraft,
       applicants: mappedApplicants,
     };
@@ -562,6 +818,29 @@ export function useGeneralServiceWizard(
     }
   };
 
+  const submitFeedback = async (rating: number, comment: string) => {
+    if (rating <= 0) return;
+    try {
+      const applicantName =
+        [activeApplicant.firstName, activeApplicant.lastName].filter(Boolean).join(" ") || "Applicant";
+      const applicantEmail = activeApplicant.email || "applicant@domain.com";
+
+      await api.post("/api/v2/feedback", {
+        senderName: applicantName,
+        senderEmail: applicantEmail,
+        subject: `Filing Feedback - ${service.title || "NTC Service"}`,
+        message:
+          comment && comment.trim().length > 0
+            ? comment.trim()
+            : `Applicant rated filing experience ${rating}/5 stars.`,
+        rating: rating,
+        isAnonymous: false,
+      });
+    } catch (err) {
+      console.warn("Failed to submit feedback:", err);
+    }
+  };
+
   return {
     activeApplicant,
     updateActiveApplicant,
@@ -569,6 +848,11 @@ export function useGeneralServiceWizard(
     loadingTenants,
     offices,
     loadingOffices,
+    isExamService,
+    schedules,
+    loadingSchedules,
+    selectedScheduleId,
+    setSelectedScheduleId,
     variants,
     loadingVariants,
     variantElements,
@@ -588,5 +872,6 @@ export function useGeneralServiceWizard(
     feedbackComment,
     setFeedbackComment,
     submitApplicationPayload,
+    submitFeedback,
   };
 }

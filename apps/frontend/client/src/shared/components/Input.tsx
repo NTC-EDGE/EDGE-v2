@@ -17,8 +17,9 @@ interface InputProps {
   label?: string;
   placeholder?: string;
   value: string;
-  onChangeText: (text: string) => void;
+  onChangeText?: (text: string) => void;
   error?: string;
+  editable?: boolean;
   secureTextEntry?: boolean;
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
   keyboardType?: 'default' | 'email-address' | 'numeric' | 'phone-pad';
@@ -32,8 +33,9 @@ export function Input({
   label,
   placeholder,
   value,
-  onChangeText,
+  onChangeText = () => {},
   error,
+  editable = true,
   secureTextEntry = false,
   autoCapitalize = 'none',
   keyboardType = 'default',
@@ -55,6 +57,23 @@ export function Input({
     return list;
   };
 
+  const handleTextChange = (text: string) => {
+    let sanitized = text;
+    if (keyboardType === 'numeric') {
+      sanitized = text.replace(/[^0-9.]/g, '');
+      const parts = sanitized.split('.');
+      if (parts.length > 2) {
+        sanitized = parts[0] + '.' + parts.slice(1).join('');
+      }
+    } else if (keyboardType === 'phone-pad') {
+      sanitized = text.replace(/[^0-9+]/g, '');
+      if (sanitized.includes('+')) {
+        sanitized = (sanitized.startsWith('+') ? '+' : '') + sanitized.replace(/\+/g, '');
+      }
+    }
+    onChangeText(sanitized);
+  };
+
   return (
     <View style={[styles.container, style]}>
       {label !== undefined && label.length > 0 ? (
@@ -73,13 +92,14 @@ export function Input({
           placeholder={placeholder}
           placeholderTextColor={COLORS.neutral[400]}
           value={value}
-          onChangeText={onChangeText}
+          onChangeText={handleTextChange}
+          editable={editable}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           secureTextEntry={secureTextEntry}
           autoCapitalize={autoCapitalize}
           keyboardType={keyboardType}
-          style={[styles.input, inputStyle]}
+          style={[styles.input, inputStyle, !editable && { color: COLORS.neutral[500], backgroundColor: COLORS.neutral[100] }]}
         />
         {rightIcon !== undefined && rightIcon !== null ? (
           <View style={styles.rightIconContainer}>{rightIcon}</View>

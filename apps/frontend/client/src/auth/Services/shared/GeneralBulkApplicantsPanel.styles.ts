@@ -9,7 +9,7 @@ export const styles = StyleSheet.create({
     borderRightColor: COLORS.neutral[200],
     ...Platform.select({
       web: {
-        height: "100vh" as any,
+        height: "100%",
       },
     }),
   },

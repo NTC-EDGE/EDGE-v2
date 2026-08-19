@@ -31,7 +31,7 @@ public class ServiceRepository : IServiceRepository
             query = query.Where(s => s.ServiceCategoryId == serviceCategoryId.Value);
 
         if (tenantId.HasValue)
-            query = query.Where(s => s.TenantId == tenantId.Value);
+            query = query.Where(s => s.TenantId == tenantId.Value || s.TenantId == null);
 
         return await query.ToListAsync(cancellationToken);
     }

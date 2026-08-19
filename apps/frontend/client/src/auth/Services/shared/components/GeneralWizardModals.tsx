@@ -10,6 +10,7 @@ interface GeneralWizardModalsProps {
   isAgreedToTerms: boolean;
   setIsAgreedToTerms: (agreed: boolean | ((p: boolean) => boolean)) => void;
   submitApplicationPayload: () => Promise<void>;
+  submitFeedback?: (rating: number, comment: string) => Promise<void>;
   isFeedbackModalOpen: boolean;
   setIsFeedbackModalOpen: (open: boolean) => void;
   feedbackRating: number;
@@ -27,6 +28,7 @@ export function GeneralWizardModals({
   isAgreedToTerms,
   setIsAgreedToTerms,
   submitApplicationPayload,
+  submitFeedback,
   isFeedbackModalOpen,
   setIsFeedbackModalOpen,
   feedbackRating,
@@ -74,7 +76,10 @@ export function GeneralWizardModals({
         setRating={setFeedbackRating}
         comment={feedbackComment}
         setComment={setFeedbackComment}
-        onSubmit={() => {
+        onSubmit={async () => {
+          if (feedbackRating > 0 && submitFeedback) {
+            await submitFeedback(feedbackRating, feedbackComment);
+          }
           setIsFeedbackModalOpen(false);
           onSuccess();
         }}

@@ -16,7 +16,10 @@ public class UpdateApplicantDetailCommandValidator : AbstractValidator<UpdateApp
             .MaximumLength(100).WithMessage("Last name must not exceed 100 characters.");
 
         RuleFor(x => x.ContactNumber)
-            .MaximumLength(20).WithMessage("Contact number must not exceed 20 characters.");
+            .MaximumLength(20).WithMessage("Contact number must not exceed 20 characters.")
+            .Matches(@"^(0\d{10}|\+63\d{10}|63\d{10})$")
+            .When(x => !string.IsNullOrEmpty(x.ContactNumber))
+            .WithMessage("Contact number must start with 0 (11 digits, e.g. 09171234567) or +63 (e.g. +639171234567).");
 
         RuleFor(x => x.CompanyName)
             .MaximumLength(150).WithMessage("Company name must not exceed 150 characters.");
@@ -25,6 +28,9 @@ public class UpdateApplicantDetailCommandValidator : AbstractValidator<UpdateApp
             .MaximumLength(50).WithMessage("Company registration number must not exceed 50 characters.");
 
         RuleFor(x => x.CompanyContactNumber)
-            .MaximumLength(20).WithMessage("Company contact number must not exceed 20 characters.");
+            .MaximumLength(20).WithMessage("Company contact number must not exceed 20 characters.")
+            .Matches(@"^(0\d{10}|\+63\d{10}|63\d{10})$")
+            .When(x => !string.IsNullOrEmpty(x.CompanyContactNumber))
+            .WithMessage("Company contact number must start with 0 (11 digits, e.g. 09171234567) or +63 (e.g. +639171234567).");
     }
 }

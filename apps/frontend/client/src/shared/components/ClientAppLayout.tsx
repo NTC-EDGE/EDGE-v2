@@ -243,32 +243,6 @@ export function ClientAppLayout({
                   </Text>
                 )}
               </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() => handleTabClick("settings")}
-                style={[
-                  styles.sidebarItem,
-                  activeTab === "settings" && styles.sidebarItemActive,
-                ]}
-                activeOpacity={0.8}
-              >
-                <Icon
-                  name="settings"
-                  size={20}
-                  color={activeTab === "settings" ? "#FFFFFF" : "#64748B"}
-                />
-                {!isSidebarCollapsed && (
-                  <Text
-                    style={
-                      activeTab === "settings"
-                        ? styles.sidebarItemTextActive
-                        : styles.sidebarItemText
-                    }
-                  >
-                    Settings
-                  </Text>
-                )}
-              </TouchableOpacity>
             </View>
           </View>
         )}
@@ -323,29 +297,6 @@ export function ClientAppLayout({
               ]}
             >
               My Applications
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => handleTabClick("settings")}
-            style={[
-              styles.mobileNavItem,
-              activeTab === "settings" && styles.mobileNavItemActive,
-            ]}
-            activeOpacity={0.7}
-          >
-            <Icon
-              name="settings"
-              size={20}
-              color={activeTab === "settings" ? "#0F2C59" : "#64748B"}
-            />
-            <Text
-              style={[
-                styles.mobileNavText,
-                activeTab === "settings" && styles.mobileNavTextActive,
-              ]}
-            >
-              Settings
             </Text>
           </TouchableOpacity>
         </View>

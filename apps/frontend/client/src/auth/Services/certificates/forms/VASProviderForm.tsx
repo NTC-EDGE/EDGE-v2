@@ -74,7 +74,6 @@ export function VASProviderForm({
                 { label: "1 Year", value: "1" },
                 { label: "2 Years", value: "2" },
                 { label: "3 Years", value: "3" },
-                { label: "5 Years", value: "5" },
               ]}
             />
           </View>

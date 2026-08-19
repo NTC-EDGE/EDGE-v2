@@ -67,9 +67,10 @@ public static class LicensesCategorySeederData
         ""revisionDate"": ""2023-03-31"",
         ""serviceCategory"": ""Licenses"",
         ""group"": ""Ship/Ship-Earth Station"",
-        ""applicationTypes"": [""New"", ""Renewal"", ""Modification""],
+        ""applicationTypes"": [""NEW"", ""RENEWAL"", ""MODIFICATION"", ""New"", ""Renewal"", ""Modification""],
         ""elements"": [],
         ""requiredSections"": [
+            { ""key"": ""typeOfApplication"", ""required"": true },
             { ""key"": ""applicant"", ""required"": true },
             { ""key"": ""vessel"", ""required"": true },
             { ""key"": ""equipment"", ""required"": true },
@@ -79,6 +80,9 @@ public static class LicensesCategorySeederData
         ],
         ""allowsBulkSubmission"": false,
         ""categorySpecific"": {
+            ""permitLicenseType"": [""SHIP STATION LICENSE"",""SHIP-EARTH STATION LICENSE"",""CARGO SHIP SAFETY RADIO CERTIFICATE"",""FERRYING PERMIT"",""TEMPORARY PERMIT""],
+            ""ferryingPermitType"": [""Ship"",""Aircraft""],
+            ""operationScope"": [""DOMESTIC"",""INTERNATIONAL""],
             ""typeOfPermit"": [""Ship Station License"",""Ship-Earth Station License"",""Cargo Ship Safety Radio Certificate"",""Temporary Permit"",""Ferrying Permit""],
             ""tradingRoute"": [""Domestic"",""International""],
             ""vehicleType"": [""Ship"",""Aircraft"",""Other""]
@@ -93,9 +97,10 @@ public static class LicensesCategorySeederData
         ""revisionDate"": ""2023-03-31"",
         ""serviceCategory"": ""Licenses"",
         ""group"": null,
-        ""applicationTypes"": [""New"", ""Renewal"", ""Modification""],
+        ""applicationTypes"": [""New"", ""Renewal"", ""Construction Permit"", ""Radio Station License"", ""Modification""],
         ""elements"": [],
         ""requiredSections"": [
+            { ""key"": ""typeOfApplication"", ""required"": true },
             { ""key"": ""applicant"", ""required"": true },
             { ""key"": ""stations"", ""required"": true },
             { ""key"": ""equipment"", ""required"": true },
@@ -106,9 +111,9 @@ public static class LicensesCategorySeederData
         ""allowsBulkSubmission"": false,
         ""categorySpecific"": {
             ""permitSubtype"": [""Construction Permit"",""Radio Station License""],
-            ""typeOfRadioService"": [""Fixed and Land Mobile"",""Aeronautical"",""Maritime (Public/Private Coastal)"",""Broadcast"",""Other""],
-            ""natureOfService"": [""CV Private"",""CO Government"",""CP Public Correspondence""],
-            ""classOfStation"": [""RT"",""FX"",""FB"",""ML"",""P"",""BC"",""FC"",""FA"",""MA"",""TC"",""Other""]
+            ""typeOfRadioService"": [""FIXED AND LAND MOBILE"",""BROADCAST"",""AERONAUTICAL"",""MARITIME (Public/Private Coastal)"",""OTHERS, specify""],
+            ""natureOfService"": [""P"",""CV (PRIVATE)"",""CO (GOVERNMENT)"",""CP (PUBLIC CORRESPONDENCE)""],
+            ""classOfStation"": [""FX"",""FB"",""ML"",""FA"",""FC"",""MA"",""RT"",""BC"",""TC"",""OTHERS, specify""]
         },
         ""entityType"": ""Application""
     }";
@@ -157,6 +162,8 @@ public static class LicensesCategorySeederData
 
     public static Dictionary<string, string> GetContractMapEntries() => new(StringComparer.OrdinalIgnoreCase)
     {
+        ["NTC_1_04"] = Ntc104Contract,
+        ["NTC_1_11"] = Ntc111Contract,
         ["NTC_AMA_LICENSES"] = NtcAmaLicenseContract,
         ["NTC_AERO_LICENSES"] = NtcAeroLicenseContract,
         ["NTC_MAR_LICENSES"] = Ntc104Contract,
@@ -826,8 +833,9 @@ public static class LicensesCategorySeederData
         }),
         new("NTC_MAR_LICENSES", Guid.Parse("f7200000-0000-0000-0000-000000000001"), Guid.Parse("f72a0000-0000-0000-0000-000000000000"), new()
         {
-            new("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email", "callSign" }),
-            new("vessel", "Particulars of Vessel", new() { "vesselName", "grossTonnage", "vesselType", "officialNumber", "homePort", "imoNumber" }),
+            new("typeOfApplication", "Type of Application & Permit", new() { "permitType", "classOfStation" }),
+            new("applicant", "Applicant's Details", new() { "fullName", "region", "province", "city", "barangay", "street", "zipCode", "contactNo", "email" }),
+            new("vessel", "Particulars of Station / Vessel", new() { "vesselName", "callSign", "stationLicenseNo", "imoNumber" }),
             new("equipment", "Equipment Particulars", new() { "equipmentDetails", "makeModel", "serialNumber", "frequencyRange", "powerOutput" }),
             new("radioOfficers", "Particulars of Radio Officers", new() { "officerName", "certificateNumber", "expiryDate", "citizenship" }),
             new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
@@ -835,10 +843,11 @@ public static class LicensesCategorySeederData
         }),
         new("NTC_FLM_LICENSES", Guid.Parse("f7300000-0000-0000-0000-000000000001"), Guid.Parse("f73a0000-0000-0000-0000-000000000000"), new()
         {
-            new("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email" }),
-            new("stations", "Particulars of Station(s)", new() { "stationLocation", "stationClass", "serviceArea", "frequency", "bandwidth", "emission", "powerOutput" }),
-            new("equipment", "Particulars of Equipment", new() { "equipmentDetails", "makeModel", "serialNumber" }),
-            new("antennas", "Particulars of Antenna", new() { "antennaType", "height", "gain", "directivity" }),
+            new("typeOfApplication", "Type of Application & Service", new() { "permitType", "classOfStation" }),
+            new("applicant", "Applicant's Details", new() { "fullName", "region", "province", "city", "barangay", "street", "zipCode", "contactNo", "email" }),
+            new("stations", "Particulars of Station / Equipment / Antenna", new() { "stationLocation", "stationClass", "serviceArea", "frequency", "bandwidth", "emission", "powerOutput", "hoursOfOperation", "configuration", "dataRate", "remarks" }),
+            new("equipment", "Particulars of Equipment", new() { "equipmentDetails", "classOfStation", "serialNumber", "frequencyRange", "powerOutput" }),
+            new("antennas", "Particulars of Antenna", new() { "antennaType", "height", "gain", "directivity", "polarization", "beamwidth", "diameter" }),
             new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
             new("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
         }),

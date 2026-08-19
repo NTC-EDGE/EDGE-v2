@@ -25,12 +25,14 @@ public static class PermitsCategorySeederData
         ""revisionDate"": ""2023-03-31"",
         ""serviceCategory"": ""Permits"",
         ""group"": ""Permits in the Amateur Service"",
-        ""applicationTypes"": [""Permit to Purchase"", ""Permit to Possess for Storage"", ""Permit to Purchase/Possess"", ""Permit to Sell/Transfer"", ""Temporary Permit to Operate an Amateur Radio Station - Foreign Visitor"", ""Special Permit for Use of Vanity Call Sign"", ""Special Permit for the Use of Special Event Call Sign""],
+        ""applicationTypes"": [""PURCHASE"", ""POSSESS"", ""SELL/TRANSFER"", ""Permit to Purchase"", ""Permit to Possess for Storage"", ""Permit to Purchase/Possess"", ""Permit to Sell/Transfer"", ""Temporary Permit to Operate an Amateur Radio Station - Foreign Visitor"", ""Special Permit for Use of Vanity Call Sign"", ""Special Permit for the Use of Special Event Call Sign""],
         ""elements"": [""Class A"", ""Class B"", ""Class C""],
         ""requiredSections"": [
+            { ""key"": ""classification"", ""required"": false },
             { ""key"": ""applicant"", ""required"": true },
             { ""key"": ""proposedStation"", ""required"": true },
             { ""key"": ""equipment"", ""required"": true },
+            { ""key"": ""antennas"", ""required"": false },
             { ""key"": ""sourceOfEquipment"", ""required"": true },
             { ""key"": ""intendedUse"", ""required"": true },
             { ""key"": ""declaration"", ""required"": true },
@@ -38,10 +40,10 @@ public static class PermitsCategorySeederData
         ],
         ""allowsBulkSubmission"": false,
         ""categorySpecific"": {
-            ""typeOfRadioService"": [""Fixed and Land Mobile"",""Aeronautical"",""Maritime"",""Broadcast"",""Amateur"",""Other""],
-            ""natureOfService"": [""CV Private"",""CO Government"",""CP Public Correspondence""],
-            ""classOfStation"": [""RT"",""FX"",""FB"",""FX/FB"",""ML"",""P"",""BC"",""FC"",""FA"",""MA"",""TC"",""Other""],
-            ""intendedUse"": [""New Radio Station"",""Additional Radio Equipment"",""Change of Equipment"",""Storage"",""Other""]
+            ""typeOfRadioService"": [""FIXED AND LAND MOBILE"",""BROADCAST"",""AERONAUTICAL"",""AMATEUR"",""MARITIME"",""OTHERS, specify""],
+            ""natureOfService"": [""CV (PRIVATE)"",""CO (GOVERNMENT)"",""CP (PUBLIC CORRESPONDENCE)""],
+            ""classOfStation"": [""RT"",""FX"",""ML"",""FC"",""TC"",""P"",""FA"",""FB"",""BC"",""MA"",""OTHERS, specify""],
+            ""intendedUse"": [""New Radio Station"",""Additional Equipment"",""Additional Radio Station"",""Storage at:"",""Change of Equipment"",""Others, specify""]
         },
         ""entityType"": ""Application""
     }";
@@ -56,6 +58,9 @@ public static class PermitsCategorySeederData
         ""applicationTypes"": [""New""],
         ""elements"": [],
         ""requiredSections"": [
+            { ""key"": ""natureOfService"", ""required"": true },
+            { ""key"": ""classOfStation"", ""required"": true },
+            { ""key"": ""typeOfRadioService"", ""required"": true },
             { ""key"": ""applicant"", ""required"": true },
             { ""key"": ""station"", ""required"": true },
             { ""key"": ""equipment"", ""required"": true },
@@ -64,9 +69,9 @@ public static class PermitsCategorySeederData
         ],
         ""allowsBulkSubmission"": false,
         ""categorySpecific"": {
-            ""natureOfService"": [""CV Private"",""CO Government"",""CP Public Correspondence""],
-            ""typeOfRadioService"": [""Fixed and Land Mobile"",""Aeronautical"",""Broadcast"",""Other""],
-            ""classOfStation"": [""RT"",""FX"",""FB"",""ML"",""P"",""BC"",""FA"",""MA"",""TC"",""Other""]
+            ""natureOfService"": [""CV (PRIVATE)"",""CO (GOVERNMENT)"",""CP (PUBLIC CORRESPONDENCE)""],
+            ""typeOfRadioService"": [""FIXED AND LAND MOBILE"",""AERONAUTICAL"",""BROADCAST"",""P"",""BC"",""OTHERS, specify""],
+            ""classOfStation"": [""RT"",""FA"",""FX"",""MA"",""FB"",""TC"",""ML"",""OTHERS, specify""]
         },
         ""entityType"": ""Application""
     }";
@@ -80,9 +85,9 @@ public static class PermitsCategorySeederData
         ["NTC_MAR_PERMITS"] = Ntc109Contract,
         ["NTC_FLM_PERMITS"] = Ntc109Contract,
         ["NTC_PTE_PERMITS"] = Ntc109Contract,
-        ["NTC_EQUIP_PERMITS"] = Ntc109Contract,
-        ["NTC_MP_PERMITS"] = Ntc109Contract,
-        ["NTC_COPY_PERMITS"] = Ntc109Contract
+        ["NTC_EQUIP_PERMITS"] = AccreditationsCategorySeederData.Ntc118Contract,
+        ["NTC_MP_PERMITS"] = AccreditationsCategorySeederData.Ntc118Contract,
+        ["NTC_COPY_PERMITS"] = CertificatesCategorySeederData.Ntc121Contract
     };
 
     public static List<ServiceCategoryDef> GetServiceDefs(Guid categoryId) => new()
@@ -92,9 +97,9 @@ public static class PermitsCategorySeederData
         new("NTC_MAR_PERMITS", SvcMarId, categoryId, "PERMITS IN THE MARITIME SERVICE", null, "NTC_MAR_PERMITS", "PERMITS IN THE MARITIME SERVICE", Ntc109Contract),
         new("NTC_FLM_PERMITS", SvcFlmId, categoryId, "PERMITS TO GOVERNMENT AND PRIVATE RADIO STATIONS IN THE FIXED AND LAND MOBILE SERVICE", null, "NTC_FLM_PERMITS", "PERMITS TO FIXED AND LAND MOBILE STATIONS", Ntc109Contract),
         new("NTC_PTE_PERMITS", SvcPteId, categoryId, "PERMITS FOR PUBLIC TELECOMMUNICATIONS ENTITIES (PTEs)", null, "NTC_PTE_PERMITS", "PERMITS FOR PTEs", Ntc109Contract),
-        new("NTC_EQUIP_PERMITS", SvcEquipId, categoryId, "PERMITS FOR RADIO COMMUNICATIONS EQUIPMENT", null, "NTC_EQUIP_PERMITS", "PERMITS FOR EQUIPMENT", Ntc109Contract),
-        new("NTC_MP_PERMITS", SvcMpId, categoryId, "PERMITS FOR MOBILE PHONE", null, "NTC_MP_PERMITS", "PERMITS FOR MOBILE PHONE", Ntc109Contract),
-        new("NTC_COPY_PERMITS", SvcCopyId, categoryId, "COPY OF PERMITS", null, "NTC_COPY_PERMITS", "COPY OF PERMITS", Ntc109Contract)
+        new("NTC_EQUIP_PERMITS", SvcEquipId, categoryId, "PERMITS FOR RADIO COMMUNICATIONS EQUIPMENT", null, "NTC_EQUIP_PERMITS", "PERMITS FOR EQUIPMENT", AccreditationsCategorySeederData.Ntc118Contract),
+        new("NTC_MP_PERMITS", SvcMpId, categoryId, "PERMITS FOR MOBILE PHONE", null, "NTC_MP_PERMITS", "PERMITS FOR MOBILE PHONE", AccreditationsCategorySeederData.Ntc118Contract),
+        new("NTC_COPY_PERMITS", SvcCopyId, categoryId, "COPY OF PERMITS", null, "NTC_COPY_PERMITS", "COPY OF PERMITS", CertificatesCategorySeederData.Ntc121Contract)
     };
 
     // Variant IDs
@@ -502,10 +507,10 @@ public static class PermitsCategorySeederData
     {
         new("NTC_1_09", Guid.Parse("f0900000-0000-0000-0000-000000000001"), Guid.Parse("f09a0000-0000-0000-0000-000000000000"), new()
         {
-            new("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email", "callSign" }),
-            new("proposedStation", "Proposed Station & Operating Specs", new() { "stationLocation", "stationClass", "serviceArea", "frequency", "bandwidth", "emission", "powerOutput", "hoursOfOperation", "configuration", "dataRate", "remarks" }),
+            new("classification", "Classification", new() { "permitType", "classOfStation" }),
+            new("applicant", "Applicant's Details", new() { "fullName", "region", "province", "city", "barangay", "street", "zipCode", "contactNo", "email", "callSign" }),
+            new("proposedStation", "Particulars of Proposed Station / Equipment", new() { "stationLocation", "stationClass", "serviceArea", "frequency", "bandwidth", "emission", "powerOutput", "hoursOfOperation", "configuration", "dataRate", "remarks" }),
             new("equipment", "Particulars of Equipment", new() { "equipmentDetails", "classOfStation", "serialNumber", "frequencyRange" }),
-            new("antennas", "Particulars of Antenna", new() { "antennaType", "height", "gain", "directivity", "diameter", "polarization", "beamwidth", "remarks" }),
             new("sourceOfEquipment", "Source of Equipment", new() { "dealerName", "authorizedSellerBuyer", "orInvoiceNo", "permitRslNo", "sellerAddress", "amateurLicenseNo" }),
             new("intendedUse", "Intended Use of Equipment", new() { "intendedUseType", "specifyDetails" }),
             new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
@@ -557,43 +562,25 @@ public static class PermitsCategorySeederData
         }),
         new("NTC_EQUIP_PERMITS", Guid.Parse("fb300000-0000-0000-0000-000000000001"), Guid.Parse("fb3a0000-0000-0000-0000-000000000000"), new()
         {
-            new("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email", "callSign" }),
-            new("proposedStation", "Proposed Station & Operating Specs", new() { "stationLocation", "stationClass", "serviceArea", "frequency", "bandwidth", "emission", "powerOutput", "hoursOfOperation", "configuration", "dataRate", "remarks" }),
-            new("equipment", "Particulars of Equipment", new() { "equipmentDetails", "classOfStation", "serialNumber", "frequencyRange" }),
-            new("antennas", "Particulars of Antenna", new() { "antennaType", "height", "gain", "directivity", "diameter", "polarization", "beamwidth", "remarks" }),
-            new("sourceOfEquipment", "Source of Equipment", new() { "dealerName", "authorizedSellerBuyer", "orInvoiceNo", "permitRslNo", "sellerAddress", "amateurLicenseNo" }),
-            new("intendedUse", "Intended Use of Equipment", new() { "intendedUseType", "specifyDetails" }),
+            new("typeOfApplication", "Type of Application & Permit Category", new() { "permitType", "classOfStation" }),
+            new("applicant", "Applicant Details", new() { "fullName", "region", "province", "city", "barangay", "street", "zipCode", "contactNo", "email" }),
+            new("personnel", "Supervising ECE & Service Technicians", new() { "officerName", "certificateNumber" }),
             new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
             new("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
         }),
         new("NTC_MP_PERMITS", Guid.Parse("fb400000-0000-0000-0000-000000000001"), Guid.Parse("fb4a0000-0000-0000-0000-000000000000"), new()
         {
-            new("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email", "callSign" }),
-            new("proposedStation", "Proposed Station & Operating Specs", new() { "stationLocation", "stationClass", "serviceArea", "frequency", "bandwidth", "emission", "powerOutput", "hoursOfOperation", "configuration", "dataRate", "remarks" }),
-            new("equipment", "Particulars of Equipment", new() { "equipmentDetails", "classOfStation", "serialNumber", "frequencyRange" }),
-            new("antennas", "Particulars of Antenna", new() { "antennaType", "height", "gain", "directivity", "diameter", "polarization", "beamwidth", "remarks" }),
-            new("sourceOfEquipment", "Source of Equipment", new() { "dealerName", "authorizedSellerBuyer", "orInvoiceNo", "permitRslNo", "sellerAddress", "amateurLicenseNo" }),
-            new("intendedUse", "Intended Use of Equipment", new() { "intendedUseType", "specifyDetails" }),
+            new("typeOfApplication", "Type of Application & Permit Category", new() { "permitType", "classOfStation" }),
+            new("applicant", "Applicant Details", new() { "fullName", "region", "province", "city", "barangay", "street", "zipCode", "contactNo", "email" }),
+            new("personnel", "Supervising ECE & Service Technicians", new() { "officerName", "certificateNumber" }),
             new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
             new("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
         }),
         new("NTC_COPY_PERMITS", Guid.Parse("fb500000-0000-0000-0000-000000000001"), Guid.Parse("fb5a0000-0000-0000-0000-000000000000"), new()
         {
-            new("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email", "callSign" }),
-            new("proposedStation", "Proposed Station & Operating Specs", new() { "stationLocation", "stationClass", "serviceArea", "frequency", "bandwidth", "emission", "powerOutput", "hoursOfOperation", "configuration", "dataRate", "remarks" }),
-            new("equipment", "Particulars of Equipment", new() { "equipmentDetails", "classOfStation", "serialNumber", "frequencyRange" }),
-            new("antennas", "Particulars of Antenna", new() { "antennaType", "height", "gain", "directivity", "diameter", "polarization", "beamwidth", "remarks" }),
-            new("sourceOfEquipment", "Source of Equipment", new() { "dealerName", "authorizedSellerBuyer", "orInvoiceNo", "permitRslNo", "sellerAddress", "amateurLicenseNo" }),
-            new("intendedUse", "Intended Use of Equipment", new() { "intendedUseType", "specifyDetails" }),
+            new("applicant", "Applicant Details", new() { "fullName", "region", "province", "city", "barangay", "street", "zipCode", "contactNo", "email" }),
+            new("permitLicenseCertificateNo", "Permit / Certificate Particulars", new() { "permitRslNo", "stationClass" }),
             new("circumstances", "Circumstances of Loss/Damage", new() { "circumstances" }),
-            new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            new("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
-        }),
-        new("NTC_1_14", Guid.Parse("f1400000-0000-0000-0000-000000000001"), Guid.Parse("f14a0000-0000-0000-0000-000000000000"), new()
-        {
-            new("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email" }),
-            new("station", "Station Technical Details", new() { "stationLocation" }),
-            new("equipment", "Equipment Details", new() { "equipmentDetails" }),
             new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
             new("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
         })
