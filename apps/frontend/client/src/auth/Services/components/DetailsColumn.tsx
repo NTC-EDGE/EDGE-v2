@@ -46,6 +46,8 @@ export function DetailsColumn({ servicesState }: DetailsColumnProps) {
     setSelectedRegionId,
     selectedOfficeId,
     setSelectedOfficeId,
+    selectedScheduleId,
+    setSelectedScheduleId,
     appMode,
     setAppMode,
     bulkMethod,
@@ -189,6 +191,8 @@ export function DetailsColumn({ servicesState }: DetailsColumnProps) {
             setSelectedRegionId={setSelectedRegionId}
             selectedOfficeId={selectedOfficeId}
             setSelectedOfficeId={setSelectedOfficeId}
+            selectedScheduleId={selectedScheduleId}
+            setSelectedScheduleId={setSelectedScheduleId}
             appMode={appMode}
             setAppMode={setAppMode}
             applicants={generalApplicants}

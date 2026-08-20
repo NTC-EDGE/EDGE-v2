@@ -1,11 +1,13 @@
 import React, { useState } from "react";
-import { Alert } from "react-native";
-import { useUser } from "@clerk/expo";
+import { Alert, Platform } from "react-native";
+import { useAuth, useUser } from "@clerk/expo";
+import { apiClient } from "@edge/api";
 import { useApi } from "../../../../../shared/hooks/useApi";
 import { extractApiErrorMessage } from "../../../../../shared/components/Toast";
 import { NTCOffice } from "../data/mockRegionData";
 import { ApplicantData } from "../types/cpeTypes";
 import { extractUserProfile } from "../../../../../shared/utils/userProfileHelper";
+import { uploadRequirementsAfterSubmit } from "../../../shared/helpers/requirementUploadHelper";
 
 interface UseCPEAccreditationWizardProps {
   selectedRegionId: string;
@@ -63,6 +65,7 @@ export function useCPEAccreditationWizard({
 
   const api = useApi();
   const { user: clerkUser } = useUser();
+  const { getToken } = useAuth();
   const USE_MOCKS = false;
 
   // Form fields schema mapping
@@ -299,6 +302,8 @@ export function useCPEAccreditationWizard({
     );
   };
 
+
+
   const submitApplicationPayload = async (isDraft = false) => {
     if (!serviceId) {
       Alert.alert("Error", "Service identifier is missing.");
@@ -367,7 +372,32 @@ export function useCPEAccreditationWizard({
           applicants: mappedApplicants,
         };
 
-        await api.post(`/api/v2/tenants/${selectedRegionId}/applications`, payload);
+        // Submit the application shell and capture the new applicationId
+        const submitRes = await api.post<{ succeeded?: boolean; data?: string } | string>(
+          `/api/v2/tenants/${selectedRegionId}/applications`,
+          payload
+        );
+
+        const submitEnvelope = submitRes as { succeeded?: boolean; data?: string };
+        const applicationId =
+          submitEnvelope.succeeded !== undefined && typeof submitEnvelope.data === "string"
+            ? submitEnvelope.data
+            : typeof submitRes === "string"
+            ? submitRes
+            : null;
+
+        // Upload and link requirement attachments (non-blocking on partial failure)
+        if (applicationId !== null && applicationId !== "") {
+          const allApplicantsForUpload = isBulkSubmission ? applicants : [activeApplicant];
+          await uploadRequirementsAfterSubmit({
+            api,
+            applicationId,
+            tenantId: selectedRegionId,
+            applicants: allApplicantsForUpload,
+            getToken,
+          });
+        }
+
         return;
       }
 

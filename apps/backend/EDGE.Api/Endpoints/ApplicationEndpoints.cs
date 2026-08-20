@@ -480,11 +480,22 @@ public static class ApplicationEndpoints
     }
 
     [HasPermission(Permissions.SubmitApplication)]
-    public static async Task<IResult> UploadTenantApplicationRequirement(Guid id, Guid appId, UploadApplicantRequirementCommand command, IMediator mediator)
+    public static async Task<IResult> UploadTenantApplicationRequirement(
+        Guid id,
+        Guid appId,
+        UploadApplicantRequirementCommand command,
+        IValidator<UploadApplicantRequirementCommand> validator,
+        IMediator mediator)
     {
         // TenantId is resolved securely from auth context inside the handler (ITenantContextService).
         // ApplicationId is injected from the route param {appId}.
         var updatedCommand = command with { ApplicationId = appId };
+        var validationResult = await validator.ValidateAsync(updatedCommand);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
+
         var result = await mediator.Send(updatedCommand);
         return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
     }

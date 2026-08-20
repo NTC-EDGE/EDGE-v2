@@ -24,16 +24,25 @@ export interface ApplicationDocument {
   size: string;
   category: 'ATTACHMENT' | 'ISSUED_PERMIT' | 'RECEIPT' | 'SOA' | 'ADMISSION_SLIP';
   uploadedAt: string;
+  url?: string;
+  storedFileId?: string;
 }
 
 export interface RawRequirement {
   id?: string;
-  name?: string;
+  applicantId?: string;
+  requirementId?: string;
+  serviceVariantRequirementId?: string;
+  storedFileId?: string;
   fileName?: string;
+  name?: string;
+  contentType?: string;
+  fileSizeBytes?: number;
   url?: string;
   size?: string;
   category?: string;
   uploadedAt?: string;
+  isApproved?: boolean;
 }
 
 export interface Schedule {
@@ -81,6 +90,12 @@ export interface SingleApplication {
   Documents?: RawRequirement[];
   soaNumber?: string | null;
   formFieldValues?: Array<{ fieldId: string; fieldLabel: string; value: string }>;
+  office?: string;
+  remarks?: string;
+  serviceVariantName?: string;
+  variant?: string;
+  tenantName?: string;
+  tenantId?: string;
 }
 
 export interface BulkApplicant {
@@ -103,6 +118,11 @@ export interface BulkApplicant {
   email?: string;
   schedule?: Schedule;
   formFieldValues?: Array<{ fieldId: string; fieldLabel: string; value: string }>;
+  birthDate?: string;
+  civilStatus?: string;
+  companyName?: string;
+  representativeName?: string;
+  notes?: string;
 
   // Compatibility fields
   details?: {
@@ -122,6 +142,14 @@ export interface BulkApplicant {
     streetAddress?: string;
     mobileNumber?: string;
     email?: string;
+    birthDate?: string;
+    civilStatus?: string;
+    companyName?: string;
+    representativeName?: string;
+    notes?: string;
+    birthMonth?: string;
+    birthDay?: string;
+    birthYear?: string;
     formFieldValues?: Array<{ fieldId: string; fieldLabel: string; value: string }>;
   };
   firstName?: string;
@@ -156,6 +184,12 @@ export interface BulkApplication {
   documents?: RawRequirement[];
   Documents?: RawRequirement[];
   formFieldValues?: Array<{ fieldId: string; fieldLabel: string; value: string }>;
+  office?: string;
+  remarks?: string;
+  serviceVariantName?: string;
+  variant?: string;
+  tenantName?: string;
+  tenantId?: string;
 
   // Single Application fields (optional here for API compatibility)
   applicantName?: string;
@@ -238,97 +272,107 @@ export function formatRelativeTime(isoDate: string): string {
 
 export function getAppDocuments(app: Application): ApplicationDocument[] {
   const docs: ApplicationDocument[] = [];
-  const ref = app.referenceNumber;
+  const rawList: RawRequirement[] = (
+    app.requirements ||
+    app.Requirements ||
+    app.documents ||
+    app.Documents ||
+    []
+  );
 
-  if (app.mode === 'SINGLE') {
-    docs.push({
-      id: `${app.id}-doc-1`,
-      name: `Admission_Slip_${ref.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`,
-      type: 'PDF',
-      size: '284 KB',
-      category: 'ADMISSION_SLIP',
-      uploadedAt: app.submittedAt,
-    });
-    docs.push({
-      id: `${app.id}-doc-2`,
-      name: `Submitted_Application_Form.pdf`,
-      type: 'PDF',
-      size: '1.4 MB',
-      category: 'ATTACHMENT',
-      uploadedAt: app.submittedAt,
-    });
-    docs.push({
-      id: `${app.id}-doc-3`,
-      name: `Government_ID_Verification.pdf`,
-      type: 'PDF',
-      size: '890 KB',
-      category: 'ATTACHMENT',
-      uploadedAt: app.submittedAt,
-    });
+  // If there are actual attachments mapped on the application
+  if (rawList.length > 0) {
+    return rawList.map((req, idx) => {
+      const urlStr = req.url || '';
+      const rawName = req.fileName || req.name || (urlStr ? urlStr.split('/').pop() : undefined) || `Attachment_${idx + 1}.pdf`;
+      const ext = rawName.toLowerCase().split('.').pop() || '';
+      
+      let typ: 'PDF' | 'IMAGE' | 'DOCX' | 'ZIP' = 'PDF';
+      if (['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'svg'].includes(ext)) {
+        typ = 'IMAGE';
+      } else if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) {
+        typ = 'ZIP';
+      } else if (['doc', 'docx'].includes(ext)) {
+        typ = 'DOCX';
+      }
 
-    if (app.status === 'APPROVED' || app.status === 'READY_FOR_PAYMENT') {
-      docs.push({
-        id: `${app.id}-doc-4`,
-        name: `Official_Receipt_OR-2026.pdf`,
-        type: 'PDF',
-        size: '195 KB',
-        category: 'RECEIPT',
-        uploadedAt: app.submittedAt,
-      });
-    }
+      let sizeFormatted = req.size;
+      if (!sizeFormatted && req.fileSizeBytes) {
+        if (req.fileSizeBytes >= 1024 * 1024) {
+          sizeFormatted = `${(req.fileSizeBytes / (1024 * 1024)).toFixed(1)} MB`;
+        } else {
+          sizeFormatted = `${Math.round(req.fileSizeBytes / 1024)} KB`;
+        }
+      }
 
-    if (app.status === 'APPROVED') {
-      docs.push({
-        id: `${app.id}-doc-5`,
-        name: `NTC_Official_License_Certificate.pdf`,
-        type: 'PDF',
-        size: '560 KB',
-        category: 'ISSUED_PERMIT',
-        uploadedAt: app.submittedAt,
-      });
-    }
-  } else {
-    docs.push({
-      id: `${app.id}-doc-1`,
-      name: `Statement_of_Account_${app.soaNumber ?? 'BATCH-2026'}.pdf`,
-      type: 'PDF',
-      size: '410 KB',
-      category: 'SOA',
-      uploadedAt: app.submittedAt,
-    });
-    docs.push({
-      id: `${app.id}-doc-2`,
-      name: `Master_Applicant_Roster_${app.companyName.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`,
-      type: 'PDF',
-      size: '2.4 MB',
-      category: 'ATTACHMENT',
-      uploadedAt: app.submittedAt,
-    });
-    docs.push({
-      id: `${app.id}-doc-3`,
-      name: `Company_SEC_Board_Resolution.pdf`,
-      type: 'PDF',
-      size: '1.8 MB',
-      category: 'ATTACHMENT',
-      uploadedAt: app.submittedAt,
-    });
+      let category: ApplicationDocument['category'] = 'ATTACHMENT';
+      const catLower = (req.category || '').toLowerCase();
+      const nameLower = rawName.toLowerCase();
+      if (catLower.includes('admission') || nameLower.includes('admission')) {
+        category = 'ADMISSION_SLIP';
+      } else if (catLower.includes('receipt') || nameLower.includes('receipt') || nameLower.includes('official_receipt')) {
+        category = 'RECEIPT';
+      } else if (catLower.includes('soa') || nameLower.includes('soa') || nameLower.includes('statement_of_account')) {
+        category = 'SOA';
+      } else if (catLower.includes('permit') || catLower.includes('license') || nameLower.includes('license') || nameLower.includes('certificate')) {
+        category = 'ISSUED_PERMIT';
+      }
 
-    if (app.status === 'APPROVED') {
+      return {
+        id: req.id || req.storedFileId || `req-doc-${idx + 1}`,
+        name: rawName,
+        type: typ,
+        size: sizeFormatted || '350 KB',
+        category,
+        uploadedAt: req.uploadedAt || app.submittedAt,
+        url: req.url,
+        storedFileId: req.storedFileId,
+      };
+    });
+  }
+
+  // Also check if any applicant has actual attached requirements
+  const rawApplicants = (app.applicants || app.Applicants || []);
+  for (let aIdx = 0; aIdx < rawApplicants.length; aIdx++) {
+    const ap = rawApplicants[aIdx];
+    const apReqs: RawRequirement[] = (
+      (ap as { requirements?: RawRequirement[]; Requirements?: RawRequirement[] }).requirements ||
+      (ap as { requirements?: RawRequirement[]; Requirements?: RawRequirement[] }).Requirements ||
+      []
+    );
+    for (let rIdx = 0; rIdx < apReqs.length; rIdx++) {
+      const req = apReqs[rIdx];
+      const urlStr = req.url || '';
+      const rawName = req.fileName || req.name || (urlStr ? urlStr.split('/').pop() : undefined) || `${ap.name || 'Applicant'}_Attachment_${rIdx + 1}.pdf`;
+      const ext = rawName.toLowerCase().split('.').pop() || '';
+      
+      let typ: 'PDF' | 'IMAGE' | 'DOCX' | 'ZIP' = 'PDF';
+      if (['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'svg'].includes(ext)) {
+        typ = 'IMAGE';
+      } else if (['zip', 'rar', '7z'].includes(ext)) {
+        typ = 'ZIP';
+      } else if (['doc', 'docx'].includes(ext)) {
+        typ = 'DOCX';
+      }
+
+      let sizeFormatted = req.size;
+      if (!sizeFormatted && req.fileSizeBytes) {
+        if (req.fileSizeBytes >= 1024 * 1024) {
+          sizeFormatted = `${(req.fileSizeBytes / (1024 * 1024)).toFixed(1)} MB`;
+        } else {
+          sizeFormatted = `${Math.round(req.fileSizeBytes / 1024)} KB`;
+        }
+      }
+
       docs.push({
-        id: `${app.id}-doc-4`,
-        name: `Batch_Approved_Certificates.zip`,
-        type: 'ZIP',
-        size: '8.7 MB',
-        category: 'ISSUED_PERMIT',
-        uploadedAt: app.submittedAt,
-      });
-      docs.push({
-        id: `${app.id}-doc-5`,
-        name: `Batch_Official_Payment_Receipt.pdf`,
-        type: 'PDF',
-        size: '320 KB',
-        category: 'RECEIPT',
-        uploadedAt: app.submittedAt,
+        id: req.id || req.storedFileId || `ap-${aIdx}-req-${rIdx + 1}`,
+        name: rawName,
+        type: typ,
+        size: sizeFormatted || '350 KB',
+        category: 'ATTACHMENT',
+        uploadedAt: req.uploadedAt || app.submittedAt,
+        url: req.url,
+        storedFileId: req.storedFileId,
       });
     }
   }
@@ -460,6 +504,7 @@ interface ApiApplicantDto {
 
 interface ApiApplicationDto {
   id?: string;
+  tenantId?: string;
   applicationNumber?: string;
   referenceNumber?: string;
   status?: string;
@@ -487,6 +532,7 @@ interface ApiApplicationDto {
   Documents?: RawRequirement[];
   companyName?: string;
   applicantName?: string;
+  serviceVariantName?: string;
 }
 
 export function mapApiApplicationToApplication(dto: ApiApplicationDto): Application {
@@ -591,6 +637,10 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
       documents: reqDocs,
       requirements: reqDocs,
       formFieldValues: primaryFormFieldValues,
+      office: dto.office,
+      remarks: dto.remarks,
+      serviceVariantName: dto.serviceVariantName,
+      tenantId: dto.tenantId,
     };
     return bulkApp;
   }
@@ -626,51 +676,55 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
     documents: reqDocs,
     requirements: reqDocs,
     formFieldValues: primaryFormFieldValues,
+    office: dto.office,
+    remarks: dto.remarks,
+    serviceVariantName: dto.serviceVariantName,
+    tenantId: dto.tenantId,
   };
   return singleApp;
 }
 
 export function getApplicantDocuments(applicant: BulkApplicant): ApplicationDocument[] {
   const docs: ApplicationDocument[] = [];
-  const refId = applicant.id;
-  const safeName = applicant.name.replace(/[^a-zA-Z0-9]/g, '_');
-  const dateStr = '2026-07-21T09:30:00.000Z';
+  const rawReqs: RawRequirement[] =
+    (applicant as { requirements?: RawRequirement[]; Requirements?: RawRequirement[] }).requirements ||
+    (applicant as { requirements?: RawRequirement[]; Requirements?: RawRequirement[] }).Requirements ||
+    [];
 
-  docs.push({
-    id: `${refId}-doc-1`,
-    name: `${safeName}_Application_Form.pdf`,
-    type: 'PDF',
-    size: '1.2 MB',
-    category: 'ATTACHMENT',
-    uploadedAt: dateStr,
-  });
+  if (rawReqs.length > 0) {
+    return rawReqs.map((req, idx) => {
+      const urlStr = req.url || '';
+      const rawName = req.fileName || req.name || (urlStr ? urlStr.split('/').pop() : undefined) || `${applicant.name || 'Applicant'}_Attachment_${idx + 1}.pdf`;
+      const ext = rawName.toLowerCase().split('.').pop() || '';
+      
+      let typ: 'PDF' | 'IMAGE' | 'DOCX' | 'ZIP' = 'PDF';
+      if (['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'svg'].includes(ext)) {
+        typ = 'IMAGE';
+      } else if (['zip', 'rar', '7z'].includes(ext)) {
+        typ = 'ZIP';
+      } else if (['doc', 'docx'].includes(ext)) {
+        typ = 'DOCX';
+      }
 
-  docs.push({
-    id: `${refId}-doc-2`,
-    name: `${safeName}_Government_ID.pdf`,
-    type: 'PDF',
-    size: '720 KB',
-    category: 'ATTACHMENT',
-    uploadedAt: dateStr,
-  });
+      let sizeFormatted = req.size;
+      if (!sizeFormatted && req.fileSizeBytes) {
+        if (req.fileSizeBytes >= 1024 * 1024) {
+          sizeFormatted = `${(req.fileSizeBytes / (1024 * 1024)).toFixed(1)} MB`;
+        } else {
+          sizeFormatted = `${Math.round(req.fileSizeBytes / 1024)} KB`;
+        }
+      }
 
-  if (applicant.status === 'APPROVED') {
-    docs.push({
-      id: `${refId}-doc-3`,
-      name: `${safeName}_Approved_Permit.pdf`,
-      type: 'PDF',
-      size: '480 KB',
-      category: 'ISSUED_PERMIT',
-      uploadedAt: dateStr,
-    });
-  } else if (applicant.status === 'READY_FOR_PAYMENT') {
-    docs.push({
-      id: `${refId}-doc-3`,
-      name: `${safeName}_Statement_of_Account.pdf`,
-      type: 'PDF',
-      size: '210 KB',
-      category: 'SOA',
-      uploadedAt: dateStr,
+      return {
+        id: req.id || req.storedFileId || `${applicant.id}-req-${idx + 1}`,
+        name: rawName,
+        type: typ,
+        size: sizeFormatted || '350 KB',
+        category: 'ATTACHMENT',
+        uploadedAt: req.uploadedAt || new Date().toISOString(),
+        url: req.url,
+        storedFileId: req.storedFileId,
+      };
     });
   }
 

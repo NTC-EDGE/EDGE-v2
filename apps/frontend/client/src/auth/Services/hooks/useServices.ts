@@ -18,6 +18,11 @@ import {
   initialGeneralApplicant,
 } from "../shared/GeneralServiceWizard";
 
+const isGuid = (val?: string | null): boolean => {
+  if (!val || typeof val !== "string") return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val.trim());
+};
+
 export interface DraftApplication {
   id: string;
   wizardService: "cpe-accreditation" | "radio-operator-exam" | "general-service";
@@ -88,6 +93,7 @@ export function useServices() {
   const [wizardStep, setWizardStep] = useState(1);
   const [selectedRegionId, setSelectedRegionId] = useState("");
   const [selectedOfficeId, setSelectedOfficeId] = useState("");
+  const [selectedScheduleId, setSelectedScheduleId] = useState<string | null>(null);
   const [appMode, setAppMode] = useState<"SINGLE" | "BULK" | "">("SINGLE");
 
   // Navigation Guard confirmation states
@@ -130,6 +136,7 @@ export function useServices() {
     setExamWizardStep(1);
     setSelectedRegionId("");
     setSelectedOfficeId("");
+    setSelectedScheduleId(null);
     setAppMode("SINGLE");
     setBulkMethod("MANUAL");
     setIsFileUploaded(false);
@@ -519,7 +526,7 @@ export function useServices() {
         tenantId: effectiveTenantId,
         submissionMode: appMode === "BULK" ? "Bulk" : "Single",
         serviceId: selectedService?.id && isGuid(selectedService.id) ? selectedService.id : null,
-        scheduleId: null,
+        scheduleId: selectedScheduleId && isGuid(selectedScheduleId) ? selectedScheduleId : null,
         fieldOfficeId: selectedOfficeId && isGuid(selectedOfficeId) ? selectedOfficeId : null,
         serviceVariantId: svId && isGuid(svId) ? svId : null,
         serviceVariantElementIds: (sveIds || []).filter(isGuid),
@@ -573,18 +580,44 @@ export function useServices() {
 
         const draftServiceId = fullDraft.serviceId || fullDraft.applicants?.[0]?.serviceId;
         const matchedService = allBackendServices?.find((s: any) => s.id === draftServiceId) || null;
-        setSelectedService(matchedService);
+
+        const effectiveService: NTCService = matchedService || {
+          id: draftServiceId || "50000000-0000-0000-0000-000000000001",
+          title: fullDraft.serviceName || "Radio Operator Examination",
+          category: fullDraft.serviceCategory || "Examination Services",
+          categoryCode: fullDraft.serviceCategoryCode || "EXAM",
+          code: fullDraft.serviceCode || "NTC_EXAM_01",
+          description: fullDraft.serviceDescription || "Examination Service",
+          icon: "file-text",
+          serviceCategoryId: fullDraft.serviceCategoryId || fullDraft.categoryId || "",
+          processingDays: 5,
+        };
+
+        setSelectedService(effectiveService);
         if (draftServiceId) {
           setServiceId(draftServiceId);
         }
 
-        const draftCategoryId = fullDraft.serviceCategoryId || matchedService?.serviceCategoryId;
+        const draftCategoryId = fullDraft.serviceCategoryId || matchedService?.serviceCategoryId || effectiveService.serviceCategoryId;
         if (draftCategoryId) {
           setSelectedCategoryId(draftCategoryId);
         }
 
+        const draftScheduleId =
+          fullDraft.scheduleId ||
+          fullDraft.ScheduleId ||
+          fullDraft.schedule?.id ||
+          fullDraft.applicants?.[0]?.scheduleId ||
+          null;
+
+        if (draftScheduleId && isGuid(draftScheduleId)) {
+          setSelectedScheduleId(draftScheduleId);
+        } else {
+          setSelectedScheduleId(null);
+        }
+
         setSelectedRegionId(fullDraft.tenantId || fullDraft.regionId || "");
-        setSelectedOfficeId(fullDraft.office || "");
+        setSelectedOfficeId(fullDraft.fieldOfficeId || fullDraft.office || "");
         setAppMode(fullDraft.submissionMode?.toUpperCase() === "BULK" ? "BULK" : "SINGLE");
         setBulkMethod("MANUAL");
         setIsFileUploaded(false);
@@ -593,60 +626,38 @@ export function useServices() {
         setCurrentExamApplicantIndex(0);
         setCurrentGeneralApplicantIndex(0);
 
-        const categoryCode = fullDraft.serviceCategoryCode?.toUpperCase() || matchedService?.categoryCode?.toUpperCase() || "";
-        const serviceName = (fullDraft.serviceName || matchedService?.title || "").toLowerCase();
+        const categoryCode =
+          fullDraft.serviceCategoryCode?.toUpperCase() ||
+          matchedService?.categoryCode?.toUpperCase() ||
+          effectiveService.categoryCode?.toUpperCase() ||
+          "";
+        const serviceName = (
+          fullDraft.serviceName ||
+          matchedService?.title ||
+          effectiveService.title ||
+          ""
+        ).toLowerCase();
 
+        // Use unified modern wizard across all services so the review summary UI is identical to fresh filing
         let wizType = "general-service";
         if (categoryCode === "EXAM" || serviceName.includes("radio operator") || serviceName.includes("exam")) {
-          wizType = "radio-operator-exam";
+          wizType = "general-service";
         } else if (serviceName.includes("cpe") || serviceName.includes("customer premise")) {
           wizType = "cpe-accreditation";
         }
         setActiveWizardService(wizType);
 
         if (fullDraft.applicants && fullDraft.applicants.length > 0) {
-          if (wizType === "radio-operator-exam") {
-            const mappedExamApps = fullDraft.applicants.map((a: any, idx: number) => {
-              const d = a.details || {};
-              const birthParts = (d.birthDate || "").split("-");
-              const fvList = a.formFieldValues || [];
-              const elementFv = fvList.find((fv: any) =>
-                fv.fieldLabel?.toLowerCase().includes("element") ||
-                fv.fieldLabel?.toLowerCase().includes("class option")
-              );
-
-              return {
-                id: idx + 1,
-                firstName: d.firstName || "",
-                lastName: d.lastName || "",
-                middleName: d.middleName || "",
-                suffix: d.suffix || "",
-                email: d.emailAddress || a.email || "",
-                contactNo: d.contactNumber || a.contactNumber || "",
-                street: d.address || "",
-                barangay: "",
-                city: "",
-                province: "",
-                birthYear: birthParts[0] || "",
-                birthMonth: birthParts[1] ? ["January","February","March","April","May","June","July","August","September","October","November","December"][parseInt(birthParts[1], 10) - 1] || "" : "",
-                birthDay: birthParts[2] ? String(parseInt(birthParts[2], 10)) : "",
-                selectedVariantId: a.serviceVariantId || "",
-                selectedElementId: elementFv?.value || "",
-                uploads: {},
-                files: {},
-              };
-            });
-            setExamApplicants(mappedExamApps);
-          } else if (wizType === "cpe-accreditation") {
+          if (wizType === "cpe-accreditation") {
             const mappedCpeApps = fullDraft.applicants.map((a: any, idx: number) => {
-              const d = a.details || {};
+              const d = a.details || a || {};
               return {
                 id: idx + 1,
                 appType: "NEW" as const,
                 years: "1",
                 variation: "",
                 accreditationNo: "",
-                businessName: d.lastName || "",
+                businessName: d.lastName || d.name || "",
                 entityType: "",
                 dtiNo: "",
                 regionName: "",
@@ -672,7 +683,7 @@ export function useServices() {
             setApplicants(mappedCpeApps);
           } else {
             const mappedGeneralApps = fullDraft.applicants.map((a: any, idx: number) => {
-              const d = a.details || {};
+              const d = a.details || a || {};
               const birthParts = (d.birthDate || "").split("-");
               return {
                 id: idx + 1,
@@ -680,14 +691,14 @@ export function useServices() {
                 lastName: d.lastName || "",
                 middleName: d.middleName || "",
                 suffix: d.suffix || "",
-                email: d.emailAddress || a.email || "",
-                contactNo: d.contactNumber || a.contactNumber || "",
-                address: d.address || "",
+                email: d.emailAddress || d.email || a.email || "",
+                contactNo: d.contactNumber || d.contactNo || a.contactNumber || "",
+                address: d.address || d.streetAddress || "",
                 birthYear: birthParts[0] || "",
                 birthMonth: birthParts[1] ? ["January","February","March","April","May","June","July","August","September","October","November","December"][parseInt(birthParts[1], 10) - 1] || "" : "",
                 birthDay: birthParts[2] ? String(parseInt(birthParts[2], 10)) : "",
                 notes: "",
-                selectedVariantId: a.serviceVariantId || "",
+                selectedVariantId: a.serviceVariantId || fullDraft.serviceVariantId || "",
                 formFieldValues: (a.formFieldValues || []).map((fv: any) => ({
                   fieldId: fv.fieldId,
                   fieldLabel: fv.fieldLabel,
@@ -1060,6 +1071,8 @@ export function useServices() {
     setSelectedRegionId,
     selectedOfficeId,
     setSelectedOfficeId,
+    selectedScheduleId,
+    setSelectedScheduleId,
     appMode,
     setAppMode,
     confirmModalVisible,

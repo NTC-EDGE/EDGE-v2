@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
+using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
 using EDGE.Application.Applications.Commands.SubmitApplication;
@@ -25,6 +26,7 @@ public class SubmitApplicationCommandHandlerTests
     private readonly Mock<ICurrentUserService> _mockCurrentUserService;
     private readonly Mock<IServiceVariantElementRepository> _mockElementRepo;
     private readonly Mock<IUserRepository> _mockUserRepo;
+    private readonly Mock<ILogger<SubmitApplicationCommandHandler>> _mockLogger;
     private readonly SubmitApplicationCommandHandler _handler;
 
     public SubmitApplicationCommandHandlerTests()
@@ -40,6 +42,7 @@ public class SubmitApplicationCommandHandlerTests
         _mockCurrentUserService = new Mock<ICurrentUserService>();
         _mockElementRepo = new Mock<IServiceVariantElementRepository>();
         _mockUserRepo = new Mock<IUserRepository>();
+        _mockLogger = new Mock<ILogger<SubmitApplicationCommandHandler>>();
 
         _handler = new SubmitApplicationCommandHandler(
             _mockApplicationRepo.Object,
@@ -52,7 +55,8 @@ public class SubmitApplicationCommandHandlerTests
             _mockUnitOfWork.Object,
             _mockCurrentUserService.Object,
             _mockElementRepo.Object,
-            _mockUserRepo.Object
+            _mockUserRepo.Object,
+            _mockLogger.Object
         );
     }
 
