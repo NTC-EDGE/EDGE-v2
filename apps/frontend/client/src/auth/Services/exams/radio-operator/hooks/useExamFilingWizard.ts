@@ -166,7 +166,17 @@ export function useExamFilingWizard({
         );
       }
     }
-    const mapped = mapApplicantsPayload(applicants, queries.formFields, serviceName);
+    let mapped: ReturnType<typeof mapApplicantsPayload> = [];
+    try {
+      mapped = mapApplicantsPayload(applicants, queries.formFields, serviceName);
+    } catch (serializationErr: unknown) {
+      const serializationMsg =
+        serializationErr instanceof Error
+          ? serializationErr.message
+          : "Failed to serialize exam applicant data.";
+      throw new Error(`Data Serialization Error: ${serializationMsg}`);
+    }
+
     const payload = {
       tenantId: selectedRegionId,
       submissionMode: (mapped.length > 1 || appMode === "BULK") ? "Bulk" : "Single",
@@ -181,7 +191,7 @@ export function useExamFilingWizard({
     try {
       await api.post(`/api/v2/tenants/${selectedRegionId}/applications`, payload);
     } catch (err: unknown) {
-      throw new Error(extractApiErrorMessage(err));
+      throw new Error(extractApiErrorMessage(err) || "Network request failed while submitting exam applications.");
     }
   };
 

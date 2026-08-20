@@ -816,9 +816,18 @@ export function useGeneralServiceWizard(
       }
     }
 
-    const mappedApplicants = applicants.map((app) =>
-      serializeCertificateApplicant(app, service, [])
-    );
+    let mappedApplicants: ReturnType<typeof serializeCertificateApplicant>[] = [];
+    try {
+      mappedApplicants = applicants.map((app) =>
+        serializeCertificateApplicant(app, service, [])
+      );
+    } catch (serializationErr: unknown) {
+      const serializationMsg =
+        serializationErr instanceof Error
+          ? serializationErr.message
+          : "Failed to serialize applicant form data.";
+      throw new Error(`Data Serialization Error: ${serializationMsg}`);
+    }
 
     const payload = {
       tenantId: selectedRegionId,
@@ -835,7 +844,7 @@ export function useGeneralServiceWizard(
     try {
       await api.post(`/api/v2/tenants/${selectedRegionId}/applications`, payload);
     } catch (err: unknown) {
-      throw new Error(extractApiErrorMessage(err));
+      throw new Error(extractApiErrorMessage(err) || "Network request failed while submitting application.");
     }
   };
 

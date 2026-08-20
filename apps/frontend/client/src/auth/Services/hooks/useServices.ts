@@ -382,14 +382,16 @@ export function useServices() {
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [draftErrorMessage, setDraftErrorMessage] = useState<string | null>(null);
 
-  const deleteDraft = async (draftId: string) => {
+  const deleteDraft = async (draftId: string): Promise<boolean> => {
     try {
       await api.del(`/api/v2/applications/me/drafts/${draftId}`);
       toast.success("Draft Deleted", "The draft has been permanently removed.");
       await refetchDrafts();
       await refetchCategories();
+      return true;
     } catch (err: unknown) {
       toast.error("Failed to Delete Draft", extractApiErrorMessage(err));
+      return false;
     }
   };
 
@@ -555,9 +557,12 @@ export function useServices() {
         const fullRes = await api.get<{ succeeded: boolean; data: any }>(`/api/v2/applications/${draft.id}`);
         if (fullRes?.succeeded && fullRes.data) {
           fullDraft = fullRes.data;
+        } else {
+          toast.error("Failed to Load Draft", "Could not retrieve full draft details from the server.");
         }
       } catch (err) {
         console.warn("Failed to fetch full application details for draft:", err);
+        toast.error("Failed to Load Draft", extractApiErrorMessage(err) || "Network error loading draft details.");
       }
     }
 

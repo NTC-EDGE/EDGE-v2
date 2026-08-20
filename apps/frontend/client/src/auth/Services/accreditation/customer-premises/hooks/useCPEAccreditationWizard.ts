@@ -309,39 +309,48 @@ export function useCPEAccreditationWizard({
 
     try {
       if (serviceId) {
-        let formFieldValues: Array<{ fieldId: string; fieldLabel: string; value: string }> = [];
-        if (activeApplicant.formFieldValues && Array.isArray(activeApplicant.formFieldValues)) {
-          formFieldValues = activeApplicant.formFieldValues;
+        let mappedApplicants: Array<{
+          firstName: string;
+          lastName: string;
+          email: string;
+          contactNumber: string;
+          address: string;
+          birthDate: string;
+          formFieldValues: Array<{ fieldId: string; fieldLabel: string; value: string }>;
+        }> = [];
+
+        try {
+          const isBulkSubmission = appMode === "BULK" || applicants.length > 1;
+          mappedApplicants = (isBulkSubmission ? applicants : [activeApplicant]).map((app) => {
+            let addr = [app.unitBldgNo, app.street, app.barangay, app.city, app.province]
+              .filter(Boolean)
+              .join(", ");
+            if (!addr) addr = "N/A";
+
+            let fvList: Array<{ fieldId: string; fieldLabel: string; value: string }> = [];
+            if (app.formFieldValues && Array.isArray(app.formFieldValues)) {
+              fvList = app.formFieldValues;
+            }
+
+            return {
+              firstName: app.businessName || app.engineerName || "Applicant",
+              lastName: app.entityType || "N/A",
+              email: app.email || "applicant@example.com",
+              contactNumber: app.contactNo || "",
+              address: addr,
+              birthDate: "1990-01-01T00:00:00Z",
+              formFieldValues: fvList,
+            };
+          });
+        } catch (serializationErr: unknown) {
+          const serializationMsg =
+            serializationErr instanceof Error
+              ? serializationErr.message
+              : "Failed to format CPE applicant data.";
+          throw new Error(`Data Serialization Error: ${serializationMsg}`);
         }
 
-        let formattedAddress = [activeApplicant.street, activeApplicant.barangay, activeApplicant.city, activeApplicant.province]
-          .filter(Boolean)
-          .join(", ");
-        if (!formattedAddress) formattedAddress = "N/A";
-
         const isBulkSubmission = appMode === "BULK" || applicants.length > 1;
-        const mappedApplicants = (isBulkSubmission ? applicants : [activeApplicant]).map((app) => {
-          let addr = [app.unitBldgNo, app.street, app.barangay, app.city, app.province]
-            .filter(Boolean)
-            .join(", ");
-          if (!addr) addr = "N/A";
-
-          let fvList: Array<{ fieldId: string; fieldLabel: string; value: string }> = [];
-          if (app.formFieldValues && Array.isArray(app.formFieldValues)) {
-            fvList = app.formFieldValues;
-          }
-
-          return {
-            firstName: app.businessName || app.engineerName || "Applicant",
-            lastName: app.entityType || "N/A",
-            email: app.email || "applicant@example.com",
-            contactNumber: app.contactNo || "",
-            address: addr,
-            birthDate: "1990-01-01T00:00:00Z",
-            formFieldValues: fvList,
-          };
-        });
-
         const payload = {
           tenantId: selectedRegionId,
           submissionMode: isBulkSubmission ? "Bulk" : "Single",
@@ -398,7 +407,7 @@ export function useCPEAccreditationWizard({
 
       await api.post(`/api/v2/tenants/${selectedRegionId}/applications`, payload);
     } catch (err: unknown) {
-      throw new Error(extractApiErrorMessage(err));
+      throw new Error(extractApiErrorMessage(err) || "Network request failed while submitting CPE application.");
     }
   };
 
