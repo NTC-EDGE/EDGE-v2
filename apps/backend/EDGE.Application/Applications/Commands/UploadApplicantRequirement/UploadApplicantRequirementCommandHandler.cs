@@ -96,12 +96,29 @@ public class UploadApplicantRequirementCommandHandler
         var appApplicant = app.ApplicationApplicants.FirstOrDefault(aa => aa.ApplicantId == request.ApplicantId);
         var applicant = appApplicant?.Applicant;
 
-        if (applicant?.ServiceId != null)
+        Guid? serviceId = applicant?.ServiceId;
+        Guid? variantId = applicant?.ServiceVariantId;
+
+        // Fallback to any applicant service if not explicitly specified on target applicant record
+        if (!serviceId.HasValue)
+        {
+            var appWithService = app.ApplicationApplicants.FirstOrDefault(aa => aa.Applicant?.ServiceId != null);
+            if (appWithService?.Applicant != null)
+            {
+                serviceId = appWithService.Applicant.ServiceId;
+                if (!variantId.HasValue)
+                {
+                    variantId = appWithService.Applicant.ServiceVariantId;
+                }
+            }
+        }
+
+        if (serviceId.HasValue && serviceId.Value != Guid.Empty)
         {
             // Query rules scoped to this applicant's service & variant
             var validRules = await _requirementRepository.GetServiceVariantRequirementsAsync(
-                applicant.ServiceId.Value,
-                applicant.ServiceVariantId,
+                serviceId.Value,
+                variantId,
                 cancellationToken);
 
             // If rules are configured for this variant, enforce them strictly.

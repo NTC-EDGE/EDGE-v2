@@ -32,6 +32,12 @@ import {
 } from "../../permits";
 import { isValidContactNumber, isValidEmailAddress } from "../../../../shared/helpers/fieldValidators";
 import { extractUserProfile } from "../../../../shared/utils/userProfileHelper";
+import { uploadRequirementsAfterSubmit } from "../helpers/requirementUploadHelper";
+
+const isGuid = (val?: string | null): boolean => {
+  if (!val || typeof val !== "string") return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val.trim());
+};
 
 export interface TenantInfo {
   id: string;
@@ -293,6 +299,8 @@ export interface UseGeneralServiceWizardOptions {
   setSelectedRegionId?: (id: string) => void;
   selectedOfficeId?: string | null;
   setSelectedOfficeId?: (id: string) => void;
+  selectedScheduleId?: string | null;
+  setSelectedScheduleId?: (id: string | null) => void;
   appMode?: "SINGLE" | "BULK" | "";
   applicants?: GeneralApplicantData[];
   setApplicants?: React.Dispatch<React.SetStateAction<GeneralApplicantData[]>>;
@@ -306,6 +314,7 @@ export function useGeneralServiceWizard(
 ) {
   const api = useApi();
   const { user: clerkUser } = useUser();
+  const { getToken } = useAuth();
 
   const isOptionsObject = typeof optionsOrService === "object" && "service" in optionsOrService;
   const service = isOptionsObject ? (optionsOrService as UseGeneralServiceWizardOptions).service : (optionsOrService as NTCService);
@@ -362,15 +371,26 @@ export function useGeneralServiceWizard(
 
   // Examination Schedule State
   const isExamService = Boolean(
-    service?.category?.toLowerCase() === "exams" ||
-    service?.category?.toLowerCase() === "exam" ||
-    service?.title?.toLowerCase().includes("exam") ||
-    service?.title?.toLowerCase().includes("admission") ||
-    service?.title?.toLowerCase().includes("operator")
+    service?.category?.toLowerCase()?.includes("exam") ||
+    service?.categoryCode?.toLowerCase()?.includes("exam") ||
+    service?.serviceCategoryCode?.toLowerCase()?.includes("exam") ||
+    service?.title?.toLowerCase()?.includes("exam") ||
+    service?.title?.toLowerCase()?.includes("admission") ||
+    service?.title?.toLowerCase()?.includes("operator") ||
+    service?.serviceCategory?.type === "Exam" ||
+    service?.serviceCategory?.type === 1
   );
   const [schedules, setSchedules] = useState<ExamScheduleItem[]>([]);
   const [loadingSchedules, setLoadingSchedules] = useState(false);
-  const [selectedScheduleId, setSelectedScheduleId] = useState<string | null>(null);
+  const [localScheduleId, setLocalScheduleId] = useState<string | null>(null);
+
+  const selectedScheduleId = isOptionsObject && (optionsOrService as UseGeneralServiceWizardOptions).selectedScheduleId !== undefined
+    ? ((optionsOrService as UseGeneralServiceWizardOptions).selectedScheduleId ?? null)
+    : localScheduleId;
+
+  const setSelectedScheduleId = isOptionsObject && (optionsOrService as UseGeneralServiceWizardOptions).setSelectedScheduleId !== undefined
+    ? ((optionsOrService as UseGeneralServiceWizardOptions).setSelectedScheduleId ?? setLocalScheduleId)
+    : setLocalScheduleId;
 
   // Fetch Examination Schedules when Region changes for exam services
   React.useEffect(() => {
@@ -464,6 +484,9 @@ export function useGeneralServiceWizard(
           };
         });
         setSchedules(mappedSchedules);
+        if (mappedSchedules.length > 0 && !selectedScheduleId) {
+          setSelectedScheduleId(mappedSchedules[0].id);
+        }
       } catch (err) {
         console.warn("[useGeneralServiceWizard] Failed to fetch exam schedules:", err);
         if (active) setSchedules([]);
@@ -836,6 +859,54 @@ export function useGeneralServiceWizard(
       throw new Error(`Data Serialization Error: ${serializationMsg}`);
     }
 
+    let effectiveScheduleId = selectedScheduleId && isGuid(selectedScheduleId) ? selectedScheduleId : undefined;
+
+    if (!effectiveScheduleId && isExamService) {
+      if (schedules.length > 0 && isGuid(schedules[0].id)) {
+        effectiveScheduleId = schedules[0].id;
+        setSelectedScheduleId(effectiveScheduleId);
+      } else if (selectedRegionId && service?.id) {
+        try {
+          const fetchedSchedules = await api
+            .get<unknown>(
+              `/api/v2/schedules/client-view?serviceId=${service.id}&tenantId=${selectedRegionId}&pageSize=50`
+            )
+            .catch(async () => {
+              return await api
+                .get<unknown>(
+                  `/api/v2/schedules?serviceId=${service.id}&tenantId=${selectedRegionId}&pageSize=50`
+                )
+                .catch(() => null);
+            });
+
+          const dataObj = typeof fetchedSchedules === "object" && fetchedSchedules !== null ? (fetchedSchedules as Record<string, unknown>) : {};
+          const rawItems = Array.isArray(fetchedSchedules)
+            ? fetchedSchedules
+            : Array.isArray(dataObj.items)
+            ? (dataObj.items as unknown[])
+            : Array.isArray(dataObj.data)
+            ? (dataObj.data as unknown[])
+            : [];
+
+          if (rawItems.length > 0) {
+            const firstItem = rawItems[0] as Record<string, unknown>;
+            if (firstItem?.id && isGuid(String(firstItem.id))) {
+              effectiveScheduleId = String(firstItem.id);
+              setSelectedScheduleId(effectiveScheduleId);
+            }
+          }
+        } catch (fetchErr) {
+          console.warn("[useGeneralServiceWizard] Could not resolve schedule for exam submission:", fetchErr);
+        }
+      }
+    }
+
+    if (isExamService && !isDraft && (!effectiveScheduleId || !isGuid(effectiveScheduleId))) {
+      throw new Error(
+        "Examination Schedule is required for exam service applications. Please select an Examination Schedule & Venue before submitting."
+      );
+    }
+
     const payload = {
       tenantId: selectedRegionId,
       submissionMode: appMode === "BULK" || mappedApplicants.length > 1 ? "Bulk" : "Single",
@@ -843,13 +914,33 @@ export function useGeneralServiceWizard(
       fieldOfficeId: selectedOfficeId,
       serviceVariantId: activeApplicant.selectedVariantId || (variants.length > 0 ? variants[0].id : null),
       serviceVariantElementIds: [],
-      scheduleId: isExamService && selectedScheduleId ? selectedScheduleId : undefined,
+      scheduleId: effectiveScheduleId || (isExamService ? null : undefined),
       isDraft: isDraft,
       applicants: mappedApplicants,
     };
 
     try {
-      await api.post(`/api/v2/tenants/${selectedRegionId}/applications`, payload);
+      const submitRes = await api.post<unknown>(`/api/v2/tenants/${selectedRegionId}/applications`, payload);
+      const resObj = typeof submitRes === "object" && submitRes !== null ? (submitRes as Record<string, unknown>) : {};
+      const applicationId =
+        typeof submitRes === "string" && submitRes.trim() !== ""
+          ? submitRes
+          : resObj.succeeded === true && typeof resObj.data === "string"
+          ? resObj.data
+          : typeof resObj.id === "string"
+          ? resObj.id
+          : null;
+
+      if (applicationId) {
+        const allApplicantsForUpload = appMode === "BULK" || mappedApplicants.length > 1 ? applicants : [activeApplicant];
+        await uploadRequirementsAfterSubmit({
+          api,
+          applicationId,
+          tenantId: selectedRegionId,
+          applicants: allApplicantsForUpload,
+          getToken,
+        });
+      }
     } catch (err: unknown) {
       throw new Error(extractApiErrorMessage(err) || "Network request failed while submitting application.");
     }

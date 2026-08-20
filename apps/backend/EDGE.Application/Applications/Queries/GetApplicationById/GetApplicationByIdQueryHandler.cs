@@ -74,6 +74,10 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                 ApplicantId = r.ApplicantId,
                 RequirementId = r.RequirementId,
                 ServiceVariantRequirementId = r.ServiceVariantRequirementId,
+                StoredFileId = r.StoredFileId,
+                FileName = r.StoredFile?.FileName ?? (!string.IsNullOrEmpty(r.Url) ? Path.GetFileName(r.Url) : null),
+                ContentType = r.StoredFile?.ContentType,
+                FileSizeBytes = r.StoredFile?.FileSizeBytes,
                 Url = r.Url,
                 IsApproved = r.IsApproved
             }).ToList(),

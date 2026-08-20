@@ -97,3 +97,28 @@ const styles = StyleSheet.create({
     padding: 4,
   },
 });
+
+export const toast = {
+  success: (msg: string) => {
+    // Graceful no-op on platforms without DOM, usable by components
+    if (typeof console !== "undefined") {
+      console.log(`[Toast Success]: ${msg}`);
+    }
+  },
+  error: (msg: string) => {
+    if (typeof console !== "undefined") {
+      console.warn(`[Toast Error]: ${msg}`);
+    }
+  },
+  warning: (msg: string) => {
+    if (typeof console !== "undefined") {
+      console.warn(`[Toast Warning]: ${msg}`);
+    }
+  },
+  info: (msg: string) => {
+    if (typeof console !== "undefined") {
+      console.info(`[Toast Info]: ${msg}`);
+    }
+  },
+};
+

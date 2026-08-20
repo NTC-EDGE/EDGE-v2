@@ -17,6 +17,7 @@ import { DocumentPreviewModal } from '../../../shared/components/DocumentPreview
 import { OFFICIAL_LEGAL_DECLARATION } from '../../../shared/components/DeclarationCheckbox';
 import {
   Application,
+  SingleApplication,
   getStatusLabel,
   getStatusColor,
   getStatusBgColor,
@@ -98,7 +99,65 @@ const getApplicantStepProgress = (status: string) => {
   }
 };
 
-function extractApplicantFullName(app: any, details: any, first: any): string {
+const isGuid = (val?: string | null): boolean => {
+  if (!val || typeof val !== 'string') return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val.trim());
+};
+
+interface RawFormFieldItem {
+  fieldId?: string;
+  fieldLabel?: string;
+  label?: string;
+  key?: string;
+  value?: string;
+}
+
+interface RawApplicantDetails {
+  fullName?: string;
+  applicantName?: string;
+  firstName?: string;
+  lastName?: string;
+  first_name?: string;
+  last_name?: string;
+  companyName?: string;
+  representativeName?: string;
+  notes?: string;
+  birthDate?: string;
+  birthMonth?: string;
+  birthDay?: string;
+  birthYear?: string;
+  civilStatus?: string;
+  sex?: 'Male' | 'Female';
+  nationality?: string;
+  streetAddress?: string;
+  address?: string;
+  barangay?: string;
+  cityMunicipality?: string;
+  province?: string;
+  region?: string;
+  zipCode?: string;
+  mobileNumber?: string;
+  contactNumber?: string;
+  email?: string;
+  emailAddress?: string;
+  examineeType?: string;
+  formFieldValues?: RawFormFieldItem[];
+}
+
+interface RawApplicantHolder {
+  name?: string;
+  applicantName?: string;
+  applicationType?: string;
+  applicantType?: string;
+  details?: RawApplicantDetails;
+  formFieldValues?: RawFormFieldItem[];
+}
+
+function extractApplicantFullName(
+  app: Application | null | undefined,
+  details: RawApplicantDetails | null | undefined,
+  first: RawApplicantHolder | null | undefined
+): string {
   if (first?.name && typeof first.name === 'string' && first.name.trim() && first.name !== 'Unnamed Applicant') {
     return first.name.trim();
   }
@@ -112,8 +171,8 @@ function extractApplicantFullName(app: any, details: any, first: any): string {
     return details.applicantName.trim();
   }
   
-  const firstName = details?.firstName || details?.first_name || app?.firstName || app?.first_name || '';
-  const lastName = details?.lastName || details?.last_name || app?.lastName || app?.last_name || '';
+  const firstName = details?.firstName || details?.first_name || (app as SingleApplication | undefined)?.applicantName || '';
+  const lastName = details?.lastName || details?.last_name || '';
   const combinedName = `${firstName} ${lastName}`.trim();
   if (combinedName.length > 0) {
     return combinedName;
@@ -123,19 +182,19 @@ function extractApplicantFullName(app: any, details: any, first: any): string {
     return app.applicantName.trim();
   }
 
-  const fvList =
+  const fvList: RawFormFieldItem[] =
     (Array.isArray(details?.formFieldValues) && details.formFieldValues) ||
     (Array.isArray(first?.formFieldValues) && first.formFieldValues) ||
     (Array.isArray(app?.formFieldValues) && app.formFieldValues) ||
     [];
 
   if (fvList.length > 0) {
-    const knownFv = fvList.find((fv: any) => fv.fieldId === 'fd000000-0000-0000-0000-000000000001');
+    const knownFv = fvList.find((fv: RawFormFieldItem) => fv.fieldId === 'fd000000-0000-0000-0000-000000000001');
     if (knownFv && knownFv.value && knownFv.value.trim()) {
       return knownFv.value.trim();
     }
 
-    const matchedFv = fvList.find((fv: any) => {
+    const matchedFv = fvList.find((fv: RawFormFieldItem) => {
       const lbl = (fv.fieldLabel || fv.label || fv.key || fv.fieldId || '').toLowerCase();
       return (
         lbl.includes('full name') ||
@@ -201,7 +260,6 @@ export function ApplicationDetailsPage({
     }
   }, [initialApp.id]);
 
-  // Active Tab: 'DETAILS' | 'DOCUMENTS'
   const [activeTab, setActiveTab] = useState<'DETAILS' | 'DOCUMENTS'>('DETAILS');
   const [previewDoc, setPreviewDoc] = useState<ApplicationDocument | null>(null);
   const [previewCustomDoc, setPreviewCustomDoc] = useState<{ uri: string; name: string } | null>(null);
@@ -212,18 +270,41 @@ export function ApplicationDetailsPage({
     return m === 'BULK';
   }, [app.mode]);
 
-  // Safely extract single applicant details supporting both mock structure and backend API structure
   const singleApplicant = useMemo(() => {
     if (app.mode === 'BULK') return null;
-    const list = app.applicants || app.Applicants || [];
-    let first: any = null;
-    let details: any = null;
+    const list = (app.applicants || app.Applicants || []) as RawApplicantHolder[];
+    let first: RawApplicantHolder | null = null;
+    let details: RawApplicantDetails | null = null;
     if (list.length > 0) {
       first = list[0];
-      details = first.details || first;
+      details = first.details || (first as unknown as RawApplicantDetails);
     }
     
     const applicantName = extractApplicantFullName(app, details, first);
+    const rawFormFields = (app.formFieldValues || first?.formFieldValues || details?.formFieldValues || []) as Array<{
+      fieldId?: string;
+      fieldLabel?: string;
+      value?: string;
+    }>;
+
+    const birthDate =
+      details?.birthDate ||
+      (details?.birthMonth && details?.birthDay && details?.birthYear
+        ? `${details.birthMonth} ${details.birthDay}, ${details.birthYear}`
+        : rawFormFields.find((fv) => fv.fieldId === 'birthDate' || (fv.fieldLabel || '').toLowerCase().includes('birth'))?.value || null);
+
+    const civilStatus =
+      details?.civilStatus ||
+      rawFormFields.find((fv) => fv.fieldId === 'civilStatus' || (fv.fieldLabel || '').toLowerCase().includes('civil') || (fv.fieldLabel || '').toLowerCase().includes('marital'))?.value || null;
+
+    const companyName =
+      details?.companyName || app.companyName || null;
+
+    const representativeName =
+      details?.representativeName ||
+      rawFormFields.find((fv) => (fv.fieldLabel || '').toLowerCase().includes('representative'))?.value || null;
+
+    const notes = details?.notes || app.remarks || null;
 
     return {
       applicantName,
@@ -238,10 +319,50 @@ export function ApplicationDetailsPage({
       mobileNumber: details?.mobileNumber || details?.contactNumber || app.mobileNumber || 'N/A',
       email: details?.email || details?.emailAddress || app.email || 'N/A',
       examineeType: details?.examineeType || first?.applicationType || first?.applicantType || app.element || app.examineeType || 'New',
+      birthDate,
+      civilStatus,
+      companyName,
+      representativeName,
+      notes,
     };
   }, [app]);
 
-  // Safely extract form field values returned from the form submission
+  const isExamService = useMemo(() => {
+    const cat = (app.serviceCategory || '').toLowerCase().trim();
+    const title = (app.serviceName || '').toLowerCase().trim();
+    return (
+      cat.includes('exam') ||
+      title.includes('exam') ||
+      title.includes('admission') ||
+      title.includes('operator examination')
+    );
+  }, [app.serviceCategory, app.serviceName]);
+
+  const scheduleSummaryText = useMemo(() => {
+    if (app.schedule) {
+      const parts = [
+        app.schedule.date && app.schedule.date !== 'TBD' ? app.schedule.date : undefined,
+        app.schedule.time && app.schedule.time !== 'TBD' ? app.schedule.time : undefined,
+        app.schedule.venue || app.office || undefined,
+      ].filter(Boolean);
+      if (parts.length > 0) return parts.join(' • ');
+    }
+    if (app.office) {
+      return `NTC Field Office • ${app.office}`;
+    }
+    return null;
+  }, [app]);
+
+  const variantLabel = useMemo(() => {
+    return (
+      app.serviceVariantName ||
+      app.variant ||
+      app.element ||
+      singleApplicant?.examineeType ||
+      'Standard'
+    );
+  }, [app, singleApplicant]);
+
   const formFieldValues = useMemo(() => {
     if (app.formFieldValues && app.formFieldValues.length > 0) {
       return app.formFieldValues;
@@ -356,18 +477,30 @@ export function ApplicationDetailsPage({
           cat = req.category;
         }
 
-        let typ: 'PDF' | 'DOCX' | 'ZIP' | 'IMAGE' = fileName.toLowerCase().endsWith('.zip') ? 'ZIP' : 'PDF';
-        if (req.category === 'ISSUED_PERMIT' && fileName.toLowerCase().endsWith('.zip')) {
+        const ext = fileName.toLowerCase().split('.').pop() || '';
+        let typ: 'PDF' | 'DOCX' | 'ZIP' | 'IMAGE' = 'PDF';
+        if (['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp'].includes(ext)) {
+          typ = 'IMAGE';
+        } else if (['zip', 'rar', '7z'].includes(ext)) {
           typ = 'ZIP';
+        } else if (['doc', 'docx'].includes(ext)) {
+          typ = 'DOCX';
+        }
+
+        let formattedSize = req.size;
+        if (!formattedSize && req.fileSizeBytes) {
+          formattedSize = (req.fileSizeBytes / (1024 * 1024)).toFixed(2) + ' MB';
         }
 
         return {
           id: req.id || `doc-${index}`,
           name: fileName,
           type: typ,
-          size: req.size || '1.2 MB',
+          size: formattedSize || '1.2 MB',
           category: cat,
           uploadedAt: req.uploadedAt || app.submittedAt || new Date().toISOString(),
+          url: req.url,
+          storedFileId: req.storedFileId,
         };
       });
     }
@@ -778,72 +911,376 @@ export function ApplicationDetailsPage({
               </>
             ) : (
               <View style={{ gap: 20 }}>
-                {/* ── Top Section: Applicant Details (3 Cards in a Row on Desktop) ── */}
+                {/* ── Hero Review & Status Header ── */}
                 <View
                   style={{
-                    flexDirection: isDesktop ? 'row' : 'column',
-                    gap: 16,
-                    alignItems: 'stretch',
+                    backgroundColor: '#0F2C59',
+                    borderRadius: 14,
+                    padding: 18,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 14,
+                    marginBottom: 4,
                   }}
                 >
-                  {/* Card 1: Applicant Profile */}
-                  <View style={[styles.sectionCard, isDesktop && { flex: 1, marginBottom: 0 }]}>
-                    <View style={styles.sectionCardHeader}>
-                      <Icon name="user" size={18} color="#1D4ED8" />
-                      <Text style={styles.sectionCardTitle}>1. Applicant Profile</Text>
-                    </View>
-
-                    <View style={styles.sectionCardBody}>
-                      <DetailRow label="Full Name" value={primaryName} />
-                      <DetailRow label="Sex" value={singleApplicant?.sex} />
-                      <DetailRow label="Nationality" value={singleApplicant?.nationality} />
-                      <DetailRow label="Element Type" value={singleApplicant?.examineeType || app.element} />
-                      <DetailRow label="Submission Date" value={submissionTime} isLast />
-                    </View>
+                  <View
+                    style={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: 22,
+                      backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Icon name="check-circle" size={22} color="#FFFFFF" />
                   </View>
-
-                  {/* Card 2: Contact Details */}
-                  <View style={[styles.sectionCard, isDesktop && { flex: 1, marginBottom: 0 }]}>
-                    <View style={styles.sectionCardHeader}>
-                      <Icon name="mail" size={18} color="#1D4ED8" />
-                      <Text style={styles.sectionCardTitle}>2. Contact Details</Text>
-                    </View>
-
-                    <View style={styles.sectionCardBody}>
-                      <DetailRow label="Mobile Number" value={singleApplicant?.mobileNumber} />
-                      <DetailRow label="Email Address" value={singleApplicant?.email} />
-                      <DetailRow label="Verification Status" value="Verified & Active" isLast />
-                    </View>
-                  </View>
-
-                  {/* Card 3: Permanent Address */}
-                  <View style={[styles.sectionCard, isDesktop && { flex: 1, marginBottom: 0 }]}>
-                    <View style={styles.sectionCardHeader}>
-                      <Icon name="map-pin" size={18} color="#1D4ED8" />
-                      <Text style={styles.sectionCardTitle}>3. Permanent Address</Text>
-                    </View>
-
-                    <View style={styles.sectionCardBody}>
-                      <DetailRow label="Street Address" value={singleApplicant?.streetAddress} />
-                      <DetailRow label="Barangay" value={singleApplicant?.barangay} />
-                      <DetailRow label="City / Municipality" value={singleApplicant?.cityMunicipality} />
-                        <DetailRow label="Province" value={singleApplicant?.province} />
-                      <DetailRow label="Region" value={singleApplicant?.region} />
-                      <DetailRow label="Zip Code" value={singleApplicant?.zipCode} isLast />
-                    </View>
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={{
+                        fontFamily: TYPOGRAPHY.fonts.primary,
+                        fontSize: 16,
+                        fontWeight: '700',
+                        color: '#FFFFFF',
+                        marginBottom: 2,
+                      }}
+                    >
+                      Official Application Review & Summary
+                    </Text>
+                    <Text
+                      style={{
+                        fontFamily: TYPOGRAPHY.fonts.primary,
+                        fontSize: 12,
+                        color: 'rgba(255, 255, 255, 0.7)',
+                      }}
+                    >
+                      Reference #{app.referenceNumber} • Submitted {submissionTime}
+                    </Text>
                   </View>
                 </View>
 
-                {/* ── Bottom Section: 4. Submitted Form & Technical Specifications (Full Width) ── */}
+                {/* ── Section 1: Examination Details / Service & Jurisdiction Parameters ── */}
+                <SectionCard
+                  icon={isExamService ? 'file-text' : 'layers'}
+                  title={isExamService ? '1. Examination Details & Service Parameters' : '1. Service & Jurisdiction Parameters'}
+                  accentColor="#0F2C59"
+                >
+                  <View style={{ gap: 4 }}>
+                    <SummaryRow label="Service Name" value={app.serviceName} />
+                    <SummaryRow label="Service Category" value={app.serviceCategory} />
+
+                    <View style={{ flexDirection: isDesktop ? 'row' : 'column', gap: 8 }}>
+                      <View style={{ flex: 1 }}>
+                        <SummaryRow
+                          label="Target Region / Jurisdiction"
+                          value={app.region || app.tenantName || 'NTC Regional Jurisdiction'}
+                        />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <SummaryRow
+                          label="Field Office"
+                          value={app.office || (app.schedule?.venue) || 'Main Processing Office'}
+                        />
+                      </View>
+                    </View>
+
+                    <View style={{ flexDirection: isDesktop ? 'row' : 'column', gap: 8 }}>
+                      <View style={{ flex: 1 }}>
+                        <SummaryRow
+                          label="Applicant Classification"
+                          value={singleApplicant?.companyName ? `Company / Corporate (${singleApplicant.companyName})` : 'Individual Applicant'}
+                        />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <SummaryRow
+                          label="Filing Mode"
+                          value="Single Applicant Filing"
+                        />
+                      </View>
+                    </View>
+
+                    <SummaryRow
+                      label="Application Variant / Type"
+                      value={variantLabel}
+                    />
+
+                    {scheduleSummaryText ? (
+                      <View
+                        style={{
+                          backgroundColor: '#EFF6FF',
+                          borderWidth: 1,
+                          borderColor: '#BFDBFE',
+                          borderRadius: 10,
+                          padding: 12,
+                          marginTop: 4,
+                          marginBottom: 4,
+                        }}
+                      >
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                          <Icon name="calendar" size={14} color="#1D4ED8" />
+                          <Text
+                            style={{
+                              fontFamily: TYPOGRAPHY.fonts.primary,
+                              fontSize: 11,
+                              fontWeight: '700',
+                              color: '#1D4ED8',
+                              textTransform: 'uppercase',
+                              letterSpacing: 0.5,
+                            }}
+                          >
+                            EXAMINATION SCHEDULE & VENUE
+                          </Text>
+                        </View>
+                        <Text
+                          style={{
+                            fontFamily: TYPOGRAPHY.fonts.primary,
+                            fontSize: 13,
+                            fontWeight: '700',
+                            color: '#0F172A',
+                          }}
+                        >
+                          {scheduleSummaryText}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
+                </SectionCard>
+
+                {/* ── Section 2: Applicant Details ── */}
+                <SectionCard
+                  icon="user"
+                  title="2. Applicant Details"
+                  accentColor="#1D4ED8"
+                >
+                  <View style={{ gap: 4 }}>
+                    <SummaryRow label="Full Legal Name" value={primaryName} />
+
+                    {singleApplicant?.companyName ? (
+                      <SummaryRow label="Registered Business / Corporate Name" value={singleApplicant.companyName} />
+                    ) : null}
+
+                    {singleApplicant?.representativeName ? (
+                      <SummaryRow label="Authorized Representative" value={singleApplicant.representativeName} />
+                    ) : null}
+
+                    <View style={{ flexDirection: isDesktop ? 'row' : 'column', gap: 8 }}>
+                      <View style={{ flex: 1 }}>
+                        <SummaryRow label="Email Address" value={singleApplicant?.email} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <SummaryRow label="Contact / Mobile Number" value={singleApplicant?.mobileNumber} />
+                      </View>
+                    </View>
+
+                    <SummaryRow
+                      label="Complete Residential / Office Address"
+                      value={[
+                        singleApplicant?.streetAddress,
+                        singleApplicant?.barangay,
+                        singleApplicant?.cityMunicipality,
+                        singleApplicant?.province,
+                        singleApplicant?.region,
+                        singleApplicant?.zipCode,
+                      ]
+                        .filter(Boolean)
+                        .filter((v) => v !== 'N/A' && v !== '')
+                        .join(', ')}
+                    />
+
+                    <View style={{ flexDirection: isDesktop ? 'row' : 'column', gap: 8 }}>
+                      {singleApplicant?.birthDate ? (
+                        <View style={{ flex: 1 }}>
+                          <SummaryRow label="Date of Birth" value={singleApplicant.birthDate} />
+                        </View>
+                      ) : null}
+                      <View style={{ flex: 1 }}>
+                        <SummaryRow label="Sex / Gender" value={singleApplicant?.sex} />
+                      </View>
+                    </View>
+
+                    <View style={{ flexDirection: isDesktop ? 'row' : 'column', gap: 8 }}>
+                      {singleApplicant?.civilStatus ? (
+                        <View style={{ flex: 1 }}>
+                          <SummaryRow label="Civil Status" value={singleApplicant.civilStatus} />
+                        </View>
+                      ) : null}
+                      <View style={{ flex: 1 }}>
+                        <SummaryRow label="Nationality / Citizenship" value={singleApplicant?.nationality} />
+                      </View>
+                    </View>
+
+                    {singleApplicant?.notes ? (
+                      <SummaryRow label="Special Notes / Remarks" value={singleApplicant.notes} />
+                    ) : null}
+                  </View>
+                </SectionCard>
+
+                {/* ── Section 3+: Submitted Form & Technical Specifications (Full Width) ── */}
                 <View style={{ width: '100%' }}>
                   <SubmittedFormStructuredView
                     app={app}
                     primaryName={primaryName}
                     formFieldValues={formFieldValues}
                     onPreviewFile={(uri, name) => setPreviewCustomDoc({ uri, name })}
-                    sectionNumber="4"
+                    sectionNumber="3"
                   />
                 </View>
+
+                {/* ── Section 4: Attached Requirements & Document Proofs ── */}
+                {docs.length > 0 && (
+                  <SectionCard
+                    icon="paperclip"
+                    title="4. Attached Requirements & Document Proofs"
+                    accentColor="#059669"
+                  >
+                    <View style={{ gap: 10 }}>
+                      <Text
+                        style={{
+                          fontFamily: TYPOGRAPHY.fonts.primary,
+                          fontSize: 12,
+                          color: '#64748B',
+                          marginBottom: 4,
+                        }}
+                      >
+                        {docs.length} official document(s) and uploaded requirement proofs attached to this application:
+                      </Text>
+
+                      {docs.map((doc, dIdx) => (
+                        <View
+                          key={doc.id || `doc-req-${dIdx}`}
+                          style={{
+                            backgroundColor: '#F8FAFC',
+                            borderWidth: 1,
+                            borderColor: '#E2E8F0',
+                            borderRadius: 10,
+                            padding: 12,
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: 12,
+                          }}
+                        >
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                            <View
+                              style={{
+                                width: 36,
+                                height: 36,
+                                borderRadius: 8,
+                                backgroundColor: '#EFF6FF',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                              }}
+                            >
+                              <Icon name="file-text" size={18} color="#1D4ED8" />
+                            </View>
+                            <View style={{ flex: 1 }}>
+                              <Text
+                                style={{
+                                  fontFamily: TYPOGRAPHY.fonts.primary,
+                                  fontSize: 13,
+                                  fontWeight: '700',
+                                  color: '#0F172A',
+                                }}
+                                numberOfLines={1}
+                              >
+                                {doc.name}
+                              </Text>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                                <View
+                                  style={{
+                                    backgroundColor: '#EFF6FF',
+                                    borderWidth: 1,
+                                    borderColor: '#BFDBFE',
+                                    borderRadius: 6,
+                                    paddingHorizontal: 6,
+                                    paddingVertical: 1,
+                                  }}
+                                >
+                                  <Text
+                                    style={{
+                                      fontFamily: TYPOGRAPHY.fonts.primary,
+                                      fontSize: 10,
+                                      fontWeight: '700',
+                                      color: '#1D4ED8',
+                                      textTransform: 'uppercase',
+                                    }}
+                                  >
+                                    {doc.category.replace('_', ' ')}
+                                  </Text>
+                                </View>
+                                <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, color: '#64748B' }}>
+                                  {doc.size}
+                                </Text>
+                              </View>
+                            </View>
+                          </View>
+
+                          <TouchableOpacity
+                            onPress={async () => {
+                              const rawReq = (app.requirements ?? app.Requirements ?? []) as RawRequirement[];
+                              const matched = rawReq.find(
+                                (r) => r.id === doc.id || (r.url !== undefined && r.url.includes(doc.id)) || (r.storedFileId !== undefined && r.storedFileId === doc.storedFileId)
+                              );
+                              let fileUrl: string | undefined = doc.url ?? matched?.url ?? undefined;
+                              if (!fileUrl && (doc.storedFileId || matched?.storedFileId)) {
+                                const targetFileId = doc.storedFileId || matched?.storedFileId;
+                                const tenantId = (app.tenantId && isGuid(app.tenantId)) ? app.tenantId : (app.region && isGuid(app.region) ? app.region : 'aa0cd342-7265-4d9e-9242-948fc7e3d0a8');
+                                fileUrl = `/api/v2/tenants/${tenantId}/storage/files/${targetFileId}`;
+                              }
+
+                              if (fileUrl !== undefined && fileUrl !== '') {
+                                setPreviewLoadingId(doc.id);
+                                try {
+                                  const baseUrl =
+                                    (process.env.EXPO_PUBLIC_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? '').trim();
+                                  const fullUrl = fileUrl.startsWith('http') ? fileUrl : `${baseUrl}${fileUrl}`;
+                                  const blob = await api.get<Blob>(fullUrl);
+                                  const objectUrl =
+                                    typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function'
+                                      ? URL.createObjectURL(blob as unknown as Blob)
+                                      : fullUrl;
+
+                                  setPreviewCustomDoc({ uri: objectUrl, name: doc.name });
+                                } catch (fetchErr) {
+                                  console.warn('[ApplicationDetails] Could not fetch file preview:', fetchErr);
+                                  setPreviewCustomDoc({ uri: fileUrl, name: doc.name });
+                                } finally {
+                                  setPreviewLoadingId(null);
+                                }
+                              } else {
+                                setPreviewDoc(doc);
+                              }
+                            }}
+                            style={{
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              backgroundColor: '#EFF6FF',
+                              borderWidth: 1,
+                              borderColor: '#BFDBFE',
+                              paddingVertical: 6,
+                              paddingHorizontal: 12,
+                              borderRadius: 8,
+                              gap: 4,
+                            }}
+                            activeOpacity={0.8}
+                          >
+                            <Icon name="eye" size={13} color="#1D4ED8" />
+                            <Text
+                              style={{
+                                fontFamily: TYPOGRAPHY.fonts.primary,
+                                fontSize: 11,
+                                fontWeight: '700',
+                                color: '#1D4ED8',
+                              }}
+                            >
+                              View Document
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                      ))}
+                    </View>
+                  </SectionCard>
+                )}
               </View>
             )}
           </View>
@@ -868,7 +1305,7 @@ export function ApplicationDetailsPage({
                 const matched = rawReq.find(
                   (r) => r.id === doc.id || (r.url !== undefined && r.url.includes(doc.id))
                 );
-                const fileUrl: string | undefined = matched?.url ?? undefined;
+                const fileUrl: string | undefined = doc.url ?? matched?.url ?? undefined;
 
                 if (fileUrl !== undefined && fileUrl !== '') {
                   setPreviewLoadingId(doc.id);
@@ -1046,6 +1483,147 @@ export function ApplicationDetailsPage({
         )}
       </Modal>
 
+      {/* ── Selected Bulk Applicant Details Modal ────────────────────────── */}
+      <Modal
+        visible={selectedApplicant !== null}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setSelectedApplicant(null)}
+      >
+        {selectedApplicant !== null && (
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, { maxWidth: isMobile ? '95%' : 780, maxHeight: '92%' }]}>
+              <View style={styles.modalHeader}>
+                <View style={styles.modalHeaderTitleGroup}>
+                  <View
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 18,
+                      backgroundColor: '#EFF6FF',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Icon name="user" size={18} color="#1D4ED8" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.modalTitle} numberOfLines={1}>
+                      {selectedApplicant.name}
+                    </Text>
+                    <Text style={styles.modalSubtitle}>
+                      {selectedApplicant.applicationType} • {safeGetStatusLabel(selectedApplicant.status)}
+                    </Text>
+                  </View>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setSelectedApplicant(null)}
+                  style={styles.modalCloseBtn}
+                >
+                  <Icon name="x" size={18} color="#64748B" />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView style={styles.modalBodyScroll} contentContainerStyle={styles.modalBodyContent}>
+                <View style={{ gap: 16 }}>
+                  {/* Section 1: Examination & Service Parameters */}
+                  <SectionCard
+                    icon={isExamService ? 'file-text' : 'layers'}
+                    title={isExamService ? '1. Examination & Service Parameters' : '1. Service & Jurisdiction Parameters'}
+                    accentColor="#0F2C59"
+                  >
+                    <View style={{ gap: 4 }}>
+                      <SummaryRow label="Service Name" value={app.serviceName} />
+                      <SummaryRow label="Service Category" value={app.serviceCategory} />
+                      <View style={{ flexDirection: isDesktop ? 'row' : 'column', gap: 8 }}>
+                        <View style={{ flex: 1 }}>
+                          <SummaryRow
+                            label="Target Region / Jurisdiction"
+                            value={app.region || app.tenantName || 'NTC Regional Jurisdiction'}
+                          />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <SummaryRow
+                            label="Field Office"
+                            value={app.office || (app.schedule?.venue) || 'Main Processing Office'}
+                          />
+                        </View>
+                      </View>
+                      <SummaryRow label="Application Type" value={selectedApplicant.applicationType} />
+                      {scheduleSummaryText ? (
+                        <SummaryRow label="Exam Schedule & Venue" value={scheduleSummaryText} />
+                      ) : null}
+                    </View>
+                  </SectionCard>
+
+                  {/* Section 2: Applicant Details */}
+                  <SectionCard
+                    icon="user"
+                    title="2. Applicant Details"
+                    accentColor="#1D4ED8"
+                  >
+                    <View style={{ gap: 4 }}>
+                      <SummaryRow label="Full Legal Name" value={selectedApplicant.name} />
+                      <View style={{ flexDirection: isDesktop ? 'row' : 'column', gap: 8 }}>
+                        <View style={{ flex: 1 }}>
+                          <SummaryRow label="Email Address" value={selectedApplicant.email} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <SummaryRow label="Contact / Mobile Number" value={selectedApplicant.mobileNumber} />
+                        </View>
+                      </View>
+                      <SummaryRow
+                        label="Complete Address"
+                        value={[
+                          selectedApplicant.streetAddress,
+                          selectedApplicant.barangay,
+                          selectedApplicant.cityMunicipality,
+                          selectedApplicant.province,
+                          selectedApplicant.region,
+                          selectedApplicant.zipCode,
+                        ]
+                          .filter(Boolean)
+                          .filter((v) => v !== 'N/A' && v !== '')
+                          .join(', ')}
+                      />
+                      <View style={{ flexDirection: isDesktop ? 'row' : 'column', gap: 8 }}>
+                        <View style={{ flex: 1 }}>
+                          <SummaryRow label="Sex / Gender" value={selectedApplicant.sex} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <SummaryRow label="Nationality" value={selectedApplicant.nationality} />
+                        </View>
+                      </View>
+                    </View>
+                  </SectionCard>
+
+                  {/* Section 3: Dynamic Form Particulars */}
+                  {selectedApplicantFormFields.length > 0 && (
+                    <SubmittedFormStructuredView
+                      app={app}
+                      primaryName={selectedApplicant.name}
+                      formFieldValues={selectedApplicantFormFields}
+                      onPreviewFile={(uri, name) => setPreviewCustomDoc({ uri, name })}
+                      sectionNumber="3"
+                    />
+                  )}
+                </View>
+              </ScrollView>
+
+              <View style={styles.modalFooter}>
+                <TouchableOpacity
+                  onPress={() => setSelectedApplicant(null)}
+                  style={styles.modalCloseFooterBtn}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.modalCloseFooterBtnText}>Close</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        )}
+      </Modal>
+
       {/* ── Custom Attached Document Preview Modal ───────────────────────── */}
       <DocumentPreviewModal
         visible={previewCustomDoc !== null}
@@ -1058,8 +1636,603 @@ export function ApplicationDetailsPage({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Sub-components
+// Sub-components & Helpers
 // ─────────────────────────────────────────────────────────────────────────────
+
+function isRecord(val: unknown): val is Record<string, unknown> {
+  return typeof val === 'object' && val !== null && !Array.isArray(val);
+}
+
+const formatFieldKey = (key: string): string => {
+  const map: Record<string, string> = {
+    firstname: 'First Name',
+    lastname: 'Last Name',
+    middlename: 'Middle Name',
+    email: 'Email Address',
+    mobilenumber: 'Mobile Number',
+    contactnumber: 'Contact Number',
+    streetaddress: 'Street Address',
+    barangay: 'Barangay',
+    citymunicipality: 'City / Municipality',
+    province: 'Province',
+    region: 'Region',
+    zipcode: 'Zip Code',
+    nationality: 'Nationality',
+    sex: 'Sex / Gender',
+    civilstatus: 'Civil Status',
+    schoolattended: 'School Attended',
+    coursecompleted: 'Course / Degree Completed',
+    yeargraduated: 'Year Graduated',
+    educationalattainment: 'Educational Attainment',
+    specialneeds: 'Special Needs / Accommodation',
+  };
+
+  const lower = key.toLowerCase().replace(/[-_]/g, '');
+  if (map[lower]) return map[lower];
+
+  return key
+    .replace(/_/g, ' ')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+};
+
+function SectionCard({
+  icon,
+  title,
+  accentColor = '#0F2C59',
+  children,
+}: {
+  icon: React.ComponentProps<typeof Icon>['name'];
+  title: string;
+  accentColor?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <View
+      style={{
+        backgroundColor: '#FFFFFF',
+        borderRadius: 14,
+        padding: 18,
+        borderWidth: 1,
+        borderColor: '#CBD5E1',
+        borderLeftWidth: 5,
+        borderLeftColor: accentColor,
+        marginBottom: 16,
+        ...Platform.select({
+          web: {
+            boxShadow: '0 2px 4px -1px rgba(0, 0, 0, 0.04)',
+          },
+        }),
+      }}
+    >
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 8,
+          marginBottom: 14,
+        }}
+      >
+        <View
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: 14,
+            backgroundColor: `${accentColor}12`,
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+        >
+          <Icon name={icon} size={14} color={accentColor} />
+        </View>
+        <Text
+          style={{
+            fontFamily: TYPOGRAPHY.fonts.primary,
+            fontSize: 14,
+            fontWeight: '700',
+            color: '#0F2C59',
+          }}
+        >
+          {title}
+        </Text>
+      </View>
+      {children}
+    </View>
+  );
+}
+
+function SummaryRow({
+  label,
+  value,
+  onPreviewFile,
+}: {
+  label: string;
+  value?: string | null;
+  onPreviewFile?: (file: string, label: string) => void;
+}) {
+  if (
+    !value ||
+    value.trim() === '' ||
+    value.trim().toUpperCase() === 'N/A' ||
+    value.trim().toUpperCase() === 'NA' ||
+    value.trim() === '-' ||
+    value.trim() === '[]' ||
+    value.trim() === '{}'
+  ) {
+    return null;
+  }
+
+  const trimmedVal = value.trim();
+  const labelLower = label.toLowerCase();
+
+  // Check if value is a JSON array or object (e.g. from repeater tables)
+  let parsedArray: Array<Record<string, unknown>> | null = null;
+  if (
+    (trimmedVal.startsWith('[') && trimmedVal.endsWith(']')) ||
+    (trimmedVal.startsWith('{') && trimmedVal.endsWith('}'))
+  ) {
+    try {
+      const parsed: unknown = JSON.parse(trimmedVal);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        const validRows = parsed.filter(isRecord);
+        if (validRows.length > 0) {
+          parsedArray = validRows;
+        }
+      } else if (isRecord(parsed)) {
+        parsedArray = [parsed];
+      }
+    } catch {
+      // Ignored if not JSON
+    }
+  }
+
+  if (parsedArray !== null && parsedArray.length > 0) {
+    return (
+      <View
+        style={{
+          backgroundColor: '#F8FAFC',
+          padding: 14,
+          borderRadius: 12,
+          borderWidth: 1,
+          borderColor: '#CBD5E1',
+          marginBottom: 12,
+        }}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+          <Text
+            style={{
+              fontFamily: TYPOGRAPHY.fonts.primary,
+              fontSize: 11,
+              fontWeight: '700',
+              color: '#475569',
+              textTransform: 'uppercase',
+              letterSpacing: 0.5,
+            }}
+          >
+            {label}
+          </Text>
+          <View
+            style={{
+              backgroundColor: '#EFF6FF',
+              borderWidth: 1,
+              borderColor: '#BFDBFE',
+              borderRadius: 10,
+              paddingHorizontal: 8,
+              paddingVertical: 2,
+            }}
+          >
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 10, fontWeight: '700', color: '#1D4ED8' }}>
+              {parsedArray.length} {parsedArray.length === 1 ? 'ENTRY RECORDED' : 'ENTRIES RECORDED'}
+            </Text>
+          </View>
+        </View>
+
+        <View style={{ gap: 8 }}>
+          {parsedArray.map((row, rIdx) => {
+            const entries = Object.entries(row).filter(
+              ([k, v]) =>
+                k !== '_id' &&
+                k !== 'id' &&
+                k !== 'key' &&
+                v !== null &&
+                v !== undefined &&
+                String(v).trim() !== ''
+            );
+
+            if (entries.length === 0) return null;
+
+            return (
+              <View
+                key={row._id ? String(row._id) : `row-${rIdx}`}
+                style={{
+                  backgroundColor: '#FFFFFF',
+                  borderWidth: 1,
+                  borderColor: '#E2E8F0',
+                  borderRadius: 8,
+                  padding: 12,
+                }}
+              >
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 6,
+                    marginBottom: 8,
+                    paddingBottom: 6,
+                    borderBottomWidth: 1,
+                    borderBottomColor: '#F1F5F9',
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 18,
+                      height: 18,
+                      borderRadius: 9,
+                      backgroundColor: '#0F2C59',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 10, fontWeight: '700', color: '#FFFFFF' }}>
+                      {rIdx + 1}
+                    </Text>
+                  </View>
+                  <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, fontWeight: '700', color: '#0F2C59' }}>
+                    Item #{rIdx + 1}
+                  </Text>
+                </View>
+
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                  {entries.map(([k, v]) => (
+                    <View
+                      key={k}
+                      style={{
+                        minWidth: '45%',
+                        flex: 1,
+                        backgroundColor: '#F8FAFC',
+                        padding: 8,
+                        borderRadius: 6,
+                        borderWidth: 1,
+                        borderColor: '#F1F5F9',
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontFamily: TYPOGRAPHY.fonts.primary,
+                          fontSize: 10,
+                          fontWeight: '700',
+                          color: '#64748B',
+                          marginBottom: 2,
+                        }}
+                      >
+                        {formatFieldKey(k)}
+                      </Text>
+                      <Text
+                        style={{
+                          fontFamily: TYPOGRAPHY.fonts.primary,
+                          fontSize: 12.5,
+                          fontWeight: '600',
+                          color: '#0F172A',
+                        }}
+                      >
+                        {String(v)}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      </View>
+    );
+  }
+
+  const isSignature =
+    labelLower.includes('signature') ||
+    trimmedVal.startsWith('data:image') ||
+    trimmedVal.startsWith('typed:cursive:') ||
+    trimmedVal.startsWith('blob:');
+
+  const isCheckbox =
+    labelLower.includes('declare') ||
+    labelLower.includes('certify') ||
+    labelLower.includes('agreement') ||
+    labelLower.includes('declaration') ||
+    trimmedVal.toLowerCase() === 'true' ||
+    trimmedVal.toLowerCase() === 'false' ||
+    trimmedVal.toLowerCase() === 'agreed' ||
+    trimmedVal.toLowerCase() === 'yes' ||
+    trimmedVal.toLowerCase() === 'no';
+
+  const isDocumentFile =
+    !isSignature &&
+    (trimmedVal.startsWith('data:application/pdf') ||
+      trimmedVal.startsWith('blob:') ||
+      trimmedVal.toLowerCase().endsWith('.pdf') ||
+      trimmedVal.toLowerCase().endsWith('.png') ||
+      trimmedVal.toLowerCase().endsWith('.jpg') ||
+      trimmedVal.toLowerCase().endsWith('.jpeg'));
+
+  if (isSignature) {
+    const isImageSignature =
+      trimmedVal.startsWith('data:image') ||
+      trimmedVal.startsWith('blob:') ||
+      trimmedVal.startsWith('http://') ||
+      trimmedVal.startsWith('https://');
+
+    const typedText = trimmedVal.startsWith('typed:cursive:')
+      ? trimmedVal.replace('typed:cursive:', '').trim()
+      : trimmedVal;
+
+    return (
+      <View
+        style={{
+          backgroundColor: '#F8FAFC',
+          padding: 14,
+          borderRadius: 12,
+          borderWidth: 1,
+          borderColor: '#CBD5E1',
+          marginBottom: 10,
+        }}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+          <Text
+            style={{
+              fontFamily: TYPOGRAPHY.fonts.primary,
+              fontSize: 11,
+              fontWeight: '700',
+              color: '#475569',
+              textTransform: 'uppercase',
+              letterSpacing: 0.5,
+            }}
+          >
+            {label}
+          </Text>
+          <View style={{ backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 }}>
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 10, fontWeight: '700', color: '#1D4ED8' }}>
+              APPLICANT SIGNATURE
+            </Text>
+          </View>
+        </View>
+
+        {isImageSignature ? (
+          <View
+            style={{
+              backgroundColor: '#FFFFFF',
+              borderWidth: 1,
+              borderColor: '#E2E8F0',
+              borderRadius: 8,
+              padding: 8,
+              alignItems: 'center',
+              justifyContent: 'center',
+              minHeight: 90,
+            }}
+          >
+            <Image
+              source={{ uri: trimmedVal }}
+              style={{ width: '100%', height: 80 }}
+              resizeMode="contain"
+            />
+            <View style={{ width: '80%', height: 1, backgroundColor: '#CBD5E1', marginTop: 6 }} />
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 10, color: '#94A3B8', marginTop: 4 }}>
+              Digital Handwritten Signature Recorded
+            </Text>
+          </View>
+        ) : (
+          <View
+            style={{
+              backgroundColor: '#FFFFFF',
+              borderWidth: 1,
+              borderColor: '#E2E8F0',
+              borderRadius: 8,
+              padding: 14,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Text
+              style={{
+                fontFamily: TYPOGRAPHY.fonts.primary,
+                fontSize: 22,
+                fontStyle: 'italic',
+                fontWeight: '700',
+                color: '#0F2C59',
+                letterSpacing: 1,
+              }}
+            >
+              {typedText}
+            </Text>
+            <View style={{ width: '80%', height: 1, backgroundColor: '#0F2C59', marginTop: 6 }} />
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 10, color: '#64748B', marginTop: 4 }}>
+              Digitally / Electronically Signed
+            </Text>
+          </View>
+        )}
+      </View>
+    );
+  }
+
+  if (isCheckbox) {
+    const isChecked = trimmedVal.toLowerCase() === 'true' || trimmedVal.toLowerCase() === 'agreed' || trimmedVal.toLowerCase() === 'yes' || trimmedVal === '1';
+    const displayLabel = labelLower.startsWith('i hereby declare')
+      ? OFFICIAL_LEGAL_DECLARATION
+      : label;
+
+    return (
+      <View
+        style={{
+          backgroundColor: isChecked ? '#F0FDF4' : '#FEF2F2',
+          padding: 12,
+          borderRadius: 10,
+          borderWidth: 1,
+          borderColor: isChecked ? '#BBF7D0' : '#FECACA',
+          marginBottom: 8,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 10,
+        }}
+      >
+        <View
+          style={{
+            width: 22,
+            height: 22,
+            borderRadius: 6,
+            backgroundColor: isChecked ? '#16A34A' : '#FFFFFF',
+            borderWidth: 1.5,
+            borderColor: isChecked ? '#16A34A' : '#DC2626',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+        >
+          {isChecked && <Icon name="check" size={14} color="#FFFFFF" />}
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text
+            style={{
+              fontFamily: TYPOGRAPHY.fonts.primary,
+              fontSize: 12.5,
+              fontWeight: '600',
+              color: isChecked ? '#166534' : '#991B1B',
+              lineHeight: 18,
+            }}
+          >
+            {displayLabel}
+          </Text>
+          <Text
+            style={{
+              fontFamily: TYPOGRAPHY.fonts.primary,
+              fontSize: 10,
+              fontWeight: '700',
+              color: isChecked ? '#15803D' : '#B91C1C',
+              marginTop: 2,
+              textTransform: 'uppercase',
+            }}
+          >
+            {isChecked ? '✓ Confirmed & Agreed' : '✗ Not Agreed'}
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  if (isDocumentFile) {
+    return (
+      <View
+        style={{
+          backgroundColor: '#F8FAFC',
+          padding: 12,
+          borderRadius: 10,
+          borderWidth: 1,
+          borderColor: '#E2E8F0',
+          marginBottom: 8,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
+      >
+        <View style={{ flex: 1, marginRight: 8 }}>
+          <Text
+            style={{
+              fontFamily: TYPOGRAPHY.fonts.primary,
+              fontSize: 10,
+              fontWeight: '700',
+              color: '#64748B',
+              marginBottom: 3,
+              textTransform: 'uppercase',
+              letterSpacing: 0.5,
+            }}
+          >
+            {label}
+          </Text>
+          <Text
+            style={{
+              fontFamily: TYPOGRAPHY.fonts.primary,
+              fontSize: 12,
+              fontWeight: '600',
+              color: '#0F172A',
+            }}
+            numberOfLines={1}
+          >
+            {trimmedVal}
+          </Text>
+        </View>
+        {onPreviewFile !== undefined && (
+          <TouchableOpacity
+            onPress={() => onPreviewFile(trimmedVal, label)}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: '#EFF6FF',
+              borderWidth: 1,
+              borderColor: '#BFDBFE',
+              paddingVertical: 6,
+              paddingHorizontal: 12,
+              borderRadius: 8,
+              gap: 4,
+            }}
+          >
+            <Icon name="eye" size={13} color="#1D4ED8" />
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: '700', color: '#1D4ED8' }}>
+              View Document
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  }
+
+  return (
+    <View
+      style={{
+        backgroundColor: '#F8FAFC',
+        padding: 12,
+        borderRadius: 10,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        marginBottom: 8,
+      }}
+    >
+      <Text
+        style={{
+          fontFamily: TYPOGRAPHY.fonts.primary,
+          fontSize: 10,
+          fontWeight: '700',
+          color: '#64748B',
+          marginBottom: 3,
+          textTransform: 'uppercase',
+          letterSpacing: 0.5,
+        }}
+      >
+        {label}
+      </Text>
+      <Text
+        style={{
+          fontFamily: TYPOGRAPHY.fonts.primary,
+          fontSize: 13,
+          fontWeight: '600',
+          color: '#0F172A',
+        }}
+      >
+        {value}
+      </Text>
+    </View>
+  );
+}
+
+// Retain DetailRow for backward compatibility
+function DetailRow({
+  label,
+  value,
+  onPreviewFile,
+}: {
+  label: string;
+  value?: string | null;
+  isLast?: boolean;
+  onPreviewFile?: (file: string, label: string) => void;
+}) {
+  return <SummaryRow label={label} value={value} onPreviewFile={onPreviewFile} />;
+}
 
 interface SubmittedFormStructuredViewProps {
   app: Application;
@@ -1074,7 +2247,7 @@ function SubmittedFormStructuredView({
   primaryName,
   formFieldValues,
   onPreviewFile,
-  sectionNumber = '4',
+  sectionNumber = '3',
 }: SubmittedFormStructuredViewProps) {
   const { width } = useWindowDimensions();
   const isDesktop = width >= 768;
@@ -1101,7 +2274,8 @@ function SubmittedFormStructuredView({
       const isSig =
         labelLower.includes('signature') ||
         val.startsWith('data:image') ||
-        val.startsWith('typed:cursive:');
+        val.startsWith('typed:cursive:') ||
+        val.startsWith('blob:');
 
       const isDec =
         !isSig &&
@@ -1175,217 +2349,16 @@ function SubmittedFormStructuredView({
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
       {fields.map((field, idx) => {
         const val = field.value.trim();
-        const isDoc =
-          val.startsWith('data:application/pdf') ||
-          val.startsWith('blob:') ||
-          val.toLowerCase().endsWith('.pdf') ||
-          val.toLowerCase().endsWith('.png') ||
-          val.toLowerCase().endsWith('.jpg') ||
-          val.toLowerCase().endsWith('.jpeg');
-
-        let parsedArray: Array<Record<string, unknown>> | null = null;
-        if ((val.startsWith('[') && val.endsWith(']')) || (val.startsWith('{') && val.endsWith('}'))) {
-          try {
-            const parsed: unknown = JSON.parse(val);
-            if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === 'object' && parsed[0] !== null) {
-              parsedArray = parsed as Array<Record<string, unknown>>;
-            } else if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
-              parsedArray = [parsed as Record<string, unknown>];
-            }
-          } catch {
-            // Ignored
-          }
-        }
-
-        if (parsedArray !== null && parsedArray.length > 0) {
-          return (
-            <View
-              key={field.fieldId || `fld-grid-${idx}`}
-              style={{
-                width: '100%',
-                backgroundColor: '#F8FAFC',
-                borderWidth: 1,
-                borderColor: '#CBD5E1',
-                borderRadius: 10,
-                padding: 14,
-                marginBottom: 4,
-              }}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                <Text
-                  style={{
-                    fontFamily: TYPOGRAPHY.fonts.primary,
-                    fontSize: 11,
-                    fontWeight: '700',
-                    color: '#475569',
-                    textTransform: 'uppercase',
-                    letterSpacing: 0.3,
-                  }}
-                >
-                  {field.fieldLabel || field.fieldId}
-                </Text>
-                <View style={{ backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 1 }}>
-                  <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 10, fontWeight: '700', color: '#1D4ED8' }}>
-                    {parsedArray.length} {parsedArray.length === 1 ? 'Entry' : 'Entries'}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={{ gap: 8 }}>
-                {parsedArray.map((row, rIdx) => {
-                  const entries = Object.entries(row).filter(
-                    ([k, v]) =>
-                      k !== '_id' &&
-                      k !== 'id' &&
-                      k !== 'key' &&
-                      v !== null &&
-                      v !== undefined &&
-                      String(v).trim() !== ''
-                  );
-                  if (entries.length === 0) return null;
-                  return (
-                    <View
-                      key={row._id ? String(row._id) : `r-${rIdx}`}
-                      style={{
-                        backgroundColor: '#FFFFFF',
-                        borderWidth: 1,
-                        borderColor: '#E2E8F0',
-                        borderRadius: 8,
-                        padding: 10,
-                      }}
-                    >
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6, paddingBottom: 4, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }}>
-                        <View style={{ width: 16, height: 16, borderRadius: 8, backgroundColor: '#0F2C59', justifyContent: 'center', alignItems: 'center' }}>
-                          <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 9, fontWeight: '700', color: '#FFFFFF' }}>
-                            {rIdx + 1}
-                          </Text>
-                        </View>
-                        <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: '700', color: '#0F2C59' }}>
-                          Item #{rIdx + 1}
-                        </Text>
-                      </View>
-                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-                        {entries.map(([k, v]) => (
-                          <View
-                            key={k}
-                            style={{
-                              minWidth: '45%',
-                              flex: 1,
-                              backgroundColor: '#F8FAFC',
-                              padding: 6,
-                              borderRadius: 4,
-                              borderWidth: 1,
-                              borderColor: '#F1F5F9',
-                            }}
-                          >
-                            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 9, fontWeight: '700', color: '#64748B' }}>
-                              {k.replace(/_/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2').replace(/\b\w/g, (c) => c.toUpperCase())}
-                            </Text>
-                            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: '600', color: '#0F172A' }}>
-                              {String(v)}
-                            </Text>
-                          </View>
-                        ))}
-                      </View>
-                    </View>
-                  );
-                })}
-              </View>
-            </View>
-          );
-        }
-
         return (
           <View
             key={field.fieldId || `fld-grid-${idx}`}
-            style={{
-              width: isDesktop ? '31.8%' : '100%',
-              backgroundColor: '#FFFFFF',
-              borderWidth: 1,
-              borderColor: '#E2E8F0',
-              borderRadius: 8,
-              padding: 12,
-              justifyContent: 'space-between',
-              minHeight: 70,
-            }}
+            style={{ width: isDesktop ? '48.5%' : '100%' }}
           >
-            <Text
-              style={{
-                fontFamily: TYPOGRAPHY.fonts.primary,
-                fontSize: 11,
-                fontWeight: '600',
-                color: '#64748B',
-                textTransform: 'uppercase',
-                letterSpacing: 0.3,
-              }}
-            >
-              {field.fieldLabel || field.fieldId}
-            </Text>
-
-            {isDoc ? (
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  marginTop: 6,
-                }}
-              >
-                <Text
-                  style={{
-                    fontFamily: TYPOGRAPHY.fonts.primary,
-                    fontSize: 12,
-                    fontWeight: '600',
-                    color: '#0F172A',
-                    flex: 1,
-                  }}
-                  numberOfLines={1}
-                >
-                  {val}
-                </Text>
-                {onPreviewFile && (
-                  <TouchableOpacity
-                    onPress={() => onPreviewFile(val, field.fieldLabel || field.fieldId)}
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      backgroundColor: '#EFF6FF',
-                      borderWidth: 1,
-                      borderColor: '#BFDBFE',
-                      paddingVertical: 3,
-                      paddingHorizontal: 8,
-                      borderRadius: 6,
-                      gap: 4,
-                      marginLeft: 8,
-                    }}
-                  >
-                    <Icon name="eye" size={11} color="#1D4ED8" />
-                    <Text
-                      style={{
-                        fontFamily: TYPOGRAPHY.fonts.primary,
-                        fontSize: 11,
-                        fontWeight: '700',
-                        color: '#1D4ED8',
-                      }}
-                    >
-                      View
-                    </Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            ) : (
-              <Text
-                style={{
-                  fontFamily: TYPOGRAPHY.fonts.primary,
-                  fontSize: 13,
-                  fontWeight: '700',
-                  color: '#0F172A',
-                  marginTop: 4,
-                }}
-              >
-                {val}
-              </Text>
-            )}
+            <SummaryRow
+              label={field.fieldLabel || formatFieldKey(field.fieldId)}
+              value={val}
+              onPreviewFile={onPreviewFile}
+            />
           </View>
         );
       })}
@@ -1394,804 +2367,176 @@ function SubmittedFormStructuredView({
 
   return (
     <View style={{ gap: 16 }}>
-      {/* ── Section Header Banner ────────────────────────────────────────── */}
-      <View
-        style={{
-          backgroundColor: '#FFFFFF',
-          borderWidth: 1,
-          borderColor: '#E2E8F0',
-          borderRadius: 10,
-          padding: 16,
-          borderLeftWidth: 4,
-          borderLeftColor: '#1D4ED8',
-        }}
-      >
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: 12,
-          }}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-            <View
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: 8,
-                backgroundColor: '#EFF6FF',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Icon name="file-text" size={18} color="#1D4ED8" />
-            </View>
-            <View>
-              <Text
-                style={{
-                  fontFamily: TYPOGRAPHY.fonts.primary,
-                  fontSize: 16,
-                  fontWeight: '700',
-                  color: '#0F172A',
-                }}
-              >
-                {sectionNumber}. Submitted Form & Technical Specifications
-              </Text>
-              <Text
-                style={{
-                  fontFamily: TYPOGRAPHY.fonts.primary,
-                  fontSize: 12,
-                  color: '#64748B',
-                  marginTop: 2,
-                }}
-              >
-                Full parameters, technical specifications, legal declarations, and authenticated digital signature.
-              </Text>
-            </View>
-          </View>
-
-          <View
-            style={{
-              backgroundColor: '#EFF6FF',
-              borderWidth: 1,
-              borderColor: '#BFDBFE',
-              borderRadius: 14,
-              paddingHorizontal: 10,
-              paddingVertical: 4,
-            }}
-          >
-            <Text
-              style={{
-                fontFamily: TYPOGRAPHY.fonts.primary,
-                fontSize: 11,
-                fontWeight: '700',
-                color: '#1D4ED8',
-              }}
-            >
-              {formFieldValues.length + 4} PARAMETERS RECORDED
-            </Text>
-          </View>
-        </View>
-
-        {/* 4-column overview metadata strip */}
-        <View
-          style={{
-            backgroundColor: '#F8FAFC',
-            borderWidth: 1,
-            borderColor: '#E2E8F0',
-            borderRadius: 8,
-            padding: 12,
-            flexDirection: isDesktop ? 'row' : 'column',
-            justifyContent: 'space-between',
-            gap: 12,
-          }}
-        >
-          <View style={{ flex: 1 }}>
-            <Text
-              style={{
-                fontFamily: TYPOGRAPHY.fonts.primary,
-                fontSize: 10,
-                fontWeight: '700',
-                color: '#64748B',
-                textTransform: 'uppercase',
-              }}
-            >
-              Service Application
-            </Text>
-            <Text
-              style={{
-                fontFamily: TYPOGRAPHY.fonts.primary,
-                fontSize: 13,
-                fontWeight: '700',
-                color: '#0F172A',
-                marginTop: 2,
-              }}
-            >
-              {app.serviceName}
-            </Text>
-          </View>
-
-          <View style={{ flex: 1 }}>
-            <Text
-              style={{
-                fontFamily: TYPOGRAPHY.fonts.primary,
-                fontSize: 10,
-                fontWeight: '700',
-                color: '#64748B',
-                textTransform: 'uppercase',
-              }}
-            >
-              Service Category
-            </Text>
-            <Text
-              style={{
-                fontFamily: TYPOGRAPHY.fonts.primary,
-                fontSize: 13,
-                fontWeight: '600',
-                color: '#334155',
-                marginTop: 2,
-              }}
-            >
-              {app.serviceCategory}
-            </Text>
-          </View>
-
-          <View style={{ flex: 1 }}>
-            <Text
-              style={{
-                fontFamily: TYPOGRAPHY.fonts.primary,
-                fontSize: 10,
-                fontWeight: '700',
-                color: '#64748B',
-                textTransform: 'uppercase',
-              }}
-            >
-              Reference Number
-            </Text>
-            <Text
-              style={{
-                fontFamily: TYPOGRAPHY.fonts.primary,
-                fontSize: 13,
-                fontWeight: '700',
-                color: '#1D4ED8',
-                marginTop: 2,
-              }}
-            >
-              #{app.referenceNumber}
-            </Text>
-          </View>
-
-          <View style={{ flex: 1 }}>
-            <Text
-              style={{
-                fontFamily: TYPOGRAPHY.fonts.primary,
-                fontSize: 10,
-                fontWeight: '700',
-                color: '#64748B',
-                textTransform: 'uppercase',
-              }}
-            >
-              Regional Office
-            </Text>
-            <Text
-              style={{
-                fontFamily: TYPOGRAPHY.fonts.primary,
-                fontSize: 13,
-                fontWeight: '600',
-                color: '#334155',
-                marginTop: 2,
-              }}
-            >
-              {app.schedule?.venue || 'NTC Regional Office'}
-            </Text>
-          </View>
-        </View>
-      </View>
-
       {/* ── Sub-card A: Technical & Equipment Specifications ─────────────── */}
       {technicalSpecs.length > 0 && (
-        <View style={styles.sectionCard}>
-          <View style={styles.sectionCardHeader}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Icon name="cpu" size={18} color="#1D4ED8" />
-              <Text style={styles.sectionCardTitle}>Technical & Equipment Specifications</Text>
-            </View>
-            <View
-              style={{
-                backgroundColor: '#EFF6FF',
-                borderWidth: 1,
-                borderColor: '#BFDBFE',
-                borderRadius: 12,
-                paddingHorizontal: 8,
-                paddingVertical: 2,
-              }}
-            >
-              <Text
-                style={{
-                  fontFamily: TYPOGRAPHY.fonts.primary,
-                  fontSize: 10.5,
-                  fontWeight: '700',
-                  color: '#1D4ED8',
-                }}
-              >
-                {technicalSpecs.length} SPECIFICATIONS
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.sectionCardBody}>
-            {renderParamGrid(technicalSpecs)}
-          </View>
-        </View>
+        <SectionCard
+          icon="cpu"
+          title={`${sectionNumber}. Technical & Equipment Specifications`}
+          accentColor="#0284C7"
+        >
+          {renderParamGrid(technicalSpecs)}
+        </SectionCard>
       )}
 
       {/* ── Sub-card B: Academic & Professional Background ────────────────── */}
       {academicSpecs.length > 0 && (
-        <View style={styles.sectionCard}>
-          <View style={styles.sectionCardHeader}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Icon name="book-open" size={18} color="#1D4ED8" />
-              <Text style={styles.sectionCardTitle}>Academic & Professional Background</Text>
-            </View>
-            <View
-              style={{
-                backgroundColor: '#EFF6FF',
-                borderWidth: 1,
-                borderColor: '#BFDBFE',
-                borderRadius: 12,
-                paddingHorizontal: 8,
-                paddingVertical: 2,
-              }}
-            >
-              <Text
-                style={{
-                  fontFamily: TYPOGRAPHY.fonts.primary,
-                  fontSize: 10.5,
-                  fontWeight: '700',
-                  color: '#1D4ED8',
-                }}
-              >
-                {academicSpecs.length} RECORDS
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.sectionCardBody}>
-            {renderParamGrid(academicSpecs)}
-          </View>
-        </View>
+        <SectionCard
+          icon="book-open"
+          title={`${sectionNumber}. Academic & Professional Background`}
+          accentColor="#7C3AED"
+        >
+          {renderParamGrid(academicSpecs)}
+        </SectionCard>
       )}
 
       {/* ── Sub-card C: Operational & Additional Particulars ──────────────── */}
       {operationalSpecs.length > 0 && (
-        <View style={styles.sectionCard}>
-          <View style={styles.sectionCardHeader}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Icon name="layers" size={18} color="#1D4ED8" />
-              <Text style={styles.sectionCardTitle}>Operational & Additional Particulars</Text>
-            </View>
-            <View
-              style={{
-                backgroundColor: '#EFF6FF',
-                borderWidth: 1,
-                borderColor: '#BFDBFE',
-                borderRadius: 12,
-                paddingHorizontal: 8,
-                paddingVertical: 2,
-              }}
-            >
-              <Text
-                style={{
-                  fontFamily: TYPOGRAPHY.fonts.primary,
-                  fontSize: 10.5,
-                  fontWeight: '700',
-                  color: '#1D4ED8',
-                }}
-              >
-                {operationalSpecs.length} PARAMETERS
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.sectionCardBody}>
-            {renderParamGrid(operationalSpecs)}
-          </View>
-        </View>
+        <SectionCard
+          icon="layers"
+          title={`${sectionNumber}. Operational & Application Particulars`}
+          accentColor="#4F46E5"
+        >
+          {renderParamGrid(operationalSpecs)}
+        </SectionCard>
       )}
 
       {/* ── Sub-card D: Legal Declarations & Affirmations ─────────────────── */}
       {declarations.length > 0 && (
-        <View style={styles.sectionCard}>
-          <View style={styles.sectionCardHeader}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Icon name="check-circle" size={18} color="#16A34A" />
-              <Text style={styles.sectionCardTitle}>Legal Declarations & Affirmations</Text>
-            </View>
-            <View
-              style={{
-                backgroundColor: '#DCFCE7',
-                borderWidth: 1,
-                borderColor: '#86EFAC',
-                borderRadius: 12,
-                paddingHorizontal: 8,
-                paddingVertical: 2,
-              }}
-            >
-              <Text
-                style={{
-                  fontFamily: TYPOGRAPHY.fonts.primary,
-                  fontSize: 10.5,
-                  fontWeight: '700',
-                  color: '#15803D',
-                }}
-              >
-                OFFICIALLY ATTESTED
-              </Text>
-            </View>
+        <SectionCard
+          icon="check-circle"
+          title="Legal Declarations & Affirmations"
+          accentColor="#16A34A"
+        >
+          <View style={{ gap: 8 }}>
+            {declarations.map((dec, idx) => (
+              <SummaryRow
+                key={dec.fieldId || `dec-${idx}`}
+                label={dec.fieldLabel || dec.fieldId}
+                value={dec.value}
+              />
+            ))}
           </View>
-
-          <View style={styles.sectionCardBody}>
-            <View style={{ gap: 10 }}>
-              {declarations.map((dec, idx) => {
-                const val = dec.value.trim().toLowerCase();
-                const isConfirmed = val === 'true' || val === 'agreed' || val === 'yes' || val === '1';
-
-                return (
-                  <View
-                    key={dec.fieldId || `dec-${idx}`}
-                    style={{
-                      backgroundColor: isConfirmed ? '#F0FDF4' : '#FEF2F2',
-                      borderWidth: 1,
-                      borderColor: isConfirmed ? '#BBF7D0' : '#FECACA',
-                      borderRadius: 8,
-                      padding: 14,
-                    }}
-                  >
-                    <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
-                      <View
-                        style={{
-                          width: 24,
-                          height: 24,
-                          borderRadius: 6,
-                          backgroundColor: isConfirmed ? '#16A34A' : '#DC2626',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          marginTop: 1,
-                        }}
-                      >
-                        <Icon name={isConfirmed ? "check" : "x"} size={14} color="#FFFFFF" />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text
-                          style={{
-                            fontFamily: TYPOGRAPHY.fonts.primary,
-                            fontSize: 13,
-                            fontWeight: '700',
-                            color: isConfirmed ? '#166534' : '#991B1B',
-                          }}
-                        >
-                          {(dec.fieldLabel || dec.fieldId).toLowerCase().startsWith('i hereby declare')
-                            ? OFFICIAL_LEGAL_DECLARATION
-                            : (dec.fieldLabel || dec.fieldId)}
-                        </Text>
-                        <Text
-                          style={{
-                            fontFamily: TYPOGRAPHY.fonts.primary,
-                            fontSize: 11.5,
-                            color: isConfirmed ? '#15803D' : '#B91C1C',
-                            marginTop: 4,
-                            lineHeight: 16,
-                          }}
-                        >
-                          {isConfirmed
-                            ? '✓ The applicant officially confirmed and certified under oath that all submitted information is true, accurate, and complete.'
-                            : '✗ Not confirmed by the applicant.'}
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
-                );
-              })}
-            </View>
-          </View>
-        </View>
+        </SectionCard>
       )}
 
       {/* ── Sub-card E: Official Electronic Signature Certificate ──────────── */}
-      <View style={styles.sectionCard}>
-        <View style={styles.sectionCardHeader}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Icon name="shield" size={18} color="#1D4ED8" />
-            <Text style={styles.sectionCardTitle}>Official Electronic Signature Certificate</Text>
-          </View>
+      <SectionCard
+        icon="shield"
+        title="Official Electronic Signature & Certificate"
+        accentColor="#0F2C59"
+      >
+        <View
+          style={{
+            backgroundColor: '#FFFFFF',
+            borderWidth: 1.5,
+            borderColor: '#E2E8F0',
+            borderRadius: 8,
+            padding: 20,
+            alignItems: 'center',
+          }}
+        >
+          {signatures.length > 0 ? (
+            signatures.map((sig, idx) => {
+              const val = sig.value.trim();
+              const isImage =
+                val.startsWith('data:image') ||
+                val.startsWith('blob:') ||
+                val.startsWith('http://') ||
+                val.startsWith('https://');
+
+              const typedText = val.startsWith('typed:cursive:')
+                ? val.replace('typed:cursive:', '').trim()
+                : val;
+
+              return (
+                <View key={sig.fieldId || `sig-${idx}`} style={{ width: '100%', alignItems: 'center', marginVertical: 4 }}>
+                  {isImage ? (
+                    <Image
+                      source={{ uri: val }}
+                      style={{ width: 260, height: 85 }}
+                      resizeMode="contain"
+                    />
+                  ) : (
+                    <Text
+                      style={{
+                        fontFamily: TYPOGRAPHY.fonts.primary,
+                        fontSize: 26,
+                        fontStyle: 'italic',
+                        fontWeight: '700',
+                        color: '#0F2C59',
+                        letterSpacing: 1,
+                        marginVertical: 8,
+                      }}
+                    >
+                      {typedText}
+                    </Text>
+                  )}
+                </View>
+              );
+            })
+          ) : (
+            <Text
+              style={{
+                fontFamily: TYPOGRAPHY.fonts.primary,
+                fontSize: 24,
+                fontStyle: 'italic',
+                fontWeight: '700',
+                color: '#0F2C59',
+                letterSpacing: 1,
+                marginVertical: 8,
+              }}
+            >
+              {primaryName}
+            </Text>
+          )}
+
+          <View style={{ width: 280, height: 1.5, backgroundColor: '#0F2C59', marginTop: 8, marginBottom: 8 }} />
+          <Text
+            style={{
+              fontFamily: TYPOGRAPHY.fonts.primary,
+              fontSize: 14,
+              fontWeight: '700',
+              color: '#0F172A',
+            }}
+          >
+            {primaryName}
+          </Text>
+          <Text
+            style={{
+              fontFamily: TYPOGRAPHY.fonts.primary,
+              fontSize: 11.5,
+              color: '#64748B',
+              marginTop: 2,
+            }}
+          >
+            Authorized Signatory / Applicant
+          </Text>
+
           <View
             style={{
-              backgroundColor: '#EFF6FF',
-              borderWidth: 1,
-              borderColor: '#BFDBFE',
-              borderRadius: 12,
-              paddingHorizontal: 8,
-              paddingVertical: 2,
+              marginTop: 14,
+              borderTopWidth: 1,
+              borderTopColor: '#F1F5F9',
+              paddingTop: 12,
+              width: '100%',
+              alignItems: 'center',
             }}
           >
             <Text
               style={{
                 fontFamily: TYPOGRAPHY.fonts.primary,
                 fontSize: 10.5,
-                fontWeight: '700',
-                color: '#1D4ED8',
+                color: '#94A3B8',
+                textAlign: 'center',
+                lineHeight: 15,
+                maxWidth: 600,
               }}
             >
-              AUTHENTICATED
+              Digitally authenticated and officially recorded under Republic Act No. 8792 (Electronic Commerce Act) and NTC Online Filing Guidelines.
             </Text>
           </View>
         </View>
-
-        <View style={styles.sectionCardBody}>
-          <View
-            style={{
-              backgroundColor: '#FFFFFF',
-              borderWidth: 1.5,
-              borderColor: '#E2E8F0',
-              borderRadius: 8,
-              padding: 20,
-              alignItems: 'center',
-            }}
-          >
-            {/* Render signature */}
-            {signatures.length > 0 ? (
-              signatures.map((sig, idx) => {
-                const val = sig.value.trim();
-                const isImage =
-                  val.startsWith('data:image') ||
-                  val.startsWith('blob:') ||
-                  val.startsWith('http://') ||
-                  val.startsWith('https://');
-
-                const typedText = val.startsWith('typed:cursive:')
-                  ? val.replace('typed:cursive:', '').trim()
-                  : val;
-
-                return (
-                  <View key={sig.fieldId || `sig-${idx}`} style={{ width: '100%', alignItems: 'center', marginVertical: 4 }}>
-                    {isImage ? (
-                      <Image
-                        source={{ uri: val }}
-                        style={{ width: 260, height: 85 }}
-                        resizeMode="contain"
-                      />
-                    ) : (
-                      <Text
-                        style={{
-                          fontFamily: TYPOGRAPHY.fonts.primary,
-                          fontSize: 26,
-                          fontStyle: 'italic',
-                          fontWeight: '700',
-                          color: '#0F2C59',
-                          letterSpacing: 1,
-                          marginVertical: 8,
-                        }}
-                      >
-                        {typedText}
-                      </Text>
-                    )}
-                  </View>
-                );
-              })
-            ) : (
-              <Text
-                style={{
-                  fontFamily: TYPOGRAPHY.fonts.primary,
-                  fontSize: 24,
-                  fontStyle: 'italic',
-                  fontWeight: '700',
-                  color: '#0F2C59',
-                  letterSpacing: 1,
-                  marginVertical: 8,
-                }}
-              >
-                {primaryName}
-              </Text>
-            )}
-
-            {/* Signature Underline and Signer Particulars */}
-            <View style={{ width: 280, height: 1.5, backgroundColor: '#0F2C59', marginTop: 8, marginBottom: 8 }} />
-            <Text
-              style={{
-                fontFamily: TYPOGRAPHY.fonts.primary,
-                fontSize: 14,
-                fontWeight: '700',
-                color: '#0F172A',
-              }}
-            >
-              {primaryName}
-            </Text>
-            <Text
-              style={{
-                fontFamily: TYPOGRAPHY.fonts.primary,
-                fontSize: 11.5,
-                color: '#64748B',
-                marginTop: 2,
-              }}
-            >
-              Authorized Signatory / Applicant
-            </Text>
-
-            {/* Legal Notice */}
-            <View
-              style={{
-                marginTop: 14,
-                borderTopWidth: 1,
-                borderTopColor: '#F1F5F9',
-                paddingTop: 12,
-                width: '100%',
-                alignItems: 'center',
-              }}
-            >
-              <Text
-                style={{
-                  fontFamily: TYPOGRAPHY.fonts.primary,
-                  fontSize: 10.5,
-                  color: '#94A3B8',
-                  textAlign: 'center',
-                  lineHeight: 15,
-                  maxWidth: 600,
-                }}
-              >
-                Digitally authenticated and officially recorded under Republic Act No. 8792 (Electronic Commerce Act) and NTC Online Filing Guidelines.
-              </Text>
-            </View>
-          </View>
-        </View>
-      </View>
-    </View>
-  );
-}
-
-interface DetailRowProps {
-  label: string;
-  value: string | undefined | null;
-  isLast?: boolean;
-  onPreviewFile?: (file: string, label: string) => void;
-}
-
-function DetailRow({ label, value, isLast = false, onPreviewFile }: DetailRowProps) {
-  if (value === undefined || value === null || value.trim() === '') {
-    return (
-      <View style={[styles.detailRow, isLast && styles.detailRowLast]}>
-        <Text style={styles.detailLabel}>{label}</Text>
-        <Text style={styles.detailValue}>—</Text>
-      </View>
-    );
-  }
-
-  const trimmedVal = value.trim();
-  const labelLower = label.toLowerCase();
-
-  const isSignature =
-    labelLower.includes('signature') ||
-    trimmedVal.startsWith('data:image') ||
-    trimmedVal.startsWith('typed:cursive:');
-
-  const isCheckbox =
-    labelLower.includes('declare') ||
-    labelLower.includes('certify') ||
-    labelLower.includes('agreement') ||
-    labelLower.includes('declaration') ||
-    trimmedVal.toLowerCase() === 'true' ||
-    trimmedVal.toLowerCase() === 'false' ||
-    trimmedVal.toLowerCase() === 'agreed' ||
-    trimmedVal.toLowerCase() === 'yes' ||
-    trimmedVal.toLowerCase() === 'no';
-
-  const isDocumentFile =
-    !isSignature &&
-    (trimmedVal.startsWith('data:application/pdf') ||
-      trimmedVal.startsWith('blob:') ||
-      trimmedVal.toLowerCase().endsWith('.pdf') ||
-      trimmedVal.toLowerCase().endsWith('.png') ||
-      trimmedVal.toLowerCase().endsWith('.jpg') ||
-      trimmedVal.toLowerCase().endsWith('.jpeg'));
-
-  if (isSignature) {
-    const isImageSignature =
-      trimmedVal.startsWith('data:image') ||
-      trimmedVal.startsWith('blob:') ||
-      trimmedVal.startsWith('http://') ||
-      trimmedVal.startsWith('https://');
-
-    const typedText = trimmedVal.startsWith('typed:cursive:')
-      ? trimmedVal.replace('typed:cursive:', '').trim()
-      : trimmedVal;
-
-    return (
-      <View style={[{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }, isLast && styles.detailRowLast]}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-          <Text style={styles.detailLabel}>{label}</Text>
-          <View style={{ backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 }}>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 10, fontWeight: '700', color: '#1D4ED8' }}>
-              SIGNATURE RECORDED
-            </Text>
-          </View>
-        </View>
-
-        {isImageSignature ? (
-          <View
-            style={{
-              backgroundColor: '#FFFFFF',
-              borderWidth: 1,
-              borderColor: '#E2E8F0',
-              borderRadius: 8,
-              padding: 8,
-              alignItems: 'center',
-              justifyContent: 'center',
-              minHeight: 80,
-            }}
-          >
-            <Image
-              source={{ uri: trimmedVal }}
-              style={{ width: '100%', height: 75 }}
-              resizeMode="contain"
-            />
-            <View style={{ width: '80%', height: 1, backgroundColor: '#CBD5E1', marginTop: 4 }} />
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 10, color: '#94A3B8', marginTop: 2 }}>
-              Digital Signature Recorded
-            </Text>
-          </View>
-        ) : (
-          <View
-            style={{
-              backgroundColor: '#FFFFFF',
-              borderWidth: 1,
-              borderColor: '#E2E8F0',
-              borderRadius: 8,
-              padding: 12,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Text
-              style={{
-                fontFamily: TYPOGRAPHY.fonts.primary,
-                fontSize: 20,
-                fontStyle: 'italic',
-                fontWeight: '700',
-                color: '#0F2C59',
-                letterSpacing: 1,
-              }}
-            >
-              {typedText}
-            </Text>
-            <View style={{ width: '80%', height: 1, backgroundColor: '#0F2C59', marginTop: 4 }} />
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 10, color: '#64748B', marginTop: 2 }}>
-              Electronically Signed
-            </Text>
-          </View>
-        )}
-      </View>
-    );
-  }
-
-  if (isCheckbox) {
-    const isChecked =
-      trimmedVal.toLowerCase() === 'true' ||
-      trimmedVal.toLowerCase() === 'agreed' ||
-      trimmedVal.toLowerCase() === 'yes' ||
-      trimmedVal === '1';
-
-    return (
-      <View
-        style={[
-          {
-            backgroundColor: isChecked ? '#F0FDF4' : '#FEF2F2',
-            padding: 10,
-            borderRadius: 8,
-            borderWidth: 1,
-            borderColor: isChecked ? '#BBF7D0' : '#FECACA',
-            marginVertical: 6,
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 8,
-          },
-          isLast && styles.detailRowLast,
-        ]}
-      >
-        <View
-          style={{
-            width: 20,
-            height: 20,
-            borderRadius: 4,
-            backgroundColor: isChecked ? '#16A34A' : '#FFFFFF',
-            borderWidth: 1.5,
-            borderColor: isChecked ? '#16A34A' : '#DC2626',
-            justifyContent: 'center',
-            alignItems: 'center',
-          }}
-        >
-          {isChecked && <Icon name="check" size={12} color="#FFFFFF" />}
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text
-            style={{
-              fontFamily: TYPOGRAPHY.fonts.primary,
-              fontSize: 12,
-              fontWeight: '600',
-              color: isChecked ? '#166534' : '#991B1B',
-            }}
-          >
-            {label}
-          </Text>
-          <Text
-            style={{
-              fontFamily: TYPOGRAPHY.fonts.primary,
-              fontSize: 9.5,
-              fontWeight: '700',
-              color: isChecked ? '#15803D' : '#B91C1C',
-              marginTop: 1,
-              textTransform: 'uppercase',
-            }}
-          >
-            {isChecked ? '✓ Confirmed & Agreed' : '✗ Not Agreed'}
-          </Text>
-        </View>
-      </View>
-    );
-  }
-
-  if (isDocumentFile) {
-    return (
-      <View
-        style={[
-          {
-            backgroundColor: '#F8FAFC',
-            padding: 10,
-            borderRadius: 8,
-            borderWidth: 1,
-            borderColor: '#E2E8F0',
-            marginVertical: 4,
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          },
-          isLast && styles.detailRowLast,
-        ]}
-      >
-        <View style={{ flex: 1, marginRight: 8 }}>
-          <Text style={styles.detailLabel}>{label}</Text>
-          <Text style={styles.detailValue} numberOfLines={1}>
-            {trimmedVal}
-          </Text>
-        </View>
-        {onPreviewFile && (
-          <TouchableOpacity
-            onPress={() => onPreviewFile(trimmedVal, label)}
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              backgroundColor: '#EFF6FF',
-              borderWidth: 1,
-              borderColor: '#BFDBFE',
-              paddingVertical: 4,
-              paddingHorizontal: 8,
-              borderRadius: 6,
-              gap: 4,
-            }}
-          >
-            <Icon name="eye" size={12} color="#1D4ED8" />
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: '700', color: '#1D4ED8' }}>
-              View
-            </Text>
-          </TouchableOpacity>
-        )}
-      </View>
-    );
-  }
-
-  return (
-    <View style={[styles.detailRow, isLast && styles.detailRowLast]}>
-      <Text style={styles.detailLabel}>{label}</Text>
-      <Text style={styles.detailValue}>{trimmedVal}</Text>
+      </SectionCard>
     </View>
   );
 }

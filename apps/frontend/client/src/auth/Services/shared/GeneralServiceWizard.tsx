@@ -33,6 +33,8 @@ interface GeneralServiceWizardProps {
   setSelectedRegionId: (id: string) => void;
   selectedOfficeId: string;
   setSelectedOfficeId: (id: string) => void;
+  selectedScheduleId?: string | null;
+  setSelectedScheduleId?: (id: string | null) => void;
   appMode: "SINGLE" | "BULK" | "";
   setAppMode: (mode: "SINGLE" | "BULK" | "") => void;
   bulkMethod?: "MANUAL" | "EXCEL";
@@ -64,6 +66,8 @@ export function GeneralServiceWizard({
   setSelectedRegionId,
   selectedOfficeId,
   setSelectedOfficeId,
+  selectedScheduleId: propSelectedScheduleId,
+  setSelectedScheduleId: propSetSelectedScheduleId,
   appMode,
   setAppMode,
   bulkMethod: propBulkMethod,
@@ -137,6 +141,8 @@ export function GeneralServiceWizard({
     setSelectedRegionId,
     selectedOfficeId,
     setSelectedOfficeId,
+    selectedScheduleId: propSelectedScheduleId,
+    setSelectedScheduleId: propSetSelectedScheduleId,
     appMode,
     applicants,
     setApplicants,

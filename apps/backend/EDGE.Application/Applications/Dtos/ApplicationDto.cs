@@ -68,6 +68,10 @@ public class ApplicationRequirementDto
     public Guid? ApplicationServiceId { get; set; }
     public Guid RequirementId { get; set; }
     public Guid? ServiceVariantRequirementId { get; set; }
+    public Guid? StoredFileId { get; set; }
+    public string? FileName { get; set; }
+    public string? ContentType { get; set; }
+    public long? FileSizeBytes { get; set; }
     public string Url { get; set; } = string.Empty;
     public bool IsApproved { get; set; }
 }

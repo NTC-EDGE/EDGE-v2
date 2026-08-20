@@ -1,11 +1,18 @@
 import React, { useState } from "react";
 import { Alert } from "react-native";
+import { useAuth } from "@clerk/expo";
 import { useApi } from "../../../../../shared/hooks/useApi";
 import { extractApiErrorMessage } from "../../../../../shared/components/Toast";
 import { ExamApplicantData, initialExamApplicant } from "../types/examTypes";
 import { useExamFilingQueries } from "./useExamFilingQueries";
 import { getFieldValidationError, mapApplicantsPayload } from "../helpers/examMapping";
 import { isExamApplicantComplete } from "../helpers/validation";
+import { uploadRequirementsAfterSubmit } from "../../../shared/helpers/requirementUploadHelper";
+
+const isGuid = (val?: string | null): boolean => {
+  if (!val || typeof val !== "string") return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val.trim());
+};
 
 interface UseExamFilingWizardProps {
   serviceId?: string | null;
@@ -53,6 +60,7 @@ export function useExamFilingWizard({
   setSelectedScheduleId,
 }: UseExamFilingWizardProps) {
   const api = useApi();
+  const { getToken } = useAuth();
 
   // Local UI States
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
@@ -177,11 +185,22 @@ export function useExamFilingWizard({
       throw new Error(`Data Serialization Error: ${serializationMsg}`);
     }
 
+    const effectiveScheduleId =
+      selectedScheduleId && isGuid(selectedScheduleId)
+        ? selectedScheduleId
+        : (queries.schedules && queries.schedules.length > 0 && isGuid(queries.schedules[0].id) ? queries.schedules[0].id : null);
+
+    if (!isDraft && (!effectiveScheduleId || !isGuid(effectiveScheduleId))) {
+      throw new Error(
+        "Examination Schedule is required. Please select an Examination Schedule & Venue in Step 2 before submitting."
+      );
+    }
+
     const payload = {
       tenantId: selectedRegionId,
       submissionMode: (mapped.length > 1 || appMode === "BULK") ? "Bulk" : "Single",
       serviceId: serviceId,
-      scheduleId: selectedScheduleId,
+      scheduleId: effectiveScheduleId,
       fieldOfficeId: selectedOfficeId,
       serviceVariantId: activeApplicant?.selectedVariantId || null,
       serviceVariantElementIds: activeApplicant?.selectedElementId ? [activeApplicant.selectedElementId] : [],
@@ -189,7 +208,27 @@ export function useExamFilingWizard({
       applicants: mapped,
     };
     try {
-      await api.post(`/api/v2/tenants/${selectedRegionId}/applications`, payload);
+      const submitRes = await api.post<unknown>(`/api/v2/tenants/${selectedRegionId}/applications`, payload);
+      const resObj = typeof submitRes === "object" && submitRes !== null ? (submitRes as Record<string, unknown>) : {};
+      const applicationId =
+        typeof submitRes === "string" && submitRes.trim() !== ""
+          ? submitRes
+          : resObj.succeeded === true && typeof resObj.data === "string"
+          ? resObj.data
+          : typeof resObj.id === "string"
+          ? resObj.id
+          : null;
+
+      if (applicationId) {
+        const allApplicantsForUpload = (mapped.length > 1 || appMode === "BULK") ? applicants : [activeApplicant];
+        await uploadRequirementsAfterSubmit({
+          api,
+          applicationId,
+          tenantId: selectedRegionId,
+          applicants: allApplicantsForUpload,
+          getToken,
+        });
+      }
     } catch (err: unknown) {
       throw new Error(extractApiErrorMessage(err) || "Network request failed while submitting exam applications.");
     }
