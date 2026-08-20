@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Icon, COLORS, TYPOGRAPHY } from "@edge/ui";
+import { useToast } from "../../../shared/components/Toast";
 import {
   GeneralApplicantData,
   isGeneralApplicantComplete,
@@ -73,6 +74,7 @@ export function GeneralBulkApplicantsPanel({
     indicesToDelete: [],
   });
   const [importLoading, setImportLoading] = useState(false);
+  const toast = useToast();
 
   const completeCount = applicants.filter((app) => isGeneralApplicantComplete(app, service, variantRequirements)).length;
   const pendingCount = applicants.length - completeCount;
@@ -82,6 +84,7 @@ export function GeneralBulkApplicantsPanel({
   const handleDownloadTemplate = () => {
     const csvContent = generateCsvContent(templateConfig);
     downloadCsvFile(templateConfig.filename, csvContent);
+    toast.success("Template Downloaded", `Downloaded ${templateConfig.filename}.`);
   };
 
   const handleUploadSpreadsheet = async () => {
@@ -115,17 +118,32 @@ export function GeneralBulkApplicantsPanel({
 
       if (fileText && fileText.trim().length > 0) {
         const parseResult = parseSpreadsheetContent(fileText, service);
+        if (parseResult.totalRows === 0) {
+          toast.error("No Records Found", "Could not parse applicant rows. Make sure the header columns match the template.");
+          return;
+        }
+
         if (parseResult.applicants.length > 0 && onApplicantsImported) {
           onApplicantsImported(parseResult.applicants);
         }
-        Alert.alert(
-          "Spreadsheet Imported",
-          `Populated ${parseResult.totalRows} applicant entries (${parseResult.validCount} valid) into the cohort.`
-        );
+
+        if (parseResult.invalidCount > 0 && parseResult.validCount === 0) {
+          toast.error("Import Failed", `All ${parseResult.totalRows} row(s) had formatting or validation errors.`);
+        } else if (parseResult.invalidCount > 0) {
+          toast.warning(
+            "Partial Import Completed",
+            `Populated ${parseResult.validCount} valid applicant(s). ${parseResult.invalidCount} invalid row(s) were excluded.`
+          );
+        } else {
+          toast.success(
+            "Spreadsheet Imported",
+            `Successfully populated all ${parseResult.validCount} applicant entries into the filing cohort.`
+          );
+        }
       }
     } catch (err) {
       console.error("Failed to upload spreadsheet:", err);
-      Alert.alert("Error", "Could not parse the selected file.");
+      toast.error("Import Error", "Failed to parse the selected spreadsheet file.");
     } finally {
       setImportLoading(false);
     }
@@ -185,14 +203,27 @@ export function GeneralBulkApplicantsPanel({
 
   const handleConfirmDelete = () => {
     const indices = deleteDialog.indicesToDelete;
-    if (onRemoveApplicants) {
-      onRemoveApplicants(indices);
-    } else {
-      const sorted = [...indices].sort((a, b) => b - a);
-      sorted.forEach((idx) => onRemoveApplicant(idx));
+    const count = indices.length;
+    try {
+      if (onRemoveApplicants) {
+        onRemoveApplicants(indices);
+      } else {
+        const sorted = [...indices].sort((a, b) => b - a);
+        sorted.forEach((idx) => onRemoveApplicant(idx));
+      }
+      toast.success(
+        "Applicants Removed",
+        count === 1
+          ? "Successfully removed 1 applicant from the cohort."
+          : `Successfully removed ${count} applicants from the cohort.`
+      );
+    } catch (err) {
+      console.error("Failed to delete applicants:", err);
+      toast.error("Deletion Error", "An error occurred while removing selected applicants.");
+    } finally {
+      setSelectedIndices(new Set());
+      setDeleteDialog({ visible: false, count: 0, isAll: false, indicesToDelete: [] });
     }
-    setSelectedIndices(new Set());
-    setDeleteDialog({ visible: false, count: 0, isAll: false, indicesToDelete: [] });
   };
 
   return (

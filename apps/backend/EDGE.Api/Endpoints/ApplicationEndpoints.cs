@@ -345,7 +345,7 @@ public static class ApplicationEndpoints
             SearchTerm: search
         ));
 
-        return Results.Ok(result);
+        return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
     }
 
     [HasPermission(Permissions.ReadApplication)]

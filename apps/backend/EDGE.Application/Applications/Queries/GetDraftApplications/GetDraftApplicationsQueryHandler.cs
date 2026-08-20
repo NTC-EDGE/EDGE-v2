@@ -13,7 +13,7 @@ using EDGE.Application.Common.Models;
 
 namespace EDGE.Application.Applications.Queries.GetDraftApplications;
 
-public class GetDraftApplicationsQueryHandler : IRequestHandler<GetDraftApplicationsQuery, object>
+public class GetDraftApplicationsQueryHandler : IRequestHandler<GetDraftApplicationsQuery, DraftApplicationsEnvelope>
 {
     private readonly IApplicationFullRepository _repository;
     private readonly ICurrentUserService _currentUserService;
@@ -29,12 +29,12 @@ public class GetDraftApplicationsQueryHandler : IRequestHandler<GetDraftApplicat
         _userRepository = userRepository;
     }
 
-    public async Task<object> Handle(GetDraftApplicationsQuery request, CancellationToken cancellationToken)
+    public async Task<DraftApplicationsEnvelope> Handle(GetDraftApplicationsQuery request, CancellationToken cancellationToken)
     {
         var userIdStr = _currentUserService.UserId;
         if (string.IsNullOrEmpty(userIdStr))
         {
-            return ApiResponse<object>.Fail("401 Unauthorized: Only authenticated users can retrieve saved drafts.");
+            return DraftApplicationsEnvelope.Fail("401 Unauthorized: Only authenticated users can retrieve saved drafts.");
         }
 
         var candidateUserIds = new List<Guid>();
@@ -111,7 +111,7 @@ public class GetDraftApplicationsQueryHandler : IRequestHandler<GetDraftApplicat
                 })
                 .ToList();
 
-            return ApiResponse<List<DraftCategorySummaryDto>>.Success(summaryList, "User draft applications retrieved successfully.");
+            return DraftApplicationsEnvelope.SuccessSummaries(summaryList, "User draft applications retrieved successfully.");
         }
 
         // Filter drafts for specific category
@@ -198,7 +198,7 @@ public class GetDraftApplicationsQueryHandler : IRequestHandler<GetDraftApplicat
             };
         }).ToList();
 
-        return new PaginatedApiResponse<DraftApplicationItemDto>(items, pageNumber, pageSize, totalCount, "User draft applications retrieved successfully.");
+        return DraftApplicationsEnvelope.SuccessPaged(items, pageNumber, pageSize, totalCount, "User draft applications retrieved successfully.");
     }
 
     private static Guid CreateGuidFromString(string input)

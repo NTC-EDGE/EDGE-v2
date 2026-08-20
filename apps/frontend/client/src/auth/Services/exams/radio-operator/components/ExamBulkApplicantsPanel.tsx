@@ -7,6 +7,7 @@ import {
   TextInput,
 } from "react-native";
 import { Icon, COLORS, TYPOGRAPHY } from "@edge/ui";
+import { useToast } from "../../../../../shared/components/Toast";
 import { ExamApplicantData } from "../index";
 import { styles } from "./ExamBulkApplicantsPanel.styles";
 import { ExamDeleteApplicantModal } from "./ExamDeleteApplicantModal";
@@ -110,16 +111,31 @@ export function ExamBulkApplicantsPanel({
     });
   };
 
+  const toast = useToast();
+
   const handleConfirmDelete = () => {
     const indices = deleteDialog.indicesToDelete;
-    if (onRemoveApplicants) {
-      onRemoveApplicants(indices);
-    } else {
-      const sorted = [...indices].sort((a, b) => b - a);
-      sorted.forEach((idx) => onRemoveApplicant(idx));
+    const count = indices.length;
+    try {
+      if (onRemoveApplicants) {
+        onRemoveApplicants(indices);
+      } else {
+        const sorted = [...indices].sort((a, b) => b - a);
+        sorted.forEach((idx) => onRemoveApplicant(idx));
+      }
+      toast.success(
+        "Applicants Removed",
+        count === 1
+          ? "Successfully removed 1 exam applicant from the cohort."
+          : `Successfully removed ${count} exam applicants from the cohort.`
+      );
+    } catch (err) {
+      console.error("Failed to delete exam applicants:", err);
+      toast.error("Deletion Error", "An error occurred while removing selected exam applicants.");
+    } finally {
+      setSelectedIndices(new Set());
+      setDeleteDialog({ visible: false, count: 0, isAll: false, indicesToDelete: [] });
     }
-    setSelectedIndices(new Set());
-    setDeleteDialog({ visible: false, count: 0, isAll: false, indicesToDelete: [] });
   };
 
   return (

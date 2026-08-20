@@ -11,6 +11,7 @@ import {
   Modal,
 } from "react-native";
 import { Icon, COLORS, TYPOGRAPHY, SPACING } from "@edge/ui";
+import { useToast } from "../../../../../shared/components/Toast";
 import { ApplicantData } from "../types/cpeTypes";
 
 interface BulkApplicantsPanelProps {
@@ -125,16 +126,31 @@ export function BulkApplicantsPanel({
     });
   };
 
+  const toast = useToast();
+
   const handleConfirmDelete = () => {
     const indices = deleteDialog.indicesToDelete;
-    if (onRemoveApplicants) {
-      onRemoveApplicants(indices);
-    } else if (onRemoveApplicant) {
-      const sorted = [...indices].sort((a, b) => b - a);
-      sorted.forEach((idx) => onRemoveApplicant(idx));
+    const count = indices.length;
+    try {
+      if (onRemoveApplicants) {
+        onRemoveApplicants(indices);
+      } else if (onRemoveApplicant) {
+        const sorted = [...indices].sort((a, b) => b - a);
+        sorted.forEach((idx) => onRemoveApplicant(idx));
+      }
+      toast.success(
+        "Applicants Removed",
+        count === 1
+          ? "Successfully removed 1 CPE applicant from the cohort."
+          : `Successfully removed ${count} CPE applicants from the cohort.`
+      );
+    } catch (err) {
+      console.error("Failed to delete CPE applicants:", err);
+      toast.error("Deletion Error", "An error occurred while removing selected CPE applicants.");
+    } finally {
+      setSelectedIndices(new Set());
+      setDeleteDialog({ visible: false, count: 0, isAll: false, indicesToDelete: [] });
     }
-    setSelectedIndices(new Set());
-    setDeleteDialog({ visible: false, count: 0, isAll: false, indicesToDelete: [] });
   };
 
   const isAllComplete = applicants.length > 0 && completeCount === applicants.length;

@@ -1,7 +1,8 @@
-using System.Collections.Generic;
+using System;
 using MediatR;
 using EDGE.Application.Applications.Dtos;
-using EDGE.Application.Common.Models;
+
+namespace EDGE.Application.Applications.Queries.GetDraftApplications;
 
 public record GetDraftApplicationsQuery(
     Guid? CategoryId = null,
@@ -9,4 +10,4 @@ public record GetDraftApplicationsQuery(
     int PageNumber = 1,
     int PageSize = 10,
     string? SearchTerm = null
-) : IRequest<object>;
+) : IRequest<DraftApplicationsEnvelope>;
