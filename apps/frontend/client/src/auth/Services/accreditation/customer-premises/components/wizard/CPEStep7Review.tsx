@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity } from "react-native";
+import { View, Text, TouchableOpacity, Image } from "react-native";
 import { Icon, COLORS, TYPOGRAPHY } from "@edge/ui";
 import { ApplicantData } from "../../types/cpeTypes";
 import { getRequirementsList } from "./CPEStep6DocumentUpload";
@@ -298,6 +298,34 @@ export function CPEStep7Review({
           })}
         </View>
       ))}
+
+      {/* Acknowledgement & Applicant Signature */}
+      {Boolean(applicants[0]?.signature) && (
+        <View style={{ marginTop: 16, backgroundColor: COLORS.neutral.white, borderRadius: 12, borderWidth: 1, borderColor: COLORS.neutral[200], overflow: "hidden" }}>
+          <View style={{ backgroundColor: "#F8FAFC", paddingVertical: 10, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: COLORS.neutral[200], flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <Icon name="edit-2" size={16} color="#0F2C59" />
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontWeight: "700", fontSize: 13, color: COLORS.neutral[900] }}>
+              Acknowledgement &amp; Applicant Signature
+            </Text>
+          </View>
+          <View style={{ padding: 16, alignItems: "center" }}>
+            {applicants[0].signature?.startsWith("data:image") || applicants[0].signature?.startsWith("http") || applicants[0].signature?.startsWith("file:") ? (
+              <Image
+                source={{ uri: applicants[0].signature }}
+                style={{ width: 220, height: 70 }}
+                resizeMode="contain"
+              />
+            ) : (
+              <Text style={{ fontFamily: "cursive", fontSize: 22, color: "#0F2C59", fontStyle: "italic" }}>
+                {applicants[0].signature?.replace(/^typed:cursive:/, "")}
+              </Text>
+            )}
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, color: COLORS.neutral[500], marginTop: 6 }}>
+              Digitally recorded applicant signature
+            </Text>
+          </View>
+        </View>
+      )}
 
       <DocumentPreviewModal
         visible={isPreviewOpen}

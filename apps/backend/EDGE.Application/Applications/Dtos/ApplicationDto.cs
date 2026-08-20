@@ -23,6 +23,13 @@ public class ApplicationDto
     public bool IsArchived { get; set; }
     public DateTime CreatedAt { get; set; }
 
+    public Guid? ServiceId { get; set; }
+    public string? ServiceName { get; set; }
+    public Guid? ServiceCategoryId { get; set; }
+    public string? ServiceCategoryName { get; set; }
+    public string? ServiceCategoryCode { get; set; }
+    public string? ServiceVariantName { get; set; }
+
     public FilingUserDto? FilingUser { get; set; }
 
     public List<ApplicationServiceDto> Services { get; set; } = new();

@@ -101,20 +101,35 @@ public class SubmitApplicationCommandHandler
         var tenant = await _tenantRepository.GetByIdAsync(request.TenantId, cancellationToken);
         if (tenant == null)
         {
-            return ApiResponse<Guid>.Fail(
-                "Validation Error: The specified tenant does not exist.");
+            if (request.IsDraft)
+            {
+                var allTenants = await _tenantRepository.GetAllAsync(cancellationToken);
+                tenant = allTenants.FirstOrDefault();
+            }
+
+            if (tenant == null)
+            {
+                return ApiResponse<Guid>.Fail(
+                    "Validation Error: The specified tenant does not exist.");
+            }
         }
 
         string? officeName = null;
-        if (request.FieldOfficeId != null)
+        if (request.FieldOfficeId != null && request.FieldOfficeId != Guid.Empty)
         {
             var office = await _fieldOfficeRepository.GetByIdAsync(request.FieldOfficeId.Value, cancellationToken);
-            if (office == null || office.RegionId != tenant.RegionId)
+            if (office != null)
             {
-                return ApiResponse<Guid>.Fail(
-                    "Validation Error: The selected field office does not belong to the tenant's region.");
+                if (office.RegionId == tenant.RegionId || request.IsDraft)
+                {
+                    officeName = office.Name;
+                }
+                else if (!request.IsDraft)
+                {
+                    return ApiResponse<Guid>.Fail(
+                        "Validation Error: The selected field office does not belong to the tenant's region.");
+                }
             }
-            officeName = office.Name;
         }
 
         // 2c. Resolve effective scheduleId
@@ -255,22 +270,63 @@ public class SubmitApplicationCommandHandler
                 ? $"APP-{DateTime.UtcNow:yyyyMMdd}-{Random.Shared.Next(1000, 9999)}"
                 : null;
 
-            // Create Application (inheriting RegionId from Tenant)
-            var application = new Domain.Entities.Application
+            Domain.Entities.Application application;
+            if (request.ExistingDraftId.HasValue && request.ExistingDraftId.Value != Guid.Empty)
             {
-                TenantId = request.TenantId,
-                ScheduleId = effectiveScheduleId,
-                RegionId = tenant.RegionId,
-                Office = officeName,
-                ApplicationNumber = appNumber,
-                ReferenceNumber = $"REF-{Guid.NewGuid().ToString("N")[..8].ToUpper()}",
-                Status = status,
-                SubmissionMode = submissionMode,
-                DataEntryMethod = DataEntryMethod.Manual, // CSV deferred
-                UserId = submitterUserId,
-                IsGuest = isGuest
-            };
-            await _applicationRepository.AddAsync(application, cancellationToken);
+                var existing = await _applicationRepository.GetByIdAsync(request.ExistingDraftId.Value, cancellationToken);
+                if (existing != null && existing.Status == ApplicationStatus.Draft)
+                {
+                    existing.TenantId = request.TenantId;
+                    existing.ScheduleId = effectiveScheduleId;
+                    existing.RegionId = tenant.RegionId;
+                    existing.Office = officeName;
+                    existing.Status = status;
+                    existing.SubmissionMode = submissionMode;
+                    if (status == ApplicationStatus.Submitted)
+                    {
+                        existing.ApplicationNumber = appNumber;
+                    }
+                    application = existing;
+                    await _applicationRepository.UpdateAsync(existing, cancellationToken);
+                }
+                else
+                {
+                    application = new Domain.Entities.Application
+                    {
+                        TenantId = request.TenantId,
+                        ScheduleId = effectiveScheduleId,
+                        RegionId = tenant.RegionId,
+                        Office = officeName,
+                        ApplicationNumber = appNumber,
+                        ReferenceNumber = $"REF-{Guid.NewGuid().ToString("N")[..8].ToUpper()}",
+                        Status = status,
+                        SubmissionMode = submissionMode,
+                        DataEntryMethod = DataEntryMethod.Manual,
+                        UserId = submitterUserId,
+                        IsGuest = isGuest
+                    };
+                    await _applicationRepository.AddAsync(application, cancellationToken);
+                }
+            }
+            else
+            {
+                // Create Application (inheriting RegionId from Tenant)
+                application = new Domain.Entities.Application
+                {
+                    TenantId = request.TenantId,
+                    ScheduleId = effectiveScheduleId,
+                    RegionId = tenant.RegionId,
+                    Office = officeName,
+                    ApplicationNumber = appNumber,
+                    ReferenceNumber = $"REF-{Guid.NewGuid().ToString("N")[..8].ToUpper()}",
+                    Status = status,
+                    SubmissionMode = submissionMode,
+                    DataEntryMethod = DataEntryMethod.Manual, // CSV deferred
+                    UserId = submitterUserId,
+                    IsGuest = isGuest
+                };
+                await _applicationRepository.AddAsync(application, cancellationToken);
+            }
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             // Loop over applicants — runs once for Single, N times for Bulk
@@ -349,18 +405,21 @@ public class SubmitApplicationCommandHandler
                         formSubmission, cancellationToken);
                     await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-                    foreach (var fv in dto.FormFieldValues)
+                    var distinctFieldValues = dto.FormFieldValues
+                        .Where(fv => fv.FieldId.HasValue && fv.FieldId.Value != Guid.Empty)
+                        .GroupBy(fv => fv.FieldId!.Value)
+                        .Select(g => g.Last())
+                        .ToList();
+
+                    foreach (var fv in distinctFieldValues)
                     {
-                        if (fv.FieldId.HasValue && fv.FieldId.Value != Guid.Empty)
+                        await _applicationRepository.AddFormFieldValueAsync(new FormFieldValue
                         {
-                            await _applicationRepository.AddFormFieldValueAsync(new FormFieldValue
-                            {
-                                Id = Guid.NewGuid(),
-                                FormSubmissionId = formSubmission.Id,
-                                FieldId = fv.FieldId.Value,
-                                Value = fv.Value ?? ""
-                            }, cancellationToken);
-                        }
+                            Id = Guid.NewGuid(),
+                            FormSubmissionId = formSubmission.Id,
+                            FieldId = fv.FieldId!.Value,
+                            Value = fv.Value ?? ""
+                        }, cancellationToken);
                     }
                 }
             }

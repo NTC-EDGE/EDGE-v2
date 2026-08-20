@@ -195,7 +195,7 @@ export function serializeCertificateApplicant(
 
     const addressField = app.formFieldValues.find(fv => {
       const l = (fv.fieldLabel || "").toLowerCase();
-      return l.includes("address") || l.includes("street");
+      return (l.includes("address") || l.includes("street")) && !l.includes("email");
     })?.value?.trim() || "";
 
     const contactNoField = app.formFieldValues.find(fv => {

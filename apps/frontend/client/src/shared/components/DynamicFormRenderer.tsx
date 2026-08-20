@@ -967,7 +967,7 @@ export function DynamicFormRenderer({
             <FormSignatureInput
               label="Applicant Signature / Declaration"
               isRequired={true}
-              value={values[FIELD_ID_SIGNATURE] || values["signature"] || values["applicantSignature"] || ""}
+              value={values[FIELD_ID_SIGNATURE] !== undefined ? values[FIELD_ID_SIGNATURE] : (values["signature"] ?? values["applicantSignature"] ?? "")}
               onChange={(sigData) => onChange(FIELD_ID_SIGNATURE, "Applicant Signature", sigData)}
               applicantName={applicantName}
               isBulk={isBulk}

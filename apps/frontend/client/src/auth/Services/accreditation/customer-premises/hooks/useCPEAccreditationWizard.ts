@@ -12,6 +12,7 @@ interface UseCPEAccreditationWizardProps {
   setSelectedRegionId: (id: string) => void;
   selectedOfficeId?: string;
   setSelectedOfficeId: (id: string) => void;
+  appMode?: "SINGLE" | "BULK" | "";
   setAppMode: (mode: "SINGLE" | "BULK" | "") => void;
   setBulkMethod: (method: "MANUAL" | "EXCEL") => void;
   setIsFileUploaded: (val: boolean) => void;
@@ -27,6 +28,7 @@ export function useCPEAccreditationWizard({
   setSelectedRegionId,
   selectedOfficeId,
   setSelectedOfficeId,
+  appMode,
   setAppMode,
   setBulkMethod,
   setIsFileUploaded,
@@ -317,25 +319,38 @@ export function useCPEAccreditationWizard({
           .join(", ");
         if (!formattedAddress) formattedAddress = "N/A";
 
+        const isBulkSubmission = appMode === "BULK" || applicants.length > 1;
+        const mappedApplicants = (isBulkSubmission ? applicants : [activeApplicant]).map((app) => {
+          let addr = [app.unitBldgNo, app.street, app.barangay, app.city, app.province]
+            .filter(Boolean)
+            .join(", ");
+          if (!addr) addr = "N/A";
+
+          let fvList: Array<{ fieldId: string; fieldLabel: string; value: string }> = [];
+          if (app.formFieldValues && Array.isArray(app.formFieldValues)) {
+            fvList = app.formFieldValues;
+          }
+
+          return {
+            firstName: app.businessName || app.engineerName || "Applicant",
+            lastName: app.entityType || "N/A",
+            email: app.email || "applicant@example.com",
+            contactNumber: app.contactNo || "",
+            address: addr,
+            birthDate: "1990-01-01T00:00:00Z",
+            formFieldValues: fvList,
+          };
+        });
+
         const payload = {
           tenantId: selectedRegionId,
-          submissionMode: "Single",
+          submissionMode: isBulkSubmission ? "Bulk" : "Single",
           serviceId: serviceId,
           fieldOfficeId: selectedOfficeId || null,
           serviceVariantId: null,
           serviceVariantElementIds: [],
           isDraft: isDraft,
-          applicants: [
-            {
-              firstName: activeApplicant.businessName || activeApplicant.engineerName || "Applicant",
-              lastName: activeApplicant.entityType || "N/A",
-              email: activeApplicant.email || "applicant@example.com",
-              contactNumber: activeApplicant.contactNo,
-              address: formattedAddress,
-              birthDate: "1990-01-01T00:00:00Z",
-              formFieldValues: formFieldValues
-            }
-          ]
+          applicants: mappedApplicants,
         };
 
         await api.post(`/api/v2/tenants/${selectedRegionId}/applications`, payload);

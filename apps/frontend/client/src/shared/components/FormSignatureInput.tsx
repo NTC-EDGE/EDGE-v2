@@ -36,8 +36,12 @@ export function FormSignatureInput({
   const isBulkMode = isBulk || appMode === "BULK";
   const { user: clerkUser } = useUser();
   const [activeTab, setActiveTab] = useState<"draw" | "type" | "upload">(isBulkMode ? "upload" : "draw");
-  const [typedName, setTypedName] = useState(applicantName || clerkUser?.fullName || "");
+  const [typedName, setTypedName] = useState(applicantName || (isBulkMode ? "" : clerkUser?.fullName || ""));
   const [hasDrawnStrokes, setHasDrawnStrokes] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+
+  const isInitializedRef = useRef(false);
+  const isExplicitlyClearedRef = useRef(false);
 
   // Helper to retrieve saved signature from Clerk metadata or local storage
   const getSavedSignature = useCallback((): string => {
@@ -70,12 +74,15 @@ export function FormSignatureInput({
 
   const savedSignature = getSavedSignature();
 
-  // For individual applications: auto-populate default user saved signature if value is currently empty
+  // For individual applications: auto-populate default user saved signature ONLY on initial mount if empty
   // For bulk applications: start blank, allowing drawing or image uploading per applicant
   useEffect(() => {
-    if (!isBulkMode && (!value || value.trim().length === 0)) {
-      if (savedSignature) {
-        onChange(savedSignature);
+    if (!isInitializedRef.current) {
+      isInitializedRef.current = true;
+      if (!isBulkMode && !isExplicitlyClearedRef.current && (!value || value.trim().length === 0)) {
+        if (savedSignature) {
+          onChange(savedSignature);
+        }
       }
     }
   }, [savedSignature, value, onChange, isBulkMode]);
@@ -84,10 +91,10 @@ export function FormSignatureInput({
   useEffect(() => {
     if (applicantName) {
       setTypedName(applicantName);
-    } else if (clerkUser?.fullName) {
+    } else if (!isBulkMode && clerkUser?.fullName) {
       setTypedName(clerkUser.fullName);
     }
-  }, [applicantName, clerkUser?.fullName]);
+  }, [applicantName, clerkUser?.fullName, isBulkMode]);
 
   // Web Canvas Ref
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -108,7 +115,22 @@ export function FormSignatureInput({
         ctx.lineJoin = "round";
       }
     }
-  }, [activeTab, hasSignature]);
+  }, [activeTab, hasSignature, isEditing]);
+
+  // Get scaled coordinates for Web Canvas
+  const getCanvasCoordinates = (e: any) => {
+    if (!canvasRef.current) return { x: 0, y: 0 };
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / (rect.width || 1);
+    const scaleY = canvas.height / (rect.height || 1);
+    const clientX = e.touches && e.touches[0] ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches && e.touches[0] ? e.touches[0].clientY : e.clientY;
+    return {
+      x: (clientX - rect.left) * scaleX,
+      y: (clientY - rect.top) * scaleY,
+    };
+  };
 
   // Web Drawing Handlers
   const startDrawing = (e: any) => {
@@ -126,12 +148,7 @@ export function FormSignatureInput({
       // ignore
     }
 
-    const rect = canvas.getBoundingClientRect();
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    const x = clientX - rect.left;
-    const y = clientY - rect.top;
-
+    const { x, y } = getCanvasCoordinates(e);
     ctx.beginPath();
     ctx.moveTo(x, y);
   };
@@ -142,12 +159,7 @@ export function FormSignatureInput({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const rect = canvas.getBoundingClientRect();
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    const x = clientX - rect.left;
-    const y = clientY - rect.top;
-
+    const { x, y } = getCanvasCoordinates(e);
     ctx.lineTo(x, y);
     ctx.stroke();
     setHasDrawnStrokes(true);
@@ -163,12 +175,13 @@ export function FormSignatureInput({
   };
 
   const clearCanvas = () => {
-    if (!canvasRef.current) return;
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (canvasRef.current) {
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+    }
     strokeHistoryRef.current = [];
     setHasDrawnStrokes(false);
   };
@@ -210,6 +223,8 @@ export function FormSignatureInput({
   const handleApplyDrawnSignature = () => {
     if (!canvasRef.current) return;
     const dataUrl = canvasRef.current.toDataURL("image/png");
+    isExplicitlyClearedRef.current = false;
+    setIsEditing(false);
     onChange(dataUrl);
     if (!isBulkMode) {
       persistSavedSignature(dataUrl);
@@ -219,6 +234,8 @@ export function FormSignatureInput({
   const handleApplyTypedSignature = () => {
     if (!typedName.trim()) return;
     const signatureToken = `typed:cursive:${typedName.trim()}`;
+    isExplicitlyClearedRef.current = false;
+    setIsEditing(false);
     onChange(signatureToken);
     if (!isBulkMode) {
       persistSavedSignature(signatureToken);
@@ -236,6 +253,8 @@ export function FormSignatureInput({
           const reader = new FileReader();
           reader.onload = () => {
             if (typeof reader.result === "string") {
+              isExplicitlyClearedRef.current = false;
+              setIsEditing(false);
               onChange(reader.result);
               if (!isBulkMode) {
                 persistSavedSignature(reader.result);
@@ -255,6 +274,8 @@ export function FormSignatureInput({
         if (!res.canceled && res.assets && res.assets.length > 0) {
           const file = res.assets[0];
           if (file && file.uri) {
+            isExplicitlyClearedRef.current = false;
+            setIsEditing(false);
             onChange(file.uri);
             if (!isBulkMode) {
               persistSavedSignature(file.uri);
@@ -269,12 +290,27 @@ export function FormSignatureInput({
 
   const handleApplySavedSignature = () => {
     if (savedSignature) {
+      isExplicitlyClearedRef.current = false;
+      setIsEditing(false);
       onChange(savedSignature);
     }
   };
 
+  const handleStartEditing = () => {
+    isExplicitlyClearedRef.current = true;
+    setIsEditing(true);
+    clearCanvas();
+  };
+
   const handleClearSignature = () => {
+    isExplicitlyClearedRef.current = true;
+    setIsEditing(false);
     onChange("");
+    clearCanvas();
+  };
+
+  const handleCancelEditing = () => {
+    setIsEditing(false);
     clearCanvas();
   };
 
@@ -299,7 +335,7 @@ export function FormSignatureInput({
       </View>
 
       {/* Signature Signed State Display */}
-      {hasSignature ? (
+      {hasSignature && !isEditing ? (
         <View style={styles.signedCard}>
           <View style={styles.signedHeader}>
             <View style={styles.verifiedBadge}>
@@ -307,14 +343,25 @@ export function FormSignatureInput({
               <Text style={styles.verifiedBadgeText}>Digital Signature Attached</Text>
             </View>
 
-            <TouchableOpacity
-              onPress={handleClearSignature}
-              style={styles.clearButton}
-              activeOpacity={0.7}
-            >
-              <Icon name="trash-2" size={13} color="#EF4444" />
-              <Text style={styles.clearButtonText}>Clear / Resign</Text>
-            </TouchableOpacity>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <TouchableOpacity
+                onPress={handleStartEditing}
+                style={styles.editButton}
+                activeOpacity={0.7}
+              >
+                <Icon name="edit-2" size={13} color="#2563EB" />
+                <Text style={styles.editButtonText}>Edit / Change</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={handleClearSignature}
+                style={styles.clearButton}
+                activeOpacity={0.7}
+              >
+                <Icon name="trash-2" size={13} color="#EF4444" />
+                <Text style={styles.clearButtonText}>Clear</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Visual Signature Rendering Box */}
@@ -344,6 +391,25 @@ export function FormSignatureInput({
       ) : (
         /* Signature Creation State */
         <View style={styles.creatorCard}>
+          {isEditing && hasSignature && (
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: "#E2E8F0" }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <Icon name="edit-3" size={14} color="#1E40AF" />
+                <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, fontWeight: "700", color: "#1E40AF" }}>
+                  Updating Signature
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={handleCancelEditing}
+                style={styles.cancelEditBtn}
+                activeOpacity={0.7}
+              >
+                <Icon name="x" size={13} color="#64748B" />
+                <Text style={styles.cancelEditBtnText}>Keep Current</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           {/* Method Tabs */}
           <View style={styles.tabRow}>
             <TouchableOpacity
@@ -394,7 +460,7 @@ export function FormSignatureInput({
               </Text>
             </TouchableOpacity>
 
-            {Boolean(savedSignature) && (
+            {!isBulkMode && Boolean(savedSignature) && (
               <TouchableOpacity
                 onPress={handleApplySavedSignature}
                 style={[
@@ -834,6 +900,23 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#059669",
   },
+  editButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: "#EFF6FF",
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+  },
+  editButtonText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#2563EB",
+  },
   clearButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -848,6 +931,21 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "700",
     color: "#DC2626",
+  },
+  cancelEditBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: "#F1F5F9",
+  },
+  cancelEditBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#64748B",
   },
   signaturePreviewSurface: {
     backgroundColor: "#F8FAFC",

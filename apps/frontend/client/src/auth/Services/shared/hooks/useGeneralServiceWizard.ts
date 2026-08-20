@@ -75,6 +75,14 @@ export interface GeneralApplicantData {
   province?: string;
   city?: string;
   barangay?: string;
+  street?: string;
+  schoolName?: string;
+  courseDegree?: string;
+  yearGraduated?: string;
+  specialOrderNo?: string;
+  examType?: string;
+  examineeType?: string;
+  selectedOption?: string;
   birthMonth: string;
   birthDay: string;
   birthYear: string;
@@ -145,6 +153,7 @@ export interface ServiceVariantElementInfo {
 
 export interface ServiceRequirementItem {
   id?: string;
+  key?: string;
   name?: string;
   label?: string;
   title?: string;
@@ -152,6 +161,7 @@ export interface ServiceRequirementItem {
   hint?: string;
   isRequired?: boolean;
   required?: boolean;
+  [key: string]: unknown;
 }
 
 export function isRequirementMandatory(req: ServiceRequirementItem | string): boolean {
@@ -281,6 +291,7 @@ export interface UseGeneralServiceWizardOptions {
   setSelectedRegionId?: (id: string) => void;
   selectedOfficeId?: string | null;
   setSelectedOfficeId?: (id: string) => void;
+  appMode?: "SINGLE" | "BULK" | "";
   applicants?: GeneralApplicantData[];
   setApplicants?: React.Dispatch<React.SetStateAction<GeneralApplicantData[]>>;
   currentApplicantIndex?: number;
@@ -297,6 +308,7 @@ export function useGeneralServiceWizard(
   const isOptionsObject = typeof optionsOrService === "object" && "service" in optionsOrService;
   const service = isOptionsObject ? (optionsOrService as UseGeneralServiceWizardOptions).service : (optionsOrService as NTCService);
   const currentStep = isOptionsObject ? ((optionsOrService as UseGeneralServiceWizardOptions).step || 1) : stepArg;
+  const appMode = isOptionsObject ? (optionsOrService as UseGeneralServiceWizardOptions).appMode : undefined;
 
   const [localApplicantIndex, setLocalApplicantIndex] = useState(0);
   const [localApplicants, setLocalApplicants] = useState<GeneralApplicantData[]>([
@@ -634,6 +646,7 @@ export function useGeneralServiceWizard(
       setApplicants((prev) =>
         prev.map((app, idx) => {
           if (idx !== 0) return app;
+          const isBlank = !app.firstName && !app.lastName && !app.email && !app.contactNo && !app.selectedVariantId;
           return {
             ...app,
             firstName: app.firstName || initialProfile.firstName,
@@ -650,9 +663,9 @@ export function useGeneralServiceWizard(
             province: app.province || initialProfile.province,
             city: app.city || initialProfile.city,
             barangay: app.barangay || initialProfile.barangay,
-            birthYear: app.birthYear && app.birthYear !== "2000" ? app.birthYear : initialProfile.birthYear,
-            birthMonth: app.birthMonth && app.birthMonth !== "January" ? app.birthMonth : initialProfile.birthMonth,
-            birthDay: app.birthDay && app.birthDay !== "1" ? app.birthDay : initialProfile.birthDay,
+            birthYear: isBlank ? initialProfile.birthYear : app.birthYear,
+            birthMonth: isBlank ? initialProfile.birthMonth : app.birthMonth,
+            birthDay: isBlank ? initialProfile.birthDay : app.birthDay,
             companyName: app.companyName || initialProfile.companyName,
           };
         })
@@ -673,6 +686,7 @@ export function useGeneralServiceWizard(
         setApplicants((prev) =>
           prev.map((app, idx) => {
             if (idx !== 0) return app;
+            const isBlank = !app.firstName && !app.lastName && !app.email && !app.contactNo && !app.selectedVariantId;
             return {
               ...app,
               firstName: app.firstName || enriched.firstName,
@@ -689,9 +703,9 @@ export function useGeneralServiceWizard(
               province: app.province || enriched.province,
               city: app.city || enriched.city,
               barangay: app.barangay || enriched.barangay,
-              birthYear: app.birthYear && app.birthYear !== "2000" ? app.birthYear : enriched.birthYear,
-              birthMonth: app.birthMonth && app.birthMonth !== "January" ? app.birthMonth : enriched.birthMonth,
-              birthDay: app.birthDay && app.birthDay !== "1" ? app.birthDay : enriched.birthDay,
+              birthYear: isBlank ? enriched.birthYear : app.birthYear,
+              birthMonth: isBlank ? enriched.birthMonth : app.birthMonth,
+              birthDay: isBlank ? enriched.birthDay : app.birthDay,
               companyName: app.companyName || enriched.companyName,
             };
           })
@@ -808,7 +822,7 @@ export function useGeneralServiceWizard(
 
     const payload = {
       tenantId: selectedRegionId,
-      submissionMode: mappedApplicants.length > 1 ? "Bulk" : "Single",
+      submissionMode: appMode === "BULK" || mappedApplicants.length > 1 ? "Bulk" : "Single",
       serviceId: service.id,
       fieldOfficeId: selectedOfficeId,
       serviceVariantId: activeApplicant.selectedVariantId || (variants.length > 0 ? variants[0].id : null),

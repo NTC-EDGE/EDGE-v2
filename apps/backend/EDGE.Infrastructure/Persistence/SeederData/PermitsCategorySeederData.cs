@@ -309,7 +309,7 @@ public static class PermitsCategorySeederData
         ["PUBLIC_COASTAL_SELLER_LICENSE"] = new(Guid.Parse("70000000-0000-0000-0000-000000000067"), "Public Coastal Station License of the Seller", "Public Coastal Station License of the Seller."),
 
         ["VSAT_AGREEMENT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000070"), "Transponder Lease Agreement / Satellite Certification", "Copy of valid Transponder Lease Agreement (TLA) or Certification of assigned transponder parameters."),
-        ["PRIVATE_BUSINESS_DOCS"] = new(Guid.Parse("70000000-0000-0000-0000-000000000071"), "SEC / DTI / Mayor's Permit", "Copy of SEC Registration, DTI Registration, or valid Business/Mayor's Permit."),
+        ["PRIVATE_BUSINESS_DOCS"] = new(Guid.Parse("70000000-0000-0000-0000-000000000071"), "Copy of ANY of the following:\n• SEC Registration\n• DTI Registration\n• Business/Mayor's Permit", "Copy of ANY of the following:*\n• SEC Registration\n• DTI Registration\n• Business/Mayor's Permit"),
         ["CIVIC_ACTION_DOCS"] = new(Guid.Parse("70000000-0000-0000-0000-000000000072"), "Civic Action Group Documents", "SEC/DTI/Mayor's Permit or CAG RSL, List of Officers & at least 50 active members, MOA with government/NGOs."),
         ["GOVT_LETTER_OF_INTENT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000073"), "Government Entity Letter of Intent", "Letter of Intent duly signed by the head of agency stating technical information and fund availability."),
         ["EQUIPMENT_DATASHEET"] = new(Guid.Parse("70000000-0000-0000-0000-000000000068"), "Datasheet of Proposed Radio Equipment", "Datasheet of proposed radio equipment."),

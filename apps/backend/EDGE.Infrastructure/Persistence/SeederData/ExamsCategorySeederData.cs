@@ -50,6 +50,7 @@ public static class ExamsCategorySeederData
             { ""code"": ""1RTG"", ""condition"": ""For upgrade (2RTG Holder)"", ""description"": ""For upgrade (2RTG Holder) & Code (25/20 wpm)"" },
             { ""code"": ""2RTG"", ""condition"": ""Standard"", ""description"": ""Elements 1, 2, 5, 6 & Code (16 wpm)"" },
             { ""code"": ""2RTG"", ""condition"": ""For removal"", ""description"": ""For removal, Code (16 wpm)"" },
+            { ""code"": ""2RTG"", ""condition"": ""For upgrade (3RTG Holder)"", ""description"": ""For upgrade, (3RTG Holder), Element 6"" },
             { ""code"": ""1PHN"", ""condition"": ""Standard"", ""description"": ""Elements 1, 2, 3 & 4"" },
             { ""code"": ""1PHN"", ""condition"": ""For upgrade (2PHN Holder)"", ""description"": ""For upgrade (2PHN Holder) , Element 4"" },
             { ""code"": ""1PHN"", ""condition"": ""For upgrade (3PHN Holder)"", ""description"": ""For upgrade (3PHN Holder), Element 3 & 4"" },
@@ -124,6 +125,7 @@ public static class ExamsCategorySeederData
             list.Add(new(vId, "1RTG", "For upgrade (2RTG Holder) & Code (25/20 wpm)"));
             list.Add(new(vId, "2RTG", "Elements 1, 2, 5, 6 & Code (16 wpm)"));
             list.Add(new(vId, "2RTG", "For removal, Code (16 wpm)"));
+            list.Add(new(vId, "2RTG", "For upgrade, (3RTG Holder), Element 6"));
         }
 
         // Elements for Radiotelephony (All 3 variants)
@@ -186,43 +188,43 @@ public static class ExamsCategorySeederData
     {
         ["ANY_ID"] = new(
             ReqAnyId,
-            "Valid ID / Proof of Age",
-            "ANY of the following: Birth Certificate, Baptismal Certificate, Passport, PRC License, Driver's License, or any document which can serve as the basis for age requirement"
+            "ANY of the following:*\n• Birth Certificate\n• Baptismal Certificate\n• Passport\n• PRC License\n• Driver's License\n• any document which can serve as the basis for age requirement",
+            "ANY of the following:*\n• Birth Certificate\n• Baptismal Certificate\n• Passport\n• PRC License\n• Driver's License\n• any document which can serve as the basis for age requirement"
         ),
         ["TRANSCRIPT"] = new(
             ReqTranscript,
-            "Transcript of Records with Special Order (SO)",
-            "Transcript of Records with Special Order (SO). Note 1: Show original copy. Note 2: SO is not required for State Universities/Colleges."
+            "Transcript of Records with Special Order (SO)*",
+            "Transcript of Records with Special Order (SO)*\nNote 1: The applicant has to show the original copy.\nNote 2: SO is not required for State Universities/Colleges"
         ),
         ["PHOTO"] = new(
             ReqPhoto,
-            "1x1 ID Picture",
-            "Please provide a clear 1x1 ID picture taken within the last six (6) months."
+            "Please provide a clear 1x1 ID picture taken within the last six (6) months.*",
+            "Please provide a clear 1x1 ID picture taken within the last six (6) months.*"
         ),
         ["RATING"] = new(
             ReqRatingProof,
-            "Proof of Rating",
-            "Official proof of examination rating."
+            "Proof of Rating*",
+            "Proof of Rating*"
         ),
         ["ROC"] = new(
             ReqRocValid,
-            "Copy of Valid ROC",
-            "Copy of Valid Radio Operator Certificate (ROC)."
+            "Copy of Valid ROC *",
+            "Copy of Valid ROC *"
         ),
         ["SEMINAR"] = new(
             ReqSeminar,
-            "Proof of Attendance of Seminar",
-            "Proof of attendance of seminar conducted by NTC accredited Amateur Radio Club."
+            "Proof of attendance of seminar conducted by NTC accredited Amateur Radio Club*",
+            "Proof of attendance of seminar conducted by NTC accredited Amateur Radio Club*"
         ),
         ["AT_ROC"] = new(
             ReqAtRocValid,
-            "Copy of Valid AT-ROC",
-            "Copy of Valid Amateur Radio Operator Certificate (AT-ROC)."
+            "Copy of Valid AT-ROC *",
+            "Copy of Valid AT-ROC *"
         ),
         ["PILOT_LICENSE"] = new(
             ReqPilotLicense,
-            "Aircraft Pilot's License",
-            "Aircraft pilot's license or student pilot's license issued by the Civil Aviation Authority of the Philippines (CAAP) / Pilot license issued by aviation authority for foreign applicants."
+            "Aircraft pilot's license or student pilot's license issued by the Civil Aviation Authority of the Philippines (CAAP) / Pilot license issued by the aviation authority of the Administration for foreign applicants*",
+            "Aircraft pilot's license or student pilot's license issued by the Civil Aviation Authority of the Philippines (CAAP) / Pilot license issued by the aviation authority of the Administration for foreign applicants*"
         ),
     };
 

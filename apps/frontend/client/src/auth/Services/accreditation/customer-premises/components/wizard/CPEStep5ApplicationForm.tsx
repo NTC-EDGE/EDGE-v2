@@ -2,6 +2,7 @@ import React from "react";
 import { View, Text } from "react-native";
 import { Select } from "../../../../../../shared/components/Select";
 import { ValidatedInput } from "../../../../../../shared/components/ValidatedInput";
+import { FormSignatureInput } from "../../../../../../shared/components/FormSignatureInput";
 import { ApplicantData } from "../../types/cpeTypes";
 import { certStyles } from "../../../../certificates/forms/CertificateFormStyles";
 
@@ -13,6 +14,7 @@ interface CPEStep5ApplicationFormProps {
   touched: Record<string, boolean>;
   handleScrollToSection?: (offset: number) => void;
   styles?: any;
+  appMode?: "SINGLE" | "BULK" | "";
 }
 
 export function CPEStep5ApplicationForm({
@@ -21,6 +23,7 @@ export function CPEStep5ApplicationForm({
   handleFieldChange,
   errors,
   touched,
+  appMode,
 }: CPEStep5ApplicationFormProps) {
   const isRenewalOrMod = activeApplicant.appType === "RENEWAL" || activeApplicant.appType === "MODIFICATION";
 
@@ -323,6 +326,21 @@ export function CPEStep5ApplicationForm({
             />
           </View>
         </View>
+      </View>
+
+      {/* Section 6: Acknowledgement & Applicant Signature */}
+      <View style={certStyles.formSection}>
+        <Text style={certStyles.formSectionHeading}>6. Acknowledgement & Applicant Signature</Text>
+        <FormSignatureInput
+          label="Applicant / Authorized Representative Signature"
+          isRequired={true}
+          value={activeApplicant.signature || ""}
+          onChange={(sig) => updateActiveApplicant({ signature: sig })}
+          applicantName={activeApplicant.businessName || activeApplicant.engineerName}
+          isBulk={appMode === "BULK"}
+          appMode={appMode}
+          error={errors.signature}
+        />
       </View>
     </View>
   );

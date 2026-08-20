@@ -41,6 +41,8 @@ export function CPEAccreditationWizard({
   currentApplicantIndex,
   setCurrentApplicantIndex,
   serviceId,
+  onSaveDraft,
+  isSavingDraft = false,
 }: CPEAccreditationWizardProps) {
   const scrollViewRef = useRef<ScrollView | null>(null);
 
@@ -79,6 +81,7 @@ export function CPEAccreditationWizard({
     setSelectedRegionId,
     selectedOfficeId,
     setSelectedOfficeId,
+    appMode,
     setAppMode,
     setBulkMethod,
     setIsFileUploaded,

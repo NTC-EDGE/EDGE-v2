@@ -43,6 +43,8 @@ interface ExamFilingWizardProps {
   setIsBulkSubmitOpen: (val: boolean) => void;
   serviceId?: string | null;
   serviceName?: string | null;
+  onSaveDraft?: () => void;
+  isSavingDraft?: boolean;
 }
 
 export function ExamFilingWizard(props: ExamFilingWizardProps) {
@@ -86,7 +88,7 @@ export function ExamFilingWizard(props: ExamFilingWizardProps) {
 
   const handleConfirmCSVImport = () => {
     props.setIsFileUploaded(true);
-    props.setUploadedFileName("NTC_Bulk_Template.csv");
+    props.setUploadedFileName("NTC_Radio_Operator_Exam_Template.csv");
     props.setApplicants([
       {
         ...initialExamApplicant(1),
@@ -96,7 +98,7 @@ export function ExamFilingWizard(props: ExamFilingWizardProps) {
         lastName: "Doe", firstName: "John", middleName: "Smith", suffix: "Jr.",
         birthMonth: "January", birthDay: "1", birthYear: "1990", sex: "Male", nationality: "Filipino",
         regionName: "National Capital Region (NCR)", province: "Metro Manila", city: "Quezon City", barangay: "Barangay 1", street: "Main Street", zipCode: "1100",
-        schoolName: "University of the Philippines", courseDegree: "BS Computer Science", yearGraduated: "2012",
+        schoolName: "University of the Philippines", courseDegree: "BS Computer Science", yearGraduated: "2012", specialOrderNo: "SO-2012-001",
         contactNo: "09123456789", email: "john.doe@example.com",
       },
       {
@@ -107,7 +109,7 @@ export function ExamFilingWizard(props: ExamFilingWizardProps) {
         lastName: "Reyes", firstName: "Maria", middleName: "Santos", suffix: "",
         birthMonth: "May", birthDay: "15", birthYear: "1992", sex: "Female", nationality: "Filipino",
         regionName: "National Capital Region (NCR)", province: "Metro Manila", city: "Makati City", barangay: "Barangay 2", street: "Second Street", zipCode: "1200",
-        schoolName: "Ateneo de Manila University", courseDegree: "BS Management", yearGraduated: "2014",
+        schoolName: "Ateneo de Manila University", courseDegree: "BS Management", yearGraduated: "2014", specialOrderNo: "",
         contactNo: "09198765432", email: "maria.reyes@example.com",
       },
       {
@@ -118,7 +120,7 @@ export function ExamFilingWizard(props: ExamFilingWizardProps) {
         lastName: "Cruz", firstName: "Juan", middleName: "Dela", suffix: "",
         birthMonth: "October", birthDay: "20", birthYear: "1988", sex: "Male", nationality: "Filipino",
         regionName: "National Capital Region (NCR)", province: "Metro Manila", city: "Pasig City", barangay: "Barangay 3", street: "Third Street", zipCode: "1600",
-        schoolName: "De La Salle University", courseDegree: "BS Engineering", yearGraduated: "2010",
+        schoolName: "De La Salle University", courseDegree: "BS Engineering", yearGraduated: "2010", specialOrderNo: "",
         contactNo: "09176543210", email: "juan.cruz@example.com",
       }
     ]);
@@ -191,7 +193,7 @@ export function ExamFilingWizard(props: ExamFilingWizardProps) {
     else if (props.step === 7) props.setStep(6);
   };
 
-  const handleScrollToSection = (tab: "BASIC" | "ADDRESS" | "EDUCATION" | "CONTACT") => {
+  const handleScrollToSection = (tab: "BASIC" | "ADDRESS" | "EDUCATION" | "CONTACT" | "SIGNATURE") => {
     wizard.setActiveFormTab(tab);
     isManualScrolling.current = true;
     const offset = sectionOffsets.current[tab];
@@ -208,9 +210,11 @@ export function ExamFilingWizard(props: ExamFilingWizardProps) {
     const address = sectionOffsets.current["ADDRESS"] || 0;
     const education = sectionOffsets.current["EDUCATION"] || 0;
     const contact = sectionOffsets.current["CONTACT"] || 0;
+    const signature = sectionOffsets.current["SIGNATURE"] || 0;
 
     let active: typeof wizard.activeFormTab = "BASIC";
-    if (scrollY >= contact - 120) active = "CONTACT";
+    if (signature > 0 && scrollY >= signature - 120) active = "SIGNATURE";
+    else if (scrollY >= contact - 120) active = "CONTACT";
     else if (scrollY >= education - 120) active = "EDUCATION";
     else if (scrollY >= address - 120) active = "ADDRESS";
     else active = "BASIC";
@@ -347,7 +351,15 @@ export function ExamFilingWizard(props: ExamFilingWizardProps) {
       <ExamWizardNavigation
         {...props}
         {...wizard}
-        isNextDisabled={props.step === 1 ? (!props.selectedRegionId || !props.selectedOfficeId) : props.step === 2 && props.bulkMethod === "EXCEL" ? !props.isFileUploaded : false}
+        isNextDisabled={
+          props.step === 1
+            ? !props.selectedRegionId || !props.selectedOfficeId
+            : props.step === 2 && props.bulkMethod === "EXCEL"
+            ? !props.isFileUploaded
+            : props.appMode === "BULK" && props.applicants.length === 0
+            ? true
+            : false
+        }
         handleBack={handleBack}
         handleNext={handleNext}
         getNextBtnText={() => props.step === 5 ? "Review" : props.step === 6 ? (props.appMode === "BULK" ? "Confirm" : "Submit") : "Next"}

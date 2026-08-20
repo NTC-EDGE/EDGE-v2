@@ -55,9 +55,9 @@ public class GetServiceCsvTemplateQueryHandler : IRequestHandler<GetServiceCsvTe
         // Standard NTC applicant biographical columns (matching official NTC Excel layout)
         var standardBiographical = new[]
         {
-            "Last Name",
             "First Name",
             "Middle Name",
+            "Last Name",
             "Suffix",
             "Date of Birth",
             "Sex",
@@ -66,11 +66,14 @@ public class GetServiceCsvTemplateQueryHandler : IRequestHandler<GetServiceCsvTe
             "Province",
             "City",
             "Barangay",
-            "Street/Zone",
+            "Street",
             "Zip Code",
-            "School Attended",
-            "Contact Number",
-            "Email"
+            "School Name",
+            "Course / Degree",
+            "Year Graduated",
+            "Special Order (SO) Number",
+            "Email",
+            "Contact Number"
         };
 
         foreach (var bioHeader in standardBiographical)

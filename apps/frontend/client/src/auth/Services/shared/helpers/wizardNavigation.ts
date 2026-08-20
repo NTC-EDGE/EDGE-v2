@@ -201,7 +201,12 @@ export function handleWizardNext({
           ) {
             val = activeApplicant.barangay;
           } else if (
-            (idLower === FIELD_ID_STREET.toLowerCase() || idLower === FIELD_ID_ADDRESS.toLowerCase() || idLower === "street" || idLower === "address" || idLower.includes("address") || idLower.includes("street")) &&
+            (idLower === FIELD_ID_STREET.toLowerCase() ||
+              idLower === FIELD_ID_ADDRESS.toLowerCase() ||
+              idLower === "street" ||
+              idLower === "address" ||
+              (idLower.includes("address") && !idLower.includes("email")) ||
+              idLower.includes("street")) &&
             activeApplicant.address
           ) {
             val = activeApplicant.address;

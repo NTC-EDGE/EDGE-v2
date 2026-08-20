@@ -130,6 +130,7 @@ export function CPEWizardSteps({
         touched={touched}
         handleScrollToSection={handleScrollToSection}
         styles={styles}
+        appMode={appMode}
       />
     );
   }

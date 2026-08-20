@@ -13,6 +13,7 @@ import {
   ServiceRequirementItem,
   ServiceVariantInfo,
   ServiceVariantElementInfo,
+  initialGeneralApplicant,
 } from "../hooks/useGeneralServiceWizard";
 import { GeneralFilingDetailsStep } from "./GeneralFilingDetailsStep";
 import { GeneralDocumentUploadStep } from "./GeneralDocumentUploadStep";
@@ -74,6 +75,44 @@ export function GeneralBulkApplicationFlow({
   }, [triggerOpenApplicant]);
 
   const activeApplicant = applicants[currentApplicantIndex] || applicants[0];
+
+  if (applicants.length === 0 || !activeApplicant) {
+    return (
+      <View style={{ flex: 1, backgroundColor: COLORS.bg, justifyContent: "center", alignItems: "center", padding: 32 }}>
+        <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: "#EFF6FF", justifyContent: "center", alignItems: "center", marginBottom: 16 }}>
+          <Icon name="users" size={32} color="#1D4ED8" />
+        </View>
+        <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 18, fontWeight: "700", color: "#0F172A", marginBottom: 8, textAlign: "center" }}>
+          No Applicants in Cohort
+        </Text>
+        <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: "#64748B", marginBottom: 24, textAlign: "center", maxWidth: 400, lineHeight: 20 }}>
+          All applicant entries have been removed. Add an applicant to proceed with the bulk filing.
+        </Text>
+        <TouchableOpacity
+          onPress={() => {
+            const newApp = initialGeneralApplicant(1);
+            setApplicants([newApp]);
+            setCurrentApplicantIndex(0);
+          }}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 8,
+            backgroundColor: "#1D4ED8",
+            paddingVertical: 12,
+            paddingHorizontal: 20,
+            borderRadius: 10,
+          }}
+          activeOpacity={0.8}
+        >
+          <Icon name="plus" size={16} color="#FFFFFF" />
+          <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 14, fontWeight: "600", color: "#FFFFFF" }}>
+            Add Applicant
+          </Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   const updateActiveApplicant = (
     fields: Partial<GeneralApplicantData> | ((prevApp: GeneralApplicantData) => Partial<GeneralApplicantData>)

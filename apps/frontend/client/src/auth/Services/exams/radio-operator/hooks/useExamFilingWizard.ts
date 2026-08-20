@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Alert } from "react-native";
 import { useApi } from "../../../../../shared/hooks/useApi";
 import { extractApiErrorMessage } from "../../../../../shared/components/Toast";
-import { ExamApplicantData } from "../types/examTypes";
+import { ExamApplicantData, initialExamApplicant } from "../types/examTypes";
 import { useExamFilingQueries } from "./useExamFilingQueries";
 import { getFieldValidationError, mapApplicantsPayload } from "../helpers/examMapping";
 import { isExamApplicantComplete } from "../helpers/validation";
@@ -58,7 +58,7 @@ export function useExamFilingWizard({
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [isAgreedToTerms, setIsAgreedToTerms] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [activeFormTab, setActiveFormTab] = useState<"BASIC" | "ADDRESS" | "EDUCATION" | "CONTACT">("BASIC");
+  const [activeFormTab, setActiveFormTab] = useState<"BASIC" | "ADDRESS" | "EDUCATION" | "CONTACT" | "SIGNATURE">("BASIC");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
@@ -83,7 +83,7 @@ export function useExamFilingWizard({
     currentApplicantIndex,
   });
 
-  const activeApplicant = applicants[currentApplicantIndex];
+  const activeApplicant = applicants[currentApplicantIndex] || initialExamApplicant(1);
 
   const updateActiveApplicant = (fields: Partial<ExamApplicantData>) => {
     setApplicants((prev) =>

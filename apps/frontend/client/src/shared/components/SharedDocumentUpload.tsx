@@ -11,6 +11,8 @@ export interface DocumentRequirement {
   key: string;       // Unique lookup key in uploads object
   label: string;     // Display label
   required?: boolean;
+  hint?: string;
+  description?: string;
 }
 
 export interface UploadedFile {
@@ -28,11 +30,12 @@ interface SharedDocumentUploadProps {
 
 export function SharedDocumentUpload({
   requirements,
-  uploads,
+  uploads = {},
   onUpload,
   onRemove,
   isWeb,
 }: SharedDocumentUploadProps) {
+  const safeUploads = uploads ?? {};
   const [selectedReqIndex, setSelectedReqIndex] = useState(0);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [activeSlotKey, setActiveSlotKey] = useState<string | null>(null);
@@ -104,7 +107,7 @@ export function SharedDocumentUpload({
           {/* Left panel: List of requirements */}
           <View style={styles.leftPanel}>
             {requirements.map((req, i) => {
-              const uploadData = uploads[req.key];
+              const uploadData = safeUploads[req.key];
               const isUploaded = !!uploadData;
               const isSelected = i === activeIndex;
 
@@ -122,7 +125,6 @@ export function SharedDocumentUpload({
                       styles.reqTabText,
                       isSelected && styles.reqTabTextSelected,
                     ]}
-                    numberOfLines={2}
                   >
                     {i + 1}. {req.label}
                     {req.required && <Text style={styles.asterisk}>*</Text>}
@@ -140,7 +142,7 @@ export function SharedDocumentUpload({
           {/* Right panel: Large drag-drop style dropzone & previews */}
           <View style={styles.rightPanel}>
             {activeReq && (() => {
-              const uploadData = uploads[activeReq.key];
+              const uploadData = safeUploads[activeReq.key];
               const fileName = typeof uploadData === "string" ? uploadData : uploadData?.name;
               const fileUri = typeof uploadData === "string" ? "" : uploadData?.uri;
               const isImage = fileUri && (
@@ -150,11 +152,27 @@ export function SharedDocumentUpload({
                 fileUri.startsWith("data:image")
               );
 
+              const extraHint = (activeReq.hint || activeReq.description || "").trim();
+              const isDuplicateHint =
+                !extraHint ||
+                extraHint.toLowerCase() === activeReq.label.toLowerCase() ||
+                activeReq.label.toLowerCase().includes(extraHint.toLowerCase()) ||
+                extraHint.toLowerCase().includes(activeReq.label.toLowerCase());
+
               return (
                 <View style={styles.dropzoneContainer}>
                   <Text style={styles.activeReqTitle}>
                     {activeReq.label}
+                    {activeReq.required && <Text style={styles.asterisk}>*</Text>}
                   </Text>
+                  {!isDuplicateHint && (
+                    <View style={styles.hintContainer}>
+                      <Icon name="info" size={14} color="#1D4ED8" style={{ marginTop: 2, marginRight: 6 }} />
+                      <Text style={styles.hintText}>
+                        {extraHint}
+                      </Text>
+                    </View>
+                  )}
 
                   {uploadData ? (
                     <View style={styles.previewBox}>
@@ -229,7 +247,7 @@ export function SharedDocumentUpload({
         /* MOBILE View: Clean vertical list with mini previews */
         <View style={styles.mobileList}>
           {requirements.map((req, i) => {
-            const uploadData = uploads[req.key];
+            const uploadData = safeUploads[req.key];
             const fileName = typeof uploadData === "string" ? uploadData : uploadData?.name;
             const fileUri = typeof uploadData === "string" ? "" : uploadData?.uri;
             const isImage = fileUri && (
@@ -239,12 +257,26 @@ export function SharedDocumentUpload({
               fileUri.startsWith("data:image")
             );
 
+            const extraHint = (req.hint || req.description || "").trim();
+            const isDuplicateHint =
+              !extraHint ||
+              extraHint.toLowerCase() === req.label.toLowerCase() ||
+              req.label.toLowerCase().includes(extraHint.toLowerCase()) ||
+              extraHint.toLowerCase().includes(req.label.toLowerCase());
+
             return (
               <View key={req.key} style={styles.mobileCard}>
                 <Text style={styles.mobileCardTitle}>
                   {i + 1}. {req.label}
                   {req.required && <Text style={styles.asterisk}>*</Text>}
                 </Text>
+                {!isDuplicateHint && (
+                  <View style={styles.mobileHintContainer}>
+                    <Text style={styles.mobileHintText}>
+                      {extraHint}
+                    </Text>
+                  </View>
+                )}
 
                 {uploadData ? (
                   <View style={styles.mobileSuccessRow}>
@@ -361,7 +393,7 @@ const styles = StyleSheet.create({
   },
   reqTab: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "space-between",
     padding: 12,
     borderRadius: 8,
@@ -378,6 +410,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 13,
+    lineHeight: 19,
     color: COLORS.neutral[700],
     marginRight: 8,
   },
@@ -395,15 +428,18 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   dropzoneContainer: {
-    alignItems: "center",
+    alignItems: "flex-start",
+    width: "100%",
   },
   activeReqTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 14,
+    lineHeight: 21,
     fontWeight: TYPOGRAPHY.weights.bold,
     color: COLORS.neutral[800],
-    marginBottom: 20,
-    textAlign: "center",
+    marginBottom: 16,
+    textAlign: "left",
+    width: "100%",
   },
   previewBox: {
     width: "100%",
@@ -561,5 +597,38 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: TYPOGRAPHY.weights.semibold,
     color: COLORS.brand[700],
+  },
+  hintContainer: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    backgroundColor: "#EFF6FF",
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 16,
+    width: "100%",
+  },
+  hintText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    color: "#1E40AF",
+    lineHeight: 17,
+    flex: 1,
+  },
+  mobileHintContainer: {
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    borderRadius: 6,
+    padding: 8,
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  mobileHintText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11.5,
+    color: "#475569",
+    lineHeight: 16,
   },
 });

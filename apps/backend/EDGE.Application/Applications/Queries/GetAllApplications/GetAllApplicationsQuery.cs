@@ -10,7 +10,6 @@ public record GetAllApplicationsQuery(
     ApplicationStatus? Status = null,
     string? QueueTab = null,
     string? Scope = null,
-    bool? Mine = null,
     int? PageNumber = 1,
     int? PageSize = 10,
     string? SearchTerm = null,

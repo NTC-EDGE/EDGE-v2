@@ -12,7 +12,11 @@ public class ApplicantDto
     public string Status { get; set; } = string.Empty;
     public string? EvaluationRemarks { get; set; }
     public Guid? ServiceId { get; set; }
+    public string? ServiceName { get; set; }
+    public Guid? ServiceCategoryId { get; set; }
+    public string? ServiceCategoryName { get; set; }
     public Guid? ServiceVariantId { get; set; }
+    public string? ServiceVariantName { get; set; }
     public Guid? SubmissionId { get; set; }
     public CompanyDetailDto? Company { get; set; }
     public ApplicantDetailDto? Details { get; set; }

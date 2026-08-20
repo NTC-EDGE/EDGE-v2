@@ -51,7 +51,7 @@ export function GeneralDocumentUploadStep({
       ? service.requirements
       : [];
 
-  const reqList: Array<{ key: string; label: string; required: boolean; hint?: string }> = rawReqs.map((req, idx) => {
+  const reqList: Array<{ key: string; label: string; required: boolean; hint?: string; description?: string }> = rawReqs.map((req, idx) => {
     const isMandatory = isRequirementMandatory(req);
     if (typeof req === "string") {
       return {
@@ -66,6 +66,7 @@ export function GeneralDocumentUploadStep({
       label: (req.name || req.label || req.title || `Requirement ${idx + 1}`).replace(/\*$/, "").trim(),
       required: isMandatory,
       hint: req.description || req.hint,
+      description: req.description,
     };
   });
 

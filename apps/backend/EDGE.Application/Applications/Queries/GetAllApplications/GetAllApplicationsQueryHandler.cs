@@ -63,12 +63,9 @@ public class GetAllApplicationsQueryHandler : IRequestHandler<GetAllApplications
         }
 
         // Determine whether to filter strictly by the logged-in user:
-        // 1. If request.Mine == true or request.Scope == "mine", filter by current user.
-        // 2. If request.Mine == false or request.Scope == "queue", do not filter by user (if caller has staff access).
-        // 3. If request.Mine is null, default based on caller role/queueTab/scope.
-        bool shouldFilterByMine = request.Mine == true || string.Equals(request.Scope, "mine", StringComparison.OrdinalIgnoreCase);
+        bool shouldFilterByMine = string.Equals(request.Scope, "mine", StringComparison.OrdinalIgnoreCase);
 
-        if (!shouldFilterByMine && request.Mine == null)
+        if (!shouldFilterByMine)
         {
             bool isStaff = !string.IsNullOrEmpty(request.QueueTab) ||
                            !string.IsNullOrEmpty(request.Scope) ||

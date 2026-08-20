@@ -764,22 +764,30 @@ public static class FastTrackSeeder
 
         // 4. Seed Requirements
         var reqs = FastTrackSeederData.GetBackfillRequirements();
-        var existingReqIds = (await context.Requirements.AsNoTracking().Select(r => r.Id).ToListAsync()).ToHashSet();
+        var existingRequirements = await context.Requirements.ToListAsync();
+        var existingReqMap = existingRequirements.ToDictionary(r => r.Id);
 
         foreach (var req in reqs.Values)
         {
-            if (!existingReqIds.Contains(req.Id))
+            if (!existingReqMap.TryGetValue(req.Id, out var existing))
             {
-                context.Requirements.Add(new Requirement
+                var newReq = new Requirement
                 {
                     Id = req.Id,
                     Name = req.Name,
                     Description = req.Desc
-                });
-                existingReqIds.Add(req.Id);
+                };
+                context.Requirements.Add(newReq);
+                existingReqMap[req.Id] = newReq;
+            }
+            else
+            {
+                existing.Name = req.Name;
+                existing.Description = req.Desc;
             }
         }
         await context.SaveChangesAsync();
+        var existingReqIds = existingReqMap.Keys.ToHashSet();
 
         // 5. Seed ServiceVariantRequirements
         var tenantId = await context.Tenants.Select(t => (Guid?)t.Id).FirstOrDefaultAsync();

@@ -24,6 +24,7 @@ using EDGE.Application.Applications.Commands.UpdateApplicationApplicant;
 using EDGE.Application.Applications.Commands.UpdateApplicationStatus;
 using EDGE.Application.Applications.Commands.UploadApplicantRequirement;
 using EDGE.Application.Applications.Queries.GetAllApplications;
+using EDGE.Application.Applications.Queries.GetMyApplications;
 using EDGE.Application.Applications.Queries.GetApplicationById;
 using EDGE.Application.Applications.Queries.GetApplicationsByApplicant;
 using EDGE.Application.Applications.Queries.GetDraftApplications;
@@ -70,10 +71,47 @@ public static class ApplicationEndpoints
             .WithSummary("Retrieve all applications")
             .WithDescription("Retrieves all applications for the current user, optionally filtered by status.");
 
+        group.MapGet("/me", GetMyApplications)
+            .RequireAuthorization(new HasPermissionAttribute(Permissions.ViewOwnApplications))
+            .WithName("GetMyApplications")
+            .WithSummary("Retrieve user applications and statistics")
+            .WithDescription("Retrieves all applications and status statistics for the authenticated user.");
+
+        group.MapGet("/me/drafts", GetDraftApplications)
+            .RequireAuthorization(new HasPermissionAttribute(Permissions.ViewOwnApplications))
+            .WithName("GetMyDraftApplications")
+            .WithSummary("Retrieve user draft applications summary or category specific drafts")
+            .WithDescription("Fetches draft applications summary or category-specific drafts owned by the authenticated caller.");
+
+        group.MapGet("/me/drafts/{categoryParam}", (
+            string categoryParam,
+            [FromQuery] int? page,
+            [FromQuery] int? pageNumber,
+            [FromQuery] int? pageSize,
+            [FromQuery] string? search,
+            IMediator mediator) =>
+            GetDraftApplications(categoryParam, page, pageNumber, pageSize, search, mediator))
+            .RequireAuthorization(new HasPermissionAttribute(Permissions.ViewOwnApplications))
+            .WithName("GetMyDraftApplicationsByParam")
+            .WithSummary("Retrieve user draft applications by category parameter");
+
         group.MapGet("/drafts", GetDraftApplications)
+            .RequireAuthorization(new HasPermissionAttribute(Permissions.ViewOwnApplications))
             .WithName("GetDraftApplications")
             .WithSummary("Retrieve draft applications")
             .WithDescription("Fetches all draft/unsubmitted applications owned by the authenticated caller.");
+
+        group.MapGet("/drafts/{categoryParam}", (
+            string categoryParam,
+            [FromQuery] int? page,
+            [FromQuery] int? pageNumber,
+            [FromQuery] int? pageSize,
+            [FromQuery] string? search,
+            IMediator mediator) =>
+            GetDraftApplications(categoryParam, page, pageNumber, pageSize, search, mediator))
+            .RequireAuthorization(new HasPermissionAttribute(Permissions.ViewOwnApplications))
+            .WithName("GetDraftApplicationsByParam")
+            .WithSummary("Retrieve draft applications by category parameter");
 
         group.MapGet("/{id:guid}", GetApplicationById)
             .WithName("GetApplicationById")
@@ -143,6 +181,12 @@ public static class ApplicationEndpoints
             .WithName("ToggleArchiveApplication")
             .WithSummary("Toggle archive status")
             .WithDescription("Archives or unarchives an application.");
+
+        group.MapDelete("/me/drafts/{id:guid}", DeleteDraftApplication)
+            .RequireAuthorization(new HasPermissionAttribute(Permissions.ViewOwnApplications))
+            .WithName("DeleteMyDraftApplication")
+            .WithSummary("Delete user draft application")
+            .WithDescription("Permanently removes a user's draft application and its associated entries.");
 
         group.MapDelete("/{id:guid}", DeleteDraftApplication)
             .WithName("DeleteDraftApplication")
@@ -249,14 +293,13 @@ public static class ApplicationEndpoints
         [FromQuery] ApplicationStatus? status,
         [FromQuery] string? queueTab,
         [FromQuery] string? scope,
-        [FromQuery] bool? mine,
         [FromQuery] int? pageNumber,
         [FromQuery] int? pageSize,
         [FromQuery] string? searchTerm,
         [FromQuery] string? mode,
         IMediator mediator)
     {
-        var result = await mediator.Send(new GetAllApplicationsQuery(status, queueTab, scope, mine, pageNumber, pageSize, searchTerm, mode));
+        var result = await mediator.Send(new GetAllApplicationsQuery(status, queueTab, scope, pageNumber, pageSize, searchTerm, mode));
         if (!result.Succeeded && result.Message != null && result.Message.StartsWith("401"))
         {
             return Results.Unauthorized();
@@ -266,14 +309,41 @@ public static class ApplicationEndpoints
     }
 
     [HasPermission(Permissions.ViewOwnApplications)]
-    public static async Task<IResult> GetDraftApplications(IMediator mediator)
-
+    public static async Task<IResult> GetMyApplications(
+        [FromQuery] ApplicationStatus? status,
+        [FromQuery] int? pageNumber,
+        [FromQuery] int? pageSize,
+        [FromQuery] string? searchTerm,
+        [FromQuery] string? mode,
+        IMediator mediator)
     {
-        var result = await mediator.Send(new GetDraftApplicationsQuery());
+        var result = await mediator.Send(new GetMyApplicationsQuery(status, pageNumber, pageSize, searchTerm, mode));
         if (!result.Succeeded && result.Message != null && result.Message.StartsWith("401"))
         {
             return Results.Unauthorized();
         }
+
+        return Results.Ok(result);
+    }
+
+    [HasPermission(Permissions.ViewOwnApplications)]
+    public static async Task<IResult> GetDraftApplications(
+        [FromQuery] string? categoryId,
+        [FromQuery] int? page,
+        [FromQuery] int? pageNumber,
+        [FromQuery] int? pageSize,
+        [FromQuery] string? search,
+        IMediator mediator)
+    {
+        var effectivePageNumber = pageNumber ?? page ?? 1;
+        var effectivePageSize = pageSize ?? 10;
+
+        var result = await mediator.Send(new GetDraftApplicationsQuery(
+            CategoryParam: categoryId,
+            PageNumber: effectivePageNumber,
+            PageSize: effectivePageSize,
+            SearchTerm: search
+        ));
 
         return Results.Ok(result);
     }

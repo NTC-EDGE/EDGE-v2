@@ -21,6 +21,7 @@ export function ContentColumn({ servicesState }: ContentColumnProps) {
     setWizardStep,
     resetWizardState,
     handleRemoveApplicant,
+    handleRemoveMultipleApplicants,
     examWizardStep,
     examApplicants,
     currentExamApplicantIndex,
@@ -30,12 +31,14 @@ export function ContentColumn({ servicesState }: ContentColumnProps) {
     setActiveWizardService,
     setSelectedService,
     handleRemoveExamApplicant,
+    handleRemoveMultipleExamApplicants,
     bulkMethod,
     handleAddExamApplicant,
     generalApplicants,
     currentGeneralApplicantIndex,
     setCurrentGeneralApplicantIndex,
     handleRemoveGeneralApplicant,
+    handleRemoveMultipleGeneralApplicants,
     handleAddGeneralApplicant,
     selectedService,
     searchQuery,
@@ -68,6 +71,7 @@ export function ContentColumn({ servicesState }: ContentColumnProps) {
           setStep={setWizardStep}
           resetWizardState={resetWizardState}
           onRemoveApplicant={handleRemoveApplicant}
+          onRemoveApplicants={handleRemoveMultipleApplicants}
         />
       ) : activeWizardService === "radio-operator-exam" &&
         appMode === "BULK" &&
@@ -86,6 +90,7 @@ export function ContentColumn({ servicesState }: ContentColumnProps) {
             });
           }}
           onRemoveApplicant={handleRemoveExamApplicant}
+          onRemoveApplicants={handleRemoveMultipleExamApplicants}
           bulkMethod={bulkMethod}
           onAddApplicant={handleAddExamApplicant}
           onSubmitAll={() => {
@@ -114,6 +119,7 @@ export function ContentColumn({ servicesState }: ContentColumnProps) {
             });
           }}
           onRemoveApplicant={handleRemoveGeneralApplicant}
+          onRemoveApplicants={handleRemoveMultipleGeneralApplicants}
           onAddApplicant={handleAddGeneralApplicant}
           onApplicantsImported={(imported) => {
             servicesState.setGeneralApplicants(imported);

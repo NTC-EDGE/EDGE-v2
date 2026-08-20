@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { View, Text, TouchableOpacity, Image } from "react-native";
 import { TYPOGRAPHY, Icon } from "@edge/ui";
 import { NTCService } from "../../data/servicesData";
-import { TenantInfo, OfficeInfo, GeneralApplicantData } from "../hooks/useGeneralServiceWizard";
+import { TenantInfo, OfficeInfo, GeneralApplicantData, ServiceRequirementItem } from "../hooks/useGeneralServiceWizard";
 import { getApplicantDisplayName } from "../helpers/applicantDisplayHelper";
 import { DocumentPreviewModal } from "../../../../shared/components/DocumentPreviewModal";
 import { OFFICIAL_LEGAL_DECLARATION } from "../../../../shared/components/DeclarationCheckbox";
@@ -20,6 +20,7 @@ interface GeneralReviewSubmitStepProps {
   currentApplicantIndex?: number;
   appMode: "SINGLE" | "BULK" | "";
   variants?: Array<{ id: string; name?: string; description?: string; type?: string }>;
+  variantRequirements?: Array<ServiceRequirementItem | string>;
   schedules?: Array<{ id: string; scheduledDate: string; startTime?: string; endTime?: string; venue?: string }>;
   selectedScheduleId?: string | null;
 }
@@ -828,12 +829,36 @@ export function GeneralReviewSubmitStep({
   currentApplicantIndex = 0,
   appMode,
   variants = [],
+  variantRequirements = [],
   schedules = [],
   selectedScheduleId = null,
 }: GeneralReviewSubmitStepProps) {
   const [previewFile, setPreviewFile] = useState<{ name: string; uri?: string } | string | null>(null);
   const [previewLabel, setPreviewLabel] = useState<string>("");
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+
+  const getRequirementLabel = (key: string): string => {
+    const cleanKey = key.replace(/^req-/, "");
+    const matched = (variantRequirements || []).find((r) => {
+      if (typeof r === "string") return false;
+      return r.id === cleanKey || r.key === key || r.key === cleanKey;
+    });
+    if (matched && typeof matched === "object") {
+      return (matched.name || matched.label || matched.title || matched.description || cleanKey).replace(/\*$/, "").trim();
+    }
+    if (service.requirements && Array.isArray(service.requirements)) {
+      const matchedFromSvc = service.requirements.find((r) => {
+        if (typeof r === "string") return false;
+        const rObj = r as unknown as { id?: string; name?: string; label?: string; description?: string };
+        return rObj.id === cleanKey;
+      });
+      if (matchedFromSvc && typeof matchedFromSvc === "object") {
+        const rObj = matchedFromSvc as unknown as { id?: string; name?: string; label?: string; description?: string };
+        return (rObj.name || rObj.label || rObj.description || cleanKey).replace(/\*$/, "").trim();
+      }
+    }
+    return cleanKey.replace(/[-_]/g, " ").toUpperCase();
+  };
 
   // Retrieve dynamic form definition if available for this service
   const { form } = useServiceForm(service.id, activeApplicant.selectedVariantId);
@@ -935,7 +960,7 @@ export function GeneralReviewSubmitStep({
   const resolvedAddress =
     addressParts.length > 0
       ? addressParts.join(", ")
-      : formFieldValues.find((fv) => fv.fieldId === "address" || fv.fieldLabel.toLowerCase().includes("address"))?.value ||
+      : formFieldValues.find((fv) => (fv.fieldId === "address" || fv.fieldLabel.toLowerCase().includes("address")) && !fv.fieldLabel.toLowerCase().includes("email"))?.value ||
         null;
 
   const resolvedBirthDate =
@@ -977,7 +1002,11 @@ export function GeneralReviewSubmitStep({
       fv.fieldLabel.toLowerCase().includes("signature") ||
       fv.value.startsWith("data:image") ||
       fv.value.startsWith("typed:cursive:")
-  );
+  ) || (activeApplicant.signatureUrl || (activeApplicant as any).signature ? {
+    fieldId: FIELD_ID_SIGNATURE,
+    fieldLabel: "Applicant Signature",
+    value: activeApplicant.signatureUrl || (activeApplicant as any).signature || "",
+  } : undefined);
 
   // Specialized Models Data
   const amateur = activeApplicant.amateurLicenseData;
@@ -1103,13 +1132,6 @@ export function GeneralReviewSubmitStep({
       )
     : [];
 
-  const otherExamFields = isExamService
-    ? remainingFields.filter(
-        (f) =>
-          !examEducationFields.some((e) => e.fieldId === f.fieldId) &&
-          !examAssistanceFields.some((a) => a.fieldId === f.fieldId)
-      )
-    : [];
 
   // Specialized Model Display Conditions: STRICT CATEGORY GATES to prevent cross-contamination
   const hasAmateurLicenseData =
@@ -1248,8 +1270,12 @@ export function GeneralReviewSubmitStep({
         </View>
       </View>
 
-      {/* ── Section 1: Service & Jurisdiction Parameters ── */}
-      <SectionCard icon="layers" title="Service & Jurisdiction Parameters" accentColor="#0F2C59">
+      {/* ── Section 1: Service & Jurisdiction Parameters / Examination Details ── */}
+      <SectionCard
+        icon={isExamService ? "file-text" : "layers"}
+        title={isExamService ? "Examination Details" : "Service & Jurisdiction Parameters"}
+        accentColor="#0F2C59"
+      >
         <SummaryRow label="Service Name" value={service.title} />
         {service.category ? <SummaryRow label="Service Category" value={service.category} /> : null}
         <View style={{ flexDirection: "row", gap: 8 }}>
@@ -1328,7 +1354,7 @@ export function GeneralReviewSubmitStep({
         </SectionCard>
       )}
 
-      {/* ── Section 2: Applicant & Contacts ── */}
+      {/* ── Section 2: Applicant Details ── */}
       {(resolvedFullName !== null ||
         activeApplicant.companyName ||
         activeApplicant.representativeName ||
@@ -1340,7 +1366,7 @@ export function GeneralReviewSubmitStep({
         resolvedNationality !== null ||
         resolvedBirthDate !== null ||
         activeApplicant.notes) && (
-        <SectionCard icon="user" title="Applicant Details & Contacts" accentColor="#1D4ED8">
+        <SectionCard icon="user" title="Applicant Details" accentColor="#1D4ED8">
           {resolvedFullName !== null && <SummaryRow label="Full Legal Name" value={resolvedFullName} />}
           {activeApplicant.applicantType === "company" && activeApplicant.companyName && (
             <SummaryRow label="Registered Business / Corporate Name" value={activeApplicant.companyName} />
@@ -1430,23 +1456,6 @@ export function GeneralReviewSubmitStep({
       {isExamService && examAssistanceFields.length > 0 && (
         <SectionCard icon="info" title="Special Needs & Assistance Request" accentColor="#0D9488">
           {examAssistanceFields.map((fv) => (
-            <SummaryRow
-              key={fv.fieldId}
-              label={fv.fieldLabel}
-              value={fv.value}
-              onPreviewFile={(uri, lbl) => {
-                setPreviewFile({ name: lbl, uri });
-                setPreviewLabel(lbl);
-                setIsPreviewOpen(true);
-              }}
-            />
-          ))}
-        </SectionCard>
-      )}
-
-      {isExamService && otherExamFields.length > 0 && (
-        <SectionCard icon="file-text" title="Examination Details" accentColor="#4F46E5">
-          {otherExamFields.map((fv) => (
             <SummaryRow
               key={fv.fieldId}
               label={fv.fieldLabel}
@@ -1817,19 +1826,20 @@ export function GeneralReviewSubmitStep({
                     <Text
                       style={{
                         fontFamily: TYPOGRAPHY.fonts.primary,
-                        fontSize: 10,
+                        fontSize: 11,
                         color: "#15803D",
-                        marginTop: 1,
+                        marginTop: 2,
+                        lineHeight: 15,
                       }}
                     >
-                      {key.replace(/^req-/, "").replace(/-/g, " ").toUpperCase()}
+                      {getRequirementLabel(key)}
                     </Text>
                   </View>
                   <Icon name="check-circle" size={16} color="#16A34A" />
                   <TouchableOpacity
                     onPress={() => {
                       setPreviewFile(file);
-                      setPreviewLabel(key.replace(/^req-/, "").replace(/-/g, " ").toUpperCase());
+                      setPreviewLabel(getRequirementLabel(key));
                       setIsPreviewOpen(true);
                     }}
                     style={{
@@ -1901,44 +1911,7 @@ export function GeneralReviewSubmitStep({
         </SectionCard>
       ) : null}
 
-      {/* ── Declaration & Legal Notice ── */}
-      <View
-        style={{
-          backgroundColor: "#F0FDF4",
-          borderColor: "#BBF7D0",
-          borderWidth: 1,
-          borderRadius: 12,
-          padding: 16,
-          flexDirection: "row",
-          gap: 12,
-          alignItems: "flex-start",
-        }}
-      >
-        <Icon name="check-circle" size={18} color="#16A34A" style={{ marginTop: 2 }} />
-        <View style={{ flex: 1 }}>
-          <Text
-            style={{
-              fontFamily: TYPOGRAPHY.fonts.primary,
-              fontSize: 13,
-              fontWeight: "700",
-              color: "#166534",
-              marginBottom: 4,
-            }}
-          >
-            Legal Declaration & Affirmation
-          </Text>
-          <Text
-            style={{
-              fontFamily: TYPOGRAPHY.fonts.primary,
-              fontSize: 12,
-              color: "#14532D",
-              lineHeight: 18,
-            }}
-          >
-            {OFFICIAL_LEGAL_DECLARATION}
-          </Text>
-        </View>
-      </View>
+
 
       <DocumentPreviewModal
         visible={isPreviewOpen}

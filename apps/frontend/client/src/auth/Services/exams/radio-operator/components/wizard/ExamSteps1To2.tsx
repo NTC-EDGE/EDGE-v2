@@ -125,20 +125,29 @@ export function ExamSteps1To2({
           const mappedExams = parseResult.applicants.map((app, idx) => ({
             id: idx + 1,
             firstName: app.firstName || `Examinee ${idx + 1}`,
+            middleName: app.middleName || "",
             lastName: app.lastName || "Applicant",
-            email: app.email,
-            contactNo: app.contactNo,
-            address: app.address,
-            birthMonth: app.birthMonth,
-            birthDay: app.birthDay,
-            birthYear: app.birthYear,
-            notes: app.notes,
-            examType: "Radiotelephony",
-            examineeType: "FirstTaker",
-            selectedOption: "1PHN - Elements 1, 2, 3 & 4",
-            schoolAttended: "NTC Certified Training Center",
-            specialAssistance: false,
-            specialAssistanceType: "",
+            suffix: app.suffix || "",
+            birthMonth: app.birthMonth || "January",
+            birthDay: app.birthDay || "1",
+            birthYear: app.birthYear || "2000",
+            sex: (app.sex?.toLowerCase() === "female" ? "Female" : "Male"),
+            nationality: app.nationality || "Filipino",
+            regionName: app.region || "National Capital Region (NCR)",
+            province: app.province || "",
+            city: app.city || "",
+            barangay: app.barangay || "",
+            street: app.street || app.address || "",
+            zipCode: app.zipCode || "",
+            schoolName: app.schoolName || "",
+            courseDegree: app.courseDegree || "",
+            yearGraduated: app.yearGraduated || "",
+            specialOrderNo: app.specialOrderNo || "",
+            email: app.email || "",
+            contactNo: app.contactNo || "",
+            examType: app.examType || "Radiotelephony",
+            examineeType: app.examineeType || "First Taker",
+            selectedOption: app.selectedOption || "1PHN - Elements 1, 2, 3 & 4",
             uploads: {},
           }));
           setExamApplicants(mappedExams);
@@ -373,17 +382,21 @@ export function ExamSteps1To2({
               </Text>
               <View style={styles.table}>
                 <View style={styles.tableHeaderRow}>
-                  <Text style={styles.tableCellHeader}>A (Exam Type)</Text>
-                  <Text style={styles.tableCellHeader}>B (Examinee Type)</Text>
-                  <Text style={styles.tableCellHeader}>C (Option Class)</Text>
-                  <Text style={styles.tableCellHeader}>... 8 more columns</Text>
+                  {templateConfig.headers.slice(0, 5).map((h, idx) => (
+                    <Text key={idx} style={styles.tableCellHeader} numberOfLines={1}>
+                      {h}
+                    </Text>
+                  ))}
                 </View>
-                <View style={styles.tableRow}>
-                  <Text style={styles.tableCell}>examType.value</Text>
-                  <Text style={styles.tableCell}>examineeType.value</Text>
-                  <Text style={styles.tableCell}>selectedOption.value</Text>
-                  <Text style={styles.tableCell}>(Mapping path row)</Text>
-                </View>
+                {templateConfig.sampleRows.slice(0, 2).map((row, rIdx) => (
+                  <View key={rIdx} style={styles.tableRow}>
+                    {row.slice(0, 5).map((c, cIdx) => (
+                      <Text key={cIdx} style={styles.tableCell} numberOfLines={1}>
+                        {c}
+                      </Text>
+                    ))}
+                  </View>
+                ))}
               </View>
             </View>
 
