@@ -1,7 +1,9 @@
 import React, { useState } from "react";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
-import { useUser } from "@clerk/expo";
+import { Platform } from "react-native";
+import { useUser, useAuth } from "@clerk/expo";
+import { apiClient } from "@edge/api";
 import { useApi } from "../../../../shared/hooks/useApi";
 import { extractApiErrorMessage } from "../../../../shared/components/Toast";
 import { NTCService } from "../../data/servicesData";

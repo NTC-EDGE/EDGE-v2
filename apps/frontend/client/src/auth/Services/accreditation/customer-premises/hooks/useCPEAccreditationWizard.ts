@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import { Alert } from "react-native";
-import { useUser } from "@clerk/expo";
+import { Alert, Platform } from "react-native";
+import { useAuth, useUser } from "@clerk/expo";
+import { apiClient } from "@edge/api";
 import { useApi } from "../../../../../shared/hooks/useApi";
 import { extractApiErrorMessage } from "../../../../../shared/components/Toast";
 import { NTCOffice } from "../data/mockRegionData";
@@ -63,6 +64,7 @@ export function useCPEAccreditationWizard({
 
   const api = useApi();
   const { user: clerkUser } = useUser();
+  const { getToken } = useAuth();
   const USE_MOCKS = false;
 
   // Form fields schema mapping
@@ -299,6 +301,211 @@ export function useCPEAccreditationWizard({
     );
   };
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // Helper: resolve a File object from a local URI (works on web + native)
+  // ─────────────────────────────────────────────────────────────────────────
+  const resolveFileFromUpload = async (
+    upload: { name: string; uri?: string } | string
+  ): Promise<File | null> => {
+    const name = typeof upload === "string" ? upload : upload.name;
+    const uri = typeof upload === "string" ? "" : (upload.uri ?? "");
+
+    if (!uri) return null;
+
+    try {
+      if (Platform.OS === "web") {
+        // On web the URI is a blob:// object URL created by URL.createObjectURL
+        const res = await fetch(uri);
+        const blob = await res.blob();
+        return new File([blob], name, { type: blob.type || "application/octet-stream" });
+      } else {
+        // On native use fetch with the file:// URI
+        const res = await fetch(uri);
+        const blob = await res.blob();
+        return new File([blob], name, { type: blob.type || "application/octet-stream" });
+      }
+    } catch (err) {
+      console.warn("[CPEWizard] Could not resolve file from URI:", uri, err);
+      return null;
+    }
+  };
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Helper: upload all picked files for every applicant and link to requirements
+  // ─────────────────────────────────────────────────────────────────────────
+  const uploadRequirementsAfterSubmit = async (
+    applicationId: string,
+    tenantId: string,
+    allApplicants: ApplicantData[]
+  ): Promise<void> => {
+    // 1. Fetch the created application to get server-assigned applicant IDs
+    let fullApp: Record<string, unknown> | null = null;
+    try {
+      const res = await api.get<{ succeeded?: boolean; data?: Record<string, unknown> } | Record<string, unknown>>(
+        `/api/v2/applications/${applicationId}`
+      );
+      const envelope = res as { succeeded?: boolean; data?: Record<string, unknown> };
+      fullApp = (envelope.succeeded !== undefined && envelope.data !== undefined)
+        ? envelope.data
+        : (res as Record<string, unknown>);
+    } catch (err) {
+      console.warn("[CPEWizard] Could not fetch application for requirement upload:", err);
+      return;
+    }
+
+    if (fullApp === null) return;
+
+    // Map server applicants by sequence order (1-based, same order as local applicants array)
+    const serverApplicants = (
+      Array.isArray((fullApp as Record<string, unknown>).applicationApplicants)
+        ? ((fullApp as Record<string, unknown>).applicationApplicants as Array<Record<string, unknown>>)
+        : Array.isArray((fullApp as Record<string, unknown>).Applicants)
+        ? ((fullApp as Record<string, unknown>).Applicants as Array<Record<string, unknown>>)
+        : Array.isArray((fullApp as Record<string, unknown>).applicants)
+        ? ((fullApp as Record<string, unknown>).applicants as Array<Record<string, unknown>>)
+        : []
+    );
+
+    const token = await getToken();
+    const authHeaders: Record<string, string> =
+      token !== null && token !== undefined && token !== ""
+        ? { Authorization: `Bearer ${token}` }
+        : {};
+
+    for (let i = 0; i < allApplicants.length; i++) {
+      const localApplicant = allApplicants[i];
+      const uploadKeys = Object.keys(localApplicant.uploads ?? {});
+      if (uploadKeys.length === 0) continue;
+
+      // Find the matching server applicant by sequence order
+      const serverApplicant = serverApplicants.find((sa) => {
+        const seq = typeof sa.sequenceOrder === "number" ? sa.sequenceOrder : Number(sa.sequenceOrder);
+        return seq === i + 1;
+      }) ?? serverApplicants[i];
+
+      const applicantId =
+        typeof serverApplicant?.applicantId === "string"
+          ? serverApplicant.applicantId
+          : typeof serverApplicant?.id === "string"
+          ? serverApplicant.id
+          : null;
+
+      if (applicantId === null) {
+        console.warn(`[CPEWizard] No server applicantId found for local applicant index ${i}. Skipping uploads.`);
+        continue;
+      }
+
+      // 2. Fetch backend requirement definitions for this applicant so we get real RequirementIds
+      let backendRequirements: Array<{ requirementId: string; serviceVariantRequirementId?: string; requirementName?: string }> = [];
+      try {
+        const reqRes = await api.get<{ succeeded?: boolean; data?: Array<Record<string, unknown>> }>(
+          `/api/v2/applications/${applicationId}/applicants/${applicantId}/requirements`
+        );
+        const reqEnvelope = reqRes as { succeeded?: boolean; data?: Array<Record<string, unknown>> };
+        const reqList = (reqEnvelope.succeeded !== undefined && Array.isArray(reqEnvelope.data))
+          ? reqEnvelope.data
+          : [];
+        backendRequirements = reqList.map((r) => ({
+          requirementId: r.requirementId as string,
+          serviceVariantRequirementId: r.serviceVariantRequirementId as string | undefined,
+          requirementName: r.requirementName as string | undefined,
+        }));
+      } catch (err) {
+        console.warn(`[CPEWizard] Could not fetch requirements for applicant ${applicantId}:`, err);
+        // Continue anyway — we still try to upload files matched by index
+      }
+
+      // 3. Upload each file to storage then link to the requirement
+      for (let keyIdx = 0; keyIdx < uploadKeys.length; keyIdx++) {
+        const fileKey = uploadKeys[keyIdx];
+        const uploadEntry = localApplicant.uploads[fileKey];
+        if (uploadEntry === null || uploadEntry === undefined) continue;
+
+        // Resolve a File object from the stored URI
+        const file = await resolveFileFromUpload(
+          uploadEntry as { name: string; uri?: string } | string
+        );
+        if (file === null) {
+          console.warn(`[CPEWizard] Could not resolve file for key "${fileKey}". Skipping.`);
+          continue;
+        }
+
+        // Step A: Upload to tenant storage
+        let storedFileId: string | null = null;
+        try {
+          const formData = new FormData();
+          formData.append("file", file);
+          formData.append("category", "requirement");
+
+          const uploadRes = await apiClient.post<{ succeeded?: boolean; data?: { id?: string } }>(
+            `/api/v2/tenants/${tenantId}/storage/upload`,
+            formData,
+            {
+              headers: {
+                ...authHeaders,
+                "Content-Type": "multipart/form-data",
+              },
+              timeout: 60000,
+            }
+          );
+
+          const uploadData = uploadRes.data;
+          storedFileId =
+            (uploadData.succeeded !== undefined && uploadData.data?.id !== undefined)
+              ? (uploadData.data.id ?? null)
+              : null;
+        } catch (uploadErr) {
+          console.warn(`[CPEWizard] Storage upload failed for file "${file.name}":`, uploadErr);
+          continue; // Skip linking — don't abort whole submission
+        }
+
+        if (storedFileId === null) {
+          console.warn(`[CPEWizard] Upload succeeded but no StoredFileId returned for "${file.name}".`);
+          continue;
+        }
+
+        // Step B: Link the stored file to the applicant requirement
+        // Match by numeric index (keyIdx) to backend requirement list order
+        const matchedReq = backendRequirements[keyIdx] ?? backendRequirements.find((_, rIdx) => rIdx === keyIdx);
+
+        const requirementBody: Record<string, unknown> = { storedFileId };
+        if (matchedReq !== undefined) {
+          if (matchedReq.serviceVariantRequirementId !== undefined && matchedReq.serviceVariantRequirementId !== "") {
+            requirementBody.serviceVariantRequirementId = matchedReq.serviceVariantRequirementId;
+          } else if (matchedReq.requirementId !== undefined && matchedReq.requirementId !== "") {
+            requirementBody.requirementId = matchedReq.requirementId;
+          }
+        }
+
+        // Only POST if we have at least one requirement ID to link against
+        const hasReqId =
+          requirementBody.requirementId !== undefined ||
+          requirementBody.serviceVariantRequirementId !== undefined;
+
+        if (!hasReqId) {
+          console.warn(
+            `[CPEWizard] No requirementId available for file "${file.name}" at index ${keyIdx}. ` +
+            "File was uploaded to storage but not linked to a requirement. " +
+            "Ensure the service variant has requirement rules configured in the backend."
+          );
+          continue;
+        }
+
+        try {
+          await api.post(
+            `/api/v2/applications/${applicationId}/applicants/${applicantId}/requirements`,
+            requirementBody
+          );
+        } catch (linkErr) {
+          console.warn(
+            `[CPEWizard] Failed to link StoredFileId "${storedFileId}" to requirement for applicant ${applicantId}:`,
+            linkErr
+          );
+        }
+      }
+    }
+  };
+
   const submitApplicationPayload = async (isDraft = false) => {
     if (!serviceId) {
       Alert.alert("Error", "Service identifier is missing.");
@@ -367,7 +574,26 @@ export function useCPEAccreditationWizard({
           applicants: mappedApplicants,
         };
 
-        await api.post(`/api/v2/tenants/${selectedRegionId}/applications`, payload);
+        // Submit the application shell and capture the new applicationId
+        const submitRes = await api.post<{ succeeded?: boolean; data?: string } | string>(
+          `/api/v2/tenants/${selectedRegionId}/applications`,
+          payload
+        );
+
+        const submitEnvelope = submitRes as { succeeded?: boolean; data?: string };
+        const applicationId =
+          submitEnvelope.succeeded !== undefined && typeof submitEnvelope.data === "string"
+            ? submitEnvelope.data
+            : typeof submitRes === "string"
+            ? submitRes
+            : null;
+
+        // Upload and link requirement attachments (non-blocking on partial failure)
+        if (applicationId !== null && applicationId !== "") {
+          const allApplicantsForUpload = isBulkSubmission ? applicants : [activeApplicant];
+          await uploadRequirementsAfterSubmit(applicationId, selectedRegionId, allApplicantsForUpload);
+        }
+
         return;
       }
 

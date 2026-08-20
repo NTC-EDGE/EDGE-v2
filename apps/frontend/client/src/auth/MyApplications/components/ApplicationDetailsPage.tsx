@@ -205,6 +205,7 @@ export function ApplicationDetailsPage({
   const [activeTab, setActiveTab] = useState<'DETAILS' | 'DOCUMENTS'>('DETAILS');
   const [previewDoc, setPreviewDoc] = useState<ApplicationDocument | null>(null);
   const [previewCustomDoc, setPreviewCustomDoc] = useState<{ uri: string; name: string } | null>(null);
+  const [previewLoadingId, setPreviewLoadingId] = useState<string | null>(null);
 
   const isBulk = useMemo(() => {
     const m = (app.mode || '').toString().toUpperCase();
@@ -826,7 +827,7 @@ export function ApplicationDetailsPage({
                       <DetailRow label="Street Address" value={singleApplicant?.streetAddress} />
                       <DetailRow label="Barangay" value={singleApplicant?.barangay} />
                       <DetailRow label="City / Municipality" value={singleApplicant?.cityMunicipality} />
-                      <DetailRow label="Province" value={singleApplicant?.province} />
+                        <DetailRow label="Province" value={singleApplicant?.province} />
                       <DetailRow label="Region" value={singleApplicant?.region} />
                       <DetailRow label="Zip Code" value={singleApplicant?.zipCode} isLast />
                     </View>
@@ -858,44 +859,90 @@ export function ApplicationDetailsPage({
               </Text>
             </View>
 
-            {docs.map((doc) => (
-              <View key={doc.id} style={styles.docRowCard}>
-                <View style={styles.docIconBox}>
-                  <Icon name="file-text" size={20} color="#1D4ED8" />
-                </View>
+            {docs.map((doc) => {
+              const isLoading = previewLoadingId === doc.id;
 
-                <View style={styles.docInfoCol}>
-                  <Text style={styles.docNameText} numberOfLines={1}>
-                    {doc.name}
-                  </Text>
-                  <Text style={styles.docSubtext}>
-                    {doc.category.replace('_', ' ')} · {doc.size} · {doc.type}
-                  </Text>
-                </View>
+              const handlePreview = async () => {
+                // If the doc has a real backend URL (from ApplicationRequirement.Url), fetch and stream it
+                const rawReq = (app.requirements ?? app.Requirements ?? []) as RawRequirement[];
+                const matched = rawReq.find(
+                  (r) => r.id === doc.id || (r.url !== undefined && r.url.includes(doc.id))
+                );
+                const fileUrl: string | undefined = matched?.url ?? undefined;
 
-                <View style={styles.docActionsRowGroup}>
-                  <TouchableOpacity
-                    onPress={() => setPreviewDoc(doc)}
-                    style={styles.docPreviewPillBtn}
-                    activeOpacity={0.8}
-                  >
-                    <Icon name="eye" size={14} color="#1D4ED8" />
-                    <Text style={styles.docPreviewPillBtnText}>Preview</Text>
-                  </TouchableOpacity>
+                if (fileUrl !== undefined && fileUrl !== '') {
+                  setPreviewLoadingId(doc.id);
+                  try {
+                    const baseUrl =
+                      (process.env.EXPO_PUBLIC_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? '').trim();
+                    const fullUrl = fileUrl.startsWith('http') ? fileUrl : `${baseUrl}${fileUrl}`;
 
-                  <TouchableOpacity
-                    onPress={() => {
-                      if (onDownloadDoc !== undefined) onDownloadDoc(doc);
-                    }}
-                    style={styles.docDownloadBtn}
-                    activeOpacity={0.8}
-                  >
-                    <Icon name="download" size={14} color="#475569" />
-                    <Text style={styles.docDownloadBtnText}>Download</Text>
-                  </TouchableOpacity>
+                    // Fetch the authenticated file stream
+                    const blob = await api.get<Blob>(fullUrl);
+                    const objectUrl =
+                      typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function'
+                        ? URL.createObjectURL(blob as unknown as Blob)
+                        : fullUrl;
+
+                    setPreviewCustomDoc({ uri: objectUrl, name: doc.name });
+                  } catch (fetchErr) {
+                    console.warn('[ApplicationDetails] Could not fetch file preview:', fetchErr);
+                    setPreviewCustomDoc({ uri: fileUrl, name: doc.name });
+                  } finally {
+                    setPreviewLoadingId(null);
+                  }
+                } else {
+                  // Fallback for generated/legacy docs — open static preview modal
+                  setPreviewDoc(doc);
+                }
+              };
+
+              return (
+                <View key={doc.id} style={styles.docRowCard}>
+                  <View style={styles.docIconBox}>
+                    <Icon name="file-text" size={20} color="#1D4ED8" />
+                  </View>
+
+                  <View style={styles.docInfoCol}>
+                    <Text style={styles.docNameText} numberOfLines={1}>
+                      {doc.name}
+                    </Text>
+                    <Text style={styles.docSubtext}>
+                      {doc.category.replace('_', ' ')} · {doc.size} · {doc.type}
+                    </Text>
+                  </View>
+
+                  <View style={styles.docActionsRowGroup}>
+                    <TouchableOpacity
+                      onPress={handlePreview}
+                      style={styles.docPreviewPillBtn}
+                      activeOpacity={0.8}
+                      disabled={isLoading}
+                    >
+                      <Icon
+                        name={isLoading ? 'loader' : 'eye'}
+                        size={14}
+                        color={isLoading ? '#94A3B8' : '#1D4ED8'}
+                      />
+                      <Text style={[styles.docPreviewPillBtnText, isLoading && { color: '#94A3B8' }]}>
+                        {isLoading ? 'Loading...' : 'Preview'}
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={() => {
+                        if (onDownloadDoc !== undefined) onDownloadDoc(doc);
+                      }}
+                      style={styles.docDownloadBtn}
+                      activeOpacity={0.8}
+                    >
+                      <Icon name="download" size={14} color="#475569" />
+                      <Text style={styles.docDownloadBtnText}>Download</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
-              </View>
-            ))}
+              );
+            })}
           </View>
         )}
       </View>
