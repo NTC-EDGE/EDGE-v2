@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { View, Text, TouchableOpacity, Image, StyleSheet, Alert } from "react-native";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { View, Text, TouchableOpacity, Image, StyleSheet, Alert, Platform } from "react-native";
 import { Icon } from "@edge/ui";
 import { COLORS, TYPOGRAPHY } from "../theme/tokens";
 import * as DocumentPicker from "expo-document-picker";
@@ -39,6 +39,7 @@ export function SharedDocumentUpload({
   const [selectedReqIndex, setSelectedReqIndex] = useState(0);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [activeSlotKey, setActiveSlotKey] = useState<string | null>(null);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
 
   const [previewFile, setPreviewFile] = useState<{ name: string; uri?: string } | string | null>(null);
   const [previewLabel, setPreviewLabel] = useState<string>("");
@@ -47,6 +48,113 @@ export function SharedDocumentUpload({
   // Safely clamp selected index in case requirements list changes dynamically
   const activeIndex = Math.max(0, Math.min(selectedReqIndex, requirements.length - 1));
   const activeReq = requirements[activeIndex];
+  const dropzoneRef = useRef<any>(null);
+
+  // Prevent default browser behavior on web (opening dropped files in a new tab)
+  useEffect(() => {
+    if (Platform.OS !== "web" || typeof window === "undefined") return;
+
+    const preventDefaultWindowDrop = (e: DragEvent) => {
+      e.preventDefault();
+    };
+
+    window.addEventListener("dragover", preventDefaultWindowDrop);
+    window.addEventListener("drop", preventDefaultWindowDrop);
+
+    return () => {
+      window.removeEventListener("dragover", preventDefaultWindowDrop);
+      window.removeEventListener("drop", preventDefaultWindowDrop);
+    };
+  }, []);
+
+  const handleFileDrop = useCallback(
+    (files: FileList | File[] | null | undefined, targetKey?: string) => {
+      const slotKey = targetKey || activeReq?.key;
+      if (!slotKey || !files || files.length === 0) return;
+
+      const file = files[0];
+      if (!file) return;
+
+      const fileName = file.name || "uploaded_document";
+      const ext = fileName.toLowerCase().split(".").pop() || "";
+      const validExts = ["pdf", "png", "jpg", "jpeg", "webp"];
+      const isImageOrPdf =
+        (file.type && (file.type.startsWith("image/") || file.type === "application/pdf")) ||
+        validExts.includes(ext);
+
+      if (!isImageOrPdf) {
+        Alert.alert(
+          "Unsupported Format",
+          "Please upload a clear scanned PDF document or image file (PNG, JPEG, WEBP)."
+        );
+        return;
+      }
+
+      const fileUri =
+        typeof URL !== "undefined" && typeof URL.createObjectURL === "function"
+          ? URL.createObjectURL(file)
+          : "";
+
+      onUpload(slotKey, {
+        name: fileName,
+        uri: fileUri,
+      });
+    },
+    [activeReq?.key, onUpload]
+  );
+
+  // Attach native drag and drop listeners to dropzone DOM element on Web
+  useEffect(() => {
+    if (Platform.OS !== "web") return;
+    const el = dropzoneRef.current;
+    if (!el) return;
+
+    const targetNode: HTMLElement | null = el.tagName ? el : el.children?.[0] || null;
+    const target = targetNode || el;
+    if (!target || typeof target.addEventListener !== "function") return;
+
+    const onDragOver = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.dataTransfer) {
+        e.dataTransfer.dropEffect = "copy";
+      }
+      setIsDraggingOver(true);
+    };
+
+    const onDragEnter = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDraggingOver(true);
+    };
+
+    const onDragLeave = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDraggingOver(false);
+    };
+
+    const onDrop = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDraggingOver(false);
+      if (e.dataTransfer && e.dataTransfer.files) {
+        handleFileDrop(e.dataTransfer.files, activeReq?.key);
+      }
+    };
+
+    target.addEventListener("dragover", onDragOver);
+    target.addEventListener("dragenter", onDragEnter);
+    target.addEventListener("dragleave", onDragLeave);
+    target.addEventListener("drop", onDrop);
+
+    return () => {
+      target.removeEventListener("dragover", onDragOver);
+      target.removeEventListener("dragenter", onDragEnter);
+      target.removeEventListener("dragleave", onDragLeave);
+      target.removeEventListener("drop", onDrop);
+    };
+  }, [activeReq?.key, handleFileDrop]);
 
   const triggerUpload = (key: string) => {
     setActiveSlotKey(key);
@@ -226,15 +334,56 @@ export function SharedDocumentUpload({
                     </View>
                   ) : (
                     <TouchableOpacity
+                      ref={dropzoneRef}
                       onPress={() => triggerUpload(activeReq.key)}
-                      style={styles.dashedDropzone}
+                      style={[
+                        styles.dashedDropzone,
+                        isDraggingOver && styles.dashedDropzoneDragOver,
+                      ]}
+                      activeOpacity={0.85}
+                      {...({
+                        onDragOver: (e: any) => {
+                          if (e?.preventDefault) e.preventDefault();
+                          if (e?.stopPropagation) e.stopPropagation();
+                          if (e?.dataTransfer) e.dataTransfer.dropEffect = "copy";
+                          setIsDraggingOver(true);
+                        },
+                        onDragEnter: (e: any) => {
+                          if (e?.preventDefault) e.preventDefault();
+                          if (e?.stopPropagation) e.stopPropagation();
+                          setIsDraggingOver(true);
+                        },
+                        onDragLeave: (e: any) => {
+                          if (e?.preventDefault) e.preventDefault();
+                          if (e?.stopPropagation) e.stopPropagation();
+                          setIsDraggingOver(false);
+                        },
+                        onDrop: (e: any) => {
+                          if (e?.preventDefault) e.preventDefault();
+                          if (e?.stopPropagation) e.stopPropagation();
+                          setIsDraggingOver(false);
+                          if (e?.dataTransfer?.files) {
+                            handleFileDrop(e.dataTransfer.files, activeReq.key);
+                          }
+                        },
+                      } as any)}
                     >
-                      <Icon name="upload-cloud" size={48} color={COLORS.brand[700]} style={{ marginBottom: 12 }} />
-                      <Text style={styles.uploadTitleText}>
-                        Drag & drop or Click to upload
+                      <Icon
+                        name={isDraggingOver ? "download-cloud" : "upload-cloud"}
+                        size={48}
+                        color={isDraggingOver ? "#2563EB" : COLORS.brand[700]}
+                        style={{ marginBottom: 12 }}
+                      />
+                      <Text
+                        style={[
+                          styles.uploadTitleText,
+                          isDraggingOver && { color: "#1D4ED8" },
+                        ]}
+                      >
+                        {isDraggingOver ? "Release to drop file here" : "Drag & drop or Click to upload"}
                       </Text>
                       <Text style={styles.uploadSubtext}>
-                        Supports scanned PDFs, JPEGs, or PNGs
+                        Supports scanned PDFs, JPEGs, PNGs, or WEBP
                       </Text>
                     </TouchableOpacity>
                   )}
@@ -506,6 +655,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: COLORS.neutral[50],
+  },
+  dashedDropzoneDragOver: {
+    borderColor: "#2563EB",
+    borderWidth: 2,
+    borderStyle: "solid",
+    backgroundColor: "#EFF6FF",
   },
   uploadTitleText: {
     fontFamily: TYPOGRAPHY.fonts.primary,

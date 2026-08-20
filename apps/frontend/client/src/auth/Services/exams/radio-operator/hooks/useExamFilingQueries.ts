@@ -42,11 +42,12 @@ export function useExamFilingQueries({
   const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
   const [loadingSchedules, setLoadingSchedules] = useState(false);
 
-  // Comprehensive Profile auto-fill
+  // Comprehensive Profile auto-fill (once on auth/mount)
+  const hasPrefilledExamProfileRef = React.useRef(false);
   React.useEffect(() => {
     let active = true;
     async function prefillExamApplicant() {
-      if (!clerkUser || applicants.length !== 1) return;
+      if (!clerkUser || applicants.length !== 1 || hasPrefilledExamProfileRef.current) return;
 
       // 1. Initial prefill from local storage / Clerk metadata
       const initialProfile = extractUserProfile(clerkUser, null);
@@ -120,6 +121,7 @@ export function useExamFilingQueries({
               : app
           )
         );
+        hasPrefilledExamProfileRef.current = true;
       } catch (err) {
         console.warn("[ExamFilingQueries] Failed to process backend profile data:", err);
       }
@@ -132,7 +134,9 @@ export function useExamFilingQueries({
   }, [clerkUser]);
 
   // Fetch tenants
+  const hasFetchedExamTenantsRef = React.useRef(false);
   React.useEffect(() => {
+    if (hasFetchedExamTenantsRef.current) return;
     async function fetchTenants() {
       setLoadingTenants(true);
       try {
@@ -149,6 +153,7 @@ export function useExamFilingQueries({
         if (list.length > 0 && !selectedRegionId) {
           setSelectedRegionId(list[0].id);
         }
+        hasFetchedExamTenantsRef.current = true;
       } catch (err) {
         console.error("Failed to fetch tenants from API:", err);
         setTenants([]);
@@ -157,7 +162,7 @@ export function useExamFilingQueries({
       }
     }
     fetchTenants();
-  }, [selectedRegionId, setSelectedRegionId]);
+  }, []);
 
   // Fetch offices
   React.useEffect(() => {

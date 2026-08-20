@@ -244,7 +244,7 @@ export function GeneralFilingDetailsStep({
     activeApplicant.selectedElementId,
   ]);
 
-  // Inform parent of mandatory dynamic fields once form is loaded (only visible fields)
+  const prevRequiredKeyRef = React.useRef<string>("");
   useEffect(() => {
     if (!loading && form && form.sections) {
       const visibleSections = form.sections.filter((section) => {
@@ -344,8 +344,13 @@ export function GeneralFilingDetailsStep({
         .map((f) => f.fieldId || f.id)
         .filter((id): id is string => id !== undefined && id !== "");
 
-      onRequiredFieldsChange?.(requiredIds);
-    } else {
+      const keyStr = requiredIds.join(",");
+      if (keyStr !== prevRequiredKeyRef.current) {
+        prevRequiredKeyRef.current = keyStr;
+        onRequiredFieldsChange?.(requiredIds);
+      }
+    } else if (prevRequiredKeyRef.current !== "") {
+      prevRequiredKeyRef.current = "";
       onRequiredFieldsChange?.([]);
     }
   }, [loading, form]);

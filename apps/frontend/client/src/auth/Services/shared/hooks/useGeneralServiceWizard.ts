@@ -566,7 +566,7 @@ export function useGeneralServiceWizard(
     };
     fetchVariantElements();
     return () => { active = false; };
-  }, [currentStep, effectiveVariantId, service?.id, variants]);
+  }, [currentStep, effectiveVariantId, service?.id]);
 
   // Fetch variant requirements when variant or service changes
   const [variantRequirements, setVariantRequirements] = useState<Array<ServiceRequirementItem | string>>([]);
@@ -633,13 +633,14 @@ export function useGeneralServiceWizard(
     };
     fetchVariantRequirements();
     return () => { active = false; };
-  }, [effectiveVariantId, service?.id, service?.requirements]);
+  }, [effectiveVariantId, service?.id]);
 
-  // Pre-fill user profile for single application
+  // Pre-fill user profile for single application (once on mount/auth)
+  const hasPrefilledProfileRef = React.useRef(false);
   React.useEffect(() => {
     let active = true;
     async function loadUserProfileForPrefill() {
-      if (!clerkUser) return;
+      if (!clerkUser || hasPrefilledProfileRef.current) return;
 
       // 1. Initial prefill from local storage / Clerk metadata
       const initialProfile = extractUserProfile(clerkUser, null);
@@ -710,6 +711,7 @@ export function useGeneralServiceWizard(
             };
           })
         );
+        hasPrefilledProfileRef.current = true;
       } catch (err) {
         console.warn("[GeneralServiceWizard] Failed to process backend profile data:", err);
       }
@@ -727,7 +729,9 @@ export function useGeneralServiceWizard(
     items?: T;
   }
 
+  const hasFetchedTenantsRef = React.useRef(false);
   React.useEffect(() => {
+    if (hasFetchedTenantsRef.current) return;
     async function fetchTenants() {
       setLoadingTenants(true);
       try {
@@ -744,6 +748,7 @@ export function useGeneralServiceWizard(
         if (list.length > 0 && !selectedRegionId) {
           setSelectedRegionId(list[0].id);
         }
+        hasFetchedTenantsRef.current = true;
       } catch (err) {
         console.error("Failed to fetch tenants from API:", err);
         setTenants([]);
@@ -752,7 +757,7 @@ export function useGeneralServiceWizard(
       }
     }
     fetchTenants();
-  }, [selectedRegionId, setSelectedRegionId]);
+  }, []);
 
   React.useEffect(() => {
     async function fetchOffices() {

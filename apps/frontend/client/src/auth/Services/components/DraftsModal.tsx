@@ -110,6 +110,7 @@ export function DraftsModal({
     setFetchError(null);
   }, [viewingDraftsCategory]);
 
+  const currentCategoryId = currentCategory?.id;
   const fetchCategoryDrafts = useCallback(async () => {
     if (viewingDraftsCategory === null) {
       setCategoryDrafts([]);
@@ -120,7 +121,7 @@ export function DraftsModal({
     setFetchError(null);
 
     try {
-      const catIdOrCode = currentCategory !== undefined && currentCategory.id ? currentCategory.id : viewingDraftsCategory;
+      const catIdOrCode = currentCategoryId || viewingDraftsCategory;
       const baseEndpoint = viewingDraftsCategory === "ALL"
         ? `/api/v2/applications/me/drafts?categoryId=ALL&pageNumber=${pageNumber}&pageSize=${pageSize}`
         : `/api/v2/applications/me/drafts/categoryId=${catIdOrCode}?pageNumber=${pageNumber}&pageSize=${pageSize}`;
@@ -149,7 +150,7 @@ export function DraftsModal({
     } finally {
       setIsLoading(false);
     }
-  }, [api, viewingDraftsCategory, currentCategory, pageNumber, pageSize]);
+  }, [viewingDraftsCategory, currentCategoryId, pageNumber, pageSize]);
 
   useEffect(() => {
     fetchCategoryDrafts();

@@ -334,7 +334,7 @@ export function useServices() {
     };
     fetchRequirements();
     return () => { active = false; };
-  }, [selectedService?.id, generalApplicants[0]?.selectedVariantId, selectedService?.requirements]);
+  }, [selectedService?.id, generalApplicants[0]?.selectedVariantId]);
 
   // Handle Hardware Back (Android) and Browser Back (PopState) for wizard steps
   useEffect(() => {
@@ -786,8 +786,11 @@ export function useServices() {
     isLeftColumnHiddenOnMobile;
 
   // Auto-select first category on desktop if none is currently selected
+  const hasAutoSelectedCategory = useRef(false);
   useEffect(() => {
+    if (hasAutoSelectedCategory.current) return;
     if (!isMobile && !selectedCategoryId && backendCategories && backendCategories.length > 0) {
+      hasAutoSelectedCategory.current = true;
       setSelectedCategoryId(backendCategories[0].id);
       setServiceId(backendCategories[0].id);
     }

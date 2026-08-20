@@ -68,11 +68,12 @@ export function useCPEAccreditationWizard({
   // Form fields schema mapping
   const [formFields, setFormFields] = useState<any[]>([]);
 
-  // Auto-fill applicant with Clerk user and database profile details
+  // Auto-fill applicant with Clerk user and database profile details (once on auth/mount)
+  const hasPrefilledCPEProfileRef = React.useRef(false);
   React.useEffect(() => {
     let active = true;
     async function prefillCPEApplicant() {
-      if (!clerkUser || applicants.length !== 1) return;
+      if (!clerkUser || applicants.length !== 1 || hasPrefilledCPEProfileRef.current) return;
 
       // 1. Initial prefill from local storage / Clerk metadata
       const initialProfile = extractUserProfile(clerkUser, null);
@@ -126,6 +127,7 @@ export function useCPEAccreditationWizard({
               : app
           )
         );
+        hasPrefilledCPEProfileRef.current = true;
       } catch (err) {
         console.warn("[CPEAccreditationWizard] Failed to process backend profile data:", err);
       }
@@ -146,7 +148,9 @@ export function useCPEAccreditationWizard({
     items?: T;
   }
 
+  const hasFetchedCPETenantsRef = React.useRef(false);
   React.useEffect(() => {
+    if (hasFetchedCPETenantsRef.current) return;
     async function fetchTenants() {
       setLoadingTenants(true);
       try {
@@ -163,6 +167,7 @@ export function useCPEAccreditationWizard({
         if (list.length > 0 && !selectedRegionId) {
           setSelectedRegionId(list[0].id);
         }
+        hasFetchedCPETenantsRef.current = true;
       } catch (err) {
         console.error("Failed to fetch tenants from API:", err);
         setTenants([]);
@@ -171,7 +176,7 @@ export function useCPEAccreditationWizard({
       }
     }
     fetchTenants();
-  }, [selectedRegionId, setSelectedRegionId]);
+  }, []);
 
   const selectedTenant = tenants.find((t) => t.id === selectedRegionId);
   const activeRegionObj = selectedTenant 
