@@ -1,12 +1,8 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using EDGE.Domain.Entities;
 using EDGE.Domain.Enums;
 using EDGE.Application.Common.Interfaces;
@@ -28,6 +24,7 @@ public class SubmitApplicationCommandHandler
     private readonly ICurrentUserService _currentUserService;
     private readonly IServiceVariantElementRepository _elementRepository;
     private readonly IUserRepository _userRepository;
+    private readonly ILogger<SubmitApplicationCommandHandler> _logger;
 
     public SubmitApplicationCommandHandler(
         IApplicationFullRepository applicationRepository,
@@ -40,7 +37,8 @@ public class SubmitApplicationCommandHandler
         IUnitOfWork unitOfWork,
         ICurrentUserService currentUserService,
         IServiceVariantElementRepository elementRepository,
-        IUserRepository userRepository)
+        IUserRepository userRepository,
+        ILogger<SubmitApplicationCommandHandler> logger)
     {
         _applicationRepository = applicationRepository;
         _applicantRepository = applicantRepository;
@@ -53,6 +51,7 @@ public class SubmitApplicationCommandHandler
         _currentUserService = currentUserService;
         _elementRepository = elementRepository;
         _userRepository = userRepository;
+        _logger = logger;
     }
 
     public async Task<ApiResponse<Guid>> Handle(
@@ -105,6 +104,17 @@ public class SubmitApplicationCommandHandler
             {
                 var allTenants = await _tenantRepository.GetAllAsync(cancellationToken);
                 tenant = allTenants.FirstOrDefault();
+
+                if (tenant != null)
+                {
+                    _logger.LogWarning(
+                        "TenantId '{RequestedTenantId}' was not found. " +
+                        "Falling back to first available tenant '{FallbackTenantId}' (Name: '{FallbackTenantName}') " +
+                        "for draft application save. Verify tenant seed data and configuration.",
+                        request.TenantId,
+                        tenant.Id,
+                        tenant.Name);
+                }
             }
 
             if (tenant == null)
