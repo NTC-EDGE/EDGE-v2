@@ -203,6 +203,7 @@ export function GeneralWizardSteps({
           currentApplicantIndex={currentApplicantIndex}
           appMode={appMode}
           variants={variants}
+          variantRequirements={variantRequirements}
           schedules={schedules}
           selectedScheduleId={selectedScheduleId}
         />

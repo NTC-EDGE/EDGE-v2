@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity } from "react-native";
+import { View, Text, TouchableOpacity, Image } from "react-native";
 import { Icon, COLORS, TYPOGRAPHY } from "@edge/ui";
 import { ExamApplicantData } from "../../types/examTypes";
 import { styles } from "../ExamFilingWizard.styles";
@@ -132,6 +132,31 @@ export function ExamStep6Review({
               </View>
             );
           })
+        )}
+        {Boolean(activeApplicant.signature) && (
+          <>
+            <View style={{ backgroundColor: "#f1f5f9", paddingVertical: 6, paddingHorizontal: 12, marginTop: 12 }}>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, fontWeight: "700", color: COLORS.neutral[600] }}>
+                ACKNOWLEDGEMENT & APPLICANT SIGNATURE
+              </Text>
+            </View>
+            <View style={{ padding: 12, alignItems: "center" }}>
+              {activeApplicant.signature?.startsWith("data:image") || activeApplicant.signature?.startsWith("http") || activeApplicant.signature?.startsWith("file:") ? (
+                <Image
+                  source={{ uri: activeApplicant.signature }}
+                  style={{ width: 220, height: 70 }}
+                  resizeMode="contain"
+                />
+              ) : (
+                <Text style={{ fontFamily: "cursive", fontSize: 22, color: "#0F2C59", fontStyle: "italic" }}>
+                  {activeApplicant.signature?.replace(/^typed:cursive:/, "")}
+                </Text>
+              )}
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, color: COLORS.neutral[500], marginTop: 4 }}>
+                Digitally recorded applicant signature
+              </Text>
+            </View>
+          </>
         )}
       </View>
 

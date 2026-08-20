@@ -48,6 +48,8 @@ interface GeneralServiceWizardProps {
   /** Incremented each time a user selects an applicant from the left panel to open Filing Details */
   triggerOpenApplicant?: number;
   triggerBulkSubmit?: number;
+  onSaveDraft?: () => void;
+  isSavingDraft?: boolean;
 }
 
 export function GeneralServiceWizard({
@@ -76,6 +78,8 @@ export function GeneralServiceWizard({
   setCurrentApplicantIndex,
   triggerOpenApplicant = 0,
   triggerBulkSubmit = 0,
+  onSaveDraft,
+  isSavingDraft = false,
 }: GeneralServiceWizardProps) {
   if (!service) return null;
 
@@ -133,6 +137,7 @@ export function GeneralServiceWizard({
     setSelectedRegionId,
     selectedOfficeId,
     setSelectedOfficeId,
+    appMode,
     applicants,
     setApplicants,
     currentApplicantIndex,

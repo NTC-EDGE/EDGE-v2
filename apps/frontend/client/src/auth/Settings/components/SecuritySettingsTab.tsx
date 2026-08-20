@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, TextInput } from "react-native";
 import { COLORS, TYPOGRAPHY, SPACING, Icon } from "@edge/ui";
 import { useAuth } from "@clerk/expo";
-import { api } from "@edge/api";
+import { useApi } from "../../../shared/hooks/useApi";
 import { Button } from "../../../shared/components/Button";
 import { ConfirmationDialog } from "../../../shared/components/ConfirmationDialog";
 import { useToast } from "../../../shared/components/Toast";
@@ -10,9 +10,9 @@ import { useToast } from "../../../shared/components/Toast";
 interface SecuritySettingsTabProps {
   clerkUser: {
     id?: string;
-    createdAt?: string | Date;
-    lastSignInAt?: string | Date;
-    primaryEmailAddress?: { emailAddress?: string };
+    createdAt?: string | Date | null;
+    lastSignInAt?: string | Date | null;
+    primaryEmailAddress?: { emailAddress?: string } | null;
     passwordEnabled?: boolean;
     createPassword?: (params: {
       newPassword: string;
@@ -33,6 +33,7 @@ export function SecuritySettingsTab({
 }: SecuritySettingsTabProps) {
   const { signOut } = useAuth();
   const toast = useToast();
+  const api = useApi();
 
   const [isSignOutConfirmVisible, setIsSignOutConfirmVisible] = useState(false);
   const [isClearDraftsConfirmVisible, setIsClearDraftsConfirmVisible] = useState(false);

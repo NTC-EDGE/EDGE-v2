@@ -1,5 +1,6 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
+import { Icon } from "@edge/ui";
 import { ValidatedInput } from "./ValidatedInput";
 import { DatePickerInput } from "./DatePickerInput";
 import { Select } from "./Select";
@@ -23,6 +24,7 @@ import {
   FIELD_ID_PROVINCE,
   FIELD_ID_CITY,
   FIELD_ID_BARANGAY,
+  FIELD_ID_SIGNATURE,
 } from "../constants/fieldIds";
 
 export interface FieldDto {
@@ -73,6 +75,8 @@ interface DynamicFormRendererProps {
   variantElements?: Array<{ id: string; code?: string; description?: string; [key: string]: unknown }>;
   errors?: Record<string, string>;
   hideSections?: string[];
+  isBulk?: boolean;
+  appMode?: "SINGLE" | "BULK" | "";
 }
 
 function getElementFieldLabel(category?: string, title?: string): string {
@@ -210,6 +214,8 @@ export function DynamicFormRenderer({
   variantElements = [],
   errors = {},
   hideSections = [],
+  isBulk = false,
+  appMode,
 }: DynamicFormRendererProps) {
   // Safe guard: form and sections might be undefined when loading
   const sections = form?.sections ?? [];
@@ -347,6 +353,16 @@ export function DynamicFormRenderer({
     );
   });
 
+  const catLower = (serviceCategory || "").toLowerCase();
+  const titLower = (serviceTitle || "").toLowerCase();
+  const isExam = catLower.includes("exam") || titLower.includes("exam") || titLower.includes("admission") || titLower.includes("operator examination");
+  const isPermit = catLower.includes("permit") || titLower.includes("permit");
+  const isRequestOrComplaint = catLower.includes("request") || catLower.includes("complaint") || titLower.includes("complaint") || titLower.includes("request");
+  const isAccreditation = catLower.includes("accreditation") || titLower.includes("accreditation");
+
+  // Multi-year validity selection (1, 2, 3 years) is only applicable for Licenses and Certificates
+  const showNumberOfYears = !isExam && !isPermit && !isRequestOrComplaint && !isAccreditation && (catLower.includes("license") || catLower.includes("certificate") || titLower.includes("license") || titLower.includes("certificate"));
+
   return (
     <View style={styles.container}>
       {/* Section 1: Application Type, Category/Element, & Duration from serviceVariant endpoint */}
@@ -366,7 +382,7 @@ export function DynamicFormRenderer({
 
           <FormGrid>
             {/* 1. Type of Application (Service Variant Dropdown) */}
-            <FormCol span={variantElements.length > 0 ? 4 : 6}>
+            <FormCol span={showNumberOfYears ? (variantElements.length > 0 ? 4 : 6) : (variantElements.length > 0 ? 6 : 12)}>
               <Select
                 label="Type of Application"
                 required
@@ -399,13 +415,21 @@ export function DynamicFormRenderer({
 
             {/* 2. Type of Certificate / License / Station Class / Permit Type (Filtered by Service Variant) */}
             {variantElements.length > 0 && (
-              <FormCol span={4}>
+              <FormCol span={showNumberOfYears ? 4 : 6}>
                 <Select
                   label={getElementFieldLabel(serviceCategory, serviceTitle)}
                   required
                   value={selectedElementId || (variantElements[0] ? String(variantElements[0].id) : "")}
                   options={variantElements.map((elem) => {
-                    const title = elem.code ? `${elem.code} — ${elem.description}` : String(elem.description || elem.id);
+                    const code = (elem.code || "").trim();
+                    const desc = (elem.description || "").trim();
+                    const title = !code
+                      ? desc || String(elem.id)
+                      : !desc
+                      ? code
+                      : desc.toLowerCase().startsWith(code.toLowerCase())
+                      ? desc
+                      : `${code} — ${desc}`;
                     return {
                       label: title,
                       value: String(elem.id),
@@ -414,30 +438,38 @@ export function DynamicFormRenderer({
                   placeholder={`Select ${getElementFieldLabel(serviceCategory, serviceTitle)}...`}
                   onValueChange={(val: string) => {
                     const matched = variantElements.find((e) => String(e.id) === String(val));
-                    const eTitle = matched
-                      ? (matched.code ? `${matched.code} — ${matched.description}` : String(matched.description || matched.id))
-                      : val;
+                    const code = (matched?.code || "").trim();
+                    const desc = (matched?.description || "").trim();
+                    const eTitle = !code
+                      ? desc || val
+                      : !desc
+                      ? code
+                      : desc.toLowerCase().startsWith(code.toLowerCase())
+                      ? desc
+                      : `${code} — ${desc}`;
                     onElementChange?.(val, eTitle);
                   }}
                 />
               </FormCol>
             )}
 
-            {/* 3. Number of Years (1, 2, 3 only) */}
-            <FormCol span={variantElements.length > 0 ? 4 : 6}>
-              <Select
-                label="Number of Years"
-                required
-                value={noOfYears || "1"}
-                options={[
-                  { label: "1 Year", value: "1" },
-                  { label: "2 Years", value: "2" },
-                  { label: "3 Years", value: "3" },
-                ]}
-                placeholder="Select Duration..."
-                onValueChange={(val: string) => onNoOfYearsChange?.(val)}
-              />
-            </FormCol>
+            {/* 3. Number of Years (only for applicable categories) */}
+            {showNumberOfYears && (
+              <FormCol span={variantElements.length > 0 ? 4 : 6}>
+                <Select
+                  label="Number of Years"
+                  required
+                  value={noOfYears || "1"}
+                  options={[
+                    { label: "1 Year", value: "1" },
+                    { label: "2 Years", value: "2" },
+                    { label: "3 Years", value: "3" },
+                  ]}
+                  placeholder="Select Duration..."
+                  onValueChange={(val: string) => onNoOfYearsChange?.(val)}
+                />
+              </FormCol>
+            )}
           </FormGrid>
         </View>
       )}
@@ -834,6 +866,8 @@ export function DynamicFormRenderer({
                         value={val}
                         onChange={(sigData) => onChange(targetId, field.label, sigData)}
                         applicantName={applicantName || val}
+                        isBulk={isBulk}
+                        appMode={appMode}
                         error={err}
                       />
                     ) : isCheckbox ? (
@@ -898,6 +932,51 @@ export function DynamicFormRenderer({
         </View>
       );
       })}
+
+      {/* ── Guaranteed Signature Section at bottom of every application form ── */}
+      {(() => {
+        const hasSignatureInSections = visibleSections.some((sec) =>
+          (sec.fields || []).some((f) => {
+            const rawType = (f.fieldType || f.type || "").toLowerCase();
+            const labelLower = (f.label || "").toLowerCase();
+            return (
+              rawType === "signature" ||
+              labelLower.includes("signature") ||
+              f.fieldId === FIELD_ID_SIGNATURE
+            );
+          })
+        );
+
+        if (hasSignatureInSections) return null;
+
+        const nextSectionNum = (showApplicationTypeSection ? 1 : 0) + visibleSections.length + 1;
+        return (
+          <View style={styles.sectionCard}>
+            <View style={styles.sectionHeaderRow}>
+              <View style={styles.sectionTitleRow}>
+                <View style={styles.iconCircle}>
+                  <Text style={styles.iconCircleText}>{nextSectionNum}</Text>
+                </View>
+                <Text style={styles.sectionTitle}>Acknowledgement &amp; Applicant Signature</Text>
+              </View>
+              <View style={styles.sectionBadge}>
+                <Text style={styles.sectionBadgeText}>SECTION {nextSectionNum}</Text>
+              </View>
+            </View>
+
+            <FormSignatureInput
+              label="Applicant Signature / Declaration"
+              isRequired={true}
+              value={values[FIELD_ID_SIGNATURE] !== undefined ? values[FIELD_ID_SIGNATURE] : (values["signature"] ?? values["applicantSignature"] ?? "")}
+              onChange={(sigData) => onChange(FIELD_ID_SIGNATURE, "Applicant Signature", sigData)}
+              applicantName={applicantName}
+              isBulk={isBulk}
+              appMode={appMode}
+              error={errors?.[FIELD_ID_SIGNATURE] || errors?.["signature"]}
+            />
+          </View>
+        );
+      })()}
     </View>
   );
 }

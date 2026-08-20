@@ -1,5 +1,6 @@
 import React from "react";
 import { View, Text, TouchableOpacity } from "react-native";
+import { Icon, COLORS } from "@edge/ui";
 import { styles } from "../ExamFilingWizard.styles";
 
 interface ExamWizardNavigationProps {

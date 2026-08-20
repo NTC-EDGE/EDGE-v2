@@ -52,6 +52,7 @@ export interface ExamScheduleItem {
   maximumSlots?: number;
   availableSlots?: number;
   description?: string;
+  [key: string]: unknown;
 }
 
 export interface GeneralApplicantData {
@@ -66,6 +67,7 @@ export interface GeneralApplicantData {
   email: string;
   contactNo: string;
   sex?: string;
+  civilStatus?: string;
   nationality?: string;
   zipCode?: string;
   address: string;
@@ -73,15 +75,26 @@ export interface GeneralApplicantData {
   province?: string;
   city?: string;
   barangay?: string;
+  street?: string;
+  schoolName?: string;
+  courseDegree?: string;
+  yearGraduated?: string;
+  specialOrderNo?: string;
+  examType?: string;
+  examineeType?: string;
+  selectedOption?: string;
   birthMonth: string;
   birthDay: string;
   birthYear: string;
+  birthDate?: string;
   notes: string;
   selectedVariantId?: string;
+  selectedVariantName?: string;
   selectedElementId?: string;
   selectedElementTitle?: string;
   uploads: Record<string, { name: string; uri: string } | string>;
   formFieldValues?: Array<{ fieldId: string; fieldLabel: string; value: string }>;
+  signatureUrl?: string;
   // Specialized Certificate, License & Permit Models
   radioCertData?: RadioOperatorCertData;
   deviceRegData?: DeviceRegistrationData;
@@ -127,6 +140,7 @@ export interface ServiceVariantInfo {
   type?: string;
   description?: string;
   code?: string;
+  [key: string]: unknown;
 }
 
 export interface ServiceVariantElementInfo {
@@ -134,10 +148,12 @@ export interface ServiceVariantElementInfo {
   code?: string;
   description?: string;
   name?: string;
+  [key: string]: unknown;
 }
 
 export interface ServiceRequirementItem {
   id?: string;
+  key?: string;
   name?: string;
   label?: string;
   title?: string;
@@ -145,6 +161,7 @@ export interface ServiceRequirementItem {
   hint?: string;
   isRequired?: boolean;
   required?: boolean;
+  [key: string]: unknown;
 }
 
 export function isRequirementMandatory(req: ServiceRequirementItem | string): boolean {
@@ -274,6 +291,7 @@ export interface UseGeneralServiceWizardOptions {
   setSelectedRegionId?: (id: string) => void;
   selectedOfficeId?: string | null;
   setSelectedOfficeId?: (id: string) => void;
+  appMode?: "SINGLE" | "BULK" | "";
   applicants?: GeneralApplicantData[];
   setApplicants?: React.Dispatch<React.SetStateAction<GeneralApplicantData[]>>;
   currentApplicantIndex?: number;
@@ -290,6 +308,7 @@ export function useGeneralServiceWizard(
   const isOptionsObject = typeof optionsOrService === "object" && "service" in optionsOrService;
   const service = isOptionsObject ? (optionsOrService as UseGeneralServiceWizardOptions).service : (optionsOrService as NTCService);
   const currentStep = isOptionsObject ? ((optionsOrService as UseGeneralServiceWizardOptions).step || 1) : stepArg;
+  const appMode = isOptionsObject ? (optionsOrService as UseGeneralServiceWizardOptions).appMode : undefined;
 
   const [localApplicantIndex, setLocalApplicantIndex] = useState(0);
   const [localApplicants, setLocalApplicants] = useState<GeneralApplicantData[]>([
@@ -342,7 +361,7 @@ export function useGeneralServiceWizard(
   // Examination Schedule State
   const isExamService = Boolean(
     service?.category?.toLowerCase() === "exams" ||
-    service?.categoryKey?.toLowerCase() === "exams" ||
+    service?.category?.toLowerCase() === "exam" ||
     service?.title?.toLowerCase().includes("exam") ||
     service?.title?.toLowerCase().includes("admission") ||
     service?.title?.toLowerCase().includes("operator")
@@ -547,7 +566,7 @@ export function useGeneralServiceWizard(
     };
     fetchVariantElements();
     return () => { active = false; };
-  }, [currentStep, effectiveVariantId, service?.id, variants]);
+  }, [currentStep, effectiveVariantId, service?.id]);
 
   // Fetch variant requirements when variant or service changes
   const [variantRequirements, setVariantRequirements] = useState<Array<ServiceRequirementItem | string>>([]);
@@ -614,19 +633,21 @@ export function useGeneralServiceWizard(
     };
     fetchVariantRequirements();
     return () => { active = false; };
-  }, [effectiveVariantId, service?.id, service?.requirements]);
+  }, [effectiveVariantId, service?.id]);
 
-  // Pre-fill user profile for single application
+  // Pre-fill user profile for single application (once on mount/auth)
+  const hasPrefilledProfileRef = React.useRef(false);
   React.useEffect(() => {
     let active = true;
     async function loadUserProfileForPrefill() {
-      if (!clerkUser) return;
+      if (!clerkUser || hasPrefilledProfileRef.current) return;
 
       // 1. Initial prefill from local storage / Clerk metadata
       const initialProfile = extractUserProfile(clerkUser, null);
       setApplicants((prev) =>
         prev.map((app, idx) => {
           if (idx !== 0) return app;
+          const isBlank = !app.firstName && !app.lastName && !app.email && !app.contactNo && !app.selectedVariantId;
           return {
             ...app,
             firstName: app.firstName || initialProfile.firstName,
@@ -643,9 +664,9 @@ export function useGeneralServiceWizard(
             province: app.province || initialProfile.province,
             city: app.city || initialProfile.city,
             barangay: app.barangay || initialProfile.barangay,
-            birthYear: app.birthYear && app.birthYear !== "2000" ? app.birthYear : initialProfile.birthYear,
-            birthMonth: app.birthMonth && app.birthMonth !== "January" ? app.birthMonth : initialProfile.birthMonth,
-            birthDay: app.birthDay && app.birthDay !== "1" ? app.birthDay : initialProfile.birthDay,
+            birthYear: isBlank ? initialProfile.birthYear : app.birthYear,
+            birthMonth: isBlank ? initialProfile.birthMonth : app.birthMonth,
+            birthDay: isBlank ? initialProfile.birthDay : app.birthDay,
             companyName: app.companyName || initialProfile.companyName,
           };
         })
@@ -666,6 +687,7 @@ export function useGeneralServiceWizard(
         setApplicants((prev) =>
           prev.map((app, idx) => {
             if (idx !== 0) return app;
+            const isBlank = !app.firstName && !app.lastName && !app.email && !app.contactNo && !app.selectedVariantId;
             return {
               ...app,
               firstName: app.firstName || enriched.firstName,
@@ -682,13 +704,14 @@ export function useGeneralServiceWizard(
               province: app.province || enriched.province,
               city: app.city || enriched.city,
               barangay: app.barangay || enriched.barangay,
-              birthYear: app.birthYear && app.birthYear !== "2000" ? app.birthYear : enriched.birthYear,
-              birthMonth: app.birthMonth && app.birthMonth !== "January" ? app.birthMonth : enriched.birthMonth,
-              birthDay: app.birthDay && app.birthDay !== "1" ? app.birthDay : enriched.birthDay,
+              birthYear: isBlank ? enriched.birthYear : app.birthYear,
+              birthMonth: isBlank ? enriched.birthMonth : app.birthMonth,
+              birthDay: isBlank ? enriched.birthDay : app.birthDay,
               companyName: app.companyName || enriched.companyName,
             };
           })
         );
+        hasPrefilledProfileRef.current = true;
       } catch (err) {
         console.warn("[GeneralServiceWizard] Failed to process backend profile data:", err);
       }
@@ -706,7 +729,9 @@ export function useGeneralServiceWizard(
     items?: T;
   }
 
+  const hasFetchedTenantsRef = React.useRef(false);
   React.useEffect(() => {
+    if (hasFetchedTenantsRef.current) return;
     async function fetchTenants() {
       setLoadingTenants(true);
       try {
@@ -723,6 +748,7 @@ export function useGeneralServiceWizard(
         if (list.length > 0 && !selectedRegionId) {
           setSelectedRegionId(list[0].id);
         }
+        hasFetchedTenantsRef.current = true;
       } catch (err) {
         console.error("Failed to fetch tenants from API:", err);
         setTenants([]);
@@ -731,7 +757,7 @@ export function useGeneralServiceWizard(
       }
     }
     fetchTenants();
-  }, [selectedRegionId, setSelectedRegionId]);
+  }, []);
 
   React.useEffect(() => {
     async function fetchOffices() {
@@ -795,13 +821,22 @@ export function useGeneralServiceWizard(
       }
     }
 
-    const mappedApplicants = applicants.map((app) =>
-      serializeCertificateApplicant(app, service, [])
-    );
+    let mappedApplicants: ReturnType<typeof serializeCertificateApplicant>[] = [];
+    try {
+      mappedApplicants = applicants.map((app) =>
+        serializeCertificateApplicant(app, service, [])
+      );
+    } catch (serializationErr: unknown) {
+      const serializationMsg =
+        serializationErr instanceof Error
+          ? serializationErr.message
+          : "Failed to serialize applicant form data.";
+      throw new Error(`Data Serialization Error: ${serializationMsg}`);
+    }
 
     const payload = {
       tenantId: selectedRegionId,
-      submissionMode: mappedApplicants.length > 1 ? "Bulk" : "Single",
+      submissionMode: appMode === "BULK" || mappedApplicants.length > 1 ? "Bulk" : "Single",
       serviceId: service.id,
       fieldOfficeId: selectedOfficeId,
       serviceVariantId: activeApplicant.selectedVariantId || (variants.length > 0 ? variants[0].id : null),
@@ -814,7 +849,7 @@ export function useGeneralServiceWizard(
     try {
       await api.post(`/api/v2/tenants/${selectedRegionId}/applications`, payload);
     } catch (err: unknown) {
-      throw new Error(extractApiErrorMessage(err));
+      throw new Error(extractApiErrorMessage(err) || "Network request failed while submitting application.");
     }
   };
 

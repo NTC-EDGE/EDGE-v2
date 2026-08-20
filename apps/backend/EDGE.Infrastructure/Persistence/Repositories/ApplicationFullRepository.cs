@@ -33,7 +33,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
     public async Task<Domain.Entities.Application?> GetByIdWithDetailsAsync(Guid id, CancellationToken cancellationToken = default)
     {
         return await _context.Applications
-            .AsNoTracking()
+            .AsNoTrackingWithIdentityResolution()
             .AsSplitQuery()
             .Include(a => a.User)
                 .ThenInclude(u => u!.CompanyDetail)
@@ -66,15 +66,35 @@ public class ApplicationFullRepository : IApplicationFullRepository
 
     public async Task<List<Domain.Entities.Application>> GetUserDraftsAsync(Guid userId, CancellationToken cancellationToken = default)
     {
+        return await GetUserDraftsAsync(new List<Guid> { userId }, cancellationToken);
+    }
+
+    public async Task<List<Domain.Entities.Application>> GetUserDraftsAsync(List<Guid> userIds, CancellationToken cancellationToken = default)
+    {
+        if (userIds == null || userIds.Count == 0)
+        {
+            return new List<Domain.Entities.Application>();
+        }
+
         return await _context.Applications
             .AsSplitQuery()
             .Include(a => a.ApplicationApplicants)
                 .ThenInclude(aa => aa.Applicant)
                     .ThenInclude(app => app!.ApplicantDetail)
+            .Include(a => a.ApplicationApplicants)
+                .ThenInclude(aa => aa.Applicant)
+                    .ThenInclude(app => app!.CompanyDetail)
+            .Include(a => a.ApplicationApplicants)
+                .ThenInclude(aa => aa.Applicant)
+                    .ThenInclude(app => app!.Service)
+                        .ThenInclude(s => s!.ServiceCategory)
+            .Include(a => a.ApplicationApplicants)
+                .ThenInclude(aa => aa.Applicant)
+                    .ThenInclude(app => app!.ServiceVariant)
             .Include(a => a.FormSubmissions)
                 .ThenInclude(fs => fs.FieldValues)
                     .ThenInclude(fv => fv.Field)
-            .Where(a => a.UserId == userId && a.Status == ApplicationStatus.Draft)
+            .Where(a => a.UserId.HasValue && userIds.Contains(a.UserId.Value) && a.Status == ApplicationStatus.Draft)
             .OrderByDescending(a => a.CreatedAt)
             .ToListAsync(cancellationToken);
     }

@@ -9,6 +9,32 @@ public static class ExamsCategorySeederData
     public static readonly Guid CategoryId = Guid.Parse("c0000000-0000-0000-0000-000000000001");
     public static readonly Guid Svc101Id   = Guid.Parse("50000000-0000-0000-0000-000000000001");
 
+    // Variant IDs (Dedicated 05xx range for Exam variants to avoid collision with Certificates 00xx range)
+    public static readonly Guid VarRtgFirstTaker    = Guid.Parse("60000000-0000-0000-0000-000000000501");
+    public static readonly Guid VarRtgRetaker       = Guid.Parse("60000000-0000-0000-0000-000000000502");
+    public static readonly Guid VarRtgUpgrade       = Guid.Parse("60000000-0000-0000-0000-000000000503");
+
+    public static readonly Guid VarRtpFirstTaker    = Guid.Parse("60000000-0000-0000-0000-000000000504");
+    public static readonly Guid VarRtpRetaker       = Guid.Parse("60000000-0000-0000-0000-000000000505");
+    public static readonly Guid VarRtpUpgrade       = Guid.Parse("60000000-0000-0000-0000-000000000506");
+
+    public static readonly Guid VarAmaFirstTaker    = Guid.Parse("60000000-0000-0000-0000-000000000507");
+    public static readonly Guid VarAmaRetaker       = Guid.Parse("60000000-0000-0000-0000-000000000508");
+    public static readonly Guid VarAmaUpgrade       = Guid.Parse("60000000-0000-0000-0000-000000000509");
+
+    public static readonly Guid VarRrocAirFirstTaker = Guid.Parse("60000000-0000-0000-0000-000000000510");
+    public static readonly Guid VarRrocAirRetaker    = Guid.Parse("60000000-0000-0000-0000-000000000511");
+
+    // Requirement IDs (Dedicated 05xx range for Exam requirements)
+    public static readonly Guid ReqAnyId            = Guid.Parse("70000000-0000-0000-0000-000000000501");
+    public static readonly Guid ReqTranscript       = Guid.Parse("70000000-0000-0000-0000-000000000502");
+    public static readonly Guid ReqPhoto            = Guid.Parse("70000000-0000-0000-0000-000000000503");
+    public static readonly Guid ReqRatingProof      = Guid.Parse("70000000-0000-0000-0000-000000000504");
+    public static readonly Guid ReqRocValid         = Guid.Parse("70000000-0000-0000-0000-000000000505");
+    public static readonly Guid ReqSeminar          = Guid.Parse("70000000-0000-0000-0000-000000000506");
+    public static readonly Guid ReqAtRocValid       = Guid.Parse("70000000-0000-0000-0000-000000000507");
+    public static readonly Guid ReqPilotLicense     = Guid.Parse("70000000-0000-0000-0000-000000000508");
+
     public static readonly string Ntc101Contract = @"
     {
         ""formNo"": ""NTC 1-01"",
@@ -16,29 +42,25 @@ public static class ExamsCategorySeederData
         ""revisionDate"": ""2023-03-31"",
         ""serviceCategory"": ""Exams"",
         ""group"": null,
-        ""applicationTypes"": [""New""],
-        ""examineeTypes"": [""FirstTaker"", ""Retaker""],
+        ""applicationTypes"": [""Radiotelegraphy"", ""Radiotelephony"", ""Amateur"", ""Restricted Radio Operator Certificate - Aircraft""],
+        ""examineeTypes"": [""FirstTaker"", ""Retaker"", ""Upgrade""],
         ""elements"": [
             { ""code"": ""1RTG"", ""condition"": ""Standard"", ""description"": ""Elements 1, 2, 5, 6 & Code (25/20 wpm)"" },
-            { ""code"": ""1RTG"", ""condition"": ""For removal"", ""description"": ""Code (25/20 wpm)"" },
-            { ""code"": ""1RTG"", ""condition"": ""For upgrade (2RTG Holder)"", ""description"": ""& Code (25/20 wpm)"" },
+            { ""code"": ""1RTG"", ""condition"": ""For removal"", ""description"": ""For removal , Code (25/20 wpm)"" },
+            { ""code"": ""1RTG"", ""condition"": ""For upgrade (2RTG Holder)"", ""description"": ""For upgrade (2RTG Holder) & Code (25/20 wpm)"" },
             { ""code"": ""2RTG"", ""condition"": ""Standard"", ""description"": ""Elements 1, 2, 5, 6 & Code (16 wpm)"" },
-            { ""code"": ""2RTG"", ""condition"": ""For removal"", ""description"": ""Code (16 wpm)"" },
-            { ""code"": ""3RTG"", ""condition"": ""Standard"", ""description"": ""Elements 1, 2, 5 & Code (16 wpm)"" },
-            { ""code"": ""3RTG"", ""condition"": ""For removal"", ""description"": ""Code (16 wpm)"" },
+            { ""code"": ""2RTG"", ""condition"": ""For removal"", ""description"": ""For removal, Code (16 wpm)"" },
+            { ""code"": ""2RTG"", ""condition"": ""For upgrade (3RTG Holder)"", ""description"": ""For upgrade, (3RTG Holder), Element 6"" },
             { ""code"": ""1PHN"", ""condition"": ""Standard"", ""description"": ""Elements 1, 2, 3 & 4"" },
-            { ""code"": ""1PHN"", ""condition"": ""For upgrade (2PHN Holder)"", ""description"": ""Element 4"" },
-            { ""code"": ""1PHN"", ""condition"": ""For upgrade (3PHN Holder)"", ""description"": ""Element 3 & 4"" },
-            { ""code"": ""2PHN"", ""condition"": ""Standard"", ""description"": ""Elements 1, 2 & 3"" },
-            { ""code"": ""3PHN"", ""condition"": ""Standard"", ""description"": ""Elements 1 & 2"" },
+            { ""code"": ""1PHN"", ""condition"": ""For upgrade (2PHN Holder)"", ""description"": ""For upgrade (2PHN Holder) , Element 4"" },
+            { ""code"": ""1PHN"", ""condition"": ""For upgrade (3PHN Holder)"", ""description"": ""For upgrade (3PHN Holder), Element 3 & 4"" },
             { ""code"": ""Class A"", ""condition"": ""Standard"", ""description"": ""Elements 8, 9, 10 & Code (5 wpm)"" },
-            { ""code"": ""Class A"", ""condition"": ""For removal"", ""description"": ""Code (5 wpm)"" },
+            { ""code"": ""Class A"", ""condition"": ""For removal"", ""description"": ""For removal, Code (5 wmp)"" },
             { ""code"": ""Class B"", ""condition"": ""Standard"", ""description"": ""Elements 5, 6 & 7"" },
-            { ""code"": ""Class B"", ""condition"": ""For Registered ECE/1PHN/1RTG/2RTG Holder"", ""description"": ""Element 2"" },
+            { ""code"": ""Class B"", ""condition"": ""For Registered ECE, 1PHN, 1RTG & 2RTG"", ""description"": ""For Registered ECE, 1PHN, 1RTG & 2RTG , Element 2"" },
             { ""code"": ""Class C"", ""condition"": ""Standard"", ""description"": ""Elements 2, 3 & 4"" },
-            { ""code"": ""Class C"", ""condition"": ""For Class D Holder"", ""description"": ""Elements 3 & 4"" },
-            { ""code"": ""Class D"", ""condition"": ""Standard"", ""description"": ""Element 2"" },
-            { ""code"": ""RROC-Aircraft"", ""condition"": ""Standard"", ""description"": ""Element 1"" }
+            { ""code"": ""Class C"", ""condition"": ""For Class D Holder"", ""description"": ""For Class D Holder, Elements 3 & 4"" },
+            { ""code"": ""Class D"", ""condition"": ""Standard"", ""description"": ""Element 2"" }
         ],
         ""requiredSections"": [
             { ""key"": ""applicantPerson"", ""required"": true },
@@ -70,101 +92,190 @@ public static class ExamsCategorySeederData
 
     public static List<ServiceVariantDef> GetVariantDefs() => new()
     {
-        // Radiotelegraphy (RTG)
-        new(Guid.Parse("60000000-0000-0000-0000-000000000031"), Svc101Id, ServiceVariantType.FirstTaker, "Radiotelegraphy - First Commercial Class (1RTG)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000032"), Svc101Id, ServiceVariantType.FirstTaker, "Radiotelegraphy - Second Commercial Class (2RTG)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000033"), Svc101Id, ServiceVariantType.FirstTaker, "Radiotelegraphy - Third Commercial Class (3RTG)"),
+        // Radiotelegraphy
+        new(VarRtgFirstTaker, Svc101Id, ServiceVariantType.FirstTaker, "Radiotelegraphy"),
+        new(VarRtgRetaker, Svc101Id, ServiceVariantType.Retaker, "Radiotelegraphy"),
+        new(VarRtgUpgrade, Svc101Id, ServiceVariantType.Upgrade, "Radiotelegraphy"),
 
-        // Radiotelephony (RTP)
-        new(Guid.Parse("60000000-0000-0000-0000-000000000034"), Svc101Id, ServiceVariantType.FirstTaker, "Radiotelephony - First Commercial Class (1PHN)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000035"), Svc101Id, ServiceVariantType.FirstTaker, "Radiotelephony - Second Commercial Class (2PHN)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000036"), Svc101Id, ServiceVariantType.FirstTaker, "Radiotelephony - Third Commercial Class (3PHN)"),
+        // Radiotelephony
+        new(VarRtpFirstTaker, Svc101Id, ServiceVariantType.FirstTaker, "Radiotelephony"),
+        new(VarRtpRetaker, Svc101Id, ServiceVariantType.Retaker, "Radiotelephony"),
+        new(VarRtpUpgrade, Svc101Id, ServiceVariantType.Upgrade, "Radiotelephony"),
 
-        // Amateur (AMA)
-        new(Guid.Parse("60000000-0000-0000-0000-000000000037"), Svc101Id, ServiceVariantType.FirstTaker, "Amateur - Class A (Extra Class)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000038"), Svc101Id, ServiceVariantType.FirstTaker, "Amateur - Class B (General Class)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000039"), Svc101Id, ServiceVariantType.FirstTaker, "Amateur - Class C / D (Technician / Novice)"),
+        // Amateur
+        new(VarAmaFirstTaker, Svc101Id, ServiceVariantType.FirstTaker, "Amateur"),
+        new(VarAmaRetaker, Svc101Id, ServiceVariantType.Retaker, "Amateur"),
+        new(VarAmaUpgrade, Svc101Id, ServiceVariantType.Upgrade, "Amateur"),
 
-        // RROC Aircraft
-        new(Guid.Parse("60000000-0000-0000-0000-000000000040"), Svc101Id, ServiceVariantType.FirstTaker, "Restricted Radio Operator Certificate - Aircraft"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000041"), Svc101Id, ServiceVariantType.Retaker, "Restricted Radio Operator Certificate - Aircraft (Retake)")
+        // Restricted Radio Operator Certificate - Aircraft
+        new(VarRrocAirFirstTaker, Svc101Id, ServiceVariantType.FirstTaker, "Restricted Radio Operator Certificate - Aircraft"),
+        new(VarRrocAirRetaker, Svc101Id, ServiceVariantType.Retaker, "Restricted Radio Operator Certificate - Aircraft")
     };
 
-    public static List<VariantElementDef> GetBackfillElements() => new()
+    public static List<VariantElementDef> GetBackfillElements()
     {
-        new(Guid.Parse("60000000-0000-0000-0000-000000000031"), "1RTG-STD", "Elements 1, 2, 5, 6 & Code (25/20 wpm)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000031"), "1RTG-REM", "Code (25/20 wpm)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000031"), "1RTG-UPG", "& Code (25/20 wpm)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000032"), "2RTG-STD", "Elements 1, 2, 5, 6 & Code (16 wpm)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000032"), "2RTG-REM", "Code (16 wpm)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000033"), "3RTG-STD", "Elements 1, 2, 5 & Code (16 wpm)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000033"), "3RTG-REM", "Code (16 wpm)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000034"), "1PHN-STD", "Elements 1, 2, 3 & 4"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000034"), "1PHN-UPG2", "Element 4"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000034"), "1PHN-UPG3", "Element 3 & 4"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000035"), "2PHN-STD", "Elements 1, 2 & 3"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000036"), "3PHN-STD", "Elements 1 & 2"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000037"), "CLSA-STD", "Elements 8, 9, 10 & Code (5 wpm)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000037"), "CLSA-REM", "Code (5 wpm)"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000038"), "CLSB-STD", "Elements 5, 6 & 7"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000038"), "CLSB-UPG", "Element 2"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000039"), "CLSC-STD", "Elements 2, 3 & 4"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000039"), "CLSC-UPG", "Elements 3 & 4"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000039"), "CLSD-STD", "Element 2"),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000040"), "RROC-STD", "Element 1")
-    };
+        var list = new List<VariantElementDef>();
 
-    public static List<ServiceNoteDef> GetBackfillNotes(Guid svc101) => new()
+        // Elements for Radiotelegraphy (All 3 variants)
+        var rtgVariants = new[] { VarRtgFirstTaker, VarRtgRetaker, VarRtgUpgrade };
+        foreach (var vId in rtgVariants)
+        {
+            list.Add(new(vId, "1RTG", "Elements 1, 2, 5, 6 & Code (25/20 wpm)"));
+            list.Add(new(vId, "1RTG", "For removal , Code (25/20 wpm)"));
+            list.Add(new(vId, "1RTG", "For upgrade (2RTG Holder) & Code (25/20 wpm)"));
+            list.Add(new(vId, "2RTG", "Elements 1, 2, 5, 6 & Code (16 wpm)"));
+            list.Add(new(vId, "2RTG", "For removal, Code (16 wpm)"));
+            list.Add(new(vId, "2RTG", "For upgrade, (3RTG Holder), Element 6"));
+        }
+
+        // Elements for Radiotelephony (All 3 variants)
+        var rtpVariants = new[] { VarRtpFirstTaker, VarRtpRetaker, VarRtpUpgrade };
+        foreach (var vId in rtpVariants)
+        {
+            list.Add(new(vId, "1PHN", "Elements 1, 2, 3 & 4"));
+            list.Add(new(vId, "1PHN", "For upgrade (2PHN Holder) , Element 4"));
+            list.Add(new(vId, "1PHN", "For upgrade (3PHN Holder), Element 3 & 4"));
+        }
+
+        // Elements for Amateur (All 3 variants)
+        var amaVariants = new[] { VarAmaFirstTaker, VarAmaRetaker, VarAmaUpgrade };
+        foreach (var vId in amaVariants)
+        {
+            list.Add(new(vId, "Class A", "Elements 8, 9, 10 & Code (5 wpm)"));
+            list.Add(new(vId, "Class A", "For removal, Code (5 wmp)"));
+            list.Add(new(vId, "Class B", "Elements 5, 6 & 7"));
+            list.Add(new(vId, "Class B", "For Registered ECE, 1PHN, 1RTG & 2RTG , Element 2"));
+            list.Add(new(vId, "Class C", "Elements 2, 3 & 4"));
+            list.Add(new(vId, "Class C", "For Class D Holder, Elements 3 & 4"));
+            list.Add(new(vId, "Class D", "Element 2"));
+        }
+
+        // Elements for Restricted Radio Operator Certificate - Aircraft (Both variants)
+        var rrocVariants = new[] { VarRrocAirFirstTaker, VarRrocAirRetaker };
+        foreach (var vId in rrocVariants)
+        {
+            list.Add(new(vId, "Class D", "Element 2"));
+        }
+
+        return list;
+    }
+
+    public static List<ServiceNoteDef> GetBackfillNotes(Guid svc101)
     {
-        new(svc101, null, "Radio Operator Examination: Standard examination rules apply. Passing grade is 70% per element. Retakes allowed after 30 days.")
-    };
+        const string examNotes = @"1. Examinees shall present this Admission Slip and any valid government issued ID with picture or School ID, for students. (No Admission Slip and ID, No Exam.)
+2. Examinees who are late for more than 30 minutes shall not be allowed to take the examination.
+3. Request for re-schedule of examination must be filed at least 1 week before the date of examination.
+4. In case of suspension/cancellation of work in government offices due to force majeure, the scheduled regular examination shall be conducted on the next regular working day";
+
+        return new()
+        {
+            new(svc101, null, examNotes),
+            new(svc101, VarRtgFirstTaker, examNotes),
+            new(svc101, VarRtgRetaker, examNotes),
+            new(svc101, VarRtgUpgrade, examNotes),
+            new(svc101, VarRtpFirstTaker, examNotes),
+            new(svc101, VarRtpRetaker, examNotes),
+            new(svc101, VarRtpUpgrade, examNotes),
+            new(svc101, VarAmaFirstTaker, examNotes),
+            new(svc101, VarAmaRetaker, examNotes),
+            new(svc101, VarAmaUpgrade, examNotes),
+            new(svc101, VarRrocAirFirstTaker, examNotes),
+            new(svc101, VarRrocAirRetaker, examNotes),
+        };
+    }
 
     public static Dictionary<string, RequirementDef> GetBackfillRequirements() => new()
     {
-        ["RATING"] = new(Guid.Parse("70000000-0000-0000-0000-000000000001"), "Report of Rating", "Official examination rating report issued by NTC."),
-        ["GOOD_MORAL"] = new(Guid.Parse("70000000-0000-0000-0000-000000000002"), "Certificate of Good Moral Character", "Issued by school, employer, or local barangay authority."),
-        ["PHOTO"] = new(Guid.Parse("70000000-0000-0000-0000-000000000003"), "1x1 ID Picture", "Recent passport-style photo with white background taken within last 6 months."),
-        ["TRANSCRIPT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000004"), "Transcript of Records / Diploma", "Official scholastic records or certificate of completion for relevant course."),
-        ["ROC"] = new(Guid.Parse("70000000-0000-0000-0000-000000000005"), "Radio Operator Certificate", "Valid ROC issued by NTC (for upgrade or renewal applicants)."),
-        ["BIRTH_CERT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000006"), "PSA Birth Certificate", "Certified true copy of birth certificate from the Philippine Statistics Authority."),
-        ["OR_CR"] = new(Guid.Parse("70000000-0000-0000-0000-000000000007"), "Official Receipt / Certificate of Registration", "Proof of prior payment or registration with NTC."),
-        ["SPECIAL_NEEDS"] = new(Guid.Parse("70000000-0000-0000-0000-000000000008"), "Medical Certificate / PWD ID", "Supporting document for applicants requesting special examination accommodations.")
+        ["ANY_ID"] = new(
+            ReqAnyId,
+            "ANY of the following:*\n• Birth Certificate\n• Baptismal Certificate\n• Passport\n• PRC License\n• Driver's License\n• any document which can serve as the basis for age requirement",
+            "ANY of the following:*\n• Birth Certificate\n• Baptismal Certificate\n• Passport\n• PRC License\n• Driver's License\n• any document which can serve as the basis for age requirement"
+        ),
+        ["TRANSCRIPT"] = new(
+            ReqTranscript,
+            "Transcript of Records with Special Order (SO)*",
+            "Transcript of Records with Special Order (SO)*\nNote 1: The applicant has to show the original copy.\nNote 2: SO is not required for State Universities/Colleges"
+        ),
+        ["PHOTO"] = new(
+            ReqPhoto,
+            "Please provide a clear 1x1 ID picture taken within the last six (6) months.*",
+            "Please provide a clear 1x1 ID picture taken within the last six (6) months.*"
+        ),
+        ["RATING"] = new(
+            ReqRatingProof,
+            "Proof of Rating*",
+            "Proof of Rating*"
+        ),
+        ["ROC"] = new(
+            ReqRocValid,
+            "Copy of Valid ROC *",
+            "Copy of Valid ROC *"
+        ),
+        ["SEMINAR"] = new(
+            ReqSeminar,
+            "Proof of attendance of seminar conducted by NTC accredited Amateur Radio Club*",
+            "Proof of attendance of seminar conducted by NTC accredited Amateur Radio Club*"
+        ),
+        ["AT_ROC"] = new(
+            ReqAtRocValid,
+            "Copy of Valid AT-ROC *",
+            "Copy of Valid AT-ROC *"
+        ),
+        ["PILOT_LICENSE"] = new(
+            ReqPilotLicense,
+            "Aircraft pilot's license or student pilot's license issued by the Civil Aviation Authority of the Philippines (CAAP) / Pilot license issued by the aviation authority of the Administration for foreign applicants*",
+            "Aircraft pilot's license or student pilot's license issued by the Civil Aviation Authority of the Philippines (CAAP) / Pilot license issued by the aviation authority of the Administration for foreign applicants*"
+        ),
     };
 
     public static List<VariantRequirementDef> GetBackfillVariantRequirements() => new()
     {
-        // Radiotelegraphy (RTG)
-        new(Guid.Parse("60000000-0000-0000-0000-000000000031"), Guid.Parse("70000000-0000-0000-0000-000000000001"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000031"), Guid.Parse("70000000-0000-0000-0000-000000000002"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000031"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000032"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000032"), Guid.Parse("70000000-0000-0000-0000-000000000004"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000033"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000033"), Guid.Parse("70000000-0000-0000-0000-000000000005"), true),
+        // Radiotelegraphy - FIRST TAKER
+        new(VarRtgFirstTaker, ReqAnyId, true),
+        new(VarRtgFirstTaker, ReqTranscript, true),
+        new(VarRtgFirstTaker, ReqPhoto, true),
 
-        // Radiotelephony (RTP)
-        new(Guid.Parse("60000000-0000-0000-0000-000000000034"), Guid.Parse("70000000-0000-0000-0000-000000000001"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000034"), Guid.Parse("70000000-0000-0000-0000-000000000002"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000034"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000035"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000035"), Guid.Parse("70000000-0000-0000-0000-000000000004"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000036"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000036"), Guid.Parse("70000000-0000-0000-0000-000000000005"), true),
+        // Radiotelegraphy - RETAKER
+        new(VarRtgRetaker, ReqPhoto, true),
+        new(VarRtgRetaker, ReqRatingProof, true),
 
-        // Amateur (AMA)
-        new(Guid.Parse("60000000-0000-0000-0000-000000000037"), Guid.Parse("70000000-0000-0000-0000-000000000001"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000037"), Guid.Parse("70000000-0000-0000-0000-000000000006"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000037"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000038"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000038"), Guid.Parse("70000000-0000-0000-0000-000000000004"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000039"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000039"), Guid.Parse("70000000-0000-0000-0000-000000000007"), true),
+        // Radiotelegraphy - UPGRADE
+        new(VarRtgUpgrade, ReqPhoto, true),
+        new(VarRtgUpgrade, ReqRocValid, true),
 
-        // RROC Aircraft
-        new(Guid.Parse("60000000-0000-0000-0000-000000000040"), Guid.Parse("70000000-0000-0000-0000-000000000008"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000040"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000041"), Guid.Parse("70000000-0000-0000-0000-000000000003"), true),
-        new(Guid.Parse("60000000-0000-0000-0000-000000000041"), Guid.Parse("70000000-0000-0000-0000-000000000004"), true)
+        // Radiotelephony - FIRST TAKER
+        new(VarRtpFirstTaker, ReqAnyId, true),
+        new(VarRtpFirstTaker, ReqTranscript, true),
+        new(VarRtpFirstTaker, ReqPhoto, true),
+
+        // Radiotelephony - RETAKER
+        new(VarRtpRetaker, ReqPhoto, true),
+        new(VarRtpRetaker, ReqRatingProof, true),
+
+        // Radiotelephony - UPGRADE
+        new(VarRtpUpgrade, ReqPhoto, true),
+        new(VarRtpUpgrade, ReqRocValid, true),
+
+        // Amateur - FIRST TAKER
+        new(VarAmaFirstTaker, ReqAnyId, true),
+        new(VarAmaFirstTaker, ReqSeminar, true),
+        new(VarAmaFirstTaker, ReqPhoto, true),
+
+        // Amateur - RETAKER
+        new(VarAmaRetaker, ReqPhoto, true),
+        new(VarAmaRetaker, ReqRatingProof, true),
+
+        // Amateur - UPGRADE
+        new(VarAmaUpgrade, ReqPhoto, true),
+        new(VarAmaUpgrade, ReqAtRocValid, true),
+
+        // Restricted Radio Operator Certificate - Aircraft - FIRST TAKER
+        new(VarRrocAirFirstTaker, ReqPilotLicense, true),
+        new(VarRrocAirFirstTaker, ReqPhoto, true),
+
+        // Restricted Radio Operator Certificate - Aircraft - RETAKER
+        new(VarRrocAirRetaker, ReqPhoto, true),
+        new(VarRrocAirRetaker, ReqRatingProof, true),
     };
 
     public static List<ServiceFormDef> GetFormDefs() => new()

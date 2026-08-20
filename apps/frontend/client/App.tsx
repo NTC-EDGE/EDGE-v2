@@ -42,6 +42,23 @@ function AppContent() {
     }
   }, [isSignedIn, getToken]);
 
+  // Prevent browser default behavior on web (navigating or opening files dropped on window)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const preventDefaultWindowDrop = (e: DragEvent) => {
+      e.preventDefault();
+    };
+
+    window.addEventListener("dragover", preventDefaultWindowDrop);
+    window.addEventListener("drop", preventDefaultWindowDrop);
+
+    return () => {
+      window.removeEventListener("dragover", preventDefaultWindowDrop);
+      window.removeEventListener("drop", preventDefaultWindowDrop);
+    };
+  }, []);
+
   if (!isLoaded) {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using EDGE.Domain.Entities;
 using EDGE.Domain.Enums;
+using EDGE.Infrastructure.Persistence.SeederData;
 using Microsoft.EntityFrameworkCore;
 using DomainApplication = EDGE.Domain.Entities.Application;
 
@@ -23,10 +24,10 @@ public static class ApplicationDataSeeder
     private static readonly Guid CashierUserId    = Guid.Parse("55555555-5555-5555-5555-555555555555");
 
     // Service IDs from FastTrackSeeder (active catalog)
-    private static readonly Guid ServicePermitId  = Guid.Parse("50000000-0000-0000-0000-000000000050"); // NTC_AMA_PERMITS
-    private static readonly Guid ServiceLicenseId = Guid.Parse("50000000-0000-0000-0000-000000000070"); // NTC_AMA_LICENSES
-    private static readonly Guid ServiceCertId    = Guid.Parse("50000000-0000-0000-0000-000000000001"); // NTC_COMM_ROC
-    private static readonly Guid PermitCategoryId = Guid.Parse("c0000000-0000-0000-0000-000000000004");
+    private static readonly Guid ServicePermitId  = PermitsCategorySeederData.Svc109Id;      // NTC_1_09 (Permits in Amateur Service)
+    private static readonly Guid ServiceLicenseId = LicensesCategorySeederData.SvcLicAmaId;  // NTC_AMA_LICENSES (Amateur Radio Station License)
+    private static readonly Guid ServiceCertId    = CertificatesCategorySeederData.Svc102Id; // NTC_1_02 (Commercial ROC)
+    private static readonly Guid PermitCategoryId = PermitsCategorySeederData.CategoryId;
 
     public static async Task SeedAsync(ApplicationDbContext context)
     {

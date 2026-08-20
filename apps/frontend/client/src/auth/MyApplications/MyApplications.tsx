@@ -68,21 +68,22 @@ export function MyApplications() {
   const [debouncedSearch, setDebouncedSearch] = useState(filterText);
 
   useEffect(() => {
+    if (filterText === debouncedSearch) return;
     const handler = setTimeout(() => {
       setDebouncedSearch(filterText);
       setCurrentPage(1);
     }, 300);
     return () => clearTimeout(handler);
-  }, [filterText]);
+  }, [filterText, debouncedSearch]);
 
-  // Fetch applications from /api/v2/applications with pagination, search, and mode/status filters
+  // Fetch applications from /api/v2/applications/me with pagination, search, and mode/status filters
   const fetchApplications = useCallback(async () => {
+    let isMounted = true;
     try {
       setIsLoading(true);
       setErrorMessage(null);
 
       const params = new URLSearchParams();
-      params.set("mine", "true");
       params.set("pageNumber", String(currentPage));
       params.set("pageSize", String(LIST_PAGE_SIZE));
 
@@ -96,7 +97,9 @@ export function MyApplications() {
         params.set("status", selectedStatus);
       }
 
-      const res = await api.get<unknown>(`/api/v2/applications?${params.toString()}`);
+      const res = await api.get<unknown>(`/api/v2/applications/me?${params.toString()}`);
+      if (!isMounted) return;
+
       if (res !== null && typeof res === "object") {
         const resObj = res as {
           succeeded?: boolean;
@@ -153,9 +156,13 @@ export function MyApplications() {
       }
     } catch (err) {
       console.error("Failed to load user applications:", err);
-      setErrorMessage("Unable to load applications. Please check your connection.");
+      if (isMounted) {
+        setErrorMessage("Unable to load applications. Please check your connection.");
+      }
     } finally {
-      setIsLoading(false);
+      if (isMounted) {
+        setIsLoading(false);
+      }
     }
   }, [currentPage, debouncedSearch, selectedMode, selectedStatus]);
 
@@ -189,11 +196,6 @@ export function MyApplications() {
 
     return { totalCount, singleCount, bulkCount, readyDocsCount };
   }, [applications, serverStats]);
-
-  // Reset pagination on filter change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [selectedMode, selectedStatus, sortOrder]);
 
   // Download Handler
   const handleDownloadDoc = (doc: ApplicationDocument) => {
@@ -399,6 +401,7 @@ export function MyApplications() {
                             key={mode}
                             onPress={() => {
                               setSelectedMode(mode);
+                              setCurrentPage(1);
                               setOpenDropdown(null);
                             }}
                             style={[
@@ -470,6 +473,7 @@ export function MyApplications() {
                           key={val}
                           onPress={() => {
                             setSelectedStatus(val);
+                            setCurrentPage(1);
                             setOpenDropdown(null);
                           }}
                           style={[

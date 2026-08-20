@@ -42,11 +42,12 @@ export function useExamFilingQueries({
   const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
   const [loadingSchedules, setLoadingSchedules] = useState(false);
 
-  // Comprehensive Profile auto-fill
+  // Comprehensive Profile auto-fill (once on auth/mount)
+  const hasPrefilledExamProfileRef = React.useRef(false);
   React.useEffect(() => {
     let active = true;
     async function prefillExamApplicant() {
-      if (!clerkUser || applicants.length !== 1) return;
+      if (!clerkUser || applicants.length !== 1 || hasPrefilledExamProfileRef.current) return;
 
       // 1. Initial prefill from local storage / Clerk metadata
       const initialProfile = extractUserProfile(clerkUser, null);
@@ -120,6 +121,7 @@ export function useExamFilingQueries({
               : app
           )
         );
+        hasPrefilledExamProfileRef.current = true;
       } catch (err) {
         console.warn("[ExamFilingQueries] Failed to process backend profile data:", err);
       }
@@ -132,7 +134,9 @@ export function useExamFilingQueries({
   }, [clerkUser]);
 
   // Fetch tenants
+  const hasFetchedExamTenantsRef = React.useRef(false);
   React.useEffect(() => {
+    if (hasFetchedExamTenantsRef.current) return;
     async function fetchTenants() {
       setLoadingTenants(true);
       try {
@@ -149,6 +153,7 @@ export function useExamFilingQueries({
         if (list.length > 0 && !selectedRegionId) {
           setSelectedRegionId(list[0].id);
         }
+        hasFetchedExamTenantsRef.current = true;
       } catch (err) {
         console.error("Failed to fetch tenants from API:", err);
         setTenants([]);
@@ -157,7 +162,7 @@ export function useExamFilingQueries({
       }
     }
     fetchTenants();
-  }, [selectedRegionId, setSelectedRegionId]);
+  }, []);
 
   // Fetch offices
   React.useEffect(() => {
@@ -264,20 +269,31 @@ export function useExamFilingQueries({
   }, [selectedRegionId, selectedOfficeId, serviceId]);
 
   // Variants API Query
-  const { data: variantsResponse } = api.useQuery<{ succeeded: boolean; data: any[] }>(
-    serviceId ? `/api/v2/services/${serviceId}/variants` : null
+  const { data: variantsResponse } = api.useQuery<{ succeeded?: boolean; data?: any[]; items?: any[] } | any[]>(
+    serviceId ? `/api/v2/services/${serviceId}/variants?pageSize=100` : null
   );
-  const variants = variantsResponse?.succeeded ? variantsResponse.data : [];
+  const variants = Array.isArray(variantsResponse)
+    ? variantsResponse
+    : Array.isArray(variantsResponse?.data)
+    ? variantsResponse.data
+    : Array.isArray(variantsResponse?.items)
+    ? variantsResponse.items
+    : [];
 
   // Elements API Query
   const activeApplicant = applicants[currentApplicantIndex];
   const selectedVariantId = activeApplicant?.selectedVariantId;
-  const { data: elementsResponse } = api.useQuery<any[]>(
-    selectedVariantId ? `/api/v2/service-variant-elements?serviceVariantId=${selectedVariantId}` : null
+  const { data: elementsResponse } = api.useQuery<{ succeeded?: boolean; data?: any[]; items?: any[] } | any[]>(
+    selectedVariantId ? `/api/v2/service-variant-elements?serviceVariantId=${selectedVariantId}&pageSize=100` : null
   );
-  const rawElements = Array.isArray(elementsResponse) ? elementsResponse : [];
-  // Deduplicate by element id — the backend may return the same element linked
-  // to multiple variants (e.g. "Proof of Rating" appears across Retaker/Upgrader rows)
+  const rawElements = Array.isArray(elementsResponse)
+    ? elementsResponse
+    : Array.isArray(elementsResponse?.data)
+    ? elementsResponse.data
+    : Array.isArray(elementsResponse?.items)
+    ? elementsResponse.items
+    : [];
+
   const seen = new Set<string>();
   const variantElements = rawElements.filter((elem) => {
     const key = typeof elem.id === "string" ? elem.id : String(elem.id);
@@ -285,13 +301,19 @@ export function useExamFilingQueries({
     seen.add(key);
     return true;
   });
-  const isLoadingElements = !!selectedVariantId && elementsResponse === undefined;
+  const isLoadingElements = selectedVariantId !== undefined && selectedVariantId !== "" && elementsResponse === undefined;
 
   // Requirements API Query
-  const { data: requirementsResponse } = api.useQuery<{ succeeded: boolean; data: any[] }>(
-    serviceId && selectedVariantId ? `/api/v2/services/${serviceId}/requirements?variantId=${selectedVariantId}` : null
+  const { data: requirementsResponse } = api.useQuery<{ succeeded?: boolean; data?: any[]; items?: any[] } | any[]>(
+    serviceId && selectedVariantId ? `/api/v2/services/${serviceId}/requirements?variantId=${selectedVariantId}&pageSize=100` : null
   );
-  const dbRequirements = requirementsResponse?.succeeded ? requirementsResponse.data : [];
+  const dbRequirements = Array.isArray(requirementsResponse)
+    ? requirementsResponse
+    : Array.isArray(requirementsResponse?.data)
+    ? requirementsResponse.data
+    : Array.isArray(requirementsResponse?.items)
+    ? requirementsResponse.items
+    : [];
 
   return {
     formFields,

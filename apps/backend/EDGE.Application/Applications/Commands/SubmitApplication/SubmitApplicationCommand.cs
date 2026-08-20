@@ -10,6 +10,7 @@ public record SubmitApplicationCommand : IRequest<ApiResponse<Guid>>
     public Guid TenantId { get; init; }
     public string SubmissionMode { get; init; } = "Single";   // Single | Bulk
     public bool IsDraft { get; init; } = false;
+    public Guid? ExistingDraftId { get; init; }
 
     public Guid? ServiceId { get; init; }
     public Guid? ScheduleId { get; init; }

@@ -11,6 +11,7 @@ import { getApplicantDisplayName } from "../helpers/applicantDisplayHelper";
 import {
   FIELD_ID_FULL_NAME,
   FIELD_ID_BIRTH_DATE,
+  FIELD_ID_ADDRESS,
   FIELD_ID_NO_OF_YEARS,
   FIELD_ID_APP_TYPE,
   FIELD_ID_EXAMINEE_TYPE,
@@ -19,6 +20,7 @@ import {
   FIELD_ID_CLASS_OF_STATION,
   FIELD_ID_CONTACT_NO,
   FIELD_ID_EMAIL,
+  FIELD_ID_SIGNATURE,
 } from "../../../../shared/constants/fieldIds";
 
 interface GeneralFilingDetailsStepProps {
@@ -223,7 +225,7 @@ export function GeneralFilingDetailsStep({
           updatedValues.push({ fieldId, fieldLabel: field.label, value: activeApplicant.barangay });
           hasChanges = true;
         }
-        if ((labelLower.includes("address") || labelLower.includes("street")) && !existingVal && activeApplicant.address) {
+        if ((labelLower.includes("address") || labelLower.includes("street")) && !labelLower.includes("email") && !existingVal && activeApplicant.address) {
           updatedValues.push({ fieldId, fieldLabel: field.label, value: activeApplicant.address });
           hasChanges = true;
         }
@@ -242,7 +244,7 @@ export function GeneralFilingDetailsStep({
     activeApplicant.selectedElementId,
   ]);
 
-  // Inform parent of mandatory dynamic fields once form is loaded (only visible fields)
+  const prevRequiredKeyRef = React.useRef<string>("");
   useEffect(() => {
     if (!loading && form && form.sections) {
       const visibleSections = form.sections.filter((section) => {
@@ -342,8 +344,13 @@ export function GeneralFilingDetailsStep({
         .map((f) => f.fieldId || f.id)
         .filter((id): id is string => id !== undefined && id !== "");
 
-      onRequiredFieldsChange?.(requiredIds);
-    } else {
+      const keyStr = requiredIds.join(",");
+      if (keyStr !== prevRequiredKeyRef.current) {
+        prevRequiredKeyRef.current = keyStr;
+        onRequiredFieldsChange?.(requiredIds);
+      }
+    } else if (prevRequiredKeyRef.current !== "") {
+      prevRequiredKeyRef.current = "";
       onRequiredFieldsChange?.([]);
     }
   }, [loading, form]);
@@ -421,6 +428,9 @@ export function GeneralFilingDetailsStep({
     if (activeApplicant.province && !valuesRecord["province"]) valuesRecord["province"] = activeApplicant.province;
     if (activeApplicant.city && !valuesRecord["city"]) valuesRecord["city"] = activeApplicant.city;
     if (activeApplicant.barangay && !valuesRecord["barangay"]) valuesRecord["barangay"] = activeApplicant.barangay;
+    if (activeApplicant.email && !valuesRecord["email"] && !valuesRecord[FIELD_ID_EMAIL]) valuesRecord[FIELD_ID_EMAIL] = activeApplicant.email;
+    if (activeApplicant.contactNo && !valuesRecord["contactNo"] && !valuesRecord[FIELD_ID_CONTACT_NO]) valuesRecord[FIELD_ID_CONTACT_NO] = activeApplicant.contactNo;
+    if (activeApplicant.address && !valuesRecord["address"] && !valuesRecord[FIELD_ID_ADDRESS]) valuesRecord[FIELD_ID_ADDRESS] = activeApplicant.address;
 
     const handleDynamicFieldChange = (fieldId: string, fieldLabel: string, value: string) => {
       updateActiveApplicant((prevApp) => {
@@ -457,7 +467,7 @@ export function GeneralFilingDetailsStep({
           partial.contactNo = value;
         } else if (normalized.includes("email") || fieldId === FIELD_ID_EMAIL) {
           partial.email = value;
-        } else if (normalized.includes("address") || normalized.includes("street")) {
+        } else if ((normalized.includes("address") || normalized.includes("street")) && !normalized.includes("email")) {
           partial.address = value;
         } else if (normalized === "region") {
           partial.region = value;
@@ -490,6 +500,9 @@ export function GeneralFilingDetailsStep({
           if (partial.amateurLicenseData) partial.amateurLicenseData.noOfYears = value;
           if (partial.tvroRegData) partial.tvroRegData.years = value;
           if (partial.vasData) partial.vasData.years = value;
+        } else if (fieldId === FIELD_ID_SIGNATURE || normalized.includes("signature")) {
+          partial.signatureUrl = value;
+          (partial as any).signature = value;
         }
 
         return partial;
@@ -579,6 +592,8 @@ export function GeneralFilingDetailsStep({
           variants={variants}
           variantElements={variantElements}
           errors={errors}
+          appMode={appMode}
+          isBulk={appMode === "BULK"}
         />
       </View>
     );

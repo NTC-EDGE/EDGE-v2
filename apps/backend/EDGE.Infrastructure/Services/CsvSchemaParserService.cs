@@ -54,19 +54,25 @@ public class CsvSchemaParserService : ICsvSchemaParserService
 
             var firstName = GetValue(rowData, "First Name", "FirstName", "First_Name");
             var lastName = GetValue(rowData, "Last Name", "LastName", "Surname");
-            var middleName = GetValue(rowData, "Middle Name", "MiddleName");
+            var middleName = GetValue(rowData, "Middle Name", "MiddleName", "Middle_Name");
             var suffix = GetValue(rowData, "Suffix");
             var birthDateStr = GetValue(rowData, "Date of Birth", "BirthDate", "DOB", "Birth Date");
+            var sex = GetValue(rowData, "Sex", "Gender");
+            var nationality = GetValue(rowData, "Nationality", "Citizenship");
             var email = GetValue(rowData, "Email", "Email Address", "EmailAddress");
-            var contactNo = GetValue(rowData, "Contact Number", "ContactNumber", "Phone");
-            var schoolAttended = GetValue(rowData, "School Attended", "Education / School Attended", "Education");
+            var contactNo = GetValue(rowData, "Contact Number", "ContactNumber", "Phone", "Contact No");
+            var schoolAttended = GetValue(rowData, "School Name", "School Attended", "Education / School Attended", "Education", "School");
+            var courseDegree = GetValue(rowData, "Course / Degree", "Course/Degree", "Course", "Degree");
+            var yearGraduated = GetValue(rowData, "Year Graduated", "YearGraduated", "Graduation Year");
+            var specialOrderNo = GetValue(rowData, "Special Order (SO) Number", "Special Order (SO) No", "Special Order No", "SO Number", "SpecialOrderNo");
             
-            var street = GetValue(rowData, "Street/Zone", "Street", "Address");
+            var street = GetValue(rowData, "Street", "Street/Zone", "Address");
             var barangay = GetValue(rowData, "Barangay");
-            var city = GetValue(rowData, "City");
+            var city = GetValue(rowData, "City", "Municipality");
             var province = GetValue(rowData, "Province");
             var region = GetValue(rowData, "Region");
-            var fullAddress = string.Join(", ", new[] { street, barangay, city, province, region }.Where(s => !string.IsNullOrWhiteSpace(s))).Trim();
+            var zipCode = GetValue(rowData, "Zip Code", "ZipCode", "Postal Code");
+            var fullAddress = string.Join(", ", new[] { street, barangay, city, province, region, zipCode }.Where(s => !string.IsNullOrWhiteSpace(s))).Trim();
             if (string.IsNullOrWhiteSpace(fullAddress))
             {
                 fullAddress = GetValue(rowData, "Address");
@@ -150,7 +156,13 @@ public class CsvSchemaParserService : ICsvSchemaParserService
                         if (f.Label.Contains("Full Name", StringComparison.OrdinalIgnoreCase)) val = applicantName;
                         else if (f.Label.Contains("Birth", StringComparison.OrdinalIgnoreCase)) val = formattedBirthDate;
                         else if (f.Label.Contains("Address", StringComparison.OrdinalIgnoreCase)) val = fullAddress;
+                        else if (f.Label.Contains("Course", StringComparison.OrdinalIgnoreCase) || f.Label.Contains("Degree", StringComparison.OrdinalIgnoreCase)) val = courseDegree;
+                        else if (f.Label.Contains("Graduated", StringComparison.OrdinalIgnoreCase) || f.Label.Contains("Year", StringComparison.OrdinalIgnoreCase)) val = yearGraduated;
+                        else if (f.Label.Contains("Special Order", StringComparison.OrdinalIgnoreCase) || f.Label.Contains("SO Number", StringComparison.OrdinalIgnoreCase)) val = specialOrderNo;
                         else if (f.Label.Contains("School", StringComparison.OrdinalIgnoreCase) || f.Label.Contains("Education", StringComparison.OrdinalIgnoreCase)) val = schoolAttended;
+                        else if (f.Label.Contains("Sex", StringComparison.OrdinalIgnoreCase) || f.Label.Contains("Gender", StringComparison.OrdinalIgnoreCase)) val = sex;
+                        else if (f.Label.Contains("Nationality", StringComparison.OrdinalIgnoreCase) || f.Label.Contains("Citizenship", StringComparison.OrdinalIgnoreCase)) val = nationality;
+                        else if (f.Label.Contains("Zip", StringComparison.OrdinalIgnoreCase)) val = zipCode;
                         else if (f.Label.Contains("Email", StringComparison.OrdinalIgnoreCase)) val = email;
                     }
 
@@ -297,7 +309,12 @@ public class CsvSchemaParserService : ICsvSchemaParserService
         if (string.Equals(label, "Exam Category", StringComparison.OrdinalIgnoreCase)) return "Application Type";
         if (string.Equals(label, "Selected Exam Elements", StringComparison.OrdinalIgnoreCase)) return "Class/Element";
         if (label.Contains("Birth", StringComparison.OrdinalIgnoreCase)) return "Date of Birth";
-        if (label.Contains("School", StringComparison.OrdinalIgnoreCase) || label.Contains("Education", StringComparison.OrdinalIgnoreCase)) return "School Attended";
+        if (label.Contains("Course", StringComparison.OrdinalIgnoreCase) || label.Contains("Degree", StringComparison.OrdinalIgnoreCase)) return "Course / Degree";
+        if (label.Contains("Graduated", StringComparison.OrdinalIgnoreCase)) return "Year Graduated";
+        if (label.Contains("Special Order", StringComparison.OrdinalIgnoreCase) || label.Contains("SO Number", StringComparison.OrdinalIgnoreCase)) return "Special Order (SO) Number";
+        if (label.Contains("School", StringComparison.OrdinalIgnoreCase)) return "School Name";
+        if (label.Contains("Education", StringComparison.OrdinalIgnoreCase)) return "School Name";
+        if (label.Contains("Zip", StringComparison.OrdinalIgnoreCase)) return "Zip Code";
         if (label.Contains("Email", StringComparison.OrdinalIgnoreCase)) return "Email";
         return label;
     }

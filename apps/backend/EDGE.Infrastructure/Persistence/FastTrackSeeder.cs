@@ -363,6 +363,14 @@ public static class FastTrackSeeder
 
         if (obsoleteVariantIds.Count > 0)
         {
+            var referencingApplicants = await context.Applicants
+                .Where(a => a.ServiceVariantId.HasValue && obsoleteVariantIds.Contains(a.ServiceVariantId.Value))
+                .ToListAsync();
+            foreach (var app in referencingApplicants)
+            {
+                app.ServiceVariantId = null;
+            }
+
             var obsoleteSvr = await context.ServiceVariantRequirements
                 .Where(r => obsoleteVariantIds.Contains(r.ServiceVariantId))
                 .ToListAsync();
@@ -385,6 +393,30 @@ public static class FastTrackSeeder
             if (obsoleteSn.Count > 0)
             {
                 context.ServiceNotes.RemoveRange(obsoleteSn);
+            }
+
+            var obsoleteFees = await context.ServiceFees
+                .Where(sf => sf.ServiceVariantId.HasValue && obsoleteVariantIds.Contains(sf.ServiceVariantId.Value))
+                .ToListAsync();
+            if (obsoleteFees.Count > 0)
+            {
+                context.ServiceFees.RemoveRange(obsoleteFees);
+            }
+
+            var obsoleteVf = await context.ServiceVariantFees
+                .Where(vf => obsoleteVariantIds.Contains(vf.ServiceVariantId))
+                .ToListAsync();
+            if (obsoleteVf.Count > 0)
+            {
+                context.ServiceVariantFees.RemoveRange(obsoleteVf);
+            }
+
+            var obsoleteVef = await context.ServiceVariantElementFees
+                .Where(vef => obsoleteVariantIds.Contains(vef.ServiceVariantId))
+                .ToListAsync();
+            if (obsoleteVef.Count > 0)
+            {
+                context.ServiceVariantElementFees.RemoveRange(obsoleteVef);
             }
 
             var variantsToRemove = existingVariants.Where(ev => obsoleteVariantIds.Contains(ev.Id)).ToList();
@@ -634,24 +666,49 @@ public static class FastTrackSeeder
             return hardcodedVariantId;
         }
 
-        // 2. Seed ServiceVariantElements
+        // 2. Seed / Sync ServiceVariantElements
         var elementsToSeed = FastTrackSeederData.GetBackfillElements();
-        var existingSve = (await context.ServiceVariantElements.AsNoTracking().Select(e => new { e.ServiceVariantId, e.Code }).ToListAsync())
-            .Select(e => (e.ServiceVariantId, e.Code)).ToHashSet();
+        var allDbSve = await context.ServiceVariantElements.ToListAsync();
 
+        var desiredElements = new List<(Guid VariantId, string Code, string Description)>();
         foreach (var el in elementsToSeed)
         {
             Guid actualVariantId = ResolveVariantId(el.VariantId);
-            if (validVariantIds.Contains(actualVariantId) && !existingSve.Contains((actualVariantId, el.Code)))
+            if (validVariantIds.Contains(actualVariantId))
+            {
+                desiredElements.Add((actualVariantId, el.Code, el.Description));
+            }
+        }
+
+        var desiredSet = desiredElements.ToHashSet();
+        var seededVariantIds = desiredElements.Select(d => d.VariantId).ToHashSet();
+
+        // Remove obsolete elements belonging to seeded variants that are no longer in definition
+        var obsoleteElements = allDbSve
+            .Where(e => seededVariantIds.Contains(e.ServiceVariantId) && !desiredSet.Contains((e.ServiceVariantId, e.Code, e.Description)))
+            .ToList();
+
+        if (obsoleteElements.Count > 0)
+        {
+            context.ServiceVariantElements.RemoveRange(obsoleteElements);
+            await context.SaveChangesAsync();
+            allDbSve = await context.ServiceVariantElements.ToListAsync();
+        }
+
+        var existingDbSet = allDbSve.Select(e => (e.ServiceVariantId, e.Code, e.Description)).ToHashSet();
+
+        foreach (var (variantId, code, desc) in desiredElements)
+        {
+            if (!existingDbSet.Contains((variantId, code, desc)))
             {
                 context.ServiceVariantElements.Add(new ServiceVariantElement
                 {
                     Id = Guid.NewGuid(),
-                    ServiceVariantId = actualVariantId,
-                    Code = el.Code,
-                    Description = el.Description
+                    ServiceVariantId = variantId,
+                    Code = code,
+                    Description = desc
                 });
-                existingSve.Add((actualVariantId, el.Code));
+                existingDbSet.Add((variantId, code, desc));
             }
         }
         await context.SaveChangesAsync();
@@ -707,22 +764,30 @@ public static class FastTrackSeeder
 
         // 4. Seed Requirements
         var reqs = FastTrackSeederData.GetBackfillRequirements();
-        var existingReqIds = (await context.Requirements.AsNoTracking().Select(r => r.Id).ToListAsync()).ToHashSet();
+        var existingRequirements = await context.Requirements.ToListAsync();
+        var existingReqMap = existingRequirements.ToDictionary(r => r.Id);
 
         foreach (var req in reqs.Values)
         {
-            if (!existingReqIds.Contains(req.Id))
+            if (!existingReqMap.TryGetValue(req.Id, out var existing))
             {
-                context.Requirements.Add(new Requirement
+                var newReq = new Requirement
                 {
                     Id = req.Id,
                     Name = req.Name,
                     Description = req.Desc
-                });
-                existingReqIds.Add(req.Id);
+                };
+                context.Requirements.Add(newReq);
+                existingReqMap[req.Id] = newReq;
+            }
+            else
+            {
+                existing.Name = req.Name;
+                existing.Description = req.Desc;
             }
         }
         await context.SaveChangesAsync();
+        var existingReqIds = existingReqMap.Keys.ToHashSet();
 
         // 5. Seed ServiceVariantRequirements
         var tenantId = await context.Tenants.Select(t => (Guid?)t.Id).FirstOrDefaultAsync();
@@ -788,7 +853,8 @@ public static class FastTrackSeeder
 
         foreach (var tenantItem in allTenants)
         {
-            if (!await context.Schedules.AnyAsync(s => s.ServiceId == svc101 && s.TenantId == tenantItem.Id))
+            var hasUpcoming = await context.Schedules.AnyAsync(s => s.ServiceId == svc101 && s.TenantId == tenantItem.Id && s.EndDate >= nowUtc && s.IsPublished);
+            if (!hasUpcoming)
             {
                 context.Schedules.AddRange(
                     new Schedule

@@ -1,12 +1,10 @@
 import { useState, useMemo, useEffect, useRef } from "react";
-import axios from "axios";
 import { Alert, useWindowDimensions, Platform, BackHandler } from "react-native";
 import { useAppNavigation } from "../../../navigation";
 import { useUser, useAuth } from "@clerk/expo";
 import { useApi } from "../../../shared/hooks/useApi";
 import { useToast, extractApiErrorMessage } from "../../../shared/components/Toast";
 import { NTCService } from "../data/servicesData";
-import { initialDrafts } from "../data/initialDrafts";
 import {
   ApplicantData,
   initialApplicant,
@@ -27,13 +25,14 @@ export interface DraftApplication {
   step: number;
   selectedRegionId: string;
   selectedOfficeId: string;
+  selectedScheduleId?: string | null;
   appMode: "SINGLE" | "BULK" | "";
   bulkMethod: "MANUAL" | "EXCEL";
   isFileUploaded: boolean;
   uploadedFileName: string;
   applicants: any[];
   examApplicants: any[];
-  generalApplicants: any[];
+  generalApplicants: GeneralApplicantData[];
   currentApplicantIndex: number;
   currentExamApplicantIndex: number;
   currentGeneralApplicantIndex: number;
@@ -67,8 +66,8 @@ export function useServices() {
   );
   const [isDetailsExpanded, setIsDetailsExpanded] = useState(false);
 
-  // Backend Categories Query
-  const { data: categoriesApiResponse } = api.useQuery<{ succeeded: boolean; data: any[] }>("/api/v2/service-categories");
+  // Backend Categories Query (with draft counts per category)
+  const { data: categoriesApiResponse, mutate: refetchCategories } = api.useQuery<{ succeeded: boolean; data: any[] }>("/api/v2/service-categories");
   const backendCategories = categoriesApiResponse?.succeeded ? categoriesApiResponse.data : null;
 
   // Backend Services Query (all services for counting)
@@ -116,10 +115,17 @@ export function useServices() {
   const [triggerBulkSubmit, setTriggerBulkSubmit] = useState(0);
   const [variantRequirements, setVariantRequirements] = useState<string[]>([]);
 
-  const [drafts, setDrafts] = useState<DraftApplication[]>(initialDrafts);
+  const [activeDraftId, setActiveDraftId] = useState<string | null>(null);
   const [viewingDraftsCategory, setViewingDraftsCategory] = useState<string | null>(null);
 
+  // Backend Drafts Query
+  const { data: draftsApiResponse, mutate: refetchDrafts, isLoading: isLoadingDrafts } = api.useQuery<{ succeeded: boolean; data: any[] }>(
+    "/api/v2/applications/me/drafts"
+  );
+  const drafts = draftsApiResponse?.succeeded ? (draftsApiResponse.data || []) : [];
+
   const resetWizardState = () => {
+    setActiveDraftId(null);
     setWizardStep(1);
     setExamWizardStep(1);
     setSelectedRegionId("");
@@ -328,7 +334,7 @@ export function useServices() {
     };
     fetchRequirements();
     return () => { active = false; };
-  }, [selectedService?.id, generalApplicants[0]?.selectedVariantId, selectedService?.requirements]);
+  }, [selectedService?.id, generalApplicants[0]?.selectedVariantId]);
 
   // Handle Hardware Back (Android) and Browser Back (PopState) for wizard steps
   useEffect(() => {
@@ -376,46 +382,38 @@ export function useServices() {
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [draftErrorMessage, setDraftErrorMessage] = useState<string | null>(null);
 
+  const deleteDraft = async (draftId: string): Promise<boolean> => {
+    try {
+      await api.del(`/api/v2/applications/me/drafts/${draftId}`);
+      toast.success("Draft Deleted", "The draft has been permanently removed.");
+      await refetchDrafts();
+      await refetchCategories();
+      return true;
+    } catch (err: unknown) {
+      toast.error("Failed to Delete Draft", extractApiErrorMessage(err));
+      return false;
+    }
+  };
+
+  const removeActiveDraftOnSubmit = async () => {
+    if (activeDraftId) {
+      setActiveDraftId(null);
+      await refetchDrafts();
+      await refetchCategories();
+    }
+  };
+
   const saveActiveAsDraft = async (): Promise<boolean> => {
     if (!activeWizardService) return true;
     setDraftErrorMessage(null);
     setIsSavingDraft(true);
 
-    const draftId = `draft-${Date.now()}`;
-    const formattedDate = new Date().toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    const isGuid = (val?: string): boolean =>
+      Boolean(val && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(val));
 
-    const newDraft: DraftApplication = {
-      id: draftId,
-      wizardService: activeWizardService as any,
-      service: selectedService,
-      step: activeWizardService === "radio-operator-exam" ? examWizardStep : wizardStep,
-      selectedRegionId,
-      selectedOfficeId,
-      appMode,
-      bulkMethod,
-      isFileUploaded,
-      uploadedFileName,
-      applicants,
-      examApplicants,
-      generalApplicants,
-      currentApplicantIndex,
-      currentExamApplicantIndex,
-      currentGeneralApplicantIndex,
-      timestamp: formattedDate,
-    };
-
-    setDrafts((prev) => [newDraft, ...prev.filter((d) => d.id !== draftId)]);
-
-    if (!selectedRegionId) {
-      toast.info("Draft Saved Locally", "Your draft was saved locally on your device.");
-      setIsSavingDraft(false);
-      return true;
-    }
+    const effectiveTenantId = isGuid(selectedRegionId)
+      ? selectedRegionId
+      : (backendCategories?.[0]?.id || "00000000-0000-0000-0000-000000000001");
 
     try {
       const months: Record<string, string> = {
@@ -424,6 +422,8 @@ export function useServices() {
       };
 
       let mappedApplicants: Array<{
+        serviceId?: string | null;
+        serviceVariantId?: string | null;
         firstName: string;
         lastName: string;
         email: string;
@@ -435,11 +435,9 @@ export function useServices() {
       let svId: string | null = null;
       let sveIds: string[] = [];
 
-      const isGuid = (val?: string): boolean =>
-        Boolean(val && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(val));
-
       if (activeWizardService === "cpe-accreditation") {
         mappedApplicants = applicants.map(app => ({
+          serviceId: selectedService?.id && isGuid(selectedService.id) ? selectedService.id : null,
           firstName: "CPE Supplier",
           lastName: app.businessName || "Draft",
           email: app.email || "draft@example.com",
@@ -458,6 +456,8 @@ export function useServices() {
           const monthNum = months[app.birthMonth] || "01";
           const day = (app.birthDay || "1").padStart(2, '0');
           return {
+            serviceId: selectedService?.id && isGuid(selectedService.id) ? selectedService.id : null,
+            serviceVariantId: app.selectedVariantId && isGuid(app.selectedVariantId) ? app.selectedVariantId : (svId && isGuid(svId) ? svId : null),
             firstName: app.firstName || "Draft",
             lastName: app.lastName || "Applicant",
             email: app.email || "draft@example.com",
@@ -468,6 +468,11 @@ export function useServices() {
           };
         });
       } else if (activeWizardService === "general-service") {
+        const activeApp = generalApplicants[currentGeneralApplicantIndex];
+        if (activeApp) {
+          svId = activeApp.selectedVariantId || null;
+          sveIds = activeApp.selectedElementId ? [activeApp.selectedElementId] : [];
+        }
         mappedApplicants = generalApplicants.map(app => {
           const monthNum = months[app.birthMonth] || "01";
           const day = (app.birthDay || "1").padStart(2, '0');
@@ -490,24 +495,28 @@ export function useServices() {
           const lastName = fullName.split(" ").slice(1).join(" ") || "Detail";
 
           return {
+            serviceId: selectedService?.id && isGuid(selectedService.id) ? selectedService.id : null,
+            serviceVariantId: app.selectedVariantId && isGuid(app.selectedVariantId) ? app.selectedVariantId : (svId && isGuid(svId) ? svId : null),
             firstName,
             lastName,
             email: emailField.trim() || app.email || "draft@example.com",
             contactNumber: contactNoField.trim() || app.contactNo || "",
             address: addressField.trim() || app.address || "N/A",
             birthDate: app.birthYear ? `${app.birthYear}-${monthNum}-${day}` : "1990-01-01",
-            formFieldValues: (app.formFieldValues || [])
-              .filter(fv => isGuid(fv.fieldId))
-              .map(fv => ({
-                fieldId: fv.fieldId,
-                value: fv.value || ""
-              }))
+            formFieldValues: Array.from(
+              (app.formFieldValues || []).reduce((map, fv) => {
+                if (isGuid(fv.fieldId)) {
+                  map.set(fv.fieldId, fv.value || "");
+                }
+                return map;
+              }, new Map<string, string>()).entries()
+            ).map(([fieldId, value]) => ({ fieldId, value }))
           };
         });
       }
 
       const payload = {
-        tenantId: selectedRegionId,
+        tenantId: effectiveTenantId,
         submissionMode: appMode === "BULK" ? "Bulk" : "Single",
         serviceId: selectedService?.id && isGuid(selectedService.id) ? selectedService.id : null,
         scheduleId: null,
@@ -515,11 +524,17 @@ export function useServices() {
         serviceVariantId: svId && isGuid(svId) ? svId : null,
         serviceVariantElementIds: (sveIds || []).filter(isGuid),
         isDraft: true,
+        existingDraftId: activeDraftId && isGuid(activeDraftId) ? activeDraftId : null,
         applicants: mappedApplicants,
       };
 
-      await api.post(`/api/v2/tenants/${selectedRegionId}/applications`, payload);
-      toast.success("Draft Saved", "Draft saved to server successfully.");
+      const res = await api.post<{ succeeded: boolean; data: string }>(`/api/v2/applications`, payload);
+      if (res?.data) {
+        setActiveDraftId(res.data);
+      }
+      toast.success("Draft Saved", "Your application draft has been saved to the server.");
+      await refetchDrafts();
+      await refetchCategories();
       setIsSavingDraft(false);
       return true;
     } catch (err: unknown) {
@@ -532,31 +547,163 @@ export function useServices() {
     }
   };
 
-  const loadDraft = (draft: DraftApplication) => {
+  const loadDraft = async (draft: any) => {
     // Close the drafts modal immediately to avoid native modal collision
     setViewingDraftsCategory(null);
+
+    let fullDraft = draft;
+    if (!draft.applicants || draft.applicants.length === 0) {
+      try {
+        const fullRes = await api.get<{ succeeded: boolean; data: any }>(`/api/v2/applications/${draft.id}`);
+        if (fullRes?.succeeded && fullRes.data) {
+          fullDraft = fullRes.data;
+        } else {
+          toast.error("Failed to Load Draft", "Could not retrieve full draft details from the server.");
+        }
+      } catch (err) {
+        console.warn("Failed to fetch full application details for draft:", err);
+        toast.error("Failed to Load Draft", extractApiErrorMessage(err) || "Network error loading draft details.");
+      }
+    }
 
     // Slightly delay the confirmation dialog to allow drafts modal to finish transition
     setTimeout(() => {
       confirmSwitchService(() => {
-        setActiveWizardService(draft.wizardService);
-        setSelectedService(draft.service);
-        
-        // Start draft from Step 1 so the user can verify or change the initial settings (region, office, appMode)
-        setWizardStep(1);
-        setExamWizardStep(1);
-        setSelectedRegionId(draft.selectedRegionId);
-        setSelectedOfficeId(draft.selectedOfficeId);
-        setAppMode(draft.appMode);
-        setBulkMethod(draft.bulkMethod);
-        setIsFileUploaded(draft.isFileUploaded);
-        setUploadedFileName(draft.uploadedFileName);
-        setApplicants(draft.applicants.length > 0 ? draft.applicants : [initialApplicant(1)]);
-        setExamApplicants(draft.examApplicants.length > 0 ? draft.examApplicants : [initialExamApplicant(1)]);
-        setGeneralApplicants(draft.generalApplicants.length > 0 ? draft.generalApplicants : [initialGeneralApplicant(1)]);
-        setCurrentApplicantIndex(draft.currentApplicantIndex);
-        setCurrentExamApplicantIndex(draft.currentExamApplicantIndex);
-        setCurrentGeneralApplicantIndex(draft.currentGeneralApplicantIndex);
+        setActiveDraftId(fullDraft.id);
+
+        const draftServiceId = fullDraft.serviceId || fullDraft.applicants?.[0]?.serviceId;
+        const matchedService = allBackendServices?.find((s: any) => s.id === draftServiceId) || null;
+        setSelectedService(matchedService);
+        if (draftServiceId) {
+          setServiceId(draftServiceId);
+        }
+
+        const draftCategoryId = fullDraft.serviceCategoryId || matchedService?.serviceCategoryId;
+        if (draftCategoryId) {
+          setSelectedCategoryId(draftCategoryId);
+        }
+
+        setSelectedRegionId(fullDraft.tenantId || fullDraft.regionId || "");
+        setSelectedOfficeId(fullDraft.office || "");
+        setAppMode(fullDraft.submissionMode?.toUpperCase() === "BULK" ? "BULK" : "SINGLE");
+        setBulkMethod("MANUAL");
+        setIsFileUploaded(false);
+        setUploadedFileName("");
+        setCurrentApplicantIndex(0);
+        setCurrentExamApplicantIndex(0);
+        setCurrentGeneralApplicantIndex(0);
+
+        const categoryCode = fullDraft.serviceCategoryCode?.toUpperCase() || matchedService?.categoryCode?.toUpperCase() || "";
+        const serviceName = (fullDraft.serviceName || matchedService?.title || "").toLowerCase();
+
+        let wizType = "general-service";
+        if (categoryCode === "EXAM" || serviceName.includes("radio operator") || serviceName.includes("exam")) {
+          wizType = "radio-operator-exam";
+        } else if (serviceName.includes("cpe") || serviceName.includes("customer premise")) {
+          wizType = "cpe-accreditation";
+        }
+        setActiveWizardService(wizType);
+
+        if (fullDraft.applicants && fullDraft.applicants.length > 0) {
+          if (wizType === "radio-operator-exam") {
+            const mappedExamApps = fullDraft.applicants.map((a: any, idx: number) => {
+              const d = a.details || {};
+              const birthParts = (d.birthDate || "").split("-");
+              const fvList = a.formFieldValues || [];
+              const elementFv = fvList.find((fv: any) =>
+                fv.fieldLabel?.toLowerCase().includes("element") ||
+                fv.fieldLabel?.toLowerCase().includes("class option")
+              );
+
+              return {
+                id: idx + 1,
+                firstName: d.firstName || "",
+                lastName: d.lastName || "",
+                middleName: d.middleName || "",
+                suffix: d.suffix || "",
+                email: d.emailAddress || a.email || "",
+                contactNo: d.contactNumber || a.contactNumber || "",
+                street: d.address || "",
+                barangay: "",
+                city: "",
+                province: "",
+                birthYear: birthParts[0] || "",
+                birthMonth: birthParts[1] ? ["January","February","March","April","May","June","July","August","September","October","November","December"][parseInt(birthParts[1], 10) - 1] || "" : "",
+                birthDay: birthParts[2] ? String(parseInt(birthParts[2], 10)) : "",
+                selectedVariantId: a.serviceVariantId || "",
+                selectedElementId: elementFv?.value || "",
+                uploads: {},
+                files: {},
+              };
+            });
+            setExamApplicants(mappedExamApps);
+          } else if (wizType === "cpe-accreditation") {
+            const mappedCpeApps = fullDraft.applicants.map((a: any, idx: number) => {
+              const d = a.details || {};
+              return {
+                id: idx + 1,
+                appType: "NEW" as const,
+                years: "1",
+                variation: "",
+                accreditationNo: "",
+                businessName: d.lastName || "",
+                entityType: "",
+                dtiNo: "",
+                regionName: "",
+                province: "",
+                city: "",
+                barangay: "",
+                street: d.address || "",
+                zone: "",
+                unitBldgNo: "",
+                zipCode: d.zipCode || "",
+                contactNo: d.contactNumber || a.contactNumber || "",
+                email: d.emailAddress || a.email || "",
+                engineerName: "",
+                eceNo: "",
+                technicianName: "",
+                ectNo: "",
+                expiryMonth: "",
+                expiryYear: "",
+                uploads: {},
+                files: {},
+              };
+            });
+            setApplicants(mappedCpeApps);
+          } else {
+            const mappedGeneralApps = fullDraft.applicants.map((a: any, idx: number) => {
+              const d = a.details || {};
+              const birthParts = (d.birthDate || "").split("-");
+              return {
+                id: idx + 1,
+                firstName: d.firstName || "",
+                lastName: d.lastName || "",
+                middleName: d.middleName || "",
+                suffix: d.suffix || "",
+                email: d.emailAddress || a.email || "",
+                contactNo: d.contactNumber || a.contactNumber || "",
+                address: d.address || "",
+                birthYear: birthParts[0] || "",
+                birthMonth: birthParts[1] ? ["January","February","March","April","May","June","July","August","September","October","November","December"][parseInt(birthParts[1], 10) - 1] || "" : "",
+                birthDay: birthParts[2] ? String(parseInt(birthParts[2], 10)) : "",
+                notes: "",
+                selectedVariantId: a.serviceVariantId || "",
+                formFieldValues: (a.formFieldValues || []).map((fv: any) => ({
+                  fieldId: fv.fieldId,
+                  fieldLabel: fv.fieldLabel,
+                  value: fv.value || "",
+                })),
+                uploads: {},
+                files: {},
+              };
+            });
+            setGeneralApplicants(mappedGeneralApps);
+          }
+        }
+
+        const targetStep = 3;
+        setWizardStep(targetStep);
+        setExamWizardStep(targetStep);
       });
     }, Platform.OS === "web" ? 0 : 300);
   };
@@ -572,13 +719,16 @@ export function useServices() {
   const handleRemoveGeneralApplicant = (idx: number) => {
     setGeneralApplicants((prev) => {
       const updated = prev.filter((_, i) => i !== idx);
-      if (updated.length === 0) {
-        setCurrentGeneralApplicantIndex(0);
-        return [initialGeneralApplicant(1)];
-      }
-      setCurrentGeneralApplicantIndex((prevIdx) =>
-        Math.max(0, Math.min(prevIdx, updated.length - 1)),
-      );
+      setCurrentGeneralApplicantIndex(0);
+      return updated;
+    });
+  };
+
+  const handleRemoveMultipleGeneralApplicants = (indices: number[]) => {
+    const toDeleteSet = new Set(indices);
+    setGeneralApplicants((prev) => {
+      const updated = prev.filter((_, i) => !toDeleteSet.has(i));
+      setCurrentGeneralApplicantIndex(0);
       return updated;
     });
   };
@@ -594,13 +744,16 @@ export function useServices() {
   const handleRemoveExamApplicant = (idx: number) => {
     setExamApplicants((prev) => {
       const updated = prev.filter((_, i) => i !== idx);
-      if (updated.length === 0) {
-        setCurrentExamApplicantIndex(0);
-        return [initialExamApplicant(1)];
-      }
-      setCurrentExamApplicantIndex((prevIdx) =>
-        Math.max(0, Math.min(prevIdx, updated.length - 1)),
-      );
+      setCurrentExamApplicantIndex(0);
+      return updated;
+    });
+  };
+
+  const handleRemoveMultipleExamApplicants = (indices: number[]) => {
+    const toDeleteSet = new Set(indices);
+    setExamApplicants((prev) => {
+      const updated = prev.filter((_, i) => !toDeleteSet.has(i));
+      setCurrentExamApplicantIndex(0);
       return updated;
     });
   };
@@ -608,13 +761,16 @@ export function useServices() {
   const handleRemoveApplicant = (idx: number) => {
     setApplicants((prev) => {
       const updated = prev.filter((_, i) => i !== idx);
-      if (updated.length === 0) {
-        setCurrentApplicantIndex(0);
-        return [initialApplicant(1)];
-      }
-      setCurrentApplicantIndex((prevIdx) =>
-        Math.max(0, Math.min(prevIdx, updated.length - 1)),
-      );
+      setCurrentApplicantIndex(0);
+      return updated;
+    });
+  };
+
+  const handleRemoveMultipleApplicants = (indices: number[]) => {
+    const toDeleteSet = new Set(indices);
+    setApplicants((prev) => {
+      const updated = prev.filter((_, i) => !toDeleteSet.has(i));
+      setCurrentApplicantIndex(0);
       return updated;
     });
   };
@@ -630,8 +786,11 @@ export function useServices() {
     isLeftColumnHiddenOnMobile;
 
   // Auto-select first category on desktop if none is currently selected
+  const hasAutoSelectedCategory = useRef(false);
   useEffect(() => {
+    if (hasAutoSelectedCategory.current) return;
     if (!isMobile && !selectedCategoryId && backendCategories && backendCategories.length > 0) {
+      hasAutoSelectedCategory.current = true;
       setSelectedCategoryId(backendCategories[0].id);
       setServiceId(backendCategories[0].id);
     }
@@ -860,6 +1019,7 @@ export function useServices() {
           notes: formData.notes,
         }
       );
+      removeActiveDraftOnSubmit();
       setIsModalOpen(false);
       toast.success(
         "Application Submitted",
@@ -934,11 +1094,13 @@ export function useServices() {
     setTriggerBulkSubmit,
     variantRequirements,
     drafts,
-    setDrafts,
+    activeDraftId,
+    removeActiveDraftOnSubmit,
     viewingDraftsCategory,
     setViewingDraftsCategory,
     resetWizardState,
     saveActiveAsDraft,
+    deleteDraft,
     isSavingDraft,
     setIsSavingDraft,
     draftErrorMessage,
@@ -946,9 +1108,12 @@ export function useServices() {
     loadDraft,
     handleAddGeneralApplicant,
     handleRemoveGeneralApplicant,
+    handleRemoveMultipleGeneralApplicants,
     handleAddExamApplicant,
     handleRemoveExamApplicant,
+    handleRemoveMultipleExamApplicants,
     handleRemoveApplicant,
+    handleRemoveMultipleApplicants,
     isLeftColumnHiddenOnMobile,
     isWizardActive,
     hideSidebar,

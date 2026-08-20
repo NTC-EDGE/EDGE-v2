@@ -13,6 +13,8 @@ interface ExamBulkApplicantCardProps {
   onSelectApplicant: (idx: number) => void;
   setStep: (step: number) => void;
   onDeletePress: (idx: number, name: string) => void;
+  isChecked?: boolean;
+  onToggleCheck?: () => void;
 }
 
 export function ExamBulkApplicantCard({
@@ -23,6 +25,8 @@ export function ExamBulkApplicantCard({
   onSelectApplicant,
   setStep,
   onDeletePress,
+  isChecked,
+  onToggleCheck,
 }: ExamBulkApplicantCardProps) {
   const complete = isExamApplicantComplete(app);
   const fullName = `${app.firstName} ${app.lastName}`.trim();
@@ -34,9 +38,32 @@ export function ExamBulkApplicantCard({
       style={[
         styles.itemCard,
         isSelected && styles.itemCardSelected,
-        { flexDirection: "row", alignItems: "center" }
+        { flexDirection: "row", alignItems: "center", paddingLeft: 10 }
       ]}
     >
+      {onToggleCheck && (
+        <TouchableOpacity
+          onPress={onToggleCheck}
+          style={{ padding: 4, marginRight: 4 }}
+          activeOpacity={0.7}
+        >
+          <View
+            style={{
+              width: 18,
+              height: 18,
+              borderRadius: 4,
+              borderWidth: 1.5,
+              borderColor: isChecked ? "#2563EB" : "#CBD5E1",
+              backgroundColor: isChecked ? "#2563EB" : "#FFFFFF",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            {isChecked && <Icon name="check" size={12} color="#FFFFFF" />}
+          </View>
+        </TouchableOpacity>
+      )}
+
       <TouchableOpacity
         onPress={() => {
           onSelectApplicant(originalIdx);
@@ -44,7 +71,7 @@ export function ExamBulkApplicantCard({
             setStep(5);
           }
         }}
-        style={{ flex: 1, padding: 14 }}
+        style={{ flex: 1, paddingVertical: 14, paddingRight: 8, paddingLeft: 4 }}
       >
         <View style={styles.itemHeader}>
           <Text style={[styles.itemTitle, isSelected && styles.itemTitleSelected]} numberOfLines={1}>

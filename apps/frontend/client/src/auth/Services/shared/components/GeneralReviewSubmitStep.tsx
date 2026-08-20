@@ -1,11 +1,13 @@
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Image } from "react-native";
-import { COLORS, TYPOGRAPHY, Icon } from "@edge/ui";
+import { View, Text, TouchableOpacity, Image } from "react-native";
+import { TYPOGRAPHY, Icon } from "@edge/ui";
 import { NTCService } from "../../data/servicesData";
-import { TenantInfo, OfficeInfo, GeneralApplicantData } from "../hooks/useGeneralServiceWizard";
+import { TenantInfo, OfficeInfo, GeneralApplicantData, ServiceRequirementItem } from "../hooks/useGeneralServiceWizard";
 import { getApplicantDisplayName } from "../helpers/applicantDisplayHelper";
 import { DocumentPreviewModal } from "../../../../shared/components/DocumentPreviewModal";
 import { OFFICIAL_LEGAL_DECLARATION } from "../../../../shared/components/DeclarationCheckbox";
+import { useServiceForm } from "../hooks/useServiceForm";
+import { FIELD_ID_SIGNATURE } from "../../../../shared/constants/fieldIds";
 
 interface GeneralReviewSubmitStepProps {
   service: NTCService;
@@ -18,8 +20,18 @@ interface GeneralReviewSubmitStepProps {
   currentApplicantIndex?: number;
   appMode: "SINGLE" | "BULK" | "";
   variants?: Array<{ id: string; name?: string; description?: string; type?: string }>;
+  variantRequirements?: Array<ServiceRequirementItem | string>;
   schedules?: Array<{ id: string; scheduledDate: string; startTime?: string; endTime?: string; venue?: string }>;
   selectedScheduleId?: string | null;
+}
+
+// ─── Type Guard Helpers (Strict Monorepo Standard — No Type Assertions) ──────
+function isRecord(val: unknown): val is Record<string, unknown> {
+  return typeof val === "object" && val !== null && !Array.isArray(val);
+}
+
+function isPreviewFileObject(file: unknown): file is { name: string; uri?: string } {
+  return typeof file === "object" && file !== null && "name" in file && typeof (file as { name: unknown }).name === "string";
 }
 
 // ─── Format Field Key to Human-Readable Label ─────────────────────────────
@@ -69,6 +81,21 @@ const formatFieldKey = (key: string): string => {
     power: "Power",
     frequency: "Frequency",
     bandwidth: "Bandwidth",
+    emission: "Emission / Modulation",
+    channel: "Channel No.",
+    quantity: "Quantity",
+    tacnumber: "TAC / Approval No.",
+    tac_no: "TAC / Approval No.",
+    schoolname: "School / Training Institution",
+    school_name: "School / Training Institution",
+    coursedegree: "Course / Degree",
+    course_degree: "Course / Degree",
+    yeargraduated: "Year Graduated",
+    year_graduated: "Year Graduated",
+    educationalattainment: "Educational Attainment",
+    educational_attainment: "Educational Attainment",
+    specialneeds: "Special Needs / Accommodation",
+    special_needs: "Special Needs / Accommodation",
   };
 
   const lower = key.toLowerCase().replace(/[-_]/g, "");
@@ -78,6 +105,171 @@ const formatFieldKey = (key: string): string => {
     .replace(/_/g, " ")
     .replace(/([a-z])([A-Z])/g, "$1 $2")
     .replace(/\b\w/g, (c) => c.toUpperCase());
+};
+
+// ─── Helpers to Filter Unrelated & Duplicate Sections / Fields ─────────────
+const isUnrelatedSection = (titleOrKey: string): boolean => {
+  const lower = titleOrKey.toLowerCase().replace(/['’]/g, "").replace(/[-_]/g, " ").trim();
+  return (
+    lower.includes("payment") ||
+    lower.includes("fee") ||
+    lower.includes("office use") ||
+    lower.includes("official use") ||
+    lower.includes("ntc use") ||
+    lower.includes("evaluation") ||
+    lower.includes("processing note") ||
+    lower.includes("personal information") ||
+    lower.includes("personal detail") ||
+    lower.includes("personal data") ||
+    lower.includes("personal particular") ||
+    lower.includes("personal info") ||
+    lower.includes("applicant information") ||
+    lower.includes("applicant detail") ||
+    lower.includes("applicant particular") ||
+    lower.includes("applicant person") ||
+    lower.includes("applicant contact") ||
+    lower.includes("applicantperson") ||
+    lower.includes("applicantinfo") ||
+    lower.includes("basic information") ||
+    lower.includes("basic detail") ||
+    lower.includes("contact information") ||
+    lower.includes("contact detail") ||
+    lower.includes("contact particular") ||
+    lower === "declaration" ||
+    lower === "declaration of applicant" ||
+    lower === "acknowledgement" ||
+    lower === "acknowledgement & applicant signature" ||
+    lower === "signature" ||
+    lower === "typeofcertificate" ||
+    lower === "permittype" ||
+    lower === "apptype" ||
+    lower === "applicationtype" ||
+    lower === "typeofapplication" ||
+    lower === "type of certificate / application" ||
+    lower === "type of application & permit category" ||
+    lower === "type of application & category" ||
+    lower === "type of certificate" ||
+    lower === "type of application" ||
+    lower === "application type" ||
+    lower === "permit type / application type" ||
+    lower === "permit type" ||
+    lower === "permit category"
+  );
+};
+
+const isApplicantParticularField = (labelOrId: string): boolean => {
+  const lower = labelOrId.toLowerCase().replace(/['’]/g, "").replace(/[-_]/g, " ").trim();
+
+  // Explicit non-applicant entity fields to allow through
+  if (
+    lower.includes("dealer") ||
+    lower.includes("seller") ||
+    lower.includes("buyer") ||
+    lower.includes("equipment") ||
+    lower.includes("school") ||
+    lower.includes("institution") ||
+    lower.includes("course") ||
+    lower.includes("degree") ||
+    lower.includes("station") ||
+    lower.includes("satellite") ||
+    lower.includes("vessel") ||
+    lower.includes("ship") ||
+    lower.includes("aircraft")
+  ) {
+    return false;
+  }
+
+  return (
+    lower.includes("full name") ||
+    lower.includes("legal name") ||
+    lower.includes("applicant name") ||
+    lower === "name" ||
+    lower === "first name" ||
+    lower === "fname" ||
+    lower === "middle name" ||
+    lower === "mname" ||
+    lower === "last name" ||
+    lower === "surname" ||
+    lower === "lname" ||
+    lower === "suffix" ||
+    lower.includes("company name") ||
+    lower.includes("business name") ||
+    lower.includes("corporate name") ||
+    lower.includes("representative name") ||
+    lower.includes("email") ||
+    lower.includes("contact") ||
+    lower.includes("phone") ||
+    lower.includes("mobile") ||
+    lower.includes("cellphone") ||
+    lower.includes("telephone") ||
+    lower.includes("nationality") ||
+    lower.includes("citizenship") ||
+    lower.includes("civil status") ||
+    lower.includes("marital") ||
+    lower.includes("birth") ||
+    lower === "dob" ||
+    lower === "sex" ||
+    lower === "gender" ||
+    lower.includes("sex / gender") ||
+    lower.includes("gender") ||
+    lower.includes("address") ||
+    lower.includes("street") ||
+    lower.includes("barangay") ||
+    lower.includes("city") ||
+    lower.includes("municipality") ||
+    lower.includes("province") ||
+    lower.includes("region") ||
+    lower.includes("zip") ||
+    lower.includes("postal")
+  );
+};
+
+const isSignatureOrDeclarationField = (labelOrId: string): boolean => {
+  const lower = labelOrId.toLowerCase().trim();
+  return (
+    lower.includes("signature") ||
+    lower.includes("declare") ||
+    lower.includes("declaration") ||
+    lower.includes("affirm") ||
+    lower.includes("certify")
+  );
+};
+
+const isJurisdictionOrVariantField = (labelOrId: string): boolean => {
+  const lower = labelOrId.toLowerCase().trim();
+  return (
+    lower === "service" ||
+    lower === "service category" ||
+    lower === "category" ||
+    lower === "service name" ||
+    lower === "type of application" ||
+    lower === "application type" ||
+    lower === "permit type" ||
+    lower === "license type" ||
+    lower === "certificate type" ||
+    lower === "filing mode" ||
+    lower === "application mode"
+  );
+};
+
+const getSectionIcon = (title: string): React.ComponentProps<typeof Icon>["name"] => {
+  const lower = title.toLowerCase();
+  if (lower.includes("applicant") || lower.includes("personal") || lower.includes("contact")) return "user";
+  if (lower.includes("education") || lower.includes("school") || lower.includes("training") || lower.includes("seminar") || lower.includes("exam")) return "book-open";
+  if (lower.includes("assistance") || lower.includes("special") || lower.includes("pwd") || lower.includes("accommodation")) return "info";
+  if (lower.includes("station") || lower.includes("location") || lower.includes("site") || lower.includes("address")) return "map-pin";
+  if (lower.includes("equipment") || lower.includes("device") || lower.includes("transceiver") || lower.includes("technical")) return "cpu";
+  if (lower.includes("antenna") || lower.includes("mast") || lower.includes("tower") || lower.includes("radio")) return "radio";
+  if (lower.includes("personnel") || lower.includes("engineer") || lower.includes("technician") || lower.includes("pece") || lower.includes("ece")) return "award";
+  if (lower.includes("vessel") || lower.includes("ship") || lower.includes("maritime")) return "anchor";
+  if (lower.includes("aircraft") || lower.includes("aero")) return "navigation";
+  if (lower.includes("document") || lower.includes("upload") || lower.includes("attachment")) return "paperclip";
+  return "file-text";
+};
+
+const getSectionAccentColor = (idx: number): string => {
+  const colors = ["#7C3AED", "#0284C7", "#0D9488", "#4F46E5", "#D97706", "#2563EB", "#9333EA"];
+  return colors[idx % colors.length] || "#0F2C59";
 };
 
 function SummaryRow({
@@ -94,7 +286,9 @@ function SummaryRow({
     value.trim() === "" ||
     value.trim().toUpperCase() === "N/A" ||
     value.trim().toUpperCase() === "NA" ||
-    value.trim() === "-"
+    value.trim() === "-" ||
+    value.trim() === "[]" ||
+    value.trim() === "{}"
   ) {
     return null;
   }
@@ -110,10 +304,13 @@ function SummaryRow({
   ) {
     try {
       const parsed: unknown = JSON.parse(trimmedVal);
-      if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === "object" && parsed[0] !== null) {
-        parsedArray = parsed as Array<Record<string, unknown>>;
-      } else if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
-        parsedArray = [parsed as Record<string, unknown>];
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        const validRows = parsed.filter(isRecord);
+        if (validRows.length > 0) {
+          parsedArray = validRows;
+        }
+      } else if (isRecord(parsed)) {
+        parsedArray = [parsed];
       }
     } catch {
       // Ignored if not JSON
@@ -632,12 +829,69 @@ export function GeneralReviewSubmitStep({
   currentApplicantIndex = 0,
   appMode,
   variants = [],
+  variantRequirements = [],
   schedules = [],
   selectedScheduleId = null,
 }: GeneralReviewSubmitStepProps) {
   const [previewFile, setPreviewFile] = useState<{ name: string; uri?: string } | string | null>(null);
   const [previewLabel, setPreviewLabel] = useState<string>("");
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+
+  const getRequirementLabel = (key: string): string => {
+    const cleanKey = key.replace(/^req-/, "");
+    const matched = (variantRequirements || []).find((r) => {
+      if (typeof r === "string") return false;
+      return r.id === cleanKey || r.key === key || r.key === cleanKey;
+    });
+    if (matched && typeof matched === "object") {
+      return (matched.name || matched.label || matched.title || matched.description || cleanKey).replace(/\*$/, "").trim();
+    }
+    if (service.requirements && Array.isArray(service.requirements)) {
+      const matchedFromSvc = service.requirements.find((r) => {
+        if (typeof r === "string") return false;
+        const rObj = r as unknown as { id?: string; name?: string; label?: string; description?: string };
+        return rObj.id === cleanKey;
+      });
+      if (matchedFromSvc && typeof matchedFromSvc === "object") {
+        const rObj = matchedFromSvc as unknown as { id?: string; name?: string; label?: string; description?: string };
+        return (rObj.name || rObj.label || rObj.description || cleanKey).replace(/\*$/, "").trim();
+      }
+    }
+    return cleanKey.replace(/[-_]/g, " ").toUpperCase();
+  };
+
+  // Retrieve dynamic form definition if available for this service
+  const { form } = useServiceForm(service.id, activeApplicant.selectedVariantId);
+
+  // Service Domain Category Flags
+  const serviceCategoryLower = (service.category || "").toLowerCase().trim();
+  const serviceTitleLower = (service.title || "").toLowerCase().trim();
+
+  const isExamService =
+    serviceCategoryLower.includes("exam") ||
+    serviceTitleLower.includes("exam") ||
+    serviceTitleLower.includes("admission") ||
+    serviceTitleLower.includes("operator examination");
+
+  const isLicenseService =
+    !isExamService &&
+    (serviceCategoryLower.includes("licen") ||
+      serviceTitleLower.includes("license") ||
+      serviceTitleLower.includes("licence"));
+
+  const isPermitService =
+    !isExamService &&
+    (serviceCategoryLower.includes("permit") ||
+      serviceTitleLower.includes("permit"));
+
+  const isCertificateService =
+    !isExamService &&
+    (serviceCategoryLower.includes("cert") ||
+      serviceTitleLower.includes("certificate") ||
+      serviceTitleLower.includes("radio operator certificate") ||
+      serviceTitleLower.includes("roc") ||
+      serviceTitleLower.includes("tvro") ||
+      serviceTitleLower.includes("vas"));
 
   const regionName =
     tenants.find((t) => t.id === selectedRegionId)?.name ||
@@ -686,17 +940,75 @@ export function GeneralReviewSubmitStep({
   // Dynamic form field values (from DB-seeded forms)
   const formFieldValues = activeApplicant.formFieldValues ?? [];
 
-  // Derived full name from applicant base fields
-  const fullName =
-    [activeApplicant.firstName, activeApplicant.lastName].filter(Boolean).join(" ") || null;
+  // Resolve applicant particulars from base fields with fallback to formFieldValues
+  const resolvedFullName =
+    [activeApplicant.firstName, activeApplicant.middleName, activeApplicant.lastName, activeApplicant.suffix]
+      .filter(Boolean)
+      .join(" ") ||
+    formFieldValues.find((fv) => isApplicantParticularField(fv.fieldId) && fv.fieldLabel.toLowerCase().includes("name"))?.value ||
+    null;
 
-  // Birth date from month/day/year parts
-  const birthDate =
+  const addressParts = [
+    activeApplicant.address,
+    activeApplicant.barangay,
+    activeApplicant.city,
+    activeApplicant.province,
+    activeApplicant.region,
+    activeApplicant.zipCode ? `ZIP ${activeApplicant.zipCode}` : null,
+  ].filter(Boolean);
+
+  const resolvedAddress =
+    addressParts.length > 0
+      ? addressParts.join(", ")
+      : formFieldValues.find((fv) => (fv.fieldId === "address" || fv.fieldLabel.toLowerCase().includes("address")) && !fv.fieldLabel.toLowerCase().includes("email"))?.value ||
+        null;
+
+  const resolvedBirthDate =
     activeApplicant.birthMonth && activeApplicant.birthDay && activeApplicant.birthYear
       ? `${activeApplicant.birthMonth} ${activeApplicant.birthDay}, ${activeApplicant.birthYear}`
-      : null;
+      : activeApplicant.birthDate ||
+        formFieldValues.find((fv) => fv.fieldId === "birthDate" || fv.fieldLabel.toLowerCase().includes("birth"))?.value ||
+        null;
 
-  // Specialized Models
+  const resolvedEmail =
+    activeApplicant.email ||
+    formFieldValues.find((fv) => fv.fieldId === "email" || fv.fieldLabel.toLowerCase().includes("email"))?.value ||
+    "";
+
+  const resolvedContactNo =
+    activeApplicant.contactNo ||
+    formFieldValues.find((fv) => fv.fieldId === "contactNo" || fv.fieldId === "contactNumber" || fv.fieldLabel.toLowerCase().includes("contact") || fv.fieldLabel.toLowerCase().includes("phone") || fv.fieldLabel.toLowerCase().includes("mobile"))?.value ||
+    "";
+
+  const resolvedSex =
+    activeApplicant.sex ||
+    formFieldValues.find((fv) => fv.fieldId === "sex" || fv.fieldLabel.toLowerCase().includes("sex") || fv.fieldLabel.toLowerCase().includes("gender"))?.value ||
+    null;
+
+  const resolvedCivilStatus =
+    activeApplicant.civilStatus ||
+    formFieldValues.find((fv) => fv.fieldId === "civilStatus" || fv.fieldLabel.toLowerCase().includes("civil") || fv.fieldLabel.toLowerCase().includes("marital"))?.value ||
+    null;
+
+  const resolvedNationality =
+    activeApplicant.nationality ||
+    formFieldValues.find((fv) => fv.fieldId === "nationality" || fv.fieldLabel.toLowerCase().includes("nationality") || fv.fieldLabel.toLowerCase().includes("citizenship"))?.value ||
+    null;
+
+  // Digital Signature identification
+  const signatureEntry = formFieldValues.find(
+    (fv) =>
+      fv.fieldId === FIELD_ID_SIGNATURE ||
+      fv.fieldLabel.toLowerCase().includes("signature") ||
+      fv.value.startsWith("data:image") ||
+      fv.value.startsWith("typed:cursive:")
+  ) || (activeApplicant.signatureUrl || (activeApplicant as any).signature ? {
+    fieldId: FIELD_ID_SIGNATURE,
+    fieldLabel: "Applicant Signature",
+    value: activeApplicant.signatureUrl || (activeApplicant as any).signature || "",
+  } : undefined);
+
+  // Specialized Models Data
   const amateur = activeApplicant.amateurLicenseData;
   const lifetime = activeApplicant.lifetimeLicenseData;
   const radioCert = activeApplicant.radioCertData;
@@ -704,16 +1016,210 @@ export function GeneralReviewSubmitStep({
   const tvroReg = activeApplicant.tvroRegData;
   const vasData = activeApplicant.vasData;
   const copyOfCert = activeApplicant.copyOfCertData;
+  const permitData = activeApplicant.permitData;
 
-  const hasSpecializedData =
-    formFieldValues.length === 0 &&
-    (Boolean(amateur) ||
-      Boolean(lifetime) ||
-      Boolean(radioCert) ||
-      Boolean(deviceReg) ||
-      Boolean(tvroReg) ||
-      Boolean(vasData) ||
-      Boolean(copyOfCert));
+  // ── Track rendered field IDs to avoid duplicate display ─────────────────
+  const renderedFieldIds = new Set<string>();
+
+  // ── Build Structured Dynamic Form Sections ──────────────────────────────
+  const dynamicSectionsToRender = (() => {
+    if (!form || !form.sections || !Array.isArray(form.sections) || form.sections.length === 0) {
+      return [];
+    }
+
+    const result: Array<{
+      id: string;
+      title: string;
+      icon: React.ComponentProps<typeof Icon>["name"];
+      accentColor: string;
+      fields: Array<{ fieldId: string; label: string; value: string }>;
+    }> = [];
+
+    form.sections.forEach((section, sIdx) => {
+      const sectionKey = section.key || section.id || "";
+      const sectionTitle = section.title || `Section ${sIdx + 1}`;
+
+      // Exclude unrelated sections (Payment, Office Use, Declaration, redundant type selectors)
+      if (isUnrelatedSection(sectionTitle) || isUnrelatedSection(sectionKey)) {
+        return;
+      }
+
+      const sectionFields: Array<{ fieldId: string; label: string; value: string }> = [];
+
+      (section.fields || []).forEach((field) => {
+        const fieldId = field.fieldId || field.id || "";
+        const fieldLabel = field.label || "";
+
+        // Check if field is already handled in Section 2 (Applicant particulars) or is signature/unrelated
+        if (
+          isApplicantParticularField(fieldLabel) ||
+          isApplicantParticularField(fieldId) ||
+          isSignatureOrDeclarationField(fieldLabel) ||
+          isSignatureOrDeclarationField(fieldId) ||
+          isJurisdictionOrVariantField(fieldLabel) ||
+          isJurisdictionOrVariantField(fieldId)
+        ) {
+          renderedFieldIds.add(fieldId);
+          renderedFieldIds.add(fieldLabel);
+          return;
+        }
+
+        // Find value in formFieldValues
+        const matchedFv = formFieldValues.find(
+          (fv) => fv.fieldId === fieldId || fv.fieldLabel.toLowerCase().trim() === fieldLabel.toLowerCase().trim()
+        );
+
+        if (matchedFv && matchedFv.value && matchedFv.value.trim() !== "") {
+          const val = matchedFv.value.trim();
+          if (val.toUpperCase() !== "N/A" && val.toUpperCase() !== "NA" && val !== "-" && val !== "[]" && val !== "{}") {
+            sectionFields.push({ fieldId, label: fieldLabel || matchedFv.fieldLabel, value: val });
+            renderedFieldIds.add(fieldId);
+            renderedFieldIds.add(matchedFv.fieldId);
+            renderedFieldIds.add(fieldLabel);
+            renderedFieldIds.add(matchedFv.fieldLabel);
+          }
+        }
+      });
+
+      if (sectionFields.length > 0) {
+        result.push({
+          id: section.id || sectionKey || `sec-${sIdx}`,
+          title: sectionTitle,
+          icon: getSectionIcon(sectionTitle),
+          accentColor: getSectionAccentColor(result.length),
+          fields: sectionFields,
+        });
+      }
+    });
+
+    return result;
+  })();
+
+  // ── Remaining Non-Empty Form Fields not covered in Dynamic Sections ──────
+  const remainingFields = formFieldValues.filter((fv) => {
+    const fieldId = fv.fieldId || "";
+    const label = fv.fieldLabel || "";
+    if (renderedFieldIds.has(fieldId) || renderedFieldIds.has(label)) return false;
+    if (isApplicantParticularField(label) || isApplicantParticularField(fieldId)) return false;
+    if (isSignatureOrDeclarationField(label) || isSignatureOrDeclarationField(fieldId)) return false;
+    if (isJurisdictionOrVariantField(label) || isJurisdictionOrVariantField(fieldId)) return false;
+    if (!fv.value || fv.value.trim() === "" || fv.value.trim().toUpperCase() === "N/A" || fv.value.trim().toUpperCase() === "NA" || fv.value.trim() === "-") return false;
+    return true;
+  });
+
+  // Separate exam-specific remaining fields into clean logical groups
+  const examEducationFields = isExamService
+    ? remainingFields.filter(
+        (f) =>
+          f.fieldLabel.toLowerCase().includes("school") ||
+          f.fieldLabel.toLowerCase().includes("course") ||
+          f.fieldLabel.toLowerCase().includes("degree") ||
+          f.fieldLabel.toLowerCase().includes("education") ||
+          f.fieldLabel.toLowerCase().includes("attainment") ||
+          f.fieldLabel.toLowerCase().includes("graduated") ||
+          f.fieldLabel.toLowerCase().includes("year")
+      )
+    : [];
+
+  const examAssistanceFields = isExamService
+    ? remainingFields.filter(
+        (f) =>
+          f.fieldLabel.toLowerCase().includes("assist") ||
+          f.fieldLabel.toLowerCase().includes("special") ||
+          f.fieldLabel.toLowerCase().includes("pwd") ||
+          f.fieldLabel.toLowerCase().includes("accommodat") ||
+          f.fieldLabel.toLowerCase().includes("needs")
+      )
+    : [];
+
+
+  // Specialized Model Display Conditions: STRICT CATEGORY GATES to prevent cross-contamination
+  const hasAmateurLicenseData =
+    isLicenseService &&
+    Boolean(
+      amateur &&
+        (amateur.classOfStation ||
+          amateur.callSign ||
+          amateur.licenseNo ||
+          amateur.location ||
+          (amateur.particularsEquipment &&
+            amateur.particularsEquipment.some((g) => g.makeTypeModel || g.equipments.length > 0)))
+    );
+
+  const hasLifetimeLicenseData =
+    isLicenseService &&
+    Boolean(
+      lifetime &&
+        (lifetime.callSign ||
+          lifetime.yearsOfAmateurService ||
+          lifetime.memberClubName ||
+          lifetime.existingClassALicenseNo)
+    );
+
+  const hasRadioCertData =
+    isCertificateService &&
+    Boolean(
+      radioCert &&
+        (radioCert.typeOfCertificate ||
+          radioCert.certificateNo ||
+          radioCert.dateOfExpiry ||
+          radioCert.modificationDueTo ||
+          radioCert.employmentStatus)
+    );
+
+  const hasDeviceRegData =
+    isCertificateService &&
+    Boolean(
+      deviceReg &&
+        (deviceReg.registrationType ||
+          deviceReg.invoiceNo ||
+          deviceReg.businessName ||
+          (deviceReg.particulars && deviceReg.particulars.length > 0))
+    );
+
+  const hasTvroData =
+    isCertificateService &&
+    serviceTitleLower.includes("tvro") &&
+    Boolean(
+      tvroReg &&
+        (tvroReg.bsdNumber ||
+          tvroReg.businessName ||
+          (tvroReg.particularsEquipment &&
+            tvroReg.particularsEquipment.some((e) => e.makeTypeModel || e.serialNo)) ||
+          (tvroReg.particularsOfAntennaSystem &&
+            tvroReg.particularsOfAntennaSystem.some((a) => a.makeTypeModel || a.dishDiameter)))
+    );
+
+  const hasVasData =
+    isCertificateService &&
+    serviceTitleLower.includes("vas") &&
+    Boolean(
+      vasData &&
+        (vasData.certificateNumber ||
+          vasData.serviceNo ||
+          vasData.otherTradeName ||
+          (vasData.valueAddedServices && vasData.valueAddedServices.length > 0))
+    );
+
+  const hasCopyOfCertData =
+    (serviceTitleLower.includes("copy") || serviceTitleLower.includes("duplicate") || serviceTitleLower.includes("certified")) &&
+    Boolean(
+      copyOfCert &&
+        (copyOfCert.certificateNo ||
+          copyOfCert.targetService ||
+          copyOfCert.circumstancesOfLoss)
+    );
+
+  const hasPermitData =
+    isPermitService &&
+    Boolean(
+      permitData &&
+        (permitData.callSign ||
+          permitData.exactLocation ||
+          permitData.serviceArea ||
+          permitData.nameOfDealer ||
+          permitData.authorizedSellerBuyer)
+    );
 
   return (
     <View style={{ gap: 16 }}>
@@ -764,9 +1270,14 @@ export function GeneralReviewSubmitStep({
         </View>
       </View>
 
-      {/* ── Section 1: Service & Jurisdiction Parameters ── */}
-      <SectionCard icon="layers" title="Service & Jurisdiction Parameters" accentColor="#0F2C59">
+      {/* ── Section 1: Service & Jurisdiction Parameters / Examination Details ── */}
+      <SectionCard
+        icon={isExamService ? "file-text" : "layers"}
+        title={isExamService ? "Examination Details" : "Service & Jurisdiction Parameters"}
+        accentColor="#0F2C59"
+      >
         <SummaryRow label="Service Name" value={service.title} />
+        {service.category ? <SummaryRow label="Service Category" value={service.category} /> : null}
         <View style={{ flexDirection: "row", gap: 8 }}>
           <View style={{ flex: 1 }}>
             <SummaryRow label="Target Region" value={regionName} />
@@ -793,6 +1304,9 @@ export function GeneralReviewSubmitStep({
           </View>
         </View>
         <SummaryRow label="Application Variant / Type" value={variantLabel} />
+        {activeApplicant.selectedElementTitle ? (
+          <SummaryRow label="Selected Element / Category" value={activeApplicant.selectedElementTitle} />
+        ) : null}
         {scheduleSummaryText && (
           <SummaryRow label="Exam Schedule & Venue" value={scheduleSummaryText} />
         )}
@@ -840,305 +1354,91 @@ export function GeneralReviewSubmitStep({
         </SectionCard>
       )}
 
-      {/* ── Section 2: Applicant & Contact Particulars ── */}
-      {(fullName !== null ||
-        activeApplicant.email ||
-        activeApplicant.contactNo ||
-        activeApplicant.address ||
+      {/* ── Section 2: Applicant Details ── */}
+      {(resolvedFullName !== null ||
+        activeApplicant.companyName ||
+        activeApplicant.representativeName ||
+        resolvedEmail.length > 0 ||
+        resolvedContactNo.length > 0 ||
+        resolvedAddress !== null ||
+        resolvedSex !== null ||
+        resolvedCivilStatus !== null ||
+        resolvedNationality !== null ||
+        resolvedBirthDate !== null ||
         activeApplicant.notes) && (
-        <SectionCard icon="user" title="Applicant & Contact Particulars" accentColor="#1D4ED8">
-          {fullName !== null && <SummaryRow label="Full Name" value={fullName} />}
+        <SectionCard icon="user" title="Applicant Details" accentColor="#1D4ED8">
+          {resolvedFullName !== null && <SummaryRow label="Full Legal Name" value={resolvedFullName} />}
+          {activeApplicant.applicantType === "company" && activeApplicant.companyName && (
+            <SummaryRow label="Registered Business / Corporate Name" value={activeApplicant.companyName} />
+          )}
+          {activeApplicant.representativeName && (
+            <SummaryRow label="Authorized Representative" value={activeApplicant.representativeName} />
+          )}
           <View style={{ flexDirection: "row", gap: 8 }}>
-            {activeApplicant.email.length > 0 && (
+            {resolvedEmail.length > 0 && (
               <View style={{ flex: 1 }}>
-                <SummaryRow label="Email Address" value={activeApplicant.email} />
+                <SummaryRow label="Email Address" value={resolvedEmail} />
               </View>
             )}
-            {activeApplicant.contactNo.length > 0 && (
+            {resolvedContactNo.length > 0 && (
               <View style={{ flex: 1 }}>
-                <SummaryRow label="Contact Number" value={activeApplicant.contactNo} />
+                <SummaryRow label="Contact / Mobile Number" value={resolvedContactNo} />
               </View>
             )}
           </View>
-          {activeApplicant.address.length > 0 && (
-            <SummaryRow label="Residential / Office Address" value={activeApplicant.address} />
+          {resolvedAddress !== null && (
+            <SummaryRow label="Complete Residential / Office Address" value={resolvedAddress} />
           )}
-          {birthDate !== null && <SummaryRow label="Date of Birth" value={birthDate} />}
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            {resolvedBirthDate !== null && (
+              <View style={{ flex: 1 }}>
+                <SummaryRow label="Date of Birth" value={resolvedBirthDate} />
+              </View>
+            )}
+            {resolvedSex !== null && (
+              <View style={{ flex: 1 }}>
+                <SummaryRow label="Sex / Gender" value={resolvedSex} />
+              </View>
+            )}
+          </View>
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            {resolvedCivilStatus !== null && (
+              <View style={{ flex: 1 }}>
+                <SummaryRow label="Civil Status" value={resolvedCivilStatus} />
+              </View>
+            )}
+            {resolvedNationality !== null && (
+              <View style={{ flex: 1 }}>
+                <SummaryRow label="Nationality / Citizenship" value={resolvedNationality} />
+              </View>
+            )}
+          </View>
           {activeApplicant.notes ? <SummaryRow label="Special Notes / Remarks" value={activeApplicant.notes} /> : null}
         </SectionCard>
       )}
 
-      {/* ── Section 3: Specialized Application Details & License/Cert Particulars ── */}
-      {hasSpecializedData && (
-        <SectionCard icon="file-text" title="Application & License Particulars" accentColor="#7C3AED">
-          {/* Amateur Radio Station License Data */}
-          {amateur && (
-            <View style={{ gap: 4 }}>
-              <View style={{ flexDirection: "row", gap: 8 }}>
-                <View style={{ flex: 1 }}>
-                  <SummaryRow label="Station Class" value={amateur.classOfStation} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <SummaryRow label="Call Sign" value={amateur.callSign} />
-                </View>
-              </View>
-              <View style={{ flexDirection: "row", gap: 8 }}>
-                <View style={{ flex: 1 }}>
-                  <SummaryRow label="License Validity / Years" value={amateur.noOfYears ? `${amateur.noOfYears} Year(s)` : null} />
-                </View>
-                {amateur.licenseNo ? (
-                  <View style={{ flex: 1 }}>
-                    <SummaryRow label="Existing License No." value={amateur.licenseNo} />
-                  </View>
-                ) : null}
-              </View>
-              {amateur.dateOfExpiry ? <SummaryRow label="License Expiry Date" value={amateur.dateOfExpiry} /> : null}
-              {amateur.modificationDueTo ? <SummaryRow label="Reason for Modification" value={amateur.modificationDueTo} /> : null}
-              {amateur.location ? <SummaryRow label="Station Location / Address" value={amateur.location} /> : null}
-              {amateur.placeOfExamSeminar || amateur.dateOfExamSeminar || amateur.ratings ? (
-                <View style={{ backgroundColor: "#F1F5F9", padding: 10, borderRadius: 8, marginTop: 4 }}>
-                  <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: "700", color: "#475569", marginBottom: 4 }}>
-                    EXAMINATION / SEMINAR RECORD
-                  </Text>
-                  <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: "#1E293B" }}>
-                    {[amateur.placeOfExamSeminar, amateur.dateOfExamSeminar, amateur.ratings ? `Rating: ${amateur.ratings}` : null]
-                      .filter(Boolean)
-                      .join(" • ")}
-                  </Text>
-                </View>
-              ) : null}
-            </View>
-          )}
-
-          {/* Lifetime Amateur License Data */}
-          {lifetime && (
-            <View style={{ gap: 4 }}>
-              <View style={{ flexDirection: "row", gap: 8 }}>
-                <View style={{ flex: 1 }}>
-                  <SummaryRow label="Call Sign" value={lifetime.callSign} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <SummaryRow label="Years of Amateur Service" value={lifetime.yearsOfAmateurService ? `${lifetime.yearsOfAmateurService} Years` : null} />
-                </View>
-              </View>
-              <SummaryRow label="Affiliated Amateur Club" value={lifetime.memberClubName} />
-              <View style={{ flexDirection: "row", gap: 8 }}>
-                <View style={{ flex: 1 }}>
-                  <SummaryRow label="Cert of Good Standing No." value={lifetime.certOfGoodStandingNo} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <SummaryRow label="Class A License No." value={lifetime.existingClassALicenseNo} />
-                </View>
-              </View>
-              {lifetime.licenseExpiryDate ? <SummaryRow label="Class A License Expiry" value={lifetime.licenseExpiryDate} /> : null}
-              {lifetime.location ? <SummaryRow label="Station Location" value={lifetime.location} /> : null}
-            </View>
-          )}
-
-          {/* Radio Operator Certificate Data */}
-          {radioCert && (
-            <View style={{ gap: 4 }}>
-              <View style={{ flexDirection: "row", gap: 8 }}>
-                <View style={{ flex: 1 }}>
-                  <SummaryRow label="Certificate Type" value={radioCert.typeOfCertificate} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <SummaryRow label="Validity Years" value={radioCert.years ? `${radioCert.years} Year(s)` : null} />
-                </View>
-              </View>
-              {radioCert.certificateNo ? (
-                <View style={{ flexDirection: "row", gap: 8 }}>
-                  <View style={{ flex: 1 }}>
-                    <SummaryRow label="Certificate No." value={radioCert.certificateNo} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <SummaryRow label="Expiry Date" value={radioCert.dateOfExpiry} />
-                  </View>
-                </View>
-              ) : null}
-              {radioCert.modificationDueTo ? <SummaryRow label="Reason for Modification" value={radioCert.modificationDueTo} /> : null}
-              {radioCert.employmentStatus || radioCert.employmentType || radioCert.employmentLocation ? (
-                <View style={{ flexDirection: "row", gap: 8 }}>
-                  <View style={{ flex: 1 }}>
-                    <SummaryRow label="Employment Status" value={radioCert.employmentStatus} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <SummaryRow label="Employment Type / Location" value={[radioCert.employmentType, radioCert.employmentLocation].filter(Boolean).join(" - ")} />
-                  </View>
-                </View>
-              ) : null}
-              {radioCert.heightCm || radioCert.weightKg ? (
-                <View style={{ flexDirection: "row", gap: 8 }}>
-                  <View style={{ flex: 1 }}>
-                    <SummaryRow label="Height" value={radioCert.heightCm ? `${radioCert.heightCm} cm` : null} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <SummaryRow label="Weight" value={radioCert.weightKg ? `${radioCert.weightKg} kg` : null} />
-                  </View>
-                </View>
-              ) : null}
-              {radioCert.clubName ? <SummaryRow label="Amateur Club & Call Sign" value={[radioCert.clubName, radioCert.clubCallSign].filter(Boolean).join(" (") + (radioCert.clubCallSign ? ")" : "")} /> : null}
-            </View>
-          )}
-
-          {/* Device Registration Data */}
-          {deviceReg && (
-            <View style={{ gap: 4 }}>
-              <View style={{ flexDirection: "row", gap: 8 }}>
-                <View style={{ flex: 1 }}>
-                  <SummaryRow label="Registration Type" value={deviceReg.registrationType} />
-                </View>
-                {deviceReg.invoiceNo ? (
-                  <View style={{ flex: 1 }}>
-                    <SummaryRow label="Invoice No." value={deviceReg.invoiceNo} />
-                  </View>
-                ) : null}
-              </View>
-              {deviceReg.businessName ? <SummaryRow label="Business Name" value={deviceReg.businessName} /> : null}
-              {deviceReg.dtiSecNo ? <SummaryRow label="DTI / SEC Reg No." value={deviceReg.dtiSecNo} /> : null}
-            </View>
-          )}
-
-          {/* TVRO Registration Data */}
-          {tvroReg && (
-            <View style={{ gap: 4 }}>
-              <View style={{ flexDirection: "row", gap: 8 }}>
-                <View style={{ flex: 1 }}>
-                  <SummaryRow label="Classification" value={tvroReg.classification} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <SummaryRow label="Validity Years" value={tvroReg.years ? `${tvroReg.years} Year(s)` : null} />
-                </View>
-              </View>
-              {tvroReg.bsdNumber ? <SummaryRow label="Assigned BSD Number" value={tvroReg.bsdNumber} /> : null}
-              {tvroReg.businessName ? <SummaryRow label="Business Name" value={tvroReg.businessName} /> : null}
-            </View>
-          )}
-
-          {/* VAS Provider Data */}
-          {vasData && (
-            <View style={{ gap: 4 }}>
-              <View style={{ flexDirection: "row", gap: 8 }}>
-                <View style={{ flex: 1 }}>
-                  <SummaryRow label="Entity Service Type" value={vasData.serviceType} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <SummaryRow label="Validity Years" value={vasData.years ? `${vasData.years} Year(s)` : null} />
-                </View>
-              </View>
-              {vasData.certificateNumber ? <SummaryRow label="VAS Certificate No." value={vasData.certificateNumber} /> : null}
-              {vasData.serviceNo ? <SummaryRow label="CPCN / PA / CA Number" value={vasData.serviceNo} /> : null}
-              {vasData.otherTradeName ? <SummaryRow label="Other Trade Name" value={vasData.otherTradeName} /> : null}
-              {vasData.valueAddedServices && vasData.valueAddedServices.length > 0 ? (
-                <SummaryRow label="Registered Value Added Services" value={vasData.valueAddedServices.join(", ")} />
-              ) : null}
-            </View>
-          )}
-
-          {/* Copy of Certificate Data */}
-          {copyOfCert && (
-            <View style={{ gap: 4 }}>
-              <View style={{ flexDirection: "row", gap: 8 }}>
-                <View style={{ flex: 1 }}>
-                  <SummaryRow label="Copy Request Type" value={copyOfCert.copyType === "CERTIFIED_TRUE_COPY" ? "Certified True Copy" : "Duplicate Replacement"} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <SummaryRow label="Certificate No." value={copyOfCert.certificateNo} />
-                </View>
-              </View>
-              {copyOfCert.targetService ? <SummaryRow label="Target Permit / License" value={copyOfCert.targetService} /> : null}
-              {copyOfCert.numberOfCopies ? <SummaryRow label="Number of Copies" value={copyOfCert.numberOfCopies} /> : null}
-              {copyOfCert.circumstancesOfLoss ? <SummaryRow label="Circumstances of Loss / Affidavit Details" value={copyOfCert.circumstancesOfLoss} /> : null}
-            </View>
-          )}
-        </SectionCard>
-      )}
-
-      {/* ── Section 4: Equipment & Technical Particulars (Nested Tables / Lists) ── */}
-      {amateur && amateur.particularsEquipment && amateur.particularsEquipment.length > 0 && amateur.particularsEquipment.some((g) => g.makeTypeModel || g.equipments.length > 0) && (
-        <SectionCard icon="cpu" title="Radio Equipment Particulars" accentColor="#0284C7">
-          {amateur.particularsEquipment.map((group, gIdx) => (
-            <View key={group.id || gIdx} style={{ backgroundColor: "#F8FAFC", borderRadius: 10, padding: 12, borderWidth: 1, borderColor: "#E2E8F0", marginBottom: 10 }}>
-              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: "#0F2C59", marginBottom: 6 }}>
-                Equipment Model Group #{gIdx + 1}: {group.makeTypeModel || "Standard Model"}
-              </Text>
-              {group.equipments.map((eq, eqIdx) => (
-                <View key={eq.id || eqIdx} style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, backgroundColor: "#FFFFFF", padding: 8, borderRadius: 6, marginTop: 4, borderWidth: 1, borderColor: "#CBD5E1" }}>
-                  <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, color: "#334155" }}>
-                    • Serial No: <Text style={{ fontWeight: "700" }}>{eq.serialNo || "N/A"}</Text>
-                  </Text>
-                  {eq.frequencyRange ? (
-                    <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, color: "#334155" }}>
-                      | Freq: <Text style={{ fontWeight: "700" }}>{eq.frequencyRange}</Text>
-                    </Text>
-                  ) : null}
-                  {eq.powerOutput ? (
-                    <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, color: "#334155" }}>
-                      | Power: <Text style={{ fontWeight: "700" }}>{eq.powerOutput}</Text>
-                    </Text>
-                  ) : null}
-                </View>
-              ))}
-            </View>
+      {/* ── Section 3+: Dynamic Form Sections (From Seeded Contract Catalog) ── */}
+      {dynamicSectionsToRender.map((sec) => (
+        <SectionCard key={sec.id} icon={sec.icon} title={sec.title} accentColor={sec.accentColor}>
+          {sec.fields.map((field) => (
+            <SummaryRow
+              key={field.fieldId || field.label}
+              label={field.label}
+              value={field.value}
+              onPreviewFile={(uri, lbl) => {
+                setPreviewFile({ name: lbl, uri });
+                setPreviewLabel(lbl);
+                setIsPreviewOpen(true);
+              }}
+            />
           ))}
         </SectionCard>
-      )}
+      ))}
 
-      {deviceReg && deviceReg.particulars && deviceReg.particulars.length > 0 && (
-        <SectionCard icon="cpu" title="Registered Device Particulars" accentColor="#0284C7">
-          {deviceReg.particulars.map((item, pIdx) => (
-            <View key={item.id || pIdx} style={{ backgroundColor: "#F8FAFC", borderRadius: 10, padding: 12, borderWidth: 1, borderColor: "#E2E8F0", marginBottom: 8 }}>
-              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: "#0F2C59", marginBottom: 4 }}>
-                {item.typeOfEquipmentDevice || "Device"} — {item.nameTypeModel || "Particulars"}
-              </Text>
-              {item.equipmentSerials && item.equipmentSerials.length > 0 ? (
-                <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: "#475569" }}>
-                  Serials: {item.equipmentSerials.map((s) => s.serialNumber).filter(Boolean).join(", ") || "N/A"}
-                </Text>
-              ) : null}
-            </View>
-          ))}
-        </SectionCard>
-      )}
-
-      {tvroReg && (
-        <>
-          {tvroReg.particularsEquipment && tvroReg.particularsEquipment.length > 0 && (
-            <SectionCard icon="tv" title="TVRO Equipment Particulars" accentColor="#0284C7">
-              {tvroReg.particularsEquipment.map((item, idx) => (
-                <View key={item.id || idx} style={{ backgroundColor: "#F8FAFC", borderRadius: 8, padding: 10, marginBottom: 6, borderWidth: 1, borderColor: "#E2E8F0" }}>
-                  <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, fontWeight: "700", color: "#0F172A" }}>
-                    {item.type} — {item.makeTypeModel}
-                  </Text>
-                  <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, color: "#64748B" }}>
-                    Serial: {item.serialNo || "N/A"} | Freq: {item.frequencyRange || "N/A"}
-                  </Text>
-                </View>
-              ))}
-            </SectionCard>
-          )}
-
-          {tvroReg.particularsOfAntennaSystem && tvroReg.particularsOfAntennaSystem.length > 0 && (
-            <SectionCard icon="radio" title="Antenna System Particulars" accentColor="#0284C7">
-              {tvroReg.particularsOfAntennaSystem.map((ant, idx) => (
-                <View key={ant.id || idx} style={{ backgroundColor: "#F8FAFC", borderRadius: 8, padding: 10, marginBottom: 6, borderWidth: 1, borderColor: "#E2E8F0" }}>
-                  <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, fontWeight: "700", color: "#0F172A" }}>
-                    {ant.makeTypeModel}
-                  </Text>
-                  <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, color: "#64748B" }}>
-                    Dish Dia: {ant.dishDiameter} | Polar: {ant.polarization} | Azimuth: {ant.azimuth}
-                  </Text>
-                </View>
-              ))}
-            </SectionCard>
-          )}
-        </>
-      )}
-
-      {/* ── Section 5: Dynamic Form Field Values (DB Seeded) ── */}
-      {formFieldValues.length > 0 && (
-        <SectionCard icon="edit-3" title="Dynamic Filing Form Fields" accentColor="#D97706">
-          {formFieldValues.map((fv) => (
+      {/* ── Exam-Specific Clean Logical Sections (If not covered by dynamic sections) ── */}
+      {isExamService && examEducationFields.length > 0 && (
+        <SectionCard icon="book-open" title="Educational Background & Qualifications" accentColor="#0284C7">
+          {examEducationFields.map((fv) => (
             <SummaryRow
               key={fv.fieldId}
               label={fv.fieldLabel}
@@ -1153,7 +1453,294 @@ export function GeneralReviewSubmitStep({
         </SectionCard>
       )}
 
-      {/* ── Section 6: Uploaded Documents Summary ── */}
+      {isExamService && examAssistanceFields.length > 0 && (
+        <SectionCard icon="info" title="Special Needs & Assistance Request" accentColor="#0D9488">
+          {examAssistanceFields.map((fv) => (
+            <SummaryRow
+              key={fv.fieldId}
+              label={fv.fieldLabel}
+              value={fv.value}
+              onPreviewFile={(uri, lbl) => {
+                setPreviewFile({ name: lbl, uri });
+                setPreviewLabel(lbl);
+                setIsPreviewOpen(true);
+              }}
+            />
+          ))}
+        </SectionCard>
+      )}
+
+      {/* ── Non-Exam Unmapped Form Fields (if any) ── */}
+      {!isExamService && remainingFields.length > 0 && (
+        <SectionCard icon="file-text" title="Application Particulars & Technical Details" accentColor="#0284C7">
+          {remainingFields.map((fv) => (
+            <SummaryRow
+              key={fv.fieldId}
+              label={fv.fieldLabel}
+              value={fv.value}
+              onPreviewFile={(uri, lbl) => {
+                setPreviewFile({ name: lbl, uri });
+                setPreviewLabel(lbl);
+                setIsPreviewOpen(true);
+              }}
+            />
+          ))}
+        </SectionCard>
+      )}
+
+      {/* ── Specialized Models: Amateur Radio Station License Data (Licenses Only) ── */}
+      {hasAmateurLicenseData && amateur && (
+        <SectionCard icon="radio" title="Amateur Radio Station Particulars" accentColor="#7C3AED">
+          <View style={{ gap: 4 }}>
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              {amateur.classOfStation ? (
+                <View style={{ flex: 1 }}>
+                  <SummaryRow label="Station Class" value={amateur.classOfStation} />
+                </View>
+              ) : null}
+              {amateur.callSign ? (
+                <View style={{ flex: 1 }}>
+                  <SummaryRow label="Call Sign" value={amateur.callSign} />
+                </View>
+              ) : null}
+            </View>
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              {amateur.noOfYears ? (
+                <View style={{ flex: 1 }}>
+                  <SummaryRow label="License Validity / Years" value={`${amateur.noOfYears} Year(s)`} />
+                </View>
+              ) : null}
+              {amateur.licenseNo ? (
+                <View style={{ flex: 1 }}>
+                  <SummaryRow label="Existing License No." value={amateur.licenseNo} />
+                </View>
+              ) : null}
+            </View>
+            {amateur.dateOfExpiry ? <SummaryRow label="License Expiry Date" value={amateur.dateOfExpiry} /> : null}
+            {amateur.modificationDueTo ? <SummaryRow label="Reason for Modification" value={amateur.modificationDueTo} /> : null}
+            {amateur.location ? <SummaryRow label="Station Location / Address" value={amateur.location} /> : null}
+            {amateur.placeOfExamSeminar || amateur.dateOfExamSeminar || amateur.ratings ? (
+              <View style={{ backgroundColor: "#F1F5F9", padding: 10, borderRadius: 8, marginTop: 4 }}>
+                <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: "700", color: "#475569", marginBottom: 4 }}>
+                  EXAMINATION / SEMINAR RECORD
+                </Text>
+                <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: "#1E293B" }}>
+                  {[amateur.placeOfExamSeminar, amateur.dateOfExamSeminar, amateur.ratings ? `Rating: ${amateur.ratings}` : null]
+                    .filter(Boolean)
+                    .join(" • ")}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+        </SectionCard>
+      )}
+
+      {/* ── Specialized Models: Lifetime Amateur License Data (Licenses Only) ── */}
+      {hasLifetimeLicenseData && lifetime && (
+        <SectionCard icon="award" title="Lifetime Amateur License Particulars" accentColor="#7C3AED">
+          <View style={{ gap: 4 }}>
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              {lifetime.callSign ? (
+                <View style={{ flex: 1 }}>
+                  <SummaryRow label="Call Sign" value={lifetime.callSign} />
+                </View>
+              ) : null}
+              {lifetime.yearsOfAmateurService ? (
+                <View style={{ flex: 1 }}>
+                  <SummaryRow label="Years of Amateur Service" value={`${lifetime.yearsOfAmateurService} Years`} />
+                </View>
+              ) : null}
+            </View>
+            {lifetime.memberClubName ? <SummaryRow label="Affiliated Amateur Club" value={lifetime.memberClubName} /> : null}
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              {lifetime.certOfGoodStandingNo ? (
+                <View style={{ flex: 1 }}>
+                  <SummaryRow label="Cert of Good Standing No." value={lifetime.certOfGoodStandingNo} />
+                </View>
+              ) : null}
+              {lifetime.existingClassALicenseNo ? (
+                <View style={{ flex: 1 }}>
+                  <SummaryRow label="Class A License No." value={lifetime.existingClassALicenseNo} />
+                </View>
+              ) : null}
+            </View>
+            {lifetime.licenseExpiryDate ? <SummaryRow label="Class A License Expiry" value={lifetime.licenseExpiryDate} /> : null}
+            {lifetime.location ? <SummaryRow label="Station Location" value={lifetime.location} /> : null}
+          </View>
+        </SectionCard>
+      )}
+
+      {/* ── Specialized Models: Radio Operator Certificate Data (Certificates Only) ── */}
+      {hasRadioCertData && radioCert && (
+        <SectionCard icon="file-text" title="Radio Operator Certificate Particulars" accentColor="#7C3AED">
+          <View style={{ gap: 4 }}>
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              {radioCert.typeOfCertificate ? (
+                <View style={{ flex: 1 }}>
+                  <SummaryRow label="Certificate Type" value={radioCert.typeOfCertificate} />
+                </View>
+              ) : null}
+              {radioCert.years ? (
+                <View style={{ flex: 1 }}>
+                  <SummaryRow label="Validity Years" value={`${radioCert.years} Year(s)`} />
+                </View>
+              ) : null}
+            </View>
+            {radioCert.certificateNo ? (
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                <View style={{ flex: 1 }}>
+                  <SummaryRow label="Certificate No." value={radioCert.certificateNo} />
+                </View>
+                {radioCert.dateOfExpiry ? (
+                  <View style={{ flex: 1 }}>
+                    <SummaryRow label="Expiry Date" value={radioCert.dateOfExpiry} />
+                  </View>
+                ) : null}
+              </View>
+            ) : null}
+            {radioCert.modificationDueTo ? <SummaryRow label="Reason for Modification" value={radioCert.modificationDueTo} /> : null}
+            {radioCert.employmentStatus || radioCert.employmentType || radioCert.employmentLocation ? (
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                {radioCert.employmentStatus ? (
+                  <View style={{ flex: 1 }}>
+                    <SummaryRow label="Employment Status" value={radioCert.employmentStatus} />
+                  </View>
+                ) : null}
+                {radioCert.employmentType || radioCert.employmentLocation ? (
+                  <View style={{ flex: 1 }}>
+                    <SummaryRow label="Employment Type / Location" value={[radioCert.employmentType, radioCert.employmentLocation].filter(Boolean).join(" - ")} />
+                  </View>
+                ) : null}
+              </View>
+            ) : null}
+            {radioCert.clubName ? <SummaryRow label="Amateur Club & Call Sign" value={[radioCert.clubName, radioCert.clubCallSign].filter(Boolean).join(" (") + (radioCert.clubCallSign ? ")" : "")} /> : null}
+          </View>
+        </SectionCard>
+      )}
+
+      {/* ── Specialized Models: Device Registration (Certificates Only) ── */}
+      {hasDeviceRegData && deviceReg && (
+        <SectionCard icon="cpu" title="Registered Device Particulars" accentColor="#0284C7">
+          <View style={{ gap: 4 }}>
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              {deviceReg.registrationType ? (
+                <View style={{ flex: 1 }}>
+                  <SummaryRow label="Registration Type" value={deviceReg.registrationType} />
+                </View>
+              ) : null}
+              {deviceReg.invoiceNo ? (
+                <View style={{ flex: 1 }}>
+                  <SummaryRow label="Invoice No." value={deviceReg.invoiceNo} />
+                </View>
+              ) : null}
+            </View>
+            {deviceReg.businessName ? <SummaryRow label="Business Name" value={deviceReg.businessName} /> : null}
+            {deviceReg.dtiSecNo ? <SummaryRow label="DTI / SEC Reg No." value={deviceReg.dtiSecNo} /> : null}
+          </View>
+        </SectionCard>
+      )}
+
+      {/* ── Specialized Models: TVRO Registration (Certificates / TVRO Only) ── */}
+      {hasTvroData && tvroReg && (
+        <SectionCard icon="tv" title="TVRO Equipment & Antenna Particulars" accentColor="#0284C7">
+          <View style={{ gap: 4 }}>
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              {tvroReg.classification ? (
+                <View style={{ flex: 1 }}>
+                  <SummaryRow label="Classification" value={tvroReg.classification} />
+                </View>
+              ) : null}
+              {tvroReg.years ? (
+                <View style={{ flex: 1 }}>
+                  <SummaryRow label="Validity Years" value={`${tvroReg.years} Year(s)`} />
+                </View>
+              ) : null}
+            </View>
+            {tvroReg.bsdNumber ? <SummaryRow label="Assigned BSD Number" value={tvroReg.bsdNumber} /> : null}
+            {tvroReg.businessName ? <SummaryRow label="Business Name" value={tvroReg.businessName} /> : null}
+          </View>
+        </SectionCard>
+      )}
+
+      {/* ── Specialized Models: VAS Provider (Certificates / VAS Only) ── */}
+      {hasVasData && vasData && (
+        <SectionCard icon="globe" title="VAS Provider Registration Particulars" accentColor="#0284C7">
+          <View style={{ gap: 4 }}>
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              {vasData.serviceType ? (
+                <View style={{ flex: 1 }}>
+                  <SummaryRow label="Entity Service Type" value={vasData.serviceType} />
+                </View>
+              ) : null}
+              {vasData.years ? (
+                <View style={{ flex: 1 }}>
+                  <SummaryRow label="Validity Years" value={`${vasData.years} Year(s)`} />
+                </View>
+              ) : null}
+            </View>
+            {vasData.certificateNumber ? <SummaryRow label="VAS Certificate No." value={vasData.certificateNumber} /> : null}
+            {vasData.serviceNo ? <SummaryRow label="CPCN / PA / CA Number" value={vasData.serviceNo} /> : null}
+            {vasData.otherTradeName ? <SummaryRow label="Other Trade Name" value={vasData.otherTradeName} /> : null}
+            {vasData.valueAddedServices && vasData.valueAddedServices.length > 0 ? (
+              <SummaryRow label="Registered Value Added Services" value={vasData.valueAddedServices.join(", ")} />
+            ) : null}
+          </View>
+        </SectionCard>
+      )}
+
+      {/* ── Specialized Models: Duplicate / True Copy Request ── */}
+      {hasCopyOfCertData && copyOfCert && (
+        <SectionCard icon="copy" title="Copy / Duplicate Request Details" accentColor="#0284C7">
+          <View style={{ gap: 4 }}>
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              <View style={{ flex: 1 }}>
+                <SummaryRow label="Copy Request Type" value={copyOfCert.copyType === "CERTIFIED_TRUE_COPY" ? "Certified True Copy" : "Duplicate Replacement"} />
+              </View>
+              {copyOfCert.certificateNo ? (
+                <View style={{ flex: 1 }}>
+                  <SummaryRow label="Certificate No." value={copyOfCert.certificateNo} />
+                </View>
+              ) : null}
+            </View>
+            {copyOfCert.targetService ? <SummaryRow label="Target Permit / License" value={copyOfCert.targetService} /> : null}
+            {copyOfCert.numberOfCopies ? <SummaryRow label="Number of Copies" value={copyOfCert.numberOfCopies} /> : null}
+            {copyOfCert.circumstancesOfLoss ? <SummaryRow label="Circumstances of Loss / Affidavit Details" value={copyOfCert.circumstancesOfLoss} /> : null}
+          </View>
+        </SectionCard>
+      )}
+
+      {/* ── Specialized Models: Amateur Permit Data (Permits Only) ── */}
+      {hasPermitData && permitData && (
+        <SectionCard icon="file-text" title="Amateur Permit Particulars" accentColor="#7C3AED">
+          <View style={{ gap: 4 }}>
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              {permitData.applicationType ? (
+                <View style={{ flex: 1 }}>
+                  <SummaryRow label="Application Type" value={permitData.applicationType} />
+                </View>
+              ) : null}
+              {permitData.callSign ? (
+                <View style={{ flex: 1 }}>
+                  <SummaryRow label="Call Sign" value={permitData.callSign} />
+                </View>
+              ) : null}
+            </View>
+            {permitData.serviceArea ? <SummaryRow label="Service Area" value={permitData.serviceArea} /> : null}
+            {permitData.stationClass ? <SummaryRow label="Station Class" value={permitData.stationClass} /> : null}
+            {permitData.exactLocation ? <SummaryRow label="Exact Location" value={permitData.exactLocation} /> : null}
+            {permitData.nameOfDealer || permitData.authorizedSellerBuyer ? (
+              <SummaryRow
+                label="Source of Equipment"
+                value={[permitData.nameOfDealer, permitData.authorizedSellerBuyer, permitData.orInvoiceNo ? `Invoice: ${permitData.orInvoiceNo}` : null]
+                  .filter(Boolean)
+                  .join(" • ")}
+              />
+            ) : null}
+          </View>
+        </SectionCard>
+      )}
+
+      {/* ── Section: Uploaded Supporting Documents ── */}
       <SectionCard icon="paperclip" title="Uploaded Supporting Documents" accentColor="#059669">
         {uploadCount === 0 ? (
           <View
@@ -1184,7 +1771,11 @@ export function GeneralReviewSubmitStep({
           <View style={{ gap: 8 }}>
             {uploadedEntries.map(([key, file], idx) => {
               const fileName =
-                typeof file === "string" ? file : (file as { name: string; uri: string }).name;
+                typeof file === "string"
+                  ? file
+                  : isPreviewFileObject(file)
+                  ? file.name
+                  : "Document";
               return (
                 <View
                   key={key}
@@ -1235,19 +1826,20 @@ export function GeneralReviewSubmitStep({
                     <Text
                       style={{
                         fontFamily: TYPOGRAPHY.fonts.primary,
-                        fontSize: 10,
+                        fontSize: 11,
                         color: "#15803D",
-                        marginTop: 1,
+                        marginTop: 2,
+                        lineHeight: 15,
                       }}
                     >
-                      {key.replace(/^req-/, "").replace(/-/g, " ").toUpperCase()}
+                      {getRequirementLabel(key)}
                     </Text>
                   </View>
                   <Icon name="check-circle" size={16} color="#16A34A" />
                   <TouchableOpacity
                     onPress={() => {
                       setPreviewFile(file);
-                      setPreviewLabel(key.replace(/^req-/, "").replace(/-/g, " ").toUpperCase());
+                      setPreviewLabel(getRequirementLabel(key));
                       setIsPreviewOpen(true);
                     }}
                     style={{
@@ -1309,44 +1901,17 @@ export function GeneralReviewSubmitStep({
         )}
       </SectionCard>
 
-      {/* ── Declaration & Legal Notice ── */}
-      <View
-        style={{
-          backgroundColor: "#F0FDF4",
-          borderColor: "#BBF7D0",
-          borderWidth: 1,
-          borderRadius: 12,
-          padding: 16,
-          flexDirection: "row",
-          gap: 12,
-          alignItems: "flex-start",
-        }}
-      >
-        <Icon name="check-circle" size={18} color="#16A34A" style={{ marginTop: 2 }} />
-        <View style={{ flex: 1 }}>
-          <Text
-            style={{
-              fontFamily: TYPOGRAPHY.fonts.primary,
-              fontSize: 13,
-              fontWeight: "700",
-              color: "#166534",
-              marginBottom: 4,
-            }}
-          >
-            Legal Declaration & Affirmation
-          </Text>
-          <Text
-            style={{
-              fontFamily: TYPOGRAPHY.fonts.primary,
-              fontSize: 12,
-              color: "#14532D",
-              lineHeight: 18,
-            }}
-          >
-            {OFFICIAL_LEGAL_DECLARATION}
-          </Text>
-        </View>
-      </View>
+      {/* ── Section: Acknowledgement & Applicant Signature ── */}
+      {signatureEntry && signatureEntry.value ? (
+        <SectionCard icon="edit-2" title="Acknowledgement & Digital Signature" accentColor="#0F2C59">
+          <SummaryRow
+            label="Recorded Applicant Signature"
+            value={signatureEntry.value}
+          />
+        </SectionCard>
+      ) : null}
+
+
 
       <DocumentPreviewModal
         visible={isPreviewOpen}

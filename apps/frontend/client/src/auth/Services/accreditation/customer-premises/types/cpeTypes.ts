@@ -22,6 +22,8 @@ export interface CPEAccreditationWizardProps {
   currentApplicantIndex: number;
   setCurrentApplicantIndex: (idx: number) => void;
   serviceId?: string | null;
+  onSaveDraft?: () => void;
+  isSavingDraft?: boolean;
 }
 
 export interface ApplicantData {
@@ -50,6 +52,7 @@ export interface ApplicantData {
   expiryMonth: string;
   expiryDate: string;
   expiryYear: string;
+  signature?: string;
   uploads: Record<string, string | { name: string; uri: string }>;
   formFieldValues?: Array<{ fieldId: string; fieldLabel: string; value: string }>;
 }
@@ -60,6 +63,7 @@ export const initialApplicant = (id: number): ApplicantData => ({
   years: "1",
   variation: "Mobile",
   accreditationNo: "",
+  signature: "",
   businessName: "",
   entityType: "Corporation",
   dtiNo: "",

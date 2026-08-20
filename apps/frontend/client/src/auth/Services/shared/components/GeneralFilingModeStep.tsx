@@ -5,7 +5,11 @@ import { Icon, COLORS, TYPOGRAPHY } from "@edge/ui";
 import { Select } from "../../../../shared/components/Select";
 import { ValidatedInput } from "../../../../shared/components/ValidatedInput";
 import { NTCService } from "../../data/servicesData";
-import { GeneralApplicantData } from "../hooks/useGeneralServiceWizard";
+import {
+  GeneralApplicantData,
+  ServiceRequirementItem,
+  isRequirementMandatory,
+} from "../hooks/useGeneralServiceWizard";
 import {
   getSpreadsheetTemplateForService,
   generateCsvContent,
@@ -13,24 +17,26 @@ import {
   parseSpreadsheetContent,
 } from "../spreadsheet";
 
-interface ServiceVariantItem {
+export interface ServiceVariantItem {
   id: string;
-  name: string;
+  name?: string;
   type?: string;
   description?: string;
+  [key: string]: unknown;
 }
 
-interface ServiceVariantElementItem {
+export interface ServiceVariantElementItem {
   id: string;
-  code: string;
-  description: string;
+  code?: string;
+  description?: string;
+  [key: string]: unknown;
 }
 
 interface GeneralFilingModeStepProps {
   service: NTCService;
   variants?: ServiceVariantItem[];
   variantElements?: ServiceVariantElementItem[];
-  variantRequirements?: string[];
+  variantRequirements?: Array<ServiceRequirementItem | string>;
   selectedVariantId?: string;
   onSelectVariant?: (variantId: string, variantName: string) => void;
   selectedElementId?: string;
@@ -233,7 +239,7 @@ export function GeneralFilingModeStep({
 
   const classOptions = displayElements.map((elem) => ({
     id: elem.id,
-    title: elem.code ? `${elem.code} — ${elem.description}` : elem.description,
+    title: elem.code ? `${elem.code} — ${elem.description || ""}` : (elem.description || elem.id || ""),
     desc: elem.description || "",
   }));
 
@@ -478,7 +484,7 @@ export function GeneralFilingModeStep({
         </View>
 
         {(() => {
-          const displayRequirements =
+          const displayRequirements: Array<ServiceRequirementItem | string> =
             variantRequirements && variantRequirements.length > 0
               ? variantRequirements
               : service.requirements && service.requirements.length > 0
@@ -494,17 +500,44 @@ export function GeneralFilingModeStep({
           }
 
           return (
-            <View style={{ gap: 6 }}>
-              {displayRequirements.map((reqItem, idx) => (
-                <View key={idx} style={{ flexDirection: "row", alignItems: "flex-start", gap: 6 }}>
-                  <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, fontWeight: "700", color: "#92400E" }}>
-                    {idx + 1}.
-                  </Text>
-                  <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: "#475569", flex: 1, lineHeight: 18 }}>
-                    {reqItem}
-                  </Text>
-                </View>
-              ))}
+            <View style={{ gap: 8 }}>
+              {displayRequirements.map((reqItem, idx) => {
+                const label =
+                  typeof reqItem === "string"
+                    ? reqItem.replace(/\*$/, "").trim()
+                    : (reqItem.name || reqItem.label || reqItem.title || reqItem.description || `Requirement ${idx + 1}`).replace(/\*$/, "").trim();
+                const rawDesc =
+                  typeof reqItem === "object" && reqItem !== null && reqItem.description
+                    ? reqItem.description.replace(/\*$/, "").trim()
+                    : "";
+                const isDuplicateDesc =
+                  !rawDesc ||
+                  rawDesc.toLowerCase() === label.toLowerCase() ||
+                  label.toLowerCase().includes(rawDesc.toLowerCase()) ||
+                  rawDesc.toLowerCase().includes(label.toLowerCase());
+                const desc = isDuplicateDesc ? null : rawDesc;
+                const isMandatory = isRequirementMandatory(reqItem);
+
+                return (
+                  <View key={idx} style={{ flexDirection: "row", alignItems: "flex-start", gap: 8 }}>
+                    <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: isMandatory ? "#FEF3C7" : "#F1F5F9", justifyContent: "center", alignItems: "center", marginTop: 1 }}>
+                      <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: "700", color: isMandatory ? "#92400E" : "#64748B" }}>
+                        {idx + 1}
+                      </Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12.5, fontWeight: "600", color: "#1E293B", lineHeight: 18 }}>
+                        {label} {!isMandatory && <Text style={{ color: "#94A3B8", fontStyle: "italic", fontWeight: "normal" }}>(Optional)</Text>}
+                      </Text>
+                      {desc && (
+                        <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11.5, color: "#64748B", marginTop: 2, lineHeight: 16 }}>
+                          {desc}
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+                );
+              })}
             </View>
           );
         })()}

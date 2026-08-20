@@ -85,12 +85,21 @@ export function DetailsColumn({ servicesState }: DetailsColumnProps) {
   const isWizardActive = activeWizardService !== null;
 
   const handleClose = () => {
-    setActiveWizardService(null);
-    setIsDetailsExpanded(false);
-    resetWizardState();
+    if (isWizardActive) {
+      confirmSwitchService(() => {
+        setActiveWizardService(null);
+        setIsDetailsExpanded(false);
+        resetWizardState();
+      });
+    } else {
+      setActiveWizardService(null);
+      setIsDetailsExpanded(false);
+      resetWizardState();
+    }
   };
 
   const handleSuccess = () => {
+    servicesState.removeActiveDraftOnSubmit();
     setActiveWizardService(null);
     setIsDetailsExpanded(false);
     setSelectedService(null);
@@ -132,6 +141,8 @@ export function DetailsColumn({ servicesState }: DetailsColumnProps) {
             currentApplicantIndex={currentApplicantIndex}
             setCurrentApplicantIndex={setCurrentApplicantIndex}
             serviceId={selectedService?.id}
+            onSaveDraft={servicesState.saveActiveAsDraft}
+            isSavingDraft={servicesState.isSavingDraft}
           />
         ) : activeWizardService === "radio-operator-exam" ? (
           <ExamFilingWizard
@@ -161,6 +172,8 @@ export function DetailsColumn({ servicesState }: DetailsColumnProps) {
             setIsBulkSubmitOpen={setIsBulkSubmitOpen}
             serviceId={selectedService?.id}
             serviceName={selectedService?.title}
+            onSaveDraft={servicesState.saveActiveAsDraft}
+            isSavingDraft={servicesState.isSavingDraft}
           />
         ) : activeWizardService === "general-service" &&
           selectedService !== null ? (
@@ -184,6 +197,8 @@ export function DetailsColumn({ servicesState }: DetailsColumnProps) {
             setCurrentApplicantIndex={setCurrentGeneralApplicantIndex}
             triggerOpenApplicant={servicesState.triggerOpenApplicant}
             triggerBulkSubmit={servicesState.triggerBulkSubmit}
+            onSaveDraft={servicesState.saveActiveAsDraft}
+            isSavingDraft={servicesState.isSavingDraft}
           />
         ) : selectedService !== null ? (
           <ServiceDetails
