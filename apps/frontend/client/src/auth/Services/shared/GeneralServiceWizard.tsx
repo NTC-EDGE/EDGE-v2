@@ -237,6 +237,8 @@ export function GeneralServiceWizard({
           variantElements={variantElements}
           onBack={() => setStep(2)}
           onSubmitAll={() => setIsConfirmModalOpen(true)}
+          onSaveDraft={onSaveDraft}
+          isSavingDraft={isSavingDraft}
         />
         <GeneralWizardModals
           isConfirmModalOpen={isConfirmModalOpen}

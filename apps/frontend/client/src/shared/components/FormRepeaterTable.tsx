@@ -57,6 +57,38 @@ export const DEFAULT_OFFICER_REPEATER_COLUMNS: FormRepeaterColumn[] = [
   { key: "expiryDate", label: "Validity / Expiry Date", type: "date", required: false },
 ];
 
+export const DEFAULT_TVRO_EQUIPMENT_COLUMNS: FormRepeaterColumn[] = [
+  {
+    key: "type",
+    label: "Type",
+    type: "select",
+    required: true,
+    options: [
+      { label: "LNA/LNB", value: "LNA/LNB" },
+      { label: "Receivers", value: "Receivers" },
+      { label: "Combiner/s", value: "Combiner/s" },
+      { label: "Modulators", value: "Modulators" },
+    ],
+  },
+  { key: "makeTypeModel", label: "Make/Type/Model", placeholder: "e.g. Harmonic ProView 7100", required: true },
+  { key: "serialNumber", label: "Serial Number", placeholder: "e.g. SN-8920194", required: true },
+  { key: "frequencyRange", label: "Frequency Range", placeholder: "e.g. 3.7 - 4.2 GHz (C-Band)", required: true },
+];
+
+export const DEFAULT_TVRO_ANTENNA_COLUMNS: FormRepeaterColumn[] = [
+  { key: "makeTypeModel", label: "Make/Type/Model", placeholder: "e.g. Patriot 3.8m Prime Focus", required: false },
+  { key: "dishDiameter", label: "Dish Diameter", placeholder: "e.g. 3.8 meters", required: false },
+  { key: "polarization", label: "Polarization", placeholder: "e.g. Dual Linear (H/V) / Circular", required: false },
+  { key: "azimuth", label: "Azimuth", placeholder: "e.g. 142.5° True", required: false },
+];
+
+export const DEFAULT_TVRO_SIGNAL_COLUMNS: FormRepeaterColumn[] = [
+  { key: "satellite", label: "Satellite", placeholder: "e.g. Asiasat 7 (105.5°E)", required: false },
+  { key: "receivedFrequency", label: "Received Frequency", placeholder: "e.g. 3840 MHz", required: false },
+  { key: "polarization", label: "Polarization", placeholder: "e.g. Vertical / Horizontal", required: false },
+  { key: "nameOfPrograms", label: "Name of Programs", placeholder: "e.g. News, Educational Feeds", required: false },
+];
+
 export function resolveRepeaterColumns(
   fieldKey?: string,
   fieldLabel?: string,
@@ -68,6 +100,39 @@ export function resolveRepeaterColumns(
 
   const keyLower = (fieldKey || "").toLowerCase();
   const labelLower = (fieldLabel || "").toLowerCase();
+
+  // TVRO specific matchers
+  if (
+    keyLower.includes("tvro_signal") ||
+    keyLower.includes("tvrosignal") ||
+    keyLower.includes("signalreception") ||
+    keyLower.includes("tvrosignaldetails") ||
+    labelLower.includes("signal to be received") ||
+    labelLower.includes("particulars of signal")
+  ) {
+    return DEFAULT_TVRO_SIGNAL_COLUMNS;
+  }
+  if (
+    keyLower.includes("tvro_antenna") ||
+    keyLower.includes("tvroantenna") ||
+    keyLower.includes("antennasystem") ||
+    keyLower.includes("tvroantennadetails") ||
+    (keyLower.includes("antenna") && labelLower.includes("tvro")) ||
+    labelLower.includes("particulars of antenna system") ||
+    labelLower.includes("antenna system")
+  ) {
+    return DEFAULT_TVRO_ANTENNA_COLUMNS;
+  }
+  if (
+    keyLower.includes("tvro_equipment") ||
+    keyLower.includes("tvroequipment") ||
+    keyLower.includes("tvroequipmentdetails") ||
+    keyLower.includes("tvrodetails") ||
+    labelLower.includes("particulars of equipment") ||
+    (labelLower.includes("equipment") && (labelLower.includes("tvro") || keyLower.includes("tvro") || labelLower.includes("particular")))
+  ) {
+    return DEFAULT_TVRO_EQUIPMENT_COLUMNS;
+  }
 
   if (keyLower.includes("antenna") || labelLower.includes("antenna")) {
     return DEFAULT_ANTENNA_REPEATER_COLUMNS;

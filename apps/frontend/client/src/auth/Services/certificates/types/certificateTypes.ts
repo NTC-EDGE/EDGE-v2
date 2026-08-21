@@ -88,9 +88,11 @@ export interface DeviceRegistrationData {
 }
 
 // ── 3. TVRO Registration Certificate (NTC 1-22) ───────────────────────────────
+export type TVROEquipmentType = "LNA/LNB" | "Receivers" | "Combiner/s" | "Modulators";
+
 export interface TVROEquipmentItem {
   id: string;
-  type: string;
+  type: TVROEquipmentType | string;
   makeTypeModel: string;
   serialNo: string;
   frequencyRange: string;
@@ -117,7 +119,7 @@ export interface TVRORegistrationData {
   appType: ApplicationVariantType;
   classification: "Commercial" | "Non-Commercial";
   years: string;
-  bsdNumber: string; // Assigned by NTC
+  bsdNumber: string; // Assigned by NTC: TO BE ASSIGNED BY NTC
   
   // Basic Info
   isBusiness: boolean;
@@ -132,6 +134,12 @@ export interface TVRORegistrationData {
   contactNo: string;
   email: string;
   
+  // Section 4: Location
+  serviceArea: string;
+  exactLocation: string;
+  longitude: string;
+  latitude: string;
+
   // Repeating Engineering Tables
   particularsEquipment: TVROEquipmentItem[];
   particularsOfAntennaSystem: TVROAntennaItem[];

@@ -27,6 +27,9 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
             return ApiResponse<ApplicationDto>.Fail($"Application with ID {request.Id} was not found.");
         }
 
+        var primaryService = app.ApplicationApplicants.Select(aa => aa.Applicant?.Service).FirstOrDefault(s => s != null);
+        var primaryVariant = app.ApplicationApplicants.Select(aa => aa.Applicant?.ServiceVariant).FirstOrDefault(v => v != null);
+
         var dto = new ApplicationDto
         {
             Id = app.Id,
@@ -43,6 +46,21 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
             UserId = app.UserId,
             IsGuest = app.IsGuest,
             CreatedAt = app.CreatedAt,
+            ServiceId = primaryService?.Id,
+            ServiceName = primaryService?.Name,
+            ServiceCategoryId = primaryService?.ServiceCategoryId,
+            ServiceCategoryName = primaryService?.ServiceCategory?.Name,
+            ServiceCategoryCode = primaryService?.ServiceCategory?.Code,
+            ServiceVariantName = primaryVariant?.Description ?? primaryVariant?.Type.ToString(),
+            Services = app.ApplicationApplicants
+                .Where(aa => aa.Applicant?.Service != null)
+                .Select(aa => new ApplicationServiceDto
+                {
+                    Id = aa.ApplicantId,
+                    ApplicantId = aa.ApplicantId,
+                    ServiceId = aa.Applicant?.ServiceId,
+                    ServiceVariantId = aa.Applicant?.ServiceVariantId
+                }).ToList(),
             FilingUser = app.User != null ? new FilingUserDto
             {
                 Id = app.User.Id,

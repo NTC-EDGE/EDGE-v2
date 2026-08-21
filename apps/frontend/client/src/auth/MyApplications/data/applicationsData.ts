@@ -96,6 +96,8 @@ export interface SingleApplication {
   variant?: string;
   tenantName?: string;
   tenantId?: string;
+  serviceId?: string;
+  serviceVariantId?: string;
 }
 
 export interface BulkApplicant {
@@ -123,6 +125,8 @@ export interface BulkApplicant {
   companyName?: string;
   representativeName?: string;
   notes?: string;
+  serviceId?: string;
+  serviceVariantId?: string;
 
   // Compatibility fields
   details?: {
@@ -190,6 +194,8 @@ export interface BulkApplication {
   variant?: string;
   tenantName?: string;
   tenantId?: string;
+  serviceId?: string;
+  serviceVariantId?: string;
 
   // Single Application fields (optional here for API compatibility)
   applicantName?: string;
@@ -275,6 +281,8 @@ export function getAppDocuments(app: Application): ApplicationDocument[] {
   const rawList: RawRequirement[] = (
     app.requirements ||
     app.Requirements ||
+    (app as { applicationRequirements?: RawRequirement[] }).applicationRequirements ||
+    (app as { ApplicationRequirements?: RawRequirement[] }).ApplicationRequirements ||
     app.documents ||
     app.Documents ||
     []
@@ -500,6 +508,8 @@ interface ApiApplicantDto {
   mobileNumber?: string;
   emailAddress?: string;
   email?: string;
+  serviceId?: string;
+  serviceVariantId?: string;
 }
 
 interface ApiApplicationDto {
@@ -516,6 +526,9 @@ interface ApiApplicationDto {
   submittedAt?: string;
   serviceName?: string;
   serviceCategory?: string;
+  serviceId?: string;
+  serviceVariantId?: string;
+  serviceVariantName?: string;
   soaNumber?: string | null;
   filingUser?: {
     id?: string;
@@ -532,7 +545,6 @@ interface ApiApplicationDto {
   Documents?: RawRequirement[];
   companyName?: string;
   applicantName?: string;
-  serviceVariantName?: string;
 }
 
 export function mapApiApplicationToApplication(dto: ApiApplicationDto): Application {
@@ -614,11 +626,36 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
         formFieldValues: ap.formFieldValues || [],
       },
       formFieldValues: ap.formFieldValues || [],
+      serviceId: ap.serviceId || dto.serviceId,
+      serviceVariantId: ap.serviceVariantId || dto.serviceVariantId,
     };
   });
 
-  const reqDocs = dto.requirements || dto.Requirements || dto.documents || dto.Documents || [];
+  const reqDocs =
+    dto.requirements ||
+    dto.Requirements ||
+    (dto as { applicationRequirements?: RawRequirement[] }).applicationRequirements ||
+    (dto as { ApplicationRequirements?: RawRequirement[] }).ApplicationRequirements ||
+    dto.documents ||
+    dto.Documents ||
+    [];
+  const rawVariantName =
+    dto.serviceVariantName ||
+    (rawApplicants.length > 0 ? (rawApplicants[0] as { serviceVariantName?: string })?.serviceVariantName : undefined);
+
   const primaryFormFieldValues = firstApplicant?.formFieldValues || [];
+
+  const variantFromFields = primaryFormFieldValues.find(
+    (fv) =>
+      fv.fieldLabel?.toLowerCase().includes('permit / license type') ||
+      fv.fieldLabel?.toLowerCase().includes('type of certificate') ||
+      fv.fieldLabel?.toLowerCase().includes('application variant') ||
+      fv.fieldLabel?.toLowerCase().includes('application type') ||
+      fv.fieldId === 'fd000000-0000-0000-0000-000000000024' ||
+      fv.fieldId === 'fd000000-0000-0000-0000-000000000014'
+  )?.value;
+
+  const resolvedVariantName = rawVariantName || variantFromFields || '';
 
   if (isBulk) {
     const bulkApp: BulkApplication = {
@@ -628,7 +665,7 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
       companyName,
       serviceName,
       serviceCategory,
-      element: 'New',
+      element: (resolvedVariantName || 'New') as ExamineeType,
       status,
       submittedAt,
       applicants: mappedApplicants,
@@ -639,8 +676,10 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
       formFieldValues: primaryFormFieldValues,
       office: dto.office,
       remarks: dto.remarks,
-      serviceVariantName: dto.serviceVariantName,
+      serviceVariantName: resolvedVariantName,
       tenantId: dto.tenantId,
+      serviceId: dto.serviceId,
+      serviceVariantId: dto.serviceVariantId,
     };
     return bulkApp;
   }
@@ -651,9 +690,11 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
     mode: 'SINGLE',
     serviceName,
     serviceCategory,
-    element: 'New',
+    element: (resolvedVariantName || 'New') as ExamineeType,
     status,
     submittedAt,
+    serviceId: dto.serviceId,
+    serviceVariantId: dto.serviceVariantId,
     applicantName,
     sex: firstDetails?.sex === 'Female' ? 'Female' : 'Male',
     nationality: firstDetails?.nationality || 'Filipino',
@@ -665,7 +706,7 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
     zipCode: firstDetails?.zipCode || '',
     mobileNumber: firstDetails?.contactNumber || firstDetails?.mobileNumber || 'N/A',
     email: firstDetails?.emailAddress || firstDetails?.email || 'N/A',
-    examineeType: 'New',
+    examineeType: (resolvedVariantName || 'New') as ExamineeType,
     schedule: {
       date: 'TBD',
       time: 'TBD',
@@ -678,7 +719,7 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
     formFieldValues: primaryFormFieldValues,
     office: dto.office,
     remarks: dto.remarks,
-    serviceVariantName: dto.serviceVariantName,
+    serviceVariantName: resolvedVariantName,
     tenantId: dto.tenantId,
   };
   return singleApp;

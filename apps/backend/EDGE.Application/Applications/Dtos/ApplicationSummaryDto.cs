@@ -18,6 +18,12 @@ public class ApplicationSummaryDto
     public bool IsArchived { get; set; }
     public DateTime CreatedAt { get; set; }
 
+    public Guid? ServiceId { get; set; }
+    public string? ServiceName { get; set; }
+    public string? ServiceCategory { get; set; }
+    public Guid? ServiceVariantId { get; set; }
+    public string? ServiceVariantName { get; set; }
+
     public FilingUserSummaryDto? FilingUser { get; set; }
     public List<ServiceSummaryDto> Services { get; set; } = new();
     public List<ApplicantSummaryDto> Applicants { get; set; } = new();
@@ -37,7 +43,9 @@ public class ServiceSummaryDto
     public Guid Id { get; set; }
     public Guid? ApplicantId { get; set; }
     public Guid? ServiceId { get; set; }
+    public string? ServiceName { get; set; }
     public Guid? ServiceVariantId { get; set; }
+    public string? ServiceVariantName { get; set; }
     public Guid? SubmissionId { get; set; }
 }
 
@@ -45,7 +53,9 @@ public class ApplicantSummaryDto
 {
     public Guid Id { get; set; }
     public Guid? ServiceId { get; set; }
+    public string? ServiceName { get; set; }
     public Guid? ServiceVariantId { get; set; }
+    public string? ServiceVariantName { get; set; }
     public Guid? SubmissionId { get; set; }
     public string ApplicantType { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;

@@ -164,7 +164,16 @@ public static class CommonSeederData
             ["particularsEquipment"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000208"), FieldType = "text", Label = "Particulars of Radio Equipment (JSON)", SyncBackOnSubmit = false },
             ["location"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000209"), FieldType = "text", Label = "Station Location / Installation Address", SyncBackOnSubmit = false },
             ["middleName"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000210"), FieldType = "text", Label = "Middle Name", SyncBackOnSubmit = false },
-            ["suffix"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000211"), FieldType = "text", Label = "Suffix", SyncBackOnSubmit = false }
+            ["suffix"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000211"), FieldType = "text", Label = "Suffix", SyncBackOnSubmit = false },
+
+            // TVRO Registration (NTC_1_22) specific fields
+            ["exactLocation"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000220"), FieldType = "text", Label = "Exact Location of TVRO System", SyncBackOnSubmit = false },
+            ["longitude"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000221"), FieldType = "text", Label = "Longitude (deg-min-sec)", SyncBackOnSubmit = false },
+            ["latitude"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000222"), FieldType = "text", Label = "Latitude (deg-min-sec)", SyncBackOnSubmit = false },
+            ["tvroEquipment"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000223"), FieldType = "repeater", Label = "Particulars of Equipment", SyncBackOnSubmit = false },
+            ["tvroAntenna"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000224"), FieldType = "repeater", Label = "Particulars of Antenna System", SyncBackOnSubmit = false },
+            ["tvroSignal"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000225"), FieldType = "repeater", Label = "Particulars of Signal to be Received", SyncBackOnSubmit = false },
+            ["bsdNo"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000226"), FieldType = "text", Label = "BSD No. (Assigned by NTC)", SyncBackOnSubmit = false }
         };
     }
 }

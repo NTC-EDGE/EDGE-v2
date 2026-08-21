@@ -217,6 +217,17 @@ export function serializeCertificateApplicant(
       finalLastName = parts.slice(1).join(" ") || "Detail";
     }
 
+    const validFieldIdSet = new Set(
+      formFields.map((f) => f.fieldId).filter((id): id is string => Boolean(id))
+    );
+
+    const filteredFieldValues =
+      validFieldIdSet.size > 0
+        ? app.formFieldValues.filter(
+            (fv) => !fv.fieldId || validFieldIdSet.has(fv.fieldId)
+          )
+        : app.formFieldValues;
+
     return {
       firstName: finalFirstName || "Applicant",
       lastName: finalLastName || "Detail",
@@ -224,7 +235,7 @@ export function serializeCertificateApplicant(
       contactNumber: contactNoField || app.contactNo || "",
       address: addressField || app.address || "N/A",
       birthDate,
-      formFieldValues: app.formFieldValues.map(fv => ({
+      formFieldValues: filteredFieldValues.map(fv => ({
         fieldId: fv.fieldId,
         fieldLabel: fv.fieldLabel,
         value: fv.value
@@ -548,11 +559,15 @@ export function serializeCertificateApplicant(
     const data = app.tvroRegData;
     if (data) {
       addField("Classification", data.classification);
-      addField("Number of Years", data.years);
       addField("Applicant Name", data.applicantName);
+      if (data.serviceArea) addField("Service Area", data.serviceArea);
+      if (data.exactLocation) addField("Exact Location of TVRO System", data.exactLocation);
+      if (data.longitude) addField("Longitude (deg-min-sec)", data.longitude);
+      if (data.latitude) addField("Latitude (deg-min-sec)", data.latitude);
       addField("Particulars of Equipment", JSON.stringify(data.particularsEquipment));
       addField("Particulars of Antenna System", JSON.stringify(data.particularsOfAntennaSystem));
       addField("Particulars of Signal to be Received", JSON.stringify(data.particularsOfSignalToBeReceived));
+      addField("BSD No.", data.bsdNumber || "TO BE ASSIGNED BY NTC");
 
       return {
         firstName: data.applicantName || app.firstName,

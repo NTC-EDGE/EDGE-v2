@@ -197,11 +197,13 @@ public static class CertificatesCategorySeederData
         ""requiredSections"": [
             { ""key"": ""applicationSpecifications"", ""required"": true },
             { ""key"": ""applicant"", ""required"": true },
+            { ""key"": ""location"", ""required"": true },
             { ""key"": ""tvroEquipment"", ""required"": true },
-            { ""key"": ""antennaSystem"", ""required"": true },
-            { ""key"": ""signalReception"", ""required"": true },
+            { ""key"": ""antennaSystem"", ""required"": false },
+            { ""key"": ""signalReception"", ""required"": false },
+            { ""key"": ""bsd"", ""required"": false },
             { ""key"": ""declaration"", ""required"": true },
-            { ""key"": ""payment"", ""required"": true }
+            { ""key"": ""payment"", ""required"": false }
         ],
         ""allowsBulkSubmission"": false,
         ""categorySpecific"": {
@@ -519,10 +521,12 @@ public static class CertificatesCategorySeederData
         new("NTC_1_22", Guid.Parse("f2200000-0000-0000-0000-000000000001"), Guid.Parse("f22a0000-0000-0000-0000-000000000000"), new()
         {
             new("applicationSpecifications", "Application Specifications", new() { "permitType", "stationClass" }),
-            new("applicant", "Applicant's Details", new() { "fullName", "region", "province", "city", "barangay", "street", "zipCode", "contactNo", "email", "stationLocation" }),
-            new("tvroEquipment", "Particulars of Equipment", new() { "equipmentDetails", "makeModel", "serialNumber", "frequencyRange" }),
-            new("antennaSystem", "Particulars of Antenna System", new() { "antennaType", "diameter", "azimuth", "polarization", "remarks" }),
-            new("signalReception", "Particulars of Signal to be Received", new() { "frequency", "bandwidth", "emission", "remarks" }),
+            new("applicant", "Applicant's Details", new() { "fullName", "region", "province", "city", "barangay", "street", "zipCode", "contactNo", "email" }),
+            new("location", "Location", new() { "serviceArea", "exactLocation", "longitude", "latitude" }),
+            new("tvroEquipment", "Particulars of Equipment", new() { "tvroEquipment" }),
+            new("antennaSystem", "Particulars of Antenna System", new() { "tvroAntenna" }),
+            new("signalReception", "Particulars of Signal to be Received", new() { "tvroSignal" }),
+            new("bsd", "Broadcast Services Division (BSD)", new() { "bsdNo" }),
             new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
             new("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
         })

@@ -17,6 +17,7 @@ import {
   GeneralApplicantData,
   initialGeneralApplicant,
 } from "../shared/GeneralServiceWizard";
+import { uploadRequirementsAfterSubmit } from "../shared/helpers/requirementUploadHelper";
 
 const isGuid = (val?: string | null): boolean => {
   if (!val || typeof val !== "string") return false;
@@ -53,7 +54,7 @@ export function useServices() {
 
   // Clerk Contexts
   const { user: clerkUser } = useUser();
-  const { signOut } = useAuth();
+  const { signOut, getToken } = useAuth();
 
   // Search & Navigation States
   const [searchQuery, setSearchQuery] = useState("");
@@ -538,6 +539,22 @@ export function useServices() {
       const res = await api.post<{ succeeded: boolean; data: string }>(`/api/v2/applications`, payload);
       if (res?.data) {
         setActiveDraftId(res.data);
+        const allApplicantsForUpload =
+          activeWizardService === "radio-operator-exam"
+            ? examApplicants
+            : activeWizardService === "cpe-accreditation"
+            ? applicants
+            : generalApplicants;
+
+        await uploadRequirementsAfterSubmit({
+          api,
+          applicationId: res.data,
+          tenantId: effectiveTenantId,
+          applicants: allApplicantsForUpload,
+          getToken,
+        }).catch((uploadErr) => {
+          console.warn("[saveActiveAsDraft] Draft attachment upload skipped/failed:", uploadErr);
+        });
       }
       toast.success("Draft Saved", "Your application draft has been saved to the server.");
       await refetchDrafts();

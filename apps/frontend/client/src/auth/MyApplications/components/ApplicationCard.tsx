@@ -11,6 +11,7 @@ import { Icon } from '@edge/ui';
 import { COLORS, SPACING, TYPOGRAPHY } from '@edge/ui';
 import {
   Application,
+  SingleApplication,
   getStatusLabel,
   getStatusColor,
   getStatusBgColor,
@@ -43,6 +44,21 @@ export function ApplicationCard({
   const statusBg = getStatusBgColor(app.status);
   const docs = getAppDocuments(app);
   const totalApplicants = isBulk ? app.applicants.length : 1;
+
+  const resolvedVariant =
+    app.serviceVariantName ||
+    app.variant ||
+    (app.formFieldValues?.find(
+      (fv) =>
+        fv.fieldLabel?.toLowerCase().includes('permit / license type') ||
+        fv.fieldLabel?.toLowerCase().includes('type of certificate') ||
+        fv.fieldLabel?.toLowerCase().includes('application variant') ||
+        fv.fieldLabel?.toLowerCase().includes('application type') ||
+        fv.fieldId === 'fd000000-0000-0000-0000-000000000024' ||
+        fv.fieldId === 'fd000000-0000-0000-0000-000000000014'
+    )?.value) ||
+    (!isBulk && (app as SingleApplication).applicants?.[0]?.applicationType && (app as SingleApplication).applicants?.[0]?.applicationType !== 'Individual' ? (app as SingleApplication).applicants?.[0]?.applicationType : undefined) ||
+    (app.element !== 'New' ? app.element : '');
 
   return (
     <View style={[styles.card, style]}>
@@ -96,8 +112,29 @@ export function ApplicationCard({
         </View>
       </View>
 
-      {/* ── Main Content Body (Matching Screenshot 1) ──────────────────── */}
+      {/* ── Main Content Body ──────────────────── */}
       <View style={styles.cardBody}>
+        {/* Service Category & Service Variant Badges */}
+        <View style={styles.serviceMetaRow}>
+          {app.serviceCategory ? (
+            <View style={styles.categoryBadge}>
+              <Icon name="grid" size={11} color="#0369A1" />
+              <Text style={styles.categoryBadgeText}>
+                {app.serviceCategory.toUpperCase()}
+              </Text>
+            </View>
+          ) : null}
+
+          {resolvedVariant ? (
+            <View style={styles.variantBadge}>
+              <Icon name="layers" size={11} color="#4338CA" />
+              <Text style={styles.variantBadgeText} numberOfLines={1}>
+                {resolvedVariant}
+              </Text>
+            </View>
+          ) : null}
+        </View>
+
         <Text style={styles.serviceName} numberOfLines={2}>
           {app.serviceName}
         </Text>
@@ -108,11 +145,6 @@ export function ApplicationCard({
             <Text style={styles.primaryName} numberOfLines={1}>
               {primaryName}
             </Text>
-          </View>
-
-          <View style={styles.metaItem}>
-            <Icon name="tag" size={14} color="#64748B" />
-            <Text style={styles.metaText}>{app.element}</Text>
           </View>
 
           <View style={styles.metaItem}>
@@ -457,6 +489,50 @@ const styles = StyleSheet.create({
     padding: SPACING[20],
     flex: 1,
     justifyContent: 'center',
+  },
+
+  serviceMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+    flexWrap: 'wrap',
+  },
+  categoryBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: '#F0F9FF',
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+  },
+  categoryBadgeText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 10.5,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: '#0369A1',
+    letterSpacing: 0.5,
+  },
+  variantBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: '#EEF2FF',
+    borderWidth: 1,
+    borderColor: '#C7D2FE',
+    maxWidth: 280,
+  },
+  variantBadgeText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: '#4338CA',
   },
 
   serviceName: {

@@ -199,14 +199,7 @@ public class SubmitApplicationCommandHandler
 
                 foreach (var applicantDto in request.Applicants)
                 {
-                    var unknownFields = applicantDto.FormFieldValues
-                        .Where(fv => fv.FieldId.HasValue && fv.FieldId.Value != Guid.Empty && !validFieldIds.Contains(fv.FieldId.Value))
-                        .Select(fv => fv.FieldId!.Value)
-                        .ToList();
-
-                    if (unknownFields.Any())
-                        return ApiResponse<Guid>.Fail(
-                            $"Validation Error: Unknown FieldId(s): {string.Join(", ", unknownFields)}");
+                    applicantDto.FormFieldValues.RemoveAll(fv => fv.FieldId.HasValue && fv.FieldId.Value != Guid.Empty && !validFieldIds.Contains(fv.FieldId.Value));
                 }
             }
         }

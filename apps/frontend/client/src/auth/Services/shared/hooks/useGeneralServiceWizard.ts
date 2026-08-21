@@ -33,6 +33,7 @@ import {
 import { isValidContactNumber, isValidEmailAddress } from "../../../../shared/helpers/fieldValidators";
 import { extractUserProfile } from "../../../../shared/utils/userProfileHelper";
 import { uploadRequirementsAfterSubmit } from "../helpers/requirementUploadHelper";
+import { useServiceForm } from "./useServiceForm";
 
 const isGuid = (val?: string | null): boolean => {
   if (!val || typeof val !== "string") return false;
@@ -551,9 +552,9 @@ export function useGeneralServiceWizard(
     return () => { active = false; };
   }, [currentStep, service?.id]);
 
-  // Fetch variant elements when a variant is selected in Step 2/3
   const activeApplicant = applicants[currentApplicantIndex] || initialGeneralApplicant(1);
   const effectiveVariantId = activeApplicant.selectedVariantId || (variants[0] ? variants[0].id : null);
+  const { form } = useServiceForm(service?.id, effectiveVariantId);
 
   React.useEffect(() => {
     let active = true;
@@ -846,10 +847,11 @@ export function useGeneralServiceWizard(
       }
     }
 
+    const flatFormFields = form?.sections?.flatMap((s) => s.fields || []) || [];
     let mappedApplicants: ReturnType<typeof serializeCertificateApplicant>[] = [];
     try {
       mappedApplicants = applicants.map((app) =>
-        serializeCertificateApplicant(app, service, [])
+        serializeCertificateApplicant(app, service, flatFormFields)
       );
     } catch (serializationErr: unknown) {
       const serializationMsg =

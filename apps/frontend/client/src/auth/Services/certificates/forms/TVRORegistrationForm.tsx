@@ -188,13 +188,61 @@ export function TVRORegistrationForm({
         </View>
       </View>
 
-      {/* Section 1: Particulars of Equipment */}
+      {/* Section 4: Location */}
       <View style={certStyles.formSection}>
-        <Text style={certStyles.formSectionHeading}>1. Particulars of Equipment</Text>
+        <Text style={certStyles.formSectionHeading}>4. Location</Text>
+        <View style={certStyles.formGrid}>
+          <View style={certStyles.formCol12}>
+            <ValidatedInput
+              label="Service Area"
+              placeholder="e.g. Metro Manila, Region IV-A, Nationwide"
+              value={data.serviceArea}
+              onChangeText={(val) => onChange({ serviceArea: val })}
+              error={errors.serviceArea}
+              touched={touched.serviceArea}
+              required
+            />
+          </View>
+          <View style={certStyles.formCol12}>
+            <ValidatedInput
+              label="Exact Location of TVRO System"
+              placeholder="e.g. Rooftop Broadcast Tower, 5th Floor Media Complex, Agham Rd, Diliman, Quezon City"
+              value={data.exactLocation}
+              onChangeText={(val) => onChange({ exactLocation: val })}
+              error={errors.exactLocation}
+              touched={touched.exactLocation}
+            />
+          </View>
+          <View style={certStyles.formCol6}>
+            <ValidatedInput
+              label="Longitude (deg-min-sec)"
+              placeholder={`e.g. 121° 02' 45" E`}
+              value={data.longitude}
+              onChangeText={(val) => onChange({ longitude: val })}
+              error={errors.longitude}
+              touched={touched.longitude}
+            />
+          </View>
+          <View style={certStyles.formCol6}>
+            <ValidatedInput
+              label="Latitude (deg-min-sec)"
+              placeholder={`e.g. 14° 39' 12" N`}
+              value={data.latitude}
+              onChangeText={(val) => onChange({ latitude: val })}
+              error={errors.latitude}
+              touched={touched.latitude}
+            />
+          </View>
+        </View>
+      </View>
+
+      {/* Section 5: Particulars of Equipment */}
+      <View style={certStyles.formSection}>
+        <Text style={certStyles.formSectionHeading}>5. Particulars of Equipment</Text>
         {data.particularsEquipment.map((eq, idx) => (
           <View key={eq.id} style={certStyles.cardRepeater}>
             <View style={certStyles.repeaterHeader}>
-              <Text style={certStyles.repeaterTitle}>Equipment #{idx + 1}</Text>
+              <Text style={certStyles.repeaterTitle}>Equipment Unit #{idx + 1}</Text>
               {data.particularsEquipment.length > 1 && (
                 <TouchableOpacity onPress={() => handleRemoveEquipment(idx)}>
                   <Text style={certStyles.removeButtonText}>Remove</Text>
@@ -203,17 +251,21 @@ export function TVRORegistrationForm({
             </View>
             <View style={certStyles.formGrid}>
               <View style={certStyles.formCol6}>
-                <ValidatedInput
-                  label="Type of Equipment"
-                  placeholder="e.g. Satellite Receiver / LNB"
+                <Text style={certStyles.selectLabel}>Type*</Text>
+                <Select
                   value={eq.type}
-                  onChangeText={(val) => handleEquipmentChange(idx, { type: val })}
-                  required
+                  onValueChange={(val) => handleEquipmentChange(idx, { type: val })}
+                  options={[
+                    { label: "LNA/LNB", value: "LNA/LNB" },
+                    { label: "Receivers", value: "Receivers" },
+                    { label: "Combiner/s", value: "Combiner/s" },
+                    { label: "Modulators", value: "Modulators" },
+                  ]}
                 />
               </View>
               <View style={certStyles.formCol6}>
                 <ValidatedInput
-                  label="Make / Type / Model"
+                  label="Make/Type/Model"
                   placeholder="e.g. Harmonic ProView 7100"
                   value={eq.makeTypeModel}
                   onChangeText={(val) => handleEquipmentChange(idx, { makeTypeModel: val })}
@@ -232,7 +284,7 @@ export function TVRORegistrationForm({
               <View style={certStyles.formCol6}>
                 <ValidatedInput
                   label="Frequency Range"
-                  placeholder="e.g. 3.7 - 4.2 GHz"
+                  placeholder="e.g. 3.7 - 4.2 GHz (C-Band)"
                   value={eq.frequencyRange}
                   onChangeText={(val) => handleEquipmentChange(idx, { frequencyRange: val })}
                   required
@@ -247,9 +299,9 @@ export function TVRORegistrationForm({
         </TouchableOpacity>
       </View>
 
-      {/* Section 2: Particulars of Antenna System */}
+      {/* Section 6: Particulars of Antenna System */}
       <View style={certStyles.formSection}>
-        <Text style={certStyles.formSectionHeading}>2. Particulars of Antenna System</Text>
+        <Text style={certStyles.formSectionHeading}>6. Particulars of Antenna System</Text>
         {data.particularsOfAntennaSystem.map((ant, idx) => (
           <View key={ant.id} style={certStyles.cardRepeater}>
             <View style={certStyles.repeaterHeader}>
@@ -263,11 +315,10 @@ export function TVRORegistrationForm({
             <View style={certStyles.formGrid}>
               <View style={certStyles.formCol6}>
                 <ValidatedInput
-                  label="Make / Type / Model"
+                  label="Make/Type/Model"
                   placeholder="e.g. Patriot 3.8m Prime Focus"
                   value={ant.makeTypeModel}
                   onChangeText={(val) => handleAntennaChange(idx, { makeTypeModel: val })}
-                  required
                 />
               </View>
               <View style={certStyles.formCol6}>
@@ -276,22 +327,20 @@ export function TVRORegistrationForm({
                   placeholder="e.g. 3.8 meters"
                   value={ant.dishDiameter}
                   onChangeText={(val) => handleAntennaChange(idx, { dishDiameter: val })}
-                  required
                 />
               </View>
               <View style={certStyles.formCol6}>
                 <ValidatedInput
                   label="Polarization"
-                  placeholder="e.g. Dual Linear (H/V)"
+                  placeholder="e.g. Dual Linear (H/V) / Circular"
                   value={ant.polarization}
                   onChangeText={(val) => handleAntennaChange(idx, { polarization: val })}
-                  required
                 />
               </View>
               <View style={certStyles.formCol6}>
                 <ValidatedInput
-                  label="Azimuth / Elevation"
-                  placeholder="e.g. 142.5° / 58.2°"
+                  label="Azimuth"
+                  placeholder="e.g. 142.5° True"
                   value={ant.azimuth}
                   onChangeText={(val) => handleAntennaChange(idx, { azimuth: val })}
                 />
@@ -305,9 +354,9 @@ export function TVRORegistrationForm({
         </TouchableOpacity>
       </View>
 
-      {/* Section 3: Particulars of Signal to be Received */}
+      {/* Section 7: Particulars of Signal to be Received */}
       <View style={certStyles.formSection}>
-        <Text style={certStyles.formSectionHeading}>3. Particulars of Signal to be Received</Text>
+        <Text style={certStyles.formSectionHeading}>7. Particulars of Signal to be Received</Text>
         {data.particularsOfSignalToBeReceived.map((sig, idx) => (
           <View key={sig.id} style={certStyles.cardRepeater}>
             <View style={certStyles.repeaterHeader}>
@@ -321,38 +370,34 @@ export function TVRORegistrationForm({
             <View style={certStyles.formGrid}>
               <View style={certStyles.formCol6}>
                 <ValidatedInput
-                  label="Satellite Name / Position"
+                  label="Satellite"
                   placeholder="e.g. Asiasat 7 (105.5°E)"
                   value={sig.satellite}
                   onChangeText={(val) => handleSignalChange(idx, { satellite: val })}
-                  required
                 />
               </View>
               <View style={certStyles.formCol6}>
                 <ValidatedInput
-                  label="Received Frequency (Downlink)"
+                  label="Received Frequency"
                   placeholder="e.g. 3840 MHz"
                   value={sig.receivedFrequency}
                   onChangeText={(val) => handleSignalChange(idx, { receivedFrequency: val })}
-                  required
                 />
               </View>
               <View style={certStyles.formCol6}>
                 <ValidatedInput
-                  label="Signal Polarization"
-                  placeholder="e.g. Vertical"
+                  label="Polarization"
+                  placeholder="e.g. Vertical / Horizontal"
                   value={sig.polarization}
                   onChangeText={(val) => handleSignalChange(idx, { polarization: val })}
-                  required
                 />
               </View>
               <View style={certStyles.formCol6}>
                 <ValidatedInput
-                  label="Names of Programs / Broadcasts"
-                  placeholder="e.g. News, Educational Channels"
+                  label="Name of Programs"
+                  placeholder="e.g. News, International Feeds, Educational Broadcasts"
                   value={sig.nameOfPrograms}
                   onChangeText={(val) => handleSignalChange(idx, { nameOfPrograms: val })}
-                  required
                 />
               </View>
             </View>
@@ -362,6 +407,50 @@ export function TVRORegistrationForm({
           <Icon name="plus" size={16} color="#2563eb" />
           <Text style={certStyles.addButtonText}>Add Signal Channel</Text>
         </TouchableOpacity>
+      </View>
+
+      {/* Section 8: BSD (Broadcast Services Division) */}
+      <View style={certStyles.formSection}>
+        <Text style={certStyles.formSectionHeading}>8. Broadcast Services Division (BSD)</Text>
+        <View
+          style={{
+            backgroundColor: "#F8FAFC",
+            borderWidth: 1,
+            borderColor: "#CBD5E1",
+            borderRadius: 10,
+            padding: 16,
+            gap: 8,
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+            <Text style={{ fontFamily: "Inter", fontSize: 13, fontWeight: "700", color: "#334155" }}>
+              BSD No.
+            </Text>
+            <View
+              style={{
+                backgroundColor: "#EFF6FF",
+                borderWidth: 1,
+                borderColor: "#BFDBFE",
+                borderRadius: 6,
+                paddingHorizontal: 8,
+                paddingVertical: 3,
+              }}
+            >
+              <Text style={{ fontFamily: "Inter", fontSize: 11, fontWeight: "700", color: "#1D4ED8" }}>
+                OFFICIAL NTC ASSIGNMENT
+              </Text>
+            </View>
+          </View>
+          <ValidatedInput
+            label="BSD Number"
+            value="TO BE ASSIGNED BY NTC"
+            editable={false}
+            onChangeText={() => {}}
+          />
+          <Text style={{ fontFamily: "Inter", fontSize: 11.5, color: "#64748B", fontStyle: "italic", marginTop: 2 }}>
+            * Note: BSD No. is designated and assigned exclusively by the National Telecommunications Commission (NTC) upon review and verification.
+          </Text>
+        </View>
       </View>
     </View>
   );

@@ -532,11 +532,17 @@ export function DynamicFormRenderer({
                     !fIdLower.includes("antennadetails") &&
                     !fIdLower.includes("devicesdetails") &&
                     !fIdLower.includes("radioofficers") &&
+                    !fIdLower.includes("tvro") &&
                     rawType !== "repeater" &&
+                    rawType !== "table" &&
+                    rawType !== "repeater_table" &&
                     (labelLower === "serial number" ||
                      labelLower === "frequency range" ||
                      labelLower === "power output" ||
+                     labelLower === "power" ||
                      labelLower === "make" ||
+                     labelLower === "type" ||
+                     labelLower === "model" ||
                      labelLower === "type/model")
                   ) {
                     return null;
@@ -552,9 +558,18 @@ export function DynamicFormRenderer({
                   labelLower === "employment type" ||
                   targetId === FIELD_ID_EMPLOYMENT_TYPE;
 
+                const isEquipmentOrTechnicalSection =
+                  section.title.toLowerCase().includes("equipment") ||
+                  section.title.toLowerCase().includes("antenna") ||
+                  section.title.toLowerCase().includes("signal") ||
+                  section.key?.toLowerCase().includes("equipment") ||
+                  section.key?.toLowerCase().includes("antenna") ||
+                  section.key?.toLowerCase().includes("signal");
+
                 const isApplicationTypeField =
                   !isEmploymentStatusField &&
                   !isEmploymentTypeField &&
+                  !isEquipmentOrTechnicalSection &&
                   (labelLower.includes("type of application") ||
                   labelLower.includes("application type") ||
                   labelLower.includes("permit type") ||
@@ -812,14 +827,25 @@ export function DynamicFormRenderer({
                   fieldIdLower.includes("antennadetails") ||
                   fieldIdLower.includes("radioofficers") ||
                   fieldIdLower.includes("devicesdetails") ||
+                  fieldIdLower.includes("signaldetails") ||
+                  fieldIdLower.includes("signalreception") ||
+                  fieldIdLower.includes("tvro") ||
                   sectionKeyLower.includes("equipment") ||
                   sectionKeyLower.includes("antenna") ||
                   sectionKeyLower.includes("device") ||
+                  sectionKeyLower.includes("signal") ||
                   labelLower.includes("particulars of equipment") ||
                   labelLower.includes("registered devices details") ||
                   labelLower.includes("equipment technical details") ||
                   labelLower.includes("antenna technical details") ||
+                  labelLower.includes("particulars of antenna system") ||
+                  labelLower.includes("particulars of signal to be received") ||
                   labelLower.includes("radio officers details");
+
+                const isBsdField =
+                  fieldIdLower.includes("bsd") ||
+                  labelLower.includes("bsd no") ||
+                  labelLower.includes("bsd number");
 
                 const isContactField =
                   fieldIdLower === "fd000000-0000-0000-0000-000000000004" ||
@@ -834,7 +860,7 @@ export function DynamicFormRenderer({
                   labelLower.includes("email") ||
                   rawType === "email";
 
-                const span = isNameField || isSignature || isCheckbox || isFile || isRepeaterField ? 12 : 6;
+                const span = isNameField || isSignature || isCheckbox || isFile || isRepeaterField || isBsdField ? 12 : 6;
 
                 return (
                   <FormCol key={targetId} span={span} compact={field.isCompact}>
@@ -859,6 +885,45 @@ export function DynamicFormRenderer({
                         onChange={(repeaterJson) => onChange(targetId, field.label, repeaterJson)}
                         error={err}
                       />
+                    ) : isBsdField ? (
+                      <View
+                        style={{
+                          backgroundColor: "#F8FAFC",
+                          borderWidth: 1,
+                          borderColor: "#CBD5E1",
+                          borderRadius: 10,
+                          padding: 14,
+                          gap: 6,
+                        }}
+                      >
+                        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                          <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: "#334155" }}>
+                            {field.label}
+                          </Text>
+                          <View
+                            style={{
+                              backgroundColor: "#EFF6FF",
+                              borderWidth: 1,
+                              borderColor: "#BFDBFE",
+                              borderRadius: 6,
+                              paddingHorizontal: 8,
+                              paddingVertical: 2,
+                            }}
+                          >
+                            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 10.5, fontWeight: "700", color: "#1D4ED8" }}>
+                              OFFICIAL NTC ASSIGNMENT
+                            </Text>
+                          </View>
+                        </View>
+                        <ValidatedInput
+                          value="TO BE ASSIGNED BY NTC"
+                          editable={false}
+                          onChangeText={() => {}}
+                        />
+                        <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, color: "#64748B", fontStyle: "italic" }}>
+                          * Note: BSD No. is designated and assigned exclusively by the National Telecommunications Commission (NTC) upon evaluation and approval.
+                        </Text>
+                      </View>
                     ) : isSignature ? (
                       <FormSignatureInput
                         label={field.label}

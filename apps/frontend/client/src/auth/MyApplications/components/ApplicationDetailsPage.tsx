@@ -15,6 +15,7 @@ import { Icon, COLORS, TYPOGRAPHY, SPACING } from '@edge/ui';
 import { useApi } from '../../../shared/hooks/useApi';
 import { DocumentPreviewModal } from '../../../shared/components/DocumentPreviewModal';
 import { OFFICIAL_LEGAL_DECLARATION } from '../../../shared/components/DeclarationCheckbox';
+import { useServiceForm } from '../../Services/shared/hooks/useServiceForm';
 import {
   Application,
   SingleApplication,
@@ -145,12 +146,15 @@ interface RawApplicantDetails {
 }
 
 interface RawApplicantHolder {
+  id?: string;
   name?: string;
   applicantName?: string;
   applicationType?: string;
   applicantType?: string;
   details?: RawApplicantDetails;
   formFieldValues?: RawFormFieldItem[];
+  requirements?: RawRequirement[];
+  Requirements?: RawRequirement[];
 }
 
 function extractApplicantFullName(
@@ -445,6 +449,68 @@ export function ApplicationDetailsPage({
     return [];
   }, [selectedApplicant, app]);
 
+  const selectedApplicantDocs = useMemo<ApplicationDocument[]>(() => {
+    if (!selectedApplicant) return [];
+    const rawReqs = (app.requirements ||
+      app.Requirements ||
+      (app as { applicationRequirements?: RawRequirement[] }).applicationRequirements ||
+      (app as { ApplicationRequirements?: RawRequirement[] }).ApplicationRequirements ||
+      app.documents ||
+      app.Documents ||
+      []) as RawRequirement[];
+
+    const matchedReqs = rawReqs.filter(
+      (r) => r.applicantId === selectedApplicant.id
+    );
+
+    const rawApplicants = (app.applicants || app.Applicants || []) as RawApplicantHolder[];
+    const rawMatch = rawApplicants.find((a) => a.id === selectedApplicant.id);
+    const directReqs: RawRequirement[] =
+      (rawMatch?.requirements as RawRequirement[]) ||
+      ((rawMatch as { Requirements?: RawRequirement[] })?.Requirements as RawRequirement[]) ||
+      [];
+
+    const candidateReqs = matchedReqs.length > 0 ? matchedReqs : directReqs;
+
+    return candidateReqs.map((req, idx) => {
+      const urlStr = req.url || '';
+      const rawName =
+        req.fileName ||
+        req.name ||
+        (urlStr ? urlStr.split('/').pop() : undefined) ||
+        `Attachment_${idx + 1}.pdf`;
+      const ext = rawName.toLowerCase().split('.').pop() || '';
+      let typ: 'PDF' | 'IMAGE' | 'DOCX' | 'ZIP' = 'PDF';
+      if (['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'svg'].includes(ext)) {
+        typ = 'IMAGE';
+      } else if (['zip', 'rar', '7z'].includes(ext)) {
+        typ = 'ZIP';
+      } else if (['doc', 'docx'].includes(ext)) {
+        typ = 'DOCX';
+      }
+
+      let sizeFormatted = req.size;
+      if (!sizeFormatted && req.fileSizeBytes) {
+        if (req.fileSizeBytes >= 1024 * 1024) {
+          sizeFormatted = `${(req.fileSizeBytes / (1024 * 1024)).toFixed(1)} MB`;
+        } else {
+          sizeFormatted = `${Math.round(req.fileSizeBytes / 1024)} KB`;
+        }
+      }
+
+      return {
+        id: req.id || req.storedFileId || `applicant-doc-${idx + 1}`,
+        name: rawName,
+        type: typ,
+        size: sizeFormatted || '350 KB',
+        category: (req.category as ApplicationDocument['category']) || 'ATTACHMENT',
+        uploadedAt: req.uploadedAt || app.submittedAt,
+        url: req.url,
+        storedFileId: req.storedFileId,
+      };
+    });
+  }, [selectedApplicant, app]);
+
   const filteredApplicants = useMemo<BulkApplicant[]>(() => {
     if (!isBulk) return [];
     if (tableSearch.trim() === '') return appApplicants;
@@ -515,6 +581,24 @@ export function ApplicationDetailsPage({
     return singleApplicant?.applicantName || extractApplicantFullName(app, null, null);
   }, [app, singleApplicant]);
   
+  const resolvedServiceVariant = useMemo(() => {
+    return (
+      app.serviceVariantName ||
+      app.variant ||
+      app.formFieldValues?.find(
+        (fv) =>
+          fv.fieldLabel?.toLowerCase().includes('permit / license type') ||
+          fv.fieldLabel?.toLowerCase().includes('type of certificate') ||
+          fv.fieldLabel?.toLowerCase().includes('application variant') ||
+          fv.fieldLabel?.toLowerCase().includes('application type') ||
+          fv.fieldId === 'fd000000-0000-0000-0000-000000000024' ||
+          fv.fieldId === 'fd000000-0000-0000-0000-000000000014'
+      )?.value ||
+      (!isBulk && (app as SingleApplication).applicants?.[0]?.applicationType && (app as SingleApplication).applicants?.[0]?.applicationType !== 'Individual' ? (app as SingleApplication).applicants?.[0]?.applicationType : '') ||
+      (app.element !== 'New' ? app.element : '')
+    );
+  }, [app, isBulk]);
+
   const submissionTime = formatRelativeTime(app.submittedAt);
 
   // Determine stepper progress indices (1 = Submitted, 2 = Evaluation, 3 = For Approval, 4 = Approved & Issued)
@@ -570,6 +654,28 @@ export function ApplicationDetailsPage({
           <Text style={styles.appRefId}>
             {isBulk ? `Bulk Application #${app.referenceNumber}` : `#${app.referenceNumber}`}
           </Text>
+
+          {/* Service Category & Service Variant Badges */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4, marginBottom: 8, flexWrap: 'wrap' }}>
+            {app.serviceCategory ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, backgroundColor: '#F0F9FF', borderWidth: 1, borderColor: '#BAE6FD' }}>
+                <Icon name="grid" size={11} color="#0369A1" />
+                <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: '700', color: '#0369A1', letterSpacing: 0.5 }}>
+                  {app.serviceCategory.toUpperCase()}
+                </Text>
+              </View>
+            ) : null}
+
+            {resolvedServiceVariant ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, backgroundColor: '#EEF2FF', borderWidth: 1, borderColor: '#C7D2FE' }}>
+                <Icon name="layers" size={11} color="#4338CA" />
+                <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11.5, fontWeight: '600', color: '#4338CA' }}>
+                  {resolvedServiceVariant}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+
           <Text style={[styles.appTitle, { fontSize: isDesktop ? 24 : 20 }]}>{app.serviceName}</Text>
           {isBulk ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: -14, marginBottom: 16 }}>
@@ -781,15 +887,19 @@ export function ApplicationDetailsPage({
                 <View style={styles.alertBanner}>
                   <Icon name="alert-circle" size={16} color="#B45309" />
                   <Text style={styles.alertBannerText}>
-                    {approvedCount} applicants were approved and included in the Statement of Account. {declinedCount} were declined.
+                    {approvedCount > 0 || declinedCount > 0
+                      ? `${approvedCount} applicant(s) approved and ${declinedCount} declined. Click "View Details" on any applicant below to review individual form parameters and uploaded requirements.`
+                      : `This bulk application contains ${totalSubmitted} submitted applicant(s). Click "View Details" on any applicant below to inspect their full details and attached documents one by one.`}
                   </Text>
                 </View>
 
-                {/* ── Approved Applicants Table ───────────────────────────────── */}
+                {/* ── Bulk Applicants Table ───────────────────────────────── */}
                 <View style={styles.tableSectionCard}>
                   <View style={styles.tableSectionHeader}>
                     <View style={styles.tableHeaderTitleRow}>
-                      <Text style={styles.tableSectionTitle}>Approved Applicants</Text>
+                      <Text style={styles.tableSectionTitle}>
+                        {app.status === 'APPROVED' ? 'Approved Applicants' : 'Bulk Applicants List'}
+                      </Text>
                       <View style={styles.tableCountBadge}>
                         <Text style={styles.tableCountBadgeText}>{filteredApplicants.length}</Text>
                       </View>
@@ -799,7 +909,7 @@ export function ApplicationDetailsPage({
                       <Icon name="search" size={14} color="#94A3B8" />
                       <TextInput
                         style={styles.tableSearchInput}
-                        placeholder="Search approved..."
+                        placeholder="Search applicants by name or type..."
                         placeholderTextColor="#94A3B8"
                         value={tableSearch}
                         onChangeText={(text) => {
@@ -962,7 +1072,7 @@ export function ApplicationDetailsPage({
                 {/* ── Section 1: Examination Details / Service & Jurisdiction Parameters ── */}
                 <SectionCard
                   icon={isExamService ? 'file-text' : 'layers'}
-                  title={isExamService ? '1. Examination Details & Service Parameters' : '1. Service & Jurisdiction Parameters'}
+                  title={isExamService ? 'Examination Details' : 'Service & Jurisdiction Parameters'}
                   accentColor="#0F2C59"
                 >
                   <View style={{ gap: 4 }}>
@@ -1049,7 +1159,7 @@ export function ApplicationDetailsPage({
                 {/* ── Section 2: Applicant Details ── */}
                 <SectionCard
                   icon="user"
-                  title="2. Applicant Details"
+                  title="Applicant Details"
                   accentColor="#1D4ED8"
                 >
                   <View style={{ gap: 4 }}>
@@ -1123,6 +1233,8 @@ export function ApplicationDetailsPage({
                     formFieldValues={formFieldValues}
                     onPreviewFile={(uri, name) => setPreviewCustomDoc({ uri, name })}
                     sectionNumber="3"
+                    serviceId={app.serviceId}
+                    serviceVariantId={app.serviceVariantId}
                   />
                 </View>
 
@@ -1130,7 +1242,7 @@ export function ApplicationDetailsPage({
                 {docs.length > 0 && (
                   <SectionCard
                     icon="paperclip"
-                    title="4. Attached Requirements & Document Proofs"
+                    title="Uploaded Supporting Documents"
                     accentColor="#059669"
                   >
                     <View style={{ gap: 10 }}>
@@ -1529,7 +1641,7 @@ export function ApplicationDetailsPage({
                   {/* Section 1: Examination & Service Parameters */}
                   <SectionCard
                     icon={isExamService ? 'file-text' : 'layers'}
-                    title={isExamService ? '1. Examination & Service Parameters' : '1. Service & Jurisdiction Parameters'}
+                    title={isExamService ? 'Examination Details' : 'Service & Jurisdiction Parameters'}
                     accentColor="#0F2C59"
                   >
                     <View style={{ gap: 4 }}>
@@ -1559,7 +1671,7 @@ export function ApplicationDetailsPage({
                   {/* Section 2: Applicant Details */}
                   <SectionCard
                     icon="user"
-                    title="2. Applicant Details"
+                    title="Applicant Details"
                     accentColor="#1D4ED8"
                   >
                     <View style={{ gap: 4 }}>
@@ -1605,7 +1717,130 @@ export function ApplicationDetailsPage({
                       formFieldValues={selectedApplicantFormFields}
                       onPreviewFile={(uri, name) => setPreviewCustomDoc({ uri, name })}
                       sectionNumber="3"
+                      serviceId={selectedApplicant.serviceId || app.serviceId}
+                      serviceVariantId={selectedApplicant.serviceVariantId || app.serviceVariantId}
                     />
+                  )}
+
+                  {/* Section 4: Attached Requirements & Document Proofs */}
+                  {selectedApplicantDocs.length > 0 && (
+                    <SectionCard
+                      icon="paperclip"
+                      title="Uploaded Supporting Documents"
+                      accentColor="#059669"
+                    >
+                      <View style={{ gap: 10 }}>
+                        <Text
+                          style={{
+                            fontFamily: TYPOGRAPHY.fonts.primary,
+                            fontSize: 12,
+                            color: '#64748B',
+                            marginBottom: 4,
+                          }}
+                        >
+                          {selectedApplicantDocs.length} official document(s) attached for this applicant:
+                        </Text>
+
+                        {selectedApplicantDocs.map((doc, dIdx) => (
+                          <View
+                            key={doc.id || `doc-req-${dIdx}`}
+                            style={{
+                              backgroundColor: '#F8FAFC',
+                              borderWidth: 1,
+                              borderColor: '#E2E8F0',
+                              borderRadius: 10,
+                              padding: 12,
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: 12,
+                            }}
+                          >
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                              <View
+                                style={{
+                                  width: 36,
+                                  height: 36,
+                                  borderRadius: 8,
+                                  backgroundColor: '#EFF6FF',
+                                  justifyContent: 'center',
+                                  alignItems: 'center',
+                                }}
+                              >
+                                <Icon name="file-text" size={18} color="#1D4ED8" />
+                              </View>
+                              <View style={{ flex: 1 }}>
+                                <Text
+                                  style={{
+                                    fontFamily: TYPOGRAPHY.fonts.primary,
+                                    fontSize: 13,
+                                    fontWeight: '600',
+                                    color: '#0F172A',
+                                  }}
+                                  numberOfLines={1}
+                                >
+                                  {doc.name}
+                                </Text>
+                                <Text
+                                  style={{
+                                    fontFamily: TYPOGRAPHY.fonts.primary,
+                                    fontSize: 11,
+                                    color: '#64748B',
+                                    marginTop: 2,
+                                  }}
+                                >
+                                  {doc.size} • {doc.type}
+                                </Text>
+                              </View>
+                            </View>
+
+                            <TouchableOpacity
+                              onPress={async () => {
+                                if (doc.url) {
+                                  try {
+                                    const baseUrl =
+                                      (process.env.EXPO_PUBLIC_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? '').trim();
+                                    const fullUrl = doc.url.startsWith('http') ? doc.url : `${baseUrl}${doc.url}`;
+                                    const blob = await api.get<Blob>(fullUrl);
+                                    const objectUrl =
+                                      typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function'
+                                        ? URL.createObjectURL(blob as unknown as Blob)
+                                        : fullUrl;
+                                    setPreviewCustomDoc({ uri: objectUrl, name: doc.name });
+                                  } catch {
+                                    setPreviewCustomDoc({ uri: doc.url, name: doc.name });
+                                  }
+                                } else {
+                                  setPreviewDoc(doc);
+                                }
+                              }}
+                              style={{
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                gap: 6,
+                                backgroundColor: '#EFF6FF',
+                                paddingHorizontal: 12,
+                                paddingVertical: 6,
+                                borderRadius: 6,
+                              }}
+                              activeOpacity={0.7}
+                            >
+                              <Icon name="eye" size={14} color="#1D4ED8" />
+                              <Text
+                                style={{
+                                  fontFamily: TYPOGRAPHY.fonts.primary,
+                                  fontSize: 12,
+                                  fontWeight: '600',
+                                  color: '#1D4ED8',
+                                }}
+                              >
+                                View
+                              </Text>
+                            </TouchableOpacity>
+                          </View>
+                        ))}
+                      </View>
+                    </SectionCard>
                   )}
                 </View>
               </ScrollView>
@@ -1882,18 +2117,17 @@ function SummaryRow({
                   </Text>
                 </View>
 
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                <View style={{ flexDirection: 'row', gap: 8, width: '100%' }}>
                   {entries.map(([k, v]) => (
                     <View
                       key={k}
                       style={{
-                        minWidth: '45%',
-                        flex: 1,
+                        flex: k.toLowerCase().includes('make') || k.toLowerCase().includes('model') ? 1.3 : 1,
                         backgroundColor: '#F8FAFC',
-                        padding: 8,
-                        borderRadius: 6,
+                        padding: 10,
+                        borderRadius: 8,
                         borderWidth: 1,
-                        borderColor: '#F1F5F9',
+                        borderColor: '#E2E8F0',
                       }}
                     >
                       <Text
@@ -2182,6 +2416,125 @@ function SummaryRow({
     );
   }
 
+  const isBsd = labelLower.includes('bsd');
+  if (isBsd) {
+    return (
+      <View
+        style={{
+          backgroundColor: '#F8FAFC',
+          borderWidth: 1,
+          borderColor: '#CBD5E1',
+          borderRadius: 10,
+          padding: 14,
+          marginBottom: 8,
+          gap: 6,
+        }}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Text
+            style={{
+              fontFamily: TYPOGRAPHY.fonts.primary,
+              fontSize: 10,
+              fontWeight: '700',
+              color: '#64748B',
+              textTransform: 'uppercase',
+              letterSpacing: 0.5,
+            }}
+          >
+            {label}
+          </Text>
+          <View style={{ backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 }}>
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 10, fontWeight: '700', color: '#1D4ED8' }}>
+              OFFICIAL NTC ASSIGNMENT
+            </Text>
+          </View>
+        </View>
+        <Text
+          style={{
+            fontFamily: TYPOGRAPHY.fonts.primary,
+            fontSize: 13,
+            fontWeight: '700',
+            color: '#0F172A',
+          }}
+        >
+          {trimmedVal && trimmedVal !== '' ? trimmedVal : 'TO BE ASSIGNED BY NTC'}
+        </Text>
+      </View>
+    );
+  }
+
+  // Check if value is a JSON array representing a repeating table
+  if (trimmedVal.startsWith('[') && trimmedVal.endsWith(']')) {
+    try {
+      const parsed = JSON.parse(trimmedVal);
+      if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === 'object' && parsed[0] !== null) {
+        return (
+          <View
+            style={{
+              backgroundColor: '#F8FAFC',
+              padding: 12,
+              borderRadius: 10,
+              borderWidth: 1,
+              borderColor: '#E2E8F0',
+              marginBottom: 8,
+              gap: 8,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Text
+                style={{
+                  fontFamily: TYPOGRAPHY.fonts.primary,
+                  fontSize: 11,
+                  fontWeight: '700',
+                  color: '#475569',
+                  textTransform: 'uppercase',
+                  letterSpacing: 0.5,
+                }}
+              >
+                {label} ({parsed.length} item{parsed.length > 1 ? 's' : ''})
+              </Text>
+            </View>
+
+            {parsed.map((item: Record<string, unknown>, itemIdx: number) => {
+              const entries = Object.entries(item).filter(([k, v]) => k !== 'id' && v !== null && v !== undefined && String(v).trim() !== '');
+              return (
+                <View
+                  key={item.id ? String(item.id) : `json-item-${itemIdx}`}
+                  style={{
+                    backgroundColor: '#FFFFFF',
+                    borderWidth: 1,
+                    borderColor: '#CBD5E1',
+                    borderRadius: 8,
+                    padding: 10,
+                    gap: 6,
+                  }}
+                >
+                  <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11.5, fontWeight: '700', color: '#1E293B' }}>
+                    #{itemIdx + 1}: {item.type ? String(item.type) : item.makeTypeModel ? String(item.makeTypeModel) : item.satellite ? String(item.satellite) : 'Item'}
+                  </Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                    {entries.map(([entryKey, entryVal]) => (
+                      <View key={entryKey} style={{ minWidth: '45%', flex: 1 }}>
+                        <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 9.5, fontWeight: '700', color: '#64748B', textTransform: 'uppercase' }}>
+                          {formatFieldKey(entryKey)}
+                        </Text>
+                        <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, fontWeight: '600', color: '#0F172A' }}>
+                          {String(entryVal)}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        );
+      }
+    } catch {
+      // Ignored if not JSON array
+    }
+  }
+
   return (
     <View
       style={{
@@ -2220,6 +2573,176 @@ function SummaryRow({
   );
 }
 
+// ─── Helpers to Filter Unrelated & Duplicate Sections / Fields (Shared Standard) ──
+const isUnrelatedSection = (titleOrKey: string): boolean => {
+  const lower = titleOrKey.toLowerCase().replace(/['’]/g, "").replace(/[-_]/g, " ").trim();
+  return (
+    lower.includes("payment") ||
+    lower.includes("fee") ||
+    lower.includes("office use") ||
+    lower.includes("official use") ||
+    lower.includes("ntc use") ||
+    lower.includes("evaluation") ||
+    lower.includes("processing note") ||
+    lower.includes("personal information") ||
+    lower.includes("personal detail") ||
+    lower.includes("personal data") ||
+    lower.includes("personal particular") ||
+    lower.includes("personal info") ||
+    lower.includes("applicant information") ||
+    lower.includes("applicant detail") ||
+    lower.includes("applicant particular") ||
+    lower.includes("applicant person") ||
+    lower.includes("applicant contact") ||
+    lower.includes("applicantperson") ||
+    lower.includes("applicantinfo") ||
+    lower.includes("basic information") ||
+    lower.includes("basic detail") ||
+    lower.includes("contact information") ||
+    lower.includes("contact detail") ||
+    lower.includes("contact particular") ||
+    lower === "declaration" ||
+    lower === "declaration of applicant" ||
+    lower === "acknowledgement" ||
+    lower === "acknowledgement & applicant signature" ||
+    lower === "signature" ||
+    lower === "typeofcertificate" ||
+    lower === "permittype" ||
+    lower === "apptype" ||
+    lower === "applicationtype" ||
+    lower === "typeofapplication" ||
+    lower === "type of certificate / application" ||
+    lower === "type of application & permit category" ||
+    lower === "type of application & category" ||
+    lower === "type of certificate" ||
+    lower === "type of application" ||
+    lower === "application type" ||
+    lower === "permit type / application type" ||
+    lower === "permit type" ||
+    lower === "permit category"
+  );
+};
+
+const isApplicantParticularField = (labelOrId: string): boolean => {
+  if (!labelOrId) return false;
+  const lower = labelOrId.toLowerCase().replace(/['’]/g, "").replace(/[-_]/g, " ").trim();
+  if (
+    lower.includes("dealer") ||
+    lower.includes("seller") ||
+    lower.includes("buyer") ||
+    lower.includes("equipment") ||
+    lower.includes("school") ||
+    lower.includes("institution") ||
+    lower.includes("course") ||
+    lower.includes("degree") ||
+    lower.includes("station") ||
+    lower.includes("satellite") ||
+    lower.includes("vessel") ||
+    lower.includes("ship") ||
+    lower.includes("aircraft")
+  ) {
+    return false;
+  }
+  return (
+    lower.includes("full name") ||
+    lower.includes("legal name") ||
+    lower.includes("applicant name") ||
+    lower === "name" ||
+    lower === "first name" ||
+    lower === "fname" ||
+    lower === "firstname" ||
+    lower === "middle name" ||
+    lower === "mname" ||
+    lower === "middlename" ||
+    lower === "last name" ||
+    lower === "surname" ||
+    lower === "lname" ||
+    lower === "lastname" ||
+    lower === "suffix" ||
+    lower.includes("company name") ||
+    lower.includes("business name") ||
+    lower.includes("corporate name") ||
+    lower.includes("representative name") ||
+    lower.includes("email") ||
+    lower.includes("contact") ||
+    lower.includes("phone") ||
+    lower.includes("mobile") ||
+    lower.includes("cellphone") ||
+    lower.includes("telephone") ||
+    lower.includes("nationality") ||
+    lower.includes("citizenship") ||
+    lower.includes("civil status") ||
+    lower.includes("civilstatus") ||
+    lower.includes("marital") ||
+    lower.includes("birth") ||
+    lower.includes("dob") ||
+    lower === "dob" ||
+    lower === "sex" ||
+    lower === "gender" ||
+    lower.includes("sex / gender") ||
+    lower.includes("gender") ||
+    lower.includes("address") ||
+    lower.includes("street") ||
+    lower.includes("barangay") ||
+    lower.includes("city") ||
+    lower.includes("municipality") ||
+    lower.includes("province") ||
+    lower.includes("region") ||
+    lower.includes("zip") ||
+    lower.includes("postal")
+  );
+};
+
+const isSignatureOrDeclarationField = (labelOrId: string): boolean => {
+  if (!labelOrId) return false;
+  const lower = labelOrId.toLowerCase().trim();
+  return (
+    lower.includes("signature") ||
+    lower.includes("declare") ||
+    lower.includes("declaration") ||
+    lower.includes("affirm") ||
+    lower.includes("certify")
+  );
+};
+
+const isJurisdictionOrVariantField = (labelOrId: string): boolean => {
+  if (!labelOrId) return false;
+  const lower = labelOrId.toLowerCase().trim();
+  return (
+    lower === "service" ||
+    lower === "service category" ||
+    lower === "category" ||
+    lower === "service name" ||
+    lower === "type of application" ||
+    lower === "application type" ||
+    lower === "permit type" ||
+    lower === "license type" ||
+    lower === "certificate type" ||
+    lower === "filing mode" ||
+    lower === "application mode"
+  );
+};
+
+const getSectionIcon = (title: string): React.ComponentProps<typeof Icon>["name"] => {
+  const lower = title.toLowerCase();
+  if (lower.includes("applicant") || lower.includes("personal") || lower.includes("contact")) return "user";
+  if (lower.includes("education") || lower.includes("school") || lower.includes("training") || lower.includes("seminar") || lower.includes("exam")) return "book-open";
+  if (lower.includes("assistance") || lower.includes("special") || lower.includes("pwd") || lower.includes("accommodation")) return "info";
+  if (lower.includes("station") || lower.includes("location") || lower.includes("site") || lower.includes("address")) return "map-pin";
+  if (lower.includes("equipment") || lower.includes("device") || lower.includes("transceiver") || lower.includes("technical")) return "cpu";
+  if (lower.includes("antenna") || lower.includes("mast") || lower.includes("tower") || lower.includes("radio")) return "radio";
+  if (lower.includes("personnel") || lower.includes("engineer") || lower.includes("technician") || lower.includes("pece") || lower.includes("ece")) return "award";
+  if (lower.includes("vessel") || lower.includes("ship") || lower.includes("maritime")) return "anchor";
+  if (lower.includes("aircraft") || lower.includes("aero")) return "navigation";
+  if (lower.includes("document") || lower.includes("upload") || lower.includes("attachment")) return "paperclip";
+  return "file-text";
+};
+
+const getSectionAccentColor = (idx: number): string => {
+  const colors = ["#7C3AED", "#0284C7", "#0D9488", "#4F46E5", "#D97706", "#2563EB", "#9333EA"];
+  return colors[idx % colors.length] || "#0F2C59";
+};
+
 // Retain DetailRow for backward compatibility
 function DetailRow({
   label,
@@ -2240,6 +2763,8 @@ interface SubmittedFormStructuredViewProps {
   formFieldValues: Array<{ fieldId: string; fieldLabel: string; value: string }>;
   onPreviewFile?: (uri: string, name: string) => void;
   sectionNumber?: string;
+  serviceId?: string;
+  serviceVariantId?: string | null;
 }
 
 function SubmittedFormStructuredView({
@@ -2248,20 +2773,123 @@ function SubmittedFormStructuredView({
   formFieldValues,
   onPreviewFile,
   sectionNumber = '3',
+  serviceId,
+  serviceVariantId,
 }: SubmittedFormStructuredViewProps) {
-  const { width } = useWindowDimensions();
-  const isDesktop = width >= 768;
+  const api = useApi();
+  const { data: allServicesRes } = api.useQuery<{ succeeded?: boolean; data?: Array<{ id: string; name?: string; title?: string }> }>('/api/v2/services?pageSize=9999');
 
-  const {
-    technicalSpecs,
-    academicSpecs,
-    operationalSpecs,
-    declarations,
-    signatures,
-  } = useMemo(() => {
-    const tech: Array<{ fieldId: string; fieldLabel: string; value: string }> = [];
-    const acad: Array<{ fieldId: string; fieldLabel: string; value: string }> = [];
-    const oper: Array<{ fieldId: string; fieldLabel: string; value: string }> = [];
+  const resolvedServiceId = useMemo(() => {
+    if (isGuid(serviceId)) return serviceId;
+    if (isGuid(app.serviceId)) return app.serviceId;
+
+    const serviceList = allServicesRes?.data || [];
+    const targetName = (app.serviceName || '').toLowerCase().trim();
+    if (!targetName) return undefined;
+
+    const matched = serviceList.find(
+      (s) => (s.name || s.title || '').toLowerCase().trim() === targetName
+    );
+    return matched?.id;
+  }, [serviceId, app.serviceId, app.serviceName, allServicesRes]);
+
+  const effectiveServiceId = resolvedServiceId || serviceId || app.serviceId;
+  const effectiveVariantId = serviceVariantId || app.serviceVariantId;
+  const { form } = useServiceForm(effectiveServiceId, effectiveVariantId);
+
+  const serviceCategoryLower = (app.serviceCategory || '').toLowerCase().trim();
+  const serviceTitleLower = (app.serviceName || '').toLowerCase().trim();
+
+  const isExamService =
+    serviceCategoryLower.includes('exam') ||
+    serviceTitleLower.includes('exam') ||
+    serviceTitleLower.includes('admission') ||
+    serviceTitleLower.includes('operator examination');
+
+  const renderedFieldIds = useMemo(() => new Set<string>(), [formFieldValues]);
+
+  // 1. Build Structured Dynamic Form Sections if schema is available
+  const dynamicSectionsToRender = useMemo(() => {
+    if (!form || !form.sections || !Array.isArray(form.sections) || form.sections.length === 0) {
+      return [];
+    }
+
+    const result: Array<{
+      id: string;
+      title: string;
+      icon: React.ComponentProps<typeof Icon>['name'];
+      accentColor: string;
+      fields: Array<{ fieldId: string; label: string; value: string }>;
+    }> = [];
+
+    form.sections.forEach((section, sIdx) => {
+      const sectionKey = section.key || section.id || '';
+      const sectionTitle = section.title || `Section ${sIdx + 1}`;
+
+      if (isUnrelatedSection(sectionTitle) || isUnrelatedSection(sectionKey)) {
+        return;
+      }
+
+      const sectionFields: Array<{ fieldId: string; label: string; value: string }> = [];
+
+      (section.fields || []).forEach((field) => {
+        const fieldId = field.fieldId || field.id || '';
+        const fieldLabel = field.label || '';
+
+        if (
+          isApplicantParticularField(fieldLabel) ||
+          isApplicantParticularField(fieldId) ||
+          isSignatureOrDeclarationField(fieldLabel) ||
+          isSignatureOrDeclarationField(fieldId) ||
+          isJurisdictionOrVariantField(fieldLabel) ||
+          isJurisdictionOrVariantField(fieldId)
+        ) {
+          renderedFieldIds.add(fieldId);
+          renderedFieldIds.add(fieldLabel);
+          return;
+        }
+
+        const matchedFv = formFieldValues.find(
+          (fv) =>
+            fv.fieldId === fieldId ||
+            fv.fieldLabel.toLowerCase().trim() === fieldLabel.toLowerCase().trim()
+        );
+
+        if (matchedFv && matchedFv.value && matchedFv.value.trim() !== '') {
+          const val = matchedFv.value.trim();
+          if (
+            val.toUpperCase() !== 'N/A' &&
+            val.toUpperCase() !== 'NA' &&
+            val !== '-' &&
+            val !== '[]' &&
+            val !== '{}'
+          ) {
+            sectionFields.push({ fieldId, label: fieldLabel || matchedFv.fieldLabel, value: val });
+            renderedFieldIds.add(fieldId);
+            renderedFieldIds.add(matchedFv.fieldId);
+            renderedFieldIds.add(fieldLabel);
+            renderedFieldIds.add(matchedFv.fieldLabel);
+          }
+        }
+      });
+
+      if (sectionFields.length > 0) {
+        result.push({
+          id: section.id || sectionKey || `sec-${sIdx}`,
+          title: sectionTitle,
+          icon: getSectionIcon(sectionTitle),
+          accentColor: getSectionAccentColor(result.length),
+          fields: sectionFields,
+        });
+      }
+    });
+
+    return result;
+  }, [form, formFieldValues, renderedFieldIds]);
+
+  // 2. Classify remaining fields & signatures
+  const { remainingSpecs, declarations, signatures } = useMemo(() => {
+    const specs: Array<{ fieldId: string; fieldLabel: string; value: string }> = [];
     const decs: Array<{ fieldId: string; fieldLabel: string; value: string }> = [];
     const sigs: Array<{ fieldId: string; fieldLabel: string; value: string }> = [];
 
@@ -2295,112 +2923,139 @@ function SubmittedFormStructuredView({
       } else if (isDec) {
         decs.push(field);
       } else if (
-        labelLower.includes('school') ||
-        labelLower.includes('university') ||
-        labelLower.includes('college') ||
-        labelLower.includes('course') ||
-        labelLower.includes('degree') ||
-        labelLower.includes('graduate') ||
-        labelLower.includes('education') ||
-        labelLower.includes('tin') ||
-        labelLower.includes('sss') ||
-        labelLower.includes('gsis') ||
-        labelLower.includes('profession') ||
-        labelLower.includes('occupation') ||
-        labelLower.includes('employer')
+        !renderedFieldIds.has(field.fieldId) &&
+        !renderedFieldIds.has(field.fieldLabel) &&
+        !isApplicantParticularField(field.fieldLabel) &&
+        !isApplicantParticularField(field.fieldId) &&
+        !isJurisdictionOrVariantField(field.fieldLabel) &&
+        !isJurisdictionOrVariantField(field.fieldId)
       ) {
-        acad.push(field);
-      } else if (
-        labelLower.includes('power') ||
-        labelLower.includes('frequency') ||
-        labelLower.includes('antenna') ||
-        labelLower.includes('channel') ||
-        labelLower.includes('transmitter') ||
-        labelLower.includes('receiver') ||
-        labelLower.includes('model') ||
-        labelLower.includes('serial') ||
-        labelLower.includes('equipment') ||
-        labelLower.includes('call sign') ||
-        labelLower.includes('callsign') ||
-        labelLower.includes('bandwidth') ||
-        labelLower.includes('emission') ||
-        labelLower.includes('station') ||
-        labelLower.includes('class') ||
-        labelLower.includes('element')
-      ) {
-        tech.push(field);
-      } else {
-        oper.push(field);
+        specs.push(field);
       }
     }
 
-    return {
-      technicalSpecs: tech,
-      academicSpecs: acad,
-      operationalSpecs: oper,
-      declarations: decs,
-      signatures: sigs,
-    };
-  }, [formFieldValues]);
+    return { remainingSpecs: specs, declarations: decs, signatures: sigs };
+  }, [formFieldValues, renderedFieldIds]);
 
-  const renderParamGrid = (
-    fields: Array<{ fieldId: string; fieldLabel: string; value: string }>
-  ) => (
-    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
-      {fields.map((field, idx) => {
-        const val = field.value.trim();
-        return (
-          <View
-            key={field.fieldId || `fld-grid-${idx}`}
-            style={{ width: isDesktop ? '48.5%' : '100%' }}
-          >
-            <SummaryRow
-              label={field.fieldLabel || formatFieldKey(field.fieldId)}
-              value={val}
-              onPreviewFile={onPreviewFile}
-            />
-          </View>
-        );
-      })}
-    </View>
-  );
+  const examEducationFields = useMemo(() => {
+    if (!isExamService) return [];
+    return remainingSpecs.filter(
+      (f) =>
+        f.fieldLabel.toLowerCase().includes('school') ||
+        f.fieldLabel.toLowerCase().includes('course') ||
+        f.fieldLabel.toLowerCase().includes('degree') ||
+        f.fieldLabel.toLowerCase().includes('educat') ||
+        f.fieldLabel.toLowerCase().includes('attain') ||
+        f.fieldLabel.toLowerCase().includes('graduat') ||
+        f.fieldLabel.toLowerCase().includes('year') ||
+        f.fieldId.toLowerCase().includes('school') ||
+        f.fieldId.toLowerCase().includes('course') ||
+        f.fieldId.toLowerCase().includes('degree') ||
+        f.fieldId.toLowerCase().includes('educat') ||
+        f.fieldId.toLowerCase().includes('graduat')
+    );
+  }, [isExamService, remainingSpecs]);
+
+  const examAssistanceFields = useMemo(() => {
+    if (!isExamService) return [];
+    return remainingSpecs.filter(
+      (f) =>
+        f.fieldLabel.toLowerCase().includes('assist') ||
+        f.fieldLabel.toLowerCase().includes('special') ||
+        f.fieldLabel.toLowerCase().includes('pwd') ||
+        f.fieldLabel.toLowerCase().includes('accommodat') ||
+        f.fieldLabel.toLowerCase().includes('needs') ||
+        f.fieldId.toLowerCase().includes('assist') ||
+        f.fieldId.toLowerCase().includes('special') ||
+        f.fieldId.toLowerCase().includes('pwd') ||
+        f.fieldId.toLowerCase().includes('needs')
+    );
+  }, [isExamService, remainingSpecs]);
+
+  const nonExamRemainingFields = useMemo(() => {
+    if (isExamService) return [];
+    return remainingSpecs.filter(
+      (f) =>
+        !examEducationFields.some((ef) => ef.fieldId === f.fieldId) &&
+        !examAssistanceFields.some((af) => af.fieldId === f.fieldId)
+    );
+  }, [isExamService, remainingSpecs, examEducationFields, examAssistanceFields]);
 
   return (
     <View style={{ gap: 16 }}>
-      {/* ── Sub-card A: Technical & Equipment Specifications ─────────────── */}
-      {technicalSpecs.length > 0 && (
+      {/* ── Dynamic Form Schema Sections (Matches Review / Summary Step) ── */}
+      {dynamicSectionsToRender.map((sec) => (
         <SectionCard
-          icon="cpu"
-          title={`${sectionNumber}. Technical & Equipment Specifications`}
+          key={sec.id}
+          icon={sec.icon}
+          title={sec.title}
+          accentColor={sec.accentColor}
+        >
+          <View style={{ gap: 8 }}>
+            {sec.fields.map((fld) => (
+              <SummaryRow
+                key={fld.fieldId}
+                label={fld.label}
+                value={fld.value}
+                onPreviewFile={onPreviewFile}
+              />
+            ))}
+          </View>
+        </SectionCard>
+      ))}
+
+      {/* ── Exam-Specific Clean Logical Sections ── */}
+      {isExamService && examEducationFields.length > 0 && (
+        <SectionCard icon="book-open" title="Educational Background & Qualifications" accentColor="#0284C7">
+          <View style={{ gap: 8 }}>
+            {examEducationFields.map((fv) => (
+              <SummaryRow
+                key={fv.fieldId}
+                label={fv.fieldLabel || formatFieldKey(fv.fieldId)}
+                value={fv.value}
+                onPreviewFile={onPreviewFile}
+              />
+            ))}
+          </View>
+        </SectionCard>
+      )}
+
+      {isExamService && examAssistanceFields.length > 0 && (
+        <SectionCard icon="info" title="Special Needs & Assistance Request" accentColor="#0D9488">
+          <View style={{ gap: 8 }}>
+            {examAssistanceFields.map((fv) => (
+              <SummaryRow
+                key={fv.fieldId}
+                label={fv.fieldLabel || formatFieldKey(fv.fieldId)}
+                value={fv.value}
+                onPreviewFile={onPreviewFile}
+              />
+            ))}
+          </View>
+        </SectionCard>
+      )}
+
+      {/* ── Non-Exam Unmapped Form Fields (if any) ── */}
+      {!isExamService && dynamicSectionsToRender.length === 0 && nonExamRemainingFields.length > 0 && (
+        <SectionCard
+          icon="file-text"
+          title="Application Particulars & Technical Details"
           accentColor="#0284C7"
         >
-          {renderParamGrid(technicalSpecs)}
+          <View style={{ gap: 8 }}>
+            {nonExamRemainingFields.map((field, idx) => (
+              <SummaryRow
+                key={field.fieldId || `fld-${idx}`}
+                label={field.fieldLabel || formatFieldKey(field.fieldId)}
+                value={field.value}
+                onPreviewFile={onPreviewFile}
+              />
+            ))}
+          </View>
         </SectionCard>
       )}
 
-      {/* ── Sub-card B: Academic & Professional Background ────────────────── */}
-      {academicSpecs.length > 0 && (
-        <SectionCard
-          icon="book-open"
-          title={`${sectionNumber}. Academic & Professional Background`}
-          accentColor="#7C3AED"
-        >
-          {renderParamGrid(academicSpecs)}
-        </SectionCard>
-      )}
-
-      {/* ── Sub-card C: Operational & Additional Particulars ──────────────── */}
-      {operationalSpecs.length > 0 && (
-        <SectionCard
-          icon="layers"
-          title={`${sectionNumber}. Operational & Application Particulars`}
-          accentColor="#4F46E5"
-        >
-          {renderParamGrid(operationalSpecs)}
-        </SectionCard>
-      )}
-
-      {/* ── Sub-card D: Legal Declarations & Affirmations ─────────────────── */}
+      {/* ── Legal Declarations & Affirmations ── */}
       {declarations.length > 0 && (
         <SectionCard
           icon="check-circle"
@@ -2419,10 +3074,10 @@ function SubmittedFormStructuredView({
         </SectionCard>
       )}
 
-      {/* ── Sub-card E: Official Electronic Signature Certificate ──────────── */}
+      {/* ── Official Electronic Signature Certificate ── */}
       <SectionCard
         icon="shield"
-        title="Official Electronic Signature & Certificate"
+        title="Acknowledgement & Digital Signature"
         accentColor="#0F2C59"
       >
         <View

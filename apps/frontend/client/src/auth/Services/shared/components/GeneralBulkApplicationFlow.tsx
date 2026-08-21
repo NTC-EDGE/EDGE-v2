@@ -40,6 +40,8 @@ interface GeneralBulkApplicationFlowProps {
   setDynamicRequiredFieldIds?: (ids: string[]) => void;
   variants?: ServiceVariantInfo[];
   variantElements?: ServiceVariantElementInfo[];
+  onSaveDraft?: () => void;
+  isSavingDraft?: boolean;
 }
 
 import { getApplicantDisplayName } from "../helpers/applicantDisplayHelper";
@@ -60,6 +62,8 @@ export function GeneralBulkApplicationFlow({
   setDynamicRequiredFieldIds,
   variants = [],
   variantElements = [],
+  onSaveDraft,
+  isSavingDraft = false,
 }: GeneralBulkApplicationFlowProps) {
   const [subView, setSubView] = useState<BulkSubView>("FILING_DETAILS");
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -185,10 +189,12 @@ export function GeneralBulkApplicationFlow({
     }
 
     setFormErrors({});
+    onSaveDraft?.();
     setSubView("DOCUMENT_UPLOAD");
   };
 
   const handleDocumentUploadNext = () => {
+    onSaveDraft?.();
     if (currentApplicantIndex < applicants.length - 1) {
       setCurrentApplicantIndex(currentApplicantIndex + 1);
       setSubView("FILING_DETAILS");
@@ -218,13 +224,37 @@ export function GeneralBulkApplicationFlow({
         showsVerticalScrollIndicator={true}
       >
         {/* Page Header */}
-        <View style={{ marginBottom: 16 }}>
-          <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 20, fontWeight: "700", color: "#0F172A", marginBottom: 4 }}>
-            {service.title}
-          </Text>
-          <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: "#64748B" }}>
-            Bulk / Corporate Filing — {subView === "FILING_DETAILS" ? "Applicant Information & Parameters" : "Mandatory Document Attachments"}
-          </Text>
+        <View style={{ marginBottom: 16, flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <View style={{ flex: 1, paddingRight: 12 }}>
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 20, fontWeight: "700", color: "#0F172A", marginBottom: 4 }}>
+              {service.title}
+            </Text>
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: "#64748B" }}>
+              Bulk / Corporate Filing — {subView === "FILING_DETAILS" ? "Applicant Information & Parameters" : "Mandatory Document Attachments"}
+            </Text>
+          </View>
+          {onSaveDraft && (
+            <TouchableOpacity
+              onPress={onSaveDraft}
+              disabled={isSavingDraft}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 6,
+                backgroundColor: "#FFFFFF",
+                borderWidth: 1,
+                borderColor: "#CBD5E1",
+                borderRadius: 8,
+                paddingHorizontal: 12,
+                paddingVertical: 8,
+              }}
+            >
+              <Icon name="save" size={14} color="#0F2C59" />
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, fontWeight: "700", color: "#0F2C59" }}>
+                {isSavingDraft ? "Saving Draft..." : "Save Draft"}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Sub-header Banner */}
