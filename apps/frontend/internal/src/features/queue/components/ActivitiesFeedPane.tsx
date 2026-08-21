@@ -132,6 +132,7 @@ export function ActivitiesFeedPane({
   });
 
   const applications = useMemo(() => {
+    if (!Array.isArray(rawDtos)) return [];
     return rawDtos.map(mapApplicationDtoToUI);
   }, [rawDtos]);
 
