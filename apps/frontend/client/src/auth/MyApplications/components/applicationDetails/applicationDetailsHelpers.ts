@@ -1,6 +1,39 @@
+/**
+ * applicationDetailsHelpers.ts — backward-compat re-export bridge
+ *
+ * Data-extraction helpers remain here (extractApplicantFullName, resolveBirthDate,
+ * resolveCivilStatus). Everything else is now re-exported from the shared
+ * formPreview module so changes in one place propagate everywhere.
+ */
+
 import { Application } from '../../data/applicationsData';
 import { FIELD_ID_FULL_NAME, FIELD_ID_BIRTH_DATE, FIELD_ID_CIVIL_STATUS } from '../../../../shared/constants/fieldIds';
 import { RawFormFieldItem, RawApplicantDetails, RawApplicantHolder } from './applicationDetailsTypes';
+
+// ─── Re-exports from shared module (single source of truth) ──────────────────
+
+export {
+  isUnrelatedSection,
+  isRemovedAmateurSection,
+  isApplicantParticularField,
+  isSignatureOrDeclarationField,
+  isJurisdictionOrVariantField,
+  isRemovedAmateurField,
+  isRemovedVasField,
+  isExamEducationField,
+  isExamAssistanceField,
+  isRepeaterSubField,
+  isSuppressedValue,
+} from './applicationDetailsFieldCheckers';
+
+export {
+  getSectionIcon,
+  getSectionAccentColor,
+  isRecord,
+  formatFieldKey,
+} from '../../../../shared/formPreview/core/formPreviewHelpers';
+
+// ─── My Application-specific data extraction helpers ─────────────────────────
 
 export function extractApplicantFullName(
   app: Application | null | undefined,
@@ -58,54 +91,3 @@ export function resolveCivilStatus(
   return details?.civilStatus ||
     rawFormFields.find((fv) => fv.fieldId === FIELD_ID_CIVIL_STATUS || fv.fieldId === 'civilStatus' || (fv.fieldLabel || '').toLowerCase().includes('civil') || (fv.fieldLabel || '').toLowerCase().includes('marital'))?.value || null;
 }
-
-export const formatFieldKey = (key: string): string => {
-  const map: Record<string, string> = {
-    firstname: 'First Name', lastname: 'Last Name', middlename: 'Middle Name',
-    email: 'Email Address', mobilenumber: 'Mobile Number', contactnumber: 'Contact Number',
-    streetaddress: 'Street Address', barangay: 'Barangay', citymunicipality: 'City / Municipality',
-    province: 'Province', region: 'Region', zipcode: 'Zip Code', nationality: 'Nationality',
-    sex: 'Sex / Gender', civilstatus: 'Civil Status', schoolattended: 'School Attended',
-    coursecompleted: 'Course / Degree Completed', yeargraduated: 'Year Graduated',
-    educationalattainment: 'Educational Attainment', specialneeds: 'Special Needs / Accommodation',
-  };
-  const lower = key.toLowerCase().replace(/[-_]/g, '');
-  if (map[lower]) return map[lower];
-  return key.replace(/_/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2').replace(/\b\w/g, (c) => c.toUpperCase());
-};
-
-export function isRecord(val: unknown): val is Record<string, unknown> {
-  return typeof val === 'object' && val !== null && !Array.isArray(val);
-}
-
-export {
-  isUnrelatedSection,
-  isRemovedAmateurSection,
-  isApplicantParticularField,
-  isSignatureOrDeclarationField,
-  isJurisdictionOrVariantField,
-  isRemovedAmateurField,
-  isRemovedVasField,
-  isExamEducationField,
-  isExamAssistanceField,
-} from './applicationDetailsFieldCheckers';
-
-export const getSectionIcon = (title: string): string => {
-  const lower = title.toLowerCase();
-  if (lower.includes('applicant') || lower.includes('personal') || lower.includes('contact')) return 'user';
-  if (lower.includes('education') || lower.includes('school') || lower.includes('training') || lower.includes('seminar') || lower.includes('exam')) return 'book-open';
-  if (lower.includes('assistance') || lower.includes('special') || lower.includes('pwd') || lower.includes('accommodation')) return 'info';
-  if (lower.includes('station') || lower.includes('location') || lower.includes('site') || lower.includes('address')) return 'map-pin';
-  if (lower.includes('equipment') || lower.includes('device') || lower.includes('transceiver') || lower.includes('technical')) return 'cpu';
-  if (lower.includes('antenna') || lower.includes('mast') || lower.includes('tower') || lower.includes('radio')) return 'radio';
-  if (lower.includes('personnel') || lower.includes('engineer') || lower.includes('technician') || lower.includes('pece') || lower.includes('ece')) return 'award';
-  if (lower.includes('vessel') || lower.includes('ship') || lower.includes('maritime')) return 'anchor';
-  if (lower.includes('aircraft') || lower.includes('aero')) return 'navigation';
-  if (lower.includes('document') || lower.includes('upload') || lower.includes('attachment')) return 'paperclip';
-  return 'file-text';
-};
-
-export const getSectionAccentColor = (idx: number): string => {
-  const colors = ['#7C3AED', '#0284C7', '#0D9488', '#4F46E5', '#D97706', '#2563EB', '#9333EA'];
-  return colors[idx % colors.length] ?? '#0F2C59';
-};

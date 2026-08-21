@@ -1,8 +1,10 @@
 import { useMemo } from 'react';
 import { useServiceForm } from '../../hooks/useServiceForm';
-import { GeneralReviewSubmitStepProps, DynamicSectionGroup } from './generalReviewTypes';
+import { GeneralReviewSubmitStepProps } from './generalReviewTypes';
 import { resolveServiceCategoryFlags, resolveApplicantParticulars } from './generalReviewResolvers';
-import { buildDynamicSectionsToRender, filterRemainingReviewFields } from './dynamicSectionsBuilder';
+import { buildDynamicSections } from '../../../../../shared/formPreview/core/buildDynamicSections';
+import { isExamEducationField, isExamAssistanceField } from '../../../../../shared/formPreview/core/formPreviewFieldCheckers';
+import { getPreviewExtension } from '../../../../../shared/formPreview/extensions';
 
 export function useGeneralReviewData(props: GeneralReviewSubmitStepProps) {
   const {
@@ -63,46 +65,24 @@ export function useGeneralReviewData(props: GeneralReviewSubmitStepProps) {
   const appModeLabel =
     appMode === 'SINGLE' ? 'Single Applicant' : appMode === 'BULK' ? 'Bulk / Group Filing' : '—';
 
+  const extension = useMemo(() => getPreviewExtension(service), [service]);
+
   const { dynamicSectionsToRender, remainingFields } = useMemo(() => {
-    const renderedIds = new Set<string>();
-    const sections = buildDynamicSectionsToRender(
-      form,
-      particulars.formFieldValues,
-      renderedIds,
-      categoryFlags.isAmateurCertService
-    );
-    const remaining = filterRemainingReviewFields(
-      particulars.formFieldValues,
-      renderedIds,
-      categoryFlags.isAmateurCertService
-    );
-    return { dynamicSectionsToRender: sections, remainingFields: remaining };
-  }, [form, particulars.formFieldValues, categoryFlags.isAmateurCertService]);
+    return buildDynamicSections(form, particulars.formFieldValues, {
+      isAmateurCertService: categoryFlags.isAmateurCertService,
+      skipFieldIds: extension?.skipFieldIds,
+      skipFieldLabels: extension?.skipFieldLabels,
+    });
+  }, [form, particulars.formFieldValues, categoryFlags.isAmateurCertService, extension]);
 
   const examEducationFields = useMemo(() => {
     if (!categoryFlags.isExamService) return [];
-    return remainingFields.filter(
-      (f) =>
-        f.fieldLabel.toLowerCase().includes('school') ||
-        f.fieldLabel.toLowerCase().includes('course') ||
-        f.fieldLabel.toLowerCase().includes('degree') ||
-        f.fieldLabel.toLowerCase().includes('education') ||
-        f.fieldLabel.toLowerCase().includes('attainment') ||
-        f.fieldLabel.toLowerCase().includes('graduated') ||
-        f.fieldLabel.toLowerCase().includes('year')
-    );
+    return remainingFields.filter((f) => isExamEducationField(f.fieldLabel, f.fieldId));
   }, [categoryFlags.isExamService, remainingFields]);
 
   const examAssistanceFields = useMemo(() => {
     if (!categoryFlags.isExamService) return [];
-    return remainingFields.filter(
-      (f) =>
-        f.fieldLabel.toLowerCase().includes('assist') ||
-        f.fieldLabel.toLowerCase().includes('special') ||
-        f.fieldLabel.toLowerCase().includes('pwd') ||
-        f.fieldLabel.toLowerCase().includes('accommodat') ||
-        f.fieldLabel.toLowerCase().includes('needs')
-    );
+    return remainingFields.filter((f) => isExamAssistanceField(f.fieldLabel, f.fieldId));
   }, [categoryFlags.isExamService, remainingFields]);
 
   return {
