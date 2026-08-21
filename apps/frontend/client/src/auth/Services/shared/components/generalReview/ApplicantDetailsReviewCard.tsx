@@ -46,7 +46,12 @@ export function ApplicantDetailsReviewCard({
 
   return (
     <SectionCard icon="user" title="Applicant Details" accentColor="#1D4ED8">
-      {resolvedFullName !== null && <SummaryRow label="Full Legal Name" value={resolvedFullName} />}
+      {resolvedFullName !== null && (
+        <SummaryRow
+          label={activeApplicant.applicantType === 'company' ? 'Applicant / Company Name' : 'Full Legal Name'}
+          value={resolvedFullName}
+        />
+      )}
       {activeApplicant.applicantType === 'company' && activeApplicant.companyName ? (
         <SummaryRow label="Registered Business / Corporate Name" value={activeApplicant.companyName} />
       ) : null}

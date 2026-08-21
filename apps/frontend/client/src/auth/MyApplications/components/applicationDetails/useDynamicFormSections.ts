@@ -7,6 +7,10 @@ import {
   isApplicantParticularField,
   isSignatureOrDeclarationField,
   isJurisdictionOrVariantField,
+  isRemovedAmateurField,
+  isRemovedVasField,
+  isExamEducationField,
+  isExamAssistanceField,
   getSectionIcon,
   getSectionAccentColor,
 } from './applicationDetailsHelpers';
@@ -32,6 +36,15 @@ export function useDynamicFormSections(
     serviceTitleLower.includes('ntc_1_03') ||
     (app.serviceId || '').toLowerCase().includes('103');
 
+  const isVasCert =
+    serviceCategoryLower.includes('vas') ||
+    serviceTitleLower.includes('vas') ||
+    serviceTitleLower.includes('value-added') ||
+    serviceTitleLower.includes('ntc 1-20') ||
+    serviceTitleLower.includes('ntc_1_20') ||
+    (app.serviceId || '').toLowerCase().includes('120') ||
+    (app.serviceId || '').toLowerCase().includes('f20');
+
   const renderedFieldIds = useMemo(() => new Set<string>(), [formFieldValues]);
 
   // 1. Build Structured Dynamic Form Sections
@@ -49,7 +62,11 @@ export function useDynamicFormSections(
       const sectionKey = section.key || section.id || '';
       const sectionTitle = section.title || `Section ${sIdx + 1}`;
 
-      if (isUnrelatedSection(sectionTitle) || isUnrelatedSection(sectionKey) || (isAmateurCert && (isRemovedAmateurSection(sectionTitle) || isRemovedAmateurSection(sectionKey)))) {
+      if (
+        isUnrelatedSection(sectionTitle) ||
+        isUnrelatedSection(sectionKey) ||
+        (isAmateurCert && (isRemovedAmateurSection(sectionTitle) || isRemovedAmateurSection(sectionKey)))
+      ) {
         (section.fields || []).forEach((field) => {
           if (field.fieldId) renderedFieldIds.add(field.fieldId);
           if (field.id) renderedFieldIds.add(field.id);
@@ -78,14 +95,29 @@ export function useDynamicFormSections(
           (fv) => fv.fieldId === fieldId || fv.fieldLabel.toLowerCase().trim() === fieldLabel.toLowerCase().trim()
         );
 
-        if (matchedFv?.value && matchedFv.value.trim() !== '') {
-          const val = matchedFv.value.trim();
+        let val = matchedFv?.value ? matchedFv.value.trim() : '';
+
+        // Auto-assign NTC official text if blank for official assignment sections
+        const fieldIdLower = fieldId.toLowerCase();
+        const labelLower = fieldLabel.toLowerCase();
+        if (
+          !val &&
+          (fieldIdLower.includes('vasregistration') ||
+            fieldIdLower.includes('vas_reg') ||
+            labelLower.includes('vas registration') ||
+            fieldIdLower.includes('bsd') ||
+            labelLower.includes('bsd no'))
+        ) {
+          val = 'TO BE ASSIGNED BY NTC';
+        }
+
+        if (val && val !== '') {
           if (val.toUpperCase() !== 'N/A' && val.toUpperCase() !== 'NA' && val !== '-' && val !== '[]' && val !== '{}') {
-            sectionFields.push({ fieldId, label: fieldLabel || matchedFv.fieldLabel, value: val });
+            sectionFields.push({ fieldId, label: fieldLabel || matchedFv?.fieldLabel || fieldLabel, value: val });
             renderedFieldIds.add(fieldId);
-            renderedFieldIds.add(matchedFv.fieldId);
+            if (matchedFv?.fieldId) renderedFieldIds.add(matchedFv.fieldId);
             renderedFieldIds.add(fieldLabel);
-            renderedFieldIds.add(matchedFv.fieldLabel);
+            if (matchedFv?.fieldLabel) renderedFieldIds.add(matchedFv.fieldLabel);
           }
         }
       });
@@ -132,48 +164,23 @@ export function useDynamicFormSections(
         !isApplicantParticularField(field.fieldLabel) && !isApplicantParticularField(field.fieldId) &&
         !isJurisdictionOrVariantField(field.fieldLabel) && !isJurisdictionOrVariantField(field.fieldId)
       ) {
-        if (isAmateurCert) {
-          const idLower = field.fieldId.toLowerCase();
-          const isRemovedField =
-            labelLower.includes('employment') || labelLower.includes('class of station') ||
-            labelLower.includes('classofstation') || labelLower.includes('club') ||
-            labelLower.includes('equipment') || labelLower.includes('permit') ||
-            labelLower.includes('license type') || labelLower.includes('certificate type') ||
-            labelLower.includes('nationality') || labelLower.includes('citizenship') ||
-            labelLower.includes('civil status') || labelLower.includes('civilstatus') ||
-            idLower.includes('employment') || idLower.includes('classofstation') ||
-            idLower.includes('club') || idLower.includes('equipment') ||
-            idLower.includes('permittype') || idLower.includes('nationality') ||
-            idLower.includes('civilstatus');
-          if (isRemovedField) continue;
-        }
+        if (isAmateurCert && isRemovedAmateurField(field.fieldLabel, field.fieldId)) continue;
+        if (isVasCert && isRemovedVasField(field.fieldLabel, field.fieldId)) continue;
         specs.push(field);
       }
     }
 
     return { remainingSpecs: specs, declarations: decs, signatures: sigs };
-  }, [formFieldValues, renderedFieldIds, isAmateurCert]);
+  }, [formFieldValues, renderedFieldIds, isAmateurCert, isVasCert]);
 
   const examEducationFields = useMemo(() => {
     if (!isExamService) return [];
-    return remainingSpecs.filter((f) => {
-      const lbl = f.fieldLabel.toLowerCase();
-      const id = f.fieldId.toLowerCase();
-      return lbl.includes('school') || lbl.includes('course') || lbl.includes('degree') || lbl.includes('educat') ||
-        lbl.includes('attain') || lbl.includes('graduat') || lbl.includes('year') || id.includes('school') ||
-        id.includes('course') || id.includes('degree') || id.includes('educat') || id.includes('graduat');
-    });
+    return remainingSpecs.filter((f) => isExamEducationField(f.fieldLabel, f.fieldId));
   }, [isExamService, remainingSpecs]);
 
   const examAssistanceFields = useMemo(() => {
     if (!isExamService) return [];
-    return remainingSpecs.filter((f) => {
-      const lbl = f.fieldLabel.toLowerCase();
-      const id = f.fieldId.toLowerCase();
-      return lbl.includes('assist') || lbl.includes('special') || lbl.includes('pwd') ||
-        lbl.includes('accommodat') || lbl.includes('needs') || id.includes('assist') ||
-        id.includes('special') || id.includes('pwd') || id.includes('needs');
-    });
+    return remainingSpecs.filter((f) => isExamAssistanceField(f.fieldLabel, f.fieldId));
   }, [isExamService, remainingSpecs]);
 
   const nonExamRemainingFields = useMemo(() => {

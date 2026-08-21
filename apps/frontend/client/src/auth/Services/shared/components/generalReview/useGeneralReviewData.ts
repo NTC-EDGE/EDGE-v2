@@ -63,15 +63,21 @@ export function useGeneralReviewData(props: GeneralReviewSubmitStepProps) {
   const appModeLabel =
     appMode === 'SINGLE' ? 'Single Applicant' : appMode === 'BULK' ? 'Bulk / Group Filing' : '—';
 
-  const renderedFieldIds = useMemo(() => new Set<string>(), [particulars.formFieldValues]);
-
-  const dynamicSectionsToRender: DynamicSectionGroup[] = useMemo(() => {
-    return buildDynamicSectionsToRender(form, particulars.formFieldValues, renderedFieldIds, categoryFlags.isAmateurCertService);
-  }, [form, particulars.formFieldValues, renderedFieldIds, categoryFlags.isAmateurCertService]);
-
-  const remainingFields = useMemo(() => {
-    return filterRemainingReviewFields(particulars.formFieldValues, renderedFieldIds, categoryFlags.isAmateurCertService);
-  }, [particulars.formFieldValues, renderedFieldIds, categoryFlags.isAmateurCertService]);
+  const { dynamicSectionsToRender, remainingFields } = useMemo(() => {
+    const renderedIds = new Set<string>();
+    const sections = buildDynamicSectionsToRender(
+      form,
+      particulars.formFieldValues,
+      renderedIds,
+      categoryFlags.isAmateurCertService
+    );
+    const remaining = filterRemainingReviewFields(
+      particulars.formFieldValues,
+      renderedIds,
+      categoryFlags.isAmateurCertService
+    );
+    return { dynamicSectionsToRender: sections, remainingFields: remaining };
+  }, [form, particulars.formFieldValues, categoryFlags.isAmateurCertService]);
 
   const examEducationFields = useMemo(() => {
     if (!categoryFlags.isExamService) return [];

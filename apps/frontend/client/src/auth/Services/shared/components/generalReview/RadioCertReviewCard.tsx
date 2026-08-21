@@ -7,15 +7,28 @@ import { SummaryRow } from './SummaryRow';
 interface RadioCertReviewCardProps {
   isCertificateService: boolean;
   isAmateurCertService: boolean;
+  serviceTitle?: string;
   radioCert?: RadioOperatorCertData | null;
 }
 
 export function RadioCertReviewCard({
   isCertificateService,
   isAmateurCertService,
+  serviceTitle = '',
   radioCert,
 }: RadioCertReviewCardProps) {
-  if (isAmateurCertService) {
+  const titleLower = serviceTitle.toLowerCase();
+  const isOtherCertService =
+    titleLower.includes('vas') ||
+    titleLower.includes('value-added') ||
+    titleLower.includes('tvro') ||
+    titleLower.includes('rfid') ||
+    titleLower.includes('device') ||
+    titleLower.includes('srd') ||
+    titleLower.includes('wdn') ||
+    titleLower.includes('copy of');
+
+  if (isAmateurCertService || isOtherCertService) {
     return null;
   }
 

@@ -39,19 +39,10 @@ export function useServiceForm(serviceId: string | undefined, variantId?: string
       if (isMounted) setLoading(true);
 
       try {
-        // 1. Try variant-specific form first (if variant is known)
-        const primaryEndpoint = variantId
-          ? `/api/v2/services/${serviceId}/variants/${variantId}/form`
-          : `/api/v2/services/${serviceId}/form`;
-
-        let rawRes = await api.get<ApiResponseEnvelope<FormDto>>(primaryEndpoint).catch(() => null);
-        let formDto = rawRes?.data ?? null;
-
-        // 2. Fallback to base service form if variant-specific endpoint fails
-        if (!formDto && variantId) {
-          rawRes = await api.get<ApiResponseEnvelope<FormDto>>(`/api/v2/services/${serviceId}/form`).catch(() => null);
-          formDto = rawRes?.data ?? null;
-        }
+        // Query the seeded form definition for the service
+        const endpoint = `/api/v2/services/${serviceId}/form`;
+        const rawRes = await api.get<ApiResponseEnvelope<FormDto>>(endpoint).catch(() => null);
+        const formDto = rawRes?.data ?? null;
 
         if (isMounted) {
           // Only set form when the response has meaningful seeded sections

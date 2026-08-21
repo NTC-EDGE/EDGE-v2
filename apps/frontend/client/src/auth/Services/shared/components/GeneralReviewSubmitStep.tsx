@@ -89,48 +89,54 @@ export function GeneralReviewSubmitStep(props: GeneralReviewSubmitStepProps) {
         onPreviewFile={(uri, lbl) => handlePreviewFile(uri, lbl)}
       />
 
-      <AmateurStationLicenseReviewCard
-        isLicenseService={reviewData.isLicenseService}
-        amateur={activeApplicant.amateurLicenseData}
-      />
+      {reviewData.dynamicSectionsToRender.length === 0 && (
+        <>
+          <AmateurStationLicenseReviewCard
+            isLicenseService={reviewData.isLicenseService}
+            amateur={activeApplicant.amateurLicenseData}
+          />
 
-      <LifetimeAmateurLicenseReviewCard
-        isLicenseService={reviewData.isLicenseService}
-        lifetime={activeApplicant.lifetimeLicenseData}
-      />
+          <LifetimeAmateurLicenseReviewCard
+            isLicenseService={reviewData.isLicenseService}
+            lifetime={activeApplicant.lifetimeLicenseData}
+          />
 
-      <RadioCertReviewCard
-        isCertificateService={reviewData.isCertificateService}
-        isAmateurCertService={reviewData.isAmateurCertService}
-        radioCert={activeApplicant.radioCertData}
-      />
+          <RadioCertReviewCard
+            isCertificateService={reviewData.isCertificateService}
+            isAmateurCertService={reviewData.isAmateurCertService}
+            serviceTitle={service.title}
+            radioCert={activeApplicant.radioCertData}
+          />
 
-      <DeviceRegReviewCard
-        isCertificateService={reviewData.isCertificateService}
-        deviceReg={activeApplicant.deviceRegData}
-      />
+          <DeviceRegReviewCard
+            isCertificateService={reviewData.isCertificateService}
+            deviceReg={activeApplicant.deviceRegData}
+          />
 
-      <TvroRegReviewCard
-        isCertificateService={reviewData.isCertificateService}
-        serviceTitle={service.title}
-        tvroReg={activeApplicant.tvroRegData}
-      />
+          <TvroRegReviewCard
+            isCertificateService={reviewData.isCertificateService}
+            serviceTitle={service.title}
+            tvroReg={activeApplicant.tvroRegData}
+          />
 
-      <VasReviewCard
-        isCertificateService={reviewData.isCertificateService}
-        serviceTitle={service.title}
-        vasData={activeApplicant.vasData}
-      />
+          <VasReviewCard
+            isCertificateService={reviewData.isCertificateService}
+            serviceTitle={service.title}
+            vasData={activeApplicant.vasData}
+            formFieldValues={activeApplicant.formFieldValues}
+          />
 
-      <CopyOfCertReviewCard
-        serviceTitle={service.title}
-        copyOfCert={activeApplicant.copyOfCertData}
-      />
+          <CopyOfCertReviewCard
+            serviceTitle={service.title}
+            copyOfCert={activeApplicant.copyOfCertData}
+          />
 
-      <PermitDataReviewCard
-        isPermitService={reviewData.isPermitService}
-        permitData={activeApplicant.permitData}
-      />
+          <PermitDataReviewCard
+            isPermitService={reviewData.isPermitService}
+            permitData={activeApplicant.permitData}
+          />
+        </>
+      )}
 
       <UploadedDocumentsReviewCard
         activeApplicant={activeApplicant}

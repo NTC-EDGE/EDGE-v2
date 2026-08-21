@@ -74,7 +74,16 @@ export function buildDynamicSectionsToRender(
 
       if (matchedFv?.value && matchedFv.value.trim() !== '') {
         const val = matchedFv.value.trim();
-        if (val.toUpperCase() !== 'N/A' && val.toUpperCase() !== 'NA' && val !== '-' && val !== '[]' && val !== '{}') {
+        const valUpper = val.toUpperCase();
+        if (
+          valUpper !== 'N/A' &&
+          valUpper !== 'NA' &&
+          val !== '-' &&
+          val !== '[]' &&
+          val !== '{}' &&
+          !valUpper.includes('TO BE ASSIGNED BY NTC') &&
+          !valUpper.includes('TO BE ASSIGNED')
+        ) {
           sectionFields.push({ fieldId, label: fieldLabel || matchedFv.fieldLabel, value: val });
           renderedFieldIds.add(fieldId);
           renderedFieldIds.add(matchedFv.fieldId);
@@ -106,13 +115,54 @@ export function filterRemainingReviewFields(
   return formFieldValues.filter((fv) => {
     const fieldId = fv.fieldId || '';
     const label = fv.fieldLabel || '';
-    if (renderedFieldIds.has(fieldId) || renderedFieldIds.has(label)) return false;
+    const idLower = fieldId.toLowerCase().trim();
+    const labelLower = label.toLowerCase().trim();
+
+    if (
+      renderedFieldIds.has(fieldId) ||
+      renderedFieldIds.has(label) ||
+      renderedFieldIds.has(idLower) ||
+      renderedFieldIds.has(labelLower)
+    ) {
+      return false;
+    }
     if (isApplicantParticularField(label) || isApplicantParticularField(fieldId)) return false;
     if (isSignatureOrDeclarationField(label) || isSignatureOrDeclarationField(fieldId)) return false;
     if (isJurisdictionOrVariantField(label) || isJurisdictionOrVariantField(fieldId)) return false;
+
+    // Filter out individual repeater subfields and device fields from leaking into remaining fields
+    const isRepeaterSubField =
+      idLower === 'devicesdetails' ||
+      idLower.includes('devicesdetails') ||
+      idLower.includes('equipmentdetails') ||
+      idLower.includes('antennadetails') ||
+      idLower.includes('radioofficers') ||
+      labelLower.includes('registered devices') ||
+      labelLower.includes('devices details') ||
+      idLower === 'serialnumber' ||
+      idLower === 'serial_number' ||
+      idLower === 'serial number' ||
+      idLower === 'serialnumbers' ||
+      idLower === 'serial number(s)' ||
+      idLower === 'frequencyrange' ||
+      idLower === 'frequency_range' ||
+      idLower === 'frequency range' ||
+      idLower === 'poweroutput' ||
+      idLower === 'power_output' ||
+      idLower === 'power output' ||
+      idLower === 'make' ||
+      idLower === 'model' ||
+      idLower === 'type/model' ||
+      idLower === 'maketypeModel' ||
+      idLower === 'make / type / model' ||
+      idLower === 'devicetype' ||
+      idLower === 'device / equipment type' ||
+      idLower === 'fd000000-0000-0000-0000-000000000084' ||
+      idLower === 'fd000000-0000-0000-0000-000000000085' ||
+      idLower === 'fd000000-0000-0000-0000-000000000087';
+    if (isRepeaterSubField) return false;
+
     if (isAmateurCertService) {
-      const labelLower = label.toLowerCase();
-      const idLower = fieldId.toLowerCase();
       const isRemoved =
         labelLower.includes('employment') ||
         labelLower.includes('class of station') ||
@@ -135,7 +185,20 @@ export function filterRemainingReviewFields(
         idLower.includes('civilstatus');
       if (isRemoved) return false;
     }
-    if (!fv.value || fv.value.trim() === '' || fv.value.trim().toUpperCase() === 'N/A' || fv.value.trim().toUpperCase() === 'NA' || fv.value.trim() === '-') return false;
+    const val = (fv.value || '').trim();
+    const valUpper = val.toUpperCase();
+    if (
+      val === '' ||
+      valUpper === 'N/A' ||
+      valUpper === 'NA' ||
+      val === '-' ||
+      val === '[]' ||
+      val === '{}' ||
+      valUpper.includes('TO BE ASSIGNED BY NTC') ||
+      valUpper.includes('TO BE ASSIGNED')
+    ) {
+      return false;
+    }
     return true;
   });
 }

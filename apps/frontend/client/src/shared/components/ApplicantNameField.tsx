@@ -21,6 +21,7 @@ interface ApplicantNameFieldProps {
   value?: string;
   structuredValue?: Partial<StructuredNameData>;
   allowCompany?: boolean;
+  unifiedInput?: boolean;
   onChange: (fullName: string) => void;
   onStructuredChange?: (data: StructuredNameData) => void;
   error?: string;
@@ -42,10 +43,41 @@ export function ApplicantNameField({
   value = "",
   structuredValue,
   allowCompany = false,
+  unifiedInput = false,
   onChange,
   onStructuredChange,
   error,
 }: ApplicantNameFieldProps) {
+  if (unifiedInput) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.fieldsWrapper}>
+          <ValidatedInput
+            label={label || "Applicant / Company Name"}
+            required={isRequired}
+            placeholder="e.g. Globe Telecom Inc. / Converge ICT Solutions / Juan Dela Cruz"
+            value={value}
+            error={error && !value.trim() ? `${label || "Applicant Name"} is required.` : undefined}
+            onChangeText={(val) => {
+              onChange(val);
+              onStructuredChange?.({
+                applicantType: "company",
+                firstName: "",
+                middleName: "",
+                lastName: "",
+                suffix: "",
+                companyName: val,
+                representativeName: structuredValue?.representativeName,
+              });
+            }}
+          />
+        </View>
+        {error !== undefined && error.length > 0 && (
+          <Text style={styles.errorText}>{error}</Text>
+        )}
+      </View>
+    );
+  }
   const initialType: "individual" | "company" =
     structuredValue?.applicantType !== undefined
       ? structuredValue.applicantType

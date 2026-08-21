@@ -264,12 +264,55 @@ export const isGeneralApplicantComplete = (
   variantRequirements: Array<ServiceRequirementItem | string> = []
 ): boolean => {
   // 1. Basic details (must have valid name, email, contact number)
-  const hasFirstName = Boolean(app.firstName && app.firstName.trim().length > 0);
-  const hasLastName = Boolean(app.lastName && app.lastName.trim().length > 0);
-  const hasEmail = Boolean(app.email && isValidEmailAddress(app.email));
-  const hasContact = Boolean(app.contactNo && isValidContactNumber(app.contactNo));
+  const hasName =
+    (Boolean(app.firstName && app.firstName.trim().length > 0) && Boolean(app.lastName && app.lastName.trim().length > 0)) ||
+    Boolean(app.companyName && app.companyName.trim().length > 0) ||
+    Boolean(app.representativeName && app.representativeName.trim().length > 0) ||
+    Boolean(
+      app.formFieldValues?.some(
+        (fv) =>
+          ((fv.fieldId &&
+            (fv.fieldId.toLowerCase().includes("name") ||
+              fv.fieldId.toLowerCase().includes("fullname") ||
+              fv.fieldId.toLowerCase().includes("company") ||
+              fv.fieldId.toLowerCase().includes("applicant"))) ||
+            (fv.fieldLabel &&
+              (fv.fieldLabel.toLowerCase().includes("name") ||
+                fv.fieldLabel.toLowerCase().includes("applicant") ||
+                fv.fieldLabel.toLowerCase().includes("company")))) &&
+          fv.value &&
+          fv.value.trim().length > 0
+      )
+    );
 
-  if (!hasFirstName || !hasLastName || !hasEmail || !hasContact) {
+  const hasEmail =
+    Boolean(app.email && isValidEmailAddress(app.email)) ||
+    Boolean(
+      app.formFieldValues?.some(
+        (fv) =>
+          (fv.fieldId?.toLowerCase().includes("email") || fv.fieldLabel?.toLowerCase().includes("email")) &&
+          fv.value &&
+          isValidEmailAddress(fv.value.trim())
+      )
+    );
+
+  const hasContact =
+    Boolean(app.contactNo && isValidContactNumber(app.contactNo)) ||
+    Boolean(
+      app.formFieldValues?.some(
+        (fv) =>
+          (fv.fieldId?.toLowerCase().includes("contact") ||
+            fv.fieldLabel?.toLowerCase().includes("contact") ||
+            fv.fieldId?.toLowerCase().includes("phone") ||
+            fv.fieldLabel?.toLowerCase().includes("phone") ||
+            fv.fieldId?.toLowerCase().includes("mobile") ||
+            fv.fieldLabel?.toLowerCase().includes("mobile")) &&
+          fv.value &&
+          fv.value.trim().length > 0
+      )
+    );
+
+  if (!hasName || !hasEmail || !hasContact) {
     return false;
   }
 

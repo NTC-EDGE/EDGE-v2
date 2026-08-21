@@ -1,4 +1,4 @@
-﻿import React, { useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { View } from 'react-native';
 import { useApi } from '../../../../shared/hooks/useApi';
 import { useServiceForm } from '../../../Services/shared/hooks/useServiceForm';
@@ -133,26 +133,7 @@ export function SubmittedFormStructuredView({
         </SectionCard>
       )}
 
-      {/* Legal Declarations */}
-      {declarations.length > 0 && (
-        <SectionCard
-          icon="check-circle"
-          title="Legal Declarations & Affirmations"
-          accentColor="#16A34A"
-        >
-          <View style={{ gap: 8 }}>
-            {declarations.map((dec, idx) => (
-              <SummaryRow
-                key={dec.fieldId || `dec-${idx}`}
-                label={dec.fieldLabel || dec.fieldId}
-                value={dec.value}
-              />
-            ))}
-          </View>
-        </SectionCard>
-      )}
-
-      {/* Digital Signature */}
+      {/* Digital Signature & Consent */}
       <DigitalSignatureCard signatures={signatures} primaryName={primaryName} />
     </View>
   );

@@ -345,16 +345,30 @@ export function useClientSettings() {
 
         // 2. Persist to Clerk user unsafeMetadata
         if (clerkUser) {
-          const currentMeta = (clerkUser.unsafeMetadata || {}) as Record<string, unknown>;
-          await clerkUser.update({
-            unsafeMetadata: {
-              ...currentMeta,
-              profile: targetProfile,
-              preferences: targetPreferences,
-              notifications: targetNotifications,
-              eSignature: targetSignature,
-            },
-          });
+          const currentMeta =
+            typeof clerkUser.unsafeMetadata === "object" && clerkUser.unsafeMetadata !== null
+              ? clerkUser.unsafeMetadata
+              : {};
+          const safeSignatureToPersist =
+            targetSignature && targetSignature.length < 4000 ? targetSignature : undefined;
+
+          const updatedMetadataPayload = {
+            ...currentMeta,
+            profile: targetProfile,
+            preferences: targetPreferences,
+            notifications: targetNotifications,
+            ...(safeSignatureToPersist !== undefined ? { eSignature: safeSignatureToPersist } : {}),
+          };
+
+          if (typeof clerkUser.updateMetadata === "function") {
+            await clerkUser.updateMetadata({
+              unsafeMetadata: updatedMetadataPayload,
+            });
+          } else if (typeof clerkUser.update === "function") {
+            await clerkUser.update({
+              unsafeMetadata: updatedMetadataPayload,
+            });
+          }
 
           // Also update first/last name on Clerk if changed
           if (

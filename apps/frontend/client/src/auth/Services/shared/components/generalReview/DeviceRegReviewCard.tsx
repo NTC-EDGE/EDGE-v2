@@ -41,7 +41,6 @@ export function DeviceRegReviewCard({
           ) : null}
         </View>
         {deviceReg.businessName ? <SummaryRow label="Business Name" value={deviceReg.businessName} /> : null}
-        {deviceReg.dtiSecNo ? <SummaryRow label="DTI / SEC Reg No." value={deviceReg.dtiSecNo} /> : null}
       </View>
     </SectionCard>
   );

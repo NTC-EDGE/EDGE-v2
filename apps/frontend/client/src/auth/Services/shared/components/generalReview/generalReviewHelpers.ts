@@ -21,13 +21,29 @@ export const isUnrelatedSection = (titleOrKey: string): boolean => {
     lower.includes('applicant particular') ||
     lower.includes('applicant person') ||
     lower.includes('applicant contact') ||
+    lower.includes('applicant address') ||
     lower.includes('applicantperson') ||
     lower.includes('applicantinfo') ||
+    lower.includes('applicant / company details') ||
+    lower.includes('applicant company details') ||
+    lower.includes('applicant & company details') ||
+    lower.includes('applicant details') ||
+    lower.includes('applicants details') ||
+    lower.includes('company details') ||
+    lower.includes('company / corporation details') ||
+    lower.includes('company information') ||
+    lower.includes('corporate details') ||
+    lower.includes('representative details') ||
+    lower.includes('authorized representative') ||
     lower.includes('basic information') ||
     lower.includes('basic detail') ||
     lower.includes('contact information') ||
     lower.includes('contact detail') ||
     lower.includes('contact particular') ||
+    lower === 'applicant' ||
+    lower === 'applicantaddress' ||
+    lower === 'representative' ||
+    lower === 'companydetails' ||
     lower === 'declaration' ||
     lower === 'declaration of applicant' ||
     lower === 'acknowledgement' ||
@@ -54,6 +70,20 @@ export const isApplicantParticularField = (labelOrId: string): boolean => {
   if (!labelOrId) return false;
   const lower = labelOrId.toLowerCase().replace(/['']/g, '').replace(/[-_]/g, ' ').trim();
 
+  // DTI / SEC registration field
+  if (
+    lower.includes('sec / dti') ||
+    lower.includes('sec/dti') ||
+    lower.includes('dti / sec') ||
+    lower.includes('dti/sec') ||
+    lower.includes('dtisecregistration') ||
+    lower.includes('dti_sec_registration') ||
+    lower === 'fd000000 0000 0000 0000 000000000086' ||
+    lower === 'fd000000-0000-0000-0000-000000000086'
+  ) {
+    return true;
+  }
+
   if (
     lower.includes('dealer') ||
     lower.includes('seller') ||
@@ -69,7 +99,10 @@ export const isApplicantParticularField = (labelOrId: string): boolean => {
     lower.includes('ship') ||
     lower.includes('aircraft') ||
     lower.includes('exam') ||
-    lower.includes('seminar')
+    lower.includes('seminar') ||
+    lower.includes('known') ||
+    lower.includes('trade') ||
+    lower.includes('specify')
   ) {
     return false;
   }
@@ -119,7 +152,11 @@ export const isApplicantParticularField = (labelOrId: string): boolean => {
     lower.includes('province') ||
     lower.includes('region') ||
     lower.includes('zip') ||
-    lower.includes('postal')
+    lower.includes('postal') ||
+    lower.includes('sec / dti') ||
+    lower.includes('sec/dti') ||
+    lower.includes('dti') ||
+    lower.includes('sec')
   );
 };
 
@@ -139,9 +176,7 @@ export const isJurisdictionOrVariantField = (labelOrId: string): boolean => {
   if (!labelOrId) return false;
   const lower = labelOrId.toLowerCase().replace(/['']/g, '').replace(/[-_]/g, ' ').trim();
   return (
-    lower === 'service' ||
     lower === 'service category' ||
-    lower === 'category' ||
     lower === 'service name' ||
     lower === 'type of application' ||
     lower === 'application type' ||
@@ -157,7 +192,6 @@ export const isJurisdictionOrVariantField = (labelOrId: string): boolean => {
     lower.includes('permit/license type') ||
     lower.includes('permit / certificate type') ||
     lower.includes('permit/certificate type') ||
-    lower.includes('type of application') ||
     lower.includes('permit category') ||
     lower.includes('type of certificate')
   );

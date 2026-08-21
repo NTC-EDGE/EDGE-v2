@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { View } from 'react-native';
 import { SectionCard } from './SectionCard';
 import { SummaryRow } from './SummaryRow';
@@ -28,56 +28,94 @@ interface ApplicantParticularsCardProps {
 export function ApplicantParticularsCard({ singleApplicant, isDesktop }: ApplicantParticularsCardProps) {
   if (!singleApplicant) return null;
 
+  const hasBirthOrCivil = Boolean(singleApplicant.birthDate || singleApplicant.civilStatus);
+  const hasSexOrNationality = Boolean(singleApplicant.sex || singleApplicant.nationality);
+
+  const addressComponents = [
+    singleApplicant.streetAddress,
+    singleApplicant.barangay ? `Brgy. ${singleApplicant.barangay}` : '',
+    singleApplicant.cityMunicipality,
+    singleApplicant.province,
+    singleApplicant.region && singleApplicant.region !== 'N/A' ? `(${singleApplicant.region})` : '',
+    singleApplicant.zipCode,
+  ].filter(Boolean);
+  const fullAddress = addressComponents.join(', ');
+
   return (
     <SectionCard
       icon="user"
-      title="Named Individual / Applicant Particulars"
+      title="Applicant Details"
       accentColor="#1D4ED8"
     >
       <View style={{ gap: 4 }}>
-        <SummaryRow label="Full Legal Name" value={singleApplicant.applicantName} />
+        {singleApplicant.applicantName ? (
+          <SummaryRow
+            label={singleApplicant.companyName ? 'Applicant' : 'Full Legal Name'}
+            value={singleApplicant.applicantName}
+          />
+        ) : null}
 
-        <View style={{ flexDirection: isDesktop ? 'row' : 'column', gap: 8 }}>
-          <View style={{ flex: 1 }}>
-            <SummaryRow label="Birth Date" value={singleApplicant.birthDate} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <SummaryRow label="Civil Status" value={singleApplicant.civilStatus} />
-          </View>
-        </View>
+        {singleApplicant.companyName ? (
+          <SummaryRow label="Registered Business / Corporate Name" value={singleApplicant.companyName} />
+        ) : null}
 
-        <View style={{ flexDirection: isDesktop ? 'row' : 'column', gap: 8 }}>
-          <View style={{ flex: 1 }}>
-            <SummaryRow label="Sex / Gender" value={singleApplicant.sex} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <SummaryRow label="Citizenship / Nationality" value={singleApplicant.nationality} />
-          </View>
-        </View>
-
-        <SummaryRow
-          label="Residential / Complete Address"
-          value={`${singleApplicant.streetAddress}${singleApplicant.barangay ? `, Brgy. ${singleApplicant.barangay}` : ''}, ${singleApplicant.cityMunicipality}, ${singleApplicant.province}${singleApplicant.region !== 'N/A' ? ` (${singleApplicant.region})` : ''}${singleApplicant.zipCode ? ` ${singleApplicant.zipCode}` : ''}`}
-        />
-
-        <View style={{ flexDirection: isDesktop ? 'row' : 'column', gap: 8 }}>
-          <View style={{ flex: 1 }}>
-            <SummaryRow label="Mobile / Contact Number" value={singleApplicant.mobileNumber} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <SummaryRow label="Email Address" value={singleApplicant.email} />
-          </View>
-        </View>
-
-        {singleApplicant.companyName && (
-          <SummaryRow label="Corporate / Employer Name" value={singleApplicant.companyName} />
-        )}
-        {singleApplicant.representativeName && (
+        {singleApplicant.representativeName ? (
           <SummaryRow label="Authorized Representative" value={singleApplicant.representativeName} />
-        )}
-        {singleApplicant.notes && (
-          <SummaryRow label="Remarks / Special Notes" value={singleApplicant.notes} />
-        )}
+        ) : null}
+
+        <View style={{ flexDirection: isDesktop ? 'row' : 'column', gap: 8 }}>
+          {singleApplicant.email ? (
+            <View style={{ flex: 1 }}>
+              <SummaryRow label="Email Address" value={singleApplicant.email} />
+            </View>
+          ) : null}
+          {singleApplicant.mobileNumber ? (
+            <View style={{ flex: 1 }}>
+              <SummaryRow label="Contact / Mobile Number" value={singleApplicant.mobileNumber} />
+            </View>
+          ) : null}
+        </View>
+
+        {fullAddress.length > 0 ? (
+          <SummaryRow
+            label="Complete Residential / Office Address"
+            value={fullAddress}
+          />
+        ) : null}
+
+        {hasBirthOrCivil ? (
+          <View style={{ flexDirection: isDesktop ? 'row' : 'column', gap: 8 }}>
+            {singleApplicant.birthDate ? (
+              <View style={{ flex: 1 }}>
+                <SummaryRow label="Date of Birth" value={singleApplicant.birthDate} />
+              </View>
+            ) : null}
+            {singleApplicant.civilStatus ? (
+              <View style={{ flex: 1 }}>
+                <SummaryRow label="Civil Status" value={singleApplicant.civilStatus} />
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+
+        {hasSexOrNationality ? (
+          <View style={{ flexDirection: isDesktop ? 'row' : 'column', gap: 8 }}>
+            {singleApplicant.sex ? (
+              <View style={{ flex: 1 }}>
+                <SummaryRow label="Sex / Gender" value={singleApplicant.sex} />
+              </View>
+            ) : null}
+            {singleApplicant.nationality ? (
+              <View style={{ flex: 1 }}>
+                <SummaryRow label="Nationality / Citizenship" value={singleApplicant.nationality} />
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+
+        {singleApplicant.notes ? (
+          <SummaryRow label="Special Notes / Remarks" value={singleApplicant.notes} />
+        ) : null}
       </View>
     </SectionCard>
   );
