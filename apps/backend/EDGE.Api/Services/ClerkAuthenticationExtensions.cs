@@ -24,15 +24,21 @@ public static class ClerkAuthenticationExtensions
         }
 
         var validIssuers = new System.Collections.Generic.List<string>();
-        if (!string.IsNullOrWhiteSpace(clerkAuthority))
+        validIssuers.Add(clerkAuthority.TrimEnd('/'));
+        validIssuers.Add(clerkAuthority.TrimEnd('/') + "/");
+
+        var configuredIssuers = configuration.GetSection("Clerk:ValidIssuers").Get<string[]>();
+        if (configuredIssuers != null)
         {
-            validIssuers.Add(clerkAuthority.TrimEnd('/'));
-            validIssuers.Add(clerkAuthority.TrimEnd('/') + "/");
+            foreach (var issuer in configuredIssuers)
+            {
+                if (!string.IsNullOrWhiteSpace(issuer))
+                {
+                    validIssuers.Add(issuer.TrimEnd('/'));
+                    validIssuers.Add(issuer.TrimEnd('/') + "/");
+                }
+            }
         }
-        validIssuers.Add("https://wired-boar-76.clerk.accounts.dev");
-        validIssuers.Add("https://wired-boar-76.clerk.accounts.dev/");
-        validIssuers.Add("https://easy-snipe-36.clerk.accounts.dev");
-        validIssuers.Add("https://easy-snipe-36.clerk.accounts.dev/");
 
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer(options =>
