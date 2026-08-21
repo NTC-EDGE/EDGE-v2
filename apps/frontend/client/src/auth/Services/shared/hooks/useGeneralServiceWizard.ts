@@ -33,6 +33,7 @@ import {
 import { isValidContactNumber, isValidEmailAddress } from "../../../../shared/helpers/fieldValidators";
 import { extractUserProfile } from "../../../../shared/utils/userProfileHelper";
 import { uploadRequirementsAfterSubmit } from "../helpers/requirementUploadHelper";
+import { useServiceForm } from "./useServiceForm";
 
 const isGuid = (val?: string | null): boolean => {
   if (!val || typeof val !== "string") return false;
@@ -72,6 +73,8 @@ export interface GeneralApplicantData {
   applicantType?: "individual" | "company";
   companyName?: string;
   representativeName?: string;
+  representativePosition?: string;
+  dtiSecRegistration?: string;
   email: string;
   contactNo: string;
   sex?: string;
@@ -123,6 +126,8 @@ export const initialGeneralApplicant = (id: number): GeneralApplicantData => ({
   applicantType: "individual",
   companyName: "",
   representativeName: "",
+  representativePosition: "",
+  dtiSecRegistration: "",
   email: "",
   contactNo: "",
   address: "",
@@ -551,9 +556,9 @@ export function useGeneralServiceWizard(
     return () => { active = false; };
   }, [currentStep, service?.id]);
 
-  // Fetch variant elements when a variant is selected in Step 2/3
   const activeApplicant = applicants[currentApplicantIndex] || initialGeneralApplicant(1);
   const effectiveVariantId = activeApplicant.selectedVariantId || (variants[0] ? variants[0].id : null);
+  const { form } = useServiceForm(service?.id, effectiveVariantId);
 
   React.useEffect(() => {
     let active = true;
@@ -673,6 +678,8 @@ export function useGeneralServiceWizard(
         prev.map((app, idx) => {
           if (idx !== 0) return app;
           const isBlank = !app.firstName && !app.lastName && !app.email && !app.contactNo && !app.selectedVariantId;
+          const repName = app.representativeName || initialProfile.representativeName || initialProfile.fullName || [initialProfile.firstName, initialProfile.lastName].filter(Boolean).join(" ");
+          const repPos = app.representativePosition || initialProfile.designation || initialProfile.position || "";
           return {
             ...app,
             firstName: app.firstName || initialProfile.firstName,
@@ -693,6 +700,9 @@ export function useGeneralServiceWizard(
             birthMonth: isBlank ? initialProfile.birthMonth : app.birthMonth,
             birthDay: isBlank ? initialProfile.birthDay : app.birthDay,
             companyName: app.companyName || initialProfile.companyName,
+            representativeName: repName,
+            representativePosition: repPos,
+            dtiSecRegistration: app.dtiSecRegistration || "",
           };
         })
       );
@@ -713,6 +723,8 @@ export function useGeneralServiceWizard(
           prev.map((app, idx) => {
             if (idx !== 0) return app;
             const isBlank = !app.firstName && !app.lastName && !app.email && !app.contactNo && !app.selectedVariantId;
+            const repName = app.representativeName || enriched.representativeName || enriched.fullName || [enriched.firstName, enriched.lastName].filter(Boolean).join(" ");
+            const repPos = app.representativePosition || enriched.designation || enriched.position || "";
             return {
               ...app,
               firstName: app.firstName || enriched.firstName,
@@ -733,6 +745,9 @@ export function useGeneralServiceWizard(
               birthMonth: isBlank ? enriched.birthMonth : app.birthMonth,
               birthDay: isBlank ? enriched.birthDay : app.birthDay,
               companyName: app.companyName || enriched.companyName,
+              representativeName: repName,
+              representativePosition: repPos,
+              dtiSecRegistration: app.dtiSecRegistration || "",
             };
           })
         );
@@ -846,10 +861,11 @@ export function useGeneralServiceWizard(
       }
     }
 
+    const flatFormFields = form?.sections?.flatMap((s) => s.fields || []) || [];
     let mappedApplicants: ReturnType<typeof serializeCertificateApplicant>[] = [];
     try {
       mappedApplicants = applicants.map((app) =>
-        serializeCertificateApplicant(app, service, [])
+        serializeCertificateApplicant(app, service, flatFormFields)
       );
     } catch (serializationErr: unknown) {
       const serializationMsg =

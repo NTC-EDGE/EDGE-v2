@@ -199,14 +199,21 @@ public class SubmitApplicationCommandHandler
 
                 foreach (var applicantDto in request.Applicants)
                 {
-                    var unknownFields = applicantDto.FormFieldValues
+                    var invalidFields = applicantDto.FormFieldValues
                         .Where(fv => fv.FieldId.HasValue && fv.FieldId.Value != Guid.Empty && !validFieldIds.Contains(fv.FieldId.Value))
-                        .Select(fv => fv.FieldId!.Value)
                         .ToList();
 
-                    if (unknownFields.Any())
-                        return ApiResponse<Guid>.Fail(
-                            $"Validation Error: Unknown FieldId(s): {string.Join(", ", unknownFields)}");
+                    if (invalidFields.Count > 0)
+                    {
+                        _logger.LogWarning(
+                            "Sanitizing submitted form for applicant: {Count} FormFieldValue(s) with unknown FieldIds for Form '{FormId}' (Service '{ServiceId}') were removed. Potential client schema mismatch. Removed FieldIds: {RemovedFieldIds}",
+                            invalidFields.Count,
+                            form.Id,
+                            service.Id,
+                            string.Join(", ", invalidFields.Select(f => f.FieldId)));
+
+                        applicantDto.FormFieldValues.RemoveAll(fv => fv.FieldId.HasValue && fv.FieldId.Value != Guid.Empty && !validFieldIds.Contains(fv.FieldId.Value));
+                    }
                 }
             }
         }

@@ -126,13 +126,21 @@ public static class CertificatesCategorySeederData
         ""elements"": [],
         ""requiredSections"": [
             { ""key"": ""applicant"", ""required"": true },
+            { ""key"": ""representative"", ""required"": false },
+            { ""key"": ""companyDetails"", ""required"": false },
+            { ""key"": ""applicantAddress"", ""required"": true },
             { ""key"": ""devices"", ""required"": true },
             { ""key"": ""declaration"", ""required"": true },
             { ""key"": ""payment"", ""required"": true }
         ],
         ""allowsBulkSubmission"": false,
         ""categorySpecific"": {
-            ""deviceType"": [""RFID"",""Short Range Device"",""Wireless Data Network""]
+            ""deviceType"": [
+                ""Wireless Data Network (WDN) - Indoor"",
+                ""Short Range Devices (SRD)"",
+                ""Radio Frequency Identification (RFID) Devices"",
+                ""Short Range Radio Services""
+            ]
         },
         ""entityType"": ""Application""
     }";
@@ -197,11 +205,13 @@ public static class CertificatesCategorySeederData
         ""requiredSections"": [
             { ""key"": ""applicationSpecifications"", ""required"": true },
             { ""key"": ""applicant"", ""required"": true },
+            { ""key"": ""location"", ""required"": true },
             { ""key"": ""tvroEquipment"", ""required"": true },
-            { ""key"": ""antennaSystem"", ""required"": true },
-            { ""key"": ""signalReception"", ""required"": true },
+            { ""key"": ""antennaSystem"", ""required"": false },
+            { ""key"": ""signalReception"", ""required"": false },
+            { ""key"": ""bsd"", ""required"": false },
             { ""key"": ""declaration"", ""required"": true },
-            { ""key"": ""payment"", ""required"": true }
+            { ""key"": ""payment"", ""required"": false }
         ],
         ""allowsBulkSubmission"": false,
         ""categorySpecific"": {
@@ -493,9 +503,26 @@ public static class CertificatesCategorySeederData
             new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
             new("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
         }),
+        // CERTIFICATE OF REGISTRATION FOR RFID, SRD, WDN, DEVICES- INDOOR (DEALER)
+        // 
+        // For Application as Company please provide section 
+        // Representative
+        // Company Details
+        // Address
+        // Registered Devices 
+        // Device/Equipment Type should be dropdown: (can be multiple)
+        // Wireless Data Network (WDN) - Indoor
+        // Short Range Devices (SRD)
+        // Radio Frequency Identification (RFID) Devices
+        // Short Range Radio Services
+        // Make/Type/ Model  
+        // Serial No. (can be multiple)
         new("NTC_1_19", Guid.Parse("f1900000-0000-0000-0000-000000000001"), Guid.Parse("f19a0000-0000-0000-0000-000000000000"), new()
         {
-            new("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email" }),
+            new("applicant", "Applicant / Named Individual Details", new() { "fullName", "contactNo", "email" }),
+            new("representative", "Representative", new() { "representativeName", "representativePosition", "contactNo", "email" }),
+            new("companyDetails", "Company Details", new() { "companyName", "dtiSecRegistration" }),
+            new("applicantAddress", "Address", new() { "region", "province", "city", "barangay", "street", "zipCode" }),
             new("devices", "Registered Devices", new() { "devicesDetails" }),
             new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
             new("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
@@ -519,10 +546,12 @@ public static class CertificatesCategorySeederData
         new("NTC_1_22", Guid.Parse("f2200000-0000-0000-0000-000000000001"), Guid.Parse("f22a0000-0000-0000-0000-000000000000"), new()
         {
             new("applicationSpecifications", "Application Specifications", new() { "permitType", "stationClass" }),
-            new("applicant", "Applicant's Details", new() { "fullName", "region", "province", "city", "barangay", "street", "zipCode", "contactNo", "email", "stationLocation" }),
-            new("tvroEquipment", "Particulars of Equipment", new() { "equipmentDetails", "makeModel", "serialNumber", "frequencyRange" }),
-            new("antennaSystem", "Particulars of Antenna System", new() { "antennaType", "diameter", "azimuth", "polarization", "remarks" }),
-            new("signalReception", "Particulars of Signal to be Received", new() { "frequency", "bandwidth", "emission", "remarks" }),
+            new("applicant", "Applicant's Details", new() { "fullName", "region", "province", "city", "barangay", "street", "zipCode", "contactNo", "email" }),
+            new("location", "Location", new() { "serviceArea", "exactLocation", "longitude", "latitude" }),
+            new("tvroEquipment", "Particulars of Equipment", new() { "tvroEquipment" }),
+            new("antennaSystem", "Particulars of Antenna System", new() { "tvroAntenna" }),
+            new("signalReception", "Particulars of Signal to be Received", new() { "tvroSignal" }),
+            new("bsd", "Broadcast Services Division (BSD)", new() { "bsdNo" }),
             new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
             new("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
         })

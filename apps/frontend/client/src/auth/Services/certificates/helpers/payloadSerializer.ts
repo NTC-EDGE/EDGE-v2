@@ -105,6 +105,26 @@ const FIELD_GUID_MAP: Record<string, string> = {
   "station location / installation address": "fd000000-0000-0000-0000-000000000209",
   "middle name":              "fd000000-0000-0000-0000-000000000210",
   "suffix":                   "fd000000-0000-0000-0000-000000000211",
+
+  // Company & Corporate Applicant Fields (NTC 1-19 and generic company filings)
+  "company / business name":  "fd000000-0000-0000-0000-000000000081",
+  "company name":             "fd000000-0000-0000-0000-000000000081",
+  "company / corporation name": "fd000000-0000-0000-0000-000000000081",
+  "authorized representative name": "fd000000-0000-0000-0000-000000000082",
+  "representative name":      "fd000000-0000-0000-0000-000000000082",
+  "representative":           "fd000000-0000-0000-0000-000000000082",
+  "designation / position":   "fd000000-0000-0000-0000-000000000083",
+  "representative position":  "fd000000-0000-0000-0000-000000000083",
+  "position":                 "fd000000-0000-0000-0000-000000000083",
+  "make / type / model":      "fd000000-0000-0000-0000-000000000084",
+  "make/type/ model":         "fd000000-0000-0000-0000-000000000084",
+  "device / equipment type":  "fd000000-0000-0000-0000-000000000085",
+  "device type":              "fd000000-0000-0000-0000-000000000085",
+  "sec / dti registration number": "fd000000-0000-0000-0000-000000000086",
+  "sec/dti no":               "fd000000-0000-0000-0000-000000000086",
+  "serial number(s)":         "fd000000-0000-0000-0000-000000000087",
+  "serial no.":               "fd000000-0000-0000-0000-000000000087",
+  "serial no":                "fd000000-0000-0000-0000-000000000087",
 };
 
 /**
@@ -217,6 +237,17 @@ export function serializeCertificateApplicant(
       finalLastName = parts.slice(1).join(" ") || "Detail";
     }
 
+    const validFieldIdSet = new Set(
+      formFields.map((f) => f.fieldId).filter((id): id is string => Boolean(id))
+    );
+
+    const filteredFieldValues =
+      validFieldIdSet.size > 0
+        ? app.formFieldValues.filter(
+            (fv) => !fv.fieldId || validFieldIdSet.has(fv.fieldId)
+          )
+        : app.formFieldValues;
+
     return {
       firstName: finalFirstName || "Applicant",
       lastName: finalLastName || "Detail",
@@ -224,7 +255,7 @@ export function serializeCertificateApplicant(
       contactNumber: contactNoField || app.contactNo || "",
       address: addressField || app.address || "N/A",
       birthDate,
-      formFieldValues: app.formFieldValues.map(fv => ({
+      formFieldValues: filteredFieldValues.map(fv => ({
         fieldId: fv.fieldId,
         fieldLabel: fv.fieldLabel,
         value: fv.value
@@ -521,22 +552,26 @@ export function serializeCertificateApplicant(
   // 2. RFID, SRD, WDN Devices (NTC 1-19)
   if (serviceCode === "NTC_1_19" || serviceTitle.includes("RFID") || serviceTitle.includes("WDN")) {
     const data = app.deviceRegData;
+    const compName = app.companyName || (data ? data.businessName : "");
+    const repName = app.representativeName || (app.firstName ? `${app.firstName} ${app.lastName}`.trim() : "");
     if (data) {
       addField("Registration Type", data.registrationType);
       if (data.registrationType === "Non-Dealers") {
         addField("Commercial Invoice No", data.invoiceNo);
       }
-      addField("Business Name", data.businessName);
+      addField("Company Name", compName || "N/A");
+      addField("Representative Name", repName || "N/A");
+      addField("Business Name", data.businessName || compName);
       addField("Entity Type", data.entityType);
       addField("SEC/DTI No", data.dtiSecNo);
       addField("Device Particulars JSON", JSON.stringify(data.particulars));
 
       return {
-        firstName: data.businessName || app.firstName,
-        lastName: "",
-        email: data.email || app.email,
-        contactNumber: data.contactNo || app.contactNo,
-        address: data.address || app.address,
+        firstName: app.firstName || compName || repName || "Applicant",
+        lastName: app.lastName || "",
+        email: app.email || data.email,
+        contactNumber: app.contactNo || data.contactNo,
+        address: app.address || data.address,
         birthDate: birthDate,
         formFieldValues,
       };
@@ -548,11 +583,15 @@ export function serializeCertificateApplicant(
     const data = app.tvroRegData;
     if (data) {
       addField("Classification", data.classification);
-      addField("Number of Years", data.years);
       addField("Applicant Name", data.applicantName);
+      if (data.serviceArea) addField("Service Area", data.serviceArea);
+      if (data.exactLocation) addField("Exact Location of TVRO System", data.exactLocation);
+      if (data.longitude) addField("Longitude (deg-min-sec)", data.longitude);
+      if (data.latitude) addField("Latitude (deg-min-sec)", data.latitude);
       addField("Particulars of Equipment", JSON.stringify(data.particularsEquipment));
       addField("Particulars of Antenna System", JSON.stringify(data.particularsOfAntennaSystem));
       addField("Particulars of Signal to be Received", JSON.stringify(data.particularsOfSignalToBeReceived));
+      addField("BSD No.", data.bsdNumber || "TO BE ASSIGNED BY NTC");
 
       return {
         firstName: data.applicantName || app.firstName,

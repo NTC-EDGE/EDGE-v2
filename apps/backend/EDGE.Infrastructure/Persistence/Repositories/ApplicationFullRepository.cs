@@ -46,8 +46,16 @@ public class ApplicationFullRepository : IApplicationFullRepository
                     .ThenInclude(app => app!.CompanyDetail)
             .Include(a => a.ApplicationApplicants)
                 .ThenInclude(aa => aa.Applicant)
+                    .ThenInclude(app => app!.Service)
+                        .ThenInclude(s => s!.ServiceCategory)
+            .Include(a => a.ApplicationApplicants)
+                .ThenInclude(aa => aa.Applicant)
+                    .ThenInclude(app => app!.ServiceVariant)
+            .Include(a => a.ApplicationApplicants)
+                .ThenInclude(aa => aa.Applicant)
                     .ThenInclude(app => app!.FormSubmission)
                         .ThenInclude(fs => fs!.FieldValues)
+                            .ThenInclude(fv => fv!.Field)
             .Include(a => a.ApplicationRequirements)
                 .ThenInclude(ar => ar.StoredFile)
             .Include(a => a.ApplicationRequirements)
@@ -204,7 +212,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
             query = query.Where(a =>
                 (userId.HasValue && a.UserId == userId.Value) ||
                 (normalizedEmail != null && a.User != null && a.User.Email.ToLower() == normalizedEmail) ||
-                (normalizedEmail != null && a.ApplicationApplicants.Any(aa => aa.Applicant != null && aa.Applicant.ApplicantDetail != null && aa.Applicant.ApplicantDetail.EmailAddress.ToLower() == normalizedEmail)));
+                (normalizedEmail != null && a.ApplicationApplicants.Any(aa => aa.Applicant != null && aa.Applicant.ApplicantDetail != null && aa.Applicant.ApplicantDetail.EmailAddress != null && aa.Applicant.ApplicantDetail.EmailAddress.ToLower() == normalizedEmail)));
         }
 
         if (status.HasValue)
@@ -254,6 +262,11 @@ public class ApplicationFullRepository : IApplicationFullRepository
                 IsPinned = app.IsPinned,
                 IsArchived = app.IsArchived,
                 CreatedAt = app.CreatedAt,
+                ServiceId = app.ApplicationApplicants.Select(aa => aa.Applicant != null ? aa.Applicant.ServiceId : null).FirstOrDefault(),
+                ServiceName = app.ApplicationApplicants.Select(aa => aa.Applicant != null && aa.Applicant.Service != null ? aa.Applicant.Service.Name : null).FirstOrDefault(),
+                ServiceCategory = app.ApplicationApplicants.Select(aa => aa.Applicant != null && aa.Applicant.Service != null && aa.Applicant.Service.ServiceCategory != null ? aa.Applicant.Service.ServiceCategory.Name : null).FirstOrDefault(),
+                ServiceVariantId = app.ApplicationApplicants.Select(aa => aa.Applicant != null ? aa.Applicant.ServiceVariantId : null).FirstOrDefault(),
+                ServiceVariantName = app.ApplicationApplicants.Select(aa => aa.Applicant != null && aa.Applicant.ServiceVariant != null ? (aa.Applicant.ServiceVariant.Description ?? aa.Applicant.ServiceVariant.Type.ToString()) : null).FirstOrDefault(),
                 FilingUser = app.User != null ? new EDGE.Application.Applications.Dtos.FilingUserSummaryDto
                 {
                     Id = app.User.Id,
@@ -276,11 +289,11 @@ public class ApplicationFullRepository : IApplicationFullRepository
                 {
                     Id = aa.Applicant != null ? aa.Applicant.Id : Guid.Empty,
                     ServiceId = aa.Applicant != null ? aa.Applicant.ServiceId : null,
+                    ServiceName = aa.Applicant != null && aa.Applicant.Service != null ? aa.Applicant.Service.Name : null,
                     ServiceVariantId = aa.Applicant != null ? aa.Applicant.ServiceVariantId : null,
-                    SubmissionId = aa.Applicant != null
-                        ? (aa.Applicant.FormSubmission != null
-                            ? (Guid?)aa.Applicant.FormSubmission.Id
-                            : app.FormSubmissions.Where(fs => fs.ApplicantId == aa.Applicant.Id).Select(fs => (Guid?)fs.Id).FirstOrDefault())
+                    ServiceVariantName = aa.Applicant != null && aa.Applicant.ServiceVariant != null ? (aa.Applicant.ServiceVariant.Description ?? aa.Applicant.ServiceVariant.Type.ToString()) : null,
+                    SubmissionId = aa.Applicant != null && aa.Applicant.FormSubmission != null
+                        ? (Guid?)aa.Applicant.FormSubmission.Id
                         : null,
                     ApplicantType = aa.Applicant != null ? aa.Applicant.ApplicantType.ToString() : "Individual",
                     Status = aa.Applicant != null ? aa.Applicant.Status.ToString() : "Incomplete",
@@ -339,7 +352,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
             baseQuery = baseQuery.Where(a =>
                 (userId.HasValue && a.UserId == userId.Value) ||
                 (normalizedEmail != null && a.User != null && a.User.Email.ToLower() == normalizedEmail) ||
-                (normalizedEmail != null && a.ApplicationApplicants.Any(aa => aa.Applicant != null && aa.Applicant.ApplicantDetail != null && aa.Applicant.ApplicantDetail.EmailAddress.ToLower() == normalizedEmail)));
+                (normalizedEmail != null && a.ApplicationApplicants.Any(aa => aa.Applicant != null && aa.Applicant.ApplicantDetail != null && aa.Applicant.ApplicantDetail.EmailAddress != null && aa.Applicant.ApplicantDetail.EmailAddress.ToLower() == normalizedEmail)));
         }
 
         // Global statistics for the user/scope dashboard metrics
@@ -381,7 +394,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
                 (a.Office != null && a.Office.ToLower().Contains(term)) ||
                 a.ApplicationApplicants.Any(aa => aa.Applicant != null && aa.Applicant.ApplicantDetail != null &&
                     ((aa.Applicant.ApplicantDetail.FirstName + " " + aa.Applicant.ApplicantDetail.LastName).ToLower().Contains(term) ||
-                     aa.Applicant.ApplicantDetail.EmailAddress.ToLower().Contains(term))));
+                     (aa.Applicant.ApplicantDetail.EmailAddress != null && aa.Applicant.ApplicantDetail.EmailAddress.ToLower().Contains(term)))));
         }
 
         if (!string.IsNullOrWhiteSpace(queueTab))
@@ -433,6 +446,11 @@ public class ApplicationFullRepository : IApplicationFullRepository
                 IsPinned = app.IsPinned,
                 IsArchived = app.IsArchived,
                 CreatedAt = app.CreatedAt,
+                ServiceId = app.ApplicationApplicants.Select(aa => aa.Applicant != null ? aa.Applicant.ServiceId : null).FirstOrDefault(),
+                ServiceName = app.ApplicationApplicants.Select(aa => aa.Applicant != null && aa.Applicant.Service != null ? aa.Applicant.Service.Name : null).FirstOrDefault(),
+                ServiceCategory = app.ApplicationApplicants.Select(aa => aa.Applicant != null && aa.Applicant.Service != null && aa.Applicant.Service.ServiceCategory != null ? aa.Applicant.Service.ServiceCategory.Name : null).FirstOrDefault(),
+                ServiceVariantId = app.ApplicationApplicants.Select(aa => aa.Applicant != null ? aa.Applicant.ServiceVariantId : null).FirstOrDefault(),
+                ServiceVariantName = app.ApplicationApplicants.Select(aa => aa.Applicant != null && aa.Applicant.ServiceVariant != null ? (aa.Applicant.ServiceVariant.Description ?? aa.Applicant.ServiceVariant.Type.ToString()) : null).FirstOrDefault(),
                 FilingUser = app.User != null ? new EDGE.Application.Applications.Dtos.FilingUserSummaryDto
                 {
                     Id = app.User.Id,
@@ -455,11 +473,11 @@ public class ApplicationFullRepository : IApplicationFullRepository
                 {
                     Id = aa.Applicant != null ? aa.Applicant.Id : Guid.Empty,
                     ServiceId = aa.Applicant != null ? aa.Applicant.ServiceId : null,
+                    ServiceName = aa.Applicant != null && aa.Applicant.Service != null ? aa.Applicant.Service.Name : null,
                     ServiceVariantId = aa.Applicant != null ? aa.Applicant.ServiceVariantId : null,
-                    SubmissionId = aa.Applicant != null
-                        ? (aa.Applicant.FormSubmission != null
-                            ? (Guid?)aa.Applicant.FormSubmission.Id
-                            : app.FormSubmissions.Where(fs => fs.ApplicantId == aa.Applicant.Id).Select(fs => (Guid?)fs.Id).FirstOrDefault())
+                    ServiceVariantName = aa.Applicant != null && aa.Applicant.ServiceVariant != null ? (aa.Applicant.ServiceVariant.Description ?? aa.Applicant.ServiceVariant.Type.ToString()) : null,
+                    SubmissionId = aa.Applicant != null && aa.Applicant.FormSubmission != null
+                        ? (Guid?)aa.Applicant.FormSubmission.Id
                         : null,
                     ApplicantType = aa.Applicant != null ? aa.Applicant.ApplicantType.ToString() : "Individual",
                     Status = aa.Applicant != null ? aa.Applicant.Status.ToString() : "Incomplete",

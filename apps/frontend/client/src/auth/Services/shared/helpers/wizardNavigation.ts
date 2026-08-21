@@ -162,6 +162,21 @@ export function handleWizardNext({
       // 1. Missing required fields check
       dynamicRequiredFieldIds.forEach((id) => {
         const idLower = (id || "").toLowerCase().trim();
+
+        // Skip validation for declaration or payment fields in Step 3 (these are handled in Step 5 / confirmation)
+        if (
+          idLower.includes("declaration") ||
+          idLower.includes("signature") ||
+          idLower.includes("payment") ||
+          idLower.includes("receipt") ||
+          idLower === "fd000000-0000-0000-0000-000000000006" ||
+          idLower === "fd000000-0000-0000-0000-000000000007" ||
+          idLower === "fd000000-0000-0000-0000-000000000008" ||
+          idLower === "fd000000-0000-0000-0000-000000000009"
+        ) {
+          return;
+        }
+
         let val = filledMap.get(idLower);
         if (val === undefined || val === null || (typeof val === "string" && val.trim() === "")) {
           // Resolve fallback from activeApplicant properties
@@ -235,6 +250,26 @@ export function handleWizardNext({
             activeApplicant.nationality
           ) {
             val = activeApplicant.nationality;
+          } else if (
+            (idLower === "fd000000-0000-0000-0000-000000000081" || idLower === "companyname" || idLower.includes("company")) &&
+            activeApplicant.companyName
+          ) {
+            val = activeApplicant.companyName;
+          } else if (
+            (idLower === "fd000000-0000-0000-0000-000000000082" || idLower === "representativename" || idLower.includes("representative")) &&
+            activeApplicant.representativeName
+          ) {
+            val = activeApplicant.representativeName;
+          } else if (
+            (idLower === "fd000000-0000-0000-0000-000000000083" || idLower === "representativeposition" || idLower.includes("position") || idLower.includes("designation")) &&
+            activeApplicant.representativePosition
+          ) {
+            val = activeApplicant.representativePosition;
+          } else if (
+            (idLower === "fd000000-0000-0000-0000-000000000086" || idLower === "dtisecregistration" || idLower.includes("sec") || idLower.includes("dti")) &&
+            activeApplicant.dtiSecRegistration
+          ) {
+            val = activeApplicant.dtiSecRegistration;
           } else if (
             idLower === FIELD_ID_SIGNATURE.toLowerCase() ||
             idLower === "signature" ||

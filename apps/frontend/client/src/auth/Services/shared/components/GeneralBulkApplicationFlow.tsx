@@ -19,7 +19,18 @@ import { GeneralFilingDetailsStep } from "./GeneralFilingDetailsStep";
 import { GeneralDocumentUploadStep } from "./GeneralDocumentUploadStep";
 import { isGeneralApplicantComplete } from "../GeneralBulkApplicantsPanel";
 import { validateContactNumber, validateEmailAddress } from "../../../../shared/helpers/fieldValidators";
-import { FIELD_ID_CONTACT_NO, FIELD_ID_EMAIL } from "../../../../shared/constants/fieldIds";
+import {
+  FIELD_ID_FULL_NAME,
+  FIELD_ID_CONTACT_NO,
+  FIELD_ID_EMAIL,
+  FIELD_ID_REGION,
+  FIELD_ID_PROVINCE,
+  FIELD_ID_CITY,
+  FIELD_ID_BARANGAY,
+  FIELD_ID_STREET,
+  FIELD_ID_ADDRESS,
+  FIELD_ID_ZIP_CODE,
+} from "../../../../shared/constants/fieldIds";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 type BulkSubView = "FILING_DETAILS" | "DOCUMENT_UPLOAD";
@@ -40,6 +51,8 @@ interface GeneralBulkApplicationFlowProps {
   setDynamicRequiredFieldIds?: (ids: string[]) => void;
   variants?: ServiceVariantInfo[];
   variantElements?: ServiceVariantElementInfo[];
+  onSaveDraft?: () => void;
+  isSavingDraft?: boolean;
 }
 
 import { getApplicantDisplayName } from "../helpers/applicantDisplayHelper";
@@ -60,6 +73,8 @@ export function GeneralBulkApplicationFlow({
   setDynamicRequiredFieldIds,
   variants = [],
   variantElements = [],
+  onSaveDraft,
+  isSavingDraft = false,
 }: GeneralBulkApplicationFlowProps) {
   const [subView, setSubView] = useState<BulkSubView>("FILING_DETAILS");
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -139,11 +154,104 @@ export function GeneralBulkApplicationFlow({
 
     if (dynamicRequiredFieldIds && dynamicRequiredFieldIds.length > 0) {
       const fieldValues = activeApplicant?.formFieldValues || [];
-      const filledMap = new Map(fieldValues.map((fv) => [fv.fieldId, fv.value]));
+      const filledMap = new Map<string, string>();
+      fieldValues.forEach((fv) => {
+        if (fv.fieldId) filledMap.set(fv.fieldId.toLowerCase().trim(), fv.value);
+        if (fv.fieldLabel) filledMap.set(fv.fieldLabel.toLowerCase().trim(), fv.value);
+      });
 
       // 1. Missing required fields check
       dynamicRequiredFieldIds.forEach((id) => {
-        const val = filledMap.get(id);
+        const idLower = (id || "").toLowerCase().trim();
+
+        // Skip declaration or payment fields in Step 3
+        if (
+          idLower.includes("declaration") ||
+          idLower.includes("signature") ||
+          idLower.includes("payment") ||
+          idLower.includes("receipt") ||
+          idLower === "fd000000-0000-0000-0000-000000000006" ||
+          idLower === "fd000000-0000-0000-0000-000000000007" ||
+          idLower === "fd000000-0000-0000-0000-000000000008" ||
+          idLower === "fd000000-0000-0000-0000-000000000009"
+        ) {
+          return;
+        }
+
+        let val = filledMap.get(idLower);
+        if (val === undefined || val === null || (typeof val === "string" && val.trim() === "")) {
+          if (
+            (idLower === FIELD_ID_FULL_NAME.toLowerCase() || idLower === "fullname" || idLower === "name" || idLower.includes("full name")) &&
+            (activeApplicant?.firstName || activeApplicant?.lastName)
+          ) {
+            val = [activeApplicant?.firstName, activeApplicant?.middleName, activeApplicant?.lastName, activeApplicant?.suffix].filter(Boolean).join(" ");
+          } else if (
+            (idLower === FIELD_ID_CONTACT_NO.toLowerCase() || idLower === "contactno" || idLower.includes("contact") || idLower.includes("phone") || idLower.includes("mobile")) &&
+            activeApplicant?.contactNo
+          ) {
+            val = activeApplicant.contactNo;
+          } else if (
+            (idLower === FIELD_ID_EMAIL.toLowerCase() || idLower === "email" || idLower.includes("email")) &&
+            activeApplicant?.email
+          ) {
+            val = activeApplicant.email;
+          } else if (
+            (idLower === FIELD_ID_REGION.toLowerCase() || idLower === "region") &&
+            activeApplicant?.region
+          ) {
+            val = activeApplicant.region;
+          } else if (
+            (idLower === FIELD_ID_PROVINCE.toLowerCase() || idLower === "province") &&
+            activeApplicant?.province
+          ) {
+            val = activeApplicant.province;
+          } else if (
+            (idLower === FIELD_ID_CITY.toLowerCase() || idLower === "city" || idLower.includes("municipality")) &&
+            activeApplicant?.city
+          ) {
+            val = activeApplicant.city;
+          } else if (
+            (idLower === FIELD_ID_BARANGAY.toLowerCase() || idLower === "barangay") &&
+            activeApplicant?.barangay
+          ) {
+            val = activeApplicant.barangay;
+          } else if (
+            (idLower === FIELD_ID_STREET.toLowerCase() ||
+              idLower === FIELD_ID_ADDRESS.toLowerCase() ||
+              idLower === "street" ||
+              idLower === "address" ||
+              (idLower.includes("address") && !idLower.includes("email")) ||
+              idLower.includes("street")) &&
+            activeApplicant?.address
+          ) {
+            val = activeApplicant.address;
+          } else if (
+            (idLower === FIELD_ID_ZIP_CODE.toLowerCase() || idLower === "zipcode" || idLower.includes("zip") || idLower.includes("postal")) &&
+            activeApplicant?.zipCode
+          ) {
+            val = activeApplicant.zipCode;
+          } else if (
+            (idLower === "fd000000-0000-0000-0000-000000000081" || idLower === "companyname" || idLower.includes("company")) &&
+            activeApplicant?.companyName
+          ) {
+            val = activeApplicant.companyName;
+          } else if (
+            (idLower === "fd000000-0000-0000-0000-000000000082" || idLower === "representativename" || idLower.includes("representative")) &&
+            activeApplicant?.representativeName
+          ) {
+            val = activeApplicant.representativeName;
+          } else if (
+            (idLower === "fd000000-0000-0000-0000-000000000083" || idLower === "representativeposition" || idLower.includes("position") || idLower.includes("designation")) &&
+            activeApplicant?.representativePosition
+          ) {
+            val = activeApplicant.representativePosition;
+          } else if (
+            (idLower === "fd000000-0000-0000-0000-000000000086" || idLower === "dtisecregistration" || idLower.includes("sec") || idLower.includes("dti")) &&
+            activeApplicant?.dtiSecRegistration
+          ) {
+            val = activeApplicant.dtiSecRegistration;
+          }
+        }
         const trimmed = val !== undefined && val !== null ? (typeof val === "string" ? val.trim() : String(val)) : "";
         if (trimmed === "" || trimmed === "false") {
           errors[id] = "This required field cannot be left blank.";
@@ -185,10 +293,12 @@ export function GeneralBulkApplicationFlow({
     }
 
     setFormErrors({});
+    onSaveDraft?.();
     setSubView("DOCUMENT_UPLOAD");
   };
 
   const handleDocumentUploadNext = () => {
+    onSaveDraft?.();
     if (currentApplicantIndex < applicants.length - 1) {
       setCurrentApplicantIndex(currentApplicantIndex + 1);
       setSubView("FILING_DETAILS");
@@ -218,13 +328,37 @@ export function GeneralBulkApplicationFlow({
         showsVerticalScrollIndicator={true}
       >
         {/* Page Header */}
-        <View style={{ marginBottom: 16 }}>
-          <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 20, fontWeight: "700", color: "#0F172A", marginBottom: 4 }}>
-            {service.title}
-          </Text>
-          <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: "#64748B" }}>
-            Bulk / Corporate Filing — {subView === "FILING_DETAILS" ? "Applicant Information & Parameters" : "Mandatory Document Attachments"}
-          </Text>
+        <View style={{ marginBottom: 16, flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <View style={{ flex: 1, paddingRight: 12 }}>
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 20, fontWeight: "700", color: "#0F172A", marginBottom: 4 }}>
+              {service.title}
+            </Text>
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: "#64748B" }}>
+              Bulk / Corporate Filing — {subView === "FILING_DETAILS" ? "Applicant Information & Parameters" : "Mandatory Document Attachments"}
+            </Text>
+          </View>
+          {onSaveDraft && (
+            <TouchableOpacity
+              onPress={onSaveDraft}
+              disabled={isSavingDraft}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 6,
+                backgroundColor: "#FFFFFF",
+                borderWidth: 1,
+                borderColor: "#CBD5E1",
+                borderRadius: 8,
+                paddingHorizontal: 12,
+                paddingVertical: 8,
+              }}
+            >
+              <Icon name="save" size={14} color="#0F2C59" />
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, fontWeight: "700", color: "#0F2C59" }}>
+                {isSavingDraft ? "Saving Draft..." : "Save Draft"}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Sub-header Banner */}

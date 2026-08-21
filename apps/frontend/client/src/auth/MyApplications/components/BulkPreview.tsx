@@ -54,6 +54,7 @@ export function BulkPreview({ app, onClose, onDownloadDocument }: BulkPreviewPro
   const [activeTab, setActiveTab] = useState<'ROSTER' | 'DOCUMENTS'>('ROSTER');
   const [tableSearch, setTableSearch] = useState('');
   const [tablePage, setTablePage] = useState(1);
+  const [selectedApplicant, setSelectedApplicant] = useState<BulkApplicant | null>(null);
 
   const statusColor = getStatusColor(app.status);
   const statusBg = getStatusBgColor(app.status);
@@ -199,10 +200,11 @@ export function BulkPreview({ app, onClose, onDownloadDocument }: BulkPreviewPro
               {/* Applicants Table */}
               <View style={styles.tableCard}>
                 <View style={styles.tableHeader}>
-                  <Text style={[styles.tableTh, { flex: 2 }]}>APPLICANT NAME</Text>
-                  <Text style={[styles.tableTh, { flex: 1.5 }]}>TYPE</Text>
-                  <Text style={[styles.tableTh, { flex: 1.5 }]}>STATUS</Text>
-                  <Text style={[styles.tableTh, { flex: 1, textAlign: 'right' }]}>SOA</Text>
+                  <Text style={[styles.tableTh, { flex: 2.2 }]}>APPLICANT NAME</Text>
+                  <Text style={[styles.tableTh, { flex: 1.3 }]}>TYPE</Text>
+                  <Text style={[styles.tableTh, { flex: 1.3 }]}>STATUS</Text>
+                  <Text style={[styles.tableTh, { flex: 1 }]}>SOA</Text>
+                  <Text style={[styles.tableTh, { flex: 1.2, textAlign: 'right' }]}>ACTION</Text>
                 </View>
 
                 {pagedApplicants.length === 0 ? (
@@ -218,22 +220,31 @@ export function BulkPreview({ app, onClose, onDownloadDocument }: BulkPreviewPro
                         idx % 2 === 1 && styles.tableRowAlt,
                       ]}
                     >
-                      <View style={{ flex: 2, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <View style={{ flex: 2.2, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                         <View style={styles.applicantAvatar}>
                           <Text style={styles.avatarText}>{applicant.name.charAt(0)}</Text>
                         </View>
                         <Text style={styles.applicantName}>{applicant.name}</Text>
                       </View>
 
-                      <Text style={[styles.tableTd, { flex: 1.5 }]}>{applicant.applicationType}</Text>
+                      <Text style={[styles.tableTd, { flex: 1.3 }]}>{applicant.applicationType}</Text>
 
-                      <View style={{ flex: 1.5 }}>
+                      <View style={{ flex: 1.3 }}>
                         <StatusChip status={applicant.status} />
                       </View>
 
-                      <Text style={[styles.tableTd, { flex: 1, textAlign: 'right', fontWeight: '600' }]}>
+                      <Text style={[styles.tableTd, { flex: 1, fontWeight: '600' }]}>
                         {applicant.includedInSOA ? 'Included' : 'Excluded'}
                       </Text>
+
+                      <TouchableOpacity
+                        onPress={() => setSelectedApplicant(applicant)}
+                        style={{ flex: 1.2, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, fontWeight: '600', color: '#1D4ED8' }}>View Details</Text>
+                        <Icon name="external-link" size={11} color="#1D4ED8" />
+                      </TouchableOpacity>
                     </View>
                   ))
                 )}

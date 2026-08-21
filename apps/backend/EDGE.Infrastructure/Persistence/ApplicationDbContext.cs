@@ -371,6 +371,12 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
         {
             entity.Property(e => e.ApplicantType).HasConversion<string>();
             entity.Property(e => e.Status).HasConversion<string>();
+            entity.HasIndex(e => e.TenantId);
+            entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => e.ServiceId);
+            entity.HasIndex(e => e.ServiceVariantId);
+            entity.HasIndex(e => e.ApplicantDetailId);
+            entity.HasIndex(e => e.CompanyDetailId);
             entity.HasOne(d => d.ApplicantDetail)
                   .WithMany()
                   .HasForeignKey(d => d.ApplicantDetailId)
@@ -394,6 +400,12 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
             entity.Property(e => e.Status).HasConversion<string>();
             entity.Property(e => e.SubmissionMode).HasConversion<string>();
             entity.Property(e => e.DataEntryMethod).HasConversion<string>();
+            entity.HasIndex(e => e.TenantId);
+            entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => e.RegionId);
+            entity.HasIndex(e => e.ScheduleId);
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => e.ReferenceNumber);
             entity.HasOne(e => e.Tenant)
                   .WithMany()
                   .HasForeignKey(e => e.TenantId)
@@ -439,6 +451,8 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
 
         modelBuilder.Entity<FormSubmission>(entity =>
         {
+            entity.HasIndex(e => e.ApplicationId);
+            entity.HasIndex(e => e.FormId);
             entity.HasOne(e => e.Application)
                   .WithMany(a => a.FormSubmissions)
                   .HasForeignKey(e => e.ApplicationId)
@@ -456,6 +470,7 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
         modelBuilder.Entity<FormFieldValue>(entity =>
         {
             entity.HasKey(e => new { e.FormSubmissionId, e.FieldId });
+            entity.HasIndex(e => e.FieldId);
             entity.HasOne(e => e.FormSubmission)
                   .WithMany(s => s.FieldValues)
                   .HasForeignKey(e => e.FormSubmissionId)
@@ -468,6 +483,10 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
 
         modelBuilder.Entity<ApplicationRequirement>(entity =>
         {
+            entity.HasIndex(e => e.ApplicationId);
+            entity.HasIndex(e => e.ApplicantId);
+            entity.HasIndex(e => e.StoredFileId);
+            entity.HasIndex(e => e.TenantId);
             entity.HasOne(e => e.Application)
                   .WithMany(a => a.ApplicationRequirements)
                   .HasForeignKey(e => e.ApplicationId)

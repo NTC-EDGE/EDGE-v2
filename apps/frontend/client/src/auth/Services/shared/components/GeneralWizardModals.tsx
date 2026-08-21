@@ -1,10 +1,12 @@
-import React from "react";
+import React, { useState } from "react";
 import { DeclarationModal } from "./DeclarationModal";
 import { FeedbackModal } from "./FeedbackModal";
+import { PostSubmissionSuccessModal } from "./PostSubmissionSuccessModal";
 import { GeneralLoadingOverlay } from "./GeneralLoadingOverlay";
 import { useToast } from "../../../../shared/components/Toast";
 
 interface GeneralWizardModalsProps {
+  serviceTitle?: string;
   isConfirmModalOpen: boolean;
   setIsConfirmModalOpen: (open: boolean) => void;
   isAgreedToTerms: boolean;
@@ -20,9 +22,11 @@ interface GeneralWizardModalsProps {
   isSubmitting: boolean;
   setIsSubmitting: (submitting: boolean) => void;
   onSuccess: () => void;
+  onApplyMore?: () => void;
 }
 
 export function GeneralWizardModals({
+  serviceTitle,
   isConfirmModalOpen,
   setIsConfirmModalOpen,
   isAgreedToTerms,
@@ -38,8 +42,10 @@ export function GeneralWizardModals({
   isSubmitting,
   setIsSubmitting,
   onSuccess,
+  onApplyMore,
 }: GeneralWizardModalsProps) {
   const toast = useToast();
+  const [isPostSubmissionModalOpen, setIsPostSubmissionModalOpen] = useState(false);
 
   return (
     <>
@@ -81,7 +87,24 @@ export function GeneralWizardModals({
             await submitFeedback(feedbackRating, feedbackComment);
           }
           setIsFeedbackModalOpen(false);
+          setIsPostSubmissionModalOpen(true);
+        }}
+      />
+
+      <PostSubmissionSuccessModal
+        visible={isPostSubmissionModalOpen}
+        serviceTitle={serviceTitle}
+        onViewApplications={() => {
+          setIsPostSubmissionModalOpen(false);
           onSuccess();
+        }}
+        onApplyMore={() => {
+          setIsPostSubmissionModalOpen(false);
+          if (onApplyMore) {
+            onApplyMore();
+          } else {
+            onSuccess();
+          }
         }}
       />
 

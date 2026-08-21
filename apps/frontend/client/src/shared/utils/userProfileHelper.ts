@@ -36,6 +36,9 @@ export interface ResolvedUserProfile {
   companyAddress: string;
   companyPhone: string;
   companyEmail: string;
+  representativeName: string;
+  designation: string;
+  position: string;
   signature: string;
 }
 
@@ -311,6 +314,31 @@ export function extractUserProfile(
     str(metaComp.email) ||
     "";
 
+  const designation =
+    str(localProfile?.designation) ||
+    str(localProfile?.position) ||
+    str(localComp.position) ||
+    str(localComp.designation) ||
+    str(db.designation) ||
+    str(db.position) ||
+    str(dbComp.position) ||
+    str(dbComp.designation) ||
+    str(metaProfile.designation) ||
+    str(metaProfile.position) ||
+    str(metaComp.position) ||
+    str(metaComp.designation) ||
+    "";
+
+  const representativeName =
+    str(localProfile?.representativeName) ||
+    str(localComp.representativeName) ||
+    str(db.representativeName) ||
+    str(dbComp.representativeName) ||
+    str(metaProfile.representativeName) ||
+    str(metaComp.representativeName) ||
+    fullName ||
+    "";
+
   return {
     firstName,
     middleName,
@@ -347,6 +375,9 @@ export function extractUserProfile(
     companyAddress,
     companyPhone,
     companyEmail,
+    representativeName,
+    designation,
+    position: designation,
     signature:
       str(cUser?.unsafeMetadata?.eSignature) ||
       str(cUser?.unsafeMetadata?.signature) ||
