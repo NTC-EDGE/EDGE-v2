@@ -297,9 +297,13 @@ namespace EDGE.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ReferenceNumber");
+
                     b.HasIndex("RegionId");
 
                     b.HasIndex("ScheduleId");
+
+                    b.HasIndex("Status");
 
                     b.HasIndex("TenantId");
 
