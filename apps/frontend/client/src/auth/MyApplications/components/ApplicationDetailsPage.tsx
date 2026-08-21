@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { View, TouchableOpacity, ScrollView, Text, useWindowDimensions } from 'react-native';
-import { Icon, SPACING } from '@edge/ui';
+import { Icon, SPACING, TYPOGRAPHY } from '@edge/ui';
 import {
   ApplicationDocument,
   BulkApplicant,
@@ -22,8 +22,9 @@ import { BulkApplicantsSection } from './applicationDetails/BulkApplicantsSectio
 import { SingleApplicantSection } from './applicationDetails/SingleApplicantSection';
 import { DocumentsSection } from './applicationDetails/DocumentsSection';
 import { DocumentPreviewSection } from './applicationDetails/DocumentPreviewSection';
-import { BulkApplicantModal } from './applicationDetails/BulkApplicantModal';
 import { CustomDocPreviewModal } from './applicationDetails/CustomDocPreviewModal';
+
+const TABLE_PAGE_SIZE = 6;
 
 export { ApplicationDetailsPageProps };
 
@@ -35,14 +36,14 @@ export function ApplicationDetailsPage({
   const { width } = useWindowDimensions();
   const isDesktop = width >= 768;
 
+  const [activeTab, setActiveTab] = useState<'DETAILS' | 'DOCUMENTS'>('DETAILS');
+  const [tableSearch, setTableSearch] = useState('');
+  const [tablePage, setTablePage] = useState(1);
+
   const {
     app,
     isBulk,
-    singleApplicant,
     isExamService,
-    scheduleSummaryText,
-    variantLabel,
-    formFieldValues,
     appApplicants,
     totalSubmitted,
     approvedCount,
@@ -50,53 +51,53 @@ export function ApplicationDetailsPage({
     pendingCount,
     docs,
     primaryName,
+    singleApplicant,
     resolvedServiceVariant,
+    formFieldValues,
     currentStepIndex,
+    variantLabel,
+    scheduleSummaryText,
   } = useApplicationDetailsData(initialApp);
 
-  const [activeTab, setActiveTab] = useState<'DETAILS' | 'DOCUMENTS'>('DETAILS');
+  const filteredApplicants = useMemo(() => {
+    if (!tableSearch.trim()) return appApplicants;
+    const q = tableSearch.toLowerCase().trim();
+    return appApplicants.filter(
+      (a) =>
+        a.name.toLowerCase().includes(q) ||
+        a.applicationType.toLowerCase().includes(q) ||
+        a.status.toLowerCase().includes(q)
+    );
+  }, [appApplicants, tableSearch]);
+
+  const totalPages = Math.ceil(filteredApplicants.length / TABLE_PAGE_SIZE) || 1;
+  const pagedApplicants = useMemo(() => {
+    const start = (tablePage - 1) * TABLE_PAGE_SIZE;
+    return filteredApplicants.slice(start, start + TABLE_PAGE_SIZE);
+  }, [filteredApplicants, tablePage]);
+
+  const [selectedApplicant, setSelectedApplicant] = useState<BulkApplicant | null>(null);
   const [previewDoc, setPreviewDoc] = useState<ApplicationDocument | null>(null);
   const [previewCustomDoc, setPreviewCustomDoc] = useState<{ uri: string; name: string } | null>(null);
   const [previewLoadingId, setPreviewLoadingId] = useState<string | null>(null);
-
-  const handleSetPreviewCustomDoc = React.useCallback((doc: { uri: string; name: string } | null) => {
-    setPreviewCustomDoc((prev) => {
-      if (prev?.uri && prev.uri.startsWith('blob:') && typeof URL !== 'undefined' && typeof URL.revokeObjectURL === 'function') {
-        URL.revokeObjectURL(prev.uri);
-      }
-      return doc;
-    });
-  }, []);
-
-  React.useEffect(() => {
-    return () => {
-      if (previewCustomDoc?.uri && previewCustomDoc.uri.startsWith('blob:') && typeof URL !== 'undefined' && typeof URL.revokeObjectURL === 'function') {
-        URL.revokeObjectURL(previewCustomDoc.uri);
-      }
-    };
-  }, [previewCustomDoc]);
-
-  const TABLE_PAGE_SIZE = 6;
-  const [tableSearch, setTableSearch] = useState('');
-  const [tablePage, setTablePage] = useState(1);
-  const [selectedApplicant, setSelectedApplicant] = useState<BulkApplicant | null>(null);
 
   const { selectedApplicantFormFields, selectedApplicantDocs } = useSelectedBulkApplicant(
     app,
     selectedApplicant
   );
 
-  const filteredApplicants = useMemo(() => {
-    if (!isBulk) return [];
-    if (tableSearch.trim() === '') return appApplicants;
-    const q = tableSearch.toLowerCase();
-    return appApplicants.filter((a) => a.name.toLowerCase().includes(q) || a.applicationType.toLowerCase().includes(q));
-  }, [appApplicants, isBulk, tableSearch]);
+  const statusBg = useMemo(
+    () => safeGetStatusBgColor(app.status, getStatusBgColor),
+    [app.status]
+  );
+  const statusColor = useMemo(
+    () => safeGetStatusColor(app.status, getStatusColor),
+    [app.status]
+  );
 
-  const totalPages = Math.max(1, Math.ceil(filteredApplicants.length / TABLE_PAGE_SIZE));
-  const pagedApplicants = filteredApplicants.slice((tablePage - 1) * TABLE_PAGE_SIZE, tablePage * TABLE_PAGE_SIZE);
-  const statusColor = safeGetStatusColor(app.status, getStatusColor);
-  const statusBg = safeGetStatusBgColor(app.status, getStatusBgColor);
+  const handleSetPreviewCustomDoc = (doc: { uri: string; name: string } | null) => {
+    setPreviewCustomDoc(doc);
+  };
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
@@ -125,21 +126,92 @@ export function ApplicationDetailsPage({
             <ApplicationProgressStepper currentStepIndex={currentStepIndex} />
 
             {isBulk ? (
-              <BulkApplicantsSection
-                app={app}
-                appApplicants={appApplicants}
-                totalSubmitted={totalSubmitted}
-                approvedCount={approvedCount}
-                declinedCount={declinedCount}
-                pendingCount={pendingCount}
-                tableSearch={tableSearch}
-                setTableSearch={setTableSearch}
-                tablePage={tablePage}
-                setTablePage={setTablePage}
-                totalPages={totalPages}
-                pagedApplicants={pagedApplicants}
-                onSelectApplicant={setSelectedApplicant}
-              />
+              selectedApplicant ? (
+                <View style={{ gap: 16 }}>
+                  <TouchableOpacity
+                    onPress={() => setSelectedApplicant(null)}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 8,
+                      backgroundColor: '#EFF6FF',
+                      borderWidth: 1,
+                      borderColor: '#BFDBFE',
+                      paddingVertical: 10,
+                      paddingHorizontal: 16,
+                      borderRadius: 8,
+                      alignSelf: 'flex-start',
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Icon name="arrow-left" size={16} color="#1D4ED8" />
+                    <Text
+                      style={{
+                        fontFamily: TYPOGRAPHY.fonts.primary,
+                        fontSize: 13,
+                        fontWeight: '700',
+                        color: '#1D4ED8',
+                      }}
+                    >
+                      Back to Bulk Applicants List
+                    </Text>
+                  </TouchableOpacity>
+
+                  <SingleApplicantSection
+                    app={app}
+                    singleApplicant={{
+                      applicantName: selectedApplicant.name,
+                      sex: selectedApplicant.sex || 'Male',
+                      nationality: selectedApplicant.nationality || 'Filipino',
+                      streetAddress: selectedApplicant.streetAddress || '',
+                      barangay: selectedApplicant.barangay || '',
+                      cityMunicipality: selectedApplicant.cityMunicipality || '',
+                      province: selectedApplicant.province || '',
+                      region: selectedApplicant.region || '',
+                      zipCode: selectedApplicant.zipCode || '',
+                      mobileNumber: selectedApplicant.mobileNumber || '',
+                      email: selectedApplicant.email || '',
+                      examineeType: selectedApplicant.applicationType || '',
+                      birthDate: selectedApplicant.birthDate || null,
+                      civilStatus: selectedApplicant.civilStatus || null,
+                      companyName: selectedApplicant.companyName || null,
+                      representativeName: selectedApplicant.representativeName || null,
+                      notes: selectedApplicant.notes || null,
+                    }}
+                    primaryName={selectedApplicant.name}
+                    formFieldValues={selectedApplicantFormFields}
+                    isExamService={isExamService}
+                    scheduleSummaryText={
+                      selectedApplicant.schedule
+                        ? `${selectedApplicant.schedule.date} • ${selectedApplicant.schedule.time} (${selectedApplicant.schedule.venue})`
+                        : scheduleSummaryText
+                    }
+                    variantLabel={selectedApplicant.applicationType || variantLabel}
+                    isDesktop={isDesktop}
+                    docs={selectedApplicantDocs}
+                    onPreviewFile={(uri, name) => handleSetPreviewCustomDoc({ uri, name })}
+                    onPreviewDoc={setPreviewDoc}
+                    onPreviewCustomDoc={handleSetPreviewCustomDoc}
+                    setPreviewLoadingId={setPreviewLoadingId}
+                  />
+                </View>
+              ) : (
+                <BulkApplicantsSection
+                  app={app}
+                  appApplicants={appApplicants}
+                  totalSubmitted={totalSubmitted}
+                  approvedCount={approvedCount}
+                  declinedCount={declinedCount}
+                  pendingCount={pendingCount}
+                  tableSearch={tableSearch}
+                  setTableSearch={setTableSearch}
+                  tablePage={tablePage}
+                  setTablePage={setTablePage}
+                  totalPages={totalPages}
+                  pagedApplicants={pagedApplicants}
+                  onSelectApplicant={setSelectedApplicant}
+                />
+              )
             ) : (
               <SingleApplicantSection
                 app={app}
@@ -179,15 +251,6 @@ export function ApplicationDetailsPage({
         previewDoc={previewDoc}
         onClose={() => setPreviewDoc(null)}
         onDownloadDoc={onDownloadDoc}
-      />
-      <BulkApplicantModal
-        app={app}
-        selectedApplicant={selectedApplicant}
-        selectedApplicantFormFields={selectedApplicantFormFields}
-        selectedApplicantDocs={selectedApplicantDocs}
-        onClose={() => setSelectedApplicant(null)}
-        onPreviewDoc={setPreviewDoc}
-        onPreviewCustomDoc={handleSetPreviewCustomDoc}
       />
       <CustomDocPreviewModal
         previewCustomDoc={previewCustomDoc}

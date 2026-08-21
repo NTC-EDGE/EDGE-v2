@@ -5,6 +5,27 @@ import { Application } from '../../data/applicationsData';
 import { isGuid } from './applicationDetailsTypes';
 import { BaseApplicationPreview } from '../../../../shared/formPreview';
 
+export interface SubmittedApplicantData {
+  applicantName?: string;
+  name?: string;
+  sex?: string;
+  nationality?: string;
+  streetAddress?: string;
+  barangay?: string;
+  cityMunicipality?: string;
+  province?: string;
+  region?: string;
+  zipCode?: string;
+  mobileNumber?: string;
+  email?: string;
+  examineeType?: string;
+  birthDate?: string | null;
+  civilStatus?: string | null;
+  companyName?: string | null;
+  representativeName?: string | null;
+  notes?: string | null;
+}
+
 export interface SubmittedFormStructuredViewProps {
   app: Application;
   primaryName: string;
@@ -13,25 +34,7 @@ export interface SubmittedFormStructuredViewProps {
   sectionNumber?: string;
   serviceId?: string;
   serviceVariantId?: string | null;
-  singleApplicant?: {
-    applicantName: string;
-    sex: string;
-    nationality: string;
-    streetAddress: string;
-    barangay: string;
-    cityMunicipality: string;
-    province: string;
-    region: string;
-    zipCode: string;
-    mobileNumber: string;
-    email: string;
-    examineeType: string;
-    birthDate: string | null;
-    civilStatus: string | null;
-    companyName: string | null;
-    representativeName: string | null;
-    notes: string | null;
-  } | null;
+  singleApplicant?: SubmittedApplicantData | null;
   showApplicantCard?: boolean;
 }
 
@@ -66,6 +69,7 @@ export function SubmittedFormStructuredView({
   const effectiveVariantId = serviceVariantId || app.serviceVariantId;
   const { form } = useServiceForm(effectiveServiceId, effectiveVariantId);
 
+  const applicantName = singleApplicant?.applicantName || singleApplicant?.name || primaryName;
   const addressComponents = singleApplicant
     ? [
         singleApplicant.streetAddress,
@@ -87,7 +91,7 @@ export function SubmittedFormStructuredView({
       }}
       form={form}
       formFieldValues={formFieldValues}
-      resolvedFullName={singleApplicant?.applicantName || primaryName}
+      resolvedFullName={applicantName}
       resolvedEmail={singleApplicant?.email}
       resolvedContactNo={singleApplicant?.mobileNumber}
       resolvedAddress={fullAddress.length > 0 ? fullAddress : null}
