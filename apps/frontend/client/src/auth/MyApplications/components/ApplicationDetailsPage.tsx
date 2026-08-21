@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, TouchableOpacity, ScrollView, Text, useWindowDimensions } from 'react-native';
 import { Icon, SPACING } from '@edge/ui';
 import {
@@ -58,6 +58,23 @@ export function ApplicationDetailsPage({
   const [previewDoc, setPreviewDoc] = useState<ApplicationDocument | null>(null);
   const [previewCustomDoc, setPreviewCustomDoc] = useState<{ uri: string; name: string } | null>(null);
   const [previewLoadingId, setPreviewLoadingId] = useState<string | null>(null);
+
+  const handleSetPreviewCustomDoc = React.useCallback((doc: { uri: string; name: string } | null) => {
+    setPreviewCustomDoc((prev) => {
+      if (prev?.uri && prev.uri.startsWith('blob:') && typeof URL !== 'undefined' && typeof URL.revokeObjectURL === 'function') {
+        URL.revokeObjectURL(prev.uri);
+      }
+      return doc;
+    });
+  }, []);
+
+  React.useEffect(() => {
+    return () => {
+      if (previewCustomDoc?.uri && previewCustomDoc.uri.startsWith('blob:') && typeof URL !== 'undefined' && typeof URL.revokeObjectURL === 'function') {
+        URL.revokeObjectURL(previewCustomDoc.uri);
+      }
+    };
+  }, [previewCustomDoc]);
 
   const TABLE_PAGE_SIZE = 6;
   const [tableSearch, setTableSearch] = useState('');
@@ -134,9 +151,9 @@ export function ApplicationDetailsPage({
                 variantLabel={variantLabel}
                 isDesktop={isDesktop}
                 docs={docs}
-                onPreviewFile={(uri, name) => setPreviewCustomDoc({ uri, name })}
+                onPreviewFile={(uri, name) => handleSetPreviewCustomDoc({ uri, name })}
                 onPreviewDoc={setPreviewDoc}
-                onPreviewCustomDoc={setPreviewCustomDoc}
+                onPreviewCustomDoc={handleSetPreviewCustomDoc}
                 setPreviewLoadingId={setPreviewLoadingId}
               />
             )}
@@ -148,7 +165,7 @@ export function ApplicationDetailsPage({
             app={app}
             docs={docs}
             onPreviewDoc={setPreviewDoc}
-            onPreviewCustomDoc={setPreviewCustomDoc}
+            onPreviewCustomDoc={handleSetPreviewCustomDoc}
             onDownloadDoc={onDownloadDoc}
             previewLoadingId={previewLoadingId}
             setPreviewLoadingId={setPreviewLoadingId}
@@ -170,9 +187,12 @@ export function ApplicationDetailsPage({
         selectedApplicantDocs={selectedApplicantDocs}
         onClose={() => setSelectedApplicant(null)}
         onPreviewDoc={setPreviewDoc}
-        onPreviewCustomDoc={setPreviewCustomDoc}
+        onPreviewCustomDoc={handleSetPreviewCustomDoc}
       />
-      <CustomDocPreviewModal previewCustomDoc={previewCustomDoc} onClose={() => setPreviewCustomDoc(null)} />
+      <CustomDocPreviewModal
+        previewCustomDoc={previewCustomDoc}
+        onClose={() => handleSetPreviewCustomDoc(null)}
+      />
     </ScrollView>
   );
 }
