@@ -23,6 +23,17 @@ public static class ClerkAuthenticationExtensions
             throw new InvalidOperationException("Clerk Authority configuration is missing. Please configure 'Clerk:Authority' in your user secrets or environment variables.");
         }
 
+        var validIssuers = new System.Collections.Generic.List<string>();
+        if (!string.IsNullOrWhiteSpace(clerkAuthority))
+        {
+            validIssuers.Add(clerkAuthority.TrimEnd('/'));
+            validIssuers.Add(clerkAuthority.TrimEnd('/') + "/");
+        }
+        validIssuers.Add("https://wired-boar-76.clerk.accounts.dev");
+        validIssuers.Add("https://wired-boar-76.clerk.accounts.dev/");
+        validIssuers.Add("https://easy-snipe-36.clerk.accounts.dev");
+        validIssuers.Add("https://easy-snipe-36.clerk.accounts.dev/");
+
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer(options =>
             {
@@ -30,11 +41,20 @@ public static class ClerkAuthenticationExtensions
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
                     ValidateIssuer = true,
-                    ValidIssuer = clerkAuthority,
+                    ValidIssuers = validIssuers.Distinct(StringComparer.OrdinalIgnoreCase).ToArray(),
                     ValidateAudience = false,
                     ValidateLifetime = true,
                     ClockSkew = TimeSpan.FromMinutes(2),
                     NameClaimType = ClaimTypes.NameIdentifier
+                };
+
+                options.Events = new JwtBearerEvents
+                {
+                    OnAuthenticationFailed = context =>
+                    {
+                        Serilog.Log.Warning("Clerk JWT Authentication failed: {Message} | Exception: {Exception}", context.Exception.Message, context.Exception.GetType().Name);
+                        return Task.CompletedTask;
+                    }
                 };
             });
 

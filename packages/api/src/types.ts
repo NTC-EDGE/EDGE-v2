@@ -967,6 +967,31 @@ export interface ApplicationSummaryDto {
   correctionAuditTrails?: CorrectionAuditTrailDto[];
 }
 
+// ─── Paged Applications & Statistics ────────────────────
+
+export interface ApplicationStatisticsDto {
+  totalCount: number;
+  singleCount: number;
+  bulkCount: number;
+  evaluatingCount: number;
+  approvedCount: number;
+  paymentRequiredCount: number;
+  completedCount: number;
+  returnedCount: number;
+  readyDocumentsCount: number;
+}
+
+export interface PagedApplicationListDto {
+  items: ApplicationSummaryDto[];
+  pageNumber: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
+  statistics?: ApplicationStatisticsDto;
+}
+
 export interface UpdateApplicationStatusRequest {
   status: string;
   remarks?: string;
