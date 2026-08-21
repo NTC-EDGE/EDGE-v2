@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Canonical field IDs sourced directly from CommonSeederData.cs GetFieldsPool().
  *
  * IMPORTANT: These values MUST be kept in sync with:
@@ -128,3 +128,6 @@ export const FIELD_ID_PARTICULARS_EQ  = "fd000000-0000-0000-0000-000000000208"; 
 export const FIELD_ID_LOCATION        = "fd000000-0000-0000-0000-000000000209"; // Station Location / Installation Address
 export const FIELD_ID_MIDDLE_NAME     = "fd000000-0000-0000-0000-000000000210"; // Middle Name
 export const FIELD_ID_SUFFIX          = "fd000000-0000-0000-0000-000000000211"; // Suffix
+
+// --- Invoice Fields (NTC 1-19 / Non-Dealer Registrations) --------------------
+export const FIELD_ID_INVOICE_NUMBER  = "fd000000-0000-0000-0000-000000000228"; // Invoice Number

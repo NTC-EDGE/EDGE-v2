@@ -98,19 +98,18 @@ public static class CertificatesCategorySeederData
         ""applicationTypes"": [""New"", ""Renewal"", ""Modification""],
         ""elements"": [],
         ""requiredSections"": [
-            { ""key"": ""applicantPerson"", ""required"": true },
             { ""key"": ""permitType"", ""required"": true },
-            { ""key"": ""classOfStation"", ""required"": true },
-            { ""key"": ""club"", ""required"": false },
-            { ""key"": ""examination"", ""required"": false },
-            { ""key"": ""equipment"", ""required"": false },
+            { ""key"": ""certificateParticulars"", ""required"": false },
+            { ""key"": ""applicantPerson"", ""required"": true },
+            { ""key"": ""applicantAddress"", ""required"": true },
+            { ""key"": ""applicantContact"", ""required"": true },
+            { ""key"": ""examSeminarDetails"", ""required"": false },
             { ""key"": ""declaration"", ""required"": true },
             { ""key"": ""payment"", ""required"": true }
         ],
         ""allowsBulkSubmission"": false,
         ""categorySpecific"": {
-            ""permitType"": [""Amateur Radio Operator Certificate"",""Lifetime Amateur Radio Station Supplementary Certificate""],
-            ""classOfStation"": [""A"",""B"",""C"",""D""]
+            ""permitType"": [""Amateur Radio Operator Certificate"",""Lifetime Amateur Radio Station Supplementary Certificate""]
         },
         ""entityType"": ""Application""
     }";
@@ -341,7 +340,8 @@ public static class CertificatesCategorySeederData
         ["FACILITIES_LEASE_AGREEMENT"]= new(Guid.Parse("70000000-0000-0000-0000-000000000023"), "Facilities/Network Lease Agreement", "Facilities/network lease agreement with duly authorized facilities/network providers."),
         ["VAS_QUARTERLY_REPORTS"]     = new(Guid.Parse("70000000-0000-0000-0000-000000000024"), "Quarterly Report(s) of VAS Provider", "Quarterly Report(s) of VAS Provider."),
         ["DOC_TO_AUTHENTICATE"]       = new(Guid.Parse("70000000-0000-0000-0000-000000000025"), "Copy of document to be authenticated", "Copy of document to be authenticated."),
-        ["SCANNED_COPY_CERT"]         = new(Guid.Parse("70000000-0000-0000-0000-000000000026"), "Copy of Certificate", "A scanned or photocopied copy of the original Radio Operator Certificate.")
+        ["SCANNED_COPY_CERT"]         = new(Guid.Parse("70000000-0000-0000-0000-000000000026"), "Copy of Certificate", "A scanned or photocopied copy of the original Radio Operator Certificate."),
+        ["COMMERCIAL_INVOICE_DOC"]    = new(Guid.Parse("70000000-0000-0000-0000-000000000030"), "Commercial Invoice / Sales Invoice", "Official Commercial Invoice / Sales Receipt with invoice number for registered RFID, SRD, WDN devices.")
     };
 
     public static List<VariantRequirementDef> GetBackfillVariantRequirements() => new()
@@ -445,6 +445,7 @@ public static class CertificatesCategorySeederData
         new(VarRfidDealers, Guid.Parse("70000000-0000-0000-0000-000000000020"), false), // For locally-manufactured: Sales and Stocks Report
 
         // 23. Certificate of Registration for RFID, SRD, WDN - For Non-Dealers
+        new(VarRfidNonDealers, Guid.Parse("70000000-0000-0000-0000-000000000030"), true),  // Commercial Invoice / Sales Invoice (with Invoice Number)*
         new(VarRfidNonDealers, Guid.Parse("70000000-0000-0000-0000-000000000019"), false), // For imported equipment: Permit to Import, Invoice, BOC clearance
         new(VarRfidNonDealers, Guid.Parse("70000000-0000-0000-0000-000000000020"), false), // For locally-manufactured: Sales and Stocks Report
 
@@ -481,7 +482,7 @@ public static class CertificatesCategorySeederData
         new("NTC_1_02", Guid.Parse("f0200000-0000-0000-0000-000000000001"), Guid.Parse("f02a0000-0000-0000-0000-000000000000"), new()
         {
             new("typeOfCertificate", "Type of Certificate / Application", new() { "typeOfCertificate" }),
-            new("applicantPerson", "Personal Information", new() { "fullName", "birthDate", "sex", "nationality", "weight_kg", "height_cm" }),
+            new("applicantPerson", "Personal Information", new() { "fullName", "birthDate", "sex", "civilStatus", "nationality", "weight_kg", "height_cm" }),
             new("applicantAddress", "Address Information", new() { "region", "province", "city", "barangay", "street", "zipCode" }),
             new("employmentStatus", "Employment Status", new() { "employmentStatus", "employmentType" }),
             new("applicantContact", "Contact Information", new() { "contactNo", "email" }),
@@ -492,14 +493,11 @@ public static class CertificatesCategorySeederData
         new("NTC_1_03", Guid.Parse("f0300000-0000-0000-0000-000000000001"), Guid.Parse("f03a0000-0000-0000-0000-000000000000"), new()
         {
             new("permitType", "Type of Application & Permit Category", new() { "permitType" }),
-            new("applicantPerson", "Personal Information", new() { "fullName", "birthDate", "sex", "nationality" }),
+            new("certificateParticulars", "Certificate Particulars", new() { "licenseNo", "dateOfExpiry", "modificationDueTo" }),
+            new("applicantPerson", "Personal Information", new() { "fullName", "birthDate", "sex", "civilStatus", "nationality" }),
             new("applicantAddress", "Address Information", new() { "region", "province", "city", "barangay", "street", "zipCode" }),
-            new("employmentStatus", "Employment Status", new() { "employmentStatus", "employmentType" }),
             new("applicantContact", "Contact Information", new() { "contactNo", "email" }),
-            new("classOfStation", "Class of Station", new() { "classOfStation" }),
-            new("club", "Club Details", new() { "clubDetails" }),
             new("examSeminarDetails", "Exam / Seminar Details", new() { "examSeminarAddress", "examSeminarDate", "examSeminarRating" }),
-            new("equipment", "Equipment Details", new() { "equipmentDetails" }),
             new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
             new("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
         }),
@@ -523,6 +521,7 @@ public static class CertificatesCategorySeederData
             new("representative", "Representative", new() { "representativeName", "representativePosition", "contactNo", "email" }),
             new("companyDetails", "Company Details", new() { "companyName", "dtiSecRegistration" }),
             new("applicantAddress", "Address", new() { "region", "province", "city", "barangay", "street", "zipCode" }),
+            new("invoiceDetails", "Commercial Invoice Information", new() { "invoiceNumber" }),
             new("devices", "Registered Devices", new() { "devicesDetails" }),
             new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
             new("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })

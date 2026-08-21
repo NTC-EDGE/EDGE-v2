@@ -269,6 +269,7 @@ export function GeneralFilingModeStep({
 
   // Station Class / Element Options for component 2
   const activeVariantName = activeVariant?.name || activeVariant?.description || "";
+  const isLifetimeSupplementary = safeUpper(activeVariantName).includes("LIFETIME") || (activeVariant?.id !== undefined && String(activeVariant.id).endsWith("35"));
   const isLifetime = safeUpper(activeVariantName).includes("LIFETIME");
   const isRenewal = safeUpper(activeVariantName).includes("RENEWAL");
   const isModification = safeUpper(activeVariantName).includes("MODIFICATION");
@@ -281,7 +282,7 @@ export function GeneralFilingModeStep({
     desc: elem.description || "",
   }));
 
-  const hasElementsToDisplay = classOptions.length > 0;
+  const hasElementsToDisplay = classOptions.length > 0 && !isLifetimeSupplementary;
 
   const handleDownloadTemplate = () => {
     const csvContent = generateCsvContent(templateConfig);

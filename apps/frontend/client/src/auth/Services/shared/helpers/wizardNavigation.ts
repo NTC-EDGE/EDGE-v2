@@ -26,6 +26,7 @@ import {
   FIELD_ID_CIVIL_STATUS,
   FIELD_ID_NATIONALITY,
   FIELD_ID_SIGNATURE,
+  FIELD_ID_INVOICE_NUMBER,
 } from "../../../../shared/constants/fieldIds";
 
 interface NavigationContext {
@@ -128,8 +129,12 @@ export function handleWizardNext({
       return;
     }
 
+    const matchedVariant = variants?.find((v) => String(v.id) === String(activeApplicant.selectedVariantId));
+    const varDesc = (matchedVariant?.description || matchedVariant?.name || "").toLowerCase();
+    const isLifetimeSupplementary = varDesc.includes("lifetime") || String(activeApplicant.selectedVariantId).endsWith("35");
+
     // Require selection of service variant element if the variant has available elements
-    if (variantElements && variantElements.length > 0 && (!activeApplicant.selectedElementId || activeApplicant.selectedElementId.trim() === "")) {
+    if (variantElements && variantElements.length > 0 && !isLifetimeSupplementary && (!activeApplicant.selectedElementId || activeApplicant.selectedElementId.trim() === "")) {
       Alert.alert(
         "Required Selection",
         "Please select a Station Class / Radio Element for the chosen service variant before proceeding."
@@ -177,6 +182,33 @@ export function handleWizardNext({
           return;
         }
 
+        // Skip exam details validation for Amateur Certificates
+        const isAmateurCertService = (service.category || "").toLowerCase().includes("certificate") && ((service.title || "").toLowerCase().includes("amateur") || (service.id || "").toLowerCase().includes("103") || (service.id || "").toLowerCase().includes("ntc_1_03"));
+        const isExamField = idLower.includes("exam") || idLower.includes("seminar") || idLower.includes("rating");
+        if (isAmateurCertService && isExamField) {
+          return;
+        }
+
+        // Skip invoice validation for Dealers
+        const isInvoiceId =
+          idLower === FIELD_ID_INVOICE_NUMBER.toLowerCase() ||
+          idLower === "invoicenumber" ||
+          idLower === "invoiceno" ||
+          idLower.includes("invoice");
+
+        if (isInvoiceId) {
+          const matchedVar = variants?.find((v) => String(v.id) === String(activeApplicant.selectedVariantId));
+          const varDesc = (matchedVar?.description || matchedVar?.name || "").toLowerCase();
+          const isNonDealerVariant = varDesc.includes("non-dealer") || varDesc.includes("non dealer") || String(activeApplicant.selectedVariantId).endsWith("23");
+          const registrationTypeVal = (activeApplicant.formFieldValues?.find(fv => (fv.fieldLabel || "").toLowerCase().includes("registration type"))?.value || activeApplicant.deviceRegData?.registrationType || "").toLowerCase();
+          const isNonDealerRegType = registrationTypeVal.includes("non");
+          const isDealer = varDesc.includes("dealer") && !isNonDealerVariant;
+
+          if (isDealer || (!isNonDealerVariant && !isNonDealerRegType)) {
+            return;
+          }
+        }
+
         let val = filledMap.get(idLower);
         if (val === undefined || val === null || (typeof val === "string" && val.trim() === "")) {
           // Resolve fallback from activeApplicant properties
@@ -220,8 +252,13 @@ export function handleWizardNext({
               idLower === FIELD_ID_ADDRESS.toLowerCase() ||
               idLower === "street" ||
               idLower === "address" ||
-              (idLower.includes("address") && !idLower.includes("email")) ||
-              idLower.includes("street")) &&
+              ((idLower.includes("address") || idLower.includes("street")) &&
+                !idLower.includes("email") &&
+                !idLower.includes("exam") &&
+                !idLower.includes("seminar") &&
+                !idLower.includes("station") &&
+                !idLower.includes("seller") &&
+                !idLower.includes("dealer"))) &&
             activeApplicant.address
           ) {
             val = activeApplicant.address;

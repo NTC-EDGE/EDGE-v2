@@ -1,8 +1,9 @@
-﻿import { useMemo } from 'react';
+import { useMemo } from 'react';
 import { Icon } from '@edge/ui';
 import { Application } from '../../data/applicationsData';
 import {
   isUnrelatedSection,
+  isRemovedAmateurSection,
   isApplicantParticularField,
   isSignatureOrDeclarationField,
   isJurisdictionOrVariantField,
@@ -24,12 +25,18 @@ export function useDynamicFormSections(
     serviceTitleLower.includes('admission') ||
     serviceTitleLower.includes('operator examination');
 
+  const isAmateurCert =
+    serviceCategoryLower.includes('amateur') ||
+    serviceTitleLower.includes('amateur') ||
+    serviceTitleLower.includes('ntc 1-03') ||
+    serviceTitleLower.includes('ntc_1_03') ||
+    (app.serviceId || '').toLowerCase().includes('103');
+
   const renderedFieldIds = useMemo(() => new Set<string>(), [formFieldValues]);
 
   // 1. Build Structured Dynamic Form Sections
   const dynamicSectionsToRender = useMemo(() => {
     if (!form?.sections || !Array.isArray(form.sections) || form.sections.length === 0) return [];
-
     const result: Array<{
       id: string;
       title: string;
@@ -41,7 +48,15 @@ export function useDynamicFormSections(
     form.sections.forEach((section, sIdx) => {
       const sectionKey = section.key || section.id || '';
       const sectionTitle = section.title || `Section ${sIdx + 1}`;
-      if (isUnrelatedSection(sectionTitle) || isUnrelatedSection(sectionKey)) return;
+
+      if (isUnrelatedSection(sectionTitle) || isUnrelatedSection(sectionKey) || (isAmateurCert && (isRemovedAmateurSection(sectionTitle) || isRemovedAmateurSection(sectionKey)))) {
+        (section.fields || []).forEach((field) => {
+          if (field.fieldId) renderedFieldIds.add(field.fieldId);
+          if (field.id) renderedFieldIds.add(field.id);
+          if (field.label) renderedFieldIds.add(field.label);
+        });
+        return;
+      }
 
       const sectionFields: Array<{ fieldId: string; label: string; value: string }> = [];
 
@@ -87,7 +102,7 @@ export function useDynamicFormSections(
     });
 
     return result;
-  }, [form, formFieldValues, renderedFieldIds]);
+  }, [form, formFieldValues, renderedFieldIds, isAmateurCert]);
 
   // 2. Classify remaining fields & signatures
   const { remainingSpecs, declarations, signatures } = useMemo(() => {
@@ -102,7 +117,6 @@ export function useDynamicFormSections(
       const labelLower = (field.fieldLabel || field.fieldId).toLowerCase();
 
       const isSig = labelLower.includes('signature') || val.startsWith('data:image') || val.startsWith('typed:cursive:') || val.startsWith('blob:');
-
       const isDec = !isSig && (
         labelLower.includes('declare') || labelLower.includes('certify') || labelLower.includes('agreement') ||
         labelLower.includes('declaration') || labelLower.includes('affirm') || valLower === 'true' ||
@@ -118,12 +132,27 @@ export function useDynamicFormSections(
         !isApplicantParticularField(field.fieldLabel) && !isApplicantParticularField(field.fieldId) &&
         !isJurisdictionOrVariantField(field.fieldLabel) && !isJurisdictionOrVariantField(field.fieldId)
       ) {
+        if (isAmateurCert) {
+          const idLower = field.fieldId.toLowerCase();
+          const isRemovedField =
+            labelLower.includes('employment') || labelLower.includes('class of station') ||
+            labelLower.includes('classofstation') || labelLower.includes('club') ||
+            labelLower.includes('equipment') || labelLower.includes('permit') ||
+            labelLower.includes('license type') || labelLower.includes('certificate type') ||
+            labelLower.includes('nationality') || labelLower.includes('citizenship') ||
+            labelLower.includes('civil status') || labelLower.includes('civilstatus') ||
+            idLower.includes('employment') || idLower.includes('classofstation') ||
+            idLower.includes('club') || idLower.includes('equipment') ||
+            idLower.includes('permittype') || idLower.includes('nationality') ||
+            idLower.includes('civilstatus');
+          if (isRemovedField) continue;
+        }
         specs.push(field);
       }
     }
 
     return { remainingSpecs: specs, declarations: decs, signatures: sigs };
-  }, [formFieldValues, renderedFieldIds]);
+  }, [formFieldValues, renderedFieldIds, isAmateurCert]);
 
   const examEducationFields = useMemo(() => {
     if (!isExamService) return [];

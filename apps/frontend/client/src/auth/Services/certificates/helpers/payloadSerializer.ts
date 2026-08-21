@@ -518,24 +518,29 @@ export function serializeCertificateApplicant(
   ) {
     const data = app.radioCertData;
     if (data) {
+      const isAmateurServiceCert = serviceCode === "NTC_1_03" || serviceTitle.includes("AMATEUR");
       addField("Application Type", data.appType);
       addField("Number of Years", data.years);
-      addField("Type of Certificate", data.typeOfCertificate || data.classOfStation);
+      if (!isAmateurServiceCert || data.classOfStation) {
+        addField("Type of Certificate", data.typeOfCertificate || data.classOfStation);
+      }
       if (data.appType === "RENEWAL" || data.appType === "MODIFICATION") {
-        addField("Existing Certificate No", data.certificateNo);
+        addField("Certificate Number", data.certificateNo);
         addField("Date of Expiry", data.dateOfExpiry);
       }
       if (data.appType === "MODIFICATION") {
-        addField("Modification Details", data.modificationDueTo);
+        addField("Modification Due To", data.modificationDueTo);
       }
       addField("Applicant Name", data.applicantName || `${app.firstName} ${app.lastName}`);
-      addField("Employment Status", data.employmentStatus);
-      addField("Employment Location", data.employmentLocation);
-      addField("Weight (kg)", data.weightKg);
-      addField("Height (cm)", data.heightCm);
-      addField("Exam Seminar Place", data.placeOfExamSeminar);
-      addField("Exam Seminar Date", data.examDate);
-      addField("Ratings", data.ratings);
+      if (!isAmateurServiceCert) {
+        addField("Employment Status", data.employmentStatus);
+        addField("Employment Location", data.employmentLocation);
+        addField("Weight (kg)", data.weightKg);
+        addField("Height (cm)", data.heightCm);
+      }
+      if (data.placeOfExamSeminar) addField("Exam Seminar Place", data.placeOfExamSeminar);
+      if (data.examDate) addField("Exam Seminar Date", data.examDate);
+      if (data.ratings) addField("Ratings", data.ratings);
 
       return {
         firstName: data.applicantName ? data.applicantName.split(" ")[0] || app.firstName : app.firstName,
@@ -556,8 +561,8 @@ export function serializeCertificateApplicant(
     const repName = app.representativeName || (app.firstName ? `${app.firstName} ${app.lastName}`.trim() : "");
     if (data) {
       addField("Registration Type", data.registrationType);
-      if (data.registrationType === "Non-Dealers") {
-        addField("Commercial Invoice No", data.invoiceNo);
+      if (data.registrationType === "Non-Dealers" || (data.invoiceNo && data.invoiceNo.trim() !== "")) {
+        addField("Invoice Number", data.invoiceNo);
       }
       addField("Company Name", compName || "N/A");
       addField("Representative Name", repName || "N/A");

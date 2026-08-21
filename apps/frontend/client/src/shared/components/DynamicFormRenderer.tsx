@@ -25,6 +25,9 @@ import {
   FIELD_ID_CITY,
   FIELD_ID_BARANGAY,
   FIELD_ID_SIGNATURE,
+  FIELD_ID_INVOICE_NUMBER,
+  FIELD_ID_LICENSE_NO,
+  FIELD_ID_DATE_OF_EXPIRY,
 } from "../constants/fieldIds";
 
 export interface FieldDto {
@@ -334,6 +337,25 @@ export function DynamicFormRenderer({
     );
   };
 
+  const catLower = (serviceCategory || "").toLowerCase();
+  const titLower = (serviceTitle || "").toLowerCase();
+  const isExam = catLower.includes("exam") || titLower.includes("exam") || titLower.includes("admission") || titLower.includes("operator examination");
+  const isPermit = catLower.includes("permit") || titLower.includes("permit");
+  const isRequestOrComplaint = catLower.includes("request") || catLower.includes("complaint") || titLower.includes("complaint") || titLower.includes("request");
+  const isAccreditation = catLower.includes("accreditation") || titLower.includes("accreditation");
+
+  // Multi-year validity selection (1, 2, 3 years) is only applicable for Licenses and Certificates
+  const showNumberOfYears = !isExam && !isPermit && !isRequestOrComplaint && !isAccreditation && (catLower.includes("license") || catLower.includes("certificate") || titLower.includes("license") || titLower.includes("certificate"));
+
+  const matchedVariant = variants.find((v) => String(v.id) === String(selectedVariantId));
+  const varDesc = (matchedVariant?.description || matchedVariant?.name || "").toLowerCase();
+  const isLifetimeSupplementary = varDesc.includes("lifetime") || String(selectedVariantId).endsWith("35");
+  const isAmateurCert = catLower.includes("certificate") && (titLower.includes("amateur") || titLower.includes("ntc 1-03") || titLower.includes("ntc_1_03") || varDesc.includes("amateur"));
+  const isRenewal = (matchedVariant?.type || "").toUpperCase() === "RENEWAL" || varDesc.includes("renewal");
+  const isModification = (matchedVariant?.type || "").toUpperCase() === "MODIFICATION" || varDesc.includes("modification") || isLifetimeSupplementary;
+  const isRenewalOrMod = isRenewal || isModification;
+  const showElements = variantElements.length > 0 && !isLifetimeSupplementary;
+
   const visibleSections = sections.filter((section) => {
     if (!section) return false;
     if (isTypeSection(section)) return false;
@@ -357,6 +379,51 @@ export function DynamicFormRenderer({
       return false;
     }
 
+    // Invoice section appears for Non-Dealers only
+    const isInvoiceSection =
+      key === "invoicedetails" ||
+      key === "invoice_details" ||
+      key === "invoice" ||
+      title.includes("invoice");
+
+    if (isInvoiceSection) {
+      const isNonDealerVariant = varDesc.includes("non-dealer") || varDesc.includes("non dealer") || String(selectedVariantId).endsWith("23");
+      const registrationTypeVal = (values?.["registrationType"] || values?.["Registration Type"] || values?.["registration_type"] || "").toLowerCase();
+      const isNonDealerRegType = registrationTypeVal.includes("non");
+      const isDealer = varDesc.includes("dealer") && !isNonDealerVariant;
+
+      if (isDealer || (!isNonDealerVariant && !isNonDealerRegType)) {
+        return false;
+      }
+    }
+
+    const isAmateurCertSection = catLower.includes("certificate") && (titLower.includes("amateur") || titLower.includes("ntc 1-03") || titLower.includes("ntc_1_03"));
+    if (isAmateurCertSection) {
+      const isAmateurRemovedSection =
+        key === "employmentstatus" ||
+        key === "employment_status" ||
+        key === "employment" ||
+        key === "classofstation" ||
+        key === "class_of_station" ||
+        key === "classofstations" ||
+        key === "club" ||
+        key === "clubdetails" ||
+        key === "club_details" ||
+        key === "equipment" ||
+        key === "equipmentdetails" ||
+        key === "equipment_details" ||
+        key === "certificateparticulars" ||
+        title.includes("employment") ||
+        title.includes("class of station") ||
+        title.includes("club") ||
+        title.includes("equipment") ||
+        title.includes("certificate particulars");
+
+      if (isAmateurRemovedSection) {
+        return false;
+      }
+    }
+
     return (
       !hiddenKeys.includes(key) &&
       !hiddenKeys.includes(title) &&
@@ -370,16 +437,6 @@ export function DynamicFormRenderer({
       !key.includes("payment")
     );
   });
-
-  const catLower = (serviceCategory || "").toLowerCase();
-  const titLower = (serviceTitle || "").toLowerCase();
-  const isExam = catLower.includes("exam") || titLower.includes("exam") || titLower.includes("admission") || titLower.includes("operator examination");
-  const isPermit = catLower.includes("permit") || titLower.includes("permit");
-  const isRequestOrComplaint = catLower.includes("request") || catLower.includes("complaint") || titLower.includes("complaint") || titLower.includes("request");
-  const isAccreditation = catLower.includes("accreditation") || titLower.includes("accreditation");
-
-  // Multi-year validity selection (1, 2, 3 years) is only applicable for Licenses and Certificates
-  const showNumberOfYears = !isExam && !isPermit && !isRequestOrComplaint && !isAccreditation && (catLower.includes("license") || catLower.includes("certificate") || titLower.includes("license") || titLower.includes("certificate"));
 
   return (
     <View style={styles.container}>
@@ -400,7 +457,7 @@ export function DynamicFormRenderer({
 
           <FormGrid>
             {/* 1. Type of Application (Service Variant Dropdown) */}
-            <FormCol span={showNumberOfYears ? (variantElements.length > 0 ? 4 : 6) : (variantElements.length > 0 ? 6 : 12)}>
+            <FormCol span={showNumberOfYears ? (showElements ? 4 : 6) : (showElements ? 6 : 12)}>
               <Select
                 label="Type of Application"
                 required
@@ -432,7 +489,7 @@ export function DynamicFormRenderer({
             </FormCol>
 
             {/* 2. Type of Certificate / License / Station Class / Permit Type (Filtered by Service Variant) */}
-            {variantElements.length > 0 && (
+            {showElements && (
               <FormCol span={showNumberOfYears ? 4 : 6}>
                 <Select
                   label={getElementFieldLabel(serviceCategory, serviceTitle)}
@@ -473,7 +530,7 @@ export function DynamicFormRenderer({
 
             {/* 3. Number of Years (only for applicable categories) */}
             {showNumberOfYears && (
-              <FormCol span={variantElements.length > 0 ? 4 : 6}>
+              <FormCol span={showElements ? 4 : 6}>
                 <Select
                   label="Number of Years"
                   required
@@ -487,6 +544,64 @@ export function DynamicFormRenderer({
                   onValueChange={(val: string) => onNoOfYearsChange?.(val)}
                 />
               </FormCol>
+            )}
+
+            {/* Modification Due To (for Modification / Lifetime Supplementary) */}
+            {isAmateurCert && isModification && (
+              <FormCol span={12}>
+                <Select
+                  label="Modification Due to"
+                  required
+                  value={values?.["modificationDueTo"] || values?.["Modification Due To"] || ""}
+                  options={
+                    isLifetimeSupplementary
+                      ? [
+                          { label: "Additional Equipment", value: "Additional Equipment" },
+                          { label: "Deletion of Equipment", value: "Deletion of Equipment" },
+                          { label: "Others", value: "Others" },
+                        ]
+                      : [
+                          { label: "Upgrade of Class of Station", value: "Upgrade of Class of Station" },
+                          { label: "Change of Personal Info", value: "Change of Personal Info" },
+                          { label: "Others", value: "Others" },
+                        ]
+                  }
+                  placeholder="Select reason for modification..."
+                  onValueChange={(val: string) => onChange("modificationDueTo", "Modification Due To", val)}
+                />
+              </FormCol>
+            )}
+
+            {/* Certificate Number & Date of Expiry (for Renewal & Modification) */}
+            {isAmateurCert && isRenewalOrMod && (
+              <>
+                <FormCol span={6}>
+                  <ValidatedInput
+                    label={isRenewal ? "Certificate No." : "Certificate Number"}
+                    required
+                    placeholder="e.g. ROC-2022-00123"
+                    value={values?.[FIELD_ID_LICENSE_NO] || values?.["licenseNo"] || values?.["certificateNo"] || values?.["certificateNumber"] || values?.["Certificate Number"] || values?.["Certificate No."] || ""}
+                    onChangeText={(val) => {
+                      onChange(FIELD_ID_LICENSE_NO, "Certificate Number", val);
+                      onChange("licenseNo", "Certificate Number", val);
+                      onChange("certificateNumber", "Certificate Number", val);
+                    }}
+                  />
+                </FormCol>
+
+                <FormCol span={6}>
+                  <DatePickerInput
+                    label="Date of Expiry"
+                    required
+                    placeholder="MM/DD/YYYY"
+                    value={values?.[FIELD_ID_DATE_OF_EXPIRY] || values?.["dateOfExpiry"] || values?.["Date of Expiry"] || ""}
+                    onChangeText={(val) => {
+                      onChange(FIELD_ID_DATE_OF_EXPIRY, "Date of Expiry", val);
+                      onChange("dateOfExpiry", "Date of Expiry", val);
+                    }}
+                  />
+                </FormCol>
+              </>
             )}
           </FormGrid>
         </View>
@@ -661,6 +776,26 @@ export function DynamicFormRenderer({
                 // Skip element field in the form body if already rendered in top Section 1
                 if (showApplicationTypeSection && variantElements.length > 0 && isElementsField) {
                   return null;
+                }
+
+                // Invoice fields appear for Non-Dealers only
+                const isInvoiceField =
+                  labelLower.includes("invoice") ||
+                  targetId === FIELD_ID_INVOICE_NUMBER ||
+                  fIdLower === "invoicenumber" ||
+                  fIdLower === "invoiceno";
+
+                if (isInvoiceField) {
+                  const matchedVar = variants.find((v) => String(v.id) === String(selectedVariantId));
+                  const varDesc = (matchedVar?.description || matchedVar?.name || "").toLowerCase();
+                  const isNonDealerVariant = varDesc.includes("non-dealer") || varDesc.includes("non dealer") || String(selectedVariantId).endsWith("23");
+                  const registrationTypeVal = (values?.["registrationType"] || values?.["Registration Type"] || values?.["registration_type"] || "").toLowerCase();
+                  const isNonDealerRegType = registrationTypeVal.includes("non");
+                  const isDealer = varDesc.includes("dealer") && !isNonDealerVariant;
+
+                  if (isDealer || (!isNonDealerVariant && !isNonDealerRegType)) {
+                    return null;
+                  }
                 }
 
                 const isRegionField =
@@ -901,6 +1036,15 @@ export function DynamicFormRenderer({
                   labelLower.includes("email") ||
                   rawType === "email";
 
+                const isExamSeminarField =
+                  sectionKeyLower.includes("exam") ||
+                  sectionKeyLower.includes("seminar") ||
+                  labelLower.includes("exam") ||
+                  labelLower.includes("seminar") ||
+                  labelLower.includes("rating");
+
+                const isFieldRequired = isAmateurCert && isExamSeminarField ? false : (field.isRequired ?? false);
+
                 const span = isNameField || isSignature || isCheckbox || isFile || isRepeaterField || isBsdField ? 12 : 6;
 
                 return (
@@ -909,7 +1053,7 @@ export function DynamicFormRenderer({
                       <ApplicantNameField
                         key={targetId}
                         label={field.label}
-                        isRequired={field.isRequired}
+                        isRequired={isFieldRequired}
                         value={val}
                         structuredValue={structuredNameData}
                         allowCompany={allowCompany}
@@ -920,7 +1064,7 @@ export function DynamicFormRenderer({
                     ) : isRepeaterField ? (
                       <FormRepeaterTable
                         label={field.label}
-                        isRequired={field.isRequired}
+                        isRequired={isFieldRequired}
                         value={val}
                         fieldKey={targetId}
                         onChange={(repeaterJson) => onChange(targetId, field.label, repeaterJson)}
@@ -968,7 +1112,7 @@ export function DynamicFormRenderer({
                     ) : isSignature ? (
                       <FormSignatureInput
                         label={field.label}
-                        isRequired={field.isRequired}
+                        isRequired={isFieldRequired}
                         value={val}
                         onChange={(sigData) => onChange(targetId, field.label, sigData)}
                         applicantName={applicantName || val}
@@ -979,7 +1123,7 @@ export function DynamicFormRenderer({
                     ) : isCheckbox ? (
                       <DeclarationCheckbox
                         label={field.label}
-                        isRequired={field.isRequired}
+                        isRequired={isFieldRequired}
                         value={val}
                         onChange={(chkVal) => onChange(targetId, field.label, chkVal)}
                         error={err}
@@ -987,7 +1131,7 @@ export function DynamicFormRenderer({
                     ) : isDropdown ? (
                       <Select
                         label={field.label}
-                        required={field.isRequired}
+                        required={isFieldRequired}
                         value={val}
                         onValueChange={handleDropdownChange}
                         options={dropdownOptions}
@@ -997,7 +1141,7 @@ export function DynamicFormRenderer({
                     ) : isDate ? (
                       <DatePickerInput
                         label={field.label}
-                        required={field.isRequired}
+                        required={isFieldRequired}
                         value={val}
                         onChangeText={(v: string) => onChange(targetId, field.label, v)}
                         error={err}
@@ -1005,7 +1149,7 @@ export function DynamicFormRenderer({
                     ) : (
                       <ValidatedInput
                         label={field.label}
-                        required={field.isRequired}
+                        required={isFieldRequired}
                         value={val}
                         onChangeText={(v) => onChange(targetId, field.label, v)}
                         placeholder={

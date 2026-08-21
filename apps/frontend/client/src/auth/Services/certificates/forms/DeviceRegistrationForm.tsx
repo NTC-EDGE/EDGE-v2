@@ -89,7 +89,13 @@ export function DeviceRegistrationForm({
             <Text style={certStyles.selectLabel}>Registration Type*</Text>
             <Select
               value={data.registrationType}
-              onValueChange={(val) => onChange({ registrationType: val as "Dealers" | "Non-Dealers" })}
+              onValueChange={(val) => {
+                const nextType = val as "Dealers" | "Non-Dealers";
+                onChange({
+                  registrationType: nextType,
+                  invoiceNo: nextType === "Dealers" ? "" : data.invoiceNo,
+                });
+              }}
               options={[
                 { label: "Dealers", value: "Dealers" },
                 { label: "Non-Dealers", value: "Non-Dealers" },
@@ -100,8 +106,8 @@ export function DeviceRegistrationForm({
           {isNonDealer && (
             <View style={certStyles.formCol6}>
               <ValidatedInput
-                label="Commercial Invoice No."
-                placeholder="Invoice / Sales Receipt No."
+                label="Invoice Number"
+                placeholder="Commercial Invoice / Sales Receipt No."
                 value={data.invoiceNo}
                 onChangeText={(val) => onChange({ invoiceNo: val })}
                 error={errors.invoiceNo}

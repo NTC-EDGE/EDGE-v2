@@ -225,7 +225,18 @@ export function GeneralFilingDetailsStep({
           updatedValues.push({ fieldId, fieldLabel: field.label, value: activeApplicant.barangay });
           hasChanges = true;
         }
-        if ((labelLower.includes("address") || labelLower.includes("street")) && !labelLower.includes("email") && !existingVal && activeApplicant.address) {
+        if (
+          (labelLower.includes("address") || labelLower.includes("street")) &&
+          !labelLower.includes("email") &&
+          !labelLower.includes("exam") &&
+          !labelLower.includes("seminar") &&
+          !labelLower.includes("station") &&
+          !labelLower.includes("installation") &&
+          !labelLower.includes("seller") &&
+          !labelLower.includes("dealer") &&
+          !existingVal &&
+          activeApplicant.address
+        ) {
           updatedValues.push({ fieldId, fieldLabel: field.label, value: activeApplicant.address });
           hasChanges = true;
         }
@@ -247,6 +258,8 @@ export function GeneralFilingDetailsStep({
   const prevRequiredKeyRef = React.useRef<string>("");
   useEffect(() => {
     if (!loading && form && form.sections) {
+      const isAmateurCertService = (service.category || "").toLowerCase().includes("certificate") && ((service.title || "").toLowerCase().includes("amateur") || (service.id || "").toLowerCase().includes("103") || (service.id || "").toLowerCase().includes("ntc_1_03"));
+
       const visibleSections = form.sections.filter((section) => {
         const key = (section.key || section.id || "").toLowerCase();
         const title = (section.title || "").toLowerCase();
@@ -265,6 +278,53 @@ export function GeneralFilingDetailsStep({
 
         if (isCompanyOrRepSection) {
           return false;
+        }
+
+        // Exclude removed sections for Amateur Service Certificates
+        if (isAmateurCertService) {
+          const isAmateurRemovedSection =
+            key === "employmentstatus" ||
+            key === "employment_status" ||
+            key === "employment" ||
+            key === "classofstation" ||
+            key === "class_of_station" ||
+            key === "classofstations" ||
+            key === "club" ||
+            key === "clubdetails" ||
+            key === "club_details" ||
+            key === "equipment" ||
+            key === "equipmentdetails" ||
+            key === "equipment_details" ||
+            key === "certificateparticulars" ||
+            title.includes("employment") ||
+            title.includes("class of station") ||
+            title.includes("club") ||
+            title.includes("equipment") ||
+            title.includes("certificate particulars");
+
+          if (isAmateurRemovedSection) {
+            return false;
+          }
+        }
+
+        // Exclude Invoice section for Dealers
+        const isInvoiceSection =
+          key === "invoicedetails" ||
+          key === "invoice_details" ||
+          key === "invoice" ||
+          title.includes("invoice");
+
+        if (isInvoiceSection) {
+          const matchedVar = variants.find((v) => String(v.id) === String(activeApplicant.selectedVariantId));
+          const varDesc = (matchedVar?.description || matchedVar?.name || "").toLowerCase();
+          const isNonDealerVariant = varDesc.includes("non-dealer") || varDesc.includes("non dealer") || String(activeApplicant.selectedVariantId).endsWith("23");
+          const registrationTypeVal = (activeApplicant.formFieldValues?.find(fv => (fv.fieldLabel || "").toLowerCase().includes("registration type"))?.value || activeApplicant.deviceRegData?.registrationType || "").toLowerCase();
+          const isNonDealerRegType = registrationTypeVal.includes("non");
+          const isDealer = varDesc.includes("dealer") && !isNonDealerVariant;
+
+          if (isDealer || (!isNonDealerVariant && !isNonDealerRegType)) {
+            return false;
+          }
         }
 
         return (
@@ -303,6 +363,9 @@ export function GeneralFilingDetailsStep({
             sectionKeyLower.includes("emergency");
           if (isOptionalSection) return [];
 
+          const isExamSection = sectionKeyLower.includes("exam") || sectionKeyLower.includes("seminar");
+          if (isAmateurCertService && isExamSection) return [];
+
           const hasRepeater = s.fields.some((f) => {
             const fType = (f.fieldType || f.type || "").toLowerCase();
             const fId = (f.fieldId || f.id || "").toLowerCase();
@@ -313,6 +376,9 @@ export function GeneralFilingDetailsStep({
             if (!f.isRequired) return false;
             const fIdLower = (f.fieldId || f.id || "").toLowerCase();
             const labelLower = (f.label || "").toLowerCase().trim();
+
+            const isExamField = labelLower.includes("exam") || labelLower.includes("seminar") || labelLower.includes("rating");
+            if (isAmateurCertService && isExamField) return false;
 
             const isEmployment =
               labelLower === "status" ||
@@ -343,6 +409,24 @@ export function GeneralFilingDetailsStep({
               fIdLower === "element";
             if (isElem) return false;
 
+            const isInvoiceField =
+              labelLower.includes("invoice") ||
+              fIdLower === "invoicenumber" ||
+              fIdLower === "invoiceno";
+
+            if (isInvoiceField) {
+              const matchedVar = variants.find((v) => String(v.id) === String(activeApplicant.selectedVariantId));
+              const varDesc = (matchedVar?.description || matchedVar?.name || "").toLowerCase();
+              const isNonDealerVariant = varDesc.includes("non-dealer") || varDesc.includes("non dealer") || String(activeApplicant.selectedVariantId).endsWith("23");
+              const registrationTypeVal = (activeApplicant.formFieldValues?.find(fv => (fv.fieldLabel || "").toLowerCase().includes("registration type"))?.value || activeApplicant.deviceRegData?.registrationType || "").toLowerCase();
+              const isNonDealerRegType = registrationTypeVal.includes("non");
+              const isDealer = varDesc.includes("dealer") && !isNonDealerVariant;
+
+              if (isDealer || (!isNonDealerVariant && !isNonDealerRegType)) {
+                return false;
+              }
+            }
+
             if (
               hasRepeater &&
               !fIdLower.includes("details") &&
@@ -370,7 +454,7 @@ export function GeneralFilingDetailsStep({
       prevRequiredKeyRef.current = "";
       onRequiredFieldsChange?.([]);
     }
-  }, [loading, form]);
+  }, [loading, form, activeApplicant.selectedVariantId, activeApplicant.deviceRegData?.registrationType, variants]);
 
   if (loading) {
     return (
@@ -507,7 +591,16 @@ export function GeneralFilingDetailsStep({
           partial.contactNo = value;
         } else if (normalized.includes("email") || fieldId === FIELD_ID_EMAIL) {
           partial.email = value;
-        } else if ((normalized.includes("address") || normalized.includes("street")) && !normalized.includes("email")) {
+        } else if (
+          (normalized.includes("address") || normalized.includes("street")) &&
+          !normalized.includes("email") &&
+          !normalized.includes("exam") &&
+          !normalized.includes("seminar") &&
+          !normalized.includes("station") &&
+          !normalized.includes("installation") &&
+          !normalized.includes("seller") &&
+          !normalized.includes("dealer")
+        ) {
           partial.address = value;
         } else if (normalized === "region") {
           partial.region = value;

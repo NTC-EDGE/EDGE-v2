@@ -30,6 +30,7 @@ import {
   FIELD_ID_STREET,
   FIELD_ID_ADDRESS,
   FIELD_ID_ZIP_CODE,
+  FIELD_ID_INVOICE_NUMBER,
 } from "../../../../shared/constants/fieldIds";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -178,6 +179,33 @@ export function GeneralBulkApplicationFlow({
           return;
         }
 
+        // Skip exam details validation for Amateur Certificates
+        const isAmateurCertService = (service.category || "").toLowerCase().includes("certificate") && ((service.title || "").toLowerCase().includes("amateur") || (service.id || "").toLowerCase().includes("103") || (service.id || "").toLowerCase().includes("ntc_1_03"));
+        const isExamField = idLower.includes("exam") || idLower.includes("seminar") || idLower.includes("rating");
+        if (isAmateurCertService && isExamField) {
+          return;
+        }
+
+        // Skip invoice validation for Dealers
+        const isInvoiceId =
+          idLower === FIELD_ID_INVOICE_NUMBER.toLowerCase() ||
+          idLower === "invoicenumber" ||
+          idLower === "invoiceno" ||
+          idLower.includes("invoice");
+
+        if (isInvoiceId) {
+          const matchedVar = variants?.find((v) => String(v.id) === String(activeApplicant?.selectedVariantId));
+          const varDesc = (matchedVar?.description || matchedVar?.name || "").toLowerCase();
+          const isNonDealerVariant = varDesc.includes("non-dealer") || varDesc.includes("non dealer") || String(activeApplicant?.selectedVariantId).endsWith("23");
+          const registrationTypeVal = (activeApplicant?.formFieldValues?.find(fv => (fv.fieldLabel || "").toLowerCase().includes("registration type"))?.value || activeApplicant?.deviceRegData?.registrationType || "").toLowerCase();
+          const isNonDealerRegType = registrationTypeVal.includes("non");
+          const isDealer = varDesc.includes("dealer") && !isNonDealerVariant;
+
+          if (isDealer || (!isNonDealerVariant && !isNonDealerRegType)) {
+            return;
+          }
+        }
+
         let val = filledMap.get(idLower);
         if (val === undefined || val === null || (typeof val === "string" && val.trim() === "")) {
           if (
@@ -220,8 +248,13 @@ export function GeneralBulkApplicationFlow({
               idLower === FIELD_ID_ADDRESS.toLowerCase() ||
               idLower === "street" ||
               idLower === "address" ||
-              (idLower.includes("address") && !idLower.includes("email")) ||
-              idLower.includes("street")) &&
+              ((idLower.includes("address") || idLower.includes("street")) &&
+                !idLower.includes("email") &&
+                !idLower.includes("exam") &&
+                !idLower.includes("seminar") &&
+                !idLower.includes("station") &&
+                !idLower.includes("seller") &&
+                !idLower.includes("dealer"))) &&
             activeApplicant?.address
           ) {
             val = activeApplicant.address;

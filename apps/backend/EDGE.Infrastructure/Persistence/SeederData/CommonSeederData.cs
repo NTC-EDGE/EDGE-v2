@@ -175,6 +175,9 @@ public static class CommonSeederData
             ["tvroSignal"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000225"), FieldType = "repeater", Label = "Particulars of Signal to be Received", SyncBackOnSubmit = false },
             ["bsdNo"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000226"), FieldType = "text", Label = "BSD No. (Assigned by NTC)", SyncBackOnSubmit = false },
 
+            // Invoice fields for NTC 1-19 and Non-Dealer Certificate registrations
+            ["invoiceNumber"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000228"), FieldType = "text", Label = "Invoice Number", SyncBackOnSubmit = false },
+
             // Company & Corporate Applicant Fields (NTC 1-19 and generic company filings)
             ["companyName"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000081"), FieldType = "text", Label = "Company / Business Name", SyncBackOnSubmit = true },
             ["representativeName"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000082"), FieldType = "text", Label = "Authorized Representative Name", SyncBackOnSubmit = false },

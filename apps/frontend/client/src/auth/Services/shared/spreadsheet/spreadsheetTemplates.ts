@@ -343,7 +343,7 @@ export function getSpreadsheetTemplateForService(service: NTCService): Spreadshe
         "Email",
         "Address",
         "Registration Type",
-        "Commercial Invoice No",
+        "Invoice Number",
         "Device Type",
         "Make / Type / Model",
         "Equipment Serial Numbers",
@@ -362,8 +362,21 @@ export function getSpreadsheetTemplateForService(service: NTCService): Spreadshe
           "Ubiquiti UniFi U6-Pro",
           "SN-UBQ-882109; SN-UBQ-882110; SN-UBQ-882111",
         ],
+        [
+          "Apex Retail Warehouse Corp.",
+          "Corporation",
+          "SEC-2023081102",
+          "09185556677",
+          "logistics@apex.ph",
+          "Pasig City, Metro Manila",
+          "Non-Dealers",
+          "INV-2026-00481",
+          "Radio Frequency Identification (RFID) Devices",
+          "Zebra FX9600 RFID Reader",
+          "SN-ZBR-440192; SN-ZBR-440193",
+        ],
       ],
-      description: "Template for registration of RFID, SRD, and indoor WDN devices with serial numbers.",
+      description: "Template for registration of RFID, SRD, and indoor WDN devices with serial numbers and invoice details.",
     };
   }
 

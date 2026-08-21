@@ -1,4 +1,4 @@
-﻿import { Application } from '../../data/applicationsData';
+import { Application } from '../../data/applicationsData';
 import { FIELD_ID_FULL_NAME, FIELD_ID_BIRTH_DATE, FIELD_ID_CIVIL_STATUS } from '../../../../shared/constants/fieldIds';
 import { RawFormFieldItem, RawApplicantDetails, RawApplicantHolder } from './applicationDetailsTypes';
 
@@ -103,6 +103,17 @@ export const isUnrelatedSection = (titleOrKey: string): boolean => {
   );
 };
 
+export const isRemovedAmateurSection = (titleOrKey: string): boolean => {
+  const lower = titleOrKey.toLowerCase().replace(/['']/g, '').replace(/[-_]/g, ' ').trim();
+  return (
+    lower.includes('employment') ||
+    lower.includes('class of station') ||
+    lower.includes('classofstation') ||
+    lower.includes('club') ||
+    lower.includes('equipment')
+  );
+};
+
 export const isApplicantParticularField = (labelOrId: string): boolean => {
   if (!labelOrId) return false;
   const lower = labelOrId.toLowerCase().replace(/['']/g, '').replace(/[-_]/g, ' ').trim();
@@ -111,7 +122,7 @@ export const isApplicantParticularField = (labelOrId: string): boolean => {
     lower.includes('equipment') || lower.includes('school') || lower.includes('institution') ||
     lower.includes('course') || lower.includes('degree') || lower.includes('station') ||
     lower.includes('satellite') || lower.includes('vessel') || lower.includes('ship') ||
-    lower.includes('aircraft')
+    lower.includes('aircraft') || lower.includes('exam') || lower.includes('seminar')
   ) return false;
   return (
     lower.includes('full name') || lower.includes('legal name') || lower.includes('applicant name') ||
@@ -140,12 +151,17 @@ export const isSignatureOrDeclarationField = (labelOrId: string): boolean => {
 
 export const isJurisdictionOrVariantField = (labelOrId: string): boolean => {
   if (!labelOrId) return false;
-  const lower = labelOrId.toLowerCase().trim();
+  const lower = labelOrId.toLowerCase().replace(/['']/g, '').replace(/[-_]/g, ' ').trim();
   return (
     lower === 'service' || lower === 'service category' || lower === 'category' ||
     lower === 'service name' || lower === 'type of application' || lower === 'application type' ||
-    lower === 'permit type' || lower === 'license type' || lower === 'certificate type' ||
-    lower === 'filing mode' || lower === 'application mode'
+    lower === 'permit type' || lower === 'permittype' || lower === 'license type' ||
+    lower === 'licensetype' || lower === 'certificate type' || lower === 'certificatetype' ||
+    lower === 'filing mode' || lower === 'application mode' ||
+    lower.includes('permit / license type') || lower.includes('permit/license type') ||
+    lower.includes('permit / certificate type') || lower.includes('permit/certificate type') ||
+    lower.includes('type of application') || lower.includes('permit category') ||
+    lower.includes('type of certificate')
   );
 };
 
