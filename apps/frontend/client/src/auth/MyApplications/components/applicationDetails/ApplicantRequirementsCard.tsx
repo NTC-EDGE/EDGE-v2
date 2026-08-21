@@ -1,10 +1,10 @@
-﻿import React from 'react';
+import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Icon, TYPOGRAPHY } from '@edge/ui';
 import { Application, ApplicationDocument, RawRequirement } from '../../data/applicationsData';
 import { isGuid } from './applicationDetailsTypes';
 import { useApi } from '../../../../shared/hooks/useApi';
-import { SectionCard } from './SectionCard';
+import { SectionCard } from '../../../../shared/formPreview';
 
 interface ApplicantRequirementsCardProps {
   app: Application;

@@ -24,7 +24,7 @@ export {
   isExamAssistanceField,
   isRepeaterSubField,
   isSuppressedValue,
-} from './applicationDetailsFieldCheckers';
+} from '../../../../shared/formPreview';
 
 export {
   getSectionIcon,

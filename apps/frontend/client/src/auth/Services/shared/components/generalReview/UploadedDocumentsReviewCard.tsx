@@ -3,9 +3,8 @@ import { View, Text, TouchableOpacity } from 'react-native';
 import { TYPOGRAPHY, Icon } from '@edge/ui';
 import { NTCService } from '../../../data/servicesData';
 import { GeneralApplicantData, ServiceRequirementItem } from '../../hooks/useGeneralServiceWizard';
-import { isPreviewFileObject, getRequirementLabel } from './generalReviewHelpers';
-import { PreviewFileTarget } from './generalReviewTypes';
-import { SectionCard } from './SectionCard';
+import { isPreviewFileObject, SectionCard, PreviewFileTarget } from '../../../../../shared/formPreview';
+import { getRequirementLabel } from './generalReviewFormatters';
 
 interface UploadedDocumentsReviewCardProps {
   activeApplicant: GeneralApplicantData;

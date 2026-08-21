@@ -1,11 +1,10 @@
-﻿import React from 'react';
+import React from 'react';
 import { View, Text, Modal, TouchableOpacity, ScrollView, useWindowDimensions } from 'react-native';
 import { Icon } from '@edge/ui';
 import { Application, ApplicationDocument, BulkApplicant, getStatusLabel } from '../../data/applicationsData';
 import { safeGetStatusLabel } from './applicationDetailsTypes';
 import { styles } from './applicationDetailsStyles';
-import { SectionCard } from './SectionCard';
-import { SummaryRow } from './SummaryRow';
+import { SectionCard, SummaryRow } from '../../../../shared/formPreview';
 import { SubmittedFormStructuredView } from './SubmittedFormStructuredView';
 import { BulkApplicantDocList } from './BulkApplicantDocList';
 

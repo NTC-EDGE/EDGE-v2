@@ -1,8 +1,7 @@
-﻿import React from 'react';
+import React from 'react';
 import { View } from 'react-native';
 import { Application, ApplicationDocument } from '../../data/applicationsData';
-import { SectionCard } from './SectionCard';
-import { SummaryRow } from './SummaryRow';
+import { SectionCard, SummaryRow } from '../../../../shared/formPreview';
 import { SubmittedFormStructuredView } from './SubmittedFormStructuredView';
 import { ApplicantParticularsCard } from './ApplicantParticularsCard';
 import { ApplicantRequirementsCard } from './ApplicantRequirementsCard';

@@ -2,8 +2,7 @@ import React from 'react';
 import { View, Text } from 'react-native';
 import { TYPOGRAPHY } from '@edge/ui';
 import { AmateurRadioStationLicenseData } from '../../../licenses';
-import { SectionCard } from './SectionCard';
-import { SummaryRow } from './SummaryRow';
+import { SectionCard, SummaryRow } from '../../../../../shared/formPreview';
 
 interface AmateurStationLicenseReviewCardProps {
   isLicenseService: boolean;

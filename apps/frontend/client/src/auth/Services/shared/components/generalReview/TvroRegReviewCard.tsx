@@ -2,8 +2,7 @@ import React from 'react';
 import { View, Text } from 'react-native';
 import { TYPOGRAPHY } from '@edge/ui';
 import { TVRORegistrationData } from '../../../certificates';
-import { SectionCard } from './SectionCard';
-import { SummaryRow } from './SummaryRow';
+import { SectionCard, SummaryRow } from '../../../../../shared/formPreview';
 
 interface TvroRegReviewCardProps {
   isCertificateService: boolean;
@@ -49,126 +48,86 @@ export function TvroRegReviewCard({
         </View>
         {tvroReg.businessName ? <SummaryRow label="Business Name" value={tvroReg.businessName} /> : null}
 
-        {/* Location Details */}
-        {(tvroReg.serviceArea || tvroReg.exactLocation || tvroReg.longitude || tvroReg.latitude) ? (
-          <View style={{ marginTop: 4, padding: 12, backgroundColor: '#F8FAFC', borderRadius: 8, borderWidth: 1, borderColor: '#E2E8F0', gap: 6 }}>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: '700', color: '#0F172A' }}>
-              4. Location Details
+        {/* Station Location */}
+        {tvroReg.exactLocation || tvroReg.serviceArea || tvroReg.city || tvroReg.province ? (
+          <View style={{ backgroundColor: '#F8FAFC', padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#E2E8F0' }}>
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: '700', color: '#475569', marginBottom: 6, textTransform: 'uppercase' }}>
+              Station Location & Geographic Coordinates
             </Text>
-            {tvroReg.serviceArea ? <SummaryRow label="Service Area" value={tvroReg.serviceArea} /> : null}
-            {tvroReg.exactLocation ? <SummaryRow label="Exact Location of TVRO System" value={tvroReg.exactLocation} /> : null}
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              {tvroReg.longitude ? (
-                <View style={{ flex: 1 }}>
-                  <SummaryRow label="Longitude (deg-min-sec)" value={tvroReg.longitude} />
-                </View>
+            <View style={{ gap: 4 }}>
+              {[tvroReg.exactLocation, tvroReg.barangay, tvroReg.city, tvroReg.province]
+                .filter(Boolean)
+                .join(', ') ? (
+                <SummaryRow
+                  label="Location Address"
+                  value={[tvroReg.exactLocation, tvroReg.barangay, tvroReg.city, tvroReg.province]
+                    .filter(Boolean)
+                    .join(', ')}
+                />
               ) : null}
-              {tvroReg.latitude ? (
-                <View style={{ flex: 1 }}>
-                  <SummaryRow label="Latitude (deg-min-sec)" value={tvroReg.latitude} />
+              {tvroReg.latitude || tvroReg.longitude ? (
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  {tvroReg.latitude ? (
+                    <View style={{ flex: 1 }}>
+                      <SummaryRow label="Latitude" value={tvroReg.latitude} />
+                    </View>
+                  ) : null}
+                  {tvroReg.longitude ? (
+                    <View style={{ flex: 1 }}>
+                      <SummaryRow label="Longitude" value={tvroReg.longitude} />
+                    </View>
+                  ) : null}
                 </View>
               ) : null}
             </View>
           </View>
         ) : null}
 
-        {/* Particulars of Equipment */}
-        {tvroReg.particularsEquipment && tvroReg.particularsEquipment.length > 0 ? (
-          <View style={{ marginTop: 4, padding: 12, backgroundColor: '#F8FAFC', borderRadius: 8, borderWidth: 1, borderColor: '#E2E8F0', gap: 8 }}>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: '700', color: '#0F172A' }}>
-              5. Particulars of Equipment ({tvroReg.particularsEquipment.length} Unit(s))
+        {/* Equipment Specs */}
+        {tvroReg.particularsEquipment && tvroReg.particularsEquipment.some((e: { makeTypeModel?: string }) => e.makeTypeModel) ? (
+          <View style={{ backgroundColor: '#F8FAFC', padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#E2E8F0' }}>
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: '700', color: '#475569', marginBottom: 6, textTransform: 'uppercase' }}>
+              Receiver & Equipment Details
             </Text>
-            {tvroReg.particularsEquipment.map((eq: { id?: string; type?: string; makeTypeModel?: string; serialNo?: string; frequencyRange?: string }, idx: number) => (
-              <View key={eq.id || idx} style={{ padding: 10, backgroundColor: '#FFFFFF', borderRadius: 6, borderWidth: 1, borderColor: '#CBD5E1', gap: 4 }}>
-                <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, fontWeight: '700', color: '#1E293B' }}>
-                  Unit #{idx + 1}: {eq.type || 'Equipment'}
-                </Text>
-                <View style={{ flexDirection: 'row', gap: 8 }}>
+            {tvroReg.particularsEquipment.map((eq: { makeTypeModel?: string; serialNo?: string }, idx: number) => (
+              <View key={idx} style={{ flexDirection: 'row', gap: 8, marginBottom: 4 }}>
+                {eq.makeTypeModel ? (
                   <View style={{ flex: 1 }}>
-                    <SummaryRow label="Make / Type / Model" value={eq.makeTypeModel || 'N/A'} />
+                    <SummaryRow label={`Make / Model #${idx + 1}`} value={eq.makeTypeModel} />
                   </View>
+                ) : null}
+                {eq.serialNo ? (
                   <View style={{ flex: 1 }}>
-                    <SummaryRow label="Serial Number" value={eq.serialNo || 'N/A'} />
+                    <SummaryRow label="Serial Number" value={eq.serialNo} />
                   </View>
-                </View>
-                {eq.frequencyRange ? <SummaryRow label="Frequency Range" value={eq.frequencyRange} /> : null}
+                ) : null}
               </View>
             ))}
           </View>
         ) : null}
 
-        {/* Particulars of Antenna System */}
-        {tvroReg.particularsOfAntennaSystem && tvroReg.particularsOfAntennaSystem.length > 0 ? (
-          <View style={{ marginTop: 4, padding: 12, backgroundColor: '#F8FAFC', borderRadius: 8, borderWidth: 1, borderColor: '#E2E8F0', gap: 8, width: '100%' }}>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: '700', color: '#0F172A' }}>
-              6. Particulars of Antenna System ({tvroReg.particularsOfAntennaSystem.length} Dish(es))
+        {/* Antenna Specs */}
+        {tvroReg.particularsOfAntennaSystem && tvroReg.particularsOfAntennaSystem.some((a: { makeTypeModel?: string }) => a.makeTypeModel) ? (
+          <View style={{ backgroundColor: '#F8FAFC', padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#E2E8F0' }}>
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: '700', color: '#475569', marginBottom: 6, textTransform: 'uppercase' }}>
+              Antenna System Details
             </Text>
-            {tvroReg.particularsOfAntennaSystem.map((ant: { id?: string; makeTypeModel?: string; dishDiameter?: string; polarization?: string; azimuth?: string }, idx: number) => (
-              <View key={ant.id || idx} style={{ padding: 10, backgroundColor: '#FFFFFF', borderRadius: 6, borderWidth: 1, borderColor: '#CBD5E1', gap: 4, width: '100%' }}>
-                <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, fontWeight: '700', color: '#1E293B', marginBottom: 4 }}>
-                  Antenna #{idx + 1}
-                </Text>
-                <View style={{ flexDirection: 'row', gap: 8, width: '100%' }}>
-                  <View style={{ flex: 1.3 }}>
-                    <SummaryRow label="Make/Type/Model" value={ant.makeTypeModel || 'N/A'} />
-                  </View>
+            {tvroReg.particularsOfAntennaSystem.map((ant: { makeTypeModel?: string; dishDiameter?: string }, idx: number) => (
+              <View key={idx} style={{ flexDirection: 'row', gap: 8, marginBottom: 4 }}>
+                {ant.makeTypeModel ? (
                   <View style={{ flex: 1 }}>
-                    <SummaryRow label="Dish Diameter" value={ant.dishDiameter || 'N/A'} />
+                    <SummaryRow label={`Antenna Make #${idx + 1}`} value={ant.makeTypeModel} />
                   </View>
+                ) : null}
+                {ant.dishDiameter ? (
                   <View style={{ flex: 1 }}>
-                    <SummaryRow label="Polarization" value={ant.polarization || 'N/A'} />
+                    <SummaryRow label="Dish Diameter" value={ant.dishDiameter} />
                   </View>
-                  <View style={{ flex: 1 }}>
-                    <SummaryRow label="Azimuth" value={ant.azimuth || 'N/A'} />
-                  </View>
-                </View>
+                ) : null}
               </View>
             ))}
           </View>
         ) : null}
-
-        {/* Particulars of Signal to be Received */}
-        {tvroReg.particularsOfSignalToBeReceived && tvroReg.particularsOfSignalToBeReceived.length > 0 ? (
-          <View style={{ marginTop: 4, padding: 12, backgroundColor: '#F8FAFC', borderRadius: 8, borderWidth: 1, borderColor: '#E2E8F0', gap: 8 }}>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: '700', color: '#0F172A' }}>
-              7. Particulars of Signal to be Received ({tvroReg.particularsOfSignalToBeReceived.length} Channel(s))
-            </Text>
-            {tvroReg.particularsOfSignalToBeReceived.map((sig: { id?: string; satellite?: string; receivedFrequency?: string; polarization?: string; nameOfPrograms?: string }, idx: number) => (
-              <View key={sig.id || idx} style={{ padding: 10, backgroundColor: '#FFFFFF', borderRadius: 6, borderWidth: 1, borderColor: '#CBD5E1', gap: 4 }}>
-                <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, fontWeight: '700', color: '#1E293B' }}>
-                  Signal Channel #{idx + 1}: {sig.satellite || 'Satellite'}
-                </Text>
-                <View style={{ flexDirection: 'row', gap: 8 }}>
-                  <View style={{ flex: 1 }}>
-                    <SummaryRow label="Received Frequency" value={sig.receivedFrequency || 'N/A'} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <SummaryRow label="Polarization" value={sig.polarization || 'N/A'} />
-                  </View>
-                </View>
-                {sig.nameOfPrograms ? <SummaryRow label="Name of Programs" value={sig.nameOfPrograms} /> : null}
-              </View>
-            ))}
-          </View>
-        ) : null}
-
-        {/* BSD */}
-        <View style={{ marginTop: 4, padding: 12, backgroundColor: '#F1F5F9', borderRadius: 8, borderWidth: 1, borderColor: '#CBD5E1', gap: 4 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: '700', color: '#0F172A' }}>
-              8. Broadcast Services Division (BSD)
-            </Text>
-            <View style={{ backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 }}>
-              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 10.5, fontWeight: '700', color: '#1D4ED8' }}>
-                NTC ASSIGNMENT
-              </Text>
-            </View>
-          </View>
-          <SummaryRow label="BSD No." value={tvroReg.bsdNumber || 'TO BE ASSIGNED BY NTC'} />
-          <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, color: '#64748B', fontStyle: 'italic' }}>
-            * BSD No. is designated and assigned exclusively by the NTC upon application review.
-          </Text>
-        </View>
       </View>
     </SectionCard>
   );

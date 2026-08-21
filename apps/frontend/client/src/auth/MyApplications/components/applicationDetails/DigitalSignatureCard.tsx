@@ -1,7 +1,7 @@
-﻿import React from 'react';
+import React from 'react';
 import { View, Text, Image } from 'react-native';
 import { Icon, TYPOGRAPHY } from '@edge/ui';
-import { SectionCard } from './SectionCard';
+import { SectionCard } from '../../../../shared/formPreview';
 
 interface DigitalSignatureCardProps {
   signatures: Array<{ fieldId: string; fieldLabel: string; value: string }>;
@@ -15,182 +15,147 @@ export function DigitalSignatureCard({ signatures, primaryName }: DigitalSignatu
       title="Acknowledgement & Digital Signature"
       accentColor="#0F2C59"
     >
-      <View
-        style={{
-          backgroundColor: '#FFFFFF',
-          borderWidth: 1.5,
-          borderColor: '#E2E8F0',
-          borderRadius: 8,
-          padding: 20,
-          alignItems: 'center',
-        }}
-      >
-        {/* Consent to Data Privacy Act of 2012 (R.A. 10173) */}
-        <View
-          style={{
-            backgroundColor: '#F0FDF4',
-            borderWidth: 1,
-            borderColor: '#BBF7D0',
-            borderRadius: 8,
-            padding: 14,
-            width: '100%',
-            marginBottom: 16,
-            flexDirection: 'row',
-            alignItems: 'flex-start',
-            gap: 12,
-          }}
-        >
-          <View
-            style={{
-              width: 24,
-              height: 24,
-              borderRadius: 12,
-              backgroundColor: '#16A34A',
-              justifyContent: 'center',
-              alignItems: 'center',
-              marginTop: 1,
-            }}
-          >
-            <Icon name="check" size={14} color="#FFFFFF" />
-          </View>
-
-          <View style={{ flex: 1 }}>
-            <Text
-              style={{
-                fontFamily: TYPOGRAPHY.fonts.primary,
-                fontSize: 12,
-                fontWeight: '700',
-                color: '#166534',
-                marginBottom: 4,
-              }}
-            >
-              Consent to Data Privacy Act of 2012 (R.A. No. 10173) & Legal Affirmation
-            </Text>
-            <Text
-              style={{
-                fontFamily: TYPOGRAPHY.fonts.primary,
-                fontSize: 11,
-                color: '#15803D',
-                lineHeight: 16,
-              }}
-            >
-              I hereby declare that all entries are true and correct. I freely give full consent for the collection and processing of personal information in accordance with Republic Act No. 10173 (Data Privacy Act of 2012) and NTC online filing guidelines.
-            </Text>
-            <Text
-              style={{
-                fontFamily: TYPOGRAPHY.fonts.primary,
-                fontSize: 10,
-                fontWeight: '700',
-                color: '#15803D',
-                marginTop: 6,
-                textTransform: 'uppercase',
-              }}
-            >
-              ✓ Consented & Agreed
-            </Text>
-          </View>
-        </View>
+      <View style={{ gap: 8 }}>
+        <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: '#64748B' }}>
+          Applicant digital consent and signature record:
+        </Text>
 
         {signatures.length > 0 ? (
-          signatures.map((sig, idx) => {
-            const val = sig.value.trim();
-            const isImage =
-              val.startsWith('data:image') ||
-              val.startsWith('blob:') ||
-              val.startsWith('http://') ||
-              val.startsWith('https://');
+          signatures.map((sig) => {
+            const trimmedVal = sig.value.trim();
+            const isImageSignature =
+              trimmedVal.startsWith('data:image') ||
+              trimmedVal.startsWith('blob:') ||
+              trimmedVal.startsWith('http://') ||
+              trimmedVal.startsWith('https://');
 
-            const typedText = val.startsWith('typed:cursive:')
-              ? val.replace('typed:cursive:', '').trim()
-              : val;
+            const typedText = trimmedVal.startsWith('typed:cursive:')
+              ? trimmedVal.replace('typed:cursive:', '').trim()
+              : trimmedVal;
 
             return (
-              <View key={sig.fieldId || `sig-${idx}`} style={{ width: '100%', alignItems: 'center', marginVertical: 4 }}>
-                {isImage ? (
-                  <Image
-                    source={{ uri: val }}
-                    style={{ width: 260, height: 85 }}
-                    resizeMode="contain"
-                  />
-                ) : (
+              <View
+                key={sig.fieldId}
+                style={{
+                  backgroundColor: '#F8FAFC',
+                  padding: 14,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: '#CBD5E1',
+                  marginBottom: 10,
+                }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                   <Text
                     style={{
                       fontFamily: TYPOGRAPHY.fonts.primary,
-                      fontSize: 26,
-                      fontStyle: 'italic',
+                      fontSize: 11,
                       fontWeight: '700',
-                      color: '#0F2C59',
-                      letterSpacing: 1,
-                      marginVertical: 8,
+                      color: '#475569',
+                      textTransform: 'uppercase',
+                      letterSpacing: 0.5,
                     }}
                   >
-                    {typedText}
+                    {sig.fieldLabel || 'Applicant Signature'}
                   </Text>
+                  <View style={{ backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 }}>
+                    <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 10, fontWeight: '700', color: '#1D4ED8' }}>
+                      RECORDED SIGNATURE
+                    </Text>
+                  </View>
+                </View>
+
+                {isImageSignature ? (
+                  <View
+                    style={{
+                      backgroundColor: '#FFFFFF',
+                      borderWidth: 1,
+                      borderColor: '#E2E8F0',
+                      borderRadius: 8,
+                      padding: 8,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      minHeight: 90,
+                    }}
+                  >
+                    <Image
+                      source={{ uri: trimmedVal }}
+                      style={{ width: '100%', height: 80 }}
+                      resizeMode="contain"
+                    />
+                    <View style={{ width: '80%', height: 1, backgroundColor: '#CBD5E1', marginTop: 6 }} />
+                    <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 10, color: '#94A3B8', marginTop: 4 }}>
+                      Digital Handwritten Signature Recorded
+                    </Text>
+                  </View>
+                ) : (
+                  <View
+                    style={{
+                      backgroundColor: '#FFFFFF',
+                      borderWidth: 1,
+                      borderColor: '#E2E8F0',
+                      borderRadius: 8,
+                      padding: 14,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontFamily: TYPOGRAPHY.fonts.primary,
+                        fontSize: 22,
+                        fontStyle: 'italic',
+                        fontWeight: '700',
+                        color: '#0F2C59',
+                        letterSpacing: 1,
+                      }}
+                    >
+                      {typedText}
+                    </Text>
+                    <View style={{ width: '80%', height: 1, backgroundColor: '#0F2C59', marginTop: 6 }} />
+                    <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 10, color: '#64748B', marginTop: 4 }}>
+                      Digitally / Electronically Signed
+                    </Text>
+                  </View>
                 )}
               </View>
             );
           })
         ) : (
-          <Text
+          <View
             style={{
-              fontFamily: TYPOGRAPHY.fonts.primary,
-              fontSize: 24,
-              fontStyle: 'italic',
-              fontWeight: '700',
-              color: '#0F2C59',
-              letterSpacing: 1,
-              marginVertical: 8,
+              backgroundColor: '#F8FAFC',
+              padding: 14,
+              borderRadius: 12,
+              borderWidth: 1,
+              borderColor: '#CBD5E1',
+              alignItems: 'center',
             }}
           >
-            {primaryName}
-          </Text>
+            <Icon name="check-circle" size={24} color="#16A34A" />
+            <Text
+              style={{
+                fontFamily: TYPOGRAPHY.fonts.primary,
+                fontSize: 14,
+                fontWeight: '700',
+                color: '#0F172A',
+                marginTop: 6,
+              }}
+            >
+              Digitally Confirmed & Submitted
+            </Text>
+            <Text
+              style={{
+                fontFamily: TYPOGRAPHY.fonts.primary,
+                fontSize: 12,
+                color: '#64748B',
+                marginTop: 2,
+              }}
+            >
+              Signed by {primaryName}
+            </Text>
+          </View>
         )}
-
-        <View style={{ width: 280, height: 1.5, backgroundColor: '#0F2C59', marginTop: 8, marginBottom: 8 }} />
-        <Text
-          style={{
-            fontFamily: TYPOGRAPHY.fonts.primary,
-            fontSize: 14,
-            fontWeight: '700',
-            color: '#0F172A',
-          }}
-        >
-          {primaryName}
-        </Text>
-        <Text
-          style={{
-            fontFamily: TYPOGRAPHY.fonts.primary,
-            fontSize: 11.5,
-            color: '#64748B',
-            marginTop: 2,
-          }}
-        >
-          Authorized Signatory / Applicant
-        </Text>
-
-        <View
-          style={{
-            marginTop: 14,
-            borderTopWidth: 1,
-            borderTopColor: '#F1F5F9',
-            paddingTop: 12,
-            width: '100%',
-            alignItems: 'center',
-          }}
-        >
-          <Text
-            style={{
-              fontFamily: TYPOGRAPHY.fonts.primary,
-              fontSize: 10.5,
-              color: '#94A3B8',
-              textAlign: 'center',
-              lineHeight: 15,
-              maxWidth: 600,
-            }}
-          >
-            Digitally authenticated and officially recorded under Republic Act No. 8792 (Electronic Commerce Act) and NTC Online Filing Guidelines.
-          </Text>
-        </View>
       </View>
     </SectionCard>
   );

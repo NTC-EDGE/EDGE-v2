@@ -1,8 +1,7 @@
 import React from 'react';
 import { View } from 'react-native';
 import { AmateurPermitData } from '../../../permits';
-import { SectionCard } from './SectionCard';
-import { SummaryRow } from './SummaryRow';
+import { SectionCard, SummaryRow } from '../../../../../shared/formPreview';
 
 interface PermitDataReviewCardProps {
   isPermitService: boolean;
@@ -17,23 +16,15 @@ export function PermitDataReviewCard({
     isPermitService &&
     Boolean(
       permitData &&
-        (permitData.callSign ||
-          permitData.exactLocation ||
-          permitData.serviceArea ||
-          permitData.nameOfDealer ||
-          permitData.authorizedSellerBuyer)
+        (permitData.applicationType ||
+          permitData.callSign ||
+          permitData.applicant)
     );
 
   if (!hasPermitData || !permitData) return null;
 
-  const sourceOfEquipment = [
-    permitData.nameOfDealer,
-    permitData.authorizedSellerBuyer,
-    permitData.orInvoiceNo ? `Invoice: ${permitData.orInvoiceNo}` : null,
-  ].filter(Boolean).join(' • ');
-
   return (
-    <SectionCard icon="file-text" title="Amateur Permit Particulars" accentColor="#7C3AED">
+    <SectionCard icon="file-text" title="Permit Application Particulars" accentColor="#4F46E5">
       <View style={{ gap: 4 }}>
         <View style={{ flexDirection: 'row', gap: 8 }}>
           {permitData.applicationType ? (
@@ -47,12 +38,7 @@ export function PermitDataReviewCard({
             </View>
           ) : null}
         </View>
-        {permitData.serviceArea ? <SummaryRow label="Service Area" value={permitData.serviceArea} /> : null}
-        {permitData.stationClass ? <SummaryRow label="Station Class" value={permitData.stationClass} /> : null}
-        {permitData.exactLocation ? <SummaryRow label="Exact Location" value={permitData.exactLocation} /> : null}
-        {sourceOfEquipment.length > 0 ? (
-          <SummaryRow label="Source of Equipment" value={sourceOfEquipment} />
-        ) : null}
+        {permitData.applicant ? <SummaryRow label="Applicant Name" value={permitData.applicant} /> : null}
       </View>
     </SectionCard>
   );

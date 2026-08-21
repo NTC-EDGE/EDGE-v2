@@ -1,8 +1,7 @@
 import React from 'react';
 import { View } from 'react-native';
 import { VASProviderData } from '../../../certificates';
-import { SectionCard } from './SectionCard';
-import { SummaryRow } from './SummaryRow';
+import { SectionCard, SummaryRow } from '../../../../../shared/formPreview';
 
 interface VasReviewCardProps {
   isCertificateService: boolean;

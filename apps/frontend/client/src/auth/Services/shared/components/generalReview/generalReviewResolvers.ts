@@ -1,7 +1,7 @@
 import { NTCService } from '../../../data/servicesData';
 import { GeneralApplicantData } from '../../hooks/useGeneralServiceWizard';
 import { FIELD_ID_SIGNATURE, FIELD_ID_ADDRESS, FIELD_ID_STREET } from '../../../../../shared/constants/fieldIds';
-import { isApplicantParticularField } from './generalReviewHelpers';
+import { isApplicantParticularField } from '../../../../../shared/formPreview';
 
 export function resolveServiceCategoryFlags(service: NTCService) {
   const serviceCategoryLower = (service.category || '').toLowerCase().trim();

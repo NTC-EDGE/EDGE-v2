@@ -1,9 +1,9 @@
-﻿import React from 'react';
+import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Icon, TYPOGRAPHY } from '@edge/ui';
 import { ApplicationDocument } from '../../data/applicationsData';
 import { useApi } from '../../../../shared/hooks/useApi';
-import { SectionCard } from './SectionCard';
+import { SectionCard } from '../../../../shared/formPreview';
 
 interface BulkApplicantDocListProps {
   selectedApplicantDocs: ApplicationDocument[];

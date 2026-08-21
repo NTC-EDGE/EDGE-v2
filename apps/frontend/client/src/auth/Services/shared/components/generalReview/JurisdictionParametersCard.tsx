@@ -2,8 +2,7 @@ import React from 'react';
 import { View } from 'react-native';
 import { NTCService } from '../../../data/servicesData';
 import { GeneralApplicantData } from '../../hooks/useGeneralServiceWizard';
-import { SectionCard } from './SectionCard';
-import { SummaryRow } from './SummaryRow';
+import { SectionCard, SummaryRow } from '../../../../../shared/formPreview';
 
 interface JurisdictionParametersCardProps {
   service: NTCService;
@@ -13,7 +12,7 @@ interface JurisdictionParametersCardProps {
   activeApplicant: GeneralApplicantData;
   appModeLabel: string;
   variantLabel: string;
-  scheduleSummaryText?: string | null;
+  scheduleSummaryText: string | null;
 }
 
 export function JurisdictionParametersCard({
@@ -26,44 +25,43 @@ export function JurisdictionParametersCard({
   variantLabel,
   scheduleSummaryText,
 }: JurisdictionParametersCardProps) {
-  const applicantClassification =
-    activeApplicant.applicantType === 'company'
-      ? activeApplicant.companyName
-        ? `Company / Corporation (${activeApplicant.companyName})`
-        : 'Company / Corporation'
-      : 'Individual Applicant';
-
   return (
-    <SectionCard
-      icon={isExamService ? 'file-text' : 'layers'}
-      title={isExamService ? 'Examination Details' : 'Service & Jurisdiction Parameters'}
-      accentColor="#0F2C59"
-    >
-      <SummaryRow label="Service Name" value={service.title} />
-      {service.category ? <SummaryRow label="Service Category" value={service.category} /> : null}
-      <View style={{ flexDirection: 'row', gap: 8 }}>
-        <View style={{ flex: 1 }}>
-          <SummaryRow label="Target Region" value={regionName} />
+    <SectionCard icon="sliders" title="Application & Service Parameters" accentColor="#0F2C59">
+      <View style={{ gap: 4 }}>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <View style={{ flex: 1 }}>
+            <SummaryRow label="Selected Service" value={service.title} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <SummaryRow label="Service Category" value={service.category || 'Standard Licensing'} />
+          </View>
         </View>
-        <View style={{ flex: 1 }}>
-          <SummaryRow label="Field Office" value={officeName} />
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <View style={{ flex: 1 }}>
+            <SummaryRow label="Regional Office Jurisdiction" value={regionName} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <SummaryRow label="Processing Office / Branch" value={officeName} />
+          </View>
         </View>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <View style={{ flex: 1 }}>
+            <SummaryRow label="License / Permit Variant" value={variantLabel} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <SummaryRow label="Filing Mode" value={appModeLabel} />
+          </View>
+        </View>
+        {isExamService && activeApplicant.examineeType ? (
+          <SummaryRow label="Examinee Classification" value={activeApplicant.examineeType} />
+        ) : null}
+        {scheduleSummaryText ? (
+          <SummaryRow
+            label={isExamService ? 'Assigned Examination Schedule & Venue' : 'Assigned Schedule'}
+            value={scheduleSummaryText}
+          />
+        ) : null}
       </View>
-      <View style={{ flexDirection: 'row', gap: 8 }}>
-        <View style={{ flex: 1 }}>
-          <SummaryRow label="Applicant Classification" value={applicantClassification} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <SummaryRow label="Filing Mode" value={appModeLabel} />
-        </View>
-      </View>
-      <SummaryRow label="Application Variant / Type" value={variantLabel} />
-      {activeApplicant.selectedElementTitle ? (
-        <SummaryRow label="Selected Element / Category" value={activeApplicant.selectedElementTitle} />
-      ) : null}
-      {scheduleSummaryText ? (
-        <SummaryRow label="Exam Schedule & Venue" value={scheduleSummaryText} />
-      ) : null}
     </SectionCard>
   );
 }
