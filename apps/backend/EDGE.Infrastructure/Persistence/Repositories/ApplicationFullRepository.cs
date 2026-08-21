@@ -262,11 +262,11 @@ public class ApplicationFullRepository : IApplicationFullRepository
                 IsPinned = app.IsPinned,
                 IsArchived = app.IsArchived,
                 CreatedAt = app.CreatedAt,
-                ServiceId = app.ApplicationApplicants.Where(aa => aa.Applicant != null && aa.Applicant.ServiceId != null).Select(aa => aa.Applicant!.ServiceId).FirstOrDefault(),
-                ServiceName = app.ApplicationApplicants.Where(aa => aa.Applicant != null && aa.Applicant.Service != null).Select(aa => aa.Applicant!.Service!.Name).FirstOrDefault(),
-                ServiceCategory = app.ApplicationApplicants.Where(aa => aa.Applicant != null && aa.Applicant.Service != null && aa.Applicant.Service!.ServiceCategory != null).Select(aa => aa.Applicant!.Service!.ServiceCategory!.Name).FirstOrDefault(),
-                ServiceVariantId = app.ApplicationApplicants.Where(aa => aa.Applicant != null && aa.Applicant.ServiceVariantId != null).Select(aa => aa.Applicant!.ServiceVariantId).FirstOrDefault(),
-                ServiceVariantName = app.ApplicationApplicants.Where(aa => aa.Applicant != null && aa.Applicant.ServiceVariant != null).Select(aa => aa.Applicant!.ServiceVariant!.Description ?? aa.Applicant!.ServiceVariant!.Type.ToString()).FirstOrDefault(),
+                ServiceId = app.ApplicationApplicants.Select(aa => aa.Applicant!.ServiceId).FirstOrDefault(),
+                ServiceName = app.ApplicationApplicants.Select(aa => aa.Applicant!.Service!.Name).FirstOrDefault(),
+                ServiceCategory = app.ApplicationApplicants.Select(aa => aa.Applicant!.Service!.ServiceCategory!.Name).FirstOrDefault(),
+                ServiceVariantId = app.ApplicationApplicants.Select(aa => aa.Applicant!.ServiceVariantId).FirstOrDefault(),
+                ServiceVariantName = app.ApplicationApplicants.Select(aa => aa.Applicant!.ServiceVariant!.Description ?? aa.Applicant!.ServiceVariant!.Type.ToString()).FirstOrDefault(),
                 FilingUser = app.User != null ? new EDGE.Application.Applications.Dtos.FilingUserSummaryDto
                 {
                     Id = app.User.Id,
@@ -292,10 +292,8 @@ public class ApplicationFullRepository : IApplicationFullRepository
                     ServiceName = aa.Applicant != null && aa.Applicant.Service != null ? aa.Applicant.Service.Name : null,
                     ServiceVariantId = aa.Applicant != null ? aa.Applicant.ServiceVariantId : null,
                     ServiceVariantName = aa.Applicant != null && aa.Applicant.ServiceVariant != null ? (aa.Applicant.ServiceVariant.Description ?? aa.Applicant.ServiceVariant.Type.ToString()) : null,
-                    SubmissionId = aa.Applicant != null
-                        ? (aa.Applicant.FormSubmission != null
-                            ? (Guid?)aa.Applicant.FormSubmission.Id
-                            : app.FormSubmissions.Where(fs => fs.ApplicantId == aa.Applicant.Id).Select(fs => (Guid?)fs.Id).FirstOrDefault())
+                    SubmissionId = aa.Applicant != null && aa.Applicant.FormSubmission != null
+                        ? (Guid?)aa.Applicant.FormSubmission.Id
                         : null,
                     ApplicantType = aa.Applicant != null ? aa.Applicant.ApplicantType.ToString() : "Individual",
                     Status = aa.Applicant != null ? aa.Applicant.Status.ToString() : "Incomplete",
@@ -448,11 +446,11 @@ public class ApplicationFullRepository : IApplicationFullRepository
                 IsPinned = app.IsPinned,
                 IsArchived = app.IsArchived,
                 CreatedAt = app.CreatedAt,
-                ServiceId = app.ApplicationApplicants.Where(aa => aa.Applicant != null && aa.Applicant.ServiceId != null).Select(aa => aa.Applicant!.ServiceId).FirstOrDefault(),
-                ServiceName = app.ApplicationApplicants.Where(aa => aa.Applicant != null && aa.Applicant.Service != null).Select(aa => aa.Applicant!.Service!.Name).FirstOrDefault(),
-                ServiceCategory = app.ApplicationApplicants.Where(aa => aa.Applicant != null && aa.Applicant.Service != null && aa.Applicant.Service!.ServiceCategory != null).Select(aa => aa.Applicant!.Service!.ServiceCategory!.Name).FirstOrDefault(),
-                ServiceVariantId = app.ApplicationApplicants.Where(aa => aa.Applicant != null && aa.Applicant.ServiceVariantId != null).Select(aa => aa.Applicant!.ServiceVariantId).FirstOrDefault(),
-                ServiceVariantName = app.ApplicationApplicants.Where(aa => aa.Applicant != null && aa.Applicant.ServiceVariant != null).Select(aa => aa.Applicant!.ServiceVariant!.Description ?? aa.Applicant!.ServiceVariant!.Type.ToString()).FirstOrDefault(),
+                ServiceId = app.ApplicationApplicants.Select(aa => aa.Applicant!.ServiceId).FirstOrDefault(),
+                ServiceName = app.ApplicationApplicants.Select(aa => aa.Applicant!.Service!.Name).FirstOrDefault(),
+                ServiceCategory = app.ApplicationApplicants.Select(aa => aa.Applicant!.Service!.ServiceCategory!.Name).FirstOrDefault(),
+                ServiceVariantId = app.ApplicationApplicants.Select(aa => aa.Applicant!.ServiceVariantId).FirstOrDefault(),
+                ServiceVariantName = app.ApplicationApplicants.Select(aa => aa.Applicant!.ServiceVariant!.Description ?? aa.Applicant!.ServiceVariant!.Type.ToString()).FirstOrDefault(),
                 FilingUser = app.User != null ? new EDGE.Application.Applications.Dtos.FilingUserSummaryDto
                 {
                     Id = app.User.Id,
@@ -478,10 +476,8 @@ public class ApplicationFullRepository : IApplicationFullRepository
                     ServiceName = aa.Applicant != null && aa.Applicant.Service != null ? aa.Applicant.Service.Name : null,
                     ServiceVariantId = aa.Applicant != null ? aa.Applicant.ServiceVariantId : null,
                     ServiceVariantName = aa.Applicant != null && aa.Applicant.ServiceVariant != null ? (aa.Applicant.ServiceVariant.Description ?? aa.Applicant.ServiceVariant.Type.ToString()) : null,
-                    SubmissionId = aa.Applicant != null
-                        ? (aa.Applicant.FormSubmission != null
-                            ? (Guid?)aa.Applicant.FormSubmission.Id
-                            : app.FormSubmissions.Where(fs => fs.ApplicantId == aa.Applicant.Id).Select(fs => (Guid?)fs.Id).FirstOrDefault())
+                    SubmissionId = aa.Applicant != null && aa.Applicant.FormSubmission != null
+                        ? (Guid?)aa.Applicant.FormSubmission.Id
                         : null,
                     ApplicantType = aa.Applicant != null ? aa.Applicant.ApplicantType.ToString() : "Individual",
                     Status = aa.Applicant != null ? aa.Applicant.Status.ToString() : "Incomplete",

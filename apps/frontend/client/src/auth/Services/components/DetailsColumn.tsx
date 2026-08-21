@@ -109,6 +109,14 @@ export function DetailsColumn({ servicesState }: DetailsColumnProps) {
     navigation.navigate("MyApplications");
   };
 
+  const handleApplyMore = () => {
+    servicesState.removeActiveDraftOnSubmit();
+    setActiveWizardService(null);
+    setIsDetailsExpanded(false);
+    setSelectedService(null);
+    resetWizardState();
+  };
+
   return (
     <View
       style={[
@@ -183,6 +191,7 @@ export function DetailsColumn({ servicesState }: DetailsColumnProps) {
             service={selectedService}
             onClose={handleClose}
             onSuccess={handleSuccess}
+            onApplyMore={handleApplyMore}
             isDetailsExpanded={isDetailsExpanded}
             onToggleExpand={() => setIsDetailsExpanded((prev) => !prev)}
             step={wizardStep}

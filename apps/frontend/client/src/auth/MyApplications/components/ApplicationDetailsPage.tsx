@@ -32,6 +32,14 @@ import {
   ApplicationStatus,
   mapApiApplicationToApplication,
 } from '../data/applicationsData';
+import {
+  FIELD_ID_FULL_NAME,
+  FIELD_ID_BIRTH_DATE,
+  FIELD_ID_CIVIL_STATUS,
+  FIELD_ID_TYPE_OF_CERT,
+  FIELD_ID_PERMIT_TYPE,
+  FIELD_ID_APP_TYPE,
+} from '../../../shared/constants/fieldIds';
 
 interface ApplicationDetailsPageProps {
   app: Application;
@@ -193,7 +201,7 @@ function extractApplicantFullName(
     [];
 
   if (fvList.length > 0) {
-    const knownFv = fvList.find((fv: RawFormFieldItem) => fv.fieldId === 'fd000000-0000-0000-0000-000000000001');
+    const knownFv = fvList.find((fv: RawFormFieldItem) => fv.fieldId === FIELD_ID_FULL_NAME || fv.fieldId === 'fd000000-0000-0000-0000-000000000001');
     if (knownFv && knownFv.value && knownFv.value.trim()) {
       return knownFv.value.trim();
     }
@@ -295,11 +303,11 @@ export function ApplicationDetailsPage({
       details?.birthDate ||
       (details?.birthMonth && details?.birthDay && details?.birthYear
         ? `${details.birthMonth} ${details.birthDay}, ${details.birthYear}`
-        : rawFormFields.find((fv) => fv.fieldId === 'birthDate' || (fv.fieldLabel || '').toLowerCase().includes('birth'))?.value || null);
+        : rawFormFields.find((fv) => fv.fieldId === FIELD_ID_BIRTH_DATE || fv.fieldId === 'birthDate' || (fv.fieldLabel || '').toLowerCase().includes('birth'))?.value || null);
 
     const civilStatus =
       details?.civilStatus ||
-      rawFormFields.find((fv) => fv.fieldId === 'civilStatus' || (fv.fieldLabel || '').toLowerCase().includes('civil') || (fv.fieldLabel || '').toLowerCase().includes('marital'))?.value || null;
+      rawFormFields.find((fv) => fv.fieldId === FIELD_ID_CIVIL_STATUS || fv.fieldId === 'civilStatus' || (fv.fieldLabel || '').toLowerCase().includes('civil') || (fv.fieldLabel || '').toLowerCase().includes('marital'))?.value || null;
 
     const companyName =
       details?.companyName || app.companyName || null;
@@ -587,14 +595,18 @@ export function ApplicationDetailsPage({
       app.variant ||
       app.formFieldValues?.find(
         (fv) =>
-          fv.fieldLabel?.toLowerCase().includes('permit / license type') ||
-          fv.fieldLabel?.toLowerCase().includes('type of certificate') ||
-          fv.fieldLabel?.toLowerCase().includes('application variant') ||
-          fv.fieldLabel?.toLowerCase().includes('application type') ||
-          fv.fieldId === 'fd000000-0000-0000-0000-000000000024' ||
-          fv.fieldId === 'fd000000-0000-0000-0000-000000000014'
+          fv.fieldId === FIELD_ID_TYPE_OF_CERT ||
+          fv.fieldId === FIELD_ID_PERMIT_TYPE ||
+          fv.fieldId === FIELD_ID_APP_TYPE ||
+          (fv.fieldId !== undefined && fv.fieldId.toLowerCase().includes('variant')) ||
+          (fv.fieldLabel !== undefined && (
+            fv.fieldLabel.toLowerCase().includes('permit / license type') ||
+            fv.fieldLabel.toLowerCase().includes('type of certificate') ||
+            fv.fieldLabel.toLowerCase().includes('application variant') ||
+            fv.fieldLabel.toLowerCase().includes('application type')
+          ))
       )?.value ||
-      (!isBulk && (app as SingleApplication).applicants?.[0]?.applicationType && (app as SingleApplication).applicants?.[0]?.applicationType !== 'Individual' ? (app as SingleApplication).applicants?.[0]?.applicationType : '') ||
+      (!isBulk && Array.isArray(app.applicants) && app.applicants.length > 0 && app.applicants[0].applicationType && app.applicants[0].applicationType !== 'Individual' ? app.applicants[0].applicationType : '') ||
       (app.element !== 'New' ? app.element : '')
     );
   }, [app, isBulk]);

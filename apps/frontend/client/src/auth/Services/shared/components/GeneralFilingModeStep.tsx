@@ -4,6 +4,7 @@ import * as DocumentPicker from "expo-document-picker";
 import { Icon, COLORS, TYPOGRAPHY } from "@edge/ui";
 import { Select } from "../../../../shared/components/Select";
 import { ValidatedInput } from "../../../../shared/components/ValidatedInput";
+import { useGeographicLocations } from "../../../../shared/hooks/useGeographicLocations";
 import { NTCService } from "../../data/servicesData";
 import {
   GeneralApplicantData,
@@ -45,6 +46,18 @@ interface GeneralFilingModeStepProps {
   onApplicantTypeChange?: (type: "individual" | "company") => void;
   companyName?: string;
   onCompanyNameChange?: (name: string) => void;
+  dtiSecRegistration?: string;
+  onDtiSecRegistrationChange?: (val: string) => void;
+  representativeName?: string;
+  onRepresentativeNameChange?: (val: string) => void;
+  representativePosition?: string;
+  onRepresentativePositionChange?: (val: string) => void;
+  companyContactNo?: string;
+  onCompanyContactNoChange?: (val: string) => void;
+  activeApplicant?: GeneralApplicantData;
+  updateActiveApplicant?: (
+    fields: Partial<GeneralApplicantData> | ((prev: GeneralApplicantData) => Partial<GeneralApplicantData>)
+  ) => void;
   appMode: "SINGLE" | "BULK" | "";
   onAppModeChange: (mode: "SINGLE" | "BULK") => void;
   bulkMethod?: "MANUAL" | "EXCEL";
@@ -77,6 +90,16 @@ export function GeneralFilingModeStep({
   onApplicantTypeChange,
   companyName = "",
   onCompanyNameChange,
+  dtiSecRegistration = "",
+  onDtiSecRegistrationChange,
+  representativeName = "",
+  onRepresentativeNameChange,
+  representativePosition = "",
+  onRepresentativePositionChange,
+  companyContactNo = "",
+  onCompanyContactNoChange,
+  activeApplicant,
+  updateActiveApplicant,
   appMode,
   onAppModeChange,
   isFileUploaded,
@@ -87,6 +110,21 @@ export function GeneralFilingModeStep({
 }: GeneralFilingModeStepProps) {
   const [loading, setLoading] = useState(false);
   const [localSelectedClassId, setLocalSelectedClassId] = useState<string>("");
+  const [selectedGeoRegionId, setSelectedGeoRegionId] = useState<string>("");
+  const [selectedGeoProvinceId, setSelectedGeoProvinceId] = useState<string>("");
+  const [selectedGeoMunicipalityId, setSelectedGeoMunicipalityId] = useState<string>("");
+
+  const {
+    regions,
+    provinces,
+    municipalities,
+    barangays,
+    loadingRegions,
+    loadingProvinces,
+    loadingMunicipalities,
+    loadingBarangays,
+  } = useGeographicLocations(selectedGeoRegionId, selectedGeoProvinceId, selectedGeoMunicipalityId);
+
   const serviceTitle = safeUpper(service?.title || "");
 
   React.useEffect(() => {
@@ -668,16 +706,270 @@ export function GeneralFilingModeStep({
           </TouchableOpacity>
         </View>
 
-        {/* Company Name Input when Company is selected */}
+        {/* Three Common Sections for Company Application: Representative, Company Details, Address */}
         {applicantType === "company" && (
-          <View style={{ marginTop: 16 }}>
-            <ValidatedInput
-              label="Company / Corporation Name"
-              required={true}
-              placeholder="e.g., Globe Telecom Inc., Converge ICT Solutions"
-              value={companyName}
-              onChangeText={(text) => onCompanyNameChange?.(text)}
-            />
+          <View style={{ marginTop: 16, gap: 14 }}>
+            {/* Section 1: Representative */}
+            <View
+              style={{
+                padding: 16,
+                backgroundColor: "#F8FAFC",
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: "#CBD5E1",
+                gap: 12,
+              }}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                <Icon name="user-check" size={15} color="#0F2C59" />
+                <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13.5, fontWeight: "700", color: "#0F2C59" }}>
+                  Representative
+                </Text>
+              </View>
+
+              <View style={{ flexDirection: "row", gap: 12 }}>
+                <View style={{ flex: 1 }}>
+                  <ValidatedInput
+                    label="Authorized Representative Name"
+                    placeholder="e.g., Engr. Juan Dela Cruz"
+                    value={activeApplicant?.representativeName ?? representativeName}
+                    onChangeText={(text) => {
+                      onRepresentativeNameChange?.(text);
+                      updateActiveApplicant?.({ representativeName: text });
+                    }}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <ValidatedInput
+                    label="Designation / Position"
+                    placeholder="e.g., Regulatory Affairs Manager"
+                    value={activeApplicant?.representativePosition ?? representativePosition}
+                    onChangeText={(text) => {
+                      onRepresentativePositionChange?.(text);
+                      updateActiveApplicant?.({ representativePosition: text });
+                    }}
+                  />
+                </View>
+              </View>
+
+              <View style={{ flexDirection: "row", gap: 12 }}>
+                <View style={{ flex: 1 }}>
+                  <ValidatedInput
+                    label="Contact Number"
+                    placeholder="e.g., 09171234567"
+                    value={activeApplicant?.contactNo ?? companyContactNo}
+                    onChangeText={(text) => {
+                      onCompanyContactNoChange?.(text);
+                      updateActiveApplicant?.({ contactNo: text });
+                    }}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <ValidatedInput
+                    label="Email Address"
+                    placeholder="e.g., representative@company.com"
+                    value={activeApplicant?.email ?? ""}
+                    onChangeText={(text) => {
+                      updateActiveApplicant?.({ email: text });
+                    }}
+                  />
+                </View>
+              </View>
+            </View>
+
+            {/* Section 2: Company Details */}
+            <View
+              style={{
+                padding: 16,
+                backgroundColor: "#F8FAFC",
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: "#CBD5E1",
+                gap: 12,
+              }}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                <Icon name="briefcase" size={15} color="#0F2C59" />
+                <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13.5, fontWeight: "700", color: "#0F2C59" }}>
+                  Company Details
+                </Text>
+              </View>
+
+              <ValidatedInput
+                label="Company / Corporation Name"
+                required={true}
+                placeholder="e.g., Globe Telecom Inc., Converge ICT Solutions"
+                value={activeApplicant?.companyName ?? companyName}
+                onChangeText={(text) => {
+                  onCompanyNameChange?.(text);
+                  updateActiveApplicant?.({ companyName: text });
+                }}
+              />
+
+              <ValidatedInput
+                label="SEC / DTI Registration Number"
+                placeholder="e.g., CS201912345 / 05943210"
+                value={activeApplicant?.dtiSecRegistration ?? dtiSecRegistration}
+                onChangeText={(text) => {
+                  onDtiSecRegistrationChange?.(text);
+                  updateActiveApplicant?.({ dtiSecRegistration: text });
+                }}
+              />
+            </View>
+
+            {/* Section 3: Address */}
+            <View
+              style={{
+                padding: 16,
+                backgroundColor: "#F8FAFC",
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: "#CBD5E1",
+                gap: 12,
+              }}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                <Icon name="map-pin" size={15} color="#0F2C59" />
+                <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13.5, fontWeight: "700", color: "#0F2C59" }}>
+                  Address
+                </Text>
+              </View>
+
+              <View style={{ flexDirection: "row", gap: 12 }}>
+                <View style={{ flex: 1 }}>
+                  <Select
+                    label="Region"
+                    placeholder={loadingRegions ? "Loading regions..." : "Select Region..."}
+                    value={activeApplicant?.region || ""}
+                    options={regions.map((r) => ({
+                      label: r.code ? `${r.name} (${r.code})` : r.name,
+                      value: r.name,
+                    }))}
+                    onValueChange={(val: string) => {
+                      const matched = regions.find((r) => r.name === val);
+                      if (matched) {
+                        setSelectedGeoRegionId(matched.id);
+                      }
+                      updateActiveApplicant?.({
+                        region: val,
+                        province: "",
+                        city: "",
+                        barangay: "",
+                      });
+                    }}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Select
+                    label="Province"
+                    placeholder={
+                      loadingProvinces
+                        ? "Loading provinces..."
+                        : !selectedGeoRegionId
+                        ? "Select Region first..."
+                        : "Select Province..."
+                    }
+                    value={activeApplicant?.province || ""}
+                    options={provinces.map((p) => ({
+                      label: p.name,
+                      value: p.name,
+                    }))}
+                    onValueChange={(val: string) => {
+                      const matched = provinces.find((p) => p.name === val);
+                      if (matched) {
+                        setSelectedGeoProvinceId(matched.id);
+                      }
+                      updateActiveApplicant?.({
+                        province: val,
+                        city: "",
+                        barangay: "",
+                      });
+                    }}
+                  />
+                </View>
+              </View>
+
+              <View style={{ flexDirection: "row", gap: 12 }}>
+                <View style={{ flex: 1 }}>
+                  <Select
+                    label="City / Municipality"
+                    placeholder={
+                      loadingMunicipalities
+                        ? "Loading cities..."
+                        : !selectedGeoProvinceId
+                        ? "Select Province first..."
+                        : "Select City / Municipality..."
+                    }
+                    value={activeApplicant?.city || ""}
+                    options={municipalities.map((m) => ({
+                      label: m.name,
+                      value: m.name,
+                    }))}
+                    onValueChange={(val: string) => {
+                      const matched = municipalities.find((m) => m.name === val);
+                      if (matched) {
+                        setSelectedGeoMunicipalityId(matched.id);
+                      }
+                      updateActiveApplicant?.({
+                        city: val,
+                        barangay: "",
+                      });
+                    }}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Select
+                    label="Barangay"
+                    placeholder={
+                      loadingBarangays
+                        ? "Loading barangays..."
+                        : !selectedGeoMunicipalityId
+                        ? "Select City first..."
+                        : "Select Barangay..."
+                    }
+                    value={activeApplicant?.barangay || ""}
+                    options={barangays.map((b) => ({
+                      label: b.name,
+                      value: b.name,
+                    }))}
+                    onValueChange={(val: string) => {
+                      updateActiveApplicant?.({
+                        barangay: val,
+                      });
+                    }}
+                  />
+                </View>
+              </View>
+
+              <View style={{ flexDirection: "row", gap: 12 }}>
+                <View style={{ flex: 2 }}>
+                  <ValidatedInput
+                    label="Street / Building / Unit No."
+                    placeholder="e.g., 123 Ayala Avenue, Tower One"
+                    value={activeApplicant?.street || activeApplicant?.address || ""}
+                    onChangeText={(val) => {
+                      const fullAddr = [val, activeApplicant?.barangay, activeApplicant?.city, activeApplicant?.province, activeApplicant?.region, activeApplicant?.zipCode].filter(Boolean).join(", ");
+                      updateActiveApplicant?.({
+                        street: val,
+                        address: fullAddr,
+                      });
+                    }}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <ValidatedInput
+                    label="Zip Code"
+                    placeholder="e.g., 1226"
+                    value={activeApplicant?.zipCode || ""}
+                    onChangeText={(val) => {
+                      updateActiveApplicant?.({
+                        zipCode: val,
+                      });
+                    }}
+                  />
+                </View>
+              </View>
+            </View>
           </View>
         )}
       </View>

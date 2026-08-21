@@ -250,6 +250,23 @@ export function GeneralFilingDetailsStep({
       const visibleSections = form.sections.filter((section) => {
         const key = (section.key || section.id || "").toLowerCase();
         const title = (section.title || "").toLowerCase();
+
+        // Exclude Corporate Representative and Company Details (captured in Step 2)
+        const isCompanyOrRepSection =
+          key === "companydetails" ||
+          key === "company_details" ||
+          key === "company" ||
+          key === "representative" ||
+          key === "authorizedrepresentative" ||
+          title === "company details" ||
+          title === "company / corporation details" ||
+          title === "representative" ||
+          title === "authorized representative";
+
+        if (isCompanyOrRepSection) {
+          return false;
+        }
+
         return (
           key !== "payment" &&
           !key.includes("payment") &&
@@ -424,6 +441,29 @@ export function GeneralFilingDetailsStep({
         if (fv.fieldLabel) valuesRecord[fv.fieldLabel] = fv.value;
       });
     }
+    if (activeApplicant.companyName) {
+      if (!valuesRecord["companyName"]) valuesRecord["companyName"] = activeApplicant.companyName;
+      if (!valuesRecord["fd000000-0000-0000-0000-000000000081"]) valuesRecord["fd000000-0000-0000-0000-000000000081"] = activeApplicant.companyName;
+      if (!valuesRecord["Company / Business Name"]) valuesRecord["Company / Business Name"] = activeApplicant.companyName;
+      if (!valuesRecord["Company / Corporation Name"]) valuesRecord["Company / Corporation Name"] = activeApplicant.companyName;
+      if (!valuesRecord["Company Name"]) valuesRecord["Company Name"] = activeApplicant.companyName;
+    }
+    if (activeApplicant.representativeName) {
+      if (!valuesRecord["representativeName"]) valuesRecord["representativeName"] = activeApplicant.representativeName;
+      if (!valuesRecord["fd000000-0000-0000-0000-000000000082"]) valuesRecord["fd000000-0000-0000-0000-000000000082"] = activeApplicant.representativeName;
+      if (!valuesRecord["Authorized Representative Name"]) valuesRecord["Authorized Representative Name"] = activeApplicant.representativeName;
+      if (!valuesRecord["Representative Name"]) valuesRecord["Representative Name"] = activeApplicant.representativeName;
+    }
+    if (activeApplicant.representativePosition) {
+      if (!valuesRecord["representativePosition"]) valuesRecord["representativePosition"] = activeApplicant.representativePosition;
+      if (!valuesRecord["fd000000-0000-0000-0000-000000000083"]) valuesRecord["fd000000-0000-0000-0000-000000000083"] = activeApplicant.representativePosition;
+      if (!valuesRecord["Designation / Position"]) valuesRecord["Designation / Position"] = activeApplicant.representativePosition;
+    }
+    if (activeApplicant.dtiSecRegistration) {
+      if (!valuesRecord["dtiSecRegistration"]) valuesRecord["dtiSecRegistration"] = activeApplicant.dtiSecRegistration;
+      if (!valuesRecord["fd000000-0000-0000-0000-000000000086"]) valuesRecord["fd000000-0000-0000-0000-000000000086"] = activeApplicant.dtiSecRegistration;
+      if (!valuesRecord["SEC / DTI Registration Number"]) valuesRecord["SEC / DTI Registration Number"] = activeApplicant.dtiSecRegistration;
+    }
     if (activeApplicant.region && !valuesRecord["region"]) valuesRecord["region"] = activeApplicant.region;
     if (activeApplicant.province && !valuesRecord["province"]) valuesRecord["province"] = activeApplicant.province;
     if (activeApplicant.city && !valuesRecord["city"]) valuesRecord["city"] = activeApplicant.city;
@@ -510,19 +550,31 @@ export function GeneralFilingDetailsStep({
     };
 
     const structuredNameData: Partial<StructuredNameData> = {
+      applicantType: activeApplicant.applicantType || (activeApplicant.companyName ? "company" : "individual"),
       firstName: activeApplicant.firstName || "",
       middleName: activeApplicant.middleName || "",
       lastName: activeApplicant.lastName || "",
       suffix: activeApplicant.suffix || "",
+      companyName: activeApplicant.companyName || "",
+      representativeName: activeApplicant.representativeName || "",
     };
 
     const handleStructuredNameChange = (data: StructuredNameData) => {
       updateActiveApplicant({
+        applicantType: data.applicantType,
         firstName: data.firstName,
         middleName: data.middleName,
         lastName: data.lastName,
         suffix: data.suffix,
+        companyName: data.companyName,
+        representativeName: data.representativeName,
       });
+      if (data.companyName) {
+        handleDynamicFieldChange("companyName", "Company / Business Name", data.companyName);
+      }
+      if (data.representativeName) {
+        handleDynamicFieldChange("representativeName", "Authorized Representative Name", data.representativeName);
+      }
     };
 
     const isExamService =
@@ -541,6 +593,50 @@ export function GeneralFilingDetailsStep({
     return (
       <View>
         {renderBulkCohortBanner()}
+
+        {/* Company Summary Banner for Corporate Applications */}
+        {activeApplicant.applicantType === "company" && (
+          <View
+            style={{
+              backgroundColor: "#F0FDF4",
+              borderWidth: 1,
+              borderColor: "#BBF7D0",
+              borderRadius: 10,
+              padding: 14,
+              marginBottom: 16,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 10, flex: 1 }}>
+              <View
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  backgroundColor: "#15803D",
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                <Icon name="briefcase" size={16} color="#FFFFFF" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13.5, fontWeight: "700", color: "#14532D" }}>
+                  Corporate Filing: {activeApplicant.companyName || "Company / Corporation"}
+                </Text>
+                <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: "#166534", marginTop: 2 }}>
+                  {activeApplicant.representativeName ? `Authorized Representative: ${activeApplicant.representativeName}` : "Company details applied"}
+                  {activeApplicant.dtiSecRegistration ? ` • SEC/DTI: ${activeApplicant.dtiSecRegistration}` : ""}
+                  {" • "}
+                  <Text style={{ fontStyle: "italic", color: "#15803D" }}>To edit company details, return to Step 2.</Text>
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
+
         <DynamicFormRenderer
           key={`dynamic-form-${activeApplicant.id || currentApplicantIndex}`}
           form={form}
@@ -549,7 +645,7 @@ export function GeneralFilingDetailsStep({
           onStructuredNameChange={handleStructuredNameChange}
           structuredNameData={structuredNameData}
           applicantName={getApplicantDisplayName(activeApplicant)}
-          allowCompany={!isExamService}
+          allowCompany={false}
           serviceCategory={service.category}
           serviceTitle={service.title}
           selectedVariantId={activeApplicant.selectedVariantId}

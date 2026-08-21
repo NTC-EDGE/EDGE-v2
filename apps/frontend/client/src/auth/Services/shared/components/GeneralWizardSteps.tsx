@@ -132,15 +132,89 @@ export function GeneralWizardSteps({
           }}
           applicantType={activeApplicant.applicantType || "individual"}
           onApplicantTypeChange={(type) => {
-            updateActiveApplicant({ applicantType: type });
+            setApplicants((prev) =>
+              prev.map((app) => {
+                if (type === "company") {
+                  const rep = app.representativeName || [app.firstName, app.lastName].filter(Boolean).join(" ");
+                  return {
+                    ...app,
+                    applicantType: type,
+                    representativeName: rep,
+                    firstName: "",
+                    middleName: "",
+                    lastName: "",
+                    suffix: "",
+                  };
+                } else {
+                  const nameParts = (app.representativeName || "").trim().split(/\s+/);
+                  return {
+                    ...app,
+                    applicantType: type,
+                    firstName: app.firstName || nameParts[0] || "",
+                    lastName: app.lastName || nameParts.slice(1).join(" ") || "",
+                  };
+                }
+              })
+            );
             if (type === "individual" && appMode === "BULK") {
               setAppMode("SINGLE");
             }
           }}
           companyName={activeApplicant.companyName || ""}
-          onCompanyNameChange={(name) => updateActiveApplicant({ companyName: name })}
+          onCompanyNameChange={(name: string) => {
+            setApplicants((prev) =>
+              prev.map((app) => ({
+                ...app,
+                companyName: name,
+              }))
+            );
+          }}
+          dtiSecRegistration={activeApplicant.dtiSecRegistration || ""}
+          onDtiSecRegistrationChange={(val: string) => {
+            setApplicants((prev) =>
+              prev.map((app) => ({
+                ...app,
+                dtiSecRegistration: val,
+              }))
+            );
+          }}
+          representativeName={activeApplicant.representativeName || ""}
+          onRepresentativeNameChange={(val: string) => {
+            setApplicants((prev) =>
+              prev.map((app) => ({
+                ...app,
+                representativeName: val,
+              }))
+            );
+          }}
+          representativePosition={activeApplicant.representativePosition || ""}
+          onRepresentativePositionChange={(val: string) => {
+            setApplicants((prev) =>
+              prev.map((app) => ({
+                ...app,
+                representativePosition: val,
+              }))
+            );
+          }}
+          companyContactNo={activeApplicant.contactNo || ""}
+          onCompanyContactNoChange={(val: string) => {
+            updateActiveApplicant({ contactNo: val });
+          }}
+          activeApplicant={activeApplicant}
+          updateActiveApplicant={(fields) => {
+            if (typeof fields === "function") {
+              updateActiveApplicant(fields);
+            } else {
+              setApplicants((prev) =>
+                prev.map((app) => ({
+                  ...app,
+                  ...fields,
+                }))
+              );
+            }
+          }}
           appMode={appMode}
-          onAppModeChange={(val) => {
+          onAppModeChange={(val: "SINGLE" | "BULK") => {
             setAppMode(val);
             if (val === "SINGLE") {
               setApplicants((prev) => [prev[0] || initialGeneralApplicant(1)]);

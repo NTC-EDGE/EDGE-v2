@@ -173,7 +173,16 @@ public static class CommonSeederData
             ["tvroEquipment"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000223"), FieldType = "repeater", Label = "Particulars of Equipment", SyncBackOnSubmit = false },
             ["tvroAntenna"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000224"), FieldType = "repeater", Label = "Particulars of Antenna System", SyncBackOnSubmit = false },
             ["tvroSignal"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000225"), FieldType = "repeater", Label = "Particulars of Signal to be Received", SyncBackOnSubmit = false },
-            ["bsdNo"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000226"), FieldType = "text", Label = "BSD No. (Assigned by NTC)", SyncBackOnSubmit = false }
+            ["bsdNo"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000226"), FieldType = "text", Label = "BSD No. (Assigned by NTC)", SyncBackOnSubmit = false },
+
+            // Company & Corporate Applicant Fields (NTC 1-19 and generic company filings)
+            ["companyName"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000081"), FieldType = "text", Label = "Company / Business Name", SyncBackOnSubmit = true },
+            ["representativeName"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000082"), FieldType = "text", Label = "Authorized Representative Name", SyncBackOnSubmit = false },
+            ["representativePosition"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000083"), FieldType = "text", Label = "Designation / Position", SyncBackOnSubmit = false },
+            ["makeTypeModel"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000084"), FieldType = "text", Label = "Make / Type / Model", SyncBackOnSubmit = false },
+            ["deviceType"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000085"), FieldType = "dropdown", Label = "Device / Equipment Type", SyncBackOnSubmit = false, ValidationRules = @"[""Wireless Data Network (WDN) - Indoor"",""Short Range Devices (SRD)"",""Radio Frequency Identification (RFID) Devices"",""Short Range Radio Services""]" },
+            ["dtiSecRegistration"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000086"), FieldType = "text", Label = "SEC / DTI Registration Number", SyncBackOnSubmit = false },
+            ["serialNumbers"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000087"), FieldType = "text", Label = "Serial Number(s)", SyncBackOnSubmit = false }
         };
     }
 }

@@ -339,6 +339,24 @@ export function DynamicFormRenderer({
     if (isTypeSection(section)) return false;
     const key = (section.key || section.id || "").toLowerCase();
     const title = (section.title || "").toLowerCase();
+
+    // Exclude Corporate Representative and Company Details sections from Step 3 (these are the corporate filing executor details from Step 2).
+    // The named individual applicant/licensee details to be named on the certificate/permit MUST remain visible in Step 3.
+    const isCompanyOrRepSection =
+      key === "companydetails" ||
+      key === "company_details" ||
+      key === "company" ||
+      key === "representative" ||
+      key === "authorizedrepresentative" ||
+      title === "company details" ||
+      title === "company / corporation details" ||
+      title === "representative" ||
+      title === "authorized representative";
+
+    if (isCompanyOrRepSection) {
+      return false;
+    }
+
     return (
       !hiddenKeys.includes(key) &&
       !hiddenKeys.includes(title) &&
@@ -545,6 +563,29 @@ export function DynamicFormRenderer({
                      labelLower === "model" ||
                      labelLower === "type/model")
                   ) {
+                    return null;
+                  }
+
+                  // Skip individual company & representative fields because they are captured generally in Step 2
+                  const isCompanyField =
+                    targetId === "fd000000-0000-0000-0000-000000000081" ||
+                    targetId === "fd000000-0000-0000-0000-000000000082" ||
+                    targetId === "fd000000-0000-0000-0000-000000000083" ||
+                    targetId === "fd000000-0000-0000-0000-000000000086" ||
+                    fIdLower === "companyname" ||
+                    fIdLower === "dtisecregistration" ||
+                    fIdLower === "dti_sec_registration" ||
+                    fIdLower === "representativename" ||
+                    fIdLower === "representativeposition" ||
+                    labelLower === "company / business name" ||
+                    labelLower === "company / corporation name" ||
+                    labelLower === "company name" ||
+                    labelLower === "sec / dti registration number" ||
+                    labelLower === "authorized representative name" ||
+                    labelLower === "representative name" ||
+                    labelLower === "representative position";
+
+                  if (isCompanyField) {
                     return null;
                   }
 

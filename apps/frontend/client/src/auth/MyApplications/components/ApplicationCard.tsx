@@ -11,7 +11,6 @@ import { Icon } from '@edge/ui';
 import { COLORS, SPACING, TYPOGRAPHY } from '@edge/ui';
 import {
   Application,
-  SingleApplication,
   getStatusLabel,
   getStatusColor,
   getStatusBgColor,
@@ -19,6 +18,11 @@ import {
   getAppDocuments,
   ApplicationDocument,
 } from '../data/applicationsData';
+import {
+  FIELD_ID_TYPE_OF_CERT,
+  FIELD_ID_PERMIT_TYPE,
+  FIELD_ID_APP_TYPE,
+} from '../../../shared/constants/fieldIds';
 
 interface ApplicationCardProps {
   app: Application;
@@ -50,14 +54,18 @@ export function ApplicationCard({
     app.variant ||
     (app.formFieldValues?.find(
       (fv) =>
-        fv.fieldLabel?.toLowerCase().includes('permit / license type') ||
-        fv.fieldLabel?.toLowerCase().includes('type of certificate') ||
-        fv.fieldLabel?.toLowerCase().includes('application variant') ||
-        fv.fieldLabel?.toLowerCase().includes('application type') ||
-        fv.fieldId === 'fd000000-0000-0000-0000-000000000024' ||
-        fv.fieldId === 'fd000000-0000-0000-0000-000000000014'
+        fv.fieldId === FIELD_ID_TYPE_OF_CERT ||
+        fv.fieldId === FIELD_ID_PERMIT_TYPE ||
+        fv.fieldId === FIELD_ID_APP_TYPE ||
+        (fv.fieldId !== undefined && fv.fieldId.toLowerCase().includes('variant')) ||
+        (fv.fieldLabel !== undefined && (
+          fv.fieldLabel.toLowerCase().includes('permit / license type') ||
+          fv.fieldLabel.toLowerCase().includes('type of certificate') ||
+          fv.fieldLabel.toLowerCase().includes('application variant') ||
+          fv.fieldLabel.toLowerCase().includes('application type')
+        ))
     )?.value) ||
-    (!isBulk && (app as SingleApplication).applicants?.[0]?.applicationType && (app as SingleApplication).applicants?.[0]?.applicationType !== 'Individual' ? (app as SingleApplication).applicants?.[0]?.applicationType : undefined) ||
+    (!isBulk && Array.isArray(app.applicants) && app.applicants.length > 0 && app.applicants[0].applicationType && app.applicants[0].applicationType !== 'Individual' ? app.applicants[0].applicationType : undefined) ||
     (app.element !== 'New' ? app.element : '');
 
   return (
@@ -674,7 +682,7 @@ const styles = StyleSheet.create({
 
   /* Modal Overlay & Quick Preview */
   modalOverlay: {
-    position: 'fixed' as any,
+    position: 'absolute',
     top: 0,
     left: 0,
     right: 0,

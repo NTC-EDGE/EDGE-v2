@@ -25,6 +25,7 @@ interface GeneralServiceWizardProps {
   service: NTCService;
   onClose: () => void;
   onSuccess: () => void;
+  onApplyMore?: () => void;
   isDetailsExpanded: boolean;
   onToggleExpand: () => void;
   step: number;
@@ -58,6 +59,7 @@ export function GeneralServiceWizard({
   service,
   onClose,
   onSuccess,
+  onApplyMore,
   isDetailsExpanded,
   onToggleExpand,
   step,
@@ -241,6 +243,7 @@ export function GeneralServiceWizard({
           isSavingDraft={isSavingDraft}
         />
         <GeneralWizardModals
+          serviceTitle={service.title}
           isConfirmModalOpen={isConfirmModalOpen}
           setIsConfirmModalOpen={setIsConfirmModalOpen}
           isAgreedToTerms={isAgreedToTerms}
@@ -255,6 +258,7 @@ export function GeneralServiceWizard({
           isSubmitting={isSubmitting}
           setIsSubmitting={setIsSubmitting}
           onSuccess={onSuccess}
+          onApplyMore={onApplyMore || onClose}
         />
       </View>
     );
@@ -329,6 +333,7 @@ export function GeneralServiceWizard({
       />
 
       <GeneralWizardModals
+        serviceTitle={service.title}
         isConfirmModalOpen={isConfirmModalOpen}
         setIsConfirmModalOpen={setIsConfirmModalOpen}
         isAgreedToTerms={isAgreedToTerms}
@@ -344,6 +349,7 @@ export function GeneralServiceWizard({
         isSubmitting={isSubmitting}
         setIsSubmitting={setIsSubmitting}
         onSuccess={onSuccess}
+        onApplyMore={onApplyMore || onClose}
       />
     </View>
   );

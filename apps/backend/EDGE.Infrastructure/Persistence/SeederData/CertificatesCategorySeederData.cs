@@ -126,13 +126,21 @@ public static class CertificatesCategorySeederData
         ""elements"": [],
         ""requiredSections"": [
             { ""key"": ""applicant"", ""required"": true },
+            { ""key"": ""representative"", ""required"": false },
+            { ""key"": ""companyDetails"", ""required"": false },
+            { ""key"": ""applicantAddress"", ""required"": true },
             { ""key"": ""devices"", ""required"": true },
             { ""key"": ""declaration"", ""required"": true },
             { ""key"": ""payment"", ""required"": true }
         ],
         ""allowsBulkSubmission"": false,
         ""categorySpecific"": {
-            ""deviceType"": [""RFID"",""Short Range Device"",""Wireless Data Network""]
+            ""deviceType"": [
+                ""Wireless Data Network (WDN) - Indoor"",
+                ""Short Range Devices (SRD)"",
+                ""Radio Frequency Identification (RFID) Devices"",
+                ""Short Range Radio Services""
+            ]
         },
         ""entityType"": ""Application""
     }";
@@ -495,9 +503,26 @@ public static class CertificatesCategorySeederData
             new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
             new("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
         }),
+        // CERTIFICATE OF REGISTRATION FOR RFID, SRD, WDN, DEVICES- INDOOR (DEALER)
+        // 
+        // For Application as Company please provide section 
+        // Representative
+        // Company Details
+        // Address
+        // Registered Devices 
+        // Device/Equipment Type should be dropdown: (can be multiple)
+        // Wireless Data Network (WDN) - Indoor
+        // Short Range Devices (SRD)
+        // Radio Frequency Identification (RFID) Devices
+        // Short Range Radio Services
+        // Make/Type/ Model  
+        // Serial No. (can be multiple)
         new("NTC_1_19", Guid.Parse("f1900000-0000-0000-0000-000000000001"), Guid.Parse("f19a0000-0000-0000-0000-000000000000"), new()
         {
-            new("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email" }),
+            new("applicant", "Applicant / Named Individual Details", new() { "fullName", "contactNo", "email" }),
+            new("representative", "Representative", new() { "representativeName", "representativePosition", "contactNo", "email" }),
+            new("companyDetails", "Company Details", new() { "companyName", "dtiSecRegistration" }),
+            new("applicantAddress", "Address", new() { "region", "province", "city", "barangay", "street", "zipCode" }),
             new("devices", "Registered Devices", new() { "devicesDetails" }),
             new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
             new("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })

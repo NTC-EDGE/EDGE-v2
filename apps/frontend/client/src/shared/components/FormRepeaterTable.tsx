@@ -44,10 +44,20 @@ export const DEFAULT_ANTENNA_REPEATER_COLUMNS: FormRepeaterColumn[] = [
 ];
 
 export const DEFAULT_DEVICE_REPEATER_COLUMNS: FormRepeaterColumn[] = [
-  { key: "deviceType", label: "Device Type", placeholder: "e.g. RFID / SRD / WDN Device", required: true },
-  { key: "make", label: "Make / Brand", placeholder: "e.g. Cisco / Zebra", required: true },
-  { key: "model", label: "Type / Model", placeholder: "e.g. AP-515 / FX9600", required: true },
-  { key: "serialNumber", label: "Serial Number", placeholder: "e.g. SN-0029103", required: true },
+  {
+    key: "deviceType",
+    label: "Device / Equipment Type",
+    type: "select",
+    required: true,
+    options: [
+      { label: "Wireless Data Network (WDN) - Indoor", value: "Wireless Data Network (WDN) - Indoor" },
+      { label: "Short Range Devices (SRD)", value: "Short Range Devices (SRD)" },
+      { label: "Radio Frequency Identification (RFID) Devices", value: "Radio Frequency Identification (RFID) Devices" },
+      { label: "Short Range Radio Services", value: "Short Range Radio Services" },
+    ],
+  },
+  { key: "makeTypeModel", label: "Make / Type / Model", placeholder: "e.g. Cisco AP-515 / Zebra FX9600", required: true },
+  { key: "serialNumber", label: "Serial No.", placeholder: "e.g. SN-001, SN-002 (multiple allowed)", required: true },
 ];
 
 export const DEFAULT_OFFICER_REPEATER_COLUMNS: FormRepeaterColumn[] = [
