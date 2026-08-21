@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text } from 'react-native';
 import { TYPOGRAPHY } from '@edge/ui';
-import { isRecord } from '../core/formPreviewHelpers';
+import { isRecord, isPreviewFileObject } from '../core/formPreviewHelpers';
 import { JsonTableSummaryRow } from './JsonTableSummaryRow';
 import { SignatureSummaryRow } from './SignatureSummaryRow';
 import { CheckboxSummaryRow } from './CheckboxSummaryRow';
@@ -38,11 +38,80 @@ export function SummaryRow({ label, value, onPreviewFile }: SummaryRowProps) {
     try {
       const parsed: unknown = JSON.parse(trimmedVal);
       if (Array.isArray(parsed) && parsed.length > 0) {
+        if (parsed.every((item): item is string => typeof item === 'string')) {
+          return (
+            <View
+              style={{
+                backgroundColor: '#F8FAFC',
+                padding: 12,
+                borderRadius: 10,
+                borderWidth: 1,
+                borderColor: '#E2E8F0',
+                marginBottom: 8,
+              }}
+            >
+              <Text
+                style={{
+                  fontFamily: TYPOGRAPHY.fonts.primary,
+                  fontSize: 10,
+                  fontWeight: '700',
+                  color: '#64748B',
+                  marginBottom: 6,
+                  textTransform: 'uppercase',
+                  letterSpacing: 0.5,
+                }}
+              >
+                {label}
+              </Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                {parsed.map((item, i) => (
+                  <View
+                    key={i}
+                    style={{
+                      backgroundColor: '#EFF6FF',
+                      borderWidth: 1,
+                      borderColor: '#BFDBFE',
+                      borderRadius: 6,
+                      paddingHorizontal: 8,
+                      paddingVertical: 3,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontFamily: TYPOGRAPHY.fonts.primary,
+                        fontSize: 11,
+                        fontWeight: '600',
+                        color: '#1D4ED8',
+                      }}
+                    >
+                      {item}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          );
+        }
         const validRows = parsed.filter(isRecord);
         if (validRows.length > 0) {
           parsedArray = validRows;
         }
       } else if (isRecord(parsed)) {
+        if (isPreviewFileObject(parsed)) {
+          const fileObj = parsed as { name: string; uri?: string; url?: string };
+          const fileUri = fileObj.uri || fileObj.url || '';
+          return (
+            <DocumentSummaryRow
+              label={label}
+              trimmedVal={fileObj.name}
+              onPreviewFile={
+                fileUri && onPreviewFile
+                  ? () => onPreviewFile(fileUri, fileObj.name)
+                  : undefined
+              }
+            />
+          );
+        }
         parsedArray = [parsed];
       }
     } catch {

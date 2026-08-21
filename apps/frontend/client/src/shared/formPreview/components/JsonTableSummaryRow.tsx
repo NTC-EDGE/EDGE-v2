@@ -1,11 +1,171 @@
 import React from 'react';
 import { View, Text } from 'react-native';
 import { TYPOGRAPHY } from '@edge/ui';
-import { formatFieldKey } from '../core/formPreviewHelpers';
+import { formatFieldKey, isRecord } from '../core/formPreviewHelpers';
 
 interface JsonTableSummaryRowProps {
   label: string;
   parsedArray: Array<Record<string, unknown>>;
+}
+
+function renderCellValue(v: unknown): React.ReactNode {
+  if (v === null || v === undefined) return null;
+
+  if (Array.isArray(v)) {
+    if (v.length === 0) {
+      return (
+        <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: '#94A3B8' }}>
+          —
+        </Text>
+      );
+    }
+    if (v.every((item) => typeof item === 'string' || typeof item === 'number' || typeof item === 'boolean')) {
+      return (
+        <Text
+          style={{
+            fontFamily: TYPOGRAPHY.fonts.primary,
+            fontSize: 12,
+            fontWeight: '600',
+            color: '#0F172A',
+          }}
+        >
+          {v.join(', ')}
+        </Text>
+      );
+    }
+    // Array of objects (e.g. nested equipment sub-items)
+    const validSubObjs = v.filter(isRecord);
+    return (
+      <View style={{ gap: 6, marginTop: 4 }}>
+        {validSubObjs.map((subObj, sIdx) => {
+          const subEntries = Object.entries(subObj).filter(
+            ([sk, sv]) =>
+              sk !== 'id' &&
+              sk !== '_id' &&
+              sk !== 'key' &&
+              sv !== null &&
+              sv !== undefined &&
+              String(sv).trim() !== ''
+          );
+          if (subEntries.length === 0) return null;
+
+          return (
+            <View
+              key={sIdx}
+              style={{
+                backgroundColor: '#FFFFFF',
+                borderRadius: 6,
+                borderWidth: 1,
+                borderColor: '#E2E8F0',
+                padding: 8,
+                gap: 4,
+              }}
+            >
+              {subEntries.map(([sk, sv]) => (
+                <View
+                  key={sk}
+                  style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    gap: 6,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontFamily: TYPOGRAPHY.fonts.primary,
+                      fontSize: 10,
+                      fontWeight: '700',
+                      color: '#64748B',
+                    }}
+                  >
+                    {formatFieldKey(sk)}:
+                  </Text>
+                  <Text
+                    style={{
+                      fontFamily: TYPOGRAPHY.fonts.primary,
+                      fontSize: 11,
+                      fontWeight: '600',
+                      color: '#0F172A',
+                      flex: 1,
+                      textAlign: 'right',
+                    }}
+                  >
+                    {String(sv)}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          );
+        })}
+      </View>
+    );
+  }
+
+  if (isRecord(v)) {
+    const subEntries = Object.entries(v).filter(
+      ([sk, sv]) =>
+        sk !== 'id' &&
+        sk !== '_id' &&
+        sk !== 'key' &&
+        sv !== null &&
+        sv !== undefined &&
+        String(sv).trim() !== ''
+    );
+    if (subEntries.length === 0) return null;
+
+    return (
+      <View style={{ gap: 4, marginTop: 2 }}>
+        {subEntries.map(([sk, sv]) => (
+          <View
+            key={sk}
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            <Text
+              style={{
+                fontFamily: TYPOGRAPHY.fonts.primary,
+                fontSize: 10,
+                fontWeight: '700',
+                color: '#64748B',
+              }}
+            >
+              {formatFieldKey(sk)}:
+            </Text>
+            <Text
+              style={{
+                fontFamily: TYPOGRAPHY.fonts.primary,
+                fontSize: 11,
+                fontWeight: '600',
+                color: '#0F172A',
+                flex: 1,
+                textAlign: 'right',
+              }}
+            >
+              {String(sv)}
+            </Text>
+          </View>
+        ))}
+      </View>
+    );
+  }
+
+  return (
+    <Text
+      style={{
+        fontFamily: TYPOGRAPHY.fonts.primary,
+        fontSize: 12.5,
+        fontWeight: '600',
+        color: '#0F172A',
+      }}
+    >
+      {String(v)}
+    </Text>
+  );
 }
 
 export function JsonTableSummaryRow({ label, parsedArray }: JsonTableSummaryRowProps) {
@@ -20,7 +180,14 @@ export function JsonTableSummaryRow({ label, parsedArray }: JsonTableSummaryRowP
         marginBottom: 12,
       }}
     >
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: 10,
+        }}
+      >
         <Text
           style={{
             fontFamily: TYPOGRAPHY.fonts.primary,
@@ -43,7 +210,14 @@ export function JsonTableSummaryRow({ label, parsedArray }: JsonTableSummaryRowP
             paddingVertical: 2,
           }}
         >
-          <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 10, fontWeight: '700', color: '#1D4ED8' }}>
+          <Text
+            style={{
+              fontFamily: TYPOGRAPHY.fonts.primary,
+              fontSize: 10,
+              fontWeight: '700',
+              color: '#1D4ED8',
+            }}
+          >
             {parsedArray.length} {parsedArray.length === 1 ? 'ENTRY RECORDED' : 'ENTRIES RECORDED'}
           </Text>
         </View>
@@ -95,21 +269,36 @@ export function JsonTableSummaryRow({ label, parsedArray }: JsonTableSummaryRowP
                     alignItems: 'center',
                   }}
                 >
-                  <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 10, fontWeight: '700', color: '#FFFFFF' }}>
+                  <Text
+                    style={{
+                      fontFamily: TYPOGRAPHY.fonts.primary,
+                      fontSize: 10,
+                      fontWeight: '700',
+                      color: '#FFFFFF',
+                    }}
+                  >
                     {rIdx + 1}
                   </Text>
                 </View>
-                <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, fontWeight: '700', color: '#0F2C59' }}>
+                <Text
+                  style={{
+                    fontFamily: TYPOGRAPHY.fonts.primary,
+                    fontSize: 12,
+                    fontWeight: '700',
+                    color: '#0F2C59',
+                  }}
+                >
                   Item #{rIdx + 1}
                 </Text>
               </View>
 
-              <View style={{ flexDirection: 'row', gap: 8, width: '100%' }}>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, width: '100%' }}>
                 {entries.map(([k, v]) => (
                   <View
                     key={k}
                     style={{
                       flex: k.toLowerCase().includes('make') || k.toLowerCase().includes('model') ? 1.3 : 1,
+                      minWidth: 140,
                       backgroundColor: '#F8FAFC',
                       padding: 10,
                       borderRadius: 8,
@@ -128,16 +317,7 @@ export function JsonTableSummaryRow({ label, parsedArray }: JsonTableSummaryRowP
                     >
                       {formatFieldKey(k)}
                     </Text>
-                    <Text
-                      style={{
-                        fontFamily: TYPOGRAPHY.fonts.primary,
-                        fontSize: 12.5,
-                        fontWeight: '600',
-                        color: '#0F172A',
-                      }}
-                    >
-                      {String(v)}
-                    </Text>
+                    {renderCellValue(v)}
                   </View>
                 ))}
               </View>

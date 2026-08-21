@@ -108,8 +108,7 @@ export function ApplicationDetailsPage({
           styles.mainWrapper,
           {
             paddingHorizontal: isDesktop ? SPACING[32] : SPACING[16],
-            maxWidth: 1440,
-            alignSelf: 'center',
+            width: '100%',
           },
         ]}
       >
