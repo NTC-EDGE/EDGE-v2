@@ -9,6 +9,7 @@ import { ApplicantNameField, StructuredNameData } from "./ApplicantNameField";
 import { FormSignatureInput } from "./FormSignatureInput";
 import { DeclarationCheckbox } from "./DeclarationCheckbox";
 import { FormRepeaterTable } from "./FormRepeaterTable";
+import { VasServicesCheckboxGroup } from "./VasServicesCheckboxGroup";
 import { useGeographicLocations } from "../hooks/useGeographicLocations";
 import { TYPOGRAPHY, COLORS } from "../theme/tokens";
 import {
@@ -25,6 +26,17 @@ import {
   FIELD_ID_CITY,
   FIELD_ID_BARANGAY,
   FIELD_ID_SIGNATURE,
+  FIELD_ID_INVOICE_NUMBER,
+  FIELD_ID_LICENSE_NO,
+  FIELD_ID_DATE_OF_EXPIRY,
+  FIELD_ID_ENTITY_TYPE,
+  FIELD_ID_CPCN_NO,
+  FIELD_ID_CPCN_EXPIRY,
+  FIELD_ID_COR_VAS_NO,
+  FIELD_ID_KNOWN_OTHER_NAME,
+  FIELD_ID_OTHER_TRADE_NAME,
+  FIELD_ID_VAS_REG_NO,
+  FIELD_ID_SVC_CLASSIFICATION,
 } from "../constants/fieldIds";
 
 export interface FieldDto {
@@ -190,6 +202,18 @@ function getFieldSortPriority(field: FieldDto, defaultIndex: number): number {
   }
   if (labelLower.includes("email") || idLower === "email" || idLower === FIELD_ID_EMAIL) return 80;
 
+  // 4. VAS Specific Fields Order
+  if (idLower === "corvasno" || idLower === "certificateno" || idLower === FIELD_ID_COR_VAS_NO || labelLower.includes("cor / vas") || labelLower.includes("certificate no")) return 85;
+  if (idLower === "dateofexpiry" || idLower === FIELD_ID_DATE_OF_EXPIRY || labelLower.includes("date of expiry")) return 86;
+  if (idLower === "serviceclassification" || idLower === FIELD_ID_SVC_CLASSIFICATION || labelLower === "service") return 87;
+  if (idLower === "entitytype" || idLower === FIELD_ID_ENTITY_TYPE || labelLower.includes("type of entity") || labelLower.includes("entity type")) return 88;
+  if (idLower === "cpcnpacano" || idLower === FIELD_ID_CPCN_NO || labelLower.includes("cpcn")) return 89;
+  if (idLower === "cpcndateofexpiry" || idLower === FIELD_ID_CPCN_EXPIRY || labelLower.includes("cpcn / pa / ca date")) return 90;
+  if (idLower === "knownbyanothername" || idLower === FIELD_ID_KNOWN_OTHER_NAME || labelLower.includes("known by other name") || labelLower.includes("known by another name")) return 91;
+  if (idLower === "othertradename" || idLower === FIELD_ID_OTHER_TRADE_NAME || labelLower.includes("please specify")) return 92;
+  if (idLower === "valueaddedservices" || labelLower.includes("value added service")) return 93;
+  if (idLower === "vasregistrationno" || idLower === FIELD_ID_VAS_REG_NO || labelLower.includes("vas registration")) return 94;
+
   return 100 + defaultIndex;
 }
 
@@ -334,6 +358,39 @@ export function DynamicFormRenderer({
     );
   };
 
+  const catLower = (serviceCategory || "").toLowerCase();
+  const titLower = (serviceTitle || "").toLowerCase();
+  const isExam = catLower.includes("exam") || titLower.includes("exam") || titLower.includes("admission") || titLower.includes("operator examination");
+  const isPermit = catLower.includes("permit") || titLower.includes("permit");
+  const isRequestOrComplaint = catLower.includes("request") || catLower.includes("complaint") || titLower.includes("complaint") || titLower.includes("request");
+  const isAccreditation = catLower.includes("accreditation") || titLower.includes("accreditation");
+
+  // Multi-year validity selection (1, 2, 3 years) is only applicable for Licenses and Certificates
+  const showNumberOfYears = !isExam && !isPermit && !isRequestOrComplaint && !isAccreditation && (catLower.includes("license") || catLower.includes("certificate") || titLower.includes("license") || titLower.includes("certificate"));
+
+  const matchedVariant = variants.find((v) => String(v.id) === String(selectedVariantId));
+  const varDesc = (matchedVariant?.description || matchedVariant?.name || "").toLowerCase();
+  const isLifetimeSupplementary = varDesc.includes("lifetime") || String(selectedVariantId).endsWith("35");
+  const isAmateurCert = catLower.includes("certificate") && (titLower.includes("amateur") || titLower.includes("ntc 1-03") || titLower.includes("ntc_1_03") || varDesc.includes("amateur"));
+  const isVas = catLower.includes("certificate") && (titLower.includes("vas") || titLower.includes("value-added") || titLower.includes("ntc 1-20") || titLower.includes("ntc_1_20") || varDesc.includes("vas"));
+  const isCompanyCertService =
+    catLower.includes("certificate") &&
+    (titLower.includes("tvro") ||
+     titLower.includes("value-added") ||
+     titLower.includes("vas") ||
+     titLower.includes("rfid") ||
+     titLower.includes("srd") ||
+     titLower.includes("wdn") ||
+     varDesc.includes("tvro") ||
+     varDesc.includes("vas") ||
+     varDesc.includes("rfid") ||
+     varDesc.includes("srd") ||
+     varDesc.includes("wdn"));
+  const isRenewal = (matchedVariant?.type || "").toUpperCase() === "RENEWAL" || varDesc.includes("renewal");
+  const isModification = (matchedVariant?.type || "").toUpperCase() === "MODIFICATION" || varDesc.includes("modification") || isLifetimeSupplementary;
+  const isRenewalOrMod = isRenewal || isModification;
+  const showElements = variantElements.length > 0 && !isLifetimeSupplementary;
+
   const visibleSections = sections.filter((section) => {
     if (!section) return false;
     if (isTypeSection(section)) return false;
@@ -357,6 +414,51 @@ export function DynamicFormRenderer({
       return false;
     }
 
+    // Invoice section appears for Non-Dealers only
+    const isInvoiceSection =
+      key === "invoicedetails" ||
+      key === "invoice_details" ||
+      key === "invoice" ||
+      title.includes("invoice");
+
+    if (isInvoiceSection) {
+      const isNonDealerVariant = varDesc.includes("non-dealer") || varDesc.includes("non dealer") || String(selectedVariantId).endsWith("23");
+      const registrationTypeVal = (values?.["registrationType"] || values?.["Registration Type"] || values?.["registration_type"] || "").toLowerCase();
+      const isNonDealerRegType = registrationTypeVal.includes("non");
+      const isDealer = varDesc.includes("dealer") && !isNonDealerVariant;
+
+      if (isDealer || (!isNonDealerVariant && !isNonDealerRegType)) {
+        return false;
+      }
+    }
+
+    const isAmateurCertSection = catLower.includes("certificate") && (titLower.includes("amateur") || titLower.includes("ntc 1-03") || titLower.includes("ntc_1_03"));
+    if (isAmateurCertSection) {
+      const isAmateurRemovedSection =
+        key === "employmentstatus" ||
+        key === "employment_status" ||
+        key === "employment" ||
+        key === "classofstation" ||
+        key === "class_of_station" ||
+        key === "classofstations" ||
+        key === "club" ||
+        key === "clubdetails" ||
+        key === "club_details" ||
+        key === "equipment" ||
+        key === "equipmentdetails" ||
+        key === "equipment_details" ||
+        key === "certificateparticulars" ||
+        title.includes("employment") ||
+        title.includes("class of station") ||
+        title.includes("club") ||
+        title.includes("equipment") ||
+        title.includes("certificate particulars");
+
+      if (isAmateurRemovedSection) {
+        return false;
+      }
+    }
+
     return (
       !hiddenKeys.includes(key) &&
       !hiddenKeys.includes(title) &&
@@ -370,16 +472,6 @@ export function DynamicFormRenderer({
       !key.includes("payment")
     );
   });
-
-  const catLower = (serviceCategory || "").toLowerCase();
-  const titLower = (serviceTitle || "").toLowerCase();
-  const isExam = catLower.includes("exam") || titLower.includes("exam") || titLower.includes("admission") || titLower.includes("operator examination");
-  const isPermit = catLower.includes("permit") || titLower.includes("permit");
-  const isRequestOrComplaint = catLower.includes("request") || catLower.includes("complaint") || titLower.includes("complaint") || titLower.includes("request");
-  const isAccreditation = catLower.includes("accreditation") || titLower.includes("accreditation");
-
-  // Multi-year validity selection (1, 2, 3 years) is only applicable for Licenses and Certificates
-  const showNumberOfYears = !isExam && !isPermit && !isRequestOrComplaint && !isAccreditation && (catLower.includes("license") || catLower.includes("certificate") || titLower.includes("license") || titLower.includes("certificate"));
 
   return (
     <View style={styles.container}>
@@ -400,13 +492,20 @@ export function DynamicFormRenderer({
 
           <FormGrid>
             {/* 1. Type of Application (Service Variant Dropdown) */}
-            <FormCol span={showNumberOfYears ? (variantElements.length > 0 ? 4 : 6) : (variantElements.length > 0 ? 6 : 12)}>
+            <FormCol span={showNumberOfYears ? (showElements ? 4 : 6) : (showElements ? 6 : 12)}>
               <Select
                 label="Type of Application"
                 required
                 value={selectedVariantId || (variants[0] ? String(variants[0].id) : "")}
                 options={
-                  variants.length > 0
+                  isVas
+                    ? variants.length > 0
+                      ? variants.map((v) => ({
+                          label: "RENEWAL — Certificate of Registration as a Value-Added Service (VAS) Provider",
+                          value: String(v.id),
+                        }))
+                      : [{ label: "RENEWAL — Certificate of Registration as a Value-Added Service (VAS) Provider", value: "Renewal" }]
+                    : variants.length > 0
                     ? variants.map((v) => {
                         const vType = v.type && v.type !== "NA" && v.type !== "N/A" ? v.type : "";
                         const vDesc = v.description || v.name || v.id;
@@ -432,7 +531,7 @@ export function DynamicFormRenderer({
             </FormCol>
 
             {/* 2. Type of Certificate / License / Station Class / Permit Type (Filtered by Service Variant) */}
-            {variantElements.length > 0 && (
+            {showElements && (
               <FormCol span={showNumberOfYears ? 4 : 6}>
                 <Select
                   label={getElementFieldLabel(serviceCategory, serviceTitle)}
@@ -473,7 +572,7 @@ export function DynamicFormRenderer({
 
             {/* 3. Number of Years (only for applicable categories) */}
             {showNumberOfYears && (
-              <FormCol span={variantElements.length > 0 ? 4 : 6}>
+              <FormCol span={showElements ? 4 : 6}>
                 <Select
                   label="Number of Years"
                   required
@@ -487,6 +586,64 @@ export function DynamicFormRenderer({
                   onValueChange={(val: string) => onNoOfYearsChange?.(val)}
                 />
               </FormCol>
+            )}
+
+            {/* Modification Due To (for Modification / Lifetime Supplementary) */}
+            {isAmateurCert && isModification && (
+              <FormCol span={12}>
+                <Select
+                  label="Modification Due to"
+                  required
+                  value={values?.["modificationDueTo"] || values?.["Modification Due To"] || ""}
+                  options={
+                    isLifetimeSupplementary
+                      ? [
+                          { label: "Additional Equipment", value: "Additional Equipment" },
+                          { label: "Deletion of Equipment", value: "Deletion of Equipment" },
+                          { label: "Others", value: "Others" },
+                        ]
+                      : [
+                          { label: "Upgrade of Class of Station", value: "Upgrade of Class of Station" },
+                          { label: "Change of Personal Info", value: "Change of Personal Info" },
+                          { label: "Others", value: "Others" },
+                        ]
+                  }
+                  placeholder="Select reason for modification..."
+                  onValueChange={(val: string) => onChange("modificationDueTo", "Modification Due To", val)}
+                />
+              </FormCol>
+            )}
+
+            {/* Certificate Number & Date of Expiry (for Renewal & Modification) */}
+            {isAmateurCert && isRenewalOrMod && (
+              <>
+                <FormCol span={6}>
+                  <ValidatedInput
+                    label={isRenewal ? "Certificate No." : "Certificate Number"}
+                    required
+                    placeholder="e.g. ROC-2022-00123"
+                    value={values?.[FIELD_ID_LICENSE_NO] || values?.["licenseNo"] || values?.["certificateNo"] || values?.["certificateNumber"] || values?.["Certificate Number"] || values?.["Certificate No."] || ""}
+                    onChangeText={(val) => {
+                      onChange(FIELD_ID_LICENSE_NO, "Certificate Number", val);
+                      onChange("licenseNo", "Certificate Number", val);
+                      onChange("certificateNumber", "Certificate Number", val);
+                    }}
+                  />
+                </FormCol>
+
+                <FormCol span={6}>
+                  <DatePickerInput
+                    label="Date of Expiry"
+                    required
+                    placeholder="MM/DD/YYYY"
+                    value={values?.[FIELD_ID_DATE_OF_EXPIRY] || values?.["dateOfExpiry"] || values?.["Date of Expiry"] || ""}
+                    onChangeText={(val) => {
+                      onChange(FIELD_ID_DATE_OF_EXPIRY, "Date of Expiry", val);
+                      onChange("dateOfExpiry", "Date of Expiry", val);
+                    }}
+                  />
+                </FormCol>
+              </>
             )}
           </FormGrid>
         </View>
@@ -555,38 +712,74 @@ export function DynamicFormRenderer({
                     rawType !== "table" &&
                     rawType !== "repeater_table" &&
                     (labelLower === "serial number" ||
+                     labelLower === "serial numbers" ||
+                     labelLower === "serial number(s)" ||
                      labelLower === "frequency range" ||
                      labelLower === "power output" ||
                      labelLower === "power" ||
                      labelLower === "make" ||
                      labelLower === "type" ||
                      labelLower === "model" ||
-                     labelLower === "type/model")
+                     labelLower === "type/model" ||
+                     labelLower === "make / type / model" ||
+                     labelLower === "device / equipment type" ||
+                     labelLower === "device type" ||
+                     fIdLower === "fd000000-0000-0000-0000-000000000084" ||
+                     fIdLower === "fd000000-0000-0000-0000-000000000085" ||
+                     fIdLower === "fd000000-0000-0000-0000-000000000087")
                   ) {
                     return null;
                   }
 
-                  // Skip individual company & representative fields because they are captured generally in Step 2
-                  const isCompanyField =
-                    targetId === "fd000000-0000-0000-0000-000000000081" ||
-                    targetId === "fd000000-0000-0000-0000-000000000082" ||
-                    targetId === "fd000000-0000-0000-0000-000000000083" ||
+                  // Remove SEC / DTI Registration Number from the form
+                  const isDtiSecField =
                     targetId === "fd000000-0000-0000-0000-000000000086" ||
-                    fIdLower === "companyname" ||
                     fIdLower === "dtisecregistration" ||
                     fIdLower === "dti_sec_registration" ||
+                    fIdLower.includes("dtisec") ||
+                    labelLower === "sec / dti registration number" ||
+                    labelLower === "sec/dti registration number" ||
+                    labelLower === "sec / dti registration no." ||
+                    labelLower === "sec/dti registration no." ||
+                    labelLower.includes("sec / dti") ||
+                    labelLower.includes("sec/dti") ||
+                    labelLower.includes("dti / sec") ||
+                    labelLower.includes("dti/sec");
+
+                  if (isDtiSecField) {
+                    return null;
+                  }
+
+                  // For company certificate services, only skip representative fields (captured in Step 2), but keep company & branch details
+                  const isRepresentativeField =
+                    targetId === "fd000000-0000-0000-0000-000000000082" ||
+                    targetId === "fd000000-0000-0000-0000-000000000083" ||
                     fIdLower === "representativename" ||
                     fIdLower === "representativeposition" ||
-                    labelLower === "company / business name" ||
-                    labelLower === "company / corporation name" ||
-                    labelLower === "company name" ||
-                    labelLower === "sec / dti registration number" ||
                     labelLower === "authorized representative name" ||
                     labelLower === "representative name" ||
                     labelLower === "representative position";
 
-                  if (isCompanyField) {
+                  if (isRepresentativeField) {
                     return null;
+                  }
+
+                  // For other services, skip company details if already captured in Step 2
+                  if (!isCompanyCertService) {
+                    const isLegacyCompanyField =
+                      targetId === "fd000000-0000-0000-0000-000000000081" ||
+                      targetId === "fd000000-0000-0000-0000-000000000082" ||
+                      fIdLower === "companyname" ||
+                      fIdLower === "dtisecregistration" ||
+                      fIdLower === "dti_sec_registration" ||
+                      labelLower === "company / business name" ||
+                      labelLower === "company / corporation name" ||
+                      labelLower === "company name" ||
+                      labelLower === "sec / dti registration number";
+
+                    if (isLegacyCompanyField) {
+                      return null;
+                    }
                   }
 
                 const isEmploymentStatusField =
@@ -642,16 +835,64 @@ export function DynamicFormRenderer({
                    fIdLower === "applicant_name" ||
                    targetId === FIELD_ID_FULL_NAME);
 
+                const sectionKeyLower = (section.key || section.id || "").toLowerCase();
+                const fieldIdLower = (field.fieldId || field.id || "").toLowerCase();
+
+                const isVasServicesField =
+                  fieldIdLower === "valueaddedservices" ||
+                  fieldIdLower === "value_added_services" ||
+                  fieldIdLower === "fd000000-0000-0000-0000-000000000036" ||
+                  labelLower.includes("value added service") ||
+                  labelLower.includes("list of value added");
+
+                const isVasRegField =
+                  fieldIdLower.includes("vasregistration") ||
+                  fieldIdLower.includes("vas_reg") ||
+                  fieldIdLower === FIELD_ID_VAS_REG_NO.toLowerCase() ||
+                  labelLower.includes("vas registration");
+
+                const isBsdField =
+                  fieldIdLower.includes("bsd") ||
+                  labelLower.includes("bsd no") ||
+                  labelLower.includes("bsd number");
+
+                const isEntityTypeField =
+                  fieldIdLower === "entitytype" ||
+                  fieldIdLower === "entity_type" ||
+                  fieldIdLower === FIELD_ID_ENTITY_TYPE.toLowerCase() ||
+                  labelLower.includes("type of entity") ||
+                  labelLower.includes("entity type");
+
+                const isKnownByAnotherNameField =
+                  fieldIdLower === "knownbyanothername" ||
+                  fieldIdLower === "known_by_other_name" ||
+                  fieldIdLower === FIELD_ID_KNOWN_OTHER_NAME.toLowerCase() ||
+                  labelLower.includes("known by other name") ||
+                  labelLower.includes("known by another name");
+
+                const isOtherTradeNameField =
+                  fieldIdLower === "othertradename" ||
+                  fieldIdLower === "other_trade_name" ||
+                  fieldIdLower === FIELD_ID_OTHER_TRADE_NAME.toLowerCase() ||
+                  labelLower.includes("please specify");
+
+                const isServiceClassificationField =
+                  fieldIdLower === "serviceclassification" ||
+                  fieldIdLower === "service_classification" ||
+                  fieldIdLower === FIELD_ID_SVC_CLASSIFICATION.toLowerCase() ||
+                  (isVas && (labelLower === "service" || labelLower.includes("service classification")));
+
                 const isSignature =
                   rawType === "signature" ||
                   labelLower.includes("signature");
 
                 const isCheckbox =
-                  rawType === "checkbox" ||
-                  labelLower.includes("declare") ||
-                  labelLower.includes("certify") ||
-                  labelLower.includes("agreement") ||
-                  labelLower.includes("declaration");
+                  (rawType === "checkbox" ||
+                   labelLower.includes("declare") ||
+                   labelLower.includes("certify") ||
+                   labelLower.includes("agreement") ||
+                   labelLower.includes("declaration")) &&
+                  !isVasServicesField;
 
                 const isElementsField =
                   labelLower.includes("element") ||
@@ -661,6 +902,26 @@ export function DynamicFormRenderer({
                 // Skip element field in the form body if already rendered in top Section 1
                 if (showApplicationTypeSection && variantElements.length > 0 && isElementsField) {
                   return null;
+                }
+
+                // Invoice fields appear for Non-Dealers only
+                const isInvoiceField =
+                  labelLower.includes("invoice") ||
+                  targetId === FIELD_ID_INVOICE_NUMBER ||
+                  fIdLower === "invoicenumber" ||
+                  fIdLower === "invoiceno";
+
+                if (isInvoiceField) {
+                  const matchedVar = variants.find((v) => String(v.id) === String(selectedVariantId));
+                  const varDesc = (matchedVar?.description || matchedVar?.name || "").toLowerCase();
+                  const isNonDealerVariant = varDesc.includes("non-dealer") || varDesc.includes("non dealer") || String(selectedVariantId).endsWith("23");
+                  const registrationTypeVal = (values?.["registrationType"] || values?.["Registration Type"] || values?.["registration_type"] || "").toLowerCase();
+                  const isNonDealerRegType = registrationTypeVal.includes("non");
+                  const isDealer = varDesc.includes("dealer") && !isNonDealerVariant;
+
+                  if (isDealer || (!isNonDealerVariant && !isNonDealerRegType)) {
+                    return null;
+                  }
                 }
 
                 const isRegionField =
@@ -724,6 +985,9 @@ export function DynamicFormRenderer({
                   isBarangayField ||
                   isEmploymentStatusField ||
                   isEmploymentTypeField ||
+                  isEntityTypeField ||
+                  isKnownByAnotherNameField ||
+                  isServiceClassificationField ||
                   (isElementsField && elementOptions.length > 0);
 
                 let val = rawVal;
@@ -732,6 +996,15 @@ export function DynamicFormRenderer({
                 }
                 if (isNoOfYearsField && (!val || val === "")) {
                   val = noOfYears || "1";
+                }
+                if (isKnownByAnotherNameField && (!val || val === "")) {
+                  val = "No";
+                }
+                if (isVasRegField) {
+                  val = "TO BE ASSIGNED BY NTC";
+                }
+                if (isBsdField) {
+                  val = "TO BE ASSIGNED BY NTC";
                 }
                 if (!val && values) {
                   if (isRegionField) {
@@ -857,8 +1130,42 @@ export function DynamicFormRenderer({
                   labelLower === "watts" ||
                   labelLower === "power";
                 const isFile = rawType === "file";
-                const sectionKeyLower = (section.key || section.id || "").toLowerCase();
-                const fieldIdLower = (field.fieldId || field.id || "").toLowerCase();
+
+                if (isEntityTypeField && (!dropdownOptions || dropdownOptions.length === 0)) {
+                  dropdownOptions = [
+                    { label: "Corporation", value: "Corporation" },
+                    { label: "Single Proprietorship", value: "Single Proprietorship" },
+                    { label: "Partnership", value: "Partnership" },
+                    { label: "Others", value: "Others" },
+                  ];
+                } else if (isKnownByAnotherNameField && (!dropdownOptions || dropdownOptions.length === 0)) {
+                  dropdownOptions = [
+                    { label: "Yes", value: "Yes" },
+                    { label: "No", value: "No" },
+                  ];
+                } else if (isServiceClassificationField && (!dropdownOptions || dropdownOptions.length === 0)) {
+                  dropdownOptions = [
+                    { label: "VALUE-ADDED SERVICE (VAS) PROVIDER", value: "VALUE-ADDED SERVICE (VAS) PROVIDER" },
+                    { label: "PUBLIC CALLING STATION/OFFICE/TELECENTER SERVICE PROVIDER (PCSOTSP)", value: "PUBLIC CALLING STATION/OFFICE/TELECENTER SERVICE PROVIDER (PCSOTSP)" },
+                    { label: "RESELLER", value: "RESELLER" },
+                    { label: "VOICE OVER INTERNET PROTOCOL (VOIP) PROVIDER", value: "VOICE OVER INTERNET PROTOCOL (VOIP) PROVIDER" },
+                    { label: "Others", value: "Others" },
+                  ];
+                }
+
+                if (isOtherTradeNameField) {
+                  const isKnownByOtherNameVal =
+                    (values?.["knownByAnotherName"] ||
+                     values?.["known_by_other_name"] ||
+                     values?.["Known by other Name"] ||
+                     values?.[FIELD_ID_KNOWN_OTHER_NAME] ||
+                     "").toLowerCase() === "yes";
+
+                  if (!isKnownByOtherNameVal) {
+                    return null;
+                  }
+                }
+
                 const isRepeaterField =
                   rawType === "repeater" ||
                   rawType === "table" ||
@@ -883,11 +1190,6 @@ export function DynamicFormRenderer({
                   labelLower.includes("particulars of signal to be received") ||
                   labelLower.includes("radio officers details");
 
-                const isBsdField =
-                  fieldIdLower.includes("bsd") ||
-                  labelLower.includes("bsd no") ||
-                  labelLower.includes("bsd number");
-
                 const isContactField =
                   fieldIdLower === "fd000000-0000-0000-0000-000000000004" ||
                   labelLower.includes("contact") ||
@@ -901,18 +1203,28 @@ export function DynamicFormRenderer({
                   labelLower.includes("email") ||
                   rawType === "email";
 
-                const span = isNameField || isSignature || isCheckbox || isFile || isRepeaterField || isBsdField ? 12 : 6;
+                const isExamSeminarField =
+                  sectionKeyLower.includes("exam") ||
+                  sectionKeyLower.includes("seminar") ||
+                  labelLower.includes("exam") ||
+                  labelLower.includes("seminar") ||
+                  labelLower.includes("rating");
+
+                const isFieldRequired = isAmateurCert && isExamSeminarField ? false : (field.isRequired ?? false);
+
+                const span = isNameField || isSignature || isCheckbox || isFile || isRepeaterField || isBsdField || isVasRegField || isVasServicesField ? 12 : 6;
 
                 return (
                   <FormCol key={targetId} span={span} compact={field.isCompact}>
                     {isNameField ? (
                       <ApplicantNameField
                         key={targetId}
-                        label={field.label}
-                        isRequired={field.isRequired}
+                        label={isCompanyCertService ? "Applicant / Company Name" : field.label}
+                        isRequired={isFieldRequired}
                         value={val}
                         structuredValue={structuredNameData}
                         allowCompany={allowCompany}
+                        unifiedInput={isCompanyCertService}
                         onChange={(combinedName) => onChange(targetId, field.label, combinedName)}
                         onStructuredChange={onStructuredNameChange}
                         error={err}
@@ -920,7 +1232,7 @@ export function DynamicFormRenderer({
                     ) : isRepeaterField ? (
                       <FormRepeaterTable
                         label={field.label}
-                        isRequired={field.isRequired}
+                        isRequired={isFieldRequired}
                         value={val}
                         fieldKey={targetId}
                         onChange={(repeaterJson) => onChange(targetId, field.label, repeaterJson)}
@@ -965,10 +1277,57 @@ export function DynamicFormRenderer({
                           * Note: BSD No. is designated and assigned exclusively by the National Telecommunications Commission (NTC) upon evaluation and approval.
                         </Text>
                       </View>
+                    ) : isVasRegField ? (
+                      <View
+                        style={{
+                          backgroundColor: "#F8FAFC",
+                          borderWidth: 1,
+                          borderColor: "#CBD5E1",
+                          borderRadius: 10,
+                          padding: 14,
+                          gap: 6,
+                        }}
+                      >
+                        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                          <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: "#334155" }}>
+                            VAS REGISTRATION : TO BE ASSIGNED BY NTC
+                          </Text>
+                          <View
+                            style={{
+                              backgroundColor: "#EFF6FF",
+                              borderWidth: 1,
+                              borderColor: "#BFDBFE",
+                              borderRadius: 6,
+                              paddingHorizontal: 8,
+                              paddingVertical: 2,
+                            }}
+                          >
+                            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 10.5, fontWeight: "700", color: "#1D4ED8" }}>
+                              OFFICIAL NTC ASSIGNMENT
+                            </Text>
+                          </View>
+                        </View>
+                        <ValidatedInput
+                          value="TO BE ASSIGNED BY NTC"
+                          editable={false}
+                          onChangeText={() => {}}
+                        />
+                        <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, color: "#64748B", fontStyle: "italic" }}>
+                          * Note: VAS Registration Number is designated and assigned exclusively by the National Telecommunications Commission (NTC) upon evaluation and approval.
+                        </Text>
+                      </View>
+                    ) : isVasServicesField ? (
+                      <VasServicesCheckboxGroup
+                        label={field.label}
+                        required={isFieldRequired}
+                        value={val}
+                        onChange={(newVal) => onChange(targetId, field.label, newVal)}
+                        error={err}
+                      />
                     ) : isSignature ? (
                       <FormSignatureInput
                         label={field.label}
-                        isRequired={field.isRequired}
+                        isRequired={isFieldRequired}
                         value={val}
                         onChange={(sigData) => onChange(targetId, field.label, sigData)}
                         applicantName={applicantName || val}
@@ -979,7 +1338,7 @@ export function DynamicFormRenderer({
                     ) : isCheckbox ? (
                       <DeclarationCheckbox
                         label={field.label}
-                        isRequired={field.isRequired}
+                        isRequired={isFieldRequired}
                         value={val}
                         onChange={(chkVal) => onChange(targetId, field.label, chkVal)}
                         error={err}
@@ -987,7 +1346,7 @@ export function DynamicFormRenderer({
                     ) : isDropdown ? (
                       <Select
                         label={field.label}
-                        required={field.isRequired}
+                        required={isFieldRequired}
                         value={val}
                         onValueChange={handleDropdownChange}
                         options={dropdownOptions}
@@ -997,7 +1356,7 @@ export function DynamicFormRenderer({
                     ) : isDate ? (
                       <DatePickerInput
                         label={field.label}
-                        required={field.isRequired}
+                        required={isFieldRequired}
                         value={val}
                         onChangeText={(v: string) => onChange(targetId, field.label, v)}
                         error={err}
@@ -1005,7 +1364,7 @@ export function DynamicFormRenderer({
                     ) : (
                       <ValidatedInput
                         label={field.label}
-                        required={field.isRequired}
+                        required={isFieldRequired}
                         value={val}
                         onChangeText={(v) => onChange(targetId, field.label, v)}
                         placeholder={

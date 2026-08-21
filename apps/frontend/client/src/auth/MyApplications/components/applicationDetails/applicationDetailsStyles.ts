@@ -1,4 +1,4 @@
-﻿import { StyleSheet, Platform } from 'react-native';
+import { StyleSheet, Platform } from 'react-native';
 import { TYPOGRAPHY, SPACING } from '@edge/ui';
 
 export const styles = StyleSheet.create({
@@ -962,12 +962,134 @@ export const styles = StyleSheet.create({
     color: '#4338CA',
   },
 
-  // â”€â”€ Submission date / meta row â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Submission date / meta row ──────────────────────────────────────────
   submittedAtRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     marginTop: -14,
     marginBottom: 16,
+  },
+
+  // ── 2-Column Split Layout for Bulk Applications ───────────────────────────
+  bulkTwoColumnContainer: {
+    flexDirection: 'row',
+    gap: 20,
+    alignItems: 'flex-start',
+    width: '100%',
+  },
+  bulkLeftSidebar: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 16,
+    gap: 12,
+    ...Platform.select({
+      web: {
+        boxShadow: '0 2px 4px -1px rgba(0,0,0,0.02)',
+      },
+    }),
+  },
+  bulkRightContent: {
+    flex: 1,
+    minWidth: 0,
+  },
+  applicantListCard: {
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
+    marginBottom: 8,
+    gap: 8,
+  },
+  applicantListCardActive: {
+    borderColor: '#2563EB',
+    backgroundColor: '#EFF6FF',
+    borderLeftWidth: 4,
+    borderLeftColor: '#1D4ED8',
+    ...Platform.select({
+      web: {
+        boxShadow: '0 2px 6px -1px rgba(29, 78, 216, 0.12)',
+      },
+    }),
+  },
+  applicantCardTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  applicantIndexBadge: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  applicantIndexBadgeActive: {
+    backgroundColor: '#1D4ED8',
+  },
+  applicantIndexText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#64748B',
+  },
+  applicantIndexTextActive: {
+    color: '#FFFFFF',
+  },
+  applicantCardName: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  applicantCardNameActive: {
+    color: '#1D4ED8',
+  },
+  applicantCardType: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 1,
+  },
+  applicantCardFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    flexWrap: 'wrap',
+    gap: 4,
+  },
+  soaBadge: {
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  soaBadgeText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#475569',
+  },
+  activeIndicatorBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#DBEAFE',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  activeIndicatorText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#1D4ED8',
   },
 });

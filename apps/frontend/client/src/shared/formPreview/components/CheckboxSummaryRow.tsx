@@ -1,7 +1,7 @@
-﻿import React from 'react';
+import React from 'react';
 import { View, Text } from 'react-native';
-import { Icon, TYPOGRAPHY } from '@edge/ui';
-import { OFFICIAL_LEGAL_DECLARATION } from '../../../../shared/components/DeclarationCheckbox';
+import { TYPOGRAPHY, Icon } from '@edge/ui';
+import { OFFICIAL_LEGAL_DECLARATION } from '../../components/DeclarationCheckbox';
 
 interface CheckboxSummaryRowProps {
   label: string;
@@ -9,13 +9,8 @@ interface CheckboxSummaryRowProps {
 }
 
 export function CheckboxSummaryRow({ label, trimmedVal }: CheckboxSummaryRowProps) {
-  const isChecked =
-    trimmedVal.toLowerCase() === 'true' ||
-    trimmedVal.toLowerCase() === 'agreed' ||
-    trimmedVal.toLowerCase() === 'yes' ||
-    trimmedVal === '1';
-
   const labelLower = label.toLowerCase();
+  const isChecked = trimmedVal === 'true' || trimmedVal === 'agreed' || trimmedVal === 'yes' || trimmedVal === '1';
   const displayLabel = labelLower.startsWith('i hereby declare')
     ? OFFICIAL_LEGAL_DECLARATION
     : label;

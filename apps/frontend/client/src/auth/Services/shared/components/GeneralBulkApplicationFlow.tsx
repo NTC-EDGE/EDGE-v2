@@ -30,6 +30,7 @@ import {
   FIELD_ID_STREET,
   FIELD_ID_ADDRESS,
   FIELD_ID_ZIP_CODE,
+  FIELD_ID_INVOICE_NUMBER,
 } from "../../../../shared/constants/fieldIds";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -178,6 +179,71 @@ export function GeneralBulkApplicationFlow({
           return;
         }
 
+        // Skip exam details validation for Amateur Certificates
+        const isAmateurCertService = (service.category || "").toLowerCase().includes("certificate") && ((service.title || "").toLowerCase().includes("amateur") || (service.id || "").toLowerCase().includes("103") || (service.id || "").toLowerCase().includes("ntc_1_03"));
+        const isExamField = idLower.includes("exam") || idLower.includes("seminar") || idLower.includes("rating");
+        if (isAmateurCertService && isExamField) {
+          return;
+        }
+
+        // Skip DTI / SEC registration validation if empty (optional field on registration forms)
+        const isDtiSecField =
+          idLower === "fd000000-0000-0000-0000-000000000086" ||
+          idLower === "dtisecregistration" ||
+          idLower === "dti_sec_registration" ||
+          idLower.includes("sec") ||
+          idLower.includes("dti");
+        if (isDtiSecField) {
+          return;
+        }
+
+        // Skip repeater individual subfields
+        const isRepeaterSubField =
+          idLower === "serialnumber" ||
+          idLower === "serial_number" ||
+          idLower === "serial number" ||
+          idLower === "serialnumbers" ||
+          idLower === "serial number(s)" ||
+          idLower === "frequencyrange" ||
+          idLower === "frequency_range" ||
+          idLower === "frequency range" ||
+          idLower === "poweroutput" ||
+          idLower === "power_output" ||
+          idLower === "power output" ||
+          idLower === "make" ||
+          idLower === "model" ||
+          idLower === "type/model" ||
+          idLower === "maketypeModel" ||
+          idLower === "make / type / model" ||
+          idLower === "deviceType" ||
+          idLower === "device / equipment type" ||
+          idLower === "fd000000-0000-0000-0000-000000000084" ||
+          idLower === "fd000000-0000-0000-0000-000000000085" ||
+          idLower === "fd000000-0000-0000-0000-000000000087";
+        if (isRepeaterSubField) {
+          return;
+        }
+
+        // Skip invoice validation for Dealers
+        const isInvoiceId =
+          idLower === FIELD_ID_INVOICE_NUMBER.toLowerCase() ||
+          idLower === "invoicenumber" ||
+          idLower === "invoiceno" ||
+          idLower.includes("invoice");
+
+        if (isInvoiceId) {
+          const matchedVar = variants?.find((v) => String(v.id) === String(activeApplicant?.selectedVariantId));
+          const varDesc = (matchedVar?.description || matchedVar?.name || "").toLowerCase();
+          const isNonDealerVariant = varDesc.includes("non-dealer") || varDesc.includes("non dealer") || String(activeApplicant?.selectedVariantId).endsWith("23");
+          const registrationTypeVal = (activeApplicant?.formFieldValues?.find(fv => (fv.fieldLabel || "").toLowerCase().includes("registration type"))?.value || activeApplicant?.deviceRegData?.registrationType || "").toLowerCase();
+          const isNonDealerRegType = registrationTypeVal.includes("non");
+          const isDealer = varDesc.includes("dealer") && !isNonDealerVariant;
+
+          if (isDealer || (!isNonDealerVariant && !isNonDealerRegType)) {
+            return;
+          }
+        }
+
         let val = filledMap.get(idLower);
         if (val === undefined || val === null || (typeof val === "string" && val.trim() === "")) {
           if (
@@ -220,8 +286,13 @@ export function GeneralBulkApplicationFlow({
               idLower === FIELD_ID_ADDRESS.toLowerCase() ||
               idLower === "street" ||
               idLower === "address" ||
-              (idLower.includes("address") && !idLower.includes("email")) ||
-              idLower.includes("street")) &&
+              ((idLower.includes("address") || idLower.includes("street")) &&
+                !idLower.includes("email") &&
+                !idLower.includes("exam") &&
+                !idLower.includes("seminar") &&
+                !idLower.includes("station") &&
+                !idLower.includes("seller") &&
+                !idLower.includes("dealer"))) &&
             activeApplicant?.address
           ) {
             val = activeApplicant.address;

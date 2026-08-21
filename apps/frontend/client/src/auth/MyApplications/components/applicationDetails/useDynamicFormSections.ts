@@ -1,14 +1,11 @@
-﻿import { useMemo } from 'react';
-import { Icon } from '@edge/ui';
+import { useMemo } from 'react';
 import { Application } from '../../data/applicationsData';
+import { buildDynamicSections } from '../../../../shared/formPreview/core/buildDynamicSections';
 import {
-  isUnrelatedSection,
-  isApplicantParticularField,
-  isSignatureOrDeclarationField,
-  isJurisdictionOrVariantField,
-  getSectionIcon,
-  getSectionAccentColor,
-} from './applicationDetailsHelpers';
+  isExamEducationField,
+  isExamAssistanceField,
+} from '../../../../shared/formPreview/core/formPreviewFieldCheckers';
+import { getPreviewExtension } from '../../../../shared/formPreview/extensions';
 
 export function useDynamicFormSections(
   form: { sections?: Array<{ id?: string; key?: string; title?: string; fields?: Array<{ id?: string; fieldId?: string; label?: string }> }> } | null | undefined,
@@ -24,74 +21,42 @@ export function useDynamicFormSections(
     serviceTitleLower.includes('admission') ||
     serviceTitleLower.includes('operator examination');
 
-  const renderedFieldIds = useMemo(() => new Set<string>(), [formFieldValues]);
+  const isAmateurCert =
+    serviceCategoryLower.includes('amateur') ||
+    serviceTitleLower.includes('amateur') ||
+    serviceTitleLower.includes('ntc 1-03') ||
+    serviceTitleLower.includes('ntc_1_03') ||
+    (app.serviceId || '').toLowerCase().includes('103');
 
-  // 1. Build Structured Dynamic Form Sections
-  const dynamicSectionsToRender = useMemo(() => {
-    if (!form?.sections || !Array.isArray(form.sections) || form.sections.length === 0) return [];
+  const isVasCert =
+    serviceCategoryLower.includes('vas') ||
+    serviceTitleLower.includes('vas') ||
+    serviceTitleLower.includes('value-added') ||
+    serviceTitleLower.includes('ntc 1-20') ||
+    serviceTitleLower.includes('ntc_1_20') ||
+    (app.serviceId || '').toLowerCase().includes('120') ||
+    (app.serviceId || '').toLowerCase().includes('f20');
 
-    const result: Array<{
-      id: string;
-      title: string;
-      icon: React.ComponentProps<typeof Icon>['name'];
-      accentColor: string;
-      fields: Array<{ fieldId: string; label: string; value: string }>;
-    }> = [];
+  const extension = useMemo(
+    () =>
+      getPreviewExtension({
+        id: app.serviceId || '',
+        title: app.serviceName || '',
+        category: app.serviceCategory || '',
+      }),
+    [app.serviceId, app.serviceName, app.serviceCategory]
+  );
 
-    form.sections.forEach((section, sIdx) => {
-      const sectionKey = section.key || section.id || '';
-      const sectionTitle = section.title || `Section ${sIdx + 1}`;
-      if (isUnrelatedSection(sectionTitle) || isUnrelatedSection(sectionKey)) return;
-
-      const sectionFields: Array<{ fieldId: string; label: string; value: string }> = [];
-
-      (section.fields || []).forEach((field) => {
-        const fieldId = field.fieldId || field.id || '';
-        const fieldLabel = field.label || '';
-
-        if (
-          isApplicantParticularField(fieldLabel) || isApplicantParticularField(fieldId) ||
-          isSignatureOrDeclarationField(fieldLabel) || isSignatureOrDeclarationField(fieldId) ||
-          isJurisdictionOrVariantField(fieldLabel) || isJurisdictionOrVariantField(fieldId)
-        ) {
-          renderedFieldIds.add(fieldId);
-          renderedFieldIds.add(fieldLabel);
-          return;
-        }
-
-        const matchedFv = formFieldValues.find(
-          (fv) => fv.fieldId === fieldId || fv.fieldLabel.toLowerCase().trim() === fieldLabel.toLowerCase().trim()
-        );
-
-        if (matchedFv?.value && matchedFv.value.trim() !== '') {
-          const val = matchedFv.value.trim();
-          if (val.toUpperCase() !== 'N/A' && val.toUpperCase() !== 'NA' && val !== '-' && val !== '[]' && val !== '{}') {
-            sectionFields.push({ fieldId, label: fieldLabel || matchedFv.fieldLabel, value: val });
-            renderedFieldIds.add(fieldId);
-            renderedFieldIds.add(matchedFv.fieldId);
-            renderedFieldIds.add(fieldLabel);
-            renderedFieldIds.add(matchedFv.fieldLabel);
-          }
-        }
-      });
-
-      if (sectionFields.length > 0) {
-        result.push({
-          id: section.id || sectionKey || `sec-${sIdx}`,
-          title: sectionTitle,
-          icon: getSectionIcon(sectionTitle) as React.ComponentProps<typeof Icon>['name'],
-          accentColor: getSectionAccentColor(result.length),
-          fields: sectionFields,
-        });
-      }
+  const { dynamicSectionsToRender, remainingFields } = useMemo(() => {
+    return buildDynamicSections(form, formFieldValues, {
+      isAmateurCertService: isAmateurCert,
+      isVasCertService: isVasCert,
+      skipFieldIds: extension?.skipFieldIds,
+      skipFieldLabels: extension?.skipFieldLabels,
     });
+  }, [form, formFieldValues, isAmateurCert, isVasCert, extension]);
 
-    return result;
-  }, [form, formFieldValues, renderedFieldIds]);
-
-  // 2. Classify remaining fields & signatures
-  const { remainingSpecs, declarations, signatures } = useMemo(() => {
-    const specs: Array<{ fieldId: string; fieldLabel: string; value: string }> = [];
+  const { declarations, signatures } = useMemo(() => {
     const decs: Array<{ fieldId: string; fieldLabel: string; value: string }> = [];
     const sigs: Array<{ fieldId: string; fieldLabel: string; value: string }> = [];
 
@@ -101,63 +66,57 @@ export function useDynamicFormSections(
       const valLower = val.toLowerCase();
       const labelLower = (field.fieldLabel || field.fieldId).toLowerCase();
 
-      const isSig = labelLower.includes('signature') || val.startsWith('data:image') || val.startsWith('typed:cursive:') || val.startsWith('blob:');
-
-      const isDec = !isSig && (
-        labelLower.includes('declare') || labelLower.includes('certify') || labelLower.includes('agreement') ||
-        labelLower.includes('declaration') || labelLower.includes('affirm') || valLower === 'true' ||
-        valLower === 'false' || valLower === 'agreed' || valLower === 'yes' || valLower === 'no'
-      );
+      const isSig =
+        labelLower.includes('signature') ||
+        val.startsWith('data:image') ||
+        val.startsWith('typed:cursive:') ||
+        val.startsWith('blob:');
+      const isDec =
+        !isSig &&
+        (labelLower.includes('declare') ||
+          labelLower.includes('certify') ||
+          labelLower.includes('agreement') ||
+          labelLower.includes('declaration') ||
+          labelLower.includes('affirm') ||
+          valLower === 'true' ||
+          valLower === 'false' ||
+          valLower === 'agreed' ||
+          valLower === 'yes' ||
+          valLower === 'no');
 
       if (isSig) {
         sigs.push(field);
       } else if (isDec) {
         decs.push(field);
-      } else if (
-        !renderedFieldIds.has(field.fieldId) && !renderedFieldIds.has(field.fieldLabel) &&
-        !isApplicantParticularField(field.fieldLabel) && !isApplicantParticularField(field.fieldId) &&
-        !isJurisdictionOrVariantField(field.fieldLabel) && !isJurisdictionOrVariantField(field.fieldId)
-      ) {
-        specs.push(field);
       }
     }
 
-    return { remainingSpecs: specs, declarations: decs, signatures: sigs };
-  }, [formFieldValues, renderedFieldIds]);
+    return { declarations: decs, signatures: sigs };
+  }, [formFieldValues]);
 
   const examEducationFields = useMemo(() => {
     if (!isExamService) return [];
-    return remainingSpecs.filter((f) => {
-      const lbl = f.fieldLabel.toLowerCase();
-      const id = f.fieldId.toLowerCase();
-      return lbl.includes('school') || lbl.includes('course') || lbl.includes('degree') || lbl.includes('educat') ||
-        lbl.includes('attain') || lbl.includes('graduat') || lbl.includes('year') || id.includes('school') ||
-        id.includes('course') || id.includes('degree') || id.includes('educat') || id.includes('graduat');
-    });
-  }, [isExamService, remainingSpecs]);
+    return remainingFields.filter((f) => isExamEducationField(f.fieldLabel, f.fieldId));
+  }, [isExamService, remainingFields]);
 
   const examAssistanceFields = useMemo(() => {
     if (!isExamService) return [];
-    return remainingSpecs.filter((f) => {
-      const lbl = f.fieldLabel.toLowerCase();
-      const id = f.fieldId.toLowerCase();
-      return lbl.includes('assist') || lbl.includes('special') || lbl.includes('pwd') ||
-        lbl.includes('accommodat') || lbl.includes('needs') || id.includes('assist') ||
-        id.includes('special') || id.includes('pwd') || id.includes('needs');
-    });
-  }, [isExamService, remainingSpecs]);
+    return remainingFields.filter((f) => isExamAssistanceField(f.fieldLabel, f.fieldId));
+  }, [isExamService, remainingFields]);
 
   const nonExamRemainingFields = useMemo(() => {
     if (isExamService) return [];
-    return remainingSpecs.filter(
-      (f) => !examEducationFields.some((ef) => ef.fieldId === f.fieldId) && !examAssistanceFields.some((af) => af.fieldId === f.fieldId)
+    return remainingFields.filter(
+      (f) =>
+        !examEducationFields.some((ef) => ef.fieldId === f.fieldId) &&
+        !examAssistanceFields.some((af) => af.fieldId === f.fieldId)
     );
-  }, [isExamService, remainingSpecs, examEducationFields, examAssistanceFields]);
+  }, [isExamService, remainingFields, examEducationFields, examAssistanceFields]);
 
   return {
     isExamService,
     dynamicSectionsToRender,
-    remainingSpecs,
+    remainingSpecs: remainingFields,
     declarations,
     signatures,
     examEducationFields,

@@ -1,7 +1,5 @@
-﻿import React from 'react';
-import { View } from 'react-native';
-import { SectionCard } from './SectionCard';
-import { SummaryRow } from './SummaryRow';
+import React from 'react';
+import { ApplicantDetailsReviewCard } from '../../../../shared/formPreview/components/ApplicantDetailsReviewCard';
 
 interface ApplicantParticularsCardProps {
   singleApplicant: {
@@ -22,63 +20,38 @@ interface ApplicantParticularsCardProps {
     representativeName: string | null;
     notes: string | null;
   } | null;
-  isDesktop: boolean;
+  isDesktop?: boolean;
 }
 
-export function ApplicantParticularsCard({ singleApplicant, isDesktop }: ApplicantParticularsCardProps) {
+export function ApplicantParticularsCard({ singleApplicant }: ApplicantParticularsCardProps) {
   if (!singleApplicant) return null;
 
+  const addressComponents = [
+    singleApplicant.streetAddress,
+    singleApplicant.barangay ? `Brgy. ${singleApplicant.barangay}` : '',
+    singleApplicant.cityMunicipality,
+    singleApplicant.province,
+    singleApplicant.region && singleApplicant.region !== 'N/A' ? `(${singleApplicant.region})` : '',
+    singleApplicant.zipCode,
+  ].filter(Boolean);
+  const fullAddress = addressComponents.join(', ');
+
   return (
-    <SectionCard
-      icon="user"
-      title="Named Individual / Applicant Particulars"
-      accentColor="#1D4ED8"
-    >
-      <View style={{ gap: 4 }}>
-        <SummaryRow label="Full Legal Name" value={singleApplicant.applicantName} />
-
-        <View style={{ flexDirection: isDesktop ? 'row' : 'column', gap: 8 }}>
-          <View style={{ flex: 1 }}>
-            <SummaryRow label="Birth Date" value={singleApplicant.birthDate} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <SummaryRow label="Civil Status" value={singleApplicant.civilStatus} />
-          </View>
-        </View>
-
-        <View style={{ flexDirection: isDesktop ? 'row' : 'column', gap: 8 }}>
-          <View style={{ flex: 1 }}>
-            <SummaryRow label="Sex / Gender" value={singleApplicant.sex} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <SummaryRow label="Citizenship / Nationality" value={singleApplicant.nationality} />
-          </View>
-        </View>
-
-        <SummaryRow
-          label="Residential / Complete Address"
-          value={`${singleApplicant.streetAddress}${singleApplicant.barangay ? `, Brgy. ${singleApplicant.barangay}` : ''}, ${singleApplicant.cityMunicipality}, ${singleApplicant.province}${singleApplicant.region !== 'N/A' ? ` (${singleApplicant.region})` : ''}${singleApplicant.zipCode ? ` ${singleApplicant.zipCode}` : ''}`}
-        />
-
-        <View style={{ flexDirection: isDesktop ? 'row' : 'column', gap: 8 }}>
-          <View style={{ flex: 1 }}>
-            <SummaryRow label="Mobile / Contact Number" value={singleApplicant.mobileNumber} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <SummaryRow label="Email Address" value={singleApplicant.email} />
-          </View>
-        </View>
-
-        {singleApplicant.companyName && (
-          <SummaryRow label="Corporate / Employer Name" value={singleApplicant.companyName} />
-        )}
-        {singleApplicant.representativeName && (
-          <SummaryRow label="Authorized Representative" value={singleApplicant.representativeName} />
-        )}
-        {singleApplicant.notes && (
-          <SummaryRow label="Remarks / Special Notes" value={singleApplicant.notes} />
-        )}
-      </View>
-    </SectionCard>
+    <ApplicantDetailsReviewCard
+      activeApplicant={{
+        applicantType: singleApplicant.companyName ? 'company' : 'individual',
+        companyName: singleApplicant.companyName,
+        representativeName: singleApplicant.representativeName,
+        notes: singleApplicant.notes,
+      }}
+      resolvedFullName={singleApplicant.applicantName || null}
+      resolvedEmail={singleApplicant.email || ''}
+      resolvedContactNo={singleApplicant.mobileNumber || ''}
+      resolvedAddress={fullAddress.length > 0 ? fullAddress : null}
+      resolvedBirthDate={singleApplicant.birthDate || null}
+      resolvedSex={singleApplicant.sex || null}
+      resolvedCivilStatus={singleApplicant.civilStatus || null}
+      resolvedNationality={singleApplicant.nationality || null}
+    />
   );
 }

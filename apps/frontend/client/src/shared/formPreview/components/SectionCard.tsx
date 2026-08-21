@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { View, Text, Platform } from 'react-native';
 import { Icon, TYPOGRAPHY } from '@edge/ui';
 

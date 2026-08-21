@@ -1,6 +1,6 @@
-﻿import React from 'react';
+import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
-import { Icon, TYPOGRAPHY } from '@edge/ui';
+import { TYPOGRAPHY, Icon } from '@edge/ui';
 
 interface DocumentSummaryRowProps {
   label: string;
@@ -23,7 +23,7 @@ export function DocumentSummaryRow({ label, trimmedVal, onPreviewFile }: Documen
         justifyContent: 'space-between',
       }}
     >
-      <View style={{ flex: 1, marginRight: 8 }}>
+      <View style={{ flex: 1 }}>
         <Text
           style={{
             fontFamily: TYPOGRAPHY.fonts.primary,

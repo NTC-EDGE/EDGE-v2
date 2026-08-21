@@ -46,19 +46,23 @@ export function FormSignatureInput({
   // Helper to retrieve saved signature from Clerk metadata or local storage
   const getSavedSignature = useCallback((): string => {
     try {
-      const userMeta = clerkUser?.unsafeMetadata as Record<string, unknown> | undefined;
-      if (userMeta?.eSignature && typeof userMeta.eSignature === "string" && userMeta.eSignature.trim().length > 0) {
-        return userMeta.eSignature;
+      const userMeta = clerkUser?.unsafeMetadata;
+      if (typeof userMeta === "object" && userMeta !== null) {
+        if ("eSignature" in userMeta && typeof userMeta.eSignature === "string" && userMeta.eSignature.trim().length > 0) {
+          return userMeta.eSignature;
+        }
+        if ("signature" in userMeta && typeof userMeta.signature === "string" && userMeta.signature.trim().length > 0) {
+          return userMeta.signature;
+        }
       }
-      if (userMeta?.signature && typeof userMeta.signature === "string" && userMeta.signature.trim().length > 0) {
-        return userMeta.signature;
-      }
-      const publicMeta = clerkUser?.publicMetadata as Record<string, unknown> | undefined;
-      if (publicMeta?.eSignature && typeof publicMeta.eSignature === "string" && publicMeta.eSignature.trim().length > 0) {
-        return publicMeta.eSignature;
-      }
-      if (publicMeta?.signature && typeof publicMeta.signature === "string" && publicMeta.signature.trim().length > 0) {
-        return publicMeta.signature;
+      const publicMeta = clerkUser?.publicMetadata;
+      if (typeof publicMeta === "object" && publicMeta !== null) {
+        if ("eSignature" in publicMeta && typeof publicMeta.eSignature === "string" && publicMeta.eSignature.trim().length > 0) {
+          return publicMeta.eSignature;
+        }
+        if ("signature" in publicMeta && typeof publicMeta.signature === "string" && publicMeta.signature.trim().length > 0) {
+          return publicMeta.signature;
+        }
       }
       if (Platform.OS === "web" && typeof window !== "undefined" && window.localStorage) {
         const localSig = window.localStorage.getItem("ntc_user_saved_signature") || window.localStorage.getItem("user_e_signature");
@@ -208,12 +212,29 @@ export function FormSignatureInput({
         window.localStorage.setItem("ntc_user_saved_signature", sigDataUrl);
       }
       if (clerkUser) {
-        await clerkUser.update({
-          unsafeMetadata: {
-            ...((clerkUser.unsafeMetadata as Record<string, unknown>) || {}),
-            eSignature: sigDataUrl,
-          },
-        });
+        // Clerk unsafe_metadata has a strict 8 KB limit. Large base64 data URLs (drawn or uploaded images) exceed 8 KB and cause 422 errors.
+        // Only persist lightweight signature tokens (e.g. typed cursive tokens) to Clerk metadata.
+        if (sigDataUrl.length < 4000) {
+          const currentMeta =
+            typeof clerkUser.unsafeMetadata === "object" && clerkUser.unsafeMetadata !== null
+              ? clerkUser.unsafeMetadata
+              : {};
+          if (typeof clerkUser.updateMetadata === "function") {
+            await clerkUser.updateMetadata({
+              unsafeMetadata: {
+                ...currentMeta,
+                eSignature: sigDataUrl,
+              },
+            });
+          } else if (typeof clerkUser.update === "function") {
+            await clerkUser.update({
+              unsafeMetadata: {
+                ...currentMeta,
+                eSignature: sigDataUrl,
+              },
+            });
+          }
+        }
       }
     } catch (err) {
       console.warn("Could not persist saved signature:", err);
@@ -248,20 +269,23 @@ export function FormSignatureInput({
       input.type = "file";
       input.accept = "image/png, image/jpeg, image/jpg";
       input.onchange = (e) => {
-        const file = (e.target as HTMLInputElement).files?.[0];
-        if (file) {
-          const reader = new FileReader();
-          reader.onload = () => {
-            if (typeof reader.result === "string") {
-              isExplicitlyClearedRef.current = false;
-              setIsEditing(false);
-              onChange(reader.result);
-              if (!isBulkMode) {
-                persistSavedSignature(reader.result);
+        const target = e.target;
+        if (target instanceof HTMLInputElement && target.files && target.files.length > 0) {
+          const file = target.files[0];
+          if (file) {
+            const reader = new FileReader();
+            reader.onload = () => {
+              if (typeof reader.result === "string") {
+                isExplicitlyClearedRef.current = false;
+                setIsEditing(false);
+                onChange(reader.result);
+                if (!isBulkMode) {
+                  persistSavedSignature(reader.result);
+                }
               }
-            }
-          };
-          reader.readAsDataURL(file);
+            };
+            reader.readAsDataURL(file);
+          }
         }
       };
       input.click();

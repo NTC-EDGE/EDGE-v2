@@ -225,7 +225,18 @@ export function GeneralFilingDetailsStep({
           updatedValues.push({ fieldId, fieldLabel: field.label, value: activeApplicant.barangay });
           hasChanges = true;
         }
-        if ((labelLower.includes("address") || labelLower.includes("street")) && !labelLower.includes("email") && !existingVal && activeApplicant.address) {
+        if (
+          (labelLower.includes("address") || labelLower.includes("street")) &&
+          !labelLower.includes("email") &&
+          !labelLower.includes("exam") &&
+          !labelLower.includes("seminar") &&
+          !labelLower.includes("station") &&
+          !labelLower.includes("installation") &&
+          !labelLower.includes("seller") &&
+          !labelLower.includes("dealer") &&
+          !existingVal &&
+          activeApplicant.address
+        ) {
           updatedValues.push({ fieldId, fieldLabel: field.label, value: activeApplicant.address });
           hasChanges = true;
         }
@@ -247,24 +258,92 @@ export function GeneralFilingDetailsStep({
   const prevRequiredKeyRef = React.useRef<string>("");
   useEffect(() => {
     if (!loading && form && form.sections) {
+      const isAmateurCertService = (service.category || "").toLowerCase().includes("certificate") && ((service.title || "").toLowerCase().includes("amateur") || (service.id || "").toLowerCase().includes("103") || (service.id || "").toLowerCase().includes("ntc_1_03"));
+      const isCompanyCertService =
+        (service.category || "").toLowerCase().includes("certificate") &&
+        ((service.title || "").toLowerCase().includes("tvro") ||
+         (service.title || "").toLowerCase().includes("value-added") ||
+         (service.title || "").toLowerCase().includes("vas") ||
+         (service.title || "").toLowerCase().includes("rfid") ||
+         (service.title || "").toLowerCase().includes("srd") ||
+         (service.title || "").toLowerCase().includes("wdn") ||
+         (service.id || "").toLowerCase().includes("119") ||
+         (service.id || "").toLowerCase().includes("120") ||
+         (service.id || "").toLowerCase().includes("122"));
+
       const visibleSections = form.sections.filter((section) => {
         const key = (section.key || section.id || "").toLowerCase();
         const title = (section.title || "").toLowerCase();
 
-        // Exclude Corporate Representative and Company Details (captured in Step 2)
-        const isCompanyOrRepSection =
-          key === "companydetails" ||
-          key === "company_details" ||
-          key === "company" ||
+        // Exclude Corporate Representative (captured in Step 2)
+        const isRepresentativeSection =
           key === "representative" ||
           key === "authorizedrepresentative" ||
-          title === "company details" ||
-          title === "company / corporation details" ||
           title === "representative" ||
           title === "authorized representative";
 
-        if (isCompanyOrRepSection) {
+        if (isRepresentativeSection) {
           return false;
+        }
+
+        if (!isCompanyCertService) {
+          const isLegacyCompanySection =
+            key === "companydetails" ||
+            key === "company_details" ||
+            key === "company" ||
+            title === "company details" ||
+            title === "company / corporation details";
+
+          if (isLegacyCompanySection) {
+            return false;
+          }
+        }
+
+        // Exclude removed sections for Amateur Service Certificates
+        if (isAmateurCertService) {
+          const isAmateurRemovedSection =
+            key === "employmentstatus" ||
+            key === "employment_status" ||
+            key === "employment" ||
+            key === "classofstation" ||
+            key === "class_of_station" ||
+            key === "classofstations" ||
+            key === "club" ||
+            key === "clubdetails" ||
+            key === "club_details" ||
+            key === "equipment" ||
+            key === "equipmentdetails" ||
+            key === "equipment_details" ||
+            key === "certificateparticulars" ||
+            title.includes("employment") ||
+            title.includes("class of station") ||
+            title.includes("club") ||
+            title.includes("equipment") ||
+            title.includes("certificate particulars");
+
+          if (isAmateurRemovedSection) {
+            return false;
+          }
+        }
+
+        // Exclude Invoice section for Dealers
+        const isInvoiceSection =
+          key === "invoicedetails" ||
+          key === "invoice_details" ||
+          key === "invoice" ||
+          title.includes("invoice");
+
+        if (isInvoiceSection) {
+          const matchedVar = variants.find((v) => String(v.id) === String(activeApplicant.selectedVariantId));
+          const varDesc = (matchedVar?.description || matchedVar?.name || "").toLowerCase();
+          const isNonDealerVariant = varDesc.includes("non-dealer") || varDesc.includes("non dealer") || String(activeApplicant.selectedVariantId).endsWith("23");
+          const registrationTypeVal = (activeApplicant.formFieldValues?.find(fv => (fv.fieldLabel || "").toLowerCase().includes("registration type"))?.value || activeApplicant.deviceRegData?.registrationType || "").toLowerCase();
+          const isNonDealerRegType = registrationTypeVal.includes("non");
+          const isDealer = varDesc.includes("dealer") && !isNonDealerVariant;
+
+          if (isDealer || (!isNonDealerVariant && !isNonDealerRegType)) {
+            return false;
+          }
         }
 
         return (
@@ -300,8 +379,16 @@ export function GeneralFilingDetailsStep({
             sectionKeyLower.includes("education") ||
             sectionKeyLower.includes("assistance") ||
             sectionKeyLower.includes("specialneeds") ||
-            sectionKeyLower.includes("emergency");
+            sectionKeyLower.includes("emergency") ||
+            sectionKeyLower.includes("vasregistration") ||
+            sectionKeyLower.includes("vas_registration") ||
+            sectionKeyLower.includes("bsd") ||
+            sectionKeyLower.includes("declaration") ||
+            sectionKeyLower.includes("payment");
           if (isOptionalSection) return [];
+
+          const isExamSection = sectionKeyLower.includes("exam") || sectionKeyLower.includes("seminar");
+          if (isAmateurCertService && isExamSection) return [];
 
           const hasRepeater = s.fields.some((f) => {
             const fType = (f.fieldType || f.type || "").toLowerCase();
@@ -313,6 +400,67 @@ export function GeneralFilingDetailsStep({
             if (!f.isRequired) return false;
             const fIdLower = (f.fieldId || f.id || "").toLowerCase();
             const labelLower = (f.label || "").toLowerCase().trim();
+
+            const isExamField = labelLower.includes("exam") || labelLower.includes("seminar") || labelLower.includes("rating");
+            if (isAmateurCertService && isExamField) return false;
+
+            const isOfficialAssignment =
+              fIdLower.includes("vasregistration") ||
+              fIdLower.includes("vas_reg") ||
+              fIdLower === "fd000000-0000-0000-0000-000000000236" ||
+              fIdLower.includes("bsd") ||
+              labelLower.includes("vas registration") ||
+              labelLower.includes("bsd no") ||
+              labelLower.includes("bsd number");
+            if (isOfficialAssignment) return false;
+
+            const isRepresentativeField =
+              fIdLower === "fd000000-0000-0000-0000-000000000082" ||
+              fIdLower === "fd000000-0000-0000-0000-000000000083" ||
+              fIdLower === "representativename" ||
+              fIdLower === "representativeposition" ||
+              labelLower === "authorized representative name" ||
+              labelLower === "representative name" ||
+              labelLower === "representative position" ||
+              labelLower.includes("representative");
+            if (isRepresentativeField) return false;
+
+            // Skip SEC / DTI registration (optional field on registration forms)
+            const isDtiSecField =
+              fIdLower === "fd000000-0000-0000-0000-000000000086" ||
+              fIdLower === "dtisecregistration" ||
+              fIdLower === "dti_sec_registration" ||
+              labelLower.includes("sec / dti") ||
+              labelLower.includes("dti") ||
+              labelLower.includes("sec registration");
+            if (isDtiSecField) return false;
+
+            if (!isCompanyCertService && activeApplicant.applicantType === "company") {
+              const isLegacyCompanyField =
+                fIdLower === "fd000000-0000-0000-0000-000000000081" ||
+                fIdLower === "companyname" ||
+                labelLower === "company / business name" ||
+                labelLower === "company / corporation name" ||
+                labelLower === "company name" ||
+                labelLower.includes("company") ||
+                labelLower.includes("business name");
+              if (isLegacyCompanyField) return false;
+            }
+
+            const isOtherTradeName =
+              fIdLower === "othertradename" ||
+              fIdLower === "other_trade_name" ||
+              fIdLower === "fd000000-0000-0000-0000-000000000235" ||
+              labelLower.includes("please specify");
+            if (isOtherTradeName) {
+              const knownVal = (
+                activeApplicant.formFieldValues?.find(fv =>
+                  (fv.fieldId || "").toLowerCase().includes("known") ||
+                  (fv.fieldLabel || "").toLowerCase().includes("known")
+                )?.value || ""
+              ).toLowerCase().trim();
+              if (knownVal !== "yes") return false;
+            }
 
             const isEmployment =
               labelLower === "status" ||
@@ -343,14 +491,40 @@ export function GeneralFilingDetailsStep({
               fIdLower === "element";
             if (isElem) return false;
 
+            const isInvoiceField =
+              labelLower.includes("invoice") ||
+              fIdLower === "invoicenumber" ||
+              fIdLower === "invoiceno";
+
+            if (isInvoiceField) {
+              const matchedVar = variants.find((v) => String(v.id) === String(activeApplicant.selectedVariantId));
+              const varDesc = (matchedVar?.description || matchedVar?.name || "").toLowerCase();
+              const isNonDealerVariant = varDesc.includes("non-dealer") || varDesc.includes("non dealer") || String(activeApplicant.selectedVariantId).endsWith("23");
+              const registrationTypeVal = (activeApplicant.formFieldValues?.find(fv => (fv.fieldLabel || "").toLowerCase().includes("registration type"))?.value || activeApplicant.deviceRegData?.registrationType || "").toLowerCase();
+              const isNonDealerRegType = registrationTypeVal.includes("non");
+              const isDealer = varDesc.includes("dealer") && !isNonDealerVariant;
+
+              if (isDealer || (!isNonDealerVariant && !isNonDealerRegType)) {
+                return false;
+              }
+            }
+
             if (
               hasRepeater &&
               !fIdLower.includes("details") &&
               (labelLower === "serial number" ||
+                labelLower === "serial numbers" ||
+                labelLower === "serial number(s)" ||
                 labelLower === "frequency range" ||
                 labelLower === "power output" ||
                 labelLower === "make" ||
-                labelLower === "type/model")
+                labelLower === "type/model" ||
+                labelLower === "make / type / model" ||
+                labelLower === "device / equipment type" ||
+                labelLower === "device type" ||
+                fIdLower === "fd000000-0000-0000-0000-000000000084" ||
+                fIdLower === "fd000000-0000-0000-0000-000000000085" ||
+                fIdLower === "fd000000-0000-0000-0000-000000000087")
             ) {
               return false;
             }
@@ -370,7 +544,7 @@ export function GeneralFilingDetailsStep({
       prevRequiredKeyRef.current = "";
       onRequiredFieldsChange?.([]);
     }
-  }, [loading, form]);
+  }, [loading, form, activeApplicant.selectedVariantId, activeApplicant.deviceRegData?.registrationType, variants]);
 
   if (loading) {
     return (
@@ -507,7 +681,16 @@ export function GeneralFilingDetailsStep({
           partial.contactNo = value;
         } else if (normalized.includes("email") || fieldId === FIELD_ID_EMAIL) {
           partial.email = value;
-        } else if ((normalized.includes("address") || normalized.includes("street")) && !normalized.includes("email")) {
+        } else if (
+          (normalized.includes("address") || normalized.includes("street")) &&
+          !normalized.includes("email") &&
+          !normalized.includes("exam") &&
+          !normalized.includes("seminar") &&
+          !normalized.includes("station") &&
+          !normalized.includes("installation") &&
+          !normalized.includes("seller") &&
+          !normalized.includes("dealer")
+        ) {
           partial.address = value;
         } else if (normalized === "region") {
           partial.region = value;
@@ -593,50 +776,6 @@ export function GeneralFilingDetailsStep({
     return (
       <View>
         {renderBulkCohortBanner()}
-
-        {/* Company Summary Banner for Corporate Applications */}
-        {activeApplicant.applicantType === "company" && (
-          <View
-            style={{
-              backgroundColor: "#F0FDF4",
-              borderWidth: 1,
-              borderColor: "#BBF7D0",
-              borderRadius: 10,
-              padding: 14,
-              marginBottom: 16,
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 10, flex: 1 }}>
-              <View
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 16,
-                  backgroundColor: "#15803D",
-                  justifyContent: "center",
-                  alignItems: "center",
-                }}
-              >
-                <Icon name="briefcase" size={16} color="#FFFFFF" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13.5, fontWeight: "700", color: "#14532D" }}>
-                  Corporate Filing: {activeApplicant.companyName || "Company / Corporation"}
-                </Text>
-                <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: "#166534", marginTop: 2 }}>
-                  {activeApplicant.representativeName ? `Authorized Representative: ${activeApplicant.representativeName}` : "Company details applied"}
-                  {activeApplicant.dtiSecRegistration ? ` • SEC/DTI: ${activeApplicant.dtiSecRegistration}` : ""}
-                  {" • "}
-                  <Text style={{ fontStyle: "italic", color: "#15803D" }}>To edit company details, return to Step 2.</Text>
-                </Text>
-              </View>
-            </View>
-          </View>
-        )}
-
         <DynamicFormRenderer
           key={`dynamic-form-${activeApplicant.id || currentApplicantIndex}`}
           form={form}

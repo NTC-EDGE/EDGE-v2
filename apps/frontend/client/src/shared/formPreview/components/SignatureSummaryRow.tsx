@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { View, Text, Image } from 'react-native';
 import { TYPOGRAPHY } from '@edge/ui';
 
@@ -42,16 +42,7 @@ export function SignatureSummaryRow({ label, trimmedVal }: SignatureSummaryRowPr
         >
           {label}
         </Text>
-        <View
-          style={{
-            backgroundColor: '#EFF6FF',
-            borderWidth: 1,
-            borderColor: '#BFDBFE',
-            borderRadius: 10,
-            paddingHorizontal: 8,
-            paddingVertical: 2,
-          }}
-        >
+        <View style={{ backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 }}>
           <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 10, fontWeight: '700', color: '#1D4ED8' }}>
             APPLICANT SIGNATURE
           </Text>

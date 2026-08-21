@@ -26,6 +26,7 @@ import {
   FIELD_ID_CIVIL_STATUS,
   FIELD_ID_NATIONALITY,
   FIELD_ID_SIGNATURE,
+  FIELD_ID_INVOICE_NUMBER,
 } from "../../../../shared/constants/fieldIds";
 
 interface NavigationContext {
@@ -118,9 +119,37 @@ export function handleWizardNext({
     return;
   }
   if (step === 2) {
-    if (activeApplicant.applicantType === "company" && (!activeApplicant.companyName || activeApplicant.companyName.trim() === "")) {
-      Alert.alert("Required Field", "Please enter the Company / Corporation Name before proceeding.");
-      return;
+    const serviceTitle = (service.title || "").toLowerCase();
+    const serviceCat = (service.category || "").toLowerCase();
+    const isCompanyCertService =
+      serviceCat.includes("certificate") &&
+      (serviceTitle.includes("tvro") ||
+       serviceTitle.includes("value-added") ||
+       serviceTitle.includes("vas") ||
+       serviceTitle.includes("rfid") ||
+       serviceTitle.includes("srd") ||
+       serviceTitle.includes("wdn") ||
+       (service.id !== undefined && (
+         service.id.toLowerCase().includes("119") ||
+         service.id.toLowerCase().includes("120") ||
+         service.id.toLowerCase().includes("122") ||
+         service.id.toLowerCase().includes("ntc_1_19") ||
+         service.id.toLowerCase().includes("ntc_1_20") ||
+         service.id.toLowerCase().includes("ntc_1_22")
+       )));
+
+    if (activeApplicant.applicantType === "company") {
+      if (isCompanyCertService) {
+        if (!activeApplicant.representativeName || activeApplicant.representativeName.trim() === "") {
+          Alert.alert("Required Field", "Please enter the Authorized Representative Name before proceeding.");
+          return;
+        }
+      } else {
+        if (!activeApplicant.companyName || activeApplicant.companyName.trim() === "") {
+          Alert.alert("Required Field", "Please enter the Company / Corporation Name before proceeding.");
+          return;
+        }
+      }
     }
 
     if (variants && variants.length > 0 && (!activeApplicant.selectedVariantId || activeApplicant.selectedVariantId.trim() === "")) {
@@ -128,8 +157,12 @@ export function handleWizardNext({
       return;
     }
 
+    const matchedVariant = variants?.find((v) => String(v.id) === String(activeApplicant.selectedVariantId));
+    const varDesc = (matchedVariant?.description || matchedVariant?.name || "").toLowerCase();
+    const isLifetimeSupplementary = varDesc.includes("lifetime") || String(activeApplicant.selectedVariantId).endsWith("35");
+
     // Require selection of service variant element if the variant has available elements
-    if (variantElements && variantElements.length > 0 && (!activeApplicant.selectedElementId || activeApplicant.selectedElementId.trim() === "")) {
+    if (variantElements && variantElements.length > 0 && !isLifetimeSupplementary && (!activeApplicant.selectedElementId || activeApplicant.selectedElementId.trim() === "")) {
       Alert.alert(
         "Required Selection",
         "Please select a Station Class / Radio Element for the chosen service variant before proceeding."
@@ -154,9 +187,16 @@ export function handleWizardNext({
     if (hasDynamicForm) {
       const fieldValues = activeApplicant.formFieldValues || [];
       const filledMap = new Map<string, string>();
+      const labelMap = new Map<string, string>();
       fieldValues.forEach((fv) => {
-        if (fv.fieldId) filledMap.set(fv.fieldId.toLowerCase().trim(), fv.value);
-        if (fv.fieldLabel) filledMap.set(fv.fieldLabel.toLowerCase().trim(), fv.value);
+        if (fv.fieldId) {
+          filledMap.set(fv.fieldId.toLowerCase().trim(), fv.value);
+          if (fv.fieldLabel) labelMap.set(fv.fieldId.toLowerCase().trim(), fv.fieldLabel);
+        }
+        if (fv.fieldLabel) {
+          filledMap.set(fv.fieldLabel.toLowerCase().trim(), fv.value);
+          labelMap.set(fv.fieldLabel.toLowerCase().trim(), fv.fieldLabel);
+        }
       });
 
       // 1. Missing required fields check
@@ -177,14 +217,184 @@ export function handleWizardNext({
           return;
         }
 
+        // Skip validation for official NTC assignment fields (BSD No, VAS Registration No)
+        if (
+          idLower.includes("vasregistration") ||
+          idLower.includes("vas_reg") ||
+          idLower === "fd000000-0000-0000-0000-000000000236" ||
+          idLower.includes("bsd") ||
+          idLower.includes("official")
+        ) {
+          return;
+        }
+
+        // Skip otherTradeName if knownByAnotherName is not "Yes"
+        const isOtherTradeName =
+          idLower === "othertradename" ||
+          idLower === "other_trade_name" ||
+          idLower === "fd000000-0000-0000-0000-000000000235" ||
+          idLower.includes("please specify");
+        if (isOtherTradeName) {
+          const knownVal = (
+            filledMap.get("knownbyanothername") ||
+            filledMap.get("known_by_other_name") ||
+            filledMap.get("known by other name") ||
+            filledMap.get("fd000000-0000-0000-0000-000000000234") ||
+            ""
+          ).toLowerCase().trim();
+          if (knownVal !== "yes") {
+            return;
+          }
+        }
+
+        // Skip exam details validation for Amateur Certificates
+        const isAmateurCertService = (service.category || "").toLowerCase().includes("certificate") && ((service.title || "").toLowerCase().includes("amateur") || (service.id || "").toLowerCase().includes("103") || (service.id || "").toLowerCase().includes("ntc_1_03"));
+        const isExamField = idLower.includes("exam") || idLower.includes("seminar") || idLower.includes("rating");
+        if (isAmateurCertService && isExamField) {
+          return;
+        }
+
+        // Skip validation for representative fields in Step 3 (captured in Step 2)
+        const isRepresentativeField =
+          idLower === "fd000000-0000-0000-0000-000000000082" ||
+          idLower === "fd000000-0000-0000-0000-000000000083" ||
+          idLower === "representativename" ||
+          idLower === "representativeposition" ||
+          idLower.includes("representative");
+        if (isRepresentativeField) {
+          return;
+        }
+
+        // Skip legacy company details if not a corporate certificate service
+        const isCompanyCertService =
+          (service.category || "").toLowerCase().includes("certificate") &&
+          ((service.title || "").toLowerCase().includes("tvro") ||
+           (service.title || "").toLowerCase().includes("value-added") ||
+           (service.title || "").toLowerCase().includes("vas") ||
+           (service.title || "").toLowerCase().includes("rfid") ||
+           (service.title || "").toLowerCase().includes("srd") ||
+           (service.title || "").toLowerCase().includes("wdn") ||
+           (service.id !== undefined && (
+             service.id.toLowerCase().includes("119") ||
+             service.id.toLowerCase().includes("120") ||
+             service.id.toLowerCase().includes("122") ||
+             service.id.toLowerCase().includes("ntc_1_19") ||
+             service.id.toLowerCase().includes("ntc_1_20") ||
+             service.id.toLowerCase().includes("ntc_1_22")
+           )));
+
+        // Skip DTI / SEC registration validation if empty (optional field on registration forms)
+        const isDtiSecField =
+          idLower === "fd000000-0000-0000-0000-000000000086" ||
+          idLower === "dtisecregistration" ||
+          idLower === "dti_sec_registration" ||
+          idLower.includes("sec") ||
+          idLower.includes("dti");
+        if (isDtiSecField) {
+          return;
+        }
+
+        if (!isCompanyCertService && activeApplicant.applicantType === "company") {
+          const isLegacyCompanyField =
+            idLower === "fd000000-0000-0000-0000-000000000081" ||
+            idLower === "companyname" ||
+            idLower.includes("company") ||
+            idLower.includes("business name");
+          if (isLegacyCompanyField) {
+            return;
+          }
+        }
+
+        // Skip app type and element selection (captured in Step 2)
+        const isAppType =
+          idLower.includes("type of application") ||
+          idLower.includes("application type") ||
+          idLower.includes("permit type") ||
+          idLower.includes("license type") ||
+          idLower.includes("certificate type") ||
+          idLower.includes("type of certificate") ||
+          idLower === "typeofcertificate" ||
+          idLower === "type_of_application" ||
+          idLower === "permittype" ||
+          idLower === "applicationtype";
+        if (isAppType) {
+          return;
+        }
+
+        const isElem =
+          idLower.includes("element") ||
+          idLower.includes("class of station") ||
+          idLower === "elements" ||
+          idLower === "element";
+        if (isElem) {
+          return;
+        }
+
+        // Skip repeater individual subfields
+        const isRepeaterSubField =
+          idLower === "serialnumber" ||
+          idLower === "serial_number" ||
+          idLower === "serial number" ||
+          idLower === "serialnumbers" ||
+          idLower === "serial number(s)" ||
+          idLower === "frequencyrange" ||
+          idLower === "frequency_range" ||
+          idLower === "frequency range" ||
+          idLower === "poweroutput" ||
+          idLower === "power_output" ||
+          idLower === "power output" ||
+          idLower === "make" ||
+          idLower === "model" ||
+          idLower === "type/model" ||
+          idLower === "maketypeModel" ||
+          idLower === "make / type / model" ||
+          idLower === "deviceType" ||
+          idLower === "device / equipment type" ||
+          idLower === "fd000000-0000-0000-0000-000000000084" ||
+          idLower === "fd000000-0000-0000-0000-000000000085" ||
+          idLower === "fd000000-0000-0000-0000-000000000087";
+        if (isRepeaterSubField) {
+          return;
+        }
+
+        // Skip invoice validation for Dealers
+        const isInvoiceId =
+          idLower === FIELD_ID_INVOICE_NUMBER.toLowerCase() ||
+          idLower === "invoicenumber" ||
+          idLower === "invoiceno" ||
+          idLower.includes("invoice");
+
+        if (isInvoiceId) {
+          const matchedVar = variants?.find((v) => String(v.id) === String(activeApplicant.selectedVariantId));
+          const varDesc = (matchedVar?.description || matchedVar?.name || "").toLowerCase();
+          const isNonDealerVariant = varDesc.includes("non-dealer") || varDesc.includes("non dealer") || String(activeApplicant.selectedVariantId).endsWith("23");
+          const registrationTypeVal = (activeApplicant.formFieldValues?.find(fv => (fv.fieldLabel || "").toLowerCase().includes("registration type"))?.value || activeApplicant.deviceRegData?.registrationType || "").toLowerCase();
+          const isNonDealerRegType = registrationTypeVal.includes("non");
+          const isDealer = varDesc.includes("dealer") && !isNonDealerVariant;
+
+          if (isDealer || (!isNonDealerVariant && !isNonDealerRegType)) {
+            return;
+          }
+        }
+
         let val = filledMap.get(idLower);
+        if (!val) {
+          val =
+            filledMap.get("applicant / company name") ||
+            filledMap.get("applicant name") ||
+            filledMap.get("company name") ||
+            filledMap.get("business name") ||
+            filledMap.get("applicant details") ||
+            filledMap.get("applicant's details") ||
+            filledMap.get("applicant / named individual details");
+        }
         if (val === undefined || val === null || (typeof val === "string" && val.trim() === "")) {
           // Resolve fallback from activeApplicant properties
           if (
-            (idLower === FIELD_ID_FULL_NAME.toLowerCase() || idLower === "fullname" || idLower === "name" || idLower.includes("full name")) &&
-            (activeApplicant.firstName || activeApplicant.lastName)
+            (idLower === FIELD_ID_FULL_NAME.toLowerCase() || idLower === "fullname" || idLower === "name" || idLower.includes("full name") || idLower.includes("applicant") || idLower.includes("company")) &&
+            (activeApplicant.companyName || activeApplicant.firstName || activeApplicant.lastName)
           ) {
-            val = [activeApplicant.firstName, activeApplicant.middleName, activeApplicant.lastName, activeApplicant.suffix].filter(Boolean).join(" ");
+            val = activeApplicant.companyName || [activeApplicant.firstName, activeApplicant.middleName, activeApplicant.lastName, activeApplicant.suffix].filter(Boolean).join(" ");
           } else if (
             (idLower === FIELD_ID_CONTACT_NO.toLowerCase() || idLower === "contactno" || idLower.includes("contact") || idLower.includes("phone") || idLower.includes("mobile")) &&
             activeApplicant.contactNo
@@ -220,8 +430,13 @@ export function handleWizardNext({
               idLower === FIELD_ID_ADDRESS.toLowerCase() ||
               idLower === "street" ||
               idLower === "address" ||
-              (idLower.includes("address") && !idLower.includes("email")) ||
-              idLower.includes("street")) &&
+              ((idLower.includes("address") || idLower.includes("street")) &&
+                !idLower.includes("email") &&
+                !idLower.includes("exam") &&
+                !idLower.includes("seminar") &&
+                !idLower.includes("station") &&
+                !idLower.includes("seller") &&
+                !idLower.includes("dealer"))) &&
             activeApplicant.address
           ) {
             val = activeApplicant.address;
@@ -280,7 +495,8 @@ export function handleWizardNext({
         }
         const trimmed = val !== undefined && val !== null ? (typeof val === "string" ? val.trim() : String(val)) : "";
         if (trimmed === "" || trimmed === "false") {
-          fieldErrors[id] = "This required field cannot be left blank.";
+          const fieldLabel = labelMap.get(idLower) || id;
+          fieldErrors[id] = `${fieldLabel} is required and cannot be left blank.`;
         }
       });
 

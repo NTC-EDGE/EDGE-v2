@@ -220,6 +220,14 @@ export function parseSpreadsheetContent(
       appObj.deviceRegData.email = email;
       appObj.deviceRegData.contactNo = contactNo;
       appObj.deviceRegData.address = address;
+      const regType = getVal("registrationtype", "regtype", "dealerornondealer");
+      if (regType) {
+        appObj.deviceRegData.registrationType = regType.toLowerCase().includes("non") ? "Non-Dealers" : "Dealers";
+      }
+      const invNo = getVal("invoicenumber", "invoiceno", "commercialinvoiceno", "commercialinvoicenumber", "invoice");
+      if (invNo) {
+        appObj.deviceRegData.invoiceNo = invNo;
+      }
       const serialsStr = getVal("equipmentserialnumbers", "serialnumbers", "serials");
       if (serialsStr) {
         const serialsList = serialsStr.split(/[;,]/).map((s) => s.trim()).filter((s) => s.length > 0);

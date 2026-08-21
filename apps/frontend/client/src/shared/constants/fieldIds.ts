@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Canonical field IDs sourced directly from CommonSeederData.cs GetFieldsPool().
  *
  * IMPORTANT: These values MUST be kept in sync with:
@@ -128,3 +128,17 @@ export const FIELD_ID_PARTICULARS_EQ  = "fd000000-0000-0000-0000-000000000208"; 
 export const FIELD_ID_LOCATION        = "fd000000-0000-0000-0000-000000000209"; // Station Location / Installation Address
 export const FIELD_ID_MIDDLE_NAME     = "fd000000-0000-0000-0000-000000000210"; // Middle Name
 export const FIELD_ID_SUFFIX          = "fd000000-0000-0000-0000-000000000211"; // Suffix
+
+// --- Invoice Fields (NTC 1-19 / Non-Dealer Registrations) --------------------
+export const FIELD_ID_INVOICE_NUMBER  = "fd000000-0000-0000-0000-000000000228"; // Invoice Number
+
+// --- VAS Registration Fields (NTC 1-20) --------------------------------------
+export const FIELD_ID_ENTITY_TYPE        = "fd000000-0000-0000-0000-000000000230"; // Type of Entity
+export const FIELD_ID_CPCN_NO            = "fd000000-0000-0000-0000-000000000231"; // CPCN / PA / CA No.
+export const FIELD_ID_CPCN_EXPIRY        = "fd000000-0000-0000-0000-000000000232"; // CPCN / PA / CA Date of Expiry
+export const FIELD_ID_COR_VAS_NO         = "fd000000-0000-0000-0000-000000000233"; // COR / VAS No.
+export const FIELD_ID_KNOWN_OTHER_NAME   = "fd000000-0000-0000-0000-000000000234"; // Known by other Name
+export const FIELD_ID_OTHER_TRADE_NAME   = "fd000000-0000-0000-0000-000000000235"; // Please specify
+export const FIELD_ID_VAS_REG_NO         = "fd000000-0000-0000-0000-000000000236"; // VAS Registration No. (Assigned by NTC)
+export const FIELD_ID_SVC_CLASSIFICATION = "fd000000-0000-0000-0000-000000000237"; // Service
+

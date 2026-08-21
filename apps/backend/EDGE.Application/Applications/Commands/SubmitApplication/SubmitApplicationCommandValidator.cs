@@ -45,11 +45,18 @@ public class SubmitApplicationCommandValidator : AbstractValidator<SubmitApplica
         {
             applicant.RuleFor(a => a.FirstName)
                 .NotEmpty()
+                .When(a => string.IsNullOrWhiteSpace(a.CompanyName))
                 .WithMessage("Applicant first name is required.");
 
             applicant.RuleFor(a => a.LastName)
                 .NotEmpty()
+                .When(a => string.IsNullOrWhiteSpace(a.CompanyName))
                 .WithMessage("Applicant last name is required.");
+
+            applicant.RuleFor(a => a.CompanyName)
+                .NotEmpty()
+                .When(a => string.IsNullOrWhiteSpace(a.FirstName) && string.IsNullOrWhiteSpace(a.LastName))
+                .WithMessage("Applicant name or company name is required.");
 
             applicant.RuleFor(a => a.Email)
                 .NotEmpty()
