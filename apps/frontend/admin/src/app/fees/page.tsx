@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { CircleDollarSign, Plus, Search, Coins, Tag, CheckCircle2, Blocks, Scale, Loader2 } from "lucide-react";
+import { CircleDollarSign, Plus, Search, Coins, Tag, Blocks, Scale, Loader2 } from "lucide-react";
 import { useFeesService } from "@/services/feesService";
 import { useAdminScope } from "@/lib/admin-scope-context";
 import { useSWRConfig } from "swr";
@@ -16,6 +16,7 @@ import { CreateRecordDialog } from "@/components/fees/CreateRecordDialog";
 import { EditRecordDialog } from "@/components/fees/EditRecordDialog";
 import { ConfirmActionDialog } from "@/components/ui/confirm-action-dialog";
 import { isForbiddenError, PageForbiddenState } from "@/components/PageForbiddenState";
+import { showToast } from "@/components/ui/toast-notification";
 
 type TabType = "fees" | "service-fees" | "service-variant-fees" | "service-variant-element-fees";
 
@@ -35,7 +36,11 @@ interface ConfirmConfig {
   title: string;
   description: string;
   actionType: "create" | "edit" | "delete" | "toggle-status";
-  payload: any;
+  payload: {
+    tab?: TabType;
+    item: Fee | ServiceFee | ServiceVariantFee | ServiceVariantElementFee;
+    newStatus?: boolean;
+  };
 }
 
 function FeesNotesContent() {
@@ -69,11 +74,16 @@ function FeesNotesContent() {
 
   const setActiveTab = (newTab: TabType) => {
     setActiveTabState(newTab);
+    setCurrentPage(1);
     const params = new URLSearchParams(searchParams.toString());
     params.set("tab", newTab);
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   };
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTermState] = useState("");
+  const setSearchTerm = (term: string) => {
+    setSearchTermState(term);
+    setCurrentPage(1);
+  };
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
 
@@ -81,7 +91,6 @@ function FeesNotesContent() {
   const [selectedServiceFee, setSelectedServiceFee] = useState<ServiceFee | null>(null);
   const [selectedServiceVariantFee, setSelectedServiceVariantFee] = useState<ServiceVariantFee | null>(null);
   const [selectedServiceVariantElementFee, setSelectedServiceVariantElementFee] = useState<ServiceVariantElementFee | null>(null);
-  const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   // Confirmation States
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -90,11 +99,6 @@ function FeesNotesContent() {
 
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-
-  // Reset pagination when search query or active tab changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [activeTab, searchTerm]);
 
   const { data: fees = [], totalCount: feesTotalCount, mutate: mutateFees, isLoading: loadingFees, error: errorFees } = useFees(
     activeTab === "fees" ? currentPage : 1,
@@ -135,11 +139,6 @@ function FeesNotesContent() {
     isCreateOpen || isEditOpen || activeTab === "service-fees"
   );
 
-  const showToast = (msg: string) => {
-    setToastMsg(msg);
-    setTimeout(() => setToastMsg(null), 4000);
-  };
-
   const invalidatePrefix = (prefix: string) => {
     globalMutate((key: unknown) => typeof key === "string" && key.startsWith(prefix));
   };
@@ -173,10 +172,9 @@ function FeesNotesContent() {
         invalidatePrefix("/api/v2/service-variant-element-fees");
       }
       setIsCreateOpen(false);
-      showToast("Record registered successfully!");
-    } catch (err) {
-      console.error(err);
-      showToast("An error occurred while registering the record.");
+      showToast.success("Record registered successfully.");
+    } catch {
+      showToast.error("An error occurred while registering the record.");
     }
   };
 
@@ -205,16 +203,15 @@ function FeesNotesContent() {
         invalidatePrefix("/api/v2/service-variant-element-fees");
       }
       setIsEditOpen(false);
-      showToast("Record updated successfully!");
-    } catch (err) {
-      console.error(err);
-      showToast("An error occurred while updating the record.");
+      showToast.success("Record updated successfully.");
+    } catch {
+      showToast.error("An error occurred while updating the record.");
     }
   };
 
-  const handleDeleteRequest = (tab: TabType, item: any) => {
+  const handleDeleteRequest = (tab: TabType, item: Fee | ServiceFee | ServiceVariantFee | ServiceVariantElementFee) => {
     let desc = "";
-    if (tab === "fees") desc = `fee code '${item.code}'`;
+    if (tab === "fees") desc = `fee code '${(item as Fee).code}'`;
     else if (tab === "service-fees") desc = "service fee rate";
     else if (tab === "service-variant-fees") desc = "service variant fee mapping";
     else desc = "service variant element fee mapping";
@@ -263,17 +260,16 @@ function FeesNotesContent() {
           await deleteServiceVariantElementFee(item.id);
           invalidatePrefix("/api/v2/service-variant-element-fees");
         }
-        showToast("Record deleted successfully.");
+        showToast.success("Record deleted successfully.");
       } 
       else if (actionType === "toggle-status") {
         const { item, newStatus } = payload;
-        await toggleFeeStatus(item.id, newStatus);
+        await toggleFeeStatus(item.id, newStatus ?? true);
         invalidatePrefix("/api/v2/fees");
-        showToast(`Fee '${item.code}' active status is now set to: ${newStatus ? "Active" : "Inactive"}`);
+        showToast.success(`Fee '${(item as Fee).code}' status is now ${newStatus ? "Active" : "Inactive"}.`);
       }
-    } catch (err: any) {
-      console.error(err);
-      showToast("An error occurred while executing the transaction.");
+    } catch {
+      showToast.error("An error occurred while executing the transaction.");
     } finally {
       setIsProcessing(false);
       setConfirmOpen(false);
@@ -283,15 +279,6 @@ function FeesNotesContent() {
 
   return (
     <div className="space-y-6">
-      {toastMsg !== null && (
-        <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-sm flex items-center justify-between shadow-xl animate-fade-in">
-          <div className="flex items-center gap-3">
-            <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-            <span>{toastMsg}</span>
-          </div>
-          <button onClick={() => setToastMsg(null)} className="text-emerald-400 hover:text-white text-xs">Dismiss</button>
-        </div>
-      )}
 
       <div className="p-5 md:p-6 rounded-2xl bg-white dark:bg-gradient-to-r dark:from-slate-900 dark:via-slate-900/90 dark:to-indigo-950/60 border border-slate-200 dark:border-slate-800 shadow-md dark:shadow-xl relative overflow-hidden transition-colors duration-200">
         <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none"><CircleDollarSign className="w-64 h-64 text-indigo-600 dark:text-indigo-400" /></div>

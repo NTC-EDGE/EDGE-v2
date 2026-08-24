@@ -127,6 +127,7 @@ export function CategoryGrid({
     }
   };
 
+
   return (
     <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
       {/* Server Offline / Network Error Banner */}
@@ -179,6 +180,8 @@ export function CategoryGrid({
         )}
       </View>
 
+
+
       {/* NTC e-Services Citizen Welcome Hero Banner */}
       <View style={styles.greetingBanner}>
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
@@ -202,9 +205,35 @@ export function CategoryGrid({
             const staticId = category.staticId || category.id;
             const theme = getCategoryTheme(staticId);
             const isActive = selectedCategoryId === category.id;
-            const categoryDraftsCount = drafts.filter((d) =>
-              d.service?.serviceCategoryId === category.id || d.service?.category === category.title
-            ).length;
+            const backendCat = backendCategories?.find((bc: any) => {
+              const code = bc.code?.toUpperCase();
+              if (category.id === "exams" && code === "EXAM") return true;
+              if (category.id === "certificates" && code === "CERT") return true;
+              if (category.id === "licenses" && code === "LIC") return true;
+              if (category.id === "permits" && code === "PRM") return true;
+              if (category.id === "accreditations" && code === "ACCR") return true;
+              if (category.id === "complaints" && (code === "REQ" || bc.type === "RequestsAndComplaints")) return true;
+              return bc.id === category.id;
+            });
+
+            const categoryDraftsCount = (() => {
+              const matchedDraft = (drafts || []).find((d: any) => {
+                const catId = d.serviceCategoryId || d.id;
+                const catName = d.serviceCategoryName || d.name;
+                const catCode = d.serviceCategoryCode || d.code;
+                const categoryTitle = category.title || backendCat?.name;
+                const categoryCode = backendCat?.code;
+                return (
+                  (catId && (catId === category.id || (backendCat && catId === backendCat.id))) ||
+                  (catName && categoryTitle && catName.toLowerCase().trim() === categoryTitle.toLowerCase().trim()) ||
+                  (categoryCode && catCode && catCode.toUpperCase().trim() === categoryCode.toUpperCase().trim())
+                );
+              });
+              if (matchedDraft) {
+                return matchedDraft.draftCount ?? matchedDraft.DraftCount ?? 0;
+              }
+              return backendCat?.draftCount || 0;
+            })();
 
             return (
               <TouchableOpacity
@@ -215,6 +244,22 @@ export function CategoryGrid({
                   isActive && styles.categoryCardActive,
                 ]}
               >
+                {categoryDraftsCount > 0 && (
+                  <TouchableOpacity
+                    onPress={(e) => {
+                      e.stopPropagation?.();
+                      onViewDrafts(backendCat?.id || category.id);
+                    }}
+                    activeOpacity={0.7}
+                    style={styles.categoryDraftBadge}
+                  >
+                    <Icon name="file-text" size={11} color="#1D4ED8" />
+                    <Text style={styles.categoryDraftBadgeText}>
+                      {categoryDraftsCount} {categoryDraftsCount === 1 ? "Draft" : "Drafts"}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
                 {CATEGORY_IMAGES[staticId] !== undefined ? (
                   <Image
                     source={CATEGORY_IMAGES[staticId]}
@@ -228,16 +273,6 @@ export function CategoryGrid({
                 )}
                 <Text style={styles.categoryCardTitle}>{category.title}</Text>
                 {(() => {
-                  const backendCat = backendCategories?.find((bc: any) => {
-                    const code = bc.code?.toUpperCase();
-                    if (category.id === "exams" && code === "EXAM") return true;
-                    if (category.id === "certificates" && code === "CERT") return true;
-                    if (category.id === "licenses" && code === "LIC") return true;
-                    if (category.id === "permits" && code === "PRM") return true;
-                    if (category.id === "accreditations" && code === "ACCR") return true;
-                    if (category.id === "complaints" && (code === "REQ" || bc.type === "RequestsAndComplaints")) return true;
-                    return false;
-                  });
                   const servicesCount = category.totalServices !== undefined
                     ? category.totalServices
                     : (allBackendServices && backendCat
@@ -250,32 +285,6 @@ export function CategoryGrid({
                     </Text>
                   );
                 })()}
-
-                {categoryDraftsCount > 0 && (
-                  <TouchableOpacity
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      onViewDrafts(category.id);
-                    }}
-                    style={{
-                      marginTop: 8,
-                      flexDirection: "row",
-                      alignItems: "center",
-                      backgroundColor: "#eff6ff",
-                      borderColor: "#bfdbfe",
-                      borderWidth: 1,
-                      borderRadius: 12,
-                      paddingVertical: 4,
-                      paddingHorizontal: 8,
-                      gap: 4,
-                    }}
-                  >
-                    <Icon name="file-text" size={12} color="#1d4ed8" />
-                    <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, color: "#1d4ed8", fontWeight: "600" }}>
-                      {categoryDraftsCount} {categoryDraftsCount === 1 ? "Draft" : "Drafts"}
-                    </Text>
-                  </TouchableOpacity>
-                )}
               </TouchableOpacity>
             );
           })}

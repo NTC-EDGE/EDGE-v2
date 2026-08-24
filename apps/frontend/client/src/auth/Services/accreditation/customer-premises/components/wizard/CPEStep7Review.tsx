@@ -1,8 +1,9 @@
-import React from "react";
-import { View, Text } from "react-native";
+import React, { useState } from "react";
+import { View, Text, TouchableOpacity, Image } from "react-native";
 import { Icon, COLORS, TYPOGRAPHY } from "@edge/ui";
 import { ApplicantData } from "../../types/cpeTypes";
 import { getRequirementsList } from "./CPEStep6DocumentUpload";
+import { DocumentPreviewModal } from "../../../../../../shared/components/DocumentPreviewModal";
 
 interface CPEStep7ReviewProps {
   appMode: "SINGLE" | "BULK" | "";
@@ -163,6 +164,10 @@ export function CPEStep7Review({
   activeRegionObj,
   styles,
 }: CPEStep7ReviewProps) {
+  const [previewFile, setPreviewFile] = useState<{ name: string; uri?: string } | string | null>(null);
+  const [previewLabel, setPreviewLabel] = useState<string>("");
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+
   return (
     <View style={{ backgroundColor: COLORS.neutral.white, borderRadius: 12, padding: 16 }}>
       {/* Header: APPLICATION */}
@@ -188,9 +193,11 @@ export function CPEStep7Review({
       {applicants.map((app, idx) => (
         <View key={app.id} style={{ marginBottom: 24 }}>
           {appMode === "BULK" && (
-            <Text style={{ color: COLORS.brand[700], fontWeight: "700", fontSize: 15, marginHorizontal: 12, marginBottom: 8 }}>
-              Applicant {idx + 1} Details:
-            </Text>
+            <View style={{ backgroundColor: COLORS.neutral[100], paddingVertical: 6, paddingHorizontal: 12, marginBottom: 8, borderRadius: 4 }}>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: COLORS.neutral[800] }}>
+                APPLICANT #{idx + 1}
+              </Text>
+            </View>
           )}
 
           {/* Section DETAILS */}
@@ -249,9 +256,36 @@ export function CPEStep7Review({
               <View key={reqIdx} style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", borderBottomWidth: 1, borderBottomColor: "#f1f5f9", paddingVertical: 12, paddingHorizontal: 12 }}>
                 <View style={{ flex: 1, paddingRight: 24 }}>
                   {renderReviewRequirementText(reqIdx, app.appType)}
-                  <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "600", color: filename ? COLORS.brand[700] : COLORS.neutral[400], marginTop: 6 }}>
-                    {filename || "Not Uploaded"}
-                  </Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 6 }}>
+                    <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "600", color: filename ? COLORS.brand[700] : COLORS.neutral[400] }}>
+                      {filename || "Not Uploaded"}
+                    </Text>
+                    {Boolean(upload) && (
+                      <TouchableOpacity
+                        onPress={() => {
+                          setPreviewFile(upload);
+                          setPreviewLabel(`Requirement #${reqIdx + 1}`);
+                          setIsPreviewOpen(true);
+                        }}
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          backgroundColor: "#EFF6FF",
+                          borderWidth: 1,
+                          borderColor: "#BFDBFE",
+                          paddingVertical: 3,
+                          paddingHorizontal: 8,
+                          borderRadius: 6,
+                          gap: 4,
+                        }}
+                      >
+                        <Icon name="eye" size={12} color="#1D4ED8" />
+                        <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: "700", color: "#1D4ED8" }}>
+                          View
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
                 </View>
 
                 {/* Slick Document Icon on right */}
@@ -264,6 +298,41 @@ export function CPEStep7Review({
           })}
         </View>
       ))}
+
+      {/* Acknowledgement & Applicant Signature */}
+      {Boolean(applicants[0]?.signature) && (
+        <View style={{ marginTop: 16, backgroundColor: COLORS.neutral.white, borderRadius: 12, borderWidth: 1, borderColor: COLORS.neutral[200], overflow: "hidden" }}>
+          <View style={{ backgroundColor: "#F8FAFC", paddingVertical: 10, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: COLORS.neutral[200], flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <Icon name="edit-2" size={16} color="#0F2C59" />
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontWeight: "700", fontSize: 13, color: COLORS.neutral[900] }}>
+              Acknowledgement &amp; Applicant Signature
+            </Text>
+          </View>
+          <View style={{ padding: 16, alignItems: "center" }}>
+            {applicants[0].signature?.startsWith("data:image") || applicants[0].signature?.startsWith("http") || applicants[0].signature?.startsWith("file:") ? (
+              <Image
+                source={{ uri: applicants[0].signature }}
+                style={{ width: 220, height: 70 }}
+                resizeMode="contain"
+              />
+            ) : (
+              <Text style={{ fontFamily: "cursive", fontSize: 22, color: "#0F2C59", fontStyle: "italic" }}>
+                {applicants[0].signature?.replace(/^typed:cursive:/, "")}
+              </Text>
+            )}
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, color: COLORS.neutral[500], marginTop: 6 }}>
+              Digitally recorded applicant signature
+            </Text>
+          </View>
+        </View>
+      )}
+
+      <DocumentPreviewModal
+        visible={isPreviewOpen}
+        onClose={() => setIsPreviewOpen(false)}
+        file={previewFile}
+        label={previewLabel}
+      />
     </View>
   );
 }

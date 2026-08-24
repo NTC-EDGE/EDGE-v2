@@ -26,7 +26,7 @@ export function DeclarationModal({
           </Text>
           <View style={{ borderWidth: 1, borderColor: COLORS.neutral[200], borderRadius: 12, padding: 16, backgroundColor: COLORS.neutral[50], marginBottom: 20 }}>
             <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: COLORS.neutral[600], lineHeight: 20, textAlign: "justify" }}>
-              I hereby declare that all the entries are true and correct to the best of my knowledge and belief. I understand that any false declaration will lead to immediate rejection of my application.
+              I hereby declare that all the above entries are true and correct. Under the Revised Penal Code, I shall be held liable for any willful false statement(s) or misrepresentation(s) made in this application form that may serve as a valid ground for the denial of this application and/or cancellation/revocation of thepermit issued/granted. Further, I am freely giving full consent for the collection and processing of personal information in accordance with Republic Act No. 10713, Data Privacy Act of 2012.
             </Text>
           </View>
           <TouchableOpacity onPress={onToggleAgree} style={{ flexDirection: "row", alignItems: "center", marginBottom: 24 }}>

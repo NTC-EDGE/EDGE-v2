@@ -12,8 +12,7 @@ namespace EDGE.Application.Requirements.Queries.GetServiceRequirements;
 
 public record GetServiceRequirementsQuery(
     Guid ServiceId,
-    Guid? VariantId,
-    string? ContextKey
+    Guid? VariantId
 ) : IRequest<ApiResponse<List<ServiceRequirementItemDto>>>;
 
 public class GetServiceRequirementsQueryHandler : IRequestHandler<GetServiceRequirementsQuery, ApiResponse<List<ServiceRequirementItemDto>>>
@@ -48,7 +47,7 @@ public class GetServiceRequirementsQueryHandler : IRequestHandler<GetServiceRequ
             }
         }
 
-        var rules = await _repository.GetServiceVariantRequirementsAsync(request.ServiceId, request.VariantId, request.ContextKey, cancellationToken);
+        var rules = await _repository.GetServiceVariantRequirementsAsync(request.ServiceId, request.VariantId, cancellationToken);
 
         var result = rules
             .GroupBy(svr => svr.RequirementId)
@@ -59,7 +58,6 @@ public class GetServiceRequirementsQueryHandler : IRequestHandler<GetServiceRequ
                 ServiceVariantRequirementId = svr.Id,
                 Name = svr.Requirement?.Name ?? string.Empty,
                 Description = svr.Requirement?.Description,
-                ContextKey = svr.ContextKey,
                 IsRequired = svr.IsRequired
             }).ToList();
 

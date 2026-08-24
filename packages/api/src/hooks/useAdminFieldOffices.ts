@@ -29,21 +29,29 @@ export interface UseAdminFieldOfficesReturn {
   fieldOffices: FieldOfficeDto[];
   isLoading: boolean;
   isError: boolean;
-  refetch: () => Promise<ApiResponse<FieldOfficeDto[]> | undefined>;
+  refetch: () => Promise<unknown>;
 }
 
-export function useAdminFieldOffices(): UseAdminFieldOfficesReturn {
-  const { data, error, isLoading, mutate } = useSWR<ApiResponse<FieldOfficeDto[]>>(
-    "/api/v2/field-offices",
-    async (url: string) => {
-      const res = await apiClient.get<ApiResponse<FieldOfficeDto[]>>(url);
+export function useAdminFieldOffices(tenantId?: string): UseAdminFieldOfficesReturn {
+  const url = tenantId ? `/api/v2/field-offices?tenantId=${tenantId}` : "/api/v2/field-offices";
+  const { data, error, isLoading, mutate } = useSWR<unknown>(
+    url,
+    async (endpoint: string) => {
+      const res = await apiClient.get<unknown>(endpoint);
       return res.data;
     },
-    { revalidateOnFocus: false }
+    { revalidateOnFocus: false, dedupingInterval: 5000 }
   );
 
+  let fieldOffices: FieldOfficeDto[] = [];
+  if (Array.isArray(data)) {
+    fieldOffices = data as FieldOfficeDto[];
+  } else if (data && typeof data === "object" && "data" in data && Array.isArray((data as { data: unknown }).data)) {
+    fieldOffices = (data as { data: FieldOfficeDto[] }).data;
+  }
+
   return {
-    fieldOffices: data?.data ?? [],
+    fieldOffices,
     isLoading,
     isError: Boolean(error),
     refetch: mutate,

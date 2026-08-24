@@ -76,11 +76,11 @@ export function useRequirementsService() {
 
   const createServiceVariantRequirement = async (data: { 
     serviceVariantId: string; 
-    requirements: { requirementId: string; contextKey?: string | null; isRequired: boolean }[] 
+    requirements: { requirementId: string; isRequired: boolean }[] 
   }): Promise<string[]> => {
     const response = await post<{ succeeded: boolean; data: string[] }, { 
       serviceVariantId: string; 
-      requirements: { requirementId: string; contextKey?: string | null; isRequired: boolean }[] 
+      requirements: { requirementId: string; isRequired: boolean }[] 
     }>('/api/v2/service-variant-requirements', data);
     return response.data;
   };
@@ -88,14 +88,12 @@ export function useRequirementsService() {
   const updateServiceVariantRequirement = async (id: string, data: {
     requirementId: string;
     serviceVariantId: string;
-    contextKey?: string | null;
     isRequired: boolean;
   }): Promise<ServiceVariantRequirement> => {
     const response = await put<{ succeeded: boolean; data: ServiceVariantRequirement }, {
       id: string;
       requirementId: string;
       serviceVariantId: string;
-      contextKey?: string | null;
       isRequired: boolean;
     }>(`/api/v2/service-variant-requirements/${id}`, { ...data, id });
     return response.data;
@@ -155,11 +153,10 @@ export function useRequirementsService() {
   };
 
   // --- SERVICE REQUIREMENTS (citizen/dynamic mapping) ---
-  const useServiceRequirements = (serviceId?: string, variantId?: string | null, contextKey?: string | null, enabled = true) => {
+  const useServiceRequirements = (serviceId?: string, variantId?: string | null, enabled = true) => {
     let endpoint = `/api/v2/services/${serviceId}/requirements`;
     const params = [];
     if (variantId) params.push(`variantId=${variantId}`);
-    if (contextKey) params.push(`contextKey=${encodeURIComponent(contextKey)}`);
     if (params.length > 0) {
       endpoint += `?${params.join('&')}`;
     }
@@ -173,9 +170,9 @@ export function useRequirementsService() {
   const attachServiceVariantRequirement = async (
     serviceId: string,
     variantId: string,
-    data: { requirementId: string; contextKey?: string | null; isRequired: boolean }
+    data: { requirementId: string; isRequired: boolean }
   ): Promise<{ succeeded: boolean; data: string }> => {
-    return await post<{ succeeded: boolean; data: string }, { requirementId: string; contextKey?: string | null; isRequired: boolean }>(
+    return await post<{ succeeded: boolean; data: string }, { requirementId: string; isRequired: boolean }>(
       `/api/v2/services/${serviceId}/variants/${variantId}/requirements`,
       data
     );

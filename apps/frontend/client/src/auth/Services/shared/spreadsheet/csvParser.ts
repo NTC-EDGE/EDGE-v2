@@ -92,14 +92,33 @@ export function parseSpreadsheetContent(
     };
 
     const firstName = getVal("firstname", "first", "name", "applicantname", "businessname", "companyname");
+    const middleName = getVal("middlename", "middle", "middleinitial", "mi");
     const lastName = getVal("lastname", "last", "surname");
+    const suffix = getVal("suffix", "ext", "extension");
     const email = getVal("email", "emailaddress");
-    const contactNo = getVal("contactnumber", "contactno", "phone", "mobile");
-    const address = getVal("address", "physicaladdress", "street", "city", "province");
+    const contactNo = getVal("contactnumber", "contactno", "phone", "mobile", "cellphone");
     const birthDate = getVal("dateofbirth", "birthdate", "dob");
+    const sex = getVal("sex", "gender") || "Male";
+    const nationality = getVal("nationality", "citizenship") || "Filipino";
+    const region = getVal("region", "regionname");
+    const province = getVal("province", "state");
+    const city = getVal("city", "municipality", "citymunicipality");
+    const barangay = getVal("barangay", "brgy", "bgy");
+    const street = getVal("street", "streetaddress", "addressline1", "streetzone");
+    const zipCode = getVal("zipcode", "zip", "postalcode", "postal");
+    const schoolName = getVal("schoolname", "school", "university", "schoolattended", "education");
+    const courseDegree = getVal("coursedegree", "course", "degree", "program");
+    const yearGraduated = getVal("yeargraduated", "graduatedyear", "graduationyear", "yeargrad");
+    const specialOrderNo = getVal("specialorderno", "specialorder", "sono", "so", "specialordernumber");
+    const examType = getVal("examtype", "examcategory", "applicationtype", "apptype", "category") || "Radiotelephony";
+    const examineeType = getVal("examineetype", "takertype", "applicantcategory") || "First Taker";
+    const selectedOption = getVal("selectedoption", "classelement", "elements", "element", "class", "optionclass", "radiooption") || "1PHN - Elements 1, 2, 3 & 4";
     const appType = getVal("applicationtype", "apptype", "examcategory") || "NEW";
     const years = getVal("noofyears", "numberofyears", "years") || "1";
-    const notes = getVal("notes", "remarks", "specialneeds") || "";
+    const notes = getVal("notes", "remarks", "specialneeds", "assistance") || "";
+
+    const addressParts = [street, barangay, city, province, zipCode].filter(Boolean);
+    const address = addressParts.length > 0 ? addressParts.join(", ") : getVal("address", "physicaladdress");
 
     const remarks: string[] = [];
 
@@ -113,6 +132,23 @@ export function parseSpreadsheetContent(
     }
     if (!contactNo) {
       remarks.push("Contact Number is required.");
+    }
+
+    const isExamService = (service.code || "").toUpperCase() === "NTC_1_01" ||
+      (service.title || "").toUpperCase().includes("EXAM") ||
+      (service.title || "").toUpperCase().includes("RADIO OPERATOR");
+
+    if (isExamService) {
+      if (!lastName) remarks.push("Last Name is required.");
+      if (!firstName) remarks.push("First Name is required.");
+      if (!province) remarks.push("Province is required.");
+      if (!city) remarks.push("City is required.");
+      if (!barangay) remarks.push("Barangay is required.");
+      if (!street && !address) remarks.push("Street address is required.");
+      if (!zipCode) remarks.push("Zip Code is required.");
+      if (!schoolName) remarks.push("School Name is required.");
+      if (!courseDegree) remarks.push("Course/Degree is required.");
+      if (!yearGraduated) remarks.push("Year Graduated is required.");
     }
 
     const isValid = remarks.length === 0;
@@ -142,9 +178,26 @@ export function parseSpreadsheetContent(
     const appObj: GeneralApplicantData = {
       ...initialGeneralApplicant(i),
       firstName: firstName || displayName,
+      middleName: middleName,
       lastName: lastName,
+      suffix: suffix,
       email: email,
       contactNo: contactNo,
+      sex: sex,
+      nationality: nationality,
+      region: region,
+      province: province,
+      city: city,
+      barangay: barangay,
+      street: street,
+      zipCode: zipCode,
+      schoolName: schoolName,
+      courseDegree: courseDegree,
+      yearGraduated: yearGraduated,
+      specialOrderNo: specialOrderNo,
+      examType: examType,
+      examineeType: examineeType,
+      selectedOption: selectedOption,
       address: address,
       birthMonth,
       birthDay,
@@ -167,6 +220,14 @@ export function parseSpreadsheetContent(
       appObj.deviceRegData.email = email;
       appObj.deviceRegData.contactNo = contactNo;
       appObj.deviceRegData.address = address;
+      const regType = getVal("registrationtype", "regtype", "dealerornondealer");
+      if (regType) {
+        appObj.deviceRegData.registrationType = regType.toLowerCase().includes("non") ? "Non-Dealers" : "Dealers";
+      }
+      const invNo = getVal("invoicenumber", "invoiceno", "commercialinvoiceno", "commercialinvoicenumber", "invoice");
+      if (invNo) {
+        appObj.deviceRegData.invoiceNo = invNo;
+      }
       const serialsStr = getVal("equipmentserialnumbers", "serialnumbers", "serials");
       if (serialsStr) {
         const serialsList = serialsStr.split(/[;,]/).map((s) => s.trim()).filter((s) => s.length > 0);

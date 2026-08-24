@@ -1,10 +1,18 @@
 import React, { useState } from "react";
 import { Alert } from "react-native";
+import { useAuth } from "@clerk/expo";
 import { useApi } from "../../../../../shared/hooks/useApi";
 import { extractApiErrorMessage } from "../../../../../shared/components/Toast";
-import { ExamApplicantData } from "../types/examTypes";
+import { ExamApplicantData, initialExamApplicant } from "../types/examTypes";
 import { useExamFilingQueries } from "./useExamFilingQueries";
 import { getFieldValidationError, mapApplicantsPayload } from "../helpers/examMapping";
+import { isExamApplicantComplete } from "../helpers/validation";
+import { uploadRequirementsAfterSubmit } from "../../../shared/helpers/requirementUploadHelper";
+
+const isGuid = (val?: string | null): boolean => {
+  if (!val || typeof val !== "string") return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val.trim());
+};
 
 interface UseExamFilingWizardProps {
   serviceId?: string | null;
@@ -52,12 +60,13 @@ export function useExamFilingWizard({
   setSelectedScheduleId,
 }: UseExamFilingWizardProps) {
   const api = useApi();
+  const { getToken } = useAuth();
 
   // Local UI States
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [isAgreedToTerms, setIsAgreedToTerms] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [activeFormTab, setActiveFormTab] = useState<"BASIC" | "ADDRESS" | "EDUCATION" | "CONTACT">("BASIC");
+  const [activeFormTab, setActiveFormTab] = useState<"BASIC" | "ADDRESS" | "EDUCATION" | "CONTACT" | "SIGNATURE">("BASIC");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
@@ -82,7 +91,7 @@ export function useExamFilingWizard({
     currentApplicantIndex,
   });
 
-  const activeApplicant = applicants[currentApplicantIndex];
+  const activeApplicant = applicants[currentApplicantIndex] || initialExamApplicant(1);
 
   const updateActiveApplicant = (fields: Partial<ExamApplicantData>) => {
     setApplicants((prev) =>
@@ -157,12 +166,41 @@ export function useExamFilingWizard({
       Alert.alert("Error", "Service identifier is missing.");
       return;
     }
-    const mapped = mapApplicantsPayload(applicants, queries.formFields, serviceName);
+    if (!isDraft) {
+      const incompleteCount = applicants.filter((app) => !isExamApplicantComplete(app)).length;
+      if (incompleteCount > 0) {
+        throw new Error(
+          `Cannot submit: ${incompleteCount} of ${applicants.length} applicant(s) are incomplete. Please complete all required personal details and document uploads before submitting.`
+        );
+      }
+    }
+    let mapped: ReturnType<typeof mapApplicantsPayload> = [];
+    try {
+      mapped = mapApplicantsPayload(applicants, queries.formFields, serviceName);
+    } catch (serializationErr: unknown) {
+      const serializationMsg =
+        serializationErr instanceof Error
+          ? serializationErr.message
+          : "Failed to serialize exam applicant data.";
+      throw new Error(`Data Serialization Error: ${serializationMsg}`);
+    }
+
+    const effectiveScheduleId =
+      selectedScheduleId && isGuid(selectedScheduleId)
+        ? selectedScheduleId
+        : (queries.schedules && queries.schedules.length > 0 && isGuid(queries.schedules[0].id) ? queries.schedules[0].id : null);
+
+    if (!isDraft && (!effectiveScheduleId || !isGuid(effectiveScheduleId))) {
+      throw new Error(
+        "Examination Schedule is required. Please select an Examination Schedule & Venue in Step 2 before submitting."
+      );
+    }
+
     const payload = {
       tenantId: selectedRegionId,
-      submissionMode: appMode === "SINGLE" ? "Single" : "Bulk",
+      submissionMode: (mapped.length > 1 || appMode === "BULK") ? "Bulk" : "Single",
       serviceId: serviceId,
-      scheduleId: selectedScheduleId,
+      scheduleId: effectiveScheduleId,
       fieldOfficeId: selectedOfficeId,
       serviceVariantId: activeApplicant?.selectedVariantId || null,
       serviceVariantElementIds: activeApplicant?.selectedElementId ? [activeApplicant.selectedElementId] : [],
@@ -170,9 +208,29 @@ export function useExamFilingWizard({
       applicants: mapped,
     };
     try {
-      await api.post(`/api/v2/tenants/${selectedRegionId}/applications`, payload);
+      const submitRes = await api.post<unknown>(`/api/v2/tenants/${selectedRegionId}/applications`, payload);
+      const resObj = typeof submitRes === "object" && submitRes !== null ? (submitRes as Record<string, unknown>) : {};
+      const applicationId =
+        typeof submitRes === "string" && submitRes.trim() !== ""
+          ? submitRes
+          : resObj.succeeded === true && typeof resObj.data === "string"
+          ? resObj.data
+          : typeof resObj.id === "string"
+          ? resObj.id
+          : null;
+
+      if (applicationId) {
+        const allApplicantsForUpload = (mapped.length > 1 || appMode === "BULK") ? applicants : [activeApplicant];
+        await uploadRequirementsAfterSubmit({
+          api,
+          applicationId,
+          tenantId: selectedRegionId,
+          applicants: allApplicantsForUpload,
+          getToken,
+        });
+      }
     } catch (err: unknown) {
-      throw new Error(extractApiErrorMessage(err));
+      throw new Error(extractApiErrorMessage(err) || "Network request failed while submitting exam applications.");
     }
   };
 

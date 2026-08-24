@@ -132,7 +132,7 @@ export default function Dashboard() {
   const { useAnnouncements } = useAnnouncementService();
   const { useSchedules } = useScheduleService();
   const { useGlobalUsers } = useSupportService();
-  const { useFees, useNotes, useElements } = useFeesService();
+  const { useFees, useNotes, useSoaNotes, useElements } = useFeesService();
   const { useRequirements } = useRequirementsService();
 
   // Fetch all
@@ -150,6 +150,7 @@ export default function Dashboard() {
   const feesResult = useFees(1, 1);
   const requirementsResult = useRequirements(1, 1);
   const notesResult = useNotes(1, 1, undefined, undefined, undefined, true);
+  const soaNotesResult = useSoaNotes(1, 1, undefined, true);
   const elementsResult = useElements(1, 1);
 
   // Counts
@@ -163,6 +164,7 @@ export default function Dashboard() {
   const supportUsersCount = Array.isArray(supportUsersData) ? supportUsersData.length : 0;
   const feesCount = feesResult.totalCount;
   const notesCount = notesResult.totalCount;
+  const soaNotesCount = soaNotesResult.totalCount;
   const elementsCount = elementsResult.totalCount;
   const requirementsCount = requirementsResult.totalCount;
   const activeAnnouncements = announcementsData?.data?.filter !== undefined ? announcementsData.data.filter((a) => a.isActive).length : 0;
@@ -233,7 +235,7 @@ export default function Dashboard() {
       href: "/services",
     },
     {
-      name: "Services Catalog",
+      name: "Services",
       count: servicesCount,
       loading: servicesLoading,
       subtitle: "Across All Categories",
@@ -244,7 +246,7 @@ export default function Dashboard() {
       href: "/services",
     },
     {
-      name: "Master Requirements",
+      name: "Requirements",
       count: requirementsCount,
       loading: requirementsResult.isLoading,
       subtitle: "Documentary Requirements Pool",
@@ -289,7 +291,18 @@ export default function Dashboard() {
       href: "/services",
     },
     {
-      name: "Master Elements",
+      name: "SOA Note Templates",
+      count: soaNotesCount,
+      loading: soaNotesResult.isLoading,
+      subtitle: "Billing Terms & Templates",
+      icon: FileText,
+      textColor: "text-indigo-600 dark:text-indigo-400",
+      borderColor: "border-indigo-500/30",
+      bgGradient: "from-indigo-500/10 to-transparent",
+      href: "/soa-notes",
+    },
+    {
+      name: "Elements",
       count: elementsCount,
       loading: elementsResult.isLoading,
       subtitle: "Catalog Elements Pool",
@@ -312,7 +325,7 @@ export default function Dashboard() {
     { label: "Manage Tenants", desc: "Register branches & assign region ownership", icon: Building2, color: "text-emerald-600 dark:text-emerald-400", hover: "hover:border-emerald-500/40", href: "/tenants" },
     { label: "Support Users", desc: "Unlock accounts, revoke sessions & diagnostics", icon: HeadphonesIcon, color: "text-sky-600 dark:text-sky-400", hover: "hover:border-sky-500/40", href: "/support-users" },
     { label: "Roles & Permissions", desc: "Manage access control policy and role matrices", icon: KeyRound, color: "text-violet-600 dark:text-violet-400", hover: "hover:border-violet-500/40", href: "/roles-permissions" },
-    { label: "Services Catalog", desc: "Configure services, variants, checklists & fees", icon: FileText, color: "text-indigo-600 dark:text-indigo-400", hover: "hover:border-indigo-500/40", href: "/services" },
+    { label: "Services", desc: "Configure services, variants, checklists & fees", icon: FileText, color: "text-indigo-600 dark:text-indigo-400", hover: "hover:border-indigo-500/40", href: "/services" },
     { label: "Announcements", desc: "Broadcast system-wide messages and alerts", icon: BellRing, color: "text-amber-600 dark:text-amber-400", hover: "hover:border-amber-500/40", href: "/announcements" },
     { label: "System Config", desc: "Platform-wide settings and configuration values", icon: Settings, color: "text-slate-700 dark:text-slate-300", hover: "hover:border-slate-400 dark:hover:border-slate-600", href: "/system-config" },
   ];

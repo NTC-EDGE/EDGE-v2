@@ -30,6 +30,10 @@ export function Services() {
     viewingDraftsCategory,
     setViewingDraftsCategory,
     saveActiveAsDraft,
+    deleteDraft,
+    isSavingDraft,
+    draftErrorMessage,
+    setDraftErrorMessage,
     loadDraft,
     hideSidebar,
     hideCategories,
@@ -72,25 +76,42 @@ export function Services() {
       <ConfirmationDialog
         visible={confirmModalVisible}
         title="Transaction in Progress"
-        message="You currently have an active application transaction. Selecting another service or category is locked until you cancel or save your current transaction."
-        onClose={() => setConfirmModalVisible(false)}
+        message="You currently have an active application in progress. Selecting another service or navigating away requires saving or discarding your current work."
+        hint="You can save your current progress as a draft even if not fully completed, and resume anytime."
+        errorMessage={draftErrorMessage}
+        onClose={() => {
+          if (!isSavingDraft) {
+            setConfirmModalVisible(false);
+            setDraftErrorMessage(null);
+          }
+        }}
         actions={[
           {
-            text: "Cancel Transaction & Discard",
-            style: "destructive",
-            onPress: () => {
-              resetWizardState();
-              setActiveWizardService(null);
-              setSelectedService(null);
-              setConfirmModalVisible(false);
-              if (pendingConfirmAction) pendingConfirmAction();
+            text: isSavingDraft ? "Saving Draft..." : "Save Draft & Exit",
+            style: "default",
+            loading: isSavingDraft,
+            disabled: isSavingDraft,
+            iconName: "save",
+            onPress: async () => {
+              setDraftErrorMessage(null);
+              const success = await saveActiveAsDraft();
+              if (success) {
+                setConfirmModalVisible(false);
+                setDraftErrorMessage(null);
+                resetWizardState();
+                setActiveWizardService(null);
+                setSelectedService(null);
+                if (pendingConfirmAction) pendingConfirmAction();
+              }
             },
           },
           {
-            text: "Save Draft & Exit",
-            style: "default",
+            text: "Discard & Exit",
+            style: "destructive",
+            disabled: isSavingDraft,
+            iconName: "trash-2",
             onPress: () => {
-              saveActiveAsDraft();
+              setDraftErrorMessage(null);
               resetWizardState();
               setActiveWizardService(null);
               setSelectedService(null);
@@ -101,7 +122,11 @@ export function Services() {
           {
             text: "Continue Application",
             style: "cancel",
-            onPress: () => setConfirmModalVisible(false),
+            disabled: isSavingDraft,
+            onPress: () => {
+              setDraftErrorMessage(null);
+              setConfirmModalVisible(false);
+            },
           },
         ]}
       />
@@ -112,6 +137,7 @@ export function Services() {
         onClose={() => setViewingDraftsCategory(null)}
         drafts={drafts}
         loadDraft={loadDraft}
+        deleteDraft={deleteDraft}
         backendCategories={backendCategories}
       />
     </ClientAppLayout>

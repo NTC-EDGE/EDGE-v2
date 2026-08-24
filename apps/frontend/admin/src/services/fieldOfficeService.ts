@@ -30,11 +30,17 @@ export function useFieldOfficeService() {
     return del<void>(`/api/v2/field-offices/${id}?tenantId=${tenantId}`);
   };
 
+  const toggleFieldOfficeActive = async (id: string, tenantId?: string): Promise<FieldOffice> => {
+    const url = tenantId ? `/api/v2/field-offices/${id}/toggle-active?tenantId=${tenantId}` : `/api/v2/field-offices/${id}/toggle-active`;
+    return put<FieldOffice, Record<string, never>>(url, {});
+  };
+
   return {
     useFieldOffices,
     useFieldOffice,
     createFieldOffice,
     updateFieldOffice,
     deleteFieldOffice,
+    toggleFieldOfficeActive,
   };
 }

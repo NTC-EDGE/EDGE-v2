@@ -8,10 +8,30 @@ import {
 } from "react-native";
 import { Icon, COLORS, TYPOGRAPHY } from "@edge/ui";
 import { NTCService } from "../../data/servicesData";
-import { GeneralApplicantData } from "../hooks/useGeneralServiceWizard";
+import {
+  GeneralApplicantData,
+  ServiceRequirementItem,
+  ServiceVariantInfo,
+  ServiceVariantElementInfo,
+  initialGeneralApplicant,
+} from "../hooks/useGeneralServiceWizard";
 import { GeneralFilingDetailsStep } from "./GeneralFilingDetailsStep";
 import { GeneralDocumentUploadStep } from "./GeneralDocumentUploadStep";
 import { isGeneralApplicantComplete } from "../GeneralBulkApplicantsPanel";
+import { validateContactNumber, validateEmailAddress } from "../../../../shared/helpers/fieldValidators";
+import {
+  FIELD_ID_FULL_NAME,
+  FIELD_ID_CONTACT_NO,
+  FIELD_ID_EMAIL,
+  FIELD_ID_REGION,
+  FIELD_ID_PROVINCE,
+  FIELD_ID_CITY,
+  FIELD_ID_BARANGAY,
+  FIELD_ID_STREET,
+  FIELD_ID_ADDRESS,
+  FIELD_ID_ZIP_CODE,
+  FIELD_ID_INVOICE_NUMBER,
+} from "../../../../shared/constants/fieldIds";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 type BulkSubView = "FILING_DETAILS" | "DOCUMENT_UPLOAD";
@@ -24,18 +44,19 @@ interface GeneralBulkApplicationFlowProps {
   setCurrentApplicantIndex: (idx: number) => void;
   /** Increment to trigger opening Filing Details for currentApplicantIndex from the left panel */
   triggerOpenApplicant?: number;
-  variantRequirements?: string[];
+  variantRequirements?: Array<ServiceRequirementItem | string>;
   onBack?: () => void;
   onSubmitAll: () => void;
   isWeb: boolean;
   dynamicRequiredFieldIds?: string[];
   setDynamicRequiredFieldIds?: (ids: string[]) => void;
+  variants?: ServiceVariantInfo[];
+  variantElements?: ServiceVariantElementInfo[];
+  onSaveDraft?: () => void;
+  isSavingDraft?: boolean;
 }
 
-function getApplicantDisplayName(app: GeneralApplicantData, idx: number): string {
-  const name = `${app.firstName || ""} ${app.lastName || ""}`.trim();
-  return name || `Applicant #${idx + 1}`;
-}
+import { getApplicantDisplayName } from "../helpers/applicantDisplayHelper";
 
 // ─── Main Component ────────────────────────────────────────────────────────
 export function GeneralBulkApplicationFlow({
@@ -51,6 +72,10 @@ export function GeneralBulkApplicationFlow({
   isWeb,
   dynamicRequiredFieldIds = [],
   setDynamicRequiredFieldIds,
+  variants = [],
+  variantElements = [],
+  onSaveDraft,
+  isSavingDraft = false,
 }: GeneralBulkApplicationFlowProps) {
   const [subView, setSubView] = useState<BulkSubView>("FILING_DETAILS");
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -67,12 +92,53 @@ export function GeneralBulkApplicationFlow({
 
   const activeApplicant = applicants[currentApplicantIndex] || applicants[0];
 
-  const updateActiveApplicant = (fields: Partial<GeneralApplicantData>) => {
+  if (applicants.length === 0 || !activeApplicant) {
+    return (
+      <View style={{ flex: 1, backgroundColor: COLORS.bg, justifyContent: "center", alignItems: "center", padding: 32 }}>
+        <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: "#EFF6FF", justifyContent: "center", alignItems: "center", marginBottom: 16 }}>
+          <Icon name="users" size={32} color="#1D4ED8" />
+        </View>
+        <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 18, fontWeight: "700", color: "#0F172A", marginBottom: 8, textAlign: "center" }}>
+          No Applicants in Cohort
+        </Text>
+        <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: "#64748B", marginBottom: 24, textAlign: "center", maxWidth: 400, lineHeight: 20 }}>
+          All applicant entries have been removed. Add an applicant to proceed with the bulk filing.
+        </Text>
+        <TouchableOpacity
+          onPress={() => {
+            const newApp = initialGeneralApplicant(1);
+            setApplicants([newApp]);
+            setCurrentApplicantIndex(0);
+          }}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 8,
+            backgroundColor: "#1D4ED8",
+            paddingVertical: 12,
+            paddingHorizontal: 20,
+            borderRadius: 10,
+          }}
+          activeOpacity={0.8}
+        >
+          <Icon name="plus" size={16} color="#FFFFFF" />
+          <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 14, fontWeight: "600", color: "#FFFFFF" }}>
+            Add Applicant
+          </Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  const updateActiveApplicant = (
+    fields: Partial<GeneralApplicantData> | ((prevApp: GeneralApplicantData) => Partial<GeneralApplicantData>)
+  ) => {
     setApplicants((prev) => {
       const updated = [...prev];
       const current = updated[currentApplicantIndex];
       if (current) {
-        updated[currentApplicantIndex] = { ...current, ...fields };
+        const resolved = typeof fields === "function" ? fields(current) : fields;
+        updated[currentApplicantIndex] = { ...current, ...resolved };
       }
       return updated;
     });
@@ -88,178 +154,330 @@ export function GeneralBulkApplicationFlow({
     const errors: Record<string, string> = {};
 
     if (dynamicRequiredFieldIds && dynamicRequiredFieldIds.length > 0) {
-      const filledIds = new Set(
-        (activeApplicant?.formFieldValues || []).map((fv) => fv.fieldId)
-      );
+      const fieldValues = activeApplicant?.formFieldValues || [];
+      const filledMap = new Map<string, string>();
+      fieldValues.forEach((fv) => {
+        if (fv.fieldId) filledMap.set(fv.fieldId.toLowerCase().trim(), fv.value);
+        if (fv.fieldLabel) filledMap.set(fv.fieldLabel.toLowerCase().trim(), fv.value);
+      });
+
+      // 1. Missing required fields check
       dynamicRequiredFieldIds.forEach((id) => {
-        const value = (activeApplicant?.formFieldValues ?? []).find((fv) => fv.fieldId === id)?.value;
-        if (!filledIds.has(id) || !value || value.trim() === "") {
+        const idLower = (id || "").toLowerCase().trim();
+
+        // Skip declaration or payment fields in Step 3
+        if (
+          idLower.includes("declaration") ||
+          idLower.includes("signature") ||
+          idLower.includes("payment") ||
+          idLower.includes("receipt") ||
+          idLower === "fd000000-0000-0000-0000-000000000006" ||
+          idLower === "fd000000-0000-0000-0000-000000000007" ||
+          idLower === "fd000000-0000-0000-0000-000000000008" ||
+          idLower === "fd000000-0000-0000-0000-000000000009"
+        ) {
+          return;
+        }
+
+        // Skip exam details validation for Amateur Certificates
+        const isAmateurCertService = (service.category || "").toLowerCase().includes("certificate") && ((service.title || "").toLowerCase().includes("amateur") || (service.id || "").toLowerCase().includes("103") || (service.id || "").toLowerCase().includes("ntc_1_03"));
+        const isExamField = idLower.includes("exam") || idLower.includes("seminar") || idLower.includes("rating");
+        if (isAmateurCertService && isExamField) {
+          return;
+        }
+
+        // Skip DTI / SEC registration validation if empty (optional field on registration forms)
+        const isDtiSecField =
+          idLower === "fd000000-0000-0000-0000-000000000086" ||
+          idLower === "dtisecregistration" ||
+          idLower === "dti_sec_registration" ||
+          idLower.includes("sec") ||
+          idLower.includes("dti");
+        if (isDtiSecField) {
+          return;
+        }
+
+        // Skip repeater individual subfields
+        const isRepeaterSubField =
+          idLower === "serialnumber" ||
+          idLower === "serial_number" ||
+          idLower === "serial number" ||
+          idLower === "serialnumbers" ||
+          idLower === "serial number(s)" ||
+          idLower === "frequencyrange" ||
+          idLower === "frequency_range" ||
+          idLower === "frequency range" ||
+          idLower === "poweroutput" ||
+          idLower === "power_output" ||
+          idLower === "power output" ||
+          idLower === "make" ||
+          idLower === "model" ||
+          idLower === "type/model" ||
+          idLower === "maketypeModel" ||
+          idLower === "make / type / model" ||
+          idLower === "deviceType" ||
+          idLower === "device / equipment type" ||
+          idLower === "fd000000-0000-0000-0000-000000000084" ||
+          idLower === "fd000000-0000-0000-0000-000000000085" ||
+          idLower === "fd000000-0000-0000-0000-000000000087";
+        if (isRepeaterSubField) {
+          return;
+        }
+
+        // Skip invoice validation for Dealers
+        const isInvoiceId =
+          idLower === FIELD_ID_INVOICE_NUMBER.toLowerCase() ||
+          idLower === "invoicenumber" ||
+          idLower === "invoiceno" ||
+          idLower.includes("invoice");
+
+        if (isInvoiceId) {
+          const matchedVar = variants?.find((v) => String(v.id) === String(activeApplicant?.selectedVariantId));
+          const varDesc = (matchedVar?.description || matchedVar?.name || "").toLowerCase();
+          const isNonDealerVariant = varDesc.includes("non-dealer") || varDesc.includes("non dealer") || String(activeApplicant?.selectedVariantId).endsWith("23");
+          const registrationTypeVal = (activeApplicant?.formFieldValues?.find(fv => (fv.fieldLabel || "").toLowerCase().includes("registration type"))?.value || activeApplicant?.deviceRegData?.registrationType || "").toLowerCase();
+          const isNonDealerRegType = registrationTypeVal.includes("non");
+          const isDealer = varDesc.includes("dealer") && !isNonDealerVariant;
+
+          if (isDealer || (!isNonDealerVariant && !isNonDealerRegType)) {
+            return;
+          }
+        }
+
+        let val = filledMap.get(idLower);
+        if (val === undefined || val === null || (typeof val === "string" && val.trim() === "")) {
+          if (
+            (idLower === FIELD_ID_FULL_NAME.toLowerCase() || idLower === "fullname" || idLower === "name" || idLower.includes("full name")) &&
+            (activeApplicant?.firstName || activeApplicant?.lastName)
+          ) {
+            val = [activeApplicant?.firstName, activeApplicant?.middleName, activeApplicant?.lastName, activeApplicant?.suffix].filter(Boolean).join(" ");
+          } else if (
+            (idLower === FIELD_ID_CONTACT_NO.toLowerCase() || idLower === "contactno" || idLower.includes("contact") || idLower.includes("phone") || idLower.includes("mobile")) &&
+            activeApplicant?.contactNo
+          ) {
+            val = activeApplicant.contactNo;
+          } else if (
+            (idLower === FIELD_ID_EMAIL.toLowerCase() || idLower === "email" || idLower.includes("email")) &&
+            activeApplicant?.email
+          ) {
+            val = activeApplicant.email;
+          } else if (
+            (idLower === FIELD_ID_REGION.toLowerCase() || idLower === "region") &&
+            activeApplicant?.region
+          ) {
+            val = activeApplicant.region;
+          } else if (
+            (idLower === FIELD_ID_PROVINCE.toLowerCase() || idLower === "province") &&
+            activeApplicant?.province
+          ) {
+            val = activeApplicant.province;
+          } else if (
+            (idLower === FIELD_ID_CITY.toLowerCase() || idLower === "city" || idLower.includes("municipality")) &&
+            activeApplicant?.city
+          ) {
+            val = activeApplicant.city;
+          } else if (
+            (idLower === FIELD_ID_BARANGAY.toLowerCase() || idLower === "barangay") &&
+            activeApplicant?.barangay
+          ) {
+            val = activeApplicant.barangay;
+          } else if (
+            (idLower === FIELD_ID_STREET.toLowerCase() ||
+              idLower === FIELD_ID_ADDRESS.toLowerCase() ||
+              idLower === "street" ||
+              idLower === "address" ||
+              ((idLower.includes("address") || idLower.includes("street")) &&
+                !idLower.includes("email") &&
+                !idLower.includes("exam") &&
+                !idLower.includes("seminar") &&
+                !idLower.includes("station") &&
+                !idLower.includes("seller") &&
+                !idLower.includes("dealer"))) &&
+            activeApplicant?.address
+          ) {
+            val = activeApplicant.address;
+          } else if (
+            (idLower === FIELD_ID_ZIP_CODE.toLowerCase() || idLower === "zipcode" || idLower.includes("zip") || idLower.includes("postal")) &&
+            activeApplicant?.zipCode
+          ) {
+            val = activeApplicant.zipCode;
+          } else if (
+            (idLower === "fd000000-0000-0000-0000-000000000081" || idLower === "companyname" || idLower.includes("company")) &&
+            activeApplicant?.companyName
+          ) {
+            val = activeApplicant.companyName;
+          } else if (
+            (idLower === "fd000000-0000-0000-0000-000000000082" || idLower === "representativename" || idLower.includes("representative")) &&
+            activeApplicant?.representativeName
+          ) {
+            val = activeApplicant.representativeName;
+          } else if (
+            (idLower === "fd000000-0000-0000-0000-000000000083" || idLower === "representativeposition" || idLower.includes("position") || idLower.includes("designation")) &&
+            activeApplicant?.representativePosition
+          ) {
+            val = activeApplicant.representativePosition;
+          } else if (
+            (idLower === "fd000000-0000-0000-0000-000000000086" || idLower === "dtisecregistration" || idLower.includes("sec") || idLower.includes("dti")) &&
+            activeApplicant?.dtiSecRegistration
+          ) {
+            val = activeApplicant.dtiSecRegistration;
+          }
+        }
+        const trimmed = val !== undefined && val !== null ? (typeof val === "string" ? val.trim() : String(val)) : "";
+        if (trimmed === "" || trimmed === "false") {
           errors[id] = "This required field cannot be left blank.";
         }
       });
+
+      // 2. Specific format validation for Contact Number and Email
+      fieldValues.forEach((fv) => {
+        const fId = (fv.fieldId || "").toLowerCase();
+        const fLbl = (fv.fieldLabel || "").toLowerCase();
+        const val = typeof fv.value === "string" ? fv.value.trim() : "";
+
+        if (val.length > 0) {
+          if (fId === FIELD_ID_CONTACT_NO || fLbl.includes("contact") || fLbl.includes("phone") || fLbl.includes("mobile")) {
+            const err = validateContactNumber(val);
+            if (err) errors[fv.fieldId] = err;
+          } else if (fId === FIELD_ID_EMAIL || fLbl.includes("email")) {
+            const err = validateEmailAddress(val);
+            if (err) errors[fv.fieldId] = err;
+          }
+        }
+      });
     } else {
-      if (!activeApplicant?.firstName) errors.firstName = "First Name is required.";
-      if (!activeApplicant?.lastName) errors.lastName = "Last Name is required.";
-      if (!activeApplicant?.email) errors.email = "Email Address is required.";
-      if (!activeApplicant?.contactNo) errors.contactNo = "Contact Number is required.";
+      if (!activeApplicant?.firstName || activeApplicant.firstName.trim() === "") errors.firstName = "First Name is required.";
+      if (!activeApplicant?.lastName || activeApplicant.lastName.trim() === "") errors.lastName = "Last Name is required.";
+
+      const emailErr = validateEmailAddress(activeApplicant?.email);
+      if (emailErr) errors.email = emailErr;
+
+      const contactErr = validateContactNumber(activeApplicant?.contactNo);
+      if (contactErr) errors.contactNo = contactErr;
     }
 
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
-      Alert.alert("Incomplete", "Please fill in all required fields before continuing.");
+      const firstError = Object.values(errors)[0];
+      Alert.alert("Validation Error", firstError || "Please fill in all required fields marked in red correctly.");
       return;
     }
 
     setFormErrors({});
+    onSaveDraft?.();
     setSubView("DOCUMENT_UPLOAD");
   };
 
-  // ─── Filing Details ────────────────────────────────────────────────────────
-  const renderFilingDetails = () => {
-    if (!activeApplicant) return null;
-    const name = getApplicantDisplayName(activeApplicant, currentApplicantIndex);
-    return (
-      <View style={{ flex: 1 }}>
-        {/* Sub-header banner */}
+  const handleDocumentUploadNext = () => {
+    onSaveDraft?.();
+    if (currentApplicantIndex < applicants.length - 1) {
+      setCurrentApplicantIndex(currentApplicantIndex + 1);
+      setSubView("FILING_DETAILS");
+    } else {
+      onSubmitAll();
+    }
+  };
+
+  const handleBottomBack = () => {
+    if (subView === "DOCUMENT_UPLOAD") {
+      setSubView("FILING_DETAILS");
+    } else if (currentApplicantIndex > 0) {
+      setCurrentApplicantIndex(currentApplicantIndex - 1);
+      setSubView("FILING_DETAILS");
+    } else {
+      onBack?.();
+    }
+  };
+
+  const name = getApplicantDisplayName(activeApplicant, currentApplicantIndex);
+
+  return (
+    <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: 24, paddingBottom: 40 }}
+        showsVerticalScrollIndicator={true}
+      >
+        {/* Page Header */}
+        <View style={{ marginBottom: 16, flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <View style={{ flex: 1, paddingRight: 12 }}>
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 20, fontWeight: "700", color: "#0F172A", marginBottom: 4 }}>
+              {service.title}
+            </Text>
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: "#64748B" }}>
+              Bulk / Corporate Filing — {subView === "FILING_DETAILS" ? "Applicant Information & Parameters" : "Mandatory Document Attachments"}
+            </Text>
+          </View>
+          {onSaveDraft && (
+            <TouchableOpacity
+              onPress={onSaveDraft}
+              disabled={isSavingDraft}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 6,
+                backgroundColor: "#FFFFFF",
+                borderWidth: 1,
+                borderColor: "#CBD5E1",
+                borderRadius: 8,
+                paddingHorizontal: 12,
+                paddingVertical: 8,
+              }}
+            >
+              <Icon name="save" size={14} color="#0F2C59" />
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, fontWeight: "700", color: "#0F2C59" }}>
+                {isSavingDraft ? "Saving Draft..." : "Save Draft"}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Sub-header Banner */}
         <View
           style={{
             backgroundColor: "#EFF6FF",
             borderRadius: 12,
             padding: 14,
-            marginBottom: 16,
+            marginBottom: 20,
             borderWidth: 1,
             borderColor: "#93C5FD",
             flexDirection: "row",
             alignItems: "center",
-            gap: 10,
+            justifyContent: "space-between",
           }}
         >
-          <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: "#1D4ED8", justifyContent: "center", alignItems: "center" }}>
-            <Icon name="users" size={16} color="#FFFFFF" />
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 10, flex: 1 }}>
+            <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: "#1D4ED8", justifyContent: "center", alignItems: "center" }}>
+              <Icon name={subView === "FILING_DETAILS" ? "users" : "paperclip"} size={16} color="#FFFFFF" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, fontWeight: "700", color: "#1E40AF" }}>
+                BULK APPLICANT {currentApplicantIndex + 1} OF {applicants.length}
+              </Text>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, color: "#2563EB", marginTop: 1 }} numberOfLines={1}>
+                {name}
+              </Text>
+            </View>
           </View>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, fontWeight: "700", color: "#1E40AF" }}>
-              BULK FILING — Applicant {currentApplicantIndex + 1} of {applicants.length}
-            </Text>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, color: "#2563EB", marginTop: 1 }} numberOfLines={1}>
-              {name}
-            </Text>
-          </View>
-          <View style={{ backgroundColor: "#DBEAFE", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 10, fontWeight: "700", color: "#1E40AF" }}>
-              Step 1/2 · Details
+          <View style={{ backgroundColor: "#DBEAFE", borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 }}>
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: "700", color: "#1E40AF" }}>
+              {subView === "FILING_DETAILS" ? "Step 1/2 · Details" : "Step 2/2 · Documents"}
             </Text>
           </View>
         </View>
 
-        {allComplete && (
-          <TouchableOpacity
-            onPress={onSubmitAll}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "center",
-              backgroundColor: "#16A34A",
-              borderRadius: 10,
-              paddingVertical: 12,
-              paddingHorizontal: 16,
-              gap: 8,
-              marginBottom: 16,
-            }}
-            activeOpacity={0.8}
-          >
-            <Icon name="check-circle" size={16} color="#ffffff" />
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: "#ffffff" }}>
-              Submit All {applicants.length} Applications
-            </Text>
-          </TouchableOpacity>
-        )}
-
-        <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+        {/* Active Sub-step Body */}
+        {subView === "FILING_DETAILS" ? (
           <GeneralFilingDetailsStep
             service={service}
             activeApplicant={activeApplicant}
             updateActiveApplicant={updateActiveApplicant}
             onRequiredFieldsChange={setDynamicRequiredFieldIds}
             errors={formErrors}
+            variants={variants}
+            variantElements={variantElements}
           />
-        </ScrollView>
-
-        {/* Navigation */}
-        <View style={{ flexDirection: "row", justifyContent: "flex-end", paddingTop: 12, borderTopWidth: 1, borderColor: "#E2E8F0", marginTop: 8 }}>
-          <TouchableOpacity
-            onPress={handleFilingDetailsNext}
-            style={{ flex: 1, backgroundColor: "#0F2C59", borderRadius: 12, paddingVertical: 12, alignItems: "center" }}
-          >
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: "#FFFFFF" }}>Next</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  };
-
-  // ─── Document Upload ───────────────────────────────────────────────────────
-  const renderDocumentUpload = () => {
-    if (!activeApplicant) return null;
-    const name = getApplicantDisplayName(activeApplicant, currentApplicantIndex);
-    return (
-      <View style={{ flex: 1 }}>
-        {/* Sub-header banner */}
-        <View
-          style={{
-            backgroundColor: "#EFF6FF",
-            borderRadius: 12,
-            padding: 14,
-            marginBottom: 16,
-            borderWidth: 1,
-            borderColor: "#93C5FD",
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 10,
-          }}
-        >
-          <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: "#1D4ED8", justifyContent: "center", alignItems: "center" }}>
-            <Icon name="paperclip" size={16} color="#FFFFFF" />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, fontWeight: "700", color: "#1E40AF" }}>
-              BULK FILING — Applicant {currentApplicantIndex + 1} of {applicants.length}
-            </Text>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, color: "#2563EB", marginTop: 1 }} numberOfLines={1}>
-              {name}
-            </Text>
-          </View>
-          <View style={{ backgroundColor: "#DBEAFE", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 10, fontWeight: "700", color: "#1E40AF" }}>
-              Step 2/2 · Docs
-            </Text>
-          </View>
-        </View>
-
-        {allComplete && (
-          <TouchableOpacity
-            onPress={onSubmitAll}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "center",
-              backgroundColor: "#16A34A",
-              borderRadius: 10,
-              paddingVertical: 12,
-              paddingHorizontal: 16,
-              gap: 8,
-              marginBottom: 16,
-            }}
-            activeOpacity={0.8}
-          >
-            <Icon name="check-circle" size={16} color="#ffffff" />
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: "#ffffff" }}>
-              Submit All {applicants.length} Applications
-            </Text>
-          </TouchableOpacity>
-        )}
-
-        <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+        ) : (
           <GeneralDocumentUploadStep
             service={service}
             activeApplicant={activeApplicant}
@@ -276,60 +494,118 @@ export function GeneralBulkApplicationFlow({
               updateActiveApplicant({ uploads: cur });
             }}
           />
-        </ScrollView>
+        )}
+      </ScrollView>
 
-        {/* Navigation */}
-        <View style={{ flexDirection: "row", gap: 10, paddingTop: 12, borderTopWidth: 1, borderColor: "#E2E8F0", marginTop: 8 }}>
-          <TouchableOpacity
-            onPress={() => setSubView("FILING_DETAILS")}
-            style={{ flex: 1, borderWidth: 1.5, borderColor: "#0F2C59", borderRadius: 12, paddingVertical: 12, alignItems: "center" }}
-          >
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: "#0F2C59" }}>← Filing Details</Text>
-          </TouchableOpacity>
-          {currentApplicantIndex < applicants.length - 1 ? (
-            <TouchableOpacity
-              onPress={() => {
-                setCurrentApplicantIndex(currentApplicantIndex + 1);
-                setSubView("FILING_DETAILS");
+      {/* ── Fixed Sticky Bottom Action Bar ── */}
+      <View
+        style={{
+          width: "100%",
+          backgroundColor: "#FFFFFF",
+          borderTopWidth: 1,
+          borderTopColor: "#E2E8F0",
+          paddingVertical: 12,
+          paddingHorizontal: 20,
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: -3 },
+          shadowOpacity: 0.06,
+          shadowRadius: 6,
+          elevation: 8,
+          zIndex: 50,
+        }}
+      >
+        <View
+          style={{
+            width: "100%",
+            maxWidth: 1200,
+            alignSelf: "center",
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 16,
+          }}
+        >
+          {/* Progress / Cohort Counter Pill */}
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <View
+              style={{
+                backgroundColor: "#F1F5F9",
+                borderRadius: 8,
+                paddingVertical: 6,
+                paddingHorizontal: 12,
+                borderWidth: 1,
+                borderColor: "#E2E8F0",
               }}
-              style={{ flex: 1, backgroundColor: "#0F2C59", borderRadius: 12, paddingVertical: 12, alignItems: "center" }}
             >
-              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: "#FFFFFF" }}>Next Applicant →</Text>
-            </TouchableOpacity>
-          ) : (
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: "700", color: "#475569" }}>
+                APPLICANT {currentApplicantIndex + 1}/{applicants.length} · {subView === "FILING_DETAILS" ? "DETAILS" : "DOCS"}
+              </Text>
+            </View>
+          </View>
+
+          {/* Action Buttons */}
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+            {(subView === "DOCUMENT_UPLOAD" || currentApplicantIndex > 0) && (
+              <TouchableOpacity
+                onPress={handleBottomBack}
+                activeOpacity={0.7}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  borderWidth: 1.5,
+                  borderColor: "#CBD5E1",
+                  backgroundColor: "#FFFFFF",
+                  borderRadius: 10,
+                  paddingVertical: 10,
+                  paddingHorizontal: 20,
+                  minWidth: 110,
+                }}
+              >
+                <Icon name="arrow-left" size={15} color={COLORS.neutral[700]} />
+                <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: COLORS.neutral[700] }}>
+                  {subView === "DOCUMENT_UPLOAD" ? "Back to Details" : "Prev Applicant"}
+                </Text>
+              </TouchableOpacity>
+            )}
+
             <TouchableOpacity
-              onPress={() => setSubView("FILING_DETAILS")}
-              style={{ flex: 1, backgroundColor: "#16A34A", borderRadius: 12, paddingVertical: 12, alignItems: "center" }}
+              onPress={subView === "FILING_DETAILS" ? handleFilingDetailsNext : handleDocumentUploadNext}
+              activeOpacity={0.8}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+                backgroundColor: subView === "DOCUMENT_UPLOAD" && currentApplicantIndex === applicants.length - 1 ? "#16A34A" : "#0F2C59",
+                borderRadius: 10,
+                paddingVertical: 10,
+                paddingHorizontal: 24,
+                minWidth: 140,
+                shadowColor: "#0F2C59",
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.15,
+                shadowRadius: 4,
+                elevation: 3,
+              }}
             >
-              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: "#FFFFFF" }}>✓ Filing Complete</Text>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13.5, fontWeight: "700", color: "#FFFFFF" }}>
+                {subView === "FILING_DETAILS"
+                  ? "Proceed to Documents"
+                  : currentApplicantIndex < applicants.length - 1
+                  ? "Next Applicant"
+                  : "Review & Submit Bulk Cohort"}
+              </Text>
+              <Icon
+                name={subView === "DOCUMENT_UPLOAD" && currentApplicantIndex === applicants.length - 1 ? "check-circle" : "arrow-right"}
+                size={15}
+                color="#FFFFFF"
+              />
             </TouchableOpacity>
-          )}
+          </View>
         </View>
       </View>
-    );
-  };
-
-  return (
-    <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
-      <ScrollView contentContainerStyle={{ padding: 20, flexGrow: 1 }}>
-        {/* Page Header */}
-        <View style={{ marginBottom: 20 }}>
-          <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 20, fontWeight: "700", color: "#0F172A", marginBottom: 4 }}>
-            {service.title}
-          </Text>
-          <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: "#64748B" }}>
-            Bulk / Group Filing —{" "}
-            {subView === "FILING_DETAILS"
-              ? "Applicant Filing Details"
-              : "Document Upload"}
-          </Text>
-        </View>
-
-        <View style={{ flex: 1 }}>
-          {subView === "FILING_DETAILS" && renderFilingDetails()}
-          {subView === "DOCUMENT_UPLOAD" && renderDocumentUpload()}
-        </View>
-      </ScrollView>
     </View>
   );
 }

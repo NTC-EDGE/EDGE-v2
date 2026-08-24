@@ -84,42 +84,61 @@ function parseClerkSignInStatus(errObj: object): string | null {
  */
 function parseBackendApiResponse(errObj: object): string | null {
   const response = getProperty(errObj, "response");
-  if (typeof response !== "object" || response === null) return null;
+  const data = (typeof response === "object" && response !== null)
+    ? getProperty(response, "data")
+    : errObj;
 
-  const status = getProperty(response, "status");
+  const status = (typeof response === "object" && response !== null)
+    ? getProperty(response, "status")
+    : getProperty(errObj, "status");
+
   // 403 Forbidden is handled globally by ForbiddenToastProvider.
   // Suppress local error toast messages to prevent duplicate toasts.
   if (status === 403) return null;
 
-  const data = getProperty(response, "data");
-
   if (typeof data === "object" && data !== null) {
-    // ApiResponse<T> format: { succeeded: false, message: "..." }
+    // 1. FluentValidation dictionary format: { errors: { Name: ["Requirement Name must be unique."] } }
+    const errors = getProperty(data, "errors");
+    if (typeof errors === "object" && errors !== null) {
+      const allMsgs: string[] = [];
+      for (const key of Object.keys(errors)) {
+        const val = getProperty(errors, key);
+        if (Array.isArray(val)) {
+          for (const item of val) {
+            if (typeof item === "string" && item.trim().length > 0) {
+              allMsgs.push(item.trim());
+            }
+          }
+        } else if (typeof val === "string" && val.trim().length > 0) {
+          allMsgs.push(val.trim());
+        }
+      }
+      if (allMsgs.length > 0) {
+        return sanitizeErrorMessage(allMsgs.join(" "));
+      }
+    }
+
+    // 2. ApiResponse<T> format: { succeeded: false, message: "..." }
     const message = getProperty(data, "message");
     if (typeof message === "string" && message.trim().length > 0) {
       return sanitizeErrorMessage(message);
     }
 
-    // ProblemDetails format: { detail: "...", title: "..." }
+    // 3. ProblemDetails detail format: { detail: "..." }
     const detail = getProperty(data, "detail");
     if (typeof detail === "string" && detail.trim().length > 0) {
       return sanitizeErrorMessage(detail);
     }
-    const title = getProperty(data, "title");
-    if (typeof title === "string" && title.trim().length > 0) {
-      return sanitizeErrorMessage(title);
-    }
 
-    // FluentValidation dictionary format: { errors: { SelectedRegion: ["Region is required"] } }
-    const errors = getProperty(data, "errors");
-    if (typeof errors === "object" && errors !== null) {
-      const keys = Object.keys(errors);
-      if (keys.length > 0) {
-        const firstArr = getProperty(errors, keys[0]);
-        if (Array.isArray(firstArr) && firstArr.length > 0 && typeof firstArr[0] === "string") {
-          return sanitizeErrorMessage(firstArr[0]);
-        }
-      }
+    // 4. ProblemDetails title (only if not generic title like "One or more validation errors occurred.")
+    const title = getProperty(data, "title");
+    if (
+      typeof title === "string" &&
+      title.trim().length > 0 &&
+      !title.toLowerCase().includes("validation errors occurred") &&
+      !title.toLowerCase().includes("bad request")
+    ) {
+      return sanitizeErrorMessage(title);
     }
   }
 

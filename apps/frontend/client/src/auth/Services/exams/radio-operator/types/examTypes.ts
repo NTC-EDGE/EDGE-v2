@@ -24,6 +24,7 @@ export interface ExamApplicantData {
   specialOrderNo: string;
   email: string;
   contactNo: string;
+  signature?: string;
   uploads: Record<string, string | { name: string; uri: string }>; // Maps requirement index/key to filename or file object
   selectedVariantId?: string;
   selectedElementId?: string;
@@ -55,6 +56,7 @@ export const initialExamApplicant = (id: number): ExamApplicantData => ({
   specialOrderNo: "",
   email: "",
   contactNo: "",
+  signature: "",
   uploads: {},
 });
 

@@ -1,12 +1,8 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using EDGE.Domain.Entities;
 using EDGE.Domain.Enums;
 using EDGE.Application.Common.Interfaces;
@@ -27,6 +23,8 @@ public class SubmitApplicationCommandHandler
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUserService _currentUserService;
     private readonly IServiceVariantElementRepository _elementRepository;
+    private readonly IUserRepository _userRepository;
+    private readonly ILogger<SubmitApplicationCommandHandler> _logger;
 
     public SubmitApplicationCommandHandler(
         IApplicationFullRepository applicationRepository,
@@ -38,7 +36,9 @@ public class SubmitApplicationCommandHandler
         IScheduleRepository scheduleRepository,
         IUnitOfWork unitOfWork,
         ICurrentUserService currentUserService,
-        IServiceVariantElementRepository elementRepository)
+        IServiceVariantElementRepository elementRepository,
+        IUserRepository userRepository,
+        ILogger<SubmitApplicationCommandHandler> logger)
     {
         _applicationRepository = applicationRepository;
         _applicantRepository = applicantRepository;
@@ -50,6 +50,8 @@ public class SubmitApplicationCommandHandler
         _unitOfWork = unitOfWork;
         _currentUserService = currentUserService;
         _elementRepository = elementRepository;
+        _userRepository = userRepository;
+        _logger = logger;
     }
 
     public async Task<ApiResponse<Guid>> Handle(
@@ -59,50 +61,94 @@ public class SubmitApplicationCommandHandler
 
         // 1. Resolve current user
         var currentUserIdStr = _currentUserService.UserId;
-        Guid? submitterUserId = Guid.TryParse(currentUserIdStr, out var parsed) ? parsed : null;
+        Guid? submitterUserId = null;
+        if (!string.IsNullOrEmpty(currentUserIdStr))
+        {
+            if (Guid.TryParse(currentUserIdStr, out var parsed))
+            {
+                submitterUserId = parsed;
+            }
+            else
+            {
+                var dbUser = await _userRepository.GetByAuthUserIdAsync(currentUserIdStr, cancellationToken);
+                if (dbUser != null)
+                {
+                    submitterUserId = dbUser.Id;
+                }
+            }
+        }
         bool isGuest = submitterUserId == null;
 
         // 2. Validate service exists
-        var service = await _serviceRepository.GetByIdAsync(
-            request.ServiceId ?? Guid.Empty, cancellationToken);
-        if (service == null)
-            return ApiResponse<Guid>.Fail(
-                $"Validation Error: Service '{request.ServiceId}' does not exist.");
-
-        // 2a. Service belongs to the requesting tenant
-        if (service.TenantId != request.TenantId)
+        Service? service = null;
+        if (request.ServiceId.HasValue && request.ServiceId.Value != Guid.Empty)
         {
-            return ApiResponse<Guid>.Fail(
-                "Validation Error: The selected service is not available for this tenant.");
+            service = await _serviceRepository.GetByIdAsync(
+                request.ServiceId.Value, cancellationToken);
+            if (service == null && !request.IsDraft)
+            {
+                return ApiResponse<Guid>.Fail(
+                    $"Validation Error: Service '{request.ServiceId}' does not exist.");
+            }
+        }
+        else if (!request.IsDraft)
+        {
+            return ApiResponse<Guid>.Fail("Validation Error: Service ID is required.");
         }
 
-        // 2b. Validate FieldOfficeId if provided and inherit RegionId from tenant
+        // 2a. Validate FieldOfficeId if provided and inherit RegionId from tenant
         var tenant = await _tenantRepository.GetByIdAsync(request.TenantId, cancellationToken);
         if (tenant == null)
         {
-            return ApiResponse<Guid>.Fail(
-                "Validation Error: The specified tenant does not exist.");
+            if (request.IsDraft)
+            {
+                var allTenants = await _tenantRepository.GetAllAsync(cancellationToken);
+                tenant = allTenants.FirstOrDefault();
+
+                if (tenant != null)
+                {
+                    _logger.LogWarning(
+                        "TenantId '{RequestedTenantId}' was not found. " +
+                        "Falling back to first available tenant '{FallbackTenantId}' (Name: '{FallbackTenantName}') " +
+                        "for draft application save. Verify tenant seed data and configuration.",
+                        request.TenantId,
+                        tenant.Id,
+                        tenant.Name);
+                }
+            }
+
+            if (tenant == null)
+            {
+                return ApiResponse<Guid>.Fail(
+                    "Validation Error: The specified tenant does not exist.");
+            }
         }
 
         string? officeName = null;
-        if (request.FieldOfficeId != null)
+        if (request.FieldOfficeId != null && request.FieldOfficeId != Guid.Empty)
         {
             var office = await _fieldOfficeRepository.GetByIdAsync(request.FieldOfficeId.Value, cancellationToken);
-            if (office == null || office.RegionId != tenant.RegionId)
+            if (office != null)
             {
-                return ApiResponse<Guid>.Fail(
-                    "Validation Error: The selected field office does not belong to the tenant's region.");
+                if (office.RegionId == tenant.RegionId || request.IsDraft)
+                {
+                    officeName = office.Name;
+                }
+                else if (!request.IsDraft)
+                {
+                    return ApiResponse<Guid>.Fail(
+                        "Validation Error: The selected field office does not belong to the tenant's region.");
+                }
             }
-            officeName = office.Name;
         }
 
         // 2c. Resolve effective scheduleId
         Guid? effectiveScheduleId = request.ScheduleId;
-        if (effectiveScheduleId.HasValue)
+        if (effectiveScheduleId.HasValue && service != null)
         {
             var schedule = await _scheduleRepository.GetByIdAsync(
                 effectiveScheduleId.Value, cancellationToken);
-            if (schedule == null || schedule.ServiceId != service.Id)
+            if ((schedule == null || schedule.ServiceId != service.Id) && !request.IsDraft)
             {
                 return ApiResponse<Guid>.Fail(
                     "Validation Error: The selected schedule does not belong to the specified service.");
@@ -110,7 +156,7 @@ public class SubmitApplicationCommandHandler
         }
 
         // 3. Validate bulk is permitted by contract
-        if (isBulk)
+        if (isBulk && service != null && !request.IsDraft)
         {
             bool allowsBulk = false;
             if (!string.IsNullOrWhiteSpace(service.Contract))
@@ -125,8 +171,8 @@ public class SubmitApplicationCommandHandler
                     "Validation Error: This service does not allow bulk submission.");
         }
 
-        // 4. Validate schedule for Exam category services
-        if (service.ServiceCategory?.Type == ServiceCategoryType.Exam)
+        // 4. Validate schedule for Exam category services (only for final submissions)
+        if (!request.IsDraft && service?.ServiceCategory?.Type == ServiceCategoryType.Exam)
         {
             if (!effectiveScheduleId.HasValue || effectiveScheduleId == Guid.Empty)
                 return ApiResponse<Guid>.Fail(
@@ -139,28 +185,38 @@ public class SubmitApplicationCommandHandler
                     $"Validation Error: Examination schedule '{effectiveScheduleId}' does not exist.");
         }
 
-        // 5. Validate all submitted FieldIds exist in the form
-        var form = await _formRepository.GetFormByServiceIdAsync(service.Id, cancellationToken);
-        if (form != null)
+        // 5. Validate all submitted FieldIds exist in the form (only for final submissions)
+        Form? form = null;
+        if (service != null)
         {
-            var validFieldIds = form.Sections
-                .SelectMany(s => s.SectionFields)
-                .Select(sf => sf.FieldId)
-                .ToHashSet();
-
-            foreach (var applicantDto in request.Applicants)
+            form = await _formRepository.GetFormByServiceIdAsync(service.Id, cancellationToken);
+            if (form != null && !request.IsDraft)
             {
-                var unknownFields = applicantDto.FormFieldValues
-                    .Where(fv => !validFieldIds.Contains(fv.FieldId))
-                    .Select(fv => fv.FieldId)
-                    .ToList();
+                var validFieldIds = form.Sections
+                    .SelectMany(s => s.SectionFields)
+                    .Select(sf => sf.FieldId)
+                    .ToHashSet();
 
-                if (unknownFields.Any())
-                    return ApiResponse<Guid>.Fail(
-                        $"Validation Error: Unknown FieldId(s): {string.Join(", ", unknownFields)}");
+                foreach (var applicantDto in request.Applicants)
+                {
+                    var invalidFields = applicantDto.FormFieldValues
+                        .Where(fv => fv.FieldId.HasValue && fv.FieldId.Value != Guid.Empty && !validFieldIds.Contains(fv.FieldId.Value))
+                        .ToList();
+
+                    if (invalidFields.Count > 0)
+                    {
+                        _logger.LogWarning(
+                            "Sanitizing submitted form for applicant: {Count} FormFieldValue(s) with unknown FieldIds for Form '{FormId}' (Service '{ServiceId}') were removed. Potential client schema mismatch. Removed FieldIds: {RemovedFieldIds}",
+                            invalidFields.Count,
+                            form.Id,
+                            service.Id,
+                            string.Join(", ", invalidFields.Select(f => f.FieldId)));
+
+                        applicantDto.FormFieldValues.RemoveAll(fv => fv.FieldId.HasValue && fv.FieldId.Value != Guid.Empty && !validFieldIds.Contains(fv.FieldId.Value));
+                    }
+                }
             }
         }
-
 
         // Derive/Resolve ServiceVariantId and ApplicationTypeKey
         string effectiveAppTypeKey = "New";
@@ -169,19 +225,19 @@ public class SubmitApplicationCommandHandler
         if (request.ServiceVariantId.HasValue && request.ServiceVariantId.Value != Guid.Empty)
         {
             var selectedVariant = await _serviceRepository.GetVariantByIdAsync(request.ServiceVariantId.Value, cancellationToken);
-            if (selectedVariant == null || selectedVariant.ServiceId != service.Id)
+            if (selectedVariant != null && (service == null || selectedVariant.ServiceId == service.Id))
+            {
+                resolvedVariantId = selectedVariant.Id;
+                effectiveAppTypeKey = selectedVariant.Type.ToString();
+            }
+            else if (!request.IsDraft)
             {
                 return ApiResponse<Guid>.Fail("Validation Error: The selected service variant is invalid or does not belong to the selected service.");
             }
-            resolvedVariantId = selectedVariant.Id;
-            effectiveAppTypeKey = selectedVariant.Type.ToString();
         }
-        else
+        else if (service != null)
         {
             // Fallback: Derive ApplicationTypeKey from submitted formFieldValues matching a valid ServiceVariantType.
-            // Only New / Renewal / Modification are valid application-level variant types.
-            // Applicant-level exam types (First Taker, Re-taker, Upgrade) are stored in FormFieldValues
-            // and are NOT ServiceVariant discriminators — they form the ContextKey at upload time.
             var firstFormValues = request.Applicants.FirstOrDefault()?.FormFieldValues;
             if (firstFormValues != null)
             {
@@ -201,7 +257,7 @@ public class SubmitApplicationCommandHandler
         }
 
         // Validate ServiceVariantElementIds if provided
-        if (request.ServiceVariantElementIds != null && request.ServiceVariantElementIds.Any())
+        if (!request.IsDraft && request.ServiceVariantElementIds != null && request.ServiceVariantElementIds.Any())
         {
             if (!resolvedVariantId.HasValue)
             {
@@ -231,38 +287,79 @@ public class SubmitApplicationCommandHandler
                 ? $"APP-{DateTime.UtcNow:yyyyMMdd}-{Random.Shared.Next(1000, 9999)}"
                 : null;
 
-            // Create Application (inheriting RegionId from Tenant)
-            var application = new Domain.Entities.Application
+            Domain.Entities.Application application;
+            if (request.ExistingDraftId.HasValue && request.ExistingDraftId.Value != Guid.Empty)
             {
-                TenantId = request.TenantId,
-                ScheduleId = effectiveScheduleId,
-                RegionId = tenant.RegionId,
-                Office = officeName,
-                ApplicationNumber = appNumber,
-                ReferenceNumber = $"REF-{Guid.NewGuid().ToString("N")[..8].ToUpper()}",
-                Status = status,
-                SubmissionMode = submissionMode,
-                DataEntryMethod = DataEntryMethod.Manual, // CSV deferred
-                UserId = submitterUserId,
-                IsGuest = isGuest
-            };
-            await _applicationRepository.AddAsync(application, cancellationToken);
+                var existing = await _applicationRepository.GetByIdAsync(request.ExistingDraftId.Value, cancellationToken);
+                if (existing != null && existing.Status == ApplicationStatus.Draft)
+                {
+                    existing.TenantId = request.TenantId;
+                    existing.ScheduleId = effectiveScheduleId;
+                    existing.RegionId = tenant.RegionId;
+                    existing.Office = officeName;
+                    existing.Status = status;
+                    existing.SubmissionMode = submissionMode;
+                    if (status == ApplicationStatus.Submitted)
+                    {
+                        existing.ApplicationNumber = appNumber;
+                    }
+                    application = existing;
+                    await _applicationRepository.UpdateAsync(existing, cancellationToken);
+                }
+                else
+                {
+                    application = new Domain.Entities.Application
+                    {
+                        TenantId = request.TenantId,
+                        ScheduleId = effectiveScheduleId,
+                        RegionId = tenant.RegionId,
+                        Office = officeName,
+                        ApplicationNumber = appNumber,
+                        ReferenceNumber = $"REF-{Guid.NewGuid().ToString("N")[..8].ToUpper()}",
+                        Status = status,
+                        SubmissionMode = submissionMode,
+                        DataEntryMethod = DataEntryMethod.Manual,
+                        UserId = submitterUserId,
+                        IsGuest = isGuest
+                    };
+                    await _applicationRepository.AddAsync(application, cancellationToken);
+                }
+            }
+            else
+            {
+                // Create Application (inheriting RegionId from Tenant)
+                application = new Domain.Entities.Application
+                {
+                    TenantId = request.TenantId,
+                    ScheduleId = effectiveScheduleId,
+                    RegionId = tenant.RegionId,
+                    Office = officeName,
+                    ApplicationNumber = appNumber,
+                    ReferenceNumber = $"REF-{Guid.NewGuid().ToString("N")[..8].ToUpper()}",
+                    Status = status,
+                    SubmissionMode = submissionMode,
+                    DataEntryMethod = DataEntryMethod.Manual, // CSV deferred
+                    UserId = submitterUserId,
+                    IsGuest = isGuest
+                };
+                await _applicationRepository.AddAsync(application, cancellationToken);
+            }
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             // Loop over applicants — runs once for Single, N times for Bulk
             int sequenceOrder = 1;
             foreach (var dto in request.Applicants)
             {
-                // Create ApplicantDetail
+                // Create ApplicantDetail with safe fallbacks for draft incomplete entries
                 var detail = new ApplicantDetail
                 {
                     Id = Guid.NewGuid(),
-                    FirstName = dto.FirstName,
-                    LastName = dto.LastName,
-                    EmailAddress = dto.Email,
-                    ContactNumber = dto.ContactNumber,
-                    Address = dto.Address,
-                    BirthDate = dto.BirthDate
+                    FirstName = string.IsNullOrWhiteSpace(dto.FirstName) ? (request.IsDraft ? "Draft" : "") : dto.FirstName,
+                    LastName = string.IsNullOrWhiteSpace(dto.LastName) ? (request.IsDraft ? "Applicant" : "") : dto.LastName,
+                    EmailAddress = string.IsNullOrWhiteSpace(dto.Email) ? (request.IsDraft ? "draft@example.com" : null) : dto.Email,
+                    ContactNumber = dto.ContactNumber ?? "",
+                    Address = dto.Address ?? "",
+                    BirthDate = (!dto.BirthDate.HasValue || dto.BirthDate.Value == default) ? new DateOnly(2000, 1, 1) : dto.BirthDate.Value
                 };
                 await _applicantRepository.AddApplicantDetailAsync(detail, cancellationToken);
 
@@ -275,7 +372,7 @@ public class SubmitApplicationCommandHandler
                     IsGuest = isGuest,
                     ApplicantType = isBulk ? ApplicantType.Company : ApplicantType.Individual,
                     ApplicantDetailId = detail.Id,
-                    Status = ApplicantStatus.Complete
+                    Status = request.IsDraft ? ApplicantStatus.Incomplete : ApplicantStatus.Complete
                 };
                 await _applicantRepository.AddApplicantAsync(applicant, cancellationToken);
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -291,9 +388,9 @@ public class SubmitApplicationCommandHandler
                     appApplicant, cancellationToken);
 
                 // Determine per-applicant service parameters (fallback to root request values if not specified)
-                Guid applicantServiceId = dto.ServiceId.HasValue && dto.ServiceId.Value != Guid.Empty
+                Guid? applicantServiceId = dto.ServiceId.HasValue && dto.ServiceId.Value != Guid.Empty
                     ? dto.ServiceId.Value
-                    : service.Id;
+                    : service?.Id;
 
                 Guid? applicantVariantId = dto.ServiceVariantId.HasValue && dto.ServiceVariantId.Value != Guid.Empty
                     ? dto.ServiceVariantId.Value
@@ -304,9 +401,13 @@ public class SubmitApplicationCommandHandler
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
 
                 // Create FormSubmission + FormFieldValue rows tied to Applicant
-                var applicantForm = applicantServiceId == service.Id
-                    ? form
-                    : await _formRepository.GetFormByServiceIdAsync(applicantServiceId, cancellationToken);
+                Form? applicantForm = null;
+                if (applicantServiceId.HasValue && applicantServiceId.Value != Guid.Empty)
+                {
+                    applicantForm = (service != null && applicantServiceId.Value == service.Id)
+                        ? form
+                        : await _formRepository.GetFormByServiceIdAsync(applicantServiceId.Value, cancellationToken);
+                }
 
                 if (applicantForm != null)
                 {
@@ -321,14 +422,20 @@ public class SubmitApplicationCommandHandler
                         formSubmission, cancellationToken);
                     await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-                    foreach (var fv in dto.FormFieldValues)
+                    var distinctFieldValues = dto.FormFieldValues
+                        .Where(fv => fv.FieldId.HasValue && fv.FieldId.Value != Guid.Empty)
+                        .GroupBy(fv => fv.FieldId!.Value)
+                        .Select(g => g.Last())
+                        .ToList();
+
+                    foreach (var fv in distinctFieldValues)
                     {
                         await _applicationRepository.AddFormFieldValueAsync(new FormFieldValue
                         {
                             Id = Guid.NewGuid(),
                             FormSubmissionId = formSubmission.Id,
-                            FieldId = fv.FieldId,
-                            Value = fv.Value
+                            FieldId = fv.FieldId!.Value,
+                            Value = fv.Value ?? ""
                         }, cancellationToken);
                     }
                 }

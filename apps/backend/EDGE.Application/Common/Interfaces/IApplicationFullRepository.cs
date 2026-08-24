@@ -13,11 +13,11 @@ public interface IApplicationFullRepository
     Task<Domain.Entities.Application?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<Domain.Entities.Application?> GetByIdWithDetailsAsync(Guid id, CancellationToken cancellationToken = default);
     Task<List<Domain.Entities.Application>> GetUserDraftsAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task<List<Domain.Entities.Application>> GetUserDraftsAsync(List<Guid> userIds, CancellationToken cancellationToken = default);
     Task<List<Domain.Entities.Application>> GetUserApplicationsAsync(Guid userId, ApplicationStatus? status = null, CancellationToken cancellationToken = default);
     Task<List<Domain.Entities.Application>> GetAllApplicationsAsync(ApplicationStatus? status = null, string? queueTab = null, string? scope = null, CancellationToken cancellationToken = default);
-    Task<List<EDGE.Application.Applications.Dtos.ApplicationDto>> GetApplicationDtosAsync(ApplicationStatus? status = null, string? queueTab = null, string? scope = null, CancellationToken cancellationToken = default);
-    Task<List<EDGE.Application.Applications.Dtos.ApplicationSummaryDto>> GetApplicationSummaryDtosAsync(ApplicationStatus? status = null, string? queueTab = null, string? scope = null, CancellationToken cancellationToken = default);
-    Task<List<EDGE.Application.Applications.Dtos.ApplicationFeedDto>> GetApplicationFeedDtosAsync(ApplicationStatus? status = null, string? queueTab = null, string? scope = null, CancellationToken cancellationToken = default);
+    Task<List<EDGE.Application.Applications.Dtos.ApplicationSummaryDto>> GetApplicationSummaryDtosAsync(ApplicationStatus? status = null, string? queueTab = null, string? scope = null, Guid? userId = null, string? userEmail = null, CancellationToken cancellationToken = default);
+    Task<EDGE.Application.Applications.Dtos.PagedApplicationListDto> GetPagedApplicationSummaryDtosAsync(ApplicationStatus? status = null, string? queueTab = null, string? scope = null, Guid? userId = null, string? userEmail = null, int pageNumber = 1, int pageSize = 10, string? searchTerm = null, string? mode = null, CancellationToken cancellationToken = default);
     Task<List<EDGE.Application.Applicants.Dtos.ApplicantDto>> GetApplicationApplicantsAsync(Guid applicationId, CancellationToken cancellationToken = default);
     Task<List<Domain.Entities.Application>> GetByApplicantIdAsync(Guid applicantId, CancellationToken cancellationToken = default);
 

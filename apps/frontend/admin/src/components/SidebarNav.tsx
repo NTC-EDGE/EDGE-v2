@@ -26,6 +26,7 @@ import {
   FileCheck,
   Boxes,
   KeyRound,
+  FileText,
 } from "lucide-react";
 import { useAdminScope, AdminRoleType } from "@/lib/admin-scope-context";
 
@@ -58,7 +59,13 @@ export function SidebarNav() {
             className="h-7 w-auto object-contain"
             priority
           />
-          <span className="font-bold text-slate-800 dark:text-white text-xs bg-slate-200 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-300 dark:border-slate-700">Admin</span>
+          <span className={`text-[10px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded ${
+            isSuperAdmin
+              ? "text-amber-500 dark:text-amber-400 bg-amber-500/10 border border-amber-500/30"
+              : "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20"
+          }`}>
+            {isSuperAdmin ? "SuperAdmin" : "Admin"}
+          </span>
         </div>
         <button
           onClick={() => setMobileOpen(!mobileOpen)}
@@ -75,8 +82,8 @@ export function SidebarNav() {
           mobileOpen ? "block" : "hidden md:flex"
         }`}
       >
-        {/* Sidebar Brand Header */}
-        <div className="h-16 flex items-center justify-between px-5 border-b border-slate-200 dark:border-slate-800">
+        {/* Sidebar Brand Header (Desktop only - Mobile already has Top Bar) */}
+        <div className="hidden md:flex h-16 items-center justify-between px-5 border-b border-slate-200 dark:border-slate-800">
           <div className="flex items-center gap-2.5">
             <Image
               src="/logo.png"
@@ -193,7 +200,7 @@ export function SidebarNav() {
               >
                 <div className="flex items-center gap-3">
                   <Boxes className="h-4 w-4 text-indigo-500 dark:text-indigo-400" />
-                  <span>Services Catalog</span>
+                  <span>Services</span>
                 </div>
                 <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-mono">System</span>
               </Link>
@@ -210,22 +217,6 @@ export function SidebarNav() {
                 <div className="flex items-center gap-3">
                   <Megaphone className="h-4 w-4 text-purple-500 dark:text-purple-400" />
                   <span>Announcements</span>
-                </div>
-                <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-mono">System</span>
-              </Link>
-            )}
-
-            {isSystemAdmin && (
-              <Link
-                href="/system-config"
-                onClick={() => setMobileOpen(false)}
-                className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                  isActive("/system-config") ? activeLinkClass : inactiveLinkClass
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <Sliders className="h-4 w-4 text-indigo-500 dark:text-indigo-400" />
-                  <span>System Configuration</span>
                 </div>
                 <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-mono">System</span>
               </Link>
@@ -265,6 +256,38 @@ export function SidebarNav() {
 
             {isSystemAdmin && (
               <Link
+                href="/soa-notes"
+                onClick={() => setMobileOpen(false)}
+                className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                  isActive("/soa-notes") ? activeLinkClass : inactiveLinkClass
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <FileText className="h-4 w-4 text-indigo-500 dark:text-indigo-400" />
+                  <span>SOA Notes</span>
+                </div>
+                <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-mono">System</span>
+              </Link>
+            )}
+
+            {isSystemAdmin && (
+              <Link
+                href="/form-builder"
+                onClick={() => setMobileOpen(false)}
+                className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                  isActive("/form-builder") ? activeLinkClass : inactiveLinkClass
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <ClipboardList className="h-4 w-4 text-violet-500 dark:text-violet-400" />
+                  <span>Form Builder</span>
+                </div>
+                <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-mono">System</span>
+              </Link>
+            )}
+
+            {isSystemAdmin && (
+              <Link
                 href="/roles-permissions"
                 onClick={() => setMobileOpen(false)}
                 className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
@@ -274,6 +297,22 @@ export function SidebarNav() {
                 <div className="flex items-center gap-3">
                   <KeyRound className="h-4 w-4 text-purple-500 dark:text-purple-400" />
                   <span>Roles &amp; Permissions</span>
+                </div>
+                <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-mono">System</span>
+              </Link>
+            )}
+
+            {isSystemAdmin && (
+              <Link
+                href="/system-config"
+                onClick={() => setMobileOpen(false)}
+                className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                  isActive("/system-config") ? activeLinkClass : inactiveLinkClass
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Sliders className="h-4 w-4 text-indigo-500 dark:text-indigo-400" />
+                  <span>System Configuration</span>
                 </div>
                 <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-mono">System</span>
               </Link>

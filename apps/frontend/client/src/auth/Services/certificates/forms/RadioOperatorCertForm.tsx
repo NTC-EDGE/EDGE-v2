@@ -24,6 +24,7 @@ export function RadioOperatorCertForm({
 }: RadioOperatorCertFormProps) {
   const isRenewalOrMod = data.appType === "RENEWAL" || data.appType === "MODIFICATION";
   const isModification = data.appType === "MODIFICATION";
+  const isLifetimeSupplementary = (data.classOfStation || "").toLowerCase().includes("lifetime") || (data.typeOfCertificate || "").toLowerCase().includes("lifetime");
 
   const certTypeDisplay = isAmateurService
     ? (data.classOfStation || "Class A (Advanced)")
@@ -63,32 +64,33 @@ export function RadioOperatorCertForm({
                 { label: "1 Year", value: "1" },
                 { label: "2 Years", value: "2" },
                 { label: "3 Years", value: "3" },
-                { label: "5 Years", value: "5" },
               ]}
             />
           </View>
 
-          {/* Read-only Class / Element / Certificate Badge */}
-          <View style={certStyles.formCol12}>
-            <Text style={{ fontFamily: "System", fontSize: 13, fontWeight: "600", color: "#334155", marginBottom: 6 }}>
-              {isAmateurService ? "Class of Station" : "Type of Certificate"}
-            </Text>
-            <View style={{ height: 44, backgroundColor: "#F1F5F9", borderColor: "#CBD5E1", borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, justifyContent: "center" }}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                <Icon name="award" size={14} color="#1E40AF" />
-                <Text style={{ fontFamily: "System", fontSize: 13, fontWeight: "700", color: "#1E40AF" }}>
-                  {certTypeDisplay}
-                </Text>
+          {/* Read-only Class / Element / Certificate Badge (hidden for Lifetime Supplementary) */}
+          {!isLifetimeSupplementary && (
+            <View style={certStyles.formCol12}>
+              <Text style={{ fontFamily: "System", fontSize: 13, fontWeight: "600", color: "#334155", marginBottom: 6 }}>
+                {isAmateurService ? "Class of Station" : "Type of Certificate"}
+              </Text>
+              <View style={{ height: 44, backgroundColor: "#F1F5F9", borderColor: "#CBD5E1", borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, justifyContent: "center" }}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                  <Icon name="award" size={14} color="#1E40AF" />
+                  <Text style={{ fontFamily: "System", fontSize: 13, fontWeight: "700", color: "#1E40AF" }}>
+                    {certTypeDisplay}
+                  </Text>
+                </View>
               </View>
             </View>
-          </View>
+          )}
 
           {/* Conditional Renewal & Modification Fields */}
           {isRenewalOrMod && (
             <>
               <View style={certStyles.formCol6}>
                 <ValidatedInput
-                  label="Existing Certificate No."
+                  label={data.appType === "RENEWAL" ? "Certificate No." : "Certificate Number"}
                   placeholder="e.g. ROC-2022-00123"
                   value={data.certificateNo}
                   onChangeText={(val) => onChange({ certificateNo: val })}
@@ -113,15 +115,39 @@ export function RadioOperatorCertForm({
 
           {isModification && (
             <View style={certStyles.formCol12}>
-              <ValidatedInput
-                label="Modification Due To"
-                placeholder="Reason / Details of certificate amendment"
-                value={data.modificationDueTo}
-                onChangeText={(val) => onChange({ modificationDueTo: val })}
-                error={errors.modificationDueTo}
-                touched={touched.modificationDueTo}
-                required
-              />
+              {isAmateurService ? (
+                <View>
+                  <Text style={certStyles.selectLabel}>Modification Due to*</Text>
+                  <Select
+                    value={data.modificationDueTo}
+                    onValueChange={(val) => onChange({ modificationDueTo: val })}
+                    options={
+                      isLifetimeSupplementary
+                        ? [
+                            { label: "Additional Equipment", value: "Additional Equipment" },
+                            { label: "Deletion of Equipment", value: "Deletion of Equipment" },
+                            { label: "Others", value: "Others" },
+                          ]
+                        : [
+                            { label: "Upgrade of Class of Station", value: "Upgrade of Class of Station" },
+                            { label: "Change of Personal Info", value: "Change of Personal Info" },
+                            { label: "Others", value: "Others" },
+                          ]
+                    }
+                    placeholder="Select reason for modification..."
+                  />
+                </View>
+              ) : (
+                <ValidatedInput
+                  label="Modification Due To"
+                  placeholder="Reason / Details of certificate amendment"
+                  value={data.modificationDueTo}
+                  onChangeText={(val) => onChange({ modificationDueTo: val })}
+                  error={errors.modificationDueTo}
+                  touched={touched.modificationDueTo}
+                  required
+                />
+              )}
             </View>
           )}
         </View>
@@ -147,6 +173,8 @@ export function RadioOperatorCertForm({
               label="Contact Number"
               placeholder="e.g. 09171234567"
               value={data.contactNo}
+              keyboardType="phone-pad"
+              maxLength={13}
               onChangeText={(val) => onChange({ contactNo: val })}
               error={errors.contactNo}
               touched={touched.contactNo}
@@ -178,30 +206,31 @@ export function RadioOperatorCertForm({
         </View>
       </View>
 
-      {/* Employment & Physical Attributes (Commercial ROC) */}
+      {/* Employment Status Section (after Address) - Hidden for Amateur Service */}
       {!isAmateurService && (
         <View style={certStyles.formSection}>
-          <Text style={certStyles.formSectionHeading}>Employment & Qualifications</Text>
+          <Text style={certStyles.formSectionHeading}>Employment Status</Text>
           <View style={certStyles.formGrid}>
             <View style={certStyles.formCol6}>
-              <Text style={certStyles.selectLabel}>Employment Status</Text>
+              <Text style={certStyles.selectLabel}>Status*</Text>
               <Select
                 value={data.employmentStatus}
                 onValueChange={(val) => onChange({ employmentStatus: val })}
                 options={[
                   { label: "Employed", value: "Employed" },
-                  { label: "Self-Employed", value: "Self-Employed" },
                   { label: "Unemployed", value: "Unemployed" },
-                  { label: "Student", value: "Student" },
                 ]}
               />
             </View>
             <View style={certStyles.formCol6}>
-              <ValidatedInput
-                label="Employment Location"
-                placeholder="Company / Ship Name & Station"
-                value={data.employmentLocation}
-                onChangeText={(val) => onChange({ employmentLocation: val })}
+              <Text style={certStyles.selectLabel}>Type*</Text>
+              <Select
+                value={data.employmentType}
+                onValueChange={(val) => onChange({ employmentType: val })}
+                options={[
+                  { label: "Local", value: "Local" },
+                  { label: "Foreign", value: "Foreign" },
+                ]}
               />
             </View>
             <View style={certStyles.formCol6}>
@@ -224,30 +253,30 @@ export function RadioOperatorCertForm({
         </View>
       )}
 
-      {/* Exam / Seminar History & Ratings */}
+      {/* Exam / Seminar Details */}
       <View style={certStyles.formSection}>
-        <Text style={certStyles.formSectionHeading}>Exam / Seminar Background</Text>
+        <Text style={certStyles.formSectionHeading}>Exam / Seminar Details</Text>
         <View style={certStyles.formGrid}>
-          <View style={certStyles.formCol6}>
+          <View style={certStyles.formCol12}>
             <ValidatedInput
-              label="Place of Exam / Seminar"
-              placeholder="e.g. NTC Central Office / Online"
+              label="Seminar / Exam Address"
+              placeholder="e.g. NTC Central Office, BIR Road, Diliman, Quezon City"
               value={data.placeOfExamSeminar}
               onChangeText={(val) => onChange({ placeOfExamSeminar: val })}
             />
           </View>
           <View style={certStyles.formCol6}>
             <DatePickerInput
-              label="Exam / Seminar Date"
+              label="Date"
               placeholder="MM/DD/YYYY"
               value={data.examDate}
               onChangeText={(val) => onChange({ examDate: val })}
             />
           </View>
-          <View style={certStyles.formCol12}>
+          <View style={certStyles.formCol6}>
             <ValidatedInput
-              label="Examination Ratings / Remarks"
-              placeholder="Passed Element 1, 2, 3 (Rating: 85%)"
+              label="Rating"
+              placeholder="e.g. 85% or Passed"
               value={data.ratings}
               onChangeText={(val) => onChange({ ratings: val })}
             />

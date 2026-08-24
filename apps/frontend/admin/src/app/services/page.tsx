@@ -33,12 +33,12 @@ function ServicesPageContent() {
   if (p.forbidden) return <PageForbiddenState />;
 
   const allTabs: { key: TabType; label: string }[] = [
-    { key: "services", label: "Services Catalog" },
+    { key: "services", label: "Services" },
     { key: "variants", label: "Service Variants" },
-    { key: "requirements", label: "Master Requirements" },
-    { key: "service-requirements", label: "Checklist Mappings" },
-    { key: "elements", label: "Master Elements" },
-    { key: "variant-elements", label: "Variant Elements" },
+    { key: "requirements", label: "Requirements" },
+    { key: "service-requirements", label: "Requirement Mappings" },
+    { key: "elements", label: "Elements" },
+    { key: "variant-elements", label: "Element Mappings" },
     { key: "notes", label: "Service Notes" },
   ];
 
@@ -47,7 +47,7 @@ function ServicesPageContent() {
       <div className="border-b border-slate-200 dark:border-slate-900 bg-white/80 dark:bg-slate-900/50 backdrop-blur-md px-6 py-5 flex items-center justify-between sticky top-0 z-20 transition-colors duration-200">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
-            <Boxes className="h-5 w-5 text-indigo-500" /> Services Catalog
+            <Boxes className="h-5 w-5 text-indigo-500" /> Services
           </h1>
           <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">Configure service directories, forms, checklists, elements, notes, and document verification rules.</p>
         </div>
@@ -70,17 +70,22 @@ function ServicesPageContent() {
           )}
           {p.activeTab === "requirements" && (
             <Button onClick={() => { p.setEditingReq(null); p.setIsReqModalOpen(true); }} className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs py-1.5 h-auto">
-              <ClipboardList className="h-3.5 w-3.5 mr-1" /> New Catalog Requirement
+              <ClipboardList className="h-3.5 w-3.5 mr-1" /> New Requirement
             </Button>
           )}
           {p.activeTab === "service-requirements" && (
             <Button onClick={() => { p.setEditingMapping(null); p.setIsMappingFormOpen(true); }} className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs py-1.5 h-auto">
-              <Link2 className="h-3.5 w-3.5 mr-1" /> Link Master Requirement
+              <Link2 className="h-3.5 w-3.5 mr-1" /> Link Requirement
             </Button>
           )}
           {p.activeTab === "elements" && (
             <Button onClick={() => { p.setEditingElement(null); p.setIsElementModalOpen(true); }} className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs py-1.5 h-auto">
               <Layers className="h-3.5 w-3.5 mr-1" /> New Element
+            </Button>
+          )}
+          {p.activeTab === "variant-elements" && (
+            <Button onClick={() => { p.setEditingVarElement(null); p.setIsVarElementModalOpen(true); }} className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs py-1.5 h-auto">
+              <Layers className="h-3.5 w-3.5 mr-1" /> Link Element
             </Button>
           )}
           {p.activeTab === "notes" && (
@@ -189,7 +194,8 @@ function ServicesPageContent() {
           onOpenCreateVariant={(svcId) => { p.setEditingVariant(null); p.setMappingServiceId(svcId); p.setIsVariantModalOpen(true); }}
           loadingServiceReqs={p.loadingServiceReqs}
           serviceRequirements={p.serviceRequirements}
-          onEditRequirement={p.handleOpenEditRequirement}
+          onEditMapping={p.handleOpenEditMapping}
+          onToggleMandatory={p.handleToggleMappingRequired}
           onDeleteMapping={p.setDeletingMappingId}
           loadingAllMapped={p.loadingAllMapped}
           pagedFlatMappings={p.pagedFlatMappings}
@@ -281,7 +287,20 @@ function ServicesPageContent() {
       <RequirementCatalogDialog isOpen={p.isReqModalOpen} onClose={() => p.setIsReqModalOpen(false)} onSubmit={p.handleReqSubmit} editingReq={p.editingReq} isSubmitting={p.isReqSubmitting} />
       <MappingDialog isOpen={p.isMappingFormOpen} onClose={() => p.setIsMappingFormOpen(false)} onSubmit={p.handleMappingSubmit} editingMapping={p.editingMapping} isSubmitting={p.isMappingSubmitting} services={p.servicesRaw} allVariants={p.allVariants} availableRequirements={p.requirements} activeTab={p.activeTab} mappingServiceId={p.mappingServiceId} mappingVariantId={p.mappingVariantId} mappingVariants={p.mappingVariants} />
       <ElementDialog isOpen={p.isElementModalOpen} onClose={() => p.setIsElementModalOpen(false)} onSubmit={p.handleElementSubmit} editingElement={p.editingElement} isSubmitting={p.isElementSubmitting} />
-      <VariantElementDialog isOpen={p.isVarElementModalOpen} onClose={() => p.setIsVarElementModalOpen(false)} onSubmit={p.handleVarElementSubmit} editingElement={p.editingVarElement} isSubmitting={p.isVarElementSubmitting} />
+      <VariantElementDialog
+        isOpen={p.isVarElementModalOpen}
+        onClose={() => p.setIsVarElementModalOpen(false)}
+        onSubmit={p.handleVarElementSubmit}
+        editingElement={p.editingVarElement}
+        isSubmitting={p.isVarElementSubmitting}
+        services={p.servicesRaw}
+        allVariants={p.allVariants}
+        availableElements={p.elements}
+        activeTab={p.activeTab}
+        mappingServiceId={p.mappingServiceId}
+        mappingVariantId={p.mappingVariantId}
+        mappingVariants={p.mappingVariants}
+      />
       <NoteDialog isOpen={p.isNoteModalOpen} onClose={() => p.setIsNoteModalOpen(false)} onSubmit={p.handleNoteSubmit} editingNote={p.editingNote} isSubmitting={p.isNoteSubmitting} services={p.servicesForNotes} variants={p.allVariants} />
 
       {/* Action Confirmation Dialogs */}
@@ -305,7 +324,7 @@ export default function ServicesPage() {
       fallback={
         <div className="p-12 text-center text-slate-400 flex items-center justify-center gap-2">
           <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
-          <span>Loading Services Catalog...</span>
+          <span>Loading Services...</span>
         </div>
       }
     >

@@ -14,6 +14,10 @@ public class GetFieldOfficesByTenantQueryHandler(
         CancellationToken cancellationToken)
     {
         var fieldOffices = await fieldOfficeRepository.GetByTenantIdAsync(request.TenantId, cancellationToken);
+        if (request.IsActive.HasValue)
+        {
+            fieldOffices = fieldOffices.Where(f => f.IsActive == request.IsActive.Value).ToList();
+        }
 
         var dtos = fieldOffices.Select(f => new FieldOfficeDto(
             f.Id,

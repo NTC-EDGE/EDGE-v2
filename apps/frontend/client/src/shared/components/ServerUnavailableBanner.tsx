@@ -88,7 +88,7 @@ export function ServerUnavailableBanner() {
               marginTop: 2,
             }}
           >
-            Unable to connect to NTC EDGE API. Automated requests are paused to save resources.
+            Unable to connect to NTC EDGE Server. Automated requests are paused to save resources.
           </Text>
         </View>
       </View>

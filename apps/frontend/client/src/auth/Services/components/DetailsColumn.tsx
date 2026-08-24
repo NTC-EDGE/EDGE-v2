@@ -46,6 +46,8 @@ export function DetailsColumn({ servicesState }: DetailsColumnProps) {
     setSelectedRegionId,
     selectedOfficeId,
     setSelectedOfficeId,
+    selectedScheduleId,
+    setSelectedScheduleId,
     appMode,
     setAppMode,
     bulkMethod,
@@ -85,17 +87,34 @@ export function DetailsColumn({ servicesState }: DetailsColumnProps) {
   const isWizardActive = activeWizardService !== null;
 
   const handleClose = () => {
-    setActiveWizardService(null);
-    setIsDetailsExpanded(false);
-    resetWizardState();
+    if (isWizardActive) {
+      confirmSwitchService(() => {
+        setActiveWizardService(null);
+        setIsDetailsExpanded(false);
+        resetWizardState();
+      });
+    } else {
+      setActiveWizardService(null);
+      setIsDetailsExpanded(false);
+      resetWizardState();
+    }
   };
 
   const handleSuccess = () => {
+    servicesState.removeActiveDraftOnSubmit();
     setActiveWizardService(null);
     setIsDetailsExpanded(false);
     setSelectedService(null);
     resetWizardState();
     navigation.navigate("MyApplications");
+  };
+
+  const handleApplyMore = () => {
+    servicesState.removeActiveDraftOnSubmit();
+    setActiveWizardService(null);
+    setIsDetailsExpanded(false);
+    setSelectedService(null);
+    resetWizardState();
   };
 
   return (
@@ -132,6 +151,8 @@ export function DetailsColumn({ servicesState }: DetailsColumnProps) {
             currentApplicantIndex={currentApplicantIndex}
             setCurrentApplicantIndex={setCurrentApplicantIndex}
             serviceId={selectedService?.id}
+            onSaveDraft={servicesState.saveActiveAsDraft}
+            isSavingDraft={servicesState.isSavingDraft}
           />
         ) : activeWizardService === "radio-operator-exam" ? (
           <ExamFilingWizard
@@ -161,6 +182,8 @@ export function DetailsColumn({ servicesState }: DetailsColumnProps) {
             setIsBulkSubmitOpen={setIsBulkSubmitOpen}
             serviceId={selectedService?.id}
             serviceName={selectedService?.title}
+            onSaveDraft={servicesState.saveActiveAsDraft}
+            isSavingDraft={servicesState.isSavingDraft}
           />
         ) : activeWizardService === "general-service" &&
           selectedService !== null ? (
@@ -168,6 +191,7 @@ export function DetailsColumn({ servicesState }: DetailsColumnProps) {
             service={selectedService}
             onClose={handleClose}
             onSuccess={handleSuccess}
+            onApplyMore={handleApplyMore}
             isDetailsExpanded={isDetailsExpanded}
             onToggleExpand={() => setIsDetailsExpanded((prev) => !prev)}
             step={wizardStep}
@@ -176,6 +200,8 @@ export function DetailsColumn({ servicesState }: DetailsColumnProps) {
             setSelectedRegionId={setSelectedRegionId}
             selectedOfficeId={selectedOfficeId}
             setSelectedOfficeId={setSelectedOfficeId}
+            selectedScheduleId={selectedScheduleId}
+            setSelectedScheduleId={setSelectedScheduleId}
             appMode={appMode}
             setAppMode={setAppMode}
             applicants={generalApplicants}
@@ -183,20 +209,16 @@ export function DetailsColumn({ servicesState }: DetailsColumnProps) {
             currentApplicantIndex={currentGeneralApplicantIndex}
             setCurrentApplicantIndex={setCurrentGeneralApplicantIndex}
             triggerOpenApplicant={servicesState.triggerOpenApplicant}
+            triggerBulkSubmit={servicesState.triggerBulkSubmit}
+            onSaveDraft={servicesState.saveActiveAsDraft}
+            isSavingDraft={servicesState.isSavingDraft}
           />
         ) : selectedService !== null ? (
           <ServiceDetails
             selectedService={selectedService}
             onBackToServices={handleBackToServices}
             onApplyPress={() => {
-              const title = (selectedService.title || "").toUpperCase();
-              if (title.includes("CUSTOMER PREMISES") || title.includes("CPE")) {
-                setActiveWizardService("cpe-accreditation");
-              } else if (title.includes("EXAMINATION") || title.includes("EXAM") || title.includes("ADMISSION SLIP")) {
-                setActiveWizardService("radio-operator-exam");
-              } else {
-                setActiveWizardService("general-service");
-              }
+              setActiveWizardService("general-service");
             }}
             isMobile={isMobile}
           />

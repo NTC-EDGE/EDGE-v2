@@ -30,6 +30,7 @@ interface SelectProps {
   error?: string;
   style?: ViewStyle;
   iconName?: LucideIconName;
+  required?: boolean;
 }
 
 export function Select({
@@ -42,10 +43,13 @@ export function Select({
   error,
   style,
   iconName,
+  required,
 }: SelectProps) {
   const [modalVisible, setModalVisible] = useState(false);
 
-  const selectedOption = options.find((opt) => opt.value === value);
+  const selectedOption = options.find(
+    (opt) => opt.value === value || (value !== undefined && value !== "" && opt.label.toLowerCase() === value.toLowerCase())
+  );
 
   const handleSelect = (val: string) => {
     onValueChange(val);
@@ -65,7 +69,10 @@ export function Select({
     return (
       <View style={[styles.container, style]}>
         {label !== undefined && label.length > 0 ? (
-          <Text style={styles.label}>{label}</Text>
+          <Text style={styles.label}>
+            {label}
+            {required && <Text style={{ color: '#EF4444', fontWeight: '800' }}> *</Text>}
+          </Text>
         ) : null}
 
         <View style={styles.selectWrapper}>
@@ -75,7 +82,7 @@ export function Select({
             </View>
           ) : null}
           <select
-            value={value || ''}
+            value={selectedOption ? selectedOption.value : (value || '')}
             onChange={(e) => onValueChange(e.target.value)}
             style={{
               width: '100%',
@@ -99,9 +106,9 @@ export function Select({
             <option value="" disabled style={{ color: '#94A3B8', backgroundColor: '#FFFFFF' }}>
               {options.length === 0 ? emptyText : placeholder}
             </option>
-            {options.map((opt) => (
+            {options.map((opt, idx) => (
               <option
-                key={opt.value}
+                key={`${opt.value}-${idx}`}
                 value={opt.value}
                 style={{
                   color: '#0F172A',
@@ -129,7 +136,10 @@ export function Select({
   return (
     <View style={[styles.container, style]}>
       {label !== undefined && label.length > 0 ? (
-        <Text style={styles.label}>{label}</Text>
+        <Text style={styles.label}>
+          {label}
+          {required && <Text style={{ color: '#EF4444', fontWeight: '800' }}> *</Text>}
+        </Text>
       ) : null}
 
       <TouchableOpacity
@@ -182,7 +192,7 @@ export function Select({
                 {/* Mobile FlatList capped at max 10 visible options (~400px height) */}
                 <FlatList
                   data={options}
-                  keyExtractor={(item) => item.value}
+                  keyExtractor={(item, index) => `${item.value}-${index}`}
                   showsVerticalScrollIndicator={true}
                   ListEmptyComponent={
                     <View style={{ padding: 28, alignItems: 'center', justifyContent: 'center' }}>

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useUser } from "@clerk/expo";
 import { useApi } from "../../../../../shared/hooks/useApi";
 import { ExamApplicantData, ScheduleItem } from "../types/examTypes";
+import { extractUserProfile } from "../../../../../shared/utils/userProfileHelper";
 
 interface UseExamFilingQueriesProps {
   serviceId?: string | null;
@@ -41,33 +42,105 @@ export function useExamFilingQueries({
   const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
   const [loadingSchedules, setLoadingSchedules] = useState(false);
 
-  // Clerk auto-fill
+  // Comprehensive Profile auto-fill (once on auth/mount)
+  const hasPrefilledExamProfileRef = React.useRef(false);
   React.useEffect(() => {
-    if (clerkUser && applicants.length === 1) {
-      const firstApp = applicants[0];
-      if (firstApp && firstApp.firstName === "" && firstApp.lastName === "" && firstApp.email === "") {
-        const firstName = clerkUser.firstName || "";
-        const lastName = clerkUser.lastName || "";
-        const email = clerkUser.primaryEmailAddress?.emailAddress || "";
-        const phone = clerkUser.primaryPhoneNumber?.phoneNumber || "";
+    let active = true;
+    async function prefillExamApplicant() {
+      if (!clerkUser || applicants.length !== 1 || hasPrefilledExamProfileRef.current) return;
 
-        setApplicants(prev => prev.map((app, idx) => idx === 0 ? {
-          ...app,
-          firstName,
-          lastName,
-          email,
-          contactNo: phone,
-        } : app));
+      // 1. Initial prefill from local storage / Clerk metadata
+      const initialProfile = extractUserProfile(clerkUser, null);
+      setApplicants((prev) =>
+        prev.map((app, idx) =>
+          idx === 0
+            ? {
+                ...app,
+                firstName: app.firstName || initialProfile.firstName,
+                lastName: app.lastName || initialProfile.lastName,
+                middleName: app.middleName || initialProfile.middleName,
+                suffix: app.suffix || initialProfile.suffix,
+                email: app.email || initialProfile.email,
+                contactNo: app.contactNo || initialProfile.phone,
+                sex: app.sex && app.sex !== "Male" ? app.sex : (initialProfile.sex || "Male"),
+                nationality: app.nationality || initialProfile.nationality || "Filipino",
+                schoolName: app.schoolName || initialProfile.schoolAttended,
+                courseDegree: app.courseDegree || initialProfile.courseTaken,
+                yearGraduated: app.yearGraduated || initialProfile.yearGraduated,
+                street: app.street || initialProfile.street,
+                barangay: app.barangay || initialProfile.barangay,
+                city: app.city || initialProfile.city,
+                province: app.province || initialProfile.province,
+                regionName: app.regionName || initialProfile.region,
+                zipCode: app.zipCode || initialProfile.zipCode,
+                birthYear: app.birthYear && app.birthYear !== "2000" ? app.birthYear : initialProfile.birthYear,
+                birthMonth: app.birthMonth && app.birthMonth !== "January" ? app.birthMonth : initialProfile.birthMonth,
+                birthDay: app.birthDay && app.birthDay !== "1" ? app.birthDay : initialProfile.birthDay,
+              }
+            : app
+        )
+      );
+
+      // 2. Enrich from backend database /api/v2/users/profile
+      try {
+        const dbRes = await api.get<any>("/api/v2/users/profile").catch((err) => {
+          console.warn("[ExamFilingQueries] Notice: Backend profile fetch failed or returned non-200. Using Clerk/local profile fallbacks.", err);
+          return null;
+        });
+        if (!active || !dbRes) return;
+        const dbUser = dbRes.data || dbRes;
+        if (!dbUser) return;
+
+        const enriched = extractUserProfile(clerkUser, dbUser);
+        setApplicants((prev) =>
+          prev.map((app, idx) =>
+            idx === 0
+              ? {
+                  ...app,
+                  firstName: app.firstName || enriched.firstName,
+                  lastName: app.lastName || enriched.lastName,
+                  middleName: app.middleName || enriched.middleName,
+                  suffix: app.suffix || enriched.suffix,
+                  email: app.email || enriched.email,
+                  contactNo: app.contactNo || enriched.phone,
+                  sex: app.sex && app.sex !== "Male" ? app.sex : (enriched.sex || "Male"),
+                  nationality: app.nationality || enriched.nationality || "Filipino",
+                  schoolName: app.schoolName || enriched.schoolAttended,
+                  courseDegree: app.courseDegree || enriched.courseTaken,
+                  yearGraduated: app.yearGraduated || enriched.yearGraduated,
+                  street: app.street || enriched.street,
+                  barangay: app.barangay || enriched.barangay,
+                  city: app.city || enriched.city,
+                  province: app.province || enriched.province,
+                  regionName: app.regionName || enriched.region,
+                  zipCode: app.zipCode || enriched.zipCode,
+                  birthYear: app.birthYear && app.birthYear !== "2000" ? app.birthYear : enriched.birthYear,
+                  birthMonth: app.birthMonth && app.birthMonth !== "January" ? app.birthMonth : enriched.birthMonth,
+                  birthDay: app.birthDay && app.birthDay !== "1" ? app.birthDay : enriched.birthDay,
+                }
+              : app
+          )
+        );
+        hasPrefilledExamProfileRef.current = true;
+      } catch (err) {
+        console.warn("[ExamFilingQueries] Failed to process backend profile data:", err);
       }
     }
-  }, [clerkUser, applicants, setApplicants]);
+
+    prefillExamApplicant();
+    return () => {
+      active = false;
+    };
+  }, [clerkUser]);
 
   // Fetch tenants
+  const hasFetchedExamTenantsRef = React.useRef(false);
   React.useEffect(() => {
+    if (hasFetchedExamTenantsRef.current) return;
     async function fetchTenants() {
       setLoadingTenants(true);
       try {
-        const res = await api.get<ApiResponseEnvelope<Array<{ id: string; name: string }>> | Array<{ id: string; name: string }>>('/api/v2/tenants?pageSize=100');
+        const res = await api.get<ApiResponseEnvelope<Array<{ id: string; name: string }>> | Array<{ id: string; name: string }>>('/api/v2/tenants?pageSize=100&isActive=true');
         let list: Array<{ id: string; name: string }> = [];
         if (res && !Array.isArray(res) && res.succeeded && Array.isArray(res.data)) {
           list = res.data;
@@ -80,6 +153,7 @@ export function useExamFilingQueries({
         if (list.length > 0 && !selectedRegionId) {
           setSelectedRegionId(list[0].id);
         }
+        hasFetchedExamTenantsRef.current = true;
       } catch (err) {
         console.error("Failed to fetch tenants from API:", err);
         setTenants([]);
@@ -88,7 +162,7 @@ export function useExamFilingQueries({
       }
     }
     fetchTenants();
-  }, [selectedRegionId, setSelectedRegionId]);
+  }, []);
 
   // Fetch offices
   React.useEffect(() => {
@@ -100,7 +174,7 @@ export function useExamFilingQueries({
       }
       setLoadingOffices(true);
       try {
-        const res = await api.get<ApiResponseEnvelope<Array<{ id: string; name: string }>> | Array<{ id: string; name: string }>>(`/api/v2/tenants/${selectedRegionId}/field-offices`);
+        const res = await api.get<ApiResponseEnvelope<Array<{ id: string; name: string }>> | Array<{ id: string; name: string }>>(`/api/v2/tenants/${selectedRegionId}/field-offices?isActive=true`);
         let list: Array<{ id: string; name: string }> = [];
         if (res && !Array.isArray(res) && res.succeeded && Array.isArray(res.data)) {
           list = res.data;
@@ -135,17 +209,30 @@ export function useExamFilingQueries({
       }
       setLoadingSchedules(true);
       try {
-        const currentDateIso = new Date().toISOString();
         const data = await api.get<any>(
-          `/api/v2/schedules/client-view?serviceId=${serviceId}&tenantId=${selectedRegionId}&date=${currentDateIso}`
-        );
-        const rawItems = Array.isArray(data) ? data : (data.items || data.data || []);
+          `/api/v2/schedules/client-view?serviceId=${serviceId}&tenantId=${selectedRegionId}&pageSize=50`
+        ).catch(async () => {
+          // Fallback to general schedules query if client-view has specific window filtering
+          return await api.get<any>(
+            `/api/v2/schedules?serviceId=${serviceId}&tenantId=${selectedRegionId}&pageSize=50`
+          ).catch(() => null);
+        });
+
+        if (!data) {
+          setSchedules([]);
+          return;
+        }
+
+        const rawItems = Array.isArray(data)
+          ? data
+          : (data.items || data.data || []);
+
         const mappedSchedules: ScheduleItem[] = rawItems.map((item: any) => {
           if (item.scheduledDate && item.startTime && item.endTime) {
             return item;
           }
-          const startD = new Date(item.startDate);
-          const endD = new Date(item.endDate);
+          const startD = item.startDate ? new Date(item.startDate) : new Date();
+          const endD = item.endDate ? new Date(item.endDate) : new Date();
           const scheduledDate = startD.toLocaleDateString("en-US", {
             year: "numeric",
             month: "long",
@@ -166,13 +253,13 @@ export function useExamFilingQueries({
             scheduledDate,
             startTime,
             endTime,
-            venue: item.venue,
+            venue: item.venue || "NTC Regional Examination Center",
             maximumSlots: item.maximumSlots,
           };
         });
         setSchedules(mappedSchedules);
       } catch (err) {
-        console.error("Failed to fetch schedules:", err);
+        console.warn("[ExamFilingQueries] Failed to fetch exam schedules:", err);
         setSchedules([]);
       } finally {
         setLoadingSchedules(false);
@@ -182,20 +269,31 @@ export function useExamFilingQueries({
   }, [selectedRegionId, selectedOfficeId, serviceId]);
 
   // Variants API Query
-  const { data: variantsResponse } = api.useQuery<{ succeeded: boolean; data: any[] }>(
-    serviceId ? `/api/v2/services/${serviceId}/variants` : null
+  const { data: variantsResponse } = api.useQuery<{ succeeded?: boolean; data?: any[]; items?: any[] } | any[]>(
+    serviceId ? `/api/v2/services/${serviceId}/variants?pageSize=100` : null
   );
-  const variants = variantsResponse?.succeeded ? variantsResponse.data : [];
+  const variants = Array.isArray(variantsResponse)
+    ? variantsResponse
+    : Array.isArray(variantsResponse?.data)
+    ? variantsResponse.data
+    : Array.isArray(variantsResponse?.items)
+    ? variantsResponse.items
+    : [];
 
   // Elements API Query
   const activeApplicant = applicants[currentApplicantIndex];
   const selectedVariantId = activeApplicant?.selectedVariantId;
-  const { data: elementsResponse } = api.useQuery<any[]>(
-    selectedVariantId ? `/api/v2/service-variant-elements?serviceVariantId=${selectedVariantId}` : null
+  const { data: elementsResponse } = api.useQuery<{ succeeded?: boolean; data?: any[]; items?: any[] } | any[]>(
+    selectedVariantId ? `/api/v2/service-variant-elements?serviceVariantId=${selectedVariantId}&pageSize=100` : null
   );
-  const rawElements = Array.isArray(elementsResponse) ? elementsResponse : [];
-  // Deduplicate by element id — the backend may return the same element linked
-  // to multiple variants (e.g. "Proof of Rating" appears across Retaker/Upgrader rows)
+  const rawElements = Array.isArray(elementsResponse)
+    ? elementsResponse
+    : Array.isArray(elementsResponse?.data)
+    ? elementsResponse.data
+    : Array.isArray(elementsResponse?.items)
+    ? elementsResponse.items
+    : [];
+
   const seen = new Set<string>();
   const variantElements = rawElements.filter((elem) => {
     const key = typeof elem.id === "string" ? elem.id : String(elem.id);
@@ -203,13 +301,19 @@ export function useExamFilingQueries({
     seen.add(key);
     return true;
   });
-  const isLoadingElements = !!selectedVariantId && elementsResponse === undefined;
+  const isLoadingElements = selectedVariantId !== undefined && selectedVariantId !== "" && elementsResponse === undefined;
 
   // Requirements API Query
-  const { data: requirementsResponse } = api.useQuery<{ succeeded: boolean; data: any[] }>(
-    serviceId && selectedVariantId ? `/api/v2/services/${serviceId}/requirements?variantId=${selectedVariantId}` : null
+  const { data: requirementsResponse } = api.useQuery<{ succeeded?: boolean; data?: any[]; items?: any[] } | any[]>(
+    serviceId && selectedVariantId ? `/api/v2/services/${serviceId}/requirements?variantId=${selectedVariantId}&pageSize=100` : null
   );
-  const dbRequirements = requirementsResponse?.succeeded ? requirementsResponse.data : [];
+  const dbRequirements = Array.isArray(requirementsResponse)
+    ? requirementsResponse
+    : Array.isArray(requirementsResponse?.data)
+    ? requirementsResponse.data
+    : Array.isArray(requirementsResponse?.items)
+    ? requirementsResponse.items
+    : [];
 
   return {
     formFields,

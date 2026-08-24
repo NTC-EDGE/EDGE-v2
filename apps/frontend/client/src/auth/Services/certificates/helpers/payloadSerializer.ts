@@ -1,6 +1,160 @@
 import { NTCService } from "../../data/servicesData";
 import { GeneralApplicantData } from "../../shared/hooks/useGeneralServiceWizard";
 
+/**
+ * Static GUID registry — mirrors FastTrackSeederData.cs GetFieldsPool().
+ * Keys are lowercase field-label slugs used by addField().
+ * Values are the exact database GUIDs seeded at startup.
+ *
+ * When adding a new form field to the seeder, add a matching entry here
+ * so that the serializer can resolve it without a live DB lookup.
+ */
+const FIELD_GUID_MAP: Record<string, string> = {
+  // Core personal / applicant (fd000000-0000-0000-0000-0000000001xx)
+  "full name / company name": "fd000000-0000-0000-0000-000000000001",
+  "full name":                "fd000000-0000-0000-0000-000000000001",
+  "birth date":               "fd000000-0000-0000-0000-000000000002",
+  "address":                  "fd000000-0000-0000-0000-000000000003",
+  "contact number":           "fd000000-0000-0000-0000-000000000004",
+  "email address":            "fd000000-0000-0000-0000-000000000005",
+  "education / school attended": "fd000000-0000-0000-0000-000000000006",
+
+  // NTC 1-01 exam
+  "exam category":            "fd000000-0000-0000-0000-000000000007",
+  "examinee type":            "fd000000-0000-0000-0000-000000000008",
+  "selected exam elements":   "fd000000-0000-0000-0000-000000000009",
+  "special assistance details": "fd000000-0000-0000-0000-000000000010",
+  "admission slip number":    "fd000000-0000-0000-0000-000000000011",
+
+  // Core declarations & payment
+  "applicant signature":      "fd000000-0000-0000-0000-000000000012",
+  "i hereby declare":         "fd000000-0000-0000-0000-000000000013",
+  "official receipt (or) number": "fd000000-0000-0000-0000-000000000021",
+  "amount paid":              "fd000000-0000-0000-0000-000000000022",
+  "payment date":             "fd000000-0000-0000-0000-000000000023",
+
+  // NTC 1-02 certificate specific
+  "type of certificate":      "fd000000-0000-0000-0000-000000000014",
+  "weight (kg)":              "fd000000-0000-0000-0000-000000000015",
+  "height (cm)":              "fd000000-0000-0000-0000-000000000016",
+  "employment status":        "fd000000-0000-0000-0000-000000000017",
+  "employment location":      "fd000000-0000-0000-0000-000000000018",
+  "exam / seminar details":   "fd000000-0000-0000-0000-000000000019",
+
+  // Permit / license / station
+  "permit / license type":    "fd000000-0000-0000-0000-000000000024",
+  "class of station":         "fd000000-0000-0000-0000-000000000025",
+  "amateur club details":     "fd000000-0000-0000-0000-000000000026",
+  "registration type":        "fd000000-0000-0000-0000-000000000045",
+
+  // Technical vessel & station & equipment
+  "vessel name":              "fd000000-0000-0000-0000-000000000027",
+  "call sign":                "fd000000-0000-0000-0000-000000000028",
+  "imo number / gross tonnage": "fd000000-0000-0000-0000-000000000029",
+  "equipment technical details": "fd000000-0000-0000-0000-000000000030",
+  "radio officers details":   "fd000000-0000-0000-0000-000000000031",
+  "station location / coordinates": "fd000000-0000-0000-0000-000000000032",
+  "antenna technical details": "fd000000-0000-0000-0000-000000000033",
+
+  // Accreditations & regs
+  "ece / technician personnel details": "fd000000-0000-0000-0000-000000000034",
+  "registered devices details": "fd000000-0000-0000-0000-000000000035",
+  "value-added services / category": "fd000000-0000-0000-0000-000000000036",
+  "circumstances / reason for duplicate": "fd000000-0000-0000-0000-000000000037",
+  "tvro / catv receiver & satellite details": "fd000000-0000-0000-0000-000000000038",
+
+  // NTC 1-09 permit fields
+  "station class":            "fd000000-0000-0000-0000-000000000101",
+  "service area":             "fd000000-0000-0000-0000-000000000102",
+  "frequency / frequencies":  "fd000000-0000-0000-0000-000000000103",
+  "bandwidth":                "fd000000-0000-0000-0000-000000000104",
+  "emission":                 "fd000000-0000-0000-0000-000000000105",
+  "power output":             "fd000000-0000-0000-0000-000000000106",
+  "hours of operation":       "fd000000-0000-0000-0000-000000000107",
+  "configuration":            "fd000000-0000-0000-0000-000000000108",
+  "data rate":                "fd000000-0000-0000-0000-000000000109",
+  "remarks":                  "fd000000-0000-0000-0000-000000000110",
+  "serial number":            "fd000000-0000-0000-0000-000000000111",
+  "frequency range":          "fd000000-0000-0000-0000-000000000112",
+  "antenna type":             "fd000000-0000-0000-0000-000000000113",
+  "antenna height":           "fd000000-0000-0000-0000-000000000114",
+  "antenna gain":             "fd000000-0000-0000-0000-000000000115",
+  "antenna directivity":      "fd000000-0000-0000-0000-000000000116",
+  "antenna diameter":         "fd000000-0000-0000-0000-000000000117",
+  "antenna polarization":     "fd000000-0000-0000-0000-000000000118",
+  "antenna beamwidth":        "fd000000-0000-0000-0000-000000000119",
+  "dealer name":              "fd000000-0000-0000-0000-000000000120",
+  "authorized seller / buyer": "fd000000-0000-0000-0000-000000000121",
+  "or / invoice no":          "fd000000-0000-0000-0000-000000000122",
+  "permit / rsl no":          "fd000000-0000-0000-0000-000000000123",
+  "seller address":           "fd000000-0000-0000-0000-000000000124",
+  "amateur license no":       "fd000000-0000-0000-0000-000000000125",
+  "intended use type":        "fd000000-0000-0000-0000-000000000126",
+  "specify details":          "fd000000-0000-0000-0000-000000000127",
+
+  // NTC_AMA_LICENSES — Amateur Radio Station License specific
+  "application type":         "fd000000-0000-0000-0000-000000000200",
+  "number of years":          "fd000000-0000-0000-0000-000000000201",
+  "existing license no":      "fd000000-0000-0000-0000-000000000202",
+  "license expiry date":      "fd000000-0000-0000-0000-000000000203",
+  "modification due to":      "fd000000-0000-0000-0000-000000000204",
+  "place of exam / seminar":  "fd000000-0000-0000-0000-000000000205",
+  "date of exam / seminar":   "fd000000-0000-0000-0000-000000000206",
+  "ratings / exam score details": "fd000000-0000-0000-0000-000000000207",
+  "particulars of radio equipment (json)": "fd000000-0000-0000-0000-000000000208",
+  "station location / installation address": "fd000000-0000-0000-0000-000000000209",
+  "middle name":              "fd000000-0000-0000-0000-000000000210",
+  "suffix":                   "fd000000-0000-0000-0000-000000000211",
+
+  // Company & Corporate Applicant Fields (NTC 1-19 and generic company filings)
+  "company / business name":  "fd000000-0000-0000-0000-000000000081",
+  "company name":             "fd000000-0000-0000-0000-000000000081",
+  "company / corporation name": "fd000000-0000-0000-0000-000000000081",
+  "authorized representative name": "fd000000-0000-0000-0000-000000000082",
+  "representative name":      "fd000000-0000-0000-0000-000000000082",
+  "representative":           "fd000000-0000-0000-0000-000000000082",
+  "designation / position":   "fd000000-0000-0000-0000-000000000083",
+  "representative position":  "fd000000-0000-0000-0000-000000000083",
+  "position":                 "fd000000-0000-0000-0000-000000000083",
+  "make / type / model":      "fd000000-0000-0000-0000-000000000084",
+  "make/type/ model":         "fd000000-0000-0000-0000-000000000084",
+  "device / equipment type":  "fd000000-0000-0000-0000-000000000085",
+  "device type":              "fd000000-0000-0000-0000-000000000085",
+  "sec / dti registration number": "fd000000-0000-0000-0000-000000000086",
+  "sec/dti no":               "fd000000-0000-0000-0000-000000000086",
+  "serial number(s)":         "fd000000-0000-0000-0000-000000000087",
+  "serial no.":               "fd000000-0000-0000-0000-000000000087",
+  "serial no":                "fd000000-0000-0000-0000-000000000087",
+};
+
+/**
+ * Resolves a field ID by checking:
+ * 1. The static GUID registry (exact or partial key match)
+ * 2. The live formFields array returned by the API
+ * Guarantees a real GUID is always returned when the field is registered in the seeder.
+ */
+function resolveFieldId(label: string, formFields: Array<{ label?: string; fieldId?: string }>): string {
+  const lowerLabel = label.toLowerCase();
+
+  // 1. Exact match in static map
+  const exactId = FIELD_GUID_MAP[lowerLabel];
+  if (exactId !== undefined) return exactId;
+
+  // 2. Partial match in static map (label contains a known key)
+  for (const [key, id] of Object.entries(FIELD_GUID_MAP)) {
+    if (lowerLabel.includes(key) || key.includes(lowerLabel)) return id;
+  }
+
+  // 3. Fallback to live formFields from API
+  const matched = formFields.find(
+    (f) => (f.label ?? "").toLowerCase().includes(lowerLabel)
+  );
+  if (matched !== undefined && matched.fieldId !== undefined) return matched.fieldId;
+
+  // 4. Last resort — generate a deterministic slug (will be rejected by backend if form is DB-backed)
+  return `f-${lowerLabel.replace(/\s+/g, "-")}`;
+}
+
 export interface FormFieldValuePayload {
   fieldId: string;
   fieldLabel?: string;
@@ -20,7 +174,7 @@ export interface SerializedApplicantPayload {
 export function serializeCertificateApplicant(
   app: GeneralApplicantData,
   service: NTCService,
-  formFields: any[] = []
+  formFields: Array<{ label?: string; fieldId?: string }> = []
 ): SerializedApplicantPayload {
   const serviceCode = (service.code || "").toUpperCase();
   const serviceTitle = (service.title || "").toUpperCase();
@@ -41,6 +195,74 @@ export function serializeCertificateApplicant(
   };
 
   const birthDate = `${app.birthYear}-${monthMap[app.birthMonth] || "01"}-${app.birthDay.padStart(2, "0")}`;
+
+  // If the applicant has dynamic form field values, rely on them fully and bypass legacy hardcoded serialization
+  if (app.formFieldValues && app.formFieldValues.length > 0) {
+    const fnFromFields = app.formFieldValues.find(fv => {
+      const l = (fv.fieldLabel || "").toLowerCase();
+      return l.includes("first name") || l === "fname";
+    })?.value?.trim();
+
+    const lnFromFields = app.formFieldValues.find(fv => {
+      const l = (fv.fieldLabel || "").toLowerCase();
+      return l.includes("last name") || l.includes("surname") || l === "lname";
+    })?.value?.trim();
+
+    const fullNameField = app.formFieldValues.find(fv => {
+      const l = (fv.fieldLabel || "").toLowerCase();
+      return l.includes("full name") || l.includes("applicant name") || l === "name" || l.includes("company name");
+    })?.value?.trim() || "";
+
+    const addressField = app.formFieldValues.find(fv => {
+      const l = (fv.fieldLabel || "").toLowerCase();
+      return (l.includes("address") || l.includes("street")) && !l.includes("email");
+    })?.value?.trim() || "";
+
+    const contactNoField = app.formFieldValues.find(fv => {
+      const l = (fv.fieldLabel || "").toLowerCase();
+      return l.includes("contact number") || l.includes("mobile") || l.includes("phone");
+    })?.value?.trim() || "";
+
+    const emailField = app.formFieldValues.find(fv => {
+      const l = (fv.fieldLabel || "").toLowerCase();
+      return l.includes("email");
+    })?.value?.trim() || "";
+
+    let finalFirstName = app.firstName?.trim() || fnFromFields || "";
+    let finalLastName = app.lastName?.trim() || lnFromFields || "";
+
+    if (!finalFirstName && fullNameField) {
+      const parts = fullNameField.split(/\s+/);
+      finalFirstName = parts[0] || "Applicant";
+      finalLastName = parts.slice(1).join(" ") || "Detail";
+    }
+
+    const validFieldIdSet = new Set(
+      formFields.map((f) => f.fieldId).filter((id): id is string => Boolean(id))
+    );
+
+    const filteredFieldValues =
+      validFieldIdSet.size > 0
+        ? app.formFieldValues.filter(
+            (fv) => !fv.fieldId || validFieldIdSet.has(fv.fieldId)
+          )
+        : app.formFieldValues;
+
+    return {
+      firstName: finalFirstName || "Applicant",
+      lastName: finalLastName || "Detail",
+      email: emailField || app.email || "applicant@example.com",
+      contactNumber: contactNoField || app.contactNo || "",
+      address: addressField || app.address || "N/A",
+      birthDate,
+      formFieldValues: filteredFieldValues.map(fv => ({
+        fieldId: fv.fieldId,
+        fieldLabel: fv.fieldLabel,
+        value: fv.value
+      }))
+    };
+  }
+
   const formFieldValues: FormFieldValuePayload[] = [];
 
   // Append dynamic form field values if present
@@ -54,13 +276,10 @@ export function serializeCertificateApplicant(
     });
   }
 
-  // Helper to append field
+  // Helper to append a field — always resolves to a real seeder GUID when available
   const addField = (label: string, val: string) => {
-    const matched = formFields.find(
-      (f) => (f.label || "").toLowerCase().includes(label.toLowerCase())
-    );
     formFieldValues.push({
-      fieldId: matched ? matched.fieldId : `f-${label.toLowerCase().replace(/\s+/g, "-")}`,
+      fieldId: resolveFieldId(label, formFields),
       fieldLabel: label,
       value: val || "N/A",
     });
@@ -299,24 +518,29 @@ export function serializeCertificateApplicant(
   ) {
     const data = app.radioCertData;
     if (data) {
+      const isAmateurServiceCert = serviceCode === "NTC_1_03" || serviceTitle.includes("AMATEUR");
       addField("Application Type", data.appType);
       addField("Number of Years", data.years);
-      addField("Type of Certificate", data.typeOfCertificate || data.classOfStation);
+      if (!isAmateurServiceCert || data.classOfStation) {
+        addField("Type of Certificate", data.typeOfCertificate || data.classOfStation);
+      }
       if (data.appType === "RENEWAL" || data.appType === "MODIFICATION") {
-        addField("Existing Certificate No", data.certificateNo);
+        addField("Certificate Number", data.certificateNo);
         addField("Date of Expiry", data.dateOfExpiry);
       }
       if (data.appType === "MODIFICATION") {
-        addField("Modification Details", data.modificationDueTo);
+        addField("Modification Due To", data.modificationDueTo);
       }
       addField("Applicant Name", data.applicantName || `${app.firstName} ${app.lastName}`);
-      addField("Employment Status", data.employmentStatus);
-      addField("Employment Location", data.employmentLocation);
-      addField("Weight (kg)", data.weightKg);
-      addField("Height (cm)", data.heightCm);
-      addField("Exam Seminar Place", data.placeOfExamSeminar);
-      addField("Exam Seminar Date", data.examDate);
-      addField("Ratings", data.ratings);
+      if (!isAmateurServiceCert) {
+        addField("Employment Status", data.employmentStatus);
+        addField("Employment Location", data.employmentLocation);
+        addField("Weight (kg)", data.weightKg);
+        addField("Height (cm)", data.heightCm);
+      }
+      if (data.placeOfExamSeminar) addField("Exam Seminar Place", data.placeOfExamSeminar);
+      if (data.examDate) addField("Exam Seminar Date", data.examDate);
+      if (data.ratings) addField("Ratings", data.ratings);
 
       return {
         firstName: data.applicantName ? data.applicantName.split(" ")[0] || app.firstName : app.firstName,
@@ -333,22 +557,26 @@ export function serializeCertificateApplicant(
   // 2. RFID, SRD, WDN Devices (NTC 1-19)
   if (serviceCode === "NTC_1_19" || serviceTitle.includes("RFID") || serviceTitle.includes("WDN")) {
     const data = app.deviceRegData;
+    const compName = app.companyName || (data ? data.businessName : "");
+    const repName = app.representativeName || (app.firstName ? `${app.firstName} ${app.lastName}`.trim() : "");
     if (data) {
       addField("Registration Type", data.registrationType);
-      if (data.registrationType === "Non-Dealers") {
-        addField("Commercial Invoice No", data.invoiceNo);
+      if (data.registrationType === "Non-Dealers" || (data.invoiceNo && data.invoiceNo.trim() !== "")) {
+        addField("Invoice Number", data.invoiceNo);
       }
-      addField("Business Name", data.businessName);
+      addField("Company Name", compName || "N/A");
+      addField("Representative Name", repName || "N/A");
+      addField("Business Name", data.businessName || compName);
       addField("Entity Type", data.entityType);
       addField("SEC/DTI No", data.dtiSecNo);
       addField("Device Particulars JSON", JSON.stringify(data.particulars));
 
       return {
-        firstName: data.businessName || app.firstName,
-        lastName: "",
-        email: data.email || app.email,
-        contactNumber: data.contactNo || app.contactNo,
-        address: data.address || app.address,
+        firstName: app.firstName || compName || repName || "Applicant",
+        lastName: app.lastName || "",
+        email: app.email || data.email,
+        contactNumber: app.contactNo || data.contactNo,
+        address: app.address || data.address,
         birthDate: birthDate,
         formFieldValues,
       };
@@ -360,11 +588,15 @@ export function serializeCertificateApplicant(
     const data = app.tvroRegData;
     if (data) {
       addField("Classification", data.classification);
-      addField("Number of Years", data.years);
       addField("Applicant Name", data.applicantName);
+      if (data.serviceArea) addField("Service Area", data.serviceArea);
+      if (data.exactLocation) addField("Exact Location of TVRO System", data.exactLocation);
+      if (data.longitude) addField("Longitude (deg-min-sec)", data.longitude);
+      if (data.latitude) addField("Latitude (deg-min-sec)", data.latitude);
       addField("Particulars of Equipment", JSON.stringify(data.particularsEquipment));
       addField("Particulars of Antenna System", JSON.stringify(data.particularsOfAntennaSystem));
       addField("Particulars of Signal to be Received", JSON.stringify(data.particularsOfSignalToBeReceived));
+      addField("BSD No.", data.bsdNumber || "TO BE ASSIGNED BY NTC");
 
       return {
         firstName: data.applicantName || app.firstName,

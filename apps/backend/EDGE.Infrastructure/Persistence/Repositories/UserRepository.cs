@@ -24,6 +24,7 @@ public class UserRepository : IUserRepository
     public async Task<User?> GetByAuthUserIdAsync(string authUserId, CancellationToken cancellationToken = default)
     {
         return await _context.Users
+            .Include(x => x.CompanyDetail)
             .Include(x => x.TenantMemberships)
                 .ThenInclude(tm => tm.Role)
             .FirstOrDefaultAsync(x => x.AuthUserId == authUserId, cancellationToken);
@@ -37,6 +38,7 @@ public class UserRepository : IUserRepository
     public async Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         return await _context.Users
+            .Include(x => x.CompanyDetail)
             .Include(x => x.TenantMemberships)
                 .ThenInclude(tm => tm.Role)
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
@@ -44,7 +46,15 @@ public class UserRepository : IUserRepository
 
     public async Task<List<User>> GetAllAsync(CancellationToken cancellationToken = default)
     {
-        return await _context.Users.ToListAsync(cancellationToken);
+        return await _context.Users
+            .Include(x => x.TenantMemberships)
+                .ThenInclude(tm => tm.Role)
+            .Include(x => x.TenantMemberships)
+                .ThenInclude(tm => tm.Tenant)
+                    .ThenInclude(t => t.Region)
+            .Include(x => x.TenantMemberships)
+                .ThenInclude(tm => tm.FieldOffice)
+            .ToListAsync(cancellationToken);
     }
 
     public async Task<StaffUserContext> GetStaffUserContextAsync(string? userIdStr, string defaultRole, CancellationToken cancellationToken = default)

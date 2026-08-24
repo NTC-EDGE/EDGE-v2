@@ -178,4 +178,32 @@ export const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: "hidden",
   },
+  categoryDraftBadge: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#EFF6FF",
+    borderColor: "#93C5FD",
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    gap: 4,
+    zIndex: 10,
+    ...Platform.select({
+      web: {
+        cursor: "pointer",
+        transition: "all 150ms ease",
+        boxShadow: "0 2px 6px rgba(29, 78, 216, 0.12)",
+      },
+    }),
+  },
+  categoryDraftBadgeText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#1D4ED8",
+  },
 });

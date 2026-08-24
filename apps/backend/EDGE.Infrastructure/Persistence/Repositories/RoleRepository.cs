@@ -25,7 +25,9 @@ public class RoleRepository : IRoleRepository
 
     public async Task<List<Role>> GetAllByTenantAsync(Guid tenantId, CancellationToken cancellationToken = default)
     {
-        return await _context.Set<Role>().Where(x => x.TenantId == tenantId).ToListAsync(cancellationToken);
+        return await _context.Set<Role>()
+            .Where(x => x.TenantId == tenantId || x.TenantId == null)
+            .ToListAsync(cancellationToken);
     }
 
     public async Task<List<Role>> GetSystemRolesAsync(CancellationToken cancellationToken = default)
@@ -41,6 +43,31 @@ public class RoleRepository : IRoleRepository
     public async Task<List<Role>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         return await _context.Set<Role>().ToListAsync(cancellationToken);
+    }
+
+    public async Task<bool> IsRoleNameUniqueAsync(string name, Guid? tenantId = null, Guid? excludeId = null, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return true;
+
+        var normalizedName = name.Trim().ToLower();
+        var query = _context.Set<Role>().AsQueryable();
+
+        if (excludeId.HasValue)
+        {
+            query = query.Where(r => r.Id != excludeId.Value);
+        }
+
+        if (tenantId.HasValue)
+        {
+            query = query.Where(r => r.TenantId == tenantId.Value || r.TenantId == null || r.IsSystemRole);
+        }
+        else
+        {
+            query = query.Where(r => r.TenantId == null || r.IsSystemRole);
+        }
+
+        return !await query.AnyAsync(r => r.Name.ToLower() == normalizedName, cancellationToken);
     }
 
     public void Delete(Role role)

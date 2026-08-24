@@ -22,10 +22,9 @@ public class CreateServiceVariantRequirementCommandHandler(
         {
             var svr = new ServiceVariantRequirement
             {
+                TenantId = item.TenantId ?? request.TenantId,
                 RequirementId = item.RequirementId,
                 ServiceVariantId = request.ServiceVariantId,
-                ContextKey = item.ContextKey,
-
                 IsRequired = item.IsRequired
             };
 

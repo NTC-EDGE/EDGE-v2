@@ -18,7 +18,8 @@ export function useMyTenantMemberships(
   token: string | null | undefined,
   shouldFetch = true
 ): UseMyTenantMembershipsReturn {
-  const cacheKey = shouldFetch ? ["/api/v2/tenants/my-memberships", token] : null;
+  const isReady = shouldFetch && typeof token === "string" && token.trim().length > 0;
+  const cacheKey = isReady ? ["/api/v2/tenants/my-memberships", token] : null;
 
   const { data, error, isLoading, mutate } = useSWR<TenantRegionMembershipDto[]>(
     cacheKey,
@@ -33,7 +34,7 @@ export function useMyTenantMemberships(
 
   return {
     memberships,
-    isLoading,
+    isLoading: isReady ? isLoading : shouldFetch,
     isError: Boolean(error),
     error,
     refetch: mutate,

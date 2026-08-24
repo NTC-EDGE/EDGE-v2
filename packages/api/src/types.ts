@@ -344,6 +344,53 @@ export interface GlobalSupportUser {
   totalTicketsCount: number;
 }
 
+export interface TenantClientDto {
+  id: string;
+  userId?: string | null;
+  name: string;
+  email: string;
+  organization: string;
+  licenseCategory: string;
+  status: string;
+  applicationCount: number;
+  registeredDate?: string | null;
+}
+
+export interface TenantClientTransactionDto {
+  id: string;
+  refNo: string;
+  type: string;
+  amount: number;
+  status: string;
+  date: string;
+}
+
+export interface TenantClientDetailsDto {
+  id: string;
+  userId?: string | null;
+  name: string;
+  email: string;
+  contactNumber: string;
+  address: string;
+  nationality: string;
+  sex?: string | null;
+  birthDate?: string | null;
+  organization?: string | null;
+  companyRegistrationNumber?: string | null;
+  companyAddress?: string | null;
+  companyEmail?: string | null;
+  companyContactNumber?: string | null;
+  serviceType: string;
+  serviceCode: string;
+  applicationNumber: string;
+  referenceNumber: string;
+  status: string;
+  applicationMode: string;
+  totalApplications: number;
+  registeredDate: string;
+  transactions: TenantClientTransactionDto[];
+}
+
 export interface UserSession {
   id: string;
   userId: string;
@@ -440,6 +487,14 @@ export interface UpdateRoleCommand {
   description?: string | null;
 }
 
+export interface DuplicateRoleCommand {
+  sourceRoleId: string;
+  targetTenantId: string;
+  name: string;
+  key: string;
+  description?: string | null;
+}
+
 export interface Permission {
   id: string;
   code: string;
@@ -530,13 +585,30 @@ export interface ServiceVariantElementFee {
   createdAt?: string;
 }
 
-export interface Note {
+export interface ServiceNote {
   id: string;
   notes: string;
   serviceId: string;
   serviceVariantId?: string | null;
   serviceName?: string | null;
   serviceVariantName?: string | null;
+  createdAt?: string;
+  createdBy?: string | null;
+  lastModifiedAt?: string | null;
+  lastModifiedBy?: string | null;
+}
+
+export type Note = ServiceNote;
+
+export interface SoaNote {
+  id: string;
+  code?: string | null;
+  title?: string | null;
+  notes: string;
+  createdAt?: string;
+  createdBy?: string | null;
+  lastModifiedAt?: string | null;
+  lastModifiedBy?: string | null;
 }
 
 export interface Requirement {
@@ -561,7 +633,6 @@ export interface ServiceVariantRequirement {
   serviceVariantType?: string;
   serviceName?: string;
   serviceCode?: string;
-  contextKey?: string | null;
   isRequired: boolean;
 }
 
@@ -571,7 +642,6 @@ export interface ApplicantRequirementItemDto {
   requirementName: string;
   description?: string | null;
   isRequired: boolean;
-  contextKey?: string | null;
   submittedRequirementId?: string | null;
   storedFileId?: string | null;
   fileName?: string | null;
@@ -992,6 +1062,31 @@ export interface ApplicationDetailDto {
 
 export type ApplicationDto = ApplicationDetailDto;
 export type ApplicationSummaryDto = ApplicationFeedDto;
+
+// ─── Paged Applications & Statistics ────────────────────
+
+export interface ApplicationStatisticsDto {
+  totalCount: number;
+  singleCount: number;
+  bulkCount: number;
+  evaluatingCount: number;
+  approvedCount: number;
+  paymentRequiredCount: number;
+  completedCount: number;
+  returnedCount: number;
+  readyDocumentsCount: number;
+}
+
+export interface PagedApplicationListDto {
+  items: ApplicationSummaryDto[];
+  pageNumber: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
+  statistics?: ApplicationStatisticsDto;
+}
 
 export interface UpdateApplicationStatusRequest {
   status: string;

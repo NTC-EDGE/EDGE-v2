@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { View, Text, TouchableOpacity, Modal, ScrollView, StyleSheet, ActivityIndicator, Alert, Platform } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
 import { Icon } from "@edge/ui";
+import { useToast } from "../../../../shared/components/Toast";
 import { COLORS, TYPOGRAPHY, RADIUS, SHADOWS } from "../../../../shared/theme/tokens";
 import { NTCService } from "../../data/servicesData";
 import { GeneralApplicantData } from "../hooks/useGeneralServiceWizard";
@@ -39,11 +40,13 @@ export function BulkSpreadsheetImportSection({
   const [parseResult, setParseResult] = useState<CsvParseResult | null>(null);
 
   const templateConfig = getSpreadsheetTemplateForService(service);
+  const toast = useToast();
 
   // ── Download Template Handler ───────────────────────────────────────────────
   const handleDownloadTemplate = () => {
     const csvData = generateCsvContent(templateConfig);
     downloadCsvFile(templateConfig.filename, csvData);
+    toast.success("Template Downloaded", `Downloaded ${templateConfig.filename}.`);
   };
 
   // ── File Pick & Parse Handler ───────────────────────────────────────────────
@@ -84,14 +87,14 @@ export function BulkSpreadsheetImportSection({
       }
 
       if (!fileText || fileText.trim().length === 0) {
-        Alert.alert("Empty File", "The selected file is empty. Please upload a valid CSV file.");
+        toast.error("Empty File", "The selected file is empty. Please upload a valid CSV file with applicant data.");
         setLoading(false);
         return;
       }
 
       const result = parseSpreadsheetContent(fileText, service);
       if (result.totalRows === 0) {
-        Alert.alert("No Records Found", "Could not parse applicant rows. Make sure headers match the template.");
+        toast.error("No Records Found", "Could not parse applicant rows. Make sure the header columns match the official template.");
         setLoading(false);
         return;
       }
@@ -99,21 +102,40 @@ export function BulkSpreadsheetImportSection({
       setParseResult(result);
       setIsFileUploaded(true);
       setPreviewModalOpen(true);
+
+      if (result.invalidCount > 0 && result.validCount === 0) {
+        toast.error("Invalid Spreadsheet Data", `All ${result.totalRows} detected row(s) failed validation. Review the errors below.`);
+      } else if (result.invalidCount > 0) {
+        toast.warning("Partial Validation Notice", `Found ${result.validCount} valid row(s) and ${result.invalidCount} invalid row(s). Only valid rows will be imported.`);
+      } else {
+        toast.success("Spreadsheet Parsed", `All ${result.validCount} applicant row(s) are valid and ready to import.`);
+      }
     } catch (err) {
       console.error("Failed to parse spreadsheet:", err);
-      Alert.alert("Import Error", "Failed to parse the uploaded file. Please verify CSV formatting.");
+      toast.error("Import Error", "Failed to parse the uploaded file. Please verify CSV formatting and encoding.");
     } finally {
       setLoading(false);
     }
   };
 
   const handleApplyApplicants = () => {
-    if (parseResult && parseResult.applicants.length > 0) {
-      onApplicantsImported(parseResult.applicants);
-      setPreviewModalOpen(false);
-      Alert.alert(
+    if (!parseResult || parseResult.applicants.length === 0) {
+      toast.error("Cannot Import", "There are no valid applicant entries to import into the filing cohort.");
+      return;
+    }
+
+    onApplicantsImported(parseResult.applicants);
+    setPreviewModalOpen(false);
+
+    if (parseResult.invalidCount > 0) {
+      toast.warning(
+        "Partial Import Completed",
+        `Successfully populated ${parseResult.validCount} valid applicant(s). ${parseResult.invalidCount} row(s) had errors and were skipped.`
+      );
+    } else {
+      toast.success(
         "Import Successful",
-        `Successfully populated ${parseResult.applicants.length} applicant entries into the filing cohort.`
+        `Successfully populated all ${parseResult.validCount} applicant entries into the filing cohort.`
       );
     }
   };

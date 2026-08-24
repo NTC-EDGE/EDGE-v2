@@ -7,7 +7,7 @@ public class Tenant : AuditableEntity
     public string Name { get; set; } = string.Empty;
     public string Code { get; set; } = string.Empty;
     public string? Description { get; set; }
-    public bool IsActive { get; set; } = true;
+    public bool IsActive { get; set; } = false;
     public Guid RegionId { get; set; }
 
     // Navigation property

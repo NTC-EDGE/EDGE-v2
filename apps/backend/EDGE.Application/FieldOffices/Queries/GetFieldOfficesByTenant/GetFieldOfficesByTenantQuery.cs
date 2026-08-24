@@ -4,4 +4,4 @@ using EDGE.Application.FieldOffices.DTOs;
 
 namespace EDGE.Application.FieldOffices.Queries.GetFieldOfficesByTenant;
 
-public record GetFieldOfficesByTenantQuery(Guid TenantId) : IRequest<ApiResponse<List<FieldOfficeDto>>>;
+public record GetFieldOfficesByTenantQuery(Guid TenantId, bool? IsActive = null) : IRequest<ApiResponse<List<FieldOfficeDto>>>;

@@ -57,20 +57,23 @@ public class UpdateApplicationApplicantCommandHandler : IRequestHandler<UpdateAp
             {
                 foreach (var fv in request.FormFieldValues)
                 {
-                    var existingFv = submission.FieldValues.FirstOrDefault(v => v.FieldId == fv.FieldId);
-                    if (existingFv != null)
+                    if (fv.FieldId.HasValue && fv.FieldId.Value != Guid.Empty)
                     {
-                        existingFv.Value = fv.Value;
-                    }
-                    else
-                    {
-                        await _applicationRepository.AddFormFieldValueAsync(new FormFieldValue
+                        var existingFv = submission.FieldValues.FirstOrDefault(v => v.FieldId == fv.FieldId.Value);
+                        if (existingFv != null)
                         {
-                            Id = Guid.NewGuid(),
-                            FormSubmissionId = submission.Id,
-                            FieldId = fv.FieldId,
-                            Value = fv.Value
-                        }, cancellationToken);
+                            existingFv.Value = fv.Value ?? "";
+                        }
+                        else
+                        {
+                            await _applicationRepository.AddFormFieldValueAsync(new FormFieldValue
+                            {
+                                Id = Guid.NewGuid(),
+                                FormSubmissionId = submission.Id,
+                                FieldId = fv.FieldId.Value,
+                                Value = fv.Value ?? ""
+                            }, cancellationToken);
+                        }
                     }
                 }
             }

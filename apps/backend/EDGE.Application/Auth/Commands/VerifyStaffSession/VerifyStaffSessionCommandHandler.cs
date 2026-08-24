@@ -52,13 +52,17 @@ public class VerifyStaffSessionCommandHandler : IRequestHandler<VerifyStaffSessi
         var regionCode = targetRegion?.Code ?? "NCR";
         var regionName = targetRegion?.Name ?? "National Capital Region";
 
-        // 2. Validate tenant regional access against caller context
+        // 2. Validate tenant regional access against caller context and resolve database Tenant
+        var allTenants = await _tenantRepository.GetAllAsync(cancellationToken);
         var callerTenantId = _currentUserService.TenantId;
+        Tenant? resolvedTenant = null;
+
         if (callerTenantId.HasValue)
         {
-            var tenant = await _tenantRepository.GetByIdAsync(callerTenantId.Value, cancellationToken);
+            var tenant = allTenants.FirstOrDefault(t => t.Id == callerTenantId.Value);
             if (tenant != null)
             {
+                resolvedTenant = tenant;
                 var assignedRegion = allRegions.FirstOrDefault(r => r.Id == tenant.RegionId);
                 if (assignedRegion != null)
                 {
@@ -81,6 +85,23 @@ public class VerifyStaffSessionCommandHandler : IRequestHandler<VerifyStaffSessi
                 }
             }
         }
+
+        if (resolvedTenant == null && targetRegion != null)
+        {
+            resolvedTenant = allTenants.FirstOrDefault(t => t.RegionId == targetRegion.Id && t.IsActive)
+                          ?? allTenants.FirstOrDefault(t => t.RegionId == targetRegion.Id);
+        }
+
+        if (resolvedTenant == null)
+        {
+            var defaultTenantId = Guid.Parse("00000000-0000-0000-0000-000000000001");
+            resolvedTenant = allTenants.FirstOrDefault(t => t.Id == defaultTenantId)
+                          ?? allTenants.FirstOrDefault(t => t.IsActive)
+                          ?? allTenants.FirstOrDefault();
+        }
+
+        var finalTenantId = resolvedTenant?.Id ?? Guid.Parse("00000000-0000-0000-0000-000000000001");
+        var finalTenantName = resolvedTenant?.Name ?? $"NTC Regional Office - {regionCode}";
 
         // 3. Fetch real system roles and permission keys from PostgreSQL database
         var systemRoles = await _roleRepository.GetAllAsync(cancellationToken);
@@ -112,8 +133,8 @@ public class VerifyStaffSessionCommandHandler : IRequestHandler<VerifyStaffSessi
         var dto = new VerifyStaffSessionDto(
             UserId: !string.IsNullOrEmpty(rawUserId) && Guid.TryParse(rawUserId, out var uid) ? uid : Guid.NewGuid(),
             Email: "staff@ntc.gov.ph",
-            TenantId: callerTenantId ?? Guid.NewGuid(),
-            TenantName: $"NTC Regional Office - {regionCode}",
+            TenantId: finalTenantId,
+            TenantName: finalTenantName,
             RegionCode: regionCode,
             RegionName: regionName,
             IsAuthorized: true,

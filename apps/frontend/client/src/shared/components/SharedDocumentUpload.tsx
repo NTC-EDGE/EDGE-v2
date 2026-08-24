@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { View, Text, TouchableOpacity, Image, StyleSheet, Alert } from "react-native";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { View, Text, TouchableOpacity, Image, StyleSheet, Alert, Platform } from "react-native";
 import { Icon } from "@edge/ui";
 import { COLORS, TYPOGRAPHY } from "../theme/tokens";
 import * as DocumentPicker from "expo-document-picker";
@@ -11,11 +11,18 @@ export interface DocumentRequirement {
   key: string;       // Unique lookup key in uploads object
   label: string;     // Display label
   required?: boolean;
+  hint?: string;
+  description?: string;
+}
+
+export interface UploadedFile {
+  name: string;
+  uri?: string;
 }
 
 interface SharedDocumentUploadProps {
   requirements: DocumentRequirement[];
-  uploads: Record<string, any>;
+  uploads: Record<string, UploadedFile | string | undefined>;
   onUpload: (key: string, file: { name: string; uri: string }) => void;
   onRemove: (key: string) => void;
   isWeb: boolean;
@@ -23,14 +30,16 @@ interface SharedDocumentUploadProps {
 
 export function SharedDocumentUpload({
   requirements,
-  uploads,
+  uploads = {},
   onUpload,
   onRemove,
   isWeb,
 }: SharedDocumentUploadProps) {
+  const safeUploads = uploads ?? {};
   const [selectedReqIndex, setSelectedReqIndex] = useState(0);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [activeSlotKey, setActiveSlotKey] = useState<string | null>(null);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
 
   const [previewFile, setPreviewFile] = useState<{ name: string; uri?: string } | string | null>(null);
   const [previewLabel, setPreviewLabel] = useState<string>("");
@@ -39,6 +48,113 @@ export function SharedDocumentUpload({
   // Safely clamp selected index in case requirements list changes dynamically
   const activeIndex = Math.max(0, Math.min(selectedReqIndex, requirements.length - 1));
   const activeReq = requirements[activeIndex];
+  const dropzoneRef = useRef<any>(null);
+
+  // Prevent default browser behavior on web (opening dropped files in a new tab)
+  useEffect(() => {
+    if (Platform.OS !== "web" || typeof window === "undefined") return;
+
+    const preventDefaultWindowDrop = (e: DragEvent) => {
+      e.preventDefault();
+    };
+
+    window.addEventListener("dragover", preventDefaultWindowDrop);
+    window.addEventListener("drop", preventDefaultWindowDrop);
+
+    return () => {
+      window.removeEventListener("dragover", preventDefaultWindowDrop);
+      window.removeEventListener("drop", preventDefaultWindowDrop);
+    };
+  }, []);
+
+  const handleFileDrop = useCallback(
+    (files: FileList | File[] | null | undefined, targetKey?: string) => {
+      const slotKey = targetKey || activeReq?.key;
+      if (!slotKey || !files || files.length === 0) return;
+
+      const file = files[0];
+      if (!file) return;
+
+      const fileName = file.name || "uploaded_document";
+      const ext = fileName.toLowerCase().split(".").pop() || "";
+      const validExts = ["pdf", "png", "jpg", "jpeg", "webp"];
+      const isImageOrPdf =
+        (file.type && (file.type.startsWith("image/") || file.type === "application/pdf")) ||
+        validExts.includes(ext);
+
+      if (!isImageOrPdf) {
+        Alert.alert(
+          "Unsupported Format",
+          "Please upload a clear scanned PDF document or image file (PNG, JPEG, WEBP)."
+        );
+        return;
+      }
+
+      const fileUri =
+        typeof URL !== "undefined" && typeof URL.createObjectURL === "function"
+          ? URL.createObjectURL(file)
+          : "";
+
+      onUpload(slotKey, {
+        name: fileName,
+        uri: fileUri,
+      });
+    },
+    [activeReq?.key, onUpload]
+  );
+
+  // Attach native drag and drop listeners to dropzone DOM element on Web
+  useEffect(() => {
+    if (Platform.OS !== "web") return;
+    const el = dropzoneRef.current;
+    if (!el) return;
+
+    const targetNode: HTMLElement | null = el.tagName ? el : el.children?.[0] || null;
+    const target = targetNode || el;
+    if (!target || typeof target.addEventListener !== "function") return;
+
+    const onDragOver = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.dataTransfer) {
+        e.dataTransfer.dropEffect = "copy";
+      }
+      setIsDraggingOver(true);
+    };
+
+    const onDragEnter = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDraggingOver(true);
+    };
+
+    const onDragLeave = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDraggingOver(false);
+    };
+
+    const onDrop = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDraggingOver(false);
+      if (e.dataTransfer && e.dataTransfer.files) {
+        handleFileDrop(e.dataTransfer.files, activeReq?.key);
+      }
+    };
+
+    target.addEventListener("dragover", onDragOver);
+    target.addEventListener("dragenter", onDragEnter);
+    target.addEventListener("dragleave", onDragLeave);
+    target.addEventListener("drop", onDrop);
+
+    return () => {
+      target.removeEventListener("dragover", onDragOver);
+      target.removeEventListener("dragenter", onDragEnter);
+      target.removeEventListener("dragleave", onDragLeave);
+      target.removeEventListener("drop", onDrop);
+    };
+  }, [activeReq?.key, handleFileDrop]);
 
   const triggerUpload = (key: string) => {
     setActiveSlotKey(key);
@@ -99,7 +215,7 @@ export function SharedDocumentUpload({
           {/* Left panel: List of requirements */}
           <View style={styles.leftPanel}>
             {requirements.map((req, i) => {
-              const uploadData = uploads[req.key];
+              const uploadData = safeUploads[req.key];
               const isUploaded = !!uploadData;
               const isSelected = i === activeIndex;
 
@@ -117,7 +233,6 @@ export function SharedDocumentUpload({
                       styles.reqTabText,
                       isSelected && styles.reqTabTextSelected,
                     ]}
-                    numberOfLines={2}
                   >
                     {i + 1}. {req.label}
                     {req.required && <Text style={styles.asterisk}>*</Text>}
@@ -135,7 +250,7 @@ export function SharedDocumentUpload({
           {/* Right panel: Large drag-drop style dropzone & previews */}
           <View style={styles.rightPanel}>
             {activeReq && (() => {
-              const uploadData = uploads[activeReq.key];
+              const uploadData = safeUploads[activeReq.key];
               const fileName = typeof uploadData === "string" ? uploadData : uploadData?.name;
               const fileUri = typeof uploadData === "string" ? "" : uploadData?.uri;
               const isImage = fileUri && (
@@ -145,11 +260,27 @@ export function SharedDocumentUpload({
                 fileUri.startsWith("data:image")
               );
 
+              const extraHint = (activeReq.hint || activeReq.description || "").trim();
+              const isDuplicateHint =
+                !extraHint ||
+                extraHint.toLowerCase() === activeReq.label.toLowerCase() ||
+                activeReq.label.toLowerCase().includes(extraHint.toLowerCase()) ||
+                extraHint.toLowerCase().includes(activeReq.label.toLowerCase());
+
               return (
                 <View style={styles.dropzoneContainer}>
                   <Text style={styles.activeReqTitle}>
                     {activeReq.label}
+                    {activeReq.required && <Text style={styles.asterisk}>*</Text>}
                   </Text>
+                  {!isDuplicateHint && (
+                    <View style={styles.hintContainer}>
+                      <Icon name="info" size={14} color="#1D4ED8" style={{ marginTop: 2, marginRight: 6 }} />
+                      <Text style={styles.hintText}>
+                        {extraHint}
+                      </Text>
+                    </View>
+                  )}
 
                   {uploadData ? (
                     <View style={styles.previewBox}>
@@ -203,15 +334,56 @@ export function SharedDocumentUpload({
                     </View>
                   ) : (
                     <TouchableOpacity
+                      ref={dropzoneRef}
                       onPress={() => triggerUpload(activeReq.key)}
-                      style={styles.dashedDropzone}
+                      style={[
+                        styles.dashedDropzone,
+                        isDraggingOver && styles.dashedDropzoneDragOver,
+                      ]}
+                      activeOpacity={0.85}
+                      {...({
+                        onDragOver: (e: any) => {
+                          if (e?.preventDefault) e.preventDefault();
+                          if (e?.stopPropagation) e.stopPropagation();
+                          if (e?.dataTransfer) e.dataTransfer.dropEffect = "copy";
+                          setIsDraggingOver(true);
+                        },
+                        onDragEnter: (e: any) => {
+                          if (e?.preventDefault) e.preventDefault();
+                          if (e?.stopPropagation) e.stopPropagation();
+                          setIsDraggingOver(true);
+                        },
+                        onDragLeave: (e: any) => {
+                          if (e?.preventDefault) e.preventDefault();
+                          if (e?.stopPropagation) e.stopPropagation();
+                          setIsDraggingOver(false);
+                        },
+                        onDrop: (e: any) => {
+                          if (e?.preventDefault) e.preventDefault();
+                          if (e?.stopPropagation) e.stopPropagation();
+                          setIsDraggingOver(false);
+                          if (e?.dataTransfer?.files) {
+                            handleFileDrop(e.dataTransfer.files, activeReq.key);
+                          }
+                        },
+                      } as any)}
                     >
-                      <Icon name="upload-cloud" size={48} color={COLORS.brand[700]} style={{ marginBottom: 12 }} />
-                      <Text style={styles.uploadTitleText}>
-                        Drag & drop or Click to upload
+                      <Icon
+                        name={isDraggingOver ? "download-cloud" : "upload-cloud"}
+                        size={48}
+                        color={isDraggingOver ? "#2563EB" : COLORS.brand[700]}
+                        style={{ marginBottom: 12 }}
+                      />
+                      <Text
+                        style={[
+                          styles.uploadTitleText,
+                          isDraggingOver && { color: "#1D4ED8" },
+                        ]}
+                      >
+                        {isDraggingOver ? "Release to drop file here" : "Drag & drop or Click to upload"}
                       </Text>
                       <Text style={styles.uploadSubtext}>
-                        Supports scanned PDFs, JPEGs, or PNGs
+                        Supports scanned PDFs, JPEGs, PNGs, or WEBP
                       </Text>
                     </TouchableOpacity>
                   )}
@@ -224,7 +396,7 @@ export function SharedDocumentUpload({
         /* MOBILE View: Clean vertical list with mini previews */
         <View style={styles.mobileList}>
           {requirements.map((req, i) => {
-            const uploadData = uploads[req.key];
+            const uploadData = safeUploads[req.key];
             const fileName = typeof uploadData === "string" ? uploadData : uploadData?.name;
             const fileUri = typeof uploadData === "string" ? "" : uploadData?.uri;
             const isImage = fileUri && (
@@ -234,12 +406,26 @@ export function SharedDocumentUpload({
               fileUri.startsWith("data:image")
             );
 
+            const extraHint = (req.hint || req.description || "").trim();
+            const isDuplicateHint =
+              !extraHint ||
+              extraHint.toLowerCase() === req.label.toLowerCase() ||
+              req.label.toLowerCase().includes(extraHint.toLowerCase()) ||
+              extraHint.toLowerCase().includes(req.label.toLowerCase());
+
             return (
               <View key={req.key} style={styles.mobileCard}>
                 <Text style={styles.mobileCardTitle}>
                   {i + 1}. {req.label}
                   {req.required && <Text style={styles.asterisk}>*</Text>}
                 </Text>
+                {!isDuplicateHint && (
+                  <View style={styles.mobileHintContainer}>
+                    <Text style={styles.mobileHintText}>
+                      {extraHint}
+                    </Text>
+                  </View>
+                )}
 
                 {uploadData ? (
                   <View style={styles.mobileSuccessRow}>
@@ -356,7 +542,7 @@ const styles = StyleSheet.create({
   },
   reqTab: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "space-between",
     padding: 12,
     borderRadius: 8,
@@ -373,6 +559,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 13,
+    lineHeight: 19,
     color: COLORS.neutral[700],
     marginRight: 8,
   },
@@ -390,15 +577,18 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   dropzoneContainer: {
-    alignItems: "center",
+    alignItems: "flex-start",
+    width: "100%",
   },
   activeReqTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 14,
+    lineHeight: 21,
     fontWeight: TYPOGRAPHY.weights.bold,
     color: COLORS.neutral[800],
-    marginBottom: 20,
-    textAlign: "center",
+    marginBottom: 16,
+    textAlign: "left",
+    width: "100%",
   },
   previewBox: {
     width: "100%",
@@ -465,6 +655,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: COLORS.neutral[50],
+  },
+  dashedDropzoneDragOver: {
+    borderColor: "#2563EB",
+    borderWidth: 2,
+    borderStyle: "solid",
+    backgroundColor: "#EFF6FF",
   },
   uploadTitleText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
@@ -556,5 +752,38 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: TYPOGRAPHY.weights.semibold,
     color: COLORS.brand[700],
+  },
+  hintContainer: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    backgroundColor: "#EFF6FF",
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 16,
+    width: "100%",
+  },
+  hintText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    color: "#1E40AF",
+    lineHeight: 17,
+    flex: 1,
+  },
+  mobileHintContainer: {
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    borderRadius: 6,
+    padding: 8,
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  mobileHintText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11.5,
+    color: "#475569",
+    lineHeight: 16,
   },
 });

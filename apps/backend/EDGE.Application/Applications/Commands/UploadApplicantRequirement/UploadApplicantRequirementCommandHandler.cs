@@ -92,39 +92,42 @@ public class UploadApplicantRequirementCommandHandler
             return ApiResponse<Guid>.Fail(
                 $"Requirement '{resolvedRequirementId}' was not found in the master catalog.");
 
-        // 7. Resolve per-applicant Service & ContextKey from FormFieldValues + Service.Contract
+        // 7. Verify requirement is valid for the applicant's service & variant
         var appApplicant = app.ApplicationApplicants.FirstOrDefault(aa => aa.ApplicantId == request.ApplicantId);
         var applicant = appApplicant?.Applicant;
 
-        if (applicant?.ServiceId != null)
+        Guid? serviceId = applicant?.ServiceId;
+        Guid? variantId = applicant?.ServiceVariantId;
+
+        // Fallback to any applicant service if not explicitly specified on target applicant record
+        if (!serviceId.HasValue)
         {
-            // Load the service to access its Contract JSON
-            var service = await _serviceRepository.GetByIdAsync(applicant.ServiceId.Value, cancellationToken);
-
-            string? contextKey = null;
-
-            if (service != null && !string.IsNullOrWhiteSpace(service.Contract))
+            var appWithService = app.ApplicationApplicants.FirstOrDefault(aa => aa.Applicant?.ServiceId != null);
+            if (appWithService?.Applicant != null)
             {
-                contextKey = ResolveContextKey(
-                    service.Contract,
-                    app.FormSubmissions,
-                    request.ApplicantId);
+                serviceId = appWithService.Applicant.ServiceId;
+                if (!variantId.HasValue)
+                {
+                    variantId = appWithService.Applicant.ServiceVariantId;
+                }
             }
+        }
 
-            // Query rules scoped to this applicant's specific context
+        if (serviceId.HasValue && serviceId.Value != Guid.Empty)
+        {
+            // Query rules scoped to this applicant's service & variant
             var validRules = await _requirementRepository.GetServiceVariantRequirementsAsync(
-                applicant.ServiceId.Value,
-                applicant.ServiceVariantId,
-                contextKey,
+                serviceId.Value,
+                variantId,
                 cancellationToken);
 
-            // If rules are configured for this context, enforce them strictly.
+            // If rules are configured for this variant, enforce them strictly.
             // If no rules exist yet, remain permissive (graceful degradation).
             if (validRules.Any() &&
                 !validRules.Any(r => r.RequirementId == resolvedRequirementId))
             {
                 return ApiResponse<Guid>.Fail(
-                    $"Requirement '{reqMaster.Name}' is not permitted for this applicant's service context (ContextKey: '{contextKey ?? "none"}').");
+                    $"Requirement '{reqMaster.Name}' is not permitted for this applicant's service variant.");
             }
         }
 
@@ -181,83 +184,5 @@ public class UploadApplicantRequirementCommandHandler
             await _unitOfWork.RollbackTransactionAsync(cancellationToken);
             return ApiResponse<Guid>.Fail($"Failed to upload requirement. Error: {ex.Message}");
         }
-    }
-
-    /// <summary>
-    /// Resolves the per-applicant ContextKey by:
-    /// 1. Reading requirementDiscriminatorFields from Service.Contract JSON (e.g. ["examCategory","examineeType"])
-    /// 2. Finding the applicant's FormSubmission and reading those field values
-    /// 3. Optionally normalizing raw values through requirementContextGroups (e.g. "1RTG" → "CommercialROC")
-    /// 4. Joining resolved values with "|" → e.g. "Radiotelegraphy|Re-taker"
-    /// Returns null when no discriminator fields are configured (service has uniform requirements per variant).
-    /// </summary>
-    private static string? ResolveContextKey(
-        string contractJson,
-        IEnumerable<FormSubmission> formSubmissions,
-        Guid applicantId)
-    {
-        using var doc = JsonDocument.Parse(contractJson);
-        var root = doc.RootElement;
-
-        // Read requirementDiscriminatorFields — list of form field labels to read per applicant
-        if (!root.TryGetProperty("requirementDiscriminatorFields", out var discriminatorsProp))
-            return null;
-
-        var discriminatorFields = new List<string>();
-        foreach (var item in discriminatorsProp.EnumerateArray())
-        {
-            var fieldKey = item.GetString();
-            if (!string.IsNullOrWhiteSpace(fieldKey))
-                discriminatorFields.Add(fieldKey);
-        }
-
-        if (discriminatorFields.Count == 0)
-            return null;
-
-        // Read requirementContextGroups — optional value normalization map
-        Dictionary<string, string?> contextGroups = new(StringComparer.OrdinalIgnoreCase);
-        if (root.TryGetProperty("requirementContextGroups", out var groupsProp))
-        {
-            foreach (var group in groupsProp.EnumerateObject())
-            {
-                contextGroups[group.Name] = group.Value.ValueKind == JsonValueKind.Null
-                    ? null
-                    : group.Value.GetString();
-            }
-        }
-
-        // Find this applicant's FormSubmission
-        var submission = formSubmissions.FirstOrDefault(fs => fs.ApplicantId == applicantId);
-        if (submission == null)
-            return null;
-
-        // For each discriminator field label, find the matching FormFieldValue
-        var parts = new List<string>();
-        foreach (var fieldLabel in discriminatorFields)
-        {
-            var fieldValue = submission.FieldValues
-                .FirstOrDefault(fv =>
-                    string.Equals(fv.Field?.Label, fieldLabel, StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(fv.Field?.Label?.Replace(" ", ""), fieldLabel.Replace(" ", ""), StringComparison.OrdinalIgnoreCase));
-
-            if (fieldValue == null || string.IsNullOrWhiteSpace(fieldValue.Value))
-                return null; // Cannot compose a partial ContextKey — treat as no context
-
-            var rawValue = fieldValue.Value.Trim();
-
-            // Apply group normalization if defined
-            if (contextGroups.TryGetValue(rawValue, out var normalizedValue))
-            {
-                if (normalizedValue == null)
-                    return null; // Explicitly unmapped → no enforcement
-                parts.Add(normalizedValue);
-            }
-            else
-            {
-                parts.Add(rawValue);
-            }
-        }
-
-        return parts.Count > 0 ? string.Join("|", parts) : null;
     }
 }

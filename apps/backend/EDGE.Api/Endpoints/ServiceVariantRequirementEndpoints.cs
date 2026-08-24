@@ -59,11 +59,25 @@ public static class ServiceVariantRequirementEndpoints
     }
 
     [HasPermission(Permissions.UpdateRequirements)]
-    public static async Task<IResult> UpdateServiceVariantRequirement(Guid id, UpdateServiceVariantRequirementCommand command, IMediator mediator)
+    public static async Task<IResult> UpdateServiceVariantRequirement(
+        Guid id,
+        UpdateServiceVariantRequirementCommand command,
+        FluentValidation.IValidator<UpdateServiceVariantRequirementCommand> validator,
+        IMediator mediator)
     {
-        if (id != command.Id)
+        if (command.Id == Guid.Empty)
+        {
+            command = command with { Id = id };
+        }
+        else if (id != command.Id)
         {
             return Results.BadRequest(new { message = "The path ID does not match the request body ID." });
+        }
+
+        var validationResult = await validator.ValidateAsync(command);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
         }
 
         var result = await mediator.Send(command);

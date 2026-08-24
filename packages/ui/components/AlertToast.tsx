@@ -1,33 +1,124 @@
-import { useEffect } from "react";
-import { toast as sonnerToast, Toaster as SonnerToaster } from "sonner";
-
-export { sonnerToast as toast, SonnerToaster as Toaster };
+import React from "react";
+import { StyleSheet, Text, View, TouchableOpacity, ViewStyle, TextStyle } from "react-native";
+import { Feather as Icon } from "@expo/vector-icons";
+import { TYPOGRAPHY } from "../theme/tokens";
+import { useTheme } from "../theme/useTheme";
 
 export interface AlertToastProps {
   message: string | null;
   onDismiss?: () => void;
   variant?: "error" | "success" | "warning" | "info";
-  style?: unknown;
+  style?: ViewStyle;
+}
+
+interface VariantStyle {
+  containerStyle: ViewStyle;
+  textStyle: TextStyle;
+  icon: keyof typeof Icon.glyphMap;
+  iconColor: string;
 }
 
 export function AlertToast({
   message,
   onDismiss,
   variant = "error",
+  style,
 }: AlertToastProps) {
-  useEffect(() => {
-    if (!message || message.length === 0) return;
-    if (variant === "success") {
-      sonnerToast.success(message);
-    } else if (variant === "warning") {
-      sonnerToast.warning(message);
-    } else if (variant === "info") {
-      sonnerToast.info(message);
-    } else {
-      sonnerToast.error(message);
-    }
-    if (onDismiss) onDismiss();
-  }, [message, variant, onDismiss]);
+  const { colors } = useTheme();
 
-  return null;
+  if (message === null || message.length === 0) return null;
+
+  const getVariantStyles = (): VariantStyle => {
+    switch (variant) {
+      case "success":
+        return {
+          containerStyle: { backgroundColor: colors.semantic.successBg, borderColor: colors.semantic.successBorder },
+          textStyle: { color: colors.semantic.successText },
+          icon: "check-circle",
+          iconColor: colors.semantic.success,
+        };
+      case "warning":
+        return {
+          containerStyle: { backgroundColor: colors.semantic.warningBg, borderColor: colors.semantic.warningBorder },
+          textStyle: { color: colors.semantic.warningText },
+          icon: "alert-triangle",
+          iconColor: colors.semantic.warning,
+        };
+      case "info":
+        return {
+          containerStyle: { backgroundColor: colors.semantic.infoBg, borderColor: colors.semantic.infoBorder },
+          textStyle: { color: colors.semantic.infoText },
+          icon: "info",
+          iconColor: colors.semantic.info,
+        };
+      case "error":
+      default:
+        return {
+          containerStyle: { backgroundColor: colors.semantic.errorBg, borderColor: colors.semantic.errorBorder },
+          textStyle: { color: colors.semantic.errorText },
+          icon: "alert-circle",
+          iconColor: colors.semantic.error,
+        };
+    }
+  };
+
+  const v = getVariantStyles();
+
+  return (
+    <View style={[styles.baseContainer, v.containerStyle, style]}>
+      <Icon name={v.icon} size={20} color={v.iconColor} />
+      <Text style={[styles.baseText, v.textStyle]}>{message}</Text>
+      {onDismiss !== undefined && onDismiss !== null && (
+        <TouchableOpacity onPress={onDismiss} style={styles.closeBtn} activeOpacity={0.7}>
+          <Icon name="x" size={16} color={colors.neutral[500]} />
+        </TouchableOpacity>
+      )}
+    </View>
+  );
 }
+
+const styles = StyleSheet.create({
+  baseContainer: {
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    zIndex: 999,
+  },
+  baseText: {
+    flex: 1,
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.medium,
+  },
+  closeBtn: {
+    padding: 4,
+  },
+});
+
+export const toast = {
+  success: (msg: string) => {
+    // Graceful no-op on platforms without DOM, usable by components
+    if (typeof console !== "undefined") {
+      console.log(`[Toast Success]: ${msg}`);
+    }
+  },
+  error: (msg: string) => {
+    if (typeof console !== "undefined") {
+      console.warn(`[Toast Error]: ${msg}`);
+    }
+  },
+  warning: (msg: string) => {
+    if (typeof console !== "undefined") {
+      console.warn(`[Toast Warning]: ${msg}`);
+    }
+  },
+  info: (msg: string) => {
+    if (typeof console !== "undefined") {
+      console.info(`[Toast Info]: ${msg}`);
+    }
+  },
+};
+

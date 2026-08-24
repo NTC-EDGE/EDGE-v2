@@ -1,7 +1,7 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { apiClient } from '@edge/api';
-import { toast, Toaster } from 'sonner';
+import { AlertToast } from '@edge/ui';
 
 function parseForbiddenActionDetails(error: unknown): string {
   if (typeof error === 'object' && error !== null) {
@@ -41,6 +41,12 @@ function parseForbiddenActionDetails(error: unknown): string {
 }
 
 export function ForbiddenToastProvider({ children }: { readonly children: React.ReactNode }) {
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const handleDismiss = useCallback(() => {
+    setToastMessage(null);
+  }, []);
+
   useEffect(() => {
     const interceptorId = apiClient.interceptors.response.use(
       (response) => response,
@@ -51,7 +57,7 @@ export function ForbiddenToastProvider({ children }: { readonly children: React.
             const status = (response as Record<string, unknown>)['status'];
             if (status === 403) {
               const details = parseForbiddenActionDetails(error);
-              toast.error(details);
+              setToastMessage(details);
             }
           }
         }
@@ -66,7 +72,15 @@ export function ForbiddenToastProvider({ children }: { readonly children: React.
 
   return (
     <View style={styles.root}>
-      <Toaster position="top-right" richColors />
+      {toastMessage !== null && (
+        <View style={styles.toastContainer}>
+          <AlertToast
+            message={toastMessage}
+            variant="error"
+            onDismiss={handleDismiss}
+          />
+        </View>
+      )}
       {children}
     </View>
   );
@@ -75,5 +89,12 @@ export function ForbiddenToastProvider({ children }: { readonly children: React.
 const styles = StyleSheet.create({
   root: {
     flex: 1,
+  },
+  toastContainer: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    zIndex: 9999,
+    maxWidth: 400,
   },
 });

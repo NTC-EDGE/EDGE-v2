@@ -40,7 +40,9 @@ public class AuditableEntitySaveChangesInterceptor : SaveChangesInterceptor
 
         context.ChangeTracker.DetectChanges();
 
-        foreach (var entry in context.ChangeTracker.Entries().ToList())
+        var entries = context.ChangeTracker.Entries().ToList();
+
+        foreach (var entry in entries)
         {
             if (entry.Entity is AuditLog || entry.State == EntityState.Detached || entry.State == EntityState.Unchanged)
                 continue;
@@ -85,7 +87,7 @@ public class AuditableEntitySaveChangesInterceptor : SaveChangesInterceptor
             }
             catch
             {
-                // Ignored if property access is unsupported
+                // Ignore property evaluation failures for detached/special properties
             }
 
             // 3. Generate Audit Logs
@@ -100,49 +102,43 @@ public class AuditableEntitySaveChangesInterceptor : SaveChangesInterceptor
             {
                 foreach (var property in entry.Properties)
                 {
-                    if (entry.State == EntityState.Detached) break;
+                    if (entry.State == EntityState.Detached || entry.State == EntityState.Unchanged)
+                        break;
 
                     string propertyName = property.Metadata.Name;
                     if (property.Metadata.IsPrimaryKey())
                     {
-                        auditEntry.KeyValues[propertyName] = property.CurrentValue;
+                        try { auditEntry.KeyValues[propertyName] = property.CurrentValue; } catch { }
                         continue;
                     }
 
-                    switch (originalState)
+                    try
                     {
-                        case EntityState.Added:
-                            auditEntry.Action = "Insert";
-                            auditEntry.NewValues[propertyName] = property.CurrentValue;
-                            break;
-
-                        case EntityState.Deleted:
-                            auditEntry.Action = "Delete";
-                            try
-                            {
-                                auditEntry.OldValues[propertyName] = property.OriginalValue;
-                            }
-                            catch
-                            {
-                                auditEntry.OldValues[propertyName] = property.CurrentValue;
-                            }
-                            break;
-
-                        case EntityState.Modified:
-                            if (property.IsModified)
-                            {
-                                auditEntry.Action = "Update";
-                                try
-                                {
-                                    auditEntry.OldValues[propertyName] = property.OriginalValue;
-                                }
-                                catch
-                                {
-                                    auditEntry.OldValues[propertyName] = null;
-                                }
+                        switch (entry.State)
+                        {
+                            case EntityState.Added:
+                                auditEntry.Action = "Insert";
                                 auditEntry.NewValues[propertyName] = property.CurrentValue;
-                            }
-                            break;
+                                break;
+
+                            case EntityState.Deleted:
+                                auditEntry.Action = "Delete";
+                                auditEntry.OldValues[propertyName] = property.OriginalValue;
+                                break;
+
+                            case EntityState.Modified:
+                                if (property.IsModified)
+                                {
+                                    auditEntry.Action = "Update";
+                                    auditEntry.OldValues[propertyName] = property.OriginalValue;
+                                    auditEntry.NewValues[propertyName] = property.CurrentValue;
+                                }
+                                break;
+                        }
+                    }
+                    catch
+                    {
+                        // Ignore property original value read errors for detached/shadow properties
                     }
                 }
             }

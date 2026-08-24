@@ -10,7 +10,14 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Icon, COLORS, TYPOGRAPHY } from "@edge/ui";
-import { GeneralApplicantData } from "./hooks/useGeneralServiceWizard";
+import { useToast } from "../../../shared/components/Toast";
+import {
+  GeneralApplicantData,
+  isGeneralApplicantComplete,
+  ServiceRequirementItem,
+} from "./hooks/useGeneralServiceWizard";
+export { isGeneralApplicantComplete };
+import { getApplicantDisplayName } from "./helpers/applicantDisplayHelper";
 import { NTCService } from "../data/servicesData";
 import { styles } from "./GeneralBulkApplicantsPanel.styles";
 import { GeneralDeleteApplicantModal } from "./components/GeneralDeleteApplicantModal";
@@ -29,60 +36,45 @@ interface GeneralBulkApplicantsPanelProps {
   resetWizardState: () => void;
   onCancel: () => void;
   onRemoveApplicant: (idx: number) => void;
+  onRemoveApplicants?: (indices: number[]) => void;
   onAddApplicant: () => void;
   onApplicantsImported?: (applicants: GeneralApplicantData[]) => void;
+  onSubmitAll?: () => void;
   service: NTCService;
-  variantRequirements?: string[];
+  variantRequirements?: Array<ServiceRequirementItem | string>;
 }
-
-export const isGeneralApplicantComplete = (
-  app: GeneralApplicantData,
-  service?: NTCService,
-  variantRequirements: string[] = []
-): boolean => {
-  const uploads = app.uploads || {};
-
-  const reqList =
-    variantRequirements && variantRequirements.length > 0
-      ? variantRequirements
-      : service?.requirements && service.requirements.length > 0
-      ? service.requirements
-      : [];
-
-  // If no requirements defined/loaded yet, cannot mark as complete
-  if (reqList.length === 0) {
-    return false;
-  }
-
-  // ALL requirements must have an attached document
-  return reqList.every((req, idx) => {
-    const file =
-      uploads[req] ||
-      uploads[`req-${idx}`] ||
-      uploads[`req-gen-${idx}`] ||
-      uploads[idx.toString()];
-
-    if (!file) return false;
-    if (typeof file === "string") return file.trim().length > 0;
-    return !!(file.name || file.uri);
-  });
-};
 
 export function GeneralBulkApplicantsPanel({
   applicants,
   currentApplicantIndex,
   onSelectApplicant,
+  setStep,
   onCancel,
   onRemoveApplicant,
+  onRemoveApplicants,
   onAddApplicant,
   onApplicantsImported,
+  onSubmitAll,
   service,
   variantRequirements = [],
 }: GeneralBulkApplicantsPanelProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<"ALL" | "COMPLETE" | "PENDING">("ALL");
-  const [applicantToDelete, setApplicantToDelete] = useState<{ idx: number; name: string } | null>(null);
+  const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
+  const [deleteDialog, setDeleteDialog] = useState<{
+    visible: boolean;
+    name?: string;
+    count: number;
+    isAll: boolean;
+    indicesToDelete: number[];
+  }>({
+    visible: false,
+    count: 0,
+    isAll: false,
+    indicesToDelete: [],
+  });
   const [importLoading, setImportLoading] = useState(false);
+  const toast = useToast();
 
   const completeCount = applicants.filter((app) => isGeneralApplicantComplete(app, service, variantRequirements)).length;
   const pendingCount = applicants.length - completeCount;
@@ -92,6 +84,7 @@ export function GeneralBulkApplicantsPanel({
   const handleDownloadTemplate = () => {
     const csvContent = generateCsvContent(templateConfig);
     downloadCsvFile(templateConfig.filename, csvContent);
+    toast.success("Template Downloaded", `Downloaded ${templateConfig.filename}.`);
   };
 
   const handleUploadSpreadsheet = async () => {
@@ -125,17 +118,32 @@ export function GeneralBulkApplicantsPanel({
 
       if (fileText && fileText.trim().length > 0) {
         const parseResult = parseSpreadsheetContent(fileText, service);
+        if (parseResult.totalRows === 0) {
+          toast.error("No Records Found", "Could not parse applicant rows. Make sure the header columns match the template.");
+          return;
+        }
+
         if (parseResult.applicants.length > 0 && onApplicantsImported) {
           onApplicantsImported(parseResult.applicants);
         }
-        Alert.alert(
-          "Spreadsheet Imported",
-          `Populated ${parseResult.totalRows} applicant entries (${parseResult.validCount} valid) into the cohort.`
-        );
+
+        if (parseResult.invalidCount > 0 && parseResult.validCount === 0) {
+          toast.error("Import Failed", `All ${parseResult.totalRows} row(s) had formatting or validation errors.`);
+        } else if (parseResult.invalidCount > 0) {
+          toast.warning(
+            "Partial Import Completed",
+            `Populated ${parseResult.validCount} valid applicant(s). ${parseResult.invalidCount} invalid row(s) were excluded.`
+          );
+        } else {
+          toast.success(
+            "Spreadsheet Imported",
+            `Successfully populated all ${parseResult.validCount} applicant entries into the filing cohort.`
+          );
+        }
       }
     } catch (err) {
       console.error("Failed to upload spreadsheet:", err);
-      Alert.alert("Error", "Could not parse the selected file.");
+      toast.error("Import Error", "Failed to parse the selected spreadsheet file.");
     } finally {
       setImportLoading(false);
     }
@@ -156,6 +164,67 @@ export function GeneralBulkApplicantsPanel({
       if (activeTab === "PENDING") return !complete;
       return true;
     });
+
+  const isAllFilteredSelected =
+    filteredApplicants.length > 0 &&
+    filteredApplicants.every(({ originalIdx }) => selectedIndices.has(originalIdx));
+
+  const toggleSelectApplicant = (idx: number) => {
+    setSelectedIndices((prev) => {
+      const next = new Set(prev);
+      if (next.has(idx)) {
+        next.delete(idx);
+      } else {
+        next.add(idx);
+      }
+      return next;
+    });
+  };
+
+  const handleToggleSelectAll = () => {
+    if (isAllFilteredSelected) {
+      setSelectedIndices(new Set());
+    } else {
+      const allFiltered = new Set(filteredApplicants.map((item) => item.originalIdx));
+      setSelectedIndices(allFiltered);
+    }
+  };
+
+  const handleDeleteSelected = () => {
+    if (selectedIndices.size === 0) return;
+    const indices = Array.from(selectedIndices);
+    setDeleteDialog({
+      visible: true,
+      count: indices.length,
+      isAll: indices.length === applicants.length,
+      indicesToDelete: indices,
+    });
+  };
+
+  const handleConfirmDelete = () => {
+    const indices = deleteDialog.indicesToDelete;
+    const count = indices.length;
+    try {
+      if (onRemoveApplicants) {
+        onRemoveApplicants(indices);
+      } else {
+        const sorted = [...indices].sort((a, b) => b - a);
+        sorted.forEach((idx) => onRemoveApplicant(idx));
+      }
+      toast.success(
+        "Applicants Removed",
+        count === 1
+          ? "Successfully removed 1 applicant from the cohort."
+          : `Successfully removed ${count} applicants from the cohort.`
+      );
+    } catch (err) {
+      console.error("Failed to delete applicants:", err);
+      toast.error("Deletion Error", "An error occurred while removing selected applicants.");
+    } finally {
+      setSelectedIndices(new Set());
+      setDeleteDialog({ visible: false, count: 0, isAll: false, indicesToDelete: [] });
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -262,79 +331,239 @@ export function GeneralBulkApplicantsPanel({
         />
       </View>
 
+      {/* Multi-Select & Batch Actions Bar */}
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          paddingHorizontal: 16,
+          paddingVertical: 8,
+          backgroundColor: "#F8FAFC",
+          borderTopWidth: 1,
+          borderBottomWidth: 1,
+          borderColor: "#E2E8F0",
+        }}
+      >
+        <TouchableOpacity
+          onPress={handleToggleSelectAll}
+          style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+          activeOpacity={0.7}
+        >
+          <View
+            style={{
+              width: 18,
+              height: 18,
+              borderRadius: 4,
+              borderWidth: 1.5,
+              borderColor: isAllFilteredSelected ? "#2563EB" : "#94A3B8",
+              backgroundColor: isAllFilteredSelected ? "#2563EB" : "#FFFFFF",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            {isAllFilteredSelected && <Icon name="check" size={12} color="#FFFFFF" />}
+          </View>
+          <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, fontWeight: "600", color: "#334155" }}>
+            Select All ({filteredApplicants.length})
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          disabled={selectedIndices.size === 0}
+          onPress={handleDeleteSelected}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 5,
+            backgroundColor: selectedIndices.size > 0 ? "#FEE2E2" : "#F1F5F9",
+            borderWidth: 1,
+            borderColor: selectedIndices.size > 0 ? "#FCA5A5" : "#E2E8F0",
+            paddingVertical: 4,
+            paddingHorizontal: 10,
+            borderRadius: 6,
+            opacity: selectedIndices.size > 0 ? 1 : 0.5,
+          }}
+          activeOpacity={0.7}
+        >
+          <Icon name="trash-2" size={13} color={selectedIndices.size > 0 ? "#DC2626" : "#94A3B8"} />
+          <Text
+            style={{
+              fontFamily: TYPOGRAPHY.fonts.primary,
+              fontSize: 11,
+              fontWeight: "700",
+              color: selectedIndices.size > 0 ? "#DC2626" : "#94A3B8",
+            }}
+          >
+            Delete Selected {selectedIndices.size > 0 ? `(${selectedIndices.size})` : ""}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       {/* List content */}
       <ScrollView contentContainerStyle={{ padding: 16 }}>
-        {filteredApplicants.map(({ app, originalIdx }) => {
-          const isSelected = originalIdx === currentApplicantIndex;
-          const isComplete = isGeneralApplicantComplete(app, service, variantRequirements);
-          const fullName = `${app.firstName} ${app.lastName}`.trim() || `Applicant #${originalIdx + 1}`;
-
-          return (
+        {filteredApplicants.length === 0 ? (
+          <View style={{ alignItems: "center", justifyContent: "center", paddingVertical: 40, paddingHorizontal: 16 }}>
+            <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: "#F1F5F9", alignItems: "center", justifyContent: "center", marginBottom: 12 }}>
+              <Icon name="users" size={24} color="#94A3B8" />
+            </View>
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 14, fontWeight: "700", color: "#334155", marginBottom: 4, textAlign: "center" }}>
+              No applicants in cohort
+            </Text>
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: "#64748B", textAlign: "center", marginBottom: 16 }}>
+              Add an applicant or import from a spreadsheet to proceed.
+            </Text>
             <TouchableOpacity
-              key={app.id}
-              onPress={() => onSelectApplicant(originalIdx)}
-              style={[
-                styles.itemCard,
-                isSelected && styles.itemCardSelected,
-              ]}
+              onPress={onAddApplicant}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 6,
+                backgroundColor: "#1D4ED8",
+                paddingVertical: 8,
+                paddingHorizontal: 16,
+                borderRadius: 8,
+              }}
+              activeOpacity={0.8}
             >
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.itemName, isSelected && styles.itemNameSelected]}>
-                  {fullName}
-                </Text>
-                <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4, gap: 6 }}>
-                  <Icon
-                    name={isComplete ? "check-circle" : "alert-circle"}
-                    size={13}
-                    color={isComplete ? COLORS.semantic.success : COLORS.semantic.warning}
-                  />
-                  <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, color: isComplete ? COLORS.semantic.success : COLORS.semantic.warning }}>
-                    {isComplete ? "Complete" : "Pending"}
-                  </Text>
-                </View>
-              </View>
+              <Icon name="plus" size={14} color="#FFFFFF" />
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, fontWeight: "600", color: "#FFFFFF" }}>
+                Add Applicant
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          filteredApplicants.map(({ app, originalIdx }) => {
+            const isSelected = originalIdx === currentApplicantIndex;
+            const isChecked = selectedIndices.has(originalIdx);
+            const isComplete = isGeneralApplicantComplete(app, service, variantRequirements);
+            const fullName = getApplicantDisplayName(app, originalIdx + 1);
 
-              {applicants.length > 1 && (
+            return (
+              <TouchableOpacity
+                key={app.id}
+                onPress={() => onSelectApplicant(originalIdx)}
+                style={[
+                  styles.itemCard,
+                  isSelected && styles.itemCardSelected,
+                  { flexDirection: "row", alignItems: "center", gap: 10 },
+                ]}
+                activeOpacity={0.8}
+              >
+                {/* Row Selection Checkbox */}
                 <TouchableOpacity
-                  onPress={() => setApplicantToDelete({ idx: originalIdx, name: fullName })}
+                  onPress={() => toggleSelectApplicant(originalIdx)}
+                  style={{ padding: 4 }}
+                  activeOpacity={0.7}
+                >
+                  <View
+                    style={{
+                      width: 18,
+                      height: 18,
+                      borderRadius: 4,
+                      borderWidth: 1.5,
+                      borderColor: isChecked ? "#2563EB" : "#CBD5E1",
+                      backgroundColor: isChecked ? "#2563EB" : "#FFFFFF",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    {isChecked && <Icon name="check" size={12} color="#FFFFFF" />}
+                  </View>
+                </TouchableOpacity>
+
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.itemName, isSelected && styles.itemNameSelected]}>
+                    {fullName}
+                  </Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4, gap: 6 }}>
+                    <Icon
+                      name={isComplete ? "check-circle" : "alert-circle"}
+                      size={13}
+                      color={isComplete ? COLORS.semantic.success : COLORS.semantic.warning}
+                    />
+                    <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, color: isComplete ? COLORS.semantic.success : COLORS.semantic.warning }}>
+                      {isComplete ? "Complete" : "Pending"}
+                    </Text>
+                  </View>
+                </View>
+
+                <TouchableOpacity
+                  onPress={() => setDeleteDialog({
+                    visible: true,
+                    name: fullName,
+                    count: 1,
+                    isAll: false,
+                    indicesToDelete: [originalIdx],
+                  })}
                   style={styles.deleteButton}
                 >
                   <Icon name="trash-2" size={16} color={COLORS.semantic.error} />
                 </TouchableOpacity>
-              )}
-            </TouchableOpacity>
-          );
-        })}
+              </TouchableOpacity>
+            );
+          })
+        )}
       </ScrollView>
 
       {/* Actions footer */}
-      <View style={styles.footer}>
-        <TouchableOpacity
-          onPress={onAddApplicant}
-          style={styles.addBtn}
-        >
-          <Icon name="plus" size={16} color={COLORS.brand[700]} style={{ marginRight: 6 }} />
-          <Text style={styles.addBtnText}>Add Applicant</Text>
-        </TouchableOpacity>
+      <View style={{ padding: 16, borderTopWidth: 1, borderColor: "#E2E8F0", backgroundColor: "#FFFFFF", gap: 10 }}>
+        {onSubmitAll !== undefined && (
+          <TouchableOpacity
+            disabled={completeCount !== applicants.length || applicants.length === 0}
+            onPress={onSubmitAll}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: completeCount === applicants.length && applicants.length > 0 ? "#16A34A" : "#94A3B8",
+              borderRadius: 10,
+              paddingVertical: 12,
+              paddingHorizontal: 16,
+              gap: 8,
+              opacity: completeCount === applicants.length && applicants.length > 0 ? 1 : 0.6,
+            }}
+            activeOpacity={0.8}
+          >
+            <Icon name={completeCount === applicants.length && applicants.length > 0 ? "check-circle" : "lock"} size={16} color="#ffffff" />
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: "#ffffff" }}>
+              {applicants.length === 0
+                ? "Add Applicants to Submit (0)"
+                : completeCount === applicants.length
+                ? `Submit All ${applicants.length} Applications`
+                : `Complete All Applications to Submit (${completeCount}/${applicants.length})`}
+            </Text>
+          </TouchableOpacity>
+        )}
 
-        <TouchableOpacity
-          onPress={onCancel}
-          style={[styles.submitBtn, { backgroundColor: COLORS.semantic.error }]}
-        >
-          <Text style={styles.submitBtnText}>Cancel Application</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: "row", gap: 10 }}>
+          <TouchableOpacity
+            onPress={() => setStep(2)}
+            style={[styles.backBtn, { flex: 1 }]}
+            activeOpacity={0.8}
+          >
+            <Icon name="arrow-left" size={15} color="#0F2C59" style={{ marginRight: 6 }} />
+            <Text style={styles.backBtnText}>Back</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={onAddApplicant}
+            style={[styles.addBtn, { flex: 1 }]}
+            activeOpacity={0.8}
+          >
+            <Icon name="plus" size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
+            <Text style={styles.addBtnText}>Add Applicant</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <GeneralDeleteApplicantModal
-        visible={applicantToDelete !== null}
-        name={applicantToDelete?.name ?? ""}
-        onCancel={() => setApplicantToDelete(null)}
-        onConfirm={() => {
-          if (applicantToDelete) {
-            onRemoveApplicant(applicantToDelete.idx);
-            setApplicantToDelete(null);
-          }
-        }}
+        visible={deleteDialog.visible}
+        name={deleteDialog.name}
+        count={deleteDialog.count}
+        isAll={deleteDialog.isAll}
+        onCancel={() => setDeleteDialog({ visible: false, count: 0, isAll: false, indicesToDelete: [] })}
+        onConfirm={handleConfirmDelete}
       />
     </View>
   );

@@ -14,18 +14,49 @@ import {
   Employee,
   EmployeeRole,
   EmployeeStatus,
-  INITIAL_EMPLOYEES,
   ROLES_LIST,
 } from '../data/mockEmployees';
 import { EmployeeCard } from '../components/EmployeeCard';
 import { EmployeeFormModal } from '../components/EmployeeFormModal';
 import { EmployeeDetailsScreen } from '../components/EmployeeDetailsScreen';
 import { DeleteConfirmModal } from '../components/DeleteConfirmModal';
+import { userService, useTenantMembers, TenantMemberDto, useAdminRoles } from '@edge/api';
+import { useAuthContext } from '../../auth/context/AuthContext';
 
 type ViewMode = 'cards' | 'table';
 type SubViewMode = 'list' | 'details';
 
 const ITEMS_PER_PAGE = 10;
+
+function mapTenantMemberToEmployee(member: TenantMemberDto): Employee {
+  const roleName = member.roleName || 'Evaluator';
+  const role = (ROLES_LIST.includes(roleName as EmployeeRole) ? roleName : 'Evaluator') as EmployeeRole;
+
+  return {
+    id: member.userId || member.id,
+    firstName: member.userFirstName,
+    lastName: member.userLastName,
+    middleName: member.userMiddleName ?? '',
+    suffix: member.userSuffix ?? '',
+    email: member.userEmail,
+    phone: member.userContactNumber ?? '+63 900 000 0000',
+    role,
+    fieldOffice: member.fieldOfficeName ?? 'Regional Main Office',
+    region: member.tenantName || 'Central Office (Headquarters)',
+    department: member.division || 'Licensing & Registration Division',
+    division: member.division || 'Licensing & Registration Division',
+    level: member.level || 'Level II',
+    title: member.jobTitle || 'Evaluator II',
+    position: member.position || 'Technical Evaluator',
+    designation: member.designation || '',
+    signatureDisplay: 'beside',
+    signatureUri: member.userESignature || '',
+    status: 'Active',
+    avatarColor: COLORS.brand.secondary,
+    dateJoined: member.createdAt ? new Date(member.createdAt).toLocaleDateString() : 'Recent',
+    location: member.fieldOfficeName || member.tenantName || 'Regional Office',
+  };
+}
 
 // Helper Table Action Menu Cell
 function TableActionCell({
@@ -106,8 +137,24 @@ export function EmployeesScreenContent({
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
 
-  // Primary employee dataset in state
-  const [employees, setEmployees] = useState<Employee[]>(INITIAL_EMPLOYEES);
+  // Active Tenant membership
+  const { user } = useAuthContext();
+  const currentTenantId = user?.tenantId;
+
+  // Live tenant members dataset from API filtered by tenantId
+  const { members, isLoading, refetch } = useTenantMembers(currentTenantId);
+  const { roles: liveRoles } = useAdminRoles();
+
+  const employees = useMemo<Employee[]>(() => {
+    return members.map(mapTenantMemberToEmployee);
+  }, [members]);
+
+  const filterRoleOptions = useMemo(() => {
+    if (liveRoles && liveRoles.length > 0) {
+      return Array.from(new Set(liveRoles.map((r) => r.name)));
+    }
+    return Array.from(new Set(employees.map((e) => e.role)));
+  }, [liveRoles, employees]);
 
   // View state
   const [subView, setSubView] = useState<SubViewMode>('list');
@@ -134,9 +181,24 @@ export function EmployeesScreenContent({
   // Active popover row id (to close others when one is open)
   const [activePopoverId, setActivePopoverId] = useState<string | null>(null);
 
-  const showToast = (msg: string) => {
-    toast.success(msg);
+  // Toast notification state
+  const [toastState, setToastState] = useState<{
+    message: string;
+    variant: 'success' | 'error' | 'info';
+  } | null>(null);
+
+  const showToast = (msg: string, variant: 'success' | 'error' | 'info' = 'success') => {
+    setToastState({ message: msg, variant });
   };
+
+  useEffect(() => {
+    if (toastState !== null) {
+      const timer = setTimeout(() => {
+        setToastState(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [toastState]);
 
   // Reset pagination to page 1 on filter changes
   useEffect(() => {
@@ -205,80 +267,66 @@ export function EmployeesScreenContent({
     setIsDeleteModalOpen(true);
   };
 
-  const handleSaveEmployee = (data: Partial<Employee>) => {
+  const handleSaveEmployee = async (data: Partial<Employee>) => {
     if (editingEmployee !== null && editingEmployee !== undefined) {
       // Edit mode
-      setEmployees((prev) =>
-        prev.map((item) => {
-          if (item.id === editingEmployee.id) {
-            const updated = {
-              ...item,
-              ...data,
-              firstName: data.firstName ?? item.firstName,
-              lastName: data.lastName ?? item.lastName,
-              middleName: data.middleName ?? item.middleName,
-              suffix: data.suffix ?? item.suffix,
-              email: data.email ?? item.email,
-              phone: data.phone ?? item.phone,
-              role: data.role ?? item.role,
-              region: data.region ?? item.region,
-              department: data.department ?? item.department,
-              division: data.division ?? item.division,
-              level: data.level ?? item.level,
-              title: data.title ?? item.title,
-              position: data.position ?? item.position,
-              designation: data.designation ?? item.designation,
-              signatureDisplay: data.signatureDisplay ?? item.signatureDisplay,
-              status: data.status ?? item.status,
-              location: data.location ?? item.location,
-            };
-            if (viewingEmployee !== null && viewingEmployee.id === item.id) {
-              setViewingEmployee(updated);
-            }
-            return updated;
-          }
-          return item;
-        })
-      );
-      showToast(`Updated employee ${data.firstName} ${data.lastName}`);
+      showToast(`Updated employee ${data.firstName} ${data.lastName}`, 'success');
+      setIsFormModalOpen(false);
+      setEditingEmployee(null);
+      await refetch();
     } else {
-      // Create mode
-      const nextNum = employees.length + 1;
-      const formattedNum = nextNum < 10 ? `00${nextNum}` : nextNum < 100 ? `0${nextNum}` : `${nextNum}`;
-      const newEmp: Employee = {
-        id: `EMP-2026-${formattedNum}`,
-        firstName: data.firstName ?? 'New',
-        lastName: data.lastName ?? 'User',
-        middleName: data.middleName ?? '',
-        suffix: data.suffix ?? '',
-        email: data.email ?? 'user@example.com',
-        phone: data.phone ?? '+63 900 000 0000',
-        role: data.role ?? 'Evaluator',
-        region: data.region ?? 'Central Office (Headquarters)',
-        department: data.department ?? 'Licensing & Registration Division',
-        division: data.division ?? 'Licensing & Registration Division',
-        level: data.level ?? 'Level II',
-        title: data.title ?? 'Evaluator II',
-        position: data.position ?? 'Technical Evaluator',
-        designation: data.designation ?? '',
-        signatureDisplay: data.signatureDisplay ?? 'beside',
-        signatureUri: 'mock_signature_new.png',
-        status: data.status ?? 'Active',
-        avatarColor: COLORS.brand.secondary,
-        dateJoined: 'Today',
-        location: data.location ?? 'Central Office - Quezon City',
-      };
-      setEmployees((prev) => [newEmp, ...prev]);
-      showToast(`Added new employee ${newEmp.firstName} ${newEmp.lastName}`);
-    }
+      // Create mode - submit to Clerk & Database via live backend API
+      const selectedRoleName = (data.role ?? '').trim();
+      const matchedRole = liveRoles.find(
+        (r) =>
+          r.name.toLowerCase() === selectedRoleName.toLowerCase() ||
+          r.key.toLowerCase() === selectedRoleName.toLowerCase()
+      );
+      const roleKey = matchedRole?.key || selectedRoleName.toLowerCase().replace(/\s+/g, '-');
+      const redirectUrl = typeof window !== 'undefined' && window.location?.origin
+        ? window.location.origin
+        : 'http://localhost:8081';
 
-    setIsFormModalOpen(false);
-    setEditingEmployee(null);
+      const [res, err] = await userService.createUser({
+        email: data.email ?? '',
+        firstName: data.firstName ?? '',
+        lastName: data.lastName ?? '',
+        middleName: data.middleName,
+        suffix: data.suffix,
+        contactNumber: data.phone,
+        roleKey,
+        tenantId: currentTenantId,
+        jobTitle: data.title,
+        level: data.level,
+        division: data.division,
+        position: data.position,
+        designation: data.designation,
+        eSignature: data.signatureUri,
+        redirectUrl,
+      });
+
+      if (err !== null) {
+        const errorMsg = typeof err === 'string' ? err : 'Failed to create employee via Clerk';
+        showToast(errorMsg, 'error');
+        throw new Error(errorMsg);
+      }
+
+      await refetch();
+      showToast(`Successfully created employee account for ${res?.firstName ?? data.firstName} ${res?.lastName ?? data.lastName} and sent email invitation.`, 'success');
+      setIsFormModalOpen(false);
+      setEditingEmployee(null);
+    }
   };
 
-  const handleConfirmDelete = (emp: Employee) => {
-    setEmployees((prev) => prev.filter((item) => item.id !== emp.id));
-    showToast(`Deleted employee ${emp.firstName} ${emp.lastName}`);
+  const handleConfirmDelete = async (emp: Employee) => {
+    const [_, err] = await userService.deleteUser(emp.id);
+    if (err !== null) {
+      const errorMsg = typeof err === 'string' ? err : 'Failed to delete employee';
+      showToast(errorMsg, 'error');
+    } else {
+      showToast(`Successfully deleted employee ${emp.firstName} ${emp.lastName}`, 'success');
+    }
+    await refetch();
     setIsDeleteModalOpen(false);
     setDeletingEmployee(null);
     if (subView === 'details' && viewingEmployee !== null && viewingEmployee.id === emp.id) {
@@ -362,6 +410,48 @@ export function EmployeesScreenContent({
   if (subView === 'details' && viewingEmployee !== null && viewingEmployee !== undefined) {
     return (
       <View style={styles.container}>
+        {/* Toast Alert Banner */}
+        {toastState !== null && (
+          <View
+            style={[
+              styles.toastContainer,
+              toastState.variant === 'error' && { borderLeftColor: COLORS.semantic.error, backgroundColor: '#FEF2F2' },
+              toastState.variant === 'info' && { borderLeftColor: COLORS.brand[500] },
+              SHADOWS.modal,
+            ]}
+          >
+            <Lucide
+              name={
+                toastState.variant === 'error'
+                  ? 'alert-circle'
+                  : toastState.variant === 'info'
+                  ? 'info'
+                  : 'check-circle'
+              }
+              size={18}
+              color={
+                toastState.variant === 'error'
+                  ? COLORS.semantic.error
+                  : toastState.variant === 'info'
+                  ? COLORS.brand[500]
+                  : COLORS.semantic.success
+              }
+              style={{ marginRight: 8 }}
+            />
+            <Text
+              style={[
+                styles.toastText,
+                toastState.variant === 'error' && { color: COLORS.semantic.error },
+              ]}
+            >
+              {toastState.message}
+            </Text>
+            <Pressable onPress={() => setToastState(null)} style={{ marginLeft: 12, padding: 4 }}>
+              <Lucide name="x" size={14} color={COLORS.neutral[500]} />
+            </Pressable>
+          </View>
+        )}
+
         <EmployeeDetailsScreen
           employee={viewingEmployee}
           onBack={() => {
@@ -398,6 +488,47 @@ export function EmployeesScreenContent({
   // Main Employee List View
   return (
     <View style={styles.container}>
+      {/* Toast Alert Banner */}
+      {toastState !== null && (
+        <View
+          style={[
+            styles.toastContainer,
+            toastState.variant === 'error' && { borderLeftColor: COLORS.semantic.error, backgroundColor: '#FEF2F2' },
+            toastState.variant === 'info' && { borderLeftColor: COLORS.brand[500] },
+            SHADOWS.modal,
+          ]}
+        >
+          <Lucide
+            name={
+              toastState.variant === 'error'
+                ? 'alert-circle'
+                : toastState.variant === 'info'
+                ? 'info'
+                : 'check-circle'
+            }
+            size={18}
+            color={
+              toastState.variant === 'error'
+                ? COLORS.semantic.error
+                : toastState.variant === 'info'
+                ? COLORS.brand[500]
+                : COLORS.semantic.success
+            }
+            style={{ marginRight: 8 }}
+          />
+          <Text
+            style={[
+              styles.toastText,
+              toastState.variant === 'error' && { color: COLORS.semantic.error },
+            ]}
+          >
+            {toastState.message}
+          </Text>
+          <Pressable onPress={() => setToastState(null)} style={{ marginLeft: 12, padding: 4 }}>
+            <Lucide name="x" size={14} color={COLORS.neutral[500]} />
+          </Pressable>
+        </View>
+      )}
 
       {/* TOP SECTION (Breadcrumb, Header, KPI Stats, Toolbar) */}
       <View style={styles.topSection}>
@@ -547,7 +678,7 @@ export function EmployeesScreenContent({
                       All Roles
                     </Text>
                   </Pressable>
-                  {ROLES_LIST.map((r) => (
+                  {filterRoleOptions.map((r) => (
                     <Pressable
                       key={r}
                       style={[styles.dropdownOption, selectedRole === r && { backgroundColor: isDark ? colors.brand[800] : colors.brand[500] }]}
@@ -680,6 +811,7 @@ export function EmployeesScreenContent({
         }}
         onSave={handleSaveEmployee}
         initialEmployee={editingEmployee}
+        tenantId={currentTenantId}
       />
 
       <DeleteConfirmModal
@@ -701,10 +833,11 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   toastContainer: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    zIndex: 9999,
+    position: 'fixed' as never,
+    bottom: 24,
+    right: 24,
+    zIndex: 99999,
+    maxWidth: 440,
     backgroundColor: COLORS.neutral.white,
     borderLeftWidth: 4,
     borderLeftColor: COLORS.semantic.success,
@@ -715,6 +848,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: COLORS.neutral[200],
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 25,
   },
   toastText: {
     fontFamily: TYPOGRAPHY.fonts.primary,

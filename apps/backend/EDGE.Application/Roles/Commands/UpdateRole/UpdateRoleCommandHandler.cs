@@ -20,6 +20,12 @@ public class UpdateRoleCommandHandler : IRequestHandler<UpdateRoleCommand, Role?
         var role = await _roleRepository.GetByIdAsync(request.Id, cancellationToken);
         if (role == null) return null;
 
+        var isUnique = await _roleRepository.IsRoleNameUniqueAsync(request.Name, role.TenantId, request.Id, cancellationToken);
+        if (!isUnique)
+        {
+            throw new InvalidOperationException($"A role with the name '{request.Name}' already exists in this tenant or as a standard role.");
+        }
+
         role.Name = request.Name;
         role.Key = request.Key;
 

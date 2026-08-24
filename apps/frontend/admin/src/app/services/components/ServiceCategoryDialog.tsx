@@ -8,7 +8,7 @@ import { ServiceCategory } from "@/services/catalogService";
 interface ServiceCategoryDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: { name: string; code: string; type: string }) => Promise<void>;
+  onSubmit: (data: { name: string; code: string }) => Promise<void>;
   editingCategory: ServiceCategory | null;
   isSubmitting: boolean;
 }
@@ -22,18 +22,15 @@ export function ServiceCategoryDialog({
 }: ServiceCategoryDialogProps) {
   const [categoryName, setCategoryName] = useState("");
   const [categoryCode, setCategoryCode] = useState("");
-  const [categoryType, setCategoryType] = useState("License");
 
   useEffect(() => {
     if (isOpen) {
       if (editingCategory) {
         setCategoryName(editingCategory.name);
         setCategoryCode(editingCategory.code ?? "");
-        setCategoryType(editingCategory.type);
       } else {
         setCategoryName("");
         setCategoryCode("");
-        setCategoryType("License");
       }
     }
   }, [isOpen, editingCategory]);
@@ -43,7 +40,6 @@ export function ServiceCategoryDialog({
     onSubmit({
       name: categoryName.trim(),
       code: categoryCode.trim(),
-      type: categoryType,
     });
   };
 
@@ -53,10 +49,10 @@ export function ServiceCategoryDialog({
         <DialogHeader className="pb-3 border-b border-slate-200 dark:border-slate-800/60">
           <DialogTitle className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
             <FolderPlus className="h-4 w-4 text-indigo-500 dark:text-indigo-400" />
-            {editingCategory ? "Edit Service Category" : "New Service Category"}
+            {editingCategory ? "Edit Category" : "New Category"}
           </DialogTitle>
           <DialogDescription className="text-xs text-slate-600 dark:text-slate-400 mt-1">
-            Configure category folders to classify your public-facing application forms.
+            Configure category folders to classify your service directory and applications.
           </DialogDescription>
         </DialogHeader>
 
@@ -82,22 +78,6 @@ export function ServiceCategoryDialog({
               placeholder="e.g. ARL"
               className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all uppercase font-mono"
             />
-          </div>
-
-          <div>
-            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 block mb-1.5">Category Type</label>
-            <select
-              value={categoryType}
-              onChange={(e) => setCategoryType(e.target.value)}
-              className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all font-medium"
-            >
-              <option value="License" className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">License</option>
-              <option value="Permit" className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">Permit</option>
-              <option value="Accreditation" className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">Accreditation</option>
-              <option value="Certificate" className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">Certificate</option>
-              <option value="Exam" className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">Exam</option>
-              <option value="RequestsAndComplaints" className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">Requests &amp; Complaints</option>
-            </select>
           </div>
 
           <div className="flex justify-end gap-2.5 pt-4 border-t border-slate-200 dark:border-slate-800/60">

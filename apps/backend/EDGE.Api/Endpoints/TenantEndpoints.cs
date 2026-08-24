@@ -14,6 +14,9 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using EDGE.Application.Tenants.DTOs;
 using EDGE.Application.TenantMembers.DTOs;
+using EDGE.Application.Tenants.Queries.GetTenantClients;
+using EDGE.Application.Tenants.Queries.GetTenantClientDetails;
+using EDGE.Application.Tenants.Queries.GetTenantTransactions;
 
 namespace EDGE.Api.Endpoints;
 
@@ -81,6 +84,28 @@ public static class TenantEndpoints
             .Produces<TenantDto>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status404NotFound);
 
+        tenants.MapGet("/{id:guid}/clients", GetTenantClients)
+            .WithName("GetTenantClients")
+            .WithTags("Tenants")
+            .WithSummary("Retrieve tenant client profiles (paginated)")
+            .WithDescription("Retrieves paginated client and applicant entities who have submitted applications or transactions in this tenant office.")
+            .Produces<PaginatedApiResponse<TenantClientDto>>(StatusCodes.Status200OK);
+
+        tenants.MapGet("/{id:guid}/clients/{clientId:guid}", GetTenantClientDetails)
+            .WithName("GetTenantClientDetails")
+            .WithTags("Tenants")
+            .WithSummary("Retrieve detailed client/applicant record for a tenant")
+            .WithDescription("Retrieves biographical, corporate, service, and transaction breakdown for a client of this tenant.")
+            .Produces<TenantClientDetailsDto>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound);
+
+        tenants.MapGet("/{id:guid}/transactions", GetTenantTransactions)
+            .WithName("GetTenantTransactions")
+            .WithTags("Tenants")
+            .WithSummary("Retrieve tenant regulatory and fee transactions (paginated)")
+            .WithDescription("Retrieves paginated financial, permit, and fee transactions recorded for this tenant office.")
+            .Produces<PaginatedApiResponse<TenantTransactionDto>>(StatusCodes.Status200OK);
+
         tenants.MapPost("/verify-membership", VerifyTenantMembership)
             .WithName("VerifyTenantMembership")
             .WithTags("Tenants")
@@ -147,9 +172,10 @@ public static class TenantEndpoints
         IMediator mediator,
         [Microsoft.AspNetCore.Mvc.FromQuery] int pageNumber = 1,
         [Microsoft.AspNetCore.Mvc.FromQuery] int pageSize = 10,
-        [Microsoft.AspNetCore.Mvc.FromQuery] string? searchTerm = null)
+        [Microsoft.AspNetCore.Mvc.FromQuery] string? searchTerm = null,
+        [Microsoft.AspNetCore.Mvc.FromQuery] bool? isActive = null)
     {
-        var result = await mediator.Send(new GetAllTenantsQuery(pageNumber, pageSize, searchTerm));
+        var result = await mediator.Send(new GetAllTenantsQuery(pageNumber, pageSize, searchTerm, isActive));
         return Results.Ok(result);
     }
 
@@ -226,5 +252,47 @@ public static class TenantEndpoints
         {
             return Results.NotFound(new { message = $"Tenant with ID '{id}' was not found." });
         }
+    }
+
+    [HasPermission(Permissions.ReadTenants)]
+    public static async Task<IResult> GetTenantClients(
+        Guid id,
+        IMediator mediator,
+        int pageNumber = 1,
+        int pageSize = 10,
+        string? searchTerm = null,
+        string? search = null)
+    {
+        var term = !string.IsNullOrWhiteSpace(searchTerm) ? searchTerm : search;
+        var result = await mediator.Send(new GetTenantClientsQuery(id, term, pageNumber, pageSize));
+        return Results.Ok(result);
+    }
+
+    [HasPermission(Permissions.ReadTenants)]
+    public static async Task<IResult> GetTenantClientDetails(
+        Guid id,
+        Guid clientId,
+        IMediator mediator)
+    {
+        var result = await mediator.Send(new GetTenantClientDetailsQuery(id, clientId));
+        if (result == null)
+        {
+            return Results.NotFound(new { message = $"Client record with ID '{clientId}' not found in this tenant." });
+        }
+        return Results.Ok(result);
+    }
+
+    [HasPermission(Permissions.ReadTenants)]
+    public static async Task<IResult> GetTenantTransactions(
+        Guid id,
+        IMediator mediator,
+        int pageNumber = 1,
+        int pageSize = 10,
+        string? searchTerm = null,
+        string? search = null)
+    {
+        var term = !string.IsNullOrWhiteSpace(searchTerm) ? searchTerm : search;
+        var result = await mediator.Send(new GetTenantTransactionsQuery(id, term, pageNumber, pageSize));
+        return Results.Ok(result);
     }
 }

@@ -78,21 +78,51 @@ export const getFieldValidationError = (field: keyof ExamApplicantData, value: s
   return undefined;
 };
 
+export interface ExamRequirementItem {
+  id?: string;
+  name: string;
+  isRequired?: boolean;
+  description?: string;
+  hint?: string;
+}
+
 export const getRequirementsList = (
   dbRequirements: any[],
   examineeType: string,
   serviceName?: string | null
-): string[] => {
+): ExamRequirementItem[] => {
   if (dbRequirements && dbRequirements.length > 0) {
-    return dbRequirements.map((r: any) => r.name);
+    return dbRequirements.map((r: any, idx: number) => ({
+      id: r.id || r.requirementId,
+      name: r.name || r.label || r.title || `Requirement ${idx + 1}`,
+      isRequired: r.isRequired !== undefined ? r.isRequired : true,
+      description: r.description,
+      hint: r.hint || r.description,
+    }));
   }
-  const list = [
-    "PSA Birth Certificate or Valid Passport / Government ID",
-    "Transcript of Records or Diploma with Special Order (SO) Number",
-    "Three (3) clear 1x1 ID pictures taken within the last six (6) months",
+  const list: ExamRequirementItem[] = [
+    {
+      name: "PSA Birth Certificate or Valid Passport / Government ID",
+      isRequired: true,
+      hint: "Clear colored scanned copy or photograph of valid PSA birth certificate or primary government ID",
+    },
+    {
+      name: "Transcript of Records or Diploma with Special Order (SO) Number",
+      isRequired: true,
+      hint: "Certified true copy or scanned copy of official TOR or graduation diploma",
+    },
+    {
+      name: "Three (3) clear 1x1 ID pictures taken within the last six (6) months",
+      isRequired: true,
+      hint: "Front-facing colored ID photograph on white background taken recently",
+    },
   ];
   if (examineeType === "Upgrader" || (serviceName && serviceName.toLowerCase().includes("radio"))) {
-    list.push("Copy of prior Radio Operator Certificate (ROC) / License");
+    list.push({
+      name: "Copy of prior Radio Operator Certificate (ROC) / License",
+      isRequired: true,
+      hint: "Front and back clear copy of active or expired radio certificate",
+    });
   }
   return list;
 };

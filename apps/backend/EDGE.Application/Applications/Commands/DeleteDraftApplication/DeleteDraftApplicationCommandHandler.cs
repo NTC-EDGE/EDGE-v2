@@ -23,7 +23,7 @@ public class DeleteDraftApplicationCommandHandler : IRequestHandler<DeleteDraftA
 
     public async Task<ApiResponse<bool>> Handle(DeleteDraftApplicationCommand request, CancellationToken cancellationToken)
     {
-        var app = await _applicationRepository.GetByIdWithDetailsAsync(request.Id, cancellationToken);
+        var app = await _applicationRepository.GetByIdAsync(request.Id, cancellationToken);
         if (app == null)
         {
             return ApiResponse<bool>.Fail($"Application with ID {request.Id} was not found.");

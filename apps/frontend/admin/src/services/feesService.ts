@@ -1,5 +1,5 @@
 import { useApi } from './api';
-import { Fee, ServiceFee, Note, Element, ServiceVariant, ServiceVariantFee, ServiceVariantElementFee } from '@edge/api';
+import { Fee, ServiceFee, Note, ServiceNote, SoaNote, Element, ServiceVariant, ServiceVariantFee, ServiceVariantElementFee } from '@edge/api';
 
 export interface ServiceCatalogItem {
   id: string;
@@ -213,7 +213,7 @@ export function useFeesService() {
       if (searchTerm) params.append('searchTerm', searchTerm);
       if (serviceId) params.append('serviceId', serviceId);
       if (serviceVariantId) params.append('serviceVariantId', serviceVariantId);
-      url = `/api/v2/notes?${params.toString()}`;
+      url = `/api/v2/service-notes?${params.toString()}`;
     }
     const query = useQuery<PaginatedApiResponse<Note>>(url);
     return {
@@ -225,15 +225,51 @@ export function useFeesService() {
   };
 
   const createNote = async (data: Omit<Note, 'id'>): Promise<Note> => {
-    return await post<Note, Omit<Note, 'id'>>('/api/v2/notes', data);
+    return await post<Note, Omit<Note, 'id'>>('/api/v2/service-notes', data);
   };
 
   const updateNote = async (id: string, data: Omit<Note, 'id'>): Promise<Note> => {
-    return await put<Note, Omit<Note, 'id'>>(`/api/v2/notes/${id}`, data);
+    return await put<Note, Omit<Note, 'id'>>(`/api/v2/service-notes/${id}`, data);
   };
 
   const deleteNote = async (id: string): Promise<void> => {
-    await del<void>(`/api/v2/notes/${id}`);
+    await del<void>(`/api/v2/service-notes/${id}`);
+  };
+
+  // --- SOA NOTES CRUD ---
+  const useSoaNotes = (
+    pageNumber = 1,
+    pageSize = 20,
+    searchTerm?: string,
+    enabled = true
+  ) => {
+    let url: string | null = null;
+    if (enabled) {
+      const params = new URLSearchParams();
+      params.append('pageNumber', pageNumber.toString());
+      params.append('pageSize', pageSize.toString());
+      if (searchTerm) params.append('searchTerm', searchTerm);
+      url = `/api/v2/soa-notes?${params.toString()}`;
+    }
+    const query = useQuery<PaginatedApiResponse<SoaNote>>(url);
+    return {
+      ...query,
+      data: query.data?.data !== undefined && query.data?.data !== null ? query.data.data : [],
+      totalCount: query.data?.totalCount ?? 0,
+      totalPages: query.data?.totalPages ?? 0
+    };
+  };
+
+  const createSoaNote = async (data: { notes: string; code?: string | null; title?: string | null }): Promise<SoaNote> => {
+    return await post<SoaNote, { notes: string; code?: string | null; title?: string | null }>('/api/v2/soa-notes', data);
+  };
+
+  const updateSoaNote = async (id: string, data: { id: string; notes: string; code?: string | null; title?: string | null }): Promise<SoaNote> => {
+    return await put<SoaNote, { id: string; notes: string; code?: string | null; title?: string | null }>(`/api/v2/soa-notes/${id}`, data);
+  };
+
+  const deleteSoaNote = async (id: string): Promise<void> => {
+    await del<void>(`/api/v2/soa-notes/${id}`);
   };
 
   // --- SERVICE VARIANT ELEMENTS CRUD ---
@@ -298,10 +334,18 @@ export function useFeesService() {
     createServiceVariantElementFee,
     updateServiceVariantElementFee,
     deleteServiceVariantElementFee,
+    useServiceNotes: useNotes,
+    createServiceNote: createNote,
+    updateServiceNote: updateNote,
+    deleteServiceNote: deleteNote,
     useNotes,
     createNote,
     updateNote,
     deleteNote,
+    useSoaNotes,
+    createSoaNote,
+    updateSoaNote,
+    deleteSoaNote,
     useServiceVariantElements,
     createServiceVariantElement,
     updateServiceVariantElement,

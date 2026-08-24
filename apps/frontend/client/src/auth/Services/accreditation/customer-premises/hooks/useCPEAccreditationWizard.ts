@@ -1,16 +1,20 @@
 import React, { useState } from "react";
-import { Alert } from "react-native";
-import { useUser } from "@clerk/expo";
+import { Alert, Platform } from "react-native";
+import { useAuth, useUser } from "@clerk/expo";
+import { apiClient } from "@edge/api";
 import { useApi } from "../../../../../shared/hooks/useApi";
 import { extractApiErrorMessage } from "../../../../../shared/components/Toast";
 import { NTCOffice } from "../data/mockRegionData";
 import { ApplicantData } from "../types/cpeTypes";
+import { extractUserProfile } from "../../../../../shared/utils/userProfileHelper";
+import { uploadRequirementsAfterSubmit } from "../../../shared/helpers/requirementUploadHelper";
 
 interface UseCPEAccreditationWizardProps {
   selectedRegionId: string;
   setSelectedRegionId: (id: string) => void;
   selectedOfficeId?: string;
   setSelectedOfficeId: (id: string) => void;
+  appMode?: "SINGLE" | "BULK" | "";
   setAppMode: (mode: "SINGLE" | "BULK" | "") => void;
   setBulkMethod: (method: "MANUAL" | "EXCEL") => void;
   setIsFileUploaded: (val: boolean) => void;
@@ -26,6 +30,7 @@ export function useCPEAccreditationWizard({
   setSelectedRegionId,
   selectedOfficeId,
   setSelectedOfficeId,
+  appMode,
   setAppMode,
   setBulkMethod,
   setIsFileUploaded,
@@ -60,27 +65,82 @@ export function useCPEAccreditationWizard({
 
   const api = useApi();
   const { user: clerkUser } = useUser();
+  const { getToken } = useAuth();
   const USE_MOCKS = false;
 
   // Form fields schema mapping
   const [formFields, setFormFields] = useState<any[]>([]);
 
-  // Auto-fill applicant with Clerk user details
+  // Auto-fill applicant with Clerk user and database profile details (once on auth/mount)
+  const hasPrefilledCPEProfileRef = React.useRef(false);
   React.useEffect(() => {
-    if (clerkUser && applicants.length === 1) {
-      const firstApp = applicants[0];
-      if (firstApp && firstApp.email === "" && firstApp.contactNo === "") {
-        const email = clerkUser.primaryEmailAddress?.emailAddress || "";
-        const phone = clerkUser.primaryPhoneNumber?.phoneNumber || "";
+    let active = true;
+    async function prefillCPEApplicant() {
+      if (!clerkUser || applicants.length !== 1 || hasPrefilledCPEProfileRef.current) return;
 
-        setApplicants((prev) => prev.map((app, idx) => idx === 0 ? {
-          ...app,
-          email,
-          contactNo: phone,
-        } : app));
+      // 1. Initial prefill from local storage / Clerk metadata
+      const initialProfile = extractUserProfile(clerkUser, null);
+      setApplicants((prev) =>
+        prev.map((app, idx) =>
+          idx === 0
+            ? {
+                ...app,
+                businessName: app.businessName || initialProfile.companyName || initialProfile.fullName,
+                email: app.email || initialProfile.email,
+                contactNo: app.contactNo || initialProfile.phone,
+                unitBldgNo: app.unitBldgNo || initialProfile.unit,
+                street: app.street || initialProfile.street,
+                barangay: app.barangay || initialProfile.barangay,
+                city: app.city || initialProfile.city,
+                province: app.province || initialProfile.province,
+                regionName: app.regionName || initialProfile.region,
+                zipCode: app.zipCode || initialProfile.zipCode,
+              }
+            : app
+        )
+      );
+
+      // 2. Enrich from backend database /api/v2/users/profile
+      try {
+        const dbRes = await api.get<any>("/api/v2/users/profile").catch((err) => {
+          console.warn("[CPEAccreditationWizard] Notice: Backend profile fetch failed or returned non-200. Using Clerk/local profile fallbacks.", err);
+          return null;
+        });
+        if (!active || !dbRes) return;
+        const dbUser = dbRes.data || dbRes;
+        if (!dbUser) return;
+
+        const enriched = extractUserProfile(clerkUser, dbUser);
+        setApplicants((prev) =>
+          prev.map((app, idx) =>
+            idx === 0
+              ? {
+                  ...app,
+                  businessName: app.businessName || enriched.companyName || enriched.fullName,
+                  email: app.email || enriched.email,
+                  contactNo: app.contactNo || enriched.phone,
+                  unitBldgNo: app.unitBldgNo || enriched.unit,
+                  street: app.street || enriched.street,
+                  barangay: app.barangay || enriched.barangay,
+                  city: app.city || enriched.city,
+                  province: app.province || enriched.province,
+                  regionName: app.regionName || enriched.region,
+                  zipCode: app.zipCode || enriched.zipCode,
+                }
+              : app
+          )
+        );
+        hasPrefilledCPEProfileRef.current = true;
+      } catch (err) {
+        console.warn("[CPEAccreditationWizard] Failed to process backend profile data:", err);
       }
     }
-  }, [clerkUser, applicants, setApplicants]);
+
+    prefillCPEApplicant();
+    return () => {
+      active = false;
+    };
+  }, [clerkUser]);
 
   const [tenants, setTenants] = useState<Array<{ id: string; name: string }>>([]);
   const [loadingTenants, setLoadingTenants] = useState(false);
@@ -91,11 +151,13 @@ export function useCPEAccreditationWizard({
     items?: T;
   }
 
+  const hasFetchedCPETenantsRef = React.useRef(false);
   React.useEffect(() => {
+    if (hasFetchedCPETenantsRef.current) return;
     async function fetchTenants() {
       setLoadingTenants(true);
       try {
-        const res = await api.get<ApiResponseEnvelope<Array<{ id: string; name: string }>> | Array<{ id: string; name: string }>>("/api/v2/tenants?pageSize=100");
+        const res = await api.get<ApiResponseEnvelope<Array<{ id: string; name: string }>> | Array<{ id: string; name: string }>>("/api/v2/tenants?pageSize=100&isActive=true");
         let list: Array<{ id: string; name: string }> = [];
         if (res && !Array.isArray(res) && res.succeeded && Array.isArray(res.data)) {
           list = res.data;
@@ -108,6 +170,7 @@ export function useCPEAccreditationWizard({
         if (list.length > 0 && !selectedRegionId) {
           setSelectedRegionId(list[0].id);
         }
+        hasFetchedCPETenantsRef.current = true;
       } catch (err) {
         console.error("Failed to fetch tenants from API:", err);
         setTenants([]);
@@ -116,7 +179,7 @@ export function useCPEAccreditationWizard({
       }
     }
     fetchTenants();
-  }, [selectedRegionId, setSelectedRegionId]);
+  }, []);
 
   const selectedTenant = tenants.find((t) => t.id === selectedRegionId);
   const activeRegionObj = selectedTenant 
@@ -138,18 +201,19 @@ export function useCPEAccreditationWizard({
       }
       setLoadingOffices(true);
       try {
-        const res = await api.get<ApiResponseEnvelope<NTCOffice[]> | NTCOffice[]>(`/api/v2/tenants/${selectedRegionId}/field-offices`);
+        const res = await api.get<ApiResponseEnvelope<NTCOffice[]> | NTCOffice[]>(`/api/v2/tenants/${selectedRegionId}/field-offices?isActive=true`);
+        let rawOffices: NTCOffice[] = [];
         if (res && !Array.isArray(res) && res.succeeded && Array.isArray(res.data)) {
-          setOffices(res.data);
-          if (res.data.length > 0) setSelectedOfficeId(res.data[0].id);
+          rawOffices = res.data;
         } else if (Array.isArray(res)) {
-          setOffices(res);
-          if (res.length > 0) setSelectedOfficeId(res[0].id);
+          rawOffices = res;
         } else if (res && !Array.isArray(res) && Array.isArray(res.items)) {
-          setOffices(res.items);
-          if (res.items.length > 0) setSelectedOfficeId(res.items[0].id);
+          rawOffices = res.items;
+        }
+        setOffices(rawOffices);
+        if (rawOffices.length > 0) {
+          setSelectedOfficeId(rawOffices[0].id);
         } else {
-          setOffices([]);
           setSelectedOfficeId("");
         }
       } catch (err) {
@@ -238,6 +302,8 @@ export function useCPEAccreditationWizard({
     );
   };
 
+
+
   const submitApplicationPayload = async (isDraft = false) => {
     if (!serviceId) {
       Alert.alert("Error", "Service identifier is missing.");
@@ -253,38 +319,85 @@ export function useCPEAccreditationWizard({
 
     try {
       if (serviceId) {
-        let formFieldValues: Array<{ fieldId: string; fieldLabel: string; value: string }> = [];
-        if (activeApplicant.formFieldValues && Array.isArray(activeApplicant.formFieldValues)) {
-          formFieldValues = activeApplicant.formFieldValues;
+        let mappedApplicants: Array<{
+          firstName: string;
+          lastName: string;
+          email: string;
+          contactNumber: string;
+          address: string;
+          birthDate: string;
+          formFieldValues: Array<{ fieldId: string; fieldLabel: string; value: string }>;
+        }> = [];
+
+        try {
+          const isBulkSubmission = appMode === "BULK" || applicants.length > 1;
+          mappedApplicants = (isBulkSubmission ? applicants : [activeApplicant]).map((app) => {
+            let addr = [app.unitBldgNo, app.street, app.barangay, app.city, app.province]
+              .filter(Boolean)
+              .join(", ");
+            if (!addr) addr = "N/A";
+
+            let fvList: Array<{ fieldId: string; fieldLabel: string; value: string }> = [];
+            if (app.formFieldValues && Array.isArray(app.formFieldValues)) {
+              fvList = app.formFieldValues;
+            }
+
+            return {
+              firstName: app.businessName || app.engineerName || "Applicant",
+              lastName: app.entityType || "N/A",
+              email: app.email || "applicant@example.com",
+              contactNumber: app.contactNo || "",
+              address: addr,
+              birthDate: "1990-01-01T00:00:00Z",
+              formFieldValues: fvList,
+            };
+          });
+        } catch (serializationErr: unknown) {
+          const serializationMsg =
+            serializationErr instanceof Error
+              ? serializationErr.message
+              : "Failed to format CPE applicant data.";
+          throw new Error(`Data Serialization Error: ${serializationMsg}`);
         }
 
-        let formattedAddress = [activeApplicant.street, activeApplicant.barangay, activeApplicant.city, activeApplicant.province]
-          .filter(Boolean)
-          .join(", ");
-        if (!formattedAddress) formattedAddress = "N/A";
-
+        const isBulkSubmission = appMode === "BULK" || applicants.length > 1;
         const payload = {
           tenantId: selectedRegionId,
-          submissionMode: "Single",
+          submissionMode: isBulkSubmission ? "Bulk" : "Single",
           serviceId: serviceId,
           fieldOfficeId: selectedOfficeId || null,
           serviceVariantId: null,
           serviceVariantElementIds: [],
           isDraft: isDraft,
-          applicants: [
-            {
-              firstName: activeApplicant.businessName || activeApplicant.engineerName || "Applicant",
-              lastName: activeApplicant.entityType || "N/A",
-              email: activeApplicant.email || "applicant@example.com",
-              contactNumber: activeApplicant.contactNo,
-              address: formattedAddress,
-              birthDate: "1990-01-01T00:00:00Z",
-              formFieldValues: formFieldValues
-            }
-          ]
+          applicants: mappedApplicants,
         };
 
-        await api.post(`/api/v2/tenants/${selectedRegionId}/applications`, payload);
+        // Submit the application shell and capture the new applicationId
+        const submitRes = await api.post<{ succeeded?: boolean; data?: string } | string>(
+          `/api/v2/tenants/${selectedRegionId}/applications`,
+          payload
+        );
+
+        const submitEnvelope = submitRes as { succeeded?: boolean; data?: string };
+        const applicationId =
+          submitEnvelope.succeeded !== undefined && typeof submitEnvelope.data === "string"
+            ? submitEnvelope.data
+            : typeof submitRes === "string"
+            ? submitRes
+            : null;
+
+        // Upload and link requirement attachments (non-blocking on partial failure)
+        if (applicationId !== null && applicationId !== "") {
+          const allApplicantsForUpload = isBulkSubmission ? applicants : [activeApplicant];
+          await uploadRequirementsAfterSubmit({
+            api,
+            applicationId,
+            tenantId: selectedRegionId,
+            applicants: allApplicantsForUpload,
+            getToken,
+          });
+        }
+
         return;
       }
 
@@ -329,7 +442,7 @@ export function useCPEAccreditationWizard({
 
       await api.post(`/api/v2/tenants/${selectedRegionId}/applications`, payload);
     } catch (err: unknown) {
-      throw new Error(extractApiErrorMessage(err));
+      throw new Error(extractApiErrorMessage(err) || "Network request failed while submitting CPE application.");
     }
   };
 

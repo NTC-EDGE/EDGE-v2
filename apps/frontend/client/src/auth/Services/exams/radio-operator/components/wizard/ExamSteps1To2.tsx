@@ -125,20 +125,29 @@ export function ExamSteps1To2({
           const mappedExams = parseResult.applicants.map((app, idx) => ({
             id: idx + 1,
             firstName: app.firstName || `Examinee ${idx + 1}`,
+            middleName: app.middleName || "",
             lastName: app.lastName || "Applicant",
-            email: app.email,
-            contactNo: app.contactNo,
-            address: app.address,
-            birthMonth: app.birthMonth,
-            birthDay: app.birthDay,
-            birthYear: app.birthYear,
-            notes: app.notes,
-            examType: "Radiotelephony",
-            examineeType: "FirstTaker",
-            selectedOption: "1PHN - Elements 1, 2, 3 & 4",
-            schoolAttended: "NTC Certified Training Center",
-            specialAssistance: false,
-            specialAssistanceType: "",
+            suffix: app.suffix || "",
+            birthMonth: app.birthMonth || "January",
+            birthDay: app.birthDay || "1",
+            birthYear: app.birthYear || "2000",
+            sex: (app.sex?.toLowerCase() === "female" ? "Female" : "Male"),
+            nationality: app.nationality || "Filipino",
+            regionName: app.region || "National Capital Region (NCR)",
+            province: app.province || "",
+            city: app.city || "",
+            barangay: app.barangay || "",
+            street: app.street || app.address || "",
+            zipCode: app.zipCode || "",
+            schoolName: app.schoolName || "",
+            courseDegree: app.courseDegree || "",
+            yearGraduated: app.yearGraduated || "",
+            specialOrderNo: app.specialOrderNo || "",
+            email: app.email || "",
+            contactNo: app.contactNo || "",
+            examType: app.examType || "Radiotelephony",
+            examineeType: app.examineeType || "First Taker",
+            selectedOption: app.selectedOption || "1PHN - Elements 1, 2, 3 & 4",
             uploads: {},
           }));
           setExamApplicants(mappedExams);
@@ -216,11 +225,58 @@ export function ExamSteps1To2({
 
         {/* Scheduled Dates Card */}
         <View style={styles.formSection}>
-          <Text style={styles.formSectionHeading}>Scheduled Exam Dates</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8, flexWrap: "wrap", gap: 6 }}>
+            <Text style={styles.formSectionHeading}>Scheduled Exam Dates*</Text>
+            {selectedScheduleId ? (
+              <View style={{ backgroundColor: "#DCFCE7", borderColor: "#16A34A", borderWidth: 1, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12, flexDirection: "row", alignItems: "center", gap: 4 }}>
+                <Icon name="check" size={12} color="#16A34A" />
+                <Text style={{ fontSize: 11, fontWeight: "700", color: "#16A34A" }}>Schedule Selected</Text>
+              </View>
+            ) : (
+              <Text style={{ fontSize: 11, fontStyle: "italic", color: "#E11D48" }}>* Selection required</Text>
+            )}
+          </View>
           {loadingSchedules ? (
-            <Text style={{ marginVertical: 10, color: COLORS.neutral[500] }}>Loading schedules...</Text>
+            <View style={{ padding: 20, alignItems: "center", justifyContent: "center", gap: 8 }}>
+              <ActivityIndicator size="small" color="#0F2C59" />
+              <Text style={{ color: COLORS.neutral[600], fontSize: 13 }}>Checking available examination schedules...</Text>
+            </View>
           ) : schedules.length === 0 ? (
-            <Text style={{ marginVertical: 10, color: COLORS.neutral[500] }}>No schedules available for the selected region.</Text>
+            <View
+              style={{
+                padding: 16,
+                backgroundColor: "#FFFBEB",
+                borderWidth: 1,
+                borderColor: "#FDE68A",
+                borderRadius: 10,
+                marginVertical: 8,
+                flexDirection: "row",
+                alignItems: "flex-start",
+                gap: 12,
+              }}
+            >
+              <View
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 18,
+                  backgroundColor: "#FEF3C7",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginTop: 2,
+                }}
+              >
+                <Icon name="calendar" size={18} color="#D97706" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: "#92400E", fontSize: 14, fontWeight: "700", marginBottom: 4 }}>
+                  No Open Examination Schedule
+                </Text>
+                <Text style={{ color: "#B45309", fontSize: 13, lineHeight: 18 }}>
+                  There are currently no active or open exam slots for the selected Region/Office. Examination filing requires an open schedule date. You may switch to another Regional Office or check back soon for newly published exam dates.
+                </Text>
+              </View>
+            </View>
           ) : (
             schedules.map((sched, index) => {
               const isSelected = selectedScheduleId === sched.id;
@@ -233,11 +289,22 @@ export function ExamSteps1To2({
                 <TouchableOpacity
                   key={sched.id || index}
                   onPress={() => setSelectedScheduleId(sched.id)}
-                  style={[styles.dateCard, isSelected && styles.dateCardSelected]}
+                  style={[
+                    styles.dateCard,
+                    isSelected && styles.dateCardSelected,
+                    isSelected && { borderColor: "#0F2C59", borderWidth: 2, backgroundColor: "#F0F7FF" }
+                  ]}
                 >
-                  <View style={styles.dateItem}>
-                    <Icon name="calendar" size={16} color={COLORS.brand[600]} />
-                    <Text style={styles.dateText}>DATE: {dateStr}</Text>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                    <View style={styles.dateItem}>
+                      <Icon name="calendar" size={16} color={isSelected ? "#0F2C59" : COLORS.brand[600]} />
+                      <Text style={[styles.dateText, isSelected && { fontWeight: "700", color: "#0F2C59" }]}>DATE: {dateStr}</Text>
+                    </View>
+                    {isSelected && (
+                      <View style={{ backgroundColor: "#0F2C59", borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2 }}>
+                        <Text style={{ color: "#FFFFFF", fontSize: 10, fontWeight: "700" }}>SELECTED</Text>
+                      </View>
+                    )}
                   </View>
                   <View style={styles.dateItem}>
                     <Icon name="clock" size={16} color={COLORS.brand[600]} />
@@ -315,17 +382,21 @@ export function ExamSteps1To2({
               </Text>
               <View style={styles.table}>
                 <View style={styles.tableHeaderRow}>
-                  <Text style={styles.tableCellHeader}>A (Exam Type)</Text>
-                  <Text style={styles.tableCellHeader}>B (Examinee Type)</Text>
-                  <Text style={styles.tableCellHeader}>C (Option Class)</Text>
-                  <Text style={styles.tableCellHeader}>... 8 more columns</Text>
+                  {templateConfig.headers.slice(0, 5).map((h, idx) => (
+                    <Text key={idx} style={styles.tableCellHeader} numberOfLines={1}>
+                      {h}
+                    </Text>
+                  ))}
                 </View>
-                <View style={styles.tableRow}>
-                  <Text style={styles.tableCell}>examType.value</Text>
-                  <Text style={styles.tableCell}>examineeType.value</Text>
-                  <Text style={styles.tableCell}>selectedOption.value</Text>
-                  <Text style={styles.tableCell}>(Mapping path row)</Text>
-                </View>
+                {templateConfig.sampleRows.slice(0, 2).map((row, rIdx) => (
+                  <View key={rIdx} style={styles.tableRow}>
+                    {row.slice(0, 5).map((c, cIdx) => (
+                      <Text key={cIdx} style={styles.tableCell} numberOfLines={1}>
+                        {c}
+                      </Text>
+                    ))}
+                  </View>
+                ))}
               </View>
             </View>
 

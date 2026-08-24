@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace EDGE.Application.Applicants.Dtos;
 
@@ -14,11 +15,14 @@ public class ApplicantDto
     public Guid? ServiceId { get; set; }
     public string? ServiceName { get; set; }
     public string? ServiceCode { get; set; }
+    public Guid? ServiceCategoryId { get; set; }
+    public string? ServiceCategoryName { get; set; }
     public Guid? ServiceVariantId { get; set; }
     public string? ServiceVariantName { get; set; }
     public Guid? SubmissionId { get; set; }
     public CompanyDetailDto? Company { get; set; }
     public ApplicantDetailDto? Details { get; set; }
+    public List<FormFieldValueDto> FormFieldValues { get; set; } = new();
 }
 
 public class FormFieldValueDto
