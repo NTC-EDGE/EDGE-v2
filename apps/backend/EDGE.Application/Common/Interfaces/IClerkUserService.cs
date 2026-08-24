@@ -8,6 +8,23 @@ public interface IClerkUserService
     Task<ClerkUserResponse> CreateUserAsync(CreateClerkUserPayload payload);
     Task<List<ClerkUserResponse>> GetUsersByEmailAsync(string email);
     Task<ClerkUserResponse?> GetUserByIdAsync(string userId);
+    Task<ClerkInvitationResponse> CreateInvitationAsync(CreateClerkInvitationPayload payload);
+}
+
+public class CreateClerkInvitationPayload
+{
+    [JsonPropertyName("email_address")] public string EmailAddress { get; set; } = string.Empty;
+    [JsonPropertyName("public_metadata")] public object? PublicMetadata { get; set; }
+    [JsonPropertyName("redirect_url")] public string? RedirectUrl { get; set; }
+    [JsonPropertyName("notify")] public bool Notify { get; set; } = true;
+    [JsonPropertyName("ignore_existing")] public bool IgnoreExisting { get; set; } = true;
+}
+
+public class ClerkInvitationResponse
+{
+    [JsonPropertyName("id")] public string Id { get; set; } = string.Empty;
+    [JsonPropertyName("email_address")] public string EmailAddress { get; set; } = string.Empty;
+    [JsonPropertyName("status")] public string Status { get; set; } = string.Empty;
 }
 
 public class UserMetadataPayload
@@ -19,6 +36,7 @@ public class UserMetadataPayload
 public class CreateClerkUserPayload
 {
     [JsonPropertyName("email_address")] public string EmailAddress { get; set; } = string.Empty;
+    [JsonPropertyName("username")] public string? Username { get; set; }
     [JsonPropertyName("first_name")] public string? FirstName { get; set; }
     [JsonPropertyName("last_name")] public string? LastName { get; set; }
     [JsonPropertyName("password")] public string? Password { get; set; }

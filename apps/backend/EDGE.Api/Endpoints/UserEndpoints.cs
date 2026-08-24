@@ -11,6 +11,7 @@ using EDGE.Application.Users.Commands.UpdateUser;
 using EDGE.Application.Users.Commands.DeleteUser;
 using EDGE.Application.Users.Commands.UpdateCurrentProfile;
 using EDGE.Application.Users.Commands.UpdateCurrentSignature;
+using EDGE.Application.Users.Commands.AdminCreateUser;
 
 namespace EDGE.Api.Endpoints;
 
@@ -19,6 +20,16 @@ public static class UserEndpoints
     public static void MapUserEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/users").WithTags("Users");
+
+        group.MapPost("/", CreateUser)
+            .WithName("CreateUser")
+            .WithSummary("Create user account via Clerk")
+            .WithDescription("Allows Super Admins and Regional Admins to create new staff accounts via Clerk and sync database records.")
+            .Produces<AdminCreateUserResultDto>(StatusCodes.Status201Created)
+            .ProducesValidationProblem()
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status403Forbidden)
+            .RequireAuthorization();
 
         group.MapGet("/me", GetCurrentUser)
             .WithName("GetCurrentUser")
@@ -296,6 +307,33 @@ public static class UserEndpoints
         var command = new AdminUpdateUserCommand(id, existingUser.FirstName, existingUser.LastName, request.IsSuperAdmin);
         var result = await mediator.Send(command);
         return result is not null ? Results.Ok(result) : Results.NotFound();
+    }
+
+    [HasPermission(Permissions.ManageUsers)]
+    public static async Task<IResult> CreateUser(
+        AdminCreateUserCommand command,
+        IValidator<AdminCreateUserCommand> validator,
+        IMediator mediator)
+    {
+        var validationResult = await validator.ValidateAsync(command);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
+
+        try
+        {
+            var result = await mediator.Send(command);
+            return Results.Created($"/api/v2/users/{result.Id}", result);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Results.Json(new { message = ex.Message }, statusCode: StatusCodes.Status403Forbidden);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.BadRequest(new { message = ex.Message });
+        }
     }
 
     [HasPermission(Permissions.DeleteUsers)]
