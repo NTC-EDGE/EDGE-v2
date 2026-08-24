@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, Pressable, Modal, useWindowDimensions } from 'react-native';
-import { COLORS, SHADOWS, Icon as Lucide } from '@edge/ui';
+import { COLORS, SHADOWS, Icon as Lucide, AlertToast } from '@edge/ui';
 import { Employee } from '../data/mockEmployees';
 import { useEmployeeForm } from '../hooks/useEmployeeForm';
 import { EmployeeForm } from '../forms/EmployeeForm';
@@ -11,8 +11,9 @@ import { modalStyles } from '../styles/employeeModalStyles';
 interface EmployeeFormModalProps {
   visible: boolean;
   onClose: () => void;
-  onSave: (employeeData: Partial<Employee>) => void;
+  onSave: (employeeData: Partial<Employee>) => Promise<void> | void;
   initialEmployee?: Employee | null;
+  tenantId?: string;
 }
 
 export function EmployeeFormModal({
@@ -20,6 +21,7 @@ export function EmployeeFormModal({
   onClose,
   onSave,
   initialEmployee = null,
+  tenantId,
 }: EmployeeFormModalProps) {
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
@@ -36,6 +38,8 @@ export function EmployeeFormModal({
     setIsCameraActive,
     isUploadDialogOpen,
     setIsUploadDialogOpen,
+    errorMessage,
+    setErrorMessage,
     handleNativeFileUpload,
     handleCaptureSignature,
     onSubmit,
@@ -46,6 +50,7 @@ export function EmployeeFormModal({
   }
 
   const isEditing = initialEmployee !== null && initialEmployee !== undefined;
+  const isSubmitting = form.formState.isSubmitting;
   const isFormValid = form.formState.isValid;
 
   return (
@@ -93,30 +98,50 @@ export function EmployeeFormModal({
             </Pressable>
           </View>
 
+          {/* Form Inline Error Alert */}
+          {errorMessage !== null && (
+            <View style={{ paddingHorizontal: 20, paddingTop: 12 }}>
+              <AlertToast
+                message={errorMessage}
+                onDismiss={() => setErrorMessage(null)}
+                variant="error"
+              />
+            </View>
+          )}
+
           {/* Form Scrollable Body */}
-          <EmployeeForm formState={formState} isMobile={isMobile} />
+          <EmployeeForm formState={formState} isMobile={isMobile} tenantId={tenantId} />
 
           {/* Modal Sticky Footer Actions */}
           <View style={modalStyles.modalFooter}>
-            <Pressable style={modalStyles.cancelBtn} onPress={onClose}>
+            <Pressable
+              style={modalStyles.cancelBtn}
+              onPress={onClose}
+              disabled={isSubmitting}
+            >
               <Text style={modalStyles.cancelBtnText}>Cancel</Text>
             </Pressable>
 
             <Pressable
               style={[
                 modalStyles.submitBtn,
-                !isFormValid && modalStyles.submitBtnDisabled,
+                (!isFormValid || isSubmitting) && modalStyles.submitBtnDisabled,
               ]}
               onPress={onSubmit}
+              disabled={!isFormValid || isSubmitting}
             >
               <Lucide
-                name="check"
+                name={isSubmitting ? 'loader' : 'check'}
                 size={16}
                 color={COLORS.neutral.white}
                 style={{ marginRight: 6 }}
               />
               <Text style={modalStyles.submitBtnText}>
-                {isEditing ? 'Save Changes' : 'Add Employee'}
+                {isSubmitting
+                  ? 'Saving...'
+                  : isEditing
+                  ? 'Save Changes'
+                  : 'Add Employee'}
               </Text>
             </Pressable>
           </View>
@@ -140,6 +165,22 @@ export function EmployeeFormModal({
           setIsCameraActive(true);
         }}
       />
+
+      {/* Floating Bottom-Right Toast inside Modal */}
+      {errorMessage !== null && (
+        <View style={modalStyles.modalToastContainer}>
+          <Lucide
+            name="alert-circle"
+            size={18}
+            color={COLORS.semantic.error}
+            style={{ marginRight: 8 }}
+          />
+          <Text style={modalStyles.modalToastText}>{errorMessage}</Text>
+          <Pressable onPress={() => setErrorMessage(null)} style={{ marginLeft: 12, padding: 4 }}>
+            <Lucide name="x" size={14} color={COLORS.neutral[500]} />
+          </Pressable>
+        </View>
+      )}
     </Modal>
   );
 }

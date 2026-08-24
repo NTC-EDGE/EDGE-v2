@@ -1,18 +1,20 @@
 import React from 'react';
-import { View, Text, TextInput, Pressable, ScrollView } from 'react-native';
+import { View, Text, TextInput, Pressable, ScrollView, ActivityIndicator } from 'react-native';
 import { Control, Controller } from 'react-hook-form';
 import { COLORS, SHADOWS, Icon as Lucide } from '@edge/ui';
-import { REGIONS_LIST } from '../data/mockEmployees';
+import { FieldOfficeDto } from '@edge/api';
 import { EmployeeFormData } from '../schemas/employeeSchema';
 import { fieldStyles } from '../styles/employeeFieldStyles';
 
 interface AssignmentSectionProps {
   control: Control<EmployeeFormData>;
-  regionValue: string;
-  isRegionDropdownOpen: boolean;
-  onToggleRegionDropdown: () => void;
-  onSelectRegion: (reg: string) => void;
+  fieldOfficeValue: string;
+  isFieldOfficeDropdownOpen: boolean;
+  onToggleFieldOfficeDropdown: () => void;
+  onSelectFieldOffice: (fo: string) => void;
   isMobile: boolean;
+  fieldOffices?: FieldOfficeDto[];
+  isLoading?: boolean;
 }
 
 interface FormTextInputProps {
@@ -62,14 +64,28 @@ function FormTextInput({
 
 export function AssignmentSection({
   control,
-  regionValue,
-  isRegionDropdownOpen,
-  onToggleRegionDropdown,
-  onSelectRegion,
+  fieldOfficeValue,
+  isFieldOfficeDropdownOpen,
+  onToggleFieldOfficeDropdown,
+  onSelectFieldOffice,
   isMobile,
+  fieldOffices = [],
+  isLoading = false,
 }: AssignmentSectionProps) {
+  const displayFieldOffices = fieldOffices.length > 0
+    ? ['None (Unassigned)', ...Array.from(new Set(fieldOffices.map((f) => f.name)))]
+    : ['None (Unassigned)', 'Regional Main Office (Central Station)', 'Cebu District Office', 'Mandaue Field Office'];
+
   return (
-    <View style={[fieldStyles.cardSection, { zIndex: 40 }]}>
+    <View
+      style={[
+        fieldStyles.cardSection,
+        {
+          zIndex: isFieldOfficeDropdownOpen ? 120 : 40,
+          elevation: isFieldOfficeDropdownOpen ? 20 : 1,
+        },
+      ]}
+    >
       <View style={fieldStyles.sectionHeaderRow}>
         <Lucide
           name="briefcase"
@@ -78,103 +94,115 @@ export function AssignmentSection({
           style={{ marginRight: 8 }}
         />
         <Text style={fieldStyles.cardSectionTitle}>
-          Employee Assignment & Details
+          Employee Assignment & Details (Optional)
         </Text>
       </View>
 
-      {/* Row 1: Region & Level */}
-      <View style={[fieldStyles.formGridRow, isMobile && fieldStyles.formGridRowMobile]}>
-        <View style={[fieldStyles.inputGroupFlex, { zIndex: 45 }]}>
-          <Text style={fieldStyles.label}>
-            Region <Text style={fieldStyles.requiredStar}>*</Text>
+      {/* 1. Field Office Dropdown */}
+      <View
+        style={[
+          fieldStyles.inputGroup,
+          {
+            zIndex: isFieldOfficeDropdownOpen ? 130 : 50,
+            elevation: isFieldOfficeDropdownOpen ? 25 : 1,
+          },
+        ]}
+      >
+        <Text style={fieldStyles.label}>Assigned Field Office (Optional)</Text>
+        <Pressable
+          style={[
+            fieldStyles.dropdownTrigger,
+            isFieldOfficeDropdownOpen && fieldStyles.dropdownTriggerActive,
+          ]}
+          onPress={onToggleFieldOfficeDropdown}
+        >
+          <Text style={fieldStyles.dropdownTriggerText} numberOfLines={1}>
+            {fieldOfficeValue || 'Select Field Office (Optional)'}
           </Text>
-          <Pressable
-            style={[
-              fieldStyles.dropdownTrigger,
-              isRegionDropdownOpen && fieldStyles.dropdownTriggerActive,
-            ]}
-            onPress={onToggleRegionDropdown}
-          >
-            <Text style={fieldStyles.dropdownTriggerText} numberOfLines={1}>
-              {regionValue}
-            </Text>
+          {isLoading ? (
+            <ActivityIndicator size="small" color={COLORS.brand[700]} />
+          ) : (
             <Lucide
-              name={isRegionDropdownOpen ? 'chevron-up' : 'chevron-down'}
+              name={isFieldOfficeDropdownOpen ? 'chevron-up' : 'chevron-down'}
               size={16}
               color={COLORS.neutral[500]}
             />
-          </Pressable>
+          )}
+        </Pressable>
 
-          {isRegionDropdownOpen && (
-            <View style={[fieldStyles.dropdownMenu, SHADOWS.modal]}>
-              <ScrollView style={{ maxHeight: 200 }}>
-                {REGIONS_LIST.map((reg) => (
+        {isFieldOfficeDropdownOpen && (
+          <View style={[fieldStyles.dropdownMenu, SHADOWS.modal]}>
+            <ScrollView
+              style={{ maxHeight: 200, backgroundColor: '#FFFFFF' }}
+              nestedScrollEnabled={true}
+              keyboardShouldPersistTaps="handled"
+            >
+              {displayFieldOffices.map((fo) => {
+                const isSelected = (fo === 'None (Unassigned)' && !fieldOfficeValue) || fieldOfficeValue === fo;
+                return (
                   <Pressable
-                    key={reg}
+                    key={fo}
                     style={[
                       fieldStyles.dropdownOption,
-                      regionValue === reg && fieldStyles.dropdownOptionActive,
+                      isSelected && fieldStyles.dropdownOptionActive,
                     ]}
-                    onPress={() => onSelectRegion(reg)}
+                    onPress={() => onSelectFieldOffice(fo === 'None (Unassigned)' ? '' : fo)}
                   >
                     <Text
                       style={[
                         fieldStyles.dropdownOptionText,
-                        regionValue === reg && fieldStyles.dropdownOptionTextActive,
+                        isSelected && fieldStyles.dropdownOptionTextActive,
                       ]}
                     >
-                      {reg}
+                      {fo}
                     </Text>
                   </Pressable>
-                ))}
-              </ScrollView>
-            </View>
-          )}
-        </View>
-
-        <FormTextInput
-          control={control}
-          name="level"
-          label="Level"
-          placeholder="e.g. Level II"
-          required
-        />
+                );
+              })}
+            </ScrollView>
+          </View>
+        )}
       </View>
 
-      {/* Row 2: Title & Division */}
-      <View style={[fieldStyles.formGridRow, isMobile && fieldStyles.formGridRowMobile]}>
-        <FormTextInput
-          control={control}
-          name="title"
-          label="Title"
-          placeholder="e.g. Senior Evaluator"
-          required
-        />
-        <FormTextInput
-          control={control}
-          name="division"
-          label="Division"
-          placeholder="e.g. Licensing Division"
-          required
-        />
-      </View>
-
-      {/* Row 3: Position & Designation */}
+      {/* 2. Position & Level */}
       <View style={[fieldStyles.formGridRow, isMobile && fieldStyles.formGridRowMobile]}>
         <FormTextInput
           control={control}
           name="position"
           label="Position"
           placeholder="e.g. Technical Assessor"
-          required
         />
         <FormTextInput
           control={control}
-          name="designation"
-          label="Designation"
-          placeholder="e.g. Officer-in-Charge"
+          name="level"
+          label="Level"
+          placeholder="e.g. Level II"
         />
       </View>
+
+      {/* 3. Title & Division */}
+      <View style={[fieldStyles.formGridRow, isMobile && fieldStyles.formGridRowMobile]}>
+        <FormTextInput
+          control={control}
+          name="title"
+          label="Title"
+          placeholder="e.g. Senior Evaluator"
+        />
+        <FormTextInput
+          control={control}
+          name="division"
+          label="Division"
+          placeholder="e.g. Licensing Division"
+        />
+      </View>
+
+      {/* 4. Designation */}
+      <FormTextInput
+        control={control}
+        name="designation"
+        label="Designation"
+        placeholder="e.g. Officer-in-Charge"
+      />
     </View>
   );
 }

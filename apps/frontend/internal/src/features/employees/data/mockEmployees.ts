@@ -1,14 +1,5 @@
 import { COLORS } from '@edge/ui';
-export type EmployeeRole =
-  | 'Admin'
-  | 'Evaluator'
-  | 'Manager'
-  | 'Staff'
-  | 'Chief of EOD'
-  | 'Regional Director'
-  | 'Legal'
-  | 'Accountant'
-  | 'Cashier';
+export type EmployeeRole = string;
 
 export type EmployeeStatus = 'Active' | 'On Leave' | 'Inactive';
 
@@ -34,7 +25,18 @@ export interface Employee {
   avatarColor: string;
   dateJoined: string;
   location: string;
+  fieldOffice?: string;
 }
+
+export const FIELD_OFFICES_LIST = [
+  'Regional Main Office (Central Station)',
+  'Field Operations Center - North',
+  'Field Operations Center - South',
+  'District Enforcement Office A',
+  'District Enforcement Office B',
+  'Spectrum Monitoring & Inspection Station',
+  'Licensing & Public Customer Center',
+];
 
 export const REGIONS_LIST = [
   'Central Office (Headquarters)',

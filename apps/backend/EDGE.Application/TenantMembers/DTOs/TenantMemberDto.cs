@@ -9,7 +9,15 @@ public class TenantMemberDto
     public string UserEmail { get; set; } = string.Empty;
     public string UserFirstName { get; set; } = string.Empty;
     public string UserLastName { get; set; } = string.Empty;
+    public string? UserMiddleName { get; set; }
+    public string? UserSuffix { get; set; }
+    public string? UserContactNumber { get; set; }
+    public string? UserESignature { get; set; }
     public Guid RoleId { get; set; }
+    public string RoleKey { get; set; } = string.Empty;
+    public string RoleName { get; set; } = string.Empty;
+    public Guid? FieldOfficeId { get; set; }
+    public string? FieldOfficeName { get; set; }
     public string? JobTitle { get; set; }
     public string? Level { get; set; }
     public string Division { get; set; } = string.Empty;

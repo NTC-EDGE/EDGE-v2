@@ -2,11 +2,7 @@ import { useState, useEffect } from 'react';
 import { Platform } from 'react-native';
 import { useForm, SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import {
-  Employee,
-  REGIONS_LIST,
-  DEPARTMENTS,
-} from '../data/mockEmployees';
+import { Employee } from '../data/mockEmployees';
 import {
   employeeFormSchema,
   EmployeeFormData,
@@ -15,7 +11,7 @@ import {
 interface UseEmployeeFormParams {
   visible: boolean;
   initialEmployee?: Employee | null;
-  onSave: (employeeData: Partial<Employee>) => void;
+  onSave: (employeeData: Partial<Employee>) => Promise<void> | void;
 }
 
 export function useEmployeeForm({
@@ -24,21 +20,22 @@ export function useEmployeeForm({
   onSave,
 }: UseEmployeeFormParams) {
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
-  const [isRegionDropdownOpen, setIsRegionDropdownOpen] = useState(false);
+  const [isFieldOfficeDropdownOpen, setIsFieldOfficeDropdownOpen] = useState(false);
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
 
   const defaultValues: EmployeeFormData = {
-    role: 'Evaluator',
+    role: '',
     lastName: '',
     firstName: '',
     middleName: '',
     suffix: '',
     email: '',
-    region: REGIONS_LIST[0] || 'Central Office (Headquarters)',
+    fieldOffice: '',
+    region: '',
     level: '',
     title: '',
-    division: DEPARTMENTS[0] || 'Licensing & Registration Division',
+    division: '',
     position: '',
     designation: '',
     signatureDisplay: 'beside',
@@ -54,20 +51,18 @@ export function useEmployeeForm({
   useEffect(() => {
     if (initialEmployee !== null && initialEmployee !== undefined) {
       form.reset({
-        role: initialEmployee.role,
-        lastName: initialEmployee.lastName,
-        firstName: initialEmployee.firstName,
+        role: initialEmployee.role ?? '',
+        lastName: initialEmployee.lastName ?? '',
+        firstName: initialEmployee.firstName ?? '',
         middleName: initialEmployee.middleName ?? '',
         suffix: initialEmployee.suffix ?? '',
-        email: initialEmployee.email,
-        region: initialEmployee.region ?? (REGIONS_LIST[0] || ''),
-        level: initialEmployee.level ?? 'Level II',
-        title: initialEmployee.title ?? 'Evaluator II',
-        division:
-          initialEmployee.division ??
-          initialEmployee.department ??
-          (DEPARTMENTS[0] || ''),
-        position: initialEmployee.position ?? 'Technical Evaluator',
+        email: initialEmployee.email ?? '',
+        fieldOffice: initialEmployee.fieldOffice ?? '',
+        region: initialEmployee.region ?? '',
+        level: initialEmployee.level ?? '',
+        title: initialEmployee.title ?? '',
+        division: initialEmployee.division ?? initialEmployee.department ?? '',
+        position: initialEmployee.position ?? '',
         designation: initialEmployee.designation ?? '',
         signatureDisplay: initialEmployee.signatureDisplay ?? 'beside',
         signatureFileName: initialEmployee.signatureUri
@@ -78,7 +73,7 @@ export function useEmployeeForm({
       form.reset(defaultValues);
     }
     setIsRoleDropdownOpen(false);
-    setIsRegionDropdownOpen(false);
+    setIsFieldOfficeDropdownOpen(false);
   }, [initialEmployee, visible]);
 
   const handleNativeFileUpload = () => {
@@ -113,37 +108,59 @@ export function useEmployeeForm({
     setIsCameraActive(false);
   };
 
-  const handleFormSubmit: SubmitHandler<EmployeeFormData> = (data) => {
-    onSave({
-      role: data.role,
-      lastName: data.lastName.trim(),
-      firstName: data.firstName.trim(),
-      middleName: data.middleName.trim(),
-      suffix: data.suffix.trim(),
-      email: data.email.trim().toLowerCase(),
-      region: data.region.trim(),
-      level: data.level.trim(),
-      title: data.title.trim(),
-      division: data.division.trim(),
-      department: data.division.trim(),
-      position: data.position.trim(),
-      designation: data.designation.trim(),
-      signatureDisplay: data.signatureDisplay,
-      signatureUri:
-        data.signatureFileName !== null ? 'mock_signature.png' : undefined,
-    });
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!visible) {
+      setErrorMessage(null);
+    }
+  }, [visible]);
+
+  const handleFormSubmit: SubmitHandler<EmployeeFormData> = async (data) => {
+    setErrorMessage(null);
+    try {
+      await onSave({
+        role: data.role,
+        lastName: (data.lastName ?? '').trim(),
+        firstName: (data.firstName ?? '').trim(),
+        middleName: (data.middleName ?? '').trim(),
+        suffix: (data.suffix ?? '').trim(),
+        email: (data.email ?? '').trim().toLowerCase(),
+        fieldOffice: (data.fieldOffice ?? '').trim(),
+        region: (data.region ?? '').trim(),
+        level: (data.level ?? '').trim(),
+        title: (data.title ?? '').trim(),
+        division: (data.division ?? '').trim(),
+        department: (data.division ?? '').trim(),
+        position: (data.position ?? '').trim(),
+        designation: (data.designation ?? '').trim(),
+        signatureDisplay: data.signatureDisplay,
+        signatureUri:
+          data.signatureFileName !== null && data.signatureFileName !== undefined
+            ? 'mock_signature.png'
+            : undefined,
+      });
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setErrorMessage(err.message);
+      } else if (typeof err === 'string') {
+        setErrorMessage(err);
+      }
+    }
   };
 
   return {
     form,
     isRoleDropdownOpen,
     setIsRoleDropdownOpen,
-    isRegionDropdownOpen,
-    setIsRegionDropdownOpen,
+    isFieldOfficeDropdownOpen,
+    setIsFieldOfficeDropdownOpen,
     isCameraActive,
     setIsCameraActive,
     isUploadDialogOpen,
     setIsUploadDialogOpen,
+    errorMessage,
+    setErrorMessage,
     handleNativeFileUpload,
     handleCaptureSignature,
     onSubmit: form.handleSubmit(handleFormSubmit),

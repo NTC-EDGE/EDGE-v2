@@ -37,7 +37,10 @@ public class TenantMemberRepository : ITenantMemberRepository
     {
         return await _context.TenantMembers
             .Include(m => m.User)
-            .Where(m => m.TenantId == tenantId)
+            .Include(m => m.Role)
+            .Include(m => m.FieldOffice)
+            .Include(m => m.Tenant)
+            .Where(m => m.TenantId == tenantId && !m.IsDeleted)
             .ToListAsync(cancellationToken);
     }
 

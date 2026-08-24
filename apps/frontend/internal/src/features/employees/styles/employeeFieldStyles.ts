@@ -146,17 +146,24 @@ export const fieldStyles = StyleSheet.create({
     top: 72,
     left: 0,
     right: 0,
-    backgroundColor: COLORS.neutral.white,
+    backgroundColor: '#FFFFFF',
     borderRadius: RADIUS.button,
     borderWidth: 1,
     borderColor: COLORS.neutral[200],
     maxHeight: 220,
     overflow: 'hidden',
     zIndex: 9999,
+    elevation: 25,
+    ...Platform.select({
+      web: {
+        boxShadow: '0 8px 24px rgba(0, 0, 0, 0.15)',
+      },
+    }),
   },
   dropdownOption: {
     paddingHorizontal: SPACING[16],
     paddingVertical: 10,
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: COLORS.neutral[100],
     ...Platform.select({

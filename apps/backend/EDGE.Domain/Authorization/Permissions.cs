@@ -48,6 +48,7 @@ public static class Permissions
 
     // Users
     public const string ReadUsers = "users.read";
+    public const string CreateUsers = "users.create";
     public const string ManageUsers = "users.manage";
     public const string UpdateUsers = "users.update";
     public const string DeleteUsers = "users.delete";
@@ -134,6 +135,7 @@ public static class Permissions
 
         // Users
         new(ReadUsers, "Users Management", "Read Users", PermissionScope.Internal, "Allows searching and viewing user directory"),
+        new(CreateUsers, "Users Management", "Create Users", PermissionScope.Internal, "Allows creating new staff and system user accounts via Clerk"),
         new(UpdateUsers, "Users Management", "Update Users", PermissionScope.Internal, "Allows updating user profile information"),
         new(DeleteUsers, "Users Management", "Delete Users", PermissionScope.Internal, "Allows deactivating or removing user accounts"),
         new(ManageUsers, "Users Management", "Manage Users", PermissionScope.SystemAdmin, "Allows full administrative user management"),

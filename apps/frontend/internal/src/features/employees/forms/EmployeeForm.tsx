@@ -1,6 +1,7 @@
 import React from 'react';
 import { ScrollView } from 'react-native';
 import { useWatch } from 'react-hook-form';
+import { useAdminRoles, useAdminFieldOffices } from '@edge/api';
 import { useEmployeeForm } from '../hooks/useEmployeeForm';
 import { SystemRoleSection } from '../components/SystemRoleSection';
 import { BasicInfoSection } from '../components/BasicInfoSection';
@@ -11,20 +12,25 @@ import { modalStyles } from '../styles/employeeModalStyles';
 interface EmployeeFormProps {
   formState: ReturnType<typeof useEmployeeForm>;
   isMobile: boolean;
+  tenantId?: string;
 }
 
-export function EmployeeForm({ formState, isMobile }: EmployeeFormProps) {
+export function EmployeeForm({ formState, isMobile, tenantId }: EmployeeFormProps) {
   const {
     form,
     isRoleDropdownOpen,
     setIsRoleDropdownOpen,
-    isRegionDropdownOpen,
-    setIsRegionDropdownOpen,
+    isFieldOfficeDropdownOpen,
+    setIsFieldOfficeDropdownOpen,
     setIsUploadDialogOpen,
   } = formState;
 
+  // Real data from live backend endpoints: /api/v2/roles and /api/v2/field-offices
+  const { roles, isLoading: isRolesLoading } = useAdminRoles(tenantId);
+  const { fieldOffices, isLoading: isOfficesLoading } = useAdminFieldOffices(tenantId);
+
   const currentRole = useWatch({ control: form.control, name: 'role' });
-  const currentRegion = useWatch({ control: form.control, name: 'region' });
+  const currentFieldOffice = useWatch({ control: form.control, name: 'fieldOffice' });
   const signatureDisplay = useWatch({
     control: form.control,
     name: 'signatureDisplay',
@@ -40,13 +46,15 @@ export function EmployeeForm({ formState, isMobile }: EmployeeFormProps) {
       contentContainerStyle={modalStyles.formContent}
       keyboardShouldPersistTaps="handled"
     >
-      {/* 1. System Role Section */}
+      {/* 1. System Role Section (Live Backend Roles) */}
       <SystemRoleSection
         role={currentRole}
+        roles={roles}
+        isLoading={isRolesLoading}
         isOpen={isRoleDropdownOpen}
         onToggleOpen={() => {
           setIsRoleDropdownOpen((prev) => !prev);
-          setIsRegionDropdownOpen(false);
+          setIsFieldOfficeDropdownOpen(false);
         }}
         onSelectRole={(r) => {
           form.setValue('role', r, { shouldValidate: true });
@@ -57,18 +65,20 @@ export function EmployeeForm({ formState, isMobile }: EmployeeFormProps) {
       {/* 2. Basic Info Section */}
       <BasicInfoSection control={form.control} isMobile={isMobile} />
 
-      {/* 3. Assignment & Details Section */}
+      {/* 3. Assignment & Details Section (Live Backend Field Offices) */}
       <AssignmentSection
         control={form.control}
-        regionValue={currentRegion}
-        isRegionDropdownOpen={isRegionDropdownOpen}
-        onToggleRegionDropdown={() => {
-          setIsRegionDropdownOpen((prev) => !prev);
+        fieldOfficeValue={currentFieldOffice}
+        fieldOffices={fieldOffices}
+        isLoading={isOfficesLoading}
+        isFieldOfficeDropdownOpen={isFieldOfficeDropdownOpen}
+        onToggleFieldOfficeDropdown={() => {
+          setIsFieldOfficeDropdownOpen((prev) => !prev);
           setIsRoleDropdownOpen(false);
         }}
-        onSelectRegion={(reg) => {
-          form.setValue('region', reg, { shouldValidate: true });
-          setIsRegionDropdownOpen(false);
+        onSelectFieldOffice={(fo) => {
+          form.setValue('fieldOffice', fo, { shouldValidate: true });
+          setIsFieldOfficeDropdownOpen(false);
         }}
         isMobile={isMobile}
       />
